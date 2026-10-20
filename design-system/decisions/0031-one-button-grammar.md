@@ -18,3 +18,19 @@ A click-through audit of every route found the same action drawn five ways: the 
 ## verification
 
 `tests/pw_ui_audit.py` (browser gate `ui-audit`) visits every route on desktop and phone in both themes, at 320px and at 200% zoom, hovers and clicks every reachable button, measures what opens, and scores the KOKUEN checklist, the browser-measurable WCAG 2.2 AA criteria and the Vercel Web Interface Guidelines rules that fit the house style.
+
+## chips pass (2026-10-20)
+
+The groups the balance pass left boxed are bare at rest now: Server's search provider, results per
+search and fact-check choices, Activity's sources and range, Journal's moods and Library Read's
+filters. Each option has a transparent line, hover takes the hover tone, and the picked one gets the
+raised surface, strong line and weight. Each row moves back by its padding so the first label sits
+on its column (1px off for the transparent line, like the other pull-backs).
+
+Activity's sources are toggles that all start on, so a raised "on" boxed the whole row again. On is
+full text; off is muted and struck through, so it doesn't rest on color alone. `.act-chip` is left
+out of the shared `selected` tile for the same reason. Read's "feeds" toggle sits 12px apart from
+the four filters, since it isn't one of them.
+
+Other segmented controls (`.seg` in Calendar and elsewhere) still draw an outer line. They need
+their own pass.
