@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 from unittest import mock
 
@@ -10,6 +9,18 @@ from tests._client import ApiTest
 
 def run(found, **kwargs):
     return asyncio.run(answers.resolve(found, **kwargs))
+
+
+class OnlineDictionary:
+    """these tests cover the online sources, so a local wiktionary copy must not answer first."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch.dict(
+            os.environ, {"ALLES_DICTIONARY": "/nonexistent/wiktionary.sqlite"}
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
 
 class DetectTest(ApiTest):
@@ -54,7 +65,7 @@ class DetectTest(ApiTest):
                 self.assertIsNone(answers.detect(query))
 
 
-class ResolveTest(ApiTest):
+class ResolveTest(OnlineDictionary, ApiTest):
     def test_calculator_and_units_are_exact(self):
         self.assertEqual(run({"kind": "calc", "expression": "12% of 80"})["result"], "9.6")
         self.assertEqual(run({"kind": "calc", "expression": "2^10"})["result"], "1,024")
@@ -150,24 +161,21 @@ class ResolveTest(ApiTest):
         self.assertEqual(first["definitions"][0]["example"], "pure serendipity")
         self.assertEqual(word["source"], "Wiktionary")
 
-    def test_translation_asks_the_model_and_reads_its_json(self):
-        async def model(messages):
-            assert json.loads(messages[1]["content"]) == {"text": "bonjour", "to": "english"}
-            return '{"from": "French", "translation": "hello", "romanization": ""}'
-
+    def test_translation_with_text_waits_for_the_translator(self):
         found = answers.detect("what is bonjour in english")
-        done = run(found, translate=model)
+        card = run(found)
         self.assertEqual(
-            (done["translation"], done["from"], done["status"]), ("hello", "french", "ok")
+            (card["status"], card["text"], card["to"]), ("pending", "bonjour", "english")
         )
-        self.assertTrue(done["from_detected"])
-        self.assertEqual(run(found)["status"], "needs_model")
-        self.assertEqual(run(found, translate_blocked="needs_confirm")["status"], "needs_confirm")
+        self.assertEqual(card["translation"], "")
 
 
 class AnswerRouteTest(ApiTest):
     def test_route_returns_a_card_or_nothing(self):
-        with mock.patch.dict(os.environ, {"ALLES_AFTERLIFE_FEATURES": "afterlife_andromeda"}):
+        with (
+            mock.patch.dict(os.environ, {"ALLES_AFTERLIFE_FEATURES": "afterlife_andromeda"}),
+            mock.patch.object(answers, "did_you_mean", mock.AsyncMock(return_value="")),
+        ):
             card = self.client.post("/api/andromeda/answer", json={"query": "12% of 80"}).json()
             none = self.client.post(
                 "/api/andromeda/answer", json={"query": "tailscale serve"}

@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core.api_errors import ApiError
 from core.auth import require_recent_owner
@@ -351,6 +351,7 @@ class SettingsPatch(BaseModel):
     tavily_api_key: str | None = None
     brave_api_key: str | None = None
     searxng_url: str | None = None
+    andromeda_translate_url: str | None = Field(default=None, max_length=300)
     google_pse_api_key: str | None = None
     google_pse_cx: str | None = None
     serper_api_key: str | None = None
@@ -620,6 +621,15 @@ def patch_settings(body: SettingsPatch, request: Request):
                     400, "invalid_searxng_url", "external SearXNG needs a valid HTTPS URL"
                 )
         patch["searxng_url"] = value
+    if "andromeda_translate_url" in patch:
+        from services.andromeda_translate import valid_url
+
+        value = patch["andromeda_translate_url"].strip().rstrip("/")
+        if value and not valid_url(value):
+            raise ApiError(
+                400, "invalid_translate_url", "the translator needs an http or https address"
+            )
+        patch["andromeda_translate_url"] = value
     if "model_roles" in patch:
         from services.model_resolver import normalize_model_roles
 

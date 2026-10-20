@@ -848,23 +848,27 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **bounded evidence.** alles fetches candidate pages through its redirect- and ssrf-safe reader, then
   gives the model only a limited evidence bundle with source ids, urls, dates, versions, quality, and
   relevant passages.
-- **support before display.** every factual claim needs an exact quote from its named source. extra
-  checks reject unrelated quotes, mismatched numbers, versions, dates, and entities. claims about the
-  latest software prefer the freshest primary source and fail closed on weak or conflicting evidence.
+- **an instant answer, blackout-style.** the overview reads the top 8 results' snippets (320 characters
+  each, no pages downloaded) and streams a short answer: the answer in the first sentence, 1 to 4
+  sentences or up to 6 bullets, under 130 words, a [n] mark after each sentence for the result it came
+  from, in the language of the search. the cited results sit on their own row under it as numbered
+  links. when the results don't answer an automatic search, or it is only a site name, the model answers
+  `SKIP` and no box appears: one "write one" button stays to ask anyway, and an answer asked for never
+  skips. the box stays out of sight for the first 0.7 seconds so a skipped answer never flashes, and
+  `<think>` blocks are never shown. the same question over the same results is kept for 30 minutes.
 - **owner-chosen models.** light, standard, strong, and auto bands each resolve to an exact configured
   endpoint and model. auto prefers a qualified local model. when the chosen model is remote, the
   overview runs on its own and names the model and its privacy class above the answer. turning on
   "ask before each remote search" (`andromeda_confirm_remote`) brings back an exact per-search
   confirmation before any query or evidence leaves the device; declining keeps the links and skips the
   overview.
-- **fast first answer.** by default (`andromeda_fast_overview`) the first overview cites the engine's own
-  snippets, so nothing is downloaded and the bundle stays small enough for a local model. it reads pages
-  when fewer than two snippets are long enough to quote, and "go deeper" always reads pages.
-- **independent background verification.** the fast answer uses the `andromeda_answer` role. a separate
-  `andromeda_verifier` role checks freshness-sensitive answers by default after the answer and links are
-  already usable. it records the checked date and claim verdicts, requires exact supporting quotes, and
-  cannot silently turn unsupported output into a verified claim. a new search cancels obsolete verifier
-  work; verifier failure leaves the answer and links visible as not independently checked.
+- **when it answers on its own.** questions (what, how, why, is, can…, a trailing ?), comparisons and
+  searches of five words or more answer automatically. site names, links, `site:` style operators and
+  errands (login, download, near me, lyrics) get no overview. anything else offers "write one". this
+  follows blackout for startpage's rules. "go deeper" reads up to 10 pages instead and allows a longer
+  answer.
+- **independent background verification** applies to saved older overviews made of checked claims;
+  the instant answer is not re-verified, its sources are one tap away instead.
 - **compact answer, separate links.** search, the cited answer, and results share one readable axis. the
   shortest decisive evidence-backed substring is highlighted inside the key answer. ordinary web results
   begin in their own labeled region and use spacing instead of divider lines between rows.
@@ -875,14 +879,19 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   and never translates the language names; "hello in french" fills it in and translates. "periodic
   table" opens the table to explore; "carbon atomic mass" leads with 12.011 u, shows carbon's card and
   can open the full table. the tools:
-  - **translate**: custom language pickers (detect, swap), a growing text box, listen and copy. text goes
-    to the answer model only through `POST /api/andromeda/translate`, with the same "ask before each
-    remote search" confirmation; a query's own text waits for the owner when that confirmation is on.
-  - **dictionary** ("define x", "x meaning", "synonyms for x", "how to pronounce x"): ipa, a listen
-    button (the browser's own speech, nothing fetched), parts of speech with examples, similar and
-    opposite words that look up in place. the free dictionary api first, wiktionary when it refuses the
-    server, datamuse for related words. **spelling** ("how to spell x") uses wiktionary's misspelling
-    marks and datamuse word frequencies.
+  - **translate**: libretranslate, an open-source translation engine (argos models, no language model),
+    running beside alles at `http://127.0.0.1:5000` or wherever `andromeda_translate_url` points. it
+    translates as you type (a 250 ms pause, or return), with detect, swap, listen and copy, and the
+    pickers list only languages the engine has models for. a query's own text is translated as soon as
+    the card appears. a stopped engine says so in the card.
+  - **dictionary** ("define x", "x meaning", "synonyms for x", "how to pronounce x"): a local copy of
+    english wiktionary (kaikki.org's open data, cc by-sa), built once into
+    `models/dictionary/wiktionary-en.sqlite` with `python -m services.andromeda_dictionary install`.
+    lookups take a millisecond and the word never leaves the machine: ipa, a listen button (the
+    browser's own speech), parts of speech with examples, similar and opposite words that look up in
+    place. without the local copy it falls back to the free dictionary api and wiktionary online.
+    **spelling** ("how to spell x") and **did you mean** use the same copy: wiktionary marks common
+    misspellings, so "recieve" offers "receive" above the results, google-style.
   - **periodic table and elements**: the built-in table, arrow keys between elements, a family
     highlight; an element card leads with the asked fact (mass, number, symbol, group, period).
   - **formula 1**: next race with a live countdown and session times in local time, driver and team
@@ -898,12 +907,16 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   every lookup goes through the ssrf-safe fetcher with an 8 second limit. a source that is down says so in
   the card with a retry; a typed place or word that doesn't exist says so; a search that only looks like
   a tool ("climate change weather") stays a search.
-- **the overview fits the query.** `POST /api/andromeda/search` reports `overview_mode`: when a tool
+- **the overview fits the query.** `POST /api/andromeda/search` reports `overview_mode` (`full`, `brief`, `ask`, `skip`, `none`): when a tool
   answers the query fully, the overview shrinks to one line with "write one" and runs only when asked; a
   lookup that came up short brings the full overview back. an element card or the f1 card gets a brief
   overview (two claims, only what the card can't show). the overview's shape follows the query: a short
   answer, numbered steps ("how to …"), a comparison with aspect labels ("x vs y") or a list with item
   labels ("best …"). labels only count when the claim's own words carry them.
+- **three regions.** the tool card is plain, the ai overview sits on its own tinted surface, and the
+  web results start under a small "web results" label, so each part reads apart at a glance. "/"
+  outside a text field jumps to the search box. opening andromeda asks its settings, engines, models
+  and saved searches in one round, not one after another.
 - **result rows.** each row shows the site's icon, its name and a "host › path" trail above a larger
   title, then the page date before the snippet when the engine gives one. a row without an icon from the
   engine uses duckduckgo's icon service, and every icon and image loads through the media proxy.
@@ -3829,6 +3842,7 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `coding_guard` | `true` |
 | `andromeda_confirm_remote` | `false` |
 | `andromeda_fast_overview` | `true` |
+| `andromeda_translate_url` | `""` |
 | `search_fallback` | `"duckduckgo"` |
 | `andromeda_normal_results` | `true` |
 | `andromeda_overview` | `true` |

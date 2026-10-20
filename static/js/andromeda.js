@@ -1276,7 +1276,101 @@ export function contextClaimsForOverview(overview = {}) {
   return claims.filter((_claim, index) => index !== sourceIndex);
 }
 
+// ── the instant answer: short prose streamed in, [n] marks to its sources ──
+const CITE_MARK = /\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\]/g;
+
+function proseInline(parent, text) {
+  // **bold** and [n] marks; everything else is plain text, never markup
+  const parts = String(text).split(/(\*\*[^*]+\*\*|\[\d{1,2}(?:\s*,\s*\d{1,2})*\])/g);
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^\*\*[^*]+\*\*$/.test(part)) {
+      const strong = document.createElement('strong');
+      strong.textContent = part.slice(2, -2);
+      parent.append(strong);
+    } else if (/^\[\d/.test(part)) {
+      const mark = document.createElement('sup');
+      mark.className = 'andromeda-prose-cite';
+      mark.textContent = part.slice(1, -1).replace(/\s+/g, '');
+      parent.append(mark);
+    } else {
+      parent.append(document.createTextNode(part));
+    }
+  }
+}
+
+export function proseBlocks(text) {
+  const blocks = [];
+  for (const raw of String(text || '').split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const bullet = /^[-*•]\s+(.*)$/.exec(line);
+    const numbered = /^\d{1,2}[.)]\s+(.*)$/.exec(line);
+    const kind = bullet ? 'ul' : numbered ? 'ol' : 'p';
+    const body = bullet ? bullet[1] : numbered ? numbered[1] : line;
+    const last = blocks[blocks.length - 1];
+    if (kind !== 'p' && last?.kind === kind) last.items.push(body);
+    else blocks.push({ kind, items: [body] });
+  }
+  return blocks;
+}
+
+function renderProse(text, sources = _state.evidence || [], { done = false } = {}) {
+  const holder = el('andromeda-claims');
+  if (!holder) return;
+  holder.dataset.shape = 'prose';
+  holder.removeAttribute?.('role');
+  holder.replaceChildren();
+  const body = document.createElement('div');
+  body.className = 'andromeda-prose';
+  for (const block of proseBlocks(text)) {
+    if (block.kind === 'p') {
+      const p = document.createElement('p');
+      proseInline(p, block.items[0]);
+      body.append(p);
+    } else {
+      const list = document.createElement(block.kind);
+      for (const item of block.items) {
+        const li = document.createElement('li');
+        proseInline(li, item);
+        list.append(li);
+      }
+      body.append(list);
+    }
+  }
+  holder.append(body);
+  if (!done) return;
+  // the cited sources, numbered like the marks, each a full target on its own row
+  const cited = [...new Set([...String(text).matchAll(CITE_MARK)].flatMap(match => match[1].split(/\s*,\s*/).map(Number)))]
+    .filter(number => sources[number - 1]);
+  if (!cited.length) return;
+  const row = document.createElement('div');
+  row.className = 'andromeda-prose-sources';
+  row.setAttribute('role', 'list');
+  row.setAttribute('aria-label', 'sources');
+  for (const number of cited) {
+    const source = sources[number - 1];
+    const link = document.createElement('a');
+    link.className = 'andromeda-prose-source';
+    link.setAttribute('role', 'listitem');
+    const url = safeUrl(source.url);
+    if (url) link.href = url.href;
+    link.rel = 'noopener noreferrer';
+    link.title = source.title || '';
+    const n = document.createElement('span');
+    n.className = 'andromeda-prose-source-number';
+    n.textContent = String(number);
+    link.append(n, document.createTextNode(hostOf(source.url) || source.title || 'source'));
+    row.append(link);
+  }
+  holder.append(row);
+}
+
 function renderCompleteOverview(overview) {
+  if (overview?.mode === 'prose') {
+    renderProseOverview(overview);
+    return;
+  }
   _state.overview = overview || {};
   el('andromeda-claims')?.replaceChildren();
   const key = el('andromeda-key-answer');
@@ -1305,6 +1399,30 @@ function renderCompleteOverview(overview) {
     showRecovery(false);
   } else {
     text('andromeda-overview-state', `${tr('andromeda.insufficient_evidence')}${checked}`);
+    showRecovery(true, 'insufficient_evidence');
+  }
+}
+
+function renderProseOverview(overview) {
+  _state.overview = overview || {};
+  const key = el('andromeda-key-answer');
+  if (key) key.hidden = true;
+  const toggle = el('andromeda-evidence-toggle');
+  if (toggle) toggle.hidden = true;
+  renderThread();
+  renderFollowUps([]);
+  const freshness = _state.overview.freshness || {};
+  const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: freshness.checked_on })}` : '';
+  const deeper = el('andromeda-deeper');
+  if (_state.overview.status === 'ready') {
+    renderProse(_state.overview.text, _state.evidence, { done: true });
+    if (deeper) deeper.hidden = _state.deep || !(_state.overviewSeed || []).length;
+    text('andromeda-overview-state', `${_state.model?.model || ''}${_state.deep ? ' · deeper read' : ''}${checked}`);
+    showRecovery(false);
+  } else {
+    el('andromeda-claims')?.replaceChildren();
+    if (deeper) deeper.hidden = true;
+    text('andromeda-overview-state', tr('andromeda.insufficient_evidence'));
     showRecovery(true, 'insufficient_evidence');
   }
 }
@@ -1543,6 +1661,15 @@ async function startOverview(query, results, searchGeneration, options = {}) {
     && searchGeneration === _searchGeneration && !controller.signal.aborted;
   showOverview(true);
   clearOverview(tr('andromeda.checking_sources'));
+  // placeholder lines until the first words stream in. the box itself stays out of sight for
+  // the first 0.7 s, so an answer that steps aside (SKIP) never flashes an empty box
+  const overviewNode = el('andromeda-overview');
+  if (overviewNode?.dataset) {
+    overviewNode.dataset.loading = 'true';
+    overviewNode.dataset.quiet = 'true';
+    if (typeof setTimeout === 'function') setTimeout(() => revealOverview(overviewNode), 700);
+    else revealOverview(overviewNode);
+  }
   const stop = el('andromeda-cancel-overview');
   if (stop) stop.hidden = false;
   try {
@@ -1584,6 +1711,7 @@ async function startOverview(query, results, searchGeneration, options = {}) {
         query, results, band: providerValue('andromeda-band', 'standard'),
         endpoint_id: exact.endpoint_id || '', model: exact.model || '', ...confirmation,
         context: _state.context || [], depth: options.deep ? 'deep' : 'standard',
+        allow_skip: options.allowSkip !== false,
       }),
     });
     if (!current()) {
@@ -1599,6 +1727,9 @@ async function startOverview(query, results, searchGeneration, options = {}) {
     const decoder = new TextDecoder();
     let buffer = '';
     let claimIndex = 0;
+    let prose = '';
+    let paint = 0;
+    const paintProse = () => { paint = 0; if (current()) renderProse(prose); };
     while (true) {
       const { value, done } = await reader.read();
       if (!current()) {
@@ -1613,8 +1744,26 @@ async function startOverview(query, results, searchGeneration, options = {}) {
         let event;
         try { event = JSON.parse(frame); } catch { continue; }
         if (event.type === 'evidence') renderEvidence(event.sources);
+        if (event.type === 'claim' || event.type === 'overview' || event.type === 'error') delete overviewNode?.dataset?.loading;
+        if (event.type === 'token') {
+          prose += event.text || '';
+          // one paint per frame, however fast the words arrive
+          if (typeof requestAnimationFrame !== 'function') paintProse();
+          else if (!paint) paint = requestAnimationFrame(paintProse);
+          revealOverview(overviewNode);
+        }
         if (event.type === 'claim') renderClaim(event.claim, claimIndex++);
-        if (event.type === 'overview') renderCompleteOverview(event.overview);
+        if (event.type === 'overview' && event.overview?.status === 'skipped') {
+          // the model stepped aside: no box, just the button to ask anyway
+          offerOverview(query, results, searchGeneration);
+          continue;
+        }
+        if (event.type === 'overview') {
+          if (paint) cancelAnimationFrame(paint);
+          paint = 0;
+          revealOverview(overviewNode);
+          renderCompleteOverview(event.overview);
+        }
         if (event.type === 'error') {
           text('andromeda-overview-state', failureMessage(event.detail || tr('andromeda.overview_links_remain'), event));
           showRecovery(true, event.code);
@@ -1622,7 +1771,7 @@ async function startOverview(query, results, searchGeneration, options = {}) {
       }
       if (done) break;
     }
-    if (current() && _state.overview?.status === 'ready') {
+    if (current() && _state.overview?.status === 'ready' && _state.overview.mode !== 'prose') {
       void startVerification(query, _state.overview, results, searchGeneration);
     }
   } catch (error) {
@@ -1633,6 +1782,7 @@ async function startOverview(query, results, searchGeneration, options = {}) {
     text('andromeda-overview-state', failureMessage(message, error));
     showRecovery(true, error.name === 'AbortError' ? 'cancelled' : error.code || 'overview_failed');
   } finally {
+    if (overviewNode?.dataset && _overviewAbort === controller) delete overviewNode.dataset.loading;
     if (_overviewAbort === controller && searchGeneration === _searchGeneration) {
       _overviewAbort = null;
       if (stop) stop.hidden = true;
@@ -1646,33 +1796,50 @@ function askAnswer(query, kind = '') {
   });
 }
 
-// the translator's own text goes through the answer model with the same consent as the overview
-async function translateWithModel({ text, from, to }) {
-  let preview = null;
-  try { preview = await jsonRequest('/api/andromeda/overview/preview'); } catch {}
-  const confirmation = {};
-  if (preview?.privacy_class === 'remote' && preview.confirm_each_search) {
-    const allowed = await confirmDialog(`send this text to ${preview.endpoint} · ${preview.model} to translate it?`, { danger: false, confirmLabel: 'send' });
-    if (!allowed) throw Object.assign(new Error('not sent'), { cancelled: true });
-    confirmation.confirmed_endpoint_id = preview.endpoint_id;
-    confirmation.confirmed_model = preview.model;
-  }
+// the translator's text goes to libretranslate on the server, no model involved
+function translateText({ text, from, to }) {
   return jsonRequest('/api/andromeda/translate', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text, from, to, ...confirmation }),
+    body: JSON.stringify({ text, from, to }),
   });
 }
 
-const ANSWER_TOOLS = { ask: askAnswer, translate: translateWithModel };
+const ANSWER_TOOLS = { ask: askAnswer, translate: translateText };
+
+// google-style "did you mean": one line above everything, the fix runs the search again
+function renderSpelling(fixed = '') {
+  const line = el('andromeda-spelling');
+  if (!line) return;
+  line.replaceChildren();
+  line.hidden = !fixed;
+  if (!fixed) return;
+  const again = document.createElement('button');
+  again.type = 'button';
+  again.className = 'andromeda-spelling-fix';
+  again.textContent = fixed;
+  again.addEventListener('click', () => {
+    const input = el('andromeda-query');
+    if (input) input.value = fixed;
+    void runAndromedaSearch(fixed);
+  });
+  line.append(document.createTextNode('did you mean '), again);
+}
 
 async function loadAnswer(query, searchGeneration) {
   try {
     const answer = await askAnswer(query);
-    if (searchGeneration === _searchGeneration) renderAnswer(el('andromeda-answer'), answer, ANSWER_TOOLS);
+    if (searchGeneration === _searchGeneration) {
+      renderAnswer(el('andromeda-answer'), answer, ANSWER_TOOLS);
+      renderSpelling(answer?.did_you_mean || '');
+    }
     return answer;
   } catch {
     return null;
   }
+}
+
+function revealOverview(node) {
+  if (node?.dataset) delete node.dataset.quiet;
 }
 
 // a tool card answers the query: the overview stays one line until the owner asks for it
@@ -1683,10 +1850,11 @@ function offerOverview(query, results, searchGeneration) {
   if (!ask) return;
   ask.hidden = false;
   el('andromeda-overview').dataset.offered = 'true';
+  revealOverview(el('andromeda-overview'));
   ask.onclick = () => {
     ask.hidden = true;
     delete el('andromeda-overview').dataset.offered;
-    void startOverview(query, results, searchGeneration);
+    void startOverview(query, results, searchGeneration, { allowSkip: false });
   };
 }
 
@@ -1729,12 +1897,14 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   if (hiddenNotice) hiddenNotice.hidden = true;
   renderWatch(null);
   renderAnswer(el('andromeda-answer'), null);
+  renderSpelling('');
   // calculator, converter, weather, dictionary... runs beside the search, never in front of it
   const answerReady = currentCategory === 'all' ? loadAnswer(query, searchGeneration) : Promise.resolve(null);
   const wantsOverview = currentCategory === 'all'
     && pressed('andromeda-overview-toggle')
     && !/(^|\s)!ai(?=\s|$)/i.test(query);
-  showOverview(wantsOverview);
+  // the overview appears once the results decide whether it should answer, never as an empty box
+  showOverview(false);
   status(tr('andromeda.searching'));
   const request = {
     query,
@@ -1768,10 +1938,14 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     else if (result.status === 'error') status(failureMessage(tr('andromeda.search_failed'), result));
     else status('');
     if (currentCategory === 'all' && result.overview_requested && _state.overviewSeed.length) {
-      // a tool that answers the query fully comes first; a lookup that came up short doesn't count
-      const covered = result.overview_mode === 'skip' && answerCovers(await answerReady);
+      // when to answer on its own (blackout's rule): questions and longer searches yes; site names,
+      // links and errands never; anything else offers one button. a tool that answers the query
+      // fully comes first, but a lookup that came up short doesn't count
+      const mode = result.overview_mode || 'full';
+      const covered = mode === 'skip' && answerCovers(await answerReady);
       if (searchGeneration !== _searchGeneration) return;
-      if (covered) offerOverview(result.query, _state.overviewSeed, searchGeneration);
+      if (mode === 'none') showOverview(false);
+      else if (covered || mode === 'ask') offerOverview(result.query, _state.overviewSeed, searchGeneration);
       else await startOverview(result.query, _state.overviewSeed, searchGeneration);
     } else if (currentCategory === 'all' && result.status === 'error' && result.overview_requested) {
       showOverview(true);
@@ -2371,7 +2545,7 @@ function updateProviderSettingsSummary() {
 
 function configuredPlaceholder(id, configured, emptyText = 'not configured') {
   const input = el(id);
-  if (input) input.placeholder = configured ? 'configured: enter a replacement' : emptyText;
+  if (input) input.placeholder = configured ? 'saved · type to replace' : emptyText;
 }
 
 function setCredentialClearState(inputId, configured) {
@@ -2593,7 +2767,7 @@ async function saveSearchCredential(input) {
     setCredentialClearState(input.id, true);
     if (input.type === 'password') {
       input.value = '';
-      input.placeholder = 'configured: enter a replacement';
+      input.placeholder = 'saved · type to replace';
     }
     await loadProviderChoices();
   } catch {} finally {
@@ -2805,6 +2979,18 @@ function wireSearchFocusPresentation() {
 function bindOnce() {
   if (_bound) return;
   _bound = true;
+  // "/" goes to this page's search box, before the app-wide command palette sees it
+  document.addEventListener('keydown', event => {
+    const view = el('andromeda-view');
+    if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+    if (!view || getComputedStyle(view).display === 'none') return;
+    if (event.target?.closest?.('input, textarea, select, [contenteditable], [role="textbox"], [role="combobox"], [role="dialog"], [role="menu"], [role="listbox"]')) return;
+    const input = el('andromeda-query');
+    if (!input) return;
+    event.preventDefault();
+    input.focus();
+    input.select();
+  }, true);
   initCustomDropdowns(el('andromeda-view'));
   wireSearchFocusPresentation();
   el('andromeda-follow-form')?.addEventListener('submit', event => {
@@ -2952,18 +3138,20 @@ function bindOnce() {
 
 export async function initAndromeda() {
   bindOnce();
-  await loadProviderChoices();
-  await loadModelChoices();
-  try {
-    const settings = await loadSearchConfiguration();
-    if (settings) {
+  // one round trip instead of five: on a relayed phone or tablet each one is felt.
+  // local search only matters inside settings, so it never holds the page up
+  void loadManagedSearxng();
+  await Promise.allSettled([
+    loadProviderChoices(),
+    // the band picker needs its models before the saved band can be shown in it
+    loadModelChoices().then(() => loadSearchConfiguration()).then(settings => {
+      if (!settings) return;
       setPressed('andromeda-results-toggle', settings.andromeda_normal_results !== false);
       setPressed('andromeda-overview-toggle', settings.andromeda_overview !== false);
       setDropdownValue(el('andromeda-band'), settings.andromeda_model_band || 'standard');
-    }
-  } catch {}
-  await loadManagedSearxng();
-  await loadSaved();
+    }),
+    loadSaved(),
+  ]);
   const params = new URLSearchParams(location.search);
   const saved = params.get('saved');
   if (saved && (saved !== _openedSaved?.id || _openedSaved.payload !== JSON.stringify(searchSnapshot()))) {

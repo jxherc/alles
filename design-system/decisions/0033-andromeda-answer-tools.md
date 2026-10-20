@@ -25,6 +25,16 @@ past the card's left edge, because the row was pulled back so its first label li
 - Big answers use 32px tabular figures; what they are measured from sits underneath in muted 14px.
 - A source that is down says so in the card with "try again"; nothing is made up to fill it.
 
+- The owner found the parts hard to tell apart, so the page now has three regions: the tool card stays
+  plain, the ai overview gets its own tinted surface (4px radius, 16px/20px padding) and the web results
+  get a small "web results" label like the tool and overview headings. This relaxes 0025's "no section
+  banners" for these three labels only.
+- Periodic table cells are grid cells with one tab stop and arrow keys, like the calendar grids, so they
+  fill their column exactly; the runtime's 44px button minimum is lifted for them alone, because it
+  pushed every box into its neighbour.
+- Settings panel: one section-title style (12px muted), text actions at 13px with 12px padding pulled
+  back to the edges, fields as tall as the pickers (44px).
+
 ## verification
 
 A script measured, for every tool card on desktop and phone, the left edge of each visible row

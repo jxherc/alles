@@ -36,13 +36,14 @@ const LANG_CODES = {
 };
 
 // ── translate ──
+// libretranslate answers in a fraction of a second, so the translation follows the typing
 function translateTool(data, ctx) {
-  const languages = data.languages || Object.keys(LANG_CODES);
+  const languages = data.languages?.length ? data.languages : Object.keys(LANG_CODES).filter(name => name !== 'cantonese' && name !== 'latin');
   let from = data.from_detected ? '' : data.from || '';
   let to = data.to || 'english';
-  let detected = data.from_detected ? data.from : '';
-  const fromPicker = picker('translate from', [{ value: '', label: 'detect language' }, ...languages.map(value => ({ value, label: value }))], from, value => { from = value; detected = ''; syncSwap(); });
-  const toPicker = picker('translate to', languages.map(value => ({ value, label: value })), to, value => { to = value; syncSwap(); });
+  let detected = '';
+  const fromPicker = picker('translate from', [{ value: '', label: 'detect language' }, ...languages.map(value => ({ value, label: value }))], from, value => { from = value; detected = ''; syncSwap(); void run(); });
+  const toPicker = picker('translate to', languages.map(value => ({ value, label: value })), to, value => { to = value; syncSwap(); void run(); });
   const swap = iconButton('swap languages', ICON_SWAP, () => {
     const source = from || detected;
     if (!source) return;
@@ -51,9 +52,10 @@ function translateTool(data, ctx) {
     to = source;
     fromPicker.value = from;
     toPicker.value = to;
-    if (moved) { input.value = moved; output.textContent = ''; reading.textContent = ''; outputActions.hidden = true; }
+    if (moved) { input.value = moved; output.textContent = ''; outputActions.hidden = true; }
     syncSwap();
     input.focus();
+    void run();
   });
   const syncSwap = () => {
     const blocked = !(from || detected);
@@ -68,67 +70,60 @@ function translateTool(data, ctx) {
   inputWrap.append(make('span', 'sr-only', 'text to translate'));
   const input = make('textarea');
   input.rows = 1;
-  input.maxLength = 2000;
+  input.maxLength = 5000;
   input.placeholder = 'type to translate';
   input.dataset.kokuenEntry = 'autogrow';
   input.value = data.text || '';
   inputWrap.append(input);
   const out = make('div', 'andromeda-translate-output');
   out.setAttribute('aria-live', 'polite');
-  const output = make('p', 'andromeda-translate-text', data.translation || '');
+  const output = make('p', 'andromeda-translate-text', '');
   output.dataset.placeholder = 'translation';
-  output.lang = LANG_CODES[to] || '';
-  const reading = make('p', 'andromeda-answer-detail', data.romanization || '');
   const outputActions = make('div', 'andromeda-translate-tools');
   const status = statusLine();
   if (canSpeak()) outputActions.append(iconButton('listen', ICON_SPEAK, () => speak(output.textContent, LANG_CODES[to] || 'en')));
   outputActions.append(iconButton('copy translation', ICON_COPY, () => copyText(output.textContent, status)));
-  outputActions.hidden = !data.translation;
-  out.append(output, reading, outputActions);
+  outputActions.hidden = true;
+  out.append(output, outputActions);
   panes.append(inputWrap, out);
-
-  const go = button('translate', { primary: true });
-  const actions = make('div', 'andromeda-tool-actions');
-  actions.append(go);
   const credit = note('');
-  const creditFor = language => `${language ? `detected ${language} · ` : ''}translated by your answer model`;
-  if (data.status === 'ok') credit.textContent = creditFor(data.from_detected ? data.from : '');
+  const creditFor = language => `${language ? `detected ${language} · ` : ''}libretranslate on your server`;
+  credit.textContent = creditFor('');
   let seq = 0;
-  const run = async () => {
+  let timer = 0;
+  async function run() {
+    clearTimeout(timer);
     const text = input.value.trim();
-    if (!text) { status.textContent = 'type something to translate'; input.focus(); return; }
     const mine = ++seq;
-    go.disabled = true;
-    go.setAttribute('aria-busy', 'true');
-    status.textContent = 'translating…';
+    if (!text) { output.textContent = ''; outputActions.hidden = true; status.textContent = ''; return; }
+    out.setAttribute('aria-busy', 'true');
     try {
       const done = await ctx.translate({ text, from, to });
       if (mine !== seq) return;
       output.textContent = done.translation;
       output.lang = LANG_CODES[to] || '';
-      reading.textContent = done.romanization || '';
       detected = from ? '' : done.from || '';
-      outputActions.hidden = false;
+      outputActions.hidden = !done.translation;
       status.textContent = '';
       credit.textContent = creditFor(detected);
       syncSwap();
     } catch (error) {
       if (mine !== seq) return;
-      status.textContent = error.cancelled ? 'not sent' : error.message || 'translation failed';
+      status.textContent = error.message || 'translation failed';
     } finally {
-      if (mine === seq) { go.disabled = false; go.removeAttribute('aria-busy'); }
+      if (mine === seq) out.removeAttribute('aria-busy');
     }
-  };
-  go.addEventListener('click', run);
+  }
+  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 250); });
   input.addEventListener('keydown', event => {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void run(); }
   });
+  ctx.onStop(() => clearTimeout(timer));
   queueMicrotask(() => wireAutosizeTextarea(input));
-  if (data.status === 'needs_model') status.textContent = 'add a model in settings → models to translate here';
-  else if (data.status === 'needs_confirm') status.textContent = 'press translate to send this to your answer model';
-  else if (data.status === 'failed') status.textContent = 'the model did not return a translation; try again';
+  if (data.engine === 'unavailable') status.textContent = 'the translator (libretranslate) isn\'t running on your server';
+  else if (data.text) queueMicrotask(run);
   syncSwap();
-  return [heading('translate'), bar, panes, actions, status, credit];
+  return [heading('translate'), bar, panes, status, credit];
 }
 
 // ── dictionary ──
@@ -683,7 +678,7 @@ const PREFS = {
 
 // whether a card fully answers the query, so the ai overview can wait to be asked
 export function answerCovers(data) {
-  return Boolean(data?.kind && RENDER[data.kind] && !['unavailable', 'not_found', 'failed', 'needs_model', 'invalid'].includes(data.status));
+  return Boolean(data?.kind && RENDER[data.kind] && data.engine !== 'unavailable' && !['unavailable', 'not_found', 'failed', 'needs_model', 'invalid'].includes(data.status));
 }
 
 export function renderAnswer(host, data, options = {}) {

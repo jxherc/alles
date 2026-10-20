@@ -1,10 +1,11 @@
 /* Aide owns one conversation. Context appears only when requested. */
+/* hidden from the first paint, before any script adds body classes: no "background work" flash */
+.aide-context-overlay[hidden] { display: none !important; }
 body.aide-central[data-space="aide"] {
   --aide-measure: 100%;
   --aide-gutter: var(--k-space-5, 24px);
 }
 body.aide-central .aide-dedicated-workspace[hidden],
-body.aide-central .aide-context-overlay[hidden],
 body.aide-central .aide-history-context[hidden],
 body.aide-central .aide-central-menu[hidden] { display: none !important; }
 body:not([data-space="aide"]) :is(.aide-mode-nav, .aide-central-action, .aide-more-anchor, .aide-dedicated-workspace, .aide-history-context) { display: none !important; }

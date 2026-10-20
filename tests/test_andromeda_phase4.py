@@ -516,6 +516,19 @@ class AndromedaApiTest(ApiTest):
         ]
 
     @staticmethod
+    def _stream(result, calls=None):
+        """a stand-in for llm.stream_chat that writes `result` or raises it."""
+
+        async def stream(*_args, **kwargs):
+            if calls is not None:
+                calls.append(kwargs)
+            if isinstance(result, BaseException):
+                raise result
+            yield {"delta": result}
+
+        return stream
+
+    @staticmethod
     def _overview_raw():
         return json.dumps(
             {
@@ -1060,54 +1073,67 @@ class AndromedaApiTest(ApiTest):
 
     def test_overview_stream_emits_verified_claims_and_model_provenance(self):
         self._endpoint(local=True)
-        complete = mock.AsyncMock(return_value=self._overview_raw())
+        andromeda._OVERVIEW_CACHE.clear()
+        calls = []
         with (
             mock.patch.object(
                 andromeda, "build_evidence", new=mock.AsyncMock(return_value=self._evidence())
             ),
-            mock.patch("services.llm.simple_complete", new=complete),
+            mock.patch(
+                "services.llm.stream_chat",
+                new=self._stream(
+                    "Version 4.0.0 shipped on 2026-07-12 with stable links. [1]", calls
+                ),
+            ),
         ):
             response = self.client.post(
                 "/api/andromeda/overview",
                 json={
                     "query": "latest software version",
-                    "results": [{"url": "https://docs.example.com/releases/4.0.0"}],
+                    "results": [
+                        {
+                            "url": "https://docs.example.com/releases/4.0.0",
+                            "snippet": "Version 4.0.0 was released on 2026-07-12 with stable links.",
+                        }
+                    ],
                 },
             )
         self.assertEqual(response.status_code, 200)
         events = response.text
         self.assertIn('"type": "model"', events)
         self.assertIn('"type": "evidence"', events)
-        self.assertIn('"type": "claim"', events)
+        self.assertIn('"type": "token"', events)
+        self.assertIn('"mode": "prose"', events)
         self.assertIn('"status": "ready"', events)
         self.assertIn("data: [DONE]", events)
-        self.assertFalse(complete.await_args.kwargs["thinking"])
-        self.assertLessEqual(complete.await_args.kwargs["max_tokens"], 450)
+        self.assertFalse(calls[0]["thinking"])
+        self.assertLessEqual(calls[0]["max_tokens"], 450)
 
     def test_bad_output_failure_and_timeout_preserve_recovery_events(self):
         self._endpoint(local=True)
         for result, code in (
-            ("not json", "insufficient_evidence"),
+            ("SKIP", "skipped"),
             (RuntimeError("local model stopped"), "overview_failed"),
             (TimeoutError(), "overview_timeout"),
         ):
-            complete = (
-                mock.AsyncMock(side_effect=result)
-                if isinstance(result, Exception)
-                else mock.AsyncMock(return_value=result)
-            )
+            andromeda._OVERVIEW_CACHE.clear()
             with (
                 self.subTest(code=code),
                 mock.patch.object(
                     andromeda, "build_evidence", new=mock.AsyncMock(return_value=self._evidence())
                 ),
-                mock.patch("services.llm.simple_complete", new=complete),
+                mock.patch("services.llm.stream_chat", new=self._stream(result)),
             ):
                 response = self.client.post(
                     "/api/andromeda/overview",
                     json={
                         "query": "current software version",
-                        "results": [{"url": "https://docs.example.com/releases/4.0.0"}],
+                        "results": [
+                            {
+                                "url": "https://docs.example.com/releases/4.0.0",
+                                "snippet": "Version 4.0.0 was released on 2026-07-12 with stable links.",
+                            }
+                        ],
                     },
                 )
                 self.assertEqual(response.status_code, 200)
@@ -1116,10 +1142,10 @@ class AndromedaApiTest(ApiTest):
 
     def test_bad_extraction_never_calls_the_model(self):
         self._endpoint(local=True)
-        complete = mock.AsyncMock()
+        calls = []
         with (
             mock.patch.object(andromeda, "build_evidence", new=mock.AsyncMock(return_value=[])),
-            mock.patch("services.llm.simple_complete", new=complete),
+            mock.patch("services.llm.stream_chat", new=self._stream("", calls)),
         ):
             response = self.client.post(
                 "/api/andromeda/overview",
@@ -1130,7 +1156,7 @@ class AndromedaApiTest(ApiTest):
             )
         self.assertEqual(response.status_code, 200)
         self.assertIn("insufficient_evidence", response.text)
-        complete.assert_not_awaited()
+        self.assertEqual(calls, [])
 
     def test_auto_qualification_requires_two_exact_supported_claims(self):
         endpoint_id = self._endpoint(local=True)

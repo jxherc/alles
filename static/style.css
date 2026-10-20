@@ -9205,6 +9205,54 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view :is(.andromeda-ptable-cell.is-noble-gas, .andromeda-element-tile.is-noble-gas, .andromeda-ptable-key.is-noble-gas i) { background: color-mix(in srgb, #8e4ec6 24%, var(--panel)); }
 .andromeda-view :is(.andromeda-ptable-cell.is-lanthanide, .andromeda-element-tile.is-lanthanide, .andromeda-ptable-key.is-lanthanide i) { background: color-mix(in srgb, #d6409f 20%, var(--panel)); }
 .andromeda-view :is(.andromeda-ptable-cell.is-actinide, .andromeda-element-tile.is-actinide, .andromeda-ptable-key.is-actinide i) { background: color-mix(in srgb, #ab4aba 20%, var(--panel)); }
+/* three regions read apart at a glance: the tool (plain), the ai overview (its own tinted
+   surface) and the web results (a small label like the others) */
+.andromeda-view .andromeda-answer { border-bottom: 0; padding-bottom: 4px; }
+#andromeda-view[data-kokuen-surface="andromeda"] .andromeda-overview:not([data-offered="true"]) {
+  margin-top: 16px; padding: 16px 20px 20px; border: 0; border-radius: 4px;
+  background: color-mix(in srgb, var(--panel) 78%, var(--bg));
+}
+#andromeda-view[data-kokuen-surface="andromeda"] .andromeda-overview[data-offered="true"] { margin-top: 8px; border-bottom: 0; }
+.andromeda-view .andromeda-overview .andromeda-section-head h2 { color: var(--soft, var(--text)); font-size: 13px; }
+#andromeda-view .andromeda-overview:not([data-offered="true"]) .andromeda-overview-state { margin-inline-start: 0; }
+#andromeda-view .andromeda-overview:not([data-offered="true"]) #andromeda-cancel-overview { margin-inline-start: auto; }
+/* quiet start: out of sight until the first words or 0.7 s, so a skipped answer never flashes */
+#andromeda-view .andromeda-overview[data-quiet="true"] { visibility: hidden; height: 0; margin: 0; padding: 0; overflow: hidden; }
+/* the instant answer: readable prose, small [n] marks, the cited sources on their own row */
+.andromeda-view .andromeda-prose { display: grid; gap: 8px; max-width: 68ch; color: var(--text); font-size: 15px; line-height: 1.6; }
+.andromeda-view .andromeda-prose :is(p, ul, ol) { margin: 0; }
+.andromeda-view .andromeda-prose :is(ul, ol) { display: grid; gap: 4px; padding-inline-start: 20px; }
+.andromeda-view .andromeda-prose strong { font-weight: 600; }
+.andromeda-view .andromeda-prose-cite { margin-inline-start: 2px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.andromeda-view .andromeda-prose-sources { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.andromeda-view .andromeda-prose-source {
+  min-height: 44px; display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 0 12px;
+  border: 1px solid var(--andromeda-line); border-radius: 3px; color: var(--muted); font-size: 13px;
+  text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.andromeda-view .andromeda-prose-source:hover { border-color: var(--andromeda-strong-line); color: var(--text); background: var(--k-hover, var(--panel)); }
+.andromeda-view .andromeda-prose-source-number { color: var(--text); font-variant-numeric: tabular-nums; }
+.andromeda-view .andromeda-overview[data-loading="true"] .andromeda-claims:empty {
+  --bar: color-mix(in srgb, var(--text) 9%, transparent);
+  height: 64px;
+  background:
+    linear-gradient(var(--bar) 0 0) 0 4px / min(560px, 92%) 12px no-repeat,
+    linear-gradient(var(--bar) 0 0) 0 28px / min(460px, 76%) 12px no-repeat,
+    linear-gradient(var(--bar) 0 0) 0 52px / min(320px, 52%) 12px no-repeat;
+}
+#andromeda-all-results .andromeda-view-head {
+  position: static; width: auto; height: auto; overflow: visible; clip-path: none;
+  display: flex; margin: 0 0 8px;
+}
+#andromeda-all-results .andromeda-view-head h2 { color: var(--muted); font-size: 12px; font-weight: 560; }
+#andromeda-all-results .andromeda-view-head span { display: none; }
+.andromeda-view .andromeda-spelling { min-height: 44px; display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--muted); font-size: 15px; }
+.andromeda-view .andromeda-spelling-fix {
+  min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--text);
+  font: inherit; font-weight: 560; font-style: italic; text-decoration: underline;
+  text-decoration-color: var(--andromeda-line); text-underline-offset: 0.2em; cursor: pointer;
+}
+.andromeda-view .andromeda-spelling-fix:hover { text-decoration-color: currentColor; }
 /* a tool answers the query: the overview is one line with a way to ask for it */
 .andromeda-view .andromeda-overview[data-offered="true"] { padding: 4px 0; }
 .andromeda-view .andromeda-overview[data-offered="true"] .andromeda-section-head { align-items: center; justify-content: flex-start; margin-bottom: 0; }
@@ -9388,6 +9436,15 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-f1-date { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* periodic table additions */
+/* cells are grid cells, one tab stop with arrow keys (like the calendar grids): they fill their
+   column exactly instead of taking the 44px button minimum, which pushed each box into the next */
+#andromeda-view .andromeda-ptable-cell { min-width: 0 !important; width: 100%; padding: 3px 4px; }
+#andromeda-view .andromeda-ptable-symbol { justify-self: center; font-size: 15px; }
+#andromeda-view .andromeda-ptable { width: 100%; min-width: 684px; }
+#andromeda-view .andromeda-ptable-scroll { overflow-x: auto; padding-bottom: 0; }
+#andromeda-view .andromeda-ptable-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 8px; }
+#andromeda-view .andromeda-ptable-key { justify-content: flex-start; min-width: 0; }
+
 .andromeda-view .andromeda-element-name { margin: 0; color: var(--text); font-size: 22px; font-weight: 500; }
 .andromeda-view .andromeda-ptable-host { display: grid; gap: 12px; }
 .andromeda-view .andromeda-ptable-cell.is-dim { opacity: 0.28; }
@@ -9663,6 +9720,30 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-searxng-meta { padding: 3px 16px 8px; color: var(--muted); font-size: 0.75rem; line-height: 1.45; overflow-wrap: anywhere; }
 .andromeda-searxng-actions { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 0 16px 13px; }
 .andromeda-strength-guide { display: grid; gap: 4px; padding: 10px 16px 12px; }
+/* settings panel: one title style, one text-action size, fields as tall as the pickers, and every
+   label, control and action on the same two edges */
+#andromeda-view .andromeda-settings-head { padding: 0 16px 0 16px; }
+#andromeda-view .andromeda-settings-section > h3,
+#andromeda-view .andromeda-settings-section-head h3 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 560; letter-spacing: 0; }
+#andromeda-view .andromeda-settings-section > h3,
+#andromeda-view .andromeda-settings-section-head { padding: 16px 16px 4px; }
+#andromeda-view .andromeda-settings-section-head { align-items: center; }
+#andromeda-view .andromeda-saved { padding: 16px; border-left: 0; }
+#andromeda-view .andromeda-saved h3 { margin: 0 0 8px; padding: 0; border: 0; color: var(--muted); font-size: 12px; font-weight: 560; }
+#andromeda-view :is(.andromeda-settings-section-head .andromeda-text-action, .andromeda-searxng-actions button, .andromeda-setting-clear, .andromeda-manage-engines) {
+  min-width: 0; min-height: 44px; padding: 0 12px; border: 0; border-radius: 2px; background: transparent;
+  color: var(--muted); font: 13px/1 var(--font-family, sans-serif); white-space: nowrap; cursor: pointer;
+}
+#andromeda-view :is(.andromeda-settings-section-head .andromeda-text-action, .andromeda-searxng-actions button, .andromeda-setting-clear, .andromeda-manage-engines):hover:not(:disabled) { color: var(--text); background: var(--k-hover, var(--panel)); }
+#andromeda-view :is(.andromeda-searxng-actions button, .andromeda-setting-clear):disabled { color: var(--muted); opacity: 0.55; }
+#andromeda-view .andromeda-settings-section-head .andromeda-text-action,
+#andromeda-view .andromeda-setting-clear { margin-inline-end: -12px; }
+#andromeda-view .andromeda-searxng-actions { gap: 0 4px; padding: 0 16px 12px 4px; }
+#andromeda-view .andromeda-manage-engines { margin: 0 16px 8px 4px; }
+#andromeda-view .andromeda-setting-field { grid-template-columns: 132px minmax(0, 1fr); min-height: 56px; font-size: 13px; }
+#andromeda-view[data-kokuen-surface="andromeda"] .andromeda-setting-field input { min-height: 44px; padding: 0 12px; font-size: 13px; }
+#andromeda-view .andromeda-searxng-status { padding: 4px 16px 0; color: var(--text); font-size: 13px; }
+#andromeda-view .andromeda-searxng-meta { padding: 4px 16px 8px; }
 .andromeda-strength-guide p { margin: 0; color: var(--muted); font-size: 0.75rem; line-height: 1.38; }
 .andromeda-setting-row .custom-select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .andromeda-setting-row .custom-select-chevron { position: absolute; right: 9px; width: 12px; height: 12px; color: var(--muted); }

@@ -1,11 +1,21 @@
 import asyncio
 import json
 import os
+import shutil
+import tempfile
 from datetime import date
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from services import andromeda, andromeda_answers, andromeda_dates, andromeda_f1
+from services import (
+    andromeda,
+    andromeda_answers,
+    andromeda_dates,
+    andromeda_dictionary,
+    andromeda_f1,
+    andromeda_translate,
+)
 from tests._client import ApiTest
 
 detect = andromeda_answers.detect
@@ -13,6 +23,18 @@ detect = andromeda_answers.detect
 
 def run(coro):
     return asyncio.run(coro)
+
+
+class OnlineDictionary:
+    """these tests cover the online sources, so a local wiktionary copy must not answer first."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch.dict(
+            os.environ, {"ALLES_DICTIONARY": "/nonexistent/wiktionary.sqlite"}
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
 
 class ToolWithoutInputTest(ApiTest):
@@ -71,12 +93,17 @@ class ToolWithoutInputTest(ApiTest):
                 self.assertEqual(detect(query), expected)
 
     def test_a_language_pair_is_never_translated(self):
-        model = mock.AsyncMock()
-        for query in ("english to french", "french to english", "translate english to japanese"):
-            with self.subTest(query=query):
-                card = run(andromeda_answers.resolve(detect(query), translate=model))
-                self.assertEqual((card["status"], card["translation"]), ("empty", ""))
-        model.assert_not_called()
+        engine = mock.AsyncMock()
+        with mock.patch.object(andromeda_translate, "translate", engine):
+            for query in (
+                "english to french",
+                "french to english",
+                "translate english to japanese",
+            ):
+                with self.subTest(query=query):
+                    card = run(andromeda_answers.resolve(detect(query)))
+                    self.assertEqual((card["status"], card["translation"]), ("empty", ""))
+        engine.assert_not_called()
 
     def test_the_periodic_table_opens_without_a_chosen_element(self):
         card = run(andromeda_answers.resolve(detect("periodic table")))
@@ -103,6 +130,8 @@ class ToolWithInputTest(ApiTest):
         "hello in french": {"kind": "translate", "text": "hello", "to": "french"},
         "how do you say thank you in japanese": {"kind": "translate", "text": "thank you"},
         "hola from spanish to english": {"kind": "translate", "text": "hola", "from": "spanish"},
+        "中文in english": {"kind": "translate", "text": "中文", "to": "english"},
+        "你好 in french": {"kind": "translate", "text": "你好", "to": "french"},
         "carbon atomic mass": {"kind": "element", "number": 6, "fact": "mass"},
         "periodic table carbon": {"kind": "element", "number": 6, "fact": ""},
         "atomic number of gold": {"kind": "element", "number": 79, "fact": "number"},
@@ -177,7 +206,8 @@ class OverviewFitTest(ApiTest):
         self.assertEqual(andromeda_answers.overview_mode(detect("english to french")), "skip")
         self.assertEqual(andromeda_answers.overview_mode(detect("carbon")), "brief")
         self.assertEqual(andromeda_answers.overview_mode(detect("f1")), "brief")
-        self.assertEqual(andromeda_answers.overview_mode(None), "full")
+        self.assertEqual(andromeda_answers.overview_mode(None, "why is the sky blue"), "full")
+        self.assertEqual(andromeda_answers.overview_mode(None, "tailscale serve"), "ask")
 
     def test_shape_follows_the_query(self):
         shapes = {
@@ -350,7 +380,7 @@ class F1Test(ApiTest):
         self.assertNotIn("drivers", card)
 
 
-class LookupStatusTest(ApiTest):
+class LookupStatusTest(OnlineDictionary, ApiTest):
     def test_spelling_uses_wiktionary_misspellings(self):
         async def fake(url):
             if "wiktionary" in url:
@@ -442,54 +472,73 @@ class ToolRouteTest(ApiTest):
         self.assertIsNone(wrong["kind"])
         self.assertEqual(junk["status"], "invalid")
 
-    def test_translate_needs_a_model_and_a_known_language(self):
-        with mock.patch.dict(os.environ, self.ENV):
-            bad = self.client.post("/api/andromeda/translate", json={"text": "hi", "to": "klingon"})
-            with mock.patch("routes.andromeda._answer_model", return_value=(None, False)):
-                missing = self.client.post(
-                    "/api/andromeda/translate", json={"text": "hi", "to": "french"}
+    def test_translate_uses_libretranslate_not_a_model(self):
+        replies = []
+
+        async def fake_call(_settings, path, payload=None, timeout=6):
+            replies.append((path, payload))
+            if path == "/languages":
+                return SimpleNamespace(
+                    json=lambda: [{"code": "en"}, {"code": "fr"}, {"code": "zh-Hans"}]
                 )
-        self.assertEqual((bad.status_code, bad.json()["code"]), (400, "unknown_language"))
-        self.assertEqual(
-            (missing.status_code, missing.json()["code"]), (409, "translate_model_missing")
-        )
+            body = {"translatedText": "bonjour", "detectedLanguage": {"language": "en"}}
+            return SimpleNamespace(status_code=200, content=b"x", json=lambda: body)
 
-    def test_translate_asks_before_a_remote_model_when_the_owner_wants_that(self):
-        selected = SimpleNamespace(
-            endpoint=SimpleNamespace(id="ep", base_url="https://x", api_key=""),
-            model="m",
-            public=lambda: {"endpoint_id": "ep", "model": "m"},
-        )
-
-        async def model(_messages):
-            return '{"from": "English", "translation": "bonjour", "romanization": ""}'
-
+        andromeda_translate._LANGUAGES.update(at=0.0, url="", names=[])
         with (
             mock.patch.dict(os.environ, self.ENV),
-            mock.patch("routes.andromeda._answer_model", return_value=(selected, True)),
-            mock.patch("routes.andromeda._model_call", return_value=model),
+            mock.patch.object(andromeda_translate, "_call", side_effect=fake_call),
         ):
-            blocked = self.client.post(
-                "/api/andromeda/translate", json={"text": "hello", "to": "french"}
-            )
             done = self.client.post(
-                "/api/andromeda/translate",
-                json={
-                    "text": "hello",
-                    "to": "french",
-                    "confirmed_endpoint_id": "ep",
-                    "confirmed_model": "m",
-                },
-            )
+                "/api/andromeda/translate", json={"text": "hello", "to": "french"}
+            ).json()
             card = self.client.post(
                 "/api/andromeda/answer", json={"query": "hello in french"}
             ).json()
-        self.assertEqual(blocked.json()["code"], "remote_model_confirmation_required")
-        self.assertEqual(done.json()["translation"], "bonjour")
-        # the card keeps the text and waits for the owner instead of sending it
+            bad = self.client.post("/api/andromeda/translate", json={"text": "hi", "to": "klingon"})
         self.assertEqual(
-            (card["status"], card["text"], card["translation"]), ("needs_confirm", "hello", "")
+            (done["translation"], done["from"], done["from_detected"]), ("bonjour", "english", True)
         )
+        self.assertEqual(
+            replies[0],
+            ("/translate", {"q": "hello", "source": "auto", "target": "fr", "format": "text"}),
+        )
+        # the card comes back at once with the text; the translator fills it in
+        self.assertEqual(
+            (card["status"], card["text"], card["languages"]),
+            ("pending", "hello", ["chinese", "english", "french"]),
+        )
+        self.assertEqual((bad.status_code, bad.json()["code"]), (400, "unknown_language"))
+
+    def test_a_stopped_translator_says_so(self):
+        async def down(*_args, **_kwargs):
+            raise andromeda_translate.Unavailable("connection refused")
+
+        andromeda_translate._LANGUAGES.update(at=0.0, url="", names=[])
+        with (
+            mock.patch.dict(os.environ, self.ENV),
+            mock.patch.object(andromeda_translate, "_call", side_effect=down),
+        ):
+            response = self.client.post(
+                "/api/andromeda/translate", json={"text": "hi", "to": "french"}
+            )
+            card = self.client.post(
+                "/api/andromeda/answer", json={"query": "english to french"}
+            ).json()
+        self.assertEqual(
+            (response.status_code, response.json()["code"]), (503, "translator_unavailable")
+        )
+        self.assertEqual(card["engine"], "unavailable")
+
+    def test_a_plain_search_gets_did_you_mean(self):
+        with (
+            mock.patch.dict(os.environ, self.ENV),
+            mock.patch.object(
+                andromeda_answers, "did_you_mean", mock.AsyncMock(return_value="receive")
+            ),
+        ):
+            card = self.client.post("/api/andromeda/answer", json={"query": "recieve"}).json()
+        self.assertEqual((card["kind"], card["did_you_mean"]), (None, "receive"))
 
     def test_search_says_when_a_tool_answers(self):
         async def fake_search(*_args, **_kwargs):
@@ -509,4 +558,193 @@ class ToolRouteTest(ApiTest):
                 "/api/andromeda/search", json={"query": "tailscale serve"}
             ).json()
         self.assertEqual((tool["answer_kind"], tool["overview_mode"]), ("translate", "skip"))
-        self.assertEqual((plain["answer_kind"], plain["overview_mode"]), (None, "full"))
+        self.assertEqual((plain["answer_kind"], plain["overview_mode"]), (None, "ask"))
+
+
+class LocalDictionaryTest(ApiTest):
+    """the wiktionary copy answers definitions, spelling and did-you-mean without going online."""
+
+    ROWS = [
+        {
+            "word": "receive",
+            "lang_code": "en",
+            "pos": "verb",
+            "sounds": [{"ipa": "/ɹɪˈsiːv/"}],
+            "senses": [
+                {
+                    "glosses": ["To take, as something that is offered."],
+                    "examples": [{"text": "to receive a gift"}],
+                    "synonyms": [{"word": "get"}],
+                }
+            ],
+        },
+        {
+            "word": "recieve",
+            "lang_code": "en",
+            "pos": "verb",
+            "senses": [
+                {
+                    "glosses": ["Misspelling of receive."],
+                    "tags": ["misspelling"],
+                    "alt_of": [{"word": "receive"}],
+                }
+            ],
+        },
+        {"word": "recevoir", "lang_code": "fr", "pos": "verb", "senses": [{"glosses": ["x"]}]},
+    ]
+
+    def setUp(self):
+        super().setUp()
+        folder = Path(tempfile.mkdtemp(prefix="alles-dictionary-"))
+        self.addCleanup(lambda: shutil.rmtree(folder, ignore_errors=True))
+        source = folder / "sample.jsonl"
+        source.write_text("\n".join(json.dumps(row) for row in self.ROWS), encoding="utf-8")
+        patcher = mock.patch.dict(os.environ, {"ALLES_DICTIONARY": str(folder / "d.sqlite")})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.assertEqual(andromeda_dictionary.build(source), 2)
+
+    def test_lookup_spelling_and_did_you_mean_stay_local(self):
+        offline = mock.AsyncMock(side_effect=AssertionError("went online"))
+        with mock.patch.object(andromeda_answers, "_get_json", offline):
+            word = run(andromeda_answers.resolve(detect("define receive")))
+            typo = run(andromeda_answers.resolve(detect("define recieve")))
+            spelling = run(andromeda_answers.resolve(detect("how to spell recieve")))
+            andromeda_answers._SPELLING_CACHE.clear()
+            fixed = run(andromeda_answers.did_you_mean("recieve email"))
+        self.assertEqual(
+            (word["status"], word["phonetic"], word["synonyms"]), ("ok", "/ɹɪˈsiːv/", ["get"])
+        )
+        self.assertEqual(word["meanings"][0]["definitions"][0]["example"], "to receive a gift")
+        self.assertEqual((typo["status"], typo["suggestions"]), ("not_found", ["receive"]))
+        self.assertEqual((spelling["correct"], spelling["suggestions"]), (False, ["receive"]))
+        self.assertEqual(fixed, "receive email")
+
+
+class StreamedOverviewTest(ApiTest):
+    """the instant answer: prose from the result snippets, streamed word by word, cited by number."""
+
+    def setUp(self):
+        super().setUp()
+        from core.database import ModelEndpoint
+        from core.settings import load_settings, save_settings
+
+        db = self.db()
+        db.add(
+            ModelEndpoint(
+                name="local",
+                base_url="http://127.0.0.1:11434/v1",
+                cached_models='["overview-model"]',
+                enabled=True,
+            )
+        )
+        db.commit()
+        db.close()
+        andromeda._OVERVIEW_CACHE.clear()
+        save_settings(
+            {
+                **load_settings(),
+                "andromeda_overview": True,
+                "andromeda_model_band": "standard",
+                "andromeda_model_bands": {},
+            }
+        )
+        flags = mock.patch.dict(os.environ, {"ALLES_AFTERLIFE_FEATURES": "afterlife_andromeda"})
+        flags.start()
+        self.addCleanup(flags.stop)
+        self.body = {
+            "query": "why is the sky blue",
+            "results": [
+                {
+                    "url": "https://en.wikipedia.org/wiki/Sky",
+                    "title": "Sky",
+                    "snippet": "Rayleigh scattering makes the daytime sky look blue.",
+                },
+                {
+                    "url": "https://spaceplace.nasa.gov/blue-sky/",
+                    "title": "Why is the sky blue?",
+                    "snippet": "Blue light is scattered more than other colors because it travels as shorter waves.",
+                },
+            ],
+        }
+
+    def events(self, text):
+        return [
+            json.loads(chunk[6:]) for chunk in text.split("\n\n") if chunk.startswith("data: {")
+        ]
+
+    def stream(self, words, calls):
+        async def stream(*_args, **kwargs):
+            calls.append(kwargs)
+            for word in words:
+                yield {"delta": word}
+
+        return stream
+
+    def test_words_stream_and_the_answer_cites_its_sources(self):
+        calls = []
+        words = [
+            "Rayleigh ",
+            "scattering ",
+            "makes the sky blue. ",
+            "[1]",
+            "\n- Blue light ",
+            "scatters most. [2]",
+        ]
+        with mock.patch("services.llm.stream_chat", new=self.stream(words, calls)):
+            first = self.client.post("/api/andromeda/overview", json=self.body).text
+            again = self.client.post("/api/andromeda/overview", json=self.body).text
+        events = self.events(first)
+        tokens = [event["text"] for event in events if event["type"] == "token"]
+        self.assertGreater(len(tokens), 2)
+        answer = events[-1]["overview"]
+        self.assertEqual(
+            (answer["status"], answer["mode"], answer["cited"]), ("ready", "prose", [1, 2])
+        )
+        self.assertEqual(
+            answer["claims"][0]["citations"][0]["url"], "https://en.wikipedia.org/wiki/Sky"
+        )
+        self.assertEqual(answer["claims"][1]["text"], "Blue light scatters most.")
+        # the prompt holds the numbered snippets, never whole pages
+        prompt = calls[0]
+        self.assertFalse(prompt["thinking"])
+        # the same question over the same results comes back without asking the model again
+        self.assertEqual(len(calls), 1)
+        self.assertIn('"cached": true', again)
+
+    def test_skip_shows_nothing_and_an_asked_answer_never_skips(self):
+        calls = []
+        with mock.patch("services.llm.stream_chat", new=self.stream(["SK", "IP"], calls)):
+            skipped = self.events(self.client.post("/api/andromeda/overview", json=self.body).text)
+        self.assertFalse([event for event in skipped if event["type"] == "token"])
+        self.assertEqual(skipped[-1]["overview"]["status"], "skipped")
+        seen = []
+
+        async def capture(messages, *_args, **_kwargs):
+            seen.append(messages[0]["content"])
+            yield {"delta": "Rayleigh scattering. [1]"}
+
+        with mock.patch("services.llm.stream_chat", new=capture):
+            self.client.post("/api/andromeda/overview", json={**self.body, "allow_skip": False})
+        self.assertNotIn("SKIP", seen[0])
+
+    def test_when_the_answer_runs_on_its_own(self):
+        modes = {
+            "why is the sky blue": "full",
+            "best laptops for students this year": "full",
+            "tailscale serve": "ask",
+            "youtube": "none",
+            "github.com/astqh": "none",
+            "site:reddit.com ssh keys": "none",
+            "gmail login": "none",
+            "english to french": "skip",
+            "carbon": "brief",
+        }
+        for query, mode in modes.items():
+            with self.subTest(query=query):
+                self.assertEqual(andromeda_answers.overview_mode(detect(query), query), mode)
+
+    def test_think_blocks_and_a_partial_skip_never_reach_the_page(self):
+        self.assertIsNone(andromeda.visible_prose("SK"))
+        self.assertIsNone(andromeda.visible_prose("<think>planning"))
+        self.assertEqual(andromeda.visible_prose("<think>x</think>Blue light."), "Blue light.")

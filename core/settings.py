@@ -113,6 +113,8 @@ _defaults = {
     "photon_owner_handles": [],
     "andromeda_confirm_remote": False,
     "andromeda_fast_overview": True,
+    # libretranslate for the translator; empty means this machine, http://127.0.0.1:5000
+    "andromeda_translate_url": "",
     "search_fallback": "duckduckgo",
     "andromeda_normal_results": True,
     "andromeda_overview": True,
