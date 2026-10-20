@@ -9223,7 +9223,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-prose :is(p, ul, ol) { margin: 0; }
 .andromeda-view .andromeda-prose :is(ul, ol) { display: grid; gap: 4px; padding-inline-start: 20px; }
 .andromeda-view .andromeda-prose strong { font-weight: 600; }
-.andromeda-view .andromeda-prose-cite { margin-inline-start: 2px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.andromeda-view .andromeda-prose-cite { margin-inline-start: 2px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .andromeda-view .andromeda-prose-sources { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .andromeda-view .andromeda-prose-source {
   min-height: 44px; display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 0 12px;
@@ -9470,6 +9470,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
   .andromeda-view .andromeda-timer-display input,
   .andromeda-view .andromeda-timer-readout { font-size: 36px; }
   .andromeda-view .andromeda-f1-table .is-team { display: none; }
+  #andromeda-view .andromeda-setting-field { grid-template-columns: minmax(0, 1fr); gap: 4px; padding-block: 8px; }
   /* seven days stay one row: swipe sideways instead of a lone last day */
   .andromeda-view .andromeda-weather-days { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 88px; overflow-x: auto; scrollbar-width: none; }
 }

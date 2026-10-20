@@ -114,7 +114,7 @@ function translateTool(data, ctx) {
       if (mine === seq) out.removeAttribute('aria-busy');
     }
   }
-  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 250); });
+  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 150); });
   input.addEventListener('keydown', event => {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void run(); }
   });

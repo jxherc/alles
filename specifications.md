@@ -881,7 +881,7 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   can open the full table. the tools:
   - **translate**: libretranslate, an open-source translation engine (argos models, no language model),
     running beside alles at `http://127.0.0.1:5000` or wherever `andromeda_translate_url` points. it
-    translates as you type (a 250 ms pause, or return), with detect, swap, listen and copy, and the
+    translates as you type (a 150 ms pause, or return), with detect, swap, listen and copy, and the
     pickers list only languages the engine has models for. a query's own text is translated as soon as
     the card appears. a stopped engine says so in the card.
   - **dictionary** ("define x", "x meaning", "synonyms for x", "how to pronounce x"): a local copy of
