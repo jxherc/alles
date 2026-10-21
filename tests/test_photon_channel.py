@@ -13,6 +13,7 @@ class PhotonTest(ApiTest):
         super().setUp()
         photon_channel._runs.clear()
         photon_channel._seen.clear()
+        photon_channel._told_text_only.clear()
         photon_channel.state.update(ignored=0, handled=0, last_ignored="")
         save_settings({"photon_owner_handles": ["+1 (555) 010-0199", "me@example.test"]})
         self.sent = []
@@ -66,6 +67,16 @@ class PhotonTest(ApiTest):
         with self.db() as db:
             self.assertEqual(session_id, get_or_create_primary(db).id)  # the one main conversation
         self.assertIn(runs[0].id, photon_channel._runs)
+
+    def test_typing_bubbles_get_no_answer_and_photos_one_a_minute(self):
+        for n, kind in enumerate(["typing", "typing", "reaction", "effect"]):
+            record = {**self.message("", message_id=f"t{n}"), "kind": kind}
+            asyncio.run(photon_channel.handle_message(record))
+        self.assertEqual(self.sent, [])
+        for n in range(3):
+            record = {**self.message("", message_id=f"p{n}"), "kind": "attachment"}
+            asyncio.run(photon_channel.handle_message(record))
+        self.assertEqual(self.sent, [("chat-1", "I can only read text here for now.")])
 
     def test_email_handles_and_number_formats_match(self):
         self.assertTrue(photon_channel.is_owner("ME@example.test", ["me@example.test"]))

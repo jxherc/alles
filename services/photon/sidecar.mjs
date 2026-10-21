@@ -60,8 +60,11 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
 for await (const [space, message] of app.messages) {
   if (message.direction !== "inbound") continue;
   spaces.set(space.id, space);
-  const content = message.content || {};
-  const text = content.type === "text" ? content.text : content.type === "markdown" ? content.text || "" : "";
+  let content = message.content || {};
+  if (content.type === "effect" && content.content) content = content.content; // text sent with an effect
+  // typing bubbles, reactions, renames... aren't messages
+  if (!["text", "markdown", "richlink", "attachment", "voice", "contact", "poll"].includes(content.type)) continue;
+  const text = content.type === "richlink" ? content.url || "" : ["text", "markdown"].includes(content.type) ? content.text || "" : "";
   out({
     type: "message",
     id: message.id,

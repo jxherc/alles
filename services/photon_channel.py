@@ -24,6 +24,12 @@ SPECTRUM_VERSION = "12.11.0"
 SIDECAR = Path(__file__).parent / "photon" / "sidecar.mjs"
 POLL_SECONDS = 2.0
 DONE = {"succeeded", "failed", "cancelled", "interrupted", "uncertain"}
+NOT_TEXT = {
+    "attachment",
+    "voice",
+    "contact",
+    "poll",
+}  # things a person sent that alles cannot read yet
 
 state = {
     "state": "off",
@@ -41,6 +47,7 @@ _install: asyncio.Task | None = None
 _seen: list[str] = []
 # run id -> {"space", "told": set of notices already sent}
 _runs: dict[str, dict] = {}
+_told_text_only: dict[str, float] = {}
 
 
 def _home() -> Path:
@@ -218,7 +225,14 @@ async def handle_message(record: dict) -> None:
         state["last_ignored"] = sender[:80]
         return
     if not text:
-        await reply(space, "I can only read text here for now.")
+        # a photo or voice note gets one heads-up a minute; typing bubbles, reactions and the
+        # like get nothing, or every bubble would answer itself
+        if (
+            record.get("kind") in NOT_TEXT
+            and time.monotonic() - _told_text_only.get(space, float("-inf")) >= 60
+        ):
+            _told_text_only[space] = time.monotonic()
+            await reply(space, "I can only read text here for now.")
         return
     state["handled"] += 1
     if await _maybe_answer(space, text):
