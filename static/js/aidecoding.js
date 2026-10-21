@@ -201,12 +201,40 @@ function toolTitle(name, args) {
   return { verb, target: String(target).split('\n')[0] };
 }
 
-// an edit as a diff: what went out in red, what came in in green
+// lines of a and b as same / del / add, by longest common run (edits are small)
+export function lineDiff(a, b) {
+  const x = a.split('\n'), y = b.split('\n');
+  if (x.length * y.length > 250000) return [...x.map(t => ['del', t]), ...y.map(t => ['add', t])];
+  const dp = Array.from({ length: x.length + 1 }, () => new Uint32Array(y.length + 1));
+  for (let i = x.length - 1; i >= 0; i--) for (let j = y.length - 1; j >= 0; j--) {
+    dp[i][j] = x[i] === y[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  }
+  const out = [];
+  let i = 0, j = 0;
+  while (i < x.length && j < y.length) {
+    if (x[i] === y[j]) { out.push(['same', x[i]]); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) out.push(['del', x[i++]]);
+    else out.push(['add', y[j++]]);
+  }
+  while (i < x.length) out.push(['del', x[i++]]);
+  while (j < y.length) out.push(['add', y[j++]]);
+  return out;
+}
+
+// an edit as a diff: changed lines in red and green, two lines of context, long same stretches folded
 function diffView(args) {
   const box = el('div', 'acw-diff');
   for (const change of (args.edits || [{ oldText: args.oldText, newText: args.newText }]).slice(0, 6)) {
-    for (const line of String(change.oldText ?? '').split('\n')) if (change.oldText != null) box.append(el('div', 'acw-diff-line del', line || ' '));
-    for (const line of String(change.newText ?? '').split('\n')) if (change.newText != null) box.append(el('div', 'acw-diff-line add', line || ' '));
+    const rows = lineDiff(String(change.oldText ?? ''), String(change.newText ?? ''));
+    const near = rows.map((_, n) => rows.slice(Math.max(0, n - 2), n + 3).some(([kind]) => kind !== 'same'));
+    let folded = 0;
+    const flush = () => { if (folded) { box.append(el('div', 'acw-diff-fold', `${folded} unchanged line${folded > 1 ? 's' : ''}`)); folded = 0; } };
+    rows.forEach(([kind, text], n) => {
+      if (kind === 'same' && !near[n]) { folded++; return; }
+      flush();
+      box.append(el('div', `acw-diff-line ${kind}`, text || ' '));
+    });
+    flush();
     box.append(el('div', 'acw-diff-gap'));
   }
   box.lastChild?.remove();
@@ -258,8 +286,37 @@ function finishTool(id, ok, output) {
   pre.textContent = text;
   pre.hidden = !text;
   pre.classList.toggle('acw-term', card.dataset.kind === 'bash');
-  // a failed step opens itself so the reason is in view
-  if (!ok) card.open = true;
+  // a failed step says why on its own line; pi usually tries again, so it stays shut
+  if (!ok) {
+    const why = text.split('\n').map(line => line.trim()).filter(Boolean).pop() || 'failed';
+    card.querySelector('.acw-tool-why')?.remove();
+    card.querySelector('summary').after(el('p', 'acw-tool-why', why.slice(0, 160)));
+  }
+}
+
+// a run of steps folds into one line once pi moves on: how many, how many failed, how long
+function groupSteps() {
+  const log = $('aide-code-log');
+  let run = [];
+  const fold = () => {
+    if (run.length >= 4) {
+      const group = el('details', 'acw-steps');
+      const failed = run.filter(card => card.dataset.state === 'failed').length;
+      const summary = el('summary');
+      const dots = el('span', 'acw-steps-dots');
+      dots.setAttribute('aria-hidden', 'true');
+      for (const card of run.slice(-24)) dots.append(el('span', card.dataset.state));
+      summary.append(el('span', 'acw-steps-label', `${run.length} steps${failed ? ` · ${failed} failed` : ''}`), dots);
+      run[0].before(group);
+      group.append(summary, ...run);
+    }
+    run = [];
+  };
+  for (const node of [...log.children]) {
+    if (node.matches('.acw-tool') && node.dataset.state !== 'running') run.push(node);
+    else fold();
+  }
+  fold();
 }
 
 function assistantBlock(text, error = '') {
@@ -289,6 +346,7 @@ function render(item) {
     streaming.innerHTML = mdToHtml(streaming.dataset.text);
   } else if (item.kind === 'assistant') {
     closeThinking();
+    if (item.text) groupSteps();
     const block = assistantBlock(item.text, item.error);
     if (streaming) { streaming.replaceWith(block); streaming = null; }
     else if (item.text || item.error) log.append(block);
@@ -578,7 +636,7 @@ function setBusy(value) {
   $('aide-code-status').textContent = busy ? 'pi is working…' : '';
   sendOrStop();
   host.dataset.busy = String(busy);
-  if (!busy) { showWorking(false); closeThinking(); streaming?.classList.remove('is-streaming'); }
+  if (!busy) { showWorking(false); closeThinking(); streaming?.classList.remove('is-streaming'); groupSteps(); }
   // a short pulse on the box when pi finishes, so the end of a long run is noticed
   if (was && !busy) { const entry = host.querySelector('.acw-entry'); entry?.classList.remove('is-done'); void entry?.offsetWidth; entry?.classList.add('is-done'); }
 }
@@ -690,6 +748,7 @@ async function openChat(projectId, chatId, { keepScroll = false } = {}) {
     if (ticket !== version) return;
     resetLog();
     for (const item of data.items) render(item);
+    if (!data.busy) groupSteps();
     if (data.partial) render({ kind: 'delta', text: data.partial });
     chatHarness = data.harness || harness;
     harnessModels = data.harness_models ? data.harness_models.map(m => ({ ...m, selected: m.model === data.model?.model })) : null;

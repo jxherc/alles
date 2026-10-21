@@ -359,3 +359,20 @@
 .acw-working { display: inline-flex; align-items: center; gap: var(--k-space-2); min-height: 32px; color: var(--k-muted); font-size: 13px; font-variant-numeric: tabular-nums; animation: acw-arrive 200ms ease-out; }
 .acw-working-label { background: linear-gradient(90deg, var(--k-muted) 0%, var(--k-text) 45%, var(--k-muted) 90%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: acw-shimmer 1.4s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .acw-working, .acw-working-label { animation: none; } .acw-working-label { background: none; color: var(--k-text); } }
+.acw-diff-line.same { color: var(--k-soft); }
+.acw-diff-line.same::before { content: " "; }
+.acw-diff-fold { padding: 2px var(--k-space-3); color: var(--k-muted); font: 400 11px/1.5 var(--k-font); background: var(--k-hover); }
+.acw-tool-why { margin: 0 !important; padding: 0 var(--k-space-3) var(--k-space-2) calc(var(--k-space-3) + 16px + var(--k-space-3)); color: var(--k-danger); font: 400 12px/1.4 var(--k-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* a folded run of steps: one line with a dot per step, open it for the cards */
+.acw-steps { min-width: 0; animation: acw-arrive 220ms ease-out; }
+.acw-steps > summary { display: flex; align-items: center; gap: var(--k-space-3); min-height: var(--k-control); padding: 0 var(--k-space-3); border-radius: var(--k-radius-surface); background: var(--k-panel); color: var(--k-soft); font-size: 13px; cursor: pointer; list-style: none; }
+.acw-steps > summary::-webkit-details-marker { display: none; }
+.acw-steps > summary:hover { background: var(--k-hover); }
+.acw-steps-label { flex: 0 0 auto; font-weight: 560; color: var(--k-text); }
+.acw-steps-dots { display: flex; flex-wrap: wrap; gap: 3px; min-width: 0; }
+.acw-steps-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--k-success, #7ea98b); }
+.acw-steps-dots span.failed { background: var(--k-danger); }
+.acw-steps[open] > summary { margin-bottom: var(--k-space-2); }
+.acw-steps[open] { display: grid; gap: var(--k-space-2); }
+.acw-steps .acw-tool + .acw-tool { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .acw-steps { animation: none; } }
