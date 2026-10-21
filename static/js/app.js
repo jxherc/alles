@@ -20,6 +20,7 @@ import { openManual } from './help.js?v=1';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
 import { loadVaultView, initVault } from './vault.js?v=283';
 import { loadContacts, addContact } from './contacts.js';
+import { initLiveFormat } from './liveformat.js';
 import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=485';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
@@ -80,6 +81,8 @@ let _popstateGeneration = 0;
 let _navigationGeneration = 0;
 
 async function init() {
+  // phone numbers, card numbers and expiry format as you type, app-wide (one delegated listener)
+  initLiveFormat();
   const params = new URLSearchParams(location.search);
   // 1. redeem a handoff code if an app/the apex sent us one
   const code = params.get('_auth');
