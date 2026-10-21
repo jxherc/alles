@@ -537,7 +537,7 @@ test('specialist overviews keep partial failures distinct from honest empty stat
   assert.match(source, /contacts unavailable/);
   assert.match(source, /saved reading could not be loaded/);
   assert.match(source, /measurements unavailable/);
-  assert.match(source, /habit status unavailable/);
+  assert.match(source, /habits unavailable/);
   assert.match(source, /no items were returned by available sources/);
 });
 

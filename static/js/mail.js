@@ -904,6 +904,8 @@ export async function loadMail(fetcher = fetch) {
 function syncAccountSelect() {
   const sel = $('mail-account');
   if (!sel) return;
+  // no mailbox yet: folders, search and refresh have nothing to act on
+  $('mail-view')?.toggleAttribute('data-no-account', !_accounts.length);
   if (!_accounts.length) {
     populateDropdown(sel, [{ value: '', label: 'no accounts' }], '');
     return;

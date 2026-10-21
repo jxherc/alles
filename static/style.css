@@ -11282,3 +11282,6 @@ body.aide-working .composer-box::after {
 
 /* an empty journal day is just the page: mood and tags appear once you start writing */
 .jrnl-main[data-blank="true"] :is(.jrnl-mood-label, .jrnl-moods, .jrnl-tags) { display: none; }
+
+/* mail before the first account: only the account setup and compose */
+#mail-view[data-no-account] :is(#mail-sidebar-toggle, #mail-account, #mail-search, #mail-refresh-btn, #mail-sidebar, #mail-list) { display: none; }

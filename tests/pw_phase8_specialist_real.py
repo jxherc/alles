@@ -379,7 +379,9 @@ def _exercise_case(
         "theme => theme === 'light' ? document.documentElement.dataset.theme === 'light' : document.documentElement.dataset.theme !== 'light'",
         arg=theme,
     )
-    assert "ledgers match" in page.locator(".finance-actual-head").inner_text()
+    assert "ready for review" in page.locator(".finance-actual-head").inner_text()
+    page.get_by_role("button", name="show ledger setup").click()
+    assert "ledgers match" not in page.locator(".finance-actual-head").inner_text()
     assert page.locator(".finance-actual-facts dd").all_text_contents()[:3] == [
         "Alles",
         "CAD",
@@ -412,6 +414,9 @@ def _exercise_case(
     page.locator('#finance-view [data-group-section="overview"]').click()
     page.locator(".finance-actual-ready").wait_for(state="visible")
 
+    setup = page.get_by_role("button", name="show ledger setup")
+    if setup.count():
+        setup.click()
     trigger = page.get_by_role("button", name="review ledger switch")
     trigger.focus()
     trigger.click()

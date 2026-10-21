@@ -765,13 +765,10 @@ def _mobile(browser: Browser, errors: list[str]) -> None:
     assert page.locator("#files-app-status").inner_text() == ""
     header_box = page.locator("#files-app-header").bounding_box()
     shell_box = page.locator("#app-drawer-btn").bounding_box()
-    sidebar_box = page.locator(
-        "#files-workbench-view [data-specialist-sidebar-toggle]"
-    ).bounding_box()
     settings_box = page.locator("#files-settings-btn").bounding_box()
     up_box = page.locator("#files-up-btn").bounding_box()
     assert header_box and header_box["height"] <= 100
-    assert shell_box and sidebar_box
+    assert shell_box
     assert settings_box and up_box and abs(settings_box["y"] - up_box["y"]) < 1
     for selector in ("#app-drawer-btn", "#files-settings-btn", "#files-up-btn"):
         box = page.locator(selector).bounding_box()

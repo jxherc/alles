@@ -117,13 +117,8 @@ def run() -> None:
                 page.reload(wait_until="networkidle")
                 unscheduled.click()
                 expect(page.locator(".specialist-workbench-main")).to_contain_text(title)
-                toggle = page.locator("#plan-view [data-specialist-sidebar-toggle]")
-                toggle.click()
-                expect(page.locator("#plan-tabs")).to_be_hidden()
-                expect(capture).to_be_visible()
-                expect(unscheduled).to_be_visible()
-                toggle.press("Enter")
                 expect(page.locator("#plan-tabs")).to_be_visible()
+                expect(capture).to_be_visible()
                 page.screenshot(path=str(output / f"plan-{width}-populated.png"))
                 record(current, width, "passed")
                 current = "docs.save-persistence"
@@ -145,7 +140,6 @@ def run() -> None:
                 content = f"# Stable document {width}\n\nSaved through the editor. 中文 📝\n"
                 source = page.locator("#wiki-source")
                 source.fill(content)
-                page.locator("#docs-workbench-view [data-specialist-sidebar-toggle]").click()
                 expect(source).to_have_value(content)
                 expect(source).to_be_visible()
                 if width == 1440:

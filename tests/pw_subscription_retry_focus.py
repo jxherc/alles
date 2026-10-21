@@ -161,7 +161,7 @@ with sync_playwright() as pw:
                         )
                     elif case == "newer-navigation":
                         navigation = page.locator(
-                            '[data-specialist-sidebar-toggle][aria-controls="finance-tabs"]'
+                            '#finance-tabs [role="tab"][aria-selected="true"]'
                         )
                         expect(navigation).to_be_visible()
                         navigation.focus()

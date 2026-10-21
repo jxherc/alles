@@ -187,18 +187,13 @@ def run():
                             tabs.last.press("Home")
                             expect(tabs.first).to_be_focused()
                             expect(tabs.first).to_have_attribute("aria-selected", "true")
-                            toggle = root.locator("[data-specialist-sidebar-toggle]")
-                            toggle.press("Enter")
-                            expect(strip).to_be_hidden()
                             page.reload(wait_until="networkidle")
-                            expect(strip).to_be_hidden()
-                            toggle.press("Enter")
                             expect(strip).to_be_visible()
                     assert not external and not errors and not console, (external, errors, console)
                     row.update(
                         status="passed",
                         groups=checked,
-                        checks="all nine groups, every view revealable, scroll does not navigate, disabled bounds preserve focus, keyboard Home/End selects, collapse/reload/restore, themes/reduced motion/native200 fullCDP, no page overflow or console errors",
+                        checks="all nine groups, every view revealable, scroll does not navigate, disabled bounds preserve focus, keyboard Home/End selects, views stay after reload, themes/reduced motion/native200 fullCDP, no page overflow or console errors",
                     )
                 except Exception:
                     row["error"] = traceback.format_exc()

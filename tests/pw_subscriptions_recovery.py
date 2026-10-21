@@ -318,7 +318,7 @@ def run():
                         page.route(url, lambda route: held.append(route))
                         key(page.locator(".sub-hist-pop [data-act=undo-last]"))
                         navigation = page.locator(
-                            '[data-specialist-sidebar-toggle][aria-controls="finance-tabs"]'
+                            '#finance-tabs [role="tab"][aria-selected="true"]'
                         )
                         expect(navigation).to_be_visible()
                         navigation.focus()

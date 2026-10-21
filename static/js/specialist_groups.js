@@ -744,12 +744,12 @@ async function _renderHealth(target, request) {
   const healthError = _settledError(healthResult, 'measurements could not be loaded');
   const habitsError = _settledError(habitsResult, 'habits could not be loaded');
   target.replaceChildren();
-  const note = _el('p', 'specialist-group-note', 'health records stay local. using them in aide requires your permission.');
   const workbench = _el('div', 'specialist-workbench specialist-workbench-health');
   const rail = _el('aside', 'specialist-workbench-rail');
   rail.append(_el('h2', '', 'today'));
   const rhythm = _el('div', 'specialist-health-rhythm');
   if (!habits.length) rhythm.append(_el('p', 'specialist-workbench-empty', habitsError ? 'habits unavailable' : 'no habits yet'));
+  if (!habits.length && !habitsError) rhythm.append(_sectionJump('health', 'habits', 'add a habit', 'specialist-inline-action'));
   for (const habit of habits) {
     const button = _sectionJump('health', 'habits', '', 'specialist-habit-row');
     button.setAttribute('aria-label', `open habit ${habit.name || 'untitled'}`);
@@ -759,15 +759,13 @@ async function _renderHealth(target, request) {
     );
     rhythm.append(button);
   }
-  rail.append(rhythm, _el('h2', '', 'specialists'));
-  const jumps = _el('div', 'specialist-workbench-jumps');
-  jumps.append(_sectionJump('health', 'health', 'health log'), _sectionJump('health', 'habits', 'habits'));
-  rail.append(jumps);
+  rail.append(rhythm);
   const main = _el('section', 'specialist-workbench-main');
   const head = _el('div', 'specialist-workbench-head');
-  head.append(_el('h2', '', 'latest measurements'), _el('span', '', `${health.length} kinds`));
+  head.append(_el('h2', '', 'latest measurements'));
   const measurements = _el('div', 'specialist-record-list');
   if (!health.length) measurements.append(_el('p', 'specialist-workbench-empty', healthError ? 'measurements unavailable' : 'no measurements yet'));
+  if (!health.length && !healthError) measurements.append(_sectionJump('health', 'health', 'log a measurement', 'specialist-inline-action'));
   for (const item of health) {
     const row = _el('div', 'specialist-record-row');
     row.append(
@@ -780,14 +778,10 @@ async function _renderHealth(target, request) {
   main.append(head, measurements);
   const detail = _el('aside', 'specialist-workbench-detail');
   const completed = habits.filter(item => item.done_today).length;
-  detail.append(
-    _el('h2', '', 'today rhythm'),
-    _el('strong', 'specialist-detail-title', habitsError ? 'habit status unavailable' : `${completed} of ${habits.length} habits complete`),
-    _el('p', 'specialist-detail-body', 'Habit completion stays separate from measurement records. A Project selection never grants Aide access to health data.'),
-    _sectionJump('health', 'health', 'open health history', 'specialist-inline-action'),
-  );
+  // the rail already says when there are no habits; this column only adds the day's tally
+  if (habits.length) detail.append(_el('h2', '', 'done today'), _el('strong', 'specialist-detail-title', `${completed} of ${habits.length}`));
+  if (health.length) detail.append(_sectionJump('health', 'health', 'open health history', 'specialist-inline-action'));
   workbench.append(rail, main, detail);
-  target.append(note);
   const partial = _partialAvailability([
     ['measurements', healthError],
     ['habits', habitsError],
@@ -1061,7 +1055,6 @@ async function _renderFinance(target, request) {
   const subscriptionsError = _settledError(subscriptionsResult, 'subscription data could not be loaded');
   const actualError = _settledError(actualResult, 'Actual status could not be loaded');
   target.replaceChildren();
-  const note = _el('p', 'specialist-group-note', 'account balances show their recorded currency. mixed currencies stay separate; Actual balances use the reviewed ledger base.');
   const grid = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
   grid.append(
     _list('accounts', accounts.map(item => ({ title: item.name, meta: item.balance_by_currency?.length ? item.balance_by_currency.map(row => financeAmount(row.balance, row.currency)).join(' · ') : financeAmount(item.balance, item.currency || item.currency_code || '') })), accountsError ? `accounts unavailable: ${accountsError}` : 'no accounts yet'),
@@ -1073,7 +1066,7 @@ async function _renderFinance(target, request) {
   const urgent = financeActualPresentation(actual).state === 'canonical-unhealthy' || !!actualError;
   if (urgent) target.append(ledgerPanel);
   if (actualError) target.append(_el('p', 'specialist-group-error', `Actual status unavailable: ${actualError}`));
-  target.append(work, grid, note);
+  target.append(work, grid);
   if (!urgent) target.append(ledgerPanel);
 }
 
@@ -1467,7 +1460,7 @@ async function _renderImports(target, request) {
   let previewGeneration = 0;
   let activePreviewGeneration = 0;
   const panel = _el('section', 'finance-import-panel');
-  const boundary = _el('p', 'specialist-group-note', 'choose the destination account and preview every file before applying it. bank connections are managed separately.');
+  const boundary = _el('p', 'specialist-group-note', 'pick an account, then preview the file before you apply it.');
   const formatHelp = _el('p', 'specialist-group-note finance-import-format-help',
     'csv columns: date, payee, amount. example row: 2026-04-05,groceries,-8.25. optional currency uses a code such as CAD or USD; otherwise the selected account’s currency is used. use one currency per file and choose a matching account. fix the file and preview again if a row needs review.');
   formatHelp.hidden = profileId !== 'generic-csv';
