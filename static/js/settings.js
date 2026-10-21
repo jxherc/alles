@@ -162,6 +162,9 @@ export function openSettings(pane, _allesOnly = false) {
 
   _switchPane(pane);
   requestAnimationFrame(() => {
+    // this runs a frame late: if focus already moved into settings (a fast click or key on
+    // close), leave it there instead of yanking it back to the section picker
+    if (modal.style.display === 'none' || modal.contains(document.activeElement)) return;
     const picker = document.getElementById('settings-section-trigger');
     const target = (picker?.offsetParent !== null ? picker : null)
       || document.querySelector(`.s-nav-item[data-pane="${CSS.escape(_activePane)}"]`)
