@@ -513,7 +513,9 @@ function _bindNav() {
     const importSelected = async f => {
       if (!f || importing) return;
       retainedFile = f;
-      const origin = [imp, retry, choose].includes(document.activeElement) ? document.activeElement : null;
+      // import sits in the "more" menu, which hands focus back to its button before the picker opens
+      const more = document.getElementById('cal-more-btn');
+      const origin = [imp, retry, choose, more].includes(document.activeElement) ? document.activeElement : null;
       importing = true; imp.disabled = true; fileInp.disabled = true; retry.disabled = true; choose.disabled = true;
       try {
         const r = await fetch('/api/calendar/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ics: await f.text() }) });
@@ -532,7 +534,7 @@ function _bindNav() {
       } finally {
         importing = false; imp.disabled = false; fileInp.disabled = false; retry.disabled = false; choose.disabled = false;
         if (origin && (document.activeElement === origin || document.activeElement === document.body)
-            && document.getElementById('cal-import') === imp) (feedback.hidden ? imp : origin).focus();
+            && document.getElementById('cal-import') === imp) (feedback.hidden ? (imp.getClientRects?.().length ? imp : more || imp) : origin).focus();
       }
     };
     imp.addEventListener('click', chooseFile);

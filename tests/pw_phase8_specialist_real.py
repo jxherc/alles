@@ -433,6 +433,9 @@ def _exercise_case(
     assert calls == ["/api/finance/actual/cutover/run-browser"]
     assert page.get_by_role("button", name="stop Actual").count() == 0
 
+    setup = page.get_by_role("button", name="show ledger setup")
+    if setup.count():
+        setup.click()
     rollback = page.get_by_role("button", name="review return to Alles")
     rollback.click()
     page.get_by_role("button", name="use Alles ledger").click()

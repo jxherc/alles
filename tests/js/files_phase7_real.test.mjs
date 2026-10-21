@@ -221,7 +221,7 @@ test('only an explicit owner action discards one retained outbox row', async () 
 });
 
 test('network-first code preserves 4xx, but uses cache for server failure or offline', async () => {
-  const source = serviceWorker.match(/async function networkFirstStatic\(request\) \{[\s\S]*?\n\}/)?.[0] || '';
+  const source = serviceWorker.match(/async function networkFirstStatic\(request[^)]*\) \{[\s\S]*?\n\}/)?.[0] || '';
   const cached = { source: 'cached' };
   let matchCalls = 0;
   let putCalls = 0;

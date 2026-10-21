@@ -143,7 +143,9 @@ def run() -> None:
             app_href = style_href.replace("/static/style.css", "/static/js/app.js")
             worker_source = (Path(__file__).resolve().parents[1] / "static/sw.js").read_text()
             version = re.search(r"const VERSION = '(v[0-9]+)'", worker_source).group(1)
-            assert cached["names"] == ["alles-" + version], cached["names"]
+            served = page.request.get(f"{BASE}/sw.js").text()
+            build = re.search(r"const BUILD = '([0-9a-f]+)'", served).group(1)
+            assert cached["names"] == [f"alles-{version}-{build}"], cached["names"]
             for retired in ("files.js", "research.js", "ragquery.js", "aidebehavior.js"):
                 assert not any(f"/static/js/{retired}" in url for url in cached["urls"])
             assert any(url.endswith("/") for url in cached["urls"])

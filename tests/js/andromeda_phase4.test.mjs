@@ -664,7 +664,10 @@ test('the service worker cannot mix old and new JavaScript modules', () => {
   assert.match(worker, /NETWORK_FIRST_STATIC\.some\(ext => url\.pathname\.endsWith\(ext\)\)/);
   assert.match(worker, /Network-first code and styles/);
   const networkFirst = worker.match(/Network-first code and styles[\s\S]*?\/\/ Other static assets/)?.[0] || '';
-  assert.match(networkFirst, /e\.respondWith\(networkFirstStatic\(e\.request\)\)/);
+  assert.match(networkFirst, /e\.respondWith\(networkFirstStatic\(e\.request, \{ keep: SAME_BUILD\.get\(e\.clientId\) !== false \}\)\)/);
+  // only a page from this exact build may read code from the cache
+  assert.match(networkFirst, /if \(SAME_BUILD\.get\(e\.clientId\) && !url\.pathname\.endsWith\('\.json'\)\) e\.respondWith\(sameBuildStatic\(e\.request\)\)/);
+  assert.match(worker, /SAME_BUILD\.set\(e\.resultingClientId, resp\.headers\.get\('x-alles-build'\) === BUILD\)/);
   assert.match(worker, /await c\.put\(request, resp\.clone\(\)\)/);
   assert.match(app, /from '\.\/subdomain\.js\?v=237'/);
   assert.match(compatibility, /from '\.\/subdomain\.js\?v=237'/);
