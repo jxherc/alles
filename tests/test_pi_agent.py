@@ -651,3 +651,21 @@ class EffortAndCommandsTest(PiTest):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PiDoesTheWorkTest(unittest.TestCase):
+    def test_changing_tools_move_to_pi_once_it_is_ready(self):
+        from services import agent_tools
+
+        names = lambda defs: {d["function"]["name"] for d in defs}  # noqa: E731
+        with mock.patch.object(agent_tools, "_pi_ready", return_value=True):
+            handed = names(agent_tools.build_tool_defs({"aide_pi_does_work": True}))
+            kept = names(agent_tools.build_tool_defs({"aide_pi_does_work": False}))
+        with mock.patch.object(agent_tools, "_pi_ready", return_value=False):
+            no_pi = names(agent_tools.build_tool_defs({"aide_pi_does_work": True}))
+        for name in ("docs_write", "task_add", "shell", "edit_file"):
+            self.assertNotIn(name, handed)
+            self.assertIn(name, kept)
+            self.assertIn(name, no_pi)  # without pi, Aide still does it
+        for name in ("pi_run", "docs_read", "mail_send", "memory_add", "web_search"):
+            self.assertIn(name, handed)

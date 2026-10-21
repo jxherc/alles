@@ -3567,6 +3567,44 @@ def workspace_files(cwd: str = "", q: str = "", limit: int = 30) -> list[str]:
     return out[:limit]
 
 
+PI_OWNS = {
+    "shell",
+    "write_file",
+    "edit_file",
+    "apply_patch",
+    "revert_file",
+    "git_branch",
+    "git_commit",
+    "opencode_run",
+    "spawn_agent",
+    "spawn_agents",
+    "docs_write",
+    "note_write",
+    "note_append",
+    "task_add",
+    "task_done",
+    "calendar_create",
+    "calendar_delete",
+    "contact_add",
+    "book_add",
+    "health_log",
+    "habit_add",
+    "habit_log",
+    "read_save",
+    "watch_add",
+}
+
+
+def _pi_ready() -> bool:
+    try:
+        from services import pi_agent
+
+        harness = pi_agent.settings()["harness"]
+        return harness in pi_agent.NATIVE and pi_agent.status(harness)["state"] == "ready"
+    except Exception:
+        return False
+
+
 def build_tool_defs(settings: dict) -> list:
     """base tools + cross-app tools + optional computer-use / sub-agent / connection tools per settings"""
     settings = settings or {}
@@ -3585,6 +3623,10 @@ def build_tool_defs(settings: dict) -> list:
             defs += GITHUB_TOOL_DEFS
     except Exception:
         pass
+    # pi does the work: once it's ready, the tools that change data or run code are pi's, and
+    # Aide hands that work over with pi_run. lookups, memory, mail, browser and server stay here
+    if settings.get("aide_pi_does_work") and _pi_ready():
+        defs = [d for d in defs if d["function"]["name"] not in PI_OWNS]
     # plan mode: hide everything that changes state — read/inspect only
     if (settings or {}).get("agent_permission_mode") == "plan":
         defs = [d for d in defs if d["function"]["name"] not in MUTATING_TOOLS]

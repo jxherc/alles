@@ -82,6 +82,7 @@ _defaults = {
     "agent_sandbox_no_net": False,  # --network none in sandbox
     "agent_computer_use": False,  # enable screenshot/click/type tools
     "agent_subagents": True,  # allow spawn_agent delegation
+    "aide_pi_does_work": True,  # once pi is ready, work that changes things goes to pi
     # per-tool/path permission rules: [{tool: glob, path: glob, action: allow|ask|deny}]
     # layered over agent_permission_mode, last match wins
     "permission_rules": [],
