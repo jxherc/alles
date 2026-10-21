@@ -89,7 +89,10 @@ html, body {
   font-feature-settings: 'cv11','ss01','ss03';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* dvh: the height you can see. on an ipad 100vh also counts safari's toolbars, so the bottom
+     of every screen (the text boxes) sat under them */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -106,7 +109,7 @@ a:focus-visible, button:focus-visible {
 .record-target:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* ── layout ── */
-.app { display: flex; height: 100vh; }
+.app { display: flex; height: 100vh; height: 100dvh; }
 body.preboot .app,
 body.login-mode .app {
   visibility: hidden;
@@ -555,7 +558,7 @@ body[data-app="files"] .dialog-msg { overflow-wrap: anywhere; }
 .aide-help-commands dd { margin-top: var(--k-space-1); color: var(--muted); }
 .aide-help-card footer { display: flex; flex-wrap: wrap; gap: var(--k-space-2); justify-content: flex-end; flex-shrink: 0; }
 .aide-help-card button, body.afterlife-aide-projects[data-space="aide"] #aide-help { min-width: 44px; min-height: 44px; }
-.finance-bank-dialog { width: min(760px, calc(100vw - 32px)); max-height: min(760px, calc(100vh - 32px)); overflow: auto; }
+.finance-bank-dialog { width: min(760px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 32px)); overflow: auto; }
 .finance-bank-head, .finance-bank-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .finance-bank-head h2, .finance-bank-setup h3 { margin: 0; color: var(--text); font-size: 0.86rem; font-weight: 620; }
 .finance-bank-head p, .finance-bank-setup p, .finance-bank-empty { margin: 4px 0 0; color: var(--muted); font-size: 0.75rem; line-height: 1.5; }
@@ -577,7 +580,7 @@ body[data-app="files"] .dialog-msg { overflow-wrap: anywhere; }
 .finance-bank-environments { margin-top: 10px; }
 .finance-bank-environments .active { color: var(--text); background: var(--faint); }
 @media (max-width: 620px) {
-  .finance-bank-dialog { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
+  .finance-bank-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
   .finance-bank-setup { grid-template-columns: 1fr; }
   .finance-bank-row { display: grid; }
 }
@@ -636,10 +639,11 @@ body.is-hub .topbar {
 }
 body.is-hub .main {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 /* the full sidebar is aide's home base only. other apps use their own header. */
 body.is-subapp .sidebar { display: none; }
-body.is-subapp .main { min-height: 100vh; }
+body.is-subapp .main { min-height: 100vh; min-height: 100dvh; }
 
 [data-specialist-app], .aide-tool-view { position: relative; }
 /* Specialist apps used a 10–11px control scale inherited from the first compact
@@ -2766,7 +2770,8 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 /* ── generic page view (notes, tasks, etc.) ── */
 .page-view {
   flex: 1; display: flex; flex-direction: column; min-height: 0;
-  animation: rise 0.2s cubic-bezier(0.2,0.7,0.2,1) forwards;
+  /* no fill: a kept transform on a scroll box made touch scrolling on an ipad stutter */
+  animation: rise 0.2s cubic-bezier(0.2,0.7,0.2,1);
 }
 @media (prefers-reduced-motion: reduce) {
   .page-view { animation: none; }
