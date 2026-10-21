@@ -1224,10 +1224,12 @@ async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
         return
     files = ", ".join(sorted({f for f in changed if f})) or "none"
     used = ", ".join(sorted(set(filter(None, tools)))) or "none"
+    # the saved step keeps only this output, so the doc cards come back after a reload
+    saved = "".join(f"\nsaved doc: {path}" for path in dict.fromkeys(filter(None, docs.values())))
     yield {
         "type": "result",
         "result": {
-            "output": f"{answer or 'pi finished without a reply.'}\n\nfiles changed: {files}\ntools used: {used}",
+            "output": f"{answer or 'pi finished without a reply.'}\n\nfiles changed: {files}\ntools used: {used}{saved}",
             **where,
         },
     }
