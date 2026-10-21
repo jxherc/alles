@@ -55,7 +55,7 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
       effects.push(['fetch', url]);
       return { ok: true, json: async () => ({ session: { id: url.split('/')[3], mode: 'chat' }, messages: [] }) };
     },
-    renderMessages: () => effects.push('render'), showMessages: () => effects.push('show'),
+    renderMessages: () => effects.push('render'), showMessages: () => effects.push('show'), scrollDown: () => true,
     setPrimaryConversationUnavailable() {},
     restoreSessionModel: () => effects.push('model'), updateSessionHeader: () => effects.push('header'),
     focusSessionMessage: () => true, console: { error: (...args) => effects.push(['error', ...args]) },

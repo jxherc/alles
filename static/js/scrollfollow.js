@@ -4,6 +4,8 @@ let _chat = null;
 let _jump = null;
 let _following = true;
 let _wired = false;
+// a jump to the end asked for while the chat was hidden (no height yet); done once it shows
+let _pendingEnd = false;
 
 export function distanceFromBottom(element) {
   if (!element) return 0;
@@ -54,6 +56,7 @@ export function scrollToLatest({ force = false } = {}) {
     pauseScrollFollow();
     return false;
   }
+  if (!_chat.clientHeight) _pendingEnd = true;
   _chat.scrollTop = _chat.scrollHeight;
   _following = true;
   refreshScrollFollow();
@@ -82,5 +85,19 @@ export function initScrollFollow() {
     else if (distanceFromBottom(_chat) <= BOTTOM_GAP) _following = true;
   });
   _jump?.addEventListener('click', resumeScrollFollow);
+  // the chat shows (from hidden), the window resizes or a reply grows: stay on the newest
+  // message unless the owner scrolled away from it
+  if (typeof ResizeObserver === 'function') {
+    const messages = document.getElementById('messages');
+    const stick = () => {
+      if (!_chat.clientHeight || !(_pendingEnd || _following)) return;
+      _pendingEnd = false;
+      if (distanceFromBottom(_chat) > 1) _chat.scrollTop = _chat.scrollHeight;
+      refreshScrollFollow();
+    };
+    const observer = new ResizeObserver(stick);
+    observer.observe(_chat);
+    if (messages) observer.observe(messages);
+  }
   refreshScrollFollow();
 }

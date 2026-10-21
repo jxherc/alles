@@ -43,6 +43,7 @@ function fixture({ hash = 'deleted-owner', message = 'deleted-reply', historical
     loadSessions = async () => { _allSessions = index; _sessionsLoaded = true; return true; };
     renderMessages = messages => renders.push(messages);
     showMessages = () => {};
+    scrollDown = () => true;
     showWelcome = () => {};
     updateSessionHeader = () => {};
     restoreDraft = () => {};

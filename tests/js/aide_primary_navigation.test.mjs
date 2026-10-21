@@ -108,6 +108,7 @@ function harness({ active = 'archived', hash = '', view = 'today', index = [], p
     loadSessions = async () => { _allSessions = index; _sessionsLoaded = true; return true; };
     renderMessages = messages => renders.push(messages.map(message => message.content));
     showMessages = () => {};
+    scrollDown = () => true;
     showWelcome = () => {};
     updateSessionHeader = () => {};
     focusSessionMessage = id => { state.message = id; return true; };
