@@ -231,8 +231,12 @@
   animation: acw-sweep 1.6s ease-in-out infinite;
 }
 .acw-entry.is-done { animation: acw-done 700ms ease-out; }
-#aide-coding-workspace .acw-send:not(:disabled) { color: var(--k-page); background: var(--k-text); border-radius: var(--k-radius-control); transition: transform 120ms ease; }
-#aide-coding-workspace .acw-send:not(:disabled):active { transform: scale(.94); }
+/* same send as the conversation's: a 44px target with a 32px filled square in its middle */
+#aide-coding-workspace .acw-send { position: relative; isolation: isolate; }
+#aide-coding-workspace .acw-send::before { content: ""; position: absolute; inset: 6px; z-index: -1; border-radius: var(--k-radius-control); background: transparent; transition: background 140ms ease, transform 120ms ease; }
+#aide-coding-workspace .acw-send:not(:disabled) { color: var(--k-page) !important; background: none; }
+#aide-coding-workspace .acw-send:not(:disabled)::before { background: var(--k-text); }
+#aide-coding-workspace .acw-send:not(:disabled):active::before { transform: scale(.94); }
 #aide-code-stop { color: var(--k-text) !important; }
 #aide-code-stop svg { animation: acw-breathe 1.2s ease-in-out infinite; }
 
@@ -276,14 +280,13 @@
 }
 #aide-coding-workspace .acw-entry textarea:focus-visible { outline: none; }
 #aide-coding-workspace .acw-entry textarea::placeholder { color: var(--k-muted); opacity: 1; }
-.acw-entry-foot { display: flex; align-items: center; gap: var(--k-space-2); padding: 0 var(--k-space-1) 0 0; }
+.acw-entry-foot { display: flex; align-items: center; gap: var(--k-space-2); padding: 0 6px 6px 0; }
 .acw-model { position: relative; min-width: 0; }
 #aide-code-model { max-width: 260px; }
 #aide-code-model-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acw-menu-up { bottom: 100%; left: 0; max-height: 320px; overflow-y: auto; min-width: 260px; }
 .acw-stats { color: var(--k-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #aide-code-status { flex: 1; min-width: 0; font-size: 12px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#aide-coding-workspace .acw-send:not(:disabled) { color: var(--k-text); }
 #aide-code-stop svg path { fill: currentColor; }
 
 /* the / menu sits on the composer, like a terminal's: name, what it does, where it comes from */

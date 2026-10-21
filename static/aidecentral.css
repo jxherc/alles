@@ -292,9 +292,18 @@ body.aide-central[data-space="aide"] .composer-box {
   transition: box-shadow 140ms ease;
 }
 body.aide-central[data-space="aide"] .composer-box:focus-within { box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--muted)); }
-body.aide-central[data-space="aide"] .composer-box .send-btn { border-color: transparent; }
-body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording) { background: var(--k-text, var(--text)); color: var(--k-page, var(--bg)); }
-body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording):active { transform: scale(.94); }
+/* the send keeps its 44px target, but only a 32px square in its middle fills, so it sits the same
+   12px in from the box's right and bottom edges as the text does from the left */
+body.aide-central[data-space="aide"] .composer-bar { padding-bottom: 6px; padding-right: 6px; }
+body.aide-central[data-space="aide"] .composer-box .send-btn { position: relative; isolation: isolate; border-color: transparent; background: none; }
+body.aide-central[data-space="aide"] .composer-box .send-btn::before {
+  content: ""; position: absolute; inset: 6px; z-index: -1; border-radius: var(--k-radius-control, 3px);
+  background: transparent; transition: background 140ms ease, transform 120ms ease;
+}
+body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording) { color: var(--k-page, var(--bg)); }
+body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording)::before { background: var(--k-text, var(--text)); }
+body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording):active::before { transform: scale(.94); }
+body.aide-central[data-space="aide"] .composer-box .send-btn.is-empty:hover::before { background: var(--k-hover, var(--panel)); }
 /* the conversation fades out under the box instead of being cut by its edge */
 body.aide-central[data-space="aide"] .composer-outer { position: relative; }
 body.aide-central[data-space="aide"] .composer-outer::before {
