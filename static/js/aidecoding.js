@@ -313,7 +313,8 @@ function groupSteps() {
     run = [];
   };
   for (const node of [...log.children]) {
-    if (node.matches('.acw-tool') && node.dataset.state !== 'running') run.push(node);
+    // edits and new files stay in view: they're what changed
+    if (node.matches('.acw-tool') && node.dataset.state !== 'running' && !['edit', 'write'].includes(node.dataset.kind)) run.push(node);
     else fold();
   }
   fold();
