@@ -1,8 +1,12 @@
 /* alles service worker — offline shell + web push */
 const VERSION = 'v421';   // one header row for every app in this shell revision.
-const CACHE = `alles-${VERSION}`;
+const BUILD = '__ALLES_BUILD__';   // the server swaps in a hash of static/, so any change is a new worker
+const CACHE = `alles-${VERSION}-${BUILD}`;
 const STAMP = '574';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
+// page -> whether its html came from this same build. a same-build page reads its code straight
+// from the cache: nothing there can be from another build. a restarted worker forgets and asks the network
+const SAME_BUILD = new Map();
 
 // 1b: mutating writes that should be queued when offline
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
@@ -43,12 +47,19 @@ self.addEventListener('activate', e => {
   );
 });
 
-async function networkFirstStatic(request) {
+async function sameBuildStatic(request) {
+  const c = await caches.open(CACHE);
+  const hit = await c.match(request);
+  if (hit) return hit;
+  return networkFirstStatic(request);
+}
+
+async function networkFirstStatic(request, { keep = true } = {}) {
   const c = await caches.open(CACHE);
   try {
     const resp = await fetch(request);
     if (resp.ok) {
-      try { await c.put(request, resp.clone()); } catch {}
+      if (keep) { try { await c.put(request, resp.clone()); } catch {} }
       return resp;
     }
     if (resp.status >= 500) {
@@ -84,7 +95,9 @@ self.addEventListener('fetch', e => {
   // offline fallback, but an online reload must never draw yesterday's layout first.
   if (url.pathname.startsWith('/static/') &&
       NETWORK_FIRST_STATIC.some(ext => url.pathname.endsWith(ext))) {
-    e.respondWith(networkFirstStatic(e.request));
+    // release notes stay live; a page from this build reads the rest of its code from the cache
+    if (SAME_BUILD.get(e.clientId) && !url.pathname.endsWith('.json')) e.respondWith(sameBuildStatic(e.request));
+    else e.respondWith(networkFirstStatic(e.request, { keep: SAME_BUILD.get(e.clientId) !== false }));
     return;
   }
 
@@ -108,6 +121,9 @@ self.addEventListener('fetch', e => {
     try {
       const resp = await fetch(e.request);
       if (resp.ok) c.put(e.request, resp.clone());
+      if (e.request.mode === 'navigate' && e.resultingClientId) {
+        SAME_BUILD.set(e.resultingClientId, resp.headers.get('x-alles-build') === BUILD);
+      }
       return resp;
     } catch (err) {
       const hit = await c.match(e.request, { ignoreSearch: e.request.mode === 'navigate' });

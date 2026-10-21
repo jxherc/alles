@@ -157,7 +157,7 @@ class ManifestTests(ApiTest):
             "NETWORK_FIRST_STATIC.some(ext => url.pathname.endsWith(ext))",
             worker,
         )
-        self.assertIn("e.respondWith(networkFirstStatic(e.request))", worker)
+        self.assertIn("e.respondWith(networkFirstStatic(e.request, {", worker)
         network_first = worker[
             worker.index("async function networkFirstStatic") : worker.index(
                 "self.addEventListener('fetch'"
@@ -171,6 +171,28 @@ class ManifestTests(ApiTest):
             r"catch \(err\)\s*\{\s*const hit = await c\.match\(request\);"
             r"\s*if \(hit\) return hit;",
         )
+
+    def test_page_and_worker_name_the_same_build(self):
+        build = self.client.get("/").headers["x-alles-build"]
+        worker = self.client.get("/sw.js").text
+        self.assertRegex(build, r"^[0-9a-f]{12}$")
+        self.assertIn(f"const BUILD = '{build}';", worker)
+        self.assertNotIn("__ALLES_BUILD__", worker)
+        self.assertIn("const CACHE = `alles-${VERSION}-${BUILD}`;", worker)
+
+    def test_only_a_same_build_page_reads_code_from_the_cache(self):
+        worker = (STATIC / "sw.js").read_text(encoding="utf-8")
+        self.assertIn(
+            "SAME_BUILD.set(e.resultingClientId, resp.headers.get('x-alles-build') === BUILD);",
+            worker,
+        )
+        self.assertIn(
+            "if (SAME_BUILD.get(e.clientId) && !url.pathname.endsWith('.json')) "
+            "e.respondWith(sameBuildStatic(e.request));",
+            worker,
+        )
+        # a page from another build never fills this build's cache
+        self.assertIn("{ keep: SAME_BUILD.get(e.clientId) !== false }", worker)
 
     def test_nested_settings_module_graph_is_available_for_cold_offline_boot(self):
         urls = self.client.get("/api/pwa/precache").json()["urls"]

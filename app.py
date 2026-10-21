@@ -1304,20 +1304,52 @@ static_dir = Path(__file__).parent / "static"
 app.mount("/static", NoCacheStatic(directory=str(static_dir), html=False), name="static")
 
 
+_build_cache: tuple[float, str] = (0.0, "")
+
+
+def _static_build() -> str:
+    # one id for every file under static/. it changes whenever any of them does, so the service
+    # worker (which gets it baked in) and the page header always name the code that's on disk
+    global _build_cache
+    import hashlib
+    import time
+
+    now = time.monotonic()
+    if _build_cache[1] and now - _build_cache[0] < 2:
+        return _build_cache[1]
+    h = hashlib.sha1()
+    for p in sorted(static_dir.rglob("*")):
+        if p.is_file():
+            st = p.stat()
+            h.update(
+                f"{p.relative_to(static_dir).as_posix()}:{st.st_size}:{st.st_mtime_ns};".encode()
+            )
+    _build_cache = (now, h.hexdigest()[:12])
+    return _build_cache[1]
+
+
 @app.get("/")
 async def index():
     # Never retain the shell; static code validates against its own file metadata.
     return FileResponse(
         str(static_dir / "index.html"),
-        headers={"cache-control": "no-cache, no-store, must-revalidate"},
+        headers={
+            "cache-control": "no-cache, no-store, must-revalidate",
+            "x-alles-build": _static_build(),
+        },
     )
 
 
 @app.get("/sw.js")
 async def service_worker():
     # served from root so the worker's scope covers the whole app
-    return FileResponse(
-        str(static_dir / "sw.js"),
+    source = (
+        (static_dir / "sw.js")
+        .read_text(encoding="utf-8")
+        .replace("__ALLES_BUILD__", _static_build())
+    )
+    return Response(
+        source,
         media_type="application/javascript",
         headers={"cache-control": "no-cache, no-store, must-revalidate"},
     )
