@@ -88,6 +88,7 @@ _defaults = {
     "permission_rules": [],
     "auto_compact": True,
     "compact_threshold": 30,
+    "compact_min_chars": 60_000,  # only summarize a history this big; smaller ones go as is
     "stt_provider": "browser",  # browser | local | whisper_api
     "stt_model": "base",  # faster-whisper size for local: tiny|base|small|medium|large-v3
     "tts_provider": "browser",  # openai | browser

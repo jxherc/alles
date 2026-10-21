@@ -326,6 +326,12 @@ def _vault_document_context(
     return context, {"kind": "vault_document", "path": path, "hash": document["hash"]}
 
 
+def needs_compaction(messages: list[dict], threshold: int, min_chars: int) -> bool:
+    chat_msgs = [m for m in messages if m["role"] != "system"]
+    size = sum(len(m["content"]) if isinstance(m["content"], str) else 2000 for m in chat_msgs)
+    return len(chat_msgs) > threshold * 0.9 and size > min_chars
+
+
 async def _sse(gen):
     """wrap async generator into SSE — yield bytes so uvicorn flushes each chunk immediately"""
     async with aclosing(gen):
@@ -450,11 +456,12 @@ async def create_chat_response(body: ChatRequest, request: Request, db, *, voice
         retry_message_id=body.retry_message_id,
     )
 
-    # context compaction
+    # context compaction: only when the history is actually big. the last `context_limit`
+    # messages are sent anyway, and summarizing ran a whole model call before every turn of a
+    # long conversation (about 6 seconds each time, never saved)
     if not selected_documents_only and settings.get("auto_compact", True):
         threshold = settings.get("compact_threshold", 30)
-        chat_msgs = [m for m in messages if m["role"] != "system"]
-        if len(chat_msgs) > threshold * 0.9:
+        if needs_compaction(messages, threshold, settings.get("compact_min_chars", 60_000)):
             from services.llm import compact_messages
 
             messages = await compact_messages(messages, ep, model, target_len=threshold)

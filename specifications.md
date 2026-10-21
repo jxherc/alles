@@ -3825,6 +3825,7 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `permission_rules` | `[]` |
 | `auto_compact` | `true` |
 | `compact_threshold` | `30` |
+| `compact_min_chars` | `60000` (a history is summarized only past this many characters, so a long but light conversation never waits on a summary) |
 | `stt_provider` | `"browser"` |
 | `stt_model` | `"base"` |
 | `tts_provider` | `"browser"` |

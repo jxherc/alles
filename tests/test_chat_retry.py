@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import unittest
 from datetime import UTC, datetime, timedelta
 from unittest import mock
 
@@ -377,7 +378,7 @@ class ChatRetryTests(ApiTest):
                     if private
                     else None
                 )
-                self.settings.update(auto_compact=True, compact_threshold=1)
+                self.settings.update(auto_compact=True, compact_threshold=1, compact_min_chars=0)
 
                 async def scenario():
                     waiting, release = asyncio.Event(), asyncio.Event()
@@ -472,3 +473,15 @@ class ChatRetryTests(ApiTest):
                 self.assertEqual(calls, [])
         finally:
             chat._streams.pop(sid, None)
+
+
+class CompactionTriggerTest(unittest.TestCase):
+    def test_a_long_but_small_history_never_waits_on_a_summary(self):
+        from routes.chat import needs_compaction
+
+        system = {"role": "system", "content": "x" * 5000}
+        short = [system] + [{"role": "user", "content": "hi there"}] * 36
+        self.assertFalse(needs_compaction(short, 30, 60_000))  # 36 messages, tiny: no model call
+        big = [system] + [{"role": "user", "content": "y" * 3000}] * 36
+        self.assertTrue(needs_compaction(big, 30, 60_000))
+        self.assertFalse(needs_compaction(big[:20], 30, 60_000))  # few messages: never
