@@ -8014,6 +8014,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .persona-docs { display: flex; flex-direction: column; gap: 0.3rem; }
 .persona-doc-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; padding: 0.2rem 0; }
 .mcp-presets { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.photon-connect { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0.75rem 0; }
+.photon-connect-note { flex: 1 1 14rem; margin: 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
+.photon-connect-note strong { color: var(--text); font-weight: 600; letter-spacing: 0.04em; }
+.photon-connect-note[data-error="true"], .photon-line[data-error="true"] { color: var(--error); }
+.photon-line { margin: 0 0 0.75rem; color: var(--text); font-size: 0.82rem; line-height: 1.45; }
+.photon-keys { margin-top: 0.25rem; }
 .mcp-registry-search { display: flex; gap: 0.4rem; }
 .mcp-registry-search input { flex: 1; min-width: 0; }
 .mcp-registry-results { margin-top: 0.45rem; max-height: 320px; overflow-y: auto; }

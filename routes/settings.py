@@ -41,6 +41,7 @@ _SECRET_KEYS = {
     "notify_telegram_token",
     "notify_telegram_chat_id",
     "photon_project_secret",
+    "photon_access_token",
 }
 _CONFIG_FLAGS = {
     "mail_oauth_client_secret",

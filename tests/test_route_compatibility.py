@@ -117,6 +117,10 @@ _BROWSER_SIGNIN_ADDITIONS = {
 }
 
 
+# one-click Photon setup (device login), added after the errand sign-in
+_PHOTON_SETUP_ADDITIONS = {"POST /api/aide/channels/photon/connect"}
+
+
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
     later = (
@@ -126,6 +130,7 @@ def _route_rows():
         | _WAKE_AND_CONNECTOR_ADDITIONS
         | _ANDROMEDA_TOOLS_ADDITIONS
         | _BROWSER_SIGNIN_ADDITIONS
+        | _PHOTON_SETUP_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -251,6 +256,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _WAKE_AND_CONNECTOR_ADDITIONS
                 - _ANDROMEDA_TOOLS_ADDITIONS
                 - _BROWSER_SIGNIN_ADDITIONS
+                - _PHOTON_SETUP_ADDITIONS
             ),
             960,
         )
@@ -280,13 +286,24 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_andromeda_tool_routes_are_additive(self):
         current = set(_current_rows())
         self.assertTrue(_ANDROMEDA_TOOLS_ADDITIONS <= current)
-        self.assertEqual(len(current - _ANDROMEDA_TOOLS_ADDITIONS - _BROWSER_SIGNIN_ADDITIONS), 974)
+        self.assertEqual(
+            len(
+                current
+                - _ANDROMEDA_TOOLS_ADDITIONS
+                - _BROWSER_SIGNIN_ADDITIONS
+                - _PHOTON_SETUP_ADDITIONS
+            ),
+            974,
+        )
+
+    def test_photon_setup_route_is_additive(self):
+        self.assertTrue(_PHOTON_SETUP_ADDITIONS <= set(_current_rows()))
 
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 986)
-        self.assertEqual(digest, "41dcc23d7df055876d22fc2afd05725f3e5d29f74cf20ec4a6246298bc2f47c5")
+        self.assertEqual(len(rows), 987)
+        self.assertEqual(digest, "60d8af0b717621d1b34a9581c6738a6ac36e4734baa0ee4fd49141d5dad21d8f")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -295,7 +312,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 965, "v1": 2, "public": 19})
+        self.assertEqual(groups, {"api": 966, "v1": 2, "public": 19})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

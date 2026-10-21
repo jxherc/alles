@@ -498,6 +498,7 @@ source revision: `phase10-release-inventory-2026-07-22`
 | AdGuard Home | `not bundled` | credit | [upstream](https://github.com/AdguardTeam/AdGuardHome) | not required |
 | CLIProxyAPI | `not bundled` | credit | [upstream](https://github.com/router-for-me/CLIProxyAPI) | not required |
 | File Browser | `not bundled` | credit | [upstream](https://github.com/filebrowser/filebrowser) | not required |
+| Hermes Agent | `not bundled` | credit | [upstream](https://github.com/NousResearch/hermes-agent) | not required |
 | Nginx Proxy Manager | `not bundled` | credit | [upstream](https://github.com/NginxProxyManager/nginx-proxy-manager) | not required |
 | Obsidian | `not bundled` | credit | [upstream](https://obsidian.md/) | not required |
 | Odysseus | `not bundled` | credit | [upstream](https://github.com/pewdiepie-archdaemon/odysseus) | not required |

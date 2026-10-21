@@ -3,6 +3,7 @@ import { getDropdownValue } from '../dropdown.js?v=212';
 import { toast } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { parsePrivateLines } from '../mcp-config.js';
+import { formatPhone } from '../liveformat.js';
 import { resolvedTimeZone, t } from '../i18n.js';
 import { _setSwitch, _bindSwitch, _patchSetting, _patchSettings, _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 
@@ -884,6 +885,85 @@ async function _delPermRule(rule) {
 
 let _photonBound = false;
 let _photonEnabled = false;
+let _photonPoll = 0;
+
+function _renderPhotonLogin(data) {
+  const login = data.login || {};
+  const button = document.getElementById('photon-connect-btn');
+  const note = document.getElementById('photon-connect-note');
+  const busy = ['starting', 'waiting', 'finishing'].includes(login.state);
+  button.disabled = busy;
+  button.textContent = data.has_secret ? 'reconnect Photon' : 'connect with Photon';
+  button.classList.toggle('primary', !data.has_secret);
+  note.replaceChildren();
+  if (login.state === 'waiting' && login.url) {
+    note.append('approve in Photon with code ');
+    const code = document.createElement('strong');
+    code.textContent = login.user_code || '';
+    note.append(code, '. ');
+    const link = document.createElement('a');
+    link.href = login.url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = 'open Photon';
+    note.append(link);
+  } else if (login.state === 'starting' || login.state === 'finishing') {
+    note.textContent = login.state === 'starting' ? 'starting the sign-in…' : 'setting up your project and number…';
+  } else if (login.state === 'error') {
+    note.textContent = login.error || 'the sign-in didn\'t finish';
+    note.dataset.error = 'true';
+    return;
+  } else {
+    note.textContent = data.has_secret
+      ? 'connected to your Photon project. reconnect if you change accounts.'
+      : 'sign in to Photon once. alles sets up the project and lets your number through.';
+  }
+  delete note.dataset.error;
+  clearTimeout(_photonPoll);
+  if (busy) _photonPoll = setTimeout(() => loadPhoton().catch(() => {}), 2000);
+}
+
+function _renderPhotonLine(data) {
+  const line = document.getElementById('photon-line');
+  const lines = Object.entries(data.lines || {}).filter(([, to]) => to);
+  if (data.register_error) {
+    line.textContent = data.register_error;
+    line.dataset.error = 'true';
+    line.hidden = false;
+  } else if (lines.length) {
+    delete line.dataset.error;
+    line.textContent = lines.map(([from, to]) => `text ${formatPhone(to)} from ${formatPhone(from)}`).join('. ') + '.';
+    line.hidden = false;
+  } else {
+    line.hidden = true;
+  }
+}
+
+async function _connectPhoton() {
+  const button = document.getElementById('photon-connect-btn');
+  // open the tab now so the browser allows it; it gets the address once Photon gives one
+  const tab = window.open('', '_blank');
+  button.disabled = true;
+  try {
+    const response = await _fetchWithRecentOwner('/api/aide/channels/photon/connect', { method: 'POST' });
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'could not start the sign-in');
+    for (let i = 0; i < 20; i++) {
+      const data = await fetch('/api/aide/channels/photon').then(r => r.json());
+      _renderPhoton(data);
+      if (data.login?.url) {
+        if (tab) { tab.opener = null; tab.location = data.login.url; }
+        return;
+      }
+      if (data.login?.state === 'error') break;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    tab?.close();
+  } catch (error) {
+    tab?.close();
+    toast(error.message, 'error');
+    button.disabled = false;
+  }
+}
 
 function _renderPhoton(data) {
   _photonEnabled = !!data.enabled;
@@ -897,7 +977,9 @@ function _renderPhoton(data) {
   if (document.activeElement !== id) id.value = data.project_id || '';
   document.getElementById('photon-secret-note').textContent = data.has_secret ? 'saved; paste a new one to replace it' : 'encrypted and never shown again';
   const owner = document.getElementById('photon-owner');
-  if (document.activeElement !== owner) owner.value = (data.owner_handles || []).join('\n');
+  if (document.activeElement !== owner) owner.value = (data.owner_handles || []).map(formatPhone).join('\n');
+  _renderPhotonLogin(data);
+  _renderPhotonLine(data);
 }
 
 async function _savePhoton(enabled) {
@@ -931,6 +1013,7 @@ export async function loadPhoton(isCurrent = () => true) {
     _photonBound = true;
     document.getElementById('photon-save').addEventListener('click', () => _savePhoton(_photonEnabled));
     document.getElementById('photon-enabled').addEventListener('click', () => _savePhoton(!_photonEnabled));
+    document.getElementById('photon-connect-btn').addEventListener('click', _connectPhoton);
   }
   try {
     const data = await fetch('/api/aide/channels/photon').then(r => (r.ok ? r.json() : Promise.reject()));

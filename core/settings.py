@@ -110,6 +110,7 @@ _defaults = {
     "photon_enabled": False,
     "photon_project_id": "",
     "photon_project_secret": "",
+    "photon_access_token": "",
     "photon_owner_handles": [],
     "andromeda_confirm_remote": False,
     "andromeda_fast_overview": True,

@@ -131,7 +131,12 @@ class PhotonTest(ApiTest):
             "/api/aide/channels/photon", json={"enabled": True, "project_id": "p"}
         )
         self.assertEqual(bad.status_code, 400)
-        with mock.patch.object(photon_channel, "restart", new=mock.AsyncMock()):
+        with (
+            mock.patch.object(photon_channel, "restart", new=mock.AsyncMock()),
+            mock.patch.object(
+                photon_channel, "register_numbers", new=mock.AsyncMock()
+            ) as registered,
+        ):
             ok = self.client.put(
                 "/api/aide/channels/photon",
                 json={
@@ -143,9 +148,135 @@ class PhotonTest(ApiTest):
             )
         self.assertEqual(ok.status_code, 200, ok.text)
         self.assertTrue(ok.json()["has_secret"])
+        registered.assert_awaited_once()  # saving lets the owner's numbers through at Photon
         self.assertNotIn("s3cret-value", ok.text)
         self.assertNotIn("s3cret-value", self.client.get("/api/aide/channels/photon").text)
 
     def test_the_general_settings_api_never_shows_the_secret(self):
         save_settings({"photon_project_secret": "s3cret-value"})
         self.assertNotIn("s3cret-value", self.client.get("/api/settings").text)
+
+
+class PhotonSetupTest(ApiTest):
+    """the hermes-style setup: register owner numbers, and a device login that does the rest."""
+
+    def fake_photon(self, users=None, pending=1):
+        import httpx
+
+        users = users if users is not None else []
+        calls = {"posted_users": [], "polls": 0, "projects": [], "regenerated": 0}
+
+        def handle(request: httpx.Request) -> httpx.Response:
+            path = request.url.path
+            if path.endswith("/users/") and request.method == "GET":
+                return httpx.Response(
+                    200, json={"succeed": True, "data": {"users": users, "total": len(users)}}
+                )
+            if path.endswith("/users/") and request.method == "POST":
+                body = json.loads(request.content)
+                calls["posted_users"].append(body["phoneNumber"])
+                user = {"phoneNumber": body["phoneNumber"], "assignedPhoneNumber": "+15550100754"}
+                users.append(user)
+                return httpx.Response(200, json={"succeed": True, "data": user})
+            if path == "/api/auth/device/code":
+                return httpx.Response(
+                    200,
+                    json={
+                        "device_code": "dev-1",
+                        "user_code": "ABCD-EFGH",
+                        "verification_uri": "https://app.photon.codes/device",
+                        "verification_uri_complete": "https://app.photon.codes/device?code=ABCD-EFGH",
+                        "interval": 0,
+                        "expires_in": 60,
+                    },
+                )
+            if path == "/api/auth/device/token":
+                calls["polls"] += 1
+                if calls["polls"] <= pending:
+                    return httpx.Response(400, json={"error": "authorization_pending"})
+                return httpx.Response(200, json={"access_token": "dash-token"})
+            if path == "/api/auth/get-session":
+                return httpx.Response(200, json={"user": {"email": "me@example.test"}})
+            if path == "/api/projects" and request.method == "GET":
+                return httpx.Response(200, json={"data": calls["projects"]})
+            if path == "/api/projects" and request.method == "POST":
+                project = {"id": "proj-1", "name": json.loads(request.content)["name"]}
+                calls["projects"].append(project)
+                return httpx.Response(200, json={"succeed": True, "data": project})
+            if path.endswith("/regenerate-secret"):
+                calls["regenerated"] += 1
+                return httpx.Response(200, json={"projectSecret": "fresh-secret"})
+            return httpx.Response(404, json={"message": "not found"})
+
+        real = httpx.AsyncClient
+        patch = mock.patch(
+            "services.photon_setup.httpx.AsyncClient",
+            side_effect=lambda *a, **k: real(*a, transport=httpx.MockTransport(handle), **k),
+        )
+        patch.start()
+        self.addCleanup(patch.stop)
+        return calls, users
+
+    def test_numbers_photon_does_not_know_get_registered_once(self):
+        from services import photon_setup
+
+        calls, _users = self.fake_photon(
+            users=[{"phoneNumber": "+15550100924", "assignedPhoneNumber": "+15550100754"}]
+        )
+        out = asyncio.run(
+            photon_setup.ensure_numbers(
+                "proj-1", "secret", ["+1 (437) 340-5952", "me@example.test", "15550100924"]
+            )
+        )
+        self.assertEqual(
+            calls["posted_users"], ["+14373405952"]
+        )  # only the unknown number, in E.164
+        self.assertEqual(
+            out["lines"], {"+14373405952": "+15550100754", "+15550100924": "+15550100754"}
+        )
+        again = asyncio.run(photon_setup.ensure_numbers("proj-1", "secret", ["+1 (437) 340-5952"]))
+        self.assertEqual(calls["posted_users"], ["+14373405952"])  # idempotent
+        self.assertEqual(again["added"], [])
+
+    def test_phone_handles_become_e164(self):
+        from services import photon_setup
+
+        self.assertEqual(photon_setup.e164("4373405952"), "+14373405952")
+        self.assertEqual(photon_setup.e164("+81 90 1234 5678"), "+819012345678")
+        self.assertEqual(photon_setup.e164("me@example.test"), "")
+        self.assertEqual(photon_setup.e164("123"), "")
+
+    def test_one_sign_in_sets_up_project_secret_and_number(self):
+        from core.settings import load_settings
+        from services import photon_setup
+
+        save_settings(
+            {
+                "photon_owner_handles": ["+1 (437) 340-5952"],
+                "photon_project_id": "",
+                "photon_project_secret": "",
+            }
+        )
+        calls, _users = self.fake_photon(pending=2)
+        photon_setup.login.clear()
+
+        async def run():
+            with mock.patch.object(photon_channel, "restart", new=mock.AsyncMock()):
+                started = photon_setup.start_login()
+                self.assertEqual(started["state"], "starting")
+                await photon_setup._login_task
+
+        asyncio.run(run())
+        self.assertEqual(photon_setup.login["state"], "done", photon_setup.login)
+        saved = load_settings()
+        self.assertEqual(
+            (saved["photon_project_id"], saved["photon_project_secret"]), ("proj-1", "fresh-secret")
+        )
+        self.assertTrue(saved["photon_enabled"])
+        self.assertEqual(calls["projects"][0]["name"], "alles")
+        self.assertEqual(calls["posted_users"], ["+14373405952"])
+        self.assertEqual(photon_setup.login["lines"], {"+14373405952": "+15550100754"})
+        # the dashboard token is a credential: never shown by either settings api
+        self.assertNotIn("dash-token", self.client.get("/api/settings").text)
+        self.assertNotIn("dash-token", self.client.get("/api/aide/channels/photon").text)
+        self.assertNotIn("fresh-secret", self.client.get("/api/aide/channels/photon").text)

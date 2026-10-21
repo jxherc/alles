@@ -25,7 +25,16 @@ SIDECAR = Path(__file__).parent / "photon" / "sidecar.mjs"
 POLL_SECONDS = 2.0
 DONE = {"succeeded", "failed", "cancelled", "interrupted", "uncertain"}
 
-state = {"state": "off", "error": "", "ignored": 0, "last_ignored": "", "handled": 0}
+state = {
+    "state": "off",
+    "error": "",
+    "ignored": 0,
+    "last_ignored": "",
+    "handled": 0,
+    # owner number -> the Photon line it texts; filled when the line connects
+    "lines": {},
+    "register_error": "",
+}
 _proc = None
 _task: asyncio.Task | None = None
 _install: asyncio.Task | None = None
@@ -68,8 +77,36 @@ def installed() -> bool:
 
 
 def public() -> dict:
+    from services import photon_setup
+
     current = settings()
-    return {**current, **state, "installed": installed(), "has_secret": current["has_secret"]}
+    return {
+        **current,
+        **state,
+        "installed": installed(),
+        "has_secret": current["has_secret"],
+        "login": photon_setup.public_login(),
+    }
+
+
+async def register_numbers() -> None:
+    """make sure Photon lets the owner's numbers through (the shared line only passes texts
+    from the project's registered users), and learn which line each one texts."""
+    from core.settings import load_settings
+    from services import photon_setup
+
+    saved = load_settings()
+    try:
+        numbers = await photon_setup.ensure_numbers(
+            str(saved.get("photon_project_id") or ""),
+            str(saved.get("photon_project_secret") or ""),
+            [str(h) for h in saved.get("photon_owner_handles") or []],
+        )
+        state.update(lines=numbers["lines"], register_error=numbers["error"])
+        if numbers["added"]:
+            log.info("photon: registered %d owner number(s)", len(numbers["added"]))
+    except Exception as exc:
+        state["register_error"] = str(exc)[:300]
 
 
 async def _run_install() -> None:
@@ -316,6 +353,7 @@ async def run_forever() -> None:
             continue
         started = time.monotonic()
         try:
+            await register_numbers()
             await _connect()
         except asyncio.CancelledError:
             raise

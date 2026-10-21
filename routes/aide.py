@@ -385,8 +385,19 @@ async def photon_settings(body: PhotonBody):
     if body.project_secret.strip():
         patch["photon_project_secret"] = body.project_secret.strip()
     save_settings(patch)
+    # register the owner's numbers now so the reply can say which line to text
+    if body.enabled:
+        await photon_channel.register_numbers()
     await photon_channel.restart()
     return photon_channel.public()
+
+
+@router.post("/channels/photon/connect", dependencies=[Depends(require_recent_owner)])
+async def photon_connect():
+    """sign in to Photon once in the browser; alles sets up the project, secret and numbers."""
+    from services import photon_setup
+
+    return photon_setup.start_login()
 
 
 # ── signing in to sites in Aide's errand browser ──

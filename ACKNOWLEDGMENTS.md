@@ -16,9 +16,10 @@ local license text are in `THIRD_PARTY_NOTICES.md` and `licenses/`.
 - **[AdGuard Home](https://github.com/AdguardTeam/AdGuardHome)** - Planned independently managed DNS companion reference; not yet bundled (`not bundled`, credit).
 - **[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)** - Owner-managed compatible-endpoint reference; not bundled and never used as a consumer-token source (`not bundled`, credit).
 - **[File Browser](https://github.com/filebrowser/filebrowser)** - Self-hosted file-management reference; no File Browser code is bundled (`not bundled`, credit).
+- **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** - Photon iMessage setup flow reference (device login, project secret, registering owner numbers); no Hermes code is bundled (`not bundled`, credit).
 - **[Nginx Proxy Manager](https://github.com/NginxProxyManager/nginx-proxy-manager)** - Planned independently managed reverse-proxy companion reference; not yet bundled (`not bundled`, credit).
 - **[Obsidian](https://obsidian.md/)** - Docs and linked-vault workflow reference; no Obsidian code is bundled (`not bundled`, credit).
 - **[Odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** - Original product inspiration; Alles is an independent reimplementation (`not bundled`, credit).
 - **[Perplexica (now Vane)](https://github.com/ItzCrazyKns/Perplexica)** - Cited self-hosted answer-engine reference; no upstream code is bundled (`not bundled`, credit).
 
-The complete generated inventory contains 496 exact release entries, including every locked Python, CodeMirror, Actual, and Capacitor dependency.
+The complete generated inventory contains 497 exact release entries, including every locked Python, CodeMirror, Actual, and Capacitor dependency.
