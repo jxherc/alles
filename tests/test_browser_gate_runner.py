@@ -52,6 +52,34 @@ class BrowserGateRunnerTest(unittest.TestCase):
             self.assertEqual(child.stdout.strip(), "True")
             self.assertTrue((data / "network-isolation.jsonl").is_file())
 
+    def test_libraries_with_their_own_network_stack_cannot_load(self):
+        # ddgs talks through primp's rust sockets, which the python socket guard never sees
+        with runner.owned_data() as (data, run_id):
+            env = runner.isolated_environment(data, run_id, 1234, data)
+            child = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import importlib\n"
+                    "for name in ('ddgs', 'primp', 'duckduckgo_search'):\n"
+                    "    try:\n"
+                    "        importlib.import_module(name); print(name, 'loaded')\n"
+                    "    except ImportError:\n"
+                    "        print(name, 'blocked')\n",
+                ],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=ROOT,
+            )
+            self.assertEqual(
+                child.stdout.split(),
+                ["ddgs", "blocked", "primp", "blocked", "duckduckgo_search", "blocked"],
+            )
+            blocks = (data / "outbound-blocks.jsonl").read_text()
+            self.assertIn("native-network-import", blocks)
+
     def test_startup_hook_exits_when_ownership_proof_changes(self):
         with runner.owned_data() as (data, run_id):
             env = runner.isolated_environment(data, run_id, 1234, data)

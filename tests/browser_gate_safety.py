@@ -15,6 +15,7 @@ import ipaddress
 import json
 import os
 import socket
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -108,6 +109,7 @@ class BrowserNetworkGuard:
         self._patches = []
         self._proxy = None
         self._proxy_thread = None
+        self._import_block = None
 
     def _record(self, kind: str, host="") -> None:
         # Store host names only, never URLs, credentials, query strings or bodies.
@@ -192,13 +194,36 @@ class BrowserNetworkGuard:
         if sendmsg is not None:
             self._replace(socket.socket, "sendmsg", guarded_sendmsg)
         self._install_playwright()
+        self._block_native_network()
         self._replace(socket, "_alles_loopback_only", True)
+
+    # these bring their own (rust or c) http stack, so the socket patches above never see them.
+    # refusing the import makes callers fall back to httpx, which the patches do guard
+    NATIVE_NETWORK_MODULES = ("primp", "ddgs", "duckduckgo_search", "curl_cffi")
+
+    def _block_native_network(self) -> None:
+        guard = self
+
+        class NativeNetworkBlock:
+            def find_spec(self, name, path=None, target=None):
+                if name.split(".", 1)[0] in BrowserNetworkGuard.NATIVE_NETWORK_MODULES:
+                    guard._record("native-network-import", name)
+                    raise ImportError(f"{name} is blocked in browser fixtures (own network stack)")
+                return None
+
+        for name in list(sys.modules):
+            if name.split(".", 1)[0] in self.NATIVE_NETWORK_MODULES:
+                raise RuntimeError(f"{name} was imported before network isolation")
+        self._import_block = NativeNetworkBlock()
+        sys.meta_path.insert(0, self._import_block)
 
     def close(self) -> None:
         if self._proxy:
             self._proxy.shutdown()
             self._proxy.server_close()
             self._proxy_thread.join(timeout=2)
+        if self._import_block in sys.meta_path:
+            sys.meta_path.remove(self._import_block)
         for owner, name, original in reversed(self._patches):
             if original is None:
                 delattr(owner, name)

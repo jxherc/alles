@@ -28,6 +28,19 @@ with sync_playwright() as p:
         console_errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: console_errors.append(m.text) if m.type == "error" else None)
+
+        def search(text):
+            # the box filters 180ms after typing; wait for that reply so a late filtered load
+            # can't redraw the list in the middle of the next step
+            with page.expect_response(
+                lambda r: (
+                    r.url.startswith(base + "/api/tasks/search?") and r.request.method == "GET"
+                )
+            ) as found:
+                page.locator("#tasks-search").fill(text)
+            assert found.value.ok
+            found.value.finished()
+
         try:
             context.request.post(base + "/api/setup/dismiss")
             page.goto(base + "/?view=plan", wait_until="networkidle")
@@ -37,7 +50,7 @@ with sync_playwright() as p:
             capture.press("Enter")
             expect(capture).to_have_value("")
             page.get_by_role("tab", name="tasks", exact=True).click()
-            page.locator("#tasks-search").fill(title)
+            search(title)
             today = date.today()
             for suffix, day in [
                 ("overdue", str(today - timedelta(days=1))),
@@ -103,7 +116,7 @@ with sync_playwright() as p:
             expect(undo).to_be_visible()
             page.reload(wait_until="networkidle")
             page.locator('.tasks-tab[data-tab="done"]').click()
-            page.locator("#tasks-search").fill(title)
+            search(title)
             page.get_by_role("button", name="edit " + title, exact=True).click()
             expect(page.locator("#te-due")).to_have_value("2032-11-07")
             expect(page.locator("#te-notes")).to_have_value("retained source and correction")

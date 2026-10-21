@@ -1,4 +1,4 @@
-"""Browser and spacing gate for the owner-scoped Jarvis Discord connection."""
+"""Browser and spacing gate for the owner-scoped Aide on Discord connection."""
 
 import json
 import os
@@ -8,14 +8,14 @@ from playwright.sync_api import Route, sync_playwright
 from pw_settings_helpers import choose_settings_section
 
 PORT = os.environ.get("PORT", "8046")
-URL = f"http://aide.localhost:{PORT}/"
+HOME = f"http://localhost:{PORT}"
 
 
 def _state() -> dict:
     return {
         "configured": True,
         "id": "discord-test",
-        "bot_name": "Jarvis",
+        "bot_name": "Aide",
         "bot_id": "9001",
         "enabled": True,
         "paired": True,
@@ -69,14 +69,10 @@ def run() -> None:
                 lambda message: errors.append(message.text) if message.type == "error" else None,
             )
             page.route("**/api/jarvis/discord", discord_api)
-            page.goto(URL, wait_until="networkidle")
-            tools_button = page.locator("#aide-tools-link")
-            if not tools_button.is_visible():
-                page.locator("#sidebar-toggle-btn").click()
-                tools_button.wait_for(state="visible")
-            tools_button.click()
-            page.locator("#aide-sidebar-menu:not([hidden])").wait_for()
-            page.locator("#aide-settings-link").click()
+            # settings opens from today's header now; the old aide sidebar link is gone
+            context.request.post(HOME + "/api/setup/dismiss")
+            page.goto(HOME + "/?view=today", wait_until="networkidle")
+            page.locator("#today-settings").click()
             choose_settings_section(page, "tools")
             card = page.locator("#jarvis-discord-card")
             card.wait_for(state="visible")
