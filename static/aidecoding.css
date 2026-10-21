@@ -103,8 +103,9 @@
   background: var(--k-raised); border-radius: var(--k-radius-surface); color: var(--k-text); white-space: pre-wrap;
 }
 .acw-assistant { color: var(--k-text); font-size: 15px; line-height: 1.55; }
-.acw-assistant :where(p, ul, ol, pre, h1, h2, h3) { margin: 0 0 var(--k-space-3); }
-.acw-assistant :where(p, ul, ol, pre):last-child { margin-bottom: 0; }
+/* the workspace's margin reset is an id rule, so the answer's own rhythm needs the id too */
+#aide-coding-workspace .acw-assistant :where(p, ul, ol, pre, h1, h2, h3, blockquote, table) { margin: 0 0 var(--k-space-3); }
+#aide-coding-workspace .acw-assistant :where(p, ul, ol, pre, blockquote, table, .code-block):last-child { margin-bottom: 0; }
 .acw-assistant pre { padding: var(--k-space-3); background: var(--k-panel); border-radius: var(--k-radius-control); overflow-x: auto; font: 400 13px/1.55 var(--k-mono); }
 .acw-assistant code { font-family: var(--k-mono); font-size: 13px; background: var(--k-raised); padding: 0 var(--k-space-1); border-radius: var(--k-radius-small); }
 .acw-assistant pre code { background: none; padding: 0; }
@@ -174,7 +175,7 @@
 #aide-coding-workspace .code-block-header { display: flex; align-items: center; justify-content: space-between; min-height: 32px; padding: 0 var(--k-space-1) 0 var(--k-space-3); background: transparent; }
 #aide-coding-workspace .code-block-header .code-lang:empty::before { content: "code"; }
 #aide-coding-workspace .code-block-header button { min-height: 32px; padding: 0 var(--k-space-2); font-size: 12px; }
-#aide-coding-workspace .code-block pre { margin: 0; background: transparent; border-radius: 0; padding-top: 0; }
+#aide-coding-workspace .code-block pre { margin: 0; background: transparent; border-radius: 0; padding-top: var(--k-space-3); }
 
 /* the first screen of a chat says what pi does and offers a start */
 .acw-intro { width: 100%; max-width: 760px; margin: 0 auto; padding: 18vh var(--k-space-5) var(--k-space-5); box-sizing: border-box; display: grid; gap: var(--k-space-3); }
@@ -380,8 +381,13 @@
 /* the rail: a folder mark per project, Aide's own folder named as such, and each chat with when
    it was last touched (and "from Aide" when Aide handed it over); a dot breathes while pi works */
 .acw-project-toggle svg + svg { color: var(--k-muted); }
-.acw-project-tag { flex: 0 0 auto; margin-left: auto; color: var(--k-muted); font-size: 12px; }
-#aide-coding-workspace .acw-chat { min-height: 48px; align-items: center; }
+/* the name wins the room: the tag shrinks first, the name only when there is nothing left */
+.acw-project-tag { flex: 0 100 auto; min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--k-muted); font-size: 12px; }
+.acw-project-name { flex: 0 1 auto; min-width: 2ch; }
+/* rows hug their text: a 48px row centred one-line "new chat" far from its project and left
+   two-line chats touching. touch still gets 44px */
+#aide-coding-workspace .acw-chat { min-height: 44px; align-items: center; padding-block: var(--k-space-1); }
+.acw-chat-list { gap: 2px; }
 .acw-chat-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .acw-chat-meta { color: var(--k-muted); font-size: 12px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acw-chat-meta:empty { display: none; }
