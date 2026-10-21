@@ -3,7 +3,7 @@ import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from 
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
 import { formatDateTime } from './i18n.js';
-import { createMenuController } from './kokuen.js?v=1';
+import { wireActionMenu } from './kokuen.js?v=1';
 import { openAppSettings } from './appsettings.js';
 
 let _view = '';      // current view: '' | __fav__ | __archive__ | __hidden__ | __map__ | __memories__ | __trash__ | <albumId>
@@ -66,59 +66,9 @@ function _closeActionMenus(restoreFocus = false) {
 }
 
 function _initActionMenu(triggerId, menuId) {
-  const trigger = $(triggerId), menu = $(menuId);
-  if (!trigger || !menu) return;
-  const controller = createMenuController(menu, {
-    closeOnOutsidePointer: false,
-    onClose: () => trigger.setAttribute('aria-expanded', 'false'),
-  });
-  _actionMenus.push({ menu, controller });
-  const open = () => {
-    for (const item of menu.querySelectorAll('[role="menuitem"]')) item.setAttribute('aria-disabled', String(!!item.disabled));
-    _closeActionMenus();
-    trigger.setAttribute('aria-expanded', 'true');
-    menu.style.transform = '';
-    controller.open({ source: trigger });
-    const bounds = menu.getBoundingClientRect();
-    const shift = Math.max(0, -bounds.left) + Math.min(0, window.innerWidth - bounds.right);
-    menu.style.transform = `translateX(${shift}px)`;
-  };
-  trigger.addEventListener('click', () => {
-    if (menu.hidden) open();
-    else controller.close();
-  });
-  trigger.addEventListener('keydown', event => {
-    if (event.key !== 'ArrowDown') return;
-    event.preventDefault(); event.stopPropagation(); open();
-  });
-  // Close before the existing item handler opens a confirmation or editor.
-  menu.addEventListener('click', event => {
-    const item = event.target.closest('[role="menuitem"]');
-    if (!item || item.disabled || item.getAttribute('aria-disabled') === 'true') return;
-    controller.close();
-  }, true);
-  menu.addEventListener('keydown', event => {
-    if (event.key === 'Tab') { controller.close(); return; }
-    event.stopPropagation(); // Menu Escape and arrows belong to the menu, not the viewer.
-    if (['Enter', ' '].includes(event.key)) {
-      event.preventDefault();
-      const item = event.target.closest('[role="menuitem"]');
-      if (item && !item.disabled && item.getAttribute('aria-disabled') !== 'true') item.click();
-    }
-  });
-  document.addEventListener('pointerdown', event => {
-    if (!menu.hidden && !menu.contains(event.target) && !trigger.contains(event.target)) {
-      controller.close({ restoreFocus: false });
-    }
-  }, true);
-  document.addEventListener('focusin', event => {
-    if (!menu.hidden && !menu.contains(event.target) && event.target !== trigger) {
-      controller.close({ restoreFocus: false });
-    }
-  });
-  window.addEventListener('resize', () => {
-    if (!menu.hidden) controller.close({ restoreFocus: menu.contains(document.activeElement) });
-  });
+  const menu = $(menuId);
+  const controller = wireActionMenu($(triggerId), menu, { beforeOpen: () => _closeActionMenus(), closeOutside: false });
+  if (controller) _actionMenus.push({ menu, controller });
 }
 
 function rememberPhotoChange(photo, key, value) {

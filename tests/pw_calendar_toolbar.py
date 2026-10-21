@@ -152,6 +152,15 @@ def run():
                             toggle.tap() if width <= 390 else toggle.press("Enter")
                         expect(quick).to_be_visible()
 
+                    def menu_item(selector):
+                        open_tools()
+                        item = root.locator(selector)
+                        if not item.is_visible():
+                            more = page.locator("#cal-more-btn")
+                            more.tap() if width <= 390 else more.press("Enter")
+                        expect(item).to_be_visible()
+                        return item
+
                     open_tools()
                     draft = "owned quick draft 中文"
                     quick.fill(draft)
@@ -175,19 +184,28 @@ def run():
                         page.set_viewport_size({"width": width, "height": 900})
                         open_tools()
                         expect(quick).to_have_value(draft)
+                    more = page.locator("#cal-more-btn")
+                    bounds = more.bounding_box()
+                    assert bounds["height"] >= 44 and bounds["width"] >= 44, bounds
                     for selector in (
                         "#cal-import",
                         "#cal-export",
                         "#cal-find",
                         "#cal-sync-btn",
-                        '.app-cog[data-app="calendar"]',
+                        "#cal-settings-btn",
                     ):
-                        control = root.locator(selector)
-                        control.scroll_into_view_if_needed()
-                        expect(control).to_be_visible()
+                        control = menu_item(selector)
                         bounds = control.bounding_box()
                         assert bounds["height"] >= 44 and bounds["width"] >= 44, (selector, bounds)
+                        box = page.evaluate("() => [innerWidth, innerHeight]")
+                        assert bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= box[0], (
+                            selector,
+                            bounds,
+                        )
                     capture("tools")
+                    page.keyboard.press("Escape")
+                    expect(page.locator("#cal-more-menu")).to_be_hidden()
+                    expect(more).to_be_focused()
                     if compact:
                         toggle.press("Enter")
                         expect(quick).to_be_hidden()
@@ -220,8 +238,8 @@ def run():
                             else None
                         ),
                     )
-                    page.locator("#cal-find").press("Enter")
-                    dialog = page.get_by_role("dialog", name="how many minutes do you need?")
+                    menu_item("#cal-find").press("Enter")
+                    dialog = page.get_by_role("dialog", name="find a free time")
                     expect(dialog).to_be_visible()
                     if theme == "dark":
                         dialog.press("Escape")
@@ -230,12 +248,12 @@ def run():
                     page.wait_for_load_state("networkidle")
                     assert not free_requests, free_requests
                     expect(page.locator(".cal-scope-ov")).to_have_count(0)
-                    expect(page.locator("#cal-find")).to_be_focused()
-                    page.locator("#cal-sync-btn").press("Enter")
+                    expect(more).to_be_focused()
+                    menu_item("#cal-sync-btn").press("Enter")
                     expect(page.locator("#cd-url")).to_be_visible()
                     page.locator("#cd-back").press("Enter")
                     expect(page.locator("#cd-url")).to_have_count(0)
-                    root.locator('.app-cog[data-app="calendar"]').press("Enter")
+                    menu_item("#cal-settings-btn").press("Enter")
                     expect(page.locator(".app-settings-pop")).to_be_visible()
                     page.locator("#cal-month-label").click()
                     expect(page.locator(".app-settings-pop")).to_have_count(0)
@@ -245,7 +263,7 @@ def run():
                     imported_title = "owned calendar import " + label
                     ics = f"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:owned-toolbar-{label}\r\nDTSTART:{today}T150000\r\nDTEND:{today}T160000\r\nSUMMARY:{imported_title}\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
                     with page.expect_file_chooser() as chooser:
-                        page.locator("#cal-import").click()
+                        menu_item("#cal-import").click()
                     with page.expect_response(
                         lambda r: r.url == base + "/api/calendar/import"
                     ) as imported:
@@ -258,7 +276,7 @@ def run():
                         )
                     assert imported.value.ok and imported.value.json()["imported"] == 1
                     with page.expect_download() as downloaded:
-                        page.locator("#cal-export").click()
+                        menu_item("#cal-export").click()
                     export = Path(downloaded.value.path()).read_text()
                     assert event_title in export and imported_title in export
                     actual = api.get(base + "/api/calendar").json()

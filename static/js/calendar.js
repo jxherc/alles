@@ -3,6 +3,8 @@ import { replaceLinkedRecord } from './recordlinks.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
+import { wireActionMenu } from './kokuen.js?v=1';
+import { openAppSettings } from './appsettings.js';
 import { wireGridNav, WEEK_ROWS } from './grid_nav.js';
 import { formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
@@ -414,6 +416,11 @@ function _bindNav() {
   compactToolbar?.addEventListener('change', () => {
     if (compactToolbar.matches && tools?.contains(document.activeElement)) setToolsOpen(true);
     else if (!compactToolbar.matches && document.activeElement === toolsToggle) document.getElementById('cal-new-btn')?.focus();
+  });
+  wireActionMenu(document.getElementById('cal-more-btn'), document.getElementById('cal-more-menu'));
+  document.getElementById('cal-settings-btn')?.addEventListener('click', event => {
+    event.stopPropagation();
+    openAppSettings('calendar', document.getElementById('cal-more-btn'));
   });
   document.getElementById('cal-sync-btn')?.addEventListener('click', openCaldavPanel);
   document.getElementById('cal-find')?.addEventListener('click', findTime);

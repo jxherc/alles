@@ -376,6 +376,57 @@ export function createMenuController(menu, { onClose = null, closeOnOutsidePoint
 }
 
 
+// a "more" button and its menu: opens on click or arrow down, closes on Escape, Tab, outside
+// clicks or after an item runs, and nudges itself back inside the window
+export function wireActionMenu(trigger, menu, { beforeOpen = null, closeOutside = true } = {}) {
+  if (!trigger || !menu) return null;
+  const outside = event => {
+    if (!menu.contains(event.target) && !trigger.contains(event.target)) controller.close({ restoreFocus: false });
+  };
+  const controller = createMenuController(menu, {
+    closeOnOutsidePointer: false,
+    onClose: () => {
+      trigger.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('pointerdown', outside, true);
+    },
+  });
+  const open = () => {
+    for (const item of menu.querySelectorAll('[role="menuitem"]')) item.setAttribute('aria-disabled', String(!!item.disabled));
+    beforeOpen?.();
+    trigger.setAttribute('aria-expanded', 'true');
+    menu.style.transform = '';
+    controller.open({ source: trigger });
+    if (closeOutside) document.addEventListener('pointerdown', outside, true);
+    const bounds = menu.getBoundingClientRect();
+    const shift = Math.max(0, -bounds.left) + Math.min(0, window.innerWidth - bounds.right);
+    menu.style.transform = `translateX(${shift}px)`;
+  };
+  trigger.addEventListener('click', () => {
+    if (menu.hidden) open();
+    else controller.close();
+  });
+  trigger.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault(); event.stopPropagation(); open();
+  });
+  // close before the item's own handler opens a dialog or a panel
+  menu.addEventListener('click', event => {
+    const item = event.target.closest('[role="menuitem"]');
+    if (!item || item.disabled || item.getAttribute('aria-disabled') === 'true') return;
+    controller.close();
+  }, true);
+  menu.addEventListener('keydown', event => {
+    if (event.key === 'Tab') { controller.close(); return; }
+    event.stopPropagation();
+    if (['Enter', ' '].includes(event.key)) {
+      event.preventDefault();
+      const item = event.target.closest('[role="menuitem"]');
+      if (item && !item.disabled && item.getAttribute('aria-disabled') !== 'true') item.click();
+    }
+  });
+  return controller;
+}
+
 export function wireChoiceGroup(group, { activate = choice => choice.click() } = {}) {
   if (!group || group.dataset.kokuenChoiceReady === '1') return null;
   group.dataset.kokuenChoiceReady = '1';

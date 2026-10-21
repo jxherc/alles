@@ -6526,7 +6526,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   .cal-primary-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
   #cal-tools-toggle { display: inline-flex; align-items: center; min-height: var(--k-control, 44px); }
   #cal-tools { display: none; }
-  #cal-tools[data-open="true"], #cal-tools:focus-within { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); max-height: 40dvh; overflow: auto; min-width: 0; }
+  #cal-tools[data-open="true"], #cal-tools:focus-within { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); min-width: 0; }
   #cal-tools .cal-quick { flex: 1 1 100%; min-width: 0; width: 100%; }
 }
 #money-view .page-view-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--k-space-2, 8px); }
@@ -11272,3 +11272,13 @@ body.aide-working .composer-box::after {
 .specialist-group-slot > :is(#books-view, #habits-view, #health-view, #read-view, #tasks-view, #watch-view, #contacts-view, #subs-view, #days-view, #money-view) > :is(.page-view-head, .page-view-body, .page-view-footer) {
   box-sizing: border-box; width: 100%; max-width: calc(880px + 2 * var(--k-space-5, 24px)); margin-inline: auto;
 }
+
+/* calendar's less used tools sit under "more", built like photos' menu */
+@media (min-width: 761px) { #calendar-view .cal-quick { width: 220px; } }
+.cal-more-wrap { position: relative; flex-shrink: 0; }
+.cal-more-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 220px; max-width: calc(100vw - 24px); }
+@media (max-width: 760px) { .cal-more-menu { left: 0; right: auto; } }
+.cal-more-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: var(--ui-control-height, 44px); text-decoration: none; }
+
+/* an empty journal day is just the page: mood and tags appear once you start writing */
+.jrnl-main[data-blank="true"] :is(.jrnl-mood-label, .jrnl-moods, .jrnl-tags) { display: none; }

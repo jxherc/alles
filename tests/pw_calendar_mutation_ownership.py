@@ -107,8 +107,16 @@ def run():
                 expect(page.locator("#cal-inv-btn")).to_be_visible()
 
             def tools():
-                if not page.locator("#cal-import").is_visible():
+                if not page.locator("#cal-more-btn").is_visible():
                     page.locator("#cal-tools-toggle").click()
+
+            def menu_item(selector):
+                tools()
+                item = page.locator(selector)
+                if not item.is_visible():
+                    page.locator("#cal-more-btn").click()
+                expect(item).to_be_visible()
+                return item
 
             def prompt(value):
                 dialog = page.get_by_role("dialog")
@@ -203,7 +211,7 @@ def run():
 
                 # A malformed real file remains available for replacement without partial writes.
                 with page.expect_file_chooser() as chooser:
-                    page.locator("#cal-import").click()
+                    menu_item("#cal-import").click()
                 with page.expect_response(
                     lambda response: response.url.endswith("/api/calendar/import")
                 ) as malformed:
@@ -238,7 +246,7 @@ def run():
 
                 page.route("**/api/calendar/import", refuse_import)
                 with page.expect_file_chooser() as chooser:
-                    page.locator("#cal-import").click()
+                    menu_item("#cal-import").click()
                 chooser.value.set_files(
                     {"name": "synthetic.ics", "mimeType": "text/calendar", "buffer": ics.encode()}
                 )
@@ -267,7 +275,7 @@ def run():
                 assert len(rows()) == len(before) + 1
                 assert page.locator("#cal-import-file").input_value() == ""
                 expect(page.locator("#cal-import-feedback")).to_be_hidden()
-                expect(page.locator("#cal-import")).to_be_focused()
+                expect(page.locator("#cal-more-btn")).to_be_focused()
 
                 # Refuse a second file, then prove both replacement-picker entry points work.
                 page.route("**/api/calendar/import", refuse_import)
@@ -281,7 +289,7 @@ def run():
                     ),
                 )
                 with page.expect_file_chooser() as chooser:
-                    page.locator("#cal-import").press("Enter")
+                    menu_item("#cal-import").press("Enter")
                 chooser.value.set_files(
                     {
                         "name": "rejected.ics",
@@ -292,7 +300,7 @@ def run():
                 expect(page.locator("#cal-import-status")).to_contain_text("rejected.ics")
                 assert len(import_requests) == 1
                 with page.expect_file_chooser() as chooser:
-                    page.locator("#cal-import").press("Enter")
+                    menu_item("#cal-import").press("Enter")
                 chooser.value.set_files([])
                 assert len(import_requests) == 1, (
                     "opening or emptying the replacement picker must not resend the failed file"
@@ -317,7 +325,7 @@ def run():
                     )
                 assert replaced.value.ok and replaced.value.json()["imported"] == 1
                 expect(page.locator("#cal-import-feedback")).to_be_hidden()
-                expect(page.locator("#cal-import")).to_be_focused()
+                expect(page.locator("#cal-more-btn")).to_be_focused()
                 assert len(import_requests) == 2 and import_requests[-1]["ics"] == replacement
                 assert len(rows()) == len(before) + 2
                 assert not any(event["title"] == label + " rejected" for event in rows())
@@ -330,7 +338,7 @@ def run():
                         route.continue_()
 
                 page.route("**/api/calendar", refuse_booking)
-                page.locator("#cal-find").press("Enter")
+                menu_item("#cal-find").press("Enter")
                 prompt("60")
                 slot = page.locator(".cal-scope-ov [data-s]").first
                 slot.click()

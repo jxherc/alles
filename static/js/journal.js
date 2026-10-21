@@ -292,9 +292,9 @@ async function buildJournal() {
           </div>
           <div class="jrnl-prompt" id="jrnl-prompt"></div>
           <textarea id="jrnl-text" class="jrnl-text" rows="7" aria-label="journal entry" aria-describedby="jrnl-prompt" placeholder="how was your day?"></textarea>
-          <div class="jrnl-mood-label" id="jrnl-mood-label">mood (optional)</div>
+          <div class="jrnl-mood-label" id="jrnl-mood-label">mood</div>
           <div class="jrnl-moods" id="jrnl-moods" role="group" aria-labelledby="jrnl-mood-label">${MOODS.map(([m, label]) => `<button type="button" class="jrnl-mood" data-m="${m}" aria-label="${label}" aria-pressed="false">${label}</button>`).join('')}</div>
-          <input id="jrnl-tags" class="jrnl-tags" aria-label="tags (optional, comma separated)" placeholder="tags (optional, comma separated)">
+          <input id="jrnl-tags" class="jrnl-tags" aria-label="tags, comma separated" placeholder="tags, comma separated">
           <div class="jrnl-actions">
             <button class="btn primary" id="jrnl-save">save</button>
             <button class="btn" id="jrnl-reflect">${_si('sparkles')} reflect</button>
@@ -792,7 +792,11 @@ async function load() {
 }
 
 function updateWords() {
-  const n = (document.getElementById('jrnl-text').value.trim().match(/\S+/g) || []).length;
+  const text = document.getElementById('jrnl-text').value.trim();
+  const n = (text.match(/\S+/g) || []).length;
+  const main = document.querySelector('.jrnl-main');
+  const using = document.activeElement?.matches?.('.jrnl-tags, .jrnl-mood');
+  if (main && !using) main.dataset.blank = String(!text && !document.getElementById('jrnl-tags')?.value.trim() && !document.querySelector('.jrnl-mood.active'));
   document.getElementById('jrnl-words').textContent = n ? `${n} word${n === 1 ? '' : 's'}` : '';
 }
 
