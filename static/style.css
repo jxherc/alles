@@ -8027,9 +8027,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .mcp-registry-desc { color: var(--muted); font-size: 0.75rem; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 #mcp-server-list .row-meta[data-error="true"] { color: var(--error); white-space: normal; }
 .mcp-preset { font-size: 0.75rem; }
-.mcp-advanced { margin: 0.55rem 0; color: var(--muted); font-size: 0.75rem; }
-.mcp-advanced > summary { cursor: pointer; margin-bottom: 0.55rem; }
-.mcp-advanced[open] > summary { color: var(--text); }
+:is(.mcp-advanced, .photon-keys) { margin: 0.55rem 0; color: var(--muted); font-size: 0.75rem; }
+:is(.mcp-advanced, .photon-keys) > summary { cursor: pointer; margin-bottom: 0.55rem; }
+:is(.mcp-advanced, .photon-keys)[open] > summary { color: var(--text); }
 /* 11a — macOS integration status */
 .macos-row { display: flex; align-items: center; gap: 0.45rem; font-size: 0.78rem; padding: 0.18rem 0; }
 .macos-avail { font-size: 0.75rem; color: var(--green); margin-bottom: 0.3rem; }
@@ -11093,9 +11093,17 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 /* rows made only of text actions move back as a whole, so every wrapped line starts on the edge */
 #contacts-view .page-view-head.contacts-head { margin-inline-start: -12px; }
 #contacts-view .contacts-head > :is(.page-view-title, .contacts-search) { margin-inline-start: 12px; }
-/* settings: a text action at the start of its line (alone in a card, or first in an action row) */
-#settings-modal :is(.s-card-body, .s-oauth-connect, div:not([class])) > .btn:not(.primary):first-child,
-#settings-modal .s-card-body > :not(.btn) + .btn:not(.primary) { margin-inline-start: -12px; }
+/* settings: every action keeps a resting line so it never reads as plain text (owner 2026-10-21,
+   "buttons are too invis"). the box sits on the column edge, so no pull-back here. the primary one
+   still stands out by full text and weight; choice chips stay bare until picked */
+html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn):not(.primary, .danger),
+html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn):not(.primary, .danger):hover {
+  border-color: var(--k-line-strong);
+}
+html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger,
+html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
+  border-color: color-mix(in srgb, var(--error) 60%, transparent);
+}
 /* a hint never sits on the field label or box under it */
 #settings-modal .s-card-hint + :is(.s-field, .settings-textarea) { margin-top: var(--k-space-3, 12px); }
 /* rules quick start: the label sits above, so a wrapped choice lines up under the first one.

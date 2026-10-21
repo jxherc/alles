@@ -43,3 +43,13 @@ desktop) the box keeps its place, as the balance pass did for right-aligned rows
 Read's filters re-render on every pick, which dropped keyboard focus to the page. The pressed chip
 gets focus back after the re-render. On a phone Activity's search takes its own line from the column
 edge instead of floating right.
+
+## settings outline pass (2026-10-21)
+
+The owner found the bare text actions in Settings too easy to miss ("buttons are too invis"): next
+to field labels and hints, "save", "refresh" or "reconnect Photon" read as plain text. Inside
+`#settings-modal` every `.btn` and `.act-btn` now keeps a `--k-line-strong` line at rest and on
+hover; `.danger` keeps a softened error line. The primary action still stands out by full text and
+weight 560. Choice chips (memory categories, policy, segments, token scopes) stay bare until picked.
+Since the box now sits on the column edge, the settings pull-back for a leading text action is gone.
+Other routes keep the bare grammar.

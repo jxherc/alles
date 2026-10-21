@@ -258,7 +258,8 @@ PROBE = r"""
     return fill || line;
   };
   const choice = el => el.matches('[role=tab],[role=switch],[role=radio],[role=checkbox],[role^=menuitem],[role=option],[role=combobox],[aria-pressed],[aria-checked],[aria-selected],[aria-current],[aria-expanded="true"],.active,.custom-select,.date-input,[aria-haspopup=listbox],.s-section-trigger') || el.closest('[role=radiogroup],[role=tablist],[role=group][aria-label],[role=listbox],[role=menu],[role=grid],[role=row],table,.s-toggle-row');
-  const boxed = ctrls.filter(el => el.matches('button,[role=button],a') && (el.innerText || '').trim() && !choice(el) && !inOverlay(el) && !el.matches('.send-btn') && contained(el));
+  // settings keeps a resting line on every action (decision 0031, settings outline pass)
+  const boxed = ctrls.filter(el => el.matches('button,[role=button],a') && (el.innerText || '').trim() && !choice(el) && !inOverlay(el) && !el.matches('.send-btn') && !el.closest('#settings-modal') && contained(el));
   // a labelled region or dialog is its own surface with its own primary (COMPONENTS.md side panel)
   const surfaceOf = el => el.closest('[role=dialog],[role=alertdialog],[role=region][aria-label],[role=region][aria-labelledby]') || document.body;
   const bySurface = new Map();
