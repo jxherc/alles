@@ -94,10 +94,6 @@ export function formatExpiry(value, deleting = false) {
   return `${digits.slice(0, 2)}/${digits.slice(2)}`;
 }
 
-const SHAPES = [
-  { selector: '#vf-f-number', format: value => formatCard(value) },
-  { selector: '#vf-f-expiry', format: (value, event) => formatExpiry(value, event?.inputType?.startsWith('delete')) },
-];
 
 /** just the digits with a +, for storing and comparing: +14373405952 */
 export function phoneDigits(value) {
@@ -105,25 +101,119 @@ export function phoneDigits(value) {
   return digits ? `+${digits}` : '';
 }
 
-// keep the caret after the same digit it was after, so formatting never jumps the cursor
-function caretAfterDigits(text, count) {
+// money and other amounts: digits, one dot, a leading minus. no thousands separators, since
+// the money parser doesn't take them. "1,234.50" -> 1234.50, "12,50" -> 12.50
+export function formatDecimal(value) {
+  let text = String(value ?? '').replace(/\s/g, '');
+  const negative = text.startsWith('-');
+  if (text.includes('.')) text = text.replace(/,/g, '');
+  else if (/,\d{1,2}$/.test(text) && (text.match(/,/g) || []).length === 1) text = text.replace(',', '.');
+  else text = text.replace(/,/g, '');
+  text = text.replace(/[^\d.]/g, '');
+  const dot = text.indexOf('.');
+  if (dot >= 0) text = text.slice(0, dot + 1) + text.slice(dot + 1).replace(/\./g, '');
+  return (negative ? '-' : '') + text;
+}
+
+// dates typed by hand: 20261021 -> 2026-10-21, the dashes come in on their own
+export function formatDate(value, deleting = false) {
+  const digits = String(value ?? '').replace(/\D/g, '').slice(0, 8);
+  let out = digits.slice(0, 4);
+  if (digits.length > 4 || (digits.length === 4 && !deleting)) out += '-' + digits.slice(4, 6);
+  if (digits.length > 6 || (digits.length === 6 && !deleting)) out += '-' + digits.slice(6, 8);
+  return out;
+}
+
+// clock times: 0930 -> 09:30, and a first digit over 2 means a single-digit hour (9 -> 09:)
+export function formatTime(value, deleting = false) {
+  let digits = String(value ?? '').replace(/\D/g, '').slice(0, 4);
+  if (/^[3-9]/.test(digits)) digits = ('0' + digits).slice(0, 4);
+  if (digits.length < 2 || (digits.length === 2 && deleting)) return digits;
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
+export function formatHex(value) {
+  const hex = String(value ?? '').replace(/[^0-9a-f]/gi, '').slice(0, 6);
+  return String(value ?? '').trim() || hex ? `#${hex}` : '';
+}
+
+// a bare domain gets https://, a home address or localhost gets http:// (only when you leave)
+export function finishUrl(value) {
+  const text = String(value ?? '').trim();
+  if (!text || /^[a-z][a-z0-9+.-]*:\/\//i.test(text) || /\s/.test(text) || !/[.:]|^localhost/i.test(text)) return text;
+  const host = text.split(/[/:]/)[0];
+  const local = /^localhost$|^\d{1,3}(\.\d{1,3}){3}$|\.local$|\.lan$/i.test(host);
+  return `${local ? 'http' : 'https'}://${text}`;
+}
+
+// which kind of field this is, from its own markup, so new fields are covered without a list
+const deleting = event => Boolean(event?.inputType?.startsWith('delete'));
+const DIGIT = /\d/;
+const KINDS = {
+  phone: { keep: DIGIT, format: value => formatPhone(value) },
+  card: { keep: DIGIT, format: value => formatCard(value) },
+  expiry: { keep: DIGIT, format: (value, event) => formatExpiry(value, deleting(event)) },
+  date: { keep: DIGIT, format: (value, event) => formatDate(value, deleting(event)) },
+  time: { keep: DIGIT, format: (value, event) => formatTime(value, deleting(event)) },
+  code: { keep: DIGIT, format: value => String(value).replace(/\D/g, '').slice(0, 6) },
+  digits: { keep: DIGIT, format: value => String(value).replace(/\D/g, '') },
+  decimal: { keep: /[\d.-]/, format: value => formatDecimal(value) },
+  hex: { keep: /[0-9a-f]/i, format: value => formatHex(value) },
+  email: { keep: /\S/, format: value => String(value).replace(/\s/g, '') },
+  url: { keep: /\S/, format: value => String(value).replace(/^\s+/, ''), finish: finishUrl },
+};
+
+function kindOf(el) {
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return '';
+  if (el.dataset.liveformat) return el.dataset.liveformat === 'off' ? '' : el.dataset.liveformat;
+  if (el.matches(PHONE_LINES)) return 'phone-lines';
+  if (el.matches(PHONE_FIELDS)) return 'phone';
+  if (el.id === 'vf-f-number') return 'card';
+  if (el.id === 'vf-f-expiry') return 'expiry';
+  if (el instanceof HTMLTextAreaElement) return '';
+  const type = (el.getAttribute('type') || 'text').toLowerCase();
+  if (!['text', 'search', 'email', 'url', 'tel', ''].includes(type)) return '';
+  const ph = el.getAttribute('placeholder') || '';
+  const mode = (el.getAttribute('inputmode') || '').toLowerCase();
+  if (/YYYY-MM-DD|^\d{4}-\d{2}-\d{2}$/.test(ph) || el.dataset.k === 'birthday') return 'date';
+  if (/^HH:MM$/i.test(ph) || /^\d{1,2}:\d{2}$/.test(ph)) return 'time';
+  if (/\b6-digit code\b/i.test(ph) || el.autocomplete === 'one-time-code') return 'code';
+  if (el.id === 's-accent-hex' || /#hex\b/i.test(ph)) return 'hex';
+  if (type === 'email') return 'email';
+  if (type === 'url' || mode === 'url') return 'url';
+  if (mode === 'decimal') return 'decimal';
+  if (mode === 'numeric') return 'digits';
+  return '';
+}
+
+// keep the caret after the same kept character it was after, so formatting never jumps it
+function caretAfter(text, count, keep) {
   if (count <= 0) {
-    const first = text.search(/\d/);
+    const first = [...text].findIndex(ch => keep.test(ch));
     return first < 0 ? text.length : first;
   }
   let seen = 0;
   for (let i = 0; i < text.length; i++) {
-    if (/\d/.test(text[i]) && ++seen === count) return i + 1;
+    if (keep.test(text[i]) && ++seen === count) return i + 1;
   }
   return text.length;
 }
 
-const countDigits = text => (text.match(/\d/g) || []).length;
+const countKept = (text, keep) => [...text].filter(ch => keep.test(ch)).length;
 
-function reformat(el, event) {
-  const multiline = el.matches(PHONE_LINES);
+function setCaret(el, pos) {
+  // email and some other types refuse selection ranges; the value is still right
+  try {
+    if (document.activeElement === el) el.setSelectionRange(pos, pos);
+  } catch {}
+}
+
+function reformat(el, kind, event) {
+  const multiline = kind === 'phone-lines';
+  const spec = KINDS[multiline ? 'phone' : kind];
   const value = el.value;
-  const caret = el.selectionStart ?? value.length;
+  let caret = value.length;
+  try { caret = el.selectionStart ?? value.length; } catch {}
   let start = 0;
   let end = value.length;
   if (multiline) {
@@ -132,67 +222,61 @@ function reformat(el, event) {
     end = next < 0 ? value.length : next;
   }
   let line = value.slice(start, end);
-  let before = countDigits(line.slice(0, caret - start));
-  // backspacing over a space or bracket would just be put back, so take the digit before it
-  if (event?.inputType === 'deleteContentBackward' && el._phoneLast != null
-    && countDigits(el._phoneLast) === countDigits(value)) {
+  let before = countKept(line.slice(0, caret - start), spec.keep);
+  // backspacing over a space, bracket, dash or slash would just be put back, so take the
+  // kept character before it instead
+  if (event?.inputType === 'deleteContentBackward' && el._liveLast != null
+    && countKept(el._liveLast, spec.keep) === countKept(value, spec.keep)) {
     const head = line.slice(0, caret - start);
-    const at = head.search(/\d\D*$/);
+    let at = -1;
+    for (let i = head.length - 1; i >= 0; i--) if (spec.keep.test(head[i])) { at = i; break; }
     if (at >= 0) {
       line = line.slice(0, at) + line.slice(at + 1);
       before -= 1;
     }
   }
-  const shape = SHAPES.find(item => el.matches(item.selector));
-  const formatted = shape ? shape.format(line, event) : formatPhone(line);
+  const formatted = spec.format(line, event);
   if (formatted === value.slice(start, end)) {
-    el._phoneLast = value;
+    el._liveLast = value;
     return;
   }
   const next = value.slice(0, start) + formatted + value.slice(end);
   el.value = next;
-  const pos = start + caretAfterDigits(formatted, before);
-  if (document.activeElement === el) el.setSelectionRange(pos, pos);
-  el._phoneLast = next;
-}
-
-function formatAllLines(el) {
-  el.value = el.value.split('\n').map(formatPhone).join('\n');
+  setCaret(el, start + caretAfter(formatted, before, spec.keep));
+  el._liveLast = next;
 }
 
 let wired = false;
-const ALL = () => [PHONE_FIELDS, PHONE_LINES, ...SHAPES.map(item => item.selector)].join(',');
-
 /** format shaped fields live, app-wide. safe to call more than once. */
 export function initLiveFormat(root = document) {
   if (wired) return;
   wired = true;
   root.addEventListener('focusin', event => {
     const el = event.target;
-    if (!(el instanceof HTMLElement) || !el.matches(ALL())) return;
-    if (SHAPES.some(item => el.matches(item.selector)) && !el.getAttribute('inputmode')) el.setAttribute('inputmode', 'numeric');
-    if (el.matches(PHONE_FIELDS)) {
-      if (!el.getAttribute('inputmode')) el.setAttribute('inputmode', 'tel');
-      if (!el.getAttribute('autocomplete')) el.setAttribute('autocomplete', 'tel');
-    }
-    el._phoneLast = el.value;
+    const kind = kindOf(el);
+    if (!kind) return;
+    if (kind === 'phone' && !el.getAttribute('inputmode')) el.setAttribute('inputmode', 'tel');
+    if (kind === 'phone' && !el.getAttribute('autocomplete')) el.setAttribute('autocomplete', 'tel');
+    if (['card', 'expiry', 'date', 'time', 'code'].includes(kind) && !el.getAttribute('inputmode')) el.setAttribute('inputmode', 'numeric');
+    el._liveLast = el.value;
   });
   root.addEventListener('input', event => {
-    const el = event.target;
-    if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
-    if (!el.matches(ALL())) return;
     if (event.isComposing) return;
-    reformat(el, event);
+    const kind = kindOf(event.target);
+    if (kind) reformat(event.target, kind, event);
   });
   // pasted or filled-in values get tidied when you leave the field
   root.addEventListener('focusout', event => {
     const el = event.target;
-    if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
-    if (el.matches(PHONE_LINES)) formatAllLines(el);
-    else if (el.matches(PHONE_FIELDS)) el.value = formatPhone(el.value);
+    const kind = kindOf(el);
+    if (!kind) return;
+    const before = el.value;
+    if (kind === 'phone-lines') el.value = before.split('\n').map(formatPhone).join('\n');
     else {
-      const shape = SHAPES.find(item => el.matches(item.selector));
-      if (shape) el.value = shape.format(el.value);
+      const spec = KINDS[kind];
+      el.value = spec.finish ? spec.finish(spec.format(before)) : spec.format(before);
     }
+    // anything listening (drafts, dirty checks) hears about the tidy-up
+    if (el.value !== before) el.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }

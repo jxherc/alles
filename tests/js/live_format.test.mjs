@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatCard, formatExpiry, formatPhone, phoneDigits } from '../../static/js/liveformat.js';
+import { finishUrl, formatCard, formatDate, formatDecimal, formatExpiry, formatHex, formatPhone, formatTime, phoneDigits } from '../../static/js/liveformat.js';
 
 test('north american numbers get +1, brackets and a dash', () => {
   assert.equal(formatPhone('14373405952'), '+1 (437) 340-5952');
@@ -53,4 +53,44 @@ test('expiry gets its slash on its own', () => {
   assert.equal(formatExpiry('12'), '12/');
   assert.equal(formatExpiry('1227'), '12/27');
   assert.equal(formatExpiry('12/', true), '12');
+});
+
+test('amounts keep digits, one dot and a minus', () => {
+  assert.equal(formatDecimal('12.50'), '12.50');
+  assert.equal(formatDecimal('1,234.50'), '1234.50');
+  assert.equal(formatDecimal('12,50'), '12.50');
+  assert.equal(formatDecimal('$8.25'), '8.25');
+  assert.equal(formatDecimal('-8.2.5'), '-8.25');
+  assert.equal(formatDecimal('1 000'), '1000');
+});
+
+test('dates get their dashes as you type', () => {
+  assert.equal(formatDate('2026'), '2026-');
+  assert.equal(formatDate('202610'), '2026-10-');
+  assert.equal(formatDate('20261021'), '2026-10-21');
+  assert.equal(formatDate('2026-', true), '2026');
+  assert.equal(formatDate('2026/10/21'), '2026-10-21');
+});
+
+test('times get their colon, and a big first digit means one-digit hour', () => {
+  assert.equal(formatTime('0930'), '09:30');
+  assert.equal(formatTime('9'), '09:');
+  assert.equal(formatTime('23'), '23:');
+  assert.equal(formatTime('23:', true), '23');
+  assert.equal(formatTime('2300'), '23:00');
+});
+
+test('hex colors start with # and keep hex only', () => {
+  assert.equal(formatHex('ff00aa'), '#ff00aa');
+  assert.equal(formatHex('#zz12'), '#12');
+  assert.equal(formatHex(''), '');
+});
+
+test('bare addresses get a scheme when you leave the field', () => {
+  assert.equal(finishUrl('example.com/feed.xml'), 'https://example.com/feed.xml');
+  assert.equal(finishUrl('192.168.1.5:8080'), 'http://192.168.1.5:8080');
+  assert.equal(finishUrl('localhost:3000'), 'http://localhost:3000');
+  assert.equal(finishUrl('https://x.test'), 'https://x.test');
+  assert.equal(finishUrl('not a url'), 'not a url');
+  assert.equal(finishUrl(''), '');
 });
