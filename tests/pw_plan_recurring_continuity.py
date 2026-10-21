@@ -34,6 +34,19 @@ with sync_playwright() as pw:
             "steps": [],
         }
         records.append(result)
+
+        def search(text):
+            # the box filters 180ms after typing. without this wait the late filtered load
+            # redraws the list mid-scenario, after the lost reply, and the retry hits the successor
+            with page.expect_response(
+                lambda r: (
+                    r.url.startswith(base + "/api/tasks/search?") and r.request.method == "GET"
+                )
+            ) as found:
+                page.locator("#tasks-search").fill(text)
+            assert found.value.ok
+            found.value.finished()
+
         try:
             title = "owned monthly continuity " + str(width)
             page.goto(base + "/?view=plan", wait_until="networkidle")
@@ -42,7 +55,7 @@ with sync_playwright() as pw:
             field.press("Enter")
             expect(field).to_have_value("")
             page.get_by_role("tab", name="tasks", exact=True).click()
-            page.locator("#tasks-search").fill(title)
+            search(title)
             page.get_by_role("button", name="edit " + title, exact=True).click()
             page.locator("#te-due").fill("2032-01-31")
             page.locator("#te-rep").click()
@@ -104,7 +117,7 @@ with sync_playwright() as pw:
             )
             page.reload(wait_until="networkidle")
             page.get_by_role("tab", name="tasks", exact=True).click()
-            page.locator("#tasks-search").fill(title)
+            search(title)
             page.get_by_role("button", name="mark " + title + " complete", exact=True).click()
             expect(page.locator(f'.task-item[data-id="{successor["id"]}"]')).to_have_count(0)
             assert len(rows()) == 1 and rows()[0]["due_date"] == "2032-03-31"

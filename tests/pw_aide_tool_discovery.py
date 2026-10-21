@@ -173,6 +173,7 @@ with sync_playwright() as pw:
                         "scheduled work",
                         "skills",
                         "tools",
+                        "sign in to a site",
                         "private conversation",
                         "export conversation",
                         "settings",
