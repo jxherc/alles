@@ -41,6 +41,7 @@ const BUILTINS = [
   { name: 'compact', args: '[focus]', description: 'summarize the chat so far to free up context', live: true },
   { name: 'goal', args: '[goal | clear]', description: 'set a goal pi keeps working toward' },
   { name: 'stop', description: 'stop what pi is doing', live: true },
+  { name: 'whats-new', description: 'show what changed lately' },
 ];
 const harnessName = id => native.find(h => h.harness === id)?.name || catalogRows.find(h => h.id === id)?.name || id;
 const isNative = id => native.some(h => h.harness === id);
@@ -456,6 +457,7 @@ function localCommand(text) {
   if (name === '/new') { startChat(current.projectId); return true; }
   if (name === '/model') { $('aide-code-model').click(); return true; }
   if (name === '/stop') { $('aide-code-stop').click(); return true; }
+  if (name === '/whats-new') { import('./whatsnew.js').then(m => m.openWhatsNew()); return true; }
   if (name === '/effort') {
     if (arg) void setEffort(arg.toLowerCase().replace(/\s+/g, '') === 'extrahigh' ? 'xhigh' : arg.toLowerCase());
     else if (!$('aide-code-effort').hidden) $('aide-code-effort').click();

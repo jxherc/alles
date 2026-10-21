@@ -137,6 +137,8 @@ async function init() {
     return;
   }
   await _boot({ reachable });
+  // what changed since the last visit (or a welcome on the first one), after the shell settles
+  setTimeout(() => { import('./whatsnew.js').then(m => m.maybeShowWhatsNew()).catch(() => {}); }, 1200);
 }
 
 function _stripParam(name) {

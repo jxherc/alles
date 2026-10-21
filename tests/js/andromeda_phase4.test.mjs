@@ -660,7 +660,7 @@ test('the service worker cannot mix old and new JavaScript modules', () => {
   const pageStamp = html.match(/const _v = '(\d+)'/)?.[1];
   assert.ok(pageStamp);
   assert.equal(worker.match(/const STAMP = '(\d+)'/)?.[1], pageStamp);
-  assert.match(worker, /NETWORK_FIRST_STATIC = \['\.js', '\.mjs', '\.css'\]/);
+  assert.match(worker, /NETWORK_FIRST_STATIC = \['\.js', '\.mjs', '\.css', '\.json'\]/);
   assert.match(worker, /NETWORK_FIRST_STATIC\.some\(ext => url\.pathname\.endsWith\(ext\)\)/);
   assert.match(worker, /Network-first code and styles/);
   const networkFirst = worker.match(/Network-first code and styles[\s\S]*?\/\/ Other static assets/)?.[0] || '';

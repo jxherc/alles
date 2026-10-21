@@ -1,0 +1,32 @@
+{
+  "releases": [
+    {
+      "id": "2026-10-21",
+      "date": "october 21, 2026",
+      "items": [
+        {
+          "title": "commands in code",
+          "body": "type / in Aide code to see every command. /context shows what fills pi's memory, /compact frees it up, /goal keeps pi working until something is done.",
+          "try": "/context"
+        },
+        {
+          "title": "effort for pi",
+          "body": "models that think get an effort control under the box. low answers fast; high thinks longer. a running chat switches right away.",
+          "try": "/effort high"
+        },
+        {
+          "title": "hide keys from the model",
+          "body": "wrap a key or password in two bars, like ||sk-…||, and pi uses it without ever seeing it."
+        },
+        {
+          "title": "text Aide from your phone",
+          "body": "connect with Photon in settings and alles sets up iMessage and lets your number through. if Aide needs your ok, the text tells you."
+        },
+        {
+          "title": "buttons you can see",
+          "body": "every button in settings has an outline now, so it doesn't read as plain text."
+        }
+      ]
+    }
+  ]
+}

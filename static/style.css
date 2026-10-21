@@ -11112,3 +11112,39 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .rule-presets-label { flex: 0 0 100%; margin: 0 0 0 12px; }
 .rule-preset { min-height: 44px; padding: 0 12px; border-color: transparent; }
 .rule-preset:hover { border-color: transparent; background: var(--k-hover, var(--panel)); }
+
+/* what's new: once per release. the card rises in, a line draws across its top and the items
+   land one after another; with reduced motion everything is simply there */
+.whats-new-card {
+  position: relative; box-sizing: border-box; width: min(520px, calc(100vw - 2 * var(--k-space-4))); max-width: none;
+  max-height: calc(100dvh - 2 * var(--k-space-4)); padding: var(--k-space-5); gap: var(--k-space-4);
+  border-color: var(--k-line-strong, var(--faint)); border-radius: var(--k-radius-surface, 6px); overflow: hidden;
+  animation: whats-new-rise 320ms cubic-bezier(.2, .8, .2, 1);
+}
+.whats-new-card::before {
+  content: ""; position: absolute; top: 0; left: 0; height: 2px; width: 100%;
+  background: var(--accent, var(--text)); transform-origin: left; animation: whats-new-draw 700ms 120ms cubic-bezier(.6, 0, .2, 1) both;
+}
+.whats-new-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--k-space-3); }
+.whats-new-head h2 { margin: 0; font-size: 1.15rem; font-weight: 620; color: var(--text); }
+.whats-new-date { margin: 2px 0 0; color: var(--muted); font-size: 0.8rem; }
+.whats-new-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--k-space-4); overflow-y: auto; min-height: 0; }
+.whats-new-item { display: grid; gap: 4px; }
+.whats-new-list.is-in .whats-new-item { animation: whats-new-land 360ms calc(160ms + var(--n) * 70ms) cubic-bezier(.2, .8, .2, 1) both; }
+.whats-new-item h3 { margin: 0; font-size: 0.95rem; font-weight: 580; color: var(--text); }
+.whats-new-item p { margin: 0; color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
+.whats-new-try { display: flex; align-items: center; gap: var(--k-space-2); }
+.whats-new-try kbd {
+  font: 400 12px/1.4 var(--k-mono, monospace); color: var(--text); background: var(--k-raised, var(--panel));
+  border: 1px solid var(--k-line, var(--faint)); border-radius: 4px; padding: 2px 6px;
+}
+.whats-new-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--k-space-2); }
+.whats-new-pages { margin-right: auto; color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.whats-new-overlay { animation: whats-new-dim 240ms ease-out; }
+@keyframes whats-new-rise { from { transform: translateY(14px) scale(.985); } to { transform: none; } }
+@keyframes whats-new-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes whats-new-land { from { transform: translateY(8px); } to { transform: none; } }
+@keyframes whats-new-dim { from { background: rgba(0, 0, 0, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .whats-new-card, .whats-new-card::before, .whats-new-list.is-in .whats-new-item, .whats-new-overlay { animation: none; }
+}

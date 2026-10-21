@@ -1449,7 +1449,8 @@ the main mechanisms are:
 - **streamed model output**: chat and agent responses use sse so text can appear before the run finishes
 - **endpoint cooldown**: two recorded failures trigger a 20-second host cooldown; model fallback still follows resolver constraints
 - **mail**: connection pooling, read caching, body-only fetches, and a change-detecting poll
-- **service worker**: code and styles prefer the network, with cache fallback; other static assets can use cached bytes while refreshing. public share viewers stay live so cached pages cannot bypass revocation
+- **what's new**: release notes live in `static/whats-new.json` (newest first). the shell shows the newest release once on a first visit, and on later visits the releases since the last one seen (up to three), then remembers the newest id in browser storage. it waits while another dialog is on screen, and `/whats-new` in Aide code reopens it.
+- **service worker**: code, styles and json prefer the network, with cache fallback; other static assets can use cached bytes while refreshing. public share viewers stay live so cached pages cannot bypass revocation
 - **agent context trimming**: older tool output is shortened during long runs; the model's actual context limit still applies
 - **migrations and recovery**: version history, staging, maintenance locks, and rollback paths protect supported upgrades and restores. an unsuccessful validation remains a failure
 - **partial availability**: search can try configured fallbacks, and optional integrations report their own unavailable state. an offline browser can load cached ui; it still needs a reachable server for uncached data, connected apps, and model execution
