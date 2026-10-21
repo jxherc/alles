@@ -208,7 +208,10 @@ def run():
                     expect(due).to_be_focused()
                     billing = due.evaluate("el=>el.value")
                     expect(add_sub).to_be_enabled()
-                    page.locator("#sub-price").fill("invalid")
+                    # letters never reach the field (amounts format as you type), so a negative
+                    # price is the invalid one that can still be typed
+                    page.locator("#sub-price").fill("-5")
+                    expect(page.locator("#sub-price")).to_have_value("-5")
                     add_sub.press("Enter")
                     expect(page.locator("#sub-price")).to_be_focused()
                     assert len(posts) == 1, posts

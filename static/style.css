@@ -6314,7 +6314,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   padding: 0.6rem 0.2rem 0.25rem; border-bottom: 1px solid var(--faint); margin-bottom: 0.1rem;
 }
 .activity-row {
-  display: flex; align-items: baseline; gap: 8px; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
   width: 100%; min-height: 44px; font: inherit; text-align: left; color: inherit;
   /* 12px sides so the time and glyph clear the focus ring; pulled back 8px so the text barely moves */
   width: calc(100% + 16px); margin-inline: -8px; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--faint);
@@ -11278,7 +11278,7 @@ body.aide-working .composer-box::after {
 .cal-more-wrap { position: relative; flex-shrink: 0; }
 .cal-more-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 220px; max-width: calc(100vw - 24px); }
 @media (max-width: 760px) { .cal-more-menu { left: 0; right: auto; } }
-.cal-more-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: var(--ui-control-height, 44px); text-decoration: none; }
+.cal-more-menu .ctx-item { box-sizing: border-box; font: inherit; font-size: 13px; display: flex; align-items: center; min-height: var(--ui-control-height, 44px); text-decoration: none; }
 
 /* an empty journal day is just the page: mood and tags appear once you start writing */
 .jrnl-main[data-blank="true"] :is(.jrnl-mood-label, .jrnl-moods, .jrnl-tags) { display: none; }

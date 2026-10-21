@@ -193,7 +193,11 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
     if width <= 760:
         assert round(root_box["x"]) == 0, root_box
         assert round(root_box["width"]) == width, root_box
-        assert round(tabs_box["width"]) == width, tabs_box
+        # the strip spans the phone; its scroll arrows take room beside the tabs themselves
+        strip_box = header.locator(".specialist-view-strip").evaluate(
+            "element => element.getBoundingClientRect()"
+        )
+        assert round(strip_box["width"]) == width, strip_box
         assert round(tabs_box["height"]) >= 44, tabs_box
         tabs = header.locator('.specialist-group-tabs [role="tab"]')
         for tab in tabs.all():
@@ -692,10 +696,18 @@ def _group_overviews(browser: Browser, errors: list[str], width: int) -> None:
     page.evaluate("window._navigateTo('library')")
     page.locator(".specialist-workbench-library").wait_for(state="visible")
     _assert_owned_shell(page, "#library-view", "library", width)
-    assert page.locator(".specialist-library-row").count() == 2
+    # rows arrive after the overview frame shows; plan's agenda rows share the class
+    page.wait_for_function(
+        "document.querySelectorAll('.specialist-workbench-library .specialist-library-row').length === 2"
+    )
     page.locator('.specialist-workbench-library [data-value="books"]').click()
-    assert page.locator(".specialist-library-row").count() == 1
-    assert "The Dispossessed" in page.locator(".specialist-library-row").inner_text()
+    page.wait_for_function(
+        "document.querySelectorAll('.specialist-workbench-library .specialist-library-row').length === 1"
+    )
+    assert (
+        "The Dispossessed"
+        in page.locator(".specialist-workbench-library .specialist-library-row").inner_text()
+    )
     assert page.evaluate(
         "document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1"
     )
