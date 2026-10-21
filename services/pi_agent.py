@@ -956,7 +956,12 @@ class PiChat:
     async def compact(self, instructions: str = "") -> None:
         self.emit({"kind": "note", "text": "compacting the context…"})
         fields = {"customInstructions": instructions} if instructions else {}
-        data = await self.command("compact", timeout=600, **fields)
+        try:
+            data = await self.command("compact", timeout=600, **fields)
+        except RuntimeError as exc:
+            # pi says why (often "session too small"); that answers the command
+            self.emit({"kind": "note", "text": f"nothing compacted: {str(exc)[:200].lower()}"})
+            return
         await self._refresh_stats()
         self.emit(
             {
