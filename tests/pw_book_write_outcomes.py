@@ -66,7 +66,9 @@ with sync_playwright() as pw:
                 page.locator('[data-act="set-goal"]').click()
                 page.get_by_role("dialog").get_by_role("textbox").fill("12")
                 with page.expect_response(endpoint):
-                    page.get_by_role("dialog").get_by_role("button", name="ok", exact=True).click()
+                    page.get_by_role("dialog").get_by_role(
+                        "button", name="save goal", exact=True
+                    ).click()
             elif action == "import":
                 with page.expect_file_chooser() as chooser:
                     page.locator("#books-import").click()

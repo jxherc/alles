@@ -165,7 +165,7 @@ def _finance_recent_owner(page: Page) -> None:
     prompt = page.locator(".dialog-overlay")
     prompt.wait_for(state="visible")
     prompt.locator(".dialog-input").fill("local-test-password")
-    prompt.get_by_role("button", name="ok").click()
+    prompt.get_by_role("button", name="continue").click()
     page.locator(".finance-actual-message").filter(has_text="browser-proof verified").wait_for()
     assert state == {"writes": 2, "reauth": 1}, state
     assert backup.get_attribute("aria-busy") is None

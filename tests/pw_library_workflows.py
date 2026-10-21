@@ -191,7 +191,9 @@ def run():
                 goal = page.locator('[data-act="set-goal"]')
                 goal.click()
                 page.get_by_role("dialog").get_by_role("textbox").fill("12")
-                page.get_by_role("dialog").get_by_role("button", name="ok", exact=True).click()
+                page.get_by_role("dialog").get_by_role(
+                    "button", name="save goal", exact=True
+                ).click()
                 expect(page.locator(".books-goal")).to_be_visible()
                 keyboard_reach(".books-goal")
                 page.keyboard.press("Enter")

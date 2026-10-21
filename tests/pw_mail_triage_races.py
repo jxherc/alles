@@ -99,7 +99,7 @@ with sync_playwright() as pw:
                 row().locator("[data-label]").click()
                 dlg = page.get_by_role("dialog")
                 dlg.locator("input").fill(value)
-                dlg.get_by_role("button", name="ok", exact=True).click()
+                dlg.get_by_role("button", name="add label", exact=True).click()
 
             try:
 
@@ -231,7 +231,7 @@ with sync_playwright() as pw:
                         route.continue_()
 
                     page.route(endpoint, record)
-                    dlg.get_by_role("button", name="ok", exact=True).click()
+                    dlg.get_by_role("button", name="add label", exact=True).click()
                     expect(dlg).not_to_be_visible()
                     page.wait_for_load_state("networkidle")
                     expect(row().get_by_role("button", name="work", exact=True)).to_be_visible()

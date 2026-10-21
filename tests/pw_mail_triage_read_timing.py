@@ -126,7 +126,7 @@ with sync_playwright() as pw:
                         assert response.ok
                         route.fulfill(response=response)
                         expect(row()).to_have_count(0)
-                    dlg.get_by_role("button", name="ok", exact=True).click()
+                    dlg.get_by_role("button", name="add label", exact=True).click()
                     expect(dlg).not_to_be_visible()
                     if pending:
                         route = pending.pop()

@@ -166,8 +166,8 @@ def run():
                 page.get_by_role("button", name="select " + name, exact=True).click()
 
             def prompt_album(name):
-                page.get_by_role("textbox", name="album name:", exact=True).fill(name)
-                page.get_by_role("button", name="ok", exact=True).click()
+                page.get_by_role("textbox", name="album name", exact=True).fill(name)
+                page.get_by_role("button", name="create", exact=True).click()
 
             def choose_album(name):
                 page.get_by_role("button", name="add to album", exact=True).click()
@@ -309,7 +309,7 @@ def run():
                 page.get_by_role("button", name="new album", exact=True).click()
                 album_name = profile + " research 秋季 " + "long name " * 15
                 prompt_album(album_name)
-                expect(page.get_by_role("textbox", name="album name:", exact=True)).to_have_value(
+                expect(page.get_by_role("textbox", name="album name", exact=True)).to_have_value(
                     album_name
                 )
                 expect(page.locator("#toast-container")).to_contain_text(
@@ -318,8 +318,8 @@ def run():
                 assert not any(a["name"] == album_name.strip() for a in albums())
                 shot("album-create-rejected")
                 unroute(rule)
-                page.get_by_role("button", name="ok", exact=True).click()
-                expect(page.get_by_role("textbox", name="album name:", exact=True)).to_have_count(0)
+                page.get_by_role("button", name="create", exact=True).click()
+                expect(page.get_by_role("textbox", name="album name", exact=True)).to_have_count(0)
                 page.wait_for_load_state("networkidle")
                 aid = next(a["id"] for a in albums() if a["name"] == album_name.strip())
                 passed(album_id=aid)
@@ -356,7 +356,7 @@ def run():
                 rule = reject("/api/photos/albums")
                 destination = profile + " new destination"
                 prompt_album(destination)
-                expect(page.get_by_role("textbox", name="album name:", exact=True)).to_have_value(
+                expect(page.get_by_role("textbox", name="album name", exact=True)).to_have_value(
                     destination
                 )
                 assert by_id(photos[2]["id"])["album_id"] == aid
@@ -373,7 +373,7 @@ def run():
                     rule = reject("/api/photos/albums", status=200, payload=payload)
                     prompt_album(destination)
                     expect(
-                        page.get_by_role("textbox", name="album name:", exact=True)
+                        page.get_by_role("textbox", name="album name", exact=True)
                     ).to_have_value(destination)
                     assert by_id(photos[2]["id"])["album_id"] == aid
                     unroute(rule)
@@ -433,7 +433,7 @@ def run():
                     active["saved_album_after_reload"] = by_id(photos[2]["id"])["album_id"]
                 assert active["saved_album_after_ack"] == aid, active
                 assert membership_requests == [], membership_requests
-                expect(page.get_by_role("textbox", name="album name:", exact=True)).to_have_value(
+                expect(page.get_by_role("textbox", name="album name", exact=True)).to_have_value(
                     destination
                 )
                 expect(page.locator("#toast-container")).to_contain_text(
@@ -449,9 +449,7 @@ def run():
                 # belong to the page session rather than durable recovery storage.
                 select(names[2])
                 choose_album("new album…")
-                expect(page.get_by_role("textbox", name="album name:", exact=True)).to_have_value(
-                    ""
-                )
+                expect(page.get_by_role("textbox", name="album name", exact=True)).to_have_value("")
                 recovered = "  " + profile + " recovered résumé 秋季  "
                 prompt_album(recovered)
                 expect(page.locator("#photos-selbar")).to_be_hidden()

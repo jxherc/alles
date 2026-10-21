@@ -82,9 +82,7 @@ def run():
                 }
                 records.append(record)
                 page.get_by_role("button", name="hidden", exact=True).click()
-                prompt = page.get_by_role(
-                    "dialog", name="vault master password to view the hidden album:"
-                )
+                prompt = page.get_by_role("dialog", name="hidden album")
                 expect(prompt).to_be_visible()
                 password_field = prompt.locator("input")
                 expect(password_field).to_have_attribute("type", "password")

@@ -205,7 +205,9 @@ with sync_playwright() as pw:
                 if action == "label":
                     row().locator("[data-label]").click()
                     page.get_by_role("dialog").locator("input").fill("work")
-                    page.get_by_role("dialog").get_by_role("button", name="ok", exact=True).click()
+                    page.get_by_role("dialog").get_by_role(
+                        "button", name="add label", exact=True
+                    ).click()
                 else:
                     btn = (
                         page.locator("#mail-" + action)

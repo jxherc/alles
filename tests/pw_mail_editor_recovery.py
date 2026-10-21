@@ -541,10 +541,10 @@ def run():
                         body.press("ControlOrMeta+A")
                         page.locator('[data-cmd="createLink"]').focus()
                         page.keyboard.press("Enter")
-                        dialog = page.get_by_role("dialog", name="link URL:", exact=True)
+                        dialog = page.get_by_role("dialog", name="insert a link", exact=True)
                         expect(dialog).to_be_visible()
                         dialog.get_by_role("textbox").fill("https://example.invalid/owned")
-                        dialog.get_by_role("button", name="ok", exact=True).click()
+                        dialog.get_by_role("button", name="insert", exact=True).click()
                         expect(body.locator("a")).to_have_text("owned link")
                         expect(body.locator("a")).to_have_attribute(
                             "href", "https://example.invalid/owned"

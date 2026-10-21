@@ -126,11 +126,11 @@ def run():
 
                 click(page.locator("#contacts-groups-btn"))
                 click(page.locator("#cg-add"))
-                page.get_by_role("textbox", name="group name:", exact=True).fill(f"VIPs {width}")
+                page.get_by_role("textbox", name="group name", exact=True).fill(f"VIPs {width}")
                 click(page.locator("[data-dialog-confirm]"))
                 page.get_by_role(
                     "textbox",
-                    name="smart rule: tag to auto-include (blank for a manual group)",
+                    name="add contacts tagged",
                     exact=True,
                 ).fill(f"vip-{width}")
                 click(page.locator("[data-dialog-confirm]"))

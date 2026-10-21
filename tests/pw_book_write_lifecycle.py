@@ -82,7 +82,7 @@ with sync_playwright() as pw:
                         page.get_by_role("dialog").get_by_role("textbox").fill(value)
                         with page.expect_request(base + "/api/books/goal"):
                             page.get_by_role("dialog").get_by_role(
-                                "button", name="ok", exact=True
+                                "button", name="save goal", exact=True
                             ).click()
 
                     submit("12")
@@ -96,7 +96,9 @@ with sync_playwright() as pw:
                     page.locator('[data-act="set-goal"]').click()
                     expect(page.get_by_role("dialog").get_by_role("textbox")).to_have_value("15")
                     page.unroute(base + "/api/books/goal")
-                    page.get_by_role("dialog").get_by_role("button", name="ok", exact=True).click()
+                    page.get_by_role("dialog").get_by_role(
+                        "button", name="save goal", exact=True
+                    ).click()
                     expect(page.locator(".books-goal")).to_contain_text("/ 15")
                     assert api.get(base + "/api/books/overview").json()["goal"] == 15
                 else:
