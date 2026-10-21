@@ -35,7 +35,10 @@ class PiTest(ApiTest):
         self.data.mkdir()
         # only pi's own folder moves; alles's data dir (and its secret key) stays put
         fake = str(fake_bin(root))
-        self.env = mock.patch.dict(os.environ, {"ALLES_PI_BIN": fake, "ALLES_OMP_BIN": fake})
+        self.env = mock.patch.dict(
+            os.environ,
+            {"ALLES_PI_BIN": fake, "ALLES_OMP_BIN": fake, "ALLES_PI_WORKSPACE": str(root / "aide")},
+        )
         self.env.start()
         self.home = mock.patch.object(pi_agent, "data_dir", lambda: self.data)
         self.home.start()
@@ -375,6 +378,58 @@ class SecretsAndBridgeTest(PiTest):
             pi_agent._chats.pop("c1", None)
             pi_agent._bridge_tokens.pop("tok", None)
 
+    def test_pi_can_use_alles_tools_and_changes_need_an_ok(self):
+        names = {t["name"]: t for t in pi_agent.bridge_tools()}
+        self.assertIn("alles_docs_write", names)
+        self.assertTrue(names["alles_docs_write"]["changes"])
+        self.assertFalse(names["alles_docs_read"]["changes"])
+        for kept_with_aide in (
+            "alles_mail_send",
+            "alles_browse_open",
+            "alles_server_service_control",
+        ):
+            self.assertNotIn(kept_with_aide, names)
+
+        chat = SimpleNamespace(last_active=0, writes="ask")
+        pi_agent._chats["c2"] = chat
+        pi_agent._bridge_tokens["tok2"] = "c2"
+        local = mock.patch("routes.aide._LOCAL_CLIENTS", {"testclient"})
+        local.start()
+        self.addCleanup(local.stop)
+        ran = []
+
+        async def fake_execute(name, args):
+            ran.append((name, args))
+            return {"output": f"ran {name}"}
+
+        auth = {"authorization": "Bearer tok2"}
+        try:
+            with mock.patch("services.agent_tools.execute", side_effect=fake_execute):
+                unknown = self.client.post(
+                    "/pi-bridge/tool", json={"name": "alles_mail_send"}, headers=auth
+                )
+                self.assertEqual(unknown.status_code, 404)
+                read = self.client.post(
+                    "/pi-bridge/tool",
+                    json={"name": "alles_docs_read", "args": {"path": "a.md"}},
+                    headers=auth,
+                )
+                self.assertEqual(read.json(), {"output": "ran docs_read", "error": False})
+                write = {"name": "alles_docs_write", "args": {"path": "a.md", "content": "x"}}
+                held = self.client.post("/pi-bridge/tool", json=write, headers=auth)
+                self.assertEqual(held.status_code, 403)  # pi has to ask the owner first
+                ok = self.client.post(
+                    "/pi-bridge/tool", json={**write, "confirmed": True}, headers=auth
+                )
+                self.assertEqual(ok.status_code, 200, ok.text)
+                chat.writes = "allow"  # handed over by Aide, or code on auto
+                handed = self.client.post("/pi-bridge/tool", json=write, headers=auth)
+                self.assertEqual(handed.status_code, 200)
+            self.assertEqual([name for name, _ in ran], ["docs_read", "docs_write", "docs_write"])
+        finally:
+            pi_agent._chats.pop("c2", None)
+            pi_agent._bridge_tokens.pop("tok2", None)
+
 
 class HarnessCatalogTest(PiTest):
     def test_catalog_marks_open_source_and_installs_safely(self):
@@ -443,9 +498,13 @@ class PiRunToolTest(PiTest):
     def test_chat_hands_a_task_to_pi_and_gets_the_answer(self):
         from services import agent_tools
 
+        missing = asyncio.run(agent_tools._pi_run("fix it", project="nowhere"))
+        self.assertTrue(missing["error"])
         self.add_endpoint()
-        none = asyncio.run(agent_tools._pi_run("fix it"))
-        self.assertTrue(none["error"])
+        # no project: pi works in its own Aide folder, handed over so it doesn't ask again
+        own = asyncio.run(agent_tools._pi_run("write a plan", wait_seconds=30))
+        self.assertEqual(own["project"], "Aide")
+        self.assertIn("done with write a plan", own["output"])
         with self.db() as session:
             session.add(CodingProject(path=str(self.project_dir), name="site"))
             session.commit()
@@ -456,6 +515,20 @@ class PiRunToolTest(PiTest):
         self.assertIn("tools used: read", result["output"])
         self.assertEqual(result["project"], "site")
         self.assertTrue(pi_agent.transcript(result["project_id"], result["chat_id"]))
+
+    def test_pi_steps_stream_into_the_aide_answer(self):
+        from services import agent_tools
+
+        self.add_endpoint()
+
+        async def collect():
+            return [event async for event in agent_tools.stream_execute("pi_run", {"task": "look"})]
+
+        events = asyncio.run(collect())
+        lines = "".join(e["text"] for e in events if e["type"] == "output")
+        self.assertIn("pi is working in Aide", lines)
+        self.assertIn("· read notes.txt", lines)
+        self.assertEqual(events[-1]["type"], "result")
 
 
 class CodeRoutesTest(PiTest):

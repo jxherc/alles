@@ -561,6 +561,36 @@ async def bridge_search(body: BridgeSearchBody, request: Request):
     return {"results": rows[: body.count], "provider": found.get("provider", "")}
 
 
+class BridgeToolBody(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    args: dict = Field(default_factory=dict)
+    confirmed: bool = False
+
+
+@bridge.post("/tool")
+async def bridge_tool(body: BridgeToolBody, request: Request):
+    """one of alles's own tools for pi: docs, tasks, calendar, memory and the like."""
+    from core.settings import load_settings
+    from services import agent_tools
+
+    chat = _bridge_chat(request)
+    chat.last_active = time.monotonic()
+    tool = next((t for t in pi_agent.bridge_tools() if t["name"] == body.name), None)
+    if tool is None:
+        raise ApiError(404, "bridge_tool_unknown", "pi can't use that alles tool")
+    if tool["changes"] and chat.writes != "allow" and not body.confirmed:
+        raise ApiError(403, "bridge_tool_needs_ok", "the owner has to allow this change first")
+    agent_tools.set_agent_ctx(settings=load_settings(), session_id="")
+    try:
+        result = await agent_tools.execute(tool["tool"], body.args)
+    except Exception as exc:  # a bad argument comes back to pi as a failed step it can fix
+        result = {
+            "output": f"{tool['tool']} failed: {type(exc).__name__}: {exc}"[:500],
+            "error": True,
+        }
+    return {"output": str(result.get("output") or "")[:40_000], "error": bool(result.get("error"))}
+
+
 @bridge.post("/fetch")
 async def bridge_fetch(body: BridgeFetchBody, request: Request):
     """web_fetch for pi; the same safe fetcher andromeda uses, so private addresses stay off."""

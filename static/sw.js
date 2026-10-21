@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v411';   // reloaded answers keep their doc cards in this shell revision.
+const VERSION = 'v412';   // aide hands multi-step work to pi in this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '564';   // keep in sync with index.html ?v= / const _v
+const STAMP = '565';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
 
 // 1b: mutating writes that should be queued when offline

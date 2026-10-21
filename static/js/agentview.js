@@ -74,6 +74,7 @@ function summary(name, a = {}) {
     case 'list_files': return `list ${a.path || '.'}`;
     case 'web_search': return `search: ${cut(a.query, 50)}`;
     case 'web_fetch': return `fetch ${cut(a.url, 60)}`;
+    case 'pi_run': return `hand to pi: ${cut(a.task, 110)}`;
     default: { const v = Object.values(a).find(x => typeof x === 'string' && x.length < 80); return v ? `${name}: ${cut(v)}` : name; }
   }
 }

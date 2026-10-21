@@ -31,6 +31,13 @@ export default function (pi: any) {
   const bridgeToken = process.env.PI_ALLES_BRIDGE_TOKEN || "";
   const guard = process.env.PI_ALLES_GUARD !== "off";
   delete process.env.PI_ALLES_BRIDGE_TOKEN;
+  // alles's own tools (docs, tasks, calendar, memory...) and whether a change needs the owner's ok
+  let appTools: any[] = [];
+  try { appTools = JSON.parse(Buffer.from(process.env.PI_ALLES_TOOLS || "", "base64").toString("utf8")).tools || []; } catch { appTools = []; }
+  const asks = process.env.PI_ALLES_WRITES !== "allow";
+  delete process.env.PI_ALLES_TOOLS;
+  const changing = new Map(appTools.filter((t) => t.changes).map((t) => [t.name, t]));
+  const allowed = new Set<string>();
 
   const reveal = (value: any): any => {
     if (typeof value === "string") return value.replace(PLACEHOLDER, (whole, name) => secrets[name] ?? whole);
@@ -51,6 +58,13 @@ export default function (pi: any) {
   });
 
   pi.on("tool_call", async (event: any, ctx: any) => {
+    const app = changing.get(event.toolName);
+    if (app && asks) {
+      const what = JSON.stringify(event.input ?? {}).slice(0, 400);
+      const ok = await ctx.ui.confirm(`Let pi ${String(app.tool).replace(/_/g, " ")}?`, what);
+      if (!ok) return { block: true, reason: "the owner said no to this change; ask what they want instead" };
+      allowed.add(event.toolCallId);
+    }
     const command = event.toolName === "bash" ? String(event.input?.command ?? "") : "";
     if (guard && command && RISKY.some((rule) => rule.test(command))) {
       const ok = await ctx.ui.confirm("Run a risky command?", command.slice(0, 500));
@@ -99,6 +113,21 @@ export default function (pi: any) {
       return text(rows.join("\n\n") || "no results");
     },
   });
+
+  for (const tool of appTools) {
+    pi.registerTool({
+      name: tool.name,
+      label: String(tool.tool).replace(/_/g, " "),
+      description: `${tool.description} (an alles tool${tool.changes ? " that changes the owner's data" : ""})`,
+      promptSnippet: `${tool.name}: ${String(tool.description).split(".")[0]}`,
+      parameters: tool.parameters,
+      async execute(id: string, params: any, signal?: AbortSignal) {
+        const data = await call("/tool", { name: tool.name, args: reveal(params ?? {}), confirmed: allowed.delete(id) }, signal);
+        if (data.error) throw new Error(data.output || `${tool.tool} failed`);
+        return text(data.output || "done");
+      },
+    });
+  }
 
   pi.registerTool({
     name: "web_fetch",

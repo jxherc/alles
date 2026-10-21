@@ -1059,8 +1059,43 @@ async def _opencode_run(prompt: str, cwd: str = ".", model: str = "", agent: str
     return await _run_shell(" ".join(parts), cwd=cwd)
 
 
-async def _pi_run(task: str, project: str = "", wait_seconds: int = 600) -> dict:
-    """hand a coding task to pi in one of the owner's Aide code projects and wait for it."""
+def _pi_workspace():
+    """pi's own folder for work that isn't in a code project: documents, research, plans."""
+    from core.database import CodingProject, SessionLocal
+
+    folder = Path(os.environ.get("ALLES_PI_WORKSPACE") or Path.home() / "Alles" / "Aide")
+    folder.mkdir(parents=True, exist_ok=True)
+    db = SessionLocal()
+    try:
+        row = db.query(CodingProject).filter(CodingProject.path == str(folder)).first()
+        if row is None:
+            row = CodingProject(name="Aide", path=str(folder))
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+        db.expunge(row)
+        return row
+    finally:
+        db.close()
+
+
+def _pi_step_line(event: dict) -> str:
+    """one line of progress per step pi takes, for the Aide answer that handed it the work."""
+    try:
+        args = json.loads(event.get("args") or "{}")
+    except ValueError:
+        args = {}
+    name = str(event.get("name") or "tool").removeprefix("alles_")
+    target = (
+        args.get("command") or args.get("path") or args.get("pattern") or args.get("query") or ""
+    )
+    return (
+        f"· {name.replace('_', ' ')} {str(target).splitlines()[0][:120] if target else ''}".rstrip()
+    )
+
+
+async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
+    """hand work to pi and stream its steps; the last event is the result."""
     import asyncio
 
     from core.database import CodingProject, SessionLocal
@@ -1068,25 +1103,46 @@ async def _pi_run(task: str, project: str = "", wait_seconds: int = 600) -> dict
 
     harness = pi_agent.settings()["harness"]
     if harness in pi_agent.NATIVE and pi_agent.ensure_installed(harness)["state"] != "ready":
-        return {
-            "output": f"{harness} is not ready on this machine yet; open Aide code to see why",
-            "error": True,
+        yield {
+            "type": "result",
+            "result": {
+                "output": f"{harness} is not ready on this machine yet; open Aide code to see why",
+                "error": True,
+            },
         }
+        return
+    wanted = (project or "").strip().lower()
     db = SessionLocal()
     try:
-        rows = db.query(CodingProject).order_by(CodingProject.last_used_at.desc()).all()
-        wanted = (project or "").strip().lower()
-        row = next(
-            (r for r in rows if wanted in (r.id.lower(), r.name.lower(), r.path.lower())),
-            None if wanted else (rows[0] if rows else None),
-        )
-        if row is None:
-            names = ", ".join(r.name for r in rows) or "none yet"
-            return {"output": f"no Aide code project matches; projects: {names}", "error": True}
+        if wanted:
+            rows = db.query(CodingProject).order_by(CodingProject.last_used_at.desc()).all()
+            row = next(
+                (r for r in rows if wanted in (r.id.lower(), r.name.lower(), r.path.lower())), None
+            )
+            if row is None:
+                names = ", ".join(r.name for r in rows) or "none yet"
+                yield {
+                    "type": "result",
+                    "result": {
+                        "output": f"no Aide code project matches; projects: {names}",
+                        "error": True,
+                    },
+                }
+                return
+        else:
+            row = _pi_workspace()
         choice = pi_agent.resolve_choice(db)
         if choice is None:
-            return {"output": "no model with an api key is set up for coding", "error": True}
-        chat = await pi_agent.open_chat(db, row, None, choice)
+            yield {
+                "type": "result",
+                "result": {
+                    "output": "no model with an api key is set up for pi",
+                    "error": True,
+                },
+            }
+            return
+        # Aide already got the owner's ok for this handoff, so pi doesn't ask again
+        chat = await pi_agent.open_chat(db, row, None, choice, handed=True)
     finally:
         db.close()
     queue: asyncio.Queue = asyncio.Queue()
@@ -1094,6 +1150,7 @@ async def _pi_run(task: str, project: str = "", wait_seconds: int = 600) -> dict
     answer, tools, changed = "", [], []
     try:
         await chat.send(task)
+        yield {"type": "output", "text": f"pi is working in {row.name}\n"}
         deadline = asyncio.get_running_loop().time() + max(30, min(int(wait_seconds or 600), 1800))
         while True:
             left = deadline - asyncio.get_running_loop().time()
@@ -1103,11 +1160,25 @@ async def _pi_run(task: str, project: str = "", wait_seconds: int = 600) -> dict
                 event = await asyncio.wait_for(queue.get(), timeout=left)
             except TimeoutError:
                 break
-            if event["kind"] == "assistant":
+            if event["kind"] == "tool":
+                yield {"type": "output", "text": _pi_step_line(event) + "\n"}
+            elif event["kind"] == "tool_done" and not event.get("ok"):
+                yield {
+                    "type": "output",
+                    "text": "  ✕ "
+                    + str(event.get("output") or "failed").strip().splitlines()[-1][:160]
+                    + "\n",
+                }
+            elif event["kind"] == "assistant":
                 answer = event.get("text") or answer
                 for tool in event.get("tools") or []:
                     tools.append(tool.get("name"))
-                    if tool.get("name") in ("edit", "write"):
+                    if tool.get("name") in (
+                        "edit",
+                        "write",
+                        "alles_docs_write",
+                        "alles_note_write",
+                    ):
                         try:
                             changed.append(json.loads(tool.get("args") or "{}").get("path"))
                         except ValueError:
@@ -1118,13 +1189,32 @@ async def _pi_run(task: str, project: str = "", wait_seconds: int = 600) -> dict
         chat.listeners.discard(queue)
     where = {"project_id": row.id, "project": row.name, "chat_id": chat.id}
     if chat.busy:
-        return {"output": f"pi is still working in {row.name}; follow it in Aide code.", **where}
+        yield {
+            "type": "result",
+            "result": {
+                "output": f"pi is still working in {row.name}; follow it in Aide code.",
+                **where,
+            },
+        }
+        return
     files = ", ".join(sorted({f for f in changed if f})) or "none"
     used = ", ".join(sorted(set(filter(None, tools)))) or "none"
-    return {
-        "output": f"{answer or 'pi finished without a reply.'}\n\nfiles changed: {files}\ntools used: {used}",
-        **where,
+    yield {
+        "type": "result",
+        "result": {
+            "output": f"{answer or 'pi finished without a reply.'}\n\nfiles changed: {files}\ntools used: {used}",
+            **where,
+        },
     }
+
+
+async def _pi_run(task: str, project: str = "", wait_seconds: int = 600) -> dict:
+    """hand work to pi and wait for it (the non-streaming path)."""
+    result = {"output": "pi did not answer", "error": True}
+    async for event in _pi_run_stream(task, project, wait_seconds):
+        if event["type"] == "result":
+            result = event["result"]
+    return result
 
 
 # ── computer use (pyautogui) ────────────────────────────────────────────────
@@ -2972,6 +3062,12 @@ async def stream_execute(name: str, args: dict):
         ):
             yield event
         return
+    if name == "pi_run":
+        async for event in _pi_run_stream(
+            args.get("task", ""), args.get("project", ""), args.get("wait_seconds", 600)
+        ):
+            yield event
+        return
     try:
         result = await execute(name, args)
     except Exception as e:
@@ -3237,9 +3333,12 @@ TOOL_DEFS = [
     ),
     _tool(
         "pi_run",
-        "Hand a coding task to pi, the coding agent on the machine running Alles. It works in one "
-        "of the owner's Aide code projects (folders), can read, edit and run code there, and the "
-        "owner can follow the chat in Aide code. Use it for real code changes in those projects.",
+        "Hand work to pi, the agent that does multi-step work on the machine running Alles. pi "
+        "reads, writes and runs code and files, searches the web, and uses Alles itself (Docs, "
+        "tasks, calendar, reminders, memory, contacts, habits, reading). Use it for anything that "
+        "takes more than one or two steps: making or editing documents, research written up, "
+        "planning across apps, code changes. Without a project pi works in its own Aide folder; "
+        "name a project for code in one of the owner's Aide code projects. Its steps show live.",
         {
             "task": {
                 "type": "string",
@@ -3247,7 +3346,7 @@ TOOL_DEFS = [
             },
             "project": {
                 "type": "string",
-                "description": "Project name or folder; empty means the most recent one.",
+                "description": "Aide code project name or folder for code work; empty means pi's own Aide folder.",
             },
             "wait_seconds": {
                 "type": "integer",

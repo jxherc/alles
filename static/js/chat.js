@@ -38,6 +38,7 @@ function toolSummary(name, args = {}) {
     case 'list_files': return `list ${a.path || '.'}`;
     case 'web_search': return `search: ${cut(a.query, 50)}`;
     case 'web_fetch': return `fetch ${cut(a.url, 60)}`;
+    case 'pi_run': return `hand to pi: ${cut(a.task, 110)}`;
     case 'git_commit': return 'git commit';
     case 'git_status': return 'git status';
     case 'git_diff': return 'git diff';

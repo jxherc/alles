@@ -81,6 +81,35 @@ _THINKS = re.compile(
 )
 
 
+# alles's own tools pi can use through the bridge: docs, tasks, calendar, memory and the rest.
+# pi has its own file, shell and web tools; browser, computer, server and outgoing mail stay
+# with Aide, where their approvals live
+_BRIDGE_SKIP = ("browse_", "computer_", "server_", "adguard_", "npm_", "files_operation", "github_")
+_BRIDGE_SKIP_NAMES = {"mail_send", "search_code", "screenshot", "spawn_agent", "spawn_agents"}
+_BRIDGE_EXTRA = {"memory_search", "memory_add", "skill_list", "skill_load", "skill_match"}
+
+
+def bridge_tools() -> list[dict]:
+    from services.agent_tools import APP_TOOL_DEFS, MUTATING_TOOLS, TOOL_DEFS
+
+    picked = [t for t in TOOL_DEFS if t["function"]["name"] in _BRIDGE_EXTRA] + [
+        t
+        for t in APP_TOOL_DEFS
+        if not t["function"]["name"].startswith(_BRIDGE_SKIP)
+        and t["function"]["name"] not in _BRIDGE_SKIP_NAMES
+    ]
+    return [
+        {
+            "name": "alles_" + t["function"]["name"],
+            "tool": t["function"]["name"],
+            "description": t["function"]["description"],
+            "parameters": t["function"]["parameters"],
+            "changes": t["function"]["name"] in MUTATING_TOOLS,
+        }
+        for t in picked
+    ]
+
+
 def thinks(model: str) -> bool:
     name = (model or "").lower().split("/")[-1]
     if "claude" in name:
@@ -634,6 +663,9 @@ class PiChat:
         self._tasks: set[asyncio.Task] = set()
         # pi's effort for this chat and the levels its model takes
         self.thinking: dict = {"level": "", "levels": []}
+        # "allow" when Aide handed this work over (its approval covers the task) or code runs
+        # on auto; "ask" makes pi check with the owner before an alles tool changes anything
+        self.writes = "allow" if settings()["approval"] == "auto" else "ask"
 
     # process
 
@@ -662,6 +694,8 @@ class PiChat:
                 "PI_ALLES_BRIDGE_URL": f"http://127.0.0.1:{get_port()}/pi-bridge",
                 "PI_ALLES_BRIDGE_TOKEN": self._bridge,
                 "PI_ALLES_GUARD": "on" if settings().get("guard", True) else "off",
+                "PI_ALLES_TOOLS": _b64({"tools": bridge_tools()}),
+                "PI_ALLES_WRITES": self.writes,
             }
         else:
             args += ["--model", f"{self.choice['provider']}/{self.choice['model']}"]
@@ -1030,8 +1064,11 @@ def live_chat(chat_id: str) -> PiChat | None:
     return chat if chat is not None and chat.alive else None
 
 
-async def open_chat(db, project, chat_id: str | None, choice: dict, harness: str | None = None):
-    """the running harness for this chat, starting one (new or from its saved file) if needed."""
+async def open_chat(
+    db, project, chat_id: str | None, choice: dict, harness: str | None = None, handed: bool = False
+):
+    """the running harness for this chat, starting one (new or from its saved file) if needed.
+    handed: Aide gave pi this work, so the approval Aide already got covers pi's changes."""
     if chat_id and (chat := live_chat(chat_id)):
         return chat
     chat_file = None
@@ -1046,6 +1083,8 @@ async def open_chat(db, project, chat_id: str | None, choice: dict, harness: str
     if harness not in NATIVE:
         return await _open_acp(project, harness, chat_id, chat_file)
     chat = PiChat(project, choice, harness)
+    if handed:
+        chat.writes = "allow"
     await chat.start(db, chat_file)
     return chat
 

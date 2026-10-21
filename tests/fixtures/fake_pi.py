@@ -81,7 +81,8 @@ def run(text):
     tool_message = {"role": "assistant", "content": [call], "usage": {"output": 5}}
     out({"type": "message_end", "message": tool_message})
     save(tool_message)
-    out({"type": "tool_execution_start", "toolCallId": "call-1", "toolName": "read", "args": {}})
+    start = {"type": "tool_execution_start", "toolCallId": "call-1", "toolName": "read"}
+    out({**start, "args": {"path": "notes.txt"}})
     result = {"content": [{"type": "text", "text": "hello from notes"}]}
     out({"type": "tool_execution_end", "toolCallId": "call-1", "result": result, "isError": False})
     save({"role": "toolResult", "toolCallId": "call-1", "content": result["content"]})
