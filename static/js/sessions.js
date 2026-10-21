@@ -704,7 +704,7 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
   if (toolSteps?.length) {
     const holder = document.createElement('div');
     holder.innerHTML = renderAgentSteps(toolSteps, false, agentRunId);
-    if (holder.firstElementChild) body.appendChild(holder.firstElementChild);
+    body.append(...holder.children);  // the steps, then any doc cards
     wireAgentRunControls(body);
   }
   const provenance = contextProvenanceElement(contextProvenance);
