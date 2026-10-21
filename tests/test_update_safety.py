@@ -129,7 +129,7 @@ class UpdateMaintenanceTest(unittest.TestCase):
 
         git("init", "-q")
         git("config", "user.name", "jxherc")
-        git("config", "user.email", "houjx0103@gmail.com")
+        git("config", "user.email", "a@jxherc.com")
         tracked = repo / "version.txt"
         tracked.write_text("old", "utf-8")
         git("add", "version.txt")
@@ -347,7 +347,7 @@ class UpdateMaintenanceTest(unittest.TestCase):
 
         git("init", "-q")
         git("config", "user.name", "jxherc")
-        git("config", "user.email", "houjx0103@gmail.com")
+        git("config", "user.email", "a@jxherc.com")
         tracked = repo / "version.txt"
         tracked.write_text("old", "utf-8")
         git("add", "version.txt")
