@@ -94,20 +94,31 @@ export function confirm(msg, options = {}) {
   });
 }
 
+// a small form in a dialog: a title, a labeled field, an optional hint, and a button that says
+// what it does. callers pass { title, label, hint, confirmLabel }; an older call with only a
+// question still works (the question becomes the label). a password check titles itself
 export function prompt(msg, def = '', options = {}) {
   return new Promise(resolve => {
     const ov = _overlay();
     const inputId = `dialog-input-${++dialogSequence}`;
     const errorId = `${inputId}-error`;
-    ov.innerHTML = `<div class="dialog-card${options.validate ? ' dialog-validated' : ''}" role="dialog" aria-modal="true" aria-labelledby="${inputId}-label">
-      <label class="dialog-msg" id="${inputId}-label" for="${inputId}">${_esc(msg)}</label>
+    const hintId = `${inputId}-hint`;
+    const secretCheck = options.secret && !options.label;
+    const title = options.title || (secretCheck ? 'confirm it’s you' : '');
+    const label = options.label || (secretCheck ? 'Alles password' : String(msg || '').replace(/\s*:\s*$/, ''));
+    const hint = options.hint || (secretCheck ? String(msg || '').replace(/^enter your alles password to /i, 'needed to ') : '');
+    const describedBy = [hint ? hintId : '', options.validate ? errorId : ''].filter(Boolean).join(' ');
+    ov.innerHTML = `<div class="dialog-card dialog-form${options.validate ? ' dialog-validated' : ''}" role="dialog" aria-modal="true" aria-labelledby="${title ? `${inputId}-title` : `${inputId}-label`}">
+      ${title ? `<h2 class="dialog-title" id="${inputId}-title">${_esc(title)}</h2>` : ''}
+      <label class="dialog-label" id="${inputId}-label" for="${inputId}">${_esc(label)}</label>
       <input class="settings-input dialog-input" id="${inputId}" value="${_esc(String(def || ''))}"
         type="${options.secret ? 'password' : 'text'}"
-        autocomplete="${options.secret ? 'current-password' : 'off'}"${options.validate ? ` aria-describedby="${errorId}"` : ''}>
+        autocomplete="${options.secret ? 'current-password' : 'off'}"${describedBy ? ` aria-describedby="${describedBy}"` : ''}>
+      ${hint ? `<p class="dialog-hint" id="${hintId}">${_esc(hint)}</p>` : ''}
       ${options.validate ? `<div class="dialog-validation" id="${errorId}" role="alert"></div>` : ''}
       <div class="dialog-btns">
         <button class="btn" type="button" data-dialog-cancel>cancel</button>
-        <button class="btn primary" type="button" data-dialog-confirm>ok</button>
+        <button class="btn primary" type="button" data-dialog-confirm>${_esc(options.confirmLabel || (secretCheck ? 'continue' : 'save'))}</button>
       </div>
     </div>`;
     document.body.appendChild(ov);

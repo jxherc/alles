@@ -433,7 +433,8 @@ function _wire(body) {
   body.querySelectorAll('.health-card[data-kind] [data-act="set-target"]').forEach(btn => btn.addEventListener('click', async () => {
     const kind = btn.closest('.health-card').dataset.kind;
     const cur = (_data.kinds.find(k => k.kind === kind) || {}).target;
-    const v = await dlgPrompt(`target for ${kind}? (0 to clear)`, String(cur ?? ''), {
+    const v = await dlgPrompt('', String(cur ?? ''), {
+      title: `${kind} target`, label: 'target', hint: '0 clears it', confirmLabel: 'save target',
       validate: raw => {
         const text = raw.trim();
         const value = Number(text);

@@ -368,9 +368,9 @@ async function showGroups() {
 }
 
 async function addGroup() {
-  const name = await _dlgPrompt('group name:');
+  const name = await _dlgPrompt('', '', { title: 'new group', label: 'group name', confirmLabel: 'next' });
   if (!name?.trim()) return;
-  const tag = await _dlgPrompt('smart rule: tag to auto-include (blank for a manual group)', '');
+  const tag = await _dlgPrompt('', '', { title: 'new group', label: 'add contacts tagged', hint: 'leave it empty to pick the people yourself', confirmLabel: 'create group' });
   const body = { name: name.trim() };
   if (tag?.trim()) { body.smart = true; body.rule_tag = tag.trim(); }
   await fetch('/api/contacts/groups', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });

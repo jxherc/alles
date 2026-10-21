@@ -11259,6 +11259,15 @@ body.aide-working .composer-box::after {
 /* the dots take the free room so the controls always land at the end */
 #messages .agent-steps > summary .agent-steps-dots { flex: 1 1 auto; }
 
+/* a small form in a dialog: a title, a labeled field, a hint, and a button that says what it does */
+.dialog-card.dialog-form { box-sizing: border-box; width: min(440px, calc(100vw - 2 * var(--k-space-4, 16px))); max-width: none; gap: var(--k-space-2, 8px); padding: var(--k-space-5, 24px); border-radius: var(--k-radius-surface, 6px); }
+.dialog-form .dialog-title { margin: 0 0 var(--k-space-2, 8px); color: var(--k-text, var(--text)); font-size: 16px; font-weight: 600; }
+.dialog-form .dialog-label { color: var(--k-soft, var(--muted)); font-size: 13px; }
+.dialog-form .dialog-input { min-height: 44px; font-size: 15px; }
+.dialog-form .dialog-hint { margin: 0; color: var(--k-muted, var(--muted)); font-size: 12px; }
+.dialog-form .dialog-btns { margin-top: var(--k-space-3, 12px); }
+.dialog-form .dialog-btns .btn { min-height: 40px; padding-inline: var(--k-space-4, 16px); }
+
 /* one page width for the specialist apps, matching the shared workbench */
 .specialist-group-slot > :is(#books-view, #habits-view, #health-view, #read-view, #tasks-view, #watch-view, #contacts-view, #subs-view, #days-view, #money-view) > :is(.page-view-head, .page-view-body, .page-view-footer) {
   box-sizing: border-box; width: 100%; max-width: calc(880px + 2 * var(--k-space-5, 24px)); margin-inline: auto;

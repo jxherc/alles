@@ -478,7 +478,7 @@ async function _install(slugs) {
 }
 
 async function _importGithub() {
-  const url = await dlgPrompt('paste a github repo, folder, or SKILL.md url', '');
+  const url = await dlgPrompt('', '', { title: 'add a skill', label: 'github repo, folder or SKILL.md url', confirmLabel: 'add' });
   if (!url || !url.trim()) return;
   toast('fetching from github…');
   try {

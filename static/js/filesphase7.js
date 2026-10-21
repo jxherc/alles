@@ -952,7 +952,7 @@ async function renameItem(item) {
   if (!isWritable()) return;
   const path = item.path || item.normalized_path;
   const oldName = basename(path);
-  const name = await dlgPrompt('rename to:', oldName);
+  const name = await dlgPrompt('', oldName, { title: 'rename', label: 'new name', confirmLabel: 'rename' });
   if (!name || name === oldName) return;
   const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
   try {
@@ -1615,7 +1615,7 @@ function clearFilesSearch() {
 
 async function newFolder() {
   if (!isWritable()) return;
-  const name = await dlgPrompt('new folder name:');
+  const name = await dlgPrompt('', '', { title: 'new folder', label: 'name', confirmLabel: 'create' });
   if (!name) return;
   try {
     await request('/api/files/mkdir', jsonOptions('POST', {

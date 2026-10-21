@@ -1379,7 +1379,7 @@ function _wireRows(list) {
     e.stopPropagation();
     const { aid, uid, folder } = btn.closest('.mail-row').dataset;
     if (_mailChanges.has(mailIdentity(aid, uid, folder))) return;
-    const label = await dlgPrompt('label this message:'); if (!label || !label.trim()) return;
+    const label = await dlgPrompt('', '', { title: 'label this message', label: 'label', confirmLabel: 'add label' }); if (!label || !label.trim()) return;
     const target = [...list.querySelectorAll('.mail-row[data-aid]')].find(row => mailIdentity(row.dataset.aid, row.dataset.uid, row.dataset.folder) === mailIdentity(aid, uid, folder))?.querySelector('[data-label]');
     changeMail(target, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/labels/${aid}`, { uid, folder, add_label: label.trim() }),
       result => result?.ok === true && Array.isArray(result.labels) && result.labels.every(value => typeof value === 'string'),
@@ -1810,7 +1810,7 @@ async function _wireRichCompose(defaultAid, root, current) {
         const range = selection?.rangeCount && editor.contains(selection.getRangeAt(0).commonAncestorContainer)
           ? selection.getRangeAt(0).cloneRange() : null;
         const command = button.dataset.cmd;
-        const value = command === 'createLink' ? await dlgPrompt('link URL:') : null;
+        const value = command === 'createLink' ? await dlgPrompt('', '', { title: 'insert a link', label: 'link url', confirmLabel: 'insert' }) : null;
         if (!current() || (command === 'createLink' && !value)) return;
         editor.focus();
         if (range && editor.contains(range.commonAncestorContainer)) {

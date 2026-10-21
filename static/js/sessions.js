@@ -1180,7 +1180,7 @@ function openCtxMenu(e, id, source = null) {
         await loadSessions();
         toast('moved to project', 'success');
       } else if (action === 'new-project') {
-        const name = await _dlgPrompt('project name:');
+        const name = await _dlgPrompt('', '', { title: 'new project', label: 'project name', confirmLabel: 'create' });
         if (!name?.trim()) return;
         const p = await createProject(name.trim());
         if (p) {

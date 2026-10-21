@@ -617,9 +617,9 @@ async function renderBookingPages() {
 }
 
 async function addBookingPage() {
-  const title = await dlgPrompt('booking page title:', 'Book a time');
+  const title = await dlgPrompt('', 'Book a time', { title: 'new booking page', label: 'page title', confirmLabel: 'next' });
   if (title === null) return;
-  const dur = await dlgPrompt('slot length in minutes:', '30');
+  const dur = await dlgPrompt('', '30', { title: 'new booking page', label: 'slot length, in minutes', confirmLabel: 'create page' });
   try {
     await fetch('/api/calendar/booking-pages', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -659,9 +659,9 @@ function renderFeeds() {
 }
 
 async function addFeed() {
-  const url = await dlgPrompt('ICS feed URL (Google/Apple public calendar, holidays…):');
+  const url = await dlgPrompt('', '', { title: 'subscribe to a calendar', label: 'calendar feed url', hint: 'a public .ics link, like holidays or a shared calendar', confirmLabel: 'next' });
   if (!url?.trim()) return;
-  const name = await dlgPrompt('name this subscription:', 'Subscription');
+  const name = await dlgPrompt('', 'Subscription', { title: 'subscribe to a calendar', label: 'name', confirmLabel: 'subscribe' });
   toast('subscribing…');
   try {
     const r = await fetch('/api/calendar/subscriptions', {
@@ -1284,7 +1284,7 @@ function chooseScope(verb, hasSelectedOccurrence = true) {
 
 // ── find a time: show open slots on the focused day, click to book ───────────
 async function findTime() {
-  const answer = await dlgPrompt('how many minutes do you need?');
+  const answer = await dlgPrompt('', '', { title: 'find a free time', label: 'how long, in minutes', confirmLabel: 'find times' });
   if (answer === null) return;
   const mins = parseInt(answer) || 60;
   const dstr = ymd(_cursor);
@@ -1311,7 +1311,7 @@ async function findTime() {
       booking = true;
       ov.querySelectorAll('[data-s]').forEach(button => { button.disabled = true; });
       try {
-        const title = await dlgPrompt('event title:', titleDraft);
+        const title = await dlgPrompt('', titleDraft, { title: 'new event', label: 'title', confirmLabel: 'create' });
         if (!title?.trim() || !ov.isConnected) return;
         titleDraft = title;
         errorBox.hidden = true;

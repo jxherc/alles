@@ -371,7 +371,7 @@ function _wire(body) {
     inp.click();
   });
   body.querySelector('[data-act="set-goal"]')?.addEventListener('click', async () => {
-    const v = await dlgPrompt('books to read this year? (0 to turn off)', _goalDraft?.value ?? String(_data.goal || 0), { validate: value => /^\d+$/.test(value.trim()) && Number.isSafeInteger(Number(value)) ? '' : 'enter a whole number, 0 or more' });
+    const v = await dlgPrompt('', _goalDraft?.value ?? String(_data.goal || 0), { title: 'reading goal', label: 'books to read this year', hint: '0 turns the goal off', confirmLabel: 'save goal', validate: value => /^\d+$/.test(value.trim()) && Number.isSafeInteger(Number(value)) ? '' : 'enter a whole number, 0 or more' });
     if (v == null) return;
     const n = Number(v), draft = { value: v }; _goalDraft = draft;
     try {

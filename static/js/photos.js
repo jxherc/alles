@@ -430,7 +430,7 @@ async function loadHidden() {
   _killMap(); _repaint = null;
   let r = await fetch('/api/photos/hidden', { headers: _vaultTok ? { 'X-Vault-Token': _vaultTok } : {} });
   if (r.status === 403) {
-    const pw = await dlgPrompt('vault master password to view the hidden album:', '', { secret: true });
+    const pw = await dlgPrompt('', '', { secret: true, title: 'hidden album', label: 'vault master password', confirmLabel: 'unlock' });
     if (!pw) { grid.innerHTML = `<div class="photos-empty">${_si('lock')} hidden album is locked</div>`; return; }
     try {
       const u = await fetch('/api/vault/unlock', {
@@ -584,7 +584,7 @@ async function loadPerson(pid) {
   $('photos-grid').prepend(bar);
   bar.querySelector('.photos-person-back').addEventListener('click', e => { e.preventDefault(); _selectView('__people__'); });
   bar.querySelector('[data-act="name"]').addEventListener('click', async () => {
-    const name = await dlgPrompt('name this person:', per.name || '');
+    const name = await dlgPrompt('', per.name || '', { title: 'name this person', label: 'name', confirmLabel: 'save' });
     if (name === null) return;
     try { await fetch(`/api/photos/person/${pid}/name`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }); }
     catch { toast('failed', 'error'); return; }
@@ -1394,7 +1394,7 @@ async function _createAlbum() {
   _albumCreating = true;
   try {
     while (true) {
-      const name = await dlgPrompt('album name:', _albumDraft);
+      const name = await dlgPrompt('', _albumDraft, { title: 'new album', label: 'album name', confirmLabel: 'create' });
       if (name === null) return null;
       _albumDraft = name;
       const requestedName = name.trim();

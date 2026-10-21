@@ -1,6 +1,7 @@
 // canvas image editor — adjustments, crop, rotate/flip, brush, text, undo, save.
 // pure browser Canvas API, no deps. opens as a full-screen modal over an image url.
 import { toast } from './util.js';
+import { prompt as dlgPrompt } from './dialog.js';
 
 let S = null;   // editor state
 
@@ -210,13 +211,13 @@ function wireCanvas() {
   const cv = S.canvas, rect = S.modal.querySelector('#ie-crop-rect');
   const st = S;
   let cropStart = null;
-  const down = e => {
+  const down = async e => {
     if (S !== st) return;
     const [x, y] = coords(e);
     if (S.tool === 'brush') {
       snapshot(); S.drawing = true; [S.lastX, S.lastY] = [x, y];
     } else if (S.tool === 'text') {
-      const txt = prompt('text:'); if (!txt) return;
+      const txt = await dlgPrompt('', '', { title: 'add text', label: 'text', confirmLabel: 'add' }); if (!txt) return;
       snapshot();
       const size = Math.max(16, Math.round(S.canvas.height / 18));
       S.ctx.fillStyle = S.brush.color; S.ctx.font = `bold ${size}px Inter, sans-serif`;
