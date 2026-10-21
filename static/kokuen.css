@@ -107,9 +107,16 @@
   touch-action: manipulation;
 }
 
-/* scrolling inside a dialog, sheet or menu never drags the page behind it */
-:where([role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], .modal-overlay),
-:where([role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], .modal-overlay) * {
+/* scrolling inside a dialog, sheet or menu never drags the page behind it. only on the roots:
+   on every descendant it turned each overflow:hidden box (cards, icons, cut-off labels, short
+   text boxes) into a dead end for the wheel, so settings only scrolled from the gaps between
+   cards. inner scroll areas chain up to the root, and the shell's body never scrolls anyway */
+:where([role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], .modal-overlay) {
+  overscroll-behavior-y: contain;
+}
+
+/* the real scroll areas inside dialogs keep it too, so their own end never drags anything */
+:where(#settings-modal) :where(.s-content, .s-nav, .home-settings-workbench, .mem-view-list, .mcp-registry-results) {
   overscroll-behavior-y: contain;
 }
 

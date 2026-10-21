@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v399';   // settings keeps a fast focus inside it in this shell revision.
+const VERSION = 'v400';   // settings and dialogs scroll from anywhere again in this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '552';   // keep in sync with index.html ?v= / const _v
+const STAMP = '553';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline
