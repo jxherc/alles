@@ -238,3 +238,50 @@ body.aide-central[data-space="aide"] .msg-actions-menu > .act-btn {
 body.aide-central[data-space="aide"] .msg-actions-menu > .act-btn:hover { color: var(--text); background: var(--hover); }
 body.aide-central[data-space="aide"] .msg-actions-compact .act-btn:focus { outline: 0; box-shadow: none; }
 body.aide-central[data-space="aide"] .msg-actions-compact .act-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* one reading column: Aide's replies, your messages and the box share the same two edges, the
+   same 760px column the code view uses, so nothing is flung to the far sides of a wide screen */
+body.aide-central #messages > * { box-sizing: border-box; width: 100%; max-width: 760px; margin-inline: auto; }
+body.aide-central #composer-outer > :not(.jump-latest) { box-sizing: border-box; width: 100%; max-width: 760px; margin-inline: auto; }
+/* a new turn starts with air above it, so each question and its answer read as a pair */
+body.aide-central #messages > .msg-row + .msg-row .user-wrap { padding-top: var(--k-space-6, 32px); }
+
+/* one quiet line under each reply: copy, more, and what Aide used (model and context), which
+   opens as a panel under the line instead of pushing the reply around */
+body.aide-central .msg-actions { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: var(--k-space-1, 4px); }
+body.aide-central .context-provenance.is-tucked { margin: 0 0 0 var(--k-space-1, 4px); }
+body.aide-central .context-provenance.is-tucked > summary {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--k-space-2, 8px); border-radius: var(--k-radius-control, 4px);
+  color: var(--k-muted, var(--muted)); font-size: 12px; list-style: none; cursor: pointer;
+}
+body.aide-central .context-provenance.is-tucked > summary::-webkit-details-marker { display: none; }
+body.aide-central .context-provenance.is-tucked > summary:hover { background: var(--k-hover, var(--panel)); color: var(--k-text, var(--text)); }
+body.aide-central .context-provenance.is-tucked[open] > summary { color: var(--k-text, var(--text)); background: var(--k-raised, var(--panel)); }
+body.aide-central .context-provenance.is-tucked > .context-provenance-body {
+  position: absolute; left: 9px; right: 0; top: calc(100% + 4px); z-index: 20; max-height: 320px; overflow: auto;
+  padding: var(--k-space-3, 12px) var(--k-space-4, 16px); border: 1px solid var(--k-line-strong, var(--faint));
+  border-radius: var(--k-radius-surface, 6px); background: var(--k-panel, var(--panel)); color: var(--k-soft, var(--muted)); font-size: 13px;
+  animation: aide-arrive 200ms cubic-bezier(.2, .8, .2, 1);
+}
+
+/* header actions say what they are on wide screens; the icon alone on a phone */
+.aide-head-label { display: none; }
+@media (min-width: 900px) {
+  .aide-head-label { display: inline; margin-left: var(--k-space-2, 8px); font-size: 13px; }
+  #aide-jobs-open, #aide-more-btn { width: auto; padding-inline: var(--k-space-3, 12px); }
+}
+
+/* the box says how it works, once, quietly; it steps aside while Aide is busy */
+.composer-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: var(--k-space-2, 8px) 0 0; padding: 0 var(--k-space-2, 8px); color: var(--k-muted, var(--muted)); font-size: 12px; }
+.composer-hint kbd { padding: 1px 5px; border: 1px solid var(--k-line, var(--faint)); border-radius: 3px; background: var(--k-panel, var(--panel)); color: var(--k-soft, var(--muted)); font: 400 11px/1.4 var(--k-mono, monospace); }
+.composer-hint span { color: var(--k-line-strong, var(--faint)); }
+body.aide-working .composer-hint { visibility: hidden; }
+@media (max-width: 620px) { .composer-hint { display: none; } }
+@media (prefers-reduced-motion: reduce) { body.aide-central .context-provenance.is-tucked > .context-provenance-body { animation: none; } }
+/* the scrollbar takes room on both sides, so the reply column and the box share one center */
+body.aide-central #chat { scrollbar-gutter: stable both-edges; }
+/* the footer moves back by copy's padding and line so its label, not its hover box, sits on the
+   reply's text edge; what Aide used sits at the far end of the line */
+body.aide-central #messages .msg-actions { margin-inline-start: -9px; }
+body.aide-central .context-provenance.is-tucked { order: 9; margin-inline-start: auto; }
+body.aide-central .context-provenance.is-tucked.opens-up > .context-provenance-body { top: auto; bottom: calc(100% + 4px); }

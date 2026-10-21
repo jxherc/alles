@@ -230,7 +230,7 @@ test('Aide keeps one identity and leaves global movement to the universal shell'
 });
 
 test('Aide attachments live inside and visually expand the composer', () => {
-  const composer = html.match(/<div class="composer-box">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<!-- hidden file input/)?.[0] || '';
+  const composer = html.match(/<div class="composer-box">[\s\S]*?<\/div>\s*<\/div>\s*(?:<p class="composer-hint"[\s\S]*?<\/p>\s*)?<\/div>\s*<!-- hidden file input/)?.[0] || '';
   assert.match(composer, /id="attachment-chips"/);
   assert.doesNotMatch(composer, /id="attachment-preview"/);
   assert.doesNotMatch(css, /\.attach-preview(?:\b|-)/);

@@ -6,8 +6,39 @@ let opened = null;
 const controls = new WeakMap();
 
 // Move the existing buttons, keeping their listeners and message ancestry intact.
+// the "context" line (model, memories, sources) joins the reply's own action row, so one quiet
+// line under each reply holds copy, more and what Aide used; it opens as a panel under the row
+function tuckProvenance(actions) {
+  const details = actions.closest('.ai-wrap')?.querySelector('.context-provenance');
+  if (!details || details.parentElement === actions) return;
+  const summary = details.querySelector('summary');
+  if (summary && !summary.dataset.full) {
+    const full = summary.textContent.trim();
+    const model = full.split('·').pop().split('/').pop().trim();
+    summary.dataset.full = full;
+    summary.title = `what Aide used: ${full.replace(/^context\s*·\s*/, '')}`;
+    summary.textContent = model ? `${model} · context` : full;
+  }
+  details.classList.add('is-tucked');
+  actions.append(details);
+  // near the bottom of the chat it opens upward, so the box never covers it
+  details.addEventListener('toggle', () => {
+    if (!details.open) return;
+    const chat = details.closest('#chat');
+    const room = chat ? chat.getBoundingClientRect().bottom - details.getBoundingClientRect().bottom : Infinity;
+    details.classList.toggle('opens-up', room < 340);
+  });
+  details.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !details.open) return;
+    event.stopPropagation();
+    details.open = false;
+    details.querySelector('summary')?.focus();
+  });
+}
+
 export function compactResponseActions(actions) {
   if (!actions || !document.body.classList.contains('aide-central')) return;
+  tuckProvenance(actions);
   let control = controls.get(actions);
   if (!control) {
     const menu = document.createElement('div');

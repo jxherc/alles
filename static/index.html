@@ -28,9 +28,9 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=567">
+<link rel="stylesheet" href="/static/style.css?v=568">
   <link rel="stylesheet" href="/static/kokuen.css?v=74">
-<link rel="stylesheet" href="/static/aidecentral.css?v=5">
+<link rel="stylesheet" href="/static/aidecentral.css?v=10">
 <link rel="stylesheet" href="/static/aidecoding.css?v=11">
 <link rel="stylesheet" href="/static/aidecall.css?v=2">
 <link rel="stylesheet" href="/static/help.css?v=1">
@@ -150,10 +150,10 @@
         </div>
       </div>
       <div class="topbar-utilities">
-        <button class="aide-central-action" id="aide-jobs-open" type="button" aria-label="background work" aria-haspopup="dialog" aria-controls="aide-context-panel" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="17" r="3"/></svg><span id="aide-jobs-count" hidden></span></button>
+        <button class="aide-central-action" id="aide-jobs-open" type="button" aria-label="background work" aria-haspopup="dialog" aria-controls="aide-context-panel" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="17" r="3"/></svg><span class="aide-head-label">work</span><span id="aide-jobs-count" hidden></span></button>
         <button class="aide-central-action" id="aide-call-open" type="button" aria-label="open call" aria-controls="aide-call-workspace" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2c0 8.8 7.2 16 16 16a2 2 0 0 0 2-2v-3l-5-2-2 2a14 14 0 0 1-6-6l2-2-2-5Z"/></svg><span class="aide-call-label">call</span></button>
         <div class="aide-more-anchor">
-          <button class="aide-central-action" id="aide-more-btn" type="button" aria-label="more Aide actions" aria-haspopup="menu" aria-controls="aide-more-menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
+          <button class="aide-central-action" id="aide-more-btn" type="button" aria-label="more Aide actions" aria-haspopup="menu" aria-controls="aide-more-menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span class="aide-head-label">more</span></button>
           <div id="aide-more-menu" class="aide-central-menu" role="menu" aria-label="Aide actions" hidden>
             <button type="button" role="menuitem" data-aide-central-action="memory">memory</button>
             <button type="button" role="menuitem" data-aide-central-action="archive">archive</button>
@@ -1480,6 +1480,7 @@
           </div>
         </div>
       </div>
+      <p class="composer-hint" id="composer-hint" aria-hidden="true"><kbd>/</kbd> commands <span>·</span> <kbd>shift</kbd><kbd>enter</kbd> new line <span>·</span> drop a file to attach</p>
     </div>
     <!-- hidden file input for attachments -->
     <input type="file" id="file-input-hidden" multiple style="display:none">
@@ -3101,7 +3102,7 @@
 </div>
 
 <script type="module">
-const _v = '567';
+const _v = '568';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

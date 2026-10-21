@@ -26,6 +26,8 @@ export function unseen(list, seen) {
 }
 
 export async function maybeShowWhatsNew() {
+  // a test browser or other automation never needs release notes over the screen it drives
+  if (navigator.webdriver) return;
   const list = await releases();
   const show = unseen(list, read());
   if (!show.length) return;

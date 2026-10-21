@@ -138,7 +138,10 @@ try:
                 "done with fix the header", timeout=20_000
             )
             wait_idle(page)
-            expect(page.locator(".acw-tool .acw-tool-name")).to_have_text(["read notes.txt"])
+            # each step is a card: what pi does, where, then a check when it ends
+            expect(page.locator(".acw-tool .acw-tool-verb")).to_have_text(["read"])
+            expect(page.locator(".acw-tool .acw-tool-target")).to_have_text(["notes.txt"])
+            expect(page.locator(".acw-tool")).to_have_attribute("data-state", "done")
             expect(page.locator("#aide-code-stats")).to_contain_text("tok/s")
             expect(page.locator("#aide-code-stats")).to_contain_text("cache 75%")
             expect(page.locator(".acw-chat-title")).to_have_text(["fix the header"])
