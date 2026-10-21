@@ -1,5 +1,6 @@
 /* Aide code: projects and pi chats in the rail, the open chat beside it. the chat owns its scroll. */
 #aide-coding-workspace {
+  position: relative;
   display: flex; flex-direction: column; min-width: 0; min-height: 0;
   height: 100%; flex: 1 1 auto; overflow: hidden;
   color: var(--k-text); background: var(--k-page); font: 400 15px/1.45 var(--k-font);
@@ -110,26 +111,136 @@
 .acw-msg-error { color: var(--k-danger); font-size: 13px; }
 .acw-note { color: var(--k-muted); font-size: 13px; }
 
-/* one quiet line per tool call; open it for the output */
-.acw-tool { min-width: 0; }
-.acw-tool + .acw-tool { margin-top: calc(-1 * var(--k-space-3)); }
+/* each step pi takes is a card: what it does and where, a live timer while it runs, and what
+   came back. a run shows a turning ring, a finished one a check, a failed one opens itself */
+.acw-tool { min-width: 0; border-radius: var(--k-radius-surface); background: var(--k-panel); animation: acw-arrive 260ms cubic-bezier(.2, .8, .2, 1); }
+.acw-tool + .acw-tool { margin-top: calc(-1 * var(--k-space-2)); }
 .acw-tool summary {
-  display: flex; align-items: center; gap: var(--k-space-3); min-height: var(--k-control); padding: 0 var(--k-space-2);
-  margin-left: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-small);
-  color: var(--k-muted); font: 400 13px/1.4 var(--k-mono); cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: var(--k-space-3); min-height: var(--k-control); padding: 0 var(--k-space-3);
+  border-radius: var(--k-radius-surface); color: var(--k-soft); cursor: pointer; list-style: none;
 }
 .acw-tool summary::-webkit-details-marker { display: none; }
-.acw-tool summary::before { content: ""; flex: 0 0 6px; height: 6px; border-radius: 50%; background: var(--k-line-strong); }
-.acw-tool[data-state="done"] summary::before { background: var(--k-muted); }
-.acw-tool[data-state="failed"] summary::before { background: var(--k-danger); }
-.acw-tool summary:hover { color: var(--k-soft); background: var(--k-hover); }
-.acw-tool-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.acw-tool-state { flex: 0 0 auto; font-size: 12px; }
+.acw-tool summary:hover { background: var(--k-hover); }
+.acw-tool-mark { display: inline-grid; place-items: center; color: var(--k-muted); }
+.acw-tool[data-state="running"] .acw-tool-mark { color: var(--k-text); }
+.acw-tool-label { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--k-space-2); overflow: hidden; }
+.acw-tool-verb { flex: 0 0 auto; color: var(--k-text); font-size: 13px; font-weight: 560; }
+.acw-tool-target { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--k-muted); font: 400 12px/1.4 var(--k-mono); }
+.acw-tool[data-state="running"] .acw-tool-verb {
+  background: linear-gradient(90deg, var(--k-muted) 0%, var(--k-text) 45%, var(--k-muted) 90%); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: acw-shimmer 1.4s linear infinite;
+}
+.acw-tool-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--k-space-2); color: var(--k-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.acw-tool-state svg { width: 14px; height: 14px; flex-basis: 14px; }
+.acw-tool[data-state="done"] .acw-tool-state svg { color: var(--k-success, var(--success)); stroke-dasharray: 24; animation: acw-draw 360ms ease-out both; }
 .acw-tool[data-state="failed"] .acw-tool-state { color: var(--k-danger); }
+.acw-spin { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--k-line-strong); border-top-color: var(--k-text); animation: acw-turn 700ms linear infinite; }
+.acw-tool-body { display: grid; gap: var(--k-space-2); padding: 0 var(--k-space-3) var(--k-space-3); }
+.acw-tool-body:empty, .acw-tool-body:has(> .acw-tool-output[hidden]:only-child) { display: none; }
 .acw-tool-output {
-  max-height: 320px; overflow: auto; margin: var(--k-space-1) 0 var(--k-space-2) !important; padding: var(--k-space-3);
-  background: var(--k-panel); border-radius: var(--k-radius-control); color: var(--k-soft);
+  max-height: 320px; overflow: auto; margin: 0 !important; padding: var(--k-space-3);
+  background: var(--k-page); border-radius: var(--k-radius-control); color: var(--k-soft);
   font: 400 12px/1.55 var(--k-mono); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.acw-term { background: color-mix(in srgb, var(--k-page) 70%, #000); color: var(--k-text); }
+.acw-term-cmd { margin: 0; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-radius-control); font: 400 12px/1.5 var(--k-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.acw-diff { overflow: auto; max-height: 360px; border-radius: var(--k-radius-control); background: var(--k-page); font: 400 12px/1.55 var(--k-mono); }
+.acw-diff-line { padding: 0 var(--k-space-3); white-space: pre-wrap; overflow-wrap: anywhere; }
+.acw-diff-line::before { display: inline-block; width: 1.2em; color: var(--k-muted); }
+.acw-diff-line.del { background: color-mix(in srgb, var(--k-danger) 14%, transparent); color: var(--k-text); }
+.acw-diff-line.del::before { content: "-"; color: var(--k-danger); }
+.acw-diff-line.add { background: color-mix(in srgb, var(--k-success, #7ea98b) 16%, transparent); color: var(--k-text); }
+.acw-diff-line.add::before { content: "+"; color: var(--k-success, #7ea98b); }
+.acw-diff-gap { height: var(--k-space-2); }
+
+/* thinking: one shimmering line with a timer; open it to read along */
+.acw-thinking { min-width: 0; animation: acw-arrive 260ms cubic-bezier(.2, .8, .2, 1); }
+.acw-thinking summary { display: inline-flex; align-items: center; gap: var(--k-space-2); min-height: 32px; padding: 0 var(--k-space-2); margin-left: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-small); color: var(--k-muted); font-size: 13px; cursor: pointer; list-style: none; }
+.acw-thinking summary::-webkit-details-marker { display: none; }
+.acw-thinking summary:hover { background: var(--k-hover); }
+.acw-thinking:not([data-done]) .acw-thinking-label {
+  background: linear-gradient(90deg, var(--k-muted) 0%, var(--k-text) 45%, var(--k-muted) 90%); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: acw-shimmer 1.4s linear infinite;
+}
+.acw-thinking-text { max-height: 240px; overflow: auto; margin-top: var(--k-space-1); padding: var(--k-space-2) var(--k-space-3); border-left: 2px solid var(--k-line-strong); color: var(--k-muted); font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+
+/* streaming text ends in a blinking caret until pi is done */
+.acw-assistant { animation: acw-arrive 260ms cubic-bezier(.2, .8, .2, 1); }
+.acw-assistant.is-streaming > :last-child::after { content: ""; display: inline-block; width: 7px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em; background: var(--k-text); animation: acw-blink 1s steps(1) infinite; }
+.acw-user { animation: acw-arrive 220ms cubic-bezier(.2, .8, .2, 1); }
+
+/* code blocks in pi's answers: a slim header with the language and copy */
+#aide-coding-workspace .code-block { margin: 0 0 var(--k-space-3); border-radius: var(--k-radius-control); background: var(--k-panel); overflow: hidden; }
+#aide-coding-workspace .code-block-header { display: flex; align-items: center; justify-content: space-between; min-height: 32px; padding: 0 var(--k-space-1) 0 var(--k-space-3); background: transparent; }
+#aide-coding-workspace .code-block-header .code-lang:empty::before { content: "code"; }
+#aide-coding-workspace .code-block-header button { min-height: 32px; padding: 0 var(--k-space-2); font-size: 12px; }
+#aide-coding-workspace .code-block pre { margin: 0; background: transparent; border-radius: 0; padding-top: 0; }
+
+/* the first screen of a chat says what pi does and offers a start */
+.acw-intro { width: 100%; max-width: 760px; margin: 0 auto; padding: 18vh var(--k-space-5) var(--k-space-5); box-sizing: border-box; display: grid; gap: var(--k-space-3); }
+.acw-intro h3 { margin: 0; color: var(--k-text); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.acw-intro p { margin: 0; max-width: 56ch; color: var(--k-soft); font-size: 15px; }
+.acw-suggest { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin-top: var(--k-space-2); }
+#aide-coding-workspace .acw-suggestion {
+  padding: 0 var(--k-space-4); border: 1px solid var(--k-line-strong); border-radius: var(--k-radius-control);
+  color: var(--k-soft); font-size: 14px; animation: acw-arrive 320ms calc(var(--n) * 60ms) cubic-bezier(.2, .8, .2, 1) both;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+#aide-coding-workspace .acw-suggestion:hover { background: var(--k-hover); color: var(--k-text); border-color: var(--k-muted); }
+
+/* loading: three dots breathe in the middle until the projects arrive */
+.acw-loading { position: absolute; inset: 52px 0 0; display: grid; grid-auto-flow: column; place-content: center; gap: 6px; z-index: 5; }
+.acw-loading span { width: 6px; height: 6px; border-radius: 50%; background: var(--k-muted); animation: acw-breathe 1s ease-in-out infinite; }
+.acw-loading span:nth-child(2) { animation-delay: 150ms; }
+.acw-loading span:nth-child(3) { animation-delay: 300ms; }
+
+/* context: a ring that fills as the window does; amber past 60%, red past 85% */
+#aide-coding-workspace .acw-ring { position: relative; display: inline-grid; place-items: center; width: 36px; min-height: 36px; padding: 0; color: var(--k-muted); }
+.acw-ring svg { width: 26px; height: 26px; flex-basis: 26px; transform: rotate(-90deg); }
+.acw-ring circle { fill: none; stroke-width: 3; }
+.acw-ring-track { stroke: var(--k-line); }
+.acw-ring-fill { stroke: var(--k-soft); stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: calc(100 - var(--pct, 0)); transition: stroke-dashoffset 600ms cubic-bezier(.2, .8, .2, 1), stroke 300ms ease; }
+.acw-ring[data-level="mid"] .acw-ring-fill { stroke: var(--k-permission, #d5a265); }
+.acw-ring[data-level="high"] .acw-ring-fill { stroke: var(--k-danger); }
+.acw-ring-text { position: absolute; inset: auto 0 -10px; font-size: 9px; text-align: center; font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 120ms ease; }
+.acw-ring:hover .acw-ring-text, .acw-ring:focus-visible .acw-ring-text { opacity: 1; }
+
+/* the box breathes once when pi finishes; while it works its edge carries a moving light */
+.acw-entry { position: relative; transition: border-color 160ms ease; }
+#aide-coding-workspace[data-busy="true"] .acw-entry::after {
+  content: ""; position: absolute; left: 12px; right: 12px; top: -1px; height: 1px; border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--k-active, #9298ff), transparent); background-size: 40% 100%; background-repeat: no-repeat;
+  animation: acw-sweep 1.6s ease-in-out infinite;
+}
+.acw-entry.is-done { animation: acw-done 700ms ease-out; }
+#aide-coding-workspace .acw-send:not(:disabled) { color: var(--k-page); background: var(--k-text); border-radius: var(--k-radius-control); transition: transform 120ms ease; }
+#aide-coding-workspace .acw-send:not(:disabled):active { transform: scale(.94); }
+#aide-code-stop { color: var(--k-text) !important; }
+#aide-code-stop svg { animation: acw-breathe 1.2s ease-in-out infinite; }
+
+/* jump to the latest: appears when something new lands below where you're reading */
+.acw-chat-view { position: relative; }
+#aide-coding-workspace .acw-jump {
+  position: absolute; left: 50%; bottom: 120px; z-index: 6; display: inline-grid; place-items: center; width: 36px; min-height: 36px; padding: 0;
+  transform: translateX(-50%); border: 1px solid var(--k-line-strong); border-radius: 50%; background: var(--k-panel); color: var(--k-text);
+  animation: acw-arrive 200ms ease-out;
+}
+
+@keyframes acw-arrive { from { transform: translateY(6px); } to { transform: none; } }
+@keyframes acw-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@keyframes acw-turn { to { transform: rotate(360deg); } }
+@keyframes acw-draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+@keyframes acw-blink { 50% { opacity: 0; } }
+@keyframes acw-breathe { 50% { opacity: .35; } }
+@keyframes acw-sweep { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+@keyframes acw-done { 0% { border-color: var(--k-success, #7ea98b); } 100% { border-color: var(--k-line); } }
+@media (prefers-reduced-motion: reduce) {
+  .acw-tool, .acw-thinking, .acw-assistant, .acw-user, #aide-coding-workspace .acw-suggestion, #aide-coding-workspace .acw-jump, .acw-entry.is-done { animation: none; }
+  .acw-tool[data-state="running"] .acw-tool-verb, .acw-thinking:not([data-done]) .acw-thinking-label { animation: none; background: none; color: var(--k-text); }
+  .acw-spin, #aide-code-stop svg, .acw-loading span, .acw-assistant.is-streaming > :last-child::after { animation: none; }
+  #aide-coding-workspace[data-busy="true"] .acw-entry::after { animation: none; background: var(--k-active, #9298ff); left: 0; right: 0; opacity: .5; }
+  .acw-tool[data-state="done"] .acw-tool-state svg { animation: none; }
+  .acw-ring-fill { transition: none; }
 }
 @media (prefers-reduced-motion: reduce) { .acw-project-toggle svg { transition: none; } }
 
@@ -242,6 +353,9 @@
   .acw-slash-source { display: none; }
 }
 @media (forced-colors: active) {
-  .acw-tool summary::before { background: CanvasText; }
+  .acw-tool-verb { color: CanvasText !important; background: none !important; }
   #aide-coding-workspace .acw-chat[aria-current="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
 }
+.acw-working { display: inline-flex; align-items: center; gap: var(--k-space-2); min-height: 32px; color: var(--k-muted); font-size: 13px; font-variant-numeric: tabular-nums; animation: acw-arrive 200ms ease-out; }
+.acw-working-label { background: linear-gradient(90deg, var(--k-muted) 0%, var(--k-text) 45%, var(--k-muted) 90%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: acw-shimmer 1.4s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .acw-working, .acw-working-label { animation: none; } .acw-working-label { background: none; color: var(--k-text); } }

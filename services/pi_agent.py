@@ -30,6 +30,8 @@ IDLE_SECONDS = 15 * 60
 MAX_RUNNING = 4
 LOG_LIMIT = 4000
 OUTPUT_LIMIT = 4000
+# enough of an edit's old and new text to draw it as a diff
+ARGS_LIMIT = 8000
 
 # the harnesses alles drives through pi's rpc protocol. pi is the default: company-backed with
 # the smallest issue backlog. omp (oh-my-pi) is a one-person pi fork with 60+ built-in providers
@@ -507,7 +509,7 @@ def _assistant_item(message: dict) -> dict:
         {
             "id": block.get("id"),
             "name": block.get("name"),
-            "args": _short(block.get("arguments"), 600),
+            "args": _short(block.get("arguments"), ARGS_LIMIT),
         }
         for block in content
         if isinstance(block, dict) and block.get("type") == "toolCall"
@@ -776,6 +778,9 @@ class PiChat:
                 if update.get("type") == "text_delta":
                     self.partial += update.get("delta", "")
                     self.emit({"kind": "delta", "text": update.get("delta", "")})
+                elif update.get("type") == "thinking_delta":
+                    # shown live while pi thinks; pi keeps its own record of it
+                    self.emit({"kind": "thinking", "text": update.get("delta", "")})
         elif kind == "message_end":
             message = record.get("message") or {}
             if message.get("role") == "assistant":
@@ -788,7 +793,7 @@ class PiChat:
                     "kind": "tool",
                     "id": record.get("toolCallId"),
                     "name": record.get("toolName"),
-                    "args": _short(record.get("args"), 600),
+                    "args": _short(record.get("args"), ARGS_LIMIT),
                 }
             )
         elif kind == "tool_execution_end":

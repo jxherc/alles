@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v407';   // a what's new popup after each release in this shell revision.
+const VERSION = 'v408';   // code steps are live cards with diffs, thinking and a context ring in this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '560';   // keep in sync with index.html ?v= / const _v
+const STAMP = '561';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
 
 // 1b: mutating writes that should be queued when offline

@@ -14,6 +14,16 @@ const icons = {
   more: '<path d="M6 12h.01M12 12h.01M18 12h.01"/>',
   up: '<path d="M12 19V5m-6 6 6-6 6 6"/>',
   stop: '<path d="M8 8h8v8H8Z"/>',
+  file: '<path d="M6 3.5h8l4 4v13H6Z"/><path d="M14 3.5v4h4"/>',
+  pencil: '<path d="m4 20 1-4L16 5l3 3L8 19Z"/><path d="m14 7 3 3"/>',
+  plusfile: '<path d="M6 3.5h8l4 4v13H6Z"/><path d="M12 11v6m-3-3h6"/>',
+  terminal: '<path d="M3.5 5.5h17v13h-17Z"/><path d="m7 10 2.5 2L7 14m4.5 0H15"/>',
+  search: '<path d="M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Zm4.5-1.5 5 5"/>',
+  list: '<path d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01"/>',
+  tool: '<path d="M14.5 6.5a4 4 0 0 0-5.4 5.1L4 16.7 7.3 20l5.1-5.1a4 4 0 0 0 5.1-5.4l-2.4 2.4-2.6-.6-.6-2.6Z"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  cross: '<path d="m6.5 6.5 11 11m0-11-11 11"/>',
+  down: '<path d="M12 5v14m-6-6 6 6 6-6"/>',
 };
 const icon = name => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || '') + '</svg>';
 
@@ -178,34 +188,78 @@ function showView(view) {
   $('aide-code-harness-view').hidden = view !== 'harnesses';
 }
 
-function toolSummary(name, rawArgs) {
-  let args = {};
-  try { args = JSON.parse(rawArgs || '{}'); } catch { /* cut off by the server; show the name only */ }
-  const detail = args.command || args.path || args.pattern || args.file_path || '';
-  return detail ? `${name} ${String(detail).split('\n')[0]}` : name;
+const TOOL_KINDS = {
+  read: ['file', 'read'], edit: ['pencil', 'edit'], write: ['plusfile', 'write'], bash: ['terminal', 'run'],
+  grep: ['search', 'search'], find: ['search', 'find'], ls: ['list', 'list'],
+};
+const parseArgs = raw => { try { return JSON.parse(raw || '{}'); } catch { return {}; } };
+const since = start => { const s = Math.max(0, (Date.now() - start) / 1000); return s < 10 ? `${s.toFixed(1)}s` : `${Math.round(s)}s`; };
+
+function toolTitle(name, args) {
+  const [, verb] = TOOL_KINDS[name] || ['tool', name || 'tool'];
+  const target = args.command || args.path || args.pattern || args.file_path || '';
+  return { verb, target: String(target).split('\n')[0] };
 }
 
-function toolRow(id, name, args) {
+// an edit as a diff: what went out in red, what came in in green
+function diffView(args) {
+  const box = el('div', 'acw-diff');
+  for (const change of (args.edits || [{ oldText: args.oldText, newText: args.newText }]).slice(0, 6)) {
+    for (const line of String(change.oldText ?? '').split('\n')) if (change.oldText != null) box.append(el('div', 'acw-diff-line del', line || ' '));
+    for (const line of String(change.newText ?? '').split('\n')) if (change.newText != null) box.append(el('div', 'acw-diff-line add', line || ' '));
+    box.append(el('div', 'acw-diff-gap'));
+  }
+  box.lastChild?.remove();
+  return box;
+}
+
+function toolRow(id, name, rawArgs) {
   if (id && toolRows.has(id)) return toolRows.get(id);
-  const row = el('details', 'acw-tool');
+  const args = parseArgs(rawArgs);
+  const { verb, target } = toolTitle(name, args);
+  const card = el('details', 'acw-tool');
+  card.dataset.kind = name || 'tool';
+  card.dataset.state = 'running';
+  card.dataset.start = String(Date.now());
   const summary = el('summary');
-  summary.append(el('span', 'acw-tool-name', toolSummary(name || 'tool', args)), el('span', 'acw-tool-state', 'running'));
+  const mark = el('span', 'acw-tool-mark');
+  mark.innerHTML = icon((TOOL_KINDS[name] || ['tool'])[0]);
+  const label = el('span', 'acw-tool-label');
+  label.append(el('span', 'acw-tool-verb', verb), el('span', 'acw-tool-target', target));
+  const state = el('span', 'acw-tool-state');
+  state.innerHTML = '<span class="acw-spin" aria-hidden="true"></span><span class="acw-tool-time">0.0s</span>';
+  summary.append(mark, label, state);
+  const body = el('div', 'acw-tool-body');
+  if (name === 'bash' && args.command) body.append(el('pre', 'acw-term acw-term-cmd', `$ ${args.command}`));
+  if (name === 'edit' && (args.edits || args.oldText != null)) { body.append(diffView(args)); card.open = true; }
+  if (name === 'write' && args.content) body.append(el('pre', 'acw-tool-output acw-new-file', String(args.content).slice(0, 4000)));
   const output = el('pre', 'acw-tool-output');
   output.hidden = true;
-  row.append(summary, output);
-  row.dataset.state = 'running';
-  if (id) toolRows.set(id, row);
-  $('aide-code-log').append(row);
-  return row;
+  body.append(output);
+  card.append(summary, body);
+  if (id) toolRows.set(id, card);
+  $('aide-code-log').append(card);
+  card._timer = setInterval(() => {
+    if (!card.isConnected || card.dataset.state !== 'running') { clearInterval(card._timer); return; }
+    card.querySelector('.acw-tool-time').textContent = since(+card.dataset.start);
+  }, 100);
+  return card;
 }
 
 function finishTool(id, ok, output) {
-  const row = toolRows.get(id) || toolRow(id, 'tool', '');
-  row.dataset.state = ok ? 'done' : 'failed';
-  row.querySelector('.acw-tool-state').textContent = ok ? '' : 'failed';
-  const pre = row.querySelector('.acw-tool-output');
-  pre.textContent = output || (ok ? 'no output' : 'failed with no output');
-  pre.hidden = false;
+  const card = toolRows.get(id) || toolRow(id, 'tool', '');
+  clearInterval(card._timer);
+  card.dataset.state = ok ? 'done' : 'failed';
+  const state = card.querySelector('.acw-tool-state');
+  const took = card.dataset.start ? since(+card.dataset.start) : '';
+  state.innerHTML = `${icon(ok ? 'check' : 'cross')}<span class="acw-tool-time">${ok ? took : 'failed'}</span>`;
+  const pre = card.querySelector('.acw-tool-output:not(.acw-new-file)');
+  const text = output || (ok ? '' : 'failed with no output');
+  pre.textContent = text;
+  pre.hidden = !text;
+  pre.classList.toggle('acw-term', card.dataset.kind === 'bash');
+  // a failed step opens itself so the reason is in view
+  if (!ok) card.open = true;
 }
 
 function assistantBlock(text, error = '') {
@@ -224,16 +278,23 @@ function render(item) {
     const bubble = el('div', 'acw-msg acw-user');
     bubble.textContent = item.text;
     log.append(bubble);
+  } else if (item.kind === 'thinking') {
+    showWorking(false);
+    thinkingBlock(item.text);
   } else if (item.kind === 'delta') {
-    if (!streaming) { streaming = assistantBlock(''); streaming.dataset.text = ''; log.append(streaming); }
+    showWorking(false);
+    closeThinking();
+    if (!streaming) { streaming = assistantBlock(''); streaming.dataset.text = ''; streaming.classList.add('is-streaming'); log.append(streaming); }
     streaming.dataset.text += item.text;
     streaming.innerHTML = mdToHtml(streaming.dataset.text);
   } else if (item.kind === 'assistant') {
+    closeThinking();
     const block = assistantBlock(item.text, item.error);
     if (streaming) { streaming.replaceWith(block); streaming = null; }
     else if (item.text || item.error) log.append(block);
     for (const tool of item.tools || []) toolRow(tool.id, tool.name, tool.args);
   } else if (item.kind === 'tool') {
+    showWorking(false);
     toolRow(item.id, item.name, item.args);
   } else if (item.kind === 'tool_done') {
     finishTool(item.id, item.ok, item.output);
@@ -250,6 +311,34 @@ function render(item) {
     log.append(goalCard(item));
     renderGoal();
   }
+}
+
+// pi's reasoning, live: a shimmering line with a timer, open to read along
+let thinking_ = null;
+function thinkingBlock(text) {
+  if (!thinking_) {
+    thinking_ = el('details', 'acw-thinking');
+    thinking_.dataset.start = String(Date.now());
+    const summary = el('summary');
+    summary.append(el('span', 'acw-thinking-label', 'thinking'), el('span', 'acw-tool-time', '0s'));
+    thinking_.append(summary, el('div', 'acw-thinking-text'));
+    $('aide-code-log').append(thinking_);
+    const node = thinking_;
+    node._timer = setInterval(() => {
+      if (!node.isConnected || node.dataset.done) { clearInterval(node._timer); return; }
+      node.querySelector('.acw-tool-time').textContent = since(+node.dataset.start);
+    }, 100);
+  }
+  const box = thinking_.querySelector('.acw-thinking-text');
+  box.textContent += text;
+  if (thinking_.open) box.scrollTop = box.scrollHeight;
+}
+function closeThinking() {
+  if (!thinking_) return;
+  thinking_.dataset.done = '1';
+  clearInterval(thinking_._timer);
+  thinking_.querySelector('.acw-thinking-label').textContent = 'thought for';
+  thinking_ = null;
 }
 
 // ── cards for /context, /compact and /goal ──
@@ -467,20 +556,50 @@ function localCommand(text) {
   return false;
 }
 
+// between "send" and pi's first step: a live line so the wait never looks dead
+let working = null;
+function showWorking(on) {
+  if (!on) { if (working) { clearInterval(working._timer); working.remove(); working = null; } return; }
+  if (working || !host) return;
+  working = el('div', 'acw-working');
+  working.setAttribute('role', 'status');
+  working.dataset.start = String(Date.now());
+  working.innerHTML = '<span class="acw-spin" aria-hidden="true"></span><span class="acw-working-label">working</span><span class="acw-tool-time">0.0s</span>';
+  $('aide-code-log').append(working);
+  const node = working;
+  node._timer = setInterval(() => { if (!node.isConnected) { clearInterval(node._timer); return; } node.querySelector('.acw-tool-time').textContent = since(+node.dataset.start); }, 100);
+  scrollLog();
+}
+
 function setBusy(value) {
+  const was = busy;
   busy = value;
-  $('aide-code-stop').hidden = !busy;
+  showWorking(busy && !was);
   $('aide-code-status').textContent = busy ? 'pi is working…' : '';
+  sendOrStop();
   host.dataset.busy = String(busy);
+  if (!busy) { showWorking(false); closeThinking(); streaming?.classList.remove('is-streaming'); }
+  // a short pulse on the box when pi finishes, so the end of a long run is noticed
+  if (was && !busy) { const entry = host.querySelector('.acw-entry'); entry?.classList.remove('is-done'); void entry?.offsetWidth; entry?.classList.add('is-done'); }
 }
 
 function renderStats(stats = {}) {
   const parts = [];
   if (stats.tokens_per_second) parts.push([`${stats.tokens_per_second} tok/s`, '']);
   if (stats.cache_hit_rate != null) parts.push([`cache ${Math.round(stats.cache_hit_rate * 100)}%`, '']);
-  // context is the first thing to go on a phone
-  if (stats.context_percent != null) parts.push([`context ${Math.round(stats.context_percent)}%`, 'acw-stats-context']);
   $('aide-code-stats').replaceChildren(...parts.map(([text, className], index) => el('span', className, (index ? ' · ' : '') + text)));
+  // context as a ring that fills; it opens /context
+  const ring = $('aide-code-context');
+  const pct = stats.context_percent;
+  ring.hidden = pct == null;
+  if (pct != null) {
+    const value = Math.max(0, Math.min(100, Math.round(pct)));
+    ring.style.setProperty('--pct', value);
+    ring.dataset.level = value >= 85 ? 'high' : value >= 60 ? 'mid' : 'low';
+    ring.querySelector('.acw-ring-text').textContent = `${value}%`;
+    ring.setAttribute('aria-label', `context ${value}% full; show what fills it`);
+    ring.title = `context ${value}% full`;
+  }
 }
 
 function renderQuestion(question) {
@@ -537,16 +656,20 @@ function follow(projectId, chatId, after) {
   };
 }
 
+function nearBottom() { const sc = $('aide-code-scroll'); return sc.scrollHeight - sc.scrollTop - sc.clientHeight < 160; }
 function scrollLog() {
   const scroller = $('aide-code-scroll');
-  if (scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 160) scroller.scrollTop = scroller.scrollHeight;
+  if (nearBottom()) scroller.scrollTop = scroller.scrollHeight;
+  else $('aide-code-jump').hidden = false;  // something new arrived below where you're reading
 }
 
 async function refreshChats(projectId) { await loadChats(projectId); renderRail(); }
 
 function resetLog() {
+  for (const card of toolRows.values()) clearInterval(card._timer);
+  showWorking(false);
   $('aide-code-log').replaceChildren();
-  streaming = null; toolRows = new Map();
+  streaming = null; toolRows = new Map(); thinking_ = null;
   renderQuestion(null); renderStats(); setBusy(false); setError();
 }
 
@@ -561,6 +684,7 @@ async function openChat(projectId, chatId, { keepScroll = false } = {}) {
   $('aide-code-title').textContent = (chats.get(projectId) || []).find(chat => chat.id === chatId)?.title || 'chat';
   showPath(row?.path);
   $('aide-code-delete').hidden = false;
+  showIntro(false);
   try {
     const data = await api(chatPath(projectId, chatId));
     if (ticket !== version) return;
@@ -597,8 +721,43 @@ function startChat(projectId) {
   showPath(row?.path);
   $('aide-code-delete').hidden = true;
   showView('chat'); setPane('main');
+  showIntro(true);
   updateComposer();
   $('aide-code-input').focus();
+}
+
+// while pi works: stop when the box is empty, send (it steers pi) once there's text
+function sendOrStop() {
+  const typed = !!$('aide-code-input').value.trim();
+  $('aide-code-stop').hidden = !busy || typed;
+  $('aide-code-send').hidden = busy && !typed;
+}
+
+const SUGGESTIONS = [
+  ['explain this project', 'explain what this project does and how it is laid out'],
+  ['find and fix a bug', 'look for a bug in this project, fix it, and show me how you checked'],
+  ['write tests', 'write tests for the most important code here and run them'],
+  ['work toward a goal', '/goal '],
+];
+function showIntro(on) {
+  const intro = $('aide-code-intro');
+  intro.hidden = !on;
+  if (!on) return;
+  const list = intro.querySelector('.acw-suggest');
+  if (list.childElementCount) return;
+  SUGGESTIONS.forEach(([label, text], n) => {
+    const chip = el('button', 'acw-suggestion', label);
+    chip.type = 'button';
+    chip.setAttribute('role', 'listitem');
+    chip.style.setProperty('--n', n);
+    chip.addEventListener('click', () => {
+      const input = $('aide-code-input');
+      input.value = text; autosizeTextarea(input); input.focus();
+      input.setSelectionRange(text.length, text.length);
+      updateComposer(); renderSlash();
+    });
+    list.append(chip);
+  });
 }
 
 function updateComposer() {
@@ -611,6 +770,7 @@ function updateComposer() {
   input.disabled = !row;
   input.placeholder = row ? `ask ${harnessName(using)} to work in ${row.name}` : 'pick a project first';
   $('aide-code-send').disabled = !ready || sending || !input.value.trim();
+  sendOrStop();
   // omp and pi use alles's models; an ACP harness brings its own list, if it shares one
   const acpModels = !nativeUse ? harnessModels || [] : null;
   $('aide-code-model-label').textContent = nativeUse ? (model ? model.model : 'no coding model')
@@ -637,7 +797,7 @@ async function send(event) {
   if (!text || sending || $('aide-code-send').disabled) return;
   setError();
   if (text.startsWith('/') && localCommand(text)) { input.value = ''; autosizeTextarea(input); closeSlash(); updateComposer(); return; }
-  sending = true; updateComposer();
+  sending = true; updateComposer(); showIntro(false);
   const { projectId, chatId } = current;
   const choice = model && isNative(chatId ? chatHarness : harness) ? { endpoint_id: model.endpoint_id, model: model.model } : {};
   try {
@@ -941,6 +1101,7 @@ function markup() {
           <button type="button" id="aide-code-delete" class="acw-action" hidden>delete chat</button>
         </header>
         <p id="aide-code-error" class="acw-error" role="alert" hidden></p>
+        <div id="aide-code-loading" class="acw-loading" role="status" aria-label="loading" hidden><span></span><span></span><span></span></div>
         <section id="aide-code-start" class="acw-content acw-start" hidden>
           <p>pi reads, edits and runs code in a folder on the machine that runs alles. it does not ask before each command, so give it a project folder you're happy for it to change.</p>
           <button type="button" id="aide-code-start-add" class="acw-action acw-primary">add a project folder</button>
@@ -959,7 +1120,15 @@ function markup() {
           <div class="acw-add-foot"><button type="button" id="aide-code-folder-use" class="acw-action acw-primary">use this folder</button></div>
         </section>
         <section id="aide-code-chat" class="acw-chat-view" hidden>
-          <div id="aide-code-scroll" class="acw-scroll"><div id="aide-code-log" class="acw-log" role="log" aria-label="chat with pi"></div></div>
+          <div id="aide-code-scroll" class="acw-scroll">
+            <div id="aide-code-intro" class="acw-intro" hidden>
+              <h3>what should pi do here?</h3>
+              <p>pi reads the files in this folder, edits them and runs commands, then tells you what it did. type / to see every command.</p>
+              <div class="acw-suggest" role="list"></div>
+            </div>
+            <div id="aide-code-log" class="acw-log" role="log" aria-label="chat with pi"></div>
+          </div>
+          <button type="button" id="aide-code-jump" class="acw-jump" aria-label="jump to the latest" hidden>${icon('down')}</button>
           <form id="aide-code-form" class="acw-composer">
             <div id="aide-code-question" class="acw-question" role="group" aria-label="pi is asking" hidden></div>
             <p id="aide-code-hint" class="acw-muted" hidden></p>
@@ -981,6 +1150,7 @@ function markup() {
                   <div id="aide-code-effort-menu" class="acw-menu acw-menu-up" role="menu" aria-label="effort" hidden></div>
                 </div>
                 <span id="aide-code-stats" class="acw-stats"></span>
+                <button type="button" id="aide-code-context" class="acw-ring" hidden><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="acw-ring-track" cx="18" cy="18" r="15"/><circle class="acw-ring-fill" cx="18" cy="18" r="15" pathLength="100"/></svg><span class="acw-ring-text"></span></button>
                 <span id="aide-code-status" class="acw-muted" role="status"></span>
                 <button type="button" id="aide-code-stop" class="acw-icon" aria-label="stop pi" hidden>${icon('stop')}</button>
                 <button type="submit" id="aide-code-send" class="acw-icon acw-send" aria-label="send" disabled>${icon('up')}</button>
@@ -1013,6 +1183,13 @@ export function initAideCodingWorkspace() {
     effortMenu.open({ source: event.currentTarget });
   });
   $('aide-code-goal-clear').addEventListener('click', () => { input.value = '/goal clear'; $('aide-code-form').requestSubmit(); });
+  $('aide-code-context').addEventListener('click', () => { input.value = '/context'; $('aide-code-form').requestSubmit(); });
+  $('aide-code-scroll').addEventListener('scroll', () => { if (nearBottom()) $('aide-code-jump').hidden = true; }, { passive: true });
+  $('aide-code-jump').addEventListener('click', () => {
+    const scroller = $('aide-code-scroll');
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    $('aide-code-jump').hidden = true;
+  });
   $('aide-code-form').addEventListener('submit', send);
   $('aide-code-stop').addEventListener('click', async () => {
     try { await post(`${chatPath(current.projectId, current.chatId)}/stop`); } catch (error) { setError(error.message); }
@@ -1086,6 +1263,7 @@ export async function openAideCodingWorkspace({ refresh = true } = {}) {
     return;
   }
   if (!opening) {
+    const slow = setTimeout(() => { $('aide-code-loading').hidden = false; }, 150);
     opening = (async () => {
       try {
         await loadStatus();
@@ -1094,7 +1272,7 @@ export async function openAideCodingWorkspace({ refresh = true } = {}) {
         else if (current.projectId) startChat(current.projectId);
         else showFirst();
       } catch (error) { setError(error.message); }
-    })().finally(() => { opening = null; });
+    })().finally(() => { opening = null; clearTimeout(slow); $('aide-code-loading').hidden = true; });
   }
   return opening;
 }
