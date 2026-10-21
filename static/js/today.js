@@ -513,15 +513,15 @@ function updateHeading() {
   const clock = document.getElementById('today-clock');
   if (clock) {
     if (!clock.querySelector('.today-clock-hour')) {
-      clock.innerHTML = '<span class="today-clock-date"></span> <span class="today-clock-hour"></span><span class="today-clock-colon">:</span><span class="today-clock-minute"></span><span class="today-clock-colon">:</span><span class="today-clock-second"></span> <span class="today-clock-period"></span>';
+      // minutes are enough; a ticking second pulled the eye every time
+      clock.innerHTML = '<span class="today-clock-date"></span> <span class="today-clock-hour"></span><span class="today-clock-colon">:</span><span class="today-clock-minute"></span> <span class="today-clock-period"></span>';
     }
     const parts = Object.fromEntries(formatDateParts(now, {
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour: 'numeric', minute: '2-digit',
     }).map(part => [part.type, part.value]));
     clock.querySelector('.today-clock-date').textContent = formatDate(now, { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase();
     clock.querySelector('.today-clock-hour').textContent = parts.hour || '';
     clock.querySelector('.today-clock-minute').textContent = parts.minute || '';
-    clock.querySelector('.today-clock-second').textContent = parts.second || '';
     clock.querySelector('.today-clock-period').textContent = (parts.dayPeriod || '').toLowerCase();
   }
 }

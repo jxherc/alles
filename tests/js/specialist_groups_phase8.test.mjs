@@ -106,21 +106,14 @@ test('specialist workbenches show one app name and use the universal shell', () 
   assert.match(appSource, /const SHELL_GROUPS = Object\.freeze/);
 });
 
-test('all nine specialist workbenches share one persistent accessible views toggle', () => {
-  const toggles = [...specialistHtml.matchAll(/<button class="specialist-sidebar-toggle"[^>]+>/g)]
-    .map(match => match[0]);
-  assert.equal(toggles.length, 9);
-  for (const toggle of toggles) {
-    assert.match(toggle, /data-specialist-sidebar-toggle/);
-    assert.match(toggle, /aria-expanded="true"/);
-    assert.match(toggle, /aria-controls="[^"]+-tabs"/);
-    assert.match(toggle, /aria-label="hide [^"]+ views"/);
-  }
-  assert.equal(new Set(toggles.map(toggle => toggle.match(/aria-controls="([^"]+)"/)?.[1])).size, 9);
-  assert.match(specialistSource, /SPECIALIST_SIDEBAR_STORAGE_KEY = 'alles-specialist-sidebar-hidden'/);
-  assert.match(specialistSource, /window\.localStorage\.setItem\(SPECIALIST_SIDEBAR_STORAGE_KEY/);
-  assert.match(specialistSource, /root\.dataset\.sidebarCollapsed/);
-  assert.match(kokuenCss, /\[data-sidebar-collapsed="true"\]/);
+test('every specialist app keeps its views in the header row, with nothing that hides them', () => {
+  // one click on an old "views" toggle hid the tab row in all nine apps; the row is always there now
+  assert.doesNotMatch(specialistHtml, /specialist-sidebar-toggle|data-specialist-sidebar-toggle/);
+  assert.doesNotMatch(specialistSource, /SPECIALIST_SIDEBAR_STORAGE_KEY|sidebarCollapsed/);
+  assert.doesNotMatch(kokuenCss, /\[data-sidebar-collapsed="true"\]/);
+  assert.equal([...specialistHtml.matchAll(/class="specialist-group-tabs" id="[a-z]+-tabs" role="tablist"/g)].length, 9);
+  // on a wide screen the views sit in the 52px header row, after the app name
+  assert.match(kokuenCss, /\.specialist-group \.specialist-view-strip \{ grid-column: 2; grid-row: 1;/);
 });
 
 test('specialist tabs expose horizontal orientation, panels, and every directional key', () => {

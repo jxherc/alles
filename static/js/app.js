@@ -1251,6 +1251,7 @@ function renderLocalView(v, route = {}) {
   const staysInAide = AIDE_TOOL_VIEWS.has(v);
   _setAfterlifeSpace(staysInAide ? 'aide' : v === 'today' ? 'today' : v === 'andromeda' ? 'andromeda' : '');
   if (singleHost() && v !== 'settings') _shChrome(v, { onAide: staysInAide });
+  if (staysInAide && v !== 'chat' && v !== 'project') window._aideToolShown?.();
   if      (v === 'today')     showTodayView();
   else if (v === 'andromeda') return showAndromedaView();
   else if (v === 'chat')      { showChatView({ preserveRecord: true }); return revealLinkedRecord(); }

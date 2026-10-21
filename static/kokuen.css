@@ -352,41 +352,11 @@ body:is(
   background: var(--k-page, var(--bg));
 }
 
-.specialist-sidebar-toggle {
-  margin-left: auto;
-  min-width: var(--k-control, 44px);
-  height: var(--k-control, 44px);
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  padding: 0 var(--k-space-2, 8px);
-  border: 0;
-  border-radius: var(--k-radius-control, 3px);
-  font: inherit;
-  font-size: 14px;
-  color: var(--k-soft, var(--text));
-  background: transparent;
-  cursor: pointer;
-}
-
 /* header actions sit together at the end: views, then the guide, same size */
 .specialist-app-brand .manual-context-help {
   margin-inline-start: 0;
   padding: 0 var(--k-space-2, 8px);
   font-size: 14px;
-}
-
-.specialist-sidebar-toggle svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
-}
-
-.specialist-sidebar-toggle:hover {
-  color: var(--k-text, var(--text));
-  background: var(--k-hover, var(--panel));
 }
 
 .specialist-app-name {
@@ -496,50 +466,6 @@ body:is(
   flex: 1;
   padding: var(--k-space-3, 12px) var(--k-space-5, 24px) var(--k-space-5, 24px);
   overflow: auto;
-}
-
-:is(
-  #plan-view,
-  #inbox-view,
-  #library-view,
-  #health-group-view,
-  #finance-view,
-  #docs-workbench-view,
-  #files-workbench-view,
-  #vault-workbench-view,
-  #server-workbench-view
-)[data-sidebar-collapsed="true"] {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: var(--k-app-header) minmax(0, 1fr);
-}
-
-:is(
-  #plan-view,
-  #inbox-view,
-  #library-view,
-  #health-group-view,
-  #finance-view,
-  #docs-workbench-view,
-  #files-workbench-view,
-  #vault-workbench-view,
-  #server-workbench-view
-)[data-sidebar-collapsed="true"] :is(.specialist-group-tabs, .specialist-view-strip) {
-  display: none;
-}
-
-:is(
-  #plan-view,
-  #inbox-view,
-  #library-view,
-  #health-group-view,
-  #finance-view,
-  #docs-workbench-view,
-  #files-workbench-view,
-  #vault-workbench-view,
-  #server-workbench-view
-)[data-sidebar-collapsed="true"] :where(.specialist-group-overview, .specialist-group-slot) {
-  grid-column: 1;
-  grid-row: 2;
 }
 
 /* Plan task board. This keeps the approved starter's structural, record-first
@@ -2092,32 +2018,6 @@ body:is(
   }
   .specialist-group-overview,
   .specialist-group-slot { grid-column: 1; grid-row: 3; }
-  :is(
-    #plan-view,
-    #inbox-view,
-    #library-view,
-    #health-group-view,
-    #finance-view,
-    #docs-workbench-view,
-    #files-workbench-view,
-    #vault-workbench-view,
-    #server-workbench-view
-  )[data-sidebar-collapsed="true"] {
-    grid-template-rows: var(--k-app-header) minmax(0, 1fr);
-  }
-  :is(
-    #plan-view,
-    #inbox-view,
-    #library-view,
-    #health-group-view,
-    #finance-view,
-    #docs-workbench-view,
-    #files-workbench-view,
-    #vault-workbench-view,
-    #server-workbench-view
-  )[data-sidebar-collapsed="true"] :where(.specialist-group-overview, .specialist-group-slot) {
-    grid-row: 2;
-  }
   .specialist-group-overview { padding: var(--k-space-3, 12px) var(--k-space-4, 16px) var(--k-space-5, 24px); }
   .server-workbench-grid { grid-template-columns: minmax(0, 1fr); }
   .server-managed-summary,
@@ -7531,3 +7431,27 @@ html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch
   flex: 1;
   min-width: 0;
 }
+
+/* every app's header works like Aide's: the app name (the switcher) and its views in one 52px
+   row with no rule under it, header actions at the far end. a phone gives the views their own
+   row under the name, as before */
+@media (min-width: 761px) {
+  :is(#plan-view, #inbox-view, #library-view, #health-group-view, #finance-view, #docs-workbench-view, #files-workbench-view, #vault-workbench-view, #server-workbench-view).specialist-group { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: var(--k-app-header) minmax(0, 1fr); }
+  .specialist-group .specialist-app-brand { grid-column: 1; grid-row: 1; border-bottom: 0; padding-right: var(--k-space-3, 12px); }
+  .specialist-group .specialist-view-strip { grid-column: 2; grid-row: 1; align-self: center; }
+  .specialist-group .specialist-view-strip .specialist-group-tabs { padding-inline: 0; }
+  .specialist-group > .specialist-app-head > .manual-context-help { grid-column: 3; grid-row: 1; align-self: center; margin: 0 var(--k-space-3, 12px) 0 0; }
+  .specialist-group :is(.specialist-group-overview, .specialist-group-slot) { grid-column: 1 / -1; grid-row: 2; }
+}
+/* an old screen's own header that holds only its (hidden) title would leave a blank row */
+.specialist-group-slot > .page-view > .page-view-head:not(:has(> :not(.page-view-title))) { display: none; }
+@media (max-width: 760px) {
+  .specialist-group > .specialist-app-head > .manual-context-help { grid-column: 1; grid-row: 1; justify-self: end; align-self: center; margin-right: var(--k-space-2, 8px); }
+}
+/* the arrows say there are more views; the strip's own scrollbar only added a grey bar */
+.specialist-view-strip .specialist-group-tabs { scrollbar-width: none; }
+.specialist-view-strip .specialist-group-tabs::-webkit-scrollbar { display: none; }
+
+/* Home's header spans the window like every other app's: name on the left, the time and
+   settings at the end, 16px in from each edge */
+#today-view[data-kokuen-surface="home"] > .today-topbar { box-sizing: border-box; width: 100%; min-height: var(--k-app-header); padding: 0 var(--k-space-4, 16px); }

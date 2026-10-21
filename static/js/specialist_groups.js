@@ -81,27 +81,6 @@ const ROUTES = Object.freeze({
 const _states = new Map();
 const _legacyHomes = new Map();
 let _planAgendaReturn = null;
-export const SPECIALIST_SIDEBAR_STORAGE_KEY = 'alles-specialist-sidebar-hidden';
-
-function _storedSidebarCollapsed() {
-  try { return window.localStorage.getItem(SPECIALIST_SIDEBAR_STORAGE_KEY) === '1'; }
-  catch { return false; }
-}
-
-function _setSpecialistSidebarCollapsed(collapsed, { persist = false } = {}) {
-  document.querySelectorAll('.specialist-group[data-specialist-app]').forEach(root => {
-    const group = root.dataset.specialistApp || 'app';
-    root.dataset.sidebarCollapsed = collapsed ? 'true' : 'false';
-    const toggle = root.querySelector('[data-specialist-sidebar-toggle]');
-    toggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    toggle?.setAttribute('aria-label', `${collapsed ? 'show' : 'hide'} ${group} views`);
-  });
-  if (persist) {
-    try { window.localStorage.setItem(SPECIALIST_SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0'); }
-    catch { /* storage can be unavailable in private or embedded contexts */ }
-  }
-}
-
 export function groupRouteFor(view) {
   const route = ROUTES[String(view || '').trim().toLowerCase()];
   return route ? { group: route[0], section: route[1] } : null;
@@ -1657,6 +1636,9 @@ function _wireViewScroll(tablist) {
   labels();
   tablist.before(strip);
   strip.append(previous, tablist, next);
+  // header actions (finance's guide) end the header row, after the views
+  const actions = tablist.closest('.specialist-app-head')?.querySelectorAll('.specialist-app-brand .manual-context-help');
+  if (actions?.length) strip.after(...actions);
   const target = direction => {
     const bounds = tablist.getBoundingClientRect();
     const rtl = getComputedStyle(tablist).direction === 'rtl';
@@ -1713,10 +1695,6 @@ function _wire(group, root) {
       tabs[next].focus();
       tabs[next].click();
     });
-  });
-  _setSpecialistSidebarCollapsed(_storedSidebarCollapsed());
-  root.querySelector('[data-specialist-sidebar-toggle]')?.addEventListener('click', () => {
-    _setSpecialistSidebarCollapsed(root.dataset.sidebarCollapsed !== 'true', { persist: true });
   });
   root.querySelector('[data-files-back]')?.addEventListener('click', () => window._navigateSpecialistSection?.('files', 'files'));
 }

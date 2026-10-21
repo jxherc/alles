@@ -300,8 +300,19 @@ export function initAideCentral() {
   window._showPrimaryAide = openPrimaryConversation;
   window._aideConversationShown = () => {
     if (!openingCall) void setMode('conversation').then(showPrimaryFailure);
+    // coming back from code (or a tool page) while the chat sat hidden at the very top: show the end
+    setTimeout(() => {
+      const chat = $('chat');
+      if (chat && chat.scrollTop === 0 && chat.scrollHeight > chat.clientHeight + 80) chat.scrollTop = chat.scrollHeight;
+    }, 0);
     window._setAideArchiveOpen?.(false);
     syncHistory();
+  };
+  // an Aide tool page (brain, skills, models...) is neither tab, so neither reads as current
+  window._aideToolShown = () => {
+    document.body.dataset.aideMode = 'tool';
+    $('aide-mode-conversation').setAttribute('aria-pressed', 'false');
+    $('aide-mode-coding').setAttribute('aria-pressed', 'false');
   };
   window._hideAideSurfaces = () => {
     closeContext({ restoreFocus: false });

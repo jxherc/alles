@@ -168,14 +168,8 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
     assert shell_trigger.evaluate(
         "element => element.getBoundingClientRect().width >= 44 && element.getBoundingClientRect().height >= 44"
     )
-    toggle = header.locator("[data-specialist-sidebar-toggle]")
-    assert toggle.is_visible()
-    assert toggle.get_attribute("aria-expanded") == "true"
-    controlled = toggle.get_attribute("aria-controls")
-    assert controlled and root.locator(f"#{controlled}").count() == 1
-    assert toggle.evaluate(
-        "element => element.getBoundingClientRect().width >= 44 && element.getBoundingClientRect().height >= 44"
-    )
+    # the old "views" toggle hid the tab row in every app at once; it is gone
+    assert header.locator("[data-specialist-sidebar-toggle]").count() == 0
     assert not page.locator("#app-crumb").is_visible()
     brand_box = header.locator(".specialist-app-brand").evaluate(
         "element => element.getBoundingClientRect()"
@@ -185,22 +179,17 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
     )
     assert round(brand_box["height"]) == 52, brand_box
     root_box = root.evaluate("element => element.getBoundingClientRect()")
-    assert round(brand_box["width"]) == round(root_box["width"]), (brand_box, root_box)
-    assert round(tabs_box["y"] - brand_box["y"]) == 52, (brand_box, tabs_box)
-    toggle.focus()
-    page.keyboard.press("Enter")
-    assert root.get_attribute("data-sidebar-collapsed") == "true"
-    assert toggle.get_attribute("aria-expanded") == "false"
-    assert not root.locator(f"#{controlled}").is_visible()
-    active_content = root.locator(
-        "[data-group-overview]:not([hidden]), [data-group-slot]:not([hidden])"
-    )
-    collapsed_box = active_content.evaluate("element => element.getBoundingClientRect()")
-    assert round(collapsed_box["x"]) == round(root_box["x"]), (collapsed_box, root_box)
-    assert round(collapsed_box["width"]) == round(root_box["width"]), (collapsed_box, root_box)
-    page.keyboard.press("Space")
-    assert root.get_attribute("data-sidebar-collapsed") == "false"
-    assert toggle.get_attribute("aria-expanded") == "true"
+    assert header.locator(".specialist-group-tabs").is_visible()
+    if width > 760:
+        # like Aide's header: the views sit in the same 52px row, right after the app name
+        brand_mid = brand_box["y"] + brand_box["height"] / 2
+        tabs_mid = tabs_box["y"] + tabs_box["height"] / 2
+        assert abs(brand_mid - tabs_mid) <= 4, (brand_box, tabs_box)
+        assert tabs_box["x"] >= brand_box["x"] + brand_box["width"] - 1, (brand_box, tabs_box)
+    else:
+        # a phone gives the views their own row under the name
+        assert round(brand_box["width"]) == round(root_box["width"]), (brand_box, root_box)
+        assert round(tabs_box["y"] - brand_box["y"]) == 52, (brand_box, tabs_box)
     if width <= 760:
         assert round(root_box["x"]) == 0, root_box
         assert round(root_box["width"]) == width, root_box

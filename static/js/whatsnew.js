@@ -2,11 +2,30 @@
 // the next one. releases live in /static/whats-new.json, newest first.
 import { createFocusBoundary } from './kokuen.js';
 import { escapeHtml } from './util.js';
+import { parseHost, singleHost } from './subdomain.js';
 
 const SEEN = 'alles.whatsNewSeen';
 
-const read = () => { try { return localStorage.getItem(SEEN) || ''; } catch { return ''; } };
-const mark = id => { try { localStorage.setItem(SEEN, id); } catch { /* private window: it shows again next time */ } };
+// each app has its own address (aide., plan., ...), so browser storage alone would show the
+// notes once per app; a cookie on the shared domain makes "seen" hold everywhere
+const COOKIE = 'alles_whats_new';
+function sharedDomain() {
+  // only alles's own base domain when it really runs one app per subdomain; never a parent
+  // domain it doesn't own (a tailnet name, an IP)
+  if (singleHost()) return '';
+  const base = parseHost().base || '';
+  return base.includes('.') && location.hostname.endsWith('.' + base) ? base : '';
+}
+const read = () => {
+  const cookie = document.cookie.split('; ').find(part => part.startsWith(COOKIE + '='));
+  if (cookie) return decodeURIComponent(cookie.slice(COOKIE.length + 1));
+  try { return localStorage.getItem(SEEN) || ''; } catch { return ''; }
+};
+const mark = id => {
+  const domain = sharedDomain();
+  document.cookie = `${COOKIE}=${encodeURIComponent(id)}; path=/; max-age=31536000; SameSite=Lax${domain ? `; domain=${domain}` : ''}`;
+  try { localStorage.setItem(SEEN, id); } catch { /* private window: the cookie still holds */ }
+};
 
 async function releases() {
   try {
