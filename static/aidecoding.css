@@ -157,6 +157,51 @@
 #aide-coding-workspace .acw-send:not(:disabled) { color: var(--k-text); }
 #aide-code-stop svg path { fill: currentColor; }
 
+/* the / menu sits on the composer, like a terminal's: name, what it does, where it comes from */
+.acw-composer { position: relative; }
+#aide-coding-workspace .acw-slash {
+  position: absolute; left: var(--k-space-5); right: var(--k-space-5); bottom: calc(100% - var(--k-space-1)); z-index: 30;
+  max-height: min(340px, 50vh); overflow-y: auto; padding: var(--k-space-1);
+  border: 1px solid var(--k-line-strong); border-radius: var(--k-radius-surface); background: var(--k-panel);
+}
+#aide-coding-workspace .acw-slash-item {
+  display: grid; grid-template-columns: minmax(9rem, auto) minmax(0, 1fr) auto; align-items: center; gap: var(--k-space-3);
+  min-height: 36px; padding: 0 var(--k-space-3); border-radius: var(--k-radius-small); cursor: pointer;
+}
+#aide-coding-workspace .acw-slash-item.selected { background: var(--k-raised); }
+#aide-coding-workspace .acw-slash-item .slash-name { color: var(--k-text); font: 400 13px/1.4 var(--k-mono); }
+#aide-coding-workspace .acw-slash-item .slash-args { margin-left: var(--k-space-2); color: var(--k-muted); font: 400 12px/1.4 var(--k-mono); }
+#aide-coding-workspace .acw-slash-item .slash-desc { color: var(--k-soft); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acw-slash-source { color: var(--k-muted); font-size: 12px; }
+#aide-code-effort { max-width: 140px; }
+
+/* /goal: pinned over the box while it holds */
+.acw-goal {
+  display: flex; align-items: center; gap: var(--k-space-3); margin-bottom: var(--k-space-2); padding: 0 0 0 var(--k-space-3);
+  border-left: 2px solid var(--k-line-strong); color: var(--k-soft); font-size: 13px;
+}
+.acw-goal-label { color: var(--k-muted); flex: 0 0 auto; }
+#aide-code-goal-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--k-text); }
+
+/* /context, /compact and /goal answer with a card in the chat */
+.acw-card { display: grid; gap: var(--k-space-3); padding: var(--k-space-3) var(--k-space-4); background: var(--k-panel); border-radius: var(--k-radius-surface); }
+.acw-card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--k-space-2); }
+.acw-card-head strong, .acw-card > strong { color: var(--k-text); font-size: 14px; font-weight: 560; }
+.acw-card p { color: var(--k-soft); font-size: 14px; overflow-wrap: anywhere; }
+.acw-cells { display: grid; grid-template-columns: repeat(25, minmax(0, 1fr)); gap: 3px; max-width: 420px; }
+.acw-cells span { aspect-ratio: 1; border-radius: 2px; background: var(--k-hover); }
+.acw-cells span.on { background: var(--k-soft); }
+.acw-card-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--k-space-1) var(--k-space-4); margin: 0; font-size: 13px; }
+.acw-card-rows dt { color: var(--k-muted); }
+.acw-card-rows dd { margin: 0; color: var(--k-text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.acw-compact-bars { display: grid; gap: var(--k-space-2); max-width: 420px; }
+.acw-bar { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); align-items: center; gap: var(--k-space-2); }
+.acw-bar small { color: var(--k-muted); font-size: 12px; }
+.acw-bar span { display: block; height: 8px; border-radius: 4px; background: var(--k-soft); }
+.acw-bar:last-child span { background: var(--k-text); }
+.acw-card-more summary { color: var(--k-muted); font-size: 13px; cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.acw-card-more p { margin-top: var(--k-space-2); white-space: pre-wrap; }
+
 /* harnesses: one row each, the default marked in words */
 .acw-harnesses { display: grid; gap: var(--k-space-3); }
 .acw-harness-list { display: flex; flex-direction: column; }
@@ -192,6 +237,9 @@
   .acw-stats { order: 9; flex-basis: 100%; padding: 0 var(--k-space-3) var(--k-space-2); }
   .acw-stats:empty { display: none; }
   #aide-code-model { max-width: 100%; }
+  #aide-coding-workspace .acw-slash { left: var(--k-space-4); right: var(--k-space-4); }
+  #aide-coding-workspace .acw-slash-item { grid-template-columns: minmax(0, 1fr); gap: 0; padding: var(--k-space-1) var(--k-space-3); }
+  .acw-slash-source { display: none; }
 }
 @media (forced-colors: active) {
   .acw-tool summary::before { background: CanvasText; }

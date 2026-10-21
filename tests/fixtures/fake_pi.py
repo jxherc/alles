@@ -102,11 +102,48 @@ def run(text):
 
 busy = False
 handled = []
+# a model with "think" in its name takes effort levels, like a reasoning model in models.json
+thinking = flag("--thinking") or "medium"
+
+
+def levels():
+    return ["off", "minimal", "low", "medium", "high"] if "think" in (model or "") else ["off"]
+
+
 for raw in sys.stdin:
     request = json.loads(raw)
     kind = request["type"]
     if kind == "get_state":
-        reply(request, {"sessionId": session_id, "sessionFile": session_file, "isStreaming": busy})
+        level = thinking if thinking in levels() else "off"
+        reply(
+            request,
+            {
+                "sessionId": session_id,
+                "sessionFile": session_file,
+                "isStreaming": busy,
+                "thinkingLevel": level,
+            },
+        )
+    elif kind == "get_available_thinking_levels":
+        reply(request, {"levels": levels()})
+    elif kind == "set_thinking_level":
+        thinking = request["level"]
+        reply(request)
+    elif kind == "get_commands":
+        commands = [
+            {"name": "fix-tests", "description": "Fix failing tests", "source": "prompt"},
+            {"name": "alles-secret", "description": "internal", "source": "extension"},
+        ]
+        reply(request, {"commands": commands})
+    elif kind == "compact":
+        reply(
+            request,
+            {
+                "summary": "kept: " + (request.get("customInstructions") or "everything"),
+                "tokensBefore": 9000,
+                "estimatedTokensAfter": 1200,
+            },
+        )
     elif kind == "prompt" and request["message"].startswith("/"):
         # extension commands (alles's /alles-secret) are handled without a model or a saved message
         handled.append(request["message"])
@@ -140,6 +177,7 @@ for raw in sys.stdin:
         reply(request, {"id": model})
     elif kind == "get_session_stats":
         tokens = {"input": 100, "output": 35, "cacheRead": 300, "cacheWrite": 0}
-        reply(request, {"tokens": tokens, "cost": 0, "contextUsage": {"percent": 4}})
+        usage = {"percent": 4, "tokens": 4000, "contextWindow": 100000}
+        reply(request, {"tokens": tokens, "cost": 0, "contextUsage": usage, "toolCalls": 1})
     else:
         reply(request, ok=False, error=f"unknown command {kind}")

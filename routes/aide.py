@@ -208,6 +208,12 @@ class CodeMessageBody(CodeModelBody):
     harness: str = Field(default="", max_length=80)
 
 
+class CodeThinkingBody(BaseModel):
+    level: str = Field(pattern="^(off|minimal|low|medium|high|xhigh|max)$")
+    project_id: str = Field(default="", max_length=100)
+    chat_id: str = Field(default="", max_length=200)
+
+
 class CodeSettingsBody(BaseModel):
     harness: str = Field(min_length=1, max_length=80)
     approval: str = Field(default="auto", pattern="^(auto|ask)$")
@@ -259,7 +265,7 @@ class CodeAnswerBody(BaseModel):
 def _public_choice(choice: dict | None) -> dict | None:
     if not choice:
         return None
-    return {k: choice[k] for k in ("endpoint_id", "endpoint", "model")}
+    return {k: choice[k] for k in ("endpoint_id", "endpoint", "model", "thinks") if k in choice}
 
 
 def _code_project(db: DbSession, project_id: str) -> CodingProject:
@@ -620,7 +626,9 @@ async def code_new_chat(project_id: str, body: CodeMessageBody, db: DbSession = 
     choice = _code_choice(db, body) if harness in pi_agent.NATIVE else {}
     try:
         chat = await pi_agent.open_chat(db, row, None, choice, harness)
-        seq = await chat.send(body.text)
+        seq = await chat.builtin(body.text) if hasattr(chat, "builtin") else None
+        if seq is None:
+            seq = await chat.send(body.text)
     except RuntimeError as exc:
         raise ApiError(502, "pi_failed", str(exc)) from exc
     row.last_used_at = datetime.now(UTC).replace(tzinfo=None)
@@ -648,6 +656,8 @@ def code_chat(project_id: str, chat_id: str, db: DbSession = Depends(get_db)):
         "partial": live.partial if live else "",
         "questions": list(live.questions.values()) if live else [],
         "stats": live.stats if live else {},
+        "thinking": getattr(live, "thinking", {}) if live else {},
+        "goal": pi_agent.load_goal(chat_id),
         "seq": live.seq if live else 0,
     }
 
@@ -676,10 +686,43 @@ async def code_message(
 ):
     chat = await _code_live_chat(db, project_id, chat_id, body)
     try:
-        seq = await chat.send(body.text)
+        # /compact, /context and /goal are alles's own; pi's terminal has them, rpc doesn't
+        seq = await chat.builtin(body.text) if hasattr(chat, "builtin") else None
+        if seq is None:
+            seq = await chat.send(body.text)
     except RuntimeError as exc:
         raise ApiError(502, "pi_failed", str(exc)) from exc
     return {"seq": seq}
+
+
+@router.get("/code/projects/{project_id}/chats/{chat_id}/commands")
+async def code_commands(project_id: str, chat_id: str, db: DbSession = Depends(get_db)):
+    """the running chat's own / commands (pi extensions and prompt templates)."""
+    _code_project(db, project_id)
+    chat = pi_agent.live_chat(chat_id)
+    if chat is None or not hasattr(chat, "commands"):
+        return {"items": []}
+    try:
+        return {"items": await chat.commands()}
+    except (RuntimeError, TimeoutError):
+        return {"items": []}
+
+
+@router.put("/code/thinking", dependencies=[Depends(require_recent_owner)])
+async def code_thinking(body: CodeThinkingBody, db: DbSession = Depends(get_db)):
+    """how hard pi thinks: new chats start with it, and a running chat switches now."""
+    from core.settings import save_settings
+
+    save_settings({"coding_thinking": body.level})
+    chat = pi_agent.live_chat(body.chat_id) if body.chat_id else None
+    if chat is None or not hasattr(chat, "set_thinking"):
+        return {"level": body.level, "levels": [], "live": False}
+    _code_project(db, body.project_id)
+    try:
+        thinking = await chat.set_thinking(body.level)
+    except RuntimeError as exc:
+        raise ApiError(502, "pi_failed", str(exc)) from exc
+    return {**thinking, "live": True}
 
 
 @router.post(

@@ -28,10 +28,10 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=557">
+<link rel="stylesheet" href="/static/style.css?v=559">
   <link rel="stylesheet" href="/static/kokuen.css?v=74">
 <link rel="stylesheet" href="/static/aidecentral.css?v=5">
-<link rel="stylesheet" href="/static/aidecoding.css?v=8">
+<link rel="stylesheet" href="/static/aidecoding.css?v=9">
 <link rel="stylesheet" href="/static/aidecall.css?v=2">
 <link rel="stylesheet" href="/static/help.css?v=1">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
@@ -2495,12 +2495,12 @@
               </div>
               <p class="photon-line" id="photon-line" aria-live="polite" hidden></p>
               <div class="s-field"><label for="photon-owner">your phone number or email <span class="s-field-note">only these get answers; one per line</span></label><textarea class="settings-textarea" id="photon-owner" rows="2" placeholder="+1 555 010 0199"></textarea></div>
-              <details class="mcp-advanced photon-keys">
+              <details class="photon-keys">
                 <summary>enter Photon keys yourself</summary>
                 <div class="s-field"><label for="photon-project-id">Photon project id <span class="s-field-note">from app.photon.codes</span></label><input class="settings-input" id="photon-project-id" autocomplete="off" spellcheck="false" style="width:100%"></div>
                 <div class="s-field"><label for="photon-project-secret">Photon project secret <span class="s-field-note" id="photon-secret-note">encrypted and never shown again</span></label><input type="password" class="settings-input" id="photon-project-secret" autocomplete="off" placeholder="paste the project secret" style="width:100%"></div>
               </details>
-              <button class="btn primary" type="button" id="photon-save" style="width:100%">save</button>
+              <button class="btn" type="button" id="photon-save" style="width:100%">save</button>
             </div>
           </div>
           <div class="s-card" id="browser-signin-card">
@@ -3101,7 +3101,7 @@
 </div>
 
 <script type="module">
-const _v = '557';
+const _v = '559';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>

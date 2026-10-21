@@ -27,6 +27,21 @@ let menu = null, projectMenu = null, menuProject = '';
 // the harness new chats use (a setting), the one the open chat runs on, and its own models
 let harness = 'pi', approval = 'auto', native = [], catalogRows = [], chatHarness = '', harnessModels = null;
 let harnessMenu = null;
+// pi's effort: the running chat's level and the levels its model takes, and what new chats use
+let thinking = { level: '', levels: [] }, thinkingPref = '', effortMenu = null, goal = '';
+let piCommands = [], slashItems = [], slashIndex = 0;
+const LEVELS = ['off', 'minimal', 'low', 'medium', 'high'];
+const levelName = level => ({ xhigh: 'extra high' }[level] || level);
+// alles's own commands; the rest come from pi (extensions, prompt templates)
+const BUILTINS = [
+  { name: 'new', description: 'start a new chat in this project' },
+  { name: 'model', description: 'pick the model pi uses' },
+  { name: 'effort', args: '[level]', description: 'how hard pi thinks before it answers' },
+  { name: 'context', description: 'show what fills the context window', live: true },
+  { name: 'compact', args: '[focus]', description: 'summarize the chat so far to free up context', live: true },
+  { name: 'goal', args: '[goal | clear]', description: 'set a goal pi keeps working toward' },
+  { name: 'stop', description: 'stop what pi is doing', live: true },
+];
 const harnessName = id => native.find(h => h.harness === id)?.name || catalogRows.find(h => h.id === id)?.name || id;
 const isNative = id => native.some(h => h.harness === id);
 
@@ -201,7 +216,10 @@ function assistantBlock(text, error = '') {
 
 function render(item) {
   const log = $('aide-code-log');
-  if (item.kind === 'user') {
+  if (item.kind === 'user' && /^Goal: [^]*\n\nWork toward this goal/.test(item.text || '')) {
+    // a /goal from before a reload: show the card, not the instructions alles sent with it
+    render({ kind: 'goal', state: 'set', text: item.text.slice(6).split('\n\nWork toward this goal')[0] });
+  } else if (item.kind === 'user') {
     const bubble = el('div', 'acw-msg acw-user');
     bubble.textContent = item.text;
     log.append(bubble);
@@ -222,7 +240,229 @@ function render(item) {
     log.append(el('p', 'acw-msg-error', item.text));
   } else if (item.kind === 'note') {
     log.append(el('p', 'acw-note', item.text));
+  } else if (item.kind === 'context') {
+    log.append(contextCard(item));
+  } else if (item.kind === 'compacted') {
+    log.append(compactCard(item));
+  } else if (item.kind === 'goal') {
+    goal = item.state === 'cleared' ? '' : (item.text || goal);
+    log.append(goalCard(item));
+    renderGoal();
   }
+}
+
+// ── cards for /context, /compact and /goal ──
+
+const fmt = n => n == null ? '?' : n >= 1e6 ? `${(n / 1e6).toFixed(1)}m` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n);
+
+function cells(used, total, count = 50) {
+  // one cell per 2% of the window; filled ones are what's in context now
+  const grid = el('div', 'acw-cells');
+  grid.setAttribute('aria-hidden', 'true');
+  const filled = total ? Math.min(count, Math.round((used / total) * count)) : 0;
+  for (let i = 0; i < count; i++) grid.append(el('span', i < filled ? 'on' : ''));
+  return grid;
+}
+
+function contextCard(item) {
+  const card = el('section', 'acw-card acw-context');
+  card.setAttribute('aria-label', 'context');
+  const head = el('div', 'acw-card-head');
+  const pct = item.percent != null ? Math.round(item.percent) : null;
+  head.append(el('strong', '', 'context'), el('span', 'acw-muted', `${fmt(item.tokens)} of ${fmt(item.window)} tokens${pct != null ? ` · ${pct}%` : ''}`));
+  const rows = el('dl', 'acw-card-rows');
+  const add = (label, value) => { if (value == null || value === '') return; rows.append(el('dt', '', label), el('dd', '', String(value))); };
+  add('model', item.model);
+  add('effort', item.thinking ? levelName(item.thinking) : '');
+  add('messages', item.userMessages != null ? `${item.userMessages} from you, ${item.assistantMessages} from pi` : '');
+  add('tool calls', item.toolCalls);
+  add('tokens in', fmt(item.input));
+  add('tokens out', fmt(item.output));
+  add('read from cache', fmt(item.cache_read));
+  if (item.cost) add('cost', `$${Number(item.cost).toFixed(item.cost < 1 ? 3 : 2)}`);
+  card.append(head, cells(item.tokens || 0, item.window || 0), rows);
+  return card;
+}
+
+function compactCard(item) {
+  const card = el('section', 'acw-card acw-compacted');
+  card.setAttribute('aria-label', 'context compacted');
+  const head = el('div', 'acw-card-head');
+  head.append(el('strong', '', 'compacted'), el('span', 'acw-muted', `${fmt(item.before)} → ${fmt(item.after)} tokens`));
+  const bars = el('div', 'acw-compact-bars');
+  bars.setAttribute('aria-hidden', 'true');
+  const top = Math.max(item.before || 0, item.window || 0, 1);
+  for (const [label, value] of [['before', item.before], ['after', item.after]]) {
+    const bar = el('div', 'acw-bar');
+    const fill = el('span');
+    fill.style.width = `${Math.max(1, Math.round(((value || 0) / top) * 100))}%`;
+    bar.append(el('small', '', label), fill);
+    bars.append(bar);
+  }
+  card.append(head, bars);
+  if (item.summary) {
+    const more = el('details', 'acw-card-more');
+    more.append(el('summary', '', 'what pi kept'), el('p', '', item.summary));
+    card.append(more);
+  }
+  return card;
+}
+
+function goalCard(item) {
+  const card = el('section', 'acw-card acw-goal-card');
+  card.setAttribute('aria-label', 'goal');
+  const words = { set: 'goal set', cleared: 'goal cleared', none: 'no goal yet', shown: 'goal' }[item.state] || 'goal';
+  card.append(el('strong', '', words));
+  if (item.text) card.append(el('p', '', item.text));
+  else if (item.state === 'none') card.append(el('p', 'acw-muted', 'type /goal and what you want done'));
+  return card;
+}
+
+function renderGoal() {
+  const bar = $('aide-code-goal');
+  bar.hidden = !goal;
+  $('aide-code-goal-text').textContent = goal;
+}
+
+// ── effort ──
+
+function effortLevels() {
+  const using = current.chatId ? (chatHarness || harness) : harness;
+  if (using !== 'pi') return [];
+  if (current.chatId && thinking.levels.length) return thinking.levels;
+  return model?.thinks ? LEVELS : [];
+}
+const currentLevel = () => (current.chatId && thinking.level) || thinkingPref || '';
+
+function renderEffortMenu() {
+  const list = $('aide-code-effort-menu');
+  list.replaceChildren();
+  for (const level of effortLevels()) {
+    const item = el('button', 'acw-menu-item');
+    item.type = 'button';
+    item.setAttribute('role', 'menuitemradio');
+    item.setAttribute('aria-checked', String(level === currentLevel()));
+    item.append(el('span', '', levelName(level)));
+    item.addEventListener('click', () => { effortMenu.close(); void setEffort(level); });
+    list.append(item);
+  }
+}
+
+async function setEffort(level) {
+  if (!effortLevels().includes(level)) { setError(`pi can't use "${level}" with this model`); return; }
+  try {
+    const data = await send_('PUT', '/api/aide/code/thinking', { level, project_id: current.projectId, chat_id: current.chatId });
+    thinkingPref = level;
+    if (data.live) thinking = { level: data.level, levels: data.levels || thinking.levels };
+    updateComposer();
+  } catch (error) { setError(error.message); }
+}
+
+async function loadChatState() {
+  // effort levels and pi's own commands for the running chat
+  if (!current.chatId) return;
+  const { projectId, chatId } = current;
+  try {
+    const data = await api(chatPath(projectId, chatId));
+    if (current.chatId !== chatId) return;
+    thinking = data.thinking?.levels ? data.thinking : thinking;
+    const items = data.live ? (await api(`${chatPath(projectId, chatId)}/commands`)).items || [] : [];
+    if (current.chatId === chatId) piCommands = items;
+  } catch { /* the menu still has alles's own commands */ }
+  updateComposer();
+}
+
+// ── / menu ──
+
+function slashMatches(query) {
+  const all = [...BUILTINS, ...piCommands.filter(c => !BUILTINS.some(b => b.name === c.name))];
+  const q = query.toLowerCase();
+  const hits = all.filter(c => !q || c.name.toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q));
+  return hits.sort((a, b) => Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q)));
+}
+
+function slashQuery() {
+  const input = $('aide-code-input');
+  const value = input.value;
+  if (!value.startsWith('/') || /\s/.test(value) || input.selectionStart !== value.length) return null;
+  return value.slice(1);
+}
+
+function renderSlash() {
+  const box = $('aide-code-slash');
+  const input = $('aide-code-input');
+  const query = slashQuery();
+  slashItems = query == null ? [] : slashMatches(query);
+  if (!slashItems.length) { closeSlash(); return; }
+  slashIndex = Math.min(slashIndex, slashItems.length - 1);
+  box.replaceChildren(...slashItems.map((command, index) => {
+    const row = el('div', 'slash-item acw-slash-item');
+    row.id = `aide-code-slash-${index}`;
+    row.setAttribute('role', 'option');
+    row.setAttribute('aria-selected', String(index === slashIndex));
+    row.classList.toggle('selected', index === slashIndex);
+    const name = el('span', 'slash-cmd');
+    name.append(el('span', 'slash-name', `/${command.name}`));
+    if (command.args) name.append(el('span', 'slash-args', command.args));
+    row.append(name, el('span', 'slash-desc', command.description || ''));
+    if (command.source) row.append(el('span', 'acw-slash-source', command.source === 'prompt' ? 'template' : command.source));
+    row.addEventListener('mousedown', event => { event.preventDefault(); slashIndex = index; pickSlash(true); });
+    return row;
+  }));
+  box.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+  input.setAttribute('aria-activedescendant', `aide-code-slash-${slashIndex}`);
+  box.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
+}
+
+function closeSlash() {
+  const box = $('aide-code-slash');
+  box.hidden = true; box.replaceChildren(); slashItems = []; slashIndex = 0;
+  $('aide-code-input').setAttribute('aria-expanded', 'false');
+  $('aide-code-input').removeAttribute('aria-activedescendant');
+}
+
+function pickSlash(run) {
+  const command = slashItems[slashIndex];
+  if (!command) return;
+  const input = $('aide-code-input');
+  closeSlash();
+  if (run && !command.args) { input.value = `/${command.name}`; $('aide-code-form').requestSubmit(); return; }
+  input.value = `/${command.name} `;
+  autosizeTextarea(input); input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  updateComposer();
+}
+
+function onSlashKey(event) {
+  if ($('aide-code-slash').hidden) return false;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    slashIndex = (slashIndex + (event.key === 'ArrowDown' ? 1 : -1) + slashItems.length) % slashItems.length;
+    renderSlash();
+  } else if (event.key === 'Tab') { event.preventDefault(); pickSlash(false); }
+  else if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); pickSlash(true); }
+  else if (event.key === 'Escape') { event.preventDefault(); closeSlash(); }
+  else return false;
+  return true;
+}
+
+// commands alles runs in the browser; true when the text was one
+function localCommand(text) {
+  const [name, ...rest] = text.split(/\s+/);
+  const arg = rest.join(' ').trim();
+  const needsChat = BUILTINS.find(b => `/${b.name}` === name)?.live;
+  if (needsChat && !current.chatId) { setError(`${name} works once a chat has started`); return true; }
+  if (name === '/new') { startChat(current.projectId); return true; }
+  if (name === '/model') { $('aide-code-model').click(); return true; }
+  if (name === '/stop') { $('aide-code-stop').click(); return true; }
+  if (name === '/effort') {
+    if (arg) void setEffort(arg.toLowerCase().replace(/\s+/g, '') === 'extrahigh' ? 'xhigh' : arg.toLowerCase());
+    else if (!$('aide-code-effort').hidden) $('aide-code-effort').click();
+    else setError('this model has no effort levels');
+    return true;
+  }
+  return false;
 }
 
 function setBusy(value) {
@@ -329,6 +569,10 @@ async function openChat(projectId, chatId, { keepScroll = false } = {}) {
     harnessModels = data.harness_models ? data.harness_models.map(m => ({ ...m, selected: m.model === data.model?.model })) : null;
     if (data.model?.model && isNative(chatHarness)) pickModel(models.find(m => m.model === data.model.model && (!data.model.endpoint_id || m.endpoint_id === data.model.endpoint_id)) || model, { remote: false });
     renderStats(data.stats);
+    thinking = data.thinking?.levels ? data.thinking : { level: '', levels: [] };
+    goal = data.goal || '';
+    piCommands = [];
+    if (data.live) void loadChatState();
     setBusy(data.busy);
     renderQuestion(data.questions?.[0] || null);
     if (data.live) follow(projectId, chatId, data.seq);
@@ -342,6 +586,7 @@ function startChat(projectId) {
   closeLive();
   current = { projectId, chatId: '' };
   chatHarness = ''; harnessModels = null;
+  thinking = { level: '', levels: [] }; goal = ''; piCommands = [];
   expanded.add(projectId);
   renderRail();
   resetLog();
@@ -362,7 +607,7 @@ function updateComposer() {
   const state = nativeUse ? native.find(h => h.harness === using)?.state : 'ready';
   const ready = state === 'ready' && (!nativeUse || !!model) && !!row;
   input.disabled = !row;
-  input.placeholder = row ? `ask ${harnessName(using)} to work in ${row.name} · ||wrap|| keys to hide them` : 'pick a project first';
+  input.placeholder = row ? `ask ${harnessName(using)} to work in ${row.name}` : 'pick a project first';
   $('aide-code-send').disabled = !ready || sending || !input.value.trim();
   // omp and pi use alles's models; an ACP harness brings its own list, if it shares one
   const acpModels = !nativeUse ? harnessModels || [] : null;
@@ -370,6 +615,11 @@ function updateComposer() {
     : (acpModels.find(m => m.selected)?.name || (acpModels.length ? 'model' : 'its own model'));
   $('aide-code-model').disabled = nativeUse ? !models.length : !acpModels.length;
   $('aide-code-harness-label').textContent = harnessName(using);
+  const levels = effortLevels();
+  $('aide-code-effort').hidden = levels.length < 2;
+  $('aide-code-effort-label').textContent = levelName(currentLevel()) || 'effort';
+  $('aide-code-effort').title = 'how hard pi thinks';
+  renderGoal();
   $('aide-code-harness').title = current.chatId ? 'start a new chat to use another harness' : 'harness for new chats';
   $('aide-code-harness').disabled = !!current.chatId;
   const hint = nativeUse && !models.length ? `add a model with an api key in settings → models to code with ${harnessName(using)}`
@@ -383,7 +633,9 @@ async function send(event) {
   const input = $('aide-code-input');
   const text = input.value.trim();
   if (!text || sending || $('aide-code-send').disabled) return;
-  sending = true; updateComposer(); setError();
+  setError();
+  if (text.startsWith('/') && localCommand(text)) { input.value = ''; autosizeTextarea(input); closeSlash(); updateComposer(); return; }
+  sending = true; updateComposer();
   const { projectId, chatId } = current;
   const choice = model && isNative(chatId ? chatHarness : harness) ? { endpoint_id: model.endpoint_id, model: model.model } : {};
   try {
@@ -397,6 +649,7 @@ async function send(event) {
       $('aide-code-title').textContent = (chats.get(projectId) || []).find(chat => chat.id === made.chat_id)?.title || 'chat';
       $('aide-code-delete').hidden = false;
       follow(projectId, made.chat_id, made.seq - 1);
+      void loadChatState();
     } else {
       const sent = await post(`${chatPath(projectId, chatId)}/messages`, { text, ...choice });
       input.value = ''; autosizeTextarea(input);
@@ -414,6 +667,7 @@ function pickModel(choice, { remote = true } = {}) {
   updateComposer();
   if (!remote || !current.chatId || !model) return;
   post(`${chatPath(current.projectId, current.chatId)}/model`, { endpoint_id: model.endpoint_id, model: model.model })
+    .then(() => loadChatState())
     .catch(error => setError(error.message));
 }
 
@@ -659,6 +913,7 @@ async function loadStatus() {
   const data = await api('/api/aide/code/status');
   pi = data.pi; models = data.models || []; native = data.native || [];
   harness = data.settings?.harness || 'pi'; approval = data.settings?.approval || 'auto';
+  thinkingPref = data.settings?.thinking || '';
   if (!model || !models.some(m => m.endpoint_id === model.endpoint_id && m.model === model.model)) model = data.default || models[0] || null;
   piLine(); renderModelMenu(); updateComposer();
   clearTimeout(installTimer);
@@ -706,8 +961,10 @@ function markup() {
           <form id="aide-code-form" class="acw-composer">
             <div id="aide-code-question" class="acw-question" role="group" aria-label="pi is asking" hidden></div>
             <p id="aide-code-hint" class="acw-muted" hidden></p>
+            <div id="aide-code-goal" class="acw-goal" hidden><span class="acw-goal-label">goal</span><span id="aide-code-goal-text"></span><button type="button" id="aide-code-goal-clear" class="acw-action">clear</button></div>
+            <div id="aide-code-slash" class="slash-popup acw-slash" role="listbox" aria-label="commands" hidden></div>
             <div class="acw-entry">
-              <textarea id="aide-code-input" rows="1" maxlength="50000" data-kokuen-entry="autogrow" aria-label="message pi"></textarea>
+              <textarea id="aide-code-input" rows="1" maxlength="50000" data-kokuen-entry="autogrow" aria-label="message pi" role="combobox" aria-autocomplete="list" aria-controls="aide-code-slash" aria-expanded="false"></textarea>
               <div class="acw-entry-foot">
                 <div class="acw-model acw-harness">
                   <button type="button" id="aide-code-harness" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-harness-menu"><span id="aide-code-harness-label">pi</span>${icon('chevron')}</button>
@@ -716,6 +973,10 @@ function markup() {
                 <div class="acw-model">
                   <button type="button" id="aide-code-model" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-model-menu"><span id="aide-code-model-label">no coding model</span>${icon('chevron')}</button>
                   <div id="aide-code-model-menu" class="acw-menu acw-menu-up" role="menu" aria-label="coding model" hidden></div>
+                </div>
+                <div class="acw-model">
+                  <button type="button" id="aide-code-effort" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-effort-menu" hidden><span id="aide-code-effort-label">effort</span>${icon('chevron')}</button>
+                  <div id="aide-code-effort-menu" class="acw-menu acw-menu-up" role="menu" aria-label="effort" hidden></div>
                 </div>
                 <span id="aide-code-stats" class="acw-stats"></span>
                 <span id="aide-code-status" class="acw-muted" role="status"></span>
@@ -736,10 +997,20 @@ export function initAideCodingWorkspace() {
   host.innerHTML = markup();
   const input = $('aide-code-input');
   wireAutosizeTextarea(input);
-  input.addEventListener('input', updateComposer);
+  input.addEventListener('input', () => { slashIndex = 0; renderSlash(); updateComposer(); });
+  input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) closeSlash(); }, 0));
   input.addEventListener('keydown', event => {
-    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); $('aide-code-form').requestSubmit(); }
+    if (event.isComposing || onSlashKey(event)) return;
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); $('aide-code-form').requestSubmit(); }
   });
+  effortMenu = createMenuController($('aide-code-effort-menu'), { onClose: () => $('aide-code-effort').setAttribute('aria-expanded', 'false') });
+  $('aide-code-effort').addEventListener('click', event => {
+    if (!$('aide-code-effort-menu').hidden) { effortMenu.close(); return; }
+    renderEffortMenu();
+    $('aide-code-effort').setAttribute('aria-expanded', 'true');
+    effortMenu.open({ source: event.currentTarget });
+  });
+  $('aide-code-goal-clear').addEventListener('click', () => { input.value = '/goal clear'; $('aide-code-form').requestSubmit(); });
   $('aide-code-form').addEventListener('submit', send);
   $('aide-code-stop').addEventListener('click', async () => {
     try { await post(`${chatPath(current.projectId, current.chatId)}/stop`); } catch (error) { setError(error.message); }
@@ -830,6 +1101,7 @@ export function closeAideCodingWorkspace() {
   ++version; if (host) host.hidden = true;
   closeLive(); clearTimeout(installTimer);
   menu?.close({ restoreFocus: false }); projectMenu?.close({ restoreFocus: false });
+  effortMenu?.close({ restoreFocus: false }); closeSlash();
 }
 
 // older entry points from the Aide task tools

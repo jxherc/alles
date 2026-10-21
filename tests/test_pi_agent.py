@@ -424,12 +424,16 @@ class HarnessCatalogTest(PiTest):
     def test_default_harness_setting(self):
         self.add_endpoint()
         status = self.client.get("/api/aide/code/status").json()
-        self.assertEqual(status["settings"], {"harness": "pi", "approval": "auto", "guard": True})
+        self.assertEqual(
+            status["settings"], {"harness": "pi", "approval": "auto", "guard": True, "thinking": ""}
+        )
         self.assertEqual([n["harness"] for n in status["native"]], ["pi", "omp"])
         changed = self.client.put(
             "/api/aide/code/settings", json={"harness": "omp", "approval": "ask"}
         )
-        self.assertEqual(changed.json(), {"harness": "omp", "approval": "ask", "guard": True})
+        self.assertEqual(
+            changed.json(), {"harness": "omp", "approval": "ask", "guard": True, "thinking": ""}
+        )
         unknown = self.client.put("/api/aide/code/settings", json={"harness": "nope"})
         self.assertEqual(unknown.status_code, 404)
         self.client.put("/api/aide/code/settings", json={"harness": "pi"})
@@ -510,6 +514,66 @@ class CodeRoutesTest(PiTest):
         )
         self.assertEqual(reply.status_code, 409)
         self.assertEqual(reply.json()["code"], "coding_model_missing")
+
+
+class EffortAndCommandsTest(PiTest):
+    def test_reasoning_models_are_marked_for_pi(self):
+        self.add_endpoint(models=["coder-thinking", "gemini-3.8-flash-high", "gpt-4o"])
+        with self.db() as session:
+            config, _, choices = pi_agent.model_config(session)
+        listed = next(iter(config["providers"].values()))["models"]
+        self.assertEqual([m.get("reasoning", False) for m in listed], [True, True, False])
+        self.assertEqual([c["thinks"] for c in choices], [True, True, False])
+
+    def test_effort_commands_context_compact_and_goal(self):
+        self.add_endpoint(models=["coder-thinking"])
+        project = SimpleNamespace(id="proj1", path=str(self.project_dir))
+
+        async def flow():
+            with self.db() as session:
+                choice = pi_agent.resolve_choice(session)
+                chat = await pi_agent.open_chat(session, project, None, choice)
+            first = dict(chat.thinking)
+            picked = await chat.set_thinking("high")
+            names = [c["name"] for c in await chat.commands()]
+            for text in ["/compact the tests", "/context", "/goal ship the header"]:
+                self.assertIsNotNone(await chat.builtin(text))
+            goal = pi_agent.load_goal(chat.id)
+            await chat.builtin("/goal clear")
+            plain = await chat.builtin("fix it")  # not a command: pi gets it as is
+            await chat.close()
+            return first, picked, names, chat.log, goal, plain, chat.id
+
+        first, picked, names, log, goal, plain, chat_id = asyncio.run(flow())
+        self.assertEqual(
+            first, {"level": "medium", "levels": ["off", "minimal", "low", "medium", "high"]}
+        )
+        self.assertEqual(picked["level"], "high")
+        self.assertEqual(names, ["fix-tests"])  # alles's own bridge command stays hidden
+        kinds = {e["kind"]: e for e in log if e["kind"] in ("compacted", "context")}
+        self.assertEqual((kinds["compacted"]["before"], kinds["compacted"]["after"]), (9000, 1200))
+        self.assertEqual(kinds["compacted"]["summary"], "kept: the tests")
+        self.assertEqual((kinds["context"]["tokens"], kinds["context"]["window"]), (4000, 100000))
+        self.assertEqual([e["state"] for e in log if e["kind"] == "goal"], ["set", "cleared"])
+        self.assertEqual((goal, pi_agent.load_goal(chat_id)), ("ship the header", ""))
+        self.assertIsNone(plain)
+        # the goal went to pi as work, without a user bubble of the instructions
+        self.assertFalse(any(e["kind"] == "user" for e in log))
+
+    def test_effort_route_saves_the_level_new_chats_start_with(self):
+        from core.settings import save_settings
+
+        self.addCleanup(save_settings, {"coding_thinking": ""})
+        bad = self.client.put("/api/aide/code/thinking", json={"level": "ludicrous"})
+        self.assertEqual(bad.status_code, 422)
+        saved = self.client.put("/api/aide/code/thinking", json={"level": "low"}).json()
+        self.assertEqual((saved["level"], saved["live"]), ("low", False))
+        self.assertEqual(pi_agent.settings()["thinking"], "low")
+        project = self.client.post(
+            "/api/aide/code/projects", json={"path": str(self.project_dir)}
+        ).json()
+        idle = self.client.get(f"/api/aide/code/projects/{project['id']}/chats/nope/commands")
+        self.assertEqual(idle.json(), {"items": []})
 
 
 if __name__ == "__main__":

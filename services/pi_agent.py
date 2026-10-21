@@ -70,6 +70,21 @@ def sessions_dir(project_id: str, harness: str = "pi") -> Path:
 
 
 EXTENSION = Path(__file__).parent / "pi_ext" / "alles.ts"
+THINKING_LEVELS = ("off", "minimal", "low", "medium", "high", "xhigh", "max")
+# pi only offers effort levels for a model models.json marks as reasoning, so mark the ones that
+# think. a guess from the name; pi clamps a level the model doesn't take
+_THINKS = re.compile(
+    r"(^|[^a-z0-9])(o1|o3|o4)([^a-z0-9]|$)|gpt-5|gpt5|gemini-(2\.5|[3-9])|deepseek-(r1|reasoner|v3\.[1-9]|v[4-9])"
+    r"|qwen3|qwq|thinking|reason|kimi-k2|glm-(4\.[5-9]|[5-9])|grok-(3-mini|[4-9])|minimax-m|magistral"
+)
+
+
+def thinks(model: str) -> bool:
+    name = (model or "").lower().split("/")[-1]
+    if "claude" in name:
+        return not re.search(r"claude-(instant|2|3-5|3\.5|3-(opus|sonnet|haiku))", name)
+    return bool(_THINKS.search(name))
+
 
 # replaces pi's default prompt. kept short on purpose: every token here is paid on every request
 SYSTEM_PROMPT = """You are pi, a coding agent on the owner's machine, working in the current folder through alles.
@@ -92,6 +107,10 @@ def settings() -> dict:
         "harness": harness,
         "approval": saved.get("coding_approval") or "auto",
         "guard": saved.get("coding_guard", True) is not False,
+        # effort new pi chats start with; "" leaves pi's own default
+        "thinking": saved.get("coding_thinking")
+        if saved.get("coding_thinking") in THINKING_LEVELS
+        else "",
     }
 
 
@@ -276,7 +295,7 @@ def model_config(db) -> tuple[dict, dict, list[dict]]:
             "baseUrl": base,
             "api": api,
             "apiKey": "$" + key_var,
-            "models": [{"id": m} for m in models],
+            "models": [{"id": m, **({"reasoning": True} if thinks(m) else {})} for m in models],
         }
         choices += [
             {
@@ -284,6 +303,7 @@ def model_config(db) -> tuple[dict, dict, list[dict]]:
                 "endpoint": endpoint.name,
                 "model": m,
                 "provider": provider,
+                "thinks": thinks(m),
             }
             for m in models
         ]
@@ -514,6 +534,24 @@ def _clean_env(keys: dict, harness: str = "pi") -> dict:
     return env
 
 
+def _goal_file(chat_id: str) -> Path:
+    return home() / "goals" / f"{re.sub(r'[^A-Za-z0-9_-]', '', chat_id)}.txt"
+
+
+def load_goal(chat_id: str) -> str:
+    path = _goal_file(chat_id)
+    return path.read_text(encoding="utf-8").strip() if chat_id and path.is_file() else ""
+
+
+def save_goal(chat_id: str, text: str) -> None:
+    path = _goal_file(chat_id)
+    if not text:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text[:4000], encoding="utf-8")
+
+
 def _secrets_file(chat_id: str) -> Path:
     return home() / "secrets" / f"{chat_id}.json"
 
@@ -592,6 +630,8 @@ class PiChat:
         self._speeds: list[float] = []
         self._reader = None
         self._tasks: set[asyncio.Task] = set()
+        # pi's effort for this chat and the levels its model takes
+        self.thinking: dict = {"level": "", "levels": []}
 
     # process
 
@@ -606,6 +646,8 @@ class PiChat:
             args += ["--provider", self.choice["provider"], "--model", self.choice["model"]]
             # no auto-discovered skills (they cost tens of thousands of tokens a request)
             args += ["--no-skills", "--extension", str(EXTENSION)]
+            if settings()["thinking"] and chat_file is None:
+                args += ["--thinking", settings()["thinking"]]
             if chat_file is not None:
                 args += ["--session", str(chat_file)]
                 head = next((e for e in _entries(chat_file)[:3] if e.get("type") == "session"), {})
@@ -642,6 +684,7 @@ class PiChat:
         _chats[self.id] = self
         if self._bridge:
             _bridge_tokens[self._bridge] = self.id
+        await self.load_thinking()
 
     async def close(self) -> None:
         proc = self.proc
@@ -799,7 +842,12 @@ class PiChat:
             "output_tokens": tokens.get("output") or 0,
             "cache_read_tokens": tokens.get("cacheRead") or 0,
             "context_percent": usage.get("percent"),
+            "context_tokens": usage.get("tokens"),
+            "context_window": usage.get("contextWindow"),
             "cost": data.get("cost") or 0,
+        }
+        self._counts = {
+            k: data.get(k) or 0 for k in ("userMessages", "assistantMessages", "toolCalls")
         }
         self.emit({"kind": "stats", **self.stats})
 
@@ -841,7 +889,7 @@ class PiChat:
 
     # what the owner does
 
-    async def send(self, text: str) -> int:
+    async def send(self, text: str, echo: bool = True) -> int:
         """returns the seq of the user event, so a browser can follow from there."""
         self.last_active = time.monotonic()
         if self.harness == "pi":
@@ -854,7 +902,8 @@ class PiChat:
                 await self.command("prompt", message=f"/alles-secret {_b64(fresh)}")
                 self.secrets.update(fresh)
                 save_secrets(self.id, self.secrets)
-        self.emit({"kind": "user", "text": text})
+        if echo:
+            self.emit({"kind": "user", "text": text})
         seq = self.seq
         if self.busy:
             await self.command("prompt", message=text, streamingBehavior="steer")
@@ -870,6 +919,100 @@ class PiChat:
     async def set_model(self, choice: dict) -> None:
         await self.command("set_model", provider=choice["provider"], modelId=choice["model"])
         self.choice = choice
+        await self.load_thinking()
+
+    async def load_thinking(self) -> dict:
+        if self.harness != "pi":
+            return self.thinking
+        with contextlib.suppress(RuntimeError, TimeoutError):
+            levels = (await self.command("get_available_thinking_levels", timeout=10)).get("levels")
+            state = await self.command("get_state", timeout=10)
+            self.thinking = {
+                "level": str(state.get("thinkingLevel") or ""),
+                "levels": [str(level) for level in levels or [] if level in THINKING_LEVELS],
+            }
+        return self.thinking
+
+    async def set_thinking(self, level: str) -> dict:
+        await self.command("set_thinking_level", level=level)
+        return await self.load_thinking()
+
+    async def commands(self) -> list[dict]:
+        """pi's extension commands and prompt templates; each runs as a "/name" prompt."""
+        if self.harness != "pi":
+            return []
+        data = await self.command("get_commands", timeout=10)
+        return [
+            {
+                "name": str(c.get("name") or ""),
+                "description": str(c.get("description") or "")[:200],
+                "source": str(c.get("source") or ""),
+            }
+            for c in data.get("commands") or []
+            # alles's own bridge commands aren't for typing
+            if c.get("name") and not str(c.get("name")).startswith("alles-")
+        ]
+
+    async def compact(self, instructions: str = "") -> None:
+        self.emit({"kind": "note", "text": "compacting the context…"})
+        fields = {"customInstructions": instructions} if instructions else {}
+        data = await self.command("compact", timeout=600, **fields)
+        await self._refresh_stats()
+        self.emit(
+            {
+                "kind": "compacted",
+                "before": data.get("tokensBefore"),
+                "after": data.get("estimatedTokensAfter"),
+                "window": self.stats.get("context_window"),
+                "summary": _short(data.get("summary") or "", 1200),
+            }
+        )
+
+    async def show_context(self) -> None:
+        await self._refresh_stats()
+        self.emit(
+            {
+                "kind": "context",
+                "tokens": self.stats.get("context_tokens"),
+                "window": self.stats.get("context_window"),
+                "percent": self.stats.get("context_percent"),
+                "input": self.stats.get("input_tokens"),
+                "output": self.stats.get("output_tokens"),
+                "cache_read": self.stats.get("cache_read_tokens"),
+                "cost": self.stats.get("cost"),
+                "model": self.choice.get("model", ""),
+                "thinking": self.thinking.get("level", ""),
+                **getattr(self, "_counts", {}),
+            }
+        )
+
+    async def builtin(self, text: str) -> int | None:
+        """alles's own / commands for a pi chat; None when the text isn't one."""
+        name, _, rest = text.strip().partition(" ")
+        rest = rest.strip()
+        first = self.seq + 1  # the browser follows from the first event this makes
+        if name == "/compact":
+            await self.compact(rest)
+        elif name == "/context":
+            await self.show_context()
+        elif name == "/goal":
+            if not rest:
+                goal = load_goal(self.id)
+                self.emit({"kind": "goal", "text": goal, "state": "shown" if goal else "none"})
+            elif rest == "clear":
+                save_goal(self.id, "")
+                self.emit({"kind": "goal", "text": "", "state": "cleared"})
+            else:
+                save_goal(self.id, rest)
+                self.emit({"kind": "goal", "text": rest, "state": "set"})
+                await self.send(
+                    f"Goal: {rest}\n\nWork toward this goal until it is done or you are blocked. "
+                    "End each reply with a short checklist: what is done, what is left.",
+                    echo=False,  # the goal card shows it
+                )
+        else:
+            return None
+        return first
 
 
 def live_chat(chat_id: str) -> PiChat | None:
