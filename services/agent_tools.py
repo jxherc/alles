@@ -1147,7 +1147,7 @@ async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
         db.close()
     queue: asyncio.Queue = asyncio.Queue()
     chat.listeners.add(queue)
-    answer, tools, changed = "", [], []
+    answer, tools, changed, docs = "", [], [], {}
     brief = (
         f"{task}\n\n"
         "(handed over by Aide, the owner's assistant in Alles.) Use the alles_ tools for anything "
@@ -1175,6 +1175,18 @@ async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
                 break
             if event["kind"] == "tool":
                 yield {"type": "output", "text": _pi_step_line(event) + "\n"}
+                if event.get("name") in (
+                    "alles_docs_write",
+                    "alles_note_write",
+                    "alles_note_append",
+                ):
+                    try:
+                        docs[event.get("id")] = json.loads(event.get("args") or "{}").get("path")
+                    except ValueError:
+                        pass
+            elif event["kind"] == "tool_done" and event.get("ok") and docs.get(event.get("id")):
+                # the answer turns this line into a card that opens the doc
+                yield {"type": "output", "text": f"  saved doc: {docs[event.get('id')]}\n"}
             elif event["kind"] == "tool_done" and not event.get("ok"):
                 yield {
                     "type": "output",

@@ -45,3 +45,8 @@ test('a saved doc gets a card that opens it; a failed write does not', () => {
   assert.match(html, /groceries/);
   assert.doesNotMatch(renderAgentSteps([{ name: 'docs_write', args: { path: 'x.md' }, error: true }]), /data-open-doc/);
 });
+
+test('docs pi saved for Aide get the same card', () => {
+  const html = renderAgentSteps([{ name: 'pi_run', args: { task: 'plan' }, output: 'pi is working in Aide\n· docs write plans/guitar.md\n  saved doc: plans/guitar.md\n' }]);
+  assert.match(html, /data-open-doc="plans\/guitar.md"/);
+});

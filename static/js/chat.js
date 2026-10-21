@@ -1,5 +1,5 @@
 import { mdToHtml, toast } from './util.js';
-import { canRevertTool, docReceipt, stepKind, stepMark } from './agentview.js';
+import { canRevertTool, docReceipt, piDocReceipts, stepKind, stepMark } from './agentview.js';
 import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown,
   showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
@@ -735,7 +735,9 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
             step.classList.remove('running');
             step.classList.toggle('error', !!t.error);
             countSteps();
-            const receipt = docReceipt(step.dataset.toolName, step._args, !!t.error);
+            const receipt = step.dataset.toolName === 'pi_run'
+              ? piDocReceipts(step.querySelector('.agent-step-output')?.textContent || t.output, !!t.error)
+              : docReceipt(step.dataset.toolName, step._args, !!t.error);
             if (receipt && agentEl) agentEl.insertAdjacentHTML('afterend', receipt);
             const status = step.querySelector('.agent-step-status');
             if (status) status.textContent = t.completed === false ? 'no final result' : t.error ? 'error' : 'done';

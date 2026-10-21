@@ -34,6 +34,11 @@ export function stepKind(name) { return KIND[name] || 'tool'; }
 
 // a saved doc gets a card that opens it, so the answer is one click from the file
 const DOC_WRITERS = new Set(['docs_write', 'note_write', 'note_append']);
+// pi's saved docs, from the "saved doc:" lines of a handed-over run
+export function piDocReceipts(output = '', error = false) {
+  if (error) return '';
+  return [...String(output).matchAll(/^\s*saved doc: (.+)$/gm)].map(m => docReceipt('docs_write', { path: m[1].trim() })).join('');
+}
 export function docReceipt(name, args = {}, error = false) {
   const path = String(args?.path || '').trim();
   if (!DOC_WRITERS.has(name) || error || !path) return '';
@@ -136,7 +141,9 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
   </span>` : '';
   const failed = steps.filter(step => step?.error).length;
   const dots = `<span class="agent-steps-dots" aria-hidden="true">${steps.slice(-24).map(step => `<span class="${step?.error ? 'failed' : 'done'}"></span>`).join('')}</span>`;
-  const receipts = steps.map(step => docReceipt(step.name || step.tool, step.args, !!step.error)).join('');
+  const receipts = steps.map(step => (step.name || step.tool) === 'pi_run'
+    ? piDocReceipts(step.output, !!step.error)
+    : docReceipt(step.name || step.tool, step.args, !!step.error)).join('');
   return `<details class="agent-steps"${open ? ' open' : ''}><summary>${detail}${failed ? ` · ${failed} failed` : ''}${dots}${controls}</summary><div class="agent-step-list">${rows}</div></details>${receipts}`;
 }
 

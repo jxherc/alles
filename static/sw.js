@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v413';   // pi keeps out of private data and approval steps say waiting in this shell revision.
+const VERSION = 'v414';   // docs pi saves get an open card in this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '566';   // keep in sync with index.html ?v= / const _v
+const STAMP = '567';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
 
 // 1b: mutating writes that should be queued when offline
