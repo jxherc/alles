@@ -207,7 +207,8 @@ class OverviewFitTest(ApiTest):
         self.assertEqual(andromeda_answers.overview_mode(detect("carbon")), "brief")
         self.assertEqual(andromeda_answers.overview_mode(detect("f1")), "brief")
         self.assertEqual(andromeda_answers.overview_mode(None, "why is the sky blue"), "full")
-        self.assertEqual(andromeda_answers.overview_mode(None, "tailscale serve"), "ask")
+        self.assertEqual(andromeda_answers.overview_mode(None, "tailscale serve"), "full")
+        self.assertEqual(andromeda_answers.overview_mode(None, "youtube"), "none")
 
     def test_shape_follows_the_query(self):
         shapes = {
@@ -562,7 +563,7 @@ class ToolRouteTest(ApiTest):
                 "/api/andromeda/search", json={"query": "tailscale serve"}
             ).json()
         self.assertEqual((tool["answer_kind"], tool["overview_mode"]), ("translate", "skip"))
-        self.assertEqual((plain["answer_kind"], plain["overview_mode"]), (None, "ask"))
+        self.assertEqual((plain["answer_kind"], plain["overview_mode"]), (None, "full"))
 
 
 class LocalDictionaryTest(ApiTest):
@@ -736,7 +737,8 @@ class StreamedOverviewTest(ApiTest):
         modes = {
             "why is the sky blue": "full",
             "best laptops for students this year": "full",
-            "tailscale serve": "ask",
+            "tailscale serve": "full",
+            '"exact phrase"': "full",
             "youtube": "none",
             "github.com/astqh": "none",
             "site:reddit.com ssh keys": "none",

@@ -237,6 +237,11 @@ function showOverview(show = true) {
   if (node) node.hidden = !show;
 }
 
+function stopOverviewLoading() {
+  const node = el('andromeda-overview');
+  if (node?.dataset) delete node.dataset.loading;
+}
+
 function clearOverview(message = '') {
   const ask = el('andromeda-overview-ask');
   if (ask) ask.hidden = true;
@@ -1720,14 +1725,11 @@ async function startOverview(query, results, searchGeneration, options = {}) {
     && searchGeneration === _searchGeneration && !controller.signal.aborted;
   showOverview(true);
   clearOverview(tr('andromeda.checking_sources'));
-  // placeholder lines until the first words stream in. the box itself stays out of sight for
-  // the first 0.7 s, so an answer that steps aside (SKIP) never flashes an empty box
+  // placeholder lines until the first words stream in, shown at once
   const overviewNode = el('andromeda-overview');
   if (overviewNode?.dataset) {
     overviewNode.dataset.loading = 'true';
-    overviewNode.dataset.quiet = 'true';
-    if (typeof setTimeout === 'function') setTimeout(() => revealOverview(overviewNode), 700);
-    else revealOverview(overviewNode);
+    revealOverview(overviewNode);
   }
   const stop = el('andromeda-cancel-overview');
   if (stop) stop.hidden = false;
@@ -1905,6 +1907,7 @@ function revealOverview(node) {
 function offerOverview(query, results, searchGeneration) {
   showOverview(true);
   clearOverview('');
+  stopOverviewLoading();
   const ask = el('andromeda-overview-ask');
   if (!ask) return;
   ask.hidden = false;
@@ -1962,8 +1965,14 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   const wantsOverview = currentCategory === 'all'
     && pressed('andromeda-overview-toggle')
     && !/(^|\s)!ai(?=\s|$)/i.test(query);
-  // the overview appears once the results decide whether it should answer, never as an empty box
-  showOverview(false);
+  // the overview is there from the first moment, with its loading lines; it steps aside only
+  // when the results say a card already answers or the search is a site name or link
+  if (wantsOverview) {
+    showOverview(true);
+    clearOverview(tr('andromeda.searching'));
+    const node = el('andromeda-overview');
+    if (node?.dataset) node.dataset.loading = 'true';
+  } else showOverview(false);
   status(tr('andromeda.searching'));
   const request = {
     query,
@@ -1997,21 +2006,22 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     else if (result.status === 'error') status(failureMessage(tr('andromeda.search_failed'), result));
     else status('');
     if (currentCategory === 'all' && result.overview_requested && _state.overviewSeed.length) {
-      // when to answer on its own (blackout's rule): questions and longer searches yes; site names,
-      // links and errands never; anything else offers one button. a tool that answers the query
-      // fully comes first, but a lookup that came up short doesn't count
+      // the overview answers on its own; site names, links and errands get none. a tool card that
+      // answers the query fully comes first, but a lookup that came up short doesn't count
       const mode = result.overview_mode || 'full';
       const covered = mode === 'skip' && answerCovers(await answerReady);
       if (searchGeneration !== _searchGeneration) return;
-      if (mode === 'none') showOverview(false);
+      if (mode === 'none') { stopOverviewLoading(); showOverview(false); }
       else if (covered || mode === 'ask') offerOverview(result.query, _state.overviewSeed, searchGeneration);
       else await startOverview(result.query, _state.overviewSeed, searchGeneration);
     } else if (currentCategory === 'all' && result.status === 'error' && result.overview_requested) {
       showOverview(true);
+      stopOverviewLoading();
       text('andromeda-overview-state', failureMessage(tr('andromeda.no_overview_sources'), result));
       showRecovery(true, result.failure_type || 'search_failed');
     } else if (currentCategory === 'all' && result.overview_requested) {
       showOverview(true);
+      stopOverviewLoading();
       text('andromeda-overview-state', tr('andromeda.no_safe_sources'));
       showRecovery(true, 'no_sources');
     } else {

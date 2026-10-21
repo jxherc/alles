@@ -890,24 +890,19 @@ _NAV_SITES = set(
 _NAV_WORDS = re.compile(r"\b(?:log ?in|sign ?in|download|near me|lyrics|torrent|login)\b", re.I)
 _OPERATOR = re.compile(r"\b(?:site|inurl|intitle|filetype|ext|cache|related):", re.I)
 _DOMAIN = re.compile(r"^(?:https?://)?[\w-]+(?:\.[\w-]+)+(?:/\S*)?$", re.I)
-_QUESTION_START = re.compile(
-    r"^(?:what|how|why|when|where|who|whom|whose|which|is|are|was|were|can|could|should|would|"
-    r"will|do|does|did|has|have|explain|tell me|compare|difference)\b",
-    re.I,
-)
 
 
 def overview_mode(found: dict | None, query: str = "") -> str:
-    """when the ai answer runs, the way blackout for startpage decides it:
+    """when the ai answer runs. it answers on its own by default:
 
-    skip: a tool answers fully, the overview waits to be asked. brief: a short one beside the
-    card. none: site names, links, operators and errands get no overview at all. full: questions
-    and longer searches answer on their own. ask: everything else offers it with one button."""
+    skip: a tool answers fully (a sum, a conversion, a translation), the overview waits to be
+    asked. brief: a short one beside the card. none: site names, links, operators and errands
+    get no overview at all. full: every other search."""
     if found:
         return "skip" if found["kind"] in _ANSWERS_FULLY else "brief"
     text = re.sub(r"\s+", " ", str(query or "").strip())
     if not text:
-        return "ask"
+        return "full"
     words = text.lower().split(" ")
     if (
         _OPERATOR.search(text)
@@ -916,16 +911,7 @@ def overview_mode(found: dict | None, query: str = "") -> str:
         or (len(words) <= 2 and all(word in _NAV_SITES for word in words))
     ):
         return "none"
-    if text.startswith('"') and text.endswith('"'):
-        return "ask"
-    if (
-        _QUESTION_START.match(text)
-        or text.endswith("?")
-        or _COMPARE.search(text)
-        or len(words) >= 5
-    ):
-        return "full"
-    return "ask"
+    return "full"
 
 
 _STEPS = re.compile(
