@@ -4,6 +4,7 @@ import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { toast, mdToHtml } from './util.js';
 import { wireAutosizeTextarea, autosizeTextarea } from './text_entry.js';
 import { createMenuController } from './kokuen.js';
+import { formatDate } from './i18n.js';
 
 const $ = id => document.getElementById(id);
 const icons = {
@@ -118,7 +119,7 @@ function ago(stamp) {
   if (s < 3600) return `${Math.floor(s / 60)}m`;
   if (s < 86400) return `${Math.floor(s / 3600)}h`;
   if (s < 604800) return `${Math.floor(s / 86400)}d`;
-  return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return formatDate(new Date(t), { month: 'short', day: 'numeric' });
 }
 const isAideFolder = row => /\/Alles\/Aide$/.test(row?.path || '');
 

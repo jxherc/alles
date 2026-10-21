@@ -37,6 +37,7 @@
     "static/js/habits.js": "health.logs-and-habits",
     "static/js/health.js": "health.logs-and-habits",
     "static/js/help.js": "cross-feature.shared-shell",
+    "static/js/whatsnew.js": "cross-feature.shared-shell",
     "static/js/imgeditor.js": "files-photos.locations-and-media",
     "static/js/journal.js": "docs.documents-and-journal",
     "static/js/mail.js": "inbox.mail-and-contacts",

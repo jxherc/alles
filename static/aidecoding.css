@@ -202,7 +202,7 @@
 .acw-ring-fill { stroke: var(--k-soft); stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: calc(100 - var(--pct, 0)); transition: stroke-dashoffset 600ms cubic-bezier(.2, .8, .2, 1), stroke 300ms ease; }
 .acw-ring[data-level="mid"] .acw-ring-fill { stroke: var(--k-permission, #d5a265); }
 .acw-ring[data-level="high"] .acw-ring-fill { stroke: var(--k-danger); }
-.acw-ring-text { position: absolute; inset: auto 0 -10px; font-size: 9px; text-align: center; font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 120ms ease; }
+.acw-ring-text { position: absolute; inset: auto 0 -10px; font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 120ms ease; }
 .acw-ring:hover .acw-ring-text, .acw-ring:focus-visible .acw-ring-text { opacity: 1; }
 
 /* the box breathes once when pi finishes; while it works its edge carries a moving light */
@@ -380,10 +380,10 @@
 /* the rail: a folder mark per project, Aide's own folder named as such, and each chat with when
    it was last touched (and "from Aide" when Aide handed it over); a dot breathes while pi works */
 .acw-project-toggle svg + svg { color: var(--k-muted); }
-.acw-project-tag { flex: 0 0 auto; margin-left: auto; color: var(--k-muted); font-size: 11px; }
+.acw-project-tag { flex: 0 0 auto; margin-left: auto; color: var(--k-muted); font-size: 12px; }
 #aide-coding-workspace .acw-chat { min-height: 48px; align-items: center; }
 .acw-chat-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
-.acw-chat-meta { color: var(--k-muted); font-size: 11px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acw-chat-meta { color: var(--k-muted); font-size: 12px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acw-chat-meta:empty { display: none; }
 .acw-chat-live { flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--k-active, #9298ff); animation: acw-breathe 1s ease-in-out infinite; }
 #aide-coding-workspace .acw-chat-new { min-height: var(--k-control); }

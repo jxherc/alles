@@ -152,7 +152,7 @@ class ManifestTests(ApiTest):
 
     def test_styles_use_network_first_cache_updates(self):
         worker = (STATIC / "sw.js").read_text(encoding="utf-8")
-        self.assertIn("const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];", worker)
+        self.assertIn("const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];", worker)
         self.assertIn(
             "NETWORK_FIRST_STATIC.some(ext => url.pathname.endsWith(ext))",
             worker,
