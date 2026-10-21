@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v403';   // imessage sets itself up and lets your number through in this shell revision.
+const VERSION = 'v404';   // photon buttons keep their outline in this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '556';   // keep in sync with index.html ?v= / const _v
+const STAMP = '557';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css'];
 
 // 1b: mutating writes that should be queued when offline

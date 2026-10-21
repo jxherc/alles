@@ -126,6 +126,35 @@ class PhotonTest(ApiTest):
         self.assertEqual(self.sent[-1], ("chat-1", "your week looks clear"))
         self.assertNotIn(run_id, photon_channel._runs)
 
+    def test_a_tool_waiting_for_your_ok_is_texted_once(self):
+        from datetime import UTC, datetime, timedelta
+
+        from core.database import DelegatedAction
+
+        asyncio.run(photon_channel.handle_message(self.message("testing")))
+        run_id = next(iter(photon_channel._runs))
+        with self.db() as db:
+            run = db.get(JarvisRun, run_id)
+            db.add(
+                DelegatedAction(
+                    origin="aide",
+                    session_id=run.session_id,
+                    scope_kind="general",
+                    capability="shell",
+                    action="shell",
+                    target="Project shell",
+                    exact_hash="a" * 64,
+                    pending_key="a" * 64,
+                    state="pending",
+                    expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=10),
+                )
+            )
+            db.commit()
+        self.run_watch_once()
+        self.run_watch_once()
+        asks = [t for _, t in self.sent if "needs your ok in Aide: shell" in t]
+        self.assertEqual(len(asks), 1)
+
     def test_settings_need_an_owner_and_never_return_the_secret(self):
         bad = self.client.put(
             "/api/aide/channels/photon", json={"enabled": True, "project_id": "p"}

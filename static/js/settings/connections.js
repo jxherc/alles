@@ -894,7 +894,6 @@ function _renderPhotonLogin(data) {
   const busy = ['starting', 'waiting', 'finishing'].includes(login.state);
   button.disabled = busy;
   button.textContent = data.has_secret ? 'reconnect Photon' : 'connect with Photon';
-  button.classList.toggle('primary', !data.has_secret);
   note.replaceChildren();
   if (login.state === 'waiting' && login.url) {
     note.append('approve in Photon with code ');

@@ -291,7 +291,7 @@ async def _maybe_answer(space: str, text: str) -> bool:
 
 async def _watch_runs() -> None:
     """send each run's answer when it ends, and its questions while it waits."""
-    from core.database import JarvisRun, JarvisRunPrompt, SessionLocal
+    from core.database import DelegatedAction, JarvisRun, JarvisRunPrompt, SessionLocal
     from services.jarvis_store import json_value
 
     while True:
@@ -326,6 +326,26 @@ async def _watch_runs() -> None:
                             f"this needs your ok in Aide: {prompt.action or prompt.question}. "
                             "approvals only happen inside alles, not over text.",
                         )
+                # tool approvals (shell, file writes...) wait on the conversation, not as a run
+                # prompt, so look for them by the run's conversation too
+                for action in (
+                    db.query(DelegatedAction)
+                    .filter(
+                        DelegatedAction.session_id == run.session_id,
+                        DelegatedAction.state == "pending",
+                        DelegatedAction.created_at >= run.created_at,
+                    )
+                    .all()
+                ):
+                    if action.id in info["told"]:
+                        continue
+                    info["told"].add(action.id)
+                    await _typing(info["space"], False)
+                    await reply(
+                        info["space"],
+                        f"this needs your ok in Aide: {action.action}. "
+                        "approvals only happen inside alles, not over text.",
+                    )
                 if run.state in DONE:
                     await _typing(info["space"], False)
                     text = (run.result_summary or "").strip() if run.state == "succeeded" else ""
