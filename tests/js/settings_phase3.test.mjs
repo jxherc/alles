@@ -18,15 +18,11 @@ test('settings always opens with ctrl or cmd comma', () => {
 test('settings is one accessible home reached from the universal shell', () => {
   const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
   for (const label of [
-    'general &amp; appearance',
-    'aide &amp; chat behavior',
-    'models &amp; providers',
-    'personal context',
-    'connections &amp; mcp',
-    'privacy &amp; security',
-    'notifications &amp; language',
-    'server, backups &amp; data',
-  ]) assert.equal(html.includes(label), true, `missing settings group: ${label}`);
+    'you',
+    'aide',
+    'connections',
+    'this alles',
+  ]) assert.equal(html.includes(`<div class="s-nav-group">${label}</div>`), true, `missing settings group: ${label}`);
   assert.doesNotMatch(html, /id="space-profile-btn"/);
   assert.match(html, /id="app-drawer-settings"[^>]*type="button"/);
   const modal = html.match(/<[^>]+id="settings-modal"[^>]*>/)?.[0] || '';
