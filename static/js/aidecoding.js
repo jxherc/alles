@@ -294,7 +294,18 @@ function toolRow(id, name, rawArgs) {
   summary.append(mark, label, state);
   const body = el('div', 'acw-tool-body');
   if (name === 'bash' && args.command) body.append(el('pre', 'acw-term acw-term-cmd', `$ ${args.command}`));
-  if (name === 'edit' && (args.edits || args.oldText != null)) { body.append(diffView(args)); card.open = true; }
+  // an edit opens only when you ask; its line says how much changed
+  if (name === 'edit' && (args.edits || args.oldText != null)) {
+    const diff = diffView(args);
+    body.append(diff);
+    const add = diff.querySelectorAll('.acw-diff-line.add').length, del = diff.querySelectorAll('.acw-diff-line.del').length;
+    if (add || del) {
+      const stat = el('span', 'acw-tool-stat');
+      stat.setAttribute('aria-label', `${add} lines added, ${del} removed`);
+      stat.append(el('span', 'add', `+${add}`), el('span', 'del', `−${del}`));
+      label.append(stat);
+    }
+  }
   if (name === 'write' && args.content) body.append(el('pre', 'acw-tool-output acw-new-file', String(args.content).slice(0, 4000)));
   const output = el('pre', 'acw-tool-output');
   output.hidden = true;
@@ -312,6 +323,7 @@ function toolRow(id, name, rawArgs) {
 function finishTool(id, ok, output) {
   const card = toolRows.get(id) || toolRow(id, 'tool', '');
   clearInterval(card._timer);
+  card.dataset.end = String(Date.now());
   card.dataset.state = ok ? 'done' : 'failed';
   const state = card.querySelector('.acw-tool-state');
   const took = card.dataset.start ? since(+card.dataset.start) : '';
@@ -329,27 +341,40 @@ function finishTool(id, ok, output) {
   }
 }
 
-// a run of steps folds into one line once pi moves on: how many, how many failed, how long
+// once pi answers, the steps before the answer fold into one line: how long, how many, what
+// changed. the folded line opens to every step, the same lines as while they ran
+function stepsLabel(tools) {
+  const starts = tools.map(card => +card.dataset.start).filter(Boolean);
+  const ends = tools.map(card => +card.dataset.end).filter(Boolean);
+  const span = starts.length && ends.length ? Math.max(...ends) - Math.min(...starts) : 0;
+  const edits = tools.filter(card => ['edit', 'write'].includes(card.dataset.kind)).length;
+  const failed = tools.filter(card => card.dataset.state === 'failed').length;
+  const secs = Math.round(span / 1000);
+  const took = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+  return [span >= 1000 && `worked ${took}`, `${tools.length} steps`,
+    edits && `${edits} edit${edits > 1 ? 's' : ''}`, failed && `${failed} failed`].filter(Boolean).join(' · ');
+}
+
 function groupSteps() {
   const log = $('aide-code-log');
   let run = [];
   const fold = () => {
-    if (run.length >= 4) {
+    const tools = run.filter(node => node.matches('.acw-tool'));
+    if (tools.length >= 2) {
       const group = el('details', 'acw-steps');
-      const failed = run.filter(card => card.dataset.state === 'failed').length;
       const summary = el('summary');
       const dots = el('span', 'acw-steps-dots');
       dots.setAttribute('aria-hidden', 'true');
-      for (const card of run.slice(-24)) dots.append(el('span', card.dataset.state));
-      summary.append(el('span', 'acw-steps-label', `${run.length} steps${failed ? ` · ${failed} failed` : ''}`), dots);
+      for (const card of tools.slice(-24)) dots.append(el('span', card.dataset.state));
+      summary.append(el('span', 'acw-steps-label', stepsLabel(tools)), dots);
       run[0].before(group);
       group.append(summary, ...run);
     }
     run = [];
   };
   for (const node of [...log.children]) {
-    // edits and new files stay in view: they're what changed
-    if (node.matches('.acw-tool') && node.dataset.state !== 'running' && !['edit', 'write'].includes(node.dataset.kind)) run.push(node);
+    // thinking between steps folds with them; anything else (an answer, a note) ends the run
+    if ((node.matches('.acw-tool') && node.dataset.state !== 'running') || (run.length && node.matches('.acw-thinking'))) run.push(node);
     else fold();
   }
   fold();

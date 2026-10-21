@@ -75,18 +75,32 @@ def reply(request, data=None, ok=True, error=""):
     out({**record, "success": ok, **({"data": data} if ok else {"error": error})})
 
 
-def run(text):
-    out({"type": "agent_start"})
-    save({"role": "user", "content": [{"type": "text", "text": text}]})
-    call = {"type": "toolCall", "id": "call-1", "name": "read", "arguments": {"path": "notes.txt"}}
+def tool(call_id, name, args, output):
+    call = {"type": "toolCall", "id": call_id, "name": name, "arguments": args}
     tool_message = {"role": "assistant", "content": [call], "usage": {"output": 5}}
     out({"type": "message_end", "message": tool_message})
     save(tool_message)
-    start = {"type": "tool_execution_start", "toolCallId": "call-1", "toolName": "read"}
-    out({**start, "args": {"path": "notes.txt"}})
-    result = {"content": [{"type": "text", "text": "hello from notes"}]}
-    out({"type": "tool_execution_end", "toolCallId": "call-1", "result": result, "isError": False})
-    save({"role": "toolResult", "toolCallId": "call-1", "content": result["content"]})
+    start = {"type": "tool_execution_start", "toolCallId": call_id, "toolName": name}
+    out({**start, "args": args})
+    result = {"content": [{"type": "text", "text": output}]}
+    out({"type": "tool_execution_end", "toolCallId": call_id, "result": result, "isError": False})
+    save({"role": "toolResult", "toolCallId": call_id, "content": result["content"]})
+
+
+def run(text):
+    out({"type": "agent_start"})
+    save({"role": "user", "content": [{"type": "text", "text": text}]})
+    tool("call-1", "read", {"path": "notes.txt"}, "hello from notes")
+    # "multi" works like a real turn: read, change a file, run its tests
+    if re.search(r"\bmulti\b", text):
+        edit = {
+            "path": "calc.py",
+            "edits": [
+                {"oldText": "a - b\n", "newText": "a - b\n\n\ndef mul(a, b):\n    return a * b\n"}
+            ],
+        }
+        tool("call-2", "edit", edit, "Successfully replaced 1 block(s) in calc.py.")
+        tool("call-3", "bash", {"command": "pytest -q"}, "3 passed in 0.01s")
     for word in ["done ", "with ", text]:
         time.sleep(0.15)
         update = {"type": "text_delta", "contentIndex": 0, "delta": word}

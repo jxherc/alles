@@ -279,3 +279,25 @@ body.aide-central #chat { scrollbar-gutter: stable both-edges; }
 body.aide-central #messages .msg-actions { margin-inline-start: -9px; }
 body.aide-central .context-provenance.is-tucked { order: 9; margin-inline-start: auto; }
 body.aide-central .context-provenance.is-tucked.opens-up > .context-provenance-body { top: auto; bottom: calc(100% + 4px); }
+
+/* 2026-10-21 rework after claude code, opencode and dsh (decision 0039): 15px reading text, a
+   quieter bubble, a box that sits in the page instead of being drawn around, a filled send only
+   when there's something to send */
+body.aide-central[data-space="aide"] .ai-body { font-size: 15px; line-height: 1.7; }
+body.aide-central[data-space="aide"] .user-bubble { padding: 10px 14px; background: var(--k-raised, var(--panel)); font-size: 15px; line-height: 1.6; }
+body.aide-central[data-space="aide"] .composer-ta { font-size: 15px; }
+body.aide-central[data-space="aide"] .composer-box {
+  border: 0; background: var(--k-raised, var(--panel));
+  box-shadow: inset 0 0 0 1px var(--k-line, var(--faint));
+  transition: box-shadow 140ms ease;
+}
+body.aide-central[data-space="aide"] .composer-box:focus-within { box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--muted)); }
+body.aide-central[data-space="aide"] .composer-box .send-btn { border-color: transparent; }
+body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording) { background: var(--k-text, var(--text)); color: var(--k-page, var(--bg)); }
+body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording):active { transform: scale(.94); }
+/* the conversation fades out under the box instead of being cut by its edge */
+body.aide-central[data-space="aide"] .composer-outer { position: relative; }
+body.aide-central[data-space="aide"] .composer-outer::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 32px; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--k-page, var(--bg)));
+}

@@ -102,7 +102,7 @@
   align-self: flex-end; max-width: 85%; padding: var(--k-space-2) var(--k-space-3);
   background: var(--k-raised); border-radius: var(--k-radius-surface); color: var(--k-text); white-space: pre-wrap;
 }
-.acw-assistant { color: var(--k-text); font-size: 15px; line-height: 1.55; }
+.acw-assistant { color: var(--k-text); font-size: 14px; line-height: 1.65; }
 /* the workspace's margin reset is an id rule, so the answer's own rhythm needs the id too */
 #aide-coding-workspace .acw-assistant :where(p, ul, ol, pre, h1, h2, h3, blockquote, table) { margin: 0 0 var(--k-space-3); }
 #aide-coding-workspace .acw-assistant :where(p, ul, ol, pre, blockquote, table, .code-block):last-child { margin-bottom: 0; }
@@ -112,20 +112,32 @@
 .acw-msg-error { color: var(--k-danger); font-size: 13px; }
 .acw-note { color: var(--k-muted); font-size: 13px; }
 
-/* each step pi takes is a card: what it does and where, a live timer while it runs, and what
-   came back. a run shows a turning ring, a finished one a check, a failed one opens itself */
-.acw-tool { min-width: 0; border-radius: var(--k-radius-surface); background: var(--k-panel); animation: acw-arrive 260ms cubic-bezier(.2, .8, .2, 1); }
-.acw-tool + .acw-tool { margin-top: calc(-1 * var(--k-space-2)); }
+/* each step pi takes is one line, like a terminal's: a mark, the verb, where. the running one has
+   a light passing through it and a live timer; a finished one keeps quiet until you point at it;
+   a failed one says why. opening a line shows what came back, indented under it */
+.acw-tool { min-width: 0; animation: acw-arrive 260ms cubic-bezier(.2, .8, .2, 1); }
+.acw-tool + .acw-tool { margin-top: calc(2px - var(--k-space-3)); }
 .acw-tool summary {
-  display: flex; align-items: center; gap: var(--k-space-3); min-height: var(--k-control); padding: 0 var(--k-space-3);
-  border-radius: var(--k-radius-surface); color: var(--k-soft); cursor: pointer; list-style: none;
+  position: relative; display: flex; align-items: center; gap: var(--k-space-2); min-height: 32px; padding: 0 var(--k-space-2);
+  margin-inline: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-control); color: var(--k-soft); cursor: pointer; list-style: none; overflow: hidden;
+}
+@media (pointer: coarse) { .acw-tool summary { min-height: var(--k-control); } }
+.acw-tool[data-state="running"] summary::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--k-text) 7%, transparent), transparent);
+  background-size: 40% 100%; background-repeat: no-repeat; animation: acw-sweep 2.4s ease-in-out infinite;
 }
 .acw-tool summary::-webkit-details-marker { display: none; }
 .acw-tool summary:hover { background: var(--k-hover); }
-.acw-tool-mark { display: inline-grid; place-items: center; color: var(--k-muted); }
+.acw-tool-mark { display: inline-grid; place-items: center; flex: 0 0 16px; color: var(--k-muted); }
+.acw-tool-mark svg { width: 15px; height: 15px; }
 .acw-tool[data-state="running"] .acw-tool-mark { color: var(--k-text); }
 .acw-tool-label { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--k-space-2); overflow: hidden; }
-.acw-tool-verb { flex: 0 0 auto; color: var(--k-text); font-size: 13px; font-weight: 560; }
+.acw-tool-verb { flex: 0 0 auto; color: var(--k-soft); font-size: 13px; font-weight: 500; }
+.acw-tool[open] .acw-tool-verb, .acw-tool summary:hover .acw-tool-verb { color: var(--k-text); }
+.acw-tool-stat { flex: 0 0 auto; font: 400 12px/1 var(--k-mono); font-variant-numeric: tabular-nums; }
+.acw-tool-stat .add { color: var(--k-success, #7ea98b); }
+.acw-tool-stat .del { color: var(--k-danger); margin-left: 4px; }
 .acw-tool-target { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--k-muted); font: 400 12px/1.4 var(--k-mono); }
 .acw-tool[data-state="running"] .acw-tool-verb {
   background: linear-gradient(90deg, var(--k-muted) 0%, var(--k-text) 45%, var(--k-muted) 90%); background-size: 200% 100%;
@@ -134,18 +146,23 @@
 .acw-tool-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--k-space-2); color: var(--k-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .acw-tool-state svg { width: 14px; height: 14px; flex-basis: 14px; }
 .acw-tool[data-state="done"] .acw-tool-state svg { color: var(--k-success, var(--success)); stroke-dasharray: 24; animation: acw-draw 360ms ease-out both; }
+/* a finished line keeps quiet: its check and time show when you point at it or open it */
+@media (hover: hover) {
+  .acw-tool[data-state="done"]:not([open]) .acw-tool-state { opacity: 0; transition: opacity 120ms ease; }
+  .acw-tool[data-state="done"] summary:hover .acw-tool-state, .acw-tool[data-state="done"] summary:focus-visible .acw-tool-state { opacity: 1; }
+}
 .acw-tool[data-state="failed"] .acw-tool-state { color: var(--k-danger); }
 .acw-spin { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--k-line-strong); border-top-color: var(--k-text); animation: acw-turn 700ms linear infinite; }
-.acw-tool-body { display: grid; gap: var(--k-space-2); padding: 0 var(--k-space-3) var(--k-space-3); }
+.acw-tool-body { display: grid; gap: var(--k-space-2); padding: var(--k-space-1) 0 var(--k-space-3) var(--k-space-5); }
 .acw-tool-body:empty, .acw-tool-body:has(> .acw-tool-output[hidden]:only-child) { display: none; }
 .acw-tool-output {
-  max-height: 320px; overflow: auto; margin: 0 !important; padding: var(--k-space-3);
-  background: var(--k-page); border-radius: var(--k-radius-control); color: var(--k-soft);
+  max-height: 240px; overflow: auto; margin: 0 !important; padding: var(--k-space-3);
+  background: var(--k-page); border: 1px solid var(--k-line); border-radius: var(--k-radius-control); color: var(--k-soft);
   font: 400 12px/1.55 var(--k-mono); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .acw-term { background: color-mix(in srgb, var(--k-page) 70%, #000); color: var(--k-text); }
 .acw-term-cmd { margin: 0; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-radius-control); font: 400 12px/1.5 var(--k-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
-.acw-diff { overflow: auto; max-height: 360px; border-radius: var(--k-radius-control); background: var(--k-page); font: 400 12px/1.55 var(--k-mono); }
+.acw-diff { overflow: auto; max-height: 320px; border: 1px solid var(--k-line); border-radius: var(--k-radius-control); background: var(--k-page); font: 400 12px/1.55 var(--k-mono); }
 .acw-diff-line { padding: 0 var(--k-space-3); white-space: pre-wrap; overflow-wrap: anywhere; }
 .acw-diff-line::before { display: inline-block; width: 1.2em; color: var(--k-muted); }
 .acw-diff-line.del { background: color-mix(in srgb, var(--k-danger) 14%, transparent); color: var(--k-text); }
@@ -255,7 +272,7 @@
 .acw-entry:focus-within { border-color: var(--k-line-strong); }
 #aide-coding-workspace .acw-entry textarea {
   display: block; box-sizing: border-box; width: 100%; min-height: var(--k-control); max-height: 240px; padding: var(--k-space-3) var(--k-space-3) 0;
-  resize: none; color: var(--k-text); background: transparent; border: 0; font-size: 15px; line-height: 1.45;
+  resize: none; color: var(--k-text); background: transparent; border: 0; font-size: 14px; line-height: 1.5;
 }
 #aide-coding-workspace .acw-entry textarea:focus-visible { outline: none; }
 #aide-coding-workspace .acw-entry textarea::placeholder { color: var(--k-muted); opacity: 1; }
@@ -366,15 +383,18 @@
 .acw-tool-why { margin: 0 !important; padding: 0 var(--k-space-3) var(--k-space-2) calc(var(--k-space-3) + 16px + var(--k-space-3)); color: var(--k-danger); font: 400 12px/1.4 var(--k-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* a folded run of steps: one line with a dot per step, open it for the cards */
 .acw-steps { min-width: 0; animation: acw-arrive 220ms ease-out; }
-.acw-steps > summary { display: flex; align-items: center; gap: var(--k-space-3); min-height: var(--k-control); padding: 0 var(--k-space-3); border-radius: var(--k-radius-surface); background: var(--k-panel); color: var(--k-soft); font-size: 13px; cursor: pointer; list-style: none; }
+.acw-steps > summary { display: flex; align-items: center; gap: var(--k-space-3); min-height: 36px; padding: 0 var(--k-space-2); margin-inline: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-control); border-bottom: 1px solid var(--k-line); color: var(--k-soft); font-size: 13px; cursor: pointer; list-style: none; }
 .acw-steps > summary::-webkit-details-marker { display: none; }
 .acw-steps > summary:hover { background: var(--k-hover); }
-.acw-steps-label { flex: 0 0 auto; font-weight: 560; color: var(--k-text); }
+.acw-steps-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; color: var(--k-soft); }
+.acw-steps > summary:hover .acw-steps-label, .acw-steps[open] .acw-steps-label { color: var(--k-text); }
+.acw-steps > summary::before { content: ""; flex: 0 0 auto; width: 6px; height: 6px; border-right: 1.5px solid var(--k-muted); border-bottom: 1.5px solid var(--k-muted); transform: rotate(-45deg); transition: transform 140ms ease; margin-inline: 4px 2px; }
+.acw-steps[open] > summary::before { transform: rotate(45deg); }
 .acw-steps-dots { display: flex; flex-wrap: wrap; gap: 3px; min-width: 0; }
 .acw-steps-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--k-success, #7ea98b); }
 .acw-steps-dots span.failed { background: var(--k-danger); }
 .acw-steps[open] > summary { margin-bottom: var(--k-space-2); }
-.acw-steps[open] { display: grid; gap: var(--k-space-2); }
+.acw-steps[open] { display: grid; gap: 2px; }
 .acw-steps .acw-tool + .acw-tool { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { .acw-steps { animation: none; } }
 
@@ -410,3 +430,9 @@
 
 @media (max-width: 620px) { #aide-coding-workspace .acw-head-new span, .acw-head-meta #aide-code-path { display: none; } }
 @media (prefers-reduced-motion: reduce) { .acw-chat-live { animation: none; } }
+
+/* the box sits in the page: a fill and a hairline, the line firms up while you type (decision 0039) */
+.acw-entry { border: 0; background: var(--k-raised); box-shadow: inset 0 0 0 1px var(--k-line); transition: box-shadow 140ms ease; }
+.acw-entry:focus-within { box-shadow: inset 0 0 0 1px var(--k-line-strong); }
+.acw-composer { position: relative; }
+.acw-composer::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 32px; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--k-page)); }
