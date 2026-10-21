@@ -160,7 +160,12 @@ for raw in sys.stdin:
             out(
                 {"type": "extension_ui_request", "id": "q1", "method": "confirm", "title": "trust?"}
             )
-            answer = json.loads(sys.stdin.readline())
+            # other commands can arrive first (stats, the / menu's list); answer them and wait
+            while True:
+                answer = json.loads(sys.stdin.readline())
+                if answer.get("type") == "extension_ui_response" or "confirmed" in answer:
+                    break
+                reply(answer, {"commands": []} if answer.get("type") == "get_commands" else {})
             text = f"{text} trusted={answer.get('confirmed')}"
         if re.search(r"\bslow\b", text):
             busy = True

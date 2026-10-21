@@ -36,7 +36,7 @@ let streaming = null, toolRows = new Map(), version = 0;
 let menu = null, projectMenu = null, menuProject = '';
 // the harness new chats use (a setting), the one the open chat runs on, and its own models
 let harness = 'pi', approval = 'auto', native = [], catalogRows = [], chatHarness = '', harnessModels = null;
-let harnessMenu = null;
+let harnessMenu = null, chatMenu = null;
 // pi's effort: the running chat's level and the levels its model takes, and what new chats use
 let thinking = { level: '', levels: [] }, thinkingPref = '', effortMenu = null, goal = '';
 let piCommands = [], slashItems = [], slashIndex = 0;
@@ -109,6 +109,19 @@ function piLine() {
   $('aide-code-pi-retry').hidden = pi.state !== 'failed';
 }
 
+// "now", "5m", "3h", "2d", or a date, for the rail
+function ago(stamp) {
+  const t = Date.parse(stamp || '');
+  if (!t) return '';
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 60) return 'now';
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 604800) return `${Math.floor(s / 86400)}d`;
+  return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+const isAideFolder = row => /\/Alles\/Aide$/.test(row?.path || '');
+
 function renderRail() {
   const list = $('aide-code-projects');
   list.replaceChildren();
@@ -123,8 +136,10 @@ function renderRail() {
     toggle.type = 'button';
     toggle.dataset.projectId = row.id;
     toggle.setAttribute('aria-expanded', String(expanded.has(row.id)));
-    toggle.innerHTML = icon('chevron');
+    toggle.innerHTML = icon('chevron') + icon('folder');
     toggle.append(el('span', 'acw-project-name', row.name));
+    // Aide's own folder, where the work it hands to pi lands
+    if (isAideFolder(row)) toggle.append(el('span', 'acw-project-tag', "Aide's work"));
     toggle.title = row.path;
     const more = el('button', 'acw-icon acw-project-more');
     more.type = 'button';
@@ -148,8 +163,16 @@ function renderRail() {
         button.type = 'button';
         button.dataset.chatId = chat.id;
         button.dataset.projectId = row.id;
-        button.append(el('span', 'acw-chat-title', chat.title));
-        if (chat.running) button.append(el('span', 'acw-chat-state', 'working'));
+        const text = el('span', 'acw-chat-text');
+        text.append(el('span', 'acw-chat-title', chat.title));
+        const meta = el('span', 'acw-chat-meta', [chat.from_aide ? 'from Aide' : '', ago(chat.updated_at)].filter(Boolean).join(' · '));
+        text.append(meta);
+        button.append(text);
+        if (chat.running) {
+          const live = el('span', 'acw-chat-live');
+          live.setAttribute('aria-label', 'pi is working');
+          button.append(live);
+        }
         if (current.chatId === chat.id) button.setAttribute('aria-current', 'true');
         items.append(button);
       }
@@ -175,6 +198,17 @@ async function loadChats(projectId) {
 
 function setPane(pane) { host.dataset.pane = pane; }
 // rtl keeps the end of a long path (the project name) visible; the bdi stops it flipping the text
+// a saved chat gets its "···" menu (delete); a new chat has nothing to delete yet
+function chatActions(on) {
+  $('aide-code-delete').hidden = !on;
+  $('aide-code-chat-more').hidden = !on;
+}
+
+function showProject(row) {
+  $('aide-code-project').textContent = row ? (isAideFolder(row) ? "Aide's work" : row.name) : '';
+  $('aide-code-new').hidden = !row;
+}
+
 function showPath(path = '') {
   const node = $('aide-code-path');
   node.replaceChildren();
@@ -333,6 +367,7 @@ function render(item) {
     // a /goal from before a reload: show the card, not the instructions alles sent with it
     render({ kind: 'goal', state: 'set', text: item.text.slice(6).split('\n\nWork toward this goal')[0] });
   } else if (item.kind === 'user') {
+    if (item.from_aide) log.append(el('p', 'acw-from', 'from Aide'));
     const bubble = el('div', 'acw-msg acw-user');
     bubble.textContent = item.text;
     log.append(bubble);
@@ -741,8 +776,8 @@ async function openChat(projectId, chatId, { keepScroll = false } = {}) {
   showView('chat'); setPane('main');
   const row = project(projectId);
   $('aide-code-title').textContent = (chats.get(projectId) || []).find(chat => chat.id === chatId)?.title || 'chat';
-  showPath(row?.path);
-  $('aide-code-delete').hidden = false;
+  showPath(row?.path); showProject(row);
+  chatActions(true);
   showIntro(false);
   try {
     const data = await api(chatPath(projectId, chatId));
@@ -778,8 +813,8 @@ function startChat(projectId) {
   resetLog();
   const row = project(projectId);
   $('aide-code-title').textContent = 'new chat';
-  showPath(row?.path);
-  $('aide-code-delete').hidden = true;
+  showPath(row?.path); showProject(row);
+  chatActions(false);
   showView('chat'); setPane('main');
   showIntro(true);
   updateComposer();
@@ -869,7 +904,7 @@ async function send(event) {
       await refreshChats(projectId);
       // the server's title is masked; what was typed may hold a secret
       $('aide-code-title').textContent = (chats.get(projectId) || []).find(chat => chat.id === made.chat_id)?.title || 'chat';
-      $('aide-code-delete').hidden = false;
+      chatActions(true);
       follow(projectId, made.chat_id, made.seq - 1);
       void loadChatState();
     } else {
@@ -967,7 +1002,7 @@ async function openHarnesses() {
   showView('harnesses'); setPane('main');
   $('aide-code-title').textContent = 'harnesses';
   showPath('');
-  $('aide-code-delete').hidden = true;
+  chatActions(false);
   $('aide-code-harness-list').textContent = 'loading…';
   await loadCatalog();
   renderHarnessList();
@@ -1079,7 +1114,7 @@ function openAdd() {
   showView('add'); setPane('main');
   $('aide-code-title').textContent = 'add a project';
   $('aide-code-path').textContent = 'pick a folder on the machine that runs alles';
-  $('aide-code-delete').hidden = true;
+  chatActions(false);
   void browse($('aide-code-folder-path').value || '');
   $('aide-code-folder-path').focus();
 }
@@ -1123,7 +1158,7 @@ async function deleteChat() {
 
 function showFirst() {
   const first = projects[0];
-  if (!first) { showView('start'); $('aide-code-title').textContent = 'code with pi'; $('aide-code-path').textContent = ''; $('aide-code-delete').hidden = true; setPane('main'); updateComposer(); return; }
+  if (!first) { showView('start'); showProject(null); $('aide-code-title').textContent = 'code with pi'; $('aide-code-path').textContent = ''; chatActions(false); setPane('main'); updateComposer(); return; }
   const recent = (chats.get(first.id) || [])[0];
   if (recent) void openChat(first.id, recent.id);
   else startChat(first.id);
@@ -1157,8 +1192,14 @@ function markup() {
       <div class="acw-main">
         <header class="acw-head">
           <button type="button" id="aide-code-rail-back" class="acw-icon acw-mobile-back" aria-label="projects">${icon('back')}</button>
-          <div class="acw-head-text"><h2 id="aide-code-title" tabindex="-1">code with pi</h2><p id="aide-code-path" class="acw-path"></p></div>
-          <button type="button" id="aide-code-delete" class="acw-action" hidden>delete chat</button>
+          <div class="acw-head-text"><h2 id="aide-code-title" tabindex="-1">code with pi</h2><p class="acw-head-meta"><span id="aide-code-project" class="acw-head-project"></span><span id="aide-code-path" class="acw-path"></span></p></div>
+          <button type="button" id="aide-code-new" class="acw-action acw-head-new" hidden>${icon('plus')}<span>new chat</span></button>
+          <div class="acw-model acw-chat-menu-wrap">
+            <button type="button" id="aide-code-chat-more" class="acw-icon" aria-label="chat actions" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-chat-menu" hidden>${icon('more')}</button>
+            <div id="aide-code-chat-menu" class="acw-menu acw-menu-down" role="menu" aria-label="chat actions" hidden>
+              <button type="button" id="aide-code-delete" role="menuitem" hidden>delete chat</button>
+            </div>
+          </div>
         </header>
         <p id="aide-code-error" class="acw-error" role="alert" hidden></p>
         <div id="aide-code-loading" class="acw-loading" role="status" aria-label="loading" hidden><span></span><span></span><span></span></div>
@@ -1216,6 +1257,7 @@ function markup() {
                 <button type="submit" id="aide-code-send" class="acw-icon acw-send" aria-label="send" disabled>${icon('up')}</button>
               </div>
             </div>
+            <p class="acw-hint" aria-hidden="true"><kbd>/</kbd> commands <span>·</span> <kbd>shift</kbd><kbd>enter</kbd> new line <span>·</span> type while pi works to steer it</p>
           </form>
         </section>
       </div>
@@ -1254,7 +1296,14 @@ export function initAideCodingWorkspace() {
   $('aide-code-stop').addEventListener('click', async () => {
     try { await post(`${chatPath(current.projectId, current.chatId)}/stop`); } catch (error) { setError(error.message); }
   });
-  $('aide-code-delete').addEventListener('click', deleteChat);
+  $('aide-code-delete').addEventListener('click', () => { chatMenu.close({ restoreFocus: false }); void deleteChat(); });
+  chatMenu = createMenuController($('aide-code-chat-menu'), { onClose: () => $('aide-code-chat-more').setAttribute('aria-expanded', 'false') });
+  $('aide-code-chat-more').addEventListener('click', event => {
+    if (!$('aide-code-chat-menu').hidden) { chatMenu.close(); return; }
+    $('aide-code-chat-more').setAttribute('aria-expanded', 'true');
+    chatMenu.open({ source: event.currentTarget });
+  });
+  $('aide-code-new').addEventListener('click', () => { if (current.projectId) startChat(current.projectId); });
   $('aide-code-add').addEventListener('click', openAdd);
   $('aide-code-start-add').addEventListener('click', openAdd);
   $('aide-code-rail-back').addEventListener('click', () => { setPane('rail'); $('aide-code-add').focus(); });
@@ -1341,7 +1390,7 @@ export function closeAideCodingWorkspace() {
   ++version; if (host) host.hidden = true;
   closeLive(); clearTimeout(installTimer);
   menu?.close({ restoreFocus: false }); projectMenu?.close({ restoreFocus: false });
-  effortMenu?.close({ restoreFocus: false }); closeSlash();
+  effortMenu?.close({ restoreFocus: false }); chatMenu?.close({ restoreFocus: false }); closeSlash();
 }
 
 // older entry points from the Aide task tools

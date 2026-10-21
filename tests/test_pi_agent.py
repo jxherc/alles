@@ -669,3 +669,18 @@ class PiDoesTheWorkTest(unittest.TestCase):
             self.assertIn(name, no_pi)  # without pi, Aide still does it
         for name in ("pi_run", "docs_read", "mail_send", "memory_add", "web_search"):
             self.assertIn(name, handed)
+
+
+class HandoffDisplayTest(PiTest):
+    def test_aides_brief_to_pi_never_shows_as_the_task(self):
+        from services import agent_tools
+
+        self.add_endpoint()
+        result = asyncio.run(agent_tools._pi_run("make a packing list", wait_seconds=30))
+        summary = pi_agent.list_chats(result["project_id"])[0]
+        self.assertEqual((summary["title"], summary["from_aide"]), ("make a packing list", True))
+        saved = pi_agent.transcript(result["project_id"], result["chat_id"])
+        self.assertEqual(
+            saved["items"][0], {"kind": "user", "text": "make a packing list", "from_aide": True}
+        )
+        self.assertEqual(pi_agent.split_handoff("plain words"), ("plain words", False))

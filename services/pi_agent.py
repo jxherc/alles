@@ -110,6 +110,16 @@ def bridge_tools() -> list[dict]:
     ]
 
 
+# where Aide's brief to pi starts in a handed-over task (agent_tools._pi_run_stream writes it)
+HANDOFF_MARK = "\n\n(handed over by Aide"
+
+
+def split_handoff(text: str) -> tuple[str, bool]:
+    """the owner-facing task, and whether Aide handed it over; the brief is for pi only."""
+    task, mark, _ = (text or "").partition(HANDOFF_MARK)
+    return (task.strip(), True) if mark else (text, False)
+
+
 def private_paths() -> list[str]:
     """folders and files pi must never read or change: alles's data (its database, vault keys,
     uploads), shell history and ssh keys. alles's own data reaches pi only through its tools."""
@@ -462,16 +472,17 @@ def chat_summary(path: Path) -> dict | None:
     head = next((e for e in entries[:3] if e.get("type") == "session"), None)
     if not head:
         return None
-    name, first = "", ""
+    name, first, handed = "", "", False
     for entry in entries:
         if entry.get("type") == "session_info" and entry.get("name"):
             name = entry["name"]
         message = entry.get("message") or {}
         if not first and entry.get("type") == "message" and message.get("role") == "user":
-            first = _text_of(message.get("content")).strip()
+            first, handed = split_handoff(_text_of(message.get("content")).strip())
     return {
         "id": head.get("id"),
         "title": name or (first[:80] if first else "new chat"),
+        "from_aide": bool(first) and handed,
         "created_at": head.get("timestamp"),
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(path.stat().st_mtime)),
     }
@@ -531,7 +542,8 @@ def transcript(project_id: str, chat_id: str) -> dict | None:
         message = entry.get("message") or {}
         role = message.get("role")
         if role == "user":
-            items.append({"kind": "user", "text": _text_of(message.get("content"))})
+            task, handed = split_handoff(_text_of(message.get("content")))
+            items.append({"kind": "user", "text": task, **({"from_aide": True} if handed else {})})
         elif role == "assistant":
             items.append(_assistant_item(message))
         elif role == "toolResult":
@@ -958,7 +970,8 @@ class PiChat:
                 self.secrets.update(fresh)
                 save_secrets(self.id, self.secrets)
         if echo:
-            self.emit({"kind": "user", "text": text})
+            task, handed = split_handoff(text)
+            self.emit({"kind": "user", "text": task, **({"from_aide": True} if handed else {})})
         seq = self.seq
         if self.busy:
             await self.command("prompt", message=text, streamingBehavior="steer")

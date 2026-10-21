@@ -214,6 +214,8 @@ try:
                 "second job with {{secret:secret_1}}"
             )
             assert "abc123xyz9" not in page.content()
+            # delete lives in the chat's "···" menu, not on the header
+            page.locator("#aide-code-chat-more").click()
             page.locator("#aide-code-delete").click()
             page.locator(".dialog-overlay [data-dialog-confirm]").click()
             expect(page.locator(".acw-chat-title")).to_have_count(1)

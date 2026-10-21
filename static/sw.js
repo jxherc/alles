@@ -1,7 +1,7 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v415';   // the conversation shares one reading column with the box in this shell revision.
+const VERSION = 'v416';   // code rail, header and handed work read clearly in this shell revision.
 const CACHE = `alles-${VERSION}`;
-const STAMP = '568';   // keep in sync with index.html ?v= / const _v
+const STAMP = '569';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
 
 // 1b: mutating writes that should be queued when offline

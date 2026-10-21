@@ -11244,3 +11244,17 @@ body.aide-working .composer-box::after {
 #messages .agent-step.running.waiting .agent-step-name { animation: none; background: none; color: var(--k-permission, #d5a265); }
 #messages .agent-step.running.waiting .agent-step-status::before { animation: none; border-color: var(--k-permission, #d5a265); }
 #messages .agent-step.waiting .agent-step-time { color: var(--k-permission, #d5a265); }
+
+/* the run's own controls (sources, revert) sit at the end of the steps line as quiet text actions,
+   inset like every other control on it, never a box pinned to the corner */
+#messages .agent-steps > summary .agent-run-controls { display: inline-flex; align-items: center; gap: var(--k-space-1, 4px); margin-left: auto; flex: 0 0 auto; }
+#messages .agent-steps > summary :is(.agent-sources-btn, .agent-revert-btn) {
+  float: none; margin: 0; min-height: 32px; padding: 0 var(--k-space-2, 8px); border: 0; border-radius: var(--k-radius-control, 4px);
+  background: transparent; font-size: 12px; font-weight: 400;
+}
+#messages .agent-steps > summary .agent-sources-btn { color: var(--k-muted, var(--muted)); }
+#messages .agent-steps > summary .agent-sources-btn:hover, #messages .agent-steps > summary .agent-sources-btn[aria-expanded="true"] { color: var(--k-text, var(--text)); background: var(--k-hover, var(--panel)); }
+#messages .agent-steps > summary .agent-revert-btn { color: var(--k-danger, var(--error)); }
+#messages .agent-steps > summary .agent-revert-btn:hover { background: color-mix(in srgb, var(--k-danger, var(--error)) 12%, transparent); color: var(--k-danger, var(--error)); }
+/* the dots take the free room so the controls always land at the end */
+#messages .agent-steps > summary .agent-steps-dots { flex: 1 1 auto; }

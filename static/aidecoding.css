@@ -35,8 +35,8 @@
 .acw-projects { flex: 1; overflow-y: auto; padding: var(--k-space-1) var(--k-space-2) var(--k-space-4); }
 .acw-project-head { display: flex; align-items: center; }
 #aide-coding-workspace .acw-project-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--k-space-1); padding: 0 var(--k-space-2); text-align: left; font-size: 14px; }
-.acw-project-toggle svg { transition: transform 120ms ease; }
-.acw-project-toggle[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.acw-project-toggle svg:first-child { transition: transform 120ms ease; }
+.acw-project-toggle[aria-expanded="false"] svg:first-child { transform: rotate(-90deg); }
 .acw-project-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #aide-coding-workspace .acw-project-more { opacity: 0; }
 .acw-project-head:hover .acw-project-more, .acw-project-more:focus-visible, .acw-project-more[aria-expanded="true"] { opacity: 1 !important; }
@@ -376,3 +376,35 @@
 .acw-steps[open] { display: grid; gap: var(--k-space-2); }
 .acw-steps .acw-tool + .acw-tool { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { .acw-steps { animation: none; } }
+
+/* the rail: a folder mark per project, Aide's own folder named as such, and each chat with when
+   it was last touched (and "from Aide" when Aide handed it over); a dot breathes while pi works */
+.acw-project-toggle svg + svg { color: var(--k-muted); }
+.acw-project-tag { flex: 0 0 auto; margin-left: auto; color: var(--k-muted); font-size: 11px; }
+#aide-coding-workspace .acw-chat { min-height: 48px; align-items: center; }
+.acw-chat-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.acw-chat-meta { color: var(--k-muted); font-size: 11px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acw-chat-meta:empty { display: none; }
+.acw-chat-live { flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--k-active, #9298ff); animation: acw-breathe 1s ease-in-out infinite; }
+#aide-coding-workspace .acw-chat-new { min-height: var(--k-control); }
+
+/* the header: the chat's title, then which project and where; new chat and the chat's menu
+   on the right, delete tucked inside the menu */
+.acw-head-meta { display: flex; align-items: baseline; gap: var(--k-space-2); min-width: 0; margin: 0; }
+.acw-head-project { flex: 0 0 auto; color: var(--k-soft); font-size: 12px; }
+.acw-head-project:empty { display: none; }
+.acw-head-meta #aide-code-path { min-width: 0; }
+#aide-coding-workspace .acw-head-new { color: var(--k-soft); }
+#aide-coding-workspace .acw-head-new svg { width: 14px; height: 14px; flex-basis: 14px; }
+.acw-menu-down { top: 100%; right: 0; min-width: 180px; }
+#aide-code-chat-menu #aide-code-delete { color: var(--k-danger); }
+
+/* a task Aide handed over says so above the bubble */
+.acw-from { align-self: flex-end; margin: 0 0 calc(-1 * var(--k-space-2)) !important; color: var(--k-muted); font-size: 12px; }
+
+/* the box says how it works, like the conversation's */
+.acw-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: var(--k-space-2) 0 0; padding: 0 var(--k-space-2); color: var(--k-muted); font-size: 12px; }
+.acw-hint kbd { padding: 1px 5px; border: 1px solid var(--k-line); border-radius: 3px; background: var(--k-panel); color: var(--k-soft); font: 400 11px/1.4 var(--k-mono); }
+.acw-hint span { color: var(--k-line-strong); }
+@media (max-width: 620px) { .acw-hint, #aide-coding-workspace .acw-head-new span, .acw-head-meta #aide-code-path { display: none; } }
+@media (prefers-reduced-motion: reduce) { .acw-chat-live { animation: none; } }
