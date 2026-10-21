@@ -11241,3 +11241,6 @@ body.aide-working .composer-box::after {
 }
 .welcome-start:hover { background: var(--k-hover, var(--panel)); color: var(--k-text, var(--text)); border-color: var(--k-muted, var(--muted)); }
 @media (prefers-reduced-motion: reduce) { .welcome-start { animation: none; } }
+#messages .agent-step.running.waiting .agent-step-name { animation: none; background: none; color: var(--k-permission, #d5a265); }
+#messages .agent-step.running.waiting .agent-step-status::before { animation: none; border-color: var(--k-permission, #d5a265); }
+#messages .agent-step.waiting .agent-step-time { color: var(--k-permission, #d5a265); }

@@ -110,6 +110,20 @@ def bridge_tools() -> list[dict]:
     ]
 
 
+def private_paths() -> list[str]:
+    """folders and files pi must never read or change: alles's data (its database, vault keys,
+    uploads), shell history and ssh keys. alles's own data reaches pi only through its tools."""
+    home = Path.home()
+    paths = [
+        data_dir(),
+        home / ".ssh",
+        home / ".bash_history",
+        home / ".zsh_history",
+        home / ".gnupg",
+    ]
+    return sorted({str(Path(p).expanduser().resolve()) for p in paths})
+
+
 def thinks(model: str) -> bool:
     name = (model or "").lower().split("/")[-1]
     if "claude" in name:
@@ -695,6 +709,8 @@ class PiChat:
                 "PI_ALLES_BRIDGE_TOKEN": self._bridge,
                 "PI_ALLES_GUARD": "on" if settings().get("guard", True) else "off",
                 "PI_ALLES_TOOLS": _b64({"tools": bridge_tools()}),
+                # pi never reads or touches these; alles's own data goes through the alles tools
+                "PI_ALLES_PRIVATE": _b64({"paths": private_paths()}),
                 "PI_ALLES_WRITES": self.writes,
             }
         else:

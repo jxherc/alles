@@ -1148,8 +1148,21 @@ async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
     queue: asyncio.Queue = asyncio.Queue()
     chat.listeners.add(queue)
     answer, tools, changed = "", [], []
+    brief = (
+        f"{task}\n\n"
+        "(handed over by Aide, the owner's assistant in Alles.) Use the alles_ tools for anything "
+        "in Alles: alles_docs_write and alles_docs_read for documents, alles_task_add for tasks, "
+        "alles_calendar_create for events, alles_memory_search for what the owner told Aide. "
+        "Never read Alles's own database, data folder or shell history. "
+        + (
+            "Work only inside this code project. "
+            if wanted
+            else "Keep scratch files in your current folder. "
+        )
+        + "Do the task directly without exploring unrelated files, then reply in two or three lines: what you did and where it is."
+    )
     try:
-        await chat.send(task)
+        await chat.send(brief)
         yield {"type": "output", "text": f"pi is working in {row.name}\n"}
         deadline = asyncio.get_running_loop().time() + max(30, min(int(wait_seconds or 600), 1800))
         while True:

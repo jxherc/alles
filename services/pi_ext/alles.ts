@@ -37,6 +37,16 @@ export default function (pi: any) {
   const asks = process.env.PI_ALLES_WRITES !== "allow";
   delete process.env.PI_ALLES_TOOLS;
   const changing = new Map(appTools.filter((t) => t.changes).map((t) => [t.name, t]));
+  let privatePaths: string[] = [];
+  try { privatePaths = JSON.parse(Buffer.from(process.env.PI_ALLES_PRIVATE || "", "base64").toString("utf8")).paths || []; } catch { privatePaths = []; }
+  delete process.env.PI_ALLES_PRIVATE;
+  // a call that names alles's data, its database, ssh keys or shell history is refused outright
+  const PRIVATE_NAMES = /(^|[\s'"\/=])(aide\.db|alles\.db|\.bash_history|\.zsh_history|id_rsa|id_ed25519)\b/;
+  const touchesPrivate = (input: any) => {
+    const flat = JSON.stringify(input ?? {});
+    const home = process.env.HOME || "";
+    return PRIVATE_NAMES.test(flat) || privatePaths.some((p) => p && (flat.includes(p) || (home && p.startsWith(home) && flat.includes("~" + p.slice(home.length)))));
+  };
   const allowed = new Set<string>();
 
   const reveal = (value: any): any => {
@@ -58,6 +68,9 @@ export default function (pi: any) {
   });
 
   pi.on("tool_call", async (event: any, ctx: any) => {
+    if (!String(event.toolName).startsWith("alles_") && touchesPrivate(event.input)) {
+      return { block: true, reason: "that is alles's private data (its database, keys or history). use the alles_ tools for docs, tasks, calendar and memory instead." };
+    }
     const app = changing.get(event.toolName);
     if (app && asks) {
       const what = JSON.stringify(event.input ?? {}).slice(0, 400);

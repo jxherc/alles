@@ -618,6 +618,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
           // a live timer per step, so a slow one reads as working, not stuck
           step._timer = setInterval(() => {
             if (!step.isConnected || !step.classList.contains('running')) { clearInterval(step._timer); return; }
+            if (step.classList.contains('waiting')) return;
             const secs = (Date.now() - +step.dataset.start) / 1000;
             step.querySelector('.agent-step-time').textContent = secs < 10 ? `${secs.toFixed(1)}s` : `${Math.round(secs)}s`;
           }, 100);
@@ -688,6 +689,13 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
               card.classList.add(allow ? 'approved' : 'denied');
               card.querySelector('.agent-perm-msg').textContent = allow ? 'approved' : 'denied';
             };
+            // waiting on the owner, not working: the timer stops and the line says so
+            step.classList.add('waiting');
+            step.querySelector('.agent-step-time').textContent = 'waiting for you';
+            card.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
+              step.classList.remove('waiting');
+              step.dataset.start = String(Date.now());
+            }, { once: true }));
             card.querySelector('.agent-perm-allow').addEventListener('click', () => decide(true));
             card.querySelector('.agent-perm-deny').addEventListener('click', () => decide(false));
           }

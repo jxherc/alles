@@ -7,6 +7,7 @@ run open until abort; "ask" sends a confirm dialog first.
 
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -155,13 +156,13 @@ for raw in sys.stdin:
             reply(request, ok=False, error="agent is streaming")
             continue
         reply(request, {"disposition": "queued" if busy else "started"})
-        if "ask" in text:
+        if re.search(r"\bask\b", text):
             out(
                 {"type": "extension_ui_request", "id": "q1", "method": "confirm", "title": "trust?"}
             )
             answer = json.loads(sys.stdin.readline())
             text = f"{text} trusted={answer.get('confirmed')}"
-        if "slow" in text:
+        if re.search(r"\bslow\b", text):
             busy = True
             out({"type": "agent_start"})
             save({"role": "user", "content": [{"type": "text", "text": text}]})
