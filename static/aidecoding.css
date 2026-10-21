@@ -402,9 +402,5 @@
 /* a task Aide handed over says so above the bubble */
 .acw-from { align-self: flex-end; margin: 0 0 calc(-1 * var(--k-space-2)) !important; color: var(--k-muted); font-size: 12px; }
 
-/* the box says how it works, like the conversation's */
-.acw-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: var(--k-space-2) 0 0; padding: 0 var(--k-space-2); color: var(--k-muted); font-size: 12px; }
-.acw-hint kbd { padding: 1px 5px; border: 1px solid var(--k-line); border-radius: 3px; background: var(--k-panel); color: var(--k-soft); font: 400 11px/1.4 var(--k-mono); }
-.acw-hint span { color: var(--k-line-strong); }
-@media (max-width: 620px) { .acw-hint, #aide-coding-workspace .acw-head-new span, .acw-head-meta #aide-code-path { display: none; } }
+@media (max-width: 620px) { #aide-coding-workspace .acw-head-new span, .acw-head-meta #aide-code-path { display: none; } }
 @media (prefers-reduced-motion: reduce) { .acw-chat-live { animation: none; } }

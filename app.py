@@ -1172,6 +1172,26 @@ class TokenAuthMiddleware:
 app.add_middleware(TokenAuthMiddleware)
 app.add_middleware(ObservabilityMiddleware)
 
+
+class StaticGzipMiddleware:
+    """gzip the shell and /static files (about 3 MB of JS and CSS, a quarter of that compressed).
+    api responses stay as they are, so streamed answers are never held back by a compressor."""
+
+    def __init__(self, app):
+        from starlette.middleware.gzip import GZipMiddleware
+
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=1024)
+
+    async def __call__(self, scope, receive, send):
+        path = scope.get("path", "") if scope["type"] == "http" else ""
+        if path == "/" or path.startswith("/static/"):
+            return await self.gzip(scope, receive, send)
+        return await self.app(scope, receive, send)
+
+
+app.add_middleware(StaticGzipMiddleware)
+
 # routes
 app.include_router(auth_routes.router)
 app.include_router(chat.router)

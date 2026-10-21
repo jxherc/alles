@@ -271,12 +271,6 @@ body.aide-central .context-provenance.is-tucked > .context-provenance-body {
   #aide-jobs-open, #aide-more-btn { width: auto; padding-inline: var(--k-space-3, 12px); }
 }
 
-/* the box says how it works, once, quietly; it steps aside while Aide is busy */
-.composer-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: var(--k-space-2, 8px) 0 0; padding: 0 var(--k-space-2, 8px); color: var(--k-muted, var(--muted)); font-size: 12px; }
-.composer-hint kbd { padding: 1px 5px; border: 1px solid var(--k-line, var(--faint)); border-radius: 3px; background: var(--k-panel, var(--panel)); color: var(--k-soft, var(--muted)); font: 400 11px/1.4 var(--k-mono, monospace); }
-.composer-hint span { color: var(--k-line-strong, var(--faint)); }
-body.aide-working .composer-hint { visibility: hidden; }
-@media (max-width: 620px) { .composer-hint { display: none; } }
 @media (prefers-reduced-motion: reduce) { body.aide-central .context-provenance.is-tucked > .context-provenance-body { animation: none; } }
 /* the scrollbar takes room on both sides, so the reply column and the box share one center */
 body.aide-central #chat { scrollbar-gutter: stable both-edges; }

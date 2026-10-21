@@ -1224,7 +1224,6 @@ function markup() {
           <div id="aide-code-scroll" class="acw-scroll">
             <div id="aide-code-intro" class="acw-intro" hidden>
               <h3>what should pi do here?</h3>
-              <p>pi reads the files in this folder, edits them and runs commands, then tells you what it did. type / to see every command.</p>
               <div class="acw-suggest" role="list"></div>
             </div>
             <div id="aide-code-log" class="acw-log" role="log" aria-label="chat with pi"></div>
@@ -1257,7 +1256,6 @@ function markup() {
                 <button type="submit" id="aide-code-send" class="acw-icon acw-send" aria-label="send" disabled>${icon('up')}</button>
               </div>
             </div>
-            <p class="acw-hint" aria-hidden="true"><kbd>/</kbd> commands <span>·</span> <kbd>shift</kbd><kbd>enter</kbd> new line <span>·</span> type while pi works to steer it</p>
           </form>
         </section>
       </div>
