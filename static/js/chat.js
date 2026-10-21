@@ -1,5 +1,5 @@
 import { mdToHtml, toast } from './util.js';
-import { canRevertTool } from './agentview.js';
+import { canRevertTool, docReceipt, stepKind, stepMark } from './agentview.js';
 import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown,
   showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
@@ -595,12 +595,16 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
           step.className = 'agent-step running' + (DESTRUCTIVE_TOOLS.has(t.name) ? ' destructive' : '');
           step.dataset.callId = t.call_id || '';
           step.dataset.toolName = t.name || '';
+          step.dataset.kind = stepKind(t.name);
+          step.dataset.start = String(Date.now());
+          step._args = t.args || {};
           step.innerHTML = `
             <div class="agent-step-head">
-              <span class="agent-step-dot"></span>
+              <span class="agent-step-dot"></span>${stepMark(t.name)}
               <span class="agent-step-name">${escHtml(t.name || 'tool')}</span>
               <span class="agent-step-summary">${escHtml(toolSummary(t.name, t.args))}</span>
               <span class="agent-step-status">running</span>
+              <span class="agent-step-time">0.0s</span>
             </div>
             <div class="agent-step-args-wrap custom-disclosure">
               <div class="custom-summary" onclick="this.parentElement.classList.toggle('open')">args</div>
@@ -610,6 +614,13 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
           `;
           panel.appendChild(step);
           toolEls.set(t.call_id, step);
+          // a live timer per step, so a slow one reads as working, not stuck
+          step._timer = setInterval(() => {
+            if (!step.isConnected || !step.classList.contains('running')) { clearInterval(step._timer); return; }
+            const secs = (Date.now() - +step.dataset.start) / 1000;
+            step.querySelector('.agent-step-time').textContent = secs < 10 ? `${secs.toFixed(1)}s` : `${Math.round(secs)}s`;
+          }, 100);
+          countSteps();
           scrollDown();
         }
 
@@ -711,8 +722,12 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
           const t = chunk.tool_result;
           const step = toolEls.get(t.call_id);
           if (step) {
+            clearInterval(step._timer);
             step.classList.remove('running');
             step.classList.toggle('error', !!t.error);
+            countSteps();
+            const receipt = docReceipt(step.dataset.toolName, step._args, !!t.error);
+            if (receipt && agentEl) agentEl.insertAdjacentHTML('afterend', receipt);
             const status = step.querySelector('.agent-step-status');
             if (status) status.textContent = t.completed === false ? 'no final result' : t.error ? 'error' : 'done';
             const out = step.querySelector('.agent-step-output');
@@ -803,7 +818,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       agentEl.classList.toggle('open', hasAttention);
       const summary = agentEl.querySelector('.custom-summary');
       if (summary) {
-        summary.textContent = hasAttention ? 'run details need attention' : 'run details';
+        countSteps();
+        if (hasAttention) summary.insertAdjacentHTML('afterbegin', '<span class="agent-steps-attention">needs you · </span>');
         summary.setAttribute('aria-expanded', String(hasAttention));
       }
     } else if (agentEl) {
@@ -938,19 +954,29 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     }
   }
 
+  // the panel's line: how many steps, how many failed, a dot per step that turns green or red
+  function countSteps() {
+    if (!agentEl) return;
+    const steps = [...agentEl.querySelectorAll('.agent-step')];
+    const failed = steps.filter(step => step.classList.contains('error')).length;
+    const running = steps.some(step => step.classList.contains('running'));
+    const label = agentEl.querySelector('.custom-summary');
+    label.innerHTML = `${steps.length} step${steps.length === 1 ? '' : 's'}${failed ? ` · ${failed} failed` : ''}${running ? ' · working' : ''}<span class="agent-steps-dots" aria-hidden="true">${steps.slice(-24).map(step => `<span class="${step.classList.contains('running') ? 'running' : step.classList.contains('error') ? 'failed' : 'done'}"></span>`).join('')}</span>`;
+  }
+
   function ensureAgentPanel() {
     if (agentEl) return agentEl.querySelector('.agent-step-list');
     agentEl = document.createElement('div');
     agentEl.className = 'agent-steps custom-disclosure open';
     agentEl.innerHTML = `
-      <div class="custom-summary" role="button" tabindex="0" aria-expanded="true">run details</div>
+      <div class="custom-summary" role="button" tabindex="0" aria-expanded="true">working</div>
       <div class="agent-step-list custom-details"></div>`;
     body.appendChild(agentEl);
     const disclosure = agentEl.querySelector('.custom-summary');
     disclosure.addEventListener('click', event => {
       const open = agentEl.classList.toggle('open');
       event.currentTarget.setAttribute('aria-expanded', String(open));
-      event.currentTarget.textContent = 'run details';
+      countSteps();
     });
     disclosure.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -1040,6 +1066,8 @@ function setStreaming(val, stoppable = true) {
   document.getElementById('send-btn').disabled = val;
   const stop = document.getElementById('stop-btn');
   stop.classList.toggle('visible', val && stoppable);
+  // the composer's moving light while Aide works
+  document.body?.classList?.toggle('aide-working', !!val);
 }
 
 

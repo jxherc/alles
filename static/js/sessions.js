@@ -956,6 +956,30 @@ function _withName(g, name) {
   return `${_escName(base)}, <span class="accent">${_escName(name)}</span>${punct}`;
 }
 
+// a few real starts under the greeting, so an empty chat says what Aide can do
+const STARTS = [
+  ['plan my day', 'look at my calendar, tasks and reminders and plan today'],
+  ['make a doc', 'make a document called '],
+  ['search the web', 'search the web for '],
+  ['what can you do?', 'what can you do in alles? keep it short'],
+];
+function welcomeStarts() {
+  return `<div class="welcome-starts" role="list">${STARTS.map(([label, text], n) =>
+    `<button type="button" class="welcome-start" role="listitem" style="--n:${n}" data-start="${_escName(text)}">${_escName(label)}</button>`).join('')}</div>`;
+}
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('click', event => {
+    const start = event.target.closest?.('.welcome-start');
+    if (!start) return;
+    const box = document.getElementById('composer-ta');
+    if (!box) return;
+    box.value = start.dataset.start;
+    box.dispatchEvent(new Event('input', { bubbles: true }));
+    box.focus();
+    box.setSelectionRange(box.value.length, box.value.length);
+  });
+}
+
 export function showWelcome() {
   const g = document.getElementById('welcome-greeting');
   if (isIncognitoMode()) {
@@ -969,7 +993,7 @@ export function showWelcome() {
     document.getElementById('welcome').style.display = 'flex';
     document.getElementById('messages').style.display = 'none';
   } else if (welcomeEnabled()) {
-    if (g) g.innerHTML = greetingHtml();
+    if (g) g.innerHTML = greetingHtml() + welcomeStarts();
     document.getElementById('welcome').style.display = 'flex';
     document.getElementById('messages').style.display = 'none';
   } else {

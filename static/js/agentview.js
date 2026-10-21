@@ -7,6 +7,52 @@ const DESTRUCTIVE = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_
   'git_commit', 'git_push', 'revert_file', 'delete_file', 'mail_send',
   'computer_click', 'computer_type', 'computer_key', 'computer_scroll']);
 
+// one mark per kind of step, the same set the code view uses
+const MARKS = {
+  file: '<path d="M6 3.5h8l4 4v13H6Z"/><path d="M14 3.5v4h4"/>',
+  newfile: '<path d="M6 3.5h8l4 4v13H6Z"/><path d="M12 11v6m-3-3h6"/>',
+  pencil: '<path d="m4 20 1-4L16 5l3 3L8 19Z"/><path d="m14 7 3 3"/>',
+  terminal: '<path d="M3.5 5.5h17v13h-17Z"/><path d="m7 10 2.5 2L7 14m4.5 0H15"/>',
+  search: '<path d="M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Zm4.5-1.5 5 5"/>',
+  globe: '<path d="M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17Z"/><path d="M3.5 12h17M12 3.5c2.5 2.5 2.5 14.5 0 17M12 3.5c-2.5 2.5-2.5 14.5 0 17"/>',
+  list: '<path d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01"/>',
+  memory: '<path d="M12 4.5a4 4 0 0 0-4 4v1a3 3 0 0 0 0 6 4 4 0 0 0 8 0 3 3 0 0 0 0-6v-1a4 4 0 0 0-4-4Z"/>',
+  tool: '<path d="M14.5 6.5a4 4 0 0 0-5.4 5.1L4 16.7 7.3 20l5.1-5.1a4 4 0 0 0 5.1-5.4l-2.4 2.4-2.6-.6-.6-2.6Z"/>',
+};
+const KIND = {
+  read_file: 'file', docs_read: 'file', note_read: 'file',
+  write_file: 'newfile', docs_write: 'newfile', note_write: 'newfile', note_append: 'newfile',
+  edit_file: 'pencil', apply_patch: 'pencil', revert_file: 'pencil',
+  shell: 'terminal', bash: 'terminal', pi_run: 'terminal',
+  web_search: 'search', grep_files: 'search', glob_files: 'search', docs_search: 'search',
+  web_fetch: 'globe', list_files: 'list', memory_search: 'memory', memory_add: 'memory',
+};
+export function stepMark(name) {
+  return `<span class="agent-step-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${MARKS[KIND[name] || 'tool']}</svg></span>`;
+}
+export function stepKind(name) { return KIND[name] || 'tool'; }
+
+// a saved doc gets a card that opens it, so the answer is one click from the file
+const DOC_WRITERS = new Set(['docs_write', 'note_write', 'note_append']);
+export function docReceipt(name, args = {}, error = false) {
+  const path = String(args?.path || '').trim();
+  if (!DOC_WRITERS.has(name) || error || !path) return '';
+  const title = path.split('/').pop().replace(/\.md$/i, '');
+  return `<button type="button" class="doc-receipt" data-open-doc="${esc(path)}">
+    <span class="doc-receipt-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${MARKS.file}</svg></span>
+    <span class="doc-receipt-text"><span class="doc-receipt-title">${esc(title)}</span><span class="doc-receipt-where">saved in docs · open</span></span>
+  </button>`;
+}
+// one listener for every receipt, live or reloaded
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.('[data-open-doc]');
+    if (!button) return;
+    event.preventDefault();
+    window._openSearchResult?.('note', button.dataset.openDoc);
+  });
+}
+
 export function canRevertTool(name) {
   return ['write_file', 'edit_file', 'apply_patch'].includes(name);
 }
@@ -70,9 +116,9 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
       ? `<details class="agent-step-args-wrap"><summary>args</summary><pre class="agent-step-args">${esc(JSON.stringify(s.args, null, 2))}</pre></details>` : '';
     const out = s.output ? `<pre class="agent-step-output">${esc(String(s.output).slice(-4000))}</pre>` : '';
     const diff = s.diff ? `<pre class="agent-step-diff">${renderDiff(s.diff)}</pre>` : '';
-    return `<div class="agent-step${destructive}${errCls}">
+    return `<div class="agent-step${destructive}${errCls}" data-kind="${stepKind(name)}">
       <div class="agent-step-head">
-        <span class="agent-step-dot"></span>
+        <span class="agent-step-dot"></span>${stepMark(name)}
         <span class="agent-step-name">${esc(name)}</span>
         <span class="agent-step-summary">${esc(summary(name, s.args))}</span>
         ${s.completed === false ? '<span class="agent-step-summary">no final result</span>' : ''}
@@ -87,7 +133,10 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
     <button type="button" class="agent-sources-btn" data-agent-sources="${esc(runId)}" aria-expanded="false" title="confirmed reads, search results and tool outcomes">sources</button>
     ${reversible ? `<button type="button" class="agent-revert-btn" data-agent-revert="${esc(runId)}" title="restore every file this run changed">revert edits</button>` : ''}
   </span>` : '';
-  return `<details class="agent-steps"${open ? ' open' : ''}><summary>run details · ${detail}${controls}</summary><div class="agent-step-list">${rows}</div></details>`;
+  const failed = steps.filter(step => step?.error).length;
+  const dots = `<span class="agent-steps-dots" aria-hidden="true">${steps.slice(-24).map(step => `<span class="${step?.error ? 'failed' : 'done'}"></span>`).join('')}</span>`;
+  const receipts = steps.map(step => docReceipt(step.name || step.tool, step.args, !!step.error)).join('');
+  return `<details class="agent-steps"${open ? ' open' : ''}><summary>${detail}${failed ? ` · ${failed} failed` : ''}${dots}${controls}</summary><div class="agent-step-list">${rows}</div></details>${receipts}`;
 }
 
 export function wireAgentRunControls(root) {

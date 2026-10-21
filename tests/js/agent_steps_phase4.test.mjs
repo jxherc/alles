@@ -12,7 +12,7 @@ test('document diffs retain their preview without offering the filesystem revert
 
 test('successful steps reload collapsed with one clear control', () => {
   const html = renderAgentSteps([{ name: 'read_file', args: { path: 'a.md' }, output: 'ok' }]);
-  assert.match(html, /run details/);
+  assert.match(html, /1 step/);
   assert.doesNotMatch(html, /show steps|hide steps|turn \d+ \/ \d+/);
   assert.doesNotMatch(html, /<details class="agent-steps" open>/);
 });
@@ -37,4 +37,11 @@ test('read-only reload has sources without a false revert action', () => {
   const html = renderAgentSteps([{ name: 'read_file', args: { path: 'a.md' } }], false, 'run-read');
   assert.match(html, /data-agent-sources="run-read"/);
   assert.doesNotMatch(html, /data-agent-revert/);
+});
+
+test('a saved doc gets a card that opens it; a failed write does not', () => {
+  const html = renderAgentSteps([{ name: 'docs_write', args: { path: 'lists/groceries.md' } }]);
+  assert.match(html, /data-open-doc="lists\/groceries.md"/);
+  assert.match(html, /groceries/);
+  assert.doesNotMatch(renderAgentSteps([{ name: 'docs_write', args: { path: 'x.md' }, error: true }]), /data-open-doc/);
 });

@@ -11148,3 +11148,96 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 @media (prefers-reduced-motion: reduce) {
   .whats-new-card, .whats-new-card::before, .whats-new-list.is-in .whats-new-item, .whats-new-overlay { animation: none; }
 }
+
+/* Aide conversation steps, the same language as Aide code: a line with how many steps, a dot per
+   step (turning while it runs, green done, red failed), and cards with a mark, what and where, a
+   live timer and a check. a saved doc gets a card that opens it */
+#messages .agent-steps { border-left: 0; padding: 0; margin: 0 0 var(--k-space-3); font-size: 13px; }
+#messages .agent-steps > summary, #messages .agent-steps > .custom-summary {
+  display: flex; align-items: center; gap: var(--k-space-3); min-height: 40px; padding: 0 var(--k-space-3);
+  border-radius: var(--k-radius-surface, 6px); background: var(--k-panel, var(--panel)); color: var(--k-soft, var(--muted));
+  font-size: 13px; font-weight: 560; cursor: pointer; list-style: none; animation: aide-arrive 240ms cubic-bezier(.2, .8, .2, 1);
+}
+#messages .agent-steps > summary::before { content: none; }
+#messages .agent-steps > summary:hover, #messages .agent-steps > .custom-summary:hover { background: var(--k-hover, var(--panel)); color: var(--k-text, var(--text)); }
+.agent-steps-attention { color: var(--k-permission, #d5a265); }
+.agent-steps-dots { display: inline-flex; flex-wrap: wrap; gap: 3px; min-width: 0; margin-right: auto; }
+.agent-steps-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--k-success, var(--green)); }
+.agent-steps-dots span.failed { background: var(--k-danger, var(--error)); }
+.agent-steps-dots span.running { background: var(--ai); animation: aide-breathe 1s ease-in-out infinite; }
+#messages .agent-step-list { gap: var(--k-space-2); margin-top: var(--k-space-2); }
+#messages .agent-step {
+  border-top: 0; padding: 0; border-radius: var(--k-radius-surface, 6px); background: var(--k-panel, var(--panel));
+  animation: aide-arrive 240ms cubic-bezier(.2, .8, .2, 1);
+}
+#messages .agent-step.destructive { border-left: 0; padding-left: 0; box-shadow: inset 2px 0 0 color-mix(in srgb, var(--signal) 60%, transparent); }
+#messages .agent-step-head { gap: var(--k-space-3); min-height: 40px; padding: 0 var(--k-space-3); font-size: 13px; }
+#messages .agent-step-dot { display: none; }
+.agent-step-mark { display: inline-grid; place-items: center; flex: 0 0 16px; color: var(--k-muted, var(--muted)); }
+.agent-step-mark svg { width: 16px; height: 16px; }
+#messages .agent-step.running .agent-step-mark { color: var(--k-text, var(--text)); }
+#messages .agent-step-name { font-family: inherit; font-weight: 560; color: var(--k-text, var(--text)); }
+#messages .agent-step.running .agent-step-name {
+  background: linear-gradient(90deg, var(--k-muted, var(--muted)) 0%, var(--k-text, var(--text)) 45%, var(--k-muted, var(--muted)) 90%); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: aide-shimmer 1.4s linear infinite;
+}
+#messages .agent-step-summary { font-size: 12px; }
+#messages .agent-step-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+#messages .agent-step.running .agent-step-status { font-size: 0; }
+#messages .agent-step.running .agent-step-status::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--k-line-strong, var(--faint)); border-top-color: var(--k-text, var(--text)); animation: aide-turn 700ms linear infinite; }
+#messages .agent-step:not(.running):not(.error) .agent-step-status { font-size: 0; }
+#messages .agent-step:not(.running):not(.error) .agent-step-status::before { content: "✓"; font-size: 13px; color: var(--k-success, var(--green)); animation: aide-pop 260ms ease-out; }
+#messages .agent-step.error .agent-step-status { color: var(--k-danger, var(--error)); }
+.agent-step-time { color: var(--k-muted, var(--muted)); font-size: 12px; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+#messages .agent-step :is(.agent-step-args-wrap, .agent-step-output, .agent-step-diff, .agent-perm, .agent-step-shot) { margin: 0 var(--k-space-3) var(--k-space-3); }
+#messages .agent-step-output:empty { display: none; }
+#messages .agent-step-output, #messages .agent-step-diff { padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-radius-control, 4px); background: var(--k-page, var(--bg)); }
+
+.doc-receipt {
+  display: inline-flex; align-items: center; gap: var(--k-space-3); min-height: 52px; margin: 0 0 var(--k-space-3); padding: 0 var(--k-space-4) 0 var(--k-space-3);
+  border: 1px solid var(--k-line-strong, var(--faint)); border-radius: var(--k-radius-surface, 6px); background: var(--k-panel, var(--panel));
+  color: var(--k-text, var(--text)); font: inherit; text-align: left; cursor: pointer; animation: aide-arrive 300ms cubic-bezier(.2, .8, .2, 1);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.doc-receipt:hover { background: var(--k-hover, var(--panel)); border-color: var(--k-muted, var(--muted)); }
+.doc-receipt-mark { display: inline-grid; place-items: center; width: 32px; height: 32px; color: var(--link, var(--text)); }
+.doc-receipt-mark svg { width: 20px; height: 20px; }
+.doc-receipt-text { display: grid; gap: 1px; }
+.doc-receipt-title { font-size: 14px; font-weight: 560; }
+.doc-receipt-where { color: var(--k-muted, var(--muted)); font-size: 12px; }
+
+/* an answer that is still arriving ends in a caret; the box carries a moving light while Aide works */
+#messages .ai-body:not(.done) .ai-content > :last-child::after {
+  content: ""; display: inline-block; width: 7px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em;
+  background: var(--k-text, var(--text)); animation: aide-blink 1s steps(1) infinite;
+}
+.composer-box { position: relative; }
+body.aide-working .composer-box::after {
+  content: ""; position: absolute; left: 12px; right: 12px; top: -1px; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--ai), transparent); background-size: 40% 100%; background-repeat: no-repeat;
+  animation: aide-sweep 1.6s ease-in-out infinite;
+}
+#messages .user-wrap { animation: aide-arrive 200ms cubic-bezier(.2, .8, .2, 1); }
+
+@keyframes aide-arrive { from { transform: translateY(6px); } to { transform: none; } }
+@keyframes aide-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@keyframes aide-turn { to { transform: rotate(360deg); } }
+@keyframes aide-pop { from { transform: scale(.4); } to { transform: none; } }
+@keyframes aide-blink { 50% { opacity: 0; } }
+@keyframes aide-breathe { 50% { opacity: .35; } }
+@keyframes aide-sweep { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #messages .agent-steps > summary, #messages .agent-steps > .custom-summary, #messages .agent-step, .doc-receipt, #messages .user-wrap { animation: none; }
+  #messages .agent-step.running .agent-step-name { animation: none; background: none; color: var(--k-text, var(--text)); }
+  #messages .agent-step.running .agent-step-status::before, .agent-steps-dots span.running, #messages .ai-body:not(.done) .ai-content > :last-child::after { animation: none; }
+  #messages .agent-step:not(.running):not(.error) .agent-step-status::before { animation: none; }
+  body.aide-working .composer-box::after { animation: none; background: var(--ai); opacity: .5; left: 0; right: 0; }
+}
+.welcome-starts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--k-space-2); margin-top: var(--k-space-5); }
+.welcome-start {
+  min-height: 40px; padding: 0 var(--k-space-4); border: 1px solid var(--k-line-strong, var(--faint)); border-radius: var(--k-radius-control, 4px);
+  background: transparent; color: var(--k-soft, var(--muted)); font: inherit; font-size: 14px; cursor: pointer;
+  animation: aide-arrive 320ms calc(var(--n) * 60ms) cubic-bezier(.2, .8, .2, 1) both; transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.welcome-start:hover { background: var(--k-hover, var(--panel)); color: var(--k-text, var(--text)); border-color: var(--k-muted, var(--muted)); }
+@media (prefers-reduced-motion: reduce) { .welcome-start { animation: none; } }
