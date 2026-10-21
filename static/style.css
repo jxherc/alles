@@ -11258,3 +11258,8 @@ body.aide-working .composer-box::after {
 #messages .agent-steps > summary .agent-revert-btn:hover { background: color-mix(in srgb, var(--k-danger, var(--error)) 12%, transparent); color: var(--k-danger, var(--error)); }
 /* the dots take the free room so the controls always land at the end */
 #messages .agent-steps > summary .agent-steps-dots { flex: 1 1 auto; }
+
+/* one page width for the specialist apps, matching the shared workbench */
+.specialist-group-slot > :is(#books-view, #habits-view, #health-view, #read-view, #tasks-view, #watch-view, #contacts-view, #subs-view, #days-view, #money-view) > :is(.page-view-head, .page-view-body, .page-view-footer) {
+  box-sizing: border-box; width: 100%; max-width: calc(880px + 2 * var(--k-space-5, 24px)); margin-inline: auto;
+}

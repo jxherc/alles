@@ -7455,3 +7455,9 @@ html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch
 /* Home's header spans the window like every other app's: name on the left, the time and
    settings at the end, 16px in from each edge */
 #today-view[data-kokuen-surface="home"] > .today-topbar { box-sizing: border-box; width: 100%; min-height: var(--k-app-header); padding: 0 var(--k-space-4, 16px); }
+
+/* one page width. list and settings-like pages read in a centered column (880px, the documented
+   list width); dashboards and Aide's tool pages center at 1040px. calendar, the task board,
+   files and the gallery keep the full width their work needs */
+.specialist-group-overview > .specialist-workbench { width: 100%; margin-inline: auto; }
+body.afterlife-aide-projects[data-space="aide"] :is(.aide-tool-head, .aide-tool-content, .aide-scheduled-head, .aide-scheduled-tabs, .aide-schedule-form, .aide-scheduled-content) { margin-inline: auto; }
