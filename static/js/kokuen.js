@@ -415,6 +415,8 @@ export function wireActionMenu(trigger, menu, { beforeOpen = null, closeOutside 
     if (!item || item.disabled || item.getAttribute('aria-disabled') === 'true') return;
     controller.close();
   }, true);
+  // a resize moves the trigger, so an open menu would hang where it was: close it, focus stays put
+  window.addEventListener('resize', () => { if (!menu.hidden) controller.close(); });
   menu.addEventListener('keydown', event => {
     if (event.key === 'Tab') { controller.close(); return; }
     event.stopPropagation();
