@@ -2328,3 +2328,146 @@ html:not(#_):not(#_) #reminders-view #reminder-status + div { margin: var(--k-sp
   html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) { border-left: 0 !important; border-top: 1px solid var(--k-line) !important; }
   html:not(#_):not(#_) #reminders-view .reminder-add-form > .btn.primary { margin: 6px 0 0; }
 }
+
+/* ── mail with an account: files' frame. the folders run from the top as a round panel, the
+   toolbar sits over the list and the reading pane, rows are compact with their actions on hover
+   (always shown on touch), and an empty pane says what goes there ── */
+@media (min-width: 761px) {
+  html:not(#_):not(#_) #mail-view[style*="flex"]:has(#mail-sidebar > *) {
+    display: grid !important;
+    grid-template-columns: auto minmax(300px, 380px) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > :not(.mail-layout) { grid-column: 2 / -1; }
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-layout { display: contents; }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-sidebar {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    box-sizing: border-box;
+    width: 244px;
+    min-height: 0;
+    padding: var(--k-space-3) calc(var(--k-gutter) - 8px);
+    border-right: 0;
+    border-start-end-radius: var(--k-radius-surface);
+    background: var(--k-panel);
+  }
+
+  html:not(#_):not(#_) #mail-view.sidebar-collapsed:has(#mail-sidebar > *) #mail-sidebar { width: 68px; }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) :is(#mail-list, #mail-main) {
+    grid-row: 6;
+    min-height: 0;
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-list {
+    grid-column: 2;
+    width: auto;
+    padding: 0 var(--k-space-2) var(--k-space-6) calc(var(--k-gutter) - 12px);
+    border-right: 1px solid var(--k-line);
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main { grid-column: 3; }
+
+  /* the toolbar: folders toggle, account, search growing to 520px, then refresh, compose, settings */
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-head {
+    gap: var(--k-space-2);
+    padding: var(--k-space-3) var(--k-gutter);
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-head .mail-search {
+    flex: 1 1 auto;
+    max-width: 520px;
+    margin: 0;
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-head .mail-head-actions { margin-inline-start: auto; }
+}
+
+html:not(#_):not(#_) #mail-view .mail-nav-item.active {
+  background: var(--k-selected-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) #mail-view .mail-nav-item:not(.active):hover { background: var(--k-hover); }
+
+/* rows: no dividers, a rounded fill on hover and when picked, 2px apart */
+html:not(#_):not(#_) #mail-view .mail-row {
+  position: relative;
+  margin-top: 2px;
+  padding: var(--k-space-2) var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+}
+
+html:not(#_):not(#_) #mail-view .mail-row:hover { background: var(--k-hover); }
+html:not(#_):not(#_) #mail-view .mail-row.sel { background: var(--k-selected-fill); }
+html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open { min-height: 44px; }
+
+@media (hover: hover) and (pointer: fine) {
+  html:not(#_):not(#_) #mail-view .mail-row .mail-row-acts {
+    position: absolute;
+    right: var(--k-space-2);
+    bottom: var(--k-space-2);
+    padding-left: var(--k-space-6);
+    border-radius: var(--k-radius-control);
+    background: linear-gradient(to right, transparent, var(--k-page) 32px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms var(--k-ease-out);
+  }
+
+  html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+html:not(#_):not(#_) #mail-view .mail-error-strip {
+  margin: var(--k-space-2) 0 var(--k-space-1);
+  border: 0;
+  border-radius: var(--k-radius-control);
+}
+
+/* an empty reading pane says what it is for */
+html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before {
+  content: "pick a message to read it here";
+  display: block;
+  margin-top: clamp(48px, 14vh, 120px);
+  color: var(--k-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* overview cards: a card title owns one 44px row, so titles across a row of cards line up whether
+   or not a head holds an action (inbox's "open mail") */
+html:not(#_):not(#_) .specialist-group-overview .specialist-workbench h2:not(.sr-only) {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin-block: 0;
+}
+
+/* a card's lead figure or subject reads at the page-title size, not 28px */
+html:not(#_):not(#_) .specialist-detail-title {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* finance's day actions are real buttons, not stray words over the cards */
+html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action {
+  min-height: 44px;
+  padding: 0 var(--k-space-4);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action:hover { background: var(--k-btn-fill-hover); }
+html:not(#_):not(#_) .finance-daily-actions { margin-bottom: var(--k-block-gap); }
