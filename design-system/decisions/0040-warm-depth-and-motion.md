@@ -85,6 +85,16 @@ app family had its own centred column (880, 928, 1040, 1080px) or padding.
   A reply's own actions are quiet words.
 - **the code view's projects rail** resizes (drag, or arrow keys on its edge) and hides; both are
   remembered.
+- **a page's own sidebar** (docs, journal, files, gallery, calendar, the code view's projects) is
+  a filled panel with a 12px top corner and no line beside it, as in the direction demo; its
+  picked row is one tone up. A permanent sidebar of every app was tried and dropped: the owner
+  kept the app switcher and the view tabs.
+- **files and gallery** share one frame: the sidebar runs from the top, and the main column has
+  one toolbar on the sidebar's top line, the folder or view name as its title on the left and
+  search and actions on the right. Files' select boxes take the same box and tick as tasks, a
+  file's actions are one row of equal buttons, and up is disabled at the top folder.
+- **filled buttons don't pull back.** The old -12px pull-back was for buttons drawn as bare words;
+  a filled button sits on the gutter.
 - **alles purple stays** although tasteskill bans violet: the skill marks that as its author's
   taste, and the owner chose it. So do the 8/12/16 corners.
 

@@ -25,6 +25,7 @@ const icons = {
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   cross: '<path d="m6.5 6.5 11 11m0-11-11 11"/>',
   down: '<path d="M12 5v14m-6-6 6 6 6-6"/>',
+  columns: '<path d="M4.5 5.5h15v13h-15Z"/><path d="M9.5 5.5v13"/>',
 };
 const icon = name => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || '') + '</svg>';
 

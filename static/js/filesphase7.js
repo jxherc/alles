@@ -508,6 +508,9 @@ function renderBreadcrumb() {
   const host = $('files-breadcrumb');
   const location = currentLocation();
   if (!host || !location) return;
+  // nothing above the top folder, so up does nothing there
+  const up = $('files-up-btn');
+  if (up) up.disabled = !state.cwd && state.view !== 'starred' && state.view !== 'trash';
   if (state.view === 'offline') {
     const segments = [
       `<button class="crumb" type="button" data-crumb-path="">${esc(location.name)}</button>`,

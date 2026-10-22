@@ -319,6 +319,58 @@ html:not(#_) :is(.task-check, .wiki-board-chk):is(.done, [aria-checked="true"], 
   scale: 1;
 }
 
+/* files' select boxes take the same box and tick; kokuen drew them as a filled square with no
+   tick, and a half-picked header box gets a dash */
+html:not(#_):not(#_) #files-view .files-check {
+  display: grid;
+  place-items: center;
+}
+
+html:not(#_):not(#_) #files-view .files-check::before {
+  position: static;
+  inset: auto;
+  transform: none;
+  grid-area: 1 / 1;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--k-line-strong);
+  border-radius: 6px;
+  background: transparent;
+  transition: background-color 180ms var(--k-ease-out), border-color 180ms var(--k-ease-out);
+}
+
+html:not(#_):not(#_) #files-view .files-check::after {
+  content: "";
+  grid-area: 1 / 1;
+  width: 5px;
+  height: 9px;
+  margin-top: -2px;
+  border: solid var(--k-on-accent);
+  border-width: 0 2px 2px 0;
+  rotate: 45deg;
+  scale: 0;
+  transition: scale 160ms var(--k-ease-out);
+}
+
+html:not(#_):not(#_) #files-view .files-check:hover::before { border-color: var(--k-accent); }
+
+html:not(#_):not(#_) #files-view .files-check:is([aria-checked="true"], [aria-checked="mixed"])::before {
+  border-color: var(--k-accent);
+  background: var(--k-accent);
+}
+
+html:not(#_):not(#_) #files-view .files-check[aria-checked="true"]::after { scale: 1; }
+
+html:not(#_):not(#_) #files-view .files-check[aria-checked="mixed"]::after {
+  width: 10px;
+  height: 0;
+  margin-top: 0;
+  border-width: 0 0 2px;
+  rotate: 0deg;
+  scale: 1;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html:not(#_) :is(.task-check, .wiki-board-chk):is(.done, [aria-checked="true"], .checked)::before {
     animation: k-pop 360ms var(--k-spring);
@@ -607,6 +659,58 @@ html:not(#_) .specialist-workbench > :is(.specialist-workbench-rail, .specialist
   box-shadow: none;
 }
 
+/* library's overview has one block; it takes the width instead of a 380px card in the corner */
+html:not(#_):not(#_) .specialist-group-overview > .specialist-workbench-library {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* finance's overview: the accounts and subscriptions lists and the ledger status are panels */
+html:not(#_) .specialist-group-grid {
+  gap: var(--k-block-gap);
+}
+
+html:not(#_) :is(.specialist-group-card, .finance-actual-panel) {
+  padding: var(--k-space-5);
+  border: 1px solid var(--k-card-line);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+}
+
+html:not(#_) .finance-actual-panel {
+  margin-top: var(--k-block-gap);
+}
+
+html:not(#_) .specialist-group-card .specialist-group-row {
+  margin-inline: calc(-1 * var(--k-space-3));
+  padding-inline: var(--k-space-3);
+}
+
+/* habits: two cards a row on a wide screen, and the history is a strip of small squares, not a
+   wall of 78px blocks */
+html:not(#_) .habits-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr));
+  align-items: start;
+  gap: var(--k-block-gap);
+}
+
+html:not(#_):not(#_) .habit-heat {
+  grid-template-columns: none;
+  grid-template-rows: repeat(7, 12px);
+  grid-auto-flow: column;
+  grid-auto-columns: 12px;
+  gap: 3px;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+html:not(#_):not(#_) .habit-heat > i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
 /* plan's overview is one column: capture a task, pick a window, read the agenda full width */
 html:not(#_):not(#_) .specialist-group-overview > .specialist-workbench-plan {
   grid-template-columns: minmax(0, 1fr);
@@ -772,6 +876,37 @@ html:not(#_) #aide-coding-workspace .acw-rail-head {
   padding-inline: var(--k-gutter) calc(var(--k-gutter) - 8px);
 }
 
+/* a page's own sidebar is a filled panel with a round top corner and no line beside it (the
+   direction demo); its picked row is one step up so it reads on the panel. the app switcher
+   stays a menu */
+html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-sidebar, #cal-sidebar),
+html:not(#_):not(#_) #aide-coding-workspace .acw-rail {
+  border-right: 0;
+  border-inline-end: 0;
+  border-start-end-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+}
+
+html:not(#_):not(#_) :is(
+  .docs-nav-panel :is(.docs-library-item, .docs-recent-item, .wiki-dir-head, .wiki-file).active,
+  .docs-nav-panel [aria-current="page"],
+  .files-phase7-location-panel .files-view-button.is-active,
+  .photos-sidebar .photos-nav-item.active
+) {
+  background: var(--k-raised);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-sidebar) :is(button, a):not(.active, .is-active, [aria-current="page"]):hover {
+  background: var(--k-hover);
+}
+
+@media (max-width: 760px) {
+  html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-sidebar, #cal-sidebar) {
+    border-start-end-radius: 0;
+  }
+}
+
 /* on a phone the views get their own row under the app name; its first and last words keep the
    gutter (tabs keep their 12px of padding inside it), and scrolling stops on that line */
 @media (max-width: 760px) {
@@ -780,6 +915,11 @@ html:not(#_) #aide-coding-workspace .acw-rail-head {
     padding-inline: calc(var(--k-gutter) - 12px);
     scroll-padding-inline: calc(var(--k-gutter) - 12px);
   }
+}
+
+/* header actions at the end of the row (finance's guide) end on the gutter */
+html:not(#_):not(#_) .specialist-app-head .manual-context-help {
+  margin-inline-end: var(--k-gutter);
 }
 
 /* aide's tool pages: the head and the content carry the gutter, not the page around them */
@@ -963,6 +1103,69 @@ html:not(#_):not(#_) :is(.msg-actions, .msg-actions-menu) :is(.act-btn, .btn):ho
   color: var(--k-text);
 }
 
+
+/* subscriptions: one row of fields under its note, each as wide as what goes in it */
+html:not(#_):not(#_) #subs-view > .page-view-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(88px, 0.6fr) minmax(128px, 0.8fr) minmax(170px, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--k-space-2) var(--k-space-3);
+}
+
+html:not(#_):not(#_) #subs-view > .page-view-footer > :is(#sub-required, #sub-create-status) {
+  grid-column: 1 / -1;
+}
+
+/* the fields carry fixed widths inline; the grid owns their widths now */
+html:not(#_):not(#_) #subs-view > .page-view-footer > :is(input, .custom-select, .date-input) {
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+/* mail's account setup is a card on the gutter: what it is, its two actions at the card's edge,
+   the providers as buttons */
+html:not(#_):not(#_) #mail-view .mail-accounts {
+  box-sizing: border-box;
+  max-width: 760px;
+  margin: var(--k-rhythm) var(--k-gutter) 0;
+  padding: var(--k-space-5);
+  border: 1px solid var(--k-card-line);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+}
+
+html:not(#_):not(#_) #mail-view .mail-service-links {
+  flex-wrap: wrap;
+  gap: var(--k-space-2);
+  margin-inline: 0;
+}
+
+html:not(#_):not(#_) #mail-view .mail-service-link {
+  border: 1px solid var(--k-btn-line);
+  border-radius: var(--k-radius-control);
+  background: var(--k-raised);
+  color: var(--k-text);
+  text-decoration: none;
+}
+
+html:not(#_):not(#_) #mail-view .mail-accounts .mail-empty {
+  padding: var(--k-space-2) 0 0;
+}
+
+html:not(#_):not(#_) #mail-view .mail-service-link:hover {
+  background: var(--k-raised-hover);
+}
+
+/* the old -12px pull-backs were for buttons drawn as bare words; a filled button sits on the edge */
+html:not(#_):not(#_) :is(.aide-tool-head > .btn:not(.primary), .watch-bar-actions > .btn:first-child, .server-workbench-card > button, #jrnl-export, #aide-coding-workspace .acw-start .acw-action) {
+  margin-left: 0 !important;
+  margin-inline-start: 0 !important;
+}
+
+html:not(#_):not(#_) #contacts-view .page-view-head.contacts-head,
+html:not(#_):not(#_) #contacts-view .contacts-head > :is(.page-view-title, .contacts-search) {
+  margin-inline-start: 0;
+}
 
 /* ── add forms open the list ─────────────────────────────────
    tasks, contacts, subscriptions and countdowns kept their add form pinned to the window's foot,
@@ -1173,4 +1376,222 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-shortcut:hover {
 @keyframes k-sweep {
   from { background-position: -40% 0; }
   to { background-position: 140% 0; }
+}
+
+/* ── files and gallery: the sidebar runs from the top as a round panel, and the main column owns
+   one toolbar on the sidebar's top line: where you are on the left, what you can do on the right ── */
+@media (min-width: 761px) {
+  html:not(#_):not(#_) #files-view .files-phase7-workbench {
+    grid-template-columns: 232px minmax(0, 1fr) auto;
+  }
+
+  html:not(#_):not(#_) #files-view .files-phase7-location-panel {
+    padding: var(--k-space-3) calc(var(--k-gutter) - 8px);
+    overflow-y: auto;
+  }
+
+  html:not(#_):not(#_) #files-view .files-phase7-browser {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+html:not(#_):not(#_) #files-view .files-phase7-app-head {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "where settings actions";
+  align-items: center;
+  gap: var(--k-space-2);
+  min-height: 0;
+  padding: var(--k-space-3) var(--k-gutter);
+  border-bottom: 0;
+  background: transparent;
+}
+
+html:not(#_):not(#_) #files-view .files-phase7-wordmark {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+html:not(#_):not(#_) #files-view :is(.files-phase7-app-context, .files-phase7-actions, .files-phase7-app-actions) {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  padding: 0;
+  border: 0;
+}
+
+html:not(#_):not(#_) #files-view .files-phase7-app-context { grid-area: where; margin-inline-start: -12px; }
+html:not(#_):not(#_) #files-view .files-phase7-app-actions { grid-area: settings; }
+html:not(#_):not(#_) #files-view .files-phase7-actions { grid-area: actions; }
+
+/* the folder you're in reads as the column's title */
+html:not(#_):not(#_) #files-view .files-breadcrumb .crumb:last-child,
+html:not(#_):not(#_) #files-view .files-breadcrumb .crumb:only-child {
+  color: var(--k-text);
+  /* beats the specialist-wide 13px control floor, which is !important */
+  font-size: 17px !important;
+  font-weight: 600;
+}
+
+html:not(#_):not(#_) #files-view #files-search {
+  width: 220px;
+}
+
+html:not(#_):not(#_) #files-view #files-up-btn:disabled {
+  opacity: .35;
+}
+
+html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row, .files-phase7-selection, .files-phase7-notice) {
+  padding-inline: var(--k-gutter);
+}
+
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #files-view .files-phase7-app-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "where settings" "actions actions";
+    padding-inline: var(--k-gutter);
+  }
+
+  html:not(#_):not(#_) #files-view #files-search {
+    flex: 1 1 auto;
+    width: auto;
+  }
+}
+
+/* gallery: same frame without touching its markup. the layout box steps aside so the sidebar can
+   span every row, and the toolbar, bars and timeline stack in the second column */
+@media (min-width: 761px) {
+  /* showView() writes display:flex inline, so the grid only takes over a shown view */
+  html:not(#_):not(#_) #photos-view[style*="flex"] {
+    display: grid !important;
+  }
+
+  html:not(#_):not(#_) #photos-view {
+    position: relative;
+    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+    padding: 0;
+  }
+
+  html:not(#_):not(#_) #photos-view > :not(.photos-layout) { grid-column: 2; }
+  html:not(#_):not(#_) #photos-view > .photos-layout { display: contents; }
+
+  html:not(#_):not(#_) #photos-view .photos-sidebar {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    width: auto;
+    min-height: 0;
+    padding: var(--k-space-3) calc(var(--k-gutter) - 8px);
+  }
+
+  html:not(#_):not(#_) #photos-view :is(.photos-scroll, .photos-scrubber) {
+    grid-column: 2;
+    grid-row: 6;
+    min-height: 0;
+  }
+
+  html:not(#_):not(#_) #photos-view .photos-scroll {
+    padding-inline: var(--k-gutter);
+  }
+
+  html:not(#_):not(#_) #photos-view .photos-head {
+    grid-row: 1;
+    margin: 0;
+    padding: var(--k-space-3) var(--k-gutter);
+  }
+
+  html:not(#_):not(#_) #photos-view :is(.photos-recovery, .photos-selbar, .photos-filterbar) {
+    margin-inline: var(--k-gutter);
+  }
+
+  html:not(#_):not(#_) #photos-view .photos-filterbar {
+    padding-inline: 0;
+  }
+}
+
+/* the view you're on is the toolbar's title, not a hidden label */
+html:not(#_):not(#_) #photos-view #photos-head-title {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  margin: 0 auto 0 0;
+  color: var(--k-text);
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+html:not(#_):not(#_) #photos-view .photos-head .photos-search {
+  margin-left: 0;
+  width: 220px;
+}
+
+html:not(#_):not(#_) #photos-view .photos-head :is(.btn, .photos-search) {
+  font-size: 14px;
+}
+
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #photos-view .photos-head #photos-filter-btn { margin-inline-start: 0; }
+  html:not(#_):not(#_) #photos-view .photos-scroll { padding-inline: var(--k-gutter); }
+}
+
+/* a file's actions are one row of the same buttons on the details edge; download is a link but
+   reads like its neighbours */
+html:not(#_):not(#_) #files-view .files-detail-actions {
+  gap: var(--k-space-2);
+  padding: var(--k-space-2) 0 var(--k-space-4);
+}
+
+html:not(#_):not(#_) #files-view .files-detail-actions > :is(button, a) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 var(--k-space-3);
+  border: 1px solid var(--k-btn-line);
+  border-radius: var(--k-radius-control);
+  background: var(--k-raised);
+  color: var(--k-text);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+html:not(#_):not(#_) #files-view .files-detail-actions > :is(button, a):hover {
+  background: var(--k-raised-hover, var(--k-hover));
+}
+
+html:not(#_):not(#_) #files-view .files-detail-actions > .files-danger {
+  color: var(--k-error, var(--k-danger));
+}
+
+html:not(#_):not(#_) #photos-view .photos-filt-seg {
+  gap: 2px;
+  border: 0;
+  background: none;
+}
+
+html:not(#_):not(#_) #photos-view .photos-filt-seg > button {
+  min-height: 44px;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: none;
+  color: var(--k-muted);
+}
+
+html:not(#_):not(#_) #photos-view .photos-filt-seg > button:hover { color: var(--k-text); }
+
+html:not(#_):not(#_) #photos-view .photos-filt-seg > button.active {
+  background: var(--k-pill);
+  color: var(--k-text);
 }
