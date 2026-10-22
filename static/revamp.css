@@ -2433,7 +2433,6 @@ html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open { min-height:
     border-radius: var(--k-radius-control);
     background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 6%, var(--k-page)) 24px);
     opacity: 0;
-    pointer-events: none;
     transition: opacity 120ms var(--k-ease-out);
   }
 
@@ -2441,8 +2440,9 @@ html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open { min-height:
     background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 11%, var(--k-page)) 24px);
   }
 
+  /* the pointer is over the row whenever it is over the actions, so they are shown whenever they
+     can be clicked */
   html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts { opacity: 1; }
-  html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts > * { pointer-events: auto; }
 }
 
 html:not(#_):not(#_) #mail-view .mail-error-strip {
