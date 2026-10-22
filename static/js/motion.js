@@ -115,19 +115,33 @@ export function countTo(el, to, format = n => String(Math.round(n))) {
   requestAnimationFrame(step);
 }
 
-// tickNumbers(root, '.ms-val'): each match whose text is one number counts up to it once,
-// keeping its prefix, suffix, grouping and decimals. a re-render with the same text stays still
+// tickNumbers(root, '.ms-val'): each match whose text is one number counts up to it once. the
+// number was already formatted by the shared i18n helpers, so the count reuses its separators
+// and decimals instead of formatting it again. a re-render with the same text stays still
 export function tickNumbers(root, selector) {
   if (!root) return;
   for (const el of root.querySelectorAll(selector)) {
     if (el.children.length) continue;
     const text = el.textContent;
-    const m = text.match(/^(\D*?)(\d[\d,]*(?:\.(\d+))?)(\D*)$/);
+    const m = text.match(/^(\D*?)(\d(?:[\d.,  ' ]*\d)?)(\D*)$/);
     if (!m || el.dataset.counted === text) { el.dataset.counted = text; continue; }
-    const [, pre, num, dec = '', post] = m;
-    const to = Number(num.replace(/,/g, ''));
-    const grouped = num.includes(',');
-    countTo(el, to, n => pre + n.toLocaleString('en-US', { minimumFractionDigits: dec.length, maximumFractionDigits: dec.length, useGrouping: grouped }) + post);
+    const [, pre, num, post] = m;
+    // the last separator is the decimal one when it isn't followed by exactly three digits
+    // or when the number uses two kinds of separator
+    const seps = num.match(/[^\d]/g) || [];
+    const last = seps.at(-1);
+    const tail = last ? num.slice(num.lastIndexOf(last) + 1) : '';
+    const decSep = last && (new Set(seps).size > 1 || tail.length !== 3) ? last : '';
+    const groupSep = seps.find(c => c !== decSep) || '';
+    const dec = decSep ? tail.length : 0;
+    const digits = decSep ? num.slice(0, num.lastIndexOf(decSep)) : num;
+    const to = Number(digits.replace(/\D/g, '') + (dec ? '.' + tail : ''));
+    const shape = n => {
+      const [int, frac] = n.toFixed(dec).split('.');
+      const grouped = groupSep ? int.replace(/\B(?=(\d{3})+(?!\d))/g, groupSep) : int;
+      return pre + grouped + (frac ? decSep + frac : '') + post;
+    };
+    countTo(el, to, shape);
     el.dataset.counted = text;
   }
 }
