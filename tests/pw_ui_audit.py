@@ -67,6 +67,7 @@ PROBE = r"""
   const scope = opts.scope ? document.querySelector(opts.scope) : document;
   const out = { checks: {}, fails: [] };
   const SCALE = [0, 4, 8, 12, 16, 24, 32, 48, 64];
+  const RADII = [0, 6, 8, 12, 16];
   const TYPE = [12, 13, 14, 15, 16];
   const vw = document.documentElement.clientWidth, vh = window.innerHeight;
   const tally = (rubric, check, ok, el, detail) => {
@@ -159,11 +160,11 @@ PROBE = r"""
       tally('kokuen', 'target-44', hh >= 43.5 && hw >= 43.5 || (el.tagName === 'A' && hh >= 43.5), el, `${hw.toFixed(1)}x${hh.toFixed(1)}`);
       tally('wcag', '2.5.8-target', hh >= 24 && hw >= 24, el, `${hw.toFixed(1)}x${hh.toFixed(1)}`);
     }
-    // K: radius on the scale, circles ok, pill buttons are not
+    // K: radius on the balanced scale (decision 0040), circles and round chips ok
     const rad = px(cs.borderTopLeftRadius);
     const minSide = Math.min(r.width, r.height);
-    const circle = Math.abs(r.width - r.height) < 2 && rad >= minSide / 2 - 1;
-    const radOk = [0, 2, 3, 4].some(v => Math.abs(rad - v) < 0.3) || circle || el.type === 'range';
+    const round = rad >= minSide / 2 - 1;
+    const radOk = RADII.some(v => Math.abs(rad - v) < 0.3) || round || el.type === 'range';
     tally('kokuen', 'radius', radOk, el, `${rad}px ${r.width.toFixed(0)}x${r.height.toFixed(0)}`);
     // K: type size on scale
     const fs = px(cs.fontSize);
@@ -178,9 +179,15 @@ PROBE = r"""
       tally('kokuen', 'padding-scale', bad.length === 0, el, sides.join('/'));
       if (/flex|grid/.test(cs.display) && cs.columnGap !== 'normal') tally('kokuen', 'gap-scale', onScale(px(cs.columnGap)), el, cs.columnGap);
     }
-    // K: no lift or bloom shadow at rest
+    // K: no bloom at rest (decision 0040): a shadow is an inset edge, a tight lift (blur <= 3px)
+    // or a flat ring; anything softer is the glow the design law bans
     const shadows = cs.boxShadow === 'none' ? [] : cs.boxShadow.split(/,(?![^(]*\))/);
-    tally('kokuen', 'no-shadow', shadows.every(s => /inset/.test(s)), el, cs.boxShadow);
+    const tight = s => {
+      if (/inset/.test(s)) return true;
+      const [x = 0, y = 0, blur = 0] = (s.replace(/rgba?\([^)]*\)|#[0-9a-f]+/gi, '').match(/-?[\d.]+px/g) || []).map(parseFloat);
+      return blur <= 3 && Math.abs(x) <= 1 && Math.abs(y) <= 2;
+    };
+    tally('kokuen', 'no-shadow', shadows.every(tight), el, cs.boxShadow);
     // K: no native choice controls
     if (el.tagName === 'SELECT' || (el.tagName === 'INPUT' && /checkbox|radio/.test(el.type)))
       tally('kokuen', 'no-native-choice', cs.appearance === 'none' && cs.opacity !== '1' ? true : false, el, el.tagName + ' ' + el.type);
@@ -247,7 +254,7 @@ PROBE = r"""
     }
   }
 
-  // K: text actions are bare at rest; one contained (primary) action per surface (COMPONENTS.md)
+  // K: one filled primary action per surface (decision 0040); raised secondary actions are fine
   const inOverlay = el => !opts.scope && el.closest('[role=dialog],[role=alertdialog],[role=menu],[role=listbox],.modal-overlay,[popover]');
   const contained = el => {
     const cs = getComputedStyle(el);
@@ -257,9 +264,14 @@ PROBE = r"""
     const line = ['Top', 'Right', 'Bottom', 'Left'].filter(s => px(cs['border' + s + 'Width']) >= 1 && (() => { const c = parse(cs['border' + s + 'Color']); return c && c.a > 0.05 && ratio(over(c, behind), behind) > 1.25; })()).length >= 3;
     return fill || line;
   };
+  const accent = parse(getComputedStyle(document.documentElement).getPropertyValue('--k-accent').trim().replace(/^#(..)(..)(..)$/, (m, a, b, c) => `rgb(${parseInt(a, 16)}, ${parseInt(b, 16)}, ${parseInt(c, 16)})`));
+  const filledPrimary = el => {
+    const bg = parse(getComputedStyle(el).backgroundColor);
+    return !!(bg && accent && bg.a > 0.9 && Math.abs(bg.r - accent.r) + Math.abs(bg.g - accent.g) + Math.abs(bg.b - accent.b) < 60);
+  };
   const choice = el => el.matches('[role=tab],[role=switch],[role=radio],[role=checkbox],[role^=menuitem],[role=option],[role=combobox],[aria-pressed],[aria-checked],[aria-selected],[aria-current],[aria-expanded="true"],.active,.custom-select,.date-input,[aria-haspopup=listbox],.s-section-trigger') || el.closest('[role=radiogroup],[role=tablist],[role=group][aria-label],[role=listbox],[role=menu],[role=grid],[role=row],table,.s-toggle-row');
   // settings keeps a resting line on every action (decision 0031, settings outline pass)
-  const boxed = ctrls.filter(el => el.matches('button,[role=button],a') && (el.innerText || '').trim() && !choice(el) && !inOverlay(el) && !el.matches('.send-btn') && !el.closest('#settings-modal') && contained(el));
+  const boxed = ctrls.filter(el => el.matches('button,[role=button],a') && (el.innerText || '').trim() && !choice(el) && !inOverlay(el) && !el.matches('.send-btn') && !el.closest('#settings-modal') && contained(el) && filledPrimary(el));
   // a labelled region or dialog is its own surface with its own primary (COMPONENTS.md side panel)
   const surfaceOf = el => el.closest('[role=dialog],[role=alertdialog],[role=region][aria-label],[role=region][aria-labelledby]') || document.body;
   const bySurface = new Map();
@@ -436,7 +448,7 @@ OVERLAY_CHECK = r"""
   out.push(['kokuen', 'overlay-in-viewport', r.left >= -0.5 && r.top >= -0.5 && r.right <= vw + 0.5 && r.bottom <= vh + 0.5, `${r.left.toFixed(0)},${r.top.toFixed(0)} ${r.width.toFixed(0)}x${r.height.toFixed(0)} in ${vw}x${vh}`]);
   if (!full) {
     const rad = parseFloat(cs.borderTopLeftRadius) || 0;
-    out.push(['kokuen', 'overlay-radius', [0, 2, 3, 4].some(v => Math.abs(rad - v) < 0.3), rad + 'px']);
+    out.push(['kokuen', 'overlay-radius', [0, 8, 12, 16].some(v => Math.abs(rad - v) < 0.3), rad + 'px']);
   }
   const items = [...el.querySelectorAll('[role=menuitem],[role=menuitemradio],[role=menuitemcheckbox],[role=option]')].filter(x => x.getBoundingClientRect().height > 0);
   if (items.length >= 2) {

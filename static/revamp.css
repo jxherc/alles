@@ -109,6 +109,11 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn).link-btn {
   box-shadow: none;
 }
 
+html:not(#_)[data-kokuen-version="5"] :is(#cal-prev, #cal-next, .icon-btn.btn):hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
 /* cards that open something (docs home) read as raised tiles */
 html:not(#_) :is(.docs-home-card, .docs-card) {
   border-color: transparent;
@@ -634,6 +639,11 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-send {
   color: var(--k-muted);
   font-size: 16px;
   transition: background-color 180ms var(--k-ease-out), color 180ms var(--k-ease-out);
+}
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-send:hover {
+  background-color: var(--k-raised-hover);
+  color: var(--k-text);
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture:has(textarea:not(:placeholder-shown)) .today-capture-send {
