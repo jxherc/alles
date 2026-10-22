@@ -2654,3 +2654,30 @@ html:not(#_):not(#_) #mail-view .mail-compose-body {
   min-height: 240px;
   padding: var(--k-space-3);
 }
+
+/* ── aide answers: paragraphs and lists get breathing room, lists sit inside the column, and a
+   code block's language and copy float in its corner instead of taking a 56px bar ── */
+html:not(#_):not(#_) :is(.ai-content, #ask-panel .ask-panel-aide) > * + * { margin-top: var(--k-space-3); }
+html:not(#_):not(#_) :is(.ai-content, #ask-panel .ask-panel-aide) :is(ul, ol) { padding-left: 1.25em; }
+html:not(#_):not(#_) :is(.ai-content, #ask-panel .ask-panel-aide) li + li { margin-top: var(--k-space-1); }
+
+html:not(#_):not(#_) .code-block { position: relative; }
+
+html:not(#_):not(#_) .code-block > .code-block-header {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-1);
+  min-height: 0;
+  padding: 0 var(--k-space-1) 0 0;
+  border: 0;
+  background: transparent;
+}
+
+html:not(#_):not(#_) .code-block > .code-block-header .code-lang:empty { display: none; }
+html:not(#_):not(#_) .code-block > .code-block-header .code-lang { color: var(--k-muted); font-size: 12px; }
+html:not(#_):not(#_) .code-block > .code-block-header .code-copy { min-height: 44px; padding: 0 var(--k-space-3); }
+html:not(#_):not(#_) .code-block > pre { padding-right: 96px; }
