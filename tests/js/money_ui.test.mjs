@@ -26,7 +26,7 @@ function harness() {
     document: { getElementById: get }, location: { search: '' }, URLSearchParams,
     formatCalendarDate: () => 'october 2026',
     formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),
-    toast() {}, api: async (...args) => { requests.push(args); return {}; },
+    toast() {}, tickNumbers() {}, api: async (...args) => { requests.push(args); return {}; },
   });
   vm.runInContext(source + `
     _cur = 'CAD';

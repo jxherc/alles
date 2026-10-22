@@ -1,6 +1,6 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, focusSessionMessage } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=212';
-import { icon, iconEl, ICON_NAMES } from './icons.js';
+import { icon, iconEl, ICON_NAMES, appGlyph } from './icons.js';
 import { enterView } from './motion.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
@@ -1467,7 +1467,7 @@ function _renderAppDrawer() {
       button.type = 'button';
       button.className = 'app-drawer-item';
       button.dataset.view = destination.view;
-      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${_svg(destination.icon)}</span><span><b>${destination.name}</b><small>${destination.desc}</small></span>`;
+      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${appGlyph(destination.view)}</span><span><b>${destination.name}</b><small>${destination.desc}</small></span>`;
       button.addEventListener('click', async () => {
         const staysOnPage = singleHost() || viewToSub(destination.view) === currentSub();
         const navigated = await navigateTo(destination.view);

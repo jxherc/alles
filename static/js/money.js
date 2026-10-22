@@ -9,6 +9,7 @@ import { createFocusBoundary } from './kokuen.js?v=1';
 import { bankRequest as _ownerFetch, openPlaidLink } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';
+import { tickNumbers } from './motion.js';
 
 // one hue per category for everything on screen: the chart's categories pick first so its bars
 // never share a color, then caps and transactions
@@ -687,6 +688,7 @@ function render(preserveDrafts = false, preserveFilters = preserveDrafts) {
       <section class="money-card" data-card="rules"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
     `);
   wire();
+  tickNumbers(b, '.money-summary .ms-val');
   wireSavedTransactions();
   if (retained) restoreMoneyDrafts(b, retained);
   restoreSavedFocus(savedFocus);

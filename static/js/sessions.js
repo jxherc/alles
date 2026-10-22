@@ -492,6 +492,8 @@ export async function selectSession(id, messageId = '', options = {}) {
     document.querySelectorAll('.session-item').forEach(el => syncSessionRowState(el, el.dataset.id === id));
     renderMessages(data.messages);
     showMessages();
+    // a saved chat with nothing in it yet greets like a new one, with the starts
+    if (!data.messages?.length) showWelcome();
     // the render scrolled while the list was still hidden (no height yet); now that it shows,
     // land on the newest message, unless a link asked for one in particular
     if (!messageId) scrollDown({ force: true });

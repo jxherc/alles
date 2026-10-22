@@ -118,6 +118,34 @@ html:not(#_) :is(.docs-home-card, .docs-card):hover {
 }
 
 
+/* ── cards: filled, not outlined ───────────────────────────────────────────── */
+
+html:not(#_) :is(.money-card, .ms-card, .habit-card, .day-card, .skl-card, .brain-section, .brain-stat, .health-card, .book-card, .read-card, .watch-card, .note-card, .home-settings-preview, .finance-import-choice) {
+  border-color: transparent;
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+  box-shadow: var(--k-edge);
+}
+
+/* the money entry form is the screen's main job, so it sits one step up */
+html:not(#_) .money-card.money-entry-card {
+  background: var(--k-raised);
+  box-shadow: var(--k-edge), var(--k-lift);
+}
+
+html:not(#_) .ms-card :is(.ms-val, .ms-value, b, strong) {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+
+/* the button-looking "+ add" cells in board and import screens */
+html:not(#_) .plan-board-complete {
+  border-color: transparent;
+  background: var(--k-raised);
+  box-shadow: var(--k-edge), var(--k-lift);
+}
+
+
 /* ── picked chips, segments, tabs ──────────────────────────────────────────── */
 
 /* chips take the accent tint when picked; tabs and segments get the sliding pill below */
@@ -423,6 +451,294 @@ html:not(#_) .toast:is(.success, .error, .info) {
   box-shadow: var(--k-edge), var(--k-lift);
   color: var(--k-text);
   text-decoration: none;
+}
+
+
+/* ── icons that answer the pointer ──────────────────────────────────────────── */
+
+/* the app glyphs: bare, with one part that moves while the button is pointed at or focused */
+#app-drawer .app-drawer-icon svg.app-glyph {
+  width: 20px;
+  height: 20px;
+}
+
+.app-glyph :is(.g-glow, .g-dots circle, .g-orbit, .g-flap, .g-lines line, .g-rise, .g-tilt, .g-hop, .g-spin, .g-blink circle) {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.app-glyph .g-glow { opacity: .3; }
+.app-glyph .g-draw { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.app-glyph .g-orbit { transform-box: view-box; transform-origin: 12px 12px; }
+.app-glyph .g-flap { transform-origin: center top; }
+.app-glyph .g-lines line { transform-origin: left center; }
+.app-glyph .g-tilt { transform-origin: left bottom; }
+.app-glyph[data-glyph="vault"] .g-spin { transform-box: view-box; transform-origin: 12px 12px; }
+
+:is(button, a, [role="button"], [role="menuitem"]):is(:hover, :focus-visible) .app-glyph {
+  color: var(--k-accent);
+}
+
+:is(button, a, [role="button"], [role="menuitem"]):is(:hover, :focus-visible) .app-glyph .g-glow {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-glyph,
+  .app-glyph :is(.g-glow, .g-flap, .g-rise, .g-tilt, .g-hop, .g-spin) {
+    transition: color 180ms var(--k-ease-out), opacity 220ms var(--k-ease-out), translate 420ms var(--k-spring), rotate 520ms var(--k-spring), scale 320ms var(--k-ease-out);
+  }
+
+  :is(button, a, [role="button"], [role="menuitem"]):is(:hover, :focus-visible) .app-glyph {
+    .g-dots circle { animation: g-bounce 900ms var(--k-ease-out) infinite; }
+    .g-dots circle:nth-child(2) { animation-delay: 120ms; }
+    .g-dots circle:nth-child(3) { animation-delay: 240ms; }
+    .g-orbit { animation: g-orbit 2.4s linear infinite; }
+    .g-draw { animation: g-draw 700ms var(--k-ease-out); }
+    .g-flap { scale: 1 -.55; translate: 0 -1px; }
+    .g-lines line { animation: g-write 600ms var(--k-ease-out); }
+    .g-lines line:nth-child(2) { animation-delay: 90ms; }
+    .g-rise { translate: 0 -2px; }
+    .g-tilt { rotate: -8deg; }
+    .g-hop { translate: 0 -2.5px; }
+    .g-spin { rotate: 90deg; }
+    .g-blink circle { animation: g-blink 900ms steps(2, jump-none) infinite; }
+    .g-blink circle:nth-child(2) { animation-delay: 300ms; }
+  }
+
+  /* everyday icons: a small move that says what the button does */
+  :is(button, a, [role="button"], [role="menuitem"]):is(:hover, :focus-visible) > svg.ic {
+    &[data-icon="refresh"] { rotate: 180deg; }
+    &[data-icon="plus"] { rotate: 90deg; }
+    &[data-icon="gear"] { rotate: 60deg; }
+    &:is([data-icon="chevron-right"], [data-icon="send"]) { translate: 2px 0; }
+    &[data-icon="chevron-left"] { translate: -2px 0; }
+    &[data-icon="external"] { translate: 1.5px -1.5px; }
+    &:is([data-icon="download"]) { translate: 0 1.5px; }
+    &:is([data-icon="upload"]) { translate: 0 -1.5px; }
+    &[data-icon="bell"] { animation: g-ring 600ms var(--k-ease-out); }
+    &[data-icon="trash"] { animation: g-shake 420ms var(--k-ease-out); }
+    &:is([data-icon="star"], [data-icon="heart"], [data-icon="search"]) { scale: 1.12; }
+  }
+
+  :is(button, a, [role="button"], [role="menuitem"]) > svg.ic {
+    transition: rotate 460ms var(--k-spring), translate 320ms var(--k-spring), scale 260ms var(--k-ease-out), color 160ms var(--k-ease-out);
+  }
+}
+
+@keyframes g-bounce { 0%, 60%, 100% { translate: 0 0; } 30% { translate: 0 -2.4px; } }
+@keyframes g-orbit { to { rotate: 360deg; } }
+@keyframes g-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes g-write { from { scale: .2 1; } to { scale: 1 1; } }
+@keyframes g-blink { 0% { opacity: 1; } 100% { opacity: .25; } }
+@keyframes g-ring { 0%, 100% { rotate: 0deg; } 25% { rotate: 14deg; } 50% { rotate: -10deg; } 75% { rotate: 6deg; } }
+@keyframes g-shake { 0%, 100% { rotate: 0deg; } 30% { rotate: -9deg; } 60% { rotate: 7deg; } }
+
+
+/* ── app overviews: three filled columns in the dashboard width ─────────────── */
+
+html:not(#_) .specialist-group-overview > .specialist-workbench {
+  max-width: 1040px;
+  grid-template-columns: minmax(15rem, 0.9fr) minmax(0, 1.5fr) minmax(12rem, 0.8fr);
+  gap: var(--k-space-4);
+}
+
+@media (max-width: 1100px) {
+  html:not(#_) .specialist-group-overview > .specialist-workbench { grid-template-columns: minmax(0, 1fr); }
+}
+
+html:not(#_) .specialist-workbench > :is(.specialist-workbench-rail, .specialist-workbench-main, .specialist-workbench-detail) {
+  align-self: start;
+  padding: var(--k-space-5);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+  box-shadow: var(--k-edge);
+}
+
+html:not(#_) .specialist-workbench > .specialist-workbench-detail:empty {
+  visibility: hidden;
+}
+
+html:not(#_) .specialist-workbench .specialist-detail-title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* ── home: the capture box is a soft filled composer ─────────────────────────── */
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture {
+  align-items: end;
+  gap: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--k-radius-large);
+  background: var(--k-panel);
+  box-shadow: var(--k-edge), 0 0 0 1px var(--k-line);
+  transition: box-shadow 200ms var(--k-ease-out);
+}
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture:focus-within {
+  box-shadow: var(--k-edge), 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+}
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture textarea {
+  padding-inline: var(--k-space-2);
+}
+
+/* both buttons keep a 44px target; a 6px clear border leaves a 32px fill inside, so the fill
+   sits 6px from the box's edges on every side and its corner (16 - 6) stays concentric */
+html:not(#_) #today-view[data-kokuen-surface="home"] :is(.today-capture-mode, .today-capture-send) {
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border: 6px solid transparent;
+  border-radius: var(--k-radius-large);
+  background-clip: padding-box;
+  font-size: 13px;
+  font-weight: 560;
+}
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-mode {
+  padding: 0 var(--k-space-2);
+  background-color: var(--k-accent-tint);
+  color: var(--k-text);
+}
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-mode[aria-pressed="false"] {
+  background-color: var(--k-raised);
+}
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-send {
+  width: 44px;
+  padding: 0;
+  background-color: var(--k-raised);
+  color: var(--k-muted);
+  font-size: 16px;
+  transition: background-color 180ms var(--k-ease-out), color 180ms var(--k-ease-out);
+}
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture:has(textarea:not(:placeholder-shown)) .today-capture-send {
+  background-color: var(--k-accent);
+  color: var(--k-on-accent);
+}
+
+
+/* ── settings: one heading line, a modal that floats ────────────────────────── */
+
+html:not(#_) #settings-modal .s-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--k-space-2);
+}
+
+html:not(#_) #settings-modal .s-context::before {
+  content: "/";
+  margin-right: var(--k-space-2);
+  color: var(--k-quiet);
+}
+
+html:not(#_) #settings-modal .s-modal {
+  border-color: transparent;
+  border-radius: var(--k-radius-large);
+  box-shadow: var(--k-edge), var(--k-float);
+}
+
+
+/* ── andromeda: the search box has a shape and glows when it's yours ────────── */
+
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search {
+  min-height: 52px;
+  padding-inline: var(--k-space-2) 0;
+  border-radius: var(--k-radius-large);
+  background: var(--k-panel);
+  box-shadow: var(--k-edge), 0 0 0 1px var(--k-line);
+  transition: box-shadow 200ms var(--k-ease-out), background-color 200ms var(--k-ease-out);
+}
+
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:is(:hover, :focus-within, [data-keyboard-focus]) {
+  background: var(--k-raised);
+  box-shadow: var(--k-edge), 0 0 0 1px color-mix(in srgb, var(--k-accent) 50%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 12%, transparent);
+}
+
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search::before {
+  display: none;
+}
+
+
+/* ── aide: starts on an empty chat are soft chips that arrive one by one ───── */
+
+html:not(#_) .welcome-start {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--k-panel);
+  box-shadow: var(--k-edge), 0 0 0 1px var(--k-line);
+  color: var(--k-soft);
+}
+
+html:not(#_) .welcome-start:hover {
+  background: var(--k-raised);
+  color: var(--k-text);
+  box-shadow: var(--k-edge), 0 0 0 1px var(--k-accent-ring);
+}
+
+
+/* ── home: pinned apps are tiles ───────────────────────────────────────────── */
+
+#today-view[data-kokuen-surface="home"] .today-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(208px, 1fr));
+  gap: var(--k-space-3);
+  margin-inline-start: 0;
+}
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-shortcut {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: var(--k-space-3);
+  row-gap: 2px;
+  align-items: center;
+  min-height: 72px;
+  padding: var(--k-space-3) var(--k-space-4);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+  box-shadow: var(--k-edge);
+  text-align: left;
+  transition: background-color 160ms var(--k-ease-out);
+}
+
+html:not(#_) #today-view[data-kokuen-surface="home"] .today-shortcut:hover {
+  background: var(--k-raised);
+}
+
+#today-view[data-kokuen-surface="home"] .today-shortcut-glyph {
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  color: var(--k-soft);
+}
+
+#today-view[data-kokuen-surface="home"] .today-shortcut-glyph svg {
+  width: 22px;
+  height: 22px;
+}
+
+#today-view[data-kokuen-surface="home"] .today-shortcut b {
+  font-size: 15px;
+  font-weight: 560;
+  color: var(--k-text);
+}
+
+#today-view[data-kokuen-surface="home"] .today-shortcut small {
+  color: var(--k-muted);
+  font-size: 13px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 

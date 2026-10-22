@@ -107,7 +107,7 @@ export function icon(name, opts = {}) {
     style = ` style="font-size:${s}"`;
   }
   return (
-    `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" ` +
+    `<svg class="${cls}" data-icon="${name}" viewBox="0 0 24 24" fill="none" stroke="currentColor" ` +
     `stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ` +
     `aria-hidden="true"${style}>${body}</svg>`
   );
@@ -120,3 +120,35 @@ export function iconEl(name, opts) {
 }
 
 export const ICON_NAMES = Object.keys(P).filter((k) => k[0] !== "_");
+
+// app glyphs (decision 0040): one per app, same 24 grid and stroke as the set above. each has one
+// part marked g-* that moves when its button is pointed at or focused (revamp.css), so the app
+// list feels alive without anything moving at rest.
+const APP = {
+  home: '<path d="M4 11.2 12 4.8l8 6.4V19a1.2 1.2 0 0 1-1.2 1.2H5.2A1.2 1.2 0 0 1 4 19z"/><rect class="g-glow" x="10" y="13.6" width="4" height="6.6" rx="1.2" fill="currentColor" stroke="none"/>',
+  aide: '<path d="M5.5 5.5h13a2.5 2.5 0 0 1 2.5 2.5v6.5a2.5 2.5 0 0 1-2.5 2.5H13l-4.5 3.5V17H5.5A2.5 2.5 0 0 1 3 14.5V8a2.5 2.5 0 0 1 2.5-2.5z"/><g class="g-dots" fill="currentColor" stroke="none"><circle cx="8" cy="11.2" r="1.15"/><circle cx="12" cy="11.2" r="1.15"/><circle cx="16" cy="11.2" r="1.15"/></g>',
+  andromeda: '<circle cx="12" cy="12" r="4.6"/><ellipse cx="12" cy="12" rx="9.6" ry="3.6" transform="rotate(-24 12 12)"/><g class="g-orbit"><circle cx="20.4" cy="8.4" r="1.4" fill="currentColor" stroke="none"/></g>',
+  plan: '<rect x="3.8" y="5.2" width="16.4" height="15" rx="2.4"/><line x1="3.8" y1="9.4" x2="20.2" y2="9.4"/><line x1="8.2" y1="3.4" x2="8.2" y2="6.6"/><line x1="15.8" y1="3.4" x2="15.8" y2="6.6"/><polyline class="g-draw" points="8.6 14.6 11 17 15.6 12.4" pathLength="1"/>',
+  inbox: '<rect x="3.2" y="6" width="17.6" height="13" rx="2.4"/><polyline class="g-flap" points="3.8 7.4 12 13.2 20.2 7.4"/>',
+  docs: '<path d="M6.6 3.6h7.2l4.8 4.8v11a1.6 1.6 0 0 1-1.6 1.6H6.6A1.6 1.6 0 0 1 5 19.4V5.2a1.6 1.6 0 0 1 1.6-1.6z"/><polyline points="13.4 3.8 13.4 8.6 18.2 8.6"/><g class="g-lines"><line x1="8.4" y1="12.6" x2="15.2" y2="12.6"/><line x1="8.4" y1="16" x2="13" y2="16"/></g>',
+  files: '<path class="g-rise" d="M7.2 11V6.6a1 1 0 0 1 1-1h7.6a1 1 0 0 1 1 1V11"/><path d="M3.6 9.6a1.6 1.6 0 0 1 1.6-1.6h4l1.8 2h8a1.6 1.6 0 0 1 1.6 1.6v6.8a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6z"/>',
+  library: '<rect x="4" y="5" width="4.2" height="15" rx="1"/><rect x="9.6" y="7" width="4.2" height="13" rx="1"/><g class="g-tilt"><rect x="15.6" y="6.2" width="4" height="13.6" rx="1" transform="rotate(10 17.6 19.8)"/></g><line x1="4" y1="20.2" x2="20.4" y2="20.2"/>',
+  health: '<path d="M12 20.2s-7.6-4.6-7.6-10a4.2 4.2 0 0 1 7.6-2.5 4.2 4.2 0 0 1 7.6 2.5c0 5.4-7.6 10-7.6 10z"/><polyline class="g-draw" points="5.2 12.4 9 12.4 10.6 9.6 13 15 14.6 12.4 18.8 12.4" pathLength="1"/>',
+  finance: '<ellipse cx="12" cy="16.6" rx="7.4" ry="2.8"/><path d="M4.6 13.4v3.2M19.4 13.4v3.2"/><g class="g-hop"><ellipse cx="12" cy="9.4" rx="7.4" ry="2.8"/><path d="M4.6 9.4v3.2c0 1.5 3.3 2.8 7.4 2.8s7.4-1.3 7.4-2.8V9.4"/></g>',
+  vault: '<rect x="3.6" y="4.4" width="16.8" height="15.2" rx="2.6"/><line x1="7" y1="19.6" x2="7" y2="21"/><line x1="17" y1="19.6" x2="17" y2="21"/><g class="g-spin"><circle cx="12" cy="12" r="3.6"/><line x1="12" y1="8.4" x2="12" y2="10.2"/></g>',
+  server: '<rect x="3.8" y="4.2" width="16.4" height="6.8" rx="1.8"/><rect x="3.8" y="13" width="16.4" height="6.8" rx="1.8"/><line x1="7.4" y1="7.6" x2="11" y2="7.6"/><line x1="7.4" y1="16.4" x2="11" y2="16.4"/><g class="g-blink" fill="currentColor" stroke="none"><circle cx="16.6" cy="7.6" r="1.1"/><circle cx="16.6" cy="16.4" r="1.1"/></g>',
+  settings: '<g class="g-spin"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.2l1.9-1.5-2-3.4-2.3.9a7 7 0 0 0-2-1.2l-.3-2.4h-4l-.3 2.4a7 7 0 0 0-2 1.2l-2.3-.9-2 3.4 1.9 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-1.9 1.5 2 3.4 2.3-.9a7 7 0 0 0 2 1.2l.3 2.4h4l.3-2.4a7 7 0 0 0 2-1.2l2.3.9 2-3.4-1.9-1.5A7 7 0 0 0 19 12z"/></g>',
+};
+// the shell's view keys for each app
+const APP_FOR_VIEW = { today: 'home', chat: 'aide', wiki: 'docs', system: 'server', calendar: 'plan', mail: 'inbox' };
+
+export function appGlyph(name, opts = {}) {
+  const key = APP[name] ? name : APP_FOR_VIEW[name];
+  if (!key) return icon(name, opts);
+  return (
+    `<svg class="ic app-glyph${opts.cls ? " " + opts.cls : ""}" data-glyph="${key}" viewBox="0 0 24 24" fill="none" ` +
+    `stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${APP[key]}</svg>`
+  );
+}
+
+export const APP_GLYPHS = Object.keys(APP);

@@ -5,7 +5,8 @@
 // util.js imports this under node for tests, so nothing here may assume a page
 const page = typeof document !== 'undefined' && typeof MutationObserver !== 'undefined';
 const reduce = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: true };
-const still = () => reduce.matches;
+// automated browsers (the gates) read text mid-count, so they get the final numbers at once
+const still = () => reduce.matches || (typeof navigator !== 'undefined' && navigator.webdriver === true);
 const EASE = 'cubic-bezier(.23, 1, .32, 1)';
 const SPRING = 'linear(0, .009, .035 2.1%, .141 4.4%, .723 12.9%, .938 16.7%, 1.017 20.5%, 1.043 24.5%, 1.035 28.4%, 1.007 36%, .998 41.2%, .996 46.9%, 1)';
 
@@ -39,7 +40,7 @@ function release() {
 // ── the sliding pill ─────────────────────────────────────────────────────────
 // a group is the parent of two or more of these items with exactly one picked. the pill is the
 // group's ::before (revamp.css), moved through --pill-* so no element is added to the dom
-const ITEM = '[role="tab"], .seg-opt, .tasks-tab, .te-seg > button, .theme-mode-btn, .s-nav-item, .health-chip, .read-chip, .mem-policy-btn, .andromeda-tab';
+const ITEM = '[role="tab"], .aide-mode-nav > button, .seg-opt, .tasks-tab, .te-seg > button, .theme-mode-btn, .s-nav-item, .health-chip, .read-chip, .mem-policy-btn, .andromeda-tab';
 const PICKED = '[aria-selected="true"], [aria-pressed="true"], [aria-checked="true"], [aria-current="page"], [aria-current="true"], .active';
 const TINT = /chip|policy/;
 const skipped = new WeakSet();
@@ -102,17 +103,33 @@ export function enterView(root) {
 export function countTo(el, to, format = n => String(Math.round(n))) {
   if (!el) return;
   const done = format(to);
-  if (still() || !Number.isFinite(to) || el.dataset.counted === done) { el.textContent = done; el.dataset.counted = done; return; }
-  el.dataset.counted = done;
+  if (still() || !Number.isFinite(to)) { el.textContent = done; return; }
   el.setAttribute('aria-label', done);
   const t0 = performance.now();
   const step = t => {
     const k = Math.min(1, (t - t0) / 800);
     el.textContent = k < 1 ? format(to * (1 - Math.pow(1 - k, 3))) : done;
-    if (k < 1 && el.dataset.counted === done) requestAnimationFrame(step);
+    if (k < 1) requestAnimationFrame(step);
     else el.removeAttribute('aria-label');
   };
   requestAnimationFrame(step);
+}
+
+// tickNumbers(root, '.ms-val'): each match whose text is one number counts up to it once,
+// keeping its prefix, suffix, grouping and decimals. a re-render with the same text stays still
+export function tickNumbers(root, selector) {
+  if (!root) return;
+  for (const el of root.querySelectorAll(selector)) {
+    if (el.children.length) continue;
+    const text = el.textContent;
+    const m = text.match(/^(\D*?)(\d[\d,]*(?:\.(\d+))?)(\D*)$/);
+    if (!m || el.dataset.counted === text) { el.dataset.counted = text; continue; }
+    const [, pre, num, dec = '', post] = m;
+    const to = Number(num.replace(/,/g, ''));
+    const grouped = num.includes(',');
+    countTo(el, to, n => pre + n.toLocaleString('en-US', { minimumFractionDigits: dec.length, maximumFractionDigits: dec.length, useGrouping: grouped }) + post);
+    el.dataset.counted = text;
+  }
 }
 
 // ── leaving ──────────────────────────────────────────────────────────────────

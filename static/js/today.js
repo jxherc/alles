@@ -1,6 +1,7 @@
 import { calendarDateKey, formatDate, formatDateParts, resolvedTimeZone, t, tp } from './i18n.js';
 import { autosizeTextarea, wireAutosizeTextarea } from './text_entry.js?v=1';
 import { toast } from './util.js';
+import { appGlyph } from './icons.js';
 
 const SECTION_LABELS = {
   needs_you: 'needs you',
@@ -144,7 +145,7 @@ function shortcutRows() {
   const byView = new Map(apps.map(item => [item.view, item]));
   const selected = (preferences?.shortcuts || []).map(view => byView.get(view)).filter(Boolean);
   if (!selected.length) return `<p class="today-empty">${esc(t('home.no_pinned_apps'))}</p>`;
-  return `<div class="today-shortcuts">${selected.map(item => `<button class="today-shortcut" type="button" data-view="${esc(item.view)}"><b>${esc(item.name)}</b><small>${esc(item.desc)}</small></button>`).join('')}</div>`;
+  return `<div class="today-shortcuts">${selected.map(item => `<button class="today-shortcut" type="button" data-view="${esc(item.view)}"><span class="today-shortcut-glyph">${appGlyph(item.view)}</span><b>${esc(item.name)}</b><small>${esc(item.desc)}</small></button>`).join('')}</div>`;
 }
 
 function pinnedAppsSection() {
