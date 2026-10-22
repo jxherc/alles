@@ -324,6 +324,13 @@ html:not(#_) .task-addsub:hover {
 
 /* ── switches: the knob springs across ─────────────────────────────────────── */
 
+/* the knob of a switch that's on takes the on-accent colour, so it reads on the accent track in
+   both themes (a dark knob on light purple, a white one on deep purple) */
+html:not(#_):not(#_) :is(.home-settings-switch, .news-switch)[aria-checked="true"]::after,
+html:not(#_):not(#_) .s-switch.on::after {
+  background: var(--k-on-accent);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html:not(#_) :is(.s-switch, .home-settings-switch, .news-switch)::after {
     transition: left var(--k-motion-slide) var(--k-spring), translate var(--k-motion-slide) var(--k-spring), background-color 180ms var(--k-ease-out);
