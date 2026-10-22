@@ -31,8 +31,10 @@
 
 /* fills that let the surface show through (pro-ui research, decision 0041): one hover, one
    selected, one field fill and ring read the same on page, panel, card and raised. the
-   owner's text colour drives them, so a custom theme still tints them */
-html:not(#_) {
+   owner's text colour drives them, so a custom theme still tints them. kokuen declares its
+   tokens again on every surface, so these sit on the same elements */
+html:not(#_),
+html:not(#_) :is(body[data-app="files"], [data-kokuen-surface]) {
   --k-hover: color-mix(in srgb, var(--k-text) 6%, transparent);
   --k-selected-fill: color-mix(in srgb, var(--k-text) 11%, transparent);
   --k-field: color-mix(in srgb, var(--k-text) 5%, transparent);
@@ -44,7 +46,8 @@ html:not(#_) {
   --k-btn-fill-hover: color-mix(in srgb, var(--k-text) 13%, transparent);
 }
 
-html:not(#_)[data-theme="light"] {
+html:not(#_)[data-theme="light"],
+html:not(#_)[data-theme="light"] :is(body[data-app="files"], [data-kokuen-surface]) {
   --k-hover: color-mix(in srgb, var(--k-text) 5%, transparent);
   --k-selected-fill: color-mix(in srgb, var(--k-text) 8%, transparent);
   --k-field: color-mix(in srgb, var(--k-text) 3%, #fff);
@@ -695,14 +698,14 @@ html:not(#_) .specialist-group-grid {
   gap: var(--k-block-gap);
 }
 
-html:not(#_) :is(.specialist-group-card, .finance-actual-panel) {
+html:not(#_) .specialist-group :is(.specialist-group-card, .finance-actual-panel) {
   padding: var(--k-space-5);
   border: 1px solid var(--k-card-line);
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
 }
 
-html:not(#_) .finance-actual-panel {
+html:not(#_) .specialist-group .finance-actual-panel {
   margin-top: var(--k-block-gap);
 }
 
@@ -791,14 +794,26 @@ html:not(#_):not(#_) .specialist-workbench .specialist-group-capture input {
   box-shadow: none;
 }
 
+/* the box shows focus, so the field inside draws none of its own (one focus owner) */
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture input:is(:focus, :focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > button {
   min-height: 44px;
   margin: 0;
+  /* 10px padding + the 6px clear border = 16, on the spacing scale */
+  padding: 0 10px;
   border: 6px solid transparent;
   border-radius: var(--k-radius-large);
   background-clip: padding-box;
   background-color: var(--k-accent);
   color: var(--k-on-accent);
+}
+
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > button:hover {
+  background-color: color-mix(in srgb, var(--k-accent) 86%, var(--k-text));
 }
 
 html:not(#_):not(#_) .specialist-workbench .specialist-group-capture-status {
@@ -946,7 +961,6 @@ html:not(#_):not(#_) :is(
 ) {
   background: var(--k-selected-fill);
   color: var(--k-text);
-  font-weight: 500;
 }
 
 html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-sidebar) :is(button, a):not(.active, .is-active, [aria-current="page"]):hover {
@@ -1282,6 +1296,10 @@ html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :
   border-radius: 0;
   background: transparent !important;
   box-shadow: none !important;
+}
+
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input):hover {
+  background: var(--k-hover) !important;
 }
 
 html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
@@ -1748,17 +1766,6 @@ html:not(#_):not(#_) #vault-view .vault-lock-screen > label + input {
 html:not(#_):not(#_) #vault-view .vault-lock-screen input {
   box-sizing: border-box;
   width: min(340px, 100%);
-  min-height: 44px;
-  padding: 0 var(--k-space-3);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-control);
-  background: var(--k-panel);
-}
-
-html:not(#_):not(#_) #vault-view .vault-lock-screen input:focus-visible {
-  border-color: color-mix(in srgb, var(--k-accent) 55%, var(--k-line));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--k-accent) 13%, transparent);
-  outline: none;
 }
 
 html:not(#_):not(#_) #vault-view .vault-lock-screen > .vault-lock-help {
@@ -1808,12 +1815,11 @@ html:not(#_):not(#_) :is(
   box-shadow: inset 0 0 0 1px var(--k-field-ring-hover);
 }
 
-html:not(#_):not(#_) :is(
-  .settings-input, .settings-textarea, .date-input, .cal-quick,
-  [data-specialist-app] input[type="search"], #files-search
-):is(:focus, :focus-visible, .open:focus-within) {
-  outline: none;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 60%, var(--k-field-ring)), 0 0 0 3px color-mix(in srgb, var(--k-accent) 16%, transparent);
+/* focus keeps decision 0030's single bottom line (kokuen draws it), in the accent, so a field
+   gains one edge instead of a box */
+html:not(#_),
+html:not(#_) :is(body[data-app="files"], [data-kokuen-surface]) {
+  --k-field-focus: var(--k-accent);
 }
 
 /* ── list rows: no dividers (decision 0041). rows sit 2px apart; the hover fill is the row's
@@ -1960,5 +1966,12 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
     grid-column: 3;
     grid-row: 1;
     width: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  /* an error appears under the add row's button, so the button does not jump when it shows */
+  html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > .contact-error {
+    order: 99;
   }
 }
