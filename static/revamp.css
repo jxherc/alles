@@ -283,6 +283,17 @@ html:not(#_):not(#_) .has-pill > :is([aria-selected="true"], [aria-pressed="true
   box-shadow: none !important;
 }
 
+/* high contrast (forced colours) paints the pill over with the page colour, so the picked item
+   takes the system highlight itself, as it did before the pill */
+@media (forced-colors: active) {
+  .has-pill::before { display: none; }
+  html:not(#_):not(#_) .has-pill > :is([aria-selected="true"], [aria-pressed="true"], [aria-checked="true"], [aria-current="page"], [aria-current="true"], .active) {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .has-pill[data-pill-ready]::before {
     transition:
@@ -1391,7 +1402,8 @@ html:not(#_) #settings-modal .s-heading {
 }
 
 html:not(#_) #settings-modal .s-context::before {
-  content: "/";
+  /* a divider you see, not one a screen reader reads out as "slash" */
+  content: "/" / "";
   margin-right: var(--k-space-2);
   color: var(--k-quiet);
 }

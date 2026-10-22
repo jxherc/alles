@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -64,10 +63,11 @@ def run() -> None:
             expect(page.get_by_role("heading", name="cached messages")).to_be_visible()
             page.locator('#inbox-view [data-group-section="mail"]').click()
             expect(page.locator("#mail-view")).to_be_visible()
-            unread = page.locator('.mail-nav-item[data-filter="unread"]')
-            expect(unread).to_be_visible()
-            unread.click()
-            expect(unread).to_have_class(re.compile(r"\bactive\b"))
+            # no mailbox yet: folders and search wait, the account setup is what's on screen
+            expect(page.locator("#mail-view")).to_have_attribute("data-no-account", "")
+            expect(page.locator('.mail-nav-item[data-filter="unread"]')).to_be_hidden()
+            expect(page.locator("#mail-search")).to_be_hidden()
+            expect(page.get_by_role("region", name="mail accounts")).to_be_visible()
             page.goto(base, wait_until="networkidle")
             expect(page.locator("#today-view")).to_be_visible()
             assert page.evaluate(

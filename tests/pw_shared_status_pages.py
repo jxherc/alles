@@ -145,7 +145,7 @@ def run():
                                 "language": measurements["lang"] == "en",
                                 "title": bool(measurements["title"]),
                                 "theme": measurements["background"]
-                                == ("rgb(9, 9, 9)" if theme == "dark" else "rgb(244, 243, 240)"),
+                                == ("rgb(18, 16, 14)" if theme == "dark" else "rgb(248, 246, 243)"),
                             }
                         )
                     if form:
