@@ -1435,14 +1435,13 @@ export async function openMailSource(id, isCurrent = () => true) {
   }
 }
 
-// the header's date in the owner's locale ("thu, oct 22 · 9:00 am"); an unreadable date stays as sent
-function readerDate(value) {
-  const when = Date.parse(value || '');
-  if (Number.isNaN(when)) return value || '';
-  return `${formatDate(when, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${formatTime(when, { hour: 'numeric', minute: '2-digit' })}`;
-}
-
 async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurrent = () => true, trigger = document.activeElement) {
+  // the header's date in the owner's locale; an unreadable date (or no formatter) stays as sent
+  const readerDate = value => {
+    const when = Date.parse(value || '');
+    if (Number.isNaN(when) || typeof formatDate !== 'function') return value || '';
+    return `${formatDate(when, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${formatTime(when, { hour: 'numeric', minute: '2-digit' })}`;
+  };
   const returnTarget = mailPaneReturnTarget(trigger);
   if (!await prepareMailNavigation() || !isCurrent()) return;
   const generation = _messageGeneration, paneGeneration = _mailPaneGeneration;
