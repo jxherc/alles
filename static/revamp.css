@@ -607,6 +607,75 @@ html:not(#_) .specialist-workbench > :is(.specialist-workbench-rail, .specialist
   box-shadow: none;
 }
 
+/* plan's overview is one column: capture a task, pick a window, read the agenda full width */
+html:not(#_):not(#_) .specialist-group-overview > .specialist-workbench-plan {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "capture" "choices" "agenda";
+  gap: var(--k-block-gap);
+}
+
+html:not(#_):not(#_) .specialist-workbench-plan > .specialist-workbench-detail {
+  grid-area: capture;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+html:not(#_):not(#_) .specialist-workbench-plan > .specialist-workbench-rail {
+  grid-area: choices;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+html:not(#_):not(#_) .specialist-workbench-plan > .specialist-workbench-main {
+  grid-area: agenda;
+}
+
+/* the picked window's fill is a box, so it lines up with the boxes above and below it */
+html:not(#_):not(#_) .specialist-workbench-plan .specialist-choice-group {
+  margin-inline-start: 0;
+}
+
+/* the quick capture reads as the same soft composer as home's */
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border-radius: var(--k-radius-large);
+  background: var(--k-panel);
+  box-shadow: 0 0 0 1px var(--k-line);
+}
+
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture:focus-within {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+}
+
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture input {
+  min-height: 44px;
+  padding: 0 var(--k-space-4);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > button {
+  min-height: 44px;
+  margin: 0;
+  border: 6px solid transparent;
+  border-radius: var(--k-radius-large);
+  background-clip: padding-box;
+  background-color: var(--k-accent);
+  color: var(--k-on-accent);
+}
+
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture-status {
+  grid-column: 1 / -1;
+  padding: 0 var(--k-space-4) var(--k-space-2);
+}
+
 /* rows and choices inside a card move back by their padding, so their words start under the
    card's heading and only the hover fill reaches past it (0031) */
 html:not(#_) .specialist-workbench :is(.specialist-habit-row, .specialist-record-row, .specialist-library-row, .specialist-message-row) {
@@ -895,209 +964,20 @@ html:not(#_):not(#_) :is(.msg-actions, .msg-actions-menu) :is(.act-btn, .btn):ho
 }
 
 
-/* ── the desktop sidebar (decision 0041) ─────────────────────────────────────
-   on a wide screen every app sits in one column on the left, with the open app's views under
-   it (the apps' own tab lists, moved here). the header row keeps the screen's title and its
-   actions. narrower screens keep the app switcher and the row of views */
-.shell-sidebar {
-  display: none;
+/* ── add forms open the list ─────────────────────────────────
+   tasks, contacts, subscriptions and countdowns kept their add form pinned to the window's foot,
+   far from the list it adds to, with a band of nothing between. it now sits right above the list,
+   under the title row, where the new row will appear */
+html:not(#_) .page-view > .page-view-head { order: -1; }
+html:not(#_) .page-view > .page-view-footer { order: 0; }
+html:not(#_) .page-view > .page-view-body { order: 1; }
+
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer {
+  padding-block: var(--k-space-2) var(--k-rhythm);
+  border-top: 0;
+  background: transparent;
 }
 
-@media (min-width: 1024px) {
-  body.has-shell-sidebar .shell-sidebar:not([hidden]) {
-    display: flex;
-    flex-direction: column;
-    flex: 0 0 232px;
-    box-sizing: border-box;
-    width: 232px;
-    height: 100vh;
-    height: 100dvh;
-    padding: 0 var(--k-space-3) var(--k-space-3);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    background: var(--k-panel);
-  }
-
-  .shell-sidebar-brand {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: var(--k-space-3);
-    min-height: var(--k-app-header, 52px);
-    padding-inline: var(--k-space-3);
-    color: var(--k-text);
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .shell-sidebar-apps {
-    display: grid;
-    gap: var(--k-space-3);
-  }
-
-  .shell-sidebar-group {
-    display: grid;
-    gap: 2px;
-  }
-
-  .shell-sidebar-link {
-    display: flex;
-    align-items: center;
-    gap: var(--k-space-3);
-    width: 100%;
-    min-height: var(--k-control);
-    padding: 0 var(--k-space-3);
-    border: 0;
-    border-radius: var(--k-radius-control);
-    background: transparent;
-    color: var(--k-soft);
-    font: 500 14px/1.2 var(--k-font);
-    text-align: left;
-    cursor: pointer;
-    transition: background-color 140ms var(--k-ease-out), color 140ms var(--k-ease-out);
-  }
-
-  .shell-sidebar-link svg {
-    flex: 0 0 18px;
-    width: 18px;
-    height: 18px;
-    color: var(--k-muted);
-  }
-
-  .shell-sidebar-link:hover {
-    background: var(--k-hover);
-    color: var(--k-text);
-  }
-
-  .shell-sidebar-link[aria-current="page"] {
-    background: var(--k-pill);
-    color: var(--k-text);
-  }
-
-  .shell-sidebar-link[aria-current="page"] svg {
-    color: var(--k-text);
-  }
-
-  .shell-sidebar-link:focus-visible {
-    outline: 2px solid var(--k-focus);
-    outline-offset: -2px;
-  }
-
-  .shell-sidebar-views {
-    display: none;
-  }
-
-  .shell-sidebar-item.is-open .shell-sidebar-views {
-    display: block;
-    padding: 2px 0 var(--k-space-1);
-  }
-
-  /* the views, now a vertical list: words under the app's name, the pill slides down the list */
-  html:not(#_):not(#_) .shell-sidebar-views > :is([role="tablist"], .aide-mode-nav) {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: visible;
-    border: 0;
-  }
-
-  html:not(#_):not(#_) .shell-sidebar-views :is([role="tab"], .aide-mode-nav > button) {
-    justify-content: flex-start;
-    width: 100%;
-    min-height: var(--k-control);
-    margin: 0;
-    padding: 0 var(--k-space-3) 0 42px;
-    border-radius: var(--k-radius-control);
-    color: var(--k-muted);
-    font-size: 14px;
-    font-weight: 400;
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  html:not(#_):not(#_) .shell-sidebar-views :is([role="tab"], .aide-mode-nav > button):hover {
-    color: var(--k-text);
-  }
-
-  html:not(#_):not(#_) .shell-sidebar-views :is([role="tab"][aria-selected="true"], .aide-mode-nav > button[aria-pressed="true"]) {
-    color: var(--k-text);
-  }
-
-  /* a list that draws its own ::before gets no sliding pill, so its picked view fills itself */
-  html:not(#_):not(#_) .shell-sidebar-views > :not(.has-pill) > :is([role="tab"][aria-selected="true"], button[aria-pressed="true"]) {
-    background: var(--k-pill);
-  }
-
-  html:not(#_):not(#_) .shell-sidebar-views > :is([role="tablist"], .aide-mode-nav) {
-    background: transparent;
-    box-shadow: none;
-  }
-
-  html:not(#_):not(#_) .shell-sidebar-views > :is([role="tablist"], .aide-mode-nav)::before,
-  html:not(#_):not(#_) .shell-sidebar-views > :is([role="tablist"], .aide-mode-nav)::after {
-    background: none;
-  }
-
-  .shell-sidebar-brand svg {
-    flex: 0 0 18px;
-    color: var(--k-accent);
-  }
-
-  .shell-sidebar-foot {
-    margin-top: auto;
-    padding-top: var(--k-space-4);
-  }
-
-  /* the header row: the sidebar already names the app, so the switcher reads as the title's
-     first word and the open view follows it in ink */
-  body.has-shell-sidebar #app-drawer-btn .shell-navigation-chevron {
-    display: none;
-  }
-
-  html:not(#_):not(#_) body.has-shell-sidebar #app-drawer-btn {
-    color: var(--k-muted);
-    font-size: 18px;
-    font-weight: 500;
-  }
-
-  html:not(#_):not(#_) body.has-shell-sidebar #app-drawer-btn:has(+ .shell-title-view[hidden]) {
-    color: var(--k-text);
-    font-weight: 600;
-  }
-
-  .shell-title-view {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--k-control);
-    padding-inline: var(--k-space-1) var(--k-space-5);
-    color: var(--k-text);
-    font-size: 18px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .shell-title-view[hidden] {
-    display: none;
-  }
-
-  /* header actions (finance's guide) end the row */
-  html:not(#_) body.has-shell-sidebar .specialist-app-head .manual-context-help {
-    margin-inline-start: auto;
-  }
-
-  html:not(#_) body.has-shell-sidebar .specialist-app-head {
-    display: flex;
-    align-items: center;
-  }
-
-  body.has-shell-sidebar .main {
-    min-width: 0;
-  }
-}
 
 /* ── home: the capture box is a soft filled composer ─────────────────────────── */
 

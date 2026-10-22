@@ -117,9 +117,8 @@ test('every specialist app keeps its views in the header row, with nothing that 
   assert.match(kokuenCss, /\.specialist-group \.specialist-view-strip \{ grid-column: 2; grid-row: 1;/);
 });
 
-test('specialist tabs expose their orientation, panels, and every directional key', () => {
-  // across in the header row, down in the desktop sidebar (decision 0041)
-  assert.match(specialistSource, /setAttribute\('aria-orientation', tablist\.closest\('\.shell-sidebar'\) \? 'vertical' : 'horizontal'\)/);
+test('specialist tabs expose horizontal orientation, panels, and every directional key', () => {
+  assert.match(specialistSource, /setAttribute\('aria-orientation', 'horizontal'\)/);
   assert.match(specialistSource, /setAttribute\('role', 'tabpanel'\)/);
   assert.match(specialistSource, /setAttribute\('aria-controls'/);
   assert.match(specialistSource, /setAttribute\('aria-labelledby'/);

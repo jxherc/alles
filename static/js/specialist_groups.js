@@ -1598,7 +1598,7 @@ const OVERVIEWS = Object.freeze({
 
 function _setTabs(root, section) {
   let activeTab = null;
-  (root._groupTabs || root).querySelectorAll('[data-group-section]').forEach(button => {
+  root.querySelectorAll('[data-group-section]').forEach(button => {
     const active = button.dataset.groupSection === section;
     button.setAttribute('aria-selected', active ? 'true' : 'false');
     button.tabIndex = active ? 0 : -1;
@@ -1627,12 +1627,10 @@ function _wireViewScroll(tablist) {
     next.setAttribute('aria-label', t('navigation.more_views'));
   };
   labels();
-  // when the desktop sidebar holds the views, its placeholder marks their place in the header row
-  const anchor = document.querySelector(`.shell-views-home[data-for="${tablist.id}"]`) || tablist;
-  anchor.before(strip);
-  strip.append(previous, anchor, next);
+  tablist.before(strip);
+  strip.append(previous, tablist, next);
   // header actions (finance's guide) end the header row, after the views
-  const actions = anchor.closest('.specialist-app-head')?.querySelectorAll('.specialist-app-brand .manual-context-help');
+  const actions = tablist.closest('.specialist-app-head')?.querySelectorAll('.specialist-app-brand .manual-context-help');
   if (actions?.length) strip.after(...actions);
   const target = direction => {
     const bounds = tablist.getBoundingClientRect();
@@ -1668,17 +1666,14 @@ function _wire(group, root) {
   if (root.dataset.groupWired) return;
   root.dataset.groupWired = '1';
   const definition = GROUP_DEFINITIONS[group];
-  // the app's views are its tab list, which the desktop sidebar may have moved out of the
-  // app (decision 0041), so look it up by id when it isn't inside
-  const tablist = root.querySelector('[role="tablist"]') || document.getElementById(`${group}-tabs`);
-  root._groupTabs = tablist || root;
+  const tablist = root.querySelector('[role="tablist"]');
   const overview = root.querySelector('[data-group-overview]');
   const slot = root.querySelector('[data-group-slot]');
   if (overview) { overview.id = `${group}-overview-panel`; overview.setAttribute('role', 'tabpanel'); }
   if (slot) { slot.id = `${group}-legacy-panel`; slot.setAttribute('role', 'tabpanel'); }
-  tablist?.setAttribute('aria-orientation', tablist.closest('.shell-sidebar') ? 'vertical' : 'horizontal');
+  tablist?.setAttribute('aria-orientation', 'horizontal');
   _wireViewScroll(tablist);
-  root._groupTabs.querySelectorAll('[data-group-section]').forEach(button => {
+  root.querySelectorAll('[data-group-section]').forEach(button => {
     const section = button.dataset.groupSection;
     button.id = `${group}-tab-${section}`;
     button.setAttribute('aria-controls', definition.legacyRoots?.[section] ? slot.id : overview.id);
@@ -1686,7 +1681,7 @@ function _wire(group, root) {
     button.addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      const tabs = [...root._groupTabs.querySelectorAll('[data-group-section]')];
+      const tabs = [...root.querySelectorAll('[data-group-section]')];
       const current = tabs.indexOf(button);
       const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
         : (current + (['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1) + tabs.length) % tabs.length;
