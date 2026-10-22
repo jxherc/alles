@@ -110,7 +110,8 @@ lift, glow, or shape change on hover.
 - app-name navigation target: at least 44px;
 - optional small-layout context or tab row: 44px;
 - content begins on the same top and side baselines inside its workspace shape;
-- page gutters: 16px small, 20px normal, 24px roomy;
+- page gutter: one `--k-gutter` for every app, 24px, 16px on a phone (decision 0040); content
+  runs the full width, and the header's app name starts on the gutter;
 - readable text measure: about 68 characters;
 - list content: up to 880px;
 - dashboard content: up to 1040px;
@@ -120,10 +121,9 @@ lift, glow, or shape change on hover.
 
 ## elevation and boundaries
 
-Prefer surface tone and space. Use a 1px line only for a real pane, table, focus, or state
-boundary. Raised things (secondary buttons, the picked pill, filled cards one step up) add a 1px
-light top edge (`--k-edge`) and one tight shadow tinted to the dark (`--k-lift`). Only menus,
-dialogs and toasts float (`--k-float`). No big soft bloom (decision 0040).
+Prefer surface tone and space. Nothing at rest carries a shadow: buttons, cards and the picked
+pill are tone steps, and light adds a 1px line where the step alone is too faint. Only menus,
+dialogs and toasts float, with one shadow (`--k-float`). No soft bloom (decision 0040).
 
 ## iconography
 

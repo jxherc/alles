@@ -152,6 +152,12 @@ html:not(#_) .ms-card :is(.ms-val, .ms-value, b, strong) {
   letter-spacing: -.01em;
 }
 
+/* the account under a total is its own line, so a wrapped amount never runs into it */
+html:not(#_) .ms-card .ms-val .ms-label {
+  display: block;
+  margin-top: var(--k-space-1);
+}
+
 /* the button-looking "+ add" cells in board and import screens */
 html:not(#_) .plan-board-complete {
   border-color: var(--k-btn-line);
@@ -599,6 +605,17 @@ html:not(#_) .specialist-workbench > :is(.specialist-workbench-rail, .specialist
   background: var(--k-panel);
   border: 1px solid var(--k-card-line);
   box-shadow: none;
+}
+
+/* rows and choices inside a card move back by their padding, so their words start under the
+   card's heading and only the hover fill reaches past it (0031) */
+html:not(#_) .specialist-workbench :is(.specialist-habit-row, .specialist-record-row, .specialist-library-row, .specialist-message-row) {
+  margin-inline: calc(-1 * var(--k-space-3));
+  padding-inline: var(--k-space-3);
+}
+
+html:not(#_) .specialist-workbench .specialist-choice-group {
+  margin-inline-start: calc(-1 * var(--k-space-3));
 }
 
 html:not(#_) .specialist-workbench > .specialist-workbench-detail:empty {

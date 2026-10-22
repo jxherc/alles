@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -65,7 +66,12 @@ async def assert_search_has_no_outline(page):
             "inputBorderLeftWidth",
         )
     ), chrome
-    assert chrome["boxShadow"] == "none", chrome
+    # decision 0040: the search box owns one flat ring (a 1px edge, a soft halo while focused),
+    # drawn as spread-only shadows with no blur; the field inside draws nothing of its own
+    rings = re.findall(r"0px 0px 0px (\d+)px", chrome["boxShadow"])
+    assert chrome["boxShadow"] == "none" or (
+        rings and len(rings) == chrome["boxShadow"].count("px 0px 0px")
+    ), chrome
     assert chrome["inputBoxShadow"] == "none", chrome
     assert chrome["outlineStyle"] == "none", chrome
     assert chrome["inputOutlineStyle"] == "none", chrome
