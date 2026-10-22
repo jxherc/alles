@@ -26,7 +26,20 @@
 #aide-coding-workspace .acw-path { color: var(--k-muted); font: 400 12px/1.5 var(--k-mono); overflow-wrap: anywhere; }
 .acw-path:empty { display: none; }
 
-.acw-body { display: grid; grid-template-columns: 224px minmax(0, 1fr); flex: 1; min-height: 0; }
+.acw-body { display: grid; grid-template-columns: var(--acw-rail-w, 240px) minmax(0, 1fr); flex: 1; min-height: 0; }
+#aide-coding-workspace[data-rail="hidden"] .acw-body { grid-template-columns: 0 minmax(0, 1fr); }
+#aide-coding-workspace[data-rail="hidden"] .acw-rail { visibility: hidden; overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  #aide-coding-workspace:not([data-resizing]) .acw-body { transition: grid-template-columns 280ms cubic-bezier(.23, 1, .32, 1); }
+}
+/* the rail's edge: a 12px strip you can drag, a line that shows where it is when pointed at */
+.acw-rail-resize { position: absolute; top: 0; right: -6px; bottom: 0; z-index: 3; width: 12px; cursor: col-resize; touch-action: none; }
+.acw-rail-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; background: transparent; transition: background-color 140ms ease; }
+.acw-rail-resize:hover::after, #aide-coding-workspace[data-resizing] .acw-rail-resize::after { background: var(--k-line-strong); }
+.acw-rail-resize:focus-visible { outline: none; }
+.acw-rail-resize:focus-visible::after { background: var(--k-focus); }
+#aide-coding-workspace[data-resizing] { cursor: col-resize; user-select: none; }
+#aide-coding-workspace .acw-rail-toggle { flex: 0 0 auto; }
 
 /* rail */
 .acw-rail { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--k-panel); }
@@ -350,7 +363,7 @@
 #aide-code-harness-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 820px) {
-  .acw-body { grid-template-columns: 204px minmax(0, 1fr); }
+  .acw-body { grid-template-columns: min(var(--acw-rail-w, 240px), 204px) minmax(0, 1fr); }
 }
 @media (max-width: 620px) {
   .acw-body { display: flex; flex-direction: column; }
@@ -359,6 +372,9 @@
   #aide-coding-workspace[data-pane="rail"] .acw-rail { display: flex; }
   #aide-coding-workspace[data-pane="rail"] .acw-main { display: none; }
   #aide-coding-workspace .acw-mobile-back { display: inline-grid; }
+  /* a phone shows the projects or the chat, one at a time, so the rail can't be hidden or resized */
+  #aide-coding-workspace :is(.acw-rail-toggle, .acw-rail-resize) { display: none; }
+  #aide-coding-workspace[data-rail="hidden"] .acw-rail { visibility: visible; overflow: visible; }
   .acw-head { padding-left: var(--k-space-1); padding-right: var(--k-space-2); }
   .acw-log, .acw-composer, #aide-coding-workspace .acw-content, #aide-coding-workspace .acw-error { padding-left: var(--k-space-4); padding-right: var(--k-space-4); }
   #aide-code-status, .acw-stats-context { display: none; }
