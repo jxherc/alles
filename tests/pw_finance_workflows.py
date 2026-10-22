@@ -17,7 +17,9 @@ from pw_finance_helpers import show_money_sections
 from pw_settings_helpers import choose_settings_section
 
 AMOUNT_ERROR = "enter a number using a decimal point, e.g. 1234.56"
-INVALID_AMOUNTS = ("1,234.56", "12.34garbage", "Infinity")
+# amounts format as you type (static/js/liveformat.js): letters and thousands commas never reach
+# the field, so the invalid amounts left to type are lone signs and points
+INVALID_AMOUNTS = (".", "-", "-.")
 
 
 def run():
@@ -241,7 +243,8 @@ def run():
                 page.get_by_role("option", name="CAD", exact=True).click()
                 for invalid in INVALID_AMOUNTS:
                     invalid_amount(page.locator("#af-open"), page.locator("#af-add"), invalid)
-                page.locator("#af-open").fill("1234.56")
+                page.locator("#af-open").fill("1,234.56garbage")
+                expect(page.locator("#af-open")).to_have_value("1234.56")
                 for invalid in INVALID_AMOUNTS[:2]:
                     invalid_amount(page.locator("#af-low"), page.locator("#af-add"), invalid)
                 page.locator("#af-low").fill("")

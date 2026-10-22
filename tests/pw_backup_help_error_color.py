@@ -240,7 +240,7 @@ def run():
                     expect(help_button).to_be_focused()
                     expect(field).to_have_value("owned unsent question")
                     field.fill("/back")
-                    popup = page.locator(".slash-popup")
+                    popup = page.locator(".slash-popup:not(.acw-slash)")
                     expect(popup).to_be_visible()
                     row["autocomplete_text"] = popup.locator(".slash-desc").inner_text()
                     row["autocomplete_box"] = fits(popup)

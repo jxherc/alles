@@ -1763,7 +1763,9 @@ html:not(#_):not(#_) #vault-view .vault-lock-screen > svg {
   display: none;
 }
 
-html:not(#_):not(#_) #vault-view .vault-lock-screen > :is(label, .vault-lock-field) {
+/* :not([hidden]): this rule outranks the browser's own [hidden], and the confirm field must hide
+   when the vault already exists */
+html:not(#_):not(#_) #vault-view .vault-lock-screen > :is(label, .vault-lock-field):not([hidden]) {
   display: grid;
   gap: var(--k-space-2);
   margin-top: var(--k-space-3);
