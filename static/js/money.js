@@ -688,7 +688,7 @@ function render(preserveDrafts = false, preserveFilters = preserveDrafts) {
       <section class="money-card" data-card="rules"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
     `);
   wire();
-  tickNumbers(b, '.money-summary .ms-val');
+  tickNumbers(b, '.money-summary .ms-number');
   wireSavedTransactions();
   if (retained) restoreMoneyDrafts(b, retained);
   restoreSavedFocus(savedFocus);
@@ -925,6 +925,8 @@ function summaryAmount(n, showSign = false, currency = _cur) {
   const prefix = currencyPrefix(currency);
   const amount = fmt(showSign ? Math.abs(n) : n, currency).slice(prefix.length);
   const sign = showSign ? (n >= 0 ? '+' : '−') : '';
+  // with no currency the figure leads and the safety label sits under it, so a sign stays on the number
+  if (currency === 'XXX') return `<span class="ms-number">${esc(sign + amount)}</span><span class="ms-currency">${esc(prefix.trim())}</span>`;
   return `${esc(sign + prefix)}<wbr><span class="ms-number">${esc(amount)}</span>`;
 }
 

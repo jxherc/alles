@@ -2471,3 +2471,113 @@ html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action {
 
 html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action:hover { background: var(--k-btn-fill-hover); }
 html:not(#_):not(#_) .finance-daily-actions { margin-bottom: var(--k-block-gap); }
+
+/* ── docs ───────────────────────────────────────────────────────────────── */
+/* an open document's toolbar actions are all text actions; import was the one filled box */
+html:not(#_)[data-kokuen-version="5"] #docs-import-btn.docs-import-trigger:not(.primary) {
+  background: transparent;
+  color: var(--k-soft);
+}
+
+html:not(#_)[data-kokuen-version="5"] #docs-import-btn.docs-import-trigger:not(.primary):hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+/* the open document's name is the column's title */
+html:not(#_):not(#_) #wiki-current {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+/* journal: the entry column starts on the title's edge (24, was 32) */
+html:not(#_):not(#_) #journal-body.page-view-body { padding-inline: var(--k-gutter); }
+
+/* its entry search is a filled field like every search */
+html:not(#_):not(#_) #jrnl-search {
+  min-height: 44px;
+  padding-inline: var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-field);
+  box-shadow: inset 0 0 0 1px var(--k-field-ring);
+}
+
+/* day and year arrows are bare arrows like calendar's, with a fill on hover */
+html:not(#_)[data-kokuen-version="5"] :is(#jrnl-prev, #jrnl-next, #jrnl-heat-prev, #jrnl-heat-next).btn {
+  background: transparent;
+}
+
+html:not(#_)[data-kokuen-version="5"] :is(#jrnl-prev, #jrnl-next, #jrnl-heat-prev, #jrnl-heat-next).btn:hover:not(:disabled) {
+  background: var(--k-hover);
+}
+
+/* habits: a day is a filled cell, not an outline; done keeps the habit's own colour */
+html:not(#_):not(#_) .habit-day {
+  border-color: transparent;
+  background: var(--k-field);
+}
+
+html:not(#_):not(#_) .habit-day:hover:not(.done) {
+  border-color: transparent;
+  background: var(--k-btn-fill-hover);
+}
+
+html:not(#_):not(#_) .habit-day.done {
+  border-color: transparent;
+  background: var(--habit-accent);
+}
+
+/* money totals: the figure leads; "currency not set" stays visible (0040) as a small line under it */
+html:not(#_):not(#_) .money-summary .ms-card .ms-val:has(> .ms-currency) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+html:not(#_):not(#_) .money-summary .ms-card .ms-val:has(> .ms-currency) > .ms-number {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+html:not(#_):not(#_) .money-summary .ms-card .ms-val > .ms-label {
+  color: var(--k-muted);
+  font-weight: 400;
+}
+
+html:not(#_):not(#_) #money-view h2 { color: var(--k-text); }
+
+/* finance imports: a choice card's label sits inside it above its value (a fieldset legend drew
+   it on the card's top edge), and its change button is a secondary button */
+html:not(#_):not(#_) .finance-import-choice {
+  padding: var(--k-space-4) var(--k-space-5);
+  border-radius: var(--k-radius-surface);
+}
+
+html:not(#_):not(#_) .finance-import-choice > legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 var(--k-space-1);
+  padding: 0;
+  color: var(--k-muted);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+html:not(#_):not(#_) .finance-import-choice > legend + * { clear: both; }
+
+html:not(#_):not(#_) .finance-import-choice > button {
+  border-color: transparent;
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) .finance-import-choice > button:hover { background: var(--k-btn-fill-hover); }
