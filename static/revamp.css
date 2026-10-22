@@ -852,6 +852,31 @@ html:not(#_) .specialist-group-overview {
   padding-inline: var(--k-gutter);
 }
 
+/* every app's first row starts one rhythm (24px) under the view tabs. overviews started 12 down,
+   lists with no head row 16 down, the monitor 8 down, server cards 36 down */
+html:not(#_):not(#_) .specialist-group-overview {
+  padding-top: var(--k-rhythm);
+}
+
+/* kokuen hides a head row that holds only the title, so the body is the first row then */
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-body:first-child,
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-head:not(:has(> :not(.page-view-title))) + .page-view-body,
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-head:not(:has(> :not(.page-view-title))) + :is([hidden], :empty) + .page-view-body {
+  padding-top: var(--k-rhythm);
+}
+
+html:not(#_):not(#_) .plan-board-toolbar {
+  padding-top: 0;
+}
+
+html:not(#_):not(#_) #system-view > .page-view-head {
+  padding-top: var(--k-rhythm);
+}
+
+html:not(#_):not(#_) .server-workbench-content > .server-workbench-card:first-child {
+  padding-top: 0;
+}
+
 html:not(#_) .specialist-group-overview > .specialist-workbench {
   max-width: none;
   margin-inline: 0;
@@ -1108,8 +1133,8 @@ html:not(#_):not(#_) :is(.msg-actions, .msg-actions-menu) :is(.act-btn, .btn):ho
 html:not(#_):not(#_) #subs-view > .page-view-footer {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(88px, 0.6fr) minmax(128px, 0.8fr) minmax(170px, 1fr) minmax(0, 1fr) auto;
-  align-items: end;
-  gap: var(--k-space-2) var(--k-space-3);
+  align-items: center;
+  gap: 0;
 }
 
 html:not(#_):not(#_) #subs-view > .page-view-footer > :is(#sub-required, #sub-create-status) {
@@ -1120,6 +1145,12 @@ html:not(#_):not(#_) #subs-view > .page-view-footer > :is(#sub-required, #sub-cr
 html:not(#_):not(#_) #subs-view > .page-view-footer > :is(input, .custom-select, .date-input) {
   width: auto !important;
   min-width: 0 !important;
+}
+
+/* mail's head is a toolbar like every other app's, not a ruled band */
+html:not(#_):not(#_) #mail-view > .mail-head {
+  border-bottom: 0;
+  padding-block: var(--k-rhythm) var(--k-space-3);
 }
 
 /* mail's account setup is a card on the gutter: what it is, its two actions at the card's edge,
@@ -1175,10 +1206,49 @@ html:not(#_) .page-view > .page-view-head { order: -1; }
 html:not(#_) .page-view > .page-view-footer { order: 0; }
 html:not(#_) .page-view > .page-view-body { order: 1; }
 
+/* an add form is one filled row, like home's capture: the box says "type here", the fields
+   inside drop their own lines and split with a quiet divider, and add sits 6px from the edge.
+   loose fields under a title read as column headings (contacts' name / email / phone did) */
 html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer {
-  padding-block: var(--k-space-2) var(--k-rhythm);
-  border-top: 0;
-  background: transparent;
+  box-sizing: border-box;
+  width: auto;
+  align-self: stretch;
+  align-items: center;
+  gap: 0;
+  margin: var(--k-space-2) var(--k-gutter) var(--k-rhythm);
+  padding: 6px 6px 6px var(--k-space-2);
+  border: 0;
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+  box-shadow: 0 0 0 1px var(--k-line);
+  transition: box-shadow 200ms var(--k-ease-out);
+}
+
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:focus-within {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+}
+
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) {
+  min-height: 44px;
+  padding-inline: var(--k-space-3);
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
+  border-left: 1px solid var(--k-line) !important;
+}
+
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > .btn.primary {
+  margin-inline-start: var(--k-space-2);
+}
+
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(p, .specialist-group-note, .contact-error) {
+  flex-basis: 100%;
+  margin: 0;
+  padding: var(--k-space-2) var(--k-space-3) var(--k-space-1);
 }
 
 
@@ -1594,4 +1664,70 @@ html:not(#_):not(#_) #photos-view .photos-filt-seg > button:hover { color: var(-
 html:not(#_):not(#_) #photos-view .photos-filt-seg > button.active {
   background: var(--k-pill);
   color: var(--k-text);
+}
+
+/* vault's lock screen is a plain sign-in column: everything on one left edge, filled fields, the
+   label above its field, the action as wide as the fields */
+html:not(#_):not(#_) #vault-view .vault-lock-screen {
+  align-items: center;
+  justify-content: center;
+}
+
+html:not(#_):not(#_) #vault-view .vault-lock-screen > * {
+  box-sizing: border-box;
+  width: min(340px, 100%);
+  margin: 0;
+  text-align: start;
+}
+
+/* the faint lock drawing sat alone in the middle above a left-edged column; the title row
+   already says vault */
+html:not(#_):not(#_) #vault-view .vault-lock-screen > svg {
+  display: none;
+}
+
+html:not(#_):not(#_) #vault-view .vault-lock-screen > :is(label, .vault-lock-field) {
+  display: grid;
+  gap: var(--k-space-2);
+  margin-top: var(--k-space-3);
+  color: var(--k-soft);
+  font-size: 14px;
+}
+
+html:not(#_):not(#_) #vault-view .vault-lock-screen > label + input {
+  margin-top: var(--k-space-2);
+}
+
+html:not(#_):not(#_) #vault-view .vault-lock-screen input {
+  box-sizing: border-box;
+  width: min(340px, 100%);
+  min-height: 44px;
+  padding: 0 var(--k-space-3);
+  border: 1px solid var(--k-line);
+  border-radius: var(--k-radius-control);
+  background: var(--k-panel);
+}
+
+html:not(#_):not(#_) #vault-view .vault-lock-screen input:focus-visible {
+  border-color: color-mix(in srgb, var(--k-accent) 55%, var(--k-line));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--k-accent) 13%, transparent);
+  outline: none;
+}
+
+html:not(#_):not(#_) #vault-view .vault-lock-screen > .vault-lock-help {
+  margin-top: var(--k-space-4);
+  color: var(--k-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+html:not(#_):not(#_) #vault-view .vault-lock-screen > .btn {
+  margin-top: var(--k-space-4);
+}
+
+/* an empty list's one button is as wide as its words, under the sentence it follows */
+html:not(#_):not(#_) .specialist-workbench-empty + .btn {
+  justify-self: start;
+  align-self: flex-start;
+  width: auto;
 }
