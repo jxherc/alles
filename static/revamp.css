@@ -2757,3 +2757,22 @@ html:not(#_)[data-kokuen-version="5"] #settings-modal :is(
 ).btn.primary:hover:not(:disabled) {
   background: var(--k-btn-fill-hover);
 }
+
+/* the code view: its start suggestions are secondary buttons like every other start, and its
+   composer box shows focus once (the field inside drew its own line in the box) */
+html:not(#_):not(#_) #aide-coding-workspace .acw-suggestion {
+  border-color: transparent;
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) #aide-coding-workspace .acw-suggestion:hover { background: var(--k-btn-fill-hover); }
+
+html:not(#_):not(#_) #aide-coding-workspace .acw-entry:focus-within {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 60%, var(--k-field-ring)), 0 0 0 3px color-mix(in srgb, var(--k-accent) 16%, transparent);
+}
+
+html:not(#_):not(#_) #aide-coding-workspace .acw-entry textarea:is(:focus, :focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
