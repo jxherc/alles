@@ -64,7 +64,7 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-previe
   color: var(--k-text);
 }
 
-html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button) {
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button, #aide-coding-workspace .acw-primary) {
   border-color: transparent;
   background: var(--k-accent);
   color: var(--k-on-accent);
@@ -73,13 +73,13 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #
   font-weight: 560;
 }
 
-html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button):hover {
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button, #aide-coding-workspace .acw-primary):hover {
   border-color: transparent;
   background: color-mix(in srgb, var(--k-accent) 86%, var(--k-text));
   color: var(--k-on-accent);
 }
 
-html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button):disabled {
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button, #aide-coding-workspace .acw-primary):disabled {
   background: var(--k-raised);
   color: var(--k-quiet);
   box-shadow: none;
@@ -145,6 +145,23 @@ html:not(#_) .plan-board-complete {
   box-shadow: var(--k-edge), var(--k-lift);
 }
 
+
+/* small labels stay lowercase like the rest of alles; weight, not caps, makes them labels */
+html:not(#_) :is(.cal-weekday, .photos-nav-group, .photos-faces-h, .today-section h2, .day-section) {
+  text-transform: lowercase;
+  letter-spacing: 0;
+}
+
+/* due dates and tags are soft fills, not outlined boxes */
+html:not(#_) .task-due {
+  border-color: transparent;
+  border-radius: var(--k-radius-small);
+  background: var(--k-hover);
+  padding: 2px 8px;
+}
+
+html:not(#_) .task-due.today { background: color-mix(in srgb, var(--k-info) 16%, transparent); }
+html:not(#_) .task-due.overdue { background: color-mix(in srgb, var(--k-danger) 16%, transparent); }
 
 /* ── picked chips, segments, tabs ──────────────────────────────────────────── */
 

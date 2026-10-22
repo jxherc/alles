@@ -26,7 +26,9 @@ The app name is never repeated as a giant landing title beneath that shell.
 
 ## palette
 
-Use near-black or warm off-white surfaces, warm neutral text, quiet grays, and restrained Alles purple for focus and meaningful active state. Orange is permission or high-authority state, red is failure or destructive action, and green is confirmed success. Do not spray the accent across headings, icons, and buttons.
+Use warm ember surfaces (a faint brown under the near-black, a warm off-white with white cards in
+light; decision 0040), warm neutral text, and Alles purple for the primary action, the picked
+chip, switches that are on, and meaningful active state. Orange is permission or high-authority state, red is failure or destructive action, and green is confirmed success. Do not spray the accent across headings, icons, and buttons.
 
 ## type and icons
 
@@ -34,7 +36,7 @@ Use the local/system interface stack. Do not make a downloaded trend font the pr
 
 ## avoid
 
-- gradients, glows, glass, floating cards, hover lift, and decorative motion;
+- gradients, glows, glass, floating cards, hover lift, and motion that answers nothing;
 - giant rounded cards, excessive pills, icon tiles, and card-everything layouts;
 - cool blue-charcoal as a default dark surface;
 - marketing headlines inside specialist tools;

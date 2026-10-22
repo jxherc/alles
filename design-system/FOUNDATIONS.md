@@ -6,21 +6,21 @@ Machine-readable values live in `tokens/`. This document explains how to use the
 
 | role | dark | light | use |
 |---|---:|---:|---|
-| page | `#090909` | `#f4f3f0` | main work surface |
-| local panel | `#0d0d0d` | `#eeece8` | app-local navigation or context |
-| raised | `#171717` | `#e4e1dc` | selected or raised state |
-| hover | `#141414` | `#e9e7e2` | quiet pointer feedback |
-| text | `#eceae6` | `#242321` | primary content |
-| soft text | `#b9b5b0` | `#55514c` | row titles and secondary actions |
-| muted text | `#85817c` | `#68635e` | supporting information |
-| quiet text | `#7d7974` | `#746e68` | lowest-emphasis readable metadata |
-| structural line | `#292929` | `#d5d0c9` | real boundaries only |
-| strong line | `#3a3a3a` | `#bbb4ac` | focused or raised boundary |
-| focus | `#3a3a3a` | `#bbb4ac` | visible neutral keyboard boundary |
-| active | `#9298ff` | `#5960c7` | meaningful active state only |
-| permission | `#d5a265` | `#906323` | full-access or authority state |
-| danger | `#df7474` | `#a64242` | failure or destructive action |
-| success | `#7ea98b` | `#437650` | confirmed success only |
+| page | `#12100e` | `#f8f6f3` | main work surface |
+| local panel | `#1a1714` | `#f1eeea` | app-local navigation or context |
+| raised | `#23201c` | `#ffffff` | selected or raised state |
+| hover | `#1f1c19` | `#ebe7e2` | quiet pointer feedback |
+| text | `#f3efe9` | `#1d1a17` | primary content |
+| soft text | `#cec6bc` | `#4b4540` | row titles and secondary actions |
+| muted text | `#9d948a` | `#6a625a` | supporting information |
+| quiet text | `#8f877d` | `#6e665e` | lowest-emphasis readable metadata |
+| structural line | `#322d28` | `#e3ded8` | real boundaries only |
+| strong line | `#463f39` | `#cbc4bc` | focused or raised boundary |
+| focus | `#463f39` | `#cbc4bc` | visible neutral keyboard boundary |
+| active | `#aaa6ff` | `#5650d0` | meaningful active state only |
+| permission | `#e8b26c` | `#8a5a12` | full-access or authority state |
+| danger | `#f2897f` | `#b3372f` | failure or destructive action |
+| success | `#8cc79d` | `#276b40` | confirmed success only |
 | link | `#8ab4f8` | `#1a0dab` | anything that opens a page: result titles, links in written content |
 | visited link | `#c58af9` | `#681da8` | a link already opened |
 | ai | active | active | the ai spark, the highlighted answer, ai at work |
@@ -30,6 +30,9 @@ Machine-readable values live in `tokens/`. This document explains how to use the
 The server system monitor holds a scoped palette exception for its meter and glyph colors; see `decisions/0010-server-monitor-aesthetic.md`.
 
 At runtime the focus ring renders brighter than the strong-line value above (a faint/text mix): at the documented values the ring falls under the 3:1 non-text contrast that WCAG 2.4.11 asks of focus indicators, so visibility wins over token purity.
+
+The warm ember values above come from `decisions/0040-warm-depth-and-motion.md`; an untouched
+older default upgrades to them on its own.
 
 Color says what a thing is or does, never decorates. Grey stays the base; see
 `decisions/0034-color-with-meaning.md`. Runtime names: `--link`, `--link-visited`, `--ai`,
@@ -46,7 +49,7 @@ colors may remain categorical, but numeric labels must remain readable in both t
 ## typography
 
 - family: locally bundled Inter, with the system UI stack as fallback; explicit appearance font choices flow through the same shared token;
-- body: 15px / 1.45 / regular;
+- body: 15px / 1.45 / regular; controls and buttons in specialist apps 14px (0040);
 - conversation: 16px minimum;
 - app name: 15px / medium;
 - page or section title: 16px / semibold;
@@ -89,14 +92,17 @@ equivalent `--ui-space-*` aliases. Page gutters remain a semantic product token 
 
 ## shape
 
-- 0px: tables, grids, pane seams, and structural surfaces;
-- 2px: small controls and active rows;
-- 3px: normal interactive containers;
-- 4px: menus and larger contained surfaces;
-- circles only for a genuine circular mark, state dot, or avatar;
-- pills only for status whose contained shape carries meaning.
+Balanced corners (decision 0040), through `--k-radius-*`:
 
-No card lift, all-around shadow, glow, or shape change on hover.
+- 0px: tables, grids, pane seams, and structural surfaces;
+- 6px (`small`): tags, inline code, small marks;
+- 8px (`control`): buttons, fields, rows, tabs;
+- 12px (`surface`): cards, menus, toasts;
+- 16px (`large`): composers and dialogs;
+- round: filter chips, switches, a genuine circular mark, state dot, or avatar.
+
+An inner corner is its outer corner minus the gap, so nested shapes stay concentric. No card
+lift, glow, or shape change on hover.
 
 ## layout
 
@@ -114,8 +120,12 @@ No card lift, all-around shadow, glow, or shape change on hover.
 
 ## elevation and boundaries
 
-Prefer surface tone and space. Use a 1px line only for a real pane, table, focus, or state boundary. Shadows are absent from normal product UI.
+Prefer surface tone and space. Use a 1px line only for a real pane, table, focus, or state
+boundary. Raised things (secondary buttons, the picked pill, filled cards one step up) add a 1px
+light top edge (`--k-edge`) and one tight shadow tinted to the dark (`--k-lift`). Only menus,
+dialogs and toasts float (`--k-float`). No big soft bloom (decision 0040).
 
 ## iconography
 
-Use bare local SVG marks on a consistent 16px grid, with a quiet 1.4 to 1.5px stroke when line icons are appropriate. Do not place icons in decorative tiles. A 44px hit area surrounds every actionable mark without drawing a visible box at rest.
+Every app has its own glyph (`appGlyph()` in `static/js/icons.js`, decision 0040) with one part
+that moves while pointed at or focused. Use bare local SVG marks on a consistent 16px grid, with a quiet 1.4 to 1.5px stroke when line icons are appropriate. Do not place icons in decorative tiles. A 44px hit area surrounds every actionable mark without drawing a visible box at rest.
