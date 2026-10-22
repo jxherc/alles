@@ -29,6 +29,27 @@
   --k-pill: var(--k-raised);
 }
 
+/* fills that let the surface show through (pro-ui research, decision 0041): one hover, one
+   selected, one field fill and ring read the same on page, panel, card and raised. the
+   owner's text colour drives them, so a custom theme still tints them */
+html:not(#_) {
+  --k-hover: color-mix(in srgb, var(--k-text) 6%, transparent);
+  --k-selected-fill: color-mix(in srgb, var(--k-text) 11%, transparent);
+  --k-field: color-mix(in srgb, var(--k-text) 5%, transparent);
+  --k-field-ring: color-mix(in srgb, var(--k-text) 12%, transparent);
+  --k-field-ring-hover: color-mix(in srgb, var(--k-text) 20%, transparent);
+  --k-pill: var(--k-selected-fill);
+}
+
+html:not(#_)[data-theme="light"] {
+  --k-hover: color-mix(in srgb, var(--k-text) 5%, transparent);
+  --k-selected-fill: color-mix(in srgb, var(--k-text) 8%, transparent);
+  --k-field: color-mix(in srgb, var(--k-text) 3%, #fff);
+  --k-field-ring: color-mix(in srgb, var(--k-text) 14%, transparent);
+  --k-field-ring-hover: color-mix(in srgb, var(--k-text) 24%, transparent);
+  --k-pill: var(--k-selected-fill);
+}
+
 html[data-theme="light"] {
   --k-on-accent: #ffffff;
   --k-raised-hover: color-mix(in srgb, var(--k-raised) 94%, var(--k-text));
@@ -996,14 +1017,34 @@ html:not(#_) #today-view .today-head {
   }
 }
 
-/* an empty list keeps the page's left edge: its words and its first action sit where the rows
-   will appear, not in a narrow centred island */
+/* an empty screen is centred in the space its rows will fill (decision 0041 replaces 0040's
+   left edge; Stripe, Linear and GitHub all do this): a 32px drawing, a title, one sentence
+   of at most two lines, and the one action. it sits a third of the way down, not in the middle,
+   so it stays near the toolbar it belongs to */
 html:not(#_) .empty-state {
-  align-items: flex-start;
-  max-width: none;
-  margin: var(--k-rhythm) 0 0;
-  padding: 0;
-  text-align: left;
+  align-items: center;
+  gap: var(--k-space-2);
+  max-width: 420px;
+  margin: clamp(48px, 14vh, 120px) auto 0;
+  padding: 0 var(--k-gutter);
+  text-align: center;
+  animation: none;
+}
+
+html:not(#_) .empty-state-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+html:not(#_) .empty-state-desc {
+  max-width: 44ch;
+  color: var(--k-muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+html:not(#_) .empty-state .btn {
+  margin-top: var(--k-space-3);
 }
 
 /* the server monitor fills the width; the cpu graph is a band, not half the screen, and cards
@@ -1730,4 +1771,117 @@ html:not(#_):not(#_) .specialist-workbench-empty + .btn {
   justify-self: start;
   align-self: flex-start;
   width: auto;
+}
+
+
+/* ── fields: one filled style (decision 0041 replaces 0035's underline) ──────────
+   a 5% fill and a faint ring, label above, 44px. the underline read as a heading rule or as
+   nothing at all on an empty screen; every product studied fills its fields */
+html:not(#_):not(#_) :is(
+  .settings-input, .settings-textarea, .date-input, .cal-quick,
+  [data-specialist-app] input[type="search"], #files-search
+) {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding-inline: var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-field);
+  box-shadow: inset 0 0 0 1px var(--k-field-ring);
+  transition: box-shadow 120ms var(--k-ease-out), background-color 120ms var(--k-ease-out);
+}
+
+html:not(#_):not(#_) :is(.settings-textarea, textarea.settings-input) {
+  padding-block: var(--k-space-3);
+}
+
+html:not(#_):not(#_) :is(
+  .settings-input, .settings-textarea, .date-input, .cal-quick,
+  [data-specialist-app] input[type="search"], #files-search
+):is(:hover, .open) {
+  box-shadow: inset 0 0 0 1px var(--k-field-ring-hover);
+}
+
+html:not(#_):not(#_) :is(
+  .settings-input, .settings-textarea, .date-input, .cal-quick,
+  [data-specialist-app] input[type="search"], #files-search
+):is(:focus, :focus-visible, .open:focus-within) {
+  outline: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 60%, var(--k-field-ring)), 0 0 0 3px color-mix(in srgb, var(--k-accent) 16%, transparent);
+}
+
+/* ── list rows: no dividers (decision 0041). rows sit 2px apart; the hover fill is the row's
+   shape, inset past the words by the row's padding so the words stay on the column edge ── */
+html:not(#_):not(#_) :is(.task-item, .specialist-record-row, .activity-row) {
+  border-top: 0;
+  border-bottom: 0;
+  border-radius: var(--k-radius-control);
+}
+
+html:not(#_):not(#_) .task-item {
+  margin-inline: calc(-1 * var(--k-space-3));
+  padding-inline: var(--k-space-3);
+}
+
+html:not(#_):not(#_) :is(.task-item, .specialist-record-row, .activity-row) + :is(.task-item, .specialist-record-row, .activity-row) {
+  margin-top: 2px;
+}
+
+html:not(#_):not(#_) :is(.task-item, .specialist-record-row, .activity-row):hover {
+  background: var(--k-hover);
+}
+
+html:not(#_):not(#_) .activity-day {
+  border-bottom: 0;
+  padding-top: var(--k-space-4);
+}
+
+/* ── one type scale (decision 0041, from Geist and Primer) ────────────────────────
+   page title 20/28 600, section title 16/24 600, row title 14/20 500, label 12/16 500.
+   section titles ran from 12.5 to 16px at four weights, so a card's heading and its rows
+   read at nearly one size */
+html:not(#_):not(#_) :is([data-specialist-app], .specialist-group) h2:not(.sr-only),
+html:not(#_):not(#_) :is(.empty-state-title, .jrnl-side-title) {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+html:not(#_):not(#_) :is(#today-greeting, #wiki-empty-state h2, .page-view-head > .page-view-title, #photos-head-title),
+html:not(#_):not(#_) #files-view .files-breadcrumb .crumb:last-child {
+  font-size: 20px !important;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+html:not(#_):not(#_) :is(.specialist-record-title, .specialist-library-row strong) {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+html:not(#_):not(#_) :is(.money-field-label, .docs-nav-label, .ms-label) {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+/* figures line up: money, times, dates, sizes and counts take tabular digits */
+html:not(#_):not(#_) :is(
+  .ms-val, .txn-amt, [class*="-amount"], [class*="-time"], [class*="-date"], [class*="-size"],
+  [class*="-count"], .file-size, .file-date, .cal-mini td, .days-num, td
+) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* lists whose empty state is a sentence get the same centred place */
+html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
+  max-width: 44ch;
+  margin: clamp(48px, 14vh, 120px) auto 0;
+  color: var(--k-muted);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
 }
