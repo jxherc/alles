@@ -2693,3 +2693,21 @@ html:not(#_):not(#_) .code-block > .code-block-header .code-lang:empty { display
 html:not(#_):not(#_) .code-block > .code-block-header .code-lang { color: var(--k-muted); font-size: 12px; }
 html:not(#_):not(#_) .code-block > .code-block-header .code-copy { min-height: 44px; padding: 0 var(--k-space-3); }
 html:not(#_):not(#_) .code-block > pre { padding-right: 96px; }
+
+/* high contrast: a picked row drawn only by a fill vanishes, so it takes the system highlight */
+@media (forced-colors: active) {
+  html:not(#_):not(#_) :is(
+    .docs-nav-panel :is(.docs-library-item, .docs-recent-item, .wiki-dir-head, .wiki-file).active,
+    .docs-nav-panel [aria-current="page"],
+    .files-phase7-location-panel .files-view-button.is-active,
+    .photos-sidebar .photos-nav-item.active,
+    #mail-view .mail-nav-item.active,
+    #mail-view .mail-row.sel,
+    #photos-view .photos-filt-seg > button.active,
+    .ask-aide-btn[aria-expanded="true"]
+  ) {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+}
