@@ -1,3 +1,4 @@
+import { leave } from './motion.js';
 // shared helpers
 
 // browser window when present, a throwaway object under node (so this module imports in tests)
@@ -245,7 +246,7 @@ export function toast(msg, type = '', duration = 3000) {
   el.className = `toast${type ? ' ' + type : ''}`;
   el.textContent = msg;
   c.appendChild(el);
-  setTimeout(() => el.remove(), duration);
+  setTimeout(() => leave(el), duration);
 }
 
 

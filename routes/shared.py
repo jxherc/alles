@@ -310,9 +310,9 @@ def _status_html(title: str, description: str, content: str = "") -> str:
 <title>{_esc(title)} — alles</title>
 <style>
   @font-face{{font-family:Inter;src:url('/static/vendor/inter/InterVariable.woff2') format('woff2');font-weight:100 900;font-display:swap}}
-  :root{{color-scheme:dark;--bg:#090909;--panel:#0d0d0d;--hover:#141414;--text:#eceae6;--soft:#b9b5b0;--muted:#85817c;--error:#df7474}}
+  :root{{color-scheme:dark;--bg:#12100e;--panel:#1a1714;--hover:#1f1c19;--text:#f3efe9;--soft:#cec6bc;--muted:#9d948a;--error:#f2897f}}
   @media(prefers-color-scheme:light){{
-    :root{{color-scheme:light;--bg:#f4f3f0;--panel:#eeece8;--hover:#e9e7e2;--text:#242321;--soft:#55514c;--muted:#68635e;--error:#a64242}}
+    :root{{color-scheme:light;--bg:#f8f6f3;--panel:#f1eeea;--hover:#ebe7e2;--text:#1d1a17;--soft:#4b4540;--muted:#6a625a;--error:#b3372f}}
   }}
   *{{box-sizing:border-box}}
   body{{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}

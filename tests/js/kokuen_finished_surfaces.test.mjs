@@ -79,15 +79,15 @@ test('finished surfaces use custom choices and portaled menus keep their surface
 });
 
 test('semantic tokens preserve themes while keeping KOKUEN defaults', () => {
-  assert.match(css, /--k-default-page:\s*#090909/);
-  assert.match(css, /--k-default-page:\s*#f4f3f0/);
+  assert.match(css, /--k-default-page:\s*#12100e/);
+  assert.match(css, /--k-default-page:\s*#f8f6f3/);
   assert.match(css, /--k-page:\s*var\(--bg/);
   assert.match(css, /--k-focus:\s*var\(--focus,\s*var\(--k-soft\)\)/);
   assert.match(legacyCss, /--focus:\s*color-mix\(in srgb, var\(--faint\) 72%, var\(--text\) 28%\)/);
   assert.match(css, /--k-accent:\s*var\(--accent/);
   assert.match(css, /\[data-kokuen-surface\][\s\S]*?:focus-visible\s*\{[\s\S]*?outline:\s*2px solid var\(--k-focus\)/);
   assert.match(css, /html\[data-theme="light"\]/);
-  assert.match(css, /--k-permission:\s*var\(--signal,\s*#d5a265\)/);
+  assert.match(css, /--k-permission:\s*var\(--signal,\s*#e8b26c\)/);
   for (const stylesheet of [css, legacyCss]) {
     for (const match of stylesheet.matchAll(/([^{}]*focus(?:-visible|-within)?[^{}]*)\{([^{}]*)\}/g)) {
       assert.doesNotMatch(

@@ -226,3 +226,41 @@ class LegacyDefaultUpgradeTests(unittest.TestCase):
         }
         a = appearance.effective({"appearance": old})
         self.assertEqual(a["colors"]["lineStrong"], "#123456")
+
+    def test_stored_kokuen_graphite_default_upgrades_to_ember(self):
+        old = {
+            "preset": "dark",
+            "colors": {
+                "bg": "#090909",
+                "text": "#eceae6",
+                "panel": "#0d0d0d",
+                "raised": "#171717",
+                "hover": "#141414",
+                "soft": "#b9b5b0",
+                "muted": "#85817c",
+                "quiet": "#7d7974",
+                "faint": "#292929",
+                "lineStrong": "#3a3a3a",
+                "accent": "#9298ff",
+            },
+        }
+        a = appearance.effective({"appearance": old})
+        self.assertEqual(a["colors"], DARK_BASE)
+
+    def test_kokuen_light_upgrade_keeps_a_changed_derived_role(self):
+        old = {
+            "preset": "light",
+            "colors": {
+                "bg": "#f4f3f0",
+                "text": "#242321",
+                "panel": "#eeece8",
+                "faint": "#d5d0c9",
+                "accent": "#5960c7",
+                "raised": "#e4e1dc",
+                "muted": "#445566",
+            },
+        }
+        a = appearance.effective({"appearance": old})
+        self.assertEqual(a["colors"]["bg"], LIGHT_BASE["bg"])
+        self.assertEqual(a["colors"]["raised"], LIGHT_BASE["raised"])
+        self.assertEqual(a["colors"]["muted"], "#445566")

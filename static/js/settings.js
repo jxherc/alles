@@ -616,7 +616,7 @@ const ACCENT_PRESETS = [
   ['#34d399', 'emerald'], ['#4ade80', 'green'], ['#facc15', 'yellow'], ['#fb923c', 'orange'],
   ['#f87171', 'red'], ['#f472b6', 'pink'], ['#e879f9', 'fuchsia'], ['#e8e6e3', 'mono'],
 ];
-const DEFAULT_ACCENT = '#9298ff';
+const DEFAULT_ACCENT = '#aaa6ff';
 // accent + mode now live in the unified appearance object (theme.js), so they survive reload
 // and stop fighting presets. these read/write through that, not the old aide-* localStorage.
 const _curAccent = () => {
@@ -1098,7 +1098,7 @@ function _buildPersonaAccents() {
   box.querySelectorAll('.pa-swatch').forEach(s => s.addEventListener('click', () => {
     _setPersonaAccent(s.dataset.hex);
     // live preview the re-theme as you pick (reset/save restores the real active accent)
-    document.documentElement.style.setProperty('--accent', s.dataset.hex || ((JSON.parse(localStorage.getItem('alles-appearance')||'{}').colors||{}).accent || '#9298ff'));
+    document.documentElement.style.setProperty('--accent', s.dataset.hex || ((JSON.parse(localStorage.getItem('alles-appearance')||'{}').colors||{}).accent || '#aaa6ff'));
   }));
 }
 

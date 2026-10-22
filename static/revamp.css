@@ -1,0 +1,442 @@
+/*
+ * revamp layer (decision 0040)
+ *
+ * loads after kokuen.css and owns: depth (surface edge + one tight shadow), the three
+ * button tiers, checkboxes and switches, the sliding selection pill drawn for
+ * static/js/motion.js, entrances for menus, dialogs and toasts, and the loading line.
+ *
+ * html:not(#_) lifts a rule over the per-app id selectors in kokuen.css without
+ * !important; !important is kept for the few places an older rule already uses it.
+ * anything that moves sits behind prefers-reduced-motion: no-preference.
+ */
+
+:where(:root) {
+  --k-ease-out: cubic-bezier(.23, 1, .32, 1);
+  /* about 4% overshoot, from open props' spring-2 */
+  --k-spring: linear(0, .009, .035 2.1%, .141 4.4%, .723 12.9%, .938 16.7%, 1.017 20.5%, 1.043 24.5%, 1.035 28.4%, 1.007 36%, .998 41.2%, .996 46.9%, 1);
+  --k-motion-press: 140ms;
+  --k-motion-slide: 420ms;
+
+  --k-on-accent: #13112a;
+  --k-accent-tint: color-mix(in srgb, var(--k-accent) 17%, transparent);
+  --k-accent-ring: color-mix(in srgb, var(--k-accent) 38%, transparent);
+  --k-raised-hover: color-mix(in srgb, var(--k-raised) 88%, var(--k-text));
+  /* depth: a light top edge and one tight shadow tinted to the dark */
+  --k-edge: inset 0 1px 0 rgb(255 240 225 / .05);
+  --k-lift: 0 1px 2px rgb(0 0 0 / .32);
+  --k-float: 0 18px 40px -16px rgb(0 0 0 / .62), 0 0 0 1px var(--k-line);
+}
+
+html[data-theme="light"] {
+  --k-on-accent: #ffffff;
+  --k-raised-hover: color-mix(in srgb, var(--k-raised) 94%, var(--k-text));
+  --k-edge: inset 0 1px 0 rgb(255 255 255 / .9);
+  --k-lift: 0 1px 2px rgb(60 40 20 / .1), 0 0 0 1px var(--k-line);
+  --k-float: 0 18px 40px -16px rgb(60 40 20 / .28), 0 0 0 1px var(--k-line);
+}
+
+/* the switch that is on is the accent, so on and off read at a glance */
+:where(:root, [data-kokuen-surface]) {
+  --k-switch-on-line: var(--k-accent);
+  --k-switch-on-track: var(--k-accent);
+}
+
+/* airy type in the specialist apps: controls read at 14px (was a 13px floor) */
+[data-specialist-app] :is(button, input, select, textarea, .custom-select, [role="tab"], [role="button"]) {
+  font-size: max(0.875rem, 14px) !important;
+}
+
+
+/* ── buttons: filled primary, raised secondary, plain text ─────────────────── */
+
+html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-preview):not(.primary, .active, [aria-pressed="true"], .link-btn) {
+  border-color: transparent;
+  background: var(--k-raised);
+  color: var(--k-text);
+  box-shadow: var(--k-edge), var(--k-lift);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-preview):not(.primary, .active, [aria-pressed="true"], .link-btn):hover {
+  border-color: transparent;
+  background: var(--k-raised-hover);
+  color: var(--k-text);
+}
+
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button) {
+  border-color: transparent;
+  background: var(--k-accent);
+  color: var(--k-on-accent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), 0 1px 3px color-mix(in srgb, var(--k-accent) 32%, transparent);
+  font-size: 14px;
+  font-weight: 560;
+}
+
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button):hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--k-accent) 86%, var(--k-text));
+  color: var(--k-on-accent);
+}
+
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button):disabled {
+  background: var(--k-raised);
+  color: var(--k-quiet);
+  box-shadow: none;
+}
+
+html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn).danger:not(.primary) {
+  color: var(--k-danger);
+}
+
+html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn).danger:not(.primary):hover {
+  background: color-mix(in srgb, var(--k-danger) 14%, var(--k-raised));
+  color: var(--k-danger);
+}
+
+/* the settings outline pass (0031) is replaced by the raised fill above */
+html:not(#_):not(#_) #settings-modal :is(.btn, .act-btn):not(.primary) {
+  border-color: transparent;
+}
+
+/* text buttons that sit in a row of text stay text, and bare arrows stay bare */
+html:not(#_)[data-kokuen-version="5"] :is(#cal-prev, #cal-next, .icon-btn.btn),
+html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn).link-btn {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* cards that open something (docs home) read as raised tiles */
+html:not(#_) :is(.docs-home-card, .docs-card) {
+  border-color: transparent;
+  background: var(--k-panel);
+  box-shadow: var(--k-edge);
+}
+
+html:not(#_) :is(.docs-home-card, .docs-card):hover {
+  background: var(--k-raised);
+}
+
+
+/* ── picked chips, segments, tabs ──────────────────────────────────────────── */
+
+/* chips take the accent tint when picked; tabs and segments get the sliding pill below */
+html:not(#_)[data-kokuen-version="5"] :is(.health-chip, .read-chip, .mem-cat-btn, .mem-policy-btn, .btn.active, .act-chip):is(.active, [aria-pressed="true"]):not(.off) {
+  border-color: transparent;
+  background: var(--k-accent-tint);
+  color: var(--k-text);
+  box-shadow: inset 0 0 0 1px var(--k-accent-ring);
+  -webkit-text-stroke: 0;
+  font-weight: 560;
+}
+
+html:not(#_)[data-kokuen-version="5"] :is(.seg-opt, .tasks-tab, .te-seg button, .theme-mode-btn, .s-nav-item).active {
+  border-color: transparent;
+  background: var(--k-raised);
+  color: var(--k-text);
+  box-shadow: var(--k-edge), var(--k-lift);
+  -webkit-text-stroke: 0;
+  font-weight: 560;
+}
+
+/* motion.js puts one pill behind the picked item and slides it. inside such a group the
+   item drops its own fill so only the pill moves */
+.has-pill {
+  isolation: isolate;
+}
+
+.has-pill.pill-pos {
+  position: relative;
+}
+
+.has-pill::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: var(--pill-w, 0);
+  height: var(--pill-h, 0);
+  translate: var(--pill-x, 0) var(--pill-y, 0);
+  border-radius: var(--pill-r, var(--k-radius-control));
+  background: var(--k-raised);
+  box-shadow: var(--k-edge), var(--k-lift);
+  opacity: var(--pill-o, 0);
+  pointer-events: none;
+}
+
+.has-pill[data-pill="tint"]::before {
+  background: var(--k-accent-tint);
+  box-shadow: inset 0 0 0 1px var(--k-accent-ring);
+}
+
+html:not(#_):not(#_) .has-pill > .pill-picked {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .has-pill[data-pill-ready]::before {
+    transition:
+      translate var(--k-motion-slide) var(--k-spring),
+      width var(--k-motion-slide) var(--k-spring),
+      height var(--k-motion-slide) var(--k-spring),
+      opacity 160ms var(--k-ease-out);
+  }
+}
+
+
+/* ── checkboxes: a 20px box with a drawn tick, inside the 44px target ──────── */
+
+html:not(#_) :is(.task-check, .wiki-board-chk) {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  box-shadow: none;
+}
+
+html:not(#_) :is(.task-check, .wiki-board-chk)::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--k-line-strong);
+  border-radius: 6px;
+  background: transparent;
+  transition: background-color 180ms var(--k-ease-out), border-color 180ms var(--k-ease-out);
+}
+
+html:not(#_) :is(.task-check, .wiki-board-chk):hover::before {
+  border-color: var(--k-accent);
+}
+
+html:not(#_) :is(.task-check, .wiki-board-chk)::after {
+  content: "";
+  grid-area: 1 / 1;
+  width: 5px;
+  height: 9px;
+  margin-top: -2px;
+  border: solid var(--k-on-accent);
+  border-width: 0 2px 2px 0;
+  background: none;
+  rotate: 45deg;
+  scale: 0;
+  transition: scale 160ms var(--k-ease-out);
+}
+
+html:not(#_) :is(.task-check, .wiki-board-chk):is(.done, [aria-checked="true"], .checked)::before {
+  border-color: var(--k-accent);
+  background: var(--k-accent);
+}
+
+html:not(#_) :is(.task-check, .wiki-board-chk):is(.done, [aria-checked="true"], .checked)::after {
+  scale: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(#_) :is(.task-check, .wiki-board-chk):is(.done, [aria-checked="true"], .checked)::before {
+    animation: k-pop 360ms var(--k-spring);
+  }
+
+  html:not(#_) :is(.task-check, .wiki-board-chk):is(.done, [aria-checked="true"], .checked)::after {
+    transition: scale 300ms var(--k-spring) 60ms;
+  }
+}
+
+/* the task's own "+ sub" waits until you point at the row; a touch screen always shows it */
+html:not(#_) .task-addsub {
+  border: 0;
+  background: transparent;
+  color: var(--k-muted);
+}
+
+html:not(#_) .task-addsub:hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+@media (hover: hover) {
+  html:not(#_) .task-item:not(:hover, :focus-within) .task-addsub {
+    opacity: 0;
+  }
+}
+
+
+/* ── switches: the knob springs across ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(#_) :is(.s-switch, .home-settings-switch, .news-switch)::after {
+    transition: left var(--k-motion-slide) var(--k-spring), translate var(--k-motion-slide) var(--k-spring), background-color 180ms var(--k-ease-out);
+  }
+
+  html:not(#_) :is(.s-switch, .home-settings-switch, .news-switch)::before {
+    transition: background-color 200ms var(--k-ease-out), border-color 200ms var(--k-ease-out);
+  }
+}
+
+
+/* ── floating things: menus, dialogs, toasts ───────────────────────────────── */
+
+html:not(#_) :is(.custom-dropdown-panel, [data-kokuen-surface] [role="menu"]) {
+  border-color: transparent;
+  border-radius: var(--k-radius-surface);
+  background: var(--k-raised);
+  box-shadow: var(--k-edge), var(--k-float);
+}
+
+html:not(#_) :is(.dialog-overlay, .modal-overlay) [role="dialog"],
+html:not(#_) .dialog-overlay [role="alertdialog"],
+html:not(#_) #settings-modal .modal {
+  border-color: transparent;
+  border-radius: var(--k-radius-large);
+  box-shadow: var(--k-edge), var(--k-float);
+}
+
+html:not(#_) .toast {
+  border-color: transparent;
+  border-radius: var(--k-radius-surface);
+  background: var(--k-raised);
+  box-shadow: var(--k-edge), var(--k-float);
+  padding: 10px 16px;
+  font-size: 14px;
+}
+
+html:not(#_) .toast:is(.success, .error, .info) {
+  box-shadow: var(--k-edge), var(--k-float), inset 3px 0 0 currentColor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(#_) :is(.custom-dropdown-panel, [data-kokuen-surface] [role="menu"]) {
+    transform-origin: top left;
+    transition: opacity 160ms var(--k-ease-out), scale 220ms var(--k-ease-out), translate 220ms var(--k-ease-out);
+  }
+
+  @starting-style {
+    html:not(#_) :is(.custom-dropdown-panel, [data-kokuen-surface] [role="menu"]) {
+      opacity: 0;
+      scale: .96;
+      translate: 0 -4px;
+    }
+  }
+
+  html:not(#_) :is(.dialog-overlay, .modal-overlay) {
+    transition: opacity 200ms var(--k-ease-out);
+  }
+
+  html:not(#_) :is(.dialog-overlay, .modal-overlay) :is([role="dialog"], [role="alertdialog"], .modal) {
+    transition: scale 360ms var(--k-spring), opacity 200ms var(--k-ease-out);
+  }
+
+  @starting-style {
+    html:not(#_) :is(.dialog-overlay, .modal-overlay) { opacity: 0; }
+    html:not(#_) :is(.dialog-overlay, .modal-overlay) :is([role="dialog"], [role="alertdialog"], .modal) { scale: .95; opacity: 0; }
+  }
+
+  html:not(#_) .toast {
+    animation: none;
+    transition: opacity 220ms var(--k-ease-out), translate 460ms var(--k-spring), scale 260ms var(--k-ease-out);
+  }
+
+  @starting-style {
+    html:not(#_) .toast { opacity: 0; translate: 0 14px; scale: .96; }
+  }
+
+  html:not(#_) .toast.leaving {
+    opacity: 0;
+    translate: 0 6px;
+    scale: .97;
+    transition-duration: 180ms;
+  }
+}
+
+
+/* ── the loading line: no jump, no flash ───────────────────────────────────── */
+
+/* while a specialist app loads, the line takes no room: a thin accent bar runs along the
+   top and the words sit at the right. fast loads finish before it appears */
+.specialist-state[data-state="loading"] {
+  position: relative;
+  z-index: 3;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.specialist-state[data-state="loading"] > span {
+  position: absolute;
+  top: 8px;
+  right: var(--app-inline, 1.6rem);
+  font-size: 13px;
+  color: var(--k-muted);
+}
+
+.specialist-state[data-state="loading"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--k-accent), transparent) 0 0 / 40% 100% no-repeat;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .specialist-state[data-state="loading"] {
+    animation: k-appear 200ms var(--k-ease-out) 260ms both;
+  }
+
+  .specialist-state[data-state="loading"]::before {
+    animation: k-sweep 1.1s var(--k-ease-out) infinite;
+  }
+}
+
+.specialist-state:is([data-state="error"], [data-state="partial"]) {
+  justify-content: flex-start;
+  gap: var(--k-space-3);
+  margin: var(--k-space-3) var(--app-inline, 1.6rem) 0;
+  padding: var(--k-space-2) var(--k-space-2) var(--k-space-2) var(--k-space-4);
+  border-radius: var(--k-radius-surface);
+  background: color-mix(in srgb, currentColor 9%, var(--k-panel));
+  font-size: 14px;
+  text-align: left;
+}
+
+.specialist-state[data-state="partial"] {
+  color: var(--k-permission);
+}
+
+.specialist-state:is([data-state="error"], [data-state="partial"]) .specialist-state-retry {
+  min-height: 36px;
+  margin-left: auto;
+  padding: 0 var(--k-space-3);
+  border-radius: var(--k-radius-control);
+  background: var(--k-raised);
+  box-shadow: var(--k-edge), var(--k-lift);
+  color: var(--k-text);
+  text-decoration: none;
+}
+
+
+@keyframes k-pop {
+  0% { scale: .78; }
+  100% { scale: 1; }
+}
+
+@keyframes k-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes k-sweep {
+  from { background-position: -40% 0; }
+  to { background-position: 140% 0; }
+}

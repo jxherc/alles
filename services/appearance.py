@@ -11,30 +11,30 @@ import re
 _HEX = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 DARK_BASE = {
-    "bg": "#090909",
-    "text": "#eceae6",
-    "panel": "#0d0d0d",
-    "raised": "#171717",
-    "hover": "#141414",
-    "soft": "#b9b5b0",
-    "muted": "#85817c",
-    "quiet": "#7d7974",
-    "faint": "#292929",
-    "lineStrong": "#3a3a3a",
-    "accent": "#9298ff",
+    "bg": "#12100e",
+    "text": "#f3efe9",
+    "panel": "#1a1714",
+    "raised": "#23201c",
+    "hover": "#1f1c19",
+    "soft": "#cec6bc",
+    "muted": "#9d948a",
+    "quiet": "#8f877d",
+    "faint": "#322d28",
+    "lineStrong": "#463f39",
+    "accent": "#aaa6ff",
 }
 LIGHT_BASE = {
-    "bg": "#f4f3f0",
-    "text": "#242321",
-    "panel": "#eeece8",
-    "raised": "#e4e1dc",
-    "hover": "#e9e7e2",
-    "soft": "#55514c",
-    "muted": "#68635e",
-    "quiet": "#746e68",
-    "faint": "#d5d0c9",
-    "lineStrong": "#bbb4ac",
-    "accent": "#5960c7",
+    "bg": "#f8f6f3",
+    "text": "#1d1a17",
+    "panel": "#f1eeea",
+    "raised": "#ffffff",
+    "hover": "#ebe7e2",
+    "soft": "#4b4540",
+    "muted": "#6a625a",
+    "quiet": "#6e665e",
+    "faint": "#e3ded8",
+    "lineStrong": "#cbc4bc",
+    "accent": "#5650d0",
 }
 
 # pre-kokuen-remap default palettes. a stored appearance whose colors still match
@@ -51,6 +51,47 @@ _OLD_BASES = (
             "accent": "#818cf8",
         },
         DARK_BASE,
+    ),
+    # the kokuen graphite defaults, before the warm ember palette (decision 0040).
+    # matched on the five core roles; the fourth item is the whole old palette, so
+    # derived roles still at their old value upgrade too.
+    (
+        "dark",
+        {
+            "bg": "#090909",
+            "text": "#eceae6",
+            "panel": "#0d0d0d",
+            "faint": "#292929",
+            "accent": "#9298ff",
+        },
+        DARK_BASE,
+        {
+            "raised": "#171717",
+            "hover": "#141414",
+            "soft": "#b9b5b0",
+            "muted": "#85817c",
+            "quiet": "#7d7974",
+            "lineStrong": "#3a3a3a",
+        },
+    ),
+    (
+        "light",
+        {
+            "bg": "#f4f3f0",
+            "text": "#242321",
+            "panel": "#eeece8",
+            "faint": "#d5d0c9",
+            "accent": "#5960c7",
+        },
+        LIGHT_BASE,
+        {
+            "raised": "#e4e1dc",
+            "hover": "#e9e7e2",
+            "soft": "#55514c",
+            "muted": "#68635e",
+            "quiet": "#746e68",
+            "lineStrong": "#bbb4ac",
+        },
     ),
     (
         "light",
@@ -205,7 +246,7 @@ def to_legacy(appearance: dict) -> tuple[str, str]:
         theme = ""
     else:  # custom — decide by background brightness
         theme = (
-            "light" if _luminance(appearance.get("colors", {}).get("bg", "#090909")) > 0.5 else ""
+            "light" if _luminance(appearance.get("colors", {}).get("bg", "#12100e")) > 0.5 else ""
         )
     accent = appearance.get("colors", {}).get("accent", "")
     return theme, accent
@@ -219,11 +260,12 @@ def _upgrade_legacy_default(a: dict) -> dict:
     colors = a.get("colors")
     if not isinstance(colors, dict):
         return a
-    for preset, old, new in _OLD_BASES:
+    for preset, old, new, *rest in _OLD_BASES:
+        derived = rest[0] if rest else {}
         if a.get("preset") == preset and all(colors.get(k) == v for k, v in old.items()):
             a = dict(a)
             merged = dict(new)
-            merged.update({k: v for k, v in colors.items() if k not in old})
+            merged.update({k: v for k, v in colors.items() if k not in old and derived.get(k) != v})
             a["colors"] = merged
             return a
     return a

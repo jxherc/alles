@@ -15,8 +15,8 @@ const PENDING_KEY = 'alles-appearance-pending';
 // dark/light also pin the full KOKUEN role set so the default product matches
 // design-system/FOUNDATIONS.md exactly; other presets compute the rest at runtime.
 export const PRESETS = {
-  dark:      { colors: { bg:'#090909', text:'#eceae6', panel:'#0d0d0d', raised:'#171717', hover:'#141414', soft:'#b9b5b0', muted:'#85817c', quiet:'#7d7974', faint:'#292929', lineStrong:'#3a3a3a', accent:'#9298ff' } },
-  light:     { colors: { bg:'#f4f3f0', text:'#242321', panel:'#eeece8', raised:'#e4e1dc', hover:'#e9e7e2', soft:'#55514c', muted:'#68635e', quiet:'#746e68', faint:'#d5d0c9', lineStrong:'#bbb4ac', accent:'#5960c7' } },
+  dark:      { colors: { bg:'#12100e', text:'#f3efe9', panel:'#1a1714', raised:'#23201c', hover:'#1f1c19', soft:'#cec6bc', muted:'#9d948a', quiet:'#8f877d', faint:'#322d28', lineStrong:'#463f39', accent:'#aaa6ff' } },
+  light:     { colors: { bg:'#f8f6f3', text:'#1d1a17', panel:'#f1eeea', raised:'#ffffff', hover:'#ebe7e2', soft:'#4b4540', muted:'#6a625a', quiet:'#6e665e', faint:'#e3ded8', lineStrong:'#cbc4bc', accent:'#5650d0' } },
   midnight:  { colors: { bg:'#0d1117', text:'#c9d1d9', panel:'#161b22', faint:'#30363d', accent:'#58a6ff' }, pattern:'rain' },
   paper:     { colors: { bg:'#faf8f5', text:'#3b3836', panel:'#ffffff', faint:'#d5d0c8', accent:'#b07d3a' }, pattern:'dots' },
   cyberpunk: { colors: { bg:'#0a0a0f', text:'#0ff0fc', panel:'#12101a', faint:'#9b30ff', accent:'#e040fb' }, pattern:'synapse' },
@@ -119,16 +119,25 @@ export function applyAppearance(a) {
 // ── storage ─────────────────────────────────────────────────────────────────────
 // pre-remap default palettes. a cached theme that still matches one exactly was
 // never customized, so it upgrades to the current palette (mirrors the server).
+// the kokuen graphite defaults (before the warm ember palette, decision 0040) count too:
+// matched on the five core roles, and derived roles still at their old value upgrade with them.
 const _OLD_BASES = {
-  dark:  { bg:'#0a0a0a', text:'#e8e6e3', panel:'#0e0e0e', faint:'#2e2e2e', accent:'#818cf8' },
-  light: { bg:'#f5f4f1', text:'#111111', panel:'#efede9', faint:'#d4d2ce', accent:'#818cf8' },
+  dark:  [{ bg:'#0a0a0a', text:'#e8e6e3', panel:'#0e0e0e', faint:'#2e2e2e', accent:'#818cf8' },
+          { bg:'#090909', text:'#eceae6', panel:'#0d0d0d', faint:'#292929', accent:'#9298ff' }],
+  light: [{ bg:'#f5f4f1', text:'#111111', panel:'#efede9', faint:'#d4d2ce', accent:'#818cf8' },
+          { bg:'#f4f3f0', text:'#242321', panel:'#eeece8', faint:'#d5d0c9', accent:'#5960c7' }],
+};
+const _OLD_DERIVED = {
+  dark:  { raised:'#171717', hover:'#141414', soft:'#b9b5b0', muted:'#85817c', quiet:'#7d7974', lineStrong:'#3a3a3a' },
+  light: { raised:'#e4e1dc', hover:'#e9e7e2', soft:'#55514c', muted:'#68635e', quiet:'#746e68', lineStrong:'#bbb4ac' },
 };
 function _upgradeLegacyDefault(o) {
   if (o.accentCustom === true) return o;
-  const old = _OLD_BASES[o.preset];
-  if (!old || !o.colors) return o;
-  if (!Object.entries(old).every(([k, v]) => o.colors[k] === v)) return o;
-  const extra = Object.fromEntries(Object.entries(o.colors).filter(([k]) => !(k in old)));
+  if (!o.colors) return o;
+  const old = (_OLD_BASES[o.preset] || []).find(b => Object.entries(b).every(([k, v]) => o.colors[k] === v));
+  if (!old) return o;
+  const was = _OLD_DERIVED[o.preset] || {};
+  const extra = Object.fromEntries(Object.entries(o.colors).filter(([k, v]) => !(k in old) && was[k] !== v));
   return { ...o, colors: { ...PRESETS[o.preset].colors, ...extra } };
 }
 export function loadLocal() {

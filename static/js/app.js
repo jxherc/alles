@@ -1,6 +1,7 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, focusSessionMessage } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=212';
 import { icon, iconEl, ICON_NAMES } from './icons.js';
+import { enterView } from './motion.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
 import { chooseBootState } from './bootstate.js';
@@ -752,6 +753,7 @@ function showView(viewId, navKey, onShow, stateRootId = '') {
   hideAllViews();
   const root = document.getElementById(viewId);
   root.style.display = 'flex';
+  enterView(root);
   _syncShellTrigger(root);
   setNav(navKey);
   if (!root.dataset.specialistApp && !root.classList.contains('aide-tool-view')) {
@@ -2578,7 +2580,7 @@ async function _syncAppearance() {
 function updateFavicon() {
   const root = document.documentElement;
   const accent = (getComputedStyle(root).getPropertyValue('--accent') || '').trim() || '#818cf8';
-  const box = root.dataset.theme === 'light' ? '#f4f3f0' : '#090909';
+  const box = root.dataset.theme === 'light' ? '#f8f6f3' : '#12100e';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="${box}"/><circle cx="16" cy="16" r="7" fill="${accent}"/></svg>`;
   let link = document.querySelector('link[rel="icon"]');
   if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }

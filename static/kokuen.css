@@ -15,14 +15,14 @@
 ) {
   /* documented KOKUEN defaults; on :root too, so shared rules resolve in
      dialogs and menus mounted outside a surface */
-  --k-default-page: #090909;
-  --k-default-panel: #0d0d0d;
-  --k-default-raised: #171717;
-  --k-default-hover: #141414;
-  --k-default-text: #eceae6;
-  --k-default-muted: #85817c;
-  --k-default-line: #292929;
-  --k-default-line-strong: #3a3a3a;
+  --k-default-page: #12100e;
+  --k-default-panel: #1a1714;
+  --k-default-raised: #23201c;
+  --k-default-hover: #1f1c19;
+  --k-default-text: #f3efe9;
+  --k-default-muted: #9d948a;
+  --k-default-line: #322d28;
+  --k-default-line-strong: #463f39;
 
   /* semantic runtime tokens follow the owner's active Alles theme */
   --k-page: var(--bg, var(--k-default-page));
@@ -38,14 +38,14 @@
   --k-focus: var(--focus, var(--k-soft));
   --k-field-focus: var(--muted, var(--k-soft));
   --k-focus-offset: -2px;
-  --k-accent: var(--accent, #9298ff);
+  --k-accent: var(--accent, #aaa6ff);
   /* a switch that is on: a soft alles-purple track every surface shares */
   --k-switch-on-line: color-mix(in srgb, var(--k-accent) 70%, var(--k-line-strong));
   --k-switch-on-track: color-mix(in srgb, var(--k-accent) 34%, var(--k-raised));
-  --k-permission: var(--signal, #d5a265);
-  --k-danger: var(--error, #df7474);
-  --k-success: var(--green, #7ea98b);
-  --k-warning: var(--signal, #d5a265);
+  --k-permission: var(--signal, #e8b26c);
+  --k-danger: var(--error, #f2897f);
+  --k-success: var(--green, #8cc79d);
+  --k-warning: var(--signal, #e8b26c);
   --k-info: var(--info, #8ab4f8);
   --k-link: var(--link, #8ab4f8);
   --k-link-visited: var(--link-visited, #c58af9);
@@ -64,9 +64,12 @@
   --k-control: 44px;
   --k-row: 46px;
   --k-app-header: 52px;
-  --k-radius-small: 2px;
-  --k-radius-control: 3px;
-  --k-radius-surface: 4px;
+  /* balanced corners (decision 0040): controls 8, cards and menus 12, the chat box and
+     dialogs 16. an inner corner is its outer corner minus the gap, so nests stay concentric */
+  --k-radius-small: 6px;
+  --k-radius-control: 8px;
+  --k-radius-surface: 12px;
+  --k-radius-large: 16px;
   --k-motion-fast: 120ms;
   --k-motion-panel: 180ms;
   --k-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -604,7 +607,7 @@ body:is(
   width: 100%;
   min-height: var(--k-control, 44px);
   padding: 0 var(--k-space-3, 12px);
-  border-radius: 2px;
+  border-radius: var(--k-radius-small);
   color: var(--k-ink-muted, var(--muted));
   text-align: left;
 }
@@ -1874,7 +1877,7 @@ body:is(
 }
 
 :where(#finance-view) .finance-import-row:last-child { border-bottom: 0; }
-:where(#finance-view) .finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #df7474); }
+:where(#finance-view) .finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #f2897f); }
 :where(#finance-view) .finance-import-row > .finance-import-metadata {
   color: var(--k-ink-muted, var(--muted));
   font-size: inherit;
@@ -1885,7 +1888,7 @@ body:is(
 :where(#finance-view) .finance-import-row-amount { text-align: right; font-family: var(--k-mono); font-variant-numeric: tabular-nums; }
 :where(#finance-view) .finance-import-row-status { text-align: right; }
 :where(#finance-view) .finance-import-row-conflict .finance-import-row-status,
-:where(#finance-view) .finance-import-row-needs_review .finance-import-row-status { color: var(--k-danger, #df7474); }
+:where(#finance-view) .finance-import-row-needs_review .finance-import-row-status { color: var(--k-danger, #f2897f); }
 
 :where(#finance-view) .finance-import-conversion {
   grid-column: 2 / -1;
@@ -2111,14 +2114,14 @@ html[data-theme="light"] :where(
   body[data-app="files"],
   [data-kokuen-surface]
 ) {
-  --k-default-page: #f4f3f0;
-  --k-default-panel: #eeece8;
-  --k-default-raised: #e4e1dc;
-  --k-default-hover: #e9e7e2;
-  --k-default-text: #242321;
-  --k-default-muted: #68635e;
-  --k-default-line: #d5d0c9;
-  --k-default-line-strong: #bbb4ac;
+  --k-default-page: #f8f6f3;
+  --k-default-panel: #f1eeea;
+  --k-default-raised: #ffffff;
+  --k-default-hover: #ebe7e2;
+  --k-default-text: #1d1a17;
+  --k-default-muted: #6a625a;
+  --k-default-line: #e3ded8;
+  --k-default-line-strong: #cbc4bc;
 }
 
 /* Shared grammar: only roots carrying the explicit finished-surface marker. */
@@ -6429,7 +6432,7 @@ body[data-app="files"] #files-view .files-check::before {
   height: 16px;
   transform: translate(-50%, -50%);
   border: 1px solid var(--k-line-strong);
-  border-radius: 2px;
+  border-radius: var(--k-radius-small);
   background: transparent;
 }
 
@@ -6951,7 +6954,7 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
 
   body[data-app="files"] #files-view .files-phase7-location-panel::-webkit-scrollbar-thumb {
     background: var(--k-line);
-    border-radius: 2px;
+    border-radius: var(--k-radius-small);
   }
 
   body[data-app="files"] #files-view .files-phase7-location-panel::-webkit-scrollbar-track {

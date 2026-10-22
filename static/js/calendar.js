@@ -950,7 +950,8 @@ function renderYear(lbl) {
   }));
 }
 
-const chipStyle = o => `background:${evHex(o)};color:#0a0a0a`;
+// a tint of the calendar's color with a bar of it at the start, like the week view's blocks
+const chipStyle = o => `background:color-mix(in srgb, ${evHex(o)} 22%, transparent);color:var(--text);box-shadow:inset 3px 0 0 ${evHex(o)}`;
 const chipTitle = o => `${esc(o.title)}${o.location ? ' · ' + esc(o.location) : ''}${o._recur ? ' (repeats)' : ''}`;
 
 // 4a — birthdays keyed by "MM-DD" (year-agnostic), and a lookup for a given Date
