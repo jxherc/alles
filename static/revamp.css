@@ -39,6 +39,9 @@ html:not(#_) {
   --k-field-ring: color-mix(in srgb, var(--k-text) 12%, transparent);
   --k-field-ring-hover: color-mix(in srgb, var(--k-text) 20%, transparent);
   --k-pill: var(--k-selected-fill);
+  /* a secondary button is an 8% fill in dark (Geist's secondary); light keeps white and a line */
+  --k-btn-fill: color-mix(in srgb, var(--k-text) 8%, transparent);
+  --k-btn-fill-hover: color-mix(in srgb, var(--k-text) 13%, transparent);
 }
 
 html:not(#_)[data-theme="light"] {
@@ -48,6 +51,8 @@ html:not(#_)[data-theme="light"] {
   --k-field-ring: color-mix(in srgb, var(--k-text) 14%, transparent);
   --k-field-ring-hover: color-mix(in srgb, var(--k-text) 24%, transparent);
   --k-pill: var(--k-selected-fill);
+  --k-btn-fill: var(--k-raised);
+  --k-btn-fill-hover: var(--k-raised-hover);
 }
 
 html[data-theme="light"] {
@@ -79,7 +84,7 @@ html[data-theme="light"] {
 
 html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-preview):not(.primary, .active, [aria-pressed="true"], .link-btn) {
   border-color: var(--k-btn-line);
-  background: var(--k-raised);
+  background: var(--k-btn-fill);
   color: var(--k-text);
   box-shadow: none;
   font-size: 14px;
@@ -88,7 +93,7 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-previe
 
 html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-preview):not(.primary, .active, [aria-pressed="true"], .link-btn):hover {
   border-color: var(--k-btn-line);
-  background: var(--k-raised-hover);
+  background: var(--k-btn-fill-hover);
   color: var(--k-text);
 }
 
@@ -108,7 +113,7 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #
 }
 
 html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button, #aide-coding-workspace .acw-primary):disabled {
-  background: var(--k-raised);
+  background: var(--k-btn-fill);
   color: var(--k-quiet);
   box-shadow: none;
 }
@@ -182,7 +187,7 @@ html:not(#_) .ms-card .ms-val .ms-label {
 /* the button-looking "+ add" cells in board and import screens */
 html:not(#_) .plan-board-complete {
   border-color: var(--k-btn-line);
-  background: var(--k-raised);
+  background: var(--k-btn-fill);
   color: var(--k-text);
   box-shadow: none;
 }
@@ -572,7 +577,7 @@ html:not(#_) .toast:is(.success, .error, .info) {
   margin-left: auto;
   padding: 0 var(--k-space-3);
   border-radius: var(--k-radius-control);
-  background: var(--k-raised);
+  background: var(--k-btn-fill);
   box-shadow: none;
   color: var(--k-text);
   text-decoration: none;
@@ -939,8 +944,9 @@ html:not(#_):not(#_) :is(
   .files-phase7-location-panel .files-view-button.is-active,
   .photos-sidebar .photos-nav-item.active
 ) {
-  background: var(--k-raised);
+  background: var(--k-selected-fill);
   color: var(--k-text);
+  font-weight: 500;
 }
 
 html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-sidebar) :is(button, a):not(.active, .is-active, [aria-current="page"]):hover {
@@ -1215,7 +1221,7 @@ html:not(#_):not(#_) #mail-view .mail-service-links {
 html:not(#_):not(#_) #mail-view .mail-service-link {
   border: 1px solid var(--k-btn-line);
   border-radius: var(--k-radius-control);
-  background: var(--k-raised);
+  background: var(--k-btn-fill);
   color: var(--k-text);
   text-decoration: none;
 }
@@ -1225,7 +1231,7 @@ html:not(#_):not(#_) #mail-view .mail-accounts .mail-empty {
 }
 
 html:not(#_):not(#_) #mail-view .mail-service-link:hover {
-  background: var(--k-raised-hover);
+  background: var(--k-btn-fill-hover);
 }
 
 /* the old -12px pull-backs were for buttons drawn as bare words; a filled button sits on the edge */
@@ -1493,7 +1499,7 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-shortcut:hover {
    one toolbar on the sidebar's top line: where you are on the left, what you can do on the right ── */
 @media (min-width: 761px) {
   html:not(#_):not(#_) #files-view .files-phase7-workbench {
-    grid-template-columns: 232px minmax(0, 1fr) auto;
+    grid-template-columns: 244px minmax(0, 1fr) auto;
   }
 
   html:not(#_):not(#_) #files-view .files-phase7-location-panel {
@@ -1586,7 +1592,7 @@ html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row, .files
 
   html:not(#_):not(#_) #photos-view {
     position: relative;
-    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-columns: 244px minmax(0, 1fr);
     grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
     padding: 0;
   }
@@ -1671,14 +1677,14 @@ html:not(#_):not(#_) #files-view .files-detail-actions > :is(button, a) {
   padding: 0 var(--k-space-3);
   border: 1px solid var(--k-btn-line);
   border-radius: var(--k-radius-control);
-  background: var(--k-raised);
+  background: var(--k-btn-fill);
   color: var(--k-text);
   font-size: 14px;
   text-decoration: none;
 }
 
 html:not(#_):not(#_) #files-view .files-detail-actions > :is(button, a):hover {
-  background: var(--k-raised-hover, var(--k-hover));
+  background: var(--k-btn-fill-hover);
 }
 
 html:not(#_):not(#_) #files-view .files-detail-actions > .files-danger {
@@ -1884,4 +1890,10 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   font-size: 14px;
   line-height: 20px;
   text-align: center;
+}
+
+
+/* page sidebars share one width (Linear's is 244) */
+@media (min-width: 761px) {
+  html:not(#_):not(#_) #cal-sidebar { width: 244px; box-sizing: border-box; }
 }
