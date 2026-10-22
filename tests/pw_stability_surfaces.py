@@ -85,10 +85,18 @@ def assert_shared_visual_grammar(page, name: str, root) -> dict:
               background: s.backgroundColor,
             }; }"""
         )
-        assert edges["top"] == edges["right"] == edges["left"] == "0px", edges
-        assert float(edges["bottom"].removesuffix("px")) >= 1, edges
+        # decision 0041: an add form is one filled row; the field inside it draws no edge or fill
+        # of its own, the row carries the fill
+        assert edges["top"] == edges["right"] == edges["left"] == edges["bottom"] == "0px", edges
         assert edges["background"] in {"transparent", "rgba(0, 0, 0, 0)"}, edges
+        row = field.evaluate(
+            """el => { let node = el.parentElement;
+              while (node && ['transparent', 'rgba(0, 0, 0, 0)'].includes(getComputedStyle(node).backgroundColor)) node = node.parentElement;
+              return node ? getComputedStyle(node).backgroundColor : ''; }"""
+        )
+        assert row not in {"", "transparent", "rgba(0, 0, 0, 0)"}, row
         result["capture_edges"] = edges
+        result["capture_row"] = row
 
     if name == "settings":
         group = root.locator(".home-settings-list:visible").first
@@ -119,10 +127,13 @@ def assert_shared_visual_grammar(page, name: str, root) -> dict:
         result["icon_geometry"] = icon_geometry
 
     if name == "aide":
+        # decision 0039: the box has no drawn border; an inset hairline marks its edge
         composer = root.locator(".composer-box")
-        border = composer.evaluate("el => getComputedStyle(el).borderTopWidth")
-        assert float(border.removesuffix("px")) >= 1, border
-        result["composer_border"] = border
+        edge = composer.evaluate(
+            "el => { const s = getComputedStyle(el); return {border: s.borderTopWidth, shadow: s.boxShadow}; }"
+        )
+        assert float(edge["border"].removesuffix("px")) >= 1 or "inset" in edge["shadow"], edge
+        result["composer_edge"] = edge
 
     return result
 

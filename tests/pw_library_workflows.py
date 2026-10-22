@@ -314,15 +314,20 @@ def run():
                         return {color: value.color, background: value.backgroundColor,
                                 border: value.borderTopColor};
                     };
+                    const group = radio.parentElement;
                     return {radio: style(radio), feeds: style(feeds),
-                            text: token('--k-text'), raised: token('--k-raised'),
-                            line: token('--k-line-strong'), accent: token('--k-accent')};
+                            pill: getComputedStyle(group, '::before').backgroundColor,
+                            pillGroup: group.classList.contains('has-pill'),
+                            text: token('--k-text'), fill: token('--k-selected-fill'),
+                            accent: token('--k-accent')};
                 }""")
+                # decision 0041: picked choices read in full text on the see-through selected fill;
+                # inside a pill group the fill is the shared pill sliding under the pick
                 for name in ("radio", "feeds"):
                     assert visual[name]["color"] == visual["text"], visual
-                    assert visual[name]["background"] == visual["raised"], visual
-                    assert visual[name]["border"] == visual["line"], visual
                     assert visual[name]["border"] != visual["accent"], visual
+                assert visual["feeds"]["background"] == visual["fill"], visual
+                assert visual["pillGroup"] and visual["pill"] == visual["fill"], visual
                 for control in (filters.nth(3), feeds):
                     box = control.bounding_box()
                     assert box and box["width"] >= 44 and box["height"] >= 44, box

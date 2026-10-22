@@ -269,7 +269,9 @@ def run():
                     )
                     expect(page.locator("#contact-name")).to_have_value(name)
                     expect(page.locator("#contact-email")).to_have_value(email)
-                    expect(page.locator("#contact-phone")).to_have_value("+1 202 555 0144")
+                    expect(page.locator("#contact-phone")).to_have_value(
+                        "+1 (202) 555-0144"
+                    )  # phones format as you type
                     expect(page.get_by_text("contact added", exact=True)).to_have_count(0)
                     assert not [c for c in contacts() if c["name"] == name]
                     page.unroute(base + "/api/contacts", handler)

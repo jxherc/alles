@@ -105,7 +105,7 @@ with sync_playwright() as pw:
                     page.wait_for_function("innerWidth === 640 && devicePixelRatio === 2")
                 field = page.locator("#composer-ta")
                 field.fill("/")
-                popup = page.locator(".slash-popup")
+                popup = page.locator(".slash-popup:not(.acw-slash)")  # not the code view's menu
                 expect(popup).to_contain_text("open model compare")
                 count = popup.locator(".slash-item").count()
                 for _ in range(count - 1):
@@ -122,7 +122,7 @@ with sync_playwright() as pw:
                 expect(popup).to_have_count(0)
                 expect(field).to_be_focused()
                 field.fill("/comp")
-                popup = page.locator(".slash-popup")
+                popup = page.locator(".slash-popup:not(.acw-slash)")  # not the code view's menu
                 expect(popup).to_contain_text("open model compare")
                 box = popup.bounding_box()
                 page.screenshot(path=str(out / f"{label}-compare-entry.png"))
