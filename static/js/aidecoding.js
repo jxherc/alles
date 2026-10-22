@@ -25,6 +25,7 @@ const icons = {
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   cross: '<path d="m6.5 6.5 11 11m0-11-11 11"/>',
   down: '<path d="M12 5v14m-6-6 6 6 6-6"/>',
+  columns: '<path d="M4.5 5.5h15v13h-15Z"/><path d="M9.5 5.5v13"/>',
 };
 const icon = name => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || '') + '</svg>';
 
@@ -1203,10 +1204,64 @@ async function loadStatus() {
   if (pi.state === 'installing') installTimer = setTimeout(() => { if (!host.hidden) void loadStatus(); }, 3000);
 }
 
+// the projects rail: drag its edge (or use the arrow keys on it) to resize, and the header button
+// hides it. both are remembered in this browser
+const RAIL_KEY = 'alles-code-rail', RAIL_MIN = 180, RAIL_MAX = 420, RAIL_DEFAULT = 240;
+let rail = { width: RAIL_DEFAULT, hidden: false };
+const narrowRail = typeof matchMedia === 'function' ? matchMedia('(max-width: 620px)') : { matches: false, addEventListener() {} };
+
+function applyRail(save = true) {
+  rail.width = Math.round(Math.min(RAIL_MAX, Math.max(RAIL_MIN, rail.width)));
+  host.style.setProperty('--acw-rail-w', `${rail.width}px`);
+  host.dataset.rail = rail.hidden ? 'hidden' : 'shown';
+  $('aide-code-rail').inert = rail.hidden && !narrowRail.matches;
+  $('aide-code-rail-resize').setAttribute('aria-valuenow', String(rail.width));
+  const toggle = $('aide-code-rail-toggle');
+  const label = rail.hidden ? 'show projects' : 'hide projects';
+  toggle.setAttribute('aria-expanded', String(!rail.hidden));
+  toggle.setAttribute('aria-label', label);
+  toggle.title = label;
+  if (save) { try { localStorage.setItem(RAIL_KEY, JSON.stringify(rail)); } catch { /* private mode */ } }
+}
+
+function wireRail() {
+  try { Object.assign(rail, JSON.parse(localStorage.getItem(RAIL_KEY) || '{}')); } catch { /* bad json */ }
+  applyRail(false);
+  narrowRail.addEventListener('change', () => applyRail(false));
+  $('aide-code-rail-toggle').addEventListener('click', () => { rail.hidden = !rail.hidden; applyRail(); });
+  const handle = $('aide-code-rail-resize');
+  handle.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    handle.setPointerCapture(event.pointerId);
+    host.dataset.resizing = 'true';
+    const left = $('aide-code-rail').getBoundingClientRect().left;
+    const move = e => { rail.width = e.clientX - left; applyRail(false); };
+    const done = () => {
+      handle.removeEventListener('pointermove', move);
+      delete host.dataset.resizing;
+      applyRail();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', done, { once: true });
+    handle.addEventListener('pointercancel', done, { once: true });
+  });
+  handle.addEventListener('dblclick', () => { rail.width = RAIL_DEFAULT; applyRail(); });
+  handle.addEventListener('keydown', event => {
+    const step = event.shiftKey ? 48 : 16;
+    const next = { ArrowLeft: rail.width - step, ArrowRight: rail.width + step, Home: RAIL_MIN, End: RAIL_MAX }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    rail.width = next;
+    applyRail();
+  });
+}
+
 function markup() {
   return `
     <div class="acw-body">
-      <aside class="acw-rail" aria-label="projects">
+      <aside class="acw-rail" id="aide-code-rail" aria-label="projects">
+        <div class="acw-rail-resize" id="aide-code-rail-resize" role="separator" aria-orientation="vertical" aria-label="resize projects" aria-controls="aide-code-rail" tabindex="0" aria-valuemin="${RAIL_MIN}" aria-valuemax="${RAIL_MAX}" aria-valuenow="${RAIL_DEFAULT}"></div>
         <div class="acw-rail-head"><h2>projects</h2><button type="button" id="aide-code-add" class="acw-icon" aria-label="add a project" title="add a project">${icon('plus')}</button></div>
         <nav id="aide-code-projects" class="acw-projects" aria-label="projects and chats"></nav>
         <div class="acw-pi"><p id="aide-code-pi" role="status" hidden></p><button type="button" id="aide-code-pi-retry" class="acw-action" hidden>try again</button></div>
@@ -1218,6 +1273,7 @@ function markup() {
       <div class="acw-main">
         <header class="acw-head">
           <button type="button" id="aide-code-rail-back" class="acw-icon acw-mobile-back" aria-label="projects">${icon('back')}</button>
+          <button type="button" id="aide-code-rail-toggle" class="acw-icon acw-rail-toggle" aria-label="hide projects" title="hide projects" aria-controls="aide-code-rail" aria-expanded="true">${icon('columns')}</button>
           <div class="acw-head-text"><h2 id="aide-code-title" tabindex="-1">code with pi</h2><p class="acw-head-meta"><span id="aide-code-project" class="acw-head-project"></span><span id="aide-code-path" class="acw-path"></span></p></div>
           <button type="button" id="aide-code-new" class="acw-action acw-head-new" hidden>${icon('plus')}<span>new chat</span></button>
           <div class="acw-model acw-chat-menu-wrap">
@@ -1293,6 +1349,7 @@ export function initAideCodingWorkspace() {
   if (!target || target.tagName === 'BUTTON' || host === target) return;
   host = target; host.classList.add('aide-coding-workspace'); host.setAttribute('aria-label', 'code with pi'); host.dataset.pane = 'main';
   host.innerHTML = markup();
+  wireRail();
   const input = $('aide-code-input');
   wireAutosizeTextarea(input);
   input.addEventListener('input', () => { slashIndex = 0; renderSlash(); updateComposer(); });

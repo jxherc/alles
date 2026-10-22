@@ -60,6 +60,44 @@ density. They took the recommended "ember" palette by asking to start building.
   filled shape and focus glow (replaces 0025's bare line). An empty saved chat shows the
   greeting and starts. The loading line takes no room: a thin bar, shown only after 260ms.
 
+## second pass: one frame, tasteskill v2 (2026-10-22)
+
+The owner found the spacing inconsistent everywhere and called the Aide step cards slop, and
+asked for everything to go through tasteskill v2's app-screen rules. Measured first: content
+started anywhere from 7 to 557px in and stopped 17 to 901px short of the right edge, because each
+app family had its own centred column (880, 928, 1040, 1080px) or padding.
+
+- **one frame.** Every app runs the full width with one gutter on both sides (`--k-gutter`, 24px,
+  16px on a phone). The header's app name starts on that same edge. List pages, overviews, aide's
+  tool pages, home and the server monitor follow it; home sits in two columns over 1100px. Only
+  the aide conversation keeps its reading column, and the andromeda landing stays centred.
+- **no shadows at rest.** This replaces the depth bullet above: buttons, cards and the picked pill
+  are tone steps, light adds a 1px line (`--k-btn-line`, `--k-card-line`), and only menus,
+  dialogs and toasts float with one shadow. The primary is a flat accent fill.
+- **picked things are neutral.** Chips take the same neutral pill as tabs (`--k-pill`), not the
+  accent tint. Underline tabs get one 2px underline that slides.
+- **switches.** A switch that is on is ink with a page-coloured knob, not the accent.
+- **no entrance.** Screens no longer fade in; a total counts only when its value changes.
+- **a title.** The app name in the header row is each screen's h1 (home's greeting and
+  andromeda's own heading keep that role there).
+- **aide steps.** A step is a 44px line (mark, what, where, time), not a card; what changed
+  something has an amber mark instead of an amber bar; its output sits once in an indented well.
+  A reply's own actions are quiet words.
+- **the code view's projects rail** resizes (drag, or arrow keys on its edge) and hides; both are
+  remembered.
+- **a page's own sidebar** (docs, journal, files, gallery, calendar, the code view's projects) is
+  a filled panel with a 12px top corner and no line beside it, as in the direction demo; its
+  picked row is one tone up. A permanent sidebar of every app was tried and dropped: the owner
+  kept the app switcher and the view tabs.
+- **files and gallery** share one frame: the sidebar runs from the top, and the main column has
+  one toolbar on the sidebar's top line, the folder or view name as its title on the left and
+  search and actions on the right. Files' select boxes take the same box and tick as tasks, a
+  file's actions are one row of equal buttons, and up is disabled at the top folder.
+- **filled buttons don't pull back.** The old -12px pull-back was for buttons drawn as bare words;
+  a filled button sits on the gutter.
+- **alles purple stays** although tasteskill bans violet: the skill marks that as its author's
+  taste, and the owner chose it. So do the 8/12/16 corners.
+
 ## kept
 
 - Inter, the 44px target, kokuen's spacing scale, the server monitor's own palette (0010).

@@ -208,7 +208,7 @@ body.sidebar-hidden .sidebar { display: none; }
   color: var(--text);
   font: 500 1rem/1 var(--font-family, sans-serif);
 }
-.andromeda-head h1 { margin: 0; font-size: 1.08rem; font-weight: 560; letter-spacing: 0.01em; }
+.andromeda-head h2 { margin: 0; font-size: 1.08rem; font-weight: 560; letter-spacing: 0.01em; }
 .andromeda-head p { margin: 0.18rem 0 0; color: var(--muted); font-size: 0.75rem; }
 .andromeda-search {
   display: grid;
@@ -2823,7 +2823,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 :where(#today-view) .today-inner { width: min(860px, 100%); margin: 0 auto; padding: 3.2rem 2rem 5rem; }
 :where(#today-view) .today-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; }
 :where(#today-view) .today-kicker { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.04em; margin-bottom: 0.15rem; }
-:where(#today-view) .today-head h1 { font-size: 2rem; font-weight: 400; letter-spacing: -0.045em; line-height: 1; }
+:where(#today-view) .today-head h2 { font-size: 2rem; font-weight: 400; letter-spacing: -0.045em; line-height: 1; }
 :where(#today-view) .today-status { border: 1px solid var(--faint); color: var(--muted); font-size: 0.75rem; padding: 0.8rem; margin-bottom: 1rem; }
 :where(#today-view) .today-status[hidden] { display: none; }
 :where(#today-view) .today-sections { display: flex; flex-direction: column; gap: 1.5rem; }
@@ -2865,7 +2865,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 @media (max-width: 700px) {
   :where(#today-view) .today-inner { padding: 2rem 1.1rem 4rem; }
   :where(#today-view) .today-head { align-items: center; }
-  :where(#today-view) .today-head h1 { font-size: 1.65rem; }
+  :where(#today-view) .today-head h2 { font-size: 1.65rem; }
   :where(#today-view) .today-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   :where(#today-view) .today-row { align-items: flex-start; }
   :where(#today-view) .today-row em { max-width: 35%; overflow: hidden; text-overflow: ellipsis; }
@@ -2914,7 +2914,7 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
   padding-top: clamp(48px, 7vh, 64px);
 }
 :where(#today-view) .today-kicker { display: block; margin: 0 0 13px; color: var(--muted); font-size: 0.8rem; letter-spacing: 0; }
-:where(#today-view) .today-head h1 { font-size: clamp(2rem, 5vw, 2.9rem); font-weight: 500; letter-spacing: -0.032em; line-height: 1.12; }
+:where(#today-view) .today-head h2 { font-size: clamp(2rem, 5vw, 2.9rem); font-weight: 500; letter-spacing: -0.032em; line-height: 1.12; }
 :where(#today-view) .today-summary-tasks {
   min-width: var(--ui-control-height, 44px); min-height: var(--ui-control-height, 44px);
   padding: 0; border: 0; background: none; color: var(--text); font: inherit;
@@ -3062,7 +3062,7 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
 }
 @media (max-width: 700px) {
   :where(#today-view) .today-head { padding-top: 34px; }
-  :where(#today-view) .today-head h1 { font-size: 2rem; }
+  :where(#today-view) .today-head h2 { font-size: 2rem; }
   :where(#today-view) .today-summary { font-size: 0.92rem; }
   :where(#today-view) .today-lower { grid-template-columns: 1fr; gap: 30px; }
 }
@@ -5622,7 +5622,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   gap: 24px;
   padding: 48px 0 32px;
 }
-.aide-scheduled-head h1 {
+.aide-scheduled-head h2 {
   margin: 0;
   color: var(--text);
   font-size: clamp(1.55rem, 2.4vw, 2rem);
@@ -10483,8 +10483,8 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 #wiki-view.no-note .wiki-empty-state { display: grid; }
 .docs-empty-copy { max-width: 510px; }
 .docs-empty-eyebrow { color: var(--muted); font-size: 0.75rem; font-weight: 600; }
-.docs-empty-copy h1,
-.docs-notes-head h1 {
+.docs-empty-copy h2,
+.docs-notes-head h2 {
   margin: 0.45rem 0 0.75rem;
   color: var(--text);
   font-size: 20px;
@@ -10628,7 +10628,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   overflow-y: auto;
 }
 .docs-notes-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-.docs-notes-head h1 { margin-bottom: 0; }
+.docs-notes-head h2 { margin-bottom: 0; }
 .docs-notes-actions { display: flex; align-items: center; gap: 0.35rem; }
 .docs-notes-actions input { width: min(220px, 28vw); height: 30px; font-size: 0.75rem; }
 .docs-notes-actions button { padding: 0 0.6rem; }

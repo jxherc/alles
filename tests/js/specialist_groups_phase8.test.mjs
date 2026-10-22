@@ -92,7 +92,8 @@ test('specialist workbenches show one app name and use the universal shell', () 
   for (const [id, label] of Object.entries(headings)) {
     assert.match(
       specialistHtml,
-      new RegExp(`<h1 class="specialist-app-name" id="${id}"[^>]*>${label}</h1>`),
+      // the app name in the header row is the screen's h1 (decision 0040); this hidden name is an h2
+      new RegExp(`<h2 class="specialist-app-name" id="${id}"[^>]*>${label}</h2>`),
       id,
     );
   }

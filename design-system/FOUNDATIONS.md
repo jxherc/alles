@@ -9,7 +9,9 @@ Machine-readable values live in `tokens/`. This document explains how to use the
 | page | `#12100e` | `#f8f6f3` | main work surface |
 | local panel | `#1a1714` | `#f1eeea` | app-local navigation or context |
 | raised | `#23201c` | `#ffffff` | selected or raised state |
-| hover | `#1f1c19` | `#ebe7e2` | quiet pointer feedback |
+| hover | `#1f1c19` | `#ebe7e2` | the stored theme role; the app draws hover as 6% text (5% light) over any surface, decision 0041 |
+| selected fill | 11% text | 8% text | picked row, picked pill (0041) |
+| field | 5% text, 12% ring | 3% text on white, 14% ring | every text field, select and date picker (0041) |
 | text | `#f3efe9` | `#1d1a17` | primary content |
 | soft text | `#cec6bc` | `#4b4540` | row titles and secondary actions |
 | muted text | `#9d948a` | `#6a625a` | supporting information |
@@ -110,7 +112,8 @@ lift, glow, or shape change on hover.
 - app-name navigation target: at least 44px;
 - optional small-layout context or tab row: 44px;
 - content begins on the same top and side baselines inside its workspace shape;
-- page gutters: 16px small, 20px normal, 24px roomy;
+- page gutter: one `--k-gutter` for every app, 24px, 16px on a phone (decision 0040); content
+  runs the full width, and the header's app name starts on the gutter;
 - readable text measure: about 68 characters;
 - list content: up to 880px;
 - dashboard content: up to 1040px;
@@ -120,10 +123,9 @@ lift, glow, or shape change on hover.
 
 ## elevation and boundaries
 
-Prefer surface tone and space. Use a 1px line only for a real pane, table, focus, or state
-boundary. Raised things (secondary buttons, the picked pill, filled cards one step up) add a 1px
-light top edge (`--k-edge`) and one tight shadow tinted to the dark (`--k-lift`). Only menus,
-dialogs and toasts float (`--k-float`). No big soft bloom (decision 0040).
+Prefer surface tone and space. Nothing at rest carries a shadow: buttons, cards and the picked
+pill are tone steps, and light adds a 1px line where the step alone is too faint. Only menus,
+dialogs and toasts float, with one shadow (`--k-float`). No soft bloom (decision 0040).
 
 ## iconography
 

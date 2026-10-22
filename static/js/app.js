@@ -1,7 +1,6 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, focusSessionMessage } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=212';
 import { icon, iconEl, ICON_NAMES, appGlyph } from './icons.js';
-import { enterView } from './motion.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
 import { chooseBootState } from './bootstate.js';
@@ -753,7 +752,6 @@ function showView(viewId, navKey, onShow, stateRootId = '') {
   hideAllViews();
   const root = document.getElementById(viewId);
   root.style.display = 'flex';
-  enterView(root);
   _syncShellTrigger(root);
   setNav(navKey);
   if (!root.dataset.specialistApp && !root.classList.contains('aide-tool-view')) {
@@ -1442,8 +1440,10 @@ function _syncShellTrigger(root = null) {
         || document.querySelector(`[data-specialist-app="${app}"] .specialist-app-brand`)
         || document.querySelector('.topbar-left');
   if (!target) return;
-  trigger.parentElement?.classList.remove('shell-trigger-host');
-  target.prepend(trigger);
+  // the app name is the screen's h1; the heading moves with its button
+  const title = trigger.closest('.shell-title') || trigger;
+  title.parentElement?.classList.remove('shell-trigger-host');
+  target.prepend(title);
   target.classList.add('shell-trigger-host');
   document.getElementById('app-drawer-label').textContent = label;
   trigger.setAttribute('aria-label', `switch app from ${label}`);
