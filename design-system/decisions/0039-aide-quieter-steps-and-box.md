@@ -10,7 +10,7 @@ where Aide drew a 44px filled card per step; edits stay closed and a finished tu
 ## decision
 
 - Code view answers and box read at 14px/1.65; the conversation at 15px/1.7.
-- A step in the code view is one 32px line (44px on touch): mark, verb, where. No fill. The
+- A step in the code view is one plain 44px line (the KOKUEN target), with no gap between lines: mark, verb, where. No fill. The
   running line has a light passing through it and a live timer. A finished line hides its check
   and time until pointed at. Opened, its output sits indented under it with a hairline, at most
   240px tall (diffs 320px).

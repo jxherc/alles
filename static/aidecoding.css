@@ -116,12 +116,11 @@
    a light passing through it and a live timer; a finished one keeps quiet until you point at it;
    a failed one says why. opening a line shows what came back, indented under it */
 .acw-tool { min-width: 0; animation: acw-arrive 260ms cubic-bezier(.2, .8, .2, 1); }
-.acw-tool + .acw-tool { margin-top: calc(2px - var(--k-space-3)); }
+.acw-tool + .acw-tool { margin-top: calc(-1 * var(--k-space-3)); }
 .acw-tool summary {
-  position: relative; display: flex; align-items: center; gap: var(--k-space-2); min-height: 32px; padding: 0 var(--k-space-2);
+  position: relative; display: flex; align-items: center; gap: var(--k-space-2); min-height: var(--k-control); padding: 0 var(--k-space-2);
   margin-inline: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-control); color: var(--k-soft); cursor: pointer; list-style: none; overflow: hidden;
 }
-@media (pointer: coarse) { .acw-tool summary { min-height: var(--k-control); } }
 .acw-tool[data-state="running"] summary::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--k-text) 7%, transparent), transparent);
@@ -386,7 +385,7 @@
 .acw-tool-why { margin: 0 !important; padding: 0 var(--k-space-3) var(--k-space-2) calc(var(--k-space-3) + 16px + var(--k-space-3)); color: var(--k-danger); font: 400 12px/1.4 var(--k-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* a folded run of steps: one line with a dot per step, open it for the cards */
 .acw-steps { min-width: 0; animation: acw-arrive 220ms ease-out; }
-.acw-steps > summary { display: flex; align-items: center; gap: var(--k-space-3); min-height: 36px; padding: 0 var(--k-space-2); margin-inline: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-control); border-bottom: 1px solid var(--k-line); color: var(--k-soft); font-size: 13px; cursor: pointer; list-style: none; }
+.acw-steps > summary { display: flex; align-items: center; gap: var(--k-space-3); min-height: var(--k-control); padding: 0 var(--k-space-2); margin-inline: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-control); border-bottom: 1px solid var(--k-line); color: var(--k-soft); font-size: 13px; cursor: pointer; list-style: none; }
 .acw-steps > summary::-webkit-details-marker { display: none; }
 .acw-steps > summary:hover { background: var(--k-hover); }
 .acw-steps-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; color: var(--k-soft); }
