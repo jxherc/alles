@@ -466,6 +466,8 @@ def _chat_file(project_id: str, chat_id: str) -> Path | None:
 def chat_summary(path: Path) -> dict | None:
     try:
         entries = _entries(path)
+        # read with the entries: a chat removed mid-listing is gone, not a server error
+        mtime = path.stat().st_mtime
     except OSError:
         return None
     # omp writes a title line before the session header
@@ -484,7 +486,7 @@ def chat_summary(path: Path) -> dict | None:
         "title": name or (first[:80] if first else "new chat"),
         "from_aide": bool(first) and handed,
         "created_at": head.get("timestamp"),
-        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(path.stat().st_mtime)),
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(mtime)),
     }
 
 

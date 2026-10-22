@@ -684,3 +684,19 @@ class HandoffDisplayTest(PiTest):
             saved["items"][0], {"kind": "user", "text": "make a packing list", "from_aide": True}
         )
         self.assertEqual(pi_agent.split_handoff("plain words"), ("plain words", False))
+
+
+class ChatSummaryRaceTest(unittest.TestCase):
+    def test_a_chat_file_removed_while_listing_is_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "chat.jsonl"
+            path.write_text(json.dumps({"type": "session", "id": "c1"}) + "\n")
+            real = pi_agent._entries
+
+            def read_then_vanish(target):
+                entries = real(target)
+                target.unlink()
+                return entries
+
+            with mock.patch.object(pi_agent, "_entries", read_then_vanish):
+                self.assertIsNone(pi_agent.chat_summary(path))
