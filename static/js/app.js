@@ -1,6 +1,7 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, focusSessionMessage } from './sessions.js';
 import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=212';
 import { icon, iconEl, ICON_NAMES, appGlyph } from './icons.js';
+import { initShellSidebar, syncShellSidebar } from './shell_sidebar.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
 import { chooseBootState } from './bootstate.js';
@@ -1391,6 +1392,7 @@ function initAfterlifeShell(flags) {
   if (!trigger || !spaces.length) return;
   _setAfterlifeSpace(document.body.classList.contains('is-aide') ? 'aide' : '');
   _renderAppDrawer();
+  initShellSidebar({ groups: SHELL_GROUPS, go: view => navigateTo(view), settings: () => window._openSettings?.() });
 
   const drawer = document.getElementById('app-drawer');
   if (drawer && trigger) {
@@ -1446,6 +1448,7 @@ function _syncShellTrigger(root = null) {
   target.prepend(title);
   target.classList.add('shell-trigger-host');
   document.getElementById('app-drawer-label').textContent = label;
+  syncShellSidebar(label);
   trigger.setAttribute('aria-label', `switch app from ${label}`);
   trigger.hidden = false;
 }

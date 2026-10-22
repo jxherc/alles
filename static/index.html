@@ -28,13 +28,13 @@
   })();
 </script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=581">
+<link rel="stylesheet" href="/static/style.css?v=582">
   <link rel="stylesheet" href="/static/kokuen.css?v=80">
 <link rel="stylesheet" href="/static/aidecentral.css?v=12">
 <link rel="stylesheet" href="/static/aidecoding.css?v=19">
 <link rel="stylesheet" href="/static/aidecall.css?v=2">
 <link rel="stylesheet" href="/static/help.css?v=1">
-<link rel="stylesheet" href="/static/revamp.css?v=11">
+<link rel="stylesheet" href="/static/revamp.css?v=14">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#12100e">
@@ -44,10 +44,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=581">
+<link rel="modulepreload" href="/static/js/app.js?v=582">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=212">
 <link rel="modulepreload" href="/static/js/icons.js">
+<link rel="modulepreload" href="/static/js/shell_sidebar.js">
 <link rel="modulepreload" href="/static/js/bootstate.js">
 <link rel="modulepreload" href="/static/js/afterlife.js">
 <link rel="modulepreload" href="/static/js/chat.js">
@@ -141,12 +142,19 @@
 
 <div class="app">
 
+  <nav class="shell-sidebar" id="shell-sidebar" aria-label="apps" hidden>
+    <div class="shell-sidebar-brand"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/></svg><span>alles</span></div>
+    <div class="shell-sidebar-foot">
+      <button type="button" class="shell-sidebar-link" id="shell-sidebar-settings"><span>settings</span></button>
+    </div>
+  </nav>
+
   <h1 class="shell-title"><button class="shell-navigation-toggle" id="app-drawer-btn" type="button" hidden
     aria-label="switch app from alles" aria-haspopup="dialog" aria-controls="app-drawer" aria-expanded="false">
     <span id="app-drawer-label">alles</span><svg class="shell-navigation-chevron" viewBox="0 0 24 24"
       fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
       aria-hidden="true"><polyline points="5 9.5 12 16 19 9.5"></polyline></svg>
-  </button></h1>
+  </button><span class="shell-title-view" id="shell-title-view" hidden></span></h1>
 
   <div class="app-drawer-scrim" id="app-drawer-scrim" hidden></div>
   <aside class="app-drawer" id="app-drawer" data-kokuen-surface="apps" role="dialog" aria-modal="true" aria-labelledby="app-drawer-title" hidden>
@@ -3191,7 +3199,7 @@
 </div>
 
 <script type="module">
-const _v = '581';
+const _v = '582';
 import(`/static/js/app.js?v=${_v}`);
 </script>
 </body>
