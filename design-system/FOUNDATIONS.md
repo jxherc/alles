@@ -9,7 +9,9 @@ Machine-readable values live in `tokens/`. This document explains how to use the
 | page | `#12100e` | `#f8f6f3` | main work surface |
 | local panel | `#1a1714` | `#f1eeea` | app-local navigation or context |
 | raised | `#23201c` | `#ffffff` | selected or raised state |
-| hover | `#1f1c19` | `#ebe7e2` | quiet pointer feedback |
+| hover | `#1f1c19` | `#ebe7e2` | the stored theme role; the app draws hover as 6% text (5% light) over any surface, decision 0041 |
+| selected fill | 11% text | 8% text | picked row, picked pill (0041) |
+| field | 5% text, 12% ring | 3% text on white, 14% ring | every text field, select and date picker (0041) |
 | text | `#f3efe9` | `#1d1a17` | primary content |
 | soft text | `#cec6bc` | `#4b4540` | row titles and secondary actions |
 | muted text | `#9d948a` | `#6a625a` | supporting information |
