@@ -34,7 +34,7 @@
 <link rel="stylesheet" href="/static/aidecoding.css?v=19">
 <link rel="stylesheet" href="/static/aidecall.css?v=2">
 <link rel="stylesheet" href="/static/help.css?v=1">
-<link rel="stylesheet" href="/static/revamp.css?v=10">
+<link rel="stylesheet" href="/static/revamp.css?v=11">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#12100e">
@@ -314,7 +314,7 @@
       <div class="today-inner">
         <header class="today-head">
           <time class="today-kicker" id="today-date"></time>
-          <h1 id="today-greeting">good afternoon</h1>
+          <h2 id="today-greeting">good afternoon</h2>
           <p class="today-summary" id="today-summary"></p>
           <button class="today-ask" id="today-ask-aide" type="button" data-i18n="home.ask_aide">ask aide about today →</button>
         </header>
@@ -350,7 +350,7 @@
         </header>
 
         <main class="andromeda-result-column">
-          <h1 class="sr-only" id="andromeda-title" data-i18n="andromeda.title">andromeda search</h1>
+          <h2 class="sr-only" id="andromeda-title" data-i18n="andromeda.title">andromeda search</h2>
           <p class="sr-only" id="andromeda-search-hint" data-i18n="andromeda.no_ai_hint">add !ai anywhere to skip the overview for one search</p>
           <div class="andromeda-result-tools" id="andromeda-result-tools" hidden>
             <nav class="andromeda-tabs" aria-label="search types" data-i18n-aria-label="andromeda.search_types">
@@ -611,55 +611,55 @@
 
     <!-- ── Stage 8 specialist groups; proven legacy screens are mounted into their slots ── -->
     <section class="page-view specialist-group" id="plan-view" data-specialist-app="plan" data-kokuen-surface="specialist" style="display:none" aria-labelledby="plan-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><h1 class="specialist-app-name" id="plan-title" data-i18n="plan.title">plan</h1></div><div class="specialist-group-tabs" id="plan-tabs" role="tablist" aria-label="plan sections" data-i18n-aria-label="plan.sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="plan-title" data-i18n="plan.title">plan</h2></div><div class="specialist-group-tabs" id="plan-tabs" role="tablist" aria-label="plan sections" data-i18n-aria-label="plan.sections">
         <button type="button" role="tab" data-group-section="overview" data-i18n="plan.agenda">agenda</button><button type="button" role="tab" data-group-section="week" data-i18n="plan.week">week</button><button type="button" role="tab" data-group-section="board" data-i18n="plan.board">task board</button><button type="button" role="tab" data-group-section="calendar" data-i18n="calendar.title">calendar</button><button type="button" role="tab" data-group-section="tasks" data-i18n="tasks.title">tasks</button><button type="button" role="tab" data-group-section="reminders" data-i18n="aide.reminders">reminders</button><button type="button" role="tab" data-group-section="days">countdowns</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="inbox-view" data-specialist-app="inbox" data-kokuen-surface="specialist" style="display:none" aria-labelledby="inbox-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><h1 class="specialist-app-name" id="inbox-title">inbox</h1></div><div class="specialist-group-tabs" id="inbox-tabs" role="tablist" aria-label="inbox sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="inbox-title">inbox</h2></div><div class="specialist-group-tabs" id="inbox-tabs" role="tablist" aria-label="inbox sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="mail">mail</button><button type="button" role="tab" data-group-section="contacts">contacts</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="library-view" data-specialist-app="library" data-kokuen-surface="specialist" style="display:none" aria-labelledby="library-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><h1 class="specialist-app-name" id="library-title">library</h1></div><div class="specialist-group-tabs" id="library-tabs" role="tablist" aria-label="library sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="library-title">library</h2></div><div class="specialist-group-tabs" id="library-tabs" role="tablist" aria-label="library sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="books">books</button><button type="button" role="tab" data-group-section="read">saved</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="health-group-view" data-specialist-app="health" data-kokuen-surface="specialist" style="display:none" aria-labelledby="health-group-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><h1 class="specialist-app-name" id="health-group-title">health</h1></div><div class="specialist-group-tabs" id="health-tabs" role="tablist" aria-label="health sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="health-group-title">health</h2></div><div class="specialist-group-tabs" id="health-tabs" role="tablist" aria-label="health sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="health">logs</button><button type="button" role="tab" data-group-section="habits">habits</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="finance-view" data-specialist-app="finance" data-kokuen-surface="specialist" style="display:none" aria-labelledby="finance-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><h1 class="specialist-app-name" id="finance-title">finance</h1><button class="btn manual-context-help" id="finance-help" type="button" title="how to use Finance" aria-haspopup="dialog">finance guide</button></div><div class="specialist-group-tabs" id="finance-tabs" role="tablist" aria-label="finance sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="finance-title">finance</h2><button class="btn manual-context-help" id="finance-help" type="button" title="how to use Finance" aria-haspopup="dialog">finance guide</button></div><div class="specialist-group-tabs" id="finance-tabs" role="tablist" aria-label="finance sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="money">money</button><button type="button" role="tab" data-group-section="subs">subscriptions</button><button type="button" role="tab" data-group-section="imports">imports</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="docs-workbench-view" data-specialist-app="docs" data-kokuen-surface="specialist" style="display:none" aria-labelledby="docs-workbench-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><h1 class="specialist-app-name" id="docs-workbench-title">docs</h1></div><div class="specialist-group-tabs" id="docs-tabs" role="tablist" aria-label="docs sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="docs-workbench-title">docs</h2></div><div class="specialist-group-tabs" id="docs-tabs" role="tablist" aria-label="docs sections">
         <button type="button" role="tab" data-group-section="notes">documents</button><button type="button" role="tab" data-group-section="journal">journal</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="files-workbench-view" data-specialist-app="files" data-kokuen-surface="specialist" style="display:none" aria-labelledby="files-workbench-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><h1 class="specialist-app-name" id="files-workbench-title">files</h1><button class="specialist-mobile-back" type="button" data-files-back hidden>← files</button></div><div class="specialist-group-tabs" id="files-tabs" role="tablist" aria-label="files sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="files-workbench-title">files</h2><button class="specialist-mobile-back" type="button" data-files-back hidden>← files</button></div><div class="specialist-group-tabs" id="files-tabs" role="tablist" aria-label="files sections">
         <button type="button" role="tab" data-group-section="files">files</button><button type="button" role="tab" data-group-section="gallery">gallery</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="vault-workbench-view" data-specialist-app="vault" data-kokuen-surface="specialist" style="display:none" aria-labelledby="vault-workbench-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><h1 class="specialist-app-name" id="vault-workbench-title">vault</h1></div><div class="specialist-group-tabs" id="vault-tabs" role="tablist" aria-label="vault sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="vault-workbench-title">vault</h2></div><div class="specialist-group-tabs" id="vault-tabs" role="tablist" aria-label="vault sections">
         <button type="button" role="tab" data-group-section="items">items, passkeys, and watchtower</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="server-workbench-view" data-specialist-app="server" data-kokuen-surface="specialist" style="display:none" aria-labelledby="server-workbench-title">
-      <header class="specialist-app-head"><div class="specialist-app-brand"><h1 class="specialist-app-name" id="server-workbench-title">server</h1></div><div class="specialist-group-tabs" id="server-tabs" role="tablist" aria-label="server sections">
+      <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="server-workbench-title">server</h2></div><div class="specialist-group-tabs" id="server-tabs" role="tablist" aria-label="server sections">
         <button type="button" role="tab" data-group-section="overview">overview</button><button type="button" role="tab" data-group-section="services">services</button><button type="button" role="tab" data-group-section="search">search and models</button><button type="button" role="tab" data-group-section="backups">backups and storage</button><button type="button" role="tab" data-group-section="updates">updates</button><button type="button" role="tab" data-group-section="logs">logs</button><button type="button" role="tab" data-group-section="activity">activity</button><button type="button" role="tab" data-group-section="watch">watch</button><button type="button" role="tab" data-group-section="policy">access policy</button>
       </div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
@@ -780,7 +780,7 @@
     <section class="page-view aide-tool-view aide-scheduled-view" id="aide-scheduled-view" data-kokuen-surface="aide-tool" style="display:none" aria-labelledby="aide-scheduled-title">
       <header class="aide-tool-head aide-scheduled-head">
         <div>
-          <h1 id="aide-scheduled-title">scheduled</h1>
+          <h2 id="aide-scheduled-title">scheduled</h2>
           <p>work Aide can start later or check quietly in the background</p>
         </div>
         <button class="aide-scheduled-new" id="aide-scheduled-new" type="button">new schedule</button>
@@ -1092,7 +1092,7 @@
 
           <section class="wiki-empty-state" id="wiki-empty-state" aria-label="Docs home">
             <div class="docs-empty-copy">
-              <h1>open a document</h1>
+              <h2>open a document</h2>
               <p>Choose a document or create one. Your files stay in Markdown.</p>
               <div class="docs-empty-actions">
                 <button type="button" id="wiki-empty-new">new document</button>
@@ -1108,7 +1108,7 @@
 
           <section class="wiki-notes" id="wiki-notes" hidden>
             <div class="docs-notes-head">
-              <div><span class="docs-empty-eyebrow">quick notes</span><h1>notes</h1></div>
+              <div><span class="docs-empty-eyebrow">quick notes</span><h2>notes</h2></div>
               <div class="docs-notes-actions">
                 <input id="note-search" placeholder="search notes…" aria-label="search notes">
                 <button type="button" id="note-new-btn">new note</button>

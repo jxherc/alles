@@ -2232,7 +2232,7 @@ html[data-theme="light"] :where(
   letter-spacing: 0;
 }
 
-#today-view[data-kokuen-surface="home"] .today-head h1 {
+#today-view[data-kokuen-surface="home"] .today-head h2 {
   font-size: 20px;
   letter-spacing: 0;
   color: var(--k-text);
@@ -5056,13 +5056,13 @@ body.afterlife-aide-projects[data-space="aide"] :where(.aide-tool-head, .aide-sc
   padding-bottom: var(--k-space-6);
 }
 
-body.afterlife-aide-projects[data-space="aide"] :where(.aide-tool-head .page-view-title, .aide-scheduled-head h1) {
+body.afterlife-aide-projects[data-space="aide"] :where(.aide-tool-head .page-view-title, .aide-scheduled-head h2) {
   color: var(--k-text);
   font-weight: 500;
 }
 
 body.afterlife-aide-projects[data-space="aide"] .aide-tool-head > .page-view-title,
-body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-head h1 {
+body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-head h2 {
   font-weight: 500;
 }
 

@@ -599,7 +599,7 @@ html:not(#_) .specialist-group-overview > .specialist-workbench {
 }
 
 html:not(#_) .specialist-workbench > :is(.specialist-workbench-rail, .specialist-workbench-main, .specialist-workbench-detail) {
-  align-self: start;
+  align-self: stretch;
   padding: var(--k-space-5);
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
@@ -683,6 +683,34 @@ html:not(#_) .specialist-group-overview > .specialist-workbench {
   max-width: none;
   margin-inline: 0;
   padding-inline: 0;
+}
+
+/* app sidebars put their words on the gutter too, so a sidebar's text lines up with the app name
+   above it: rows keep their 8px hover padding inside 16px of panel padding */
+html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-sidebar) {
+  padding-inline: calc(var(--k-gutter) - 8px);
+}
+
+html:not(#_):not(#_) #cal-sidebar {
+  padding-inline: var(--k-gutter);
+}
+
+html:not(#_) #aide-coding-workspace .acw-projects {
+  padding-inline: calc(var(--k-gutter) - 8px);
+}
+
+html:not(#_) #aide-coding-workspace .acw-rail-head {
+  padding-inline: var(--k-gutter) calc(var(--k-gutter) - 8px);
+}
+
+/* on a phone the views get their own row under the app name; its first and last words keep the
+   gutter (tabs keep their 12px of padding inside it), and scrolling stops on that line */
+@media (max-width: 760px) {
+  html:not(#_):not(#_) .specialist-group-tabs {
+    margin-inline: 0;
+    padding-inline: calc(var(--k-gutter) - 12px);
+    scroll-padding-inline: calc(var(--k-gutter) - 12px);
+  }
 }
 
 /* aide's tool pages: the head and the content carry the gutter, not the page around them */
@@ -770,8 +798,13 @@ html:not(#_) #system-view[data-kokuen-surface="system"] #system-body {
   padding-top: var(--k-space-3);
 }
 
+/* cards in the resource row share a bottom edge; the graph in each grows into the room left, so
+   the extra height is more history instead of a blank band */
 @media (min-width: 860px) {
-  html:not(#_) .btop-cols { align-items: start; }
+  html:not(#_) .btop-cols { align-items: stretch; }
+  html:not(#_) .btop-cols > .btop-box,
+  html:not(#_) .btop-cols .btop-left > .btop-box { display: flex; flex-direction: column; }
+  html:not(#_) :is(#mem-graph, #net-dn-graph, #net-up-graph, #disk-graph) { flex: 1 1 auto; min-height: 50px; }
 }
 
 

@@ -1442,9 +1442,6 @@ function _syncShellTrigger(root = null) {
   if (!target) return;
   // the app name is the screen's h1; the heading moves with its button
   const title = trigger.closest('.shell-title') || trigger;
-  // home's greeting and andromeda's own heading already title those screens
-  if (title !== trigger) title.toggleAttribute('role', space === 'today' || space === 'andromeda');
-  if (title.hasAttribute('role')) title.setAttribute('role', 'none');
   title.parentElement?.classList.remove('shell-trigger-host');
   target.prepend(title);
   target.classList.add('shell-trigger-host');
