@@ -1897,3 +1897,68 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
 @media (min-width: 761px) {
   html:not(#_):not(#_) #cal-sidebar { width: 244px; box-sizing: border-box; }
 }
+
+/* phone: an add form with two or more fields stacks them, one per line split by a quiet rule,
+   and add takes the last line at full width. a single field keeps add beside it */
+@media (max-width: 760px) {
+  html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap !important;
+    align-items: stretch;
+    padding: 6px;
+  }
+
+  html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) > :is(input, .custom-select, .date-input) {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+  }
+
+  html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
+    border-left: 0 !important;
+    border-top: 1px solid var(--k-line) !important;
+  }
+
+  html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) > .btn.primary {
+    margin: 6px 0 0;
+    width: 100%;
+  }
+
+  html:not(#_):not(#_) #mail-view .mail-accounts {
+    width: auto;
+    max-width: none;
+    margin-inline: var(--k-gutter);
+  }
+}
+
+@media (max-width: 760px) {
+  /* subscriptions' desktop grid of six columns overflowed a phone; it stacks like the others */
+  html:not(#_):not(#_) #subs-view > .page-view-footer {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap !important;
+    align-items: stretch;
+    padding: 6px;
+  }
+
+  html:not(#_):not(#_) #subs-view > .page-view-footer > * {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+  }
+
+  html:not(#_):not(#_) #subs-view > .page-view-footer > .btn.primary {
+    margin: 6px 0 0;
+  }
+
+  /* a task's actions sit at the end of its first line, not on a line of their own */
+  html:not(#_):not(#_) .task-item {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  html:not(#_):not(#_) .task-item > .task-actions {
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
+  }
+}
