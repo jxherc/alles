@@ -39,7 +39,7 @@ function release() {
 
 // ── the sliding pill ─────────────────────────────────────────────────────────
 // a group is the parent of two or more of these items with exactly one picked. the pill is the
-// group's ::before (revamp.css), moved through --pill-* so no element is added to the dom
+// group's ::before (revamp.css), moved through --pill-* so no element or class is added to items
 const ITEM = '[role="tab"], .aide-mode-nav > button, .seg-opt, .tasks-tab, .te-seg > button, .theme-mode-btn, .s-nav-item, .health-chip, .read-chip, .mem-policy-btn, .andromeda-tab';
 const PICKED = '[aria-selected="true"], [aria-pressed="true"], [aria-checked="true"], [aria-current="page"], [aria-current="true"], .active';
 const TINT = /chip|policy/;
@@ -57,7 +57,6 @@ function pillFor(group) {
     if (getComputedStyle(group).position === 'static') group.classList.add('pill-pos');
     if (TINT.test(items[0].className)) group.dataset.pill = 'tint';
   }
-  items.forEach(c => c.classList.toggle('pill-picked', picked.length === 1 && c === picked[0]));
   const on = picked.length === 1 ? picked[0] : null;
   if (!on || !on.offsetWidth) { group.style.setProperty('--pill-o', '0'); return; }
   const s = group.style;

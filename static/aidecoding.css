@@ -118,10 +118,9 @@
 .acw-tool { min-width: 0; animation: acw-arrive 260ms cubic-bezier(.2, .8, .2, 1); }
 .acw-tool + .acw-tool { margin-top: calc(2px - var(--k-space-3)); }
 .acw-tool summary {
-  position: relative; display: flex; align-items: center; gap: var(--k-space-2); min-height: 32px; padding: 0 var(--k-space-2);
+  position: relative; display: flex; align-items: center; gap: var(--k-space-2); min-height: var(--k-control); padding: 0 var(--k-space-2);
   margin-inline: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-control); color: var(--k-soft); cursor: pointer; list-style: none; overflow: hidden;
 }
-@media (pointer: coarse) { .acw-tool summary { min-height: var(--k-control); } }
 .acw-tool[data-state="running"] summary::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--k-text) 7%, transparent), transparent);
@@ -173,7 +172,7 @@
 
 /* thinking: one shimmering line with a timer; open it to read along */
 .acw-thinking { min-width: 0; animation: acw-arrive 260ms cubic-bezier(.2, .8, .2, 1); }
-.acw-thinking summary { display: inline-flex; align-items: center; gap: var(--k-space-2); min-height: 32px; padding: 0 var(--k-space-2); margin-left: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-small); color: var(--k-muted); font-size: 13px; cursor: pointer; list-style: none; }
+.acw-thinking summary { display: inline-flex; align-items: center; gap: var(--k-space-2); min-height: var(--k-control); padding: 0 var(--k-space-2); margin-left: calc(-1 * var(--k-space-2)); border-radius: var(--k-radius-small); color: var(--k-muted); font-size: 13px; cursor: pointer; list-style: none; }
 .acw-thinking summary::-webkit-details-marker { display: none; }
 .acw-thinking summary:hover { background: var(--k-hover); }
 .acw-thinking:not([data-done]) .acw-thinking-label {
@@ -189,9 +188,9 @@
 
 /* code blocks in pi's answers: a slim header with the language and copy */
 #aide-coding-workspace .code-block { margin: 0 0 var(--k-space-3); border-radius: var(--k-radius-control); background: var(--k-panel); overflow: hidden; }
-#aide-coding-workspace .code-block-header { display: flex; align-items: center; justify-content: space-between; min-height: 32px; padding: 0 var(--k-space-1) 0 var(--k-space-3); background: transparent; }
+#aide-coding-workspace .code-block-header { display: flex; align-items: center; justify-content: space-between; min-height: var(--k-control); padding: 0 var(--k-space-1) 0 var(--k-space-3); background: transparent; }
 #aide-coding-workspace .code-block-header .code-lang:empty::before { content: "code"; }
-#aide-coding-workspace .code-block-header button { min-height: 32px; padding: 0 var(--k-space-2); font-size: 12px; }
+#aide-coding-workspace .code-block-header button { min-height: var(--k-control); padding: 0 var(--k-space-2); font-size: 12px; }
 #aide-coding-workspace .code-block pre { margin: 0; background: transparent; border-radius: 0; padding-top: var(--k-space-3); }
 
 /* the first screen of a chat says what pi does and offers a start */
@@ -331,7 +330,7 @@
 .acw-bar small { color: var(--k-muted); font-size: 12px; }
 .acw-bar span { display: block; height: 8px; border-radius: var(--k-radius-surface); background: var(--k-soft); }
 .acw-bar:last-child span { background: var(--k-text); }
-.acw-card-more summary { color: var(--k-muted); font-size: 13px; cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.acw-card-more summary { color: var(--k-muted); font-size: 13px; cursor: pointer; min-height: var(--k-control); display: flex; align-items: center; }
 .acw-card-more p { margin-top: var(--k-space-2); white-space: pre-wrap; }
 
 /* harnesses: one row each, the default marked in words */
