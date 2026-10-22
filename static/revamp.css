@@ -1994,7 +1994,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
 html:not(#_) .ask-aide-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--k-space-2);
   min-height: 44px;
   margin-inline-start: 2px;
   padding: 0 var(--k-space-3);
@@ -2132,7 +2132,7 @@ html:not(#_) .ask-aide-btn[aria-expanded="true"] { background: var(--k-selected-
   font-size: 13px;
 }
 
-#ask-panel #ask-panel-share { font-size: 13px; color: var(--k-muted); }
+#ask-panel #ask-panel-share { font-size: 13px; color: var(--k-muted); white-space: nowrap; }
 
 #ask-panel .ask-panel-entry {
   display: flex;
@@ -2140,7 +2140,6 @@ html:not(#_) .ask-aide-btn[aria-expanded="true"] { background: var(--k-selected-
   border-radius: var(--k-radius-large);
   background: var(--k-field);
   box-shadow: inset 0 0 0 1px var(--k-field-ring);
-  transition: box-shadow 160ms var(--k-ease-out);
 }
 
 #ask-panel .ask-panel-entry:focus-within {
@@ -2418,22 +2417,29 @@ html:not(#_):not(#_) #mail-view .mail-row.sel { background: var(--k-selected-fil
 html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open { min-height: 44px; }
 
 @media (hover: hover) and (pointer: fine) {
+  /* the actions take the sender and date line while pointed at (the date's place, like most mail
+     apps), so the subject below stays one clear target */
+  html:not(#_):not(#_) #mail-view .mail-row { padding-top: var(--k-space-3); }
+
   html:not(#_):not(#_) #mail-view .mail-row .mail-row-acts {
     position: absolute;
+    top: 0;
     right: var(--k-space-2);
-    bottom: var(--k-space-2);
+    height: 44px;
     padding-left: var(--k-space-6);
     border-radius: var(--k-radius-control);
-    background: linear-gradient(to right, transparent, var(--k-page) 32px);
+    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 6%, var(--k-page)) 24px);
     opacity: 0;
     pointer-events: none;
     transition: opacity 120ms var(--k-ease-out);
   }
 
-  html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts {
-    opacity: 1;
-    pointer-events: auto;
+  html:not(#_):not(#_) #mail-view .mail-row.sel .mail-row-acts {
+    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 11%, var(--k-page)) 24px);
   }
+
+  html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts { opacity: 1; }
+  html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts > * { pointer-events: auto; }
 }
 
 html:not(#_):not(#_) #mail-view .mail-error-strip {
