@@ -2344,8 +2344,9 @@ html:not(#_):not(#_) #reminders-view #reminder-status + div { margin: var(--k-sp
 
 /* ── mail with an account: files' frame. the folders run from the top as a round panel, the
    toolbar sits over the list and the reading pane, rows are compact with their actions on hover
-   (always shown on touch), and an empty pane says what goes there ── */
-@media (min-width: 761px) {
+   (always shown on touch), and an empty pane says what goes there. mail turns compact (list or
+   reader, not both) at 1100px, so the frame starts above that ── */
+@media (min-width: 1101px) {
   html:not(#_):not(#_) #mail-view[style*="flex"]:has(#mail-sidebar > *) {
     display: grid !important;
     grid-template-columns: auto minmax(300px, 380px) minmax(0, 1fr);
@@ -2718,4 +2719,41 @@ html:not(#_):not(#_) .code-block > pre { padding-right: 96px; }
     background: Highlight !important;
     color: HighlightText !important;
   }
+}
+
+/* mail's reader: the pane starts on the gutter, its secondary actions are quiet text actions
+   (reply stays a button), and "back to messages" reads as a way out, not a task */
+html:not(#_):not(#_) #mail-view .mail-reader-head,
+html:not(#_):not(#_) #mail-view .mail-reader-body { padding-inline: var(--k-gutter); }
+html:not(#_):not(#_) #mail-view .mail-pane-nav { padding-inline: calc(var(--k-gutter) - 12px); }
+
+html:not(#_)[data-kokuen-version="5"] #mail-view :is(#mail-unread, #mail-vip, #mail-to-task, #mail-to-cal, #mail-summarize, .mail-pane-back).btn {
+  background: transparent;
+  color: var(--k-soft);
+}
+
+html:not(#_)[data-kokuen-version="5"] #mail-view :is(#mail-unread, #mail-vip, #mail-to-task, #mail-to-cal, #mail-summarize, .mail-pane-back).btn:hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+/* settings: at most one primary per pane (decision 0041; Stripe's rule). memory keeps save
+   instructions, personas keeps add persona, api keeps generate, backup keeps download; connections'
+   six independent setups are all secondary */
+html:not(#_)[data-kokuen-version="5"] #settings-modal :is(
+  #mem-add-btn, #cookbook-add-btn, #wh-add-btn,
+  #jarvis-discord-connect, #photon-connect-btn, #browser-signin-go, #perm-rule-add-btn, #mcp-add-btn, #conn-add-btn,
+  #backup-restore-btn, #webdav-backup-save-btn, #webdav-backup-run-btn, #s3-backup-save-btn, #s3-backup-run-btn
+).btn.primary {
+  border-color: var(--k-btn-line);
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+}
+
+html:not(#_)[data-kokuen-version="5"] #settings-modal :is(
+  #mem-add-btn, #cookbook-add-btn, #wh-add-btn,
+  #jarvis-discord-connect, #photon-connect-btn, #browser-signin-go, #perm-rule-add-btn, #mcp-add-btn, #conn-add-btn,
+  #backup-restore-btn, #webdav-backup-save-btn, #webdav-backup-run-btn, #s3-backup-save-btn, #s3-backup-run-btn
+).btn.primary:hover:not(:disabled) {
+  background: var(--k-btn-fill-hover);
 }
