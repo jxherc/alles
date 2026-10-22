@@ -1975,3 +1975,202 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
     order: 99;
   }
 }
+
+/* ── ask aide: the button beside every app name and the panel it opens ─────────────
+   the panel floats over the app (a floating layer, so it gets the one shadow), 420px from the
+   right edge, full screen on a phone. aide's own app doesn't show it */
+html:not(#_) .ask-aide-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-inline-start: 2px;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms var(--k-ease-out), color 120ms var(--k-ease-out);
+}
+
+html:not(#_) .ask-aide-btn[hidden] { display: none; }
+html:not(#_) .ask-aide-btn svg { width: 16px; height: 16px; }
+html:not(#_) .ask-aide-btn:hover { background: var(--k-hover); color: var(--k-text); }
+html:not(#_) .ask-aide-btn[aria-expanded="true"] { background: var(--k-selected-fill); color: var(--k-text); }
+
+#ask-panel {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 16px));
+  border-radius: var(--k-radius-large);
+  background: var(--k-raised);
+  box-shadow: var(--k-float);
+  color: var(--k-text);
+}
+
+#ask-panel[hidden] { display: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  #ask-panel:not([hidden]) { animation: ask-panel-in 280ms var(--k-ease-out); }
+}
+
+@keyframes ask-panel-in {
+  from { opacity: 0; translate: 16px 0; }
+}
+
+#ask-panel .ask-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: var(--k-space-2) var(--k-space-2) var(--k-space-2) var(--k-space-5);
+}
+
+#ask-panel .ask-panel-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+#ask-panel :is(.ask-panel-action, .ask-panel-close, #ask-panel-share) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-soft);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#ask-panel :is(.ask-panel-action, .ask-panel-close, #ask-panel-share)[hidden] { display: none; }
+#ask-panel .ask-panel-close { width: 44px; padding: 0; }
+#ask-panel .ask-panel-close svg { width: 18px; height: 18px; }
+#ask-panel :is(.ask-panel-action, .ask-panel-close, #ask-panel-share):hover { background: var(--k-hover); color: var(--k-text); }
+
+#ask-panel .ask-panel-log {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-space-4);
+  overflow-y: auto;
+  padding: var(--k-space-2) var(--k-space-5) var(--k-space-4);
+}
+
+#ask-panel .ask-panel-msg { font-size: 14px; line-height: 22px; overflow-wrap: anywhere; }
+#ask-panel .ask-panel-msg > :first-child { margin-top: 0; }
+#ask-panel .ask-panel-msg > :last-child { margin-bottom: 0; }
+
+#ask-panel .ask-panel-you {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: var(--k-space-2) var(--k-space-3);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-selected-fill);
+}
+
+#ask-panel :is(.ask-panel-wait, .ask-panel-note) { color: var(--k-muted); }
+#ask-panel .ask-panel-error { color: var(--k-danger); }
+
+#ask-panel .ask-panel-empty { display: grid; gap: var(--k-space-4); margin-top: var(--k-space-2); }
+#ask-panel .ask-panel-empty p { margin: 0; color: var(--k-muted); font-size: 14px; line-height: 20px; }
+#ask-panel .ask-panel-starts { display: grid; gap: var(--k-space-2); justify-items: start; }
+
+#ask-panel .ask-panel-start {
+  min-height: 44px;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: start;
+  cursor: pointer;
+}
+
+#ask-panel .ask-panel-start:hover { background: var(--k-btn-fill-hover); }
+
+#ask-panel .ask-panel-composer { padding: 0 var(--k-space-3) var(--k-space-3); }
+
+#ask-panel .ask-panel-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-2);
+  padding-inline: var(--k-space-2) 0;
+  color: var(--k-muted);
+  font-size: 13px;
+}
+
+#ask-panel #ask-panel-share { font-size: 13px; color: var(--k-muted); }
+
+#ask-panel .ask-panel-entry {
+  display: flex;
+  align-items: flex-end;
+  border-radius: var(--k-radius-large);
+  background: var(--k-field);
+  box-shadow: inset 0 0 0 1px var(--k-field-ring);
+  transition: box-shadow 160ms var(--k-ease-out);
+}
+
+#ask-panel .ask-panel-entry:focus-within {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 60%, var(--k-field-ring)), 0 0 0 3px color-mix(in srgb, var(--k-accent) 16%, transparent);
+}
+
+#ask-panel #ask-panel-input {
+  flex: 1;
+  min-height: 44px;
+  max-height: 160px;
+  box-sizing: border-box;
+  padding: 12px var(--k-space-2) 12px var(--k-space-4);
+  border: 0;
+  background: transparent;
+  color: var(--k-text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  resize: none;
+}
+
+/* the box shows focus, so the field inside draws none of its own */
+#ask-panel #ask-panel-input:is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; }
+
+#ask-panel .ask-panel-send {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 6px solid transparent;
+  border-radius: var(--k-radius-large);
+  background: var(--k-accent);
+  background-clip: padding-box;
+  color: var(--k-on-accent);
+  cursor: pointer;
+}
+
+#ask-panel .ask-panel-send svg { width: 16px; height: 16px; }
+#ask-panel.is-busy .ask-panel-send { background-color: var(--k-text); color: var(--k-page); }
+
+@media (max-width: 760px) {
+  #ask-panel { inset: 0; width: 100%; border-radius: 0; }
+  html:not(#_) .ask-aide-btn span { display: none; }
+  html:not(#_) .ask-aide-btn { width: 44px; justify-content: center; padding: 0; }
+}

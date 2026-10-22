@@ -108,6 +108,7 @@
     "aide.saved_plan_task": "tarea guardada en Plan",
     "aide.no_matching_tasks": "no hay tareas de Aide coincidentes",
     "aide.new_task": "nueva tarea de Aide",
+    "aide.ask_panel": "preguntar a Aide desde cualquier app",
     "aide.new_task_context": "contexto de la nueva tarea de Aide",
     "aide.no_model": "sin modelo",
     "aide.no_tasks": "aún no hay tareas de Aide",

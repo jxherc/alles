@@ -108,6 +108,7 @@
     "aide.saved_plan_task": "已保存的 Plan 任务",
     "aide.no_matching_tasks": "没有匹配的 Aide 任务",
     "aide.new_task": "新建 Aide 任务",
+    "aide.ask_panel": "在任意应用中询问 Aide",
     "aide.new_task_context": "新 Aide 任务上下文",
     "aide.no_model": "未选择模型",
     "aide.no_tasks": "还没有 Aide 任务",

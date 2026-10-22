@@ -26,6 +26,7 @@ SURFACE_GATES = tuple(
 # Shared by execution and acceptance: a result cannot redefine what a full run requires.
 BROWSER_SUITES = {
     "aide-central": ("aide-central",),
+    "ask-panel": ("ask-panel",),
     "aide-coding": ("aide-coding",),
     "help-manual": ("help-manual",),
     "livevoice": ("livevoice",),
@@ -205,6 +206,7 @@ BROWSER_SUITES = {
         "aide-multi-source",
         "aide-session-list",
         "aide-source-outcomes",
+        "ask-panel",
         "aide-creations",
     ),
     "questions": ("aide-questions",),
@@ -393,6 +395,7 @@ BROWSER_SUITES = {
         "aide-multi-source",
         "aide-session-list",
         "aide-source-outcomes",
+        "ask-panel",
         "health-workflows",
         "health-create-recovery",
         "health-import-recovery",

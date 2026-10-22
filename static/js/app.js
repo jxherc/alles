@@ -56,6 +56,7 @@ import { initAideCentral } from './aidecentral.js?v=1';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=2';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=249';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
+import { initAskPanel, mountAskButton } from './ask_panel.js';
 import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=243';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
@@ -410,6 +411,7 @@ async function _boot({ reachable = true } = {}) {
   registerServiceWorker();
   initSync();
   bindEvents();
+  initAskPanel();
   import('./livevoice.js?v=2').then(module => module.initLiveVoice()).catch(() => {});
   // per-app settings gears (header cogs) + the reload hooks they call after saving
   initAppCogs();
@@ -1446,6 +1448,7 @@ function _syncShellTrigger(root = null) {
   target.prepend(title);
   target.classList.add('shell-trigger-host');
   document.getElementById('app-drawer-label').textContent = label;
+  mountAskButton(title);
   trigger.setAttribute('aria-label', `switch app from ${label}`);
   trigger.hidden = false;
 }
@@ -2602,6 +2605,7 @@ function closeModelModal() {
   _modelModalFocusBoundary?.deactivate();
 }
 window._closeModelModal = closeModelModal;
+window._openModelModal = () => openModelModal();
 function openModelModal() {
   const modal = document.getElementById('model-modal');
   modal.style.display = 'flex';

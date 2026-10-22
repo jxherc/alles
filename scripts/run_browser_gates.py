@@ -243,6 +243,7 @@ COMMANDS = {
     "aide-multi-source": ("tests/pw_aide_multi_source.py",),
     "aide-session-list": ("tests/pw_aide_session_list.py",),
     "aide-source-outcomes": ("tests/pw_aide_source_outcomes.py",),
+    "ask-panel": ("tests/pw_ask_panel.py",),
     **{
         f"surfaces-{device}-{theme}": ("tests/pw_stability_surfaces.py", device, theme)
         for device in ("desktop", "phone")

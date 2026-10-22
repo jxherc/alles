@@ -108,6 +108,7 @@
     "aide.saved_plan_task": "保存済みの Plan タスク",
     "aide.no_matching_tasks": "一致する Aide タスクはありません",
     "aide.new_task": "新しい Aide タスク",
+    "aide.ask_panel": "どのアプリからでも Aide に質問",
     "aide.new_task_context": "新しい Aide タスクのコンテキスト",
     "aide.no_model": "モデル未選択",
     "aide.no_tasks": "Aide タスクはまだありません",

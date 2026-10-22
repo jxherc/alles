@@ -108,6 +108,7 @@
     "aide.saved_plan_task": "مهمة محفوظة في Plan",
     "aide.no_matching_tasks": "لا توجد مهام Aide مطابقة",
     "aide.new_task": "مهمة Aide جديدة",
+    "aide.ask_panel": "اسأل Aide من أي تطبيق",
     "aide.new_task_context": "سياق مهمة Aide الجديدة",
     "aide.no_model": "لا يوجد نموذج",
     "aide.no_tasks": "لا توجد مهام Aide بعد",
