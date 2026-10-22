@@ -1,8 +1,8 @@
 /*
  * revamp layer (decision 0040)
  *
- * loads after kokuen.css and owns: depth (surface edge + one tight shadow), the three
- * button tiers, checkboxes and switches, the sliding selection pill drawn for
+ * loads after kokuen.css and owns: surfaces (tone steps; only floating things have a shadow),
+ * one frame for every app, the three button tiers, checkboxes and switches, the sliding selection pill drawn for
  * static/js/motion.js, entrances for menus, dialogs and toasts, and the loading line.
  *
  * html:not(#_) lifts a rule over the per-app id selectors in kokuen.css without
@@ -21,24 +21,28 @@
   --k-accent-tint: color-mix(in srgb, var(--k-accent) 17%, transparent);
   --k-accent-ring: color-mix(in srgb, var(--k-accent) 38%, transparent);
   --k-raised-hover: color-mix(in srgb, var(--k-raised) 88%, var(--k-text));
-  /* depth: a light top edge and one tight shadow tinted to the dark */
-  --k-edge: inset 0 1px 0 rgb(255 240 225 / .05);
-  --k-lift: 0 1px 2px rgb(0 0 0 / .32);
   --k-float: 0 18px 40px -16px rgb(0 0 0 / .62), 0 0 0 1px var(--k-line);
+  /* tasteskill v2 for app screens: nothing at rest carries a shadow. dark separates by a tone
+     step; light adds a 1px line where the step alone is too faint */
+  --k-btn-line: transparent;
+  --k-card-line: transparent;
+  --k-pill: var(--k-raised);
 }
 
 html[data-theme="light"] {
   --k-on-accent: #ffffff;
   --k-raised-hover: color-mix(in srgb, var(--k-raised) 94%, var(--k-text));
-  --k-edge: inset 0 1px 0 rgb(255 255 255 / .9);
-  --k-lift: 0 1px 2px rgb(60 40 20 / .1), 0 0 0 1px var(--k-line);
   --k-float: 0 18px 40px -16px rgb(60 40 20 / .28), 0 0 0 1px var(--k-line);
+  --k-btn-line: var(--k-line-strong);
+  --k-card-line: var(--k-line);
+  --k-pill: color-mix(in srgb, var(--k-hover) 82%, var(--k-text) 7%);
 }
 
-/* the switch that is on is the accent, so on and off read at a glance */
+/* a switch that is on is ink (tasteskill v2: toggles are near-black or white, not the brand
+   accent), so on and off read at a glance without spending the accent on chrome */
 :where(:root, [data-kokuen-surface]) {
-  --k-switch-on-line: var(--k-accent);
-  --k-switch-on-track: var(--k-accent);
+  --k-switch-on-line: var(--k-text);
+  --k-switch-on-track: var(--k-text);
 }
 
 /* airy type in the specialist apps: controls read at 14px (was a 13px floor). a phone keeps
@@ -53,16 +57,16 @@ html[data-theme="light"] {
 /* ── buttons: filled primary, raised secondary, plain text ─────────────────── */
 
 html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-preview):not(.primary, .active, [aria-pressed="true"], .link-btn) {
-  border-color: transparent;
+  border-color: var(--k-btn-line);
   background: var(--k-raised);
   color: var(--k-text);
-  box-shadow: var(--k-edge), var(--k-lift);
+  box-shadow: none;
   font-size: 14px;
   font-weight: 500;
 }
 
 html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-preview):not(.primary, .active, [aria-pressed="true"], .link-btn):hover {
-  border-color: transparent;
+  border-color: var(--k-btn-line);
   background: var(--k-raised-hover);
   color: var(--k-text);
 }
@@ -71,7 +75,7 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #
   border-color: transparent;
   background: var(--k-accent);
   color: var(--k-on-accent);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), 0 1px 3px color-mix(in srgb, var(--k-accent) 32%, transparent);
+  box-shadow: none;
   font-size: 14px;
   font-weight: 560;
 }
@@ -118,7 +122,8 @@ html:not(#_)[data-kokuen-version="5"] :is(#cal-prev, #cal-next, .icon-btn.btn):h
 html:not(#_) :is(.docs-home-card, .docs-card) {
   border-color: transparent;
   background: var(--k-panel);
-  box-shadow: var(--k-edge);
+  border: 1px solid var(--k-card-line);
+  box-shadow: none;
 }
 
 html:not(#_) :is(.docs-home-card, .docs-card):hover {
@@ -132,13 +137,14 @@ html:not(#_) :is(.money-card, .ms-card, .habit-card, .day-card, .skl-card, .brai
   border-color: transparent;
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
-  box-shadow: var(--k-edge);
+  border: 1px solid var(--k-card-line);
+  box-shadow: none;
 }
 
 /* the money entry form is the screen's main job, so it sits one step up */
 html:not(#_) .money-card.money-entry-card {
   background: var(--k-raised);
-  box-shadow: var(--k-edge), var(--k-lift);
+  box-shadow: none;
 }
 
 html:not(#_) .ms-card :is(.ms-val, .ms-value, b, strong) {
@@ -148,9 +154,10 @@ html:not(#_) .ms-card :is(.ms-val, .ms-value, b, strong) {
 
 /* the button-looking "+ add" cells in board and import screens */
 html:not(#_) .plan-board-complete {
-  border-color: transparent;
+  border-color: var(--k-btn-line);
   background: var(--k-raised);
-  box-shadow: var(--k-edge), var(--k-lift);
+  color: var(--k-text);
+  box-shadow: none;
 }
 
 
@@ -176,18 +183,18 @@ html:not(#_) .task-due.overdue { background: color-mix(in srgb, var(--k-danger) 
 /* chips take the accent tint when picked; tabs and segments get the sliding pill below */
 html:not(#_)[data-kokuen-version="5"] :is(.health-chip, .read-chip, .mem-cat-btn, .mem-policy-btn, .btn.active, .act-chip):is(.active, [aria-pressed="true"]):not(.off) {
   border-color: transparent;
-  background: var(--k-accent-tint);
+  background: var(--k-pill);
   color: var(--k-text);
-  box-shadow: inset 0 0 0 1px var(--k-accent-ring);
+  box-shadow: none;
   /* a stroke, not a heavier weight, so the picked word keeps its width (0031) */
   -webkit-text-stroke: 0.35px currentColor;
 }
 
 html:not(#_)[data-kokuen-version="5"] :is(.seg-opt, .tasks-tab, .te-seg button, .theme-mode-btn, .s-nav-item).active {
   border-color: transparent;
-  background: var(--k-raised);
+  background: var(--k-pill);
   color: var(--k-text);
-  box-shadow: var(--k-edge), var(--k-lift);
+  box-shadow: none;
   -webkit-text-stroke: 0.35px currentColor;
 }
 
@@ -211,15 +218,28 @@ html:not(#_)[data-kokuen-version="5"] :is(.seg-opt, .tasks-tab, .te-seg button, 
   height: var(--pill-h, 0);
   translate: var(--pill-x, 0) var(--pill-y, 0);
   border-radius: var(--pill-r, var(--k-radius-control));
-  background: var(--k-raised);
-  box-shadow: var(--k-edge), var(--k-lift);
+  background: var(--k-pill);
+  box-shadow: none;
   opacity: var(--pill-o, 0);
   pointer-events: none;
 }
 
 .has-pill[data-pill="tint"]::before {
-  background: var(--k-accent-tint);
-  box-shadow: inset 0 0 0 1px var(--k-accent-ring);
+  background: var(--k-pill);
+}
+
+/* underline tabs: one 2px line under the words that slides; the picked tab's own line goes */
+.has-pill[data-pill="line"]::before {
+  top: auto;
+  bottom: 3px;
+  height: 2px;
+  translate: var(--pill-x, 0) 0;
+  border-radius: 1px;
+  background: var(--k-text);
+}
+
+html:not(#_):not(#_) .has-pill[data-pill="line"] > :is([aria-selected="true"], [aria-pressed="true"], .active)::after {
+  display: none;
 }
 
 html:not(#_):not(#_) .has-pill > :is([aria-selected="true"], [aria-pressed="true"], [aria-checked="true"], [aria-current="page"], [aria-current="true"], .active) {
@@ -324,11 +344,10 @@ html:not(#_) .task-addsub:hover {
 
 /* ── switches: the knob springs across ─────────────────────────────────────── */
 
-/* the knob of a switch that's on takes the on-accent colour, so it reads on the accent track in
-   both themes (a dark knob on light purple, a white one on deep purple) */
+/* the knob of a switch that's on takes the page colour, so it reads on the ink track */
 html:not(#_):not(#_) :is(.home-settings-switch, .news-switch)[aria-checked="true"]::after,
 html:not(#_):not(#_) .s-switch.on::after {
-  background: var(--k-on-accent);
+  background: var(--k-page);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -348,7 +367,7 @@ html:not(#_) :is(.custom-dropdown-panel, [data-kokuen-surface] [role="menu"]) {
   border-color: transparent;
   border-radius: var(--k-radius-surface);
   background: var(--k-raised);
-  box-shadow: var(--k-edge), var(--k-float);
+  box-shadow: var(--k-float);
 }
 
 html:not(#_) :is(.dialog-overlay, .modal-overlay) [role="dialog"],
@@ -356,20 +375,20 @@ html:not(#_) .dialog-overlay [role="alertdialog"],
 html:not(#_) #settings-modal .modal {
   border-color: transparent;
   border-radius: var(--k-radius-large);
-  box-shadow: var(--k-edge), var(--k-float);
+  box-shadow: var(--k-float);
 }
 
 html:not(#_) .toast {
   border-color: transparent;
   border-radius: var(--k-radius-surface);
   background: var(--k-raised);
-  box-shadow: var(--k-edge), var(--k-float);
+  box-shadow: var(--k-float);
   padding: 10px 16px;
   font-size: 14px;
 }
 
 html:not(#_) .toast:is(.success, .error, .info) {
-  box-shadow: var(--k-edge), var(--k-float), inset 3px 0 0 currentColor;
+  box-shadow: var(--k-float);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -475,7 +494,7 @@ html:not(#_) .toast:is(.success, .error, .info) {
   padding: 0 var(--k-space-3);
   border-radius: var(--k-radius-control);
   background: var(--k-raised);
-  box-shadow: var(--k-edge), var(--k-lift);
+  box-shadow: none;
   color: var(--k-text);
   text-decoration: none;
 }
@@ -565,7 +584,6 @@ html:not(#_) .toast:is(.success, .error, .info) {
 /* ── app overviews: three filled columns in the dashboard width ─────────────── */
 
 html:not(#_) .specialist-group-overview > .specialist-workbench {
-  max-width: 1040px;
   grid-template-columns: minmax(15rem, 0.9fr) minmax(0, 1.5fr) minmax(12rem, 0.8fr);
   gap: var(--k-space-4);
 }
@@ -579,7 +597,8 @@ html:not(#_) .specialist-workbench > :is(.specialist-workbench-rail, .specialist
   padding: var(--k-space-5);
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
-  box-shadow: var(--k-edge);
+  border: 1px solid var(--k-card-line);
+  box-shadow: none;
 }
 
 html:not(#_) .specialist-workbench > .specialist-workbench-detail:empty {
@@ -594,6 +613,238 @@ html:not(#_) .specialist-workbench .specialist-detail-title {
 }
 
 
+/* the app name in the header row is each screen's h1 (tasteskill v2: every screen names itself
+   in one h1); the heading draws no box of its own */
+.shell-title {
+  display: contents;
+  margin: 0;
+  font: inherit;
+}
+
+/* ── one frame for every app ─────────────────────────────────────────────────
+   the owner (2026-10-22): spacing was inconsistent everywhere and the side bands were wasted.
+   every app now runs the full width with one gutter on both sides, the header's app name and the
+   content start on the same edge, and blocks keep one rhythm. measured before: content started
+   anywhere from 7 to 557px in and stopped 17 to 901px short of the right edge */
+:where(:root) {
+  --k-gutter: 24px;
+  --k-rhythm: 24px;   /* header to content, and between blocks */
+  --k-block-gap: 16px;
+}
+
+@media (max-width: 700px) {
+  :where(:root) { --k-gutter: 16px; }
+}
+
+html:not(#_) :is(.page-view-head, .page-view-body, .page-view-footer, .specialist-workbench,
+  .aide-tool-head, .aide-tool-content, .aide-scheduled-head, .aide-scheduled-tabs, .aide-schedule-form,
+  .aide-scheduled-content, .finance-import-panel, .server-workbench-card, .read-add, .habits-list) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+
+html:not(#_) :is(.page-view-head, .page-view-body, .page-view-footer,
+  .aide-tool-head, .aide-tool-content, .aide-scheduled-head, .aide-scheduled-tabs, .aide-schedule-form, .aide-scheduled-content) {
+  padding-inline: var(--k-gutter);
+}
+
+/* the list pages inside an app (tasks, money, health...) were held to an 880px column by id */
+html:not(#_):not(#_) .specialist-group-slot > .page-view > :is(.page-view-head, .page-view-body, .page-view-footer) {
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: var(--k-gutter);
+}
+
+/* an overview's panel already carries the gutter */
+html:not(#_) .specialist-group-overview {
+  padding-inline: var(--k-gutter);
+}
+
+html:not(#_) .specialist-group-overview > .specialist-workbench {
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: 0;
+}
+
+/* aide's tool pages: the head and the content carry the gutter, not the page around them */
+html:not(#_) .aide-tool-view {
+  padding-inline: 0;
+}
+
+/* the header row: the app name's words land on the gutter. the switcher keeps 8px of padding
+   for its hover fill and moves back by it, as text actions do (0031) */
+html:not(#_) :is(.specialist-app-brand, #today-view .today-topbar) {
+  padding-inline: var(--k-gutter);
+}
+
+html:not(#_) body.aide-central[data-space="aide"] .main > .topbar {
+  padding-inline: var(--k-gutter);
+}
+
+html:not(#_):not(#_) #app-drawer-btn {
+  margin-inline-start: -8px;
+  padding-inline: 8px;
+}
+
+/* home: the full width, two columns on a wide screen (the day on the left, apps and aide's work
+   on the right) */
+html:not(#_) #today-view .today-inner {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: var(--k-gutter);
+}
+
+html:not(#_) #today-view .today-head {
+  max-width: none;
+}
+
+@media (min-width: 1100px) {
+  /* columns, not grid rows: sections keep the order chosen in settings and flow top to bottom, so
+     a tall block on one side never leaves a hole on the other */
+  html:not(#_) #today-view .today-sections {
+    display: block;
+    column-count: 2;
+    column-gap: calc(var(--k-gutter) * 2);
+  }
+
+  html:not(#_) #today-view .today-sections > * {
+    break-inside: avoid;
+    margin: 0 0 32px;
+  }
+}
+
+/* an empty list keeps the page's left edge: its words and its first action sit where the rows
+   will appear, not in a narrow centred island */
+html:not(#_) .empty-state {
+  align-items: flex-start;
+  max-width: none;
+  margin: var(--k-rhythm) 0 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* the server monitor fills the width; the cpu graph is a band, not half the screen, and cards
+   in a row keep their own height */
+html:not(#_) #system-body,
+html:not(#_) #sys-shell,
+html:not(#_) .btop-grid {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+}
+
+html:not(#_) #system-view[data-kokuen-surface="system"] > .page-view-head,
+html:not(#_) #system-view[data-kokuen-surface="system"] #system-body {
+  width: 100%;
+  padding-inline: var(--k-gutter);
+}
+
+/* the live status is a short line above the monitor, not a 52px band of its own */
+html:not(#_) #system-view[data-kokuen-surface="system"] > .page-view-head {
+  min-height: 0;
+  padding-block: var(--k-space-2) 0;
+}
+
+html:not(#_) #system-view[data-kokuen-surface="system"] #system-body {
+  padding-top: var(--k-space-3);
+}
+
+@media (min-width: 860px) {
+  html:not(#_) .btop-cols { align-items: start; }
+}
+
+
+/* ── aide conversation: steps are lines, not cards ──────────────────────────
+   the owner called the old cards slop: a filled card per step, an amber bar on anything that
+   changed files, and the output in a second box inside the card. a step is now one 44px line
+   (mark, what, where, time) like the code view; what changed something says so with an amber
+   mark, and its output sits once, indented under the line in a single tinted well */
+html:not(#_) #messages .agent-step-list {
+  gap: 0;
+}
+
+html:not(#_) #messages .agent-step {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html:not(#_) #messages .agent-step-head {
+  min-height: 44px;
+  margin-inline: calc(-1 * var(--k-space-2));
+  padding: 0 var(--k-space-2);
+  border-radius: var(--k-radius-control);
+  transition: background-color 140ms var(--k-ease-out);
+}
+
+html:not(#_) #messages .agent-step-head:hover {
+  background: var(--k-hover);
+}
+
+html:not(#_) #messages .agent-step.destructive .agent-step-mark {
+  color: var(--k-permission);
+}
+
+/* output, args and diffs: one well, indented to the words of the line above (mark 16 + gap 12) */
+html:not(#_) #messages .agent-step :is(.agent-step-args-wrap, .agent-step-output, .agent-step-diff, .agent-perm, .agent-step-shot) {
+  margin: 0 0 var(--k-space-2) 28px;
+}
+
+html:not(#_) #messages :is(.agent-step-output, .agent-step-diff) {
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-panel);
+  padding: var(--k-space-2) var(--k-space-3);
+}
+
+html:not(#_) #messages .agent-step-args-wrap :is(.custom-details, pre) {
+  border: 0;
+  background: var(--k-panel);
+}
+
+html:not(#_) #messages .agent-step-args-wrap > .custom-summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--k-muted);
+  font-size: 13px;
+}
+
+/* the folded run: one plain line with a hairline under it, like the code view's fold */
+html:not(#_) #messages .agent-steps > :is(summary, .custom-summary) {
+  min-height: 44px;
+  margin-inline: calc(-1 * var(--k-space-2));
+  padding: 0 var(--k-space-2);
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  box-shadow: inset 0 -1px 0 var(--k-line);
+}
+
+html:not(#_) #messages .agent-steps > :is(summary, .custom-summary):hover {
+  background: var(--k-hover);
+}
+
+/* a reply's own actions are quiet words in one row right under it, not boxes */
+html:not(#_):not(#_) :is(.msg-actions, .msg-actions-menu) :is(.act-btn, .btn) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--k-muted);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+html:not(#_):not(#_) :is(.msg-actions, .msg-actions-menu) :is(.act-btn, .btn):hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+
 /* ── home: the capture box is a soft filled composer ─────────────────────────── */
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture {
@@ -604,12 +855,12 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture {
   border: 0;
   border-radius: var(--k-radius-large);
   background: var(--k-panel);
-  box-shadow: var(--k-edge), 0 0 0 1px var(--k-line);
+  box-shadow: 0 0 0 1px var(--k-line);
   transition: box-shadow 200ms var(--k-ease-out);
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture:focus-within {
-  box-shadow: var(--k-edge), 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture textarea {
@@ -676,7 +927,7 @@ html:not(#_) #settings-modal .s-context::before {
 html:not(#_) #settings-modal .s-modal {
   border-color: transparent;
   border-radius: var(--k-radius-large);
-  box-shadow: var(--k-edge), var(--k-float);
+  box-shadow: var(--k-float);
 }
 
 
@@ -687,13 +938,13 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search 
   padding-inline: var(--k-space-2) 0;
   border-radius: var(--k-radius-large);
   background: var(--k-panel);
-  box-shadow: var(--k-edge), 0 0 0 1px var(--k-line);
+  box-shadow: 0 0 0 1px var(--k-line);
   transition: box-shadow 200ms var(--k-ease-out), background-color 200ms var(--k-ease-out);
 }
 
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:is(:hover, :focus-within, [data-keyboard-focus]) {
   background: var(--k-raised);
-  box-shadow: var(--k-edge), 0 0 0 1px color-mix(in srgb, var(--k-accent) 50%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 12%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 50%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 12%, transparent);
 }
 
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search::before {
@@ -705,17 +956,17 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:
 
 html:not(#_) .welcome-start {
   min-height: 44px;
-  border: 0;
+  border: 1px solid var(--k-line);
   border-radius: 999px;
   background: var(--k-panel);
-  box-shadow: var(--k-edge), 0 0 0 1px var(--k-line);
+  box-shadow: none;
   color: var(--k-soft);
 }
 
 html:not(#_) .welcome-start:hover {
+  border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
-  box-shadow: var(--k-edge), 0 0 0 1px var(--k-accent-ring);
 }
 
 
@@ -739,7 +990,8 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-shortcut {
   padding: var(--k-space-3) var(--k-space-4);
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
-  box-shadow: var(--k-edge);
+  border: 1px solid var(--k-card-line);
+  box-shadow: none;
   text-align: left;
   transition: background-color 160ms var(--k-ease-out);
 }

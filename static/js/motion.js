@@ -1,5 +1,5 @@
 // motion for the revamp (decision 0040): controls give under the pointer, one pill slides to
-// whatever is picked, a view settles in when it opens, numbers count up. reduced motion
+// whatever is picked, a total that changes counts to its new value. reduced motion
 // turns every one of these off; the pill still sits behind the picked item, it just jumps.
 
 // util.js imports this under node for tests, so nothing here may assume a page
@@ -60,6 +60,18 @@ function pillFor(group) {
   const on = picked.length === 1 ? picked[0] : null;
   if (!on || !on.offsetWidth) { group.style.setProperty('--pill-o', '0'); return; }
   const s = group.style;
+  // underline tabs (the picked one draws a thin ::after) get one underline that slides instead of
+  // a pill, as wide as the words
+  const mark = getComputedStyle(on, '::after');
+  if (group.dataset.pill === 'line' || (mark.content !== 'none' && parseFloat(mark.height) <= 4)) {
+    const cs = getComputedStyle(on);
+    group.dataset.pill = 'line';
+    s.setProperty('--pill-x', `${on.offsetLeft + parseFloat(cs.paddingLeft)}px`);
+    s.setProperty('--pill-w', `${on.offsetWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)}px`);
+    s.setProperty('--pill-o', '1');
+    if (!group.dataset.pillReady) requestAnimationFrame(() => { group.dataset.pillReady = '1'; });
+    return;
+  }
   // a row of tall tabs gets a pill 4px inside the 44px target, so it reads as a tab, not a block
   const row = items[0].offsetTop === items[1].offsetTop;
   const inset = row && on.offsetHeight >= 40 ? 4 : 0;
@@ -89,17 +101,10 @@ function placePills() {
   }), wait);
 }
 
-// ── views settle in ──────────────────────────────────────────────────────────
-export function enterView(root) {
-  if (!root || still()) return;
-  // opacity only: a translate here would carry the view's fixed children with it
-  root.animate([{ opacity: 0.55 }, { opacity: 1 }], { duration: 260, easing: EASE });
-}
-
 // ── numbers count up ─────────────────────────────────────────────────────────
-// countTo(el, 4078.44, n => fmt(n)): the final text is set at once for readers and copy;
-// only what's painted moves
-export function countTo(el, to, format = n => String(Math.round(n))) {
+// countTo(el, 4078.44, n => fmt(n), from): readers get the final text at once; only what's
+// painted moves, from the old value to the new one
+export function countTo(el, to, format = n => String(Math.round(n)), from = 0) {
   if (!el) return;
   const done = format(to);
   if (still() || !Number.isFinite(to)) { el.textContent = done; return; }
@@ -107,42 +112,52 @@ export function countTo(el, to, format = n => String(Math.round(n))) {
   const t0 = performance.now();
   const step = t => {
     const k = Math.min(1, (t - t0) / 800);
-    el.textContent = k < 1 ? format(to * (1 - Math.pow(1 - k, 3))) : done;
+    el.textContent = k < 1 ? format(from + (to - from) * (1 - Math.pow(1 - k, 3))) : done;
     if (k < 1) requestAnimationFrame(step);
     else el.removeAttribute('aria-label');
   };
   requestAnimationFrame(step);
 }
 
-// tickNumbers(root, '.ms-val'): each match whose text is one number counts up to it once. the
-// number was already formatted by the shared i18n helpers, so the count reuses its separators
-// and decimals instead of formatting it again. a re-render with the same text stays still
+// tickNumbers(root, '.ms-val'): a figure that changes counts from its old value to the new one.
+// the first render shows the figure as it is (an app screen performs no entrance). the text was
+// already formatted by the shared i18n helpers, so the count reuses its separators and decimals
+const lastFigures = new Map();   // selector + position -> the text shown last time
+
+function readFigure(text) {
+  const m = text.match(/^(\D*?)(\d(?:[\d.,  ' ]*\d)?)(\D*)$/);
+  if (!m) return null;
+  const [, pre, num, post] = m;
+  // the last separator is the decimal one when it isn't followed by exactly three digits or
+  // when the number uses two kinds of separator
+  const seps = num.match(/[^\d]/g) || [];
+  const last = seps.at(-1);
+  const tail = last ? num.slice(num.lastIndexOf(last) + 1) : '';
+  const decSep = last && (new Set(seps).size > 1 || tail.length !== 3) ? last : '';
+  const groupSep = seps.find(c => c !== decSep) || '';
+  const dec = decSep ? tail.length : 0;
+  const digits = decSep ? num.slice(0, num.lastIndexOf(decSep)) : num;
+  const value = Number(digits.replace(/\D/g, '') + (dec ? '.' + tail : ''));
+  const shape = n => {
+    const [int, frac] = n.toFixed(dec).split('.');
+    const grouped = groupSep ? int.replace(/\B(?=(\d{3})+(?!\d))/g, groupSep) : int;
+    return pre + grouped + (frac ? decSep + frac : '') + post;
+  };
+  return { pre, post, value, shape };
+}
+
 export function tickNumbers(root, selector) {
   if (!root) return;
-  for (const el of root.querySelectorAll(selector)) {
-    if (el.children.length) continue;
+  [...root.querySelectorAll(selector)].forEach((el, i) => {
+    const key = selector + ':' + i;
     const text = el.textContent;
-    const m = text.match(/^(\D*?)(\d(?:[\d.,  ' ]*\d)?)(\D*)$/);
-    if (!m || el.dataset.counted === text) { el.dataset.counted = text; continue; }
-    const [, pre, num, post] = m;
-    // the last separator is the decimal one when it isn't followed by exactly three digits
-    // or when the number uses two kinds of separator
-    const seps = num.match(/[^\d]/g) || [];
-    const last = seps.at(-1);
-    const tail = last ? num.slice(num.lastIndexOf(last) + 1) : '';
-    const decSep = last && (new Set(seps).size > 1 || tail.length !== 3) ? last : '';
-    const groupSep = seps.find(c => c !== decSep) || '';
-    const dec = decSep ? tail.length : 0;
-    const digits = decSep ? num.slice(0, num.lastIndexOf(decSep)) : num;
-    const to = Number(digits.replace(/\D/g, '') + (dec ? '.' + tail : ''));
-    const shape = n => {
-      const [int, frac] = n.toFixed(dec).split('.');
-      const grouped = groupSep ? int.replace(/\B(?=(\d{3})+(?!\d))/g, groupSep) : int;
-      return pre + grouped + (frac ? decSep + frac : '') + post;
-    };
-    countTo(el, to, shape);
-    el.dataset.counted = text;
-  }
+    const before = lastFigures.get(key);
+    lastFigures.set(key, text);
+    if (el.children.length || before === undefined || before === text) return;
+    const now = readFigure(text), was = readFigure(before);
+    if (!now || !was || now.pre !== was.pre || now.post !== was.post) return;
+    countTo(el, now.value, now.shape, was.value);
+  });
 }
 
 // ── leaving ──────────────────────────────────────────────────────────────────

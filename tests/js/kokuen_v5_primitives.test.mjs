@@ -40,7 +40,9 @@ test('the app-name switcher moves to the visible header without a structural rai
   assert.doesNotMatch(html, /id="space-rail"/);
   assert.match(html, /id="app-drawer-label">alles<\/span>/);
   assert.match(app, /function _syncShellTrigger\(root = null\)/);
-  assert.match(app, /target\.prepend\(trigger\)/);
+  // the app name is each screen's h1, so the heading moves with its button (decision 0040)
+  assert.match(html, /<h1 class="shell-title"><button class="shell-navigation-toggle" id="app-drawer-btn"/);
+  assert.match(app, /target\.prepend\(title\)/);
   assert.match(css, /\.shell-trigger-host \.specialist-app-name/);
   assert.match(css, /\.andromeda-idle-footer\s*\{\s*left: var\(--k-space-3\)/);
 });

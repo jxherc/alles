@@ -1,8 +1,8 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v427';   // app glyphs, filled cards and the home composer.
+const VERSION = 'v428';   // one frame and gutter for every app, calmer chrome.
 const BUILD = '__ALLES_BUILD__';   // the server swaps in a hash of static/, so any change is a new worker
 const CACHE = `alles-${VERSION}-${BUILD}`;
-const STAMP = '580';   // keep in sync with index.html ?v= / const _v
+const STAMP = '581';   // keep in sync with index.html ?v= / const _v
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
 // page -> whether its html came from this same build. a same-build page reads its code straight
 // from the cache: nothing there can be from another build. a restarted worker forgets and asks the network
