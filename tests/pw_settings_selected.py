@@ -86,12 +86,17 @@ def run() -> None:
                     "data-state", "saved"
                 )
                 text = _token(page, "--k-text")
+                fill = _token(page, "--k-selected-fill")
                 raised = _token(page, "--k-raised")
                 line = _token(page, "--k-line-strong")
                 accent = _token(page, "--k-accent")
                 mode = _colors(selected)
-                assert mode["color"] == text and mode["background"] == raised
-                assert mode["border"] == line and mode["border"] != accent
+                other = _colors(page.locator(f'.theme-mode-btn:not([data-theme-mode="{theme}"])'))
+                # decision 0041: the picked choice reads in full text on a shared see-through pill
+                # that slides under it; the others stay muted and unfilled
+                pill = _colors(selected.locator("xpath=.."), "::before")
+                assert mode["color"] == text and other["color"] != text, (mode, other)
+                assert pill["background"] == fill and pill["background"] != accent, pill
 
                 if (
                     page.locator(
@@ -183,13 +188,9 @@ def run() -> None:
                     )
                     == "#a78bfa"
                 )
-                assert _colors(mono)["background"] == raised, (
-                    theme,
-                    _colors(mono),
-                    raised,
-                    mono.get_attribute("class"),
-                    mono.get_attribute("data-kokuen-state"),
-                )
+                # the shared pill slides under the picked option (decision 0041)
+                font_pill = _colors(font, "::before")
+                assert font_pill["background"] == fill, (theme, font_pill, fill)
                 assert _colors(mono)["color"] == text
                 mono.press("Home")
                 expect(sans).to_be_focused()
@@ -238,10 +239,11 @@ def run() -> None:
                 if "on" not in (switch.get_attribute("class") or "").split():
                     switch.click()
                 expect(switch).to_have_attribute("aria-checked", "true")
-                # every on switch shares a soft purple track and a text-colored knob (decision 0032)
+                # an on switch is an ink track with a page-coloured knob (decision 0040)
                 track = _token(page, "--k-switch-on-track")
+                knob = _token(page, "--k-page")
                 assert _colors(switch, "::before")["background"] == track
-                assert _colors(switch, "::after")["background"] == text
+                assert _colors(switch, "::after")["background"] == knob
                 box = switch.bounding_box()
                 assert box and box["width"] >= 44 and box["height"] >= 44
 
@@ -249,7 +251,7 @@ def run() -> None:
                 home = page.locator('[data-home-section="today"] .home-settings-switch')
                 expect(home).to_have_attribute("aria-checked", "true")
                 assert _colors(home, "::before")["background"] == track
-                assert _colors(home, "::after")["background"] == text
+                assert _colors(home, "::after")["background"] == knob
                 home.scroll_into_view_if_needed()
                 page.screenshot(path=str(output / f"settings-home-{width}-{theme}.png"))
 

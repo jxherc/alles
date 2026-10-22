@@ -182,20 +182,24 @@ def navigation(page, api, dest, profile, records):
             header:rect(document.querySelector('.s-header')), contextRect:rect(document.querySelector('#settings-pane-title')),
             close:rect(document.querySelector('#settings-modal-close')),
             focus:document.activeElement.dataset.pane || document.activeElement.dataset.localeLanguage,
-            navScroll:nav.scrollLeft,
+            navScroll:nav.scrollLeft, pill:getComputedStyle(nav,'::before').backgroundColor, pillClass:nav.classList.contains('has-pill'),
             tabs:[...document.querySelectorAll('.s-nav-item')].map(e=>{
               const r=e.getBoundingClientRect(),s=getComputedStyle(e);
               return {pane:e.dataset.pane,active:e.classList.contains('active'),current:e.getAttribute('aria-current'),hover:e.matches(':hover'),
-                decoration:s.textDecorationLine,weight:+s.fontWeight,bg:s.backgroundColor,visible:r.right>box.left&&r.left<box.right&&r.bottom>box.top&&r.top<box.bottom};
+                decoration:s.textDecorationLine,weight:+s.fontWeight,bg:s.backgroundColor,color:s.color,visible:r.right>box.left&&r.left<box.right&&r.bottom>box.top&&r.top<box.bottom};
             }), panes:[...document.querySelectorAll('.s-pane')].filter(e=>e.getBoundingClientRect().height>0).map(e=>e.id)};
         }""")
         active = [t for t in actual["tabs"] if t["active"]]
         assert len(active) == 1 and active[0]["current"] == "page", actual
         assert actual["panes"] == ["s-pane-" + active[0]["pane"]], actual
-        # selected row: raised surface plus weight, no underline (decision 0031)
+        # selected row: the shared pill sits under it and its words read in full text, no
+        # underline (decisions 0031, 0041)
         resting = [t for t in actual["tabs"] if not t["active"] and not t["hover"]]
         assert active[0]["weight"] >= 560, actual
-        assert all(t["bg"] != active[0]["bg"] for t in resting), actual
+        assert actual["pillClass"] and actual["pill"] not in ("rgba(0, 0, 0, 0)", "transparent"), (
+            actual
+        )
+        assert all(t["color"] != active[0]["color"] for t in resting), actual
         assert all(t["decoration"] != "underline" for t in actual["tabs"]), actual
         header, context, close = actual["header"], actual["contextRect"], actual["close"]
         assert context["top"] >= header["top"] and context["bottom"] <= header["bottom"], actual
@@ -296,14 +300,19 @@ def navigation(page, api, dest, profile, records):
         if compact:
             page.locator("#settings-section-trigger").click()
             expect(page.locator('.s-nav-item[data-pane="notifications"]')).to_be_focused()
-        for pane in ("rules", "credits", "backup"):
+        # every section after language & region, in the order the list shows them
+        after_language = page.evaluate(
+            """() => { const panes = [...document.querySelectorAll('.s-nav-item')].map(e => e.dataset.pane);
+              return panes.slice(panes.indexOf('notifications') + 1); }"""
+        )
+        for pane in after_language:
             page.keyboard.press("Tab")
             target = page.locator(f'.s-nav-item[data-pane="{pane}"]')
             expect(target).to_be_focused()
             expect(target).to_be_in_viewport()
             # Focus does not select another pane or snap the strip back to it.
             state = observe(f"{language}-focus-{pane}")
-            if pane == "backup":
+            if pane == after_language[-1]:
                 nav_scroll = state["navScroll"]
         page.keyboard.press("Tab")
         expect(page.locator(f'[data-locale-language="{language}"]')).to_be_focused()
@@ -313,7 +322,7 @@ def navigation(page, api, dest, profile, records):
         page.mouse.move(page.viewport_size["width"] - 1, 1)
         observe(f"{language}-controls-no-hover")
         target = settings_section_focus_target(page, "notifications")
-        assert tab_to(page, target, reverse=True) == (1 if compact else 4)
+        assert tab_to(page, target, reverse=True) == (1 if compact else len(after_language) + 1)
         observe(f"{language}-keyboard-return")
 
     # Touch switches the pane and persistent context together, without mouse hover.

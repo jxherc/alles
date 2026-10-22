@@ -144,7 +144,7 @@ def run(browser, width, theme):
         password = page.locator('.dialog-input[type="password"]')
         expect(password).to_be_focused()
         expect(page.locator('.dialog-card[role="dialog"]')).to_contain_text(
-            "password to start this voice call"
+            "needed to start this voice call"
         )
         assert len(events["offers"]) == len(events["calls"]) == 1
         assert not events["confirmations"]
