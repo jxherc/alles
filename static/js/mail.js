@@ -504,7 +504,7 @@ function paintSavedBar() {
   const removalNotice = [..._savedRemovals].filter(value => value.error && value.scopes.some(scope => _savedScopes.includes(scope))).map(value => `could not confirm removal of “${value.name}”: ${value.error}. retry removing this search.`).join(' ');
   let message = _savedReadError || _savedRecoveryError || removalNotice || _savedNotice;
   if (_savedBusy) message = 'saving changes…';
-  else if (_savedPending && !_savedConfirmed && !_savedReadError && !_savedRecoveryError) message = _savedNotice || `saving “${savedLabel(_savedPending)}” is unconfirmed. retry checks the same save.`;
+  else if (_savedPending && !_savedConfirmed && !_savedReadError && !_savedRecoveryError) message = _savedNotice || `“${savedLabel(_savedPending)}” may not have saved. retry checks it.`;
   let actions = '';
   if (_savedReadError || _savedRecoveryError) actions += '<button type="button" class="btn" id="mail-saved-load-retry">retry loading saved searches</button>';
   if (_savedRecoveryError) actions += '<button type="button" class="btn" id="mail-saved-clear">clear recovery data</button>';
@@ -590,7 +590,8 @@ async function savePendingSearch() {
     });
     if (operation.confirmed || !_savedScopes.includes(pending.recovery_scope)) return;
     if (!savedMatches(row, pending)) throw new Error('could not confirm the saved search');
-    _savedNotice = `saving “${savedLabel(pending)}” is unconfirmed. retry checks the same save.`;
+    // the list read below confirms it; until then it is being checked, not in doubt
+    _savedNotice = 'checking the save…';
     await _renderSavedBar();
   } catch (error) {
     if (!_savedScopes.includes(pending.recovery_scope)) return;
@@ -728,7 +729,7 @@ function paintDraftRecovery() {
   const focused = bar.contains(document.activeElement) ? document.activeElement.id : '';
   const pending = _draftPending;
   let message = _draftReadError || _draftStorageError || _draftNotice;
-  if (pending && !message) message = `saving “${pending.subject.trim() || 'untitled draft'}” is unconfirmed. retry checks the same save.`;
+  if (pending && !message) message = `“${pending.subject.trim() || 'untitled draft'}” may not have saved. retry checks it.`;
   if (_draftBusy && !_draftConfirmed) message = 'saving draft…';
   let actions = '';
   const button = (id, label, blocked = _draftBusy) => `<button type="button" class="btn" id="${id}" aria-disabled="${blocked}">${label}</button>`;

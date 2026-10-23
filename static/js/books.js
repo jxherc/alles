@@ -180,7 +180,7 @@ function _render() {
     ${_loadNotice()}
     <p class="book-notes-error" id="book-create-error" role="alert" ${_createError || _recoveryError ? '' : 'hidden'}>${esc(_recoveryError || _createError)}</p>
     ${_recoveryError ? '<button class="btn" id="book-recovery-retry">retry save recovery</button>' : ''}
-    ${_pendingCreate || _unreadableCreate ? `<div class="book-create-recovery"><p role="status">a book save still needs confirmation</p><div class="book-notes-actions">${_pendingCreate ? `<button class="btn" id="book-create-check" ${_createBusy ? 'disabled' : ''}>check saved book</button>` : ''}<button class="btn" id="book-create-discard" ${_createBusy ? 'disabled' : ''}>discard pending save</button></div></div>` : ''}
+    ${_pendingCreate || _unreadableCreate ? `<div class="book-create-recovery"><p role="status">${_createBusy ? 'saving the book…' : 'this book may not have saved. check it, or discard it.'}</p><div class="book-notes-actions">${_pendingCreate ? `<button class="btn" id="book-create-check" ${_createBusy ? 'disabled' : ''}>check saved book</button>` : ''}<button class="btn" id="book-create-discard" ${_createBusy ? 'disabled' : ''}>discard pending save</button></div></div>` : ''}
     ${_savedBook ? `<div class="book-create-result"><p role="status">saved ${esc(_savedBook.title)}</p><button class="btn" id="book-create-open">open saved book</button></div>` : ''}
     ${_adding ? _addForm() : ''}
     ${_data.total ? shelfHtml : (_adding || !_hasOverview || _loadState.state !== 'resting' ? '' : `
