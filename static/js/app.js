@@ -354,6 +354,10 @@ async function _boot({ reachable = true } = {}) {
       if (groupedDeepLink) {
         _syncLocalViewUrl(initialRoute, groupedIdentifier);
         _consumeParams(['_auth', '_sso']);
+      } else if (initialRoute.view !== appForSub(currentSub()).primary) {
+        // ?view=models on aide is a page of its own; cleaning it off sent a reload to the conversation
+        _syncLocalViewUrl(initialRoute, initialRoute.view);
+        _consumeParams(['_auth', '_sso']);
       } else {
         const cleaned = buildCompatibilityUrl({
           currentUrl: location.href,
@@ -1228,6 +1232,12 @@ window.addEventListener('popstate', async event => {
   if (route) await renderLocalRoute(route);
   else if (nextGroup) await renderLocalView(nextGroup.group, { view: nextGroup.group, section: nextGroup.section });
   else if (singleHost()) await renderLocalView('today');
+  else {
+    // back to a bare app address (aide's skills -> back): that is the app's main view. without
+    // this the address changed and the old page stayed up
+    const primary = appForSub(currentSub()).primary;
+    if (primary && primary !== _lastLocalView) await renderLocalView(primary === 'home' ? 'today' : primary);
+  }
 });
 
 function renderLocalRoute(route) {
@@ -1242,8 +1252,10 @@ const AIDE_TOOL_VIEWS = new Set([
   'models', 'compare', 'gallery', 'cookbook', 'usage', 'aide-reminders',
 ]);
 
+let _lastLocalView = '';
 function renderLocalView(v, route = {}) {
   if (v === 'home') v = 'today';
+  _lastLocalView = v;
   // memory lives in settings; a deep link or reload opens it over Aide
   if (v === 'memory') {
     const shown = renderLocalView('chat', route);
