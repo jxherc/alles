@@ -6,6 +6,7 @@ import { parsePrivateLines } from '../mcp-config.js';
 import { formatPhone } from '../liveformat.js';
 import { resolvedTimeZone, t } from '../i18n.js';
 import { _setSwitch, _bindSwitch, _patchSetting, _patchSettings, _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 const _connectionLoads = new Map();
 let _agentRootsDirty = false;

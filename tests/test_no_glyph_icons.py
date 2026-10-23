@@ -59,3 +59,13 @@ class NoGlyphIcons(unittest.TestCase):
                 continue
             found.append(f"{path.relative_to(ROOT)}:{number}: {code.strip()[:90]}")
         self.assertEqual(found, [], "use icon()/_si() for these marks:\n" + "\n".join(found))
+
+    def test_every_file_that_draws_an_icon_defines_its_helper(self):
+        # a near-miss name check ("const _signin…") once skipped one; the page then threw
+        # "_si is not defined"
+        missing = []
+        for path in sorted((ROOT / "static" / "js").rglob("*.js")):
+            text = path.read_text(encoding="utf-8")
+            if "_si(" in text and not re.search(r"^(const _si = |function _si\()", text, re.M):
+                missing.append(str(path.relative_to(ROOT)))
+        self.assertEqual(missing, [])
