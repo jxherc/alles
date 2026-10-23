@@ -2776,3 +2776,9 @@ html:not(#_):not(#_) #aide-coding-workspace .acw-entry textarea:is(:focus, :focu
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* an open contact's save is the screen's primary; the add row above steps back while it's open */
+html:not(#_)[data-kokuen-version="5"] #contacts-view:has(#cd-save) #contact-add-btn.btn.primary {
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+}
