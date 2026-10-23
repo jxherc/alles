@@ -1514,7 +1514,8 @@ body:is(
 .specialist-message-row,
 .specialist-library-row {
   display: grid;
-  grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr) minmax(7rem, auto);
+  /* the first column stops at 14rem: a long sender name squeezed the subject to one letter a line */
+  grid-template-columns: minmax(5.5rem, min(14rem, 30%)) minmax(0, 1fr) minmax(7rem, auto);
   align-items: baseline;
   gap: var(--k-space-3, 12px);
   min-height: 46px;
@@ -1525,6 +1526,13 @@ body:is(
 .specialist-message-row,
 .specialist-library-row {
   width: 100%;
+}
+
+:is(.specialist-record-row, .specialist-message-row, .specialist-library-row) > :first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .specialist-record-row:last-child,

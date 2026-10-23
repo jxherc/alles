@@ -329,7 +329,7 @@ function _card(it) {
       <div class="read-card-main">
         <button type="button" class="read-card-open" data-open="${it.id}" aria-label="open ${esc(it.title)}">
         <span class="read-card-title">${it.fav ? `<span class="read-fav-dot">${_si('star')}</span>` : ''}${esc(it.title)}</span>
-        <span class="read-card-excerpt">${esc(it.excerpt)}</span>
+        <span class="read-card-excerpt">${esc(_plainExcerpt(it.excerpt))}</span>
         </button>
         <div class="read-card-meta">${esc(it.site)} · ${it.read_minutes} min${it.read ? ' · read' : ''}${tags.length ? ' · ' + tags.map(t => `<button class="read-tag" data-tag="${esc(t)}">#${esc(t)}</button>`).join(' ') : ''}</div>
       </div>
@@ -430,9 +430,17 @@ async function _fetchArticleText(item, place, checkOnly = false) {
   }
 }
 
+// a card excerpt is a sentence to read, not table cells: "| Type | Dumpling | |||||" loses its pipes
+function _plainExcerpt(value) {
+  return String(value || '').replace(/\|/g, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+
 function _renderReader(body) {
   const it = _open;
-  const paras = (it.text || '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+  // most saved text marks paragraphs with blank lines; some (wikipedia) uses single line breaks
+  // only, which made one wall of text
+  const text = it.text || '';
+  const paras = text.split(/\n{2,}/.test(text) ? /\n{2,}/ : /\n/).map(p => p.trim()).filter(Boolean);
   body.innerHTML = `
     <div class="read-reader">
       <div class="read-reader-bar">
