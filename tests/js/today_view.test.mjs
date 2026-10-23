@@ -143,3 +143,14 @@ test('a stale Home refresh cannot overwrite the latest date or status', () => {
   assert.ok(load.indexOf('generation !== loadGeneration') < load.indexOf('data = today.sections'));
   assert.ok(load.lastIndexOf('generation !== loadGeneration') < load.lastIndexOf('showStatus'));
 });
+
+test('daily rows keep every dated item no matter how many tasks are due', () => {
+  const tasks = Array.from({ length: 15 }, (_, i) => ({ id: `t${i}`, title: `task ${i}` }));
+  const rows = dailyRows({
+    events: [], tasks: { overdue: tasks }, reminders: [{ id: 'r', text: 'call mom', at: '18:30' }],
+    renewing: [], day_events: [{ id: 'd', name: 'birthday' }],
+  });
+  assert.ok(rows.some(row => row.id === 'r'));
+  assert.ok(rows.some(row => row.id === 'd'));
+  assert.equal(rows.length, 17);
+});

@@ -14,7 +14,7 @@ function harness(instant, zone) {
   }
   const requests = [];
   const context = vm.createContext({ Date: FixedDate, Intl,
-    fetch: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); },
+    fetch: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); return { ok: true }; },
   });
   vm.runInContext(i18n, context);
   context.configureLocalization({ language: 'en', timezone: zone });

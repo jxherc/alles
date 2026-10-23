@@ -606,6 +606,11 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
     const values = readValues();
     const changes = taskChanges(base, values);
     if (!Object.keys(changes).length) { await close({ discard: true }); return; }
+    if (values.due_date && !_isDay(values.due_date)) {
+      showRecovery('use a due date like 2026-10-20');
+      ov.querySelector('#te-due').focus();
+      return;
+    }
     storeDraft();
     const body = { ...changes, expected: Object.fromEntries(Object.keys(changes).map(field => [field, base[field]])) };
     if (_draftScopes[0]) body.draft_scope = _draftScopes[0];
@@ -655,6 +660,14 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
   focusBoundary.activate({ focus: ov.querySelector('#te-title'), source });
 }
 
+// a real day, optionally with a time. the date mask alone lets "10/20" through as "1020-"
+function _isDay(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(:\d{2})?)?$/.exec(value);
+  if (!m) return false;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
+}
+
 // Calendar-only arithmetic keeps rescheduling on Home's configured day across DST.
 function _reschedDate(w) {
   const today = _todayISO();
@@ -664,14 +677,26 @@ function _reschedDate(w) {
   return _shift(today, offset);
 }
 
+// true once the server kept the task, so the caller only clears the box then
 export async function addTask(title) {
-  if (!title.trim()) return;
+  if (!title.trim()) return false;
   // natural-language quick add — parses due date / repeat / #tags / ! priority
-  await fetch('/api/tasks/quick', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text: title, today: _todayISO() }),
-  });
+  let r;
+  try {
+    r = await fetch('/api/tasks/quick', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: title, today: _todayISO() }),
+    });
+  } catch {
+    toast("can't reach alles right now. the task is still in the box", 'error');
+    return false;
+  }
+  if (!r.ok) {
+    const detail = (await r.json().catch(() => ({})))?.detail;
+    toast(typeof detail === 'string' ? detail : 'the task was not added. it is still in the box, try again', 'error');
+    return false;
+  }
   if (_tab === 'done') {   // jump back to a visible list so the new task shows
     _tab = 'active';
     document.querySelectorAll('.tasks-tab').forEach(x => {
@@ -686,6 +711,7 @@ export async function addTask(title) {
     if (si) si.value = '';
   }
   await loadTasks();
+  return true;
 }
 
 function esc(s) {

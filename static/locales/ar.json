@@ -492,6 +492,14 @@
       "many": "هناك {count} عنصرًا يحتاج إليك.",
       "other": "هناك {count} عنصر يحتاج إليك."
     },
+    "home.more_in_plan": {
+      "zero": "{count} مهام أخرى في plan",
+      "one": "{count} مهام أخرى في plan",
+      "two": "{count} مهام أخرى في plan",
+      "few": "{count} مهام أخرى في plan",
+      "many": "{count} مهام أخرى في plan",
+      "other": "{count} مهام أخرى في plan"
+    },
     "home.open_count": {
       "zero": "كل المهام المفتوحة: {count}",
       "one": "كل المهام المفتوحة: {count}",

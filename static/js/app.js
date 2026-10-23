@@ -1863,8 +1863,13 @@ function bindEvents() {
   // tasks / calendar / gallery
   document.getElementById('cal-new-btn').addEventListener('click', newEvent);
   const taskInput = document.getElementById('task-add-input');
-  document.getElementById('task-add-btn').addEventListener('click', async () => {
-    await addTask(taskInput.value.trim()); taskInput.value = '';
+  document.getElementById('task-add-btn').addEventListener('click', async e => {
+    const btn = e.currentTarget;
+    if (btn.dataset.busy) return;   // a double click or a second enter adds it once
+    btn.dataset.busy = '1';
+    const text = taskInput.value.trim();
+    try { if (await addTask(text) && taskInput.value.trim() === text) taskInput.value = ''; }
+    finally { delete btn.dataset.busy; }
   });
   taskInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('task-add-btn').click();

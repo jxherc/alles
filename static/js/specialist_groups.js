@@ -297,7 +297,9 @@ export function planCommitments(events, tasks, reminders) {
     });
   }
   for (const item of reminders || []) {
-    const when = String(item.trigger_at || item.date || '');
+    // trigger_at is utc saved without its "Z"; read bare it lands hours off in any other zone
+    const raw = String(item.trigger_at || item.date || '');
+    const when = raw.includes('T') && !/(Z|[+-]\d\d:?\d\d)$/.test(raw) ? `${raw}Z` : raw;
     rows.push({
       id: `reminder:${item.id || when}:${item.text || ''}`,
       type: 'reminder',

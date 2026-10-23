@@ -468,6 +468,10 @@ const BUILTIN_ENGLISH = {
       "one": "{count} thing needs you.",
       "other": "{count} things need you."
     },
+    "home.more_in_plan": {
+      "one": "{count} more task in plan",
+      "other": "{count} more tasks in plan"
+    },
     "home.open_count": {
       "one": "all open tasks: {count}",
       "other": "all open tasks: {count}"

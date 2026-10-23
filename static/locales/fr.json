@@ -443,6 +443,7 @@
     "andromeda.result_count": {"one": "{count} résultat", "many": "{count} résultats", "other": "{count} résultats"},
     "calendar.imported_count": {"one": "{count} événement importé", "many": "{count} événements importés", "other": "{count} événements importés"},
     "home.attention_count": {"one": "{count} chose a besoin de vous.", "many": "{count} choses ont besoin de vous.", "other": "{count} choses ont besoin de vous."},
+    "home.more_in_plan": {"one": "{count} tâche de plus dans plan", "many": "{count} tâches de plus dans plan", "other": "{count} tâches de plus dans plan"},
     "home.open_count": {"one": "tâches ouvertes (toutes) : {count}", "many": "tâches ouvertes (toutes) : {count}", "other": "tâches ouvertes (toutes) : {count}"},
     "home.priority_count": {"one": "{count} priorité est", "many": "{count} priorités sont", "other": "{count} priorités sont"}
   }

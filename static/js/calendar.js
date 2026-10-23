@@ -996,14 +996,20 @@ function renderMonth() {
     if (!cell) { html += '<div class="cal-cell empty" aria-hidden="true"></div>'; continue; }
     const key = ymd(cell);
     const evts = (byDay[key] || []).sort((a, b) => (a.all_day ? 0 : a._date) - (b.all_day ? 0 : b._date));
-    const chips = evts.slice(0, 4).map(o =>
-      `<button type="button" class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</button>`).join('');
-    const more = evts.length > 4 ? `<div class="cal-more">+${evts.length - 4} more</div>` : '';
-    const tchips = (tasksByDay[key] || []).slice(0, 3).map(t =>
-      `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}">${t.done ? _si('check') : ''}</span>${esc(t.title)}</div>`).join('');
+    // a cell fits 3 lines; everything past that is counted on a real "+N more" that opens the day,
+    // so nothing (tasks, birthdays, the count itself) is cut off without a word
+    const items = [
+      ...evts.map(o =>
+        `<button type="button" class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</button>`),
+      ...(tasksByDay[key] || []).map(t =>
+        `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}">${t.done ? _si('check') : ''}</span>${esc(t.title)}</div>`),
+      ...(bmap[_bdayKey(cell)] || []).map(n => `<div class="cal-bday" title="${esc(n)}'s birthday">${_si('cake')} ${esc(n)}</div>`),
+    ];
+    const fit = items.length > 3 ? 2 : 3;
+    const more = items.length > fit ? `<button type="button" class="cal-more" data-day="${key}">+${items.length - fit} more</button>` : '';
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-num">${cell.getDate()}</div>
-      <div class="cal-cell-events">${chips}${more}${tchips}${_bdayChips(bmap, cell)}</div></div>`;
+      <div class="cal-cell-events">${items.slice(0, fit).join('')}${more}</div></div>`;
   }
   html += '</div></div>';
   el.innerHTML = html;
@@ -1022,6 +1028,11 @@ function renderMonth() {
         await fetch(`/api/tasks/${t.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ done: t.done }) }).catch(() => {});
         render();
       }
+      return;
+    }
+    const more = ev.target.closest('.cal-more');
+    if (more) {
+      _cursor = calendarPlacementDate(more.dataset.day); _view = 'day'; localStorage.setItem('cal-view', _view); _syncViewBtns(); render();
       return;
     }
     const chip = ev.target.closest('.cal-chip');
@@ -1079,7 +1090,7 @@ function renderTimeGrid(el, days, occ) {
       const hx = evHex(o);
       const w = `calc((100% - 4px) / ${it.ncols})`;
       const left = `calc(2px + ${it.col} * (100% - 4px) / ${it.ncols})`;
-      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - 2}px;left:${left};width:${w};right:auto;background:color-mix(in srgb, ${hx} 24%, transparent);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div>`;
+      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - 2}px;left:${left};width:${w};right:auto;background:color-mix(in srgb, ${hx} 24%, transparent);color:var(--text);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div>`;
     }
     const isToday = sameDay(d, today);
     const nowLine = isToday ? `<div class="cal-now-line" style="top:${nowTop}px"></div>` : '';

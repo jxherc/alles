@@ -125,6 +125,29 @@ class IcsServiceTest(ApiTest):  # ApiTest only for convenience; these are pure
         self.assertIsNone(out[0]["end_dt"])
 
 
+class IcsZoneTest(ApiTest):  # pure too
+    def test_utc_and_tzid_times_keep_their_zone(self):
+        text = (
+            "BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:utc\nDTSTART:20261029T190000Z\n"
+            "DTEND:20261029T200000Z\nEND:VEVENT\nBEGIN:VEVENT\nSUMMARY:la\n"
+            "DTSTART;TZID=America/Los_Angeles:20261029T090000\nEND:VEVENT\n"
+            "BEGIN:VEVENT\nSUMMARY:outlook\nDTSTART;TZID=Pacific Standard Time:20261029T090000\n"
+            "END:VEVENT\nEND:VCALENDAR"
+        )
+        utc, la, outlook = ics.parse_ics(text)
+        self.assertEqual(utc["start_dt"], "2026-10-29T19:00:00+00:00")
+        self.assertEqual(utc["end_dt"], "2026-10-29T20:00:00+00:00")
+        self.assertEqual(la["start_dt"], "2026-10-29T09:00:00-07:00")
+        self.assertEqual(outlook["start_dt"], "2026-10-29T09:00:00")
+
+    def test_a_zoned_time_exports_as_utc_and_comes_back(self):
+        out = ics.to_ics(
+            [{"title": "x", "start_dt": "2026-10-29T09:00:00-07:00", "all_day": False}]
+        )
+        self.assertIn("DTSTART:20261029T160000Z", out)
+        self.assertEqual(ics.parse_ics(out)[0]["start_dt"], "2026-10-29T16:00:00+00:00")
+
+
 class IcsApiTest(ApiTest):
     def test_export_then_import(self):
         d = self.db()

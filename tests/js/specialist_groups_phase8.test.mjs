@@ -661,3 +661,14 @@ for (const backend of ['actual', 'alles']) test(`${backend} unresolved import cl
   assert.equal(h.target.querySelector('.finance-import-undo'), null);
   assert.equal(Boolean(h.target.querySelector('.specialist-group-note')), backend === 'actual');
 });
+
+test('Plan reads reminder times as the utc the server stores them in', () => {
+  configureLocalization({ timezone: 'America/New_York' });
+  try {
+    const [row] = planCommitments([], [], [{ id: 'r', text: 'call mom', trigger_at: '2026-07-18T22:30:00' }]);
+    assert.equal(row.date, '2026-07-18');
+    assert.equal(row.time, '18:30');
+  } finally {
+    configureLocalization({});
+  }
+});

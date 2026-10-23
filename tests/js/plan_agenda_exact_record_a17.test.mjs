@@ -153,7 +153,8 @@ test('agenda task and event rows are named native buttons that open exact IDs de
     ['tasks', 'task-a', ''], ['tasks', 'task-b', ''],
     ['calendar', 'series-a', today], ['calendar', 'event-b', today],
   ]);
-  const reminder = h.rows().at(-1);
+  // reminders are utc on the wire, so where it sorts depends on the zone; find it by tag
+  const reminder = h.rows().find(row => row.tagName === 'DIV');
   assert.equal(reminder.tagName, 'DIV');
   assert.equal(reminder.events.click, undefined);
   assert.equal(h.choice('today').textContent, 'today · 5');

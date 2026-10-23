@@ -6488,7 +6488,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .p-cpu { text-align: right; display: flex; align-items: center; gap: 0.3rem; justify-content: flex-end; }
 .p-cpubar { font-family: inherit; letter-spacing: -0.5px; color: var(--faint); }
 .p-cpu b { min-width: 1.8rem; text-align: right; }
-.cal-more { font-size: 0.75rem; color: var(--muted); padding-left: 2px; }
+.cal-more { font: inherit; font-size: 0.75rem; color: var(--muted); padding: 0 0 0 2px; background: none; border: 0; text-align: left; cursor: pointer; }
+.cal-more:hover { color: var(--text); }
 .cal-task {
   font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 3px;
   padding: 1px 3px; border-radius: var(--k-radius-small); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -6553,14 +6554,14 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 
 /* week/day time grid */
 .cal-timegrid { display: flex; flex-direction: column; flex: 1; min-height: 0; max-width: 920px; width: 100%; margin: 0 auto; }
-.cal-tg-headrow, .cal-tg-alldayrow, .cal-tg-body { display: grid; grid-template-columns: 48px repeat(var(--cols), 1fr); }
+.cal-tg-headrow, .cal-tg-alldayrow, .cal-tg-body { display: grid; grid-template-columns: 48px repeat(var(--cols), minmax(0, 1fr)); }
 .cal-tg-headrow { border-bottom: 1px solid var(--faint); flex-shrink: 0; }
 .cal-tg-dayhead { text-align: center; padding: 0.35rem 0; font-size: 0.75rem; color: var(--muted); border-left: 1px solid var(--faint); }
 .cal-tg-dayhead .cal-tg-dn { color: var(--text); font-weight: 500; margin-left: 0.2rem; }
 .cal-tg-dayhead.today, .cal-tg-dayhead.today .cal-tg-dn { color: var(--info); }
 .cal-tg-alldayrow { border-bottom: 1px solid var(--faint); flex-shrink: 0; }
 .cal-tg-gutter { font-size: 0.75rem; color: var(--muted); text-align: right; padding: 0.2rem 0.3rem; }
-.cal-tg-allday { border-left: 1px solid var(--faint); padding: 1px; min-height: 22px; cursor: pointer; }
+.cal-tg-allday { border-left: 1px solid var(--faint); padding: 1px; min-height: 22px; min-width: 0; cursor: pointer; }
 .cal-allday-ev { font-size: 0.75rem; padding: 1px 4px; border-radius: var(--k-radius-control); cursor: pointer; color: var(--bg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
 .cal-tg-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 .cal-tg-hour { font-size: 0.75rem; color: var(--muted); text-align: right; padding-right: 0.3rem; border-top: 1px solid var(--faint); box-sizing: border-box; }

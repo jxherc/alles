@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Optional
@@ -92,6 +92,22 @@ _TASK_FIELDS = {
     "parent_id",
     "stage",
 }
+
+
+def _due(value):
+    """a due date is a real day (2026-10-20), optionally with a time. "1020-" or "10/20"
+    would be saved, then read as overdue forever"""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    text = str(value).strip()
+    try:
+        if len(text) == 10:
+            date.fromisoformat(text)
+        else:
+            datetime.fromisoformat(text)
+    except ValueError:
+        raise HTTPException(400, "use a due date like 2026-10-20") from None
+    return text
 
 
 def _expected_value(field: str, value):
@@ -253,7 +269,7 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
         fields = dict(
             title=title,
             priority=body.priority,
-            due_date=body.due_date,
+            due_date=_due(body.due_date),
             parent_id=body.parent_id,
             tags=body.tags,
             repeat=body.repeat,
@@ -452,6 +468,8 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
                 body[numf] = int(body[numf])
             except (TypeError, ValueError):
                 raise HTTPException(400, f"{numf} must be an integer")
+    if "due_date" in body:
+        body["due_date"] = _due(body["due_date"])
     for f in (
         "title",
         "priority",

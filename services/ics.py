@@ -6,7 +6,8 @@ description), which is what real calendars round-trip.
 """
 
 import re
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 def _add_days(iso: str, days: int) -> str:
@@ -34,6 +35,12 @@ def _fmt_dt(iso: str, all_day: bool) -> str:
     if all_day or len(iso) <= 10:
         d = iso[:10].replace("-", "")
         return d  # caller adds ;VALUE=DATE
+    try:
+        aware = datetime.fromisoformat(iso)
+    except ValueError:
+        aware = None
+    if aware is not None and aware.tzinfo is not None:  # a time with its zone goes out as utc
+        return aware.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
     s = iso.replace("-", "").replace(":", "")
     s = s.split(".")[0]  # drop fractional seconds
     if "T" not in s and len(s) >= 8:
@@ -72,20 +79,28 @@ def to_ics(events: list[dict]) -> str:
     return "\r\n".join(lines) + "\r\n"
 
 
-def _parse_dt(val: str) -> tuple[str, bool]:
+def _parse_dt(val: str, tzid: str = "") -> tuple[str, bool]:
     """ICS date/datetime -> (ISO string, all_day). returns ('', …) when the value
     is digit-shaped but not a real date (e.g. month 13) so a single broken VEVENT
-    can't crash the whole import/feed-sync."""
+    can't crash the whole import/feed-sync. a utc "Z" or a TZID keeps its offset,
+    so a 19:00Z meeting from google doesn't land at 19:00 local."""
     val = val.strip()
     if "T" in val:  # 20260619T140000
-        m = re.match(r"(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?", val)
+        m = re.match(r"(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?", val)
         if m:
-            y, mo, d, h, mi, s = m.groups()
+            y, mo, d, h, mi, s, utc = m.groups()
             iso = f"{y}-{mo}-{d}T{h}:{mi}:{s or '00'}"
             try:
-                datetime.fromisoformat(iso)
+                when = datetime.fromisoformat(iso)
             except ValueError:
                 return "", False
+            if utc:
+                return when.replace(tzinfo=UTC).isoformat(), False
+            if tzid:
+                try:
+                    return when.replace(tzinfo=ZoneInfo(tzid)).isoformat(), False
+                except (ValueError, ZoneInfoNotFoundError):
+                    pass  # an outlook-only zone name: keep the wall time
             return iso, False
     m = re.match(r"(\d{4})(\d{2})(\d{2})", val)  # 20260619
     if m:
@@ -97,6 +112,14 @@ def _parse_dt(val: str) -> tuple[str, bool]:
             return "", True
         return iso, True
     return val, False
+
+
+def _tzid(key: str) -> str:
+    """'DTSTART;TZID=America/New_York' -> 'America/New_York'."""
+    for part in key.split(";")[1:]:
+        if part.upper().startswith("TZID="):
+            return part.split("=", 1)[1].strip('"')
+    return ""
 
 
 def parse_ics(text: str) -> list[dict]:
@@ -119,9 +142,9 @@ def parse_ics(text: str) -> list[dict]:
             elif name == "DESCRIPTION":
                 cur["description"] = _unesc(val)
             elif name == "DTSTART":
-                cur["start_dt"], cur["all_day"] = _parse_dt(val)
+                cur["start_dt"], cur["all_day"] = _parse_dt(val, _tzid(key))
             elif name == "DTEND":
-                end_iso, end_all_day = _parse_dt(val)
+                end_iso, end_all_day = _parse_dt(val, _tzid(key))
                 if end_iso:
                     # reverse the export: an all-day exclusive end → inclusive last day
                     cur["end_dt"] = _add_days(end_iso, -1) if end_all_day else end_iso

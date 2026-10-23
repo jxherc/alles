@@ -60,13 +60,13 @@ export function dailyRows(day) {
   for (const item of day?.renewing || []) rows.push({ view: 'subs', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: `${item.name} ${t('home.renews')}`, kind: 'renewal' });
   for (const item of day?.day_events || []) rows.push({ view: 'days', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: item.name, kind: 'date' });
   for (const item of day?.habits || []) rows.push({ view: 'habits', id: item.id, meta: t('home.not_done'), title: item.name, kind: 'habit' });
-  return rows.slice(0, 12);
+  return rows;
 }
 
 export function homeDayRequest(sections) {
   const attention = (sections?.needs_you || []).slice(0, 5)
     .map(item => `needs attention: ${item.title}${item.summary ? ` — ${item.summary}` : ''}`);
-  const dated = dailyRows(sections?.today).map(item => `${item.kind}: ${item.meta} — ${item.title}`);
+  const dated = dailyRows(sections?.today).slice(0, 20).map(item => `${item.kind}: ${item.meta} — ${item.title}`);
   const lines = [...attention, ...dated]
     .map(line => String(line).replace(/\s+/g, ' ').trim().slice(0, 350));
   return `here's the day context available in alles:\n${lines.join('\n') || 'no dated items are showing.'}\n\nplease give me a short rundown: what matters first, what can wait, and anything i might miss.`;
@@ -212,14 +212,18 @@ function render() {
 
   const day = data.today || {};
   const allRows = dailyRows(day);
-  const schedule = allRows.filter(item => item.kind === 'event');
-  const focus = allRows.filter(item => item.kind !== 'event');
+  // anything tied to today (events, reminders, birthdays, renewals) always shows; open tasks and
+  // habits fill up to 6 and the rest are counted, never dropped without a word
+  const loose = allRows.filter(item => item.kind === 'task' || item.kind === 'habit');
+  const shownLoose = new Set(loose.slice(0, 6));
+  const hidden = loose.length - shownLoose.size;
   const needs = data.needs_you || [];
   const running = data.in_progress || [];
   const briefs = data.briefs || [];
   const openTasks = day.tasks?.open_count;
 
-  const dayItems = [...schedule, ...focus.slice(0, 8)];
+  const dayItems = allRows.filter(item => !loose.includes(item) || shownLoose.has(item));
+  if (hidden) dayItems.push({ view: 'plan', id: '', meta: '', title: tp('home.more_in_plan', hidden), kind: 'more' });
   const blocks = {
     needs_you: section(
       'needs_you',
