@@ -146,7 +146,7 @@ async function delContact(id) {
 }
 
 const SCALARS = [['email', 'email'], ['phone', 'phone'], ['company', 'company'], ['title', 'title'],
-  ['address', 'address'], ['birthday', 'birthday (YYYY-MM-DD)'], ['website', 'website']];
+  ['address', 'address'], ['birthday', 'birthday (march 3 or 1990-03-03)'], ['website', 'website']];
 
 async function openContact(id) {
   const [c, rels, all, evs] = await Promise.all([

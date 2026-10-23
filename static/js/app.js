@@ -1930,6 +1930,12 @@ function bindEvents() {
   // contacts
   document.getElementById('contacts-search')?.addEventListener('input', e => loadContacts(e.target.value));
   document.getElementById('contact-add-btn')?.addEventListener('click', addContact);
+  // enter in any of the add fields adds, like every other add row
+  for (const id of ['contact-name', 'contact-email', 'contact-phone']) {
+    document.getElementById(id)?.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); document.getElementById('contact-add-btn')?.click(); }
+    });
+  }
   document.getElementById('contacts-import-btn')?.addEventListener('click', () => document.getElementById('contacts-import-input')?.click());
   document.getElementById('contacts-import-input')?.addEventListener('change', async e => {
     const f = e.target.files[0]; e.target.value = '';

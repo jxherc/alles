@@ -129,6 +129,24 @@ export function formatDate(value, deleting = false) {
   return out;
 }
 
+// a birthday can be typed as words: "march 3", "3 mar", "march 3 1990". it ends as --03-03 (no
+// year) or 1990-03-03, the forms contacts reads. digits still format like any date
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+export function finishBirthday(value) {
+  const text = String(value ?? '').trim().toLowerCase().replace(/,/g, ' ').replace(/\s+/g, ' ');
+  if (!/[a-z]/.test(text)) return formatDate(text);
+  let name = '', day = 0, year = '';
+  const monthFirst = /^([a-z]+)\.? (\d{1,2})(?:st|nd|rd|th)?(?: (\d{4}))?$/.exec(text);
+  const dayFirst = /^(\d{1,2})(?:st|nd|rd|th)? ([a-z]+)\.?(?: (\d{4}))?$/.exec(text);
+  if (monthFirst) [, name, day, year] = monthFirst;
+  else if (dayFirst) [, day, name, year] = dayFirst;
+  const month = MONTHS.indexOf(name.slice(0, 3)) + 1;
+  day = Number(day);
+  if (!month || day < 1 || day > 31) return String(value ?? '').trim();
+  const pad = n => String(n).padStart(2, '0');
+  return year ? `${year}-${pad(month)}-${pad(day)}` : `--${pad(month)}-${pad(day)}`;
+}
+
 // clock times: 0930 -> 09:30, and a first digit over 2 means a single-digit hour (9 -> 09:)
 export function formatTime(value, deleting = false) {
   let digits = String(value ?? '').replace(/\D/g, '').slice(0, 4);
@@ -159,6 +177,7 @@ const KINDS = {
   card: { keep: DIGIT, format: value => formatCard(value) },
   expiry: { keep: DIGIT, format: (value, event) => formatExpiry(value, deleting(event)) },
   date: { keep: DIGIT, format: (value, event) => formatDate(value, deleting(event)) },
+  birthday: { keep: /[\da-z]/i, format: (value, event) => (/[a-z]/i.test(value) ? value : formatDate(value, deleting(event))), finish: finishBirthday },
   time: { keep: DIGIT, format: (value, event) => formatTime(value, deleting(event)) },
   code: { keep: DIGIT, format: value => String(value).replace(/\D/g, '').slice(0, 6) },
   digits: { keep: DIGIT, format: value => String(value).replace(/\D/g, '') },
@@ -180,7 +199,8 @@ function kindOf(el) {
   if (!['text', 'search', 'email', 'url', 'tel', ''].includes(type)) return '';
   const ph = el.getAttribute('placeholder') || '';
   const mode = (el.getAttribute('inputmode') || '').toLowerCase();
-  if (/YYYY-MM-DD|^\d{4}-\d{2}-\d{2}$/.test(ph) || el.dataset.k === 'birthday') return 'date';
+  if (el.dataset.k === 'birthday') return 'birthday';
+  if (/YYYY-MM-DD|^\d{4}-\d{2}-\d{2}$/.test(ph)) return 'date';
   if (/^HH:MM$/i.test(ph) || /^\d{1,2}:\d{2}$/.test(ph)) return 'time';
   if (/\b6-digit code\b/i.test(ph) || el.autocomplete === 'one-time-code') return 'code';
   if (el.id === 's-accent-hex' || /#hex\b/i.test(ph)) return 'hex';

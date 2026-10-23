@@ -108,3 +108,12 @@ test('a decimal comma survives typing and is settled when the field is finished'
   assert.equal(formatDecimal('4 200,00'), '4200.00');
   assert.equal(formatDecimal('-3,5'), '-3.5');
 });
+
+test('a birthday typed as words ends as a date contacts can read', async () => {
+  const { finishBirthday } = await import('../../static/js/liveformat.js');
+  assert.equal(finishBirthday('march 3'), '--03-03');
+  assert.equal(finishBirthday('3 March'), '--03-03');
+  assert.equal(finishBirthday('Dec 25, 1985'), '1985-12-25');
+  assert.equal(finishBirthday('19900303'), '1990-03-03');
+  assert.equal(finishBirthday('blah 3'), 'blah 3');
+});
