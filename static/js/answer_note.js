@@ -98,7 +98,8 @@ export async function saveAnswerNote(button) {
     const raw = wrap.answerText.trim();
     const text = answerNoteText(wrap);
     const sourceKey = noteSourceKey(wrap, true);
-    const title = raw.split('\n')[0].replace(/[#*`\[\]<>:/\\?"|]/g, '').trim().slice(0, 80) || 'answer';
+    // a line ending in "." left "ok..md"; trailing dots and spaces go before the extension
+    const title = raw.split('\n')[0].replace(/[#*`\[\]<>:/\\?"|]/g, '').trim().slice(0, 80).replace(/[.\s]+$/, '') || 'answer';
     const saved = await saveNote(text, `${title}.md`, { sourceKey });
     wrap.savedNote = saved;
     noteSaved(saved, text, restoreFocus(), null, sourceKey);

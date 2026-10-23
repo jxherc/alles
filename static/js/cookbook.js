@@ -26,7 +26,7 @@ export function initCookbook() {
       </div>
       <div id="cb-table" class="cb-table"><div class="jrnl-empty">loading catalog…</div></div>`;
 
-    populateDropdown(document.getElementById('cb-usecase'), USE_CASES.map(value => ({ value, label: value })), USE_CASES[0]);
+    populateDropdown(document.getElementById('cb-usecase'), USE_CASES.map(value => ({ value, label: value === 'image_gen' ? 'image generation' : value })), USE_CASES[0]);
     populateDropdown(document.getElementById('cb-sort'), SORTS.map(([value, label]) => ({ value, label })), SORTS[0][0]);
     const reload = () => load();
     document.getElementById('cb-usecase').onchange = reload;

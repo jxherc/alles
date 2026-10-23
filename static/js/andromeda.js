@@ -2923,7 +2923,7 @@ async function clearSearchCredential(button) {
 
 function managedSearxngState(service) {
   if (!service.support_verified && !service.installed) return 'managed install unavailable';
-  if (!service.installed) return service.available ? 'ready to install' : 'Docker is not available';
+  if (!service.installed) return service.available ? 'ready to install' : 'needs docker, which this machine does not have running';
   if (!service.owned) return 'ownership check failed';
   if (service.healthy) return 'healthy';
   if (service.running) return 'running, but search is unhealthy';

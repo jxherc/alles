@@ -380,7 +380,9 @@
   #aide-code-status, .acw-stats-context { display: none; }
   /* stats get their own line under the controls instead of squeezing the model name */
   .acw-entry-foot { flex-wrap: wrap; }
-  .acw-model { flex: 1; }
+  /* the free room goes to the model name; three equal slots cut it to "fake-…" next to an empty one */
+  .acw-model { flex: 0 1 auto; }
+  .acw-model:has(#aide-code-model) { flex: 1 1 auto; }
   .acw-stats { order: 9; flex-basis: 100%; padding: 0 var(--k-space-3) var(--k-space-2); }
   .acw-stats:empty { display: none; }
   #aide-code-model { max-width: 100%; }

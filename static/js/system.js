@@ -376,7 +376,8 @@ function render(s, fetcher = fetch) {
   (s.cpu.per_core || []).forEach((c, i) => { if (!coreHist[i]) coreHist[i] = []; push(coreHist[i], c); });
 
   const cpu = s.cpu, mem = s.memory, sw = s.swap, net = s.net || {}, io = s.disk_io || {};
-  const freq = cpu.freq_mhz ? `@ ${(cpu.freq_mhz / 1000).toFixed(2)} GHz` : '';
+  // some chips report a placeholder clock (0 or a few mhz); "@ 0.00 GHz" says nothing true
+  const freq = cpu.freq_mhz >= 100 ? `@ ${(cpu.freq_mhz / 1000).toFixed(2)} GHz` : '';
   const disk0 = (s.disks || [])[0];
 
   const hostEl = $('system-host');

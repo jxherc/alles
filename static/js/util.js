@@ -255,6 +255,9 @@ export async function api(path, opts = {}, fetcher = fetch) {
 
 export function toast(msg, type = '', duration = 3000) {
   const c = document.getElementById('toast-container');
+  // one problem at a time: a fixed mistake's old error ("enter reminder text") shouldn't sit
+  // beside the new one
+  if (type === 'error') c?.querySelectorAll?.('.toast.error').forEach(old => old.remove());
   const el = document.createElement('div');
   el.className = `toast${type ? ' ' + type : ''}`;
   el.textContent = type === 'error' ? plainError(msg) : msg;

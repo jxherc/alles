@@ -5006,13 +5006,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 
 .cb-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.7rem; }
 .cb-search { flex: 1; min-width: 160px; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.45rem 0.6rem; font-size: 0.82rem; }
-.cb-sel { position: relative; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0 32px 0 8px; font-size: 13px; }
+.cb-sel { position: relative; display: inline-flex; align-items: center; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0 32px 0 8px; font-size: 13px; }
 .cb-fitonly { padding: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .cb-table { }
 .cb-row { display: grid; grid-template-columns: minmax(0,2.4fr) 0.7fr 1fr 1.1fr 0.9fr 0.9fr 0.9fr 0.6fr; gap: 0.5rem; align-items: center; padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
 .cb-head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--muted); }
 .cb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cb-name a { color: var(--text); text-decoration: none; }
+.cb-name a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); text-decoration: none; }
 .cb-name a:hover { color: var(--link); }
 .cb-mono { font-family: var(--mono, monospace); font-size: 0.75rem; color: var(--muted); }
 .cb-tag { font-size: 0.75rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0 0.25rem; }
@@ -6286,10 +6286,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 /* ── activity timeline ─────────────────────────────────────────────────────── */
 /* filters live on their own row under the title (left-aligned), not crammed against the right */
 #activity-view .page-view-head { flex-wrap: wrap; }
-.activity-filters { display: flex; flex-wrap: wrap; gap: 0; align-items: center; flex-basis: 100%; margin-top: 0.5rem; }
-/* sources and range are bare (decision 0031); the row moves back by the chip padding so the
-   first source starts on the title's edge */
-#activity-filters { margin-inline-start: -12px; }
+.activity-filters { display: flex; flex-wrap: wrap; gap: var(--k-space-1, 4px); align-items: center; flex-basis: 100%; margin-top: 0.5rem; }
+/* the source chips carry a fill now, so the row starts on the title's edge instead of moving
+   back by their padding (that was for bare text, decision 0031) */
 .act-chip {
   font-family: inherit; font-size: 0.75rem; cursor: pointer;
   padding: 0.15rem 0.45rem; border-radius: var(--k-radius-control); color: var(--text);
@@ -6301,10 +6300,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .act-seg { margin-left: var(--k-space-3); }
 .act-search { font-family: inherit; font-size: 0.75rem; margin-left: auto; padding: 0.2rem 0.5rem; background: var(--bg); border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--text); width: 160px; }
 .act-search:focus { outline: none; }
-/* on a phone the search wraps onto its own line; it takes the line from the column edge instead of
-   floating right (the row is pulled back 12px, so this puts it back on the column) */
+/* on a phone the search wraps onto its own line and takes it from the column edge */
 @media (max-width: 720px) {
-  #activity-filters .act-search { flex: 1 1 100%; width: auto; margin-left: 12px; }
+  #activity-filters .act-search { flex: 1 1 100%; width: auto; margin-left: 0; }
 }
 /* match the head/body horizontal padding so the summary's left edge lines up with the title */
 .activity-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem clamp(0.9rem, 3vw, 2rem); font-size: 0.75rem; color: var(--muted); }
