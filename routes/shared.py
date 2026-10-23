@@ -934,7 +934,7 @@ def _session_html(s):
     msgs = [m for m in s.messages if m.role in ("user", "assistant")]
     rows = ""
     for m in msgs:
-        role_label = "you" if m.role == "user" else s.model or "aide"
+        role_label = "you" if m.role == "user" else _esc(s.model or "aide")
         bg = "#141414" if m.role == "assistant" else "transparent"
         rows += f"""<div style="padding:1rem 1.5rem;background:{bg};border-bottom:1px solid #1e1e1e">
             <div style="font-size:0.7rem;color:#6e6e6e;margin-bottom:0.4rem;text-transform:lowercase">{role_label}</div>

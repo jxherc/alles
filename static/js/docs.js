@@ -822,9 +822,16 @@ async function openByName(name) {
   try {
     const result = await api('/api/vault-md/search?q=' + encodeURIComponent(name));
     const hits = result.results || [];
-    const hit = hits.find(item => String(item.name || '').toLowerCase() === name.toLowerCase()) || hits[0];
-    if (hit) await openNote(hit.path);
-    else toast(`"${name}" was not found`, '');
+    // only the doc with that exact name; the first fuzzy hit sent [[weekly review]] to some other doc
+    const wanted = name.toLowerCase();
+    const hit = hits.find(item => String(item.name || '').toLowerCase() === wanted || stem(item.path).toLowerCase() === wanted);
+    if (hit) { await openNote(hit.path); return; }
+    const choice = await openDialog({ title: `"${name}" doesn't exist yet`, actions: [{ id: 'cancel', label: 'cancel' }, { id: 'confirm', label: 'create it' }] });
+    if (choice?.action !== 'confirm') return;
+    if (_dirty && !(await flushDraft())) return;
+    const created = await api('/api/vault-md/file', jsonOptions('POST', { path: name, content: '', unique: true }));
+    await loadTree();
+    await openNote(created.path);
   } catch (error) { toast(error.message, 'error'); }
 }
 

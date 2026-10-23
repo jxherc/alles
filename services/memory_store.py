@@ -152,7 +152,8 @@ def add_memory(
         trust = "owner" if owner_source else "derived"
     db = SessionLocal()
     try:
-        cat = category or _detect_category(text)
+        # a category is a short word or two; the model can set it, so nothing else gets stored
+        cat = re.sub(r"[^\w\s-]", "", category or "").strip()[:40] or _detect_category(text)
         m = Memory(
             text=text.strip(),
             category=cat,

@@ -502,7 +502,7 @@ async function loadHeatmap() {
         if (!inYear) cls.push('off');
         if (iso === today) cls.push('today');
         if (iso === _day) cls.push('sel');
-        const title = info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso;
+        const title = esc(info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso);
         const clickable = inYear && iso <= today;
         if (inYear) rowsByDay[r].push(`jh-${iso}`);
         cells += inYear
@@ -545,7 +545,7 @@ async function loadMoodTrend() {
     const max = Math.max(...d.distribution.map(x => x.count));
     el.innerHTML = d.distribution.map(x => `
       <div class="jrnl-mt-row">
-        <span class="jrnl-mt-emoji">${x.mood}</span>
+        <span class="jrnl-mt-emoji">${esc(x.mood)}</span>
         <span class="jrnl-mt-bar"><span class="jrnl-mt-fill" style="width:${Math.max(6, x.count / max * 100)}%"></span></span>
         <span class="jrnl-mt-n">${x.count}</span>
       </div>`).join('');
@@ -882,7 +882,7 @@ async function loadOnThisDay() {
     if (!d.entries.length) { el.innerHTML = '<div class="jrnl-empty">nothing from past years yet</div>'; return; }
     el.innerHTML = d.entries.map(e => {
       const c = e.content || '';
-      return `<div class="jrnl-otd-row" data-d="${e.date}"><b>${e.date.slice(0, 4)}</b> ${e.mood || ''} ${esc(c.slice(0, 90))}${c.length > 90 ? '…' : ''}</div>`;
+      return `<div class="jrnl-otd-row" data-d="${e.date}"><b>${esc(e.date.slice(0, 4))}</b> ${esc(e.mood || '')} ${esc(c.slice(0, 90))}${c.length > 90 ? '…' : ''}</div>`;
     }).join('');
     el.querySelectorAll('.jrnl-otd-row').forEach(r => r.onclick = () => navigateDay(r.dataset.d));
   } catch {}
@@ -895,7 +895,7 @@ async function loadRecent() {
     if (!el) return;
     el.innerHTML = (d.entries || []).map(e =>
       `<div class="jrnl-recent-row ${e.date === _day ? 'active' : ''}" data-d="${e.date}">
-        <span class="jrnl-recent-mood">${e.mood || '·'}</span>
+        <span class="jrnl-recent-mood">${esc(e.mood || '·')}</span>
         <span class="jrnl-recent-date">${e.date}</span>
         <span class="jrnl-recent-snip">${esc((e.content || '').slice(0, 60))}</span>
       </div>`

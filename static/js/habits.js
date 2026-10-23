@@ -207,7 +207,8 @@ function _weekStrip(h) {
 
 function _card(h) {
   // a habit without a picked color still gets its own steady hue
-  const accent = h.color || `var(--cat-${categoryHue(h.name)})`;
+  // only a real hex goes into style="…"; anything else falls back to the name's colour
+  const accent = /^#[0-9a-f]{3,8}$/i.test(String(h.color || '')) ? h.color : `var(--cat-${categoryHue(h.name)})`;
   const slip = !h.archived && h.risk && h.risk.slipping
     ? `<span class="habit-slip" title="${esc(h.risk.reason)}">slipping</span>` : '';
   return `

@@ -558,7 +558,10 @@ async function _openDrawer(slug, source = document.activeElement) {
   $('skl-d-export').hidden = !slug;
   if (s.source) {
     $('skl-d-update').hidden = false; $('skl-d-source').hidden = false;
-    $('skl-d-source').innerHTML = `git-backed · <a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.source)}</a>`;
+    // a source from a shared SKILL.md is only a link when it is a web address
+    $('skl-d-source').innerHTML = /^https?:\/\//i.test(String(s.source || ''))
+      ? `git-backed · <a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.source)}</a>`
+      : `git-backed · ${esc(s.source)}`;
   } else { $('skl-d-update').hidden = true; $('skl-d-source').hidden = true; }
   $('skl-drawer').classList.add('open');
   $('skl-drawer-bd').classList.add('open');

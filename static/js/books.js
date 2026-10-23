@@ -219,7 +219,7 @@ function _addForm() {
         <button class="btn" id="book-search" ${locked || (_lookupBusy ? 'disabled' : '')}>${_lookupBusy ? 'searching…' : 'search'}</button>
       </div>
       ${_lookupMessage ? `<p class="book-lookup-notice ${_lookupFailed ? 'book-notes-error' : 'specialist-group-note'}" role="${_lookupFailed ? 'alert' : 'status'}">${esc(_lookupMessage)}</p>` : ''}
-      ${_lookup.length ? `<div class="book-lookup">${_lookup.map((r, i) => `<button class="book-lookup-item" data-pick="${i}" ${locked}>${r.cover ? `<img src="${esc(r.cover)}" alt="" loading="lazy">` : '<span class="book-lk-ph"></span>'}<span><b>${esc(r.title)}</b><i>${esc(r.author)}${r.year ? ` · ${r.year}` : ''}</i></span></button>`).join('')}</div>` : ''}
+      ${_lookup.length ? `<div class="book-lookup">${_lookup.map((r, i) => `<button class="book-lookup-item" data-pick="${i}" ${locked}>${r.cover ? `<img src="${esc(r.cover)}" alt="" loading="lazy">` : '<span class="book-lk-ph"></span>'}<span><b>${esc(r.title)}</b><i>${esc(r.author)}${r.year ? ` · ${esc(r.year)}` : ''}</i></span></button>`).join('')}</div>` : ''}
       <div class="book-add-row">
         <label class="book-field" for="book-title">book title
           <input type="text" id="book-title" class="settings-input" aria-label="book title" placeholder="title" value="${esc(draft.title)}" ${locked}>

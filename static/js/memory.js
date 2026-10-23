@@ -192,7 +192,7 @@ function renderMemories(mems) {
     <div class="mem-item${m.pinned ? ' pinned' : ''}${m.status === 'suggested' ? ' suggested' : ''}" data-id="${m.id}">
       <div class="mem-text">${escHtml(m.text)}</div>
       <div class="mem-meta">
-        <span class="mem-cat" style="--cat:var(--cat-${categoryHue(m.category)})">${m.category}</span>
+        <span class="mem-cat" style="--cat:var(--cat-${categoryHue(m.category)})">${String(m.category ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
         ${m.pinned ? '<span class="mem-pin">pinned</span>' : ''}
         ${m.status === 'suggested' ? '<span class="mem-review">review</span>' : ''}
         <span class="mem-source">${escHtml(_provenanceLabel(m))} · ${escHtml(m.trust || 'owner')}</span>
