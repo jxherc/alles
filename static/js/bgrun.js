@@ -22,6 +22,14 @@ function _box() {
       + '<div class="bg-reattach-text"></div><div class="bg-reattach-question"></div>';
     document.getElementById('messages')?.appendChild(b);
   }
+  // a run working in the background is the conversation, even before its first saved message:
+  // swap the empty welcome out so its question can be seen
+  const messages = document.getElementById('messages');
+  if (messages?.style?.display === 'none') {
+    const welcome = document.getElementById('welcome');
+    if (welcome?.style) welcome.style.display = 'none';
+    messages.style.display = 'flex';
+  }
   return b;
 }
 
