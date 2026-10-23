@@ -64,7 +64,7 @@ function harness() {
     setDropdownValue: (el, value) => { if (el) el.dataset.value = value; },
     getDropdownValue: el => el?.dataset.value || '',
     populateDropdown: (el, options) => { if (el) el.options = options; },
-    initCustomDropdowns() {}, eventToShortcut, isReservedShortcut, saveShortcuts: value => shortcutWrites.push(value),
+    initCustomDropdowns() {}, eventToShortcut, isReservedShortcut, loadShortcuts: () => ({}), saveShortcuts: value => shortcutWrites.push(value),
     _getAppearance: () => ({}), isBasePreset: () => true,
     sensitiveBlurEnabled() {}, textOnlyEmojisEnabled() {}, welcomeEnabled() {}, setSensitiveBlur() {}, setTextOnlyEmojis() {}, setWelcomeEnabled() {},
     setTimeout: () => 1, clearTimeout() {}, Event: class { constructor(type) { this.type = type; } },
@@ -226,12 +226,14 @@ for (const shiftKey of [false, true]) {
   });
 }
 
-test('shortcut key capture and Escape clearing still save deliberate changes', async () => {
+test('shortcut capture saves a deliberate key, escape keeps it, backspace clears it', async () => {
   const h = harness(); h.add('settings-modal'); const field = h.add('shortcut-search');
   field.dataset.shortcut = 'search'; h.init();
   assert.equal((await keydown(field, 'k', { ctrlKey: true })).prevented, true);
   assert.equal(field.value, 'Ctrl+K'); assert.equal(h.shortcutWrites.at(-1).search, 'Ctrl+K');
-  await keydown(field, 'Escape'); assert.equal(field.value, ''); assert.equal(h.shortcutWrites.at(-1).search, '');
+  await keydown(field, 'Escape'); assert.equal(field.value, 'Ctrl+K');
+  await keydown(field, 'j'); assert.equal(field.value, 'Ctrl+K');
+  await keydown(field, 'Backspace'); assert.equal(field.value, ''); assert.equal(h.shortcutWrites.at(-1).search, '');
 });
 
 function temperatureHarness() {

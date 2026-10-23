@@ -349,16 +349,22 @@ function _initSettings() {
       if (e.key === 'Tab') return;
       e.preventDefault();
       e.stopPropagation();
-      if (e.key === 'Escape') {              // Esc → no shortcut for this action
+      // escape leaves the field as it was; backspace or delete clears the shortcut on purpose
+      if (e.key === 'Escape') { inp.blur(); return; }
+      if ((e.key === 'Backspace' || e.key === 'Delete') && !e.ctrlKey && !e.altKey && !e.metaKey) {
         inp.value = '';
         saveShortcuts({ [inp.dataset.shortcut]: '' });
         toast('shortcut cleared', '');
-        inp.blur();
         return;
       }
+      if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;   // still holding modifiers
       const combo = eventToShortcut(e);
       if (!combo) return;
+      // a bare letter would fire while typing anywhere; function keys can stand alone
+      if (!e.ctrlKey && !e.altKey && !e.metaKey && !/^F\d{1,2}$/.test(e.key)) { toast('add ctrl, alt or cmd to the key', 'error'); return; }
       if (isReservedShortcut(combo)) { toast(`${combo} is a system/browser shortcut: pick another`, 'error'); return; }
+      const taken = Object.entries(loadShortcuts()).find(([action, value]) => action !== inp.dataset.shortcut && value && value.toLowerCase() === combo.toLowerCase());
+      if (taken) { toast(`${combo} is already used for ${taken[0].replace(/_/g, ' ')}`, 'error'); return; }
       inp.value = combo;
       saveShortcuts({ [inp.dataset.shortcut]: combo });
       toast('shortcut saved', 'success');
@@ -754,7 +760,7 @@ function loadShortcutSettings() {
   const shortcuts = loadShortcuts();
   document.querySelectorAll('.shortcut-input').forEach(inp => {
     inp.value = shortcuts[inp.dataset.shortcut] || '';
-    inp.placeholder = 'press keys · Esc = none';
+    inp.placeholder = 'press keys';
     inp.readOnly = true;   // it's a key-capture field, not free text
   });
 }
