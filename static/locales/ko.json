@@ -108,6 +108,7 @@
     "aide.saved_plan_task": "저장된 Plan 작업",
     "aide.no_matching_tasks": "일치하는 Aide 작업이 없습니다",
     "aide.new_task": "새 Aide 작업",
+    "aide.ask_panel": "어느 앱에서나 Aide에게 묻기",
     "aide.new_task_context": "새 Aide 작업 컨텍스트",
     "aide.no_model": "모델 없음",
     "aide.no_tasks": "아직 Aide 작업이 없습니다",

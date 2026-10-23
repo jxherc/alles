@@ -8,6 +8,7 @@ export const DEFAULT_SHORTCUTS = {
   send: 'Ctrl+Enter',
   focus_input: 'Ctrl+/',    // jump to the composer from anywhere
   stop: 'Escape',           // stop an in-flight generation (also closes overlays)
+  ask_aide: 'Ctrl+.',       // the ask-aide panel on any app
 };
 
 // combos the OS/browser already own — binding these would either never fire or

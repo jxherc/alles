@@ -1436,6 +1436,12 @@ export async function openMailSource(id, isCurrent = () => true) {
 }
 
 async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurrent = () => true, trigger = document.activeElement) {
+  // the header's date in the owner's locale; an unreadable date (or no formatter) stays as sent
+  const readerDate = value => {
+    const when = Date.parse(value || '');
+    if (Number.isNaN(when) || typeof formatDate !== 'function') return value || '';
+    return `${formatDate(when, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${formatTime(when, { hour: 'numeric', minute: '2-digit' })}`;
+  };
   const returnTarget = mailPaneReturnTarget(trigger);
   if (!await prepareMailNavigation() || !isCurrent()) return;
   const generation = _messageGeneration, paneGeneration = _mailPaneGeneration;
@@ -1478,7 +1484,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
       <div class="mail-reader-kicker">${esc(acctName(aid))}</div>
       <div class="mail-reader-subject">${esc(m.subject)}</div>
       <div class="mail-reader-meta"><b>${esc(fromName(m.from))}</b> &lt;${esc((/<([^>]+)>/.exec(m.from) || [, m.from])[1])}&gt;</div>
-      <div class="mail-reader-meta">to ${esc(m.to)} - ${esc(m.date)}</div>
+      <div class="mail-reader-meta">to ${esc(m.to)} · ${esc(readerDate(m.date))}</div>
       <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
         <button class="btn" id="mail-reply">reply</button>
         <button class="btn" id="mail-unread" title="mark as unread">unread</button>

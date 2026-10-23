@@ -108,6 +108,7 @@
     "aide.saved_plan_task": "tâche Plan enregistrée",
     "aide.no_matching_tasks": "aucune tâche Aide correspondante",
     "aide.new_task": "nouvelle tâche Aide",
+    "aide.ask_panel": "demander à Aide depuis n’importe quelle app",
     "aide.new_task_context": "contexte de la nouvelle tâche Aide",
     "aide.no_model": "aucun modèle",
     "aide.no_tasks": "aucune tâche Aide",

@@ -1989,3 +1989,790 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
     order: 99;
   }
 }
+
+/* ── ask aide: the button beside every app name and the panel it opens ─────────────
+   the panel floats over the app (a floating layer, so it gets the one shadow), 420px from the
+   right edge, full screen on a phone. aide's own app doesn't show it */
+html:not(#_) .ask-aide-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  min-height: 44px;
+  margin-inline-start: 2px;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms var(--k-ease-out), color 120ms var(--k-ease-out);
+}
+
+html:not(#_) .ask-aide-btn[hidden] { display: none; }
+html:not(#_) .ask-aide-btn svg { width: 16px; height: 16px; }
+html:not(#_) .ask-aide-btn:hover { background: var(--k-hover); color: var(--k-text); }
+html:not(#_) .ask-aide-btn[aria-expanded="true"] { background: var(--k-selected-fill); color: var(--k-text); }
+
+#ask-panel {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 16px));
+  border-radius: var(--k-radius-large);
+  background: var(--k-raised);
+  box-shadow: var(--k-float);
+  color: var(--k-text);
+}
+
+#ask-panel[hidden] { display: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  #ask-panel:not([hidden]) { animation: ask-panel-in 280ms var(--k-ease-out); }
+}
+
+@keyframes ask-panel-in {
+  from { opacity: 0; translate: 16px 0; }
+}
+
+#ask-panel .ask-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 60px;
+  padding: var(--k-space-2) var(--k-space-2) var(--k-space-2) var(--k-space-5);
+}
+
+#ask-panel .ask-panel-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+#ask-panel :is(.ask-panel-action, .ask-panel-close, #ask-panel-share) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-soft);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#ask-panel :is(.ask-panel-action, .ask-panel-close, #ask-panel-share)[hidden] { display: none; }
+#ask-panel .ask-panel-close { width: 44px; padding: 0; }
+#ask-panel .ask-panel-close svg { width: 18px; height: 18px; }
+#ask-panel :is(.ask-panel-action, .ask-panel-close, #ask-panel-share):hover { background: var(--k-hover); color: var(--k-text); }
+
+#ask-panel .ask-panel-log {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-space-4);
+  overflow-y: auto;
+  padding: var(--k-space-2) var(--k-space-5) var(--k-space-4);
+}
+
+#ask-panel .ask-panel-msg { font-size: 14px; line-height: 22px; overflow-wrap: anywhere; }
+#ask-panel .ask-panel-msg > :first-child { margin-top: 0; }
+#ask-panel .ask-panel-msg > :last-child { margin-bottom: 0; }
+
+#ask-panel .ask-panel-you {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: var(--k-space-2) var(--k-space-3);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-selected-fill);
+}
+
+#ask-panel :is(.ask-panel-wait, .ask-panel-note) { color: var(--k-muted); }
+#ask-panel .ask-panel-error { color: var(--k-danger); }
+
+#ask-panel .ask-panel-empty { display: grid; gap: var(--k-space-4); margin-top: var(--k-space-2); }
+#ask-panel .ask-panel-empty p { margin: 0; color: var(--k-muted); font-size: 14px; line-height: 20px; }
+#ask-panel .ask-panel-starts { display: grid; gap: var(--k-space-2); justify-items: start; }
+
+#ask-panel .ask-panel-start {
+  min-height: 44px;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: start;
+  cursor: pointer;
+}
+
+#ask-panel .ask-panel-start:hover { background: var(--k-btn-fill-hover); }
+
+#ask-panel .ask-panel-composer { padding: 0 var(--k-space-3) var(--k-space-3); }
+
+#ask-panel .ask-panel-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-2);
+  padding-inline: var(--k-space-2) 0;
+  color: var(--k-muted);
+  font-size: 13px;
+}
+
+#ask-panel #ask-panel-share { font-size: 13px; color: var(--k-muted); white-space: nowrap; }
+
+#ask-panel .ask-panel-entry {
+  display: flex;
+  align-items: flex-end;
+  border-radius: var(--k-radius-large);
+  background: var(--k-field);
+  box-shadow: inset 0 0 0 1px var(--k-field-ring);
+}
+
+#ask-panel .ask-panel-entry:focus-within {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 60%, var(--k-field-ring)), 0 0 0 3px color-mix(in srgb, var(--k-accent) 16%, transparent);
+}
+
+#ask-panel #ask-panel-input {
+  flex: 1;
+  min-height: 44px;
+  max-height: 160px;
+  box-sizing: border-box;
+  padding: 12px var(--k-space-2) 12px var(--k-space-4);
+  border: 0;
+  background: transparent;
+  color: var(--k-text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  resize: none;
+}
+
+/* the box shows focus, so the field inside draws none of its own */
+#ask-panel #ask-panel-input:is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; }
+
+#ask-panel .ask-panel-send {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 6px solid transparent;
+  border-radius: var(--k-radius-large);
+  background: var(--k-accent);
+  background-clip: padding-box;
+  color: var(--k-on-accent);
+  cursor: pointer;
+}
+
+#ask-panel .ask-panel-send svg { width: 16px; height: 16px; }
+#ask-panel.is-busy .ask-panel-send { background-color: var(--k-text); color: var(--k-page); }
+
+@media (max-width: 760px) {
+  #ask-panel { inset: 0; width: 100%; border-radius: 0; }
+  html:not(#_) .ask-aide-btn span { display: none; }
+  html:not(#_) .ask-aide-btn { width: 44px; justify-content: center; padding: 0; }
+}
+
+/* ── home ───────────────────────────────────────────────────────────────── */
+/* the ask button follows the app name; the date and settings keep the far edge */
+html:not(#_) .today-topbar > .ask-aide-btn { margin-inline-end: auto; }
+
+/* every section head is one 44px row, so columns start their titles on one line whether or not
+   the head holds an action (pinned apps has "edit") */
+html:not(#_):not(#_) #today-view .today-section > header {
+  min-height: 44px;
+  margin-bottom: var(--k-space-2);
+}
+
+/* a pinned app is its glyph beside a name and a line, both from the top, like a list row */
+html:not(#_):not(#_) #today-view .today-shortcut {
+  align-items: flex-start;
+  align-content: start;
+  row-gap: 2px;
+}
+
+html:not(#_):not(#_) #today-view .today-shortcut > svg,
+html:not(#_):not(#_) #today-view .today-shortcut .today-shortcut-glyph {
+  margin-top: 2px;
+}
+
+html:not(#_):not(#_) #today-view .today-kicker { margin-bottom: var(--k-space-2); }
+
+/* ── plan ───────────────────────────────────────────────────────────────── */
+/* the agenda over several days reads under a heading per day */
+html:not(#_):not(#_) .specialist-record-day {
+  margin: var(--k-space-4) 0 var(--k-space-1);
+  color: var(--k-muted);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+html:not(#_):not(#_) .specialist-record-day:first-child { margin-top: 0; }
+
+/* the board keeps the app's gutter: its toolbar starts on 24 and a column's cards (12px column
+   padding) do too */
+html:not(#_):not(#_) .plan-board-toolbar { padding-inline: var(--k-gutter); }
+html:not(#_):not(#_) .plan-board-columns { padding-inline: calc(var(--k-gutter) - 12px); }
+
+/* its add field is one filled row with add inside, like plan's capture */
+html:not(#_):not(#_) .plan-board-add {
+  align-items: center;
+  gap: 0;
+  border-radius: var(--k-radius-large);
+  background: var(--k-panel);
+  box-shadow: 0 0 0 1px var(--k-line);
+  transition: box-shadow 200ms var(--k-ease-out);
+}
+
+html:not(#_):not(#_) .plan-board-add:focus-within {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+}
+
+html:not(#_):not(#_) .plan-board-add input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--k-space-4);
+  border: 0;
+  background: transparent;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+html:not(#_):not(#_) .plan-board-add .plan-board-add-button {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 6px solid transparent;
+  border-radius: var(--k-radius-large);
+  background-clip: padding-box;
+}
+
+/* a column's quick add is a filled field like every other */
+html:not(#_):not(#_) .plan-board-inline-add input {
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-field);
+  box-shadow: inset 0 0 0 1px var(--k-field-ring);
+  padding-inline: var(--k-space-3);
+}
+
+/* the detail panel's moves are secondary buttons, not outlines */
+html:not(#_):not(#_) .plan-board-detail-actions button:not(.plan-board-complete) {
+  border-color: transparent;
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) .plan-board-detail-actions button:not(.plan-board-complete):hover:not(:disabled) {
+  background: var(--k-btn-fill-hover);
+}
+
+html:not(#_):not(#_) .plan-board-detail-actions button:disabled {
+  background: transparent;
+  color: var(--k-quiet);
+}
+
+/* calendar: a calendar's show/hide control is its coloured dot, not a filled square */
+html:not(#_):not(#_) .cal-cal-vis { background: transparent; }
+html:not(#_):not(#_) .cal-cal-vis:hover { background: var(--k-hover); }
+
+/* reminders: the add row comes first and reads as one filled row like other add forms; the tip
+   sits under it and the list follows */
+html:not(#_):not(#_) #reminders-view > .page-view-body {
+  display: flex;
+  flex-direction: column;
+}
+
+html:not(#_):not(#_) #reminders-view .reminder-add-form {
+  order: -2;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 0;
+  padding: 6px 6px 6px var(--k-space-2);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+  box-shadow: 0 0 0 1px var(--k-line);
+  transition: box-shadow 200ms var(--k-ease-out);
+}
+
+html:not(#_):not(#_) #reminders-view .reminder-add-form:focus-within {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+}
+
+html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) {
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input):hover {
+  background: var(--k-hover) !important;
+}
+
+html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
+  border-left: 1px solid var(--k-line) !important;
+}
+
+html:not(#_):not(#_) #reminders-view .reminder-add-form > .btn.primary { margin-inline-start: var(--k-space-2); }
+html:not(#_):not(#_) #reminders-view :is(#reminder-status, #reminder-status + div) { order: -1; }
+html:not(#_):not(#_) #reminders-view #reminder-status:empty { display: none; }
+html:not(#_):not(#_) #reminders-view #reminder-status + div { margin: var(--k-space-2) 0 var(--k-rhythm) !important; }
+
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #reminders-view .reminder-add-form { flex-direction: column; align-items: stretch; padding: 6px; }
+  html:not(#_):not(#_) #reminders-view .reminder-add-form > * { width: 100% !important; }
+  html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) { border-left: 0 !important; border-top: 1px solid var(--k-line) !important; }
+  html:not(#_):not(#_) #reminders-view .reminder-add-form > .btn.primary { margin: 6px 0 0; }
+}
+
+/* ── mail with an account: files' frame. the folders run from the top as a round panel, the
+   toolbar sits over the list and the reading pane, rows are compact with their actions on hover
+   (always shown on touch), and an empty pane says what goes there. mail turns compact (list or
+   reader, not both) at 1100px, so the frame starts above that ── */
+@media (min-width: 1101px) {
+  html:not(#_):not(#_) #mail-view[style*="flex"]:has(#mail-sidebar > *) {
+    display: grid !important;
+    grid-template-columns: auto minmax(300px, 380px) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > :not(.mail-layout) { grid-column: 2 / -1; }
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-layout { display: contents; }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-sidebar {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    box-sizing: border-box;
+    width: 244px;
+    min-height: 0;
+    padding: var(--k-space-3) calc(var(--k-gutter) - 8px);
+    border-right: 0;
+    border-start-end-radius: var(--k-radius-surface);
+    background: var(--k-panel);
+  }
+
+  html:not(#_):not(#_) #mail-view.sidebar-collapsed:has(#mail-sidebar > *) #mail-sidebar { width: 68px; }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) :is(#mail-list, #mail-main) {
+    grid-row: 6;
+    min-height: 0;
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-list {
+    grid-column: 2;
+    width: auto;
+    padding: 0 var(--k-space-2) var(--k-space-6) calc(var(--k-gutter) - 12px);
+    border-right: 1px solid var(--k-line);
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main { grid-column: 3; }
+
+  /* the toolbar: folders toggle, account, search growing to 520px, then refresh, compose, settings */
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-head {
+    gap: var(--k-space-2);
+    padding: var(--k-space-3) var(--k-gutter);
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-head .mail-search {
+    flex: 1 1 auto;
+    max-width: 520px;
+    margin: 0;
+  }
+
+  html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) > .mail-head .mail-head-actions { margin-inline-start: auto; }
+}
+
+html:not(#_):not(#_) #mail-view .mail-nav-item.active {
+  background: var(--k-selected-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) #mail-view .mail-nav-item:not(.active):hover { background: var(--k-hover); }
+
+/* rows: no dividers, a rounded fill on hover and when picked, 2px apart */
+html:not(#_):not(#_) #mail-view .mail-row {
+  position: relative;
+  margin-top: 2px;
+  padding: var(--k-space-2) var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+}
+
+html:not(#_):not(#_) #mail-view .mail-row:hover { background: var(--k-hover); }
+html:not(#_):not(#_) #mail-view .mail-row.sel { background: var(--k-selected-fill); }
+html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open { min-height: 44px; }
+
+@media (hover: hover) and (pointer: fine) {
+  /* the actions take the sender and date line while pointed at (the date's place, like most mail
+     apps), so the subject below stays one clear target */
+  html:not(#_):not(#_) #mail-view .mail-row { padding-top: var(--k-space-3); }
+
+  html:not(#_):not(#_) #mail-view .mail-row .mail-row-acts {
+    position: absolute;
+    top: 0;
+    right: var(--k-space-2);
+    height: 44px;
+    padding-left: var(--k-space-6);
+    border-radius: var(--k-radius-control);
+    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 6%, var(--k-page)) 24px);
+    opacity: 0;
+    transition: opacity 120ms var(--k-ease-out);
+  }
+
+  html:not(#_):not(#_) #mail-view .mail-row.sel .mail-row-acts {
+    background: linear-gradient(to right, transparent, color-mix(in srgb, var(--k-text) 11%, var(--k-page)) 24px);
+  }
+
+  /* the pointer is over the row whenever it is over the actions, so they are shown whenever they
+     can be clicked */
+  html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts { opacity: 1; }
+}
+
+html:not(#_):not(#_) #mail-view .mail-error-strip {
+  margin: var(--k-space-2) 0 var(--k-space-1);
+  border: 0;
+  border-radius: var(--k-radius-control);
+}
+
+/* an empty reading pane says what it is for */
+html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before {
+  content: "pick a message to read it here";
+  display: block;
+  margin-top: clamp(48px, 14vh, 120px);
+  color: var(--k-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* overview cards: a card title owns one 44px row, so titles across a row of cards line up whether
+   or not a head holds an action (inbox's "open mail") */
+html:not(#_):not(#_) .specialist-group-overview .specialist-workbench h2:not(.sr-only) {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin-block: 0;
+}
+
+/* a card's lead figure or subject reads at the page-title size, not 28px */
+html:not(#_):not(#_) .specialist-detail-title {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* finance's day actions are real buttons, not stray words over the cards */
+html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action {
+  min-height: 44px;
+  padding: 0 var(--k-space-4);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action:hover { background: var(--k-btn-fill-hover); }
+html:not(#_):not(#_) .finance-daily-actions { margin-bottom: var(--k-block-gap); }
+
+/* ── docs ───────────────────────────────────────────────────────────────── */
+/* an open document's toolbar actions are all text actions; import was the one filled box */
+html:not(#_)[data-kokuen-version="5"] #docs-import-btn.docs-import-trigger:not(.primary) {
+  background: transparent;
+  color: var(--k-soft);
+}
+
+html:not(#_)[data-kokuen-version="5"] #docs-import-btn.docs-import-trigger:not(.primary):hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+/* the open document's name is the column's title */
+html:not(#_):not(#_) #wiki-current {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+/* journal: the entry column starts on the title's edge (24, was 32) */
+html:not(#_):not(#_) #journal-body.page-view-body { padding-inline: var(--k-gutter); }
+
+/* its entry search is a filled field like every search */
+html:not(#_):not(#_) #jrnl-search {
+  min-height: 44px;
+  padding-inline: var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-field);
+  box-shadow: inset 0 0 0 1px var(--k-field-ring);
+}
+
+/* day and year arrows are bare arrows like calendar's, with a fill on hover */
+html:not(#_)[data-kokuen-version="5"] :is(#jrnl-prev, #jrnl-next, #jrnl-heat-prev, #jrnl-heat-next).btn {
+  background: transparent;
+}
+
+html:not(#_)[data-kokuen-version="5"] :is(#jrnl-prev, #jrnl-next, #jrnl-heat-prev, #jrnl-heat-next).btn:hover:not(:disabled) {
+  background: var(--k-hover);
+}
+
+/* habits: a day is a filled cell, not an outline; done keeps the habit's own colour */
+html:not(#_):not(#_) .habit-day {
+  border-color: transparent;
+  background: var(--k-field);
+}
+
+html:not(#_):not(#_) .habit-day:hover:not(.done) {
+  border-color: transparent;
+  background: var(--k-btn-fill-hover);
+}
+
+html:not(#_):not(#_) .habit-day.done {
+  border-color: transparent;
+  background: var(--habit-accent);
+}
+
+/* money totals: the figure leads; "currency not set" stays visible (0040) as a small line under it */
+html:not(#_):not(#_) .money-summary .ms-card .ms-val:has(> .ms-currency) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+html:not(#_):not(#_) .money-summary .ms-card .ms-val:has(> .ms-currency) > .ms-number {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+html:not(#_):not(#_) .money-summary .ms-card .ms-val > .ms-label {
+  color: var(--k-muted);
+  font-weight: 400;
+}
+
+html:not(#_):not(#_) #money-view h2 { color: var(--k-text); }
+
+/* finance imports: a choice card's label sits inside it above its value (a fieldset legend drew
+   it on the card's top edge), and its change button is a secondary button */
+html:not(#_):not(#_) .finance-import-choice {
+  padding: var(--k-space-4) var(--k-space-5);
+  border-radius: var(--k-radius-surface);
+}
+
+html:not(#_):not(#_) .finance-import-choice > legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 var(--k-space-1);
+  padding: 0;
+  color: var(--k-muted);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+html:not(#_):not(#_) .finance-import-choice > legend + * { clear: both; }
+
+html:not(#_):not(#_) .finance-import-choice > button {
+  border-color: transparent;
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) .finance-import-choice > button:hover { background: var(--k-btn-fill-hover); }
+
+/* settings: a button is as wide as its words on a desktop (full width read as a banner, and two
+   stacked full-width buttons as one slab); a phone keeps them full width */
+@media (min-width: 761px) {
+  /* several carry width:100% inline */
+  html:not(#_):not(#_) #settings-modal .s-pane :is(.btn, a.btn) {
+    width: fit-content !important;
+    max-width: 100%;
+  }
+
+  html:not(#_):not(#_) #settings-modal .s-pane .s-card-body > .btn + .btn { margin-top: var(--k-space-2); }
+}
+
+/* sign in: a solid page (the app behind showed through a veil), one left edge, a filled field and
+   a full-width primary, like the vault's lock */
+html:not(#_):not(#_) #login-screen {
+  background: var(--k-page);
+  backdrop-filter: none;
+}
+
+html:not(#_):not(#_) #login-screen .login-inner {
+  display: grid;
+  gap: var(--k-space-3);
+  width: min(340px, calc(100vw - 2 * var(--k-gutter)));
+}
+
+html:not(#_):not(#_) #login-screen .login-brand {
+  margin-bottom: var(--k-space-2);
+  color: var(--k-text);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+html:not(#_):not(#_) #login-screen .login-sep { color: var(--k-muted); font-weight: 400; }
+
+html:not(#_):not(#_) #login-screen .login-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-field);
+  box-shadow: inset 0 0 0 1px var(--k-field-ring);
+  color: var(--k-text);
+  font: inherit;
+  font-size: 16px;
+}
+
+html:not(#_):not(#_) #login-screen .login-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--k-space-4);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: var(--k-accent);
+  color: var(--k-on-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+html:not(#_):not(#_) #login-screen .login-btn:hover { background: color-mix(in srgb, var(--k-accent) 86%, var(--k-text)); }
+html:not(#_):not(#_) #login-screen .login-error:empty { display: none; }
+html:not(#_):not(#_) #login-screen .login-error { color: var(--k-danger); font-size: 13px; }
+
+/* a new message gets room to write */
+html:not(#_):not(#_) #mail-view .mail-compose-body {
+  min-height: 240px;
+  padding: var(--k-space-3);
+}
+
+/* ── aide answers: paragraphs and lists get breathing room, lists sit inside the column, and a
+   code block's language and copy float in its corner instead of taking a 56px bar ── */
+html:not(#_):not(#_) :is(.ai-content, #ask-panel .ask-panel-aide) > * + * { margin-top: var(--k-space-3); }
+html:not(#_):not(#_) :is(.ai-content, #ask-panel .ask-panel-aide) :is(ul, ol) { padding-left: 1.25em; }
+html:not(#_):not(#_) :is(.ai-content, #ask-panel .ask-panel-aide) li + li { margin-top: var(--k-space-1); }
+
+html:not(#_):not(#_) .code-block { position: relative; }
+
+html:not(#_):not(#_) .code-block > .code-block-header {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-1);
+  min-height: 0;
+  padding: 0 var(--k-space-1) 0 0;
+  border: 0;
+  background: transparent;
+}
+
+html:not(#_):not(#_) .code-block > .code-block-header .code-lang:empty { display: none; }
+html:not(#_):not(#_) .code-block > .code-block-header .code-lang { color: var(--k-muted); font-size: 12px; }
+html:not(#_):not(#_) .code-block > .code-block-header .code-copy { min-height: 44px; padding: 0 var(--k-space-3); }
+html:not(#_):not(#_) .code-block > pre { padding-right: 96px; }
+
+/* high contrast: a picked row drawn only by a fill vanishes, so it takes the system highlight */
+@media (forced-colors: active) {
+  html:not(#_):not(#_) :is(
+    .docs-nav-panel :is(.docs-library-item, .docs-recent-item, .wiki-dir-head, .wiki-file).active,
+    .docs-nav-panel [aria-current="page"],
+    .files-phase7-location-panel .files-view-button.is-active,
+    .photos-sidebar .photos-nav-item.active,
+    #mail-view .mail-nav-item.active,
+    #mail-view .mail-row.sel,
+    #photos-view .photos-filt-seg > button.active,
+    .ask-aide-btn[aria-expanded="true"]
+  ) {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+}
+
+/* mail's reader: the pane starts on the gutter, its secondary actions are quiet text actions
+   (reply stays a button), and "back to messages" reads as a way out, not a task */
+html:not(#_):not(#_) #mail-view .mail-reader-head,
+html:not(#_):not(#_) #mail-view .mail-reader-body { padding-inline: var(--k-gutter); }
+html:not(#_):not(#_) #mail-view .mail-pane-nav { padding-inline: calc(var(--k-gutter) - 12px); }
+
+html:not(#_)[data-kokuen-version="5"] #mail-view :is(#mail-unread, #mail-vip, #mail-to-task, #mail-to-cal, #mail-summarize, .mail-pane-back).btn {
+  background: transparent;
+  color: var(--k-soft);
+}
+
+html:not(#_)[data-kokuen-version="5"] #mail-view :is(#mail-unread, #mail-vip, #mail-to-task, #mail-to-cal, #mail-summarize, .mail-pane-back).btn:hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+/* settings: at most one primary per pane (decision 0041; Stripe's rule). memory keeps save
+   instructions, personas keeps add persona, api keeps generate, backup keeps download; connections'
+   six independent setups are all secondary */
+html:not(#_)[data-kokuen-version="5"] #settings-modal :is(
+  #mem-add-btn, #cookbook-add-btn, #wh-add-btn,
+  #jarvis-discord-connect, #photon-connect-btn, #browser-signin-go, #perm-rule-add-btn, #mcp-add-btn, #conn-add-btn,
+  #backup-restore-btn, #webdav-backup-save-btn, #webdav-backup-run-btn, #s3-backup-save-btn, #s3-backup-run-btn
+).btn.primary {
+  border-color: var(--k-btn-line);
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+}
+
+html:not(#_)[data-kokuen-version="5"] #settings-modal :is(
+  #mem-add-btn, #cookbook-add-btn, #wh-add-btn,
+  #jarvis-discord-connect, #photon-connect-btn, #browser-signin-go, #perm-rule-add-btn, #mcp-add-btn, #conn-add-btn,
+  #backup-restore-btn, #webdav-backup-save-btn, #webdav-backup-run-btn, #s3-backup-save-btn, #s3-backup-run-btn
+).btn.primary:hover:not(:disabled) {
+  background: var(--k-btn-fill-hover);
+}
+
+/* the code view: its start suggestions are secondary buttons like every other start, and its
+   composer box shows focus once (the field inside drew its own line in the box) */
+html:not(#_):not(#_) #aide-coding-workspace .acw-suggestion {
+  border-color: transparent;
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) #aide-coding-workspace .acw-suggestion:hover { background: var(--k-btn-fill-hover); }
+
+html:not(#_):not(#_) #aide-coding-workspace .acw-entry:focus-within {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 60%, var(--k-field-ring)), 0 0 0 3px color-mix(in srgb, var(--k-accent) 16%, transparent);
+}
+
+html:not(#_):not(#_) #aide-coding-workspace .acw-entry textarea:is(:focus, :focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}

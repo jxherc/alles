@@ -94,6 +94,7 @@ function _showHelp() {
   const rows = [
     ['new_chat', 'aide.new_task'], ['search', 'common.search'],
     ['focus_input', 'aide.message_label'], ['send', 'common.send'], ['settings', 'common.settings'],
+    ['ask_aide', 'aide.ask_panel'],
   ].filter(([key]) => shortcuts[key]);
   const guides = ['model', 'controls', 'memory', 'notes', 'task', 'save', 'recovery'];
   const overlay = document.createElement('div');

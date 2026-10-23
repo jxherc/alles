@@ -108,6 +108,7 @@
     "aide.saved_plan_task": "saved plan task",
     "aide.no_matching_tasks": "no matching aide tasks",
     "aide.new_task": "new aide task",
+    "aide.ask_panel": "ask aide from any app",
     "aide.new_task_context": "new aide task context",
     "aide.no_model": "no model",
     "aide.no_tasks": "no aide tasks yet",

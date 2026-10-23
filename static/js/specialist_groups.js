@@ -2,7 +2,7 @@
 // data; the existing app modules continue to own their full, proven screens.
 
 import { confirm as confirmDialog } from './dialog.js';
-import { calendarDateKey, formatDateParts, formatDateTime, formatNumber, t } from './i18n.js';
+import { calendarDateKey, formatCalendarDate, formatDateParts, formatDateTime, formatNumber, t } from './i18n.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
@@ -311,13 +311,32 @@ export function planCommitments(events, tasks, reminders) {
   return rows.sort((left, right) => left.sort.localeCompare(right.sort) || left.title.localeCompare(right.title));
 }
 
+function _agendaDayLabel(key) {
+  if (!key) return 'no date';
+  const today = calendarDateKey(new Date());
+  if (key === today) return 'today';
+  const next = new Date(`${today}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  if (key === next.toISOString().slice(0, 10)) return 'tomorrow';
+  return formatCalendarDate(key, { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase();
+}
+
 function _agendaRows(target, rows, emptyCopy, openRecord) {
   target.replaceChildren();
   if (!rows.length) {
     target.append(_el('p', 'specialist-workbench-empty', emptyCopy));
     return;
   }
+  // rows over more than one day read under a heading per day, so the first column is only the
+  // time ("09:00", or "due" for a task with a date and no time)
+  const days = new Set(rows.map(row => row.date || ''));
+  const byDay = days.size > 1;
+  let lastDay = null;
   for (const row of rows) {
+    if (byDay && row.date !== lastDay) {
+      lastDay = row.date;
+      target.append(_el('h3', 'specialist-record-day', _agendaDayLabel(row.date)));
+    }
     const interactive = row.type === 'task' || row.type === 'event';
     const item = _el(interactive ? 'button' : 'div', 'specialist-record-row');
     if (interactive) {
@@ -328,10 +347,11 @@ function _agendaRows(target, rows, emptyCopy, openRecord) {
       item.setAttribute('aria-label', `open ${row.type}: ${row.title}${row.date ? ` · ${row.date}` : ''}${row.time ? ` ${row.time}` : ''}`);
       item.addEventListener('click', () => openRecord(row, item));
     }
+    const meta = row.meta && row.meta !== row.type ? `${row.type} · ${row.meta}` : row.type;
     item.append(
-      _el('span', 'specialist-record-time', row.time || row.date || '--'),
+      _el('span', 'specialist-record-time', row.time || (byDay ? (row.type === 'task' ? 'due' : 'all day') : row.date) || '--'),
       _el('strong', 'specialist-record-title', row.title),
-      _el('span', 'specialist-record-meta', `${row.type} · ${row.meta || row.date || ''}`),
+      _el('span', 'specialist-record-meta', meta),
     );
     target.append(item);
   }
