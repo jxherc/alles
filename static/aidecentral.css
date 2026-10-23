@@ -307,6 +307,14 @@ body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(
 body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording)::before { background: var(--k-text, var(--text)); }
 body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording):active::before { transform: scale(.94); }
 body.aide-central[data-space="aide"] .composer-box .send-btn.is-empty:hover::before { background: var(--k-hover, var(--panel)); }
+/* while an answer streams, stop takes send's own slot and look (a 32px fill in a 44px target);
+   added beside it, it pushed the model and mic 44px left the moment an answer began */
+.composer-bar .stop-btn.visible + .send-btn { display: none; }
+body.aide-central[data-space="aide"] .composer-box .stop-btn { position: relative; isolation: isolate; border-color: transparent; background: none; color: var(--k-page, var(--bg)); font-size: 10px; }
+body.aide-central[data-space="aide"] .composer-box .stop-btn::before {
+  content: ""; position: absolute; inset: 6px; z-index: -1; border-radius: var(--k-radius-control, 3px); background: var(--k-text, var(--text));
+}
+body.aide-central[data-space="aide"] .composer-box .stop-btn:hover::before { background: var(--error); }
 /* the conversation fades out under the box instead of being cut by its edge */
 body.aide-central[data-space="aide"] .composer-outer { position: relative; }
 body.aide-central[data-space="aide"] .composer-outer::before {

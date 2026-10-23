@@ -2671,15 +2671,24 @@ html:not(#_):not(#_) .code-block > .code-block-header {
   align-items: center;
   gap: var(--k-space-1);
   min-height: 0;
-  padding: 0 var(--k-space-1) 0 0;
+  padding: 0 var(--k-space-1) 0 var(--k-space-4);
   border: 0;
-  background: transparent;
+  border-top-right-radius: inherit;
+  /* a long line runs under it, so it masks with the code's own fill instead of mixing glyphs */
+  background: linear-gradient(to right, transparent, var(--panel) var(--k-space-4));
+}
+
+/* a phone has no room to share: the language and actions take a slim row over the code */
+@media (max-width: 600px) {
+  html:not(#_):not(#_) .code-block > .code-block-header { position: static; justify-content: flex-end; background: none; padding-left: 0; }
+  html:not(#_):not(#_) .code-block > pre { padding-right: var(--k-space-3); }
 }
 
 html:not(#_):not(#_) .code-block > .code-block-header .code-lang:empty { display: none; }
 html:not(#_):not(#_) .code-block > .code-block-header .code-lang { color: var(--k-muted); font-size: 12px; }
 html:not(#_):not(#_) .code-block > .code-block-header .code-copy { min-height: 44px; padding: 0 var(--k-space-3); }
 html:not(#_):not(#_) .code-block > pre { padding-right: 96px; }
+@media (max-width: 600px) { html:not(#_):not(#_) .code-block > pre { padding-right: var(--k-space-3); } }
 
 /* high contrast: a picked row drawn only by a fill vanishes, so it takes the system highlight */
 @media (forced-colors: active) {

@@ -135,3 +135,11 @@ test('plainError keeps app messages that merely mention an error', async () => {
   assert.equal(plainError('NotAllowedError: play() failed'), "the browser blocked this. allow it in the site's settings and try again");
   assert.equal(plainError('SyntaxError: bad thing'), 'something went wrong. try again');
 });
+
+test('mdToHtml nests indented list items', () => {
+  assert.equal(
+    mdToHtml('- a\n  - a1\n    1. deep\n- b'),
+    '<ul><li>a<ul><li>a1<ol><li>deep</li></ol></li></ul></li><li>b</li></ul>',
+  );
+  assert.equal(mdToHtml('- a\n    - four space'), '<ul><li>a<ul><li>four space</li></ul></li></ul>');
+});

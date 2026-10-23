@@ -136,27 +136,40 @@ export function mdToHtml(text) {
     for (const r of rows.slice(2)) html += '<tr>' + cells(r).map(c => `<td>${c}</td>`).join('') + '</tr>';
     return html + '</tbody></table>';
   });
-  // lists — line based so blank lines end a list and ul/ol never bleed together
+  // lists — line based so blank lines end a list and ul/ol never bleed together. an item indented
+  // past the one above it (2+ spaces or a tab) opens a list inside that item
   {
     const lines = out.split('\n');
     const res = [];
-    let buf = null;   // { type, items[] }
-    const flush = () => { if (buf) { res.push(`<${buf.type}>${buf.items.join('')}</${buf.type}>`); buf = null; } };
+    let html = '';
+    const stack = [];   // { type, indent }, each level with its last <li> still open
+    const close = () => { const top = stack.pop(); html += `</li></${top.type}>`; };
+    const flush = () => { while (stack.length) close(); if (html) { res.push(html); html = ''; } };
     for (const line of lines) {
-      let m;
-      if ((m = line.match(/^\s*[-*]\s+\[([ xX])\]\s+(.+)/))) {
-        if (buf?.type !== 'ul') { flush(); buf = { type: 'ul', items: [] }; }
-        buf.items.push(`<li class="md-task"><span class="chk chk-static" aria-checked="${/x/i.test(m[1]) ? 'true' : 'false'}"></span> ${m[2]}</li>`);
-      } else if ((m = line.match(/^\s*\d+\.\s+(.+)/))) {
-        if (buf?.type !== 'ol') { flush(); buf = { type: 'ol', items: [] }; }
-        buf.items.push(`<li>${m[1]}</li>`);
-      } else if ((m = line.match(/^\s*[-*]\s+(.+)/))) {
-        if (buf?.type !== 'ul') { flush(); buf = { type: 'ul', items: [] }; }
-        buf.items.push(`<li>${m[1]}</li>`);
+      let m, type, item;
+      if ((m = line.match(/^(\s*)[-*]\s+\[([ xX])\]\s+(.+)/))) {
+        type = 'ul'; item = `<li class="md-task"><span class="chk chk-static" aria-checked="${/x/i.test(m[2]) ? 'true' : 'false'}"></span> ${m[3]}`;
+      } else if ((m = line.match(/^(\s*)\d+\.\s+(.+)/))) {
+        type = 'ol'; item = `<li>${m[2]}`;
+      } else if ((m = line.match(/^(\s*)[-*]\s+(.+)/))) {
+        type = 'ul'; item = `<li>${m[2]}`;
       } else {
         flush();
         res.push(line);
+        continue;
       }
+      const indent = m[1].replace(/\t/g, '    ').length;
+      while (stack.length && indent < stack.at(-1).indent - 1) close();
+      const top = stack.at(-1);
+      if (!top || indent >= top.indent + 2) {
+        html += `<${type}>`;
+        stack.push({ type, indent });
+      } else if (top.type !== type) {
+        close();
+        html += `<${type}>`;
+        stack.push({ type, indent });
+      } else html += '</li>';
+      html += item;
     }
     flush();
     out = res.join('\n');
