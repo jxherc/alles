@@ -1990,32 +1990,9 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   }
 }
 
-/* ── ask aide: the button beside every app name and the panel it opens ─────────────
-   the panel floats over the app (a floating layer, so it gets the one shadow), 420px from the
-   right edge, full screen on a phone. aide's own app doesn't show it */
-html:not(#_) .ask-aide-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--k-space-2);
-  min-height: 44px;
-  margin-inline-start: 2px;
-  padding: 0 var(--k-space-3);
-  border: 0;
-  border-radius: var(--k-radius-control);
-  background: transparent;
-  color: var(--k-muted);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 120ms var(--k-ease-out), color 120ms var(--k-ease-out);
-}
-
-html:not(#_) .ask-aide-btn[hidden] { display: none; }
-html:not(#_) .ask-aide-btn svg { width: 16px; height: 16px; }
-html:not(#_) .ask-aide-btn:hover { background: var(--k-hover); color: var(--k-text); }
-html:not(#_) .ask-aide-btn[aria-expanded="true"] { background: var(--k-selected-fill); color: var(--k-text); }
-
+/* ── ask aide: the panel ctrl+. opens ─────────────
+   it floats over the app (a floating layer, so it gets the one shadow), 420px from the
+   right edge, full screen on a phone. aide's own app doesn't open it */
 #ask-panel {
   position: fixed;
   top: 8px;
@@ -2184,14 +2161,9 @@ html:not(#_) .ask-aide-btn[aria-expanded="true"] { background: var(--k-selected-
 
 @media (max-width: 760px) {
   #ask-panel { inset: 0; width: 100%; border-radius: 0; }
-  html:not(#_) .ask-aide-btn span { display: none; }
-  html:not(#_) .ask-aide-btn { width: 44px; justify-content: center; padding: 0; }
 }
 
 /* ── home ───────────────────────────────────────────────────────────────── */
-/* the ask button follows the app name; the date and settings keep the far edge */
-html:not(#_) .today-topbar > .ask-aide-btn { margin-inline-end: auto; }
-
 /* every section head is one 44px row, so columns start their titles on one line whether or not
    the head holds an action (pinned apps has "edit") */
 html:not(#_):not(#_) #today-view .today-section > header {
@@ -2712,8 +2684,7 @@ html:not(#_):not(#_) .code-block > pre { padding-right: 96px; }
     .photos-sidebar .photos-nav-item.active,
     #mail-view .mail-nav-item.active,
     #mail-view .mail-row.sel,
-    #photos-view .photos-filt-seg > button.active,
-    .ask-aide-btn[aria-expanded="true"]
+    #photos-view .photos-filt-seg > button.active
   ) {
     forced-color-adjust: none;
     background: Highlight !important;

@@ -1,5 +1,5 @@
 """The ask-aide panel: opens from any app, sends the screen only when sharing is on, streams the
-answer, closes back to its button, hands the session to Aide, and stays off vault and Aide."""
+answer, closes back to where it was opened, hands the session to Aide, and stays off vault and Aide."""
 
 import json
 import os
@@ -56,7 +56,7 @@ class PanelModel(BaseHTTPRequestHandler):
 
 
 def _targets(page):
-    small = page.evaluate("""() => [...document.querySelectorAll('#ask-panel button, #ask-panel textarea, #ask-aide-btn')]
+    small = page.evaluate("""() => [...document.querySelectorAll('#ask-panel button, #ask-panel textarea')]
         .filter(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden')
         .map(el => { const r = el.getBoundingClientRect(); return [el.id || el.className || el.textContent.trim(), Math.round(r.width), Math.round(r.height)]; })
         .filter(([, w, h]) => w < 44 || h < 44)""")
@@ -111,10 +111,10 @@ def run():
                 try:
                     PanelModel.questions.clear()
                     page.goto(f"{HOME}/?view=tasks")
-                    button = page.locator("#ask-aide-btn")
-                    expect(button).to_be_visible()
+                    # no button beside the app name: the panel opens with its shortcut only
+                    expect(page.locator("#ask-aide-btn")).to_have_count(0)
                     expect(page.locator("#tasks-list")).to_contain_text("renew passport")
-                    button.click()
+                    page.keyboard.press("Control+.")
                     panel = page.locator("#ask-panel")
                     expect(panel).to_be_visible()
                     expect(page.locator("#ask-panel-input")).to_be_focused()
@@ -154,7 +154,7 @@ def run():
 
                     page.keyboard.press("Escape")
                     expect(panel).to_be_hidden()
-                    expect(button).to_be_focused()
+                    expect(page.locator("#ask-panel-input")).not_to_be_focused()
                     page.keyboard.press("Control+.")
                     expect(panel).to_be_visible()
                     expect(page.locator(".ask-panel-you")).to_have_count(2)
@@ -162,11 +162,9 @@ def run():
                     page.click("#ask-panel-open")
                     expect(page.locator("#messages")).to_contain_text("what is due?")
                     expect(page.locator("#messages")).to_contain_text("renew passport is due")
-                    expect(page.locator("#ask-aide-btn")).to_be_hidden()
 
                     page.goto(f"{HOME}/?view=vault")
                     expect(page.locator("#vault-view")).to_be_visible()
-                    expect(page.locator("#ask-aide-btn")).to_be_hidden()
                     page.keyboard.press("Control+.")
                     expect(panel).to_have_count(0) if panel.count() == 0 else expect(
                         panel

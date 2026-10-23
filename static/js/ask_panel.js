@@ -10,7 +10,6 @@ const SESSION_KEY = 'alles-ask-session';
 const SCREEN_LIMIT = 3000;
 
 let panel = null;
-let button = null;
 let sessionId = '';
 let busy = null;          // the AbortController of the running answer
 let shareScreen = true;
@@ -134,7 +133,6 @@ export function openAskPanel() {
   paintEmpty();
   panel.hidden = false;
   document.body.classList.add('ask-panel-open');
-  button?.setAttribute('aria-expanded', 'true');
   requestAnimationFrame(() => $('ask-panel-input')?.focus());
 }
 
@@ -142,8 +140,7 @@ export function close() {
   if (!panel || panel.hidden) return;
   panel.hidden = true;
   document.body.classList.remove('ask-panel-open');
-  button?.setAttribute('aria-expanded', 'false');
-  (opener?.isConnected ? opener : button)?.focus?.();
+  if (opener?.isConnected) opener.focus?.();
 }
 
 function toggle() { isAskPanelOpen() ? close() : openAskPanel(); }
@@ -285,24 +282,8 @@ async function openInAide() {
   await selectSession(id);
 }
 
-// the "ask" button sits beside the app name on every screen it can help with
-export function mountAskButton(afterTitle) {
-  if (!button) {
-    button = document.createElement('button');
-    button.type = 'button';
-    button.id = 'ask-aide-btn';
-    button.className = 'ask-aide-btn';
-    button.setAttribute('aria-controls', 'ask-panel');
-    button.setAttribute('aria-expanded', 'false');
-    button.innerHTML = `${icon('sparkles')}<span>ask</span>`;
-    button.addEventListener('click', toggle);
-  }
-  const shortcut = loadShortcuts().ask_aide;
-  button.title = shortcut ? `ask aide about this screen (${shortcut})` : 'ask aide about this screen';
-  button.setAttribute('aria-label', 'ask aide about this screen');
-  if (shortcut) button.setAttribute('aria-keyshortcuts', shortcut.replace('Ctrl', 'Control'));
-  button.hidden = blocked();
-  if (afterTitle && afterTitle.nextElementSibling !== button) afterTitle.after(button);
+// opens with its shortcut only; on a screen it can't help with it closes
+export function syncAskPanel() {
   if (blocked()) close();
   else if (isAskPanelOpen()) paintContext();
 }

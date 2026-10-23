@@ -56,7 +56,7 @@ import { initAideCentral } from './aidecentral.js?v=1';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=2';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=249';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
-import { initAskPanel, mountAskButton } from './ask_panel.js';
+import { initAskPanel, syncAskPanel } from './ask_panel.js';
 import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=243';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
@@ -1448,7 +1448,7 @@ function _syncShellTrigger(root = null) {
   target.prepend(title);
   target.classList.add('shell-trigger-host');
   document.getElementById('app-drawer-label').textContent = label;
-  mountAskButton(title);
+  syncAskPanel();
   trigger.setAttribute('aria-label', `switch app from ${label}`);
   trigger.hidden = false;
 }

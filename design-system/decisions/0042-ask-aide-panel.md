@@ -9,13 +9,12 @@ that left the app for Aide's chat.
 
 ## decision
 
-- **one panel, every app.** An "ask" button with the sparkle glyph sits beside the app name;
-  `Ctrl+.` toggles it (a free, unreserved combination; Alt+letter fails on mac keyboards). It
+- **one panel, every app.** `Ctrl+.` toggles it (a free, unreserved combination; Alt+letter fails on mac keyboards). It
   is in the shortcut registry, rebindable, and listed in aide's help.
 - **a floating layer.** 420px from the right edge with 8px clearance, radius 16, the raised tone
   and the one floating shadow (decision 0041). Full screen on a phone. It slides in over 280ms
   and doesn't move under reduced motion. Esc stops an answer, then closes; focus returns to
-  the button.
+  where it was.
 - **what aide sees is shown.** A line above the composer says "sees plan · agenda"; one tap
   turns screen sharing off for the next question. The panel sends a plain chat turn (`simple`,
   no tools) with the app, view and up to 3,000 characters of the screen's words. Aide itself
@@ -27,3 +26,8 @@ that left the app for Aide's chat.
 
 - The existing handoffs stay; they carry richer context (a day plan, selected notes, results).
 - The 44px target on every panel control.
+
+## changed (2026-10-23)
+
+The "ask" button beside every app name is gone. The owner found it useless clutter on every
+screen. The panel opens with `Ctrl+.` only.

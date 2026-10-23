@@ -278,9 +278,6 @@ async def run_profile(browser, base, output, device, theme, record):
 
         await page.locator("#app-drawer-btn").focus()
         await page.keyboard.press("Tab")
-        # the "ask" button for the aide side panel follows the app name (decision 0042)
-        if await page.evaluate("document.activeElement?.classList.contains('ask-aide-btn')"):
-            await page.keyboard.press("Tab")
         await expect(query).to_be_focused()
         await expect(form).to_have_attribute("data-keyboard-focus", "")
         keyboard = await assert_search_has_no_outline(page)
