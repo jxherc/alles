@@ -34,7 +34,9 @@ export function initDatePicker(el) {
   el.addEventListener('click', e => { e.stopPropagation(); _toggle(el); });
   el.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _toggle(el); }
-    else if (e.key === 'Escape') _close();
+    // escape closes the open picker and stops there, so a form around it (mail compose) doesn't
+    // read it as "leave and discard"
+    else if (e.key === 'Escape' && _open?.el === el) { e.stopPropagation(); _close(); }
   });
 }
 

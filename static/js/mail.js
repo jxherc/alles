@@ -1658,7 +1658,7 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
     </div>
     <div class="mc-sched-wrap" id="mc-sched-wrap" style="display:none">
       <span class="mc-sched-zone">send at · ${esc(resolvedTimeZone())}</span>
-      <input class="settings-input date-input mc-sched-date" id="mc-sched-date" data-type="date" placeholder="date" aria-label="scheduled date">
+      <div class="settings-input date-input mc-sched-date" id="mc-sched-date" data-type="date" data-ph="date" aria-label="scheduled date"></div>
       <input class="settings-input mc-sched-time" id="mc-sched-time" placeholder="HH:MM" value="09:00" maxlength="5" aria-label="scheduled time">
     </div>
     ${_accounts.length > 1 || missingAccount ? `<div class="settings-input custom-select" id="mc-account" aria-label="sending account"></div>` : ''}
