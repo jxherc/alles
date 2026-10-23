@@ -1092,7 +1092,7 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
         <div class="vform-field"><label for="vf-name">name</label>
           <input id="vf-name" class="settings-input vform-input" placeholder="e.g. Chase Visa"></div>
         <div class="vform-field"><label id="vf-type-label">type</label>
-          <div class="custom-select" id="vf-type" style="width:100%"></div></div>
+          <div class="settings-input custom-select vform-input" id="vf-type" style="width:100%"></div></div>
         <div class="vform-divider"></div>
         <div id="vf-fields"></div>
         ${editing ? `<div class="vform-divider"></div>

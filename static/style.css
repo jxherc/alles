@@ -4665,8 +4665,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .vform-divider { height: 1px; background: var(--faint); margin: 0.15rem 0; }
 .vform-empty { font-size: 0.75rem; color: var(--muted); padding: 0.4rem 0; }
 .vault-form .vault-schema-pick { padding: 0.1rem 0; }
-.vform-pw { display: flex; align-items: center; gap: 0.35rem; }
-.vform-pw .vform-input { flex: 1; min-width: 0; }
+.vform-pw { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+/* a half-width secret (cvv) squeezed its box to 28px beside show and copy; under 5rem they wrap */
+.vform-pw .vform-input { flex: 1 1 5rem; min-width: 5rem; }
+@media (max-width: 600px) { .vform-field.half .vform-pw .vform-input { flex-basis: 100%; } }
 .vform-pw .act-btn, .vform-pw .btn { flex-shrink: 0; }
 .vform-secretarea { display: flex; align-items: flex-start; gap: 0.35rem; }
 .vform-secretarea .vform-input { flex: 1; min-width: 0; -webkit-text-security: disc; }
