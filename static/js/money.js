@@ -2179,13 +2179,18 @@ async function runReconcile(aid) {
       : `cleared ${fmt(d.cleared_balance)} · off by ${fmt(Math.abs(d.difference))}`;
   } catch { out.textContent = 'failed'; }
 }
+let _transferBusy = false;
 async function doTransfer() {
+  // a second click while the first is out would only meet "already in progress" for a transfer
+  // that worked
+  if (_transferBusy) return;
   const from = getDropdownValue($('tr-from')), to = getDropdownValue($('tr-to'));
   const amt = _decimal($('tr-amt')?.value);
   if (!_validAmounts(amt)) return;
   if (!amt || amt <= 0) { toast('enter an amount', 'error'); return; }
   if (from === to) { toast('pick two different accounts', 'error'); return; }
   let requestId = '';
+  _transferBusy = true;
   try {
     const transferPayload = {
       from_account: from, to_account: to, amount: amt, date: $('tr-date')?.dataset.value || _today(),
@@ -2199,6 +2204,8 @@ async function doTransfer() {
   } catch (error) {
     if (requestId) _releaseCreateRequest('transfer', requestId);
     toast(error.message || 'transfer failed', 'error');
+  } finally {
+    _transferBusy = false;
   }
 }
 async function delTransfer(tid) {

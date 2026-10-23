@@ -94,6 +94,12 @@ class SubsIntelTests(ApiTest):
         ).json()
         self.assertTrue(any(s["name"] == "Hulu" for s in d["unused"]))
 
+    def test_a_subscription_added_today_is_not_called_unused(self):
+        self._acct()
+        self._sub("Brand New")
+        d = self.client.get("/api/subscriptions/unused").json()
+        self.assertFalse(any(s["name"] == "Brand New" for s in d["unused"]))
+
     def test_unused_only_active(self):
         self._acct()
         self._sub("Paused", active=False)

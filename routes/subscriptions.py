@@ -633,6 +633,11 @@ def unused_subscriptions(cycles: int = 2, as_of: str = "", db: DbSession = Depen
             continue
         win = _cycle_len(sub) * max(1, cycles)
         cutoff = today - timedelta(days=win)
+        # one added inside the window hasn't had the chance to be charged yet; "unused?" on a
+        # subscription added a minute ago was noise
+        added = getattr(sub, "created_at", None)
+        if isinstance(added, datetime) and cutoff < added.date() <= today:
+            continue
         matched = False
         for t in charges:
             hay = f"{t.payee or ''} {t.notes or ''} {t.category or ''}".lower()

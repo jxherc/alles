@@ -433,6 +433,8 @@ async function showHistory(id) {
   const ownsFocus = focused?.closest('.sub-item')?.dataset.id === id
     && (focused.matches('[data-act="history"]') || !!focused.closest('.sub-hist-pop'));
   state.loading = false; renderHistory();
+  // a row near the bottom opened its payments past the screen edge, hiding undo
+  document.querySelector?.('.sub-hist-pop')?.scrollIntoView?.({ block: 'nearest' });
   if (ownsFocus && $('subs-view')?.offsetParent) (document.querySelector('.sub-hist-pop [data-history-retry]') || document.querySelector('.sub-hist-pop [data-act="undo-last"]') || document.querySelector('.sub-hist-pop [data-history-close]'))?.focus();
 }
 
