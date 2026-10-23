@@ -233,7 +233,8 @@ with sync_playwright() as pw:
                         + scenario,
                         "tx-cat": "community",
                         "tx-tags": "local-test",
-                        "tx-amt": "19.75 extra" if scenario == "late-invalid" else "19.75",
+                        # amounts format as you type, so the invalid one is a lone point
+                        "tx-amt": "." if scenario == "late-invalid" else "19.75",
                     }
                     if page.locator("#tx-details").is_hidden():
                         page.locator("#tx-details-toggle").click()
