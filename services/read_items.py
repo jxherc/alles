@@ -2,7 +2,7 @@
 
 import hashlib
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
@@ -73,6 +73,15 @@ def save_url(db: Session, url: str, request_id: str = "") -> ReadItem:
         raise HTTPException(400, "url required")
     if not url.startswith("http"):
         url = "https://" + url
+    # "not a url at all" became https://not a url at all; a web address has a host with a dot
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    if (
+        any(ch.isspace() for ch in url)
+        or parts.scheme not in ("http", "https")
+        or not ("." in host or host == "localhost")
+    ):
+        raise HTTPException(400, "that doesn't look like a web address")
     identity = create_identity(request_id) if request_id else ""
     payload_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
     if identity:

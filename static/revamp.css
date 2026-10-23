@@ -2788,3 +2788,9 @@ html:not(#_) #settings-modal .s-pane > .settings-save-state {
   text-align: right;
   pointer-events: none;
 }
+
+/* a saved article opens from anywhere on its card, not just the title strip; its own buttons
+   (tags, actions) sit above that */
+html:not(#_) .read-card { position: relative; }
+html:not(#_) .read-card .read-card-open::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+html:not(#_) .read-card :is(.read-card-actions, .read-tag, .read-card-meta button) { position: relative; z-index: 1; }

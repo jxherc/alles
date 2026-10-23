@@ -210,3 +210,10 @@ class ReadRequestMigrationTests(unittest.TestCase):
                 )
         finally:
             engine.dispose()
+
+
+class ReadUrlShapeTests(ApiTest):
+    def test_text_that_is_not_a_web_address_is_refused(self):
+        for bad in ("not a url at all", "hello", "https://"):
+            response = self.client.post("/api/read", json={"url": bad})
+            self.assertEqual(response.status_code, 400, (bad, response.text))
