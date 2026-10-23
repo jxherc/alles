@@ -1976,11 +1976,12 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   if (!query) { input?.focus(); return; }
   _openedSaved = null;
   _savedOpenRetry = '';
+  // the search lives in the address, so a reload or coming back from a result opens it again
+  // instead of an empty page
   const route = new URL(location.href);
-  if (route.searchParams.has('saved')) {
-    route.searchParams.delete('saved');
-    replaceRouteUrl(route);
-  }
+  route.searchParams.delete('saved');
+  route.searchParams.set('q', query);
+  if (route.href !== location.href) replaceRouteUrl(route);
   const currentCategory = CATEGORIES.has(options.category) ? options.category : category();
   if (input) input.value = query;
   setPageState('results');
