@@ -431,7 +431,8 @@ test('Plan sorts wall times and offset timestamps in one configured timezone', (
 
 test('Plan loads expanded calendar occurrences for its eight-day window', () => {
   assert.match(specialistSource, /_json\(request, '\/api\/calendar\/agenda\?days=8'\)/);
-  assert.match(specialistSource, /_asArray\(agendaPayload, 'days'\)\.flatMap\(day => _asArray\(day, 'events'\)\)/);
+  assert.match(specialistSource, /_asArray\(agendaPayload, 'days'\)\.flatMap\(day => _asArray\(day, 'events'\)/);
+  assert.match(specialistSource, /event\?\.continued && day\?\.date \? \{ \.\.\.event, start_dt: day\.date \}/);
 });
 
 test('ambiguous statement matches expose explicit duplicate and import-new decisions', () => {
