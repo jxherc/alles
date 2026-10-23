@@ -352,6 +352,9 @@ def snippet_evidence(query: str, results: list[dict]) -> list[dict]:
                 "passages": [snippet[:900]],
             }
         )
+        # two spare rows cover short snippets that get skipped, not a bigger answer
+        if len(evidence) >= MAX_EVIDENCE_SOURCES:
+            break
     return evidence
 
 

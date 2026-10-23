@@ -75,7 +75,8 @@ async function jsonRequest(url, options = {}) {
   let body = {};
   try { body = await response.json(); } catch {}
   if (!response.ok) {
-    const error = new Error(body.detail || tr('common.request_failed'));
+    // a validation reply's detail is a list of objects; showing it read "[object Object]"
+    const error = new Error(typeof body.detail === 'string' && body.detail ? body.detail : tr('common.request_failed'));
     error.code = body.code || `http_${response.status}`;
     error.failure_type = body.failure_type || '';
     error.attempted_sources = body.attempted_sources || [];

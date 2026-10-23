@@ -1509,7 +1509,8 @@ code {
 .model-error details { margin-top: var(--k-space-2); color: var(--muted); }
 .model-error summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
 .model-error pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 10em; overflow-y: auto; }
-.aide-retry-response { display: block; min-height: 44px; margin-top: var(--k-space-2); }
+.aide-retry-response { display: inline-flex; align-items: center; min-height: 44px; margin-top: var(--k-space-2); }
+.aide-retry-response + .aide-retry-response { margin-inline-start: var(--k-space-2); }
 #chat .aide-retry-response:focus-visible { outline-offset: -3px; }
 
 /* connectivity banner — appears when a chat can't reach the endpoint */

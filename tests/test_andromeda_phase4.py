@@ -1243,6 +1243,22 @@ class AndromedaApiTest(ApiTest):
         self.assertIsNone(db.get(AndromedaSavedSearch, search_id))
         db.close()
 
+    def test_a_go_deeper_overview_with_ten_sources_saves(self):
+        payload = {
+            "query": "deep query",
+            "overview": {"status": "ready", "claims": []},
+            "evidence": [{"id": f"s{i}", "passages": ["passage"]} for i in range(1, 11)],
+        }
+        saved = self.client.post("/api/andromeda/saved", json=payload)
+        self.assertEqual(saved.status_code, 200, saved.text)
+
+    def test_fast_overview_cites_at_most_six_sources(self):
+        rows = [
+            {"url": f"https://example{i}.com/page", "title": f"t{i}", "snippet": "word " * 20}
+            for i in range(12)
+        ]
+        self.assertEqual(len(andromeda.snippet_evidence("q", rows)), andromeda.MAX_EVIDENCE_SOURCES)
+
     def test_deep_research_keeps_the_selected_project_and_query(self):
         self._endpoint(local=True)
         db = self.db()

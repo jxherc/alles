@@ -478,6 +478,12 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         ? `<div class="error-msg model-error"><p role="status">${escHtml(message)}</p></div>`
         : `<div class="error-msg">${escHtml(message)}</div>`;
       body.classList.add('done');
+      if (rejectedBeforeStart && !pendingDraft && !previousRow && getActiveId() === sessionId) {
+        // the words were refused, not sent: put them back so a reload doesn't lose them, and show
+        // the work that holds this conversation (and any question it is waiting on) right away
+        restoreComposerInput(request.message);
+        import('./bgrun.js').then(m => m.reattach(sessionId)).catch(() => {});
+      }
       if (!pendingDraft && !rejectedBeforeStart && !previousRow && getActiveId() === sessionId && _streamToken === streamToken) {
         restoreDocumentScope(documentScope);
         if (documentScope) {
@@ -912,6 +918,19 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         if (restoreFocus) document.getElementById('composer-ta')?.focus();
       });
       body.querySelector('.error-msg')?.appendChild(retry);
+      if (rejectedBeforeStart) {
+        // retry can't win while that work waits on you, so offer the way out too
+        const stop = document.createElement('button');
+        stop.type = 'button'; stop.className = 'btn aide-retry-response'; stop.textContent = 'stop that work';
+        stop.addEventListener('click', async () => {
+          stop.disabled = true;
+          await fetch(`/api/chat/stop/${encodeURIComponent(sessionId)}`, { method: 'POST' }).catch(() => {});
+          stop.textContent = 'stopped';
+          retry.focus();
+        });
+        body.querySelector('.error-msg')?.appendChild(stop);
+        scrollDown({ force: true });
+      }
     }
 
     // action buttons

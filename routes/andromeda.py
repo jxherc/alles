@@ -719,7 +719,8 @@ class SaveBody(BaseModel):
     request: dict = Field(default_factory=dict)
     results: list[dict] = Field(default_factory=list, max_length=andromeda.MAX_CATEGORY_RESULTS)
     overview: dict = Field(default_factory=dict)
-    evidence: list[dict] = Field(default_factory=list, max_length=6)
+    # a "go deeper" overview cites up to 10 sources; a limit of 6 refused to save it
+    evidence: list[dict] = Field(default_factory=list, max_length=andromeda.DEEP_EVIDENCE_SOURCES)
     model: dict = Field(default_factory=dict)
     verification: dict = Field(default_factory=dict)
     verifier_model: dict = Field(default_factory=dict)
