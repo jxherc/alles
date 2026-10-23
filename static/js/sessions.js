@@ -17,6 +17,7 @@ import { loadAnswerTaskRecovery } from './answer_task.js';
 import { createMenuController } from './kokuen.js';
 import { replaceRouteUrl } from './route_history.js';
 import { compactResponseActions } from './response_actions.js?v=1';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
 let _activeId = null;
@@ -339,12 +340,14 @@ export function renderSidebar(filter = '') {
       e.stopPropagation();
       toggleSessionStar(sid);
     });
-    _bindSessionDrag(el);
-    // double-click to rename
-    el.querySelector('.session-name')?.addEventListener('dblclick', e => {
+    // rename, star, move and delete were right-click only, which a touch screen can't reach
+    const more = el.querySelector('.session-more');
+    more?.addEventListener('click', e => {
       e.stopPropagation();
-      startRename(el, sid);
+      const box = more.getBoundingClientRect();
+      openCtxMenu({ clientX: box.left, clientY: box.bottom }, sid, more);
     });
+    _bindSessionDrag(el);
   });
 }
 
@@ -365,8 +368,9 @@ function renderItem(s) {
   return `<div class="session-item${starred}${incog}" data-id="${s.id}" draggable="true">
   <button type="button" class="session-open" aria-haspopup="menu" aria-current="${s.id === _activeId ? 'true' : 'false'}" aria-label="open session ${escHtml(s.name)}">
     <span class="session-dot"></span>
-    ${icon}<span class="session-name">${escHtml(s.name)}</span>
+    ${icon}<span class="session-name">${escHtml(s.name)}</span>${s.starred ? `<span class="session-starred" title="starred">${_si('star-fill')}</span>` : ''}
   </button>
+  <button type="button" class="session-more" aria-haspopup="menu" aria-label="actions for ${escHtml(s.name)}">${_si('more')}</button>
   <button type="button" class="star" title="${s.starred ? 'unstar' : 'star'}" aria-label="${s.starred ? 'unstar session' : 'star session'}"></button>
 </div>`;
 }
@@ -1195,7 +1199,11 @@ function openCtxMenu(e, id, source = null) {
       } else if (action === 'delete') {
         if (!await _dlgConfirm('delete this session?')) return;
         const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
-        if (!res.ok) { toast('unstar before deleting', 'error'); return; }
+        if (!res.ok) {
+          const detail = (await res.json().catch(() => ({})))?.detail;
+          toast(typeof detail === 'string' && detail ? detail : (s.starred ? 'unstar it before deleting' : 'could not delete this conversation; try again'), 'error');
+          return;
+        }
         const wasActive = id === _activeId;
         await loadSessions();
         if (wasActive) newChat();

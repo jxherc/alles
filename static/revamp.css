@@ -2855,3 +2855,23 @@ html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trig
   -webkit-mask: var(--ic-chev-down) center / contain no-repeat; mask: var(--ic-chev-down) center / contain no-repeat;
 }
 html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger[aria-expanded="true"]::after { -webkit-mask-image: var(--ic-chev-up); mask-image: var(--ic-chev-up); }
+
+/* each conversation row has its own "more" (rename, star, move, delete): right-click was the only
+   way in, which an ipad can't do. a starred conversation shows its star */
+html:not(#_) .session-item .session-more {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: none;
+  color: var(--k-muted);
+  cursor: pointer;
+}
+html:not(#_) .session-item .session-more:hover { background: var(--k-hover); color: var(--k-text); }
+html:not(#_) .session-item .session-starred { flex: 0 0 auto; display: inline-flex; color: var(--k-muted); }
+html:not(#_) .session-item .session-starred .ic { width: 13px; height: 13px; }
