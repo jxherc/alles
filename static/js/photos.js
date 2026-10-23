@@ -380,15 +380,30 @@ async function loadHidden() {
   _killMap(); _repaint = null;
   let r = await fetch('/api/photos/hidden', { headers: _vaultTok ? { 'X-Vault-Token': _vaultTok } : {} });
   if (r.status === 403) {
+    // nothing of the open library shows behind the lock while it asks
+    grid.innerHTML = `<div class="photos-empty">${_si('lock')} hidden album is locked</div>`;
+    // the album opens with the vault's password. with no vault yet, unlocking here would quietly
+    // make the first password typed the vault's master password, with no second entry to catch a typo
+    const setup = await fetch('/api/vault/setup').then(res => res.json()).catch(() => ({}));
+    if (setup.state !== 'locked') {
+      grid.innerHTML = `<div class="photos-empty">${_si('lock')} the hidden album uses your vault's password. <button type="button" class="btn" id="photos-hidden-vault">set up the vault</button></div>`;
+      $('photos-hidden-vault')?.addEventListener('click', () => window._navigateTo?.('vault'));
+      return;
+    }
     const pw = await dlgPrompt('', '', { secret: true, title: 'hidden album', label: 'vault master password', confirmLabel: 'unlock' });
     if (!pw) { grid.innerHTML = `<div class="photos-empty">${_si('lock')} hidden album is locked</div>`; return; }
+    let why = 'unlock failed';
     try {
       const u = await fetch('/api/vault/unlock', {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: pw }),
       });
-      if (!u.ok) throw 0;
+      if (!u.ok) {
+        const detail = (await u.json().catch(() => ({})))?.detail;
+        if (typeof detail === 'string') why = detail;
+        throw 0;
+      }
       _vaultTok = (await u.json()).token;
-    } catch { toast('unlock failed', 'error'); grid.innerHTML = `<div class="photos-empty">${_si('lock')} unlock failed</div>`; return; }
+    } catch { toast(why, 'error'); grid.innerHTML = `<div class="photos-empty">${_si('lock')} ${esc(why)}</div>`; return; }
     r = await fetch('/api/photos/hidden', { headers: { 'X-Vault-Token': _vaultTok } });
   }
   if (!r.ok) { grid.innerHTML = `<div class="photos-empty">${_si('lock')} hidden album is locked</div>`; return; }

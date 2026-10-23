@@ -141,6 +141,16 @@ def main():
         r["hide_removes_from_grid"] = id2 not in grid_now and id0 in grid_now
 
         # ---- hidden album prompts for the master password ----
+        # the vault exists first: the album's prompt only unlocks, it never creates a vault
+        setup = pg.evaluate(
+            """async () => { const r = await fetch('/api/vault/unlock', { method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ password: 'test-master-7a' }) });
+              const { token } = await r.json();
+              await fetch('/api/vault/lock', { method: 'POST', headers: { 'X-Vault-Token': token } });
+              return r.ok; }"""
+        )
+        assert setup, "vault setup failed"
         select_view("__hidden__")
         pg.wait_for_selector("#_di", timeout=6000)
         r["hidden_album_prompts_unlock"] = pg.query_selector("#_di") is not None
