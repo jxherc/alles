@@ -579,7 +579,7 @@ async function _renderInbox(target, request) {
     detail.append(
       _el('strong', 'specialist-detail-title', message.subject || '(no subject)'),
       _el('p', 'specialist-detail-meta', `${sender(message) || 'unknown sender'} · ${_dateLabel(message.date || message.received_at || message.internal_date)}`),
-      _el('p', 'specialist-detail-body', message.snippet || message.preview || message.body_text || 'Open Mail to read the full cached message.'),
+      _el('p', 'specialist-detail-body', message.snippet || message.preview || message.body_text || 'open mail to read the whole message.'),
     );
     const contact = contacts.find(item => {
       const address = mailboxAddress(message.from_email || message.from || '');

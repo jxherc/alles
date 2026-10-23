@@ -543,7 +543,7 @@ class AgendaCase:
         ) as pending:
             await self.page.locator("#cal-save").press("Enter")
             if recurring:
-                await self.page.get_by_role("button", name="All events", exact=True).press("Enter")
+                await self.page.get_by_role("button", name="all events", exact=True).press("Enter")
         response = await pending.value
         assert response.ok, await response.text()
         response_record = await response.json()

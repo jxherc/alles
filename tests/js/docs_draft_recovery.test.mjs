@@ -123,7 +123,7 @@ for (const [name, content] of [['Unicode and Markdown', exactDraft], ['intention
     h.pagehide(); await tick();
     assert.equal(server.writes.at(-1).body.content, content, 'pagehide must not serialize original file bytes');
     const reloaded = harness(server); await reloaded.open('proof.md');
-    assert.equal(reloaded.get('wiki-inline-message').textContent, 'A private local draft is waiting.');
+    assert.equal(reloaded.get('wiki-inline-message').textContent, 'a private local draft is waiting.');
     await reloaded.enter();
     assert.equal(reloaded.state().content, content);
     assert.equal(reloaded.state().base, hash(original));

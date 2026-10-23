@@ -178,7 +178,7 @@ def run():
                 page.locator("#cal-title").fill(f"changed occurrence {label}")
                 page.locator("#cal-save").click()
                 page.get_by_role("dialog", name="edit recurring event").get_by_role(
-                    "button", name="This event", exact=True
+                    "button", name="this event", exact=True
                 ).click()
                 expect(page.locator("#cal-title")).to_have_count(0)
                 events = context.request.get(base + "/api/calendar").json()

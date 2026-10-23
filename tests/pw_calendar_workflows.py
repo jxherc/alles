@@ -396,7 +396,9 @@ def run():
                 ).click()
                 handler = simulate("GET", payload={"detail": "simulated calendar unavailable"})
                 calendar(reload=True)
-                expect(page.locator("#cal-load-error")).to_contain_text("could not load the calendar")
+                expect(page.locator("#cal-load-error")).to_contain_text(
+                    "could not load the calendar"
+                )
                 shot("list-error")
                 stop_simulation(handler)
                 page.locator("#cal-load-error").get_by_role("button", name="retry").click()
@@ -491,7 +493,7 @@ def run():
                 remember("keyboard choices persisted after reload", choices)
                 page.locator("#cal-del").click()
                 page.get_by_role("dialog", name="delete recurring event").get_by_role(
-                    "button", name="All events", exact=True
+                    "button", name="all events", exact=True
                 ).click()
                 expect(page.locator("#cal-title")).to_have_count(0)
                 calendar(reload=True)
@@ -523,15 +525,15 @@ def run():
                 expect(page.locator("#cal-save")).to_be_focused()
                 assert saved(sid) == series
                 page.locator("#cal-save").click()
-                scope("All events")
+                scope("all events")
                 expect(page.locator("#cal-title")).to_have_count(0)
                 calendar(reload=True)
                 assert saved(sid)["start_dt"] == series["start_dt"]
                 assert saved(sid)["end_dt"] == series["end_dt"]
                 assert saved(sid)["recur_count"] == 3
                 for which, occurrence in [
-                    ("This event", "2026-10-02"),
-                    ("This and following", "2026-10-09"),
+                    ("this event", "2026-10-02"),
+                    ("this and following", "2026-10-09"),
                 ]:
                     page.locator("#cal-next").click()
                     open_event(sid, occurrence)
@@ -557,13 +559,13 @@ def run():
                 assert master["recur_except"] == ["2026-10-02"]
                 assert master["recur_until"] == "2026-10-08"
                 tail = next(
-                    row for row in rows() if row["description"] == "This and following revised"
+                    row for row in rows() if row["description"] == "this and following revised"
                 )
                 assert tail["recur_count"] == 1
                 passed()
 
                 begin("scoped-write-lost-ack-retry-no-duplicate")
-                for scope_label in ["This event", "This and following"]:
+                for scope_label in ["this event", "this and following"]:
                     response = context.request.post(
                         base + "/api/calendar",
                         data={
@@ -612,7 +614,7 @@ def run():
                     )
                     expect(page.locator("#cal-desc")).to_have_value(description)
                     assert rows() == after_commit
-                    shot("lost-ack-" + ("this" if scope_label == "This event" else "following"))
+                    shot("lost-ack-" + ("this" if scope_label == "this event" else "following"))
                     calendar(reload=True)
                     assert rows() == after_commit
                     remember(
@@ -718,7 +720,7 @@ def run():
                     description = label + " " + case + " prose only"
                     page.locator("#cal-desc").fill(description)
                     page.locator("#cal-save").click()
-                    scope("This event")
+                    scope("this event")
                     expect(page.locator("#cal-title")).to_have_count(0)
                     calendar(reload=True)
                     child = next(row for row in rows() if row["description"] == description)

@@ -242,7 +242,7 @@ function editorBusy(busy) {
 }
 async function leaveEditor() {
   if (_saving) return;
-  if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm('Discard unsaved event changes?'))) return;
+  if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm('discard your unsaved event changes?'))) return;
   await loadCalendar();
 }
 function calendarLoadError(message) {
@@ -451,7 +451,7 @@ function _bindNav() {
     quickUndo.setAttribute('aria-busy', String(busy));
   };
   const canReplaceDraft = async () => !_readDraft || _readDraft() === _draftSnapshot
-    || await dlgConfirm('Discard unsaved event changes?');
+    || await dlgConfirm('discard your unsaved event changes?');
   quick?.addEventListener('keydown', async e => {
     if (e.key !== 'Enter' || e.isComposing || quickBusy || _saving) return;
     e.preventDefault();
@@ -1301,10 +1301,10 @@ async function applyTimeChange(id, occ, newStart, newEnd) {
 function chooseScope(verb, hasSelectedOccurrence = true) {
   return dlgChoose(`${verb} recurring event`, [
     ...(hasSelectedOccurrence ? [
-      { value: 'this', label: 'This event' },
-      { value: 'following', label: 'This and following' },
+      { value: 'this', label: 'this event' },
+      { value: 'following', label: 'this and following' },
     ] : []),
-    { value: 'all', label: 'All events' },
+    { value: 'all', label: 'all events' },
   ]);
 }
 
@@ -1528,10 +1528,17 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   countInput?.addEventListener('input', () => selectEndsMode('after'));
   countInput?.addEventListener('focus', () => selectEndsMode('after'));
   const recSel = document.getElementById('cal-recur');
+  // "every 1 days" reads as "every 1 day"
+  const syncUnit = () => {
+    const unit = UNIT[recSel.value] || 'weeks';
+    document.getElementById('cal-unit').textContent = parseInt(document.getElementById('cal-interval')?.value, 10) === 1 ? unit.replace(/s$/, '') : unit;
+  };
+  document.getElementById('cal-interval')?.addEventListener('input', syncUnit);
+  syncUnit();
   recSel.addEventListener('change', () => {
     const v = recSel.value;
     document.getElementById('cal-recur-adv').style.display = v ? 'block' : 'none';
-    document.getElementById('cal-unit').textContent = UNIT[v] || 'weeks';
+    syncUnit();
     document.getElementById('cal-dow').style.display = v === 'weekly' ? 'flex' : 'none';
     if (v === 'weekly' && byday.size === 0) { byday.add(calendarPlacementDate(document.getElementById('cal-start').value).getDay()); syncDow(); }
   });

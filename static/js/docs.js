@@ -803,7 +803,7 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     } else if (_draft) {
       const changedOutside = _draft.base_hash !== _doc.hash;
       showInlineState(
-        changedOutside ? 'A local draft and the file on disk both changed.' : 'A private local draft is waiting.',
+        changedOutside ? 'a local draft and the file on disk both changed.' : 'a private local draft is waiting.',
         [
           { label: 'resume draft', action: () => enterEdit(_draft.content) },
           ...(changedOutside ? [{ label: 'compare copies', action: compareExternal }] : []),
@@ -1636,7 +1636,7 @@ async function deleteCurrent() {
   if (!_cur) return;
   const answer = await openDialog({
     title: `move "${esc(stem(_cur))}" to trash?`,
-    body: '<p>You can restore it from Recently deleted.</p>',
+    body: '<p>you can restore it from recently deleted.</p>',
     actions: [
       { id: 'cancel', label: 'cancel' },
       { id: 'delete', label: 'move to trash', danger: true },

@@ -209,7 +209,7 @@ function comparableTotals() {
 }
 
 function currencyBoundary() {
-  return '<p class="money-empty-sm" role="status">combined analytics need one known currency. account balances and transactions stay available below.</p>';
+  return '<p class="money-empty-sm" role="status">combined analytics need one known currency. account balances and transactions are still shown.</p>';
 }
 
 function groupedSummaryAmount(field, showSign = false) {

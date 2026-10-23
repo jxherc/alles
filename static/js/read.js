@@ -705,7 +705,7 @@ async function _save(checkOnly = false) {
   if (_saving || !_saveReady) return;
   if (!_pendingSave) _urlDraft = $('read-url')?.value ?? _urlDraft;
   const url = (_pendingSave?.url ?? _urlDraft).trim();
-  if (!url) { _saveError = 'Paste a URL first.'; _render(); $('read-url')?.focus(); return; }
+  if (!url) { _saveError = 'paste a web address first'; _render(); $('read-url')?.focus(); return; }
   const navigation = _openGeneration;
   const mayFocus = () => navigation === _openGeneration && $('read-body')?.getClientRects().length
     && (document.activeElement === document.body || ['read-save', 'read-save-check'].includes(document.activeElement?.id));

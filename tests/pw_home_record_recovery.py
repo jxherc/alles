@@ -210,7 +210,7 @@ def run():
                         page.locator(f'#cal-dow [data-i="{next_weekday}"]').click()
                     page.locator("#cal-title").fill("whole series saved")
                     page.locator("#cal-save").click()
-                    page.get_by_role("button", name="All events", exact=True).click()
+                    page.get_by_role("button", name="all events", exact=True).click()
                     expect(page.locator("#cal-title")).to_have_count(0)
                     assert_record(item["id"])
                     if case in {"saved-all-excluded", "saved-all-weekday-excluded"}:
@@ -228,20 +228,20 @@ def run():
                     page.locator("#cal-save").click()
                     if case == "saved-all-weekday-excluded":
                         expect(
-                            page.get_by_role("button", name="This event", exact=True)
+                            page.get_by_role("button", name="this event", exact=True)
                         ).to_have_count(0)
-                        page.get_by_role("button", name="All events", exact=True).click()
+                        page.get_by_role("button", name="all events", exact=True).click()
                         expect(page.locator("#cal-title")).to_have_count(0)
                         assert_record(item["id"])
                         page.reload(wait_until="networkidle")
                         expect(page.locator("#cal-title")).to_have_value("selected day saved")
                         page.locator("#cal-del").click()
                         expect(
-                            page.get_by_role("button", name="This event", exact=True)
+                            page.get_by_role("button", name="this event", exact=True)
                         ).to_have_count(0)
                         page.get_by_role("button", name="cancel", exact=True).click()
                     else:
-                        page.get_by_role("button", name="This event", exact=True).click()
+                        page.get_by_role("button", name="this event", exact=True).click()
                         expect(page.locator("#cal-title")).to_have_count(0)
                         child = next(
                             row
@@ -265,7 +265,7 @@ def run():
                     else:
                         page.locator("#cal-title").fill("saved occurrence")
                         page.locator("#cal-save").click()
-                        scope = "This and following" if case == "saved-following" else "This event"
+                        scope = "this and following" if case == "saved-following" else "this event"
                         page.get_by_role("dialog", name="edit recurring event").get_by_role(
                             "button", name=scope, exact=True
                         ).click()

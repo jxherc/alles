@@ -1,9 +1,15 @@
 // subscriptions — recurring costs with billing cycles and renewal reminders
 import { api, toast } from './util.js';
-import { calendarDateKey } from './i18n.js';
+import { calendarDateKey, formatNumber } from './i18n.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
 import { confirm as dlgConfirm } from './dialog.js';
+
+// "CAD 1,202.43", not "CAD1202.43": a space after the code and the reader's own separators
+function _amt(currency, value, digits = 2) {
+  const number = formatNumber(Number(value) || 0, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return `${currency ? `${currency} ` : ''}${number}`;
+}
 
 const $ = id => document.getElementById(id);
 let _subs = [];
@@ -128,11 +134,11 @@ function _upcomingHtml(u) {
     return `<span class="subs-up-chip" title="${esc(s.name)} renews ${esc(s.next_due)}">
       <span class="subs-up-name">${esc(s.name)}</span>
       <span class="subs-up-when${s.days_until <= 1 ? ' soon' : ''}">${when}</span>
-      ${s.price ? `<span class="subs-up-amt">${esc(s.currency)}${s.price.toFixed(2)}</span>` : ''}
+      ${s.price ? `<span class="subs-up-amt">${esc(_amt(s.currency, s.price))}</span>` : ''}
     </span>`;
   }).join('');
   return `<div class="subs-upcoming">
-    <div class="subs-up-head">next ${u.days} days · <strong>${esc(u.currency)}${u.total.toFixed(2)}</strong> · ${u.count} renewal${u.count === 1 ? '' : 's'}</div>
+    <div class="subs-up-head">next ${u.days} days · <strong>${esc(_amt(u.currency, u.total))}</strong> · ${u.count} renewal${u.count === 1 ? '' : 's'}</div>
     <div class="subs-up-chips">${chips}</div>
   </div>`;
 }
@@ -141,13 +147,13 @@ function _forecastHtml(f) {
   if (!f || !f.forecast?.length || !f.total) return '';
   const max = Math.max(...f.forecast.map(m => m.total), 1);
   const cols = f.forecast.map(m => `
-    <div class="subs-fc-col" title="${esc(m.month)}: ${esc(f.currency)}${m.total.toFixed(2)}">
-      <span class="subs-fc-amt">${m.total ? esc(f.currency) + m.total.toFixed(0) : ''}</span>
+    <div class="subs-fc-col" title="${esc(m.month)}: ${esc(_amt(f.currency, m.total))}">
+      <span class="subs-fc-amt">${m.total ? esc(_amt(f.currency, m.total, 0)) : ''}</span>
       <span class="subs-fc-bar" style="height:${Math.max(3, m.total / max * 46).toFixed(0)}px"></span>
       <span class="subs-fc-m">${esc(m.month.slice(5))}</span>
     </div>`).join('');
   return `<div class="subs-forecast">
-    <div class="subs-fc-head">next ${f.months} months · <strong>${esc(f.currency)}${f.total.toFixed(2)}</strong> projected</div>
+    <div class="subs-fc-head">next ${f.months} months · <strong>${esc(_amt(f.currency, f.total))}</strong> projected</div>
     <div class="subs-fc-bars">${cols}</div>
   </div>`;
 }
@@ -159,10 +165,10 @@ function _chartHtml(a) {
     <div class="subs-bar-row">
       <span class="subs-bar-label">${esc(c.name)}</span>
       <span class="subs-bar-track"><span class="subs-bar-fill" style="width:${(c.monthly / max * 100).toFixed(1)}%"></span></span>
-      <span class="subs-bar-val">${esc(a.currency)}${c.monthly.toFixed(2)}</span>
+      <span class="subs-bar-val">${esc(_amt(a.currency, c.monthly))}</span>
     </div>`).join('');
   return `<div class="subs-chart">
-    <div class="subs-chart-title">${esc(a.currency)}${(a.monthly_total || 0).toFixed(2)}/mo · ${esc(a.currency)}${(a.yearly_total || 0).toFixed(2)}/yr · spend by category</div>
+    <div class="subs-chart-title">${esc(_amt(a.currency, a.monthly_total))}/mo · ${esc(_amt(a.currency, a.yearly_total))}/yr · spend by category</div>
     ${bars}
   </div>`;
 }
@@ -249,7 +255,7 @@ function _render() {
   const sum = $('subs-summary');
   if (sum) sum.textContent = _summary.active
     ? (_summary.totals_available === false ? `${_summary.active} active · totals need currency review`
-      : `${_summary.active} active · ${_summary.currency}${_summary.monthly_total}/mo · ${_summary.currency}${_summary.yearly_total}/yr`)
+      : `${_summary.active} active · ${_amt(_summary.currency, _summary.monthly_total)}/mo · ${_amt(_summary.currency, _summary.yearly_total)}/yr`)
     : '';
   const list = $('subs-list');
   if (!list) return;
@@ -262,7 +268,7 @@ function _render() {
   list.innerHTML = notice + writeErrors + (_loading ? '<div class="specialist-group-note" role="status">loading subscriptions…</div>' : '') + _detectedHtml()
     + (_subs.length ? _upcomingHtml(_upcoming) + _forecastHtml(_forecast) + _chartHtml(_analytics)
       + _subs.map(s => _editing === s.id ? _editRow(_draft?.id === s.id ? { ...s, ..._draft } : s) : _row(s)).join('')
-      : (!_loaded || _loading || _loadError || _creation?.uncertain ? '' : '<div class="specialist-group-note">nothing tracked yet: add your first subscription below</div>'));
+      : (!_loaded || _loading || _loadError || _creation?.uncertain ? '' : '<div class="specialist-group-note">nothing tracked yet: add your first subscription</div>'));
   _wireRows(list); _wireDetected(list);
   list.querySelectorAll('[data-refresh-subs]').forEach(button => button.addEventListener('click', () => loadSubs(fetch, { clearErrors: true })));
   list.querySelectorAll('[data-retry-paid]').forEach(button => button.addEventListener('click', () => paySubscription(button.dataset.retryPaid)));
@@ -315,12 +321,12 @@ function _row(s) {
         ${s.account_id && acctName(s.account_id) ? `<span class="sub-autopost" title="auto-posts the charge to ${esc(acctName(s.account_id))}">↻ ${esc(acctName(s.account_id))}</span>` : ''}
         ${s.notes ? `<span class="sub-notes" title="${esc(s.notes)}">…</span>` : ''}
         ${s.trial_days_left != null && s.trial_days_left >= 0 ? `<span class="sub-trial" title="free trial / cancel by ${esc(s.trial_end)}">trial: ${s.trial_days_left === 0 ? 'ends today' : s.trial_days_left + 'd left'}</span>` : ''}
-        ${s.price_increased ? `<span class="sub-hike" title="price went up${s.last_price_change ? ` (${esc(s.currency)}${s.last_price_change.old} → ${esc(s.currency)}${s.last_price_change.new} on ${esc(s.last_price_change.date)})` : ''}">↑ price up</span>` : ''}
+        ${s.price_increased ? `<span class="sub-hike" title="price went up${s.last_price_change ? ` (${esc(_amt(s.currency, s.last_price_change.old))} → ${esc(_amt(s.currency, s.last_price_change.new))} on ${esc(s.last_price_change.date)})` : ''}">↑ price up</span>` : ''}
         ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate: another tracked subscription matches this name or site">⚠ dup?</span>` : ''}
         ${_unusedIds.has(s.id) ? `<button class="sub-unused" data-act="edit" title="no matching charge in the last 2 cycles. click to review / cancel">💤 unused?</button>` : ''}
         ${s.cancel_url ? `<a class="sub-cancel-link" href="${esc(s.cancel_url)}" target="_blank" rel="noreferrer" title="how to cancel ${esc(s.name)}">✕ cancel</a>` : ''}
       </div>
-      <span class="sub-price">${esc(s.currency)}${s.price ? s.price.toFixed(2) : '—'}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
+      <span class="sub-price">${s.price ? esc(_amt(s.currency, s.price)) : `${esc(s.currency)} —`}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
       <span class="sub-due${soon ? ' soon' : ''}" title="${esc(s.next_due)}">${s.active ? esc(s.next_due.slice(5)) + ' · ' : ''}${_dueLabel(s)}</span>
       <span class="sub-actions">
         ${s.renewal_review_required ? '<span class="sub-review-required" title="review this subscription currency before posting the renewal">currency review needed</span>'
