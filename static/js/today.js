@@ -431,8 +431,13 @@ function homeNoteSaved(saved, text, focus = false) {
     open.onclick = () => openCapturedNote(saved.path).catch(() => toast('could not open the saved note', 'error'));
     host.replaceChildren(status, open);
     if (focus && input?.getClientRects().length) open.focus();
-  }
-  toast(t('home.note_saved'), 'success');
+    // the floating "note saved · open note" goes after a while, unless you're on it
+    clearTimeout(homeNoteSaved.timer);
+    homeNoteSaved.timer = setTimeout(function clear() {
+      if (host.contains(document.activeElement)) { homeNoteSaved.timer = setTimeout(clear, 4000); return; }
+      if (host.dataset.savedNoteRequest === saved.request_id) host.replaceChildren();
+    }, 8000);
+  } else toast(t('home.note_saved'), 'success');
   if (input?.getClientRects().length) void load();
 }
 

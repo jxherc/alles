@@ -172,7 +172,7 @@ def run() -> None:
                 response.value.request.post_data_json == note_unknown.value.request.post_data_json
             )
             expect(capture).to_have_value("")
-            expect(page.locator("#toast-container .toast.success").last).to_have_text("note saved")
+            expect(page.locator("#today-note-recovery p")).to_have_text("note saved")
             saved = context.request.get(
                 f"{base}/api/vault-md/file", params={"path": response.value.json()["path"]}
             )

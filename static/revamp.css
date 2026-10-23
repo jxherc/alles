@@ -2794,3 +2794,25 @@ html:not(#_) #settings-modal .s-pane > .settings-save-state {
 html:not(#_) .read-card { position: relative; }
 html:not(#_) .read-card .read-card-open::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 html:not(#_) .read-card :is(.read-card-actions, .read-tag, .read-card-meta button) { position: relative; z-index: 1; }
+
+/* receipts with an undo (a task done, a quick-added event, a note saved from home) float near the
+   bottom instead of being inserted above the list: inserted, they pushed the list 60px down the
+   moment you acted, right under your finger. toasts step up while one is showing */
+html:not(#_) :is(#task-completion-receipt, #cal-quick-feedback, #cal-import-feedback, #today-note-recovery:not(:empty)) {
+  position: fixed;
+  z-index: 450;
+  left: var(--k-gutter, 24px);
+  bottom: max(var(--k-space-4, 16px), env(safe-area-inset-bottom));
+  width: min(32rem, calc(100vw - 2 * var(--k-gutter, 24px)));
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--k-space-1, 4px) var(--k-space-1, 4px) var(--k-space-1, 4px) var(--k-space-4, 16px);
+  border: 1px solid var(--k-card-line, var(--faint));
+  border-radius: var(--k-radius-surface, 8px);
+  background: var(--k-raised, var(--panel));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--k-text, #000) 14%, transparent);
+  font-size: 13px;
+}
+html:not(#_) #today-note-recovery:not(:empty) { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); }
+html:not(#_) #today-note-recovery > p { margin: 0; }
+body:has(:is(#task-completion-receipt:not([hidden]), #cal-quick-feedback:not([hidden]), #cal-import-feedback:not([hidden]), #today-note-recovery:not(:empty))) .toast-container { bottom: 5rem; }

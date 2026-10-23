@@ -133,7 +133,7 @@ def run() -> None:
             assert result.get("created") is True, result
             assert result["path"] == f"{title} 2.md", result
             expect(capture).to_have_value("")
-            expect(page.locator("#toast-container .toast.success").last).to_have_text("note saved")
+            expect(page.locator("#today-note-recovery p")).to_have_text("note saved")
             assert not names_requests, names_requests
             for path, expected in (
                 (f"{title}.md", "owner original\n"),
