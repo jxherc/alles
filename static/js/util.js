@@ -111,6 +111,8 @@ export function mdToHtml(text, { remoteImages = false } = {}) {
   // bold, italic, strikethrough, ==highlight==
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // _italic_ too, but only with no letters glued on either side, so snake_case_names stay as typed
+  out = out.replace(/(^|[^\p{L}\p{N}_\x00])_(?!\s)([^_\n]+?)(?<!\s)_(?![\p{L}\p{N}_])/gu, '$1<em>$2</em>');
   out = out.replace(/~~(.+?)~~/g, '<del>$1</del>');
   // highlight — require non-space boundaries so "a == b == c" stays untouched
   out = out.replace(/==(\S(?:[^=]*\S)?)==/g, '<mark>$1</mark>');
@@ -189,7 +191,9 @@ export function mdToHtml(text, { remoteImages = false } = {}) {
   out = out.replace(/\n{2,}/g, '\n\n');
   const paras = out.split('\n\n').map(p => p.trim()).filter(Boolean);
   out = paras.map(p => {
-    if (p.startsWith('<') || p.startsWith(markupPrefix)) return p;   // already html
+    // already a block; a paragraph that only starts with <em> or <strong> still needs its <p>
+    // (a code, thinking or display-math block standing alone is one too)
+    if (/^<(h[1-6]|ul|ol|li|table|thead|tbody|tr|blockquote|div|pre|hr|details|section|figure|p)\b/i.test(p) || /^\x00(BLOCK|THINK|MATH)\d+\x00$/.test(p)) return p;
     return `<p>${p.replace(/\n/g, '<br>')}</p>`;
   }).join('\n');
 

@@ -1095,7 +1095,9 @@ async function loadDrafts({ preserveReader = false } = {}) {
     const data = await loadDraftRecovery();
     if (!current()) return;
     if (!data || !data.recovery_scopes.some(scope => _draftScopes.includes(scope))) throw new Error('drafts unavailable');
-    drafts = data.drafts.filter(draft => !_active || _active === 'all' || draft.account_id === _active);
+    // a draft written before any account existed has none; it shows under every account rather
+    // than vanishing once one is added
+    drafts = data.drafts.filter(draft => !_active || _active === 'all' || !draft.account_id || draft.account_id === _active);
     list.setAttribute('aria-busy', 'false');
   } catch {
     if (!current()) return;

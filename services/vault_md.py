@@ -1048,7 +1048,8 @@ def full_text_search(q: str, limit: int = 50) -> list[dict]:
     return out
 
 
-_TAG = re.compile(r"(?:^|\s)#([A-Za-z0-9][A-Za-z0-9_/\-]*)")
+# any letters (#项目, #café), digits, _, - and /; a number alone (#123) is not a tag
+_TAG = re.compile(r"(?:^|\s)#((?=[\w/\-]*[^\W\d_])[\w/\-]+)")
 
 
 def all_tags() -> list[dict]:

@@ -73,7 +73,7 @@ test('escaped ampersands cannot introduce URL entities after scheme validation',
 test('generated image and link attributes stay opaque to later Markdown passes', () => {
   const input = String.raw`![x](/missing/\[x\]\(onerror=window.name=7331//\))`;
   const html = mdToHtml(input);
-  assert.equal(html, '<img class="md-img" src="/missing/[x](onerror=window.name=7331//)" alt="x">');
+  assert.equal(html, '<p><img class="md-img" src="/missing/[x](onerror=window.name=7331//)" alt="x"></p>');
   for (const syntax of ['**bold**', '*italic*', '~~deleted~~', '==marked==', '`code`', '{color:red}color{/color}']) {
     const image = mdToHtml(`![label](/${syntax})`);
     const link = mdToHtml(`[**label**](/${syntax})`);
@@ -85,12 +85,12 @@ test('generated image and link attributes stay opaque to later Markdown passes',
 
 test('image alt text cannot receive generated markup or executable attributes', () => {
   const html = mdToHtml(String.raw`![<mark>**label** " onerror="x</mark>](/local/\(image\).png)`);
-  assert.equal(html, '<img class="md-img" src="/local/(image).png" alt="&lt;mark&gt;**label** &quot; onerror=&quot;x&lt;/mark&gt;">');
+  assert.equal(html, '<p><img class="md-img" src="/local/(image).png" alt="&lt;mark&gt;**label** &quot; onerror=&quot;x&lt;/mark&gt;"></p>');
 });
 
 test('links retain image labels, formatting and safe escaped destinations', () => {
   const html = mdToHtml(String.raw`[![image](/image.png)](/source\(1\)?a=1&b=2)`);
-  assert.equal(html, '<a href="/source(1)?a=1&amp;b=2" target="_blank" rel="noreferrer"><img class="md-img" src="/image.png" alt="image"></a>');
+  assert.equal(html, '<p><a href="/source(1)?a=1&amp;b=2" target="_blank" rel="noreferrer"><img class="md-img" src="/image.png" alt="image"></a></p>');
   const literal = '\x00MARKUP0\x00 **outside** [inside](/safe)';
   const output = mdToHtml(literal);
   assert.ok(output.includes('\x00MARKUP0\x00'), output);
@@ -100,7 +100,7 @@ test('links retain image labels, formatting and safe escaped destinations', () =
 
 test('math syntax stays literal in attributes while link labels still render math', () => {
   assert.equal(mdToHtml('![price $x$](/cost$x$.png)'),
-    '<img class="md-img" src="/cost$x$.png" alt="price $x$">');
+    '<p><img class="md-img" src="/cost$x$.png" alt="price $x$"></p>');
   const link = mdToHtml('[$x$](/cost$x$)');
   assert.ok(link.includes('href="/cost$x$"'), link);
   assert.ok(link.includes('<span class="md-math-inline" data-tex="x">x</span>'), link);

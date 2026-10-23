@@ -240,6 +240,23 @@ function _wire() {
   $('wiki-history-btn')?.addEventListener('click', showRevisions);
   $('wiki-edit-btn')?.addEventListener('click', () => enterEdit());
   $('wiki-save-btn')?.addEventListener('click', saveCurrent);
+  // the keys a markdown editor is expected to have: open a doc by name, save, bold, italic
+  document.addEventListener('keydown', event => {
+    if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.defaultPrevented) return;
+    if ($('docs-workbench-view')?.style.display === 'none' || !$('wiki-tree')?.getClientRects().length) return;
+    const key = event.key.toLowerCase();
+    if (key === 'o') {
+      event.preventDefault();
+      import('./search.js').then(module => module.openSearch()).catch(() => {});
+    } else if (key === 's' && _mode === 'edit') {
+      event.preventDefault();
+      saveCurrent();
+    } else if ((key === 'b' || key === 'i') && _mode === 'edit' && _editor && $('wiki-live')?.contains(document.activeElement)) {
+      event.preventDefault();
+      const mark = key === 'b' ? '**' : '*';
+      _editor.wrap(mark, mark);
+    }
+  });
   $('wiki-done-btn')?.addEventListener('click', exitEdit);
   $('wiki-discard-btn')?.addEventListener('click', discardDraft);
   $('wiki-visual-btn')?.addEventListener('click', () => setEditView('visual'));
