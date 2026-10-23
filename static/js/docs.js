@@ -1552,13 +1552,16 @@ async function newDoc() {
   const answer = await promptText('new Markdown document', 'document name', '');
   if (answer.action !== 'confirm') return;
   const name = answer.value.trim();
-  if (!name) { toast('Enter a document name', 'error'); return; }
+  if (!name) { toast('enter a document name', 'error'); return; }
   try {
     if (_dirty && !(await flushDraft())) return;
-    const result = await api('/api/vault-md/file', jsonOptions('POST', { path: name, content: '' }));
+    // a new document never takes an existing one's name: that opened the old doc empty, and saving
+    // wiped it. a taken name becomes "name 2"
+    const result = await api('/api/vault-md/file', jsonOptions('POST', { path: name, content: '', unique: true }));
     await loadTree();
     const opened = await openNote(result.path);
     if (!opened) return;
+    if (stem(result.path) !== stem(name.replace(/\.md$/i, ''))) toast(`"${stem(name)}" already exists, so this one is "${stem(result.path)}"`, 'success');
     await enterEdit('');
   } catch (error) { toast(error.message, 'error'); }
 }

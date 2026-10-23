@@ -2399,7 +2399,10 @@ html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open { min-height:
 @media (hover: hover) and (pointer: fine) {
   /* the actions take the sender and date line while pointed at (the date's place, like most mail
      apps), so the subject below stays one clear target */
-  html:not(#_):not(#_) #mail-view .mail-row { padding-top: var(--k-space-3); }
+  /* the sender line is the actions' full 44px, so they never reach the subject: a click on the
+     middle of the row opens the mail instead of snoozing it */
+  html:not(#_):not(#_) #mail-view .mail-row { padding-top: 0; }
+  html:not(#_):not(#_) #mail-view .mail-row .mail-row-top { min-height: 44px; align-items: center; }
 
   html:not(#_):not(#_) #mail-view .mail-row .mail-row-acts {
     position: absolute;
