@@ -86,7 +86,7 @@ function harness() {
   const context = vm.createContext({
     document, $, console, URL, location: { href: 'http://synthetic.invalid/?view=mail' },
     esc: value => String(value ?? ''), readRecordTarget: () => null, acctName: () => 'synthetic',
-    resolvedTimeZone: () => 'UTC', _si: () => '',
+    resolvedTimeZone: () => 'UTC', _si: () => '', safeMailHtml: html => String(html ?? ''), formatDateTime: String,
     fromName: value => value, _accountEditor: null, _acEl: null, _mailErrors: [],
     _hideAc: () => { context._acEl = null; }, dlgConfirm: text => { confirms.push(text); return confirmation; },
     mailJson: url => {

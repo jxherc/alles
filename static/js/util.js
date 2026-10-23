@@ -376,3 +376,37 @@ _g.runCode = async function(btn) {
     }
   }
 };
+
+// html going into an editable box in the page itself (mail compose) is cleaned first: a reply
+// quote or a draft from another mail app could carry <img onerror> or <script>, which would run
+// as alles. it's parsed in an inert document, then only plain formatting, safe links and
+// images survive; every attribute but href/src/alt is dropped
+const SAFE_TAGS = new Set(['A', 'B', 'BLOCKQUOTE', 'BR', 'CODE', 'DIV', 'EM', 'H1', 'H2', 'H3', 'H4', 'HR', 'I', 'IMG',
+  'LI', 'OL', 'P', 'PRE', 'S', 'SPAN', 'STRONG', 'SUB', 'SUP', 'TABLE', 'TBODY', 'TD', 'TH', 'THEAD', 'TR', 'U', 'UL']);
+const DROP_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'TEMPLATE', 'NOSCRIPT', 'SVG', 'MATH', 'LINK', 'META', 'BASE', 'FORM', 'INPUT', 'TEXTAREA', 'BUTTON', 'SELECT']);
+export function safeMailHtml(html) {
+  const doc = new DOMParser().parseFromString(`<body>${String(html ?? '')}</body>`, 'text/html');
+  const clean = node => {
+    for (const child of [...node.childNodes]) {
+      if (child.nodeType === 3) continue;
+      if (child.nodeType !== 1) { child.remove(); continue; }
+      // svg and math children keep lowercase names, so compare in one case
+      const tag = child.tagName.toUpperCase();
+      if (DROP_TAGS.has(tag)) { child.remove(); continue; }
+      clean(child);
+      if (!SAFE_TAGS.has(tag) || child.namespaceURI !== 'http://www.w3.org/1999/xhtml') { child.replaceWith(...child.childNodes); continue; }
+      for (const attr of [...child.attributes]) {
+        const name = attr.name.toLowerCase();
+        const value = attr.value.trim();
+        const ok = (tag === 'A' && name === 'href' && /^(https?:|mailto:)/i.test(value))
+          || (tag === 'IMG' && name === 'src' && /^(https:|data:image\/(png|jpe?g|gif|webp);|cid:|\/api\/uploads\/[\w-]+$)/i.test(value))
+          || (tag === 'IMG' && name === 'alt')
+          // the signature switcher finds its block by these
+          || (tag === 'DIV' && ((name === 'class' && value === 'mail-sig') || name === 'data-sig'));
+        if (!ok) child.removeAttribute(attr.name);
+      }
+    }
+  };
+  clean(doc.body);
+  return doc.body.innerHTML;
+}

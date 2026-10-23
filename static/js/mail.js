@@ -1,11 +1,11 @@
-import { toast } from './util.js';
+import { safeMailHtml, toast } from './util.js';
 import { openCaptureReview, showPendingCapture } from './capture.js';
 import { readRecordTarget } from './recordlinks.js';
 import { replaceRouteUrl } from './route_history.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt, fields as dlgFields } from './dialog.js';
 import { populateDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker as _dpInit } from './datepick.js';
-import { formatDate, formatTime, resolvedTimeZone } from './i18n.js';
+import { formatDate, formatDateTime, formatTime, resolvedTimeZone } from './i18n.js';
 import { categoryHue } from './color.js';
 import { reminderTimeFromWall } from './reminders.js';
 
@@ -1549,10 +1549,14 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   });
   $('mail-reply')?.addEventListener('click', () => {
     const addr = (/<([^>]+)>/.exec(m.from) || [, m.from])[1];
+    // "Wed, 21 Oct 2026 01:47:32 -0400" reads as the person's own date and time
+    const sent = new Date(m.date);
+    const sentLabel = Number.isNaN(sent.valueOf()) ? String(m.date || '') : formatDateTime(sent);
     compose({
       account_id: aid, to: addr,
       subject: /^re:/i.test(m.subject) ? m.subject : 'Re: ' + m.subject,
-      body: `\n\n-- on ${m.date}, ${fromName(m.from)} wrote --\n${(m.text || '').split('\n').map(l => '> ' + l).join('\n')}`,
+      // the quote is the sender's words as text: escaped, in a real blockquote, line breaks kept
+      body: `<br><br><div>${esc(`on ${sentLabel}, ${fromName(m.from)} wrote:`)}</div><blockquote>${esc(m.text || '').replace(/\r\n?|\n/g, '<br>')}</blockquote>`,
       in_reply_to: m.message_id || '', references: m.references || '',
     });
   });
@@ -1690,7 +1694,7 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
       <span id="mc-sig-status" class="mail-status" role="status"></span>
     </div>
     <section id="mc-sig-manager" aria-label="saved signatures" hidden></section>
-    <div class="settings-input mail-compose-body mail-rich-body" id="mc-html" contenteditable="true" role="textbox" aria-label="message" aria-multiline="true" data-ph="write your message…">${pre.body || ''}</div>
+    <div class="settings-input mail-compose-body mail-rich-body" id="mc-html" contenteditable="true" role="textbox" aria-label="message" aria-multiline="true" data-ph="write your message…">${safeMailHtml(pre.body || '')}</div>
     <div id="mc-suggest-box" class="mail-suggest-box"></div>
     <input type="file" id="mc-image-input" accept="image/*" style="display:none">
     <div id="mc-status" class="mail-status"></div>

@@ -102,7 +102,7 @@ export function harness() {
     requestAnimationFrame() {}, window: { addEventListener() {} },
     location: { href: 'http://synthetic.invalid/?view=mail' },
     esc: value => String(value ?? ''), readRecordTarget: () => null, acctName: () => 'synthetic',
-    resolvedTimeZone: () => 'UTC', _si: () => '', formatDate: String, formatTime: String,
+    resolvedTimeZone: () => 'UTC', _si: () => '', formatDate: String, formatTime: String, formatDateTime: String, safeMailHtml: html => String(html ?? ''),
     fromName: value => value, _accountEditor: null, _mailErrors: [],
     dlgConfirm: text => { confirms.push(text); return confirmation; }, toast: (...args) => notices.push(args),
     mailJson: async url => {
