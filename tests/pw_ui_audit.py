@@ -494,6 +494,25 @@ BUSY_STATUS = r"""
 }
 """
 
+# words a person should never read: what the browser throws, and values that never got filled
+# in. user content (code, fields, editors) is left out
+RAW_TEXT = r"""
+() => {
+  const raw = /failed to fetch|\bload failed\b|networkerror|push service error|unexpected token|not valid json|\b(TypeError|ReferenceError|SyntaxError|DOMException|NotAllowedError)\b|\bundefined\b|\bNaN\b|\[object \w+\]|Invalid Date|Traceback \(most recent/;
+  const skip = 'pre, code, textarea, input, [contenteditable], .cm-editor, script, style, noscript';
+  const out = [];
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    const t = n.nodeValue; if (!t || !raw.test(t)) continue;
+    const el = n.parentElement; if (!el || el.closest(skip)) continue;
+    if (!el.getClientRects().length || getComputedStyle(el).visibility === 'hidden') continue;
+    out.push(t.trim().slice(0, 120));
+  }
+  return [...new Set(out)].slice(0, 5);
+}
+"""
+
+
 TILE_INSET = r"""
 (i) => {
   const e = document.querySelector('[data-audit-btn="' + i + '"]'); if (!e) return null;
@@ -642,6 +661,11 @@ def focus_pass(page, audit, where, scope=None) -> None:
             )
 
 
+def raw_text_pass(page, audit, sig, where) -> None:
+    found = page.evaluate(RAW_TEXT)
+    audit.add("kokuen", "plain-words", not found, sig, " | ".join(found), where)
+
+
 def click_pass(page, base, route, audit, where, shots: Path, tag: str) -> None:
     buttons = page.evaluate(BUTTONS)
     seen_keys = set()
@@ -694,6 +718,8 @@ def click_pass(page, base, route, audit, where, shots: Path, tag: str) -> None:
             # work in progress reads as progress, not as an error (owner rule 2026-10-18)
             for state in page.evaluate(BUSY_STATUS) or []:
                 audit.add("kokuen", "busy-not-error", state["ok"], b["key"], state["detail"], where)
+            page.wait_for_timeout(200)  # let a failed request land its toast
+            raw_text_pass(page, audit, b["key"], where)
             # the clicked control stays put while it works (busy, loading, status text)
             if page.url == url0 and loc.count():
                 after_box = loc.evaluate(DOC_BOX) if loc.is_visible() else None
@@ -822,6 +848,7 @@ def main() -> int:
                     ]
                 audit.merge(res, where)
                 if cfg.get("only") != "layout":
+                    raw_text_pass(page, audit, route, where)
                     focus_pass(page, audit, where)
                     grid_pass(page, audit, where)
                     # surfaces already open on arrival (settings is a modal) get their own pass

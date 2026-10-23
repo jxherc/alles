@@ -244,9 +244,40 @@ export function toast(msg, type = '', duration = 3000) {
   const c = document.getElementById('toast-container');
   const el = document.createElement('div');
   el.className = `toast${type ? ' ' + type : ''}`;
-  el.textContent = msg;
+  el.textContent = type === 'error' ? plainError(msg) : msg;
   c.appendChild(el);
   setTimeout(() => leave(el), duration);
+}
+
+// text the browser itself throws (offline, blocked, a reply that isn't json) means nothing to
+// a person. 146 callers hand e.message to toast, so it gets swapped here, once. the app's own
+// messages pass through untouched, and a plain prefix like "upload failed: " is kept
+const RAW_ERRORS = [
+  [/failed to fetch|\bload failed|networkerror|network error|err_network|err_internet|err_connection/i,
+    "can't reach alles right now. check the connection and try again"],
+  [/push service/i, "this browser can't get push notifications. try safari, chrome or firefox"],
+  [/unexpected token|json\.parse|not valid json|unexpected end of (json|input)/i,
+    "alles sent back something it couldn't read. try again"],
+  [/notallowederror|not allowed by the user agent|permission denied/i,
+    "the browser blocked this. allow it in the site's settings and try again"],
+  [/quotaexceeded|exceeded the quota/i, 'this browser is out of space for alles'],
+  [/the (user|operation) (was )?aborted|signal is aborted/i, 'stopped before it finished. try again'],
+  [/^(\w*Error|DOMException)\b|\b(undefined|NaN)\b|\[object \w+\]|^null$/,
+    'something went wrong. try again'],
+];
+
+export function plainError(msg) {
+  const text = String(msg ?? '').trim();
+  if (!text) return 'something went wrong. try again';
+  for (const [raw, plain] of RAW_ERRORS) {
+    const hit = text.match(raw);
+    if (!hit) continue;
+    // keep a short plain lead-in ("upload failed: Failed to fetch" -> "upload failed: can't reach...")
+    const cut = text.lastIndexOf(': ', hit.index);
+    const lead = cut > 0 ? text.slice(0, cut) : '';
+    return lead && !RAW_ERRORS.some(([r]) => r.test(lead)) ? `${lead}: ${plain}` : plain;
+  }
+  return text;
 }
 
 

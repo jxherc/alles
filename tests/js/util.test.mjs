@@ -106,3 +106,32 @@ test('math syntax stays literal in attributes while link labels still render mat
   assert.ok(link.includes('<span class="md-math-inline" data-tex="x">x</span>'), link);
   assert.doesNotMatch(link, /\x00/);
 });
+
+test('plainError swaps what the browser throws for plain words', async () => {
+  const { plainError } = await import('../../static/js/util.js');
+  assert.equal(plainError('notifications: Registration failed - push service error'),
+    "notifications: this browser can't get push notifications. try safari, chrome or firefox");
+  assert.equal(plainError('Failed to fetch'), "can't reach alles right now. check the connection and try again");
+  assert.equal(plainError('upload failed: Load failed'), "upload failed: can't reach alles right now. check the connection and try again");
+  assert.equal(plainError(`Unexpected token '<', "<!doctype "... is not valid JSON`), "alles sent back something it couldn't read. try again");
+  assert.equal(plainError('could not open undefined'), 'something went wrong. try again');
+  assert.equal(plainError('TypeError: x is not a function'), 'something went wrong. try again');
+  assert.equal(plainError('[object Object]'), 'something went wrong. try again');
+  assert.equal(plainError(''), 'something went wrong. try again');
+  assert.equal(plainError(undefined), 'something went wrong. try again');
+});
+
+test('plainError leaves the app\'s own messages alone', async () => {
+  const { plainError } = await import('../../static/js/util.js');
+  for (const own of ['share failed', 'could not move the event. retry.', 'Apple Photos import failed',
+    'a habit with that name already exists', 'nothing is saved until you choose import']) {
+    assert.equal(plainError(own), own);
+  }
+});
+
+test('plainError keeps app messages that merely mention an error', async () => {
+  const { plainError } = await import('../../static/js/util.js');
+  assert.equal(plainError('sync error: the calendar refused the change'), 'sync error: the calendar refused the change');
+  assert.equal(plainError('NotAllowedError: play() failed'), "the browser blocked this. allow it in the site's settings and try again");
+  assert.equal(plainError('SyntaxError: bad thing'), 'something went wrong. try again');
+});
