@@ -3,6 +3,8 @@ import { loadModels, renderModelList, renderSidebarModelList, getSelected, initM
 import { icon, iconEl, ICON_NAMES, appGlyph } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
+// icon slots in the static page (<span data-ic="link">) get their svg from the shared set
+document.querySelectorAll?.('[data-ic]').forEach(slot => { slot.innerHTML = icon(slot.dataset.ic); });
 import { chooseBootState } from './bootstate.js';
 import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
 import { canSendMessage, getSendBlockReason, sendMessage, stopStream, hideConnBanner } from './chat.js';
@@ -461,7 +463,7 @@ async function _boot({ reachable = true } = {}) {
   if (_mo) {
     _consumeParams(['mailoauth']);
     const msg = {
-      ok: 'gmail connected ✓', denied: 'google sign-in cancelled',
+      ok: 'gmail connected', denied: 'google sign-in cancelled',
       badstate: 'sign-in expired, try again', failed: "couldn't reach google, try again",
       noemail: "couldn't read your email from google",
     }[_mo] || 'google sign-in finished';
@@ -1587,7 +1589,7 @@ function setNav(view) {
     const arrow = document.getElementById('nav-more-arrow');
     if (items && !items.classList.contains('open')) {
       items.classList.add('open');
-      if (arrow) arrow.textContent = '▴';
+      if (arrow) arrow.innerHTML = icon('chevron-up');
       localStorage.setItem('nav-more-open', '1');
     }
   }
@@ -1638,11 +1640,11 @@ function bindEvents() {
   if (moreToggle && moreItems) {
     if (localStorage.getItem('nav-more-open') !== '0') {   // open by default
       moreItems.classList.add('open');
-      if (moreArrow) moreArrow.textContent = '▴';
+      if (moreArrow) moreArrow.innerHTML = icon('chevron-up');
     }
     moreToggle.addEventListener('click', () => {
       const isOpen = moreItems.classList.toggle('open');
-      if (moreArrow) moreArrow.textContent = isOpen ? '▴' : '▾';
+      if (moreArrow) moreArrow.innerHTML = icon(isOpen ? 'chevron-up' : 'chevron-down');
       localStorage.setItem('nav-more-open', isOpen ? '1' : '0');
     });
   }

@@ -2772,9 +2772,11 @@ html:not(#_)[data-kokuen-version="5"] #contacts-view:has(#cd-save) #contact-add-
   color: var(--k-text);
 }
 
-/* short text actions get a 44px minimum width; centered in it, "edit" drifted 11px off the row's
-   edge. the word starts where the row does */
-html:not(#_) #money-view :is(.tx-edit, .tx-clear, .tx-split-btn, .tx-receipt-btn) { text-align: start; }
+/* a transaction's text actions share one rhythm: the same 10px each side (so the gaps between
+   words are even) inside their 44px targets, and the row moves back by that 10px so "edit" starts
+   on the row's edge */
+html:not(#_) #money-view :is(.tx-edit, .tx-clear, .tx-split-btn, .tx-receipt-btn) { min-width: 44px; padding-inline: 10px; text-align: center; }
+html:not(#_) #money-view .txn .tx-edit { margin-inline-start: -10px; }
 
 /* settings: "saving… / saved" sits in the pane's top corner. as a line above the content it pushed
    every switch 31px down the moment you clicked one */
@@ -2816,3 +2818,40 @@ html:not(#_) :is(#task-completion-receipt, #cal-quick-feedback, #cal-import-feed
 html:not(#_) #today-note-recovery:not(:empty) { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); }
 html:not(#_) #today-note-recovery > p { margin: 0; }
 body:has(:is(#task-completion-receipt:not([hidden]), #cal-quick-feedback:not([hidden]), #cal-import-feedback:not([hidden]), #today-note-recovery:not(:empty))) .toast-container { bottom: 5rem; }
+
+/* the few marks css drew as text (▸ ▾ ⌄ ⌃ ✓ ▮) are svg masks now: the same shapes as the icon set,
+   in the text's colour */
+:root {
+  --ic-chev-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 6 15 12 9 18'/%3E%3C/svg%3E");
+  --ic-chev-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  --ic-chev-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 15 12 9 18 15'/%3E%3C/svg%3E");
+  --ic-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='5 12.5 10 17.5 19 7'/%3E%3C/svg%3E");
+}
+html:not(#_) :is(.agent-step-args-wrap summary, .agent-step-args-wrap .custom-summary)::before,
+html:not(#_) :is(.agent-step-args-wrap[open] summary, .agent-step-args-wrap.open .custom-summary)::before,
+html:not(#_) :is(#aide-schedule-project, .aide-goal-memory summary)::after,
+html:not(#_) .aide-goal-memory[open] summary::after,
+html:not(#_) #messages .agent-step:not(.running):not(.error) .agent-step-status::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+  background: currentColor;
+  -webkit-mask: var(--ic-chev-right) center / contain no-repeat;
+  mask: var(--ic-chev-right) center / contain no-repeat;
+}
+html:not(#_) :is(.agent-step-args-wrap[open] summary, .agent-step-args-wrap.open .custom-summary)::before,
+html:not(#_) :is(#aide-schedule-project, .aide-goal-memory summary)::after { -webkit-mask-image: var(--ic-chev-down); mask-image: var(--ic-chev-down); }
+html:not(#_) .aide-goal-memory[open] summary::after { -webkit-mask-image: var(--ic-chev-up); mask-image: var(--ic-chev-up); }
+html:not(#_) #messages .agent-step:not(.running):not(.error) .agent-step-status::before { -webkit-mask-image: var(--ic-check); mask-image: var(--ic-check); }
+html:not(#_) #system-host::after { content: ""; display: inline-block; width: 0.45em; height: 0.9em; vertical-align: -0.1em; background: var(--accent); }
+@media (forced-colors: active) {
+  html:not(#_) :is(.agent-step-args-wrap summary, .agent-step-args-wrap .custom-summary, .aide-goal-memory summary, #aide-schedule-project)::before,
+  html:not(#_) :is(.agent-step-args-wrap summary, .agent-step-args-wrap .custom-summary, .aide-goal-memory summary, #aide-schedule-project)::after { background: CanvasText; }
+}
+html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after {
+  content: ""; display: inline-block; width: 1em; height: 1em; vertical-align: -0.15em; background: currentColor;
+  -webkit-mask: var(--ic-chev-down) center / contain no-repeat; mask: var(--ic-chev-down) center / contain no-repeat;
+}
+html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger[aria-expanded="true"]::after { -webkit-mask-image: var(--ic-chev-up); mask-image: var(--ic-chev-up); }

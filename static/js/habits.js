@@ -204,7 +204,7 @@ function _weekStrip(h) {
     const iso = _iso(d);
     const completed = done.has(iso);
     const date = formatCalendarDate(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    return `<button type="button" class="habit-day${completed ? ' done' : ''}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}" aria-label="${esc(h.name + ', ' + date + ', ' + (completed ? 'completed' : 'not completed'))}"><span>${_DOW[d.getDay()]}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? '✓' : '·'}</span></button>`;
+    return `<button type="button" class="habit-day${completed ? ' done' : ''}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}" aria-label="${esc(h.name + ', ' + date + ', ' + (completed ? 'completed' : 'not completed'))}"><span>${_DOW[d.getDay()]}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
   }).join('')}</div>`;
 }
 
@@ -265,7 +265,7 @@ const HABIT_COLOR_NAMES = { '#818cf8': 'indigo', '#34d399': 'green', '#f472b6': 
 
 function _colorPicker(sel) {
   return `<div class="habit-colors" data-f="color" data-value="${esc(sel || '')}">
-    ${HABIT_COLORS.map(c => `<button type="button" class="habit-sw${(sel || '') === c ? ' sel' : ''}" data-c="${c}" style="${c ? `--sw:${c}` : ''}" aria-pressed="${(sel || '') === c}" aria-label="${c ? `colour ${HABIT_COLOR_NAMES[c]}` : 'default colour'}">${c ? '' : '○'}</button>`).join('')}
+    ${HABIT_COLORS.map(c => `<button type="button" class="habit-sw${(sel || '') === c ? ' sel' : ''}" data-c="${c}" style="${c ? `--sw:${c}` : ''}" aria-pressed="${(sel || '') === c}" aria-label="${c ? `colour ${HABIT_COLOR_NAMES[c]}` : 'default colour'}">${c ? '' : _si('none')}</button>`).join('')}
   </div>`;
 }
 

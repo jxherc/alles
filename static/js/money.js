@@ -10,6 +10,7 @@ import { bankRequest as _ownerFetch, openPlaidLink } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';
 import { tickNumbers } from './motion.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 // one hue per category for everything on screen: the chart's categories pick first so its bars
 // never share a color, then caps and transactions
@@ -973,11 +974,11 @@ function alertsStrip() {
   const items = [];
   (a.upcoming_bills || []).forEach(b => {
     const amount = b.amount == null ? 'amount varies' : `${b.amount_kind === 'approx' ? '≈' : ''}${signed(b.amount)}`;
-    items.push(`<span class="alert-chip bill">📅 ${esc(b.payee)} ${amount} in ${b.days}d</span>`);
+    items.push(`<span class="alert-chip bill">${_si('calendar')} ${esc(b.payee)} ${amount} in ${b.days}d</span>`);
   });
-  (a.large_purchases || []).forEach(p => items.push(`<span class="alert-chip big">⚠ large: ${esc(p.payee) || esc(p.category) || '—'} ${signed(p.amount)}</span>`));
-  (a.watch_hits || []).forEach(w => items.push(`<span class="alert-chip watch">👁 ${esc(w.watch)}: ${esc(w.payee) || '—'} ${signed(w.amount)}</span>`));
-  (a.low_balance || []).forEach(l => items.push(`<span class="alert-chip big">🔻 ${esc(l.name)} low: ${fmt(l.balance)} < ${fmt(l.threshold)}</span>`));
+  (a.large_purchases || []).forEach(p => items.push(`<span class="alert-chip big">${_si('warning')} large: ${esc(p.payee) || esc(p.category) || '—'} ${signed(p.amount)}</span>`));
+  (a.watch_hits || []).forEach(w => items.push(`<span class="alert-chip watch">${_si('eye')} ${esc(w.watch)}: ${esc(w.payee) || '—'} ${signed(w.amount)}</span>`));
+  (a.low_balance || []).forEach(l => items.push(`<span class="alert-chip big">${_si('trend-down')} ${esc(l.name)} low: ${fmt(l.balance)} < ${fmt(l.threshold)}</span>`));
   if (!items.length) return '';
   return `<div class="money-alerts">${items.join('')}</div>`;
 }
@@ -1013,7 +1014,7 @@ function networthCard() {
   return `<svg class="nw-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts.join(' ')}" fill="none" stroke="var(--cat-blue)" stroke-width="2"></polyline></svg>
     <div class="trend-labels">${labels}</div>
     <div class="nw-now">now: ${fmt(vals[vals.length - 1])}</div>
-    <div class="nw-base">${moneyField('base currency', `<input type="text" id="nw-base-cur" class="settings-input" placeholder="base (USD/EUR…)" style="width:120px">`)}<button class="btn" id="nw-base-go">in base ↺</button><span id="nw-base-out" class="nw-base-out"></span></div>`;
+    <div class="nw-base">${moneyField('base currency', `<input type="text" id="nw-base-cur" class="settings-input" placeholder="base (USD/EUR…)" style="width:120px">`)}<button class="btn" id="nw-base-go">show in base</button><span id="nw-base-out" class="nw-base-out"></span></div>`;
 }
 
 async function retryNetworthHistory() {
@@ -1038,7 +1039,7 @@ function goalsCard() {
   if (!comparableTotals()) return currencyBoundary();
   const rows = (_goals || []).map(g => {
     const pct = Math.round((g.progress || 0) * 100);
-    const eta = g.eta_months === 0 ? 'reached 🎉' : (g.eta_months != null ? `~${g.eta_months}mo left` : 'set a monthly amount');
+    const eta = g.eta_months === 0 ? 'reached' : (g.eta_months != null ? `~${g.eta_months}mo left` : 'set a monthly amount');
     return `<div class="goal-row" data-id="${g.id}">
       <div class="goal-head"><span class="goal-name">${esc(g.name)} <span class="goal-kind">${esc(g.kind)}</span></span>
         <span class="goal-nums">${fmt(g.current)} / ${fmt(g.target)}</span>
@@ -1098,7 +1099,7 @@ function accountsList() {
   return `<div class="money-accts">` + _accounts.map(a => `
     <div class="money-acct ${a.archived ? 'arch' : ''}" data-id="${a.id}">
       <div class="ma-top"><span class="ma-name">${esc(a.name)}</span>
-        <button class="ma-rc" data-rc-acct="${a.id}" aria-label="reconcile ${esc(a.name)} to a statement" title="reconcile to a statement">⚖</button>
+        <button class="ma-rc" data-rc-acct="${a.id}" aria-label="reconcile ${esc(a.name)} to a statement" title="reconcile to a statement">${_si('scale')}</button>
         <button class="ma-del" data-del-acct="${a.id}" aria-label="delete account ${esc(a.name)}" title="delete">×</button></div>
       <div class="ma-bal ${a.balance < 0 ? 'neg' : ''}">${(!_canonicalLedger && a.balance_by_currency?.length ? a.balance_by_currency : [{ currency: accountCurrency(a), balance: a.balance }]).map(row => esc(fmt(row.balance, row.currency))).join('<br>')}</div>
       <div class="ma-kind">${esc(a.kind)} · ${esc(accountCurrency(a))}</div>
@@ -1215,7 +1216,7 @@ function rulesList() {
   return `<div class="rules">` + _rules.map(r => `
     <div class="rule" data-id="${r.id}">
       <span class="rl-match">${esc(r.match)}</span>
-      <span class="rl-arrow">→</span>
+      <span class="rl-arrow" aria-hidden="true">${_si('arrow-right')}</span>
       <span class="rl-cat">${esc(r.category) || '<span class="tx-dim">(clear)</span>'}</span>
       <button class="tx-del" data-del-rule="${r.id}" aria-label="delete rule for ${esc(r.match)}" title="delete">×</button>
     </div>`).join('') + `</div>`;
@@ -1224,7 +1225,7 @@ function rulesList() {
 function _ruleForm() {
   return `<div class="rule-form">
     ${moneyField('payee contains', `<input type="text" id="rl-match" class="settings-input" placeholder="if payee contains…" style="flex:1.2;min-width:120px">`)}
-    <span class="rl-arrow">→</span>
+    <span class="rl-arrow" aria-hidden="true">${_si('arrow-right')}</span>
     ${moneyField('category', `<input type="text" id="rl-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">`)}
     <button class="btn" id="rl-add">add</button>
   </div>`;
@@ -1340,7 +1341,7 @@ function addTxnRow() {
   </div>
   <div class="money-entry-actions">
     <button class="btn primary" id="tx-add">add transaction</button>
-    ${_accounts.length >= 2 ? '<button class="btn" id="tx-transfer-toggle" title="move money between accounts">⇄ transfer</button>' : ''}
+    ${_accounts.length >= 2 ? `<button class="btn" id="tx-transfer-toggle" title="move money between accounts">${_si('swap')} transfer</button>` : ''}
   </div>
   <p id="tx-save-status" class="money-field-error" role="status" ${_transactionSaveStatus ? '' : 'hidden'}>${esc(_transactionSaveStatus)}</p>`;
 }
@@ -1360,7 +1361,7 @@ function transferRow() {
   return `<div class="txn-transfer" id="txn-transfer" style="display:none">
     <span class="tr-lbl">move</span>
     ${moneyField('from account', `<div class="settings-input custom-select" id="tr-from" data-value="${esc(a0)}" data-options="${esc(opts)}" style="width:130px"></div>`)}
-    <span class="tr-arrow">→</span>
+    <span class="tr-arrow" aria-hidden="true">${_si('arrow-right')}</span>
     ${moneyField('to account', `<div class="settings-input custom-select" id="tr-to" data-value="${esc(a1)}" data-options="${esc(opts)}" style="width:130px"></div>`)}
     ${moneyField('date', `<div class="date-input" id="tr-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>`)}
     ${moneyField('amount', `<input type="text" id="tr-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
@@ -1400,7 +1401,7 @@ function _renderTxnMain(t, an) {
   const label = esc(`${t.payee || 'transaction'}, ${t.date || 'undated'}, ${signed(t.amount, currency)}, ${an[t.account_id] || 'account'}`);
   const actions = xf ? '' : `<span class="tx-actions">
     <button type="button" class="tx-edit" data-edit-txn="${t.id}" aria-label="edit ${label}">edit</button>
-    <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" aria-label="cleared: ${label}" aria-pressed="${!!t.cleared}"><span aria-hidden="true">${t.cleared ? '✓' : '○'}</span> cleared</button>
+    <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" aria-label="cleared: ${label}" aria-pressed="${!!t.cleared}"><span aria-hidden="true">${_si(t.cleared ? 'check-circle' : 'circle')}</span> cleared</button>
     ${canSplit ? `<button class="tx-split-btn ${t.split ? 'on' : ''}" data-split-txn="${t.id}" aria-label="split ${label} across categories" aria-expanded="${_splitTxn === t.id}" title="split across categories">split</button>` : ''}
     ${t.receipt_id
       ? `<a class="tx-receipt" href="/api/uploads/${esc(t.receipt_id)}" target="_blank" rel="noopener" aria-label="view receipt for ${label}" title="view receipt">view receipt</a>`
@@ -1410,7 +1411,7 @@ function _renderTxnMain(t, an) {
     <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${t.id}">
       <span class="tx-date">${esc((t.date || '').slice(5))}</span>
       <span class="tx-payee">${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
-      <span class="tx-cat">${xf ? '⇄ transfer' : (t.category ? `${catDot(t.category)}${esc(t.category)}` : '')}</span>
+      <span class="tx-cat">${xf ? `${_si('swap')} transfer` : (t.category ? `${catDot(t.category)}${esc(t.category)}` : '')}</span>
       ${xf ? '' : `<span class="tx-tags">${tags}</span>`}
       <span class="tx-acct">${esc(an[t.account_id] || '')}</span>
       <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount, currency)}</span>
@@ -2175,7 +2176,7 @@ async function runReconcile(aid) {
     const d = await api(`/api/money/accounts/${aid}/reconcile?statement=${v}`);
     out.className = 'rc-out ' + (d.reconciled ? 'ok' : 'bad');
     out.textContent = d.reconciled
-      ? `✓ reconciled: cleared ${fmt(d.cleared_balance)}`
+      ? `reconciled: cleared ${fmt(d.cleared_balance)}`
       : `cleared ${fmt(d.cleared_balance)} · off by ${fmt(Math.abs(d.difference))}`;
   } catch { out.textContent = 'failed'; }
 }

@@ -247,7 +247,7 @@ test('transaction action text explains effects and cleared keeps a stable toggle
   for (const text of ['edit', 'split', 'attach receipt', 'delete']) assert.ok(html.includes(`>${text}</`), text);
   assert.match(html, /aria-label="cleared: owned &amp; exact/);
   html = h._renderTxnMain({...row,cleared:true,receipt_id:'owned-local'}, {checking:'checking'});
-  assert.match(html, /aria-pressed="true"><span aria-hidden="true">✓<\/span> cleared<\/button>/);
+  assert.match(html, /aria-pressed="true"><span aria-hidden="true">.*?<\/span> cleared<\/button>/);
   assert.match(html, /aria-label="cleared: owned &amp; exact/);
   assert.match(html, />view receipt<\/a>/);
   assert.match(h._renderTxnMain({...row,transfer_id:'transfer'}, {checking:'checking'}), />delete transfer<\/button>/);

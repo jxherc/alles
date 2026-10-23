@@ -129,13 +129,13 @@ function _kindCard(k) {
   const label = k.label || KIND_LABEL[k.kind] || k.kind;
   const tgt = (typeof k.target === 'number') ? k.target : null;
   const anom = k.anomaly
-    ? `<span class="health-anom ${k.anomaly.dir}" title="outside your usual range">${k.anomaly.dir === 'high' ? '▲ above usual' : '▼ below usual'}</span>` : '';
+    ? `<span class="health-anom ${k.anomaly.dir}" title="outside your usual range">${k.anomaly.dir === 'high' ? `${_si('trend-up')} above usual` : `${_si('trend-down')} below usual`}</span>` : '';
   const base = (k.baseline && k.baseline.n >= 5)
     ? `<div class="health-baseline">usual ${_fmtNum(k.baseline.mean)}<span>${esc(unit)}</span> <span class="health-pm">± ${_fmtNum(k.baseline.std)}</span></div>` : '';
   return `
     <div class="health-card" data-kind="${esc(k.kind)}">
       <div class="health-card-h">${esc(label)}
-        <button class="health-target-btn${tgt != null ? ' on' : ''}" data-act="set-target" title="set a target">${tgt != null ? `◎ ${_fmtNum(tgt)}` : 'set target'}</button>
+        <button class="health-target-btn${tgt != null ? ' on' : ''}" data-act="set-target" title="set a target">${tgt != null ? `${_si('target')} ${_fmtNum(tgt)}` : 'set target'}</button>
       </div>
       <div class="health-latest">${k.latest ? `${_fmtNum(k.latest.value)}<span>${esc(unit)}</span>` : '—'}${anom}</div>
       ${base}

@@ -444,7 +444,7 @@ function _renderReader(body) {
   body.innerHTML = `
     <div class="read-reader">
       <div class="read-reader-bar">
-        <button class="btn" id="read-back">${_si('chevron-left') || '←'} back</button>
+        <button class="btn" id="read-back">${_si('chevron-left')} back</button>
         <button class="btn" type="button" id="read-note">take note</button>
         <a class="btn" href="${esc(_safeUrl(it.url))}" target="_blank" rel="noopener">open original ${_si('link')}</a>
       </div>

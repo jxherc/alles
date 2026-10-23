@@ -96,6 +96,17 @@ const P = {
   pin: '<path d="M9 3h6l-1 6 3 3v2h-5v5l-1 1-1-1v-5H4v-2l3-3z" transform="translate(2 0)"/>',
   external: '<path d="M14 5h5v5"/><line x1="19" y1="5" x2="11" y2="13"/><path d="M18 13.5V18a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 18V8.5A1.5 1.5 0 0 1 7.5 7H12"/>',
   globe: '<circle cx="12" cy="12" r="8.5"/><ellipse cx="12" cy="12" rx="3.8" ry="8.5"/><line x1="3.5" y1="12" x2="20.5" y2="12"/>',
+  // arrows and marks that used to be text glyphs (⇄ ⇅ ↑ ↓ ▲ ▼ ○ ⌫ ⊘)
+  swap: '<polyline points="16 3 20 7 16 11"/><line x1="20" y1="7" x2="5" y2="7"/><polyline points="8 21 4 17 8 13"/><line x1="4" y1="17" x2="19" y2="17"/>',
+  'swap-v': '<polyline points="3 8 7 4 11 8"/><line x1="7" y1="4" x2="7" y2="19"/><polyline points="21 16 17 20 13 16"/><line x1="17" y1="20" x2="17" y2="5"/>',
+  'arrow-up': '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/>',
+  'arrow-down': '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="6 13 12 19 18 13"/>',
+  'arrow-right': '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>',
+  'trend-up': '<polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/>',
+  'trend-down': '<polyline points="3 7 9 13 13 9 21 17"/><polyline points="15 17 21 17 21 11"/>',
+  circle: '<circle cx="12" cy="12" r="8"/>',
+  none: '<circle cx="12" cy="12" r="8"/><line x1="6.5" y1="17.5" x2="17.5" y2="6.5"/>',
+  backspace: '<path d="M9 5h11a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 20 19H9l-6-7z"/><line x1="12" y1="9.5" x2="17" y2="14.5"/><line x1="17" y1="9.5" x2="12" y2="14.5"/>',
 };
 
 export function icon(name, opts = {}) {

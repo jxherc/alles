@@ -1326,7 +1326,7 @@ function _renderThreads(messages, msgTime) {
           <span class="mail-from">${esc(fromName(t.top.from))}</span>
           <span class="mail-date">${esc(shortDate(t.top.date))}</span>
         </div>
-        <button type="button" class="mail-open mail-subject" aria-expanded="${open}"><span class="mail-thread-caret" aria-hidden="true">${open ? '▾' : '▸'}</span> ${esc(t.top.subject || '(no subject)')} <span class="mail-thread-count">${t.msgs.length}</span></button>
+        <button type="button" class="mail-open mail-subject" aria-expanded="${open}"><span class="mail-thread-caret" aria-hidden="true">${_si(open ? 'chevron-down' : 'chevron-right')}</span> ${esc(t.top.subject || '(no subject)')} <span class="mail-thread-count">${t.msgs.length}</span></button>
         ${_active === 'all' ? `<div class="mail-account-badge">${esc(t.top.account_name || acctName(t.top.account_id))}</div>` : ''}
       </div>`;
     const kids = open ? t.msgs.map(m => _msgRow(m, true)).join('') : '';
@@ -1497,8 +1497,8 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
         <button class="btn" id="mail-reply">reply</button>
         <button class="btn" id="mail-unread" title="mark as unread">unread</button>
         <button class="btn" id="mail-vip" title="VIP sender">+ VIP</button>
-        <button class="btn" id="mail-to-task" title="review a task from this mail">→ task</button>
-        <button class="btn" id="mail-to-cal" title="extract and review an event from this mail">→ calendar</button>
+        <button class="btn" id="mail-to-task" title="review a task from this mail">${_si('check-circle')} make a task</button>
+        <button class="btn" id="mail-to-cal" title="extract and review an event from this mail">${_si('calendar')} add to calendar</button>
         <button class="btn" id="mail-summarize" title="AI summary + action items">summarize</button>
       </div>
     </div>
@@ -1529,7 +1529,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   unread.addEventListener('click', () => { if (current() && unread.getAttribute('aria-disabled') !== 'true') changeRead(false); });
   changeRead(true);
   let vipState = null, vipLoading = false;
-  const paintVip = on => { vipState = on; vip.classList.toggle('on', on); vip.textContent = on ? 'VIP ★' : '+ VIP'; };
+  const paintVip = on => { vipState = on; vip.classList.toggle('on', on); vip.innerHTML = on ? `VIP ${_si('star-fill')}` : `${_si('plus')} VIP`; };
   const loadVip = async () => {
     if (vipLoading || !current()) return;
     vipLoading = true; vip.setAttribute('aria-disabled', 'true');
@@ -1624,7 +1624,7 @@ async function loadAttachments(aid, uid, folder, isCurrent = () => true) {
   row.innerHTML = atts.map(a => {
     const url = `/api/mail/attachment/${aid}?uid=${encodeURIComponent(uid)}&index=${a.index}&folder=${encodeURIComponent(folder)}`;
     return `<a class="mail-attach-chip" href="${esc(url)}" download="${esc(a.filename)}" title="${esc(a.content_type)} · ${fmtBytes(a.size)}">
-      <span class="mail-attach-clip">📎</span><span class="mail-attach-name">${esc(a.filename)}</span><span class="mail-attach-size">${fmtBytes(a.size)}</span></a>`;
+      <span class="mail-attach-clip" aria-hidden="true">${_si('paperclip')}</span><span class="mail-attach-name">${esc(a.filename)}</span><span class="mail-attach-size">${fmtBytes(a.size)}</span></a>`;
   }).join('');
   head.appendChild(row);
 }
@@ -1889,7 +1889,7 @@ async function _wireRichCompose(defaultAid, root, current) {
     if (!current()) return;
     const active = document.activeElement;
     const focused = [list, panel].some(node => node.contains(active)) ? { ...active.dataset } : null;
-    list.innerHTML = sigs.map(s => `<button class="btn mc-sig-chip" data-sig="${esc(s.id)}" title="insert signature">✎ ${esc(s.name)}</button>`).join('');
+    list.innerHTML = sigs.map(s => `<button class="btn mc-sig-chip" data-sig="${esc(s.id)}" title="insert signature">${_si('edit')} ${esc(s.name)}</button>`).join('');
     list.querySelectorAll('.mc-sig-chip').forEach(button => button.addEventListener('click', () => {
       if (!current()) return;
       const signature = sigs.find(row => row.id === button.dataset.sig);
@@ -2520,7 +2520,7 @@ async function rulesPanel() {
     <div class="mail-saved-status" id="mr-recovery"><p id="mr-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="mr-recovery-actions"></div></div>
     <div class="mail-rule-actions"><button type="button" class="btn" id="mr-run">run rules now</button><span id="mr-run-status" class="mail-status" role="status" aria-live="polite"></span></div>
     <div class="mail-compose-head" style="margin-top:1rem">vacation responder</div>
-    <button class="btn mail-vac-toggle${vac.enabled ? ' active' : ''}" id="mv-enabled" aria-pressed="${vac.enabled ? 'true' : 'false'}">${vac.enabled ? '✓ ' : ''}auto-reply when I'm away</button>
+    <button class="btn mail-vac-toggle${vac.enabled ? ' active' : ''}" id="mv-enabled" aria-pressed="${vac.enabled ? 'true' : 'false'}">${vac.enabled ? `${_si('check')} ` : ''}auto-reply when I'm away</button>
     <input class="settings-input" id="mv-subject" aria-label="vacation subject" placeholder="subject" value="${esc(vac.subject || '')}">
     <textarea class="settings-input mail-compose-body" id="mv-body" aria-label="vacation message" placeholder="out-of-office message…">${esc(vac.body || '')}</textarea>
     <button class="btn primary" id="mv-save">save vacation reply</button>
@@ -2535,7 +2535,7 @@ async function rulesPanel() {
     const on = $('mv-enabled').getAttribute('aria-pressed') !== 'true';
     $('mv-enabled').setAttribute('aria-pressed', on ? 'true' : 'false');
     $('mv-enabled').classList.toggle('active', on);
-    $('mv-enabled').textContent = (on ? '✓ ' : '') + "auto-reply when I'm away";
+    $('mv-enabled').innerHTML = `${on ? `${_si('check')} ` : ''}auto-reply when I'm away`;
   });
   const ruleEditor = mountRuleEditor(main.querySelector('.mail-rules-panel'), generation, rules, scopes);
   const vacationRoot = main.querySelector('.mail-rules-panel');
@@ -2895,7 +2895,7 @@ function acctForm(acct) {
     if (guide) {
       if (p && p.apppw) {
         guide.innerHTML = `
-          <a class="btn primary mail-getpw" href="${esc(p.apppw)}" target="_blank" rel="noreferrer">get app password →</a>
+          <a class="btn primary mail-getpw" href="${esc(p.apppw)}" target="_blank" rel="noreferrer">get app password ${_si('external')}</a>
           <ol class="mail-steps">
             <li>opens ${esc(p.label)}'s app-password page - sign in if it asks</li>
             <li>create one (name it "alles") and copy the code</li>

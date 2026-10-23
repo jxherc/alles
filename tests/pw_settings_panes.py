@@ -2083,7 +2083,7 @@ def developer_focus_webhook_cases(page, api, pane, reopen, destination):
         held[index].fulfill(json={"status": "ok", "error": ""})
         expect(button(a)).to_be_enabled()
         expect(page.locator("#toast-container .toast.success").last).to_have_text(
-            "webhook delivered ✓"
+            "webhook delivered"
         )
         cases.append(
             {
@@ -2135,7 +2135,7 @@ def developer_focus_webhook_cases(page, api, pane, reopen, destination):
                 )
             else:
                 expect(page.locator("#toast-container .toast.success").last).to_have_text(
-                    "webhook delivered ✓"
+                    "webhook delivered"
                 )
             assert len(held) == index + 1
             assert {record["id"] for record in api.get("/api/webhooks").json()} >= set(hooks)
@@ -2288,7 +2288,7 @@ def webhook_mutual_action_cases(page, api, reopen, destination):
                         )
                     else:
                         expect(page.locator("#toast-container .toast.success").last).to_have_text(
-                            "webhook delivered ✓"
+                            "webhook delivered"
                         )
                 expect(page.locator("#wh-name")).to_have_value(draft)
                 expect(page.locator("#wh-name")).to_be_focused()
@@ -2305,7 +2305,7 @@ def webhook_mutual_action_cases(page, api, reopen, destination):
                         expect(control(wid, "test")).to_be_enabled()
                         expect(control(wid, "delete")).to_be_enabled()
                         expect(page.locator("#toast-container .toast.success").last).to_have_text(
-                            "webhook delivered ✓"
+                            "webhook delivered"
                         )
                         assert present(wid)
                     else:
@@ -2341,7 +2341,7 @@ def webhook_mutual_action_cases(page, api, reopen, destination):
                 expect(control(b, "test")).to_be_enabled()
                 expect(control(b, "delete")).to_be_enabled()
                 expect(page.locator("#toast-container .toast.success").last).to_have_text(
-                    "webhook delivered ✓"
+                    "webhook delivered"
                 )
             else:
                 settle_delete(other)
@@ -2378,7 +2378,7 @@ def webhook_mutual_action_cases(page, api, reopen, destination):
             expect(control(wid, "test")).to_be_enabled()
             expect(control(wid, "delete")).to_be_enabled()
             expect(page.locator("#toast-container .toast.success").last).to_have_text(
-                "webhook delivered ✓"
+                "webhook delivered"
             )
         index = begin(wid, "delete")
         settle_delete(index)

@@ -2,6 +2,7 @@
 // the run logs already live on disk (data/agent_runs/*.json); this just surfaces
 // them so an autonomous agent is inspectable instead of a black box.
 import { toast } from './util.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -16,7 +17,7 @@ const ago = iso => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 
-const STATUS = { done: '✓', running: '⟳', interrupted: '◷', turn_limit: '⊘', stopped: '■', error: '✕' };
+const STATUS_ICON = { done: 'check', running: 'refresh', interrupted: 'pause', turn_limit: 'none', stopped: 'stop', error: 'x-circle' };
 
 let _wired = false;
 export function initRuns() {
@@ -51,7 +52,7 @@ function rowHtml(r) {
   const edits = r.edits ? ` · ${r.edits} edit${r.edits > 1 ? 's' : ''}` : '';
   return `<div class="run-row" data-id="${esc(r.id)}">
     <div class="run-row-head">
-      <span class="run-status run-${esc(r.status)}" title="${esc(r.status)}">${STATUS[r.status] || '·'}</span>
+      <span class="run-status run-${esc(r.status)}" title="${esc(r.status)}">${_si(STATUS_ICON[r.status] || 'clock')}</span>
       <span class="run-model">${esc(r.model || 'agent')}</span>
       <span class="run-time">${esc(ago(r.updated_at || r.started_at))}</span>
     </div>
@@ -141,7 +142,7 @@ function detailHtml(run, src, id) {
   const todos = (run.todos || []).map(t => {
     // producer emits {step, status: pending|in_progress|completed}; tolerate legacy text/done too
     const done = t.status === 'completed' || t.status === 'done';
-    return `<div class="run-todo ${done ? 'done' : ''}">${done ? '✓' : '○'} ${esc(t.step || t.text || t.title || '')}</div>`;
+    return `<div class="run-todo ${done ? 'done' : ''}">${_si(done ? 'check-circle' : 'circle')} ${esc(t.step || t.text || t.title || '')}</div>`;
   }).join('');
   const steps = (run.tool_steps || []).slice(-12).map(s =>
     `<span class="run-step ${s.error ? 'err' : ''}" title="${esc(s.output || '')}">${esc(s.name || s.tool || 'tool')}</span>`).join('');

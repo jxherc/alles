@@ -22,6 +22,7 @@ import { setAccent as _themeSetAccent, resetToDefault as _resetToDefault, getApp
 import {
   formatDate,
 } from './i18n.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 // ── visibility prefs (appearance toggles) ────────────────────────────────────
 const VIS_KEY = 'aide-ui-vis';
@@ -1211,7 +1212,7 @@ async function _loadPersonaDocs(pid) {
   }
   if (read !== _personaDocsReadGeneration || _editingPersona !== pid || !_isSettingsPaneOpen('personas')) return;
   box.innerHTML = docs.length
-    ? docs.map(d => `<div class="persona-doc-row"><span>📄 ${_esc(d.title)}</span>` +
+    ? docs.map(d => `<div class="persona-doc-row"><span>${_si('file')} ${_esc(d.title)}</span>` +
         `<button class="act-btn" data-id="${_escAttr(d.id)}" data-persona-doc-remove ${_personaDocDeletes.has(`${pid}/${d.id}`) ? 'disabled' : ''}>remove</button></div>`).join('')
     : '<div class="settings-row-empty">no knowledge files yet</div>';
   box.querySelectorAll('.act-btn').forEach(b => b.onclick = async () => {
@@ -1597,8 +1598,8 @@ async function loadWebhooks() {
   if (!hooks.length) { el.innerHTML = '<div class="settings-row-empty">no webhooks</div>'; return; }
   el.innerHTML = hooks.map(h => {
     const pending = _webhookTests.has(h.id) || _webhookDeletes.has(h.id);
-    const st = h.last_status === 'ok' ? ' · ✓ ok'
-      : h.last_status ? ` · ✕ ${_esc(h.last_error || h.last_status)}` : '';
+    const st = h.last_status === 'ok' ? ' · ok'
+      : h.last_status ? ` · failed: ${_esc(h.last_error || h.last_status)}` : '';
     return `
     <div class="settings-list-row">
       <span class="status-dot" style="background:${h.enabled ? 'var(--green)' : 'var(--faint)'}"></span>
@@ -1625,7 +1626,7 @@ window._testWebhook = async btn => {
     const response = await fetch(`/api/webhooks/${id}/test`, { method: 'POST' });
     if (!response.ok) throw new Error('webhook test failed');
     const r = await response.json();
-    toast(r.status === 'ok' ? 'webhook delivered ✓' : `failed: ${r.error || r.status}`, r.status === 'ok' ? 'success' : 'error');
+    toast(r.status === 'ok' ? 'webhook delivered' : `failed: ${r.error || r.status}`, r.status === 'ok' ? 'success' : 'error');
   } catch { toast('test failed', 'error'); }
   finally {
     _webhookTests.delete(id);

@@ -3,6 +3,7 @@
 // events + accumulated prose and show progress instead of an empty chat.
 
 import { renderAideQuestion } from './aidequestions.js?v=1';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _timer = null;
 let _curRun = null;
@@ -18,7 +19,7 @@ function _box() {
     b = document.createElement('div');
     b.id = 'bg-reattach';
     b.className = 'bg-reattach';
-    b.innerHTML = '<span class="bg-reattach-status">↻ running in background…</span>'
+    b.innerHTML = `<span class="bg-reattach-status">${_si('refresh')} running in background…</span>`
       + '<div class="bg-reattach-text"></div><div class="bg-reattach-question"></div>';
     document.getElementById('messages')?.appendChild(b);
   }
@@ -64,7 +65,7 @@ export async function reattach(sessionId) {
     if (d && d.done) {
       stop();
       const st = box.querySelector('.bg-reattach-status');
-      if (st) st.textContent = '✓ finished';
+      if (st) st.innerHTML = `${_si('check')} finished`;
       // give the saved reply a moment to land, then refresh the conversation
       setTimeout(() => { box.remove(); window._reloadActiveSession?.(sessionId); }, 800);
     }

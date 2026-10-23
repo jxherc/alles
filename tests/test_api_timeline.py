@@ -70,7 +70,7 @@ class TimelineApiTest(ApiTest):
         self.assertEqual(ts, sorted(ts, reverse=True))
         types = {e["type"] for e in evs}
         self.assertEqual(types, {"task", "journal", "money"})
-        done = next(e for e in evs if e["type"] == "task" and e["title"].startswith("✓"))
+        done = next(e for e in evs if e["type"] == "task" and e["subtitle"] == "completed")
         self.assertEqual(done["subtitle"], "completed")
 
     def test_type_filter(self):

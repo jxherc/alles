@@ -623,7 +623,7 @@ async def chat_background(body: ChatRequest, request: Request, db: DbSession = D
                 from services import notify
 
                 if settings.get("notify_on_agent_done") and notify.configured():
-                    await notify.send(f"✓ aide finished a background run: {body.message[:140]}")
+                    await notify.send(f"aide finished a background run: {body.message[:140]}")
             except Exception:
                 pass
         finally:

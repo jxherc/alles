@@ -4,6 +4,7 @@
 // table. all monospace + hand-rendered, polled live. no chart library.
 import { confirm as confirmDialog } from './dialog.js';
 import { resolvedTimeZone } from './i18n.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -415,10 +416,10 @@ function render(s, fetcher = fetch) {
   const peakDn = Math.max(1, ...netDownHist), peakUp = Math.max(1, ...netUpHist);
   $('net-head').innerHTML =
     (net.iface ? `<div class="bx-line bx-netif"><span class="bx-tag" style="color:var(--accent)">${esc(net.iface)}</span><span class="bx-meta">${esc(net.ip || '')}${net.link_mbps ? ` · ${net.link_mbps} Mb/s` : ''}</span></div>` : '') +
-    `<div class="bx-line"><span class="bx-tag" style="color:#5ec8d8">↓ dn</span><span class="bx-rate">${fmtRate(net.down_bps)}</span><span class="bx-meta">▲ ${fmtRate(peakDn)} · Σ ${fmtBytes(net.recv_total)}</span></div>`;
+    `<div class="bx-line"><span class="bx-tag" style="color:#5ec8d8">${_si('arrow-down')} down</span><span class="bx-rate">${fmtRate(net.down_bps)}</span><span class="bx-meta">peak ${fmtRate(peakDn)} · Σ ${fmtBytes(net.recv_total)}</span></div>`;
   drawGraph($('net-dn-graph'), netDownHist, _RAMP_DN, 0);
   $('net-mid').innerHTML =
-    `<div class="bx-line"><span class="bx-tag" style="color:#c08cf8">↑ up</span><span class="bx-rate">${fmtRate(net.up_bps)}</span><span class="bx-meta">▲ ${fmtRate(peakUp)} · Σ ${fmtBytes(net.sent_total)}</span></div>`;
+    `<div class="bx-line"><span class="bx-tag" style="color:#c08cf8">${_si('arrow-up')} up</span><span class="bx-rate">${fmtRate(net.up_bps)}</span><span class="bx-meta">peak ${fmtRate(peakUp)} · Σ ${fmtBytes(net.sent_total)}</span></div>`;
   drawGraph($('net-up-graph'), netUpHist, _RAMP_UP, 0);
 
   // disk — per mount (used% · size · fs · free) + io rate + an io activity graph

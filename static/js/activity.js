@@ -4,6 +4,7 @@
 import { calendarDateKey, formatCalendarDate, formatTime } from './i18n.js';
 import { replaceRouteUrl } from './route_history.js';
 import { toast } from './util.js';
+import { icon } from './icons.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -15,7 +16,9 @@ const TYPES = [
   { key: 'doc', label: 'docs' }, { key: 'agent', label: 'agent' },
   { key: 'sub', label: 'subs' },
 ];
-const GLYPH = { journal: '✎', task: '✓', calendar: '◷', money: '$', mail: '✉', photo: '▣', doc: '❏', agent: '⟳', sub: '↻' };
+// each kind's svg icon from the shared set (these were text glyphs: ✎ ✓ ◷ $ ✉ ▣ ❏ ⟳ ↻)
+const ICON = { journal: 'edit', task: 'check-circle', calendar: 'calendar', money: 'dollar', mail: 'mail', photo: 'image', doc: 'file', agent: 'sparkles', sub: 'refresh' };
+const glyph = kind => icon(ICON[kind] || 'clock');
 const LABEL = Object.fromEntries(TYPES.map(t => [t.key, t.label]));
 
 let _days = 30;
@@ -61,7 +64,7 @@ function renderFilters() {
   const wrap = $('activity-filters');
   if (!wrap) return;
   const chips = TYPES.map(t =>
-    `<button type="button" class="act-chip${_off.has(t.key) ? ' off' : ''}" data-k="${t.key}" aria-pressed="${!_off.has(t.key)}">${GLYPH[t.key]} ${t.label}</button>`).join('');
+    `<button type="button" class="act-chip${_off.has(t.key) ? ' off' : ''}" data-k="${t.key}" aria-pressed="${!_off.has(t.key)}">${glyph(t.key)} ${t.label}</button>`).join('');
   const ranges = `<span class="seg seg-sm act-seg" role="group" aria-label="time range">${RANGES.map(([d, l]) =>
     `<button type="button" class="seg-opt${d === _days ? ' active' : ''}" data-d="${d}" aria-pressed="${d === _days}">${l}</button>`).join('')}</span>`;
   const search = `<input type="text" id="act-search" class="act-search" placeholder="search activity…" aria-label="search activity" value="${esc(_q)}">`;
@@ -124,7 +127,7 @@ async function loadSummary(want, fetcher = fetch, sequence = _loadSequence) {
     if (!strip) return;
     if (!s.total && !s.partial_sources?.length) { strip.innerHTML = ''; return; }
     const chips = s.by_type.map(x =>
-      `<span class="act-sum-chip"><span class="act-sum-glyph act-${x.type}">${GLYPH[x.type] || '·'}</span>${x.count} ${esc(LABEL[x.type] || x.type)}</span>`).join('');
+      `<span class="act-sum-chip"><span class="act-sum-glyph act-${x.type}">${glyph(x.type)}</span>${x.count} ${esc(LABEL[x.type] || x.type)}</span>`).join('');
     const busy = s.busiest ? `<span class="act-sum-busy">busiest · ${dayLabel(s.busiest.date)} (${s.busiest.count})</span>` : '';
     const total = s.partial_sources?.length ? `${s.total} available events` : `${s.total} events`;
     strip.innerHTML = `<span class="act-sum-total">${total}</span>${chips}${busy}`;
@@ -176,7 +179,7 @@ function render(events, partialSources = [], fetcher = fetch) {
     if (dl !== curDay) { curDay = dl; html += `<div class="activity-day">${esc(dl)}</div>`; }
     const label = [LABEL[e.type] || e.type, e.title, e.subtitle].filter(Boolean).join(', ');
     html += `<button type="button" class="activity-row" aria-label="${esc(label)}" data-type="${esc(e.type)}" data-view="${esc(e.view)}" data-id="${esc(e.id)}">
-      <span class="activity-glyph act-${esc(e.type)}" aria-hidden="true">${GLYPH[e.type] || '·'}</span>
+      <span class="activity-glyph act-${esc(e.type)}" aria-hidden="true">${glyph(e.type)}</span>
       <span class="activity-main">
         <span class="activity-title">${esc(e.title)}</span>
         ${e.subtitle ? `<span class="activity-sub">${esc(e.subtitle)}</span>` : ''}

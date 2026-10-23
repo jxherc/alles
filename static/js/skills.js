@@ -4,6 +4,7 @@
 import { toast } from './util.js';
 import { createFocusBoundary } from './kokuen.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _built = false;
 let _cur = null;            // slug open in the drawer, or null for a new one
@@ -64,7 +65,7 @@ export function initSkills(fetcher = fetch) {
       <div class="skills2">
         <div class="skl-head">
           <input id="skl-search" aria-label="search skills" class="settings-input skl-search" placeholder="search skills…">
-          <button class="btn" id="skl-match">⌕ what aide picks</button>
+          <button class="btn" id="skl-match">${_si('search')} what aide picks</button>
           <button class="btn primary" id="skl-new">+ new</button>
         </div>
         <div class="skl-body">
@@ -190,8 +191,8 @@ function _renderRail() {
   }
   html += `<div class="skl-rail-foot">
       <button class="skl-rail-act${_state.mode === 'library' ? ' active' : ''}" data-act="library">⊕ library</button>
-      <button class="skl-rail-act" data-act="github">↳ github</button>
-      <button class="skl-rail-act" data-act="upload">↑ upload</button>
+      <button class="skl-rail-act" data-act="github">${_si('download')} from github</button>
+      <button class="skl-rail-act" data-act="upload">${_si('upload')} upload</button>
     </div>
     <input type="file" id="skl-file" accept=".md,.markdown,.txt" multiple style="display:none">`;
   rail.innerHTML = html;
@@ -341,14 +342,14 @@ const _libCard = s => `
   <div class="skl-card" data-slug="${esc(s.slug)}" data-kind="builtin">
     <div class="skl-card-top"><button type="button" class="skl-card-name" aria-label="open ${esc(s.name)}">${esc(s.name)}</button></div>
     <div class="skl-card-desc">${esc(s.description) || ''}</div>
-    ${s.installed ? '<span class="skl-added">✓ added</span>' : '<button class="skl-add" data-act="add">+ add</button>'}
+    ${s.installed ? `<span class="skl-added">${_si('check')} added</span>` : `<button class="skl-add" data-act="add">${_si('plus')} add</button>`}
   </div>`;
 
 const _srcCard = s => `
   <div class="skl-card" data-path="${esc(s.path)}" data-url="${esc(s.import_url)}" data-kind="github">
     <div class="skl-card-top"><button type="button" class="skl-card-name" aria-label="open ${esc(s.name)}">${esc(s.name)}</button></div>
     ${s.dir ? `<div class="skl-card-desc skl-card-dir">${esc(s.dir)}</div>` : ''}
-    ${s.installed ? '<span class="skl-added">✓ added</span>' : '<button class="skl-add" data-act="add">+ add</button>'}
+    ${s.installed ? `<span class="skl-added">${_si('check')} added</span>` : `<button class="skl-add" data-act="add">${_si('plus')} add</button>`}
   </div>`;
 
 async function _addFromLibrary(c) {
@@ -382,7 +383,7 @@ function _openPreview(s, opts, source) {
   const host = $('skl-drawer-host');
   if (!host) return;
   const addCtl = opts.installed
-    ? '<span class="skl-added">✓ added</span>'
+    ? `<span class="skl-added">${_si('check')} added</span>`
     : '<button class="btn primary" id="skl-pv-add">+ add</button>';
   const srcLink = (s.source_url && /^https?:\/\//i.test(s.source_url)) ? `<a class="skl-pv-src" href="${esc(s.source_url)}" target="_blank" rel="noopener">view source</a>` : '';
   host.innerHTML = `

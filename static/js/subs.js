@@ -4,6 +4,7 @@ import { calendarDateKey, formatNumber } from './i18n.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
 import { confirm as dlgConfirm } from './dialog.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 // "CAD 1,202.43", not "CAD1202.43": a space after the code and the reader's own separators
 function _amt(currency, value, digits = 2) {
@@ -316,15 +317,15 @@ function _row(s) {
     <div class="sub-item${s.active ? '' : ' paused'}" data-id="${s.id}">
       <div class="sub-main">
         <span class="sub-name">${esc(s.name)}</span>
-        ${s.url ? `<a class="sub-link" href="${esc(s.url)}" target="_blank" rel="noreferrer" title="manage ${esc(s.name)}">↗</a>` : ''}
+        ${s.url ? `<a class="sub-link" href="${esc(s.url)}" target="_blank" rel="noreferrer" title="manage ${esc(s.name)}" aria-label="manage ${esc(s.name)}">${_si('external')}</a>` : ''}
         ${s.category ? `<span class="sub-cat">${esc(s.category)}</span>` : ''}
-        ${s.account_id && acctName(s.account_id) ? `<span class="sub-autopost" title="auto-posts the charge to ${esc(acctName(s.account_id))}">↻ ${esc(acctName(s.account_id))}</span>` : ''}
+        ${s.account_id && acctName(s.account_id) ? `<span class="sub-autopost" title="auto-posts the charge to ${esc(acctName(s.account_id))}">${_si('refresh')} ${esc(acctName(s.account_id))}</span>` : ''}
         ${s.notes ? `<span class="sub-notes" title="${esc(s.notes)}">…</span>` : ''}
         ${s.trial_days_left != null && s.trial_days_left >= 0 ? `<span class="sub-trial" title="free trial / cancel by ${esc(s.trial_end)}">trial: ${s.trial_days_left === 0 ? 'ends today' : s.trial_days_left + 'd left'}</span>` : ''}
         ${s.price_increased ? `<span class="sub-hike" title="price went up${s.last_price_change ? ` (${esc(_amt(s.currency, s.last_price_change.old))} → ${esc(_amt(s.currency, s.last_price_change.new))} on ${esc(s.last_price_change.date)})` : ''}">↑ price up</span>` : ''}
-        ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate: another tracked subscription matches this name or site">⚠ dup?</span>` : ''}
-        ${_unusedIds.has(s.id) ? `<button class="sub-unused" data-act="edit" title="no matching charge in the last 2 cycles. click to review / cancel">💤 unused?</button>` : ''}
-        ${s.cancel_url ? `<a class="sub-cancel-link" href="${esc(s.cancel_url)}" target="_blank" rel="noreferrer" title="how to cancel ${esc(s.name)}">✕ cancel</a>` : ''}
+        ${_dupIds.has(s.id) ? `<span class="sub-dup" title="possible duplicate: another tracked subscription matches this name or site">${_si('warning')} duplicate?</span>` : ''}
+        ${_unusedIds.has(s.id) ? `<button class="sub-unused" data-act="edit" title="no matching charge in the last 2 cycles. click to review / cancel">${_si('snooze')} unused?</button>` : ''}
+        ${s.cancel_url ? `<a class="sub-cancel-link" href="${esc(s.cancel_url)}" target="_blank" rel="noreferrer" title="how to cancel ${esc(s.name)}">how to cancel ${_si('external')}</a>` : ''}
       </div>
       <span class="sub-price">${s.price ? esc(_amt(s.currency, s.price)) : `${esc(s.currency)} —`}<span class="sub-cycle">${_cycleLabel(s)}</span></span>
       <span class="sub-due${soon ? ' soon' : ''}" title="${esc(s.next_due)}">${s.active ? esc(s.next_due.slice(5)) + ' · ' : ''}${_dueLabel(s)}</span>
@@ -354,7 +355,7 @@ function _editRow(s) {
       <input type="text" class="settings-input" data-f="url" value="${esc(s.url || '')}" placeholder="manage url" style="width:120px">
       <input type="text" class="settings-input" data-f="cancel_url" value="${esc(s.cancel_url || '')}" placeholder="cancel url / how-to" style="width:130px" title="how to cancel">
       <input type="text" class="settings-input" data-f="remind_days" value="${s.remind_days}" style="width:45px" title="push reminder N days before (0 = off)" inputmode="numeric">
-      <div class="settings-input custom-select" data-f="account_id" data-value="${esc(s.account_id || '')}" data-options="${['|no auto-post', ..._accounts.map(a => `${a.id}|↻ ${a.name}`)].map(esc).join(';')}" style="width:auto;min-width:120px" title="auto-post the charge to a money account"></div>
+      <div class="settings-input custom-select" data-f="account_id" data-value="${esc(s.account_id || '')}" data-options="${['|no auto-post', ..._accounts.map(a => `${a.id}|auto-post to ${a.name}`)].map(esc).join(';')}" style="width:auto;min-width:120px" title="auto-post the charge to a money account"></div>
       <input type="text" class="settings-input" data-f="notes" value="${esc(s.notes)}" placeholder="notes" style="flex:1;min-width:80px">
       <span class="sub-actions">
         <button class="btn primary" data-act="save">save</button>

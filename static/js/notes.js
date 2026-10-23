@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _notes = [];
 let _editing = null;
@@ -77,7 +78,7 @@ function renderNotes() {
       <div class="note-preview">${esc(n.content.slice(0, 200)) || '—'}</div>
       ${(n.due || n.items?.length) ? `<div class="note-meta-row">
         ${n.due ? `<span class="note-due${_isOverdue(n.due) ? ' overdue' : ''}">${_isOverdue(n.due) ? 'overdue' : 'due'} ${esc(n.due)}</span>` : ''}
-        ${n.items?.length ? `<span class="note-progress">✓ ${n.items.filter(i => i.done).length}/${n.items.length}</span>` : ''}
+        ${n.items?.length ? `<span class="note-progress">${_si('check')} ${n.items.filter(i => i.done).length}/${n.items.length}</span>` : ''}
       </div>` : ''}
       ${n.tags?.length ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       <div class="note-actions">
@@ -158,7 +159,7 @@ function openEditor(note) {
       </div>
       <div style="display:flex;gap:0.4rem;justify-content:flex-end">
         <button class="btn" id="note-obsidian-btn" title="open this note in Obsidian">obsidian</button>
-        <button class="btn" id="note-back-btn">← back</button>
+        <button class="btn" id="note-back-btn">${_si('chevron-left')} back</button>
         <button class="btn primary" id="note-save-btn">save</button>
       </div>
     </div>`;
@@ -198,7 +199,7 @@ function _addChecklistRow(text = '', done = false, focus = false) {
   row.innerHTML = `
     <button type="button" class="note-cl-done chk" role="checkbox" aria-checked="${done ? 'true' : 'false'}" aria-label="mark item done"></button>
     <input type="text" class="note-cl-text" value="${esc(text)}" placeholder="item…">
-    <button class="act-btn note-cl-del" title="remove">✕</button>`;
+    <button class="act-btn note-cl-del" title="remove" aria-label="remove">${_si('close')}</button>`;
   row.querySelector('.note-cl-done').addEventListener('click', event => {
     const button = event.currentTarget;
     button.setAttribute('aria-checked', button.getAttribute('aria-checked') === 'true' ? 'false' : 'true');

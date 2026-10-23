@@ -221,7 +221,7 @@ def _aggregate(db, want: set, days: int, unavailable: set[str]) -> list:
         for t in db.query(Task).all():
             if t.completed_at and _dt(t.completed_at) >= cutoff:
                 out.append(
-                    _ev(t.completed_at, "task", "tasks", "✓ " + t.title, "completed", "tasks", t.id)
+                    _ev(t.completed_at, "task", "tasks", t.title, "completed", "tasks", t.id)
                 )
             elif not t.done and _dt(t.created_at) and _dt(t.created_at) >= cutoff:
                 out.append(_ev(t.created_at, "task", "tasks", t.title, "added", "tasks", t.id))

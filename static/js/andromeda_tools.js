@@ -5,6 +5,7 @@
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
 import { formatDate, formatDateParts, formatTime, resolvedTimeZone } from './i18n.js';
 import { wireChoiceGroup } from './kokuen.js?v=1';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 export const make = (tag, className = '', text = '') => {
   const node = document.createElement(tag);
@@ -198,6 +199,7 @@ export function calcTool(data, ctx) {
     const key = make('button', `andromeda-calc-key${action === 'equals' ? ' is-equals' : ''}`, label);
     key.type = 'button';
     key.setAttribute('aria-label', KEY_NAMES[label] || label);
+    if (label === '⌫') key.innerHTML = _si('backspace');
     key.addEventListener('click', () => {
       if (action === 'clear') { input.value = ''; result.textContent = ''; }
       else if (action === 'back') input.value = input.value.slice(0, -1);

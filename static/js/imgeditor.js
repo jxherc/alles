@@ -2,6 +2,7 @@
 // pure browser Canvas API, no deps. opens as a full-screen modal over an image url.
 import { toast } from './util.js';
 import { prompt as dlgPrompt } from './dialog.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let S = null;   // editor state
 
@@ -33,9 +34,9 @@ export function openEditor(url, opts = {}) {
           <button class="ie-tool" data-tool="text" title="text">text</button>
           <span class="ie-sep"></span>
           <button class="ie-btn" data-act="rotl" title="rotate left">⟲</button>
-          <button class="ie-btn" data-act="rotr" title="rotate right">⟳</button>
-          <button class="ie-btn" data-act="fliph" title="flip horizontal">⇆</button>
-          <button class="ie-btn" data-act="flipv" title="flip vertical">⇅</button>
+          <button class="ie-btn" data-act="rotr" title="rotate right" aria-label="rotate right">${_si('redo')}</button>
+          <button class="ie-btn" data-act="fliph" title="flip horizontal" aria-label="flip horizontal">${_si('swap')}</button>
+          <button class="ie-btn" data-act="flipv" title="flip vertical" aria-label="flip vertical">${_si('swap-v')}</button>
           <span class="ie-sep"></span>
           <button class="ie-btn" data-act="undo" title="undo">undo</button>
           <button class="ie-btn" data-act="reset" title="reset adjustments">reset</button>
@@ -43,7 +44,7 @@ export function openEditor(url, opts = {}) {
         <div class="ie-right">
           <button class="ie-btn" data-act="download">download</button>
           <button class="ie-btn primary" data-act="save">save to gallery</button>
-          <button class="ie-btn" data-act="close">✕</button>
+          <button class="ie-btn" data-act="close" aria-label="close">${_si('close')}</button>
         </div>
       </div>
       <div class="ie-body">

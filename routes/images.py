@@ -208,7 +208,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
     except OSError:
         note = None
     note_id = note["id"] if note else None
-    note_status = "✓ saved to notes" if note else "couldn't save to notes"
+    note_status = "saved to notes" if note else "couldn't save to notes"
     assistant_md = f"{img_md}\n\n`{note_status}` · {title}"
     try:
         assistant.content = assistant_md

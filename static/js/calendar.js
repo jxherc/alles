@@ -1448,7 +1448,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
     <div class="cal-flabel">color</div>
     <div class="cal-swatches" id="cal-colors">
-      <button type="button" class="cal-sw cal-sw-def ${color === '' ? 'sel' : ''}" data-c="" aria-label="calendar default color" aria-pressed="${color === ''}">○</button>
+      <button type="button" class="cal-sw cal-sw-def ${color === '' ? 'sel' : ''}" data-c="" aria-label="calendar default color" aria-pressed="${color === ''}">${_si('none')}</button>
       ${COLOR_NAMES.map(c => `<button type="button" class="cal-sw ${color === c ? 'sel' : ''}" data-c="${c}" style="--cal-swatch:${hexOf(c)}" aria-label="${c} color" aria-pressed="${color === c}"></button>`).join('')}
     </div>
 

@@ -135,7 +135,7 @@ function _render() {
     <div class="watch-bar">
       <div class="watch-summary">${_loadError ? (_mons.length ? 'last loaded monitors' : 'monitor status unavailable') : sumBits.join(' · ') || 'no monitors'}</div>
       <div class="watch-bar-actions">
-        ${_statusCfg.enabled ? `<a class="btn" href="/status" target="_blank" rel="noopener" title="public status page">status page ↗</a>` : ''}
+        ${_statusCfg.enabled ? `<a class="btn" href="/status" target="_blank" rel="noopener" title="public status page">status page ${_si('external')}</a>` : ''}
         <button type="button" class="btn" id="watch-status-toggle" aria-pressed="${!!_statusCfg.enabled}" title="toggle the public /status page"${_statusPending || !_statusLoaded ? ' disabled' : ''}${_statusPending ? ' aria-busy="true"' : ''}>status: ${_statusLoaded ? (_statusCfg.enabled ? 'public' : 'off') : 'unavailable'}</button>
         <button class="btn" id="watch-refresh-all">${_si('refresh')} refresh all</button>
         <button class="btn primary" id="watch-add-toggle">${_si('plus')} monitor</button>

@@ -4,6 +4,7 @@ import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
 import { createMenuController, setControlState, wireChoiceGroup } from './kokuen.js?v=1';
 import { replaceRouteUrl } from './route_history.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _bound = false;
 let _overviewAbort = null;
@@ -221,7 +222,7 @@ function mediaFrame(result, { favicon = false, video = false } = {}) {
   if (video) {
     const play = document.createElement('span');
     play.className = 'andromeda-play-mark';
-    play.textContent = '▶';
+    play.innerHTML = _si('play');
     frame.appendChild(play);
     if (result.duration) {
       const duration = document.createElement('span');

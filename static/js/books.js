@@ -166,7 +166,7 @@ function _render() {
   const goal = _data.goal || 0, yr = _data.this_year || 0;
   const goalHtml = goal > 0
     ? `<button type="button" class="books-goal" data-act="set-goal" title="reading goal: click to change">
-         <span>${yr} / ${goal} this year${yr >= goal ? ' ✓' : ''}</span>
+         <span>${yr} / ${goal} this year${yr >= goal ? ` ${_si('check')}` : ''}</span>
          <div class="books-goal-bar"><i style="width:${Math.min(100, Math.round(yr / goal * 100))}%"></i></div>
        </button>`
     : `<button class="books-goal-set" data-act="set-goal">+ reading goal</button>`;

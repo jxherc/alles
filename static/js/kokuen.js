@@ -62,6 +62,7 @@ let switchLabelId = 0;
 
 const ICON_GLYPHS = Object.freeze({
   '×': 'close',
+  '✕': 'close',
   '↑': 'chevron-up',
   '↓': 'chevron-down',
   '←': 'chevron-left',
@@ -83,7 +84,7 @@ function inferredIconName(element) {
     element.className,
     element.dataset.act,
   ].filter(Boolean).join(' ').toLowerCase();
-  if (glyph === '×' && /delete|remove|discard|trash|(?:^|[-_])del(?:$|[-_])/.test(semantics)) name = 'trash';
+  if ((glyph === '×' || glyph === '✕') && /delete|remove|discard|trash|(?:^|[-_])del(?:$|[-_])/.test(semantics)) name = 'trash';
   if (glyph === '↑' && /send|save|submit/.test(semantics)) name = 'send';
   if (element.id === 'files-up-btn') name = 'chevron-up';
   return name;

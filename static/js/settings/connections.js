@@ -300,7 +300,7 @@ async function loadMacosStatus(isCurrent = () => true) {
       + 'macOS native integration runs on the Mac mini.</div>';
     return;
   }
-  box.innerHTML = '<div class="macos-avail">✓ available</div>'
+  box.innerHTML = `<div class="macos-avail">${_si('check')} available</div>`
     + row('Keychain', cap.keychain)
     + row('Calendar / Reminders (EventKit)', cap.eventkit)
     + row(`Photos (PhotoKit)${cap.photokit_authorization && !cap.photokit_ready ? `: ${_esc(cap.photokit_authorization.replace('_', ' '))}` : ''}`, cap.photokit_ready)

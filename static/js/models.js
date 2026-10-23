@@ -2,6 +2,7 @@ import { escapeHtml, toast } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
 import { providerLogo, providerKey, brandColor } from './brandlogo.js';
 import { sortModels, filterNewest } from './modelfilter.js';
+const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _endpoints = [];
 let _selected = null;   // { endpointId, model }
@@ -346,7 +347,7 @@ export function renderModelList(filter = '') {
     const visionSet = new Set(ep.vision_models || []);
     for (const m of models) {
       const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
-      const eye = visionSet.has(m) ? '<span class="model-vision-badge" title="vision">👁</span>' : '';
+      const eye = visionSet.has(m) ? `<span class="model-vision-badge" title="vision" aria-label="vision">${_si('eye')}</span>` : '';
       html += `<button type="button" role="option" aria-selected="${isActive}" tabindex="${isActive ? '0' : '-1'}" class="model-row${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
         ${logoFor(m)}
         <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span>${eye}
@@ -357,7 +358,7 @@ export function renderModelList(filter = '') {
         (_selected?.endpointId === ep.id && _selected?.model === m);
       html += `<button type="button" role="option" aria-selected="${isActive}" tabindex="${isActive ? '0' : '-1'}" class="model-row model-row-img${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
         ${logoFor(m)}
-        <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span><span class="model-img-badge" title="image generation">🎨</span>
+        <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span><span class="model-img-badge" title="image generation" aria-label="image generation">${_si('palette')}</span>
       </button>`;
     }
   }
@@ -405,7 +406,7 @@ export function renderSidebarModelList(filter = '') {
       const isActive = (_selected?.endpointId === ep.id && _selected?.model === m) ||
         (img && _imageSlot?.endpointId === ep.id && _imageSlot?.model === m);
       return `<button type="button" class="sidebar-model-row${isActive ? ' active' : ''}${img ? ' sidebar-model-img' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}" title="${escAttr(m)}">
-        <span>${escHtml(prettyModel(m))}</span>${img ? '<span class="model-img-badge" title="image generation">🎨</span>' : ''}
+        <span>${escHtml(prettyModel(m))}</span>${img ? `<span class="model-img-badge" title="image generation" aria-label="image generation">${_si('palette')}</span>` : ''}
       </button>`;
     };
     html += models.map(m => row(m, false)).join('');

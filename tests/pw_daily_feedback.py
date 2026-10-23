@@ -97,7 +97,7 @@ def run():
                                 button.press("Enter")
                                 expect(button).to_have_attribute("aria-pressed", "true")
                                 expect(button).to_be_focused()
-                                expect(button.locator(".habit-day-state")).to_have_text("✓")
+                                expect(button.locator(".habit-day-state svg")).to_have_count(1)
                                 page.screenshot(path=str(out / (suffix + "-habit-completed.png")))
                                 page.reload(wait_until="networkidle")
                                 expect(button).to_have_attribute("aria-pressed", "true")
