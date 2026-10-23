@@ -129,6 +129,18 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(p["title"], "just a normal task")
 
 
+class PastDayTests(unittest.TestCase):
+    def test_last_weekday_is_the_one_that_went_by(self):
+        friday = date(2026, 10, 23)
+        r = parse_task("fix bike tire last friday", today=friday)
+        self.assertEqual((r["title"], r["due_date"]), ("fix bike tire", "2026-10-16"))
+        self.assertEqual(parse_task("call last monday", today=friday)["due_date"], "2026-10-19")
+
+    def test_yesterday(self):
+        r = parse_task("call bank yesterday", today=date(2026, 10, 23))
+        self.assertEqual((r["title"], r["due_date"]), ("call bank", "2026-10-22"))
+
+
 class AdvanceTests(unittest.TestCase):
     def test_advances(self):
         self.assertEqual(advance("2026-06-14", "daily"), "2026-06-15")

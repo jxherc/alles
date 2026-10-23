@@ -104,11 +104,13 @@ function cardFor(task, selectTask) {
   button.append(el('strong', 'plan-board-card-title', task.title || 'untitled task'));
   const meta = el('span', 'plan-board-card-meta');
   if (Number(task.priority || 0) > 0) {
-    const priority = el('span', `plan-board-priority${Number(task.priority) >= 2 ? ' high' : ''}`);
-    priority.setAttribute('aria-label', Number(task.priority) >= 2 ? 'high priority' : 'priority');
+    // 1 low, 2 medium, 3 high, as tasks itself labels them
+    const level = ['', 'low', 'medium', 'high'][Number(task.priority)] || 'high';
+    const priority = el('span', `plan-board-priority${level === 'high' ? ' high' : ''}`);
+    priority.setAttribute('aria-label', `${level} priority`);
     meta.append(priority);
   }
-  meta.append(el('span', '', projectName(task)), el('span', dueLabel(task)));
+  meta.append(el('span', '', projectName(task)), el('span', '', dueLabel(task)));
   button.append(meta);
   button.addEventListener('click', () => selectTask(task.id));
   card.append(handle, button);
@@ -352,7 +354,6 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
     for (const [label, value] of [
       ['project', projectName(task)],
       ['due', dueLabel(task)],
-      ['record', 'existing Task'],
     ]) {
       const row = el('div');
       row.append(el('dt', '', label), el('dd', '', value));

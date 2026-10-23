@@ -225,6 +225,15 @@ function _card(e) {
     </div>`;
 }
 
+// the reminder as words: "-1 = off" lived only in a tooltip, and typing -1 came back as 1
+const REMIND = [[-1, 'no reminder'], [0, 'remind on the day'], [1, 'remind 1 day before'], [3, 'remind 3 days before'],
+  [7, 'remind a week before'], [14, 'remind 2 weeks before'], [30, 'remind a month before']];
+function _remindOptions(current) {
+  const rows = REMIND.some(([days]) => days === current) || !Number.isInteger(current) ? REMIND
+    : [...REMIND, [current, `remind ${current} days before`]].sort((a, b) => a[0] - b[0]);
+  return rows.map(([days, label]) => `${days}|${label}`).join(';');
+}
+
 function _editCard(e) {
   return `
     <div class="day-card editing" data-id="${e.id}">
@@ -232,7 +241,7 @@ function _editCard(e) {
       <div class="date-input" data-f="date" data-type="date" data-value="${esc(e.date)}" data-ph="date"></div>
       <div class="settings-input custom-select" data-f="repeat" data-value="${esc(e.repeat || 'none')}" data-options="none|one-time;yearly|every year;monthly|every month"></div>
       <input type="text" class="settings-input" data-f="category" value="${esc(e.category)}" placeholder="category">
-      <input type="text" class="settings-input" data-f="notify_days" value="${e.notify_days}" title="push reminder N days before (-1 = off, 0 = day of)" inputmode="numeric" placeholder="remind">
+      <div class="settings-input custom-select" data-f="notify_days" aria-label="reminder" data-value="${esc(String(e.notify_days ?? -1))}" data-options="${esc(_remindOptions(e.notify_days))}"></div>
       <input type="text" class="settings-input" data-f="notes" value="${esc(e.notes)}" placeholder="notes">
       <div class="day-actions">
         <button class="btn primary" data-act="save">save</button>

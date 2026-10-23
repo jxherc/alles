@@ -175,6 +175,19 @@ def _extract_date(t: str, today: date):
     m = re.search(r"\b(tomorrow|tmr)\b", t, re.I)
     if m:
         return (today + timedelta(days=1)).isoformat(), strip(m.span())
+    m = re.search(r"\byesterday\b", t, re.I)
+    if m:
+        return (today - timedelta(days=1)).isoformat(), strip(m.span())
+    # "last friday" is the one that just went by; read as a bare weekday it landed next week
+    m = re.search(
+        r"\blast\s+(mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|"
+        r"fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b",
+        t,
+        re.I,
+    )
+    if m:
+        back = (today.weekday() - _WD[m.group(1).lower()[:3]]) % 7 or 7
+        return (today - timedelta(days=back)).isoformat(), strip(m.span())
 
     m = re.search(r"\bin\s+(\d{1,3})\s+(day|days|week|weeks)\b", t, re.I)
     if m:
