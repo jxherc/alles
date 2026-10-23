@@ -31,7 +31,7 @@ function harness(fetcher = async () => response({ events: [event] })) {
   const context = vm.createContext({
     fetch: (...args) => fetcher(...args), window: {}, CSS: { escape: String },
     document: { getElementById: node, activeElement: null },
-    toast: (...args) => toasts.push(args), dlgConfirm: async () => true,
+    toast: (...args) => toasts.push(args), plainError: message => String(message), dlgConfirm: async () => true,
     initCustomDropdown() {}, initDatePicker() {}, formatDate() {}, formatNumber: String,
   });
   vm.runInContext(source + `

@@ -100,7 +100,7 @@ def validate_event(data):
         start = datetime.fromisoformat(data.get("start_dt") or "")
         end = datetime.fromisoformat(data["end_dt"]) if data.get("end_dt") else None
         if end and (end.date() < start.date() if data.get("all_day") else end <= start):
-            raise HTTPException(400, "The end must be after the start.")
+            raise HTTPException(400, "the end must be after the start")
     except (ValueError, TypeError):
         raise HTTPException(400, "Use valid start and end dates with matching timezones.") from None
 

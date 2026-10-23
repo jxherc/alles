@@ -2,7 +2,7 @@
 // the server resolves each event's target date (and repeat rollover); the
 // count/mode are recomputed here against the *viewer's* local midnight, so the
 // numbers are never off by the server's timezone.
-import { toast } from './util.js';
+import { plainError, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 import { initDatePicker } from './datepick.js';
@@ -32,7 +32,7 @@ export async function loadDays(fetcher = fetch) {
     _loadError = '';
   } catch (error) {
     if (sequence !== _loadSequence) return;
-    _loadError = error.message || 'countdowns unavailable; try again';
+    _loadError = plainError(error.message || 'try again');
   }
   _render();
 }
@@ -40,7 +40,7 @@ export async function loadDays(fetcher = fetch) {
 async function dayJson(request, path, options, valid) {
   const response = await request(path, options);
   const value = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(typeof value?.detail === 'string' ? value.detail : `request failed (${response.status}); try again`);
+  if (!response.ok) throw new Error(typeof value?.detail === 'string' ? value.detail : 'alles could not do that just now; try again');
   if (!valid(value)) throw new Error('the server response was not confirmed; try again');
   return value;
 }

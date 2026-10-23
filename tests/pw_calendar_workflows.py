@@ -396,7 +396,7 @@ def run():
                 ).click()
                 handler = simulate("GET", payload={"detail": "simulated calendar unavailable"})
                 calendar(reload=True)
-                expect(page.locator("#cal-load-error")).to_contain_text("Could not load calendar")
+                expect(page.locator("#cal-load-error")).to_contain_text("could not load the calendar")
                 shot("list-error")
                 stop_simulation(handler)
                 page.locator("#cal-load-error").get_by_role("button", name="retry").click()

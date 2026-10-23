@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { plainError, toast } from './util.js';
 import { replaceLinkedRecord } from './recordlinks.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePickers } from './datepick.js';
@@ -213,8 +213,8 @@ export function eventTimeValues(event, initial, values, scope = 'all') {
 
 async function readCalendarResponse(response) {
   let data;
-  try { data = await response.json(); } catch { throw new Error('The calendar returned an unreadable response. Retry.'); }
-  if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : 'The calendar request failed. Retry.');
+  try { data = await response.json(); } catch { throw Object.assign(new Error('the calendar sent back something unreadable. retry'), { status: response.status }); }
+  if (!response.ok) throw Object.assign(new Error(typeof data?.detail === 'string' ? data.detail : 'the calendar request failed. retry'), { status: response.status });
   return data;
 }
 async function saveCalendarRequest(url, method, body, expectedId = null) {
@@ -251,7 +251,7 @@ function calendarLoadError(message) {
   document.getElementById('cal-load-error')?.remove();
   const notice = document.createElement('div');
   notice.id = 'cal-load-error'; notice.className = 'cal-load-error'; notice.setAttribute('role', 'alert');
-  const text = document.createElement('span'); text.textContent = `Could not load calendar. ${message}`;
+  const text = document.createElement('span'); text.textContent = `could not load the calendar. ${plainError(message)}`;
   const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'retry';
   retry.addEventListener('click', retryCalendarView);
   notice.append(text, retry); host.prepend(notice);
@@ -520,15 +520,18 @@ function _bindNav() {
       try {
         const r = await fetch('/api/calendar/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ics: await f.text() }) });
         const d = await readCalendarResponse(r);
-        if (!Number.isInteger(d?.imported) || d.imported < 0) throw new Error('The calendar did not confirm the import. Check the calendar before importing again.');
+        if (!Number.isInteger(d?.imported) || d.imported < 0) throw new Error('the calendar did not confirm the import. check the calendar before importing again.');
         if (document.getElementById('cal-import-file') !== fileInp) return;
         if (fileInp.files[0] === f) fileInp.value = '';
         retainedFile = null; feedback.hidden = true;
         toast(trp('calendar.imported_count', d.imported), 'success');
         await loadCalendar(fetch, () => !document.querySelector('.cal-editor'));
-      } catch {
+      } catch (error) {
         if (document.getElementById('cal-import-file') === fileInp) {
-          status.textContent = `Import of “${f.name || 'selected file'}” was not confirmed. Check the calendar before retrying, or choose another file.`;
+          // a 400 means the file was read and refused (not a calendar); only a lost reply is unknown
+          status.textContent = error?.status === 400
+            ? `“${f.name || 'selected file'}” isn't a calendar file alles can read. choose an .ics file.`
+            : `the import of “${f.name || 'selected file'}” wasn't confirmed. check the calendar before retrying, or choose another file.`;
           feedback.hidden = false;
         }
       } finally {
@@ -1369,7 +1372,8 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   _editOcc = occ || null;
   const pf = _prefill; _prefill = null;   // start/end from a drag-create
   const isNew = !event;
-  const now = _calendarNow(); now.setMinutes(0, 0, 0);
+  // a new event starts at the next full hour; this hour's start (2:00 at 2:43) is already gone
+  const now = _calendarNow(); now.setHours(now.getHours() + 1, 0, 0, 0);
   const hh = hour != null ? String(hour).padStart(2, '0') : '09';
   const dates = editorDates(event, occ);
   const start = pf?.start || dates.start || (defaultDate ? `${defaultDate}T${hh}:00` : localISO(now));
@@ -1469,10 +1473,26 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   document.getElementById('cal-freeslot')?.addEventListener('click', findFreeSlots);
   checkConflict();
 
+  // all day picks days, not times: the start and end fields switch between the two in place
+  const keptTimes = {};
+  const syncAllDayFields = on => {
+    for (const id of ['cal-start', 'cal-end']) {
+      const field = document.getElementById(id);
+      if (!field) continue;
+      const value = String(field.value || '');
+      const day = value.slice(0, 10);
+      if (on && value.length > 10) keptTimes[id] = value.slice(10);   // turning it back gives the times back
+      field.dataset.type = on ? 'date' : 'datetime';
+      field.value = !day ? '' : on ? day : `${day}${keptTimes[id] || `T${id === 'cal-start' ? hh : String(Math.min(+hh + 1, 23)).padStart(2, '0')}:00`}`;
+    }
+  };
+  if (document.getElementById('cal-allday')?.getAttribute('aria-checked') === 'true') syncAllDayFields(true);
   document.getElementById('cal-allday-row').addEventListener('click', e => {
     if (e.target.closest('.date-input')) return;
     const c = document.getElementById('cal-allday');
-    c.setAttribute('aria-checked', c.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    const on = c.getAttribute('aria-checked') !== 'true';
+    c.setAttribute('aria-checked', String(on));
+    syncAllDayFields(on);
     checkConflict();   // all-day events never conflict; clear/refresh the hint
   });
   function selectEndsMode(value) {
@@ -1672,7 +1692,7 @@ async function saveEvent(byday) {
   _saving = true;
   try {
     const body = collectBody(byday);
-    if (!body.title || !body.start_dt) throw new Error('Title and start are required.');
+    if (!body.title || !body.start_dt) throw new Error('an event needs a title and a start');
     const occ = _editOcc || _editDates?.start?.slice(0, 10) || '';
     const scope = _editing?.recurrence ? await chooseScope('edit', hasOccurrence(_editing, occ)) : 'all';
     if (!scope) return;
@@ -1718,7 +1738,7 @@ async function openCaldavPanel() {
     <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem">CalDAV sync</div>
     <div style="font-size:0.75rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem">
       two-way sync with iCloud / Google / any CalDAV server. credentials are stored locally.
-      ${cfg.available ? '' : '<br><b style="color:var(--warn)">needs the caldav library. run: pip install caldav</b>'}
+      ${cfg.available ? '' : '<br><b style="color:var(--warn)">sync is not installed on this alles yet (it needs the caldav package)</b>'}
       ${cfg.connected ? `<br>connected as <b>${esc(cfg.username || '')}</b>` : ''}
     </div>
     <div class="cal-flabel">server url</div>

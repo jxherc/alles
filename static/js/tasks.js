@@ -285,9 +285,20 @@ function _wireRows(list) {
   }));
   list.querySelectorAll('.task-del').forEach(btn => btn.addEventListener('click', async () => {
     if (btn.getAttribute('aria-busy') === 'true') return;
+    // deleting can't be undone and takes subtasks with it, and the × sits right by "+ sub" on a
+    // phone, so it asks first, naming what goes
+    const task = _findTask(btn.dataset.id);
+    const subs = task?.subtasks?.length || 0;
+    const what = task ? `"${task.title}"${subs ? ` and its ${subs} subtask${subs === 1 ? '' : 's'}` : ''}` : 'this task';
+    if (!await dlgConfirm(`delete ${what}? this can't be undone.`)) { btn.focus(); return; }
+    const rows = [...list.querySelectorAll('.task-del')];
+    const next = rows[rows.indexOf(btn) + 1]?.dataset.id || rows[rows.indexOf(btn) - 1]?.dataset.id;
     await _mutateTask(btn, async () => {
       await _requireOk(fetch(`/api/tasks/${btn.dataset.id}`, { method: 'DELETE' }));
       await loadTasks();
+      // focus stays in the list instead of dropping to the page
+      const target = next && document.querySelector(`.task-check[data-id="${CSS.escape(next)}"]`);
+      (target || document.getElementById('task-add-input'))?.focus();
     });
   }));
   list.querySelectorAll('.task-addsub').forEach(btn => btn.addEventListener('click', async () => {

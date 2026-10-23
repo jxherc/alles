@@ -370,7 +370,7 @@ test('partial agenda data retains the available records and source warning', asy
   const h = harness(data);
   await h.render();
   assert.equal(h.controls().length, 2);
-  assert.match(h.overview.querySelector('.specialist-group-note').textContent, /calendar unavailable: calendar offline/);
+  assert.match(h.overview.querySelector('.specialist-group-note').textContent, /partial data: calendar could not load/);
   await h.controls()[1].click();
   assert.deepEqual(h.calls, [['tasks', 'task-b', '']]);
 });

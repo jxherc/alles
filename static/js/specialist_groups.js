@@ -183,7 +183,8 @@ function _partialAvailability(failures) {
   const note = _el(
     'p',
     'specialist-group-note',
-    `partial data: ${unavailable.map(([source, error]) => `${source} unavailable: ${error}`).join('; ')}`,
+    // which source is missing is what helps; its error text ("request failed: 500") isn't
+    `partial data: ${unavailable.map(([source]) => source).join(', ')} could not load, the rest is shown`,
   );
   note.setAttribute('role', 'status');
   return note;

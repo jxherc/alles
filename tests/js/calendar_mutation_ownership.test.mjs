@@ -133,7 +133,7 @@ for (const [label, result] of [['503', response({ detail: 'synthetic refusal' },
     assert.equal(file.value, 'fixture.ics'); assert.equal(h.state.reloads, 0);
     assert.equal(h.toasts.some(toast => toast.type === 'success'), false);
     assert.equal(h.document.getElementById('cal-import-feedback').hidden, false);
-    assert.match(h.document.getElementById('cal-import-status').textContent, /not confirmed.*Check the calendar/);
+    assert.match(h.document.getElementById('cal-import-status').textContent, /wasn't confirmed.*check the calendar/);
   });
 
   test(`free-slot booking ${label} retains overlay and title without claiming success`, async () => {

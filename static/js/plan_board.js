@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 const STAGES = Object.freeze(['backlog', 'next', 'doing', 'waiting']);
 const STAGE_LABELS = Object.freeze({
   backlog: 'inbox',
@@ -339,7 +340,7 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
       setStatus(successMessage);
       await refresh();
     } catch (error) {
-      setStatus(`${error.message}. The task stayed in ${STAGE_LABELS[task.stage] || 'completed'}.`, 'danger');
+      setStatus(`${plainError(error.message)}. the task stayed in ${STAGE_LABELS[task.stage] || 'completed'}.`, 'danger');
     }
   }
 
