@@ -923,14 +923,31 @@ class AndromedaApiTest(ApiTest):
             normal = asyncio.run(andromeda.normal_search("current docs", max_results=5))
 
         self.assertEqual(report.failure_type, "timeout")
-        self.assertEqual(report.attempted_sources, ("brave", "wikipedia", "duckduckgo"))
+        self.assertEqual(report.attempted_sources, ("brave", "wikipedia"))
         self.assertNotIn("secret token", report.error)
         rows, used, error = legacy
         self.assertEqual((rows, used), ([], None))
         self.assertEqual(error, report.error)
         self.assertEqual(normal["failure_type"], "timeout")
-        self.assertEqual(normal["attempted_sources"], ["brave", "wikipedia", "duckduckgo"])
+        self.assertEqual(normal["attempted_sources"], ["brave", "wikipedia"])
         self.assertNotIn("secret token", normal["error"])
+
+    def test_fallback_none_never_reaches_another_engine(self):
+        from services.research import search as search_service
+
+        asked = []
+
+        async def provider(name, *_args):
+            asked.append(name)
+            return []
+
+        settings = {"research_search_provider": "searxng", "search_fallback_chain": []}
+        with (
+            mock.patch("core.settings.load_settings", return_value=settings),
+            mock.patch.object(search_service, "_search_provider", side_effect=provider),
+        ):
+            asyncio.run(search_service.search_chain_report("private words", max_results=5))
+        self.assertEqual(asked, ["searxng"])
 
     def test_successful_fallback_reports_every_attempt_in_order(self):
         from services.research import search as search_service

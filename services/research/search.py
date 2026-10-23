@@ -663,10 +663,12 @@ def _provider_chain(primary: str, fallbacks) -> list:
         return []
     if isinstance(fallbacks, str):
         fallbacks = [p.strip() for p in fallbacks.split(",") if p.strip()]
+    # the chain someone picked is the chain. "fallback: none" is [] and must stay none: tacking
+    # duckduckgo and wikipedia on anyway sent the query to engines they had turned off. only a
+    # chain never set at all gets the keyless engines, so research works with no api keys
     if not isinstance(fallbacks, list):
-        fallbacks = []
-    # keyless engines stay as last-resort so research works with no api keys
-    chain = [primary, *fallbacks, "duckduckgo", "wikipedia"]
+        fallbacks = ["duckduckgo", "wikipedia"]
+    chain = [primary, *fallbacks]
     out = []
     for p in chain:
         p = str(p or "").strip()

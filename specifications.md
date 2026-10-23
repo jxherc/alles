@@ -963,6 +963,7 @@ result list and its link, title and snippet. custom keys are sealed per engine; 
 anything that pointed at it. `POST /api/search/test` runs one engine and reports results and time.
 duckduckgo is the default: a keyless metasearch that asks several engines at once and shows the results
 in andromeda. it skips startpage, which answers every server request with a captcha page.
+when the main engine finds nothing, only the fallback engines you picked are tried; "fallback: none" means the query goes nowhere else.
 alles can also own an optional searxng lifecycle when a supported docker runtime is available. its
 reviewed definition is pinned to `2026.7.12-c19d86faa` /
 `sha256:f433294b46a93564993c4371005341e013d94aa8ea4662d8ee521cd2cccb08e8`, bound to
