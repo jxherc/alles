@@ -94,3 +94,17 @@ test('bare addresses get a scheme when you leave the field', () => {
   assert.equal(finishUrl('not a url'), 'not a url');
   assert.equal(finishUrl(''), '');
 });
+
+test('a decimal comma survives typing and is settled when the field is finished', () => {
+  // key by key, the comma must not vanish (42,50 used to save as 4250)
+  let typed = '';
+  for (const key of '42,50') typed = formatDecimal(typed + key, true);
+  assert.equal(typed, '42,50');
+  assert.equal(formatDecimal(typed), '42.50');
+  assert.equal(formatDecimal('12,5'), '12.5');
+  assert.equal(formatDecimal('72,5'), '72.5');
+  assert.equal(formatDecimal('1,650'), '1650');
+  assert.equal(formatDecimal('1,234,567'), '1234567');
+  assert.equal(formatDecimal('4 200,00'), '4200.00');
+  assert.equal(formatDecimal('-3,5'), '-3.5');
+});

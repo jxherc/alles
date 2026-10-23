@@ -102,14 +102,19 @@ export function phoneDigits(value) {
 }
 
 // money and other amounts: digits, one dot, a leading minus. no thousands separators, since
-// the money parser doesn't take them. "1,234.50" -> 1234.50, "12,50" -> 12.50
-export function formatDecimal(value) {
+// the money parser doesn't take them. "1,234.50" -> 1234.50, "12,50" -> 12.50, "1,650" -> 1650.
+// while typing, one comma stays as typed: "42," could still become 42,50 or 4,200, and
+// dropping it there turned 42,50 into 4250
+export function formatDecimal(value, typing = false) {
   let text = String(value ?? '').replace(/\s/g, '');
   const negative = text.startsWith('-');
-  if (text.includes('.')) text = text.replace(/,/g, '');
-  else if (/,\d{1,2}$/.test(text) && (text.match(/,/g) || []).length === 1) text = text.replace(',', '.');
-  else text = text.replace(/,/g, '');
-  text = text.replace(/[^\d.]/g, '');
+  const commas = (text.match(/,/g) || []).length;
+  if (text.includes('.') || commas > 1) text = text.replace(/,/g, '');
+  else if (commas === 1 && !typing) {
+    // three digits after it is a thousands comma (1,650), one or two is a decimal one (12,50)
+    text = /,\d{3}$/.test(text) ? text.replace(',', '') : text.replace(',', '.');
+  }
+  text = text.replace(/[^\d.,]/g, '');
   const dot = text.indexOf('.');
   if (dot >= 0) text = text.slice(0, dot + 1) + text.slice(dot + 1).replace(/\./g, '');
   return (negative ? '-' : '') + text;
@@ -157,7 +162,7 @@ const KINDS = {
   time: { keep: DIGIT, format: (value, event) => formatTime(value, deleting(event)) },
   code: { keep: DIGIT, format: value => String(value).replace(/\D/g, '').slice(0, 6) },
   digits: { keep: DIGIT, format: value => String(value).replace(/\D/g, '') },
-  decimal: { keep: /[\d.-]/, format: value => formatDecimal(value) },
+  decimal: { keep: /[\d.,-]/, format: value => formatDecimal(value, true), finish: value => formatDecimal(value) },
   hex: { keep: /[0-9a-f]/i, format: value => formatHex(value) },
   email: { keep: /\S/, format: value => String(value).replace(/\s/g, '') },
   url: { keep: /\S/, format: value => String(value).replace(/^\s+/, ''), finish: finishUrl },
@@ -265,6 +270,16 @@ export function initLiveFormat(root = document) {
     const kind = kindOf(event.target);
     if (kind) reformat(event.target, kind, event);
   });
+  // enter submits before the field is left, so finish it first (capture runs before the
+  // field's own enter handler)
+  root.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.isComposing) return;
+    const el = event.target;
+    const spec = KINDS[kindOf(el)];
+    if (!spec?.finish) return;
+    const done = spec.finish(spec.format(el.value));
+    if (done !== el.value) { el.value = done; el.dispatchEvent(new Event('input', { bubbles: true })); }
+  }, true);
   // pasted or filled-in values get tidied when you leave the field
   root.addEventListener('focusout', event => {
     const el = event.target;
