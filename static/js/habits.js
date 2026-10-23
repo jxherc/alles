@@ -114,7 +114,10 @@ function readForm(card) {
 function formPayload(card) {
   const values = readForm(card), target = parseInt(values.target, 10);
   if (!values.name.trim()) throw new Error('name the habit');
-  return { name: values.name.trim(), icon: values.icon.trim(), cadence: values.cadence,
+  // one whole emoji: a 2-character cap cut flags and family emoji in half
+  const icon = typeof Intl.Segmenter === 'function'
+    ? ([...new Intl.Segmenter().segment(values.icon.trim())][0]?.segment || '') : values.icon.trim();
+  return { name: values.name.trim(), icon, cadence: values.cadence,
     color: values.color, target: Number.isNaN(target) ? 3 : target };
 }
 
@@ -247,7 +250,7 @@ function _formFields(h, scope) {
     </label>
     <div class="habit-edit-row">
       <label class="habit-field habit-icon-field">icon
-        <input type="text" class="settings-input habit-icon-in" data-f="icon" value="${esc(h.icon)}" placeholder="emoji" maxlength="2">
+        <input type="text" class="settings-input habit-icon-in" data-f="icon" value="${esc(h.icon)}" placeholder="emoji">
       </label>
       ${_cadenceSelect(h.cadence, id)}
       <label class="habit-field habit-target-field"${h.cadence === 'weekly' ? '' : ' hidden'}>days per week
@@ -258,10 +261,11 @@ function _formFields(h, scope) {
 }
 
 const HABIT_COLORS = ['', '#818cf8', '#34d399', '#f472b6', '#fbbf24', '#60a5fa', '#f87171', '#a78bfa'];
+const HABIT_COLOR_NAMES = { '#818cf8': 'indigo', '#34d399': 'green', '#f472b6': 'pink', '#fbbf24': 'amber', '#60a5fa': 'blue', '#f87171': 'red', '#a78bfa': 'violet' };
 
 function _colorPicker(sel) {
   return `<div class="habit-colors" data-f="color" data-value="${esc(sel || '')}">
-    ${HABIT_COLORS.map(c => `<span class="habit-sw${(sel || '') === c ? ' sel' : ''}" data-c="${c}" style="${c ? `background:${c}` : ''}" title="${c || 'default'}">${c ? '' : '○'}</span>`).join('')}
+    ${HABIT_COLORS.map(c => `<button type="button" class="habit-sw${(sel || '') === c ? ' sel' : ''}" data-c="${c}" style="${c ? `--sw:${c}` : ''}" aria-pressed="${(sel || '') === c}" aria-label="${c ? `colour ${HABIT_COLOR_NAMES[c]}` : 'default colour'}">${c ? '' : '○'}</button>`).join('')}
   </div>`;
 }
 
@@ -323,7 +327,7 @@ function _wire(body) {
     sw.addEventListener('click', () => {
       if (_saving) return;
       box.dataset.value = sw.dataset.c;
-      box.querySelectorAll('.habit-sw').forEach(x => x.classList.toggle('sel', x === sw));
+      box.querySelectorAll('.habit-sw').forEach(x => { x.classList.toggle('sel', x === sw); x.setAttribute('aria-pressed', String(x === sw)); });
       _draft = readForm(box.closest('.habit-card'));
     })));
 

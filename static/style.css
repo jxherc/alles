@@ -8840,9 +8840,11 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .habit-cadence-help { margin: 0; }
 .habit-edit-row .settings-input { flex: 1; min-width: 0; }
 .habit-edit-row .habit-icon-in { width: 64px; max-width: 64px; text-align: center; }
-.habit-colors { display: flex; gap: 0.4rem; align-items: center; }
-.habit-sw { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 1px solid var(--faint); display: inline-flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.75rem; box-sizing: border-box; }
-.habit-sw.sel { outline: 2px solid var(--text); outline-offset: 1px; }
+.habit-colors { display: flex; flex-wrap: wrap; gap: 0; align-items: center; margin-inline-start: -13px; }
+/* a 44px button with the 18px dot in its middle, so the colours can be tapped and tabbed to */
+.habit-sw { position: relative; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); font: inherit; font-size: 0.75rem; }
+.habit-sw::before { content: ""; position: absolute; inset: 13px; border-radius: 50%; border: 1px solid var(--faint); background: var(--sw, transparent); }
+.habit-sw.sel::before { outline: 2px solid var(--text); outline-offset: 1px; }
 
 /* ── read-later ───────────────────────────────────────────────────────────────── */
 #read-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }
