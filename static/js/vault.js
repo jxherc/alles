@@ -302,6 +302,8 @@ export function initVault() {
   $('vault-bio-unlock-btn')?.addEventListener('click', _bioUnlock);
   $('vault-pw-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
   $('vault-pw-confirm')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
+  // a message about the last try clears once either field changes, so it never describes old input
+  for (const id of ['vault-pw-input', 'vault-pw-confirm']) $(id)?.addEventListener('input', () => { if (!_unlocking) _unlockError(''); });
   // 8a — unified icons on the toolbar (settings is now rightmost)
   const dec = (id, name, label) => { const b = $(id); if (b) b.innerHTML = `${_si(name)} ${label}`; };
   dec('vault-manage-btn', 'gear', 'settings');

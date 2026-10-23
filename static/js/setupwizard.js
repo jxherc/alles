@@ -320,6 +320,8 @@ function _renderAccess(body) {
     ${_actions()}`;
   const details = profile => {
     const host = $('sw-access-details');
+    // a message about the last choice ("needs an owner password") goes when the choice changes
+    if ($('sw-status')) $('sw-status').textContent = '';
     if (profile === 'public') {
       host.innerHTML = `
         <label class="setup-field"><span>public HTTPS origin</span><input class="settings-input setup-input" id="sw-public-url" placeholder="https://alles.example.com" value="${esc(_state.public_url)}"></label>
