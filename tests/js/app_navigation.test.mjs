@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { resolveCompatibilityRoute } from '../../static/js/routecompat.js';
-import { groupRouteFor } from '../../static/js/specialist_groups.js';
+import { groupRouteFor, normalizeGroupSection } from '../../static/js/specialist_groups.js';
 import { viewToSub } from '../../static/js/subdomain.js';
 
 const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
@@ -24,7 +24,7 @@ function navigate(href, identifier, { single = true, sub = '', withState = false
     },
   };
   const context = vm.createContext({
-    URL, location: new URL(href), resolveCompatibilityRoute, groupRouteFor, viewToSub,
+    URL, location: new URL(href), resolveCompatibilityRoute, groupRouteFor, normalizeGroupSection, viewToSub,
     _afterlifeFlags: { afterlife_today: true },
     singleHost: () => single, currentSub: () => sub,
     history,
@@ -72,6 +72,12 @@ test('canonical Docs host keeps its document fragment without a redundant view',
 
 test('reselecting the current route does not add a history entry', () => {
   assert.deepEqual(navigate('http://127.0.0.1/?view=today', 'today'), []);
+});
+
+test('a docs section that is not its front page stays in the address, so reload keeps it', () => {
+  assert.deepEqual(navigate('http://docs.localhost/', 'journal', { single: false, sub: 'docs' }), [
+    ['push', '/?view=journal'],
+  ]);
 });
 
 test('local navigation marks the new history entry and preserves existing state', () => {

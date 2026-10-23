@@ -3197,7 +3197,12 @@ function friendlyMailError(err) {
     return 'connection timed out - check the host/port or your network.';
   if (e.includes('certificate') || e.includes(' ssl') || e.includes('tls'))
     return 'tls problem - check the ports (993 imap, 587 smtp).';
-  return err || 'unknown error';
+  if (e.includes('connection refused') || e.includes('errno 61') || e.includes('errno 111') || e.includes('econnrefused'))
+    return 'the server refused the connection - check the host and port.';
+  if (e.includes('network is unreachable') || e.includes('no route to host'))
+    return "couldn't reach the server - check your network.";
+  // anything left still loses python's "[Errno 61]" style prefix
+  return String(err || 'unknown error').replace(/\[errno -?\d+\]\s*/gi, '');
 }
 
 function serializeForm(root) {

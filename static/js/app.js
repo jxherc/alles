@@ -30,7 +30,7 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, releaseSpecialistLegacyView } from './specialist_groups.js?v=8';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=8';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=241';
 import { openSettings, closeSettings, applyVis } from './settings.js?v=290';
@@ -1121,7 +1121,11 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
       for (const param of ['record', 'record_view', 'occurrence', 'record_hash']) url.searchParams.delete(param);
     }
     url.searchParams.delete('app');
-    if (route.section || singleHost() || !groupRouteFor(identifier)) url.searchParams.set('view', identifier);
+    // the address drops view= only for a group's own front page; journal inside docs kept none, so
+    // a reload opened docs home
+    const grouped = groupRouteFor(identifier);
+    const frontPage = grouped && grouped.section === normalizeGroupSection(grouped.group, '');
+    if (route.section || singleHost() || !frontPage) url.searchParams.set('view', identifier);
     else url.searchParams.delete('view');
     const target = url.pathname + url.search + url.hash;
     const current = location.pathname + location.search + location.hash;

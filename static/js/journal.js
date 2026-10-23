@@ -82,6 +82,19 @@ function wireProductNavigation() {
     event.preventDefault();
     event.returnValue = '';
   });
+  // the tab can close inside the 1.2s autosave wait (a phone often skips the prompt above), so the
+  // last words go out with a keepalive request that outlives the page
+  window.addEventListener('pagehide', () => {
+    if (!_dirty || _loading || _loadedDay !== _day) return;
+    const draft = snapshotEditor();
+    if (!draft) return;
+    clearTimeout(_saveTimer); _saveTimer = null;
+    fetch('/api/journal/' + _day, {
+      method: 'PUT', keepalive: true,
+      headers: _authHeaders({ 'content-type': 'application/json' }),
+      body: JSON.stringify({ content: draft.content, mood: draft.mood, tags: draft.tags }),
+    }).catch(() => {});
+  });
 }
 
 async function migrationRequest(url, options = {}) {
