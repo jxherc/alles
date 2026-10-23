@@ -1422,6 +1422,8 @@ function initAfterlifeShell(flags) {
     else openAppDrawer();
   });
   document.getElementById('app-drawer-close')?.addEventListener('click', closeAppDrawer);
+  // a phone or ipad has no ctrl/cmd+k, so search everything is in the drawer every app opens
+  document.getElementById('app-drawer-search')?.addEventListener('click', () => { closeAppDrawer(); openSearch(); });
   document.getElementById('app-drawer-scrim')?.addEventListener('click', closeAppDrawer);
   document.getElementById('app-drawer-settings')?.addEventListener('click', () => {
     closeAppDrawer();
