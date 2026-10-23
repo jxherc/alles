@@ -969,6 +969,8 @@ body:is(
 
 .specialist-group-list {
   display: grid;
+  /* the track would size to the longest unwrapped name and push amounts off a phone */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--k-space-1, 4px);
 }
 

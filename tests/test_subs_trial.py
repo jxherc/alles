@@ -172,3 +172,12 @@ class SubTrialTests(ApiTest):
             if x["name"] == "L"
         ][0]
         self.assertEqual(s["trial_days_left"], 8)
+
+    def test_an_edit_cannot_blank_the_name(self):
+        sub = self.client.post(
+            "/api/subscriptions", json={"name": "music", "price": 9, "next_due": "2026-08-01"}
+        ).json()
+        response = self.client.patch(f"/api/subscriptions/{sub['id']}", json={"name": "   "})
+        self.assertEqual(response.status_code, 400, response.text)
+        with self.db() as db:
+            self.assertEqual(db.get(Subscription, sub["id"]).name, "music")

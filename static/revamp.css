@@ -170,6 +170,11 @@ html:not(#_) :is(.money-card, .ms-card, .habit-card, .day-card, .skl-card, .brai
   box-shadow: none;
 }
 
+/* phone money summary: the cards keep their fill, so their words need room from its edge */
+@media (max-width: 720px) {
+  html:not(#_) #money-view .ms-card { padding-inline: var(--k-space-3); }
+}
+
 /* the money entry form is the screen's main job, so it sits one step up */
 html:not(#_) .money-card.money-entry-card {
   background: var(--k-raised);
@@ -2452,6 +2457,7 @@ html:not(#_):not(#_) .specialist-detail-title {
 
 /* finance's day actions are real buttons, not stray words over the cards */
 html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action {
+  margin-inline-start: 0;  /* a filled button lines up with the cards; only bare text pulls back */
   min-height: 44px;
   padding: 0 var(--k-space-4);
   border: 0;
@@ -2752,4 +2758,21 @@ html:not(#_):not(#_) #aide-coding-workspace .acw-entry textarea:is(:focus, :focu
 html:not(#_)[data-kokuen-version="5"] #contacts-view:has(#cd-save) #contact-add-btn.btn.primary {
   background: var(--k-btn-fill);
   color: var(--k-text);
+}
+
+/* short text actions get a 44px minimum width; centered in it, "edit" drifted 11px off the row's
+   edge. the word starts where the row does */
+html:not(#_) #money-view :is(.tx-edit, .tx-clear, .tx-split-btn, .tx-receipt-btn) { text-align: start; }
+
+/* settings: "saving… / saved" sits in the pane's top corner. as a line above the content it pushed
+   every switch 31px down the moment you clicked one */
+html:not(#_) #settings-modal .s-pane { position: relative; }
+html:not(#_) #settings-modal .s-pane > .settings-save-state {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+  max-width: 60%;
+  text-align: right;
+  pointer-events: none;
 }

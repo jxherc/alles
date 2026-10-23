@@ -400,6 +400,7 @@ function _wireRows(list) {
             next_due: value('next_due'), category: value('category')?.trim() || '',
             url: value('url')?.trim() || '', cancel_url: value('cancel_url')?.trim() || '', account_id: value('account_id') || '',
             remind_days: Number(value('remind_days') || 0), notes: value('notes') || '', trial_end: (value('trial_end') || '').slice(0, 10) };
+          if (!body.name) throw Object.assign(new Error('a subscription needs a name'), { status: 400 });
           if (!Number.isFinite(body.price) || body.price < 0) throw Object.assign(new Error('enter a valid price'), { status: 400 });
           await api(`/api/subscriptions/${id}`, { method: 'PATCH', body });
           _editing = null; _draft = null; toast('saved', 'success');

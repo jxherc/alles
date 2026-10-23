@@ -2597,6 +2597,10 @@ async function addRecurring() {
     await api('/api/money/recurring', { method: 'POST', body: payload });
     if (requestId) _completeCreateRequest('recurring', requestId);
     await load();
+    // a first date of today or earlier posts its charge right away; say so, or it looks like a
+    // stray transaction (and a rent already logged by hand gets counted twice)
+    toast(payload.next_date <= _today() ? 'schedule added. its first charge is in transactions now'
+      : `schedule added. first charge on ${payload.next_date}`, 'success');
   } catch (error) {
     if (requestId) _releaseCreateRequest('recurring', requestId);
     if (_canonicalLedger) {

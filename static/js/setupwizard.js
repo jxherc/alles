@@ -485,6 +485,11 @@ function _renderAiSearch(body) {
         const url = $('sw-model-url').value.trim();
         if (!url) throw new Error('the model base URL is required');
         const key = $('sw-model-key')?.value.trim() || '';
+        // a cloud provider without its key saves a connection that can never answer
+        if (!provider.keyless && !provider.custom && !key) {
+          $('sw-model-key')?.focus();
+          throw new Error(`${provider.label} needs its API key to connect`);
+        }
         const name = (provider.custom && $('sw-model-name')?.value.trim()) || provider.label;
         const adapter = provider.custom
           ? ($('sw-model-type')?.querySelector('[aria-checked="true"]')?.dataset.value || 'openai-compatible')

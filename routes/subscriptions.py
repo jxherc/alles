@@ -870,6 +870,8 @@ def update_subscription(sid: str, body: SubPatch, db: DbSession = Depends(get_db
     sub = db.get(Subscription, sid)
     if not sub:
         raise HTTPException(404)
+    if body.name is not None and not body.name.strip():
+        raise HTTPException(400, "a subscription needs a name")
     if body.cycle is not None and body.cycle not in CYCLES:
         raise HTTPException(400, f"cycle must be one of {', '.join(CYCLES)}")
     if body.price is not None and (not math.isfinite(body.price) or body.price < 0):
