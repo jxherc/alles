@@ -29,8 +29,8 @@ test('empty provenance stays quiet', () => {
 });
 
 test('each visible memory provenance label includes its id and scope', () => {
-  assert.equal(memoryProvenanceLabel({ id: 'mem-123', scope: 'project' }), 'project · id mem-123');
-  assert.equal(memoryProvenanceLabel({ id: 'mem-456' }), 'global · id mem-456');
+  assert.equal(memoryProvenanceLabel({ id: 'mem-123', scope: 'project' }), 'project memory');
+  assert.equal(memoryProvenanceLabel({ id: 'mem-456' }), 'global memory');
   const source = readFileSync(new URL('../../static/js/memoryactions.js', import.meta.url), 'utf8');
   assert.match(source, /safe\(memoryProvenanceLabel\(memory\)\)/);
 });

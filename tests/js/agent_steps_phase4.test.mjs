@@ -50,3 +50,13 @@ test('docs pi saved for Aide get the same card', () => {
   const html = renderAgentSteps([{ name: 'pi_run', args: { task: 'plan' }, output: 'pi is working in Aide\n· docs write plans/guitar.md\n  saved doc: plans/guitar.md\n' }]);
   assert.match(html, /data-open-doc="plans\/guitar.md"/);
 });
+
+test('a skipped question reads as a skip, without its tool data or a failure count', () => {
+  const html = renderAgentSteps([{
+    name: 'ask_user', error: true,
+    args: { title: 'Choose the verification', questions: [{ id: 'surface' }] },
+    output: '{"cancelled": true, "answers": {}}',
+  }]);
+  assert.match(html, /you skipped this question/);
+  assert.doesNotMatch(html, /failed|cancelled|answers|args/);
+});

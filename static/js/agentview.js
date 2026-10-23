@@ -104,8 +104,18 @@ export function renderDiff(diff = '') {
   }).join('\n');
 }
 
+// a question aide asked you is a step for people, not a tool dump: no args or json, and skipping
+// it is your answer, not a failure
+function asQuestion(step) {
+  if ((step?.name || step?.tool) !== 'ask_user') return step;
+  let cancelled = false;
+  try { cancelled = JSON.parse(String(step.output || '{}'))?.cancelled === true; } catch {}
+  return { ...step, error: cancelled ? false : step.error, args: {}, output: '', _question: cancelled ? 'you skipped this question' : (step.args?.title || 'asked you a question') };
+}
+
 export function renderAgentSteps(steps, open = false, agentRunId = '') {
   if (!Array.isArray(steps) || !steps.length) return '';
+  steps = steps.map(asQuestion);
   open = open || steps.some(step => step?.error || step?.completed === false);
   let edits = 0;
   const rows = steps.map(s => {
@@ -125,8 +135,8 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
     return `<div class="agent-step${destructive}${errCls}" data-kind="${stepKind(name)}">
       <div class="agent-step-head">
         <span class="agent-step-dot"></span>${stepMark(name)}
-        <span class="agent-step-name">${esc(name)}</span>
-        <span class="agent-step-summary">${esc(summary(name, s.args))}</span>
+        <span class="agent-step-name">${esc(s._question ? 'question' : name)}</span>
+        <span class="agent-step-summary">${esc(s._question || summary(name, s.args))}</span>
         ${s.completed === false ? '<span class="agent-step-summary">no final result</span>' : ''}
         ${badge}
       </div>${argsBlock}${out}${diff}

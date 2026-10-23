@@ -672,3 +672,11 @@ test('the service worker cannot mix old and new JavaScript modules', () => {
   assert.match(app, /from '\.\/subdomain\.js\?v=237'/);
   assert.match(compatibility, /from '\.\/subdomain\.js\?v=237'/);
 });
+
+test('overview blocks turn markdown tables, fences and headings into their own shapes', async () => {
+  const { proseBlocks } = await import('../../static/js/andromeda.js');
+  const blocks = proseBlocks('# Title\nintro line\n| name | value |\n|---|---|\n| a | 1 |\n```\nx = 1\n```\n- one\n- two');
+  assert.deepEqual(blocks.map(block => block.kind), ['h', 'p', 'table', 'pre', 'ul']);
+  assert.deepEqual(blocks[2].items, [['name', 'value'], ['a', '1']]);
+  assert.deepEqual(blocks[3].items, ['x = 1']);
+});

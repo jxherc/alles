@@ -1277,19 +1277,23 @@ export function contextClaimsForOverview(overview = {}) {
 // ── the instant answer: short prose streamed in; what a source backs gets a dotted underline ──
 const CITE_GROUP = /((?:\s*\[\d{1,2}(?:\s*,\s*\d{1,2})*\])+)/g;
 
+// inline marks an answer leans on: **bold**, *italic*, `code`, and [words](link) as just the
+// words (sources come from the [n] cites). every piece goes in as text, never as markup. while
+// the answer streams, an opened ** that hasn't closed yet stays hidden instead of showing stars
+const INLINE_MARK = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|(?<![\w*])\*[^*\s][^*]*\*(?![\w*])|(?<![\w_])_[^_\s][^_]*_(?![\w_]))/g;
 function boldInline(parent, text) {
-  // **bold** only; everything else is plain text, never markup. while the answer streams, an
-  // opened ** that hasn't closed yet stays hidden instead of showing the stars
   const value = String(text);
   const open = (value.match(/\*\*/g) || []).length % 2 === 1;
   const cut = open ? value.slice(0, value.lastIndexOf('**')) + value.slice(value.lastIndexOf('**') + 2) : value;
-  for (const part of cut.split(/(\*\*[^*]+\*\*)/g)) {
+  for (const part of cut.split(INLINE_MARK)) {
     if (!part) continue;
-    if (/^\*\*[^*]+\*\*$/.test(part)) {
-      const strong = document.createElement('strong');
-      strong.textContent = part.slice(2, -2);
-      parent.append(strong);
-    } else parent.append(document.createTextNode(part));
+    let node;
+    if (/^\*\*[^*]+\*\*$/.test(part)) { node = document.createElement('strong'); node.textContent = part.slice(2, -2); }
+    else if (/^`[^`]+`$/.test(part)) { node = document.createElement('code'); node.textContent = part.slice(1, -1); }
+    else if (/^\[[^\]]+\]\([^)\s]+\)$/.test(part)) node = document.createTextNode(part.slice(1, part.indexOf('](')));
+    else if (/^([*_])[^*_][\s\S]*\1$/.test(part) && part.length > 2) { node = document.createElement('em'); node.textContent = part.slice(1, -1); }
+    else node = document.createTextNode(part);
+    parent.append(node);
   }
 }
 
@@ -1311,14 +1315,33 @@ export function proseRuns(text) {
 
 export function proseBlocks(text) {
   const blocks = [];
+  let fence = null;
   for (const raw of String(text || '').split('\n')) {
+    // a fenced block keeps its lines as they are, one code block, no prose marks
+    if (/^\s*```/.test(raw)) {
+      if (fence) { fence = null; continue; }
+      fence = { kind: 'pre', items: [] };
+      blocks.push(fence);
+      continue;
+    }
+    if (fence) { fence.items.push(raw); continue; }
     const line = raw.trim();
     if (!line) continue;
+    const last = blocks[blocks.length - 1];
+    // | a | b | rows make a table; the |---| line under the head is only markdown
+    if (/^\|.*\|$/.test(line)) {
+      if (/^\|[\s:|-]+\|$/.test(line) && line.includes('-')) continue;
+      const cells = line.slice(1, -1).split('|').map(cell => cell.trim());
+      if (last?.kind === 'table') last.items.push(cells);
+      else blocks.push({ kind: 'table', items: [cells] });
+      continue;
+    }
+    const heading = /^#{1,6}\s+(.*)$/.exec(line);
+    if (heading) { blocks.push({ kind: 'h', items: [heading[1]] }); continue; }
     const bullet = /^[-*•]\s+(.*)$/.exec(line);
     const numbered = /^\d{1,2}[.)]\s+(.*)$/.exec(line);
     const kind = bullet ? 'ul' : numbered ? 'ol' : 'p';
     const body = bullet ? bullet[1] : numbered ? numbered[1] : line;
-    const last = blocks[blocks.length - 1];
     if (kind !== 'p' && last?.kind === kind) last.items.push(body);
     else blocks.push({ kind, items: [body] });
   }
@@ -1419,10 +1442,35 @@ function renderProse(text, sources = _state.evidence || [], { done = false } = {
   const body = document.createElement('div');
   body.className = 'andromeda-prose';
   for (const block of proseBlocks(text)) {
-    if (block.kind === 'p') {
+    if (block.kind === 'p' || block.kind === 'h') {
       const p = document.createElement('p');
       body.append(p);
-      proseLine(p, block.items[0], p, sources, done);
+      if (block.kind === 'h') {
+        const strong = document.createElement('strong');
+        p.append(strong);
+        proseLine(strong, block.items[0], p, sources, done);
+      } else proseLine(p, block.items[0], p, sources, done);
+    } else if (block.kind === 'pre') {
+      const pre = document.createElement('pre');
+      const code = document.createElement('code');
+      code.textContent = block.items.join('\n');
+      pre.append(code);
+      body.append(pre);
+    } else if (block.kind === 'table') {
+      const wrap = document.createElement('div');
+      wrap.className = 'andromeda-prose-table';
+      const table = document.createElement('table');
+      block.items.forEach((cells, index) => {
+        const tr = document.createElement('tr');
+        for (const cell of cells) {
+          const td = document.createElement(index === 0 ? 'th' : 'td');
+          proseLine(td, cell, td, sources, done);
+          tr.append(td);
+        }
+        table.append(tr);
+      });
+      wrap.append(table);
+      body.append(wrap);
     } else {
       const list = document.createElement(block.kind);
       body.append(list);

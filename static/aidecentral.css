@@ -257,8 +257,12 @@ body.aide-central .context-provenance.is-tucked > summary {
 body.aide-central .context-provenance.is-tucked > summary::-webkit-details-marker { display: none; }
 body.aide-central .context-provenance.is-tucked > summary:hover { background: var(--k-hover, var(--panel)); color: var(--k-text, var(--text)); }
 body.aide-central .context-provenance.is-tucked[open] > summary { color: var(--k-text, var(--text)); background: var(--k-raised, var(--panel)); }
+/* open, it takes its own line under the actions and the reply moves up to make room. as a
+   floating panel it opened over the reply it was explaining */
+body.aide-central[data-space="aide"] .msg-actions.msg-actions-compact:has(> .context-provenance[open]) { flex-wrap: wrap; }
+body.aide-central .context-provenance.is-tucked[open] { flex: 1 0 100%; min-width: 0; margin-inline-start: 0; display: flex; flex-direction: column; align-items: flex-end; gap: var(--k-space-1, 4px); }
 body.aide-central .context-provenance.is-tucked > .context-provenance-body {
-  position: absolute; left: 9px; right: 0; top: calc(100% + 4px); z-index: 20; max-height: 320px; overflow: auto;
+  align-self: stretch; margin-inline-start: 9px; max-height: 320px; overflow: auto;
   padding: var(--k-space-3, 12px) var(--k-space-4, 16px); border: 1px solid var(--k-line-strong, var(--faint));
   border-radius: var(--k-radius-surface, 6px); background: var(--k-panel, var(--panel)); color: var(--k-soft, var(--muted)); font-size: 13px;
   animation: aide-arrive 200ms cubic-bezier(.2, .8, .2, 1);
@@ -278,7 +282,6 @@ body.aide-central #chat { scrollbar-gutter: stable both-edges; }
    reply's text edge; what Aide used sits at the far end of the line */
 body.aide-central #messages .msg-actions { margin-inline-start: -9px; }
 body.aide-central .context-provenance.is-tucked { order: 9; margin-inline-start: auto; }
-body.aide-central .context-provenance.is-tucked.opens-up > .context-provenance-body { top: auto; bottom: calc(100% + 4px); }
 
 /* 2026-10-21 rework after claude code, opencode and dsh (decision 0039): 15px reading text, a
    quieter bubble, a box that sits in the page instead of being drawn around, a filled send only

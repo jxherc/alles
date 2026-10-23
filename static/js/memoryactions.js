@@ -16,10 +16,11 @@ export function provenanceLabels(provenance = {}) {
   return labels;
 }
 
+// "global memory", not "global · id 87317e08-…": the id means nothing to read. it stays on the
+// row's data-memory-id and its forget button
 export function memoryProvenanceLabel(memory = {}) {
-  const id = String(memory.id || '').trim() || 'unknown';
   const scope = String(memory.scope || '').trim() || 'global';
-  return `${scope} · id ${id}`;
+  return `${scope} memory`;
 }
 
 export function contextProvenanceElement(provenance = {}) {

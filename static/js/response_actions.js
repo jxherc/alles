@@ -21,12 +21,9 @@ function tuckProvenance(actions) {
   }
   details.classList.add('is-tucked');
   actions.append(details);
-  // near the bottom of the chat it opens upward, so the box never covers it
+  // it opens in place under the actions; keep what opened in view
   details.addEventListener('toggle', () => {
-    if (!details.open) return;
-    const chat = details.closest('#chat');
-    const room = chat ? chat.getBoundingClientRect().bottom - details.getBoundingClientRect().bottom : Infinity;
-    details.classList.toggle('opens-up', room < 340);
+    if (details.open) details.querySelector('.context-provenance-body')?.scrollIntoView({ block: 'nearest' });
   });
   details.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || !details.open) return;

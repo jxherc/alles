@@ -9372,6 +9372,12 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-view .andromeda-prose :is(p, ul, ol) { margin: 0; }
 .andromeda-view .andromeda-prose :is(ul, ol) { display: grid; gap: 4px; padding-inline-start: 20px; }
 .andromeda-view .andromeda-prose strong { color: var(--text); font-weight: 650; }
+.andromeda-view .andromeda-prose code { font-family: var(--mono, ui-monospace, monospace); font-size: 0.88em; }
+.andromeda-view .andromeda-prose pre { margin: 0; padding: 12px; overflow-x: auto; border-radius: var(--k-radius-control); background: var(--k-panel, var(--panel)); font-size: 13px; line-height: 1.5; }
+.andromeda-view .andromeda-prose-table { overflow-x: auto; }
+.andromeda-view .andromeda-prose-table table { border-collapse: collapse; font-size: 14px; }
+.andromeda-view .andromeda-prose-table :is(th, td) { padding: 6px 12px 6px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--faint); overflow-wrap: normal; }
+.andromeda-view .andromeda-prose-table th { font-weight: 600; }
 /* the main answer reads first: the opening paragraph is a touch larger */
 .andromeda-view .andromeda-prose > p:first-child { font-size: 16px; }
 /* the decisive words of the answer carry the ai highlight, google style; the text stays full tone */
