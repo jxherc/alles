@@ -942,6 +942,15 @@ async function ensureEditor(guard) {
   _editor = _editorFactory(host, {
     doc: parts.body,
     onChange: editorChanged,
+    // pasted or dropped images go to _assets/ and come back as ![[name]]
+    onImageUpload: async file => {
+      const form = new FormData();
+      form.append('file', file, file.name || 'pasted.png');
+      const response = await fetch('/api/vault-md/asset', { method: 'POST', body: form });
+      const saved = await response.json().catch(() => ({}));
+      if (!response.ok || !saved.name) { toast(typeof saved.detail === 'string' ? saved.detail : 'the image could not be saved', 'error'); return null; }
+      return saved.name;
+    },
     wikiComplete: async query => {
       const result = await api('/api/vault-md/names');
       return (result.names || []).filter(name => name.toLowerCase().includes(String(query || '').toLowerCase())).map(name => ({ name }));

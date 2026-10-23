@@ -129,6 +129,9 @@ _CODE_EFFORT_ADDITIONS = {
 # alles's own tools for pi, local-only behind each chat's bridge token
 _PI_BRIDGE_TOOL_ADDITIONS = {"POST /pi-bridge/tool"}
 
+# an image pasted or dropped into a doc is saved under the vault's _assets/
+_DOC_ASSET_ADDITIONS = {"POST /api/vault-md/asset"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -142,6 +145,7 @@ def _route_rows():
         | _PHOTON_SETUP_ADDITIONS
         | _CODE_EFFORT_ADDITIONS
         | _PI_BRIDGE_TOOL_ADDITIONS
+        | _DOC_ASSET_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -270,6 +274,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _PHOTON_SETUP_ADDITIONS
                 - _CODE_EFFORT_ADDITIONS
                 - _PI_BRIDGE_TOOL_ADDITIONS
+                - _DOC_ASSET_ADDITIONS
             ),
             960,
         )
@@ -307,6 +312,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _PHOTON_SETUP_ADDITIONS
                 - _CODE_EFFORT_ADDITIONS
                 - _PI_BRIDGE_TOOL_ADDITIONS
+                - _DOC_ASSET_ADDITIONS
             ),
             974,
         )
@@ -320,11 +326,14 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_pi_bridge_tool_route_is_additive(self):
         self.assertTrue(_PI_BRIDGE_TOOL_ADDITIONS <= set(_current_rows()))
 
+    def test_doc_asset_route_is_additive(self):
+        self.assertTrue(_DOC_ASSET_ADDITIONS <= set(_current_rows()))
+
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 990)
-        self.assertEqual(digest, "4b54c467d8f2bfc0881ff9f83e7b6dd237ba29a39085380636f08b75705a22fa")
+        self.assertEqual(len(rows), 991)
+        self.assertEqual(digest, "871e5f1d8f58104f80897c1a18f7ed099330dea7be7943ec4ff7d41fc03300da")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -333,7 +342,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 968, "v1": 2, "public": 20})
+        self.assertEqual(groups, {"api": 969, "v1": 2, "public": 20})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

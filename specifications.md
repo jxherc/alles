@@ -1504,9 +1504,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 990 http method/path pairs
-- 968 `/api/*`, 2 `/v1/*`, and 20 non-api shell/public pairs
-- sha-256: `4b54c467d8f2bfc0881ff9f83e7b6dd237ba29a39085380636f08b75705a22fa`
+- 991 http method/path pairs
+- 969 `/api/*`, 2 `/v1/*`, and 20 non-api shell/public pairs
+- sha-256: `871e5f1d8f58104f80897c1a18f7ed099330dea7be7943ec4ff7d41fc03300da`
 
 <details>
 <summary>app.py · 6 operations</summary>
@@ -3318,7 +3318,7 @@ retrieve full article text from each entry's publisher.
 </details>
 
 <details>
-<summary>routes/vault_md.py · 31 operations</summary>
+<summary>routes/vault_md.py · 32 operations</summary>
 
 [source](routes/vault_md.py)
 
@@ -3336,6 +3336,7 @@ retrieve full article text from each entry's publisher.
 | `GET` | `/api/vault-md/names` | `names` |
 | `GET` | `/api/vault-md/preview` | `preview_note` |
 | `GET` | `/api/vault-md/raw` | `raw_asset` |
+| `POST` | `/api/vault-md/asset` | `upload_asset` |
 | `POST` | `/api/vault-md/rename` | `rename_file` |
 | `GET` | `/api/vault-md/rename/pending` | `pending_renames` |
 | `POST` | `/api/vault-md/rename/recover` | `recover_rename` |

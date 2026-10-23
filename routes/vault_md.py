@@ -173,6 +173,23 @@ def raw_asset(path: str):
     return Response(content=data, media_type=mime, headers={"cache-control": "no-cache"})
 
 
+_ASSET_MAX = 20 * 1024 * 1024
+
+
+@router.post("/asset")
+async def upload_asset(file: UploadFile):
+    """an image pasted or dropped into a doc lands in _assets/; the editor embeds it by name."""
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(400, "only images can be pasted into a doc")
+    data = await file.read(_ASSET_MAX + 1)
+    if len(data) > _ASSET_MAX:
+        raise HTTPException(413, "that image is over 20 MB")
+    try:
+        return vault_md.save_asset(file.filename or "pasted.png", data)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 @router.get("/search")
 def search(q: str = ""):
     return {"results": vault_md.search(q)}
