@@ -36,10 +36,19 @@ export async function initPushButton() {
       if (sub) await _disable(sub); else await _enable();
       _setLabel(btn, !!(await _currentSub()));
     } catch (e) {
-      toast(`notifications: ${e.message}`, 'error');
+      toast(pushErrorText(e), 'error');
     }
     btn.disabled = false;
   });
+}
+
+// chromium with no push service (brave's default, electron, embedded views) throws
+// "Registration failed - push service error", which means nothing to a person
+export function pushErrorText(e) {
+  const msg = String(e?.message || 'something went wrong');
+  if (/push service/i.test(msg)) return "this browser can't get push notifications. try safari, chrome or firefox";
+  if (/permission denied/i.test(msg)) return 'notifications blocked by the browser';
+  return `notifications: ${msg[0].toLowerCase()}${msg.slice(1)}`;
 }
 
 function _setLabel(btn, on) {
