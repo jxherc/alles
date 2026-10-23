@@ -310,7 +310,8 @@ body.aide-central[data-space="aide"] .composer-box .send-btn.is-empty:hover::bef
 /* while an answer streams, stop takes send's own slot and look (a 32px fill in a 44px target);
    added beside it, it pushed the model and mic 44px left the moment an answer began */
 .composer-bar .stop-btn.visible + .send-btn { display: none; }
-body.aide-central[data-space="aide"] .composer-box .stop-btn { position: relative; isolation: isolate; border-color: transparent; background: none; color: var(--k-page, var(--bg)); font-size: 10px; }
+body.aide-central[data-space="aide"] .composer-box .stop-btn { position: relative; isolation: isolate; border-color: transparent; background: none; color: var(--k-page, var(--bg)); }
+body.aide-central[data-space="aide"] .composer-box .stop-btn .ic { width: 12px; height: 12px; fill: currentColor; }
 body.aide-central[data-space="aide"] .composer-box .stop-btn::before {
   content: ""; position: absolute; inset: 6px; z-index: -1; border-radius: var(--k-radius-control, 3px); background: var(--k-text, var(--text));
 }
