@@ -180,3 +180,25 @@ class EventColorTest(ApiTest):
             "/api/calendar", json={"title": "x", "start_dt": "2026-10-29T09:00", "color": "#5b8def"}
         )
         self.assertEqual(ok.status_code, 200, ok.text)
+
+
+class AgendaSpanTest(ApiTest):
+    def test_a_multi_day_event_shows_on_each_of_its_days(self):
+        from datetime import date, timedelta
+
+        start = date.today() + timedelta(days=1)
+        end = start + timedelta(days=2)
+        self.client.post(
+            "/api/calendar",
+            json={
+                "title": "camping",
+                "start_dt": start.isoformat(),
+                "end_dt": end.isoformat(),
+                "all_day": True,
+            },
+        )
+        days = self.client.get("/api/calendar/agenda", params={"days": 8}).json()["days"]
+        with_camping = [
+            d["date"] for d in days if any(e["title"] == "camping" for e in d["events"])
+        ]
+        self.assertEqual(with_camping, [(start + timedelta(days=i)).isoformat() for i in range(3)])

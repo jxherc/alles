@@ -372,7 +372,9 @@ async function _renderPlan(target, request, section = 'overview') {
     _json(request, '/api/reminders'),
   ]);
   const agendaPayload = _settled(eventsResult, {});
-  const events = _asArray(agendaPayload, 'days').flatMap(day => _asArray(day, 'events'));
+  // a later day of a multi-day event sits on that day, as an all-day row
+  const events = _asArray(agendaPayload, 'days').flatMap(day => _asArray(day, 'events')
+    .map(event => (event?.continued && day?.date ? { ...event, start_dt: day.date } : event)));
   const tasks = _asArray(_settled(tasksResult, []));
   const reminders = _asArray(_settled(remindersResult, []));
   const failures = [

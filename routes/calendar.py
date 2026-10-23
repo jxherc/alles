@@ -188,7 +188,6 @@ def agenda(days: int = 30, db: DbSession = Depends(get_db)):
 
     today = date.today()
     until = today + timedelta(days=days)
-    today_s, until_s = today.isoformat(), until.isoformat()
     rs = datetime.combine(today, datetime.min.time())
     re_ = datetime.combine(until, datetime.max.time())
     groups: dict[str, list] = {}
@@ -208,9 +207,21 @@ def agenda(days: int = 30, db: DbSession = Depends(get_db)):
                 )
                 groups.setdefault(occ.date().isoformat(), []).append(ev)
         else:
-            d = (e.start_dt or "")[:10]
-            if today_s <= d <= until_s:
-                groups.setdefault(d, []).append(base)
+            # a multi-day event (a camping trip, a conference) shows on every day it covers,
+            # not just the first; a timed one ending at midnight doesn't spill into the next day
+            try:
+                first = date.fromisoformat((e.start_dt or "")[:10])
+                last = date.fromisoformat((e.end_dt or e.start_dt or "")[:10])
+            except ValueError:
+                continue
+            if e.end_dt and not e.all_day and (e.end_dt[11:16] in ("", "00:00")) and last > first:
+                last -= timedelta(days=1)
+            day = max(first, today)
+            while day <= min(last, until):
+                groups.setdefault(day.isoformat(), []).append(
+                    dict(base, continued=True) if day > first else base
+                )
+                day += timedelta(days=1)
     for evs in groups.values():
         evs.sort(key=lambda x: x["start_dt"])
     return {"days": [{"date": d, "events": groups[d]} for d in sorted(groups)]}
