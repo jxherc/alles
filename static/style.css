@@ -2235,6 +2235,11 @@ body.is-aide.is-incognito .incognito-bar {
 .dp-day.sel { background: var(--k-raised, var(--panel)); box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--muted)); color: var(--text); font-weight: 600; }
 .dp-time { display: flex; align-items: center; justify-content: center; gap: 0.15rem; margin-top: 0.55rem; }
 .dp-tv { font-variant-numeric: tabular-nums; min-width: 1.5rem; text-align: center; }
+/* typeable hour, minute and year: plain text until focused, then one bottom line */
+:is(input.dp-tv, input.dp-year) { width: 2.6ch; min-height: 32px; padding: 0; border: 0; border-bottom: 1px solid transparent; border-radius: 0; background: none; color: inherit; font: inherit; text-align: center; }
+input.dp-year { width: 4.6ch; }
+:is(input.dp-tv, input.dp-year):hover { border-bottom-color: var(--faint); }
+:is(input.dp-tv, input.dp-year):focus { outline: none; border-bottom-color: var(--text); }
 .dp-colon { color: var(--muted); margin: 0 0.15rem; }
 .dp-foot { display: flex; justify-content: space-between; margin-top: 0.55rem; }
 .dp-clear, .dp-now {

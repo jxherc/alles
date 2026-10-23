@@ -156,11 +156,12 @@ function _openPanel(el) {
 function _render(el) {
   const { panel, view, sel } = _open;
   const active = panel.contains(document.activeElement) ? document.activeElement : null;
-  const focusKey = active?.dataset.d ? `[data-d="${active.dataset.d}"]` : active?.dataset.step ? `[data-step="${active.dataset.step}"]` : active?.dataset.nav ? `[data-nav="${active.dataset.nav}"]` : null;
+  const focusKey = active?.dataset.d ? `[data-d="${active.dataset.d}"]` : active?.dataset.step ? `[data-step="${active.dataset.step}"]` : active?.dataset.nav ? `[data-nav="${active.dataset.nav}"]`
+    : active?.dataset.part ? `[data-part="${active.dataset.part}"]` : active?.classList.contains('dp-year') ? '.dp-year' : null;
   const isDate = _isDate(el);
   const monthName = formatCalendarDate(
     `${view.y}-${_z(view.mo + 1)}-01`,
-    { month: 'long', year: 'numeric' },
+    { month: 'long' },
   );
   const weekStart = resolveDatePickerWeekStart();
   const first = (new Date(view.y, view.mo, 1).getDay() - weekStart + 7) % 7;
@@ -175,12 +176,12 @@ function _render(el) {
   }
   const time = isDate ? '' : `
     <div class="dp-time">
-      <button type="button" class="dp-step" data-step="h-1" aria-label="previous hour">‹</button><span class="dp-tv">${_z(sel.h)}</span><button type="button" class="dp-step" data-step="h1" aria-label="next hour">›</button>
+      <button type="button" class="dp-step" data-step="h-1" aria-label="previous hour">‹</button><input class="dp-tv" data-part="h" inputmode="numeric" maxlength="2" aria-label="hour" value="${_z(sel.h)}"><button type="button" class="dp-step" data-step="h1" aria-label="next hour">›</button>
       <span class="dp-colon">:</span>
-      <button type="button" class="dp-step" data-step="mi-1" aria-label="previous minute">‹</button><span class="dp-tv">${_z(sel.mi)}</span><button type="button" class="dp-step" data-step="mi1" aria-label="next minute">›</button>
+      <button type="button" class="dp-step" data-step="mi-1" aria-label="5 minutes earlier">‹</button><input class="dp-tv" data-part="mi" inputmode="numeric" maxlength="2" aria-label="minute" value="${_z(sel.mi)}"><button type="button" class="dp-step" data-step="mi1" aria-label="5 minutes later">›</button>
     </div>`;
   panel.innerHTML = `
-    <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="previous month">‹</button><span>${monthName}</span><button type="button" class="dp-nav" data-nav="1" aria-label="next month">›</button></div>
+    <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="previous month">‹</button><span>${monthName} <input class="dp-year" inputmode="numeric" maxlength="4" aria-label="year" value="${view.y}"></span><button type="button" class="dp-nav" data-nav="1" aria-label="next month">›</button></div>
     <div class="dp-grid">${grid}</div>${time}
     <div class="dp-foot"><button type="button" class="dp-clear">clear</button><button type="button" class="dp-now">now</button></div>`;
 
@@ -201,9 +202,35 @@ function _render(el) {
     e.stopPropagation();
     const s = b.dataset.step;
     if (s.startsWith('h')) sel.h = (sel.h + (s === 'h1' ? 1 : 23)) % 24;
-    else sel.mi = (sel.mi + (s === 'mi1' ? 1 : 59)) % 60;
+    // minutes move in fives (onto the next five); one at a time took 30 clicks to reach :30
+    else sel.mi = s === 'mi1' ? (Math.floor(sel.mi / 5) * 5 + 5) % 60 : (Math.ceil(sel.mi / 5) * 5 + 55) % 60;
     _commit(el); _render(el);
   }));
+  // hour, minute and year can be typed; they apply on enter or when the field is left
+  const typed = (input, apply) => {
+    const run = () => { const n = parseInt(input.value, 10); if (Number.isFinite(n)) apply(n); _render(el); };
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('change', run);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
+  };
+  panel.querySelectorAll('.dp-tv').forEach(input => typed(input, n => {
+    if (input.dataset.part === 'h' && n >= 0 && n <= 23) sel.h = n;
+    if (input.dataset.part === 'mi' && n >= 0 && n <= 59) sel.mi = n;
+    _commit(el);
+  }));
+  const yearInput = panel.querySelector('.dp-year');
+  if (yearInput) typed(yearInput, n => { if (n >= 1000 && n <= 9999) view.y = n; });
+  // arrows walk the days, a week up or down, into the next or previous month
+  panel.querySelector('.dp-grid')?.addEventListener('keydown', e => {
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+    const from = e.target.closest?.('.dp-day');
+    if (!step || !from) return;
+    e.preventDefault();
+    const next = new Date(view.y, view.mo, +from.dataset.d + step);
+    view.y = next.getFullYear(); view.mo = next.getMonth();
+    _render(el);
+    panel.querySelector(`.dp-day[data-d="${next.getDate()}"]`)?.focus();
+  });
   panel.querySelector('.dp-clear').addEventListener('click', e => { e.stopPropagation(); el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })); _close(); });
   panel.querySelector('.dp-now').addEventListener('click', e => {
     e.stopPropagation();
