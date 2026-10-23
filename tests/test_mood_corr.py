@@ -89,6 +89,20 @@ class BuilderTests(unittest.TestCase):
         self.assertGreater(run["rho"], 0.5)
         self.assertIn("run", run["explain"])
 
+    def test_existing_compact_habit_dates_keep_their_mood_correlation(self):
+        h = db.Habit(name="run")
+        self.s.add(h)
+        self.s.commit()
+        for i in range(8):
+            good = i % 2 == 0
+            self._journal(i, "😄" if good else "😢")
+            if good:
+                self.s.add(db.HabitLog(habit_id=h.id, date=self._day(i).replace("-", "")))
+        self.s.commit()
+        out = mc.correlations(self.s, min_overlap=6)
+        run = next(c for c in out["correlations"] if c["label"] == "habit:run")
+        self.assertGreater(run["rho"], 0.5)
+
     def test_health_metric_correlation(self):
         # more sleep -> better mood
         for i in range(8):
@@ -107,8 +121,15 @@ class BuilderTests(unittest.TestCase):
             good = i < 4
             self._journal(i, "😄" if good else "😢")
             if good:
-                self.s.add(db.Task(title=f"t{i}", done=True, completed_at=_dt.datetime.combine(
-                    _dt.date.fromisoformat(self._day(i)), _dt.time(12, 0))))
+                self.s.add(
+                    db.Task(
+                        title=f"t{i}",
+                        done=True,
+                        completed_at=_dt.datetime.combine(
+                            _dt.date.fromisoformat(self._day(i)), _dt.time(12, 0)
+                        ),
+                    )
+                )
         self.s.commit()
         out = mc.correlations(self.s, min_overlap=6)
         tc = next(c for c in out["correlations"] if c["label"] == "tasks completed")
@@ -163,12 +184,14 @@ class RouteTests(ApiTest):
         self.assertIn("correlations", r.json())
 
     def test_route_locked_403(self):
-        self.client.post("/api/journal/lock/set", json={"passcode": "1234"})
+        self.client.post("/api/journal/lock/set", json={"passcode": "journal-passcode-one"})
         self.assertEqual(self.client.get("/api/journal/mood-correlations").status_code, 403)
 
     def test_route_unlocked_with_token(self):
-        self.client.post("/api/journal/lock/set", json={"passcode": "1234"})
-        tok = self.client.post("/api/journal/unlock", json={"passcode": "1234"}).json()["token"]
+        self.client.post("/api/journal/lock/set", json={"passcode": "journal-passcode-one"})
+        tok = self.client.post(
+            "/api/journal/unlock", json={"passcode": "journal-passcode-one"}
+        ).json()["token"]
         r = self.client.get("/api/journal/mood-correlations", headers={"X-Journal-Token": tok})
         self.assertEqual(r.status_code, 200)
 

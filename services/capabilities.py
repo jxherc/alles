@@ -20,6 +20,101 @@ class Capability:
     executor: object = None  # optional callable; tools route through agent_tools.execute
 
 
+@dataclass(frozen=True)
+class SurfaceCapability:
+    """A typed product-surface row used to keep routing and approvals honest."""
+
+    surface: str
+    operation: str
+    tools: tuple[str, ...]
+    effect: str  # read | external_read | change
+    approval: str  # automatic | ask | excluded
+    note: str = ""
+
+
+SURFACE_CAPABILITIES = {
+    "today": (
+        SurfaceCapability(
+            "today", "read daily context", ("task_list", "calendar_list"), "read", "automatic"
+        ),
+        SurfaceCapability(
+            "today",
+            "change tasks or calendar",
+            ("task_add", "task_done", "calendar_create", "calendar_delete"),
+            "change",
+            "ask",
+        ),
+    ),
+    "aide": (
+        SurfaceCapability(
+            "aide", "read owner context", ("recall", "memory_search"), "read", "automatic"
+        ),
+        SurfaceCapability(
+            "aide", "search the live web", ("web_search", "web_fetch"), "external_read", "automatic"
+        ),
+        SurfaceCapability("aide", "save long-term memory", ("memory_add",), "change", "ask"),
+    ),
+    "plan": (
+        SurfaceCapability(
+            "plan",
+            "inspect a project",
+            (
+                "read_file",
+                "list_files",
+                "glob_files",
+                "grep_files",
+                "search_code",
+                "git_status",
+                "git_diff",
+            ),
+            "read",
+            "automatic",
+        ),
+        SurfaceCapability(
+            "plan", "change anything", (), "change", "excluded", "plan mode is read-only"
+        ),
+    ),
+    "docs": (
+        SurfaceCapability(
+            "docs",
+            "read documents",
+            ("note_list", "note_read", "note_search", "note_backlinks"),
+            "read",
+            "automatic",
+        ),
+        SurfaceCapability(
+            "docs", "change documents", ("note_write", "note_append"), "change", "ask"
+        ),
+    ),
+    "andromeda": (
+        SurfaceCapability(
+            "andromeda", "show normal results", ("web_search",), "external_read", "automatic"
+        ),
+        SurfaceCapability(
+            "andromeda", "read overview evidence", ("web_fetch",), "external_read", "automatic"
+        ),
+        SurfaceCapability("andromeda", "save a result", ("read_save",), "change", "ask"),
+    ),
+}
+
+
+SURFACE_EXCLUSIONS = {
+    "today": ("specialist-app administration",),
+    "aide": ("unapproved mutations",),
+    "plan": ("all mutations", "background execution"),
+    "docs": ("non-document specialist writes",),
+    "andromeda": ("private Project or memory context by default", "unapproved remote models"),
+}
+
+
+def surface_rows(surface: str) -> tuple[SurfaceCapability, ...]:
+    return SURFACE_CAPABILITIES.get(str(surface or "").strip().lower(), ())
+
+
+def surface_exclusions(surface: str) -> tuple[str, ...]:
+    return SURFACE_EXCLUSIONS.get(str(surface or "").strip().lower(), ())
+
+
 _REGISTRY = {}  # (kind, name) -> Capability
 
 

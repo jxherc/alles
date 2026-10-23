@@ -1,4 +1,7 @@
+from unittest import mock
+
 from core.database import MailAccount
+from services import mail as mailsvc
 from services import mail_cache
 from tests._client import ApiTest
 
@@ -108,8 +111,13 @@ class MailSmartApiTests(ApiTest):
         self.assertEqual([m["subject"] for m in r.json()["messages"]], ["new"])
 
     def test_api_flag(self):
-        self.client.post(
-            "/api/mail/flag/A", params={"uid": "2", "folder": "INBOX", "flagged": "true"}
-        )
+        with mock.patch.object(mailsvc, "set_flag", return_value={"ok": True}) as remote:
+            response = self.client.post(
+                "/api/mail/flag/A", params={"uid": "2", "folder": "INBOX", "flagged": "true"}
+            )
+        remote.assert_called_once_with(mock.ANY, "2", True, "INBOX")
+        self.assertEqual(remote.call_args.args[0]["imap_host"], "h")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"ok": True, "flagged": True})
         flagged = [m for m in mail_cache.get(self.db(), "A", "INBOX") if m["flagged"]]
         self.assertEqual([m["subject"] for m in flagged], ["new"])

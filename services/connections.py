@@ -5,7 +5,7 @@ Token comes from the DB Connection row, or falls back to env (GITHUB_TOKEN / *_A
 
 import os
 
-from core.database import SessionLocal, Connection
+from core.database import Connection, SessionLocal
 
 
 def get_connection(service: str):

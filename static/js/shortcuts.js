@@ -8,6 +8,7 @@ export const DEFAULT_SHORTCUTS = {
   send: 'Ctrl+Enter',
   focus_input: 'Ctrl+/',    // jump to the composer from anywhere
   stop: 'Escape',           // stop an in-flight generation (also closes overlays)
+  ask_aide: 'Ctrl+.',       // the ask-aide panel on any app
 };
 
 // combos the OS/browser already own — binding these would either never fire or
@@ -63,6 +64,11 @@ export function eventToShortcut(e) {
 export function matchesShortcut(e, shortcut) {
   if (!shortcut) return false;
   return eventToShortcut(e).toLowerCase() === shortcut.toLowerCase();
+}
+
+export function matchesSettingsShortcut(e, shortcut) {
+  if (matchesShortcut(e, shortcut)) return true;
+  return e.key === ',' && !e.altKey && !e.shiftKey && (e.ctrlKey || e.metaKey);
 }
 
 function _keyName(key) {

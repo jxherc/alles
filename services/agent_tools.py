@@ -16,10 +16,12 @@ import shlex
 import shutil
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import urlparse
 
 import httpx
 
+from core.settings import data_dir, load_settings
 
 ROOT = Path(__file__).parent.parent
 CODEX_HOME = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
@@ -27,11 +29,19 @@ CODEX_HOME = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
 # per-run context (settings, endpoint, model) — async-task safe via contextvars
 # so concurrent sub-agents don't clobber each other.
 _ctx = contextvars.ContextVar("agent_ctx", default={})
+_SENSITIVE_HEALTH_TOOLS = {"health_log", "health_summary"}
 
 
-def set_agent_ctx(settings=None, ep=None, model="", run_id=""):
+def set_agent_ctx(settings=None, ep=None, model="", run_id="", session_id=""):
     _ctx.set(
-        {"settings": settings or {}, "ep": ep, "model": model, "run_id": run_id, "_reads": set()}
+        {
+            "settings": settings or {},
+            "ep": ep,
+            "model": model,
+            "run_id": run_id,
+            "session_id": session_id,
+            "_reads": set(),
+        }
     )
 
 
@@ -39,11 +49,31 @@ def get_agent_ctx() -> dict:
     return _ctx.get()
 
 
+def authorize_delegated_paths(paths) -> None:
+    get_agent_ctx()["_delegated_write_targets"] = {
+        str(Path(path).expanduser().resolve()) for path in paths or ()
+    }
+
+
+def clear_delegated_paths() -> None:
+    get_agent_ctx().pop("_delegated_write_targets", None)
+
+
 def _settings() -> dict:
     return (_ctx.get() or {}).get("settings", {}) or {}
 
 
+def _health_access_enabled(settings: dict | None = None) -> bool:
+    """Health never enters Project context and needs an explicit owner grant."""
+    values = settings or {}
+    return (
+        bool(values.get("agent_health_access_granted"))
+        and values.get("agent_environment", "general") == "general"
+    )
+
+
 TOOL_PERMISSION = {
+    "ask_user": "state",
     "recall": "read",
     "money_query": "read",
     "shell": "shell",
@@ -66,6 +96,7 @@ TOOL_PERMISSION = {
     "mcp_list_tools": "mcp_read",
     "mcp_call_tool": "mcp_call",
     "opencode_run": "delegate",
+    "pi_run": "delegate",
     "git_status": "read",
     "git_diff": "read",
     "git_branch": "git_write",
@@ -92,6 +123,65 @@ TOOL_PERMISSION = {
     "github_search_repos": "connection_read",
     "github_create_issue": "connection_write",
     "github_create_pr": "connection_write",
+    # Typed app-owned scopes. Exact names still drive the permission preview, while
+    # these scopes let personas and policy deny a whole product boundary reliably.
+    "calendar_list": "calendar_read",
+    "calendar_create": "calendar_write",
+    "calendar_delete": "calendar_write",
+    "task_list": "tasks_read",
+    "task_add": "tasks_write",
+    "goal_add": "goals_write",
+    "goal_list": "goals_read",
+    "task_done": "tasks_write",
+    "search_code": "code_read",
+    "browse_open": "browser_write",
+    "browse_read": "browser_read",
+    "browse_click": "browser_write",
+    "browse_type": "browser_write",
+    "browse_screenshot": "browser_read",
+    "browse_select": "browser_write",
+    "browse_scroll": "browser_read",
+    "browse_back": "browser_read",
+    "note_list": "docs_read",
+    "docs_read": "docs_read",
+    "docs_write": "docs_write",
+    "docs_search": "docs_read",
+    "note_read": "docs_read",
+    "note_write": "docs_write",
+    "note_append": "docs_write",
+    "note_search": "docs_read",
+    "note_backlinks": "docs_read",
+    "contact_list": "contacts_read",
+    "contact_add": "contacts_write",
+    "mail_list": "mail_read",
+    "mail_read": "mail_read",
+    "mail_send": "mail_write",
+    "book_add": "library_write",
+    "books_list": "library_read",
+    "health_log": "health_write",
+    "health_summary": "health_read",
+    "habit_add": "habits_write",
+    "habit_log": "habits_write",
+    "habits_list": "habits_read",
+    "read_save": "library_write",
+    "read_list": "library_read",
+    "watch_add": "watch_write",
+    "watch_status": "watch_read",
+    "files_locations_list": "files_read",
+    "files_operations_list": "files_read",
+    "files_operation_create": "files_write",
+    "files_operation_undo": "files_write",
+    "finance_accounts_list": "finance_read",
+    "finance_transactions_list": "finance_read",
+    "finance_import_profiles": "finance_read",
+    "server_services_list": "server_read",
+    "server_service_control": "server_write",
+    "server_companions_list": "server_read",
+    "adguard_dashboard": "server_read",
+    "adguard_filtering_set": "server_write",
+    "adguard_rewrite_change": "server_write",
+    "npm_dashboard": "server_read",
+    "npm_proxy_host_create": "server_write",
 }
 
 
@@ -110,11 +200,15 @@ def _resolve(path: str = ".") -> Path:
         # a working_dir this stays ROOT, the long-standing default.
         base = ROOT
         try:
-            cwd = _settings().get("agent_cwd")
+            settings = _settings()
+            cwd = settings.get("agent_cwd")
             if cwd:
                 base = Path(cwd).expanduser()
+            elif settings.get("agent_environment") == "general":
+                raise ValueError("select a Project folder before using relative file paths")
         except Exception:
-            pass
+            if _settings().get("agent_environment") == "general":
+                raise
         p = base / p
     return p.resolve()
 
@@ -149,22 +243,135 @@ def _skip_secret(p) -> bool:
     return _is_secret_path(p) and not _settings().get("agent_allow_secrets")
 
 
-def _allowed_roots() -> list:
-    s = _settings()
-    roots = [ROOT.resolve()]
+_SCAN_SKIP_DIRS = {
+    ".git",
+    ".hg",
+    ".svn",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    "dist",
+    "build",
+    ".next",
+    ".cache",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "graphify-out",
+}
+
+_SCAN_SKIP_ROOT_DIRS = {"data"}
+
+_BINARY_EXTS = {
+    ".7z",
+    ".bin",
+    ".db",
+    ".dll",
+    ".dylib",
+    ".exe",
+    ".gif",
+    ".gz",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".otf",
+    ".pdf",
+    ".png",
+    ".pyc",
+    ".rar",
+    ".so",
+    ".sqlite",
+    ".tar",
+    ".ttf",
+    ".wav",
+    ".webp",
+    ".woff",
+    ".woff2",
+    ".zip",
+}
+
+
+def _skip_scan_path(p, root: Path | None = None) -> bool:
+    if _skip_secret(p):
+        return True
+    pp = Path(p)
+    if any(str(part).lower() in _SCAN_SKIP_DIRS for part in pp.parts):
+        return True
+    if root is not None:
+        try:
+            rel = pp.relative_to(root)
+            return bool(rel.parts and rel.parts[0].lower() in _SCAN_SKIP_ROOT_DIRS)
+        except ValueError:
+            return False
+    return False
+
+
+def _iter_scan(root: Path, *, include_dirs: bool = False, max_depth: int | None = None):
+    base_parts = len(root.parts)
+    for cur, dirnames, filenames in os.walk(root):
+        curp = Path(cur)
+        cur_depth = len(curp.parts) - base_parts
+        kept = []
+        for name in sorted(dirnames):
+            dp = curp / name
+            if _skip_scan_path(dp, root):
+                continue
+            child_depth = cur_depth + 1
+            if include_dirs and (max_depth is None or child_depth <= max_depth):
+                yield dp
+            if max_depth is None or child_depth < max_depth:
+                kept.append(name)
+        dirnames[:] = kept
+
+        if max_depth is not None and cur_depth + 1 > max_depth:
+            continue
+        for name in sorted(filenames):
+            fp = curp / name
+            if not _skip_scan_path(fp, root):
+                yield fp
+
+
+def _scan_rel(root: Path, item: Path) -> str:
+    if root.is_file() and item == root:
+        return item.name
+    return str(item.relative_to(root)).replace("\\", "/")
+
+
+def _skip_binary_file(p: Path) -> bool:
+    if p.suffix.lower() in _BINARY_EXTS:
+        return True
+    try:
+        with p.open("rb") as f:
+            return b"\0" in f.read(2048)
+    except OSError:
+        return True
+
+
+def _project_root(settings: dict | None = None) -> Path:
+    s = settings if settings is not None else _settings()
     cwd = s.get("agent_cwd")
     if cwd:
         try:
-            roots.append(Path(cwd).expanduser().resolve())
+            return Path(cwd).expanduser().resolve()
         except Exception:
             pass
-    try:
-        roots.append(Path(tempfile.gettempdir()).resolve())
-    except Exception:
-        pass
-    for r in s.get("agent_path_extra_roots") or []:
+    return ROOT.resolve()
+
+
+def _allowed_roots(settings: dict | None = None) -> list[Path]:
+    s = settings if settings is not None else _settings()
+    roots = [] if s.get("agent_environment") == "general" else [_project_root(s)]
+    for r in s.get("agent_allowed_roots") or []:
         try:
-            roots.append(Path(str(r)).expanduser().resolve())
+            root = Path(str(r)).expanduser().resolve()
+            if root.is_dir() and root != Path(root.anchor):
+                roots.append(root)
         except Exception:
             pass
     return roots
@@ -178,14 +385,25 @@ def _within(p, root) -> bool:
         return False
 
 
-def _guard_path(p, write: bool = False) -> str | None:
+def _guard_path(p, write: bool = False, settings: dict | None = None) -> str | None:
     """error string if the path is off-limits, else None."""
-    s = _settings()
+    s = settings if settings is not None else _settings()
     if _is_secret_path(p) and not s.get("agent_allow_secrets"):
         return f"blocked: {p} looks like a credential/secret store (set agent_allow_secrets to override)"
-    if write and s.get("agent_confine_workspace"):
-        if not any(_within(p, r) for r in _allowed_roots()):
-            return f"blocked: writes are confined to the workspace; {p} is outside it"
+    try:
+        exact_delegated_write = write and str(
+            Path(p).expanduser().resolve()
+        ) in get_agent_ctx().get("_delegated_write_targets", set())
+    except (OSError, RuntimeError):
+        exact_delegated_write = False
+    if write and s.get("agent_environment") == "general" and not exact_delegated_write:
+        return (
+            "blocked: General has no writable folder; choose a Project or approve a scoped action"
+        )
+    if not exact_delegated_write and not any(_within(p, r) for r in _allowed_roots(s)):
+        return f"blocked: file access is confined to approved roots; {p} is outside them"
+    if write and not exact_delegated_write and not _within(p, _project_root(s)):
+        return f"blocked: extra approved roots are read-only; {p} is outside the project root"
     return None
 
 
@@ -293,7 +511,11 @@ async def _read_file(path: str, start_line: int = 1, end_line: int = 0) -> dict:
         # lines and copy precise old_strings for edit_file
         numbered = "\n".join(f"{base + i}\t{ln}" for i, ln in enumerate(selected))
         get_agent_ctx().setdefault("_reads", set()).add(str(p))  # for the read-before-edit hint
-        return {"output": _safe_text(prefix + numbered), "error": False}
+        return {
+            "output": _safe_text(prefix + numbered),
+            "error": False,
+            "source": {"kind": "file", "path": str(p)},
+        }
     except Exception as e:
         return {"output": str(e), "error": True}
 
@@ -432,18 +654,14 @@ async def _git_commit(cwd: str = ".", message: str = "", paths: list[str] | None
 async def _list_files(path: str = ".", depth: int = 1) -> dict:
     try:
         root = _resolve(path)
+        if blocked := _guard_path(root):
+            return {"output": blocked, "error": True}
         if not root.exists():
             return {"output": f"not found: {path}", "error": True}
         if root.is_file():
             return {"output": str(root), "error": False}
         lines = []
-        base_parts = len(root.parts)
-        for item in sorted(root.rglob("*")):
-            rel_depth = len(item.parts) - base_parts
-            if rel_depth > max(1, depth):
-                continue
-            if _skip_secret(item):
-                continue
+        for item in _iter_scan(root, include_dirs=True, max_depth=max(1, depth)):
             rel = item.relative_to(root)
             lines.append(("[dir] " if item.is_dir() else "      ") + str(rel))
             if len(lines) >= 500:
@@ -457,12 +675,17 @@ async def _list_files(path: str = ".", depth: int = 1) -> dict:
 async def _glob_files(pattern: str, path: str = ".", head_limit: int = 0) -> dict:
     try:
         root = _resolve(path)
+        if blocked := _guard_path(root):
+            return {"output": blocked, "error": True}
         matches = []
-        for item in root.rglob("*"):
-            if _skip_secret(item):
-                continue
-            rel = str(item.relative_to(root)).replace("\\", "/")
-            if fnmatch.fnmatch(rel, pattern):
+        if root.is_file() and _skip_scan_path(root):
+            items = []
+        else:
+            items = [root] if root.is_file() else _iter_scan(root, include_dirs=True)
+        pat = pattern or "*"
+        for item in items:
+            rel = _scan_rel(root, item)
+            if fnmatch.fnmatch(rel, pat):
                 try:
                     mt = item.stat().st_mtime
                 except OSError:
@@ -491,13 +714,23 @@ async def _grep_files(
     files_with_matches (file paths) | count (matches per file)."""
     try:
         root = _resolve(path)
+        if blocked := _guard_path(root):
+            return {"output": blocked, "error": True}
         rx = re.compile(pattern, re.IGNORECASE if ignore_case else 0)
         cap = head_limit or (300 if output_mode == "content" else 1000)
+        file_pat = file_glob or "*"
 
         if output_mode in ("files_with_matches", "count"):
             out = []
-            for item in root.rglob(file_glob):
-                if not item.is_file() or _skip_secret(item):
+            items = [root] if root.is_file() else _iter_scan(root)
+            for item in items:
+                rel = _scan_rel(root, item)
+                if (
+                    not item.is_file()
+                    or _skip_scan_path(item)
+                    or _skip_binary_file(item)
+                    or not fnmatch.fnmatch(rel, file_pat)
+                ):
                     continue
                 try:
                     n = sum(
@@ -508,21 +741,26 @@ async def _grep_files(
                 except Exception:
                     continue
                 if n:
-                    rel = str(item.relative_to(root)).replace("\\", "/")
                     out.append(f"{rel}:{n}" if output_mode == "count" else rel)
                 if len(out) >= cap:
                     break
             return {"output": "\n".join(out) or "(no matches)", "error": False}
 
         rows = []
-        for item in root.rglob(file_glob):
-            if not item.is_file() or _skip_secret(item):
+        items = [root] if root.is_file() else _iter_scan(root)
+        for item in items:
+            rel = _scan_rel(root, item)
+            if (
+                not item.is_file()
+                or _skip_scan_path(item)
+                or _skip_binary_file(item)
+                or not fnmatch.fnmatch(rel, file_pat)
+            ):
                 continue
             try:
                 lines = item.read_text("utf-8", errors="replace").splitlines()
             except Exception:
                 continue
-            rel = str(item.relative_to(root)).replace("\\", "/")
             for i, line in enumerate(lines):
                 if not rx.search(line):
                     continue
@@ -547,7 +785,18 @@ async def _web_search(query: str, max_results: int = 5) -> dict:
         from services.research.search import web_search
 
         results = await web_search(query, max_results=max_results)
-        return {"output": json.dumps(results, indent=2), "error": False}
+        return {
+            "output": json.dumps(results, indent=2),
+            "error": False,
+            "source": {
+                "kind": "search",
+                "query": query,
+                "results": [
+                    {"kind": "url", "url": r.get("url", ""), "label": r.get("title", "")}
+                    for r in results
+                ],
+            },
+        }
     except Exception as e:
         return {"output": str(e), "error": True}
 
@@ -579,7 +828,11 @@ async def _web_fetch(url: str, max_chars: int = 12000) -> dict:
             text = re.sub(r"(?is)<(script|style).*?</\1>", "", text)
             text = re.sub(r"(?s)<[^>]+>", " ", text)
             text = re.sub(r"\s+", " ", text).strip()
-        return {"output": _safe_text(text, max_chars), "error": False}
+        return {
+            "output": _safe_text(text, max_chars),
+            "error": False,
+            "source": {"kind": "url", "url": cur},
+        }
     except Exception as e:
         return {"output": str(e), "error": True}
 
@@ -608,8 +861,10 @@ async def _memory_add(text: str, category: str = "", pinned: bool = False) -> di
 
 
 def _skill_files() -> list[Path]:
+    from services import skills_store
+
     roots = [
-        Path(__file__).resolve().parent.parent / "data" / "skills",  # user's own alles skills
+        skills_store.skills_dir(),  # user's own alles skills
         CODEX_HOME / "skills",
         CODEX_HOME / "skills" / ".system",
         CODEX_HOME / "plugins" / "cache",
@@ -638,7 +893,7 @@ async def _skill_list() -> dict:
             except Exception:
                 continue
 
-        from core.database import SessionLocal, CookbookEntry
+        from core.database import CookbookEntry, SessionLocal
 
         db = SessionLocal()
         try:
@@ -678,7 +933,7 @@ async def _skill_load(name_or_path: str) -> dict:
         target = name_or_path.strip()
         if target.startswith("cookbook/") or target.startswith("cookbook:"):
             key = target.split("/", 1)[-1].split(":", 1)[-1]
-            from core.database import SessionLocal, CookbookEntry
+            from core.database import CookbookEntry, SessionLocal
 
             db = SessionLocal()
             try:
@@ -701,7 +956,7 @@ async def _skill_load(name_or_path: str) -> dict:
                 try:  # count it only if it's one of the user's own alles skills
                     from services import skills_store
 
-                    if sf.parent.parent == skills_store.SKILLS_DIR:
+                    if sf.parent.parent == skills_store.skills_dir():
                         skills_store.record_use(target)
                 except Exception:
                     pass
@@ -718,9 +973,12 @@ async def _mcp_list_tools() -> dict:
     try:
         from services import mcp_registry
 
+        disabled = _mcp_disabled_map()
         rows = []
         for sid, tools in mcp_registry.tools.items():
             for t in tools:
+                if t.get("name") in disabled.get(sid, set()):
+                    continue
                 rows.append(
                     {
                         "server_id": sid,
@@ -734,10 +992,29 @@ async def _mcp_list_tools() -> dict:
         return {"output": str(e), "error": True}
 
 
+def _mcp_disabled_map() -> dict[str, set[str]]:
+    try:
+        from core.database import McpServer, SessionLocal
+
+        db = SessionLocal()
+        try:
+            return {s.id: {str(x) for x in s.disabled_tools_list()} for s in db.query(McpServer)}
+        finally:
+            db.close()
+    except Exception:
+        return {}
+
+
+def _mcp_tool_disabled(server_id: str, tool_name: str) -> bool:
+    return tool_name in _mcp_disabled_map().get(server_id, set())
+
+
 async def _mcp_call_tool(server_id: str, tool_name: str, arguments: dict | None = None) -> dict:
     try:
         from services import mcp_registry
 
+        if _mcp_tool_disabled(server_id, tool_name):
+            return {"output": f"MCP tool disabled: {tool_name}", "error": True}
         session = mcp_registry.sessions.get(server_id)
         if not session:
             return {"output": f"MCP server not connected: {server_id}", "error": True}
@@ -782,9 +1059,194 @@ async def _opencode_run(prompt: str, cwd: str = ".", model: str = "", agent: str
     return await _run_shell(" ".join(parts), cwd=cwd)
 
 
+def _pi_workspace():
+    """pi's own folder for work that isn't in a code project: documents, research, plans."""
+    from core.database import CodingProject, SessionLocal
+
+    folder = Path(os.environ.get("ALLES_PI_WORKSPACE") or Path.home() / "Alles" / "Aide")
+    folder.mkdir(parents=True, exist_ok=True)
+    db = SessionLocal()
+    try:
+        row = db.query(CodingProject).filter(CodingProject.path == str(folder)).first()
+        if row is None:
+            row = CodingProject(name="Aide", path=str(folder))
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+        db.expunge(row)
+        return row
+    finally:
+        db.close()
+
+
+def _pi_step_line(event: dict) -> str:
+    """one line of progress per step pi takes, for the Aide answer that handed it the work."""
+    try:
+        args = json.loads(event.get("args") or "{}")
+    except ValueError:
+        args = {}
+    name = str(event.get("name") or "tool").removeprefix("alles_")
+    target = (
+        args.get("command") or args.get("path") or args.get("pattern") or args.get("query") or ""
+    )
+    return (
+        f"· {name.replace('_', ' ')} {str(target).splitlines()[0][:120] if target else ''}".rstrip()
+    )
+
+
+async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
+    """hand work to pi and stream its steps; the last event is the result."""
+    import asyncio
+
+    from core.database import CodingProject, SessionLocal
+    from services import pi_agent
+
+    harness = pi_agent.settings()["harness"]
+    if harness in pi_agent.NATIVE and pi_agent.ensure_installed(harness)["state"] != "ready":
+        yield {
+            "type": "result",
+            "result": {
+                "output": f"{harness} is not ready on this machine yet; open Aide code to see why",
+                "error": True,
+            },
+        }
+        return
+    wanted = (project or "").strip().lower()
+    db = SessionLocal()
+    try:
+        if wanted:
+            rows = db.query(CodingProject).order_by(CodingProject.last_used_at.desc()).all()
+            row = next(
+                (r for r in rows if wanted in (r.id.lower(), r.name.lower(), r.path.lower())), None
+            )
+            if row is None:
+                names = ", ".join(r.name for r in rows) or "none yet"
+                yield {
+                    "type": "result",
+                    "result": {
+                        "output": f"no Aide code project matches; projects: {names}",
+                        "error": True,
+                    },
+                }
+                return
+        else:
+            row = _pi_workspace()
+        choice = pi_agent.resolve_choice(db)
+        if choice is None:
+            yield {
+                "type": "result",
+                "result": {
+                    "output": "no model with an api key is set up for pi",
+                    "error": True,
+                },
+            }
+            return
+        # Aide already got the owner's ok for this handoff, so pi doesn't ask again
+        chat = await pi_agent.open_chat(db, row, None, choice, handed=True)
+    finally:
+        db.close()
+    queue: asyncio.Queue = asyncio.Queue()
+    chat.listeners.add(queue)
+    answer, tools, changed, docs = "", [], [], {}
+    brief = (
+        f"{task}\n\n"
+        "(handed over by Aide, the owner's assistant in Alles.) Use the alles_ tools for anything "
+        "in Alles: alles_docs_write and alles_docs_read for documents, alles_task_add for tasks, "
+        "alles_calendar_create for events, alles_memory_search for what the owner told Aide. "
+        "Never read Alles's own database, data folder or shell history. "
+        + (
+            "Work only inside this code project. "
+            if wanted
+            else "Keep scratch files in your current folder. "
+        )
+        + "Do the task directly without exploring unrelated files, then reply in two or three lines: what you did and where it is."
+    )
+    try:
+        await chat.send(brief)
+        yield {"type": "output", "text": f"pi is working in {row.name}\n"}
+        deadline = asyncio.get_running_loop().time() + max(30, min(int(wait_seconds or 600), 1800))
+        while True:
+            left = deadline - asyncio.get_running_loop().time()
+            if left <= 0:
+                break
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=left)
+            except TimeoutError:
+                break
+            if event["kind"] == "tool":
+                yield {"type": "output", "text": _pi_step_line(event) + "\n"}
+                if event.get("name") in (
+                    "alles_docs_write",
+                    "alles_note_write",
+                    "alles_note_append",
+                ):
+                    try:
+                        docs[event.get("id")] = json.loads(event.get("args") or "{}").get("path")
+                    except ValueError:
+                        pass
+            elif event["kind"] == "tool_done" and event.get("ok") and docs.get(event.get("id")):
+                # the answer turns this line into a card that opens the doc
+                yield {"type": "output", "text": f"  saved doc: {docs[event.get('id')]}\n"}
+            elif event["kind"] == "tool_done" and not event.get("ok"):
+                yield {
+                    "type": "output",
+                    "text": "  ✕ "
+                    + str(event.get("output") or "failed").strip().splitlines()[-1][:160]
+                    + "\n",
+                }
+            elif event["kind"] == "assistant":
+                answer = event.get("text") or answer
+                for tool in event.get("tools") or []:
+                    tools.append(tool.get("name"))
+                    if tool.get("name") in (
+                        "edit",
+                        "write",
+                        "alles_docs_write",
+                        "alles_note_write",
+                    ):
+                        try:
+                            changed.append(json.loads(tool.get("args") or "{}").get("path"))
+                        except ValueError:
+                            pass
+            elif event["kind"] == "idle":
+                break
+    finally:
+        chat.listeners.discard(queue)
+    where = {"project_id": row.id, "project": row.name, "chat_id": chat.id}
+    if chat.busy:
+        yield {
+            "type": "result",
+            "result": {
+                "output": f"pi is still working in {row.name}; follow it in Aide code.",
+                **where,
+            },
+        }
+        return
+    files = ", ".join(sorted({f for f in changed if f})) or "none"
+    used = ", ".join(sorted(set(filter(None, tools)))) or "none"
+    # the saved step keeps only this output, so the doc cards come back after a reload
+    saved = "".join(f"\nsaved doc: {path}" for path in dict.fromkeys(filter(None, docs.values())))
+    yield {
+        "type": "result",
+        "result": {
+            "output": f"{answer or 'pi finished without a reply.'}\n\nfiles changed: {files}\ntools used: {used}{saved}",
+            **where,
+        },
+    }
+
+
+async def _pi_run(task: str, project: str = "", wait_seconds: int = 600) -> dict:
+    """hand work to pi and wait for it (the non-streaming path)."""
+    result = {"output": "pi did not answer", "error": True}
+    async for event in _pi_run_stream(task, project, wait_seconds):
+        if event["type"] == "result":
+            result = event["result"]
+    return result
+
+
 # ── computer use (pyautogui) ────────────────────────────────────────────────
 def _shots_dir() -> Path:
-    d = ROOT / "data" / "agent_shots"
+    d = data_dir() / "agent_shots"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -901,7 +1363,13 @@ async def _run_subagent(task: str, cwd: str = "") -> str:
     if not ep or not model:
         return "[sub-agent error: no endpoint/model in context]"
     sub = dict(_settings())
-    sub["agent_max_turns"] = min(int(sub.get("agent_max_turns", 24) or 24), 10)
+    try:
+        cap = int(sub.get("agent_max_turns", 24) or 24)
+    except (TypeError, ValueError):
+        cap = 24
+    cap = max(1, min(cap, 10))
+    sub["agent_max_turns"] = cap
+    sub["_agent_turn_cap"] = cap
     sub["agent_subagents"] = False  # no recursive spawning
     if cwd:
         sub["agent_cwd"] = cwd
@@ -1107,6 +1575,12 @@ async def _gh_get_file(owner: str, repo: str, path: str, ref: str = "") -> dict:
                     f"{owner}/{repo}/{path} @ {d.get('sha', '')[:7]}\n\n{content}"
                 ),
                 "error": False,
+                "source": {
+                    "kind": "url",
+                    "url": d.get("html_url", ""),
+                    "label": f"{owner}/{repo}/{path}",
+                    "version": d.get("sha", ""),
+                },
             }
     except Exception:
         pass
@@ -1115,6 +1589,16 @@ async def _gh_get_file(owner: str, repo: str, path: str, ref: str = "") -> dict:
 
 async def execute(name: str, args: dict) -> dict:
     args = args or {}
+    if name == "ask_user":
+        return {
+            "output": "ask_user is available only inside an active Aide agent run",
+            "error": True,
+        }
+    if name in _SENSITIVE_HEALTH_TOOLS and not _health_access_enabled(_settings()):
+        return {
+            "output": "health access needs an explicit sensitive-data grant in general Aide",
+            "error": True,
+        }
     if name == "revert_file":
         return await _revert_file(args.get("path", ""))
     if name == "github_me":
@@ -1253,6 +1737,10 @@ async def execute(name: str, args: dict) -> dict:
         return await _mcp_call_tool(
             args.get("server_id", ""), args.get("tool_name", ""), args.get("arguments", {})
         )
+    if name == "pi_run":
+        return await _pi_run(
+            args.get("task", ""), args.get("project", ""), args.get("wait_seconds", 600)
+        )
     if name == "opencode_run":
         return await _opencode_run(
             args.get("prompt", ""),
@@ -1281,14 +1769,23 @@ async def execute(name: str, args: dict) -> dict:
         return await _calendar_delete(args.get("id", ""))
     if name == "task_list":
         return await _task_list(bool(args.get("include_done")))
-    if name in ("browse_open", "browse_read", "browse_click", "browse_type", "browse_screenshot"):
+    if name in BROWSE_TOOLS:
         return await _browse(name, args)
     if name == "search_code":
         return await _search_code(args.get("query", ""), int(args.get("k") or 8))
+    if name == "goal_add":
+        return await _goal_add(
+            args.get("aim", ""), args.get("every", "day"), args.get("mode", "ask")
+        )
+    if name == "goal_list":
+        return await _goal_list()
     if name == "task_add":
         return await _task_add(args.get("title", ""))
     if name == "task_done":
-        return await _task_done(args.get("id", ""), bool(args.get("done", True)))
+        done = args.get("done", True)
+        if not isinstance(done, bool):
+            return {"output": "done must be a boolean", "error": True}
+        return await _task_done(args.get("id", ""), done)
     if name == "book_add":
         return await _book_add(args)
     if name == "books_list":
@@ -1313,12 +1810,26 @@ async def execute(name: str, args: dict) -> dict:
         return await _watch_status(args)
     if name == "note_list":
         return await _note_list()
+    if name == "docs_read":
+        return await _note_read(args.get("path", ""), exact_path=True)
+    if name == "docs_write":
+        return await _note_write(
+            args.get("path", ""), args.get("content", ""), args.get("expected_hash")
+        )
+    if name == "docs_search":
+        return await _note_search(args.get("query", ""))
     if name == "note_read":
         return await _note_read(args.get("name", ""))
     if name == "note_write":
-        return await _note_write(args.get("path", ""), args.get("content", ""))
+        return await _note_write(
+            args.get("path", ""), args.get("content", ""), args.get("expected_hash")
+        )
+    if name == "note_append":
+        return await _note_append(args.get("path", ""), args.get("content", ""))
     if name == "note_search":
         return await _note_search(args.get("query", ""))
+    if name == "note_backlinks":
+        return await _note_backlinks(args.get("name", ""))
     if name == "contact_list":
         return await _contact_list(args.get("query", ""))
     if name == "contact_add":
@@ -1335,12 +1846,42 @@ async def execute(name: str, args: dict) -> dict:
         return await _recall(args.get("query", ""), int(args.get("top_k") or 8))
     if name == "money_query":
         return await _money_query(args.get("query", ""))
+    if name == "files_locations_list":
+        return await _files_locations_list()
+    if name == "files_operations_list":
+        return await _files_operations_list(args)
+    if name == "files_operation_create":
+        return await _files_operation_create(args)
+    if name == "files_operation_undo":
+        return await _files_operation_undo(args.get("operation_id", ""))
+    if name == "finance_accounts_list":
+        return await _finance_accounts_list()
+    if name == "finance_transactions_list":
+        return await _finance_transactions_list(args)
+    if name == "finance_import_profiles":
+        return await _finance_import_profiles()
+    if name == "server_services_list":
+        return await _server_services_list()
+    if name == "server_service_control":
+        return await _server_service_control(args)
+    if name == "server_companions_list":
+        return await _server_companions_list()
+    if name == "adguard_dashboard":
+        return await _adguard_dashboard()
+    if name == "adguard_filtering_set":
+        return await _adguard_filtering_set(args)
+    if name == "adguard_rewrite_change":
+        return await _adguard_rewrite_change(args)
+    if name == "npm_dashboard":
+        return await _npm_dashboard()
+    if name == "npm_proxy_host_create":
+        return await _npm_proxy_host_create(args)
     return {"output": f"unknown tool: {name}", "error": True}
 
 
 # ── cross-app tool implementations ──────────────────────────────────────────
 async def _calendar_list(start, end):
-    from core.database import SessionLocal, CalendarEvent
+    from core.database import CalendarEvent, SessionLocal
 
     db = SessionLocal()
     try:
@@ -1362,29 +1903,45 @@ async def _calendar_list(start, end):
 
 
 async def _calendar_create(a):
-    from core.database import SessionLocal, CalendarEvent
+    from fastapi import HTTPException
+
+    from core.database import SessionLocal
+    from services import calendar_events
+
+    if not isinstance(a, dict):
+        return {"output": "invalid calendar event fields", "error": True}
+    data = {
+        "title": a.get("title"),
+        "start_dt": a.get("start_dt"),
+        "end_dt": a.get("end_dt") or None,
+        "all_day": a.get("all_day", False),
+        "description": a.get("description", ""),
+        "color": a.get("color", "") or "accent",
+        "recurrence": a.get("recurrence", "") or "",
+    }
+    if (
+        any(
+            not isinstance(data[key], str)
+            for key in ("title", "start_dt", "description", "color", "recurrence")
+        )
+        or (data["end_dt"] is not None and not isinstance(data["end_dt"], str))
+        or not isinstance(data["all_day"], bool)
+    ):
+        return {"output": "invalid calendar event fields", "error": True}
 
     db = SessionLocal()
     try:
-        e = CalendarEvent(
-            title=a.get("title", ""),
-            start_dt=a.get("start_dt", ""),
-            end_dt=a.get("end_dt") or None,
-            all_day=bool(a.get("all_day")),
-            description=a.get("description", ""),
-            color=a.get("color", "") or "accent",
-            recurrence=a.get("recurrence", "") or "",
-        )
-        db.add(e)
-        db.commit()
-        db.refresh(e)
+        e = calendar_events.create_event(db, data)
         return {"output": f"created event {e.id} — {e.title} @ {e.start_dt}"}
+    except HTTPException as exc:
+        return {"output": str(exc.detail), "error": True}
     finally:
         db.close()
 
 
 async def _calendar_delete(eid):
-    from core.database import SessionLocal, CalendarEvent
+    from core.database import CalendarEvent, SessionLocal
+    from services import calendar_events
 
     db = SessionLocal()
     try:
@@ -1392,8 +1949,7 @@ async def _calendar_delete(eid):
         if not e:
             return {"output": "event not found", "error": True}
         title = e.title
-        db.delete(e)
-        db.commit()
+        calendar_events.delete_event(db, e)
         return {"output": f"deleted event {eid} ({title})"}
     finally:
         db.close()
@@ -1414,28 +1970,59 @@ async def _task_list(include_done):
         db.close()
 
 
+BROWSE_TOOLS = (
+    "browse_open",
+    "browse_read",
+    "browse_click",
+    "browse_type",
+    "browse_select",
+    "browse_scroll",
+    "browse_back",
+    "browse_screenshot",
+)
+
+
 async def _browse(name, args) -> dict:
-    """DOM-level browser automation (10e) — distinct from pixel computer-use."""
+    """web errands in alles's headless browser; pages come back as numbered elements."""
     from services.browser_tool import _b
 
+    target = str(args.get("ref") or args.get("selector") or "").strip()
     try:
+        if await _b.settle_owner():
+            return {
+                "output": "the owner is signing in to a site in the browser right now; "
+                "wait for them to finish, then try again",
+                "error": True,
+            }
         if name == "browse_open":
             url = (args.get("url") or "").strip()
             if not url:
                 return {"output": "url required", "error": True}
-            landed = await _b.navigate(url)
-            return {"output": f"opened {landed}"}
+            await _b.navigate(url)
+            return {"output": await _b.snapshot()}
         if name == "browse_read":
-            return {"output": await _b.read_text()}
+            return {"output": await _b.snapshot()}
         if name == "browse_click":
-            return {
-                "output": f"clicked {args.get('selector', '')} → {await _b.click(args.get('selector', ''))}"
-            }
+            if not target:
+                return {"output": "ref required (a number from browse_read)", "error": True}
+            await _b.click(target)
+            return {"output": await _b.snapshot()}
         if name == "browse_type":
-            val = await _b.type_text(args.get("selector", ""), args.get("text", ""))
-            return {"output": f"typed into {args.get('selector', '')} (value now: {val})"}
+            await _b.type_text(target, str(args.get("text", "")), bool(args.get("submit")))
+            return {"output": await _b.snapshot()}
+        if name == "browse_select":
+            await _b.select(target, str(args.get("value", "")))
+            return {"output": await _b.snapshot()}
+        if name == "browse_scroll":
+            await _b.scroll(str(args.get("direction") or "down"))
+            return {"output": await _b.snapshot()}
+        if name == "browse_back":
+            await _b.back()
+            return {"output": await _b.snapshot()}
         if name == "browse_screenshot":
-            return {"output": "screenshot captured", "image": await _b.screenshot()}
+            # the model only accepts a data url, not bare base64
+            shot = await _b.screenshot()
+            return {"output": "screenshot captured", "image": f"data:image/png;base64,{shot}"}
     except Exception as e:
         return {"output": f"browser error: {e}", "error": True}
     return {"output": "unknown browse op", "error": True}
@@ -1458,9 +2045,89 @@ async def _search_code(query, k=8):
         db.close()
 
 
+async def _goal_add(aim: str, every: str = "day", mode: str = "ask") -> dict:
+    """a standing goal from conversation; it starts its first check right away."""
+    from core.database import AideGoal, JarvisTrigger, JarvisWorkflow, SessionLocal
+    from services import aide_goals, jarvis_handoff
+    from services.jarvis_scheduler import next_for_trigger, utc_now
+    from services.jarvis_store import create_run
+
+    aim = (aim or "").strip()
+    if not aim:
+        return {"output": "say what the goal is", "error": True}
+    every = every if every in aide_goals.EVERY else "day"
+    mode = mode if mode in aide_goals.MODES else "ask"
+    db = SessionLocal()
+    try:
+        workflow = JarvisWorkflow(
+            name=aide_goals.short_name(aim),
+            purpose=aim,
+            prompt=aim,
+            deterministic_action=jarvis_handoff.HANDOFF_ACTION,
+            capability_ceiling="[]",
+            concurrency_mode="skip",
+            context_mode="fresh",
+            delivery_policy=json.dumps(
+                {
+                    "aide_schedule_owner": aide_goals.GOAL_OWNER,
+                    "goal_every": every,
+                    "goal_mode": mode,
+                }
+            ),
+            enabled=True,
+        )
+        db.add(workflow)
+        db.flush()
+        trigger = JarvisTrigger(
+            workflow_id=workflow.id,
+            kind="interval",
+            config=json.dumps({"every_seconds": aide_goals.EVERY[every]}),
+            timezone="UTC",
+            enabled=True,
+        )
+        db.add(trigger)
+        db.add(AideGoal(workflow_id=workflow.id))
+        db.flush()
+        trigger.next_run_at = next_for_trigger(trigger, utc_now())
+        create_run(db, workflow)
+        db.commit()
+        rhythm = every.replace("_", " ")
+        return {
+            "output": f"goal set: {workflow.name}. first check starts now, then every {rhythm}. "
+            "it shows under scheduled → goals and pings the owner only for news or decisions.",
+            "goal_id": workflow.id,
+        }
+    finally:
+        db.close()
+
+
+async def _goal_list() -> dict:
+    from core.database import JarvisTrigger, JarvisWorkflow, SessionLocal
+    from services import aide_goals
+
+    db = SessionLocal()
+    try:
+        lines = []
+        for workflow in db.query(JarvisWorkflow).all():
+            if not aide_goals.is_goal(workflow):
+                continue
+            trigger = db.query(JarvisTrigger).filter_by(workflow_id=workflow.id).first()
+            goal = aide_goals.public(db, workflow, trigger)
+            lines.append(
+                f"- {goal['name']} ({goal['status']}, {goal['checks']} checks): "
+                f"{goal['headline'] or 'no news yet'}"
+            )
+        return {"output": "\n".join(lines) or "no goals yet"}
+    finally:
+        db.close()
+
+
 async def _task_add(title):
     from core.database import SessionLocal, Task
 
+    if not isinstance(title, str) or not title.strip():
+        return {"output": "title required", "error": True}
+    title = title.strip()
     db = SessionLocal()
     try:
         t = Task(title=title)
@@ -1474,13 +2141,14 @@ async def _task_add(title):
 
 async def _task_done(tid, done):
     from core.database import SessionLocal, Task
+    from services.task_status import apply_status
 
     db = SessionLocal()
     try:
         t = db.get(Task, tid)
         if not t:
             return {"output": "task not found", "error": True}
-        t.done = done
+        apply_status(db, t, done=done)
         db.commit()
         return {"output": f"task {tid} marked {'done' if done else 'not done'}"}
     finally:
@@ -1489,29 +2157,24 @@ async def _task_done(tid, done):
 
 # ── personal-app tools: books / health / habits / read / watch ────────────────
 async def _book_add(a):
-    from datetime import date
+    from core.database import SessionLocal
+    from services.book_items import BookInputError, save_book
 
-    from core.database import Book, SessionLocal
-
-    title = (a.get("title") or "").strip()
-    if not title:
-        return {"output": "title required", "error": True}
-    status = a.get("status") or "want"
-    if status not in ("want", "reading", "done"):
-        return {"output": "status must be want, reading or done", "error": True}
     db = SessionLocal()
     try:
-        b = Book(
-            title=title,
-            author=(a.get("author") or "").strip(),
-            status=status,
-            started=date.today().isoformat() if status == "reading" else "",
-            finished=date.today().isoformat() if status == "done" else "",
-        )
-        db.add(b)
-        db.commit()
-        db.refresh(b)
-        return {"output": f"added '{title}' to the {status} shelf ({b.id[:8]})"}
+        try:
+            b = save_book(
+                db,
+                title=a.get("title") or "",
+                author=a.get("author") or "",
+                status=a.get("status") or "want",
+            )
+        except BookInputError as exc:
+            output = (
+                "title required" if exc.field == "title" else "status must be want, reading or done"
+            )
+            return {"output": output, "error": True}
+        return {"output": f"added '{b.title}' to the {b.status} shelf ({b.id[:8]})"}
     finally:
         db.close()
 
@@ -1538,28 +2201,24 @@ async def _books_list(a):
 
 
 async def _health_log(a):
-    from datetime import date
+    from core.database import SessionLocal
+    from services.health_entries import HealthInputError, save_entry
 
-    from core.database import HealthEntry, SessionLocal
-
-    try:
-        value = float(a.get("value"))
-    except (TypeError, ValueError):
-        return {"output": "value must be a number", "error": True}
     kind = (a.get("kind") or "custom").strip() or "custom"
     db = SessionLocal()
     try:
-        e = HealthEntry(
-            kind=kind,
-            value=value,
-            unit=(a.get("unit") or "").strip(),
-            note=(a.get("note") or "").strip(),
-            date=date.today().isoformat(),
-        )
-        db.add(e)
-        db.commit()
+        try:
+            e = save_entry(
+                db,
+                kind=kind,
+                value=a.get("value"),
+                unit=a.get("unit") or "",
+                note=a.get("note") or "",
+            )
+        except HealthInputError as exc:
+            return {"output": str(exc), "error": True}
         unit = f" {e.unit}" if e.unit else ""
-        return {"output": f"logged {kind} {value}{unit} for today"}
+        return {"output": f"logged {kind} {e.value}{unit} for today"}
     finally:
         db.close()
 
@@ -1590,14 +2249,16 @@ async def _habit_add(a):
     name = (a.get("name") or "").strip()
     if not name:
         return {"output": "name required", "error": True}
-    cadence = a.get("cadence") or "daily"
+    cadence = a.get("cadence", "daily")
+    if cadence not in ("daily", "weekly"):
+        return {"output": "cadence must be daily or weekly", "error": True}
     db = SessionLocal()
     try:
-        h = Habit(name=name, cadence=cadence if cadence in ("daily", "weekly") else "daily")
+        h = Habit(name=name, cadence=cadence)
         db.add(h)
         db.commit()
         db.refresh(h)
-        return {"output": f"added habit '{name}' ({h.id[:8]})"}
+        return {"output": f"added habit '{name}' ({h.id[:8]})", "id": h.id}
     finally:
         db.close()
 
@@ -1605,28 +2266,50 @@ async def _habit_add(a):
 async def _habit_log(a):
     from datetime import date
 
-    from core.database import Habit, HabitLog, SessionLocal
+    from core.database import Habit, SessionLocal
+    from services import habit_logs
 
     name = (a.get("name") or "").strip()
+    habit_id = (a.get("id") or "").strip()
+    if not name and not habit_id:
+        return {"output": "habit name or id required", "error": True}
     db = SessionLocal()
     try:
-        h = db.query(Habit).filter(Habit.name == name).first()
-        if not h:
-            return {"output": f"no habit named '{name}'", "error": True}
+        if habit_id:
+            h = db.get(Habit, habit_id)
+            if h is None or h.archived is not False:
+                return {"output": f"no active habit with id '{habit_id}'", "error": True}
+            if name and h.name != name:
+                return {"output": "habit id does not match name", "error": True}
+        else:
+            matches = (
+                db.query(Habit)
+                .filter(Habit.name == name, Habit.archived == False)  # noqa: E712
+                .limit(2)
+                .all()
+            )
+            if not matches:
+                return {"output": f"no active habit named '{name}'", "error": True}
+            if len(matches) > 1:
+                return {
+                    "output": f"multiple active habits named '{name}'; use habits_list and pass id",
+                    "error": True,
+                }
+            h = matches[0]
         today = date.today().isoformat()
-        if db.query(HabitLog).filter(HabitLog.habit_id == h.id, HabitLog.date == today).first():
-            return {"output": f"'{name}' is already marked done today"}
-        db.add(HabitLog(habit_id=h.id, date=today))
-        db.commit()
-        return {"output": f"marked '{name}' done for today"}
+        if not habit_logs.mark(db, h.id, today):
+            return {"output": f"'{h.name}' is already marked done today"}
+        return {"output": f"marked '{h.name}' done for today"}
     finally:
         db.close()
 
 
 async def _habits_list(a):
+    from collections import Counter
     from datetime import date
 
-    from core.database import Habit, HabitLog, SessionLocal
+    from core.database import Habit, SessionLocal
+    from services import habit_logs
 
     db = SessionLocal()
     try:
@@ -1639,47 +2322,29 @@ async def _habits_list(a):
         if not rows:
             return {"output": "no habits yet"}
         today = date.today().isoformat()
+        counts = Counter(h.name for h in rows)
         out = []
         for h in rows:
-            done = (
-                db.query(HabitLog).filter(HabitLog.habit_id == h.id, HabitLog.date == today).first()
-            )
-            out.append(f"- {'[x]' if done else '[ ]'} {h.name} ({h.cadence})")
+            done = habit_logs.is_done(db, h.id, today)
+            ident = f"; id {h.id}" if counts[h.name] > 1 else ""
+            out.append(f"- {'[x]' if done else '[ ]'} {h.name} ({h.cadence}{ident})")
         return {"output": "\n".join(out)}
     finally:
         db.close()
 
 
 async def _read_save(a):
-    from urllib.parse import urlparse
+    from fastapi import HTTPException
 
-    from core.database import ReadItem, SessionLocal
-    from services.research.search import fetch_webpage_content
+    from core.database import SessionLocal
+    from services.read_items import save_url
 
-    url = (a.get("url") or "").strip()
-    if not url:
-        return {"output": "url required", "error": True}
-    if not url.startswith("http"):
-        url = "https://" + url
-    res = fetch_webpage_content(url)
-    text = res.get("content", "") if res else ""
-    host = urlparse(url).hostname or ""
-    site = host[4:] if host.startswith("www.") else host
-    title = (res.get("title") if res else "") or site or url
     db = SessionLocal()
     try:
-        it = ReadItem(
-            url=url,
-            title=title[:300],
-            text=text,
-            excerpt=(text[:240].rstrip() + "…") if len(text) > 240 else text,
-            site=site,
-            image=(res.get("og_image", "") if res else ""),
-            read_minutes=max(1, round(len(text.split()) / 200)),
-        )
-        db.add(it)
-        db.commit()
-        return {"output": f"saved '{title}' to read-later"}
+        item = save_url(db, a.get("url"))
+        return {"output": f"saved '{item.title}' to read-later"}
+    except HTTPException as exc:
+        return {"output": str(exc.detail), "error": True}
     finally:
         db.close()
 
@@ -1747,6 +2412,58 @@ async def _watch_status(a):
         db.close()
 
 
+def _resolve_note(s, fuzzy=True):
+    """name-or-path -> a vault rel path. paths / *.md are used as-is; a bare name is matched
+    to an existing note (exact first, then fuzzy when allowed), else becomes <name>.md."""
+    from services import vault_md
+
+    s = (s or "").strip()
+    if not s:
+        return ""
+    rel = s.replace("\\", "/")
+    if "/" in rel or rel.lower().endswith((".md", ".markdown")):
+        return rel if rel.lower().endswith((".md", ".markdown")) else rel + ".md"
+    hits = vault_md.search(s, limit=5)
+    exact = next((h for h in hits if h["name"].lower() == s.lower()), None)
+    if exact:
+        return exact["path"]
+    if fuzzy and hits:
+        return hits[0]["path"]
+    return f"{s}.md"
+
+
+def _vault_reindex(rel, content=None):
+    """keep search/recall fresh after an agent write — mirrors routes.vault_md._reindex_doc:
+    Notes/ -> 'note' kind, journal daily notes skipped, everything else -> 'doc'. best-effort."""
+    try:
+        from core.database import SessionLocal
+        from services import journal_vault, vault_md
+
+        rel = (rel or "").replace("\\", "/")
+        if not rel.lower().endswith((".md", ".markdown")):
+            rel += ".md"
+        db = SessionLocal()
+        try:
+            if rel.startswith("Notes/"):
+                from pathlib import PurePosixPath
+
+                from services import personal_index
+
+                personal_index.index_record(db, "note", PurePosixPath(rel).stem)
+            elif journal_vault.is_daily(rel):
+                pass  # journal daily notes index via the journal pipeline, not as docs
+            else:
+                from services import textindex
+
+                if content is None:
+                    content = vault_md.read(rel).get("content", "")
+                textindex.index(db, "doc", rel, content)
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+
 async def _note_list():
     from services import vault_md
 
@@ -1754,36 +2471,108 @@ async def _note_list():
     return {"output": "\n".join(names) if names else "no notes yet"}
 
 
-async def _note_read(name):
-    from services import vault_md
+async def _note_read(name, *, exact_path=False):
+    from services import document_safety, vault_md
 
-    hits = vault_md.search(name, limit=5)
-    hit = next((h for h in hits if h["name"].lower() == name.lower()), None) or (
-        hits[0] if hits else None
-    )
-    if not hit:
+    try:
+        rel = (
+            document_safety._normalise_rel(name)[0]
+            if exact_path
+            else _resolve_note(name, fuzzy=True)
+        )
+        d = vault_md.read(rel)
+    except ValueError as e:
+        return {"output": str(e), "error": True}
+    if not d.get("exists"):
         return {"output": f"note not found: {name}", "error": True}
-    d = vault_md.read(hit["path"])
-    return {"output": d.get("content", "") or "(empty note)"}
+    if d.get("editable") is False:
+        return {"output": d.get("error", "document cannot be read as UTF-8"), "error": True}
+    snapshot = {"path": rel, "hash": d["hash"], "content": d.get("content", "")}
+    return {
+        "output": json.dumps(snapshot, ensure_ascii=False),
+        "path": rel,
+        "hash": d["hash"],
+        "source": {"kind": "document", "path": rel, "hash": d["hash"]},
+    }
 
 
-async def _note_write(path, content):
-    from services import vault_md
+async def _note_write(path, content, expected_hash=None):
+    from services import document_safety
 
-    res = vault_md.write(path, content)
-    return {"output": f"saved note {res.get('path', path)}"}
+    try:
+        # A missing version is create-only, including legacy note_write callers.
+        res = document_safety.save_document(
+            path, content, "" if expected_hash is None else expected_hash, clear_draft=False
+        )
+    except document_safety.DocumentSaveConflict as e:
+        return _note_conflict(e)
+    except ValueError as e:
+        return {"output": str(e), "error": True}
+    rel = res.get("path", path)
+    _vault_reindex(rel, content)
+    return {"output": f"saved note {rel}\nhash: {res['hash']}", "path": rel, "hash": res["hash"]}
+
+
+def _note_conflict(error):
+    conflict = error.conflict
+    return {
+        "output": (
+            f"document changed: {conflict['path']}. nothing was overwritten. "
+            f"both copies are preserved in conflict {conflict['id']}. "
+            "read the current document and have the updated change reviewed before saving again."
+        ),
+        "error": True,
+        "path": conflict["path"],
+        "conflict_id": conflict["id"],
+    }
+
+
+async def _note_append(path, content):
+    from services import document_safety, vault_md
+
+    try:
+        rel = _resolve_note(path, fuzzy=False)  # don't append into a loosely-matched note
+        cur = vault_md.read(rel)
+        if cur.get("editable") is False:
+            return {"output": cur.get("error", "document cannot be read as UTF-8"), "error": True}
+        body = cur.get("content", "") if cur.get("exists") else ""
+        add = (content or "").strip()
+        new = (body.rstrip() + "\n\n" + add + "\n") if body.strip() else add + "\n"
+        res = document_safety.save_document(rel, new, cur["hash"], clear_draft=False)
+    except document_safety.DocumentSaveConflict as e:
+        return _note_conflict(e)
+    except ValueError as e:
+        return {"output": str(e), "error": True}
+    out_rel = res.get("path", rel)
+    _vault_reindex(out_rel, new)
+    return {"output": f"{'appended to' if body.strip() else 'created'} note {out_rel}"}
 
 
 async def _note_search(q):
     from services import vault_md
 
     res = vault_md.full_text_search(q, limit=12)
-    out = [f"- {r['name']}: {(r.get('context') or '')[:80]}" for r in res]
-    return {"output": "\n".join(out) if out else "no matches"}
+    out = [f"- {r['name']} ({r['path']}): {(r.get('context') or '')[:80]}" for r in res]
+    return {
+        "output": "\n".join(out) if out else "no matches",
+        "source": {
+            "kind": "search",
+            "query": q,
+            "results": [{"kind": "document", "path": r["path"], "label": r["name"]} for r in res],
+        },
+    }
+
+
+async def _note_backlinks(name):
+    from services import vault_md
+
+    bl = vault_md.backlinks(name)
+    out = [f"- {b['name']} ({b['path']}): {(b.get('context') or '')[:80]}" for b in bl]
+    return {"output": "\n".join(out) if out else f"no notes link to {name}"}
 
 
 async def _contact_list(q):
-    from core.database import SessionLocal, Contact
+    from core.database import Contact, SessionLocal
 
     db = SessionLocal()
     try:
@@ -1803,27 +2592,25 @@ async def _contact_list(q):
 
 
 async def _contact_add(a):
-    from core.database import SessionLocal, Contact
+    from core.database import SessionLocal
+    from services.contact_items import save_contact
 
     db = SessionLocal()
     try:
-        c = Contact(
+        c = save_contact(
+            db,
             name=a.get("name", ""),
             email=a.get("email", ""),
             phone=a.get("phone", ""),
             notes=a.get("notes", ""),
-            tags="[]",
         )
-        db.add(c)
-        db.commit()
-        db.refresh(c)
         return {"output": f"added contact {c.id} — {c.name}"}
     finally:
         db.close()
 
 
 def _first_mail_acct():
-    from core.database import SessionLocal, MailAccount
+    from core.database import MailAccount, SessionLocal
 
     db = SessionLocal()
     try:
@@ -1896,29 +2683,60 @@ async def _recall(query, top_k):
     db = SessionLocal()
     try:
         hits = personal_index.search(db, query, k=int(top_k or 8))
-        if not hits:
-            return {"output": "no matches in your indexed data", "error": False}
         lines = []
         for h in hits:
             snip = (h.get("chunk") or "")[:200].replace("\n", " ")
             lines.append(f"[{h['score']}] {h['label']} ({h['link']}): {snip}")
-        return {"output": "\n".join(lines), "error": False}
+        return {
+            "output": "\n".join(lines) if lines else "no matches in your indexed data",
+            "error": False,
+            "source": {
+                "kind": "search",
+                "query": query,
+                "results": [
+                    {"kind": h["kind"], "ref": h["ref"], "label": h["label"]} for h in hits
+                ],
+            },
+        }
     finally:
         db.close()
 
 
 async def _money_query(query):
-    from core.database import SessionLocal, Account, Transaction
     from datetime import date
+
+    from core.database import Account, SessionLocal, Transaction
+    from services import actual_finance
+    from services import money_query as mq
 
     db = SessionLocal()
     try:
-        accts = db.query(Account).filter_by(archived=False).all()
-        txns = db.query(Transaction).all()
-        bal = {a.id: (a.opening or 0.0) for a in accts}
-        txns = [t for t in txns if t.account_id in bal]  # scope to non-archived accounts
-        for t in txns:
-            if t.account_id in bal:
+        try:
+            with actual_finance.AUTHORITY_LOCK:
+                canonical = actual_finance.is_canonical(db)
+                if canonical:
+                    snapshot = actual_finance.inspect(db)
+                    accts = [
+                        SimpleNamespace(**row)
+                        for row in actual_finance.accounts(db, actual=snapshot)
+                        if not row["archived"]
+                    ]
+                    source_txns = [
+                        SimpleNamespace(**row)
+                        for row in actual_finance.transactions(db, actual=snapshot)
+                    ]
+                else:
+                    accts = db.query(Account).filter_by(archived=False).all()
+                    source_txns = db.query(Transaction).all()
+        except actual_finance.ActualFinanceError:
+            return {"output": "finance is unavailable; try again later", "error": True}
+
+        bal = {a.id: (a.balance if canonical else a.opening or 0.0) for a in accts}
+        if canonical:
+            txns = [t for t in source_txns if not t.transfer_id]
+        else:
+            txns = [t for t in source_txns if t.account_id in bal]
+            for t in txns:
                 bal[t.account_id] += t.amount or 0.0
         lines = [f"{a.name} ({a.kind}): {a.currency}{bal[a.id]:.2f}" for a in accts]
         net = sum(bal.values())
@@ -1942,12 +2760,325 @@ async def _money_query(query):
             + "\n".join(f"  {c}: {v:.2f}" for c, v in top)
         )
         if (query or "").strip():
-            from services import money_query as mq
-
-            out += "\n\n" + mq.answer(db, query)  # 2a - temporal + merchant + compare NL answer
+            out += "\n\n" + mq.answer(db, query, rows=txns)
         return {"output": out, "error": False}
     finally:
         db.close()
+
+
+async def _files_locations_list():
+    """List owner-approved Files locations without ever returning stored credentials."""
+    from core.database import SessionLocal, StorageLocation
+    from services import storage_locations
+
+    db = SessionLocal()
+    try:
+        storage_locations.ensure_default_local(db)
+        rows = (
+            db.query(StorageLocation)
+            .order_by(StorageLocation.is_default.desc(), StorageLocation.name)
+            .all()
+        )
+        public = [storage_locations.public_dict(row) for row in rows]
+        return {
+            "output": json.dumps({"locations": public}, ensure_ascii=False),
+            "locations": public,
+        }
+    finally:
+        db.close()
+
+
+async def _files_operations_list(args):
+    from core.database import FileOperation, SessionLocal
+    from services import file_operations
+
+    state = str(args.get("state") or "").strip()
+    limit = max(1, min(int(args.get("limit") or 50), 100))
+    db = SessionLocal()
+    try:
+        query = db.query(FileOperation).filter(
+            FileOperation.action != file_operations.DIRECT_MUTATION_ACTION
+        )
+        if state:
+            query = query.filter(FileOperation.state == state)
+        rows = query.order_by(FileOperation.created_at.desc()).limit(limit).all()
+        public = [file_operations.public_dict(row) for row in rows]
+        return {
+            "output": json.dumps({"operations": public}, ensure_ascii=False),
+            "operations": public,
+        }
+    finally:
+        db.close()
+
+
+async def _files_operation_create(args):
+    from core.database import DEFAULT_LOCAL_STORAGE_LOCATION_ID, SessionLocal
+    from services import file_operations
+
+    db = SessionLocal()
+    try:
+        row = file_operations.enqueue(
+            db,
+            action=str(args.get("action") or ""),
+            source_location_id=str(
+                args.get("source_location_id") or DEFAULT_LOCAL_STORAGE_LOCATION_ID
+            ),
+            source_path=str(args.get("source_path") or ""),
+            destination_location_id=(str(args.get("destination_location_id") or "") or None),
+            destination_path=str(args.get("destination_path") or ""),
+        )
+        if bool(args.get("run_now", True)):
+            row = file_operations.run(db, row)
+        public = file_operations.public_dict(row)
+        return {"output": json.dumps(public, ensure_ascii=False), "operation": public}
+    except (LookupError, RuntimeError, ValueError, file_operations.FileOperationError) as exc:
+        return {"output": str(exc), "error": True}
+    finally:
+        db.close()
+
+
+async def _files_operation_undo(operation_id):
+    from core.database import FileOperation, SessionLocal
+    from services import file_operations
+
+    db = SessionLocal()
+    try:
+        row = db.get(FileOperation, str(operation_id or ""))
+        if not row or row.action == file_operations.DIRECT_MUTATION_ACTION:
+            return {"output": "Files operation not found", "error": True}
+        public = file_operations.public_dict(file_operations.undo(db, row))
+        return {"output": json.dumps(public, ensure_ascii=False), "operation": public}
+    except (LookupError, RuntimeError, ValueError, file_operations.FileOperationError) as exc:
+        return {"output": str(exc), "error": True}
+    finally:
+        db.close()
+
+
+async def _finance_accounts_list():
+    from core.database import Account, SessionLocal, Transaction
+    from services import actual_finance
+
+    db = SessionLocal()
+    try:
+        try:
+            with actual_finance.AUTHORITY_LOCK:
+                if actual_finance.is_canonical(db):
+                    snapshot = actual_finance.inspect(db)
+                    rows = [
+                        {
+                            "id": account["id"],
+                            "name": account["name"],
+                            "kind": account["kind"],
+                            "currency": account["currency"],
+                            "balance": round(account["balance"], 2),
+                        }
+                        for account in actual_finance.accounts(db, actual=snapshot)
+                        if not account["archived"]
+                    ]
+                    rows.sort(key=lambda row: row["name"])
+                else:
+                    accounts = (
+                        db.query(Account)
+                        .filter(Account.archived == False)
+                        .order_by(Account.name)
+                        .all()
+                    )  # noqa: E712
+                    rows = []
+                    for account in accounts:
+                        balance = float(account.opening or 0) + sum(
+                            float(value or 0)
+                            for (value,) in db.query(Transaction.amount)
+                            .filter(Transaction.account_id == account.id)
+                            .all()
+                        )
+                        rows.append(
+                            {
+                                "id": account.id,
+                                "name": account.name,
+                                "kind": account.kind,
+                                "currency": account.currency,
+                                "balance": round(balance, 2),
+                            }
+                        )
+        except actual_finance.ActualFinanceError:
+            return {"output": "finance is unavailable; try again later", "error": True}
+        return {"output": json.dumps({"accounts": rows}, ensure_ascii=False), "accounts": rows}
+    finally:
+        db.close()
+
+
+async def _finance_transactions_list(args):
+    from core.database import SessionLocal, Transaction
+    from services import actual_finance
+
+    account_id = str(args.get("account_id") or "").strip()
+    query_text = str(args.get("query") or "").strip()
+    limit = max(1, min(int(args.get("limit") or 50), 100))
+    db = SessionLocal()
+    try:
+        try:
+            with actual_finance.AUTHORITY_LOCK:
+                if actual_finance.is_canonical(db):
+                    snapshot = actual_finance.inspect(db)
+                    txns = [
+                        SimpleNamespace(**row)
+                        for row in actual_finance.transactions(db, actual=snapshot)
+                    ]
+                    if account_id:
+                        txns = [txn for txn in txns if txn.account_id == account_id]
+                    if query_text:
+                        needle = query_text.casefold()
+                        txns = [
+                            txn
+                            for txn in txns
+                            if any(
+                                needle in str(value or "").casefold()
+                                for value in (txn.payee, txn.category, txn.notes)
+                            )
+                        ]
+                    txns = sorted(txns, key=lambda txn: (txn.date, txn.id), reverse=True)[:limit]
+                else:
+                    query = db.query(Transaction)
+                    if account_id:
+                        query = query.filter(Transaction.account_id == account_id)
+                    if query_text:
+                        like = (
+                            "%"
+                            + query_text.replace("\\", "\\\\")
+                            .replace("%", "\\%")
+                            .replace("_", "\\_")
+                            + "%"
+                        )
+                        query = query.filter(
+                            (Transaction.payee.ilike(like, escape="\\"))
+                            | (Transaction.category.ilike(like, escape="\\"))
+                            | (Transaction.notes.ilike(like, escape="\\"))
+                        )
+                    txns = (
+                        query.order_by(Transaction.date.desc(), Transaction.id.desc())
+                        .limit(limit)
+                        .all()
+                    )
+        except actual_finance.ActualFinanceError:
+            return {"output": "finance is unavailable; try again later", "error": True}
+        rows = [
+            {
+                "id": txn.id,
+                "account_id": txn.account_id,
+                "date": txn.date,
+                "payee": txn.payee,
+                "category": txn.category,
+                "amount": txn.amount,
+                "currency_code": txn.original_currency_code or txn.base_currency_code,
+                "note": txn.notes,
+            }
+            for txn in txns
+        ]
+        return {
+            "output": json.dumps({"transactions": rows}, ensure_ascii=False),
+            "transactions": rows,
+        }
+    finally:
+        db.close()
+
+
+async def _finance_import_profiles():
+    from services import finance_imports
+
+    rows = list(finance_imports.PROFILE_DETAILS)
+    return {"output": json.dumps({"profiles": rows}, ensure_ascii=False), "profiles": rows}
+
+
+async def _server_services_list():
+    from services import service_manager
+
+    rows = service_manager.list_services()
+    return {"output": json.dumps({"services": rows}, ensure_ascii=False), "services": rows}
+
+
+async def _server_service_control(args):
+    from services import service_manager
+
+    service_id = str(args.get("service_id") or "").strip()
+    action = str(args.get("action") or "").strip()
+    if action not in {"start", "stop", "restart"}:
+        return {"output": "action must be start, stop, or restart", "error": True}
+    try:
+        result = service_manager.control(service_id, action)
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except (service_manager.ServiceOwnershipError, service_manager.ServiceControlError) as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _server_companions_list():
+    from services import managed_companions
+
+    rows = managed_companions.statuses()
+    return {"output": json.dumps({"companions": rows}, ensure_ascii=False), "companions": rows}
+
+
+async def _adguard_dashboard():
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.adguard_dashboard()
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _adguard_filtering_set(args):
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.set_adguard_filtering(
+            bool(args.get("enabled")), int(args.get("interval", 24))
+        )
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _adguard_rewrite_change(args):
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.change_adguard_rewrite(
+            str(args.get("action") or ""),
+            str(args.get("domain") or ""),
+            str(args.get("answer") or ""),
+            enabled=bool(args.get("enabled", True)),
+        )
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _npm_dashboard():
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.npm_dashboard()
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
+
+
+async def _npm_proxy_host_create(args):
+    from services import managed_companion_clients
+
+    try:
+        result = managed_companion_clients.create_npm_proxy_host(
+            domain_names=list(args.get("domain_names") or []),
+            forward_scheme=str(args.get("forward_scheme") or "http"),
+            forward_host=str(args.get("forward_host") or ""),
+            forward_port=int(args.get("forward_port") or 0),
+            certificate_id=int(args.get("certificate_id") or 0),
+            ssl_forced=bool(args.get("ssl_forced")),
+        )
+        return {"output": json.dumps(result, ensure_ascii=False), **result}
+    except managed_companion_clients.CompanionClientError as exc:
+        return {"output": str(exc), "error": True}
 
 
 async def stream_execute(name: str, args: dict):
@@ -1955,6 +3086,12 @@ async def stream_execute(name: str, args: dict):
     if name in ("shell", "bash"):
         async for event in _stream_shell(
             args.get("command", "echo no command"), args.get("cwd", "")
+        ):
+            yield event
+        return
+    if name == "pi_run":
+        async for event in _pi_run_stream(
+            args.get("task", ""), args.get("project", ""), args.get("wait_seconds", 600)
         ):
             yield event
         return
@@ -1984,6 +3121,48 @@ def _tool(name: str, description: str, properties: dict, required: list[str] | N
 
 
 TOOL_DEFS = [
+    _tool(
+        "ask_user",
+        "Pause and ask the owner one to four concise selectable questions when their input is genuinely required. Each question needs two to five choices. Supports single or multiple selection and optional free text.",
+        {
+            "title": {"type": "string", "default": "Aide needs your input"},
+            "questions": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 4,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "prompt": {"type": "string"},
+                        "selection": {
+                            "type": "string",
+                            "enum": ["single", "multiple"],
+                            "default": "single",
+                        },
+                        "choices": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 5,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {"type": "string"},
+                                    "label": {"type": "string"},
+                                    "description": {"type": "string"},
+                                },
+                                "required": ["id", "label"],
+                            },
+                        },
+                        "allow_free_text": {"type": "boolean", "default": False},
+                        "free_text_label": {"type": "string", "default": "another answer"},
+                    },
+                    "required": ["id", "prompt", "choices"],
+                },
+            },
+        },
+        ["questions"],
+    ),
     _tool(
         "shell",
         "Run a local shell command. On Windows this uses PowerShell; on Unix it uses bash. Use for tests, builds, git, installs, and system inspection.",
@@ -2180,6 +3359,31 @@ TOOL_DEFS = [
         ["server_id", "tool_name"],
     ),
     _tool(
+        "pi_run",
+        "Hand work to pi, the agent that does multi-step work on the machine running Alles. pi "
+        "reads, writes and runs code and files, searches the web, and uses Alles itself (Docs, "
+        "tasks, calendar, reminders, memory, contacts, habits, reading). Use it for anything that "
+        "takes more than one or two steps: making or editing documents, research written up, "
+        "planning across apps, code changes. Without a project pi works in its own Aide folder; "
+        "name a project for code in one of the owner's Aide code projects. Its steps show live.",
+        {
+            "task": {
+                "type": "string",
+                "description": "What pi should do, with enough detail to work alone.",
+            },
+            "project": {
+                "type": "string",
+                "description": "Aide code project name or folder for code work; empty means pi's own Aide folder.",
+            },
+            "wait_seconds": {
+                "type": "integer",
+                "default": 600,
+                "description": "How long to wait before reporting back.",
+            },
+        },
+        ["task"],
+    ),
+    _tool(
         "opencode_run",
         "Delegate a coding subtask to OpenCode CLI via `opencode run` when OpenCode is installed and authenticated.",
         {
@@ -2368,6 +3572,8 @@ _SKIP_DIRS = {
 
 def workspace_files(cwd: str = "", q: str = "", limit: int = 30) -> list[str]:
     """list files under cwd for @-mention autocomplete, ranked by relevance"""
+    if not cwd and _settings().get("agent_environment") == "general":
+        return []
     base = _resolve(cwd or ".")
     if base.is_file():
         base = base.parent
@@ -2388,12 +3594,53 @@ def workspace_files(cwd: str = "", q: str = "", limit: int = 30) -> list[str]:
     return out[:limit]
 
 
+PI_OWNS = {
+    "shell",
+    "write_file",
+    "edit_file",
+    "apply_patch",
+    "revert_file",
+    "git_branch",
+    "git_commit",
+    "opencode_run",
+    "spawn_agent",
+    "spawn_agents",
+    "docs_write",
+    "note_write",
+    "note_append",
+    "task_add",
+    "task_done",
+    "calendar_create",
+    "calendar_delete",
+    "contact_add",
+    "book_add",
+    "health_log",
+    "habit_add",
+    "habit_log",
+    "read_save",
+    "watch_add",
+}
+
+
+def _pi_ready() -> bool:
+    try:
+        from services import pi_agent
+
+        harness = pi_agent.settings()["harness"]
+        return harness in pi_agent.NATIVE and pi_agent.status(harness)["state"] == "ready"
+    except Exception:
+        return False
+
+
 def build_tool_defs(settings: dict) -> list:
     """base tools + cross-app tools + optional computer-use / sub-agent / connection tools per settings"""
+    settings = settings or {}
     defs = list(TOOL_DEFS) + APP_TOOL_DEFS
-    if (settings or {}).get("agent_computer_use"):
+    if not _health_access_enabled(settings):
+        defs = [d for d in defs if d["function"]["name"] not in _SENSITIVE_HEALTH_TOOLS]
+    if settings.get("agent_computer_use"):
         defs += COMPUTER_TOOL_DEFS
-    if (settings or {}).get("agent_subagents", True):
+    if settings.get("agent_subagents", True):
         defs += SUBAGENT_TOOL_DEFS
     # connection tools only show when that service is actually connected
     try:
@@ -2403,6 +3650,10 @@ def build_tool_defs(settings: dict) -> list:
             defs += GITHUB_TOOL_DEFS
     except Exception:
         pass
+    # pi does the work: once it's ready, the tools that change data or run code are pi's, and
+    # Aide hands that work over with pi_run. lookups, memory, mail, browser and server stay here
+    if settings.get("aide_pi_does_work") and _pi_ready():
+        defs = [d for d in defs if d["function"]["name"] not in PI_OWNS]
     # plan mode: hide everything that changes state — read/inspect only
     if (settings or {}).get("agent_permission_mode") == "plan":
         defs = [d for d in defs if d["function"]["name"] not in MUTATING_TOOLS]
@@ -2553,25 +3804,65 @@ APP_TOOL_DEFS = [
     ),
     _tool(
         "browse_open",
-        "Open a URL in a real headless browser (DOM-level, distinct from computer-use). "
-        "Persists across turns so you can browse statefully.",
+        "Open a public web page in Aide's browser for an errand (look things up, compare, fill "
+        "forms, book). Returns the page text and its clickable elements as [number] lines. "
+        "Sign-ins persist. Aide never pays: checkout steps are blocked and the owner finishes them.",
         {"url": {"type": "string"}},
         ["url"],
     ),
-    _tool("browse_read", "Read the visible text of the current browser page.", {}),
+    _tool("browse_read", "Read the current page again as text plus numbered elements.", {}),
     _tool(
         "browse_click",
-        "Click an element on the current page by CSS selector.",
-        {"selector": {"type": "string"}},
-        ["selector"],
+        "Click an element by its number from the last page read. Submitting, booking, sending "
+        "or buying asks the owner first.",
+        {"ref": {"type": "string", "description": "the element number"}},
+        ["ref"],
     ),
     _tool(
         "browse_type",
-        "Type text into an input/textarea on the current page by CSS selector.",
-        {"selector": {"type": "string"}, "text": {"type": "string"}},
-        ["selector", "text"],
+        "Type into a field by its number. Never for passwords or card details; ask the owner.",
+        {
+            "ref": {"type": "string"},
+            "text": {"type": "string"},
+            "submit": {"type": "boolean", "default": False, "description": "press Enter after"},
+        },
+        ["ref", "text"],
     ),
+    _tool(
+        "browse_select",
+        "Pick an option in a dropdown by its number and the option's visible text.",
+        {"ref": {"type": "string"}, "value": {"type": "string"}},
+        ["ref", "value"],
+    ),
+    _tool(
+        "browse_scroll",
+        "Scroll the page and read it again.",
+        {"direction": {"type": "string", "enum": ["down", "up"], "default": "down"}},
+    ),
+    _tool("browse_back", "Go back one page.", {}),
     _tool("browse_screenshot", "Screenshot the current browser page (returns a PNG).", {}),
+    _tool(
+        "goal_add",
+        "Set a standing goal Aide keeps working on in the background, waking on a rhythm and "
+        "remembering what it found (e.g. watch a price, keep an inbox tidy, follow a topic). "
+        "Use it when the owner asks to keep an eye on something or to keep doing something.",
+        {
+            "aim": {"type": "string", "description": "The goal in plain words, with any limits."},
+            "every": {
+                "type": "string",
+                "enum": ["hour", "six_hours", "day", "week"],
+                "default": "day",
+            },
+            "mode": {
+                "type": "string",
+                "enum": ["ask", "act"],
+                "default": "ask",
+                "description": "ask: changes need the owner's approval. act: it may make reversible changes on its own.",
+            },
+        },
+        ["aim"],
+    ),
+    _tool("goal_list", "List the owner's standing goals and their latest news.", {}),
     _tool("task_add", "Add a task / todo.", {"title": {"type": "string"}}, ["title"]),
     _tool(
         "task_done",
@@ -2583,10 +3874,64 @@ APP_TOOL_DEFS = [
         ["id"],
     ),
     _tool("note_list", "List all vault note names.", {}),
-    _tool("note_read", "Read a vault note by name.", {"name": {"type": "string"}}, ["name"]),
+    _tool(
+        "docs_read",
+        "Read a Markdown document from Docs by vault-relative path. Docs uses the configured "
+        "Markdown vault and does not require a Project or working directory. Returns its exact "
+        "path, content and hash; pass that hash as expected_hash when replacing the document.",
+        {"path": {"type": "string"}},
+        ["path"],
+    ),
+    _tool(
+        "docs_write",
+        "Create or overwrite a Markdown document in Docs. Use this when the user asks to save "
+        "research, notes, or other Markdown to Docs. The path is relative to the configured "
+        "Markdown vault and does not require a Project or working directory. To replace an "
+        "existing document, first read it and pass its reviewed hash as expected_hash. "
+        "Omitting expected_hash only creates a new document. Conflicts preserve both copies; "
+        "do not automatically retry a replacement without renewed review.",
+        {
+            "path": {"type": "string"},
+            "content": {"type": "string"},
+            "expected_hash": {
+                "type": "string",
+                "description": "Exact hash from docs_read; empty for a new document.",
+            },
+        },
+        ["path", "content"],
+    ),
+    _tool(
+        "docs_search",
+        "Search Markdown documents in Docs. Returns matching vault-relative paths and snippets.",
+        {"query": {"type": "string"}},
+        ["query"],
+    ),
+    _tool(
+        "note_read",
+        "Read a vault note or doc by name or path (e.g. 'Ideas' or 'Projects/Ideas.md'). "
+        "Returns its exact path, content and hash for a version-checked write.",
+        {"name": {"type": "string"}},
+        ["name"],
+    ),
     _tool(
         "note_write",
-        "Create or overwrite a vault note (path = note name, folders ok).",
+        "Create or OVERWRITE a vault note/doc (path = note name or path, folders ok). "
+        "Replacing an existing document requires expected_hash from its reviewed note_read. "
+        "Omitting it only creates new documents. Conflicts preserve both copies and require "
+        "renewed review. To add text, use note_append.",
+        {
+            "path": {"type": "string"},
+            "content": {"type": "string"},
+            "expected_hash": {
+                "type": "string",
+                "description": "Exact hash from note_read; empty for a new document.",
+            },
+        },
+        ["path", "content"],
+    ),
+    _tool(
+        "note_append",
+        "Append text to a vault note/doc (creates it if missing). Safe additive write.",
         {
             "path": {"type": "string"},
             "content": {"type": "string"},
@@ -2594,7 +3939,16 @@ APP_TOOL_DEFS = [
         ["path", "content"],
     ),
     _tool(
-        "note_search", "Full-text search the vault notes.", {"query": {"type": "string"}}, ["query"]
+        "note_search",
+        "Full-text search the vault (notes + docs). Returns name, path and a snippet.",
+        {"query": {"type": "string"}},
+        ["query"],
+    ),
+    _tool(
+        "note_backlinks",
+        "List vault notes that link ([[name]]) to a given note — for traversing related notes.",
+        {"name": {"type": "string"}},
+        ["name"],
     ),
     _tool("contact_list", "List or search contacts.", {"query": {"type": "string", "default": ""}}),
     _tool(
@@ -2675,11 +4029,10 @@ APP_TOOL_DEFS = [
     ),
     _tool(
         "habit_log",
-        "Mark a habit done for today, by name.",
-        {"name": {"type": "string"}},
-        ["name"],
+        "Mark an active habit done today by unique name or exact id. If names repeat, use habits_list for ids.",
+        {"name": {"type": "string"}, "id": {"type": "string"}},
     ),
-    _tool("habits_list", "List habits and whether each is done today.", {}),
+    _tool("habits_list", "List active habits and today's status; repeated names include ids.", {}),
     _tool(
         "read_save",
         "Save a URL to the read-later archive (fetches + stores the readable text).",
@@ -2723,6 +4076,114 @@ APP_TOOL_DEFS = [
         },
         [],
     ),
+    _tool(
+        "files_locations_list",
+        "List only owner-approved Files locations and access modes. Stored credentials are never returned.",
+        {},
+    ),
+    _tool(
+        "files_operations_list",
+        "List durable Files copy, move, rename, delete, and restore operations with recovery state.",
+        {
+            "state": {"type": "string", "default": ""},
+            "limit": {"type": "integer", "default": 50, "minimum": 1, "maximum": 100},
+        },
+    ),
+    _tool(
+        "files_operation_create",
+        "Create a typed Files operation between approved locations. It never crawls outside registered locations and preserves the durable undo receipt.",
+        {
+            "action": {"type": "string", "enum": ["copy", "move", "rename", "delete", "restore"]},
+            "source_location_id": {"type": "string", "default": "alles-local"},
+            "source_path": {"type": "string"},
+            "destination_location_id": {"type": "string", "default": ""},
+            "destination_path": {"type": "string", "default": ""},
+            "run_now": {"type": "boolean", "default": True},
+        },
+        ["action", "source_path"],
+    ),
+    _tool(
+        "files_operation_undo",
+        "Undo a completed durable Files operation when its verified recovery receipt permits it.",
+        {"operation_id": {"type": "string"}},
+        ["operation_id"],
+    ),
+    _tool("finance_accounts_list", "List Finance accounts and computed balances read-only.", {}),
+    _tool(
+        "finance_transactions_list",
+        "List recent Finance transactions read-only, optionally filtered by account or text.",
+        {
+            "account_id": {"type": "string", "default": ""},
+            "query": {"type": "string", "default": ""},
+            "limit": {"type": "integer", "default": 50, "minimum": 1, "maximum": 100},
+        },
+    ),
+    _tool(
+        "finance_import_profiles",
+        "List reviewed bank statement and notification import profiles.",
+        {},
+    ),
+    _tool("server_services_list", "List only services whose Alles ownership markers verify.", {}),
+    _tool(
+        "server_service_control",
+        "Start, stop, or restart an Alles-owned service. Arbitrary host services are not reachable.",
+        {
+            "service_id": {"type": "string"},
+            "action": {"type": "string", "enum": ["start", "stop", "restart"]},
+        },
+        ["service_id", "action"],
+    ),
+    _tool(
+        "server_companions_list",
+        "List pinned managed companions and their verified lifecycle state.",
+        {},
+    ),
+    _tool(
+        "adguard_dashboard",
+        "Read the connected AdGuard DNS status, daily statistics, filtering state, rewrites, and bounded recent activity.",
+        {},
+    ),
+    _tool(
+        "adguard_filtering_set",
+        "Enable or disable AdGuard filtering with a bounded refresh interval.",
+        {
+            "enabled": {"type": "boolean"},
+            "interval": {"type": "integer", "minimum": 0, "maximum": 168, "default": 24},
+        },
+        ["enabled"],
+    ),
+    _tool(
+        "adguard_rewrite_change",
+        "Add or delete one explicit AdGuard DNS rewrite.",
+        {
+            "action": {"type": "string", "enum": ["add", "delete"]},
+            "domain": {"type": "string"},
+            "answer": {"type": "string"},
+            "enabled": {"type": "boolean", "default": True},
+        },
+        ["action", "domain", "answer"],
+    ),
+    _tool(
+        "npm_dashboard", "Read connected Nginx Proxy Manager proxy-host and certificate state.", {}
+    ),
+    _tool(
+        "npm_proxy_host_create",
+        "Create one typed Nginx Proxy Manager host. Credentials stay in the local broker and never enter model context.",
+        {
+            "domain_names": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "maxItems": 20,
+            },
+            "forward_scheme": {"type": "string", "enum": ["http", "https"], "default": "http"},
+            "forward_host": {"type": "string"},
+            "forward_port": {"type": "integer", "minimum": 1, "maximum": 65535},
+            "certificate_id": {"type": "integer", "minimum": 0, "default": 0},
+            "ssl_forced": {"type": "boolean", "default": False},
+        },
+        ["domain_names", "forward_host", "forward_port"],
+    ),
 ]
 
 
@@ -2735,6 +4196,11 @@ MUTATING_TOOLS = {
     "apply_patch",
     "git_branch",
     "git_commit",
+    "git_push",
+    "revert_file",
+    "delete_file",
+    "memory_add",
+    "todo_update",
     "computer_click",
     "computer_move",
     "computer_type",
@@ -2743,17 +4209,22 @@ MUTATING_TOOLS = {
     "browse_open",
     "browse_click",
     "browse_type",
+    "browse_select",
     "mcp_call_tool",
     "opencode_run",
+    "pi_run",
     "spawn_agent",
     "spawn_agents",
     "github_create_issue",
     "github_create_pr",
     "calendar_create",
     "calendar_delete",
+    "goal_add",
     "task_add",
     "task_done",
+    "docs_write",
     "note_write",
+    "note_append",
     "contact_add",
     "mail_send",
     "book_add",
@@ -2762,6 +4233,12 @@ MUTATING_TOOLS = {
     "habit_log",
     "read_save",
     "watch_add",
+    "files_operation_create",
+    "files_operation_undo",
+    "server_service_control",
+    "adguard_filtering_set",
+    "adguard_rewrite_change",
+    "npm_proxy_host_create",
 }
 # subset that produces a file diff we can preview
 _DIFF_TOOLS = {"write_file", "edit_file", "apply_patch"}
@@ -2779,16 +4256,113 @@ def _perm_target(name, args):
     return ""
 
 
+def delegated_action_details(name: str, args: dict, settings: dict | None = None) -> dict:
+    """Return a safe, owner-readable summary without persisting argument values."""
+    args = args or {}
+    path_tools = {"write_file", "edit_file", "apply_patch", "revert_file"}
+    target_is_path = name in path_tools
+    raw_target = _perm_target(name, args) if target_is_path or name == "mcp_call_tool" else name
+    if name == "mail_send":
+        raw_target = str(args.get("to") or "mail recipient")
+    elif name in {"github_create_issue", "github_create_pr"}:
+        raw_target = (
+            "/".join(
+                part for part in (str(args.get("owner") or ""), str(args.get("repo") or "")) if part
+            )
+            or "GitHub repository"
+        )
+    elif name.startswith("calendar_"):
+        raw_target = str(args.get("id") or args.get("calendar_id") or "calendar")
+    elif name == "contact_add":
+        raw_target = str(args.get("email") or args.get("name") or "contact")
+    elif name.startswith("computer_"):
+        raw_target = "local screen"
+    elif name in {"shell", "bash"}:
+        raw_target = "Project shell"
+    path_targets = []
+    if name == "apply_patch":
+        path_targets = [str(_resolve(path)) for path in _patch_targets(args.get("patch", ""))]
+    elif target_is_path and raw_target:
+        path_targets = [str(_resolve(raw_target))]
+    target = ", ".join(path_targets) if path_targets else raw_target
+    root = _project_root(settings)
+    outside = target_is_path and any(not _within(path, root) for path in path_targets)
+    keys = sorted(str(key)[:64] for key in args)[:30]
+    sizes = []
+    for key in keys:
+        value = args.get(key)
+        if isinstance(value, str):
+            sizes.append(f"{key}: {len(value)} characters")
+        elif isinstance(value, (list, dict)):
+            sizes.append(f"{key}: {len(value)} items")
+        else:
+            sizes.append(key)
+    privacy = "works outside the Project folder" if outside else "changes Alles or Project data"
+    if name in {"mail_send", "mcp_call_tool", "github_create_issue", "github_create_pr"}:
+        privacy = "may send selected data to an outside service"
+    return {
+        "target": str(target or name)[:2000],
+        "target_is_path": target_is_path,
+        "path_targets": tuple(path_targets),
+        "data_summary": ", ".join(sizes)[:2000],
+        "privacy_effect": privacy,
+        "cost": "unknown",
+    }
+
+
+def _browser_commit(name, args) -> bool:
+    """a click (or Enter) that submits, books, sends or buys is the owner's call."""
+    if name == "browse_type":
+        return bool((args or {}).get("submit"))
+    if name != "browse_click":
+        return False
+    from services.browser_tool import _b
+
+    return _b.is_commit((args or {}).get("ref") or "")
+
+
 def decide_permission(name, args, mode, rules):
-    """allow | ask | deny. base comes from the mode (full_auto=allow, approve=ask,
-    plan=deny — for mutating tools), then user rules override, LAST match wins (opencode-
-    style). a rule = {tool: glob, path: glob, action}. a plain path (no glob chars) is a
-    'contains' match. lets you e.g. auto-run `git_status` but always ask on `git_commit`."""
+    """Return allow, ask, or deny for one tool call.
+
+    Full access runs in-scope work without approval. Auto runs ordinary reversible local
+    changes, but asks at boundaries that can execute arbitrary code, delete data, contact
+    outside services, control the computer, delegate work, or alter Git history.
+    """
     base = "allow"
     if name in MUTATING_TOOLS:
-        base = {"plan": "deny", "approve": "ask", "full_auto": "allow"}.get(
-            mode or "full_auto", "ask"
-        )
+        risky_auto = {
+            "shell",
+            "bash",
+            "git_branch",
+            "git_commit",
+            "git_push",
+            "revert_file",
+            "delete_file",
+            "calendar_delete",
+            "mail_send",
+            "mcp_call_tool",
+            "github_create_issue",
+            "github_create_pr",
+            "computer_click",
+            "computer_move",
+            "computer_type",
+            "computer_key",
+            "computer_scroll",
+            "spawn_agent",
+            "spawn_agents",
+            "opencode_run",
+            "pi_run",
+        }
+        if mode == "plan":
+            base = "deny"
+        elif mode == "approve":
+            base = "ask"
+        elif mode == "full_access":
+            base = "allow"
+        elif mode == "full_auto":
+            base = "ask" if name in risky_auto or _browser_commit(name, args) else "allow"
+        else:
+            base = "ask"
     decision = base
     target = _perm_target(name, args)
     for r in rules or []:
@@ -2812,6 +4386,14 @@ UNTRUSTED_TOOLS = {
     "recall",
     "web_fetch",
     "web_search",
+    # pages read during web errands are someone else's text
+    "browse_open",
+    "browse_read",
+    "browse_click",
+    "browse_type",
+    "browse_select",
+    "browse_scroll",
+    "browse_back",
     "read_file",
     "grep_files",
     "mail_read",
@@ -2821,6 +4403,9 @@ UNTRUSTED_TOOLS = {
     "mcp_call_tool",
     "note_read",
     "note_search",
+    "note_backlinks",
+    "docs_read",
+    "docs_search",
 }
 
 # phrases that look like an injected instruction smuggled inside fetched content
@@ -2893,6 +4478,8 @@ def capture_checkpoint(run_id: str, name: str, args: dict):
 
     for p in snapshot_targets(name, args):
         try:
+            if _guard_path(p, write=True):
+                continue
             existed = p.exists() and p.is_file()
             before = p.read_text("utf-8", errors="replace") if existed else ""
             add_checkpoint(run_id, {"path": str(p), "existed": existed, "before": before})
@@ -2907,11 +4494,14 @@ def revert_run(run_id: str) -> dict:
     state = get_run(run_id)
     if not state:
         return {"ok": False, "error": "run not found", "restored": 0}
+    settings = {**load_settings(), "agent_cwd": state.get("cwd") or ""}
     restored = 0
     # reverse so the earliest snapshot (true original) wins
     for cp in reversed(state.get("checkpoints", [])):
         p = Path(cp["path"])
         try:
+            if _guard_path(p, write=True, settings=settings):
+                continue
             if cp.get("existed"):
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(cp.get("before", ""), "utf-8")
@@ -2933,6 +4523,8 @@ async def _revert_file(path: str) -> dict:
 
     state = get_run(run_id) or {}
     target = str(_resolve(path))
+    if blocked := _guard_path(target, write=True):
+        return {"output": blocked, "error": True}
     cps = [c for c in state.get("checkpoints", []) if c["path"] == target]
     if not cps:
         return {"output": f"no checkpoint for {path} in this run", "error": True}
@@ -2960,8 +4552,19 @@ def preview_change(name: str, args: dict) -> str:
     try:
         if name == "apply_patch":
             return (args.get("patch") or "").strip()
-        if name == "write_file":
+        if name in {"docs_write", "note_write"}:
+            from services import document_safety, vault_md
+
+            rel, _ = document_safety._normalise_rel(args.get("path", ""))
+            document = vault_md.read(rel)
+            if document.get("editable") is False:
+                return document.get("error", "document cannot be read as UTF-8")
+            old = document.get("content", "").splitlines(keepends=True)
+            new = (args.get("content") or "").splitlines(keepends=True)
+        elif name == "write_file":
             p = _resolve(args.get("path", ""))
+            if _guard_path(p, write=True):
+                return ""
             old = (
                 p.read_text("utf-8", errors="replace").splitlines(keepends=True)
                 if p.exists()
@@ -2970,6 +4573,8 @@ def preview_change(name: str, args: dict) -> str:
             new = (args.get("content") or "").splitlines(keepends=True)
         elif name == "edit_file":
             p = _resolve(args.get("path", ""))
+            if _guard_path(p, write=True):
+                return ""
             if not p.exists():
                 return ""
             text = p.read_text("utf-8", errors="replace")

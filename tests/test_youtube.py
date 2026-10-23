@@ -1,3 +1,6 @@
+import sys
+import threading
+import types
 import unittest
 
 from services import youtube
@@ -52,6 +55,36 @@ class YoutubeIdTests(unittest.TestCase):
     def test_url_with_extra_query_params(self):
         url = "https://www.youtube.com/watch?list=PLabc&v=dQw4w9WgXcQ&index=3"
         self.assertEqual(youtube.extract_video_id(url), "dQw4w9WgXcQ")
+
+
+class YoutubeTranscriptTests(unittest.IsolatedAsyncioTestCase):
+    async def test_library_fetch_runs_off_event_loop(self):
+        loop_tid = threading.get_ident()
+        called = {}
+
+        class Api:
+            @staticmethod
+            def get_transcript(video_id):
+                called["tid"] = threading.get_ident()
+                called["video_id"] = video_id
+                return [{"text": "hello"}, {"text": "world"}]
+
+        fake = types.ModuleType("youtube_transcript_api")
+        fake.YouTubeTranscriptApi = Api
+        old = sys.modules.get("youtube_transcript_api")
+        sys.modules["youtube_transcript_api"] = fake
+        try:
+            title, text = await youtube.fetch_transcript("abcdefghijk")
+        finally:
+            if old is None:
+                sys.modules.pop("youtube_transcript_api", None)
+            else:
+                sys.modules["youtube_transcript_api"] = old
+
+        self.assertEqual(title, "")
+        self.assertEqual(text, "hello world")
+        self.assertEqual(called["video_id"], "abcdefghijk")
+        self.assertNotEqual(called["tid"], loop_tid)
 
 
 if __name__ == "__main__":

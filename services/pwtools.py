@@ -153,7 +153,10 @@ def _b32key(secret: str) -> bytes:
 
     s = (secret or "").strip().replace(" ", "").upper()
     s += "=" * (-len(s) % 8)  # pad to a multiple of 8 for b32decode
-    return base64.b32decode(s)
+    key = base64.b32decode(s)
+    if not key:
+        raise ValueError("empty totp secret")
+    return key
 
 
 def totp_now(secret: str, period: int = 30, digits: int = 6, t: float | None = None) -> str:
@@ -192,14 +195,17 @@ def totp_verify(secret: str, code: str, period: int = 30, window: int = 1, t: fl
     """accept a code from the current step ±window (clock-skew tolerance). constant-ish compare."""
     import time
 
-    if not (code or "").strip().isdigit():
+    code = (code or "").strip()
+    if len(code) != 6 or not code.isascii() or not code.isdigit():
         return False
     if t is None:
         t = time.time()
-    code = code.strip()
-    for off in range(-window, window + 1):
-        if secrets.compare_digest(totp_now(secret, period=period, t=t + off * period), code):
-            return True
+    try:
+        for off in range(-window, window + 1):
+            if secrets.compare_digest(totp_now(secret, period=period, t=t + off * period), code):
+                return True
+    except ValueError:
+        return False
     return False
 
 
@@ -227,19 +233,32 @@ def find_reused(entries: list[dict]) -> list[list[str]]:
     return [ids for ids in by_pw.values() if len(ids) >= 2]
 
 
-def breach_count(password: str, fetch) -> int:
+def breach_count(password: str, fetch, *, strict: bool = False) -> int:
     """HIBP k-anonymity: SHA1 the password, send the first 5 hex chars to `fetch(prefix)`,
     match the suffix in the returned 'SUFFIX:count' lines. the full password never leaves."""
     import hashlib
 
     if not password:
         return 0
-    sha = hashlib.sha1(password.encode()).hexdigest().upper()
+    # HIBP's range API protocol requires SHA-1; this value is not stored or used
+    # as a password verifier or any other security primitive.
+    sha = hashlib.sha1(password.encode(), usedforsecurity=False).hexdigest().upper()
     prefix, suffix = sha[:5], sha[5:]
     try:
         text = fetch(prefix) or ""
     except Exception:
+        if strict:
+            raise
         return 0
+    if strict:
+        import re
+
+        if not text.strip() or any(
+            not re.fullmatch(r"[0-9a-fA-F]{35}:\d+", line.strip())
+            for line in text.splitlines()
+            if line.strip()
+        ):
+            raise ValueError("invalid breach lookup response")
     for line in text.splitlines():
         parts = line.strip().split(":")
         if len(parts) == 2 and parts[0].strip().upper() == suffix:

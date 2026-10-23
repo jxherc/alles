@@ -39,6 +39,22 @@ class CardDavIntervalLogic(unittest.TestCase):
         self.assertEqual(self.cs.status()["interval"], "hourly")
         self.cs.save_cfg({"url": "", "username": "", "password": ""})
         self.assertEqual(self.cs.status()["interval"], "hourly")
+        self.assertEqual(self.cs.load_cfg().get("password"), "")
+
+    def test_blank_password_only_preserves_same_account(self):
+        self.cs.save_cfg({"url": "https://dav", "username": "u", "password": "p"})
+        self.cs.save_cfg({"url": "https://dav", "username": "u", "password": ""})
+        self.assertEqual(self.cs.load_cfg().get("password"), "p")
+
+        self.cs.save_cfg({"url": "https://other", "username": "u", "password": ""})
+        self.assertEqual(self.cs.load_cfg().get("password"), "")
+
+    def test_password_is_encrypted_on_disk(self):
+        self.cs.save_cfg({"url": "https://dav", "username": "u", "password": "private"})
+        raw = self.tmp.read_text("utf-8")
+        self.assertIn("enc2:", raw)
+        self.assertNotIn("private", raw)
+        self.assertEqual(self.cs.load_cfg()["password"], "private")
 
     def test_due_for_sync_off_is_never(self):
         self.cs.save_cfg({"url": "https://dav", "username": "u", "password": "p"})
@@ -89,6 +105,18 @@ class CardDavIntervalApi(ApiTest):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["interval"], "daily")
         self.assertEqual(self.client.get("/api/carddav/status").json()["interval"], "daily")
+
+    def test_disconnect_clears_password_on_disk(self):
+        self.client.post(
+            "/api/carddav/connect", json={"url": "https://dav", "username": "u", "password": "p"}
+        )
+        r = self.client.post("/api/carddav/disconnect")
+        self.assertEqual(r.status_code, 200)
+
+        from services import carddav_sync
+
+        self.assertFalse(r.json()["connected"])
+        self.assertEqual(carddav_sync.load_cfg().get("password"), "")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import calendar as _cal
 import json
 import re
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
@@ -16,6 +16,7 @@ from core.database import (
     ContactLink,
     get_db,
 )
+from services.contact_items import save_contact
 
 router = APIRouter(prefix="/api")
 
@@ -77,8 +78,13 @@ def contact_events(cid: str, db: DbSession = Depends(get_db)):
     if not rsvp:
         return {"events": []}
     out = [
-        {"id": e.id, "title": e.title, "start_dt": e.start_dt, "all_day": bool(e.all_day),
-         "status": rsvp.get(e.id, "")}
+        {
+            "id": e.id,
+            "title": e.title,
+            "start_dt": e.start_dt,
+            "all_day": bool(e.all_day),
+            "status": rsvp.get(e.id, ""),
+        }
         for e in db.query(CalendarEvent).filter(CalendarEvent.id.in_(rsvp)).all()
     ]
     out.sort(key=lambda x: x["start_dt"] or "")
@@ -91,6 +97,15 @@ def _avatar_dir():
     d = data_dir() / "contact_avatars"
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def _unlink_avatar(name: str):
+    if not name:
+        return
+    try:
+        (_avatar_dir() / name).unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def _fields_of(db, cid):
@@ -252,26 +267,19 @@ class CreateContact(BaseModel):
 
 @router.post("/contacts")
 def create_contact(body: CreateContact, db: DbSession = Depends(get_db)):
-    c = Contact(
+    c = save_contact(
+        db,
         name=body.name,
         email=body.email,
         phone=body.phone,
         notes=body.notes,
-        tags=json.dumps(body.tags),
+        tags=body.tags,
         company=body.company,
         title=body.title,
         address=body.address,
         birthday=body.birthday,
         website=body.website,
     )
-    db.add(c)
-    db.commit()
-    db.refresh(c)
-    try:
-        from services import personal_index
-        personal_index.index_record(db, "contact", c)
-    except Exception:
-        pass
     return _fmt(c, db)
 
 
@@ -315,10 +323,11 @@ def patch_contact(cid: str, body: PatchContact, db: DbSession = Depends(get_db))
             setattr(c, f, v)
     if body.favorite is not None:
         c.favorite = body.favorite
-    c.updated_at = datetime.utcnow()
+    c.updated_at = datetime.now(UTC).replace(tzinfo=None)
     db.commit()
     try:
         from services import personal_index
+
         personal_index.index_record(db, "contact", c)
     except Exception:
         pass
@@ -333,15 +342,13 @@ def delete_contact(cid: str, db: DbSession = Depends(get_db)):
     # these tables key on contact_id with no FK cascade, so clean them up or they orphan
     db.query(ContactField).filter(ContactField.contact_id == cid).delete()
     db.query(ContactGroupMember).filter(ContactGroupMember.contact_id == cid).delete()
-    db.query(ContactLink).filter(
-        (ContactLink.from_id == cid) | (ContactLink.to_id == cid)
-    ).delete()
-    if c.avatar:  # don't leak the avatar blob on disk
-        (_avatar_dir() / c.avatar).unlink(missing_ok=True)
+    db.query(ContactLink).filter((ContactLink.from_id == cid) | (ContactLink.to_id == cid)).delete()
+    _unlink_avatar(c.avatar)
     db.delete(c)
     db.commit()
     try:
         from services import personal_index
+
         personal_index.remove_record(db, "contact", cid)
     except Exception:
         pass
@@ -389,6 +396,7 @@ def add_field(cid: str, body: FieldBody, db: DbSession = Depends(get_db)):
     db.refresh(f)
     try:
         from services import personal_index
+
         personal_index.index_record(db, "contact", db.query(Contact).filter_by(id=cid).first())
     except Exception:
         pass
@@ -404,6 +412,7 @@ def delete_field(cid: str, fid: str, db: DbSession = Depends(get_db)):
     db.commit()
     try:
         from services import personal_index
+
         personal_index.index_record(db, "contact", db.query(Contact).filter_by(id=cid).first())
     except Exception:
         pass
@@ -448,10 +457,7 @@ def delete_avatar(cid: str, db: DbSession = Depends(get_db)):
     if not c:
         raise HTTPException(404)
     if c.avatar:
-        try:
-            (_avatar_dir() / c.avatar).unlink(missing_ok=True)
-        except Exception:
-            pass
+        _unlink_avatar(c.avatar)
         c.avatar = ""
         db.commit()
     return {"ok": True}
@@ -630,6 +636,11 @@ def merge_contacts(body: MergeBody, db: DbSession = Depends(get_db)):
     # append notes
     if (o.notes or "").strip():
         p.notes = ((p.notes or "").strip() + "\n" + o.notes).strip()
+    if o.avatar:
+        if not p.avatar:
+            p.avatar = o.avatar
+        elif o.avatar != p.avatar:
+            _unlink_avatar(o.avatar)
     oid = o.id
     # move labeled fields + group memberships
     db.query(ContactField).filter(ContactField.contact_id == oid).update(
@@ -662,7 +673,7 @@ def merge_contacts(body: MergeBody, db: DbSession = Depends(get_db)):
             db.delete(lk)
         else:
             seen.add(k)
-    p.updated_at = datetime.utcnow()
+    p.updated_at = datetime.now(UTC).replace(tzinfo=None)
     db.delete(o)
     db.commit()
     # keep global search in step: drop the merged-away contact, re-index the primary

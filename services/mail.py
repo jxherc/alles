@@ -137,14 +137,16 @@ def _release_imap(acct, M, ok: bool = True):
     if not M:
         return
     if ok:
+        old = None
         with _LOCK:
-            old = _POOL.pop(_acct_key(acct), None)
-            if old:
-                try:
-                    old[0].logout()
-                except Exception:
-                    pass
-            _POOL[_acct_key(acct)] = (M, time.monotonic())
+            key = _acct_key(acct)
+            old = _POOL.pop(key, None)
+            _POOL[key] = (M, time.monotonic())
+        if old and old[0] is not M:
+            try:
+                old[0].logout()
+            except Exception:
+                pass
         return
     try:
         M.logout()
@@ -283,8 +285,8 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
         lo = max(1, exists - n + 1)
         typ, msgd = M.fetch(
             f"{lo}:{exists}",
-            "(UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE LIST-UNSUBSCRIBE "
-            "MESSAGE-ID IN-REPLY-TO REFERENCES)])",
+            "(UID FLAGS BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE "
+            "LIST-UNSUBSCRIBE MESSAGE-ID IN-REPLY-TO REFERENCES)])",
         )
         rows = []
         for part in msgd or []:
@@ -296,14 +298,19 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
                 continue
             msg = email.message_from_bytes(part[1] or b"")
             date = msg.get("Date", "")
+            meta_s = meta.decode("latin-1", "replace")
+            bs = _extract_bodystructure(meta_s)
+            has_att = _bs_has_attachment(_imap_tokenize(bs or ""))
             rows.append(
                 {
                     "uid": uid,
                     "from": _dec(msg.get("From", "")),
+                    "to": _dec(msg.get("To", "")),
                     "subject": _dec(msg.get("Subject", "(no subject)")),
                     "date": date,
                     "date_ts": _date_ts(date),
                     "seen": b"\\Seen" in meta,
+                    "has_attachment": has_att,
                     "list_unsubscribe": msg.get("List-Unsubscribe", ""),
                     "message_id": (msg.get("Message-ID", "") or "").strip(),
                     "in_reply_to": (msg.get("In-Reply-To", "") or "").strip(),
@@ -434,6 +441,33 @@ def _text_parts(node, prefix=""):
     return out
 
 
+def _has_name_param(params) -> bool:
+    if not isinstance(params, list):
+        return False
+    for k, v in zip(params[0::2], params[1::2]):
+        if isinstance(k, str) and k.lower() in ("name", "filename") and v:
+            return True
+    return False
+
+
+def _bs_has_attachment(node) -> bool:
+    if not isinstance(node, list) or not node:
+        return False
+    if isinstance(node[0], list):
+        return any(_bs_has_attachment(child) for child in node if isinstance(child, list))
+    if _has_name_param(node[2] if len(node) > 2 else None):
+        return True
+    for part in node[8:]:
+        if not isinstance(part, list) or not part:
+            continue
+        disp = part[0].lower() if isinstance(part[0], str) else ""
+        if disp == "attachment":
+            return True
+        if _has_name_param(part[1] if len(part) > 1 else None):
+            return True
+    return False
+
+
 def _decode_part(raw: bytes, enc: str, charset: str) -> str:
     try:
         if enc == "base64":
@@ -509,6 +543,7 @@ def _fetch_message_parts(M, uid_b):
         "date": hdr.get("Date", ""),
         "message_id": (hdr.get("Message-ID", "") or "").strip(),
         "references": (hdr.get("References", "") or "").strip(),
+        "has_attachment": _bs_has_attachment(_imap_tokenize(bs)),
         "text": text,
         "html": html,
     }
@@ -525,9 +560,14 @@ def _fetch_message_rfc822(M, uid_b):
         return None
     msg = email.message_from_bytes(raw)
     text, html = "", ""
+    has_att = False
     if msg.is_multipart():
         for p in msg.walk():
             if "attachment" in str(p.get("Content-Disposition") or ""):
+                has_att = True
+                continue
+            if p.get_filename():
+                has_att = True
                 continue
             ct = p.get_content_type()
             if ct == "text/plain" and not text:
@@ -545,14 +585,15 @@ def _fetch_message_rfc822(M, uid_b):
         "date": msg.get("Date", ""),
         "message_id": (msg.get("Message-ID", "") or "").strip(),
         "references": (msg.get("References", "") or "").strip(),
+        "has_attachment": has_att,
         "text": text,
         "html": html,
     }
 
 
-def fetch_message(acct, uid: str, folder: str = "INBOX") -> dict:
+def fetch_message(acct, uid: str, folder: str = "INBOX", *, refresh: bool = False) -> dict:
     cache_key = (_acct_key(acct), folder, str(uid))
-    cached = _cached(_MESSAGE_CACHE, cache_key)
+    cached = None if refresh else _cached(_MESSAGE_CACHE, cache_key)
     if cached is not None:
         return cached
 
@@ -683,7 +724,7 @@ def thread_messages(msgs: list[dict]) -> list[dict]:
     return out
 
 
-# ── folder ops (2h): move / copy / soft-delete ───────────────────────────────
+# ── folder ops (2h): move / soft-delete ──────────────────────────────────────
 
 
 def _has_move(M) -> bool:
@@ -703,20 +744,28 @@ def _has_uidplus(M) -> bool:
 def _do_move(M, uid, dest, src):
     """move one uid from src to dest. UID MOVE (RFC 6851) when the server has it, else the
     portable COPY + \\Deleted + EXPUNGE dance. operates on an already-open connection."""
-    M.select(src)
+
+    def checked(response, action):
+        status = response[0] if isinstance(response, (tuple, list)) and response else ""
+        if isinstance(status, bytes):
+            status = status.decode("ascii", errors="replace")
+        if status != "OK":
+            raise RuntimeError(f"mail server did not confirm {action}")
+
+    checked(M.select(src), "select the source folder")
     u = uid.encode() if isinstance(uid, str) else uid
     if _has_move(M):
-        M.uid("MOVE", u, dest)
+        checked(M.uid("MOVE", u, dest), "move the message")
     else:
-        M.uid("COPY", u, dest)
-        M.uid("STORE", u, "+FLAGS", r"(\Deleted)")
+        checked(M.uid("COPY", u, dest), "copy the message")
+        checked(M.uid("STORE", u, "+FLAGS", r"(\Deleted)"), "mark the source message deleted")
         # scope the expunge to JUST this uid (UIDPLUS) — a plain EXPUNGE would purge every
         # other \Deleted message the user has flagged in this folder. fall back only if the
         # server has neither MOVE nor UIDPLUS.
         if _has_uidplus(M):
-            M.uid("EXPUNGE", u)
+            checked(M.uid("EXPUNGE", u), "remove the source message")
         else:
-            M.expunge()
+            checked(M.expunge(), "remove deleted messages")
     return True
 
 
@@ -728,19 +777,6 @@ def move_message(acct, uid, dest, src: str = "INBOX") -> dict:
         _do_move(M, uid, dest, src)
         ok = True
         return {"ok": True, "uid": str(uid), "dest": dest}
-    finally:
-        _release_imap(acct, M, ok)
-
-
-def copy_message(acct, uid, dest, src: str = "INBOX") -> dict:
-    """copy a message into another folder, leaving the original in place."""
-    M = _imap(acct)
-    ok = False
-    try:
-        M.select(src)
-        M.uid("COPY", uid.encode() if isinstance(uid, str) else uid, dest)
-        ok = True
-        return {"ok": True}
     finally:
         _release_imap(acct, M, ok)
 

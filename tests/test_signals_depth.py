@@ -1,18 +1,139 @@
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from core.database import (
     Account,
     Budget,
     CachedMessage,
+    FinanceLedgerState,
     JournalEntry,
+    Subscription,
+    Task,
     Transaction,
 )
-from services import signals
+from services import actual_finance, signals
 from tests._client import ApiTest
 
 
 def _iso(n):
     return (date.today() + timedelta(days=n)).isoformat()
+
+
+class FinanceCutoverSignalsTests(ApiTest):
+    def _cutover(self):
+        db = self.db()
+        db.add(
+            FinanceLedgerState(
+                id="primary",
+                mode="actual",
+                active_run_id="run-signals",
+                actual_budget_id="budget-signals",
+                actual_sync_id="sync-signals",
+                legacy_read_only=True,
+            )
+        )
+        db.commit()
+        db.close()
+
+    def test_cutover_does_not_surface_frozen_budget_or_balance_signals(self):
+        db = self.db()
+        account = Account(name="old account", opening=20, low_balance=100)
+        db.add(account)
+        db.flush()
+        db.add_all(
+            [
+                Transaction(account_id=account.id, date=_iso(0), amount=-150, category="food"),
+                Budget(category="food", limit_amt=100),
+                Task(title="keep this task", due_date=_iso(0)),
+            ]
+        )
+        db.commit()
+        before = signals.gather(db, categories={"task", "budget", "account"})
+        self.assertEqual({item["category"] for item in before}, {"task", "budget", "account"})
+        db.close()
+
+        self._cutover()
+        db = self.db()
+        after = signals.gather(db, categories={"task", "budget", "account"})
+        self.assertEqual([item["category"] for item in after], ["task"])
+        db.close()
+
+    def test_today_uses_canonical_subscription_schedule_after_cutover(self):
+        today = signals.calendar_today("UTC")
+        db = self.db()
+        old = Subscription(name="old plan", next_due=today.isoformat(), price=8, currency="CAD")
+        db.add(old)
+        db.commit()
+        subscription_id = old.id
+        db.close()
+        self._cutover()
+
+        schedule = {
+            "id": subscription_id,
+            "name": "current plan",
+            "next_due": (today + timedelta(days=2)).isoformat(),
+            "price": 12,
+            "currency": "CAD",
+            "active": True,
+            "metadata": {},
+        }
+        with patch.object(actual_finance, "subscription_schedules", return_value=[schedule]):
+            response = self.client.get(
+                "/api/today", params={"date": today.isoformat(), "timezone": "UTC"}
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json()["renewing"],
+            [
+                {
+                    "id": subscription_id,
+                    "name": "current plan",
+                    "in_days": 2,
+                    "price": 12,
+                    "currency": "CAD",
+                }
+            ],
+        )
+
+    def test_unavailable_canonical_schedule_never_replays_legacy_renewal(self):
+        db = self.db()
+        db.add(Subscription(name="stale plan", next_due=_iso(0), price=8))
+        db.add(Task(title="keep this task", due_date=_iso(0)))
+        db.commit()
+        db.close()
+        self._cutover()
+
+        with patch.object(
+            actual_finance,
+            "subscription_schedules",
+            side_effect=actual_finance.ActualFinanceUnavailable("offline"),
+        ):
+            db = self.db()
+            unavailable = set()
+            rows = signals.gather(db, categories={"sub", "task"}, unavailable=unavailable)
+            db.close()
+            response = self.client.get("/api/today")
+        self.assertEqual([item["category"] for item in rows], ["task"])
+        self.assertEqual(unavailable, {"subscriptions"})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("subscriptions", response.json()["partial_sources"])
+        self.assertEqual(response.json()["renewing"], [])
+
+    def test_unreadable_authority_suppresses_only_finance_signals(self):
+        db = self.db()
+        db.add(Account(name="old account", opening=20, low_balance=100))
+        db.add(Task(title="keep this task", due_date=_iso(0)))
+        db.commit()
+        unavailable = set()
+        with patch.object(
+            actual_finance,
+            "is_canonical",
+            side_effect=actual_finance.ActualFinanceError("state unavailable"),
+        ):
+            rows = signals.gather(db, categories={"account", "task"}, unavailable=unavailable)
+        db.close()
+        self.assertEqual([item["category"] for item in rows], ["task"])
+        self.assertEqual(unavailable, {"finance"})
 
 
 class BudgetSignalTests(ApiTest):
@@ -70,8 +191,9 @@ class LowBalanceTests(ApiTest):
 class MailSignalTests(ApiTest):
     def _msg(self, **kw):
         d = self.db()
-        defaults = dict(account_id="a1", folder="INBOX", seen=False, flagged=False,
-                        muted=False, date_ts=1000)
+        defaults = dict(
+            account_id="a1", folder="INBOX", seen=False, flagged=False, muted=False, date_ts=1000
+        )
         defaults.update(kw)
         d.add(CachedMessage(**defaults))
         d.commit()

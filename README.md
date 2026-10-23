@@ -1,125 +1,86 @@
 # alles
 
-```
-─────────────────────────────────────────────
- ⊹ ࣪ ˖ ( ◕ ‿ ◕ )つ  alles — your everything
-─────────────────────────────────────────────
-```
+alles is for keeping your everyday stuff in one place, on a machine you control. write notes, plan your week, check your mail, find your files, and track your money without jumping between a bunch of different apps.
 
-**alles** is a self-hosted everything-app. one single python program that runs on your machine and gives you ai chat, email, linked docs, a journal, files, a calendar, tasks, money & budgets, photos, contacts, a secrets vault, subscription tracking, and countdowns. all behind one login. all storing data in a single folder you control. nothing phones home.
+it's built for one person. your main data lives in a folder you control, and you decide which outside services to connect. there's also aide, an ai assistant that can work with the apps when you approve its actions. use it if it's helpful; the local tools work without an ai model.
 
-think of **alles** as the whole house, and **aide** as the assistant who lives in it — like what gemini is to google, except it's yours and it can actually open the other rooms: read your mail, edit your docs, add to your calendar, file your tasks.
+[français](docs/readme/README.fr.md) · [español](docs/readme/README.es.md) ·
+[简体中文](docs/readme/README.zh-Hans.md) · [繁體中文](docs/readme/README.zh-Hant.md) ·
+[日本語](docs/readme/README.ja.md) · [한국어](docs/readme/README.ko.md) ·
+[العربية](docs/readme/README.ar.md)
 
-it's *one python process*. no build step, no bundler, no `node_modules`, no account, no analytics. you clone it, run `python app.py`, and open a browser. that's the entire setup.
+## get started
 
-<p align="center">
-  <img src="docs/screenshots/aide.png" width="760" alt="aide — the ai chat and full app sidebar">
-</p>
-<p align="center"><em>one interface to run your whole digital life.</em></p>
-
----
-
-## what it runs on
-
-- **backend**: python 3.11, fastapi, sqlite, sqlalchemy
-- **frontend**: vanilla js, es modules, plain css (no build step, no bundler)
-- **ai layer**: httpx (streaming), fastembed (local vectors), unified openai/anthropic/ollama client
-- **extras**: web push (native), codemirror 6 (markdown), trafilatura (web scraping)
-
-
-## the 30-second version
-
-- **everything in one place, one login.** stop bouncing between fifteen tabs and ten companies.
-- **it's yours.** all your data is plain files + one database in a folder called `data/`. copy that folder = you've copied your whole life. delete the app = you still have your files.
-- **the ai isn't a gimmick.** it talks to *any* model (claude, gpt, deepseek, gemini, a local model — switchable mid-chat), it remembers things across conversations, and in "agent" mode it can actually *do* things: edit files, run commands, search the web, touch your other apps.
-- **private by default.** no telemetry, no cloud, runs offline if you want (with a local model).
-- **single user, on purpose.** this is *your* workspace, not a service you host for a hundred people. it's your personal un-siloed digital brain.
-
-## is this for me?
-
-if you've ever wished you could mash together **notion + gmail + obsidian + google photos + google calendar + a password manager + a chatgpt that can actually open your files** — and own the whole thing on hardware you control — yes.
-
-if you want a multi-user team product with billing and admin roles: no, that's not what this is. alles is deliberately one person, one machine.
-
-you do **not** need to be technical to *use* it. you need to be a little technical to *install* it (two commands in a terminal, once). the rest is clicking around a normal-looking app.
-
----
-
-## the apps
-
-each one is a real, finished app — they live on their own subdomain so it feels like a suite, but it's all one program.
-
-| app | what it is |
-|---|---|
-| **aide** | ai chat that talks to any model, remembers you across chats, and (in agent mode) does real work — files, shell, web, your other apps. also research, compare, personas, projects, voice, vision, skills. |
-| **home** | a customizable launcher with a quick-capture box for fast notes/tasks |
-| **today** | your whole day on one screen — events, due tasks, renewals, unread mail — with one "ask aide about my day" button |
-| **activity** | a timeline of everything you actually did, across every app |
-| **docs** | obsidian-style linked markdown notes (`[[wikilinks]]`, backlinks, graph, live editor) — your notes are plain files you own |
-| **mail** | a real imap/smtp email client with threads, attachments, and ai help |
-| **calendar** | month / week / day views, recurring events, `.ics` + optional caldav sync, natural-language quick-add |
-| **tasks** | natural-language to-dos with recurring, priorities, tags, subtasks, smart views |
-| **notes** | lightweight scratch notes for zero-ceremony jotting |
-| **journal** | a daily diary with mood, prompts, a streak, and a year heatmap |
-| **subs** | subscription tracker — renewals, forecast, price-change tracking, auto-post to money |
-| **money** | accounts, transactions, budgets, csv import, charts |
-| **days** | countdowns and day-counts (birthdays, anniversaries) |
-| **files** | a file browser with inline preview (pdf/video/audio/images) and search |
-| **gallery** | a local photo library with moments, albums, exif search |
-| **contacts** | an address book the ai can read (e.g. when drafting mail), with vcard import/export |
-| **system** | a built-in live system monitor (cpu/ram/disk/gpu) |
-| **secrets** | an encrypted vault with typed entries (logins, cards, api keys, notes…) |
-| **automations** | *when this happens, do that* — set a rule once and alles runs it |
-
-plus the smaller stuff: global search (cmd/ctrl+k), scheduled messages, prompt cookbook, webhooks, api tokens, an openai-compatible api, backup/restore to a zip, light/dark themes with a custom accent, and it installs like a pwa with real push notifications.
-
-**→ full details on every app, the internals, the api, and the architecture are in [specifications.md](./specifications.md).**
-
----
-
-## quick start
-
-you need **python 3.11 or newer**. then:
+you need python 3.11 or newer. on macos or linux:
 
 ```bash
 git clone https://github.com/jxherc/alles.git
 cd alles
-pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.lock
 python app.py
 ```
 
-open **http://localhost:8000** and you're in.
+open [http://localhost:6769](http://localhost:6769) and follow the setup. you don't need an api key to get started.
 
-**want the `alles` command everywhere (mac/linux)?** run `./alles install` once — it
-drops a small launcher on your PATH pointing at the python you're using (venv and
-all), so from then on `alles start` / `alles stop` / `alles logs` work from any
-directory, no `cd`, no activating the venv. `./alles uninstall` removes it again.
-on a server with a venv that's just:
+by default, alles is only accessible from this device and starts without a password. **before putting it on your network**, turn on authentication, set a strong owner password and `SECRET_KEY`, and choose the right access profile. local network and public access have different requirements; read [security](specifications.md#security--read-before-exposing-it) and [.env.example](.env.example) first.
+
+if you'd rather use docker:
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-./alles install      # now `alles start` works anywhere
+docker build -t alles .
+docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
-**no api key is needed to boot.** mail, docs, files, calendar, tasks, subs, days, photos, contacts, secrets — all work out of the box. when you want aide to talk, add a model under **settings → models** (one click for openai / anthropic / deepseek / groq / gemini / ollama and ~10 more), or drop a key like `deepseek_api_key` into `.env`.
+this keeps access limited to your device and saves your data in the `alles-data` volume. keep that volume when you replace the container.
 
-**prefer docker?** `docker build -t alles . && docker run -p 8000:8000 -v alles-data:/app/data alles` — the `data/` volume keeps your db, vault, uploads, and keys across rebuilds.
+## what you can do
 
-**want it fully offline and free?** install [ollama](https://ollama.com), `ollama pull` a model, add an endpoint pointing at `http://localhost:11434` — no key or internet needed for the ai.
+| app | use it for |
+| --- | --- |
+| home | see your day, open your apps, and capture a task |
+| aide | chat with a configured model and approve actions in your workspace |
+| andromeda | search the web and optionally get a cited overview |
+| plan | keep a calendar, tasks, reminders, and countdowns |
+| inbox | read mail and manage contacts after connecting your account |
+| docs | write markdown notes and journal entries |
+| files | browse local or connected storage, offline copies, and photos |
+| library | save articles and reading lists |
+| health | track habits and health records |
+| finance | track accounts, transactions, budgets, and subscriptions |
+| vault | store encrypted secrets, passwords, and passkeys |
+| server | check health, access settings, backups, and updates |
 
-> **before you put it on a network:** alles ships with auth off. set `auth_enabled=true`, a strong `auth_password`, and a real `secret_key` first. details in the [security section](./specifications.md#security--read-before-exposing-it).
+new manual transactions saved in the local finance ledger have an undo action.
+undo removes that exact transaction only while its saved details remain unchanged;
+an interrupted reply keeps a retry for the same transaction. Actual transactions,
+imports, and transfers use their existing review and deletion workflows.
 
----
+some things need a connection before they work. add your imap/smtp account for mail, connect a service for online storage or banking, and add a model in **settings → models** if you want to use aide. local models through ollama work too.
 
-## what it's based on
+[specifications.md](specifications.md) has the detailed app behavior, architecture, api, and configuration.
 
-aide was inspired by **[odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** by pewdiepie-archdaemon. the concept — a self-hosted personal ai with memory, research mode, shell access, mcp, a multi-provider model backend, and a suite of apps around it — comes from that project. alles is an independent reimplementation written from scratch, but odysseus is where the idea came from and it deserves the credit. go give that repo a star. full note in [acknowledgments.md](./acknowledgments.md).
+## your data and backups
 
-it stands on the shoulders of some great open-source work: [fastapi](https://fastapi.tiangolo.com) + [uvicorn](https://www.uvicorn.org), [sqlalchemy](https://www.sqlalchemy.org), [httpx](https://www.python-httpx.org), [fastembed](https://github.com/qdrant/fastembed), [codemirror](https://codemirror.net), [leaflet](https://leafletjs.com) with map tiles from [openstreetmap](https://www.openstreetmap.org/copyright), [katex](https://katex.org), [mermaid](https://mermaid.js.org), [pillow](https://python-pillow.org), [python-docx](https://python-docx.readthedocs.io), [pypdf](https://pypdf.readthedocs.io), [cryptography](https://cryptography.io), and python's own `imaplib`/`smtplib`. models come from whichever provider you point it at; local ones via [ollama](https://ollama.com).
+your database and the files alles manages live in `data/` by default. set `ALLES_DATA` if you want them somewhere else. keep that folder private and back it up. outside providers receive the requests you send them through their connections.
 
----
+open **settings → backup** to download an encrypted backup. you can also send one manually to an existing https webdav folder or s3-compatible bucket, or set up daily local backups during the initial setup. keep your recovery key somewhere outside alles so you can still get to it if the app stops working.
 
-## license
+alles checks a backup and prepares the restore before applying it. stop the app, then follow the command it gives you. read [the backup and restore details](specifications.md#your-data-where-everything-lives) before moving an existing installation.
 
-mit. do whatever you want with it. if you build something cool on top, a link back is appreciated but not required.
+## installing as a service
+
+if you want alles to run as a service on macos or linux, run `bash alles install`. it sets up its own python environment and adds the `alles` command. use `alles update` to update it, or `alles update rollback` to return to the previous code and data. `bash alles uninstall` keeps your personal data. `bash alles --help` lists the commands.
+
+it's built with fastapi, sqlite, vanilla javascript, and css. there's no frontend build step. the technical details are in [specifications.md](specifications.md).
+
+## release history
+
+[davinci](docs/releases/davinci.md) records the completed daily-workflows milestone.
+
+## credits and license
+
+aide was inspired by [odysseus](https://github.com/pewdiepie-archdaemon/odysseus). alles is an independent implementation; [acknowledgments.md](ACKNOWLEDGMENTS.md) credits that project and the other work it uses. third-party licenses are in [third-party notices](THIRD_PARTY_NOTICES.md).
+
+alles is released under the [mit license](LICENSE).

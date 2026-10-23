@@ -11,7 +11,9 @@ across runs (dedupe), and a new period (next renewal cycle) yields a new key.
 """
 
 import json
-from datetime import date, datetime, timedelta
+import logging
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from core.database import (
     Account,
@@ -21,7 +23,6 @@ from core.database import (
     CalendarEvent,
     DayEvent,
     Habit,
-    HabitLog,
     HealthEntry,
     JournalEntry,
     Reminder,
@@ -29,6 +30,7 @@ from core.database import (
     Subscription,
     Task,
 )
+from services import day_events, habit_logs
 
 CATEGORIES = (
     "task",
@@ -44,6 +46,8 @@ CATEGORIES = (
     "mail",
     "journal",
 )
+_FINANCE_CATEGORIES = frozenset({"sub", "budget", "account"})
+log = logging.getLogger("alles.signals")
 
 
 def _journal_locked():
@@ -67,30 +71,24 @@ def _sig(category, key, urgency, title, detail, link, data):
 
 
 def _event_occurs_on(e: CalendarEvent, day: date) -> bool:
-    """does a (possibly recurring) calendar event land on `day`? canonical copy -
-    routes.today re-exports this so existing callers/tests keep working."""
-    try:
-        start = date.fromisoformat(str(e.start_dt)[:10])
-    except ValueError:
-        return False
-    if start > day:
-        return False
-    rec = (e.recurrence or "").strip()
-    if e.recur_until:
-        try:
-            if date.fromisoformat(str(e.recur_until)[:10]) < day:
-                return False
-        except ValueError:
-            pass
-    if not rec:
-        return start == day
-    if rec == "daily":
-        return True
-    if rec == "weekly":
-        return start.weekday() == day.weekday()
-    if rec == "monthly":
-        return start.day == day.day
-    return start == day
+    """does a (possibly recurring) calendar event land on `day`? delegates to the real
+    recurrence engine (recur.expand) so the today widget / briefing agree with the calendar —
+    interval, weekly byday, count and excluded dates all honored. routes.today re-exports this."""
+    from services import recur
+
+    # getattr w/ defaults so a partial event stub (tests, lightweight callers) still works —
+    # not every object handed in carries the full recur_* column set
+    ev = {
+        "start_dt": getattr(e, "start_dt", None),
+        "recurrence": getattr(e, "recurrence", ""),
+        "recur_interval": getattr(e, "recur_interval", 1),
+        "recur_byday": getattr(e, "recur_byday", ""),
+        "recur_count": getattr(e, "recur_count", None),
+        "recur_until": getattr(e, "recur_until", None),
+        "recur_except": getattr(e, "recur_except", "[]"),
+    }
+    rs = datetime.combine(day, datetime.min.time())
+    return bool(recur.expand(ev, rs, rs + timedelta(days=1)))
 
 
 # -- collectors: one family each, returning a list of signals -----------------
@@ -171,11 +169,35 @@ def _events(db, today):
     return out
 
 
-def _reminders(db, today):
+def calendar_zone(timezone_name=None):
+    """Use the viewer's zone, then the configured owner zone, then server local time."""
+    if timezone_name:
+        return ZoneInfo(timezone_name)
+
+    from core.settings import load_settings
+
+    configured = load_settings().get("timezone")
+    try:
+        return ZoneInfo(configured) if configured else None
+    except (KeyError, ValueError):
+        # Older or manually edited settings must not break date-only callers.
+        return None
+
+
+def calendar_today(timezone_name=None):
+    return datetime.now(UTC).astimezone(calendar_zone(timezone_name)).date()
+
+
+def _reminders(db, today, *, timezone_name=None):
     out = []
+    zone = calendar_zone(timezone_name)
     for r in db.query(Reminder).filter(Reminder.fired == False).all():  # noqa: E712
-        if r.trigger_at and r.trigger_at.date() <= today:
-            at = r.trigger_at.strftime("%H:%M")
+        if not r.trigger_at:
+            continue
+        # Reminder storage and delivery use naive UTC; calendar days and clock labels do not.
+        local_trigger = r.trigger_at.replace(tzinfo=UTC).astimezone(zone)
+        if local_trigger.date() <= today:
+            at = local_trigger.strftime("%H:%M")
             out.append(
                 _sig(
                     "reminder",
@@ -190,16 +212,42 @@ def _reminders(db, today):
     return out
 
 
-def _subs(db, today):
-    from routes.subscriptions import _parse as _sp
+def _subs(db, today, *, canonical=False, unavailable=None):
+    if canonical:
+        from services import actual_finance
 
-    out = []
-    for s in db.query(Subscription).filter(Subscription.active == True).all():  # noqa: E712
         try:
-            in_days = (_sp(s.next_due) - today).days
+            schedules = actual_finance.subscription_schedules(db)
+        except actual_finance.ActualFinanceError:
+            log.warning("canonical subscription signals unavailable")
+            if unavailable is not None:
+                unavailable.add("subscriptions")
+            return []
+        legacy = {row.id: row for row in db.query(Subscription).all()}
+        rows = [
+            (
+                item["id"],
+                actual_finance.subscription_display_name(item, legacy.get(item["id"])),
+                item["next_due"],
+                item["price"],
+                item["currency"],
+                legacy[item["id"]].remind_days if item["id"] in legacy else 0,
+            )
+            for item in schedules
+            if item["active"]
+        ]
+    else:
+        rows = [
+            (s.id, s.name, s.next_due, s.price, s.currency, s.remind_days)
+            for s in db.query(Subscription).filter(Subscription.active == True).all()  # noqa: E712
+        ]
+    out = []
+    for sid, name, next_due, price, currency, remind_days in rows:
+        try:
+            in_days = (date.fromisoformat(str(next_due)[:10]) - today).days
         except (TypeError, ValueError):
             continue
-        rd = max(0, s.remind_days or 0)
+        rd = max(0, remind_days or 0)
         # emit within the union of what consumers care about: today's 7-day window,
         # the user's own remind_days, and anything overdue (negative in_days).
         if in_days > max(7, rd):
@@ -216,17 +264,17 @@ def _subs(db, today):
         out.append(
             _sig(
                 "sub",
-                f"sub_renew:{s.id}:{s.next_due}",
+                f"sub_renew:{sid}:{next_due}",
                 u,
-                s.name,
+                name,
                 detail,
                 "subs",
                 {
-                    "id": s.id,
-                    "name": s.name,
+                    "id": sid,
+                    "name": name,
                     "in_days": in_days,
-                    "price": s.price,
-                    "currency": s.currency,
+                    "price": price,
+                    "currency": currency,
                     "remind_days": rd,
                 },
             )
@@ -235,14 +283,11 @@ def _subs(db, today):
 
 
 def _day_events(db, today):
-    from routes.days import _occurrence
-    from routes.days import _parse as _dp
-
     out = []
     for ev in db.query(DayEvent).all():
-        orig = _dp(ev.date)
+        orig = day_events.parse_date(ev.date)
         if ev.repeat in ("yearly", "monthly"):
-            target, _nth = _occurrence(orig, today, ev.repeat)
+            target, _nth = day_events.next_occurrence(orig, today, ev.repeat)
         else:
             target = orig
             if target < today:
@@ -268,8 +313,7 @@ def _habits(db, today):
     iso = today.isoformat()
     out = []
     for h in db.query(Habit).filter(Habit.archived == False).all():  # noqa: E712
-        done = db.query(HabitLog).filter(HabitLog.habit_id == h.id, HabitLog.date == iso).first()
-        if not done:
+        if not habit_logs.is_done(db, h.id, iso):
             out.append(
                 _sig(
                     "habit",
@@ -325,10 +369,10 @@ def _health(db, today):
 
 
 def _budget(db, today):
-    from routes.money import _spending_by_cat
+    from services.money_stats import spending_by_category
 
     month = today.strftime("%Y-%m")
-    spent = _spending_by_cat(db, month)
+    spent = spending_by_category(db, month)
     out = []
     by_tag = None
     for b in db.query(Budget).all():
@@ -401,9 +445,9 @@ def _anomalies(db, today, month, spent):
 
 
 def _accounts(db, today):
-    from routes.money import _balances
+    from services.money_stats import balance_deltas
 
-    bal = _balances(db)
+    bal = balance_deltas(db)
     out = []
     out.extend(_tax_reminder(db, today))  # 2f - quarterly estimated-tax set-aside (gated)
     for a in db.query(Account).filter(Account.archived == False).all():  # noqa: E712
@@ -472,7 +516,7 @@ def _mail(db, today):
     from services.mail import is_vip
 
     vips = load_settings().get("mail_vips", [])
-    now_iso = datetime.utcnow().isoformat()
+    now_iso = datetime.now(UTC).replace(tzinfo=None).isoformat()
     out = []
     rows = (
         db.query(CachedMessage)
@@ -555,16 +599,40 @@ _COLLECTORS = {
 }
 
 
-def gather(db, today=None, *, categories=None) -> list:
+def gather(db, today=None, *, categories=None, timezone_name=None, unavailable=None) -> list:
     """compute every current signal. `categories` limits the families (None = all).
     pure read - callers that want to roll subscriptions forward must do that
-    themselves before calling (today.py does)."""
-    today = today or date.today()
+    themselves before calling (today.py does). `unavailable`, when supplied,
+    collects source names that could not be read; missing is not an empty result."""
+    today = today or calendar_today(timezone_name)
     cats = set(categories) if categories else set(CATEGORIES)
+    missing = unavailable if unavailable is not None else set()
+    finance_rows = {}
+    if cats & _FINANCE_CATEGORIES:
+        from services import actual_finance
+
+        with actual_finance.AUTHORITY_LOCK:
+            try:
+                canonical = actual_finance.is_canonical(db)
+            except actual_finance.ActualFinanceError:
+                log.warning("Finance signals unavailable: ledger authority could not be read")
+                missing.add("finance")
+            else:
+                if "sub" in cats:
+                    finance_rows["sub"] = _subs(db, today, canonical=canonical, unavailable=missing)
+                if not canonical:
+                    for name in ("budget", "account"):
+                        if name in cats:
+                            finance_rows[name] = _COLLECTORS[name](db, today)
     out = []
     for name in CATEGORIES:
         if name in cats:
-            out.extend(_COLLECTORS[name](db, today))
+            if name in _FINANCE_CATEGORIES:
+                out.extend(finance_rows.get(name, ()))
+            elif name == "reminder":
+                out.extend(_reminders(db, today, timezone_name=timezone_name))
+            else:
+                out.extend(_COLLECTORS[name](db, today))
     out.sort(key=lambda s: -s["urgency"])
     return out
 
@@ -581,7 +649,7 @@ def by_category(sigs) -> dict:
 # gather() (which stays pure + runs on every page load). synthesize() is a pure read.
 def record_snapshot(db, sigs, *, keep_days=30, now=None):
     """persist the current signal set as one snapshot, then trim history older than keep_days."""
-    now = now or datetime.utcnow()
+    now = now or datetime.now(UTC).replace(tzinfo=None)
     n = 0
     for sg in sigs:
         db.add(
@@ -602,7 +670,7 @@ def record_snapshot(db, sigs, *, keep_days=30, now=None):
 def synthesize(db, now=None, *, window_days=14, trend_min_delta=1.0, corr_min_frac=0.5):
     """read recent snapshot history and emit DERIVED signals (trend:<cat>, corr:<a>:<b>) with an
     `explain`. pure read. needs >=2 distinct snapshot times to say anything."""
-    now = now or datetime.utcnow()
+    now = now or datetime.now(UTC).replace(tzinfo=None)
     rows = (
         db.query(SignalSnapshot)
         .filter(SignalSnapshot.ts >= now - timedelta(days=window_days))

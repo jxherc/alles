@@ -17,34 +17,53 @@ def _block(selector):
 
 
 class ToggleSwitchTests(unittest.TestCase):
-    def test_switch_track_is_pill(self):
+    def test_switch_target_is_separate_from_visible_track(self):
         body = _block(".s-switch")
+        self.assertIn("width: 44px", body)
+        self.assertIn("height: 44px", body)
+        self.assertIn("background: transparent", body)
+        self.assertIn("border: 0", body)
+
+    def test_switch_track_is_pill(self):
+        body = _block(".s-switch::before")
+        self.assertIn("width: 42px", body)
+        self.assertIn("height: 24px", body)
         m = re.search(r"border-radius:\s*(\d+)px", body)
-        self.assertTrue(m, "no border-radius on .s-switch")
-        self.assertGreaterEqual(int(m.group(1)), 10, "track radius too small to read as a pill")
+        self.assertTrue(m, "no border-radius on the visible switch track")
+        self.assertGreaterEqual(int(m.group(1)), 12, "track radius too small to read as a pill")
 
     def test_switch_knob_is_round(self):
         self.assertIn("border-radius: 50%", _block(".s-switch::after"))
 
     def test_switch_on_moves_knob(self):
-        self.assertIn("left: 16px", _block(".s-switch.on::after"))
+        self.assertIn("left: 5px", _block(".s-switch::after"))
+        self.assertIn("left: 23px", _block('.s-switch:is(.on, [aria-checked="true"])::after'))
 
-    def test_switch_on_changes_background(self):
-        self.assertIn("var(--accent)", _block(".s-switch.on"))
+    def test_switch_on_changes_track_background(self):
+        self.assertRegex(
+            _block('.s-switch:is(.on, [aria-checked="true"])::before'),
+            r"background:[^;]+var\(--accent\)",
+        )
 
 
 class SegmentedControlTests(unittest.TestCase):
-    def test_seg_is_one_bordered_container(self):
-        body = _block(".seg")
-        self.assertIn("border:", body)
-        self.assertIn("overflow: hidden", body)
-
-    def test_seg_opts_are_divided(self):
-        self.assertIn("border-left:", _block(".seg-opt"))
-        self.assertIn("border-left: none", _block(".seg-opt:first-child"))
+    def test_seg_is_bare_until_picked(self):
+        # decision 0031: no outer line or dividers; only the picked option draws a line
+        self.assertNotIn("solid", _block(".seg"))
+        self.assertIn("border: 1px solid transparent", _block(".seg-opt"))
+        self.assertNotIn(".seg-opt:first-child", CSS)
+        self.assertIn("min-height: 44px", _block(".seg-opt"))
+        self.assertIn("var(--k-hover", _block(".seg-opt:hover"))
+        self.assertIn("var(--k-line-strong", _block(".seg-opt.active"))
 
     def test_seg_active_state_exists(self):
-        self.assertIn("var(--accent)", _block(".seg-opt.active"))
+        # neutral selection (decision 0019): raised surface and emphasis, never the accent.
+        # emphasis is a stroke, not a weight change, so the row keeps its width (decision 0032)
+        active = _block(".seg-opt.active")
+        self.assertIn("var(--k-raised", active)
+        self.assertIn("-webkit-text-stroke", active)
+        self.assertNotIn("font-weight", active)
+        self.assertNotIn("var(--accent)", active)
 
     def test_seg_sm_variant_exists(self):
         self.assertIn(".seg.seg-sm", CSS)

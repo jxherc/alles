@@ -14,23 +14,30 @@ import time
 from pathlib import Path
 from typing import AsyncGenerator
 
+from core.settings import build_aide_system_prompt, data_dir, load_settings
+
 from .deep_research import DeepResearcher
 
 log = logging.getLogger("aide.research")
 
-DATA_DIR = Path(__file__).parent.parent.parent / "data" / "research"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR: Path | None = None
 
 _tasks: dict[str, dict] = {}  # session_id → task state (live, in-memory)
 
 
+def task_dir() -> Path:
+    d = DATA_DIR or data_dir() / "research"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def _save_task(session_id: str, state: dict):
     dump = {k: v for k, v in state.items() if not k.startswith("_")}
-    (DATA_DIR / f"{session_id}.json").write_text(json.dumps(dump, indent=2), "utf-8")
+    (task_dir() / f"{session_id}.json").write_text(json.dumps(dump, indent=2), "utf-8")
 
 
 def _load_task(session_id: str) -> dict | None:
-    p = DATA_DIR / f"{session_id}.json"
+    p = task_dir() / f"{session_id}.json"
     if p.exists():
         try:
             return json.loads(p.read_text("utf-8"))
@@ -56,7 +63,7 @@ def cancel_task(session_id: str):
             r.cancel()
 
 
-# phase → human step line for the existing research.js UI
+# phase → human step line for streaming research clients
 def _map_event(ev: dict) -> dict | None:
     phase = ev.get("phase")
     if phase == "planning":
@@ -128,7 +135,12 @@ async def run_research(
             pass
 
     researcher = DeepResearcher(
-        base_url, api_key, model, max_rounds=max_rounds, progress_callback=cb
+        base_url,
+        api_key,
+        model,
+        max_rounds=max_rounds,
+        progress_callback=cb,
+        report_system_prompt=build_aide_system_prompt(load_settings()),
     )
     state["_researcher"] = researcher
 
@@ -182,7 +194,7 @@ async def run_research(
         yield {"type": "done", "report": report, "sources": sources[:15], "stats": stats}
 
         try:
-            from routes.webhooks import fire
+            from services.webhook_delivery import fire
 
             await asyncio.wait_for(
                 fire(

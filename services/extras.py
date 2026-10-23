@@ -1,7 +1,8 @@
-"""5e - gated optional extras (native macOS bindings + heavy local-ML). this is the registry +
-availability/gating only; the actual PhotoKit/EventKit/Keychain/CLIP/OCR implementations are
-platform-specific + optional-dep and land when the host can run them. an extra is usable only when its
-platform matches, its deps import, AND its opt-in setting is on.
+"""5e - gated optional extras (native macOS bindings + heavy local-ML).
+
+This registry reports platform/dependency availability. Settings-gated extras
+also require their opt-in flag; PhotoKit instead uses the explicit Gallery
+import action and the macOS system permission prompt as its opt-in boundary.
 """
 
 import importlib.util
@@ -25,10 +26,10 @@ EXTRAS = {
     },
     "photokit": {
         "name": "Apple Photos (PhotoKit)",
-        "description": "import + sync from the macOS Photos library.",
+        "description": "user-initiated import from the macOS Photos library.",
         "platforms": ("darwin",),
-        "requires": ("objc",),
-        "setting": "extra_photokit",
+        "requires": (),
+        "setting": None,  # clicking the Gallery action is the explicit opt-in
     },
     "eventkit": {
         "name": "Apple Calendar (EventKit)",
@@ -66,15 +67,23 @@ def available(key):
     plats = spec.get("platforms") or ()
     if plats and _platform() not in plats:
         return False
+    if key == "photokit":
+        try:
+            from services import photokit
+
+            return bool(photokit.status()["available"])
+        except Exception:
+            return False
     return all(_has_module(m) for m in spec.get("requires", ()))
 
 
 def enabled(key, settings):
-    """available AND the user has opted in via the setting."""
+    """Available and, where configured, opted in through a setting."""
     spec = EXTRAS.get(key)
     if not spec or not available(key):
         return False
-    return bool((settings or {}).get(spec["setting"], False))
+    setting = spec.get("setting")
+    return available(key) if not setting else bool((settings or {}).get(setting, False))
 
 
 def status(settings):
@@ -97,7 +106,7 @@ def status(settings):
                 "description": spec["description"],
                 "available": avail,
                 "enabled": enabled(key, settings),
-                "setting": spec["setting"],
+                "setting": spec.get("setting"),
                 "reason": reason,
             }
         )

@@ -1,23 +1,16 @@
-import asyncio
-import hashlib
-import hmac
 import json
-import logging
 import secrets
-from datetime import datetime
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import SessionLocal, Webhook, get_db
+from core.database import Webhook, get_db
+from services.webhook_delivery import send_test
 
 router = APIRouter(prefix="/api")
-log = logging.getLogger("aide.webhooks")
 
 _VALID_EVENTS = {"message", "research_done", "session_created", "session_renamed"}
-_RETRIES = 3  # total attempts per delivery
 
 
 def _fmt(w: Webhook) -> dict:
@@ -33,36 +26,6 @@ def _fmt(w: Webhook) -> dict:
         "last_triggered": w.last_triggered.isoformat() if w.last_triggered else None,
         "created_at": w.created_at.isoformat(),
     }
-
-
-def _sign(secret: str, raw: bytes) -> str:
-    return "sha256=" + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
-
-
-async def _deliver(w: Webhook, body: dict) -> tuple[str, str]:
-    """post to one hook with signature + retries. returns (status, error)."""
-    from services.net_guard import is_safe_url
-
-    if not is_safe_url(w.url):  # SSRF: a hook url can't target the app's own loopback / metadata
-        return "error", "blocked: non-public url"
-    raw = json.dumps(body).encode()
-    headers = {"content-type": "application/json"}
-    if w.secret:
-        headers["x-alles-signature"] = _sign(w.secret, raw)
-    err = ""
-    async with httpx.AsyncClient(timeout=5) as c:
-        for attempt in range(_RETRIES):
-            try:
-                r = await c.post(w.url, content=raw, headers=headers)
-                if r.status_code < 400:
-                    return "ok", ""
-                err = f"http {r.status_code}"
-            except Exception as e:
-                err = str(e)
-            if attempt < _RETRIES - 1:  # back off between tries, don't sleep after the last one
-                await asyncio.sleep(0.5 * (attempt + 1))
-    log.warning(f"webhook {w.name} failed after {_RETRIES}: {err}")
-    return "error", err
 
 
 @router.get("/webhooks")
@@ -124,31 +87,8 @@ def valid_events():
 @router.post("/webhooks/{wid}/test")
 async def test_webhook(wid: str):
     """send a sample payload so the user can confirm the endpoint receives + verifies it."""
-    db = SessionLocal()
-    try:
-        w = db.get(Webhook, wid)
-        if not w:
-            raise HTTPException(404)
-        status, err = await _deliver(w, {"event": "test", "data": {"ok": True}})
-        w.last_status, w.last_error, w.last_triggered = status, err, datetime.utcnow()
-        db.commit()
-        return {"status": status, "error": err}
-    finally:
-        db.close()
-
-
-async def fire(event: str, payload: dict):
-    """fire all enabled webhooks for an event — call from routes, fire-and-forget"""
-    db = SessionLocal()
-    try:
-        hooks = db.query(Webhook).filter(Webhook.enabled == True).all()
-        targets = [h for h in hooks if event in h.events_list()]
-        if not targets:
-            return
-        body = {"event": event, "data": payload}
-        for h in targets:
-            status, err = await _deliver(h, body)
-            h.last_status, h.last_error, h.last_triggered = status, err, datetime.utcnow()
-        db.commit()
-    finally:
-        db.close()
+    result = await send_test(wid)
+    if result is None:
+        raise HTTPException(404)
+    status, error = result
+    return {"status": status, "error": error}

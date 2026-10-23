@@ -36,7 +36,7 @@ class SpineTests(unittest.TestCase):
             q = q.filter(db.MutationEvent.entity_kind == kind)
         return q.order_by(db.MutationEvent.ts).all()
 
-    def test_tracked_set_is_the_curated_eight(self):
+    def test_tracked_set_is_the_curated_seven(self):
         names = {m.__name__ for m in events.TRACKED}
         self.assertEqual(
             names,
@@ -45,7 +45,6 @@ class SpineTests(unittest.TestCase):
                 "Transaction",
                 "Subscription",
                 "CalendarEvent",
-                "Note",
                 "JournalEntry",
                 "Habit",
                 "ProactiveItem",

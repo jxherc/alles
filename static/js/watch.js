@@ -3,8 +3,9 @@
 // summary aide already tracks. hand-drawn SVG sparklines, no chart lib. distinct from
 // the `system` app (which watches this machine).
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js';
+import { initCustomDropdown } from './dropdown.js?v=212';
 import { confirm as dlgConfirm } from './dialog.js';
+import { formatNumber } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -14,11 +15,18 @@ let _statusCfg = { enabled: false };
 let _editing = null;
 let _adding = false;
 let _poll = null;
+let _loadSequence = 0;
+let _loadError = '';
+let _statusError = '';
+let _statusLoaded = false;
+let _statusPending = false;
+const _deleting = new Set();
 
-export function initWatch() {
-  loadWatch();
+export function initWatch(fetcher = fetch) {
+  const loading = loadWatch(fetcher);
   _startPoll();
   document.addEventListener('visibilitychange', _onVis);
+  return loading;
 }
 
 function _onVis() {
@@ -28,17 +36,30 @@ function _onVis() {
 function _startPoll() { _stopPoll(); _poll = setInterval(() => { if (document.hidden || document.getElementById('watch-view')?.style.display === 'none') return; _refreshQuiet(); }, 15000); }
 function _stopPoll() { if (_poll) { clearInterval(_poll); _poll = null; } }
 
-export async function loadWatch() {
-  try {
-    _mons = (await fetch('/api/watch/overview').then(r => r.json())).monitors || [];
-  } catch { _mons = []; }
-  try {
-    _ai = await fetch('/api/usage/summary').then(r => r.json());
-  } catch { _ai = null; }
-  try {
-    _statusCfg = await fetch('/api/status/config').then(r => r.json());
-  } catch { _statusCfg = { enabled: false }; }
+export async function loadWatch(fetcher = fetch) {
+  const sequence = ++_loadSequence;
+  const [monitors, usage, status] = await Promise.allSettled([
+    watchJson(fetcher, '/api/watch/overview', undefined, value => Array.isArray(value?.monitors)
+      && value.monitors.every(item => item && typeof item.id === 'string' && typeof item.name === 'string')),
+    watchJson(fetcher, '/api/usage/summary'),
+    watchJson(fetcher, '/api/status/config', undefined, value => typeof value?.enabled === 'boolean'),
+  ]);
+  if (sequence !== _loadSequence) return;
+  _loadError = monitors.status === 'rejected' ? monitors.reason.message : '';
+  if (monitors.status === 'fulfilled') _mons = monitors.value.monitors;
+  _ai = usage.status === 'fulfilled' ? usage.value : null;
+  _statusError = status.status === 'rejected' ? status.reason.message : '';
+  _statusLoaded = status.status === 'fulfilled';
+  if (_statusLoaded) _statusCfg = status.value;
   _render();
+}
+
+async function watchJson(request, path, options, valid = value => value && typeof value === 'object') {
+  const response = await request(path, options);
+  const value = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(typeof value?.detail === 'string' ? value.detail : `request failed (${response.status}); try again`);
+  if (!valid(value)) throw new Error('the server response was not confirmed; try again');
+  return value;
 }
 
 // a quiet refresh that doesn't blow away an open add/edit form
@@ -108,18 +129,19 @@ function _render() {
   const cards = _mons.map(m => m.id === _editing ? _editCard(m) : _card(m)).join('');
   const grid = _mons.length
     ? `<div class="watch-grid">${cards}</div>`
-    : (_adding ? '' : `<div class="watch-empty">nothing watched yet — add a site, a <code>/health</code> endpoint, or a cert to keep an eye on. add one below.</div>`);
+    : (_adding || _loadError ? '' : `<div class="watch-empty">nothing watched yet: add a site, a <code>/health</code> endpoint, or a cert to keep an eye on. add one below.</div>`);
 
   body.innerHTML = `
     <div class="watch-bar">
-      <div class="watch-summary">${sumBits.join(' · ') || 'no monitors'}</div>
+      <div class="watch-summary">${_loadError ? (_mons.length ? 'last loaded monitors' : 'monitor status unavailable') : sumBits.join(' · ') || 'no monitors'}</div>
       <div class="watch-bar-actions">
         ${_statusCfg.enabled ? `<a class="btn" href="/status" target="_blank" rel="noopener" title="public status page">status page ↗</a>` : ''}
-        <button class="btn${_statusCfg.enabled ? ' primary' : ''}" id="watch-status-toggle" title="toggle the public /status page">status: ${_statusCfg.enabled ? 'public' : 'off'}</button>
+        <button type="button" class="btn" id="watch-status-toggle" aria-pressed="${!!_statusCfg.enabled}" title="toggle the public /status page"${_statusPending || !_statusLoaded ? ' disabled' : ''}${_statusPending ? ' aria-busy="true"' : ''}>status: ${_statusLoaded ? (_statusCfg.enabled ? 'public' : 'off') : 'unavailable'}</button>
         <button class="btn" id="watch-refresh-all">${_si('refresh')} refresh all</button>
         <button class="btn primary" id="watch-add-toggle">${_si('plus')} monitor</button>
       </div>
     </div>
+    ${_loadError || _statusError ? `<div class="watch-empty" role="alert">${_loadError ? `could not load monitors: ${esc(_loadError)}` : ''}${_statusError ? `<div>could not read public status settings: ${esc(_statusError)}</div>` : ''} <button class="btn" id="watch-retry">retry</button></div>` : ''}
     ${_aiCard()}
     ${_adding ? _addForm() : ''}
     ${grid}
@@ -139,9 +161,9 @@ function _aiCard() {
       <div class="watch-ai-stats">
         <div class="watch-ai-stat"><b>${fmt(_ai.total_tokens || 0)}</b><span>total tokens</span></div>
         <div class="watch-ai-stat"><b>${fmt(thisMonth ? thisMonth.total : 0)}</b><span>this month</span></div>
-        <div class="watch-ai-stat"><b>${(_ai.total_messages || 0).toLocaleString()}</b><span>messages</span></div>
+        <div class="watch-ai-stat"><b>${formatNumber(_ai.total_messages || 0)}</b><span>messages</span></div>
       </div>
-      ${top.length ? `<div class="watch-ai-models">${top.map(m => `<span title="${esc(m.name)}: ${m.total.toLocaleString()} tok">${esc(m.name)} · ${fmt(m.total)}</span>`).join('')}</div>` : ''}
+      ${top.length ? `<div class="watch-ai-models">${top.map(m => `<span title="${esc(m.name)}: ${formatNumber(m.total)} tok">${esc(m.name)} · ${fmt(m.total)}</span>`).join('')}</div>` : ''}
     </div>`;
 }
 
@@ -168,7 +190,7 @@ function _card(m) {
       <div class="watch-actions">
         <button class="icon-btn" data-act="check" title="check now">${_si('refresh')}</button>
         <button class="icon-btn" data-act="edit" title="edit">${_si('edit')}</button>
-        <button class="icon-btn danger" data-act="del" title="delete">${_si('trash')}</button>
+        <button class="icon-btn danger" data-act="del" title="delete"${_deleting.has(m.id) ? ' disabled aria-busy="true"' : ''}>${_si('trash')}</button>
       </div>
     </div>`;
 }
@@ -220,12 +242,38 @@ function _wire(body) {
   body.querySelectorAll('.custom-select').forEach(initCustomDropdown);
 
   $('watch-refresh-all')?.addEventListener('click', _checkAll);
+  $('watch-retry')?.addEventListener('click', async () => {
+    const button = $('watch-retry');
+    button.disabled = true;
+    await loadWatch();
+    if (document.activeElement === document.body) ($('watch-retry') || $('watch-add-toggle'))?.focus();
+  });
   $('watch-add-toggle')?.addEventListener('click', () => { _adding = !_adding; _editing = null; _render(); });
   $('watch-status-toggle')?.addEventListener('click', async () => {
+    if (_statusPending || !_statusLoaded) return;
+    const button = $('watch-status-toggle');
     const next = !_statusCfg.enabled;
-    _statusCfg = await fetch('/api/status/config', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: next }) }).then(r => r.json());
-    toast(next ? 'status page is now public at /status' : 'status page turned off', next ? 'success' : 'info');
-    _render();
+    _statusPending = true;
+    button.disabled = true; button.setAttribute('aria-busy', 'true');
+    try {
+      const saved = await watchJson(fetch, '/api/status/config', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: next }) }, value => value?.enabled === next);
+      ++_loadSequence;
+      _statusCfg = saved;
+      if (button.isConnected) {
+        toast(next ? 'status page is now public at /status' : 'status page turned off', next ? 'success' : 'info');
+        _render();
+      }
+    } catch (error) { toast(error.message || 'status change failed; try again', 'error'); }
+    finally {
+      _statusPending = false;
+      const current = $('watch-status-toggle');
+      if (current) {
+        current.disabled = !_statusLoaded; current.removeAttribute('aria-busy');
+        current.textContent = `status: ${_statusLoaded ? (_statusCfg.enabled ? 'public' : 'off') : 'unavailable'}`;
+        current.setAttribute('aria-pressed', String(!!_statusCfg.enabled));
+        if (document.activeElement === document.body) current.focus();
+      }
+    }
   });
 
   // add form
@@ -248,11 +296,27 @@ function _wire(body) {
         return;
       }
       if (act === 'del') {
+        if (_deleting.has(id)) return;
+        _deleting.add(id);
         const m = _mons.find(x => x.id === id);
-        if (!await dlgConfirm(`stop watching ${m?.name || 'this'}?`)) return;
-        await fetch(`/api/watch/${id}`, { method: 'DELETE' });
-        toast('removed', 'success');
-        loadWatch();
+        try {
+          if (!await dlgConfirm(`stop watching ${m?.name || 'this'}?`)) return;
+          btn.disabled = true; btn.setAttribute('aria-busy', 'true');
+          await watchJson(fetch, `/api/watch/${id}`, { method: 'DELETE' }, value => value?.ok === true);
+          ++_loadSequence;
+          _mons = _mons.filter(item => item.id !== id);
+          $('watch-body')?.querySelector(`.watch-card[data-id="${CSS.escape(id)}"]`)?.remove();
+          if (_editing === id) _editing = null;
+          toast('removed', 'success');
+          await _refreshQuiet();
+          if (document.activeElement === document.body) $('watch-add-toggle')?.focus();
+        } catch (error) { toast(error.message || 'removal failed; try again', 'error'); }
+        finally {
+          _deleting.delete(id);
+          const current = $('watch-body')?.querySelector(`.watch-card[data-id="${CSS.escape(id)}"] [data-act="del"]`) || btn;
+          current.disabled = false; current.removeAttribute('aria-busy');
+          if (current.isConnected && document.activeElement === document.body) current.focus();
+        }
         return;
       }
       if (act === 'save') {

@@ -24,6 +24,24 @@ class VaultTests(unittest.TestCase):
         vault_md.write("notes/hello.md", "updated [[world]]")
         self.assertEqual(vault_md.read("notes/hello.md")["content"], "updated [[world]]")
 
+    def test_unique_create_allocates_without_replacing_an_existing_note(self):
+        vault_md.create("capture.md", "owner original")
+
+        created = vault_md.create_unique("capture", "new capture")
+
+        self.assertEqual(created["path"], "capture 2.md")
+        self.assertEqual(vault_md.read("capture.md")["content"], "owner original")
+        self.assertEqual(vault_md.read("capture 2.md")["content"], "new capture")
+
+    def test_expected_hash_blocks_stale_write_and_atomic_temp_is_cleaned(self):
+        first = vault_md.write("conflict.md", "first")
+        self.assertEqual(vault_md.read("conflict.md")["hash"], first["hash"])
+        vault_md.write("conflict.md", "external")
+        with self.assertRaises(vault_md.DocumentConflictError):
+            vault_md.write("conflict.md", "stale", expected_hash=first["hash"])
+        self.assertEqual(vault_md.read("conflict.md")["content"], "external")
+        self.assertEqual(list(Path(self.tmp.name).glob(".conflict.md.*.tmp")), [])
+
     def test_tree_nests_and_lists_md_only(self):
         vault_md.create("a.md")
         vault_md.create("sub/b.md")
@@ -64,13 +82,41 @@ class VaultTests(unittest.TestCase):
         names = {b["name"] for b in bl}
         self.assertEqual(names, {"one", "two"})  # case-insensitive, excludes self
 
-    def test_wikilink_with_alias_and_heading(self):
-        vault_md.write("x.md", "[[Note|shown text]] and [[Other#section]]")
-        self.assertEqual(vault_md.outgoing_links("x.md"), ["Note", "Other"])
+    def test_backlinks_match_alias_and_heading_targets(self):
+        vault_md.write("target.md", "i am the target")
+        vault_md.write("alias.md", "[[target|shown text]]")
+        vault_md.write("heading.md", "[[Target#section]]")
+        vault_md.write("other.md", "[[targeted]]")
+        names = {b["name"] for b in vault_md.backlinks("target")}
+        self.assertEqual(names, {"alias", "heading"})
 
     def test_path_traversal_blocked(self):
         with self.assertRaises(ValueError):
             vault_md.read("../../etc/passwd")
+
+    def test_symlink_inside_vault_cannot_escape(self):
+        with tempfile.TemporaryDirectory() as outside:
+            secret = Path(outside) / "secret.md"
+            secret.write_text("private")
+            link = Path(self.tmp.name) / "outside"
+            link.symlink_to(outside, target_is_directory=True)
+            with self.assertRaises(ValueError):
+                vault_md.read("outside/secret.md")
+            with self.assertRaises(ValueError):
+                vault_md.write("outside/new.md", "no")
+            with self.assertRaises(ValueError):
+                vault_md.delete("outside/secret.md")
+
+    def test_discovery_does_not_follow_an_external_markdown_symlink(self):
+        with tempfile.TemporaryDirectory() as outside:
+            secret = Path(outside) / "secret.md"
+            secret.write_text("syntheticprivate [[old]] #secret", "utf-8")
+            (Path(self.tmp.name) / "linked.md").symlink_to(secret)
+
+            self.assertNotIn("linked", vault_md.note_names())
+            self.assertEqual(vault_md.full_text_search("syntheticprivate"), [])
+            self.assertEqual(vault_md.rewrite_links("old", "new"), [])
+            self.assertEqual(secret.read_text("utf-8"), "syntheticprivate [[old]] #secret")
 
     def test_search_ranks_prefix(self):
         vault_md.create("alpha.md")
@@ -147,7 +193,6 @@ class VaultTests(unittest.TestCase):
         self.assertIn(("about", "home"), pairs)
         home = next(n for n in g["nodes"] if n["id"] == "home")
         self.assertEqual(home["degree"], 3)  # 2 out + 1 in
-
 
     def test_set_cell_keeps_a_list_prop_a_list(self):
         # editing a list-valued frontmatter cell must not flatten it to a comma string

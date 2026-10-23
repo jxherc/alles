@@ -147,7 +147,7 @@ def main():
 
         # ---- after unlock, the hidden photo lists ----
         pg.fill("#_di", "test-master-7a")
-        pg.eval_on_selector("#_dy", "el => el.click()")
+        pg.eval_on_selector("[data-dialog-confirm]", "el => el.click()")
         pg.wait_for_selector('.photos-cell[data-id="%s"]' % id2, timeout=8000)
         hid_ids = grid_ids()
         r["hidden_album_lists_after_unlock"] = id2 in hid_ids and id0 not in hid_ids

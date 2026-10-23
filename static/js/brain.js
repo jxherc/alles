@@ -1,17 +1,23 @@
-export async function loadBrainPanel() {
+import { formatNumber } from './i18n.js';
+let loadSequence = 0;
+
+export async function loadBrainPanel(fetcher = fetch) {
+  // The refresh button supplies a click event; tests may supply a fetch function.
+  if (typeof fetcher !== 'function') fetcher = fetch;
   const statsEl = document.getElementById('brain-stats');
   const contextEl = document.getElementById('brain-context');
   const memoriesEl = document.getElementById('brain-memories');
   if (!statsEl || !contextEl || !memoriesEl) return;
+  const sequence = ++loadSequence;
 
-  const [memories, history, insights, distilled, proxStats, settings] = await Promise.all([
-    fetch('/api/memories').then(r => r.json()).catch(() => []),
-    _loadCurrentHistory(),
-    fetch('/api/insights').then(r => r.json()).catch(() => []),
-    fetch('/api/memory/distilled').then(r => r.json()).catch(() => []),
-    fetch('/api/proactive/stats').then(r => r.json()).catch(() => ({})),
-    fetch('/api/settings').then(r => r.json()).catch(() => ({})),
+  const [memories, history, insights, distilled, settings] = await Promise.all([
+    _loadList(fetcher, '/api/memories'),
+    _loadCurrentHistory(fetcher).catch(() => null),
+    _loadList(fetcher, '/api/insights'),
+    _loadList(fetcher, '/api/memory/distilled'),
+    fetcher('/api/settings').then(r => r.ok ? r.json() : Promise.reject(new Error('settings unavailable'))).catch(() => null),
   ]);
+  if (sequence !== loadSequence) return;
 
   const messages = history?.messages || [];
   const session = history?.session || window._currentSession || null;
@@ -19,24 +25,24 @@ export async function loadBrainPanel() {
   const aiCount = messages.filter(m => m.role === 'assistant').length;
   const chars = messages.reduce((sum, m) => sum + String(m.content || '').length, 0);
   const approxTokens = Math.ceil(chars / 4);
-  const pinned = memories.filter(m => m.pinned).length;
+  const pinned = memories?.filter(m => m.pinned).length;
 
   statsEl.innerHTML = [
-    _stat('memories', memories.length),
-    _stat('pinned', pinned),
+    _stat('memories', memories?.length ?? 'unavailable'),
+    _stat('pinned', pinned ?? 'unavailable'),
     _stat('messages', messages.length),
-    _stat('tokens', approxTokens.toLocaleString()),
+    _stat('tokens', formatNumber(approxTokens)),
   ].join('');
 
   contextEl.innerHTML = `
     <div><span>session</span><strong>${_esc(session?.name || 'none')}</strong></div>
     <div><span>model</span><strong>${_esc(session?.model || document.getElementById('model-label')?.textContent || 'no model')}</strong></div>
     <div><span>turns</span><strong>${userCount} user / ${aiCount} ai</strong></div>
-    <div><span>context estimate</span><strong>${approxTokens.toLocaleString()} tokens</strong></div>
+    <div><span>context estimate</span><strong>${formatNumber(approxTokens)} tokens</strong></div>
   `;
 
-  const recent = memories.slice(0, 6);
-  memoriesEl.innerHTML = recent.length
+  const recent = memories?.slice(0, 6);
+  memoriesEl.innerHTML = !recent ? _loadError('memories') : recent.length
     ? recent.map(m => `<div class="brain-memory">
         <span>${_esc(m.category || 'memory')}</span>
         <div>${_esc(m.text || '')}</div>
@@ -45,13 +51,27 @@ export async function loadBrainPanel() {
 
   _renderInsights(insights, settings);
   _renderUserModel(distilled, settings);
-  _renderProxStats(proxStats, settings);
   _bindButtons();
+}
+
+async function _loadList(fetcher, url) {
+  try {
+    const response = await fetcher(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return Array.isArray(data) ? data : null;
+  } catch { return null; }
+}
+
+function _loadError(label) {
+  return `<div class="brain-empty" role="status">could not load ${label}. use refresh to try again.</div>`;
 }
 
 function _renderInsights(items, settings) {
   const el = document.getElementById('brain-insights');
   if (!el) return;
+  if (!items) { el.innerHTML = _loadError('insights'); return; }
+  if (!items.length && !settings) { el.innerHTML = _loadError('insight settings'); return; }
   if (!items.length) {
     el.innerHTML = settings.insights_enabled
       ? '<div class="brain-empty">nothing yet - hit generate to look for cross-domain patterns.</div>'
@@ -85,8 +105,10 @@ function _renderInsights(items, settings) {
 function _renderUserModel(facts, settings) {
   const el = document.getElementById('brain-usermodel');
   if (!el) return;
+  if (!facts) { el.innerHTML = _loadError('learned facts'); return; }
   const live = (facts || []).filter(f => !f.vetoed);
   if (!live.length) {
+    if (!settings) { el.innerHTML = _loadError('learning settings'); return; }
     el.innerHTML = settings.user_model_distill
       ? '<div class="brain-empty">nothing distilled yet - hit refresh once you have some chat history.</div>'
       : _disabledHint('learning about you is off', 'intelligence');
@@ -122,26 +144,6 @@ function _renderUserModel(facts, settings) {
   }));
 }
 
-function _renderProxStats(stats, settings) {
-  const el = document.getElementById('brain-proxstats');
-  if (!el) return;
-  const cats = Object.entries(stats || {});
-  if (!cats.length) {
-    el.innerHTML = settings.pidx_proactive_enabled
-      ? '<div class="brain-empty">no clicks yet - aide learns which cards you act on over time.</div>'
-      : _disabledHint('the proactive agent is off', 'proactive');
-    return;
-  }
-  // most-acted first
-  cats.sort((a, b) => (b[1].act_rate || 0) - (a[1].act_rate || 0));
-  el.innerHTML = cats.map(([cat, c]) => `
-    <div class="prox-stat-row">
-      <span class="prox-stat-cat">${_esc(cat)}</span>
-      <span class="prox-stat-nums">${c.acted || 0} acted / ${c.dismissed || 0} dismissed / ${c.ignored || 0} ignored</span>
-      <span class="prox-stat-weight" title="learned weight on this category">x${(c.weight == null ? 1 : c.weight).toFixed(2)}</span>
-    </div>`).join('');
-}
-
 function _disabledHint(label, pane) {
   return `<div class="brain-empty">${_esc(label)}.
     <button class="act-btn brain-enable" data-open-pane="${pane}">turn it on</button></div>`;
@@ -173,10 +175,10 @@ function _bindButtons() {
   });
 }
 
-async function _loadCurrentHistory() {
+async function _loadCurrentHistory(fetcher = fetch) {
   const sid = window._currentSession?.id;
   if (!sid) return null;
-  const r = await fetch(`/api/sessions/${sid}/history`);
+  const r = await fetcher(`/api/sessions/${sid}/history`);
   if (!r.ok) return null;
   return r.json();
 }

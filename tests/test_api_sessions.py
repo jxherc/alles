@@ -1,9 +1,11 @@
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
+from sqlalchemy import event
+
+from core.database import Message, ModelEndpoint, Project, Session
 from tests._client import ApiTest
-from core.database import Session, Message, ModelEndpoint
 
 
 class SessionsApiTest(ApiTest):
@@ -35,6 +37,40 @@ class SessionsApiTest(ApiTest):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json(), {"today": [], "yesterday": [], "earlier": []})
 
+    def test_empty_session_cleanup_is_bulk(self):
+        from app import _cleanup_empty_sessions
+
+        d = self.db()
+        empties = [Session(name=f"empty {i}") for i in range(5)]
+        starred = Session(name="keep starred", starred=True)
+        chat = Session(name="keep chat")
+        d.add_all(empties + [starred, chat])
+        d.flush()
+        d.add(Message(session_id=chat.id, role="user", content="hi"))
+        ids = {s.id for s in empties}
+        keep = {starred.id, chat.id}
+        d.commit()
+        d.close()
+
+        stmts = []
+
+        def track(_conn, _cursor, statement, *_args):
+            stmts.append(statement.lower())
+
+        event.listen(self.eng, "before_cursor_execute", track)
+        try:
+            _cleanup_empty_sessions()
+        finally:
+            event.remove(self.eng, "before_cursor_execute", track)
+
+        d = self.db()
+        left = {s.id for s in d.query(Session).all()}
+        d.close()
+        self.assertFalse(ids & left)
+        self.assertTrue(keep <= left)
+        self.assertFalse(any("count(" in s for s in stmts))
+        self.assertLessEqual(sum(s.lstrip().startswith("select") for s in stmts), 1)
+
     def test_create_then_listed_today(self):
         r = self.client.post("/api/sessions", json={"name": "hello chat"})
         self.assertEqual(r.status_code, 200)
@@ -45,6 +81,10 @@ class SessionsApiTest(ApiTest):
         self.assertEqual([s["id"] for s in lst["today"]], [sid])
 
     def test_create_with_persona_and_project(self):
+        db = self.db()
+        db.add(Project(id="proj-1", name="project"))
+        db.commit()
+        db.close()
         r = self.client.post(
             "/api/sessions", json={"name": "p", "persona_id": "persona-1", "project_id": "proj-1"}
         )
@@ -89,8 +129,9 @@ class SessionsApiTest(ApiTest):
 
     def _seed_chat_with_reply(self):
         d = self.db()
-        ep = ModelEndpoint(name="e", base_url="http://x", api_key="k",
-                           cached_models=json.dumps(["m1"]))
+        ep = ModelEndpoint(
+            name="e", base_url="http://x", api_key="k", cached_models=json.dumps(["m1"])
+        )
         d.add(ep)
         d.flush()
         s = Session(name="c", model="m1", endpoint_id=ep.id)
@@ -111,8 +152,9 @@ class SessionsApiTest(ApiTest):
             return "short version."
 
         with mock.patch("routes.chat.simple_complete", _fake):
-            r = self.client.post("/api/chat/rewrite",
-                                 json={"session_id": sid, "style": "shorter", "msg_id": mid})
+            r = self.client.post(
+                "/api/chat/rewrite", json={"session_id": sid, "style": "shorter", "msg_id": mid}
+            )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["content"], "short version.")
         # persisted
@@ -122,14 +164,16 @@ class SessionsApiTest(ApiTest):
 
     def test_rewrite_bad_style_400(self):
         sid, mid = self._seed_chat_with_reply()
-        r = self.client.post("/api/chat/rewrite",
-                             json={"session_id": sid, "style": "spicy", "msg_id": mid})
+        r = self.client.post(
+            "/api/chat/rewrite", json={"session_id": sid, "style": "spicy", "msg_id": mid}
+        )
         self.assertEqual(r.status_code, 400)
 
     def test_rewrite_missing_message_404(self):
         sid, _ = self._seed_chat_with_reply()
-        r = self.client.post("/api/chat/rewrite",
-                             json={"session_id": sid, "style": "shorter", "msg_id": "nope"})
+        r = self.client.post(
+            "/api/chat/rewrite", json={"session_id": sid, "style": "shorter", "msg_id": "nope"}
+        )
         self.assertEqual(r.status_code, 404)
 
     def test_incognito_hidden_from_list(self):
@@ -173,7 +217,7 @@ class SessionsApiTest(ApiTest):
     def test_edit_message_truncates_later(self):
         sid = self.client.post("/api/sessions", json={"name": "edit"}).json()["id"]
         d = self.db()
-        base = datetime.utcnow()
+        base = datetime.now(UTC).replace(tzinfo=None)
         m1 = Message(session_id=sid, role="user", content="first", timestamp=base)
         m2 = Message(
             session_id=sid, role="assistant", content="reply", timestamp=base + timedelta(seconds=1)

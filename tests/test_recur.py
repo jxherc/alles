@@ -60,6 +60,14 @@ class RecurTests(unittest.TestCase):
         occ = recur.expand(e, D("2026-06-01T00:00"), D("2026-06-04T00:00"))
         self.assertEqual([d.day for d in occ], [1, 3])
 
+    def test_except_accepts_parsed_list(self):
+        # regression (F11/F92): event_dict hands expand an already-parsed list, not a
+        # json string. _json_list used to json.loads() the list (TypeError) and silently
+        # drop every EXDATE on the agenda / free-time / booking paths.
+        e = ev(recurrence="daily", recur_except=["2026-06-02"])  # real list, not a string
+        occ = recur.expand(e, D("2026-06-01T00:00"), D("2026-06-04T00:00"))
+        self.assertEqual([d.day for d in occ], [1, 3])
+
     def test_count_counts_pre_exclusion(self):
         # COUNT=3 with the 2nd excluded → still ends at the 3rd generated (so days 1,3)
         e = ev(recurrence="daily", recur_count=3, recur_except=json.dumps(["2026-06-02"]))
@@ -72,11 +80,19 @@ class RecurTests(unittest.TestCase):
         # jan 31, feb 28 (clamped), mar 31
         self.assertEqual([(d.month, d.day) for d in occ], [(1, 31), (2, 28), (3, 31)])
 
+    def test_monthly_clamp_appears_in_single_day_window(self):
+        e = ev(start_dt="2026-01-31T09:00", recurrence="monthly")
+        feb = recur.expand(e, D("2026-02-28T00:00"), D("2026-03-01T00:00"))
+        mar = recur.expand(e, D("2026-03-31T00:00"), D("2026-04-01T00:00"))
+        self.assertEqual([d.isoformat(timespec="minutes") for d in feb], ["2026-02-28T09:00"])
+        self.assertEqual([d.isoformat(timespec="minutes") for d in mar], ["2026-03-31T09:00"])
+
     def test_yearly(self):
         e = ev(start_dt="2026-03-15T09:00", recurrence="yearly")
         occ = recur.expand(e, D("2026-01-01T00:00"), D("2029-01-01T00:00"))
-        self.assertEqual([(d.year, d.month, d.day) for d in occ],
-                         [(2026, 3, 15), (2027, 3, 15), (2028, 3, 15)])
+        self.assertEqual(
+            [(d.year, d.month, d.day) for d in occ], [(2026, 3, 15), (2027, 3, 15), (2028, 3, 15)]
+        )
 
     def test_yearly_interval(self):
         e = ev(start_dt="2026-03-15T09:00", recurrence="yearly", recur_interval=2)
@@ -88,8 +104,10 @@ class RecurTests(unittest.TestCase):
         # year (each step recomputes from the original start, so the day doesn't drift)
         e = ev(start_dt="2024-02-29T09:00", recurrence="yearly")
         occ = recur.expand(e, D("2024-01-01T00:00"), D("2029-01-01T00:00"))
-        self.assertEqual([(d.year, d.month, d.day) for d in occ],
-                         [(2024, 2, 29), (2025, 2, 28), (2026, 2, 28), (2027, 2, 28), (2028, 2, 29)])
+        self.assertEqual(
+            [(d.year, d.month, d.day) for d in occ],
+            [(2024, 2, 29), (2025, 2, 28), (2026, 2, 28), (2027, 2, 28), (2028, 2, 29)],
+        )
 
 
 if __name__ == "__main__":

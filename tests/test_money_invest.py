@@ -147,3 +147,16 @@ class MoneyInvestTests(ApiTest):
             "/api/money/alerts", params={"month": "2026-06", "as_of": "2026-06-15"}
         ).json()
         self.assertTrue(any(a["payee"] == "Cafe" for a in d["watch_hits"]))
+
+    def test_alerts_low_balance_keeps_legacy_opening_and_transaction_total(self):
+        db = self.db()
+        db.get(Account, self.aid).low_balance = 100
+        db.commit()
+        db.close()
+        self._txn(-950, "bills", "rent", date="2026-06-10")
+        response = self.client.get("/api/money/alerts?month=2026-06&as_of=2026-06-15")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json()["low_balance"],
+            [{"id": self.aid, "name": "Checking", "balance": 50.0, "threshold": 100.0}],
+        )

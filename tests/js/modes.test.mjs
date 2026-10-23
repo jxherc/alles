@@ -16,19 +16,73 @@ globalThis.document = {
   body: { classList: { toggle() {}, contains() { return false; } } },
 };
 
-const { permLabel, EFFORTS, getEffort, setEffort } = await import('../../static/js/modes.js');
+const {
+  permLabel,
+  getPermMode,
+  setPermMode,
+  EFFORTS,
+  getEffort,
+  setEffort,
+  REASONING_MODES,
+  getReasoningMode,
+  setReasoningMode,
+  getCustomEffort,
+  setCustomEffort,
+} = await import('../../static/js/modes.js');
 
 beforeEach(() => _store.clear());
 
 test('permLabel maps each mode', () => {
   assert.equal(permLabel('plan'), 'plan');
-  assert.equal(permLabel('full_auto'), 'auto');
-  assert.equal(permLabel('approve'), 'approve');
-  assert.equal(permLabel('something-else'), 'approve');  // unknown → approve
+  assert.equal(permLabel('approve'), 'ask for approval');
+  assert.equal(permLabel('something-else'), 'ask for approval');  // unknown → safe default
+  assert.equal(permLabel('full_access'), 'full access');
+  assert.equal(permLabel('full_auto'), 'auto mode');
+});
+
+test('a fresh browser defaults to safe auto mode', () => {
+  assert.equal(getPermMode(), 'full_auto');
+  assert.equal(permLabel(), 'auto mode');
+});
+
+test('invalid permission values fail closed to ask for approval', () => {
+  setPermMode('unrestricted');
+  assert.equal(getPermMode(), 'approve');
+  assert.equal(_store.get('aide-perm-mode'), 'approve');
 });
 
 test('EFFORTS is the expected ladder', () => {
-  assert.deepEqual(EFFORTS, ['low', 'medium', 'high', 'xhigh', 'max']);
+  assert.deepEqual(EFFORTS, ['low', 'medium', 'high', 'xhigh', 'max', 'deep_work', 'custom']);
+});
+
+test('reasoning is independent and remembered per model', () => {
+  assert.deepEqual(REASONING_MODES, ['automatic', 'on', 'off']);
+  assert.equal(getReasoningMode('deepseek-v4'), 'automatic');
+  setReasoningMode('off', 'deepseek-v4');
+  setReasoningMode('on', 'claude-sonnet');
+  assert.equal(getReasoningMode('deepseek-v4'), 'off');
+  assert.equal(getReasoningMode('claude-sonnet'), 'on');
+});
+
+test('invalid reasoning fails back to automatic', () => {
+  setReasoningMode('pretend', 'model');
+  assert.equal(getReasoningMode('model'), 'automatic');
+});
+
+test('custom effort is bounded and remembered per model', () => {
+  setCustomEffort('model-a', {
+    maxTurns: 999,
+    verification: 'thorough',
+    delegation: 'auto',
+    workflows: 'auto',
+  });
+  assert.deepEqual(getCustomEffort('model-a'), {
+    maxTurns: 64,
+    verification: 'thorough',
+    delegation: 'auto',
+    workflows: 'auto',
+  });
+  assert.equal(getCustomEffort('model-b').maxTurns, 24);
 });
 
 test('getEffort defaults to medium when nothing is stored', () => {
@@ -54,4 +108,10 @@ test('any setEffort also updates the global last-used (drives the unseen-model f
   setEffort('max', 'gpt-5');                   // most recent pick — even per-model — becomes last-used
   assert.equal(getEffort('unseen'), 'max');    // a model with no stored effort inherits it
   assert.equal(getEffort(), 'max');
+});
+
+test('invalid effort values reset to medium instead of reaching the runtime', () => {
+  setEffort('turbo', 'gpt-5');
+  assert.equal(getEffort('gpt-5'), 'medium');
+  assert.equal(getEffort(), 'medium');
 });

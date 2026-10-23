@@ -39,16 +39,22 @@ class MessageCountTests(ApiTest):
     def test_one_turn_counts_two_messages(self):
         sid, epid = self._seed()
         ep = self.db().get(ModelEndpoint, epid)
-        with mock.patch.object(chat_mod, "stream_chat", _fake_stream("hello")):
-            asyncio.run(_drive(
-                session_id=sid, user_text="hi", messages=[{"role": "user", "content": "hi"}],
-                ep=ep, model="m", db_factory=self.db,
-            ))
+        with mock.patch("services.chat_turn.stream_chat", _fake_stream("hello")):
+            asyncio.run(
+                _drive(
+                    session_id=sid,
+                    user_text="hi",
+                    messages=[{"role": "user", "content": "hi"}],
+                    ep=ep,
+                    model="m",
+                    db_factory=self.db,
+                )
+            )
         d = self.db()
         s = d.get(Session, sid)
         msgs = d.query(Message).filter(Message.session_id == sid).all()
-        self.assertEqual(len(msgs), 2)            # user + assistant rows
-        self.assertEqual(s.message_count, 2)      # count matches the rows
+        self.assertEqual(len(msgs), 2)  # user + assistant rows
+        self.assertEqual(s.message_count, 2)  # count matches the rows
 
     def test_errored_turn_counts_only_user(self):
         # model returns nothing -> only the user message is saved, count == 1
@@ -58,11 +64,17 @@ class MessageCountTests(ApiTest):
         async def empty(messages, base_url, api_key, model, **kw):
             yield {"error": "boom"}
 
-        with mock.patch.object(chat_mod, "stream_chat", empty):
-            asyncio.run(_drive(
-                session_id=sid, user_text="hi", messages=[{"role": "user", "content": "hi"}],
-                ep=ep, model="m", db_factory=self.db,
-            ))
+        with mock.patch("services.chat_turn.stream_chat", empty):
+            asyncio.run(
+                _drive(
+                    session_id=sid,
+                    user_text="hi",
+                    messages=[{"role": "user", "content": "hi"}],
+                    ep=ep,
+                    model="m",
+                    db_factory=self.db,
+                )
+            )
         d = self.db()
         s = d.get(Session, sid)
         msgs = d.query(Message).filter(Message.session_id == sid).all()

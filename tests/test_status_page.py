@@ -1,11 +1,12 @@
 """public status page for watch monitors — served at /status (no auth) when enabled."""
 
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
 import core.settings
-from core.database import Monitor, MonitorCheck
+from core.database import Monitor, MonitorCheck, _now
 from tests._client import ApiTest
 
 
@@ -40,9 +41,35 @@ class StatusPageTests(ApiTest):
         self.assertIn("My Status", r.text)
         self.assertIn("up", r.text)
 
+    def test_public_24h_uptime_matches_watch_after_200_checks(self):
+        db = self.db()
+        monitor = Monitor(name="Many checks", url="https://example.com", kind="http")
+        db.add(monitor)
+        db.flush()
+        now = _now()
+        db.add_all(
+            MonitorCheck(
+                monitor_id=monitor.id,
+                ts=now - timedelta(minutes=200 - index),
+                ok=index != 0,
+            )
+            for index in range(201)
+        )
+        db.commit()
+        db.close()
+        core.settings.save_settings({"status_page_enabled": True})
+
+        private = self.client.get("/api/watch/overview").json()["monitors"][0]
+        public = self.client.get("/status")
+        self.assertEqual(private["uptime_24h"], 99.5)
+        self.assertEqual(public.status_code, 200)
+        self.assertIn("99.5% 24h", public.text)
+
     def test_config_roundtrip(self):
         self.assertEqual(
-            self.client.put("/api/status/config", json={"enabled": True, "title": "Ops"}).status_code,
+            self.client.put(
+                "/api/status/config", json={"enabled": True, "title": "Ops"}
+            ).status_code,
             200,
         )
         cfg = self.client.get("/api/status/config").json()

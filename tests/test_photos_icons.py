@@ -20,6 +20,15 @@ def _photos_block():
     return head + lb
 
 
+def _photos_fn(name):
+    start = PHOTOS.index(f"function {name}")
+    nxt = PHOTOS.find("\nfunction ", start + 1)
+    exp = PHOTOS.find("\nexport function ", start + 1)
+    stops = [x for x in (nxt, exp) if x != -1]
+    end = min(stops) if stops else len(PHOTOS)
+    return PHOTOS[start:end]
+
+
 class GalleryIcons(unittest.TestCase):
     def test_no_emoji_in_photos_js(self):
         for g in GONE + ["★"]:
@@ -67,12 +76,30 @@ class GalleryIcons(unittest.TestCase):
         # the left rail builds each nav item's glyph through the central icon set (_si(ic))
         self.assertIn("photos-nav-item", PHOTOS)
         self.assertIn("_si(ic)", PHOTOS)
-        for name in ("'image'", "'map-pin'", "'sparkles'", "'folder'", "'heart'", "'lock'", "'trash'"):
+        for name in (
+            "'image'",
+            "'map-pin'",
+            "'sparkles'",
+            "'folder'",
+            "'heart'",
+            "'lock'",
+            "'trash'",
+        ):
             self.assertIn(name, PHOTOS, f"sidebar icon {name} missing")
 
     def test_video_badge_uses_play_icon(self):
         self.assertIn("_si('play')", PHOTOS)
         self.assertRegex(CSS, r"\.photos-vbadge\s+\.ic")
+
+    def test_trash_uses_shared_video_cell_markup(self):
+        block = PHOTOS[
+            PHOTOS.index("async function openPhotoTrash") : PHOTOS.index(
+                "async function uploadPhotos"
+            )
+        ]
+        self.assertIn("_cellHtml(p, null, null, restore, false)", block)
+        self.assertNotIn('<img loading="lazy" src="${p.thumb}" alt="">', block)
+        self.assertIn("extra = ''", _photos_fn("_cellHtml"))
 
 
 if __name__ == "__main__":

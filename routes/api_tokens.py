@@ -1,62 +1,60 @@
-import secrets, hashlib
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+import json
+import secrets
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
-from core.database import get_db, ApiToken
-from datetime import datetime
+
+from core.api_tokens import hash_token, normalize_scopes, token_scopes
+from core.auth import require_recent_owner
+from core.database import ApiToken, get_db
 
 router = APIRouter(prefix="/api")
 
 
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
-def _fmt(t: ApiToken, raw: str = "") -> dict:
+def _fmt(token: ApiToken, raw: str = "") -> dict:
     return {
-        "id": t.id,
-        "name": t.name,
-        "prefix": t.prefix,
-        "created_at": t.created_at.isoformat(),
-        "last_used_at": t.last_used_at.isoformat() if t.last_used_at else None,
-        **({"token": raw} if raw else {}),  # only shown once on creation
+        "id": token.id,
+        "name": token.name,
+        "prefix": token.prefix,
+        "scopes": list(token_scopes(token)),
+        "created_at": token.created_at.isoformat(),
+        "last_used_at": token.last_used_at.isoformat() if token.last_used_at else None,
+        **({"token": raw} if raw else {}),
     }
 
 
 @router.get("/tokens")
 def list_tokens(db: DbSession = Depends(get_db)):
-    return [_fmt(t) for t in db.query(ApiToken).order_by(ApiToken.created_at.desc()).all()]
+    return [_fmt(token) for token in db.query(ApiToken).order_by(ApiToken.created_at.desc()).all()]
 
 
 class TokenBody(BaseModel):
     name: str
+    scopes: list[str] = Field(default_factory=lambda: ["read"])
 
 
-@router.post("/tokens")
+@router.post("/tokens", dependencies=[Depends(require_recent_owner)])
 def create_token(body: TokenBody, db: DbSession = Depends(get_db)):
+    scopes = normalize_scopes(body.scopes)
     raw = "alles_" + secrets.token_urlsafe(32)
-    t = ApiToken(name=body.name, token_hash=_hash(raw), prefix=raw[:12])
-    db.add(t)
+    token = ApiToken(
+        name=body.name,
+        token_hash=hash_token(raw),
+        prefix=raw[:12],
+        scopes=json.dumps(scopes),
+    )
+    db.add(token)
     db.commit()
-    db.refresh(t)
-    return _fmt(t, raw)  # raw shown only here
+    db.refresh(token)
+    return _fmt(token, raw)
 
 
-@router.delete("/tokens/{tid}")
+@router.delete("/tokens/{tid}", dependencies=[Depends(require_recent_owner)])
 def delete_token(tid: str, db: DbSession = Depends(get_db)):
-    t = db.get(ApiToken, tid)
-    if not t:
+    token = db.get(ApiToken, tid)
+    if not token:
         raise HTTPException(404)
-    db.delete(t)
+    db.delete(token)
     db.commit()
     return {"ok": True}
-
-
-def verify_token(raw: str, db) -> bool:
-    h = _hash(raw)
-    t = db.query(ApiToken).filter(ApiToken.token_hash == h).first()
-    if not t:
-        return False
-    t.last_used_at = datetime.utcnow()
-    db.commit()
-    return True

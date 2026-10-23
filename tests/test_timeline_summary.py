@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from core.database import Account, Task, Transaction
 from tests._client import ApiTest
 
 # tasks are dated by created_at (utcnow), money by its date column — seed both on the
 # same UTC basis so "busiest day" is deterministic across the local-vs-UTC midnight split
-TODAY = datetime.utcnow().date()
+TODAY = datetime.now(UTC).date()
 
 
 class TimelineSummaryTests(ApiTest):
@@ -21,8 +21,10 @@ class TimelineSummaryTests(ApiTest):
         for i in range(3):
             d.add(Transaction(account_id=acct.id, date=today, amount=-(i + 1), payee=f"p{i}"))
         d.add(Transaction(account_id=acct.id, date=yest, amount=-9, payee="y"))
-        # 1 task added today
-        d.add(Task(title="a task", done=False))
+        # 1 task added on the same explicit UTC date. The full suite can cross UTC midnight
+        # after this module is imported, so relying on Task's live utcnow default is flaky.
+        task_time = datetime.combine(TODAY, datetime.min.time()) + timedelta(hours=12)
+        d.add(Task(title="a task", done=False, created_at=task_time))
         d.commit()
         d.close()
 

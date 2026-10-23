@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from unittest import mock
 
 from core.database import CachedMessage, MailAccount
 from services import mail as mailsvc
@@ -27,7 +28,17 @@ class MailTriageTests(ApiTest):
         self.aid = self.acct.id
         db.close()
 
-    def _msg(self, uid, sender, subject, date="2026-06-10", list_unsubscribe="", muted=False):
+    def _msg(
+        self,
+        uid,
+        sender,
+        subject,
+        date="2026-06-10",
+        list_unsubscribe="",
+        muted=False,
+        recipients="",
+        has_attachment=False,
+    ):
         db = self.db()
         db.add(
             CachedMessage(
@@ -35,10 +46,12 @@ class MailTriageTests(ApiTest):
                 folder="INBOX",
                 uid=str(uid),
                 sender=sender,
+                recipients=recipients,
                 subject=subject,
                 date=date,
                 date_ts=_ts(date),
                 seen=False,
+                has_attachment=has_attachment,
                 list_unsubscribe=list_unsubscribe,
                 muted=muted,
             )
@@ -92,6 +105,20 @@ class MailTriageTests(ApiTest):
         ).json()
         self.assertEqual([m["uid"] for m in d["messages"]], ["1"])
 
+    def test_adv_search_to(self):
+        self._msg(1, "boss@x.com", "from boss", recipients="me@x.com")
+        self._msg(2, "updates@x.com", "to boss", recipients="Boss <boss@x.com>")
+        d = self.client.get(f"/api/mail/adv-search/{self.aid}", params={"q": "to:boss"}).json()
+        self.assertEqual([m["uid"] for m in d["messages"]], ["2"])
+
+    def test_adv_search_has_attachment(self):
+        self._msg(1, "a@x.com", "plain")
+        self._msg(2, "b@x.com", "report", has_attachment=True)
+        d = self.client.get(
+            f"/api/mail/adv-search/{self.aid}", params={"q": "has:attachment"}
+        ).json()
+        self.assertEqual([m["uid"] for m in d["messages"]], ["2"])
+
     def test_adv_search_before_after(self):
         self._msg(1, "a@x.com", "early", date="2026-06-01")
         self._msg(2, "b@x.com", "late", date="2026-06-20")
@@ -115,7 +142,12 @@ class MailTriageTests(ApiTest):
     def test_archive_removes_from_cache(self):
         self._msg(1, "a@x.com", "keep")
         self._msg(2, "b@x.com", "bye")
-        self.client.post(f"/api/mail/archive/{self.aid}", json={"uid": "2"})
+        with mock.patch.object(mailsvc, "move_message", return_value={"ok": True}) as remote:
+            response = self.client.post(f"/api/mail/archive/{self.aid}", json={"uid": "2"})
+        remote.assert_called_once_with(mock.ANY, "2", "Archive", "INBOX")
+        self.assertEqual(remote.call_args.args[0]["imap_host"], "imap.x.com")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"archived": 1, "moved_on_server": True})
         uids = [
             m["uid"] for m in self.client.get(f"/api/mail/cached/{self.aid}").json()["messages"]
         ]

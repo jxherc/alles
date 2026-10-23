@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-density="compact">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Standalone KOKUEN universal app-language starter for Alles.">
+  <title>Alles universal app language - KOKUEN starter</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090909;
+      --panel: #0d0d0d;
+      --raised: #171717;
+      --hover: #141414;
+      --text: #eceae6;
+      --soft: #b9b5b0;
+      --muted: #85817c;
+      --quiet: #5f5c58;
+      --line: #292929;
+      --line-strong: #3a3a3a;
+      --accent: #9298ff;
+      --warning: #d5a265;
+      --danger: #df7474;
+      --success: #7ea98b;
+      --header: 52px;
+      --row: 44px;
+      --side: 224px;
+      --detail: 300px;
+      --ease: cubic-bezier(.2,.7,.2,1);
+    }
+
+    [data-theme="light"] {
+      color-scheme: light;
+      --bg: #f4f3f0;
+      --panel: #eeece8;
+      --raised: #e4e1dc;
+      --hover: #e9e7e2;
+      --text: #242321;
+      --soft: #55514c;
+      --muted: #77716a;
+      --quiet: #989189;
+      --line: #d5d0c9;
+      --line-strong: #bbb4ac;
+      --accent: #6269d8;
+      --warning: #946726;
+      --danger: #b54d4d;
+      --success: #477c56;
+    }
+
+    [data-density="comfortable"] { --row: 50px; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; background: var(--bg); color: var(--text); }
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button, input { appearance: none; color: inherit; }
+    button { border: 0; background: transparent; cursor: pointer; }
+    svg { display: block; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+
+    .skip-link {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      z-index: 60;
+      padding: 6px 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      background: var(--raised);
+      color: var(--text);
+      transform: translateY(-160%);
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.45; stroke-linecap: round; stroke-linejoin: round; }
+
+    .shell { min-height: 100dvh; display: grid; grid-template-rows: var(--header) minmax(0, 1fr); }
+    .topbar {
+      position: relative;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: minmax(220px, .8fr) minmax(240px, 1.4fr) minmax(260px, .8fr);
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: var(--bg);
+    }
+    .route, .context, .actions { min-width: 0; height: 100%; display: flex; align-items: center; }
+    .route { gap: 8px; padding: 0 16px; }
+    .home-action, .route-separator, .context, .text-action { color: var(--muted); font-size: 13px; }
+    .home-action:hover, .text-action:hover { color: var(--text); }
+    .route-separator { color: var(--quiet); }
+    .app-trigger { min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 580; }
+    .app-trigger .icon { color: var(--muted); }
+    .context { justify-content: center; gap: 8px; padding: 0 16px; color: var(--quiet); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .context strong { color: var(--muted); font-weight: 520; }
+    .actions { justify-content: flex-end; gap: 18px; padding: 0 16px; }
+    .text-action { min-height: 32px; white-space: nowrap; }
+    .text-action.primary { color: var(--soft); font-weight: 540; }
+
+    .search-box { width: min(420px, 100%); height: 34px; display: flex; align-items: center; gap: 8px; }
+    .search-box input { width: 100%; height: 100%; border: 0; border-bottom: 1px solid var(--line-strong); outline: 0; background: transparent; color: var(--text); font-size: 13px; }
+    .search-box input:focus { border-bottom-color: var(--accent); }
+    .search-box input::placeholder { color: var(--quiet); }
+
+    .popover {
+      position: fixed;
+      z-index: 50;
+      top: 44px;
+      left: 74px;
+      width: 214px;
+      padding: 5px;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      background: var(--panel);
+    }
+    .menu-item {
+      width: 100%;
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      align-items: center;
+      gap: 9px;
+      padding: 0 9px;
+      border-radius: 2px;
+      color: var(--muted);
+      text-align: left;
+    }
+    .menu-item:hover, .menu-item:focus-visible { background: var(--hover); color: var(--text); }
+    .menu-item[aria-current="page"] { background: var(--raised); color: var(--text); }
+
+    .workbench { min-width: 0; min-height: 0; position: relative; overflow: hidden; }
+    .app-view { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+    .view-list { display: grid; grid-template-rows: 48px minmax(0, 1fr) 52px; }
+    .toolbar { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+    .toolbar-title { margin-right: 14px; font-size: 16px; font-weight: 620; letter-spacing: -.015em; }
+    .filter { min-height: 30px; padding: 0 8px; border-radius: 2px; color: var(--muted); font-size: 13px; }
+    .filter:hover { color: var(--text); background: var(--hover); }
+    .filter[aria-pressed="true"] { color: var(--text); background: var(--raised); }
+    .toolbar-spacer { flex: 1; }
+    .toolbar-note { color: var(--quiet); font-size: 12px; white-space: nowrap; }
+
+    .task-list { width: min(880px, 100%); margin: 0 auto; padding: 24px 20px 36px; overflow: auto; }
+    .section-label { display: block; margin-bottom: 8px; color: var(--quiet); font-size: 13px; font-weight: 600; }
+    .section-label.later { margin-top: 24px; }
+    .task-row { width: 100%; min-height: var(--row); display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 12px; border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent); text-align: left; }
+    .task-row:hover { background: var(--hover); }
+    .task-mark { width: 14px; height: 14px; border: 1px solid var(--quiet); border-radius: 50%; }
+    .task-row[aria-pressed="true"] .task-mark { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--bg); }
+    .task-row[aria-pressed="true"] .row-title { color: var(--quiet); text-decoration: line-through; text-decoration-thickness: 1px; }
+    .row-copy { min-width: 0; }
+    .row-title { display: block; overflow: hidden; color: var(--soft); font-size: 15px; font-weight: 530; text-overflow: ellipsis; white-space: nowrap; }
+    .row-meta { display: block; margin-top: 2px; color: var(--quiet); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-side { color: var(--quiet); font-size: 13px; font-variant-numeric: tabular-nums; }
+    .capture { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding: 0 max(20px, calc((100% - 840px) / 2)); }
+    .capture input { min-width: 0; flex: 1; height: 36px; border: 0; outline: 0; background: transparent; color: var(--text); }
+    .capture input::placeholder { color: var(--quiet); }
+
+    .view-timeline { display: grid; grid-template-columns: 204px minmax(0, 1fr); grid-template-rows: 48px minmax(0, 1fr); }
+    .view-timeline .toolbar { grid-column: 1 / -1; }
+    .local-panel { min-width: 0; padding: 14px 10px; border-right: 1px solid var(--line); background: var(--panel); overflow: auto; }
+    .panel-section + .panel-section { margin-top: 22px; }
+    .panel-head { display: flex; justify-content: space-between; padding: 0 7px 7px; color: var(--quiet); font-size: 13px; font-weight: 600; }
+    .panel-item { width: 100%; min-height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 7px; border-radius: 2px; color: var(--muted); text-align: left; }
+    .panel-item:hover { background: var(--hover); color: var(--text); }
+    .panel-item[aria-current="true"] { background: var(--raised); color: var(--text); }
+    .panel-count { color: var(--quiet); font-size: 12px; }
+    .calendar { min-width: 0; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(92px, 1fr)); grid-template-rows: 34px repeat(6, minmax(78px, 1fr)); overflow: auto; }
+    .weekday { display: flex; align-items: center; padding: 0 9px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--quiet); font-size: 12px; }
+    .day { min-width: 92px; min-height: 92px; padding: 7px 8px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .day-number { color: var(--quiet); font-size: 13px; font-variant-numeric: tabular-nums; }
+    .day.today .day-number { color: var(--text); font-weight: 650; }
+    .event { width: 100%; margin-top: 8px; padding: 4px 6px; border-left: 2px solid var(--accent); border-radius: 0 2px 2px 0; background: var(--raised); color: var(--soft); font-size: 12px; text-align: left; }
+    .event + .event { margin-top: 4px; border-left-color: var(--muted); }
+
+    .view-workspace { display: grid; grid-template-columns: var(--side) minmax(360px, 1fr) var(--detail); }
+    .file-panel { min-width: 0; display: grid; grid-template-rows: 48px minmax(0, 1fr); }
+    .file-list { min-width: 0; overflow: auto; }
+    .file-head, .file-row { min-width: 620px; display: grid; grid-template-columns: 28px minmax(180px, 1fr) 110px 96px 96px; align-items: center; gap: 8px; padding: 0 14px; }
+    .file-head { height: 34px; border-bottom: 1px solid var(--line); color: var(--quiet); font-size: 12px; }
+    .file-row { min-height: var(--row); border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent); color: var(--muted); font-size: 13px; cursor: pointer; }
+    .file-row:hover { background: var(--hover); }
+    .file-row[aria-selected="true"] { background: var(--raised); color: var(--text); }
+    .file-name { min-width: 0; display: flex; align-items: center; gap: 9px; color: var(--soft); font-size: 15px; }
+    .file-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .detail-panel { min-width: 0; padding: 18px 16px; border-left: 1px solid var(--line); background: var(--panel); overflow: auto; }
+    .preview { min-height: 160px; display: grid; place-items: center; margin-bottom: 18px; background: var(--bg); color: var(--quiet); }
+    .preview .icon { width: 34px; height: 34px; }
+    .detail-title { font-size: 16px; font-weight: 620; overflow-wrap: anywhere; }
+    .detail-meta { margin-top: 5px; color: var(--muted); font-size: 13px; }
+    .detail-table { margin-top: 20px; display: grid; gap: 10px; }
+    .detail-row { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 9px; font-size: 13px; }
+    .detail-row dt { color: var(--quiet); }
+    .detail-row dd { min-width: 0; color: var(--muted); overflow-wrap: anywhere; }
+
+    .view-dashboard { display: grid; grid-template-rows: 48px minmax(0, 1fr); }
+    .dashboard-scroll { overflow: auto; }
+    .dashboard { width: min(1040px, 100%); margin: 0 auto; padding: 28px 20px 40px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+    .summary-item { min-width: 0; padding: 0 20px 24px 0; }
+    .summary-item + .summary-item { padding-left: 20px; border-left: 1px solid var(--line); }
+    .summary-label { color: var(--quiet); font-size: 13px; }
+    .summary-value { display: block; margin-top: 6px; font-size: clamp(22px, 3vw, 30px); font-weight: 540; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .summary-note { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+    .ledger { margin-top: 28px; }
+    .ledger-head, .ledger-row { display: grid; grid-template-columns: minmax(160px, 1fr) 130px 110px; align-items: center; gap: 12px; }
+    .ledger-head { min-height: 34px; color: var(--quiet); font-size: 12px; }
+    .ledger-row { min-height: var(--row); border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent); color: var(--muted); font-size: 13px; }
+    .ledger-row strong { color: var(--soft); font-weight: 530; }
+    .amount { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+
+    .settings-scrim { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.46); }
+    .settings-panel { position: fixed; z-index: 41; top: 0; right: 0; bottom: 0; width: min(340px, 92vw); display: grid; grid-template-rows: var(--header) minmax(0, 1fr); border-left: 1px solid var(--line-strong); background: var(--panel); }
+    .settings-head { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--line); }
+    .settings-head h2 { font-size: 15px; font-weight: 620; }
+    .settings-close { color: var(--muted); font-size: 13px; }
+    .settings-body { padding: 20px 16px 28px; overflow: auto; }
+    .setting-group + .setting-group { margin-top: 26px; }
+    .setting-group h3 { margin-bottom: 10px; color: var(--quiet); font-size: 12px; font-weight: 600; }
+    .choice-list { display: grid; gap: 2px; }
+    .choice { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 9px; border-radius: 2px; color: var(--muted); text-align: left; }
+    .choice:hover { background: var(--hover); color: var(--text); }
+    .choice[aria-checked="true"] { background: var(--raised); color: var(--text); }
+    .choice-mark { width: 6px; height: 6px; border-radius: 50%; background: transparent; }
+    .choice[aria-checked="true"] .choice-mark { background: var(--accent); }
+    .setting-note { margin-top: 10px; color: var(--quiet); font-size: 12px; line-height: 1.55; }
+
+    .state-layer { position: absolute; inset: 0; z-index: 12; display: grid; place-items: center; padding: 24px; background: var(--bg); }
+    .state-content { width: min(480px, 100%); }
+    .state-content h2 { font-size: 16px; font-weight: 620; }
+    .state-content p { margin-top: 7px; color: var(--muted); font-size: 13px; }
+    .state-action { margin-top: 14px; color: var(--soft); font-size: 13px; }
+    .skeletons { display: grid; gap: 12px; }
+    .skeleton { height: 12px; background: var(--raised); }
+    .skeleton:nth-child(2) { width: 82%; }
+    .skeleton:nth-child(3) { width: 64%; }
+    .partial-line { position: absolute; z-index: 11; top: 8px; left: 50%; transform: translateX(-50%); padding: 5px 8px; border-radius: 2px; background: var(--raised); color: var(--muted); font-size: 12px; }
+    .toast { position: fixed; z-index: 70; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--panel); color: var(--soft); font-size: 12px; }
+
+    @media (max-width: 820px) {
+      .topbar { grid-template-columns: minmax(0, 1fr) auto; }
+      .context { display: none; }
+      .actions { gap: 12px; padding-left: 8px; }
+      .actions .search-action { display: none; }
+      .view-timeline { grid-template-columns: 1fr; grid-template-rows: 48px auto minmax(0, 1fr); }
+      .view-timeline .local-panel { grid-row: 2; display: flex; gap: 4px; padding: 6px 10px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+      .view-timeline .panel-section { display: contents; }
+      .view-timeline .panel-head { display: none; }
+      .view-timeline .panel-item { width: auto; flex: 0 0 auto; padding-inline: 10px; }
+      .view-workspace { grid-template-columns: 168px minmax(360px, 1fr); overflow-x: auto; }
+      .detail-panel { display: none; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .summary-item { padding: 16px 0; }
+      .summary-item + .summary-item { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+    }
+
+    @media (max-width: 560px) {
+      :root { --header: 48px; }
+      .topbar { grid-template-columns: minmax(0, 1fr) auto; }
+      .route { padding: 0 12px; }
+      .actions { gap: 10px; padding: 0 12px 0 6px; }
+      .actions .primary { display: none; }
+      .home-action { display: none; }
+      .route-separator { display: none; }
+      .popover { top: 40px; left: 10px; }
+      .toolbar { overflow-x: auto; padding-inline: 12px; }
+      .toolbar-title { margin-right: 4px; }
+      .toolbar-note { display: none; }
+      .task-list { padding: 18px 12px 28px; }
+      .capture { padding: 0 12px; }
+      .view-workspace { grid-template-columns: 1fr; }
+      .view-workspace .local-panel { display: none; }
+      .file-head, .file-row { min-width: 520px; grid-template-columns: 28px minmax(180px, 1fr) 90px 80px; }
+      .file-head > :nth-child(5), .file-row > :nth-child(5) { display: none; }
+      .dashboard { padding: 20px 12px 32px; }
+      .ledger-head, .ledger-row { grid-template-columns: minmax(130px, 1fr) 90px; }
+      .ledger-head > :nth-child(2), .ledger-row > :nth-child(2) { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#workbench">skip to app</a>
+  <svg class="symbols" aria-hidden="true">
+    <symbol id="i-tasks" viewBox="0 0 24 24"><path d="M5 6.5h14M5 12h14M5 17.5h9"/><path d="m3 6.5.7.7L5 5.7M3 12l.7.7L5 11.2M3 17.5l.7.7L5 16.7"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="1"/><path d="M7 3v4M17 3v4M3.5 9h17M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01"/></symbol>
+    <symbol id="i-files" viewBox="0 0 24 24"><path d="M3.5 7.5h6l2-2h9v13h-17z"/></symbol>
+    <symbol id="i-money" viewBox="0 0 24 24"><path d="M4 18V9M9.3 18V5M14.7 18v-7M20 18V7"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3.5h8l4 4v13H6zM14 3.5v4h4"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5h6l2-2h9v13h-17z"/></symbol>
+  </svg>
+
+  <div class="shell">
+    <header class="topbar">
+      <div class="route">
+        <button class="home-action" type="button" data-action="home">home</button>
+        <span class="route-separator">/</span>
+        <button class="app-trigger" id="app-trigger" type="button" aria-haspopup="menu" aria-expanded="false">
+          <svg class="icon" aria-hidden="true"><use id="current-icon" href="#i-files"></use></svg>
+          <span id="current-app">files</span>
+        </button>
+      </div>
+      <div class="context" id="context"><strong>on this mac</strong><span>/</span><span>documents</span></div>
+      <div class="actions">
+        <button class="text-action search-action" id="search-action" type="button">search</button>
+        <button class="text-action primary" id="primary-action" type="button">new folder</button>
+        <button class="text-action" id="settings-action" type="button" aria-haspopup="dialog">settings</button>
+      </div>
+    </header>
+
+    <div class="popover" id="app-menu" role="menu" aria-label="open app" hidden>
+      <button class="menu-item" type="button" role="menuitem" data-app="tasks"><svg class="icon"><use href="#i-tasks"></use></svg><span>tasks</span></button>
+      <button class="menu-item" type="button" role="menuitem" data-app="calendar"><svg class="icon"><use href="#i-calendar"></use></svg><span>calendar</span></button>
+      <button class="menu-item" type="button" role="menuitem" data-app="files" aria-current="page"><svg class="icon"><use href="#i-files"></use></svg><span>files</span></button>
+      <button class="menu-item" type="button" role="menuitem" data-app="money"><svg class="icon"><use href="#i-money"></use></svg><span>money</span></button>
+    </div>
+
+    <main class="workbench" id="workbench" tabindex="-1">
+      <section class="app-view view-list" id="view-tasks" data-app-view="tasks" hidden>
+        <div class="toolbar">
+          <h1 class="toolbar-title">tasks</h1>
+          <button class="filter" type="button" aria-pressed="true">all</button>
+          <button class="filter" type="button" aria-pressed="false">today</button>
+          <button class="filter" type="button" aria-pressed="false">upcoming</button>
+          <span class="toolbar-spacer"></span><span class="toolbar-note">6 open</span>
+        </div>
+        <div class="task-list">
+          <span class="section-label">today</span>
+          <button class="task-row" type="button" aria-pressed="false"><span class="task-mark"></span><span class="row-copy"><span class="row-title">review the storage migration notes</span><span class="row-meta">alles · phase 7</span></span><span class="row-side">10:30</span></button>
+          <button class="task-row" type="button" aria-pressed="false"><span class="task-mark"></span><span class="row-copy"><span class="row-title">send the dentist reschedule message</span><span class="row-meta">personal</span></span><span class="row-side">today</span></button>
+          <button class="task-row" type="button" aria-pressed="true"><span class="task-mark"></span><span class="row-copy"><span class="row-title">check the monthly backup</span><span class="row-meta">system</span></span><span class="row-side">done</span></button>
+          <span class="section-label later">later</span>
+          <button class="task-row" type="button" aria-pressed="false"><span class="task-mark"></span><span class="row-copy"><span class="row-title">finish the files interface review</span><span class="row-meta">alles</span></span><span class="row-side">fri</span></button>
+        </div>
+        <div class="capture"><input id="task-input" type="text" placeholder="add a task…"><button class="text-action primary" id="task-add" type="button">add</button></div>
+      </section>
+
+      <section class="app-view view-timeline" id="view-calendar" data-app-view="calendar" hidden>
+        <div class="toolbar">
+          <button class="filter" id="month-prev" type="button" aria-label="previous month">‹</button>
+          <h1 class="toolbar-title" id="month-label">july 2026</h1>
+          <button class="filter" id="month-next" type="button" aria-label="next month">›</button>
+          <span class="toolbar-spacer"></span>
+          <button class="filter" type="button" aria-pressed="true">month</button>
+          <button class="filter" type="button" aria-pressed="false">week</button>
+          <button class="filter" type="button" aria-pressed="false">agenda</button>
+        </div>
+        <aside class="local-panel" aria-label="calendar navigation">
+          <div class="panel-section"><span class="panel-head">calendars</span><button class="panel-item" type="button" aria-current="true"><span>personal</span><span class="panel-count">12</span></button><button class="panel-item" type="button" aria-current="false"><span>work</span><span class="panel-count">8</span></button></div>
+          <div class="panel-section"><span class="panel-head">views</span><button class="panel-item" type="button"><span>birthdays</span><span class="panel-count">3</span></button><button class="panel-item" type="button"><span>unscheduled</span><span class="panel-count">5</span></button></div>
+        </aside>
+        <div class="calendar" id="calendar-grid" aria-label="July 2026 calendar"></div>
+      </section>
+
+      <section class="app-view view-workspace" id="view-files" data-app-view="files">
+        <aside class="local-panel" aria-label="file locations">
+          <div class="panel-section"><span class="panel-head">locations <button class="text-action" type="button">add</button></span><button class="panel-item" type="button" aria-current="true"><span>on this mac</span><span class="panel-count">local</span></button><button class="panel-item" type="button" aria-current="false"><span>notes vault</span><span class="panel-count">synced</span></button><button class="panel-item" type="button" aria-current="false"><span>archive</span><span class="panel-count">offline</span></button></div>
+          <div class="panel-section"><span class="panel-head">saved</span><button class="panel-item" type="button"><span>recent</span><span class="panel-count">18</span></button><button class="panel-item" type="button"><span>starred</span><span class="panel-count">4</span></button><button class="panel-item" type="button"><span>trash</span></button></div>
+        </aside>
+        <div class="file-panel">
+          <div class="toolbar"><h1 class="toolbar-title">documents</h1><button class="filter" type="button" aria-pressed="true">list</button><button class="filter" type="button" aria-pressed="false">grid</button><span class="toolbar-spacer"></span><span class="toolbar-note">8 items</span></div>
+          <div class="file-list" role="listbox" aria-label="files">
+            <div class="file-head" aria-hidden="true"><span></span><span>name</span><span>kind</span><span>size</span><span>modified</span></div>
+            <div class="file-row" role="option" tabindex="0" aria-selected="true" data-file="phase-07-files-storage.md"><svg class="icon"><use href="#i-doc"></use></svg><span class="file-name"><span>phase-07-files-storage.md</span></span><span>Markdown</span><span>14 KB</span><span>today</span></div>
+            <div class="file-row" role="option" tabindex="0" aria-selected="false" data-file="research"><svg class="icon"><use href="#i-folder"></use></svg><span class="file-name"><span>research</span></span><span>folder</span><span>6 items</span><span>yesterday</span></div>
+            <div class="file-row" role="option" tabindex="0" aria-selected="false" data-file="system-map.md"><svg class="icon"><use href="#i-doc"></use></svg><span class="file-name"><span>system-map.md</span></span><span>Markdown</span><span>8 KB</span><span>jul 14</span></div>
+            <div class="file-row" role="option" tabindex="0" aria-selected="false" data-file="receipts"><svg class="icon"><use href="#i-folder"></use></svg><span class="file-name"><span>receipts</span></span><span>folder</span><span>24 items</span><span>jul 12</span></div>
+          </div>
+        </div>
+        <aside class="detail-panel" aria-label="file details">
+          <div class="preview"><svg class="icon" aria-hidden="true"><use href="#i-doc"></use></svg></div>
+          <h2 class="detail-title" id="file-detail-title">phase-07-files-storage.md</h2>
+          <p class="detail-meta">Markdown · 14 KB</p>
+          <dl class="detail-table"><div class="detail-row"><dt>location</dt><dd>on this mac</dd></div><div class="detail-row"><dt>modified</dt><dd>today, 14:32</dd></div><div class="detail-row"><dt>offline</dt><dd>available</dd></div><div class="detail-row"><dt>version</dt><dd>current</dd></div></dl>
+        </aside>
+      </section>
+
+      <section class="app-view view-dashboard" id="view-money" data-app-view="money" hidden>
+        <div class="toolbar"><h1 class="toolbar-title">money</h1><button class="filter" type="button" aria-pressed="true">july</button><button class="filter" type="button" aria-pressed="false">year</button><span class="toolbar-spacer"></span><span class="toolbar-note">updated 2 min ago</span></div>
+        <div class="dashboard-scroll"><div class="dashboard">
+          <div class="summary-grid"><div class="summary-item"><span class="summary-label">available</span><strong class="summary-value">$2,184</strong><span class="summary-note">after upcoming bills</span></div><div class="summary-item"><span class="summary-label">spent this month</span><strong class="summary-value">$1,327</strong><span class="summary-note">$94 below plan</span></div><div class="summary-item"><span class="summary-label">subscriptions</span><strong class="summary-value">$48</strong><span class="summary-note">3 renew this month</span></div></div>
+          <div class="ledger"><div class="ledger-head"><span>transaction</span><span>category</span><span class="amount">amount</span></div><div class="ledger-row"><strong>local market</strong><span>groceries</span><span class="amount">−$42.18</span></div><div class="ledger-row"><strong>monthly salary</strong><span>income</span><span class="amount">+$3,240.00</span></div><div class="ledger-row"><strong>rail pass</strong><span>transport</span><span class="amount">−$36.00</span></div><div class="ledger-row"><strong>cloud storage</strong><span>subscriptions</span><span class="amount">−$9.99</span></div></div>
+        </div></div>
+      </section>
+
+      <div class="partial-line" id="partial-line" hidden>some remote data is unavailable; local data is still shown</div>
+      <div class="state-layer" id="state-layer" hidden><div class="state-content" id="state-content"></div></div>
+    </main>
+  </div>
+
+  <div class="settings-scrim" id="settings-scrim" hidden></div>
+  <aside class="settings-panel" id="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <div class="settings-head"><h2 id="settings-title">settings</h2><button class="settings-close" id="settings-close" type="button">close</button></div>
+    <div class="settings-body">
+      <section class="setting-group"><h3>appearance</h3><div class="choice-list" role="radiogroup" aria-label="theme"><button class="choice" type="button" role="radio" aria-checked="false" data-theme-choice="system"><span>system</span><span class="choice-mark"></span></button><button class="choice" type="button" role="radio" aria-checked="true" data-theme-choice="dark"><span>dark</span><span class="choice-mark"></span></button><button class="choice" type="button" role="radio" aria-checked="false" data-theme-choice="light"><span>light</span><span class="choice-mark"></span></button></div><p class="setting-note">Theme stays in Settings. Specialist app headers never add their own theme control.</p></section>
+      <section class="setting-group"><h3>density</h3><div class="choice-list" role="radiogroup" aria-label="density"><button class="choice" type="button" role="radio" aria-checked="true" data-density-choice="compact"><span>compact</span><span class="choice-mark"></span></button><button class="choice" type="button" role="radio" aria-checked="false" data-density-choice="comfortable"><span>comfortable</span><span class="choice-mark"></span></button></div></section>
+      <section class="setting-group"><h3>starter preview</h3><div class="choice-list" role="radiogroup" aria-label="preview state"><button class="choice" type="button" role="radio" aria-checked="true" data-state-choice="normal"><span>normal</span><span class="choice-mark"></span></button><button class="choice" type="button" role="radio" aria-checked="false" data-state-choice="loading"><span>loading</span><span class="choice-mark"></span></button><button class="choice" type="button" role="radio" aria-checked="false" data-state-choice="empty"><span>empty</span><span class="choice-mark"></span></button><button class="choice" type="button" role="radio" aria-checked="false" data-state-choice="partial"><span>partial</span><span class="choice-mark"></span></button><button class="choice" type="button" role="radio" aria-checked="false" data-state-choice="error"><span>error</span><span class="choice-mark"></span></button></div><p class="setting-note">This section exists only in the starter so every shared app state can be reviewed.</p></section>
+    </div>
+  </aside>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script>
+    (() => {
+      const apps = {
+        tasks: { icon: '#i-tasks', context: '<strong>all tasks</strong><span>/</span><span>open</span>', primary: 'new task' },
+        calendar: { icon: '#i-calendar', context: '<strong>personal</strong><span>/</span><span>july 2026</span>', primary: 'new event' },
+        files: { icon: '#i-files', context: '<strong>on this mac</strong><span>/</span><span>documents</span>', primary: 'new folder' },
+        money: { icon: '#i-money', context: '<strong>personal budget</strong><span>/</span><span>july</span>', primary: 'add transaction' }
+      };
+      let currentApp = 'files';
+      let lastFocus = null;
+      const root = document.documentElement;
+      const appMenu = document.querySelector('#app-menu');
+      const appTrigger = document.querySelector('#app-trigger');
+      const settingsPanel = document.querySelector('#settings-panel');
+      const settingsScrim = document.querySelector('#settings-scrim');
+      const pageShell = document.querySelector('.shell');
+      const skipLink = document.querySelector('.skip-link');
+      const stateLayer = document.querySelector('#state-layer');
+      const stateContent = document.querySelector('#state-content');
+      const partialLine = document.querySelector('#partial-line');
+      const toast = document.querySelector('#toast');
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.hidden = false;
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => { toast.hidden = true; }, 1800);
+      }
+
+      function setApp(name) {
+        if (!apps[name]) return;
+        currentApp = name;
+        document.querySelectorAll('[data-app-view]').forEach((view) => { view.hidden = view.dataset.appView !== name; });
+        document.querySelectorAll('[data-app]').forEach((item) => {
+          const active = item.dataset.app === name;
+          item.setAttribute('aria-current', active ? 'page' : 'false');
+          item.tabIndex = active ? 0 : -1;
+        });
+        document.querySelector('#current-app').textContent = name;
+        document.querySelector('#current-icon').setAttribute('href', apps[name].icon);
+        document.querySelector('#context').innerHTML = apps[name].context;
+        document.querySelector('#primary-action').textContent = apps[name].primary;
+        closeAppMenu();
+        appTrigger.focus();
+        setState('normal');
+      }
+
+      function openAppMenu() {
+        appMenu.hidden = false;
+        appTrigger.setAttribute('aria-expanded', 'true');
+        appMenu.querySelector('[aria-current="page"]')?.focus();
+      }
+      function closeAppMenu() {
+        appMenu.hidden = true;
+        appTrigger.setAttribute('aria-expanded', 'false');
+      }
+
+      function openSettings() {
+        lastFocus = document.activeElement;
+        pageShell.inert = true;
+        skipLink.inert = true;
+        settingsPanel.hidden = false;
+        settingsScrim.hidden = false;
+        document.querySelector('#settings-close').focus();
+      }
+      function closeSettings() {
+        settingsPanel.hidden = true;
+        settingsScrim.hidden = true;
+        pageShell.inert = false;
+        skipLink.inert = false;
+        if (lastFocus?.isConnected) lastFocus.focus();
+      }
+
+      function setChoice(selector, value, attribute) {
+        document.querySelectorAll(selector).forEach((choice) => {
+          const active = choice.dataset[attribute] === value;
+          choice.setAttribute('aria-checked', active ? 'true' : 'false');
+          choice.tabIndex = active ? 0 : -1;
+        });
+      }
+
+      function moveWithinGroup(group, direction) {
+        const choices = [...group.querySelectorAll('[role="radio"]')];
+        const currentIndex = Math.max(0, choices.indexOf(document.activeElement));
+        const nextIndex = direction === 'first' ? 0 : direction === 'last' ? choices.length - 1 : (currentIndex + direction + choices.length) % choices.length;
+        const nextChoice = choices[nextIndex];
+        nextChoice?.focus();
+        nextChoice?.click();
+      }
+
+      function setTheme(value) {
+        const resolved = value === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : value;
+        root.dataset.theme = resolved;
+        setChoice('[data-theme-choice]', value, 'themeChoice');
+      }
+
+      function setState(value) {
+        stateLayer.hidden = true;
+        partialLine.hidden = true;
+        if (value === 'loading') {
+          stateContent.innerHTML = '<div class="skeletons" aria-label="loading"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>';
+          stateLayer.hidden = false;
+        } else if (value === 'empty') {
+          stateContent.innerHTML = `<h2>nothing here yet</h2><p>${currentApp === 'files' ? 'Add a file or connect a location when you are ready.' : 'New items will appear here.'}</p><button class="state-action" type="button">${apps[currentApp].primary}</button>`;
+          stateLayer.hidden = false;
+        } else if (value === 'error') {
+          stateContent.innerHTML = '<h2>could not load this view</h2><p>The rest of Alles is still available.</p><button class="state-action" type="button" id="state-retry">retry</button>';
+          stateLayer.hidden = false;
+          stateContent.querySelector('#state-retry').addEventListener('click', () => setState('normal'));
+        } else if (value === 'partial') {
+          partialLine.hidden = false;
+        }
+        setChoice('[data-state-choice]', value, 'stateChoice');
+      }
+
+      let monthCursor = new Date(2026, 6, 1);
+
+      function buildCalendar() {
+        const grid = document.querySelector('#calendar-grid');
+        grid.replaceChildren();
+        const year = monthCursor.getFullYear();
+        const month = monthCursor.getMonth();
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPreviousMonth = new Date(year, month, 0).getDate();
+        const label = monthCursor.toLocaleDateString('en', { month: 'long', year: 'numeric' }).toLowerCase();
+        document.querySelector('#month-label').textContent = label;
+        if (currentApp === 'calendar') document.querySelector('#context').innerHTML = `<strong>personal</strong><span>/</span><span>${label}</span>`;
+        const weekdays = ['sun','mon','tue','wed','thu','fri','sat'];
+        weekdays.forEach((day) => grid.insertAdjacentHTML('beforeend', `<div class="weekday">${day}</div>`));
+        for (let index = 0; index < 42; index += 1) {
+          const dayOffset = index - firstDay + 1;
+          const inMonth = dayOffset >= 1 && dayOffset <= daysInMonth;
+          const number = dayOffset < 1 ? daysInPreviousMonth + dayOffset : dayOffset > daysInMonth ? dayOffset - daysInMonth : dayOffset;
+          const events = inMonth && month === 6 && number === 16 ? '<button class="event" type="button">09:30 standup</button><button class="event" type="button">14:00 design review</button>' : inMonth && month === 6 && number === 21 ? '<button class="event" type="button">dentist</button>' : '';
+          grid.insertAdjacentHTML('beforeend', `<div class="day${number === 16 && inMonth && month === 6 ? ' today' : ''}"><span class="day-number">${number}</span>${events}</div>`);
+        }
+      }
+
+      appTrigger.addEventListener('click', () => appMenu.hidden ? openAppMenu() : closeAppMenu());
+      appMenu.addEventListener('click', (event) => { const item = event.target.closest('[data-app]'); if (item) setApp(item.dataset.app); });
+      appMenu.addEventListener('keydown', (event) => {
+        const items = [...appMenu.querySelectorAll('[role="menuitem"]')];
+        const currentIndex = Math.max(0, items.indexOf(document.activeElement));
+        let nextIndex = null;
+        if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % items.length;
+        if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + items.length) % items.length;
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = items.length - 1;
+        if (nextIndex !== null) { event.preventDefault(); items[nextIndex].focus(); }
+      });
+      document.querySelector('#settings-action').addEventListener('click', openSettings);
+      document.querySelector('#settings-close').addEventListener('click', closeSettings);
+      settingsScrim.addEventListener('click', closeSettings);
+      document.querySelectorAll('[data-theme-choice]').forEach((choice) => choice.addEventListener('click', () => setTheme(choice.dataset.themeChoice)));
+      document.querySelectorAll('[data-density-choice]').forEach((choice) => choice.addEventListener('click', () => { root.dataset.density = choice.dataset.densityChoice; setChoice('[data-density-choice]', choice.dataset.densityChoice, 'densityChoice'); }));
+      document.querySelectorAll('[data-state-choice]').forEach((choice) => choice.addEventListener('click', () => {
+        setState(choice.dataset.stateChoice);
+        closeSettings();
+      }));
+      document.querySelectorAll('[role="radiogroup"]').forEach((group) => group.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') { event.preventDefault(); moveWithinGroup(group, 1); }
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') { event.preventDefault(); moveWithinGroup(group, -1); }
+        if (event.key === 'Home') { event.preventDefault(); moveWithinGroup(group, 'first'); }
+        if (event.key === 'End') { event.preventDefault(); moveWithinGroup(group, 'last'); }
+      }));
+      settingsPanel.addEventListener('keydown', (event) => {
+        if (event.key !== 'Tab') return;
+        const focusable = [...settingsPanel.querySelectorAll('button:not([disabled]):not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])')].filter((item) => !item.hidden);
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      });
+      document.querySelectorAll('.filter').forEach((filter) => filter.addEventListener('click', () => { if (filter.hasAttribute('aria-pressed')) { const group = filter.parentElement; group.querySelectorAll('.filter[aria-pressed]').forEach((item) => item.setAttribute('aria-pressed', item === filter ? 'true' : 'false')); } }));
+      document.querySelectorAll('.task-row').forEach((row) => row.addEventListener('click', () => row.setAttribute('aria-pressed', row.getAttribute('aria-pressed') === 'true' ? 'false' : 'true')));
+      function selectFileRow(row) {
+        document.querySelectorAll('.file-row').forEach((item) => item.setAttribute('aria-selected', item === row ? 'true' : 'false'));
+        document.querySelector('#file-detail-title').textContent = row.dataset.file;
+      }
+      document.querySelectorAll('.file-row').forEach((row) => {
+        row.addEventListener('click', () => selectFileRow(row));
+        row.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          selectFileRow(row);
+        });
+      });
+      document.querySelector('#primary-action').addEventListener('click', () => showToast(`${apps[currentApp].primary} opened`));
+      document.querySelectorAll('[data-action="home"]').forEach((button) => button.addEventListener('click', () => showToast('home')));
+      document.querySelector('#search-action').addEventListener('click', () => { const context = document.querySelector('#context'); context.innerHTML = '<label class="search-box"><span hidden>search</span><input id="universal-search" type="text" placeholder="search this app…"></label>'; context.querySelector('input').focus(); });
+      document.querySelector('#task-add').addEventListener('click', () => { const input = document.querySelector('#task-input'); if (input.value.trim()) { showToast(`added: ${input.value.trim()}`); input.value = ''; } });
+      document.querySelector('#month-prev').addEventListener('click', () => { monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1); buildCalendar(); });
+      document.querySelector('#month-next').addEventListener('click', () => { monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1); buildCalendar(); });
+      document.addEventListener('click', (event) => { if (!appMenu.hidden && !appMenu.contains(event.target) && !appTrigger.contains(event.target)) closeAppMenu(); });
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { if (!settingsPanel.hidden) closeSettings(); else if (!appMenu.hidden) { closeAppMenu(); appTrigger.focus(); } } });
+      document.querySelectorAll('[role="radiogroup"]').forEach((group) => {
+        const checked = group.querySelector('[aria-checked="true"]');
+        group.querySelectorAll('[role="radio"]').forEach((choice) => { choice.tabIndex = choice === checked ? 0 : -1; });
+      });
+      document.querySelectorAll('[data-app]').forEach((item) => { item.tabIndex = item.getAttribute('aria-current') === 'page' ? 0 : -1; });
+      buildCalendar();
+    })();
+  </script>
+</body>
+</html>

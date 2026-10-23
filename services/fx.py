@@ -17,6 +17,8 @@ RATES = {
     "MXN": 17.0,
 }
 
+MAX_RATE_XML_BYTES = 1024 * 1024
+
 _SYMBOL = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY", "₹": "INR", "Fr": "CHF"}
 
 
@@ -46,11 +48,15 @@ def refresh():
     EUR-based feed → re-based to USD. never raises."""
     try:
         import urllib.request
-        import xml.etree.ElementTree as ET
+
+        from defusedxml import ElementTree as ET
 
         url = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
         with urllib.request.urlopen(url, timeout=4) as r:  # noqa: S310
-            root = ET.fromstring(r.read())
+            document = r.read(MAX_RATE_XML_BYTES + 1)
+        if len(document) > MAX_RATE_XML_BYTES:
+            return False
+        root = ET.fromstring(document)
         eur = {"EUR": 1.0}
         for cube in root.iter():
             c, rate = cube.get("currency"), cube.get("rate")

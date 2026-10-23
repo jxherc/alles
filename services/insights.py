@@ -8,7 +8,7 @@ a run-now forces it. dedupe + dismissal are by the cited evidence set. model_fn 
 import hashlib
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from core.database import Insight, SignalSnapshot
 
@@ -16,13 +16,15 @@ log = logging.getLogger("alles.insights")
 
 
 def _dedupe_key(evidence):
-    return hashlib.sha1("|".join(sorted(str(e) for e in evidence)).encode()).hexdigest()[:16]
+    return hashlib.sha1(
+        "|".join(sorted(str(e) for e in evidence)).encode(), usedforsecurity=False
+    ).hexdigest()[:16]
 
 
 def gather_corpus(db, *, days=30):
     from services import proactive
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
     rows = db.query(SignalSnapshot).filter(SignalSnapshot.ts >= cutoff).all()
     hist = {}
     for r in rows:
@@ -123,11 +125,11 @@ def _build_messages(corpus):
     return [{"role": "system", "content": sys}, {"role": "user", "content": user}]
 
 
-async def _run_default(db, corpus):
+async def _run_default(db, corpus, settings=None):
     from core.settings import load_settings
     from services.proactive import _resolve_endpoint_model, _run_model
 
-    s = load_settings()
+    s = settings if settings is not None else load_settings()
     ep, model = _resolve_endpoint_model(db, s)
     if not ep:
         return "[]"
@@ -138,13 +140,40 @@ async def _run_default(db, corpus):
         return "[]"
 
 
-async def generate_async(db, model_fn=None, force=False):
-    """gather corpus -> model -> parse -> apply. gated by insights_enabled unless force."""
+def generation_block_reason(settings=None, *, incognito=False):
+    """Return the privacy reason that prevents personal-insight generation."""
     from core.settings import load_settings
 
-    if not force and not load_settings().get("insights_enabled", False):
+    current = settings if settings is not None else load_settings()
+    if incognito or current.get("incognito"):
+        return "incognito"
+    if str(current.get("memory_policy") or "ask").strip().lower() == "off":
+        return "memory_off"
+    return ""
+
+
+def generation_allowed(settings=None, *, incognito=False):
+    return not generation_block_reason(settings, incognito=incognito)
+
+
+async def generate_async(
+    db,
+    model_fn=None,
+    force=False,
+    *,
+    incognito=False,
+    settings=None,
+):
+    """gather corpus -> model -> parse -> apply, inside memory privacy boundaries."""
+    from core.settings import load_settings
+
+    current = settings if settings is not None else load_settings()
+    blocked = generation_block_reason(current, incognito=incognito)
+    if blocked:
+        return {"ran": False, "reason": blocked, "count": 0}
+    if not force and not current.get("insights_enabled", False):
         return {"ran": False, "reason": "disabled", "count": 0}
     corpus = gather_corpus(db)
-    raw = await (model_fn(corpus) if model_fn else _run_default(db, corpus))
+    raw = await (model_fn(corpus) if model_fn else _run_default(db, corpus, current))
     n = apply_insights(db, _parse(raw))
     return {"ran": True, "count": n}

@@ -40,6 +40,12 @@ class NetGuardTests(unittest.TestCase):
         self.assertTrue(net_guard.is_safe_url("http://192.168.1.10/cal.ics"))
         self.assertTrue(net_guard.is_safe_url("http://10.0.0.5/feed.xml"))
 
+    def test_docs_match_private_lan_policy(self):
+        doc = net_guard.__doc__ or ""
+        self.assertIn("private LAN addresses are allowed on purpose", doc)
+        self.assertNotIn("loopback / private / link-local", doc)
+        self.assertNotIn("PUBLIC", net_guard.is_safe_url.__doc__ or "")
+
     def test_allows_public_hostname(self):
         # regression: a normal domain must resolve + pass, not get blocked as if the name
         # itself were an unparseable ip (which used to kill every domain fetch — feeds, ics, etc.)
@@ -58,7 +64,7 @@ class NetGuardTests(unittest.TestCase):
             self.assertFalse(net_guard.is_safe_url("https://sneaky.example/"))
 
     def test_assert_raises_on_internal(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "blocked url"):
             net_guard.assert_safe_url("http://127.0.0.1/")
 
 

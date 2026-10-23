@@ -4,7 +4,7 @@ back instantly from sqlite (and survive a slow/dead network or a restart). local
 search runs over the cache so it's instant and works offline.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from core.database import CachedMessage
 
@@ -12,12 +12,15 @@ from core.database import CachedMessage
 def _to_msg(r: CachedMessage) -> dict:
     return {
         "uid": r.uid,
+        "folder": r.folder,
         "from": r.sender,
+        "to": r.recipients or "",
         "subject": r.subject,
         "date": r.date,
         "date_ts": r.date_ts,
         "seen": r.seen,
         "flagged": bool(r.flagged),
+        "has_attachment": bool(r.has_attachment),
         "list_unsubscribe": r.list_unsubscribe or "",
         "muted": bool(r.muted),
         "snoozed_until": r.snoozed_until or "",
@@ -52,49 +55,63 @@ def set_labels(db, account_id, folder, uid, labels):
 
 
 def add_label(db, account_id, folder, uid, label):
-    row = (
-        db.query(CachedMessage)
-        .filter_by(account_id=account_id, folder=folder, uid=str(uid))
-        .first()
+    rows = db.query(CachedMessage).filter_by(account_id=account_id, folder=folder, uid=str(uid))
+    # Reserve the SQLite writer before reading so concurrent additions cannot replace each other.
+    if not rows.update({"labels": CachedMessage.labels}, synchronize_session=False):
+        db.commit()
+        return None
+    messages = rows.populate_existing().all()
+    labels = _norm_labels(
+        [value for row in messages for value in (row.labels or "").split(",")] + [label]
     )
-    if not row:
-        return 0
-    row.labels = _norm_labels((row.labels or "") + "," + str(label))
+    for row in messages:
+        row.labels = labels
     db.commit()
-    return 1
+    return [value for value in labels.split(",") if value]
 
 
 def by_label(db, account_id, label, limit=200):
+    if limit <= 0:
+        return []
     lab = str(label).strip().lower()
     rows = (
         _visible(db.query(CachedMessage).filter_by(account_id=account_id))
         .filter(CachedMessage.labels.like(f"%{lab}%"))
         .order_by(CachedMessage.date_ts.desc())
-        .limit(limit)
         .all()
     )
-    return [_to_msg(r) for r in rows if lab in [x for x in (r.labels or "").split(",")]]
+    out = []
+    for r in rows:
+        labels = [x.strip().lower() for x in (r.labels or "").split(",") if x.strip()]
+        if lab in labels:
+            out.append(_to_msg(r))
+            if len(out) >= limit:
+                break
+    return out
 
 
 def by_category(db, account_id, cat, limit=200):
     from services.mail import categorize
 
+    if limit <= 0:
+        return []
     rows = (
         _visible(db.query(CachedMessage).filter_by(account_id=account_id))
         .order_by(CachedMessage.date_ts.desc())
-        .limit(limit)
         .all()
     )
     out = []
     for r in rows:
         if categorize(r.sender or "", r.subject or "", r.list_unsubscribe or "") == cat:
             out.append(_to_msg(r))
+            if len(out) >= limit:
+                break
     return out
 
 
 def _visible(q):
     """drop rows still snoozed into the future (ISO strings sort chronologically)."""
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).replace(tzinfo=None).isoformat()
     return q.filter((CachedMessage.snoozed_until == "") | (CachedMessage.snoozed_until <= now))
 
 
@@ -117,11 +134,13 @@ def save(db, account_id: str, folder: str, msgs: list[dict]) -> int:
                 folder=folder,
                 uid=uid,
                 sender=m.get("from", ""),
+                recipients=m.get("to", "") or "",
                 subject=m.get("subject", ""),
                 date=m.get("date", ""),
                 date_ts=m.get("date_ts", 0) or 0,
                 seen=bool(m.get("seen")),
                 flagged=bool(m.get("flagged", pf)),
+                has_attachment=bool(m.get("has_attachment") or m.get("attachments")),
                 muted=bool(m.get("muted", pm)),  # muting survives an IMAP re-fetch
                 list_unsubscribe=m.get("list_unsubscribe", "") or "",
                 snoozed_until=m.get("snoozed_until", ps) or "",  # snooze survives re-fetch
@@ -163,8 +182,7 @@ def get_filtered(
 
 
 def advanced_search(db, account_id, spec, limit=50) -> list[dict]:
-    """search the cache with parsed operators (5a). from/subject/text/before/after are
-    answerable from cached headers; to:/has:attachment need the full message (left to IMAP)."""
+    """search the cache with parsed operators (5a)."""
 
     def _ts(d):
         try:
@@ -176,8 +194,12 @@ def advanced_search(db, account_id, spec, limit=50) -> list[dict]:
     q = q.filter(CachedMessage.muted == False)  # noqa: E712
     if spec.get("from"):
         q = q.filter(CachedMessage.sender.ilike(f"%{spec['from']}%"))
+    if spec.get("to"):
+        q = q.filter(CachedMessage.recipients.ilike(f"%{spec['to']}%"))
     if spec.get("subject"):
         q = q.filter(CachedMessage.subject.ilike(f"%{spec['subject']}%"))
+    if spec.get("has_attachment"):
+        q = q.filter(CachedMessage.has_attachment == True)  # noqa: E712
     if spec.get("text"):
         like = f"%{spec['text']}%"
         q = q.filter(CachedMessage.subject.ilike(like) | CachedMessage.sender.ilike(like))
@@ -189,15 +211,28 @@ def advanced_search(db, account_id, spec, limit=50) -> list[dict]:
     return [_to_msg(r) for r in rows]
 
 
-def mute(db, account_id, subject) -> int:
-    """mute a whole thread: flag every cached message whose normalized subject matches."""
+def get_muted(db, account_id, limit=50) -> list[dict]:
+    if limit <= 0:
+        return []
+    rows = (
+        db.query(CachedMessage)
+        .filter_by(account_id=account_id, muted=True)
+        .order_by(CachedMessage.date_ts.desc())
+        .limit(limit)
+        .all()
+    )
+    return [_to_msg(row) for row in rows]
+
+
+def mute(db, account_id, subject, muted: bool = True) -> int:
+    """set the mute state of this account's normalized-subject thread."""
     from services.mail import normalize_subject
 
     norm = normalize_subject(subject).lower()
     n = 0
     for r in db.query(CachedMessage).filter_by(account_id=account_id):
         if normalize_subject(r.subject or "").lower() == norm:
-            r.muted = True
+            r.muted = bool(muted)
             n += 1
     db.commit()
     return n
@@ -261,7 +296,7 @@ def snooze(db, account_id, folder, uid, until) -> int:
 
 def snoozed(db, account_id) -> list[dict]:
     """messages currently snoozed into the future, for the snoozed view."""
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).replace(tzinfo=None).isoformat()
     rows = (
         db.query(CachedMessage)
         .filter_by(account_id=account_id)

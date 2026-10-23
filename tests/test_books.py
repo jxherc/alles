@@ -59,7 +59,32 @@ class BookApiTests(ApiTest):
         self.assertEqual(self.client.post("/api/books", json={"title": " "}).status_code, 400)
 
     def test_create_rejects_bad_status(self):
-        self.assertEqual(self._create(status="someday").status_code, 400)
+        r = self._create(status="someday")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()["detail"], "status must be one of want, reading, done")
+
+    def test_create_keeps_metadata_and_shelf_dates(self):
+        r = self._create(
+            title="  Dune  ",
+            author="  Frank Herbert  ",
+            status="reading",
+            rating=9,
+            cover="  https://example.com/cover.jpg  ",
+            isbn="  123  ",
+            notes="keep spacing",
+            year=1965,
+        )
+        self.assertEqual(r.status_code, 200)
+        book = r.json()
+        self.assertEqual(book["title"], "Dune")
+        self.assertEqual(book["author"], "Frank Herbert")
+        self.assertEqual(book["rating"], 5)
+        self.assertEqual(book["cover"], "https://example.com/cover.jpg")
+        self.assertEqual(book["isbn"], "123")
+        self.assertEqual(book["notes"], "keep spacing")
+        self.assertEqual(book["year"], 1965)
+        self.assertEqual(book["started"], date.today().isoformat())
+        self.assertEqual(book["finished"], "")
 
     def test_overview_shelves(self):
         self._create(title="Want1", status="want")
@@ -108,6 +133,93 @@ class BookApiTests(ApiTest):
         bid = self._create().json()["id"]
         r = self.client.patch(f"/api/books/{bid}", json={"notes": "great worldbuilding"})
         self.assertEqual(r.json()["notes"], "great worldbuilding")
+
+    def test_restore_note_preserves_exact_text_and_unrelated_fields(self):
+        bid = self._create(notes="new note", rating=4).json()["id"]
+        previous = "  original 中文\nsecond line  "
+        r = self.client.patch(
+            f"/api/books/{bid}", json={"notes": previous, "expected_notes": "new note"}
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["notes"], previous)
+        self.assertEqual(r.json()["rating"], 4)
+
+    def test_restore_refuses_newer_note_without_changing_other_fields(self):
+        bid = self._create(notes="newer edit", rating=3).json()["id"]
+        r = self.client.patch(
+            f"/api/books/{bid}", json={"notes": "original", "expected_notes": "old edit"}
+        )
+        self.assertEqual(r.status_code, 409)
+        book = self.client.get("/api/books/overview").json()["shelves"]["want"][0]
+        self.assertEqual(book["notes"], "newer edit")
+        self.assertEqual(book["rating"], 3)
+
+    def test_restore_rating_accepts_zero_and_refuses_a_newer_rating(self):
+        bid = self._create(rating=4, notes="keep note").json()["id"]
+        body = {"rating": 0, "expected_rating": 4}
+        r = self.client.patch(f"/api/books/{bid}", json=body)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["rating"], 0)
+        self.assertEqual(r.json()["notes"], "keep note")
+        self.client.patch(f"/api/books/{bid}", json={"rating": 2})
+        self.assertEqual(self.client.patch(f"/api/books/{bid}", json=body).status_code, 409)
+
+    def test_restore_retry_after_lost_acknowledgment_is_idempotent(self):
+        bid = self._create(notes="after", rating=5).json()["id"]
+        for body in [
+            {"notes": "", "expected_notes": "after"},
+            {"rating": 0, "expected_rating": 5},
+        ]:
+            first = self.client.patch(f"/api/books/{bid}", json=body)
+            second = self.client.patch(f"/api/books/{bid}", json=body)
+            self.assertEqual(first.status_code, 200)
+            self.assertEqual(second.status_code, 200)
+            self.assertEqual(first.json(), second.json())
+
+    def test_conditional_restore_cannot_change_unrelated_fields(self):
+        bid = self._create(notes="after").json()["id"]
+        for body in [
+            {"notes": "before", "expected_notes": "after", "title": "unrelated"},
+            {"expected_notes": "after"},
+        ]:
+            r = self.client.patch(f"/api/books/{bid}", json=body)
+            self.assertEqual(r.status_code, 422)
+        book = self.client.get("/api/books/overview").json()["shelves"]["want"][0]
+        self.assertEqual(book["notes"], "after")
+        self.assertEqual(book["title"], "Dune")
+
+    def test_restore_checks_the_value_at_update_time(self):
+        from sqlalchemy import event
+
+        bid = self._create(notes="after").json()["id"]
+        injected = False
+
+        def newer_edit(connection, cursor, statement, parameters, context, executemany):
+            nonlocal injected
+            if not injected and statement.startswith("UPDATE books SET"):
+                injected = True
+                connection.exec_driver_sql(
+                    "UPDATE books SET notes = ? WHERE id = ?", ("concurrent note", bid)
+                )
+
+        event.listen(self.eng, "before_cursor_execute", newer_edit)
+        try:
+            r = self.client.patch(
+                f"/api/books/{bid}", json={"notes": "before", "expected_notes": "after"}
+            )
+        finally:
+            event.remove(self.eng, "before_cursor_execute", newer_edit)
+        self.assertTrue(injected)
+        self.assertEqual(r.status_code, 409)
+
+    def test_restore_rejects_changed_storage_and_accepts_current_scope(self):
+        bid = self._create(notes="after").json()["id"]
+        body = {"notes": "before", "expected_notes": "after", "recovery_scope": "not-current"}
+        self.assertEqual(self.client.patch(f"/api/books/{bid}", json=body).status_code, 409)
+        body["recovery_scope"] = self.client.get("/api/books/overview").json()["recovery_scopes"][0]
+        r = self.client.patch(f"/api/books/{bid}", json=body)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["notes"], "before")
 
     def test_delete_removes(self):
         bid = self._create().json()["id"]

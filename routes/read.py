@@ -4,40 +4,29 @@ the research extractor), and search it offline. links don't rot: the text is kep
 if the page later disappears.
 """
 
-import re
-from datetime import datetime
-from urllib.parse import urlparse
+import hashlib
+from datetime import UTC, datetime
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import or_
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session as DbSession
 
-from core.database import ReadFeed, ReadItem, get_db
-from services.research.search import fetch_webpage_content
+from core.database import DB_PATH, ReadFeed, ReadItem, get_db
+from services.read_items import (
+    fetch_saved_text,
+    make_excerpt,
+    read_minutes,
+    recover_url,
+    save_url,
+    site_of,
+)
 
 router = APIRouter(prefix="/api")
-
-
-# ── pure helpers ──────────────────────────────────────────────────────────────
-def site_of(url: str) -> str:
-    try:
-        host = urlparse(url if "://" in url else "https://" + url).hostname or ""
-    except ValueError:
-        return ""
-    if not host or " " in host or "." not in host:  # not a real domain
-        return ""
-    return host[4:] if host.startswith("www.") else host
-
-
-def make_excerpt(text: str, n: int = 240) -> str:
-    t = re.sub(r"\s+", " ", text or "").strip()
-    return t if len(t) <= n else t[:n].rstrip() + "…"
-
-
-def read_minutes(text: str) -> int:
-    words = len((text or "").split())
-    return max(1, round(words / 200))
 
 
 def _norm_tags(s: str) -> str:
@@ -45,6 +34,7 @@ def _norm_tags(s: str) -> str:
 
 
 def _fmt(it: ReadItem, full: bool = False) -> dict:
+    tags = {tag.strip().lower() for tag in (it.tags or "").split(",") if tag.strip()}
     d = {
         "id": it.id,
         "url": it.url,
@@ -56,13 +46,42 @@ def _fmt(it: ReadItem, full: bool = False) -> dict:
         "added_at": it.added_at.isoformat() if it.added_at else "",
         "read_at": it.read_at,
         "read": bool(it.read_at),
+        "position": it.read_position,
+        "position_revision": it.position_revision,
         "fav": it.fav,
         "archived": it.archived,
         "tags": it.tags,
+        "source_kind": (
+            "saved_news"
+            if "source:news" in tags
+            else "saved_search"
+            if "source:search" in tags
+            else "read_later"
+        ),
+        "text_state": it.text_state,
     }
     if full:
         d["text"] = it.text
+        d["content_hash"] = hashlib.sha256((it.text or "").encode("utf-8")).hexdigest()
     return d
+
+
+def _recovery_scopes() -> list[str]:
+    from services.recovery_consistency import recovery_consistency_lock
+    from services.secretstore import active_key_id, key_ids
+
+    with recovery_consistency_lock:
+        active = active_key_id()
+        keys = [active, *sorted(key_ids() - {active})]
+    return [
+        hashlib.sha256(f"alles-read-save:{Path(DB_PATH).resolve()}:{key}".encode()).hexdigest()
+        for key in keys
+    ]
+
+
+def _check_scope(scope: str):
+    if scope and scope not in _recovery_scopes():
+        raise HTTPException(409, "reading storage changed; reopen saved reading")
 
 
 # ── endpoints ──────────────────────────────────────────────────────────────────
@@ -83,7 +102,7 @@ def list_items(filter: str = "", q: str = "", tag: str = "", db: DbSession = Dep
     if tag:
         query = query.filter(ReadItem.tags.ilike(f"%{tag}%"))
     rows = query.order_by(ReadItem.added_at.desc()).all()
-    return {"items": [_fmt(r) for r in rows]}
+    return {"items": [_fmt(r) for r in rows], "recovery_scopes": _recovery_scopes()}
 
 
 @router.get("/read/stats")
@@ -142,6 +161,7 @@ def add_feed(body: FeedBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "url required")
     if not url.startswith("http"):
         url = "https://" + url
+    db.execute(sql_text("BEGIN IMMEDIATE"))
     if db.query(ReadFeed).filter_by(url=url).first():
         raise HTTPException(400, "feed already added")
     f = ReadFeed(url=url)
@@ -165,8 +185,13 @@ def delete_feed(fid: str, db: DbSession = Depends(get_db)):
 async def refresh_now():
     from services.read_feeds import refresh_feeds
 
-    await refresh_feeds()
-    return {"ok": True}
+    return await refresh_feeds()
+
+
+@router.get("/read/requests/{request_id}")
+def recover_save(request_id: str, recovery_scope: str = "", db: DbSession = Depends(get_db)):
+    _check_scope(recovery_scope)
+    return {**_fmt(recover_url(db, request_id)), "request_id": request_id}
 
 
 @router.get("/read/{rid}")
@@ -177,42 +202,130 @@ def get_item(rid: str, db: DbSession = Depends(get_db)):
     return _fmt(it, full=True)
 
 
+class FetchTextBody(BaseModel):
+    content_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    replace_saved_text: bool = False
+
+
+@router.post("/read/{rid}/fetch-text")
+def fetch_text(rid: str, body: FetchTextBody, db: DbSession = Depends(get_db)):
+    return _fmt(
+        fetch_saved_text(db, rid, body.content_hash, replace_saved_text=body.replace_saved_text),
+        full=True,
+    )
+
+
 class SaveBody(BaseModel):
     url: str
+    request_id: str = ""
+    recovery_scope: str = ""
 
 
 @router.post("/read")
 def save_item(body: SaveBody, db: DbSession = Depends(get_db)):
-    url = (body.url or "").strip()
-    if not url:
-        raise HTTPException(400, "url required")
-    if not url.startswith("http"):
-        url = "https://" + url
-    res = fetch_webpage_content(url)
-    site = site_of(url)
-    text = res.get("content", "") if res else ""
-    title = (res.get("title") if res else "") or site or url
-    it = ReadItem(
+    _check_scope(body.recovery_scope)
+    result = _fmt(save_url(db, body.url, body.request_id))
+    if body.request_id:
+        result["request_id"] = body.request_id
+    return result
+
+
+def canonical_news_url(value: str) -> str:
+    """Canonical identity for an explicitly saved Andromeda result.
+
+    Saving a result must never fetch it. Normalizing only transport-level URL
+    details keeps repeat clicks idempotent without guessing that distinct query
+    strings represent the same article.
+    """
+    raw = (value or "").strip()
+    try:
+        parsed = urlsplit(raw)
+        scheme = parsed.scheme.lower()
+        host = (parsed.hostname or "").lower().rstrip(".")
+        port = parsed.port
+    except ValueError as error:
+        raise HTTPException(400, "invalid result url") from error
+    if scheme not in {"http", "https"} or not host or parsed.username or parsed.password:
+        raise HTTPException(400, "result url must be http or https")
+    rendered_host = f"[{host}]" if ":" in host else host
+    if port and not ((scheme == "http" and port == 80) or (scheme == "https" and port == 443)):
+        rendered_host = f"{rendered_host}:{port}"
+    return urlunsplit((scheme, rendered_host, parsed.path or "/", parsed.query, ""))
+
+
+class NewsSaveBody(BaseModel):
+    url: str
+    title: str = ""
+    excerpt: str = ""
+    publisher: str = ""
+    image_url: str = ""
+
+
+@router.post("/read/save-news")
+def save_news(body: NewsSaveBody, db: DbSession = Depends(get_db)):
+    return _save_result(body, db, "source:news")
+
+
+@router.post("/read/save-result")
+def save_result(body: NewsSaveBody, db: DbSession = Depends(get_db)):
+    return _save_result(body, db, "source:search")
+
+
+def _save_result(body: NewsSaveBody, db: DbSession, source_tag: str):
+    """Keep returned metadata after an explicit save; never fetch the publisher."""
+    url = canonical_news_url(body.url)
+    db.execute(sql_text("BEGIN IMMEDIATE"))
+    existing = db.query(ReadItem).filter(ReadItem.url == url).first()
+    if existing:
+        tags = [tag.strip() for tag in (existing.tags or "").split(",") if tag.strip()]
+        if not any(tag.lower() == source_tag for tag in tags):
+            tags.append(source_tag)
+            existing.tags = _norm_tags(",".join(tags))
+            db.commit()
+            db.refresh(existing)
+            try:
+                from services import personal_index
+
+                personal_index.index_record(db, "read", existing)
+            except Exception:
+                pass
+        result = {"item": _fmt(existing), "duplicate": True}
+        db.commit()
+        return result
+
+    excerpt = make_excerpt(body.excerpt, 1200)
+    item = ReadItem(
         url=url,
-        title=title[:300],
-        text=text,
-        excerpt=make_excerpt(text),
-        site=site,
-        image=(res.get("og_image", "") if res else ""),
-        read_minutes=read_minutes(text),
+        title=(body.title or body.publisher or site_of(url) or url).strip()[:300],
+        text=excerpt,
+        text_state="excerpt" if excerpt else "empty",
+        excerpt=excerpt,
+        site=(body.publisher or site_of(url)).strip()[:200],
+        image=(body.image_url or "").strip()[:2000],
+        read_minutes=read_minutes(excerpt),
+        tags=source_tag,
     )
-    db.add(it)
+    db.add(item)
     db.commit()
-    db.refresh(it)
+    db.refresh(item)
     try:
         from services import personal_index
-        personal_index.index_record(db, "read", it)
+
+        personal_index.index_record(db, "read", item)
     except Exception:
         pass
-    return _fmt(it)
+    return {"item": _fmt(item), "duplicate": False}
 
 
 class ReadPatch(BaseModel):
+    position: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    content_hash: str | None = None
+    position_revision: str | None = Field(
+        default=None,
+        pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}:[1-9][0-9]{0,14}$",
+    )
+    position_base: str | None = Field(default=None, max_length=64)
+    read: bool | None = None
     tags: str | None = None
     fav: bool | None = None
     archived: bool | None = None
@@ -220,22 +333,66 @@ class ReadPatch(BaseModel):
 
 @router.patch("/read/{rid}")
 def patch_item(rid: str, body: ReadPatch, db: DbSession = Depends(get_db)):
+    versioned = body.position_revision is not None
+    if versioned != (body.position_base is not None) or (versioned and body.position is None):
+        raise HTTPException(422, "reading position revisions require a position and base")
+    if body.position is not None:
+        db.execute(sql_text("BEGIN IMMEDIATE"))
     it = db.get(ReadItem, rid)
     if not it:
         raise HTTPException(404)
+    if body.position is not None:
+        current_hash = hashlib.sha256((it.text or "").encode("utf-8")).hexdigest()
+        if body.content_hash != current_hash:
+            raise HTTPException(409, "saved text changed; reload before saving your reading place")
+        if versioned:
+            current = it.position_revision
+            owner, _, sequence = body.position_revision.rpartition(":")
+            current_owner, _, current_sequence = current.rpartition(":")
+            replay = current == body.position_revision
+            if replay:
+                if it.read_position != body.position:
+                    raise HTTPException(
+                        409, "this reading position request already saved another place"
+                    )
+            elif (
+                int(sequence) <= int(current_sequence)
+                if owner == current_owner
+                else current != body.position_base
+            ):
+                raise HTTPException(409, "reading place changed; reopen the article")
+            it.position_revision = body.position_revision
+        else:
+            it.position_revision = f"{uuid4()}:0"
+        it.read_position = body.position
+    if body.read is not None:
+        it.read_at = (
+            (it.read_at or datetime.now(UTC).replace(tzinfo=None).isoformat()) if body.read else ""
+        )
     if body.tags is not None:
         it.tags = _norm_tags(body.tags)
     if body.fav is not None:
         it.fav = body.fav
     if body.archived is not None:
         it.archived = body.archived
+    result = _fmt(it)
+    if body.position is not None:
+        result["content_hash"] = current_hash
     db.commit()
+    if body.position is not None and body.model_fields_set <= {
+        "position",
+        "content_hash",
+        "position_revision",
+        "position_base",
+    }:
+        return result
     try:
         from services import personal_index
+
         personal_index.index_record(db, "read", it)
     except Exception:
         pass
-    return _fmt(it)
+    return result
 
 
 @router.post("/read/{rid}/read")
@@ -243,10 +400,11 @@ def toggle_read(rid: str, db: DbSession = Depends(get_db)):
     it = db.get(ReadItem, rid)
     if not it:
         raise HTTPException(404)
-    it.read_at = "" if it.read_at else datetime.utcnow().isoformat()
+    it.read_at = "" if it.read_at else datetime.now(UTC).replace(tzinfo=None).isoformat()
     db.commit()
     try:
         from services import personal_index
+
         personal_index.index_record(db, "read", it)
     except Exception:
         pass
@@ -262,6 +420,7 @@ def delete_item(rid: str, db: DbSession = Depends(get_db)):
     db.commit()
     try:
         from services import personal_index
+
         personal_index.remove_record(db, "read", rid)
     except Exception:
         pass

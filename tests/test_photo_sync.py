@@ -18,6 +18,10 @@ def _png(path: Path, color=(200, 30, 30)):
     path.write_bytes(buf.getvalue())
 
 
+def _heic(path: Path):
+    path.write_bytes(b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00heicmif1" + (b"\x00" * 32))
+
+
 class PhotoSyncStoreTest(unittest.TestCase):
     """service-level, with photo dirs + sync state redirected to temp."""
 
@@ -53,6 +57,7 @@ class PhotoSyncStoreTest(unittest.TestCase):
         eng = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
+        self.addCleanup(eng.dispose)
         db.Base.metadata.create_all(eng)
         Sess = sessionmaker(bind=eng)
 
@@ -75,6 +80,28 @@ class PhotoSyncStoreTest(unittest.TestCase):
         r3 = photo_sync.sync_folder(self.src.name, s3)
         s3.close()
         self.assertEqual(r3["imported"], 1)
+
+    def test_sync_imports_heic_original(self):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+
+        import core.database as db
+
+        _heic(Path(self.src.name) / "phone.heic")
+        eng = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
+        self.addCleanup(eng.dispose)
+        db.Base.metadata.create_all(eng)
+        sess = sessionmaker(bind=eng)()
+        r = photo_sync.sync_folder(self.src.name, sess)
+        row = sess.query(db.Photo).filter(db.Photo.original_name == "phone.heic").first()
+        sess.close()
+
+        self.assertEqual(r["failed"], 0)
+        self.assertIsNotNone(row)
+        self.assertEqual(row.thumb, "")
 
     def test_bad_folder_raises(self):
         with self.assertRaises(ValueError):
@@ -162,6 +189,7 @@ class RunWatchTest(unittest.TestCase):
         eng = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
+        self.addCleanup(eng.dispose)
         db.Base.metadata.create_all(eng)
         sess = sessionmaker(bind=eng)()
         with mock.patch(

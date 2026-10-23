@@ -1,8 +1,8 @@
 """daily briefing - a small morning digest pulled from the local apps (calendar,
 tasks, habits, reading list, subscriptions, health). the per-app queries now live
 in services.signals (shared with the today widget + proactive agent); this just
-formats the signals into digest lines. the job in app.py broadcasts it via web
-push once a day."""
+formats the signals into digest lines. routes.briefing previews/sends it on
+demand, and services.automations reuses it for daily_at digest rules."""
 
 from datetime import date
 
@@ -12,8 +12,14 @@ def compose_briefing(db, today=None) -> dict:
     from services import signals
 
     today = today or date.today()
+    unavailable = set()
     g = signals.by_category(
-        signals.gather(db, today, categories={"event", "task", "habit", "book", "sub", "health"})
+        signals.gather(
+            db,
+            today,
+            categories={"event", "task", "habit", "book", "sub", "health"},
+            unavailable=unavailable,
+        )
     )
     lines = []
 
@@ -53,6 +59,8 @@ def compose_briefing(db, today=None) -> dict:
     if soon:
         bits = ", ".join(f"{d['name']} ({d['currency']}{d['price']:g})" for d in soon[:4])
         lines.append(f"renewing soon — {bits}")
+    if unavailable:
+        lines.append("subscription status unavailable")
 
     # latest weight (the most-tracked metric)
     w = [s["data"] for s in g.get("health", [])]
@@ -66,4 +74,5 @@ def compose_briefing(db, today=None) -> dict:
         "body": "\n".join(lines) if lines else "nothing on the agenda — enjoy the day.",
         "lines": lines,
         "has_content": bool(lines),
+        "partial_sources": sorted(unavailable),
     }

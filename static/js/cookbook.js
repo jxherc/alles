@@ -1,7 +1,9 @@
 // cookbook — browse the 900+ model catalog ranked against your actual hardware
 // (the hwfit/llmfit engine). discover what fits, at what quant, how fast.
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
 let _built = false;
 let _searchTimer = null;
+let _loadSequence = 0;
 
 const USE_CASES = ['general', 'coding', 'reasoning', 'chat', 'multimodal', 'embedding', 'image_gen'];
 const SORTS = [['score', 'best fit'], ['speed', 'fastest'], ['vram', 'most VRAM'], ['params', 'biggest'], ['newest', 'newest']];
@@ -16,20 +18,27 @@ export function initCookbook() {
   if (!_built) {
     body.innerHTML = `
       <div class="cb-controls">
-        <input id="cb-search" class="cb-search" placeholder="search models…">
-        <select id="cb-usecase" class="cb-sel">${USE_CASES.map(u => `<option value="${u}">${u}</option>`).join('')}</select>
-        <select id="cb-sort" class="cb-sel">${SORTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
-        <label class="cb-fitonly"><input type="checkbox" id="cb-fitonly" checked> fits only</label>
+        <input id="cb-search" aria-label="search models" class="cb-search" placeholder="search models…">
+        <div id="cb-usecase" class="cb-sel custom-select"></div>
+        <div id="cb-sort" class="cb-sel custom-select"></div>
+        <button type="button" class="cb-fitonly s-switch s-switch-labeled" id="cb-fitonly" role="switch" aria-checked="true">fits only</button>
         <button class="btn" id="cb-refresh">refresh</button>
       </div>
       <div id="cb-table" class="cb-table"><div class="jrnl-empty">loading catalog…</div></div>`;
 
+    populateDropdown(document.getElementById('cb-usecase'), USE_CASES.map(value => ({ value, label: value })), USE_CASES[0]);
+    populateDropdown(document.getElementById('cb-sort'), SORTS.map(([value, label]) => ({ value, label })), SORTS[0][0]);
     const reload = () => load();
     document.getElementById('cb-usecase').onchange = reload;
     document.getElementById('cb-sort').onchange = reload;
-    document.getElementById('cb-fitonly').onchange = reload;
+    document.getElementById('cb-fitonly').onclick = event => {
+      const button = event.currentTarget;
+      button.setAttribute('aria-checked', button.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+      reload();
+    };
     document.getElementById('cb-refresh').onclick = reload;
     document.getElementById('cb-search').addEventListener('input', () => {
+      _loadSequence++;
       clearTimeout(_searchTimer); _searchTimer = setTimeout(load, 300);
     });
     _built = true;
@@ -50,15 +59,17 @@ async function loadHardware() {
 async function load() {
   const table = document.getElementById('cb-table');
   if (!table) return;
-  const uc = document.getElementById('cb-usecase').value;
-  const sort = document.getElementById('cb-sort').value;
-  const fitOnly = document.getElementById('cb-fitonly').checked;
+  const sequence = ++_loadSequence;
+  const uc = getDropdownValue(document.getElementById('cb-usecase'));
+  const sort = getDropdownValue(document.getElementById('cb-sort'));
+  const fitOnly = document.getElementById('cb-fitonly').getAttribute('aria-checked') === 'true';
   const search = document.getElementById('cb-search').value.trim();
   const qs = new URLSearchParams({ use_case: uc, sort, fit_only: fitOnly, limit: 80 });
   if (search) qs.set('search', search);
   table.innerHTML = '<div class="jrnl-empty">ranking against your hardware…</div>';
   try {
     const d = await cget('/api/local-models/catalog?' + qs);
+    if (sequence !== _loadSequence) return;
     if (!d.models.length) { table.innerHTML = '<div class="jrnl-empty">no models match</div>'; return; }
     table.innerHTML = `
       <div class="cb-row cb-head">
@@ -66,6 +77,7 @@ async function load() {
         <span>VRAM</span><span>speed</span><span>fit</span><span>score</span>
       </div>` + d.models.map(rowHtml).join('');
   } catch (e) {
+    if (sequence !== _loadSequence) return;
     table.innerHTML = `<div class="jrnl-empty">catalog failed: ${esc(String(e.message || e))}</div>`;
   }
 }

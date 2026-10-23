@@ -1,0 +1,194 @@
+/* Aide's call surface shares the conversation shell; connection details stay local. */
+#aide-call-workspace {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  color: var(--k-text);
+  background: var(--k-page);
+}
+
+#aide-call-workspace[hidden],
+#aide-call-workspace [hidden] { display: none !important; }
+
+#aide-call-workspace .aide-call-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-4);
+  padding: var(--k-space-2) var(--ui-page-gutter);
+  flex: 0 0 auto;
+}
+
+#aide-call-workspace :is(.aide-call-text, .aide-call-action) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--k-space-2);
+  min-height: var(--k-control);
+  min-width: var(--k-control);
+  padding: var(--k-space-2) var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-soft);
+  font: 400 14px/1.45 var(--k-font);
+  cursor: pointer;
+  box-shadow: none;
+  transition: color var(--k-motion-fast) var(--k-ease);
+}
+
+#aide-call-workspace .aide-call-text { padding-inline: 0; }
+#aide-call-workspace :is(.aide-call-text, .aide-call-action):hover { color: var(--k-text); }
+#aide-call-workspace :is(.aide-call-text, .aide-call-action):focus { outline: 0; box-shadow: none; }
+#aide-call-workspace :is(.aide-call-text, .aide-call-action):focus-visible {
+  outline: 2px solid var(--k-focus);
+  outline-offset: var(--k-focus-offset, -2px);
+}
+
+#aide-call-workspace .ic { flex-shrink: 0; width: 16px; height: 16px; stroke-width: 1.5; }
+
+#aide-call-workspace .aide-call-body {
+  width: min(100%, 680px);
+  margin-inline: auto;
+  padding: var(--k-space-5) var(--ui-page-gutter) var(--k-space-7);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-space-6);
+}
+
+#aide-call-workspace .aide-call-stage {
+  flex: 1;
+  min-height: min-content;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--k-space-5);
+  text-align: center;
+  padding-block: var(--k-space-6);
+}
+
+#aide-call-workspace .aide-call-mark {
+  width: var(--k-space-8);
+  height: var(--k-space-8);
+  display: grid;
+  place-items: center;
+  color: var(--k-muted);
+}
+
+#aide-call-workspace .aide-call-mark .ic { width: 32px; height: 32px; }
+#aide-call-workspace[data-state="connected"] .aide-call-mark { color: var(--k-text); }
+
+#aide-call-workspace .aide-call-state h2 {
+  margin: 0;
+  color: var(--k-text);
+  font: 560 16px/1.45 var(--k-font);
+}
+
+#aide-call-workspace .aide-call-state p {
+  max-width: 38ch;
+  margin: var(--k-space-2) 0 0;
+  color: var(--k-muted);
+  font: 400 14px/1.5 var(--k-font);
+  overflow-wrap: anywhere;
+}
+
+#aide-call-workspace .aide-call-time {
+  color: var(--k-muted);
+  font: 400 13px/1.45 var(--k-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+#aide-call-workspace .aide-call-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--k-space-4); }
+#aide-call-workspace .aide-call-primary { color: var(--k-text); background: var(--k-raised); }
+#aide-call-workspace .aide-call-end { color: var(--k-danger); }
+#aide-call-workspace .aide-call-action[aria-pressed="true"] { background: var(--k-raised); color: var(--k-text); }
+
+#aide-call-workspace .aide-call-transcript {
+  width: 100%;
+  max-width: 52ch;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-space-4);
+  max-height: 28dvh;
+  overflow: auto;
+}
+
+#aide-call-workspace .aide-call-transcript p { margin: 0; font: 400 16px/1.5 var(--k-font); overflow-wrap: anywhere; }
+#aide-call-workspace .aide-call-transcript p > span { display: block; margin-bottom: var(--k-space-1); color: var(--k-muted); font-size: 12px; }
+
+#aide-call-workspace .aide-call-details {
+  border-top: 1px solid var(--k-line);
+  padding-top: var(--k-space-4);
+  flex: 0 0 auto;
+  font: 400 13px/1.5 var(--k-font);
+  color: var(--k-muted);
+}
+
+#aide-call-workspace .aide-call-details dl { display: grid; gap: var(--k-space-2); margin: 0; }
+#aide-call-workspace .aide-call-details dl > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--k-space-4); }
+#aide-call-workspace .aide-call-details :is(dt, dd) { margin: 0; overflow-wrap: anywhere; }
+#aide-call-workspace .aide-call-details dd { color: var(--k-soft); }
+#aide-call-workspace .aide-call-details p { margin: var(--k-space-3) 0 0; }
+
+@media (max-width: 620px) {
+  #aide-call-workspace .aide-call-body { padding-top: var(--k-space-4); padding-bottom: var(--k-space-5); }
+  #aide-call-workspace .aide-call-stage { padding-block: var(--k-space-4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #aide-call-workspace :is(.aide-call-text, .aide-call-action) { transition: none; }
+}
+
+/* An active microphone stays reachable after navigating to another Alles app. */
+#aide-call-ongoing {
+  position: fixed;
+  inset: auto var(--k-space-4) var(--k-space-4) auto;
+  z-index: 190;
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  max-width: calc(100vw - var(--k-space-6));
+  padding: var(--k-space-1) var(--k-space-2);
+  border: 1px solid var(--k-line-strong);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+  color: var(--k-text);
+}
+
+#aide-call-ongoing[hidden],
+body[data-space="aide"] #aide-call-ongoing { display: none !important; }
+
+#aide-call-ongoing button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--k-space-2);
+  min-width: var(--k-control);
+  min-height: var(--k-control);
+  padding: var(--k-space-2);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-text);
+  font: 400 13px/1.45 var(--k-font);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+#aide-call-ongoing button:focus { outline: 0; box-shadow: none; }
+#aide-call-ongoing button:focus-visible { outline: 2px solid var(--k-focus); outline-offset: 0; }
+#aide-call-ongoing .ic { width: 16px; height: 16px; flex-shrink: 0; stroke-width: 1.5; }
+#aide-call-ongoing #aide-call-global-state { color: var(--k-muted); }
+#aide-call-ongoing #aide-call-global-end { color: var(--k-danger); }
+
+@media (max-width: 620px) {
+  #aide-call-ongoing #aide-call-global-state { display: none; }
+}

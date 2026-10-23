@@ -5,6 +5,7 @@ import os
 import tempfile
 from pathlib import Path
 from unittest import mock
+from urllib.parse import urlsplit
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -25,11 +26,12 @@ def _keypair():
     return priv, der
 
 
-def _assertion(priv, challenge):
+def _assertion(priv, challenge, *, origin="http://localhost:8000", counter=1):
     client_data = json.dumps(
-        {"type": "webauthn.get", "challenge": challenge, "origin": "http://localhost:8000"}
+        {"type": "webauthn.get", "challenge": challenge, "origin": origin}
     ).encode()
-    auth_data = os.urandom(37)
+    host = (urlsplit(origin).hostname or "").lower()
+    auth_data = hashlib.sha256(host.encode()).digest() + b"\x01" + counter.to_bytes(4, "big")
     sig = priv.sign(auth_data + hashlib.sha256(client_data).digest(), ec.ECDSA(hashes.SHA256()))
     return auth_data, client_data, sig
 
@@ -44,10 +46,13 @@ class HwKey2faTests(ApiTest):
         self._sf.close()
         self.sp = mock.patch.object(core.settings, "_SETTINGS_FILE", Path(self._sf.name))
         self.sp.start()
-        self.tok = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["token"]
+        self.tok = self.client.post(
+            "/api/vault/unlock", json={"password": "master-password-1"}
+        ).json()["token"]
         self.h = {"X-Vault-Token": self.tok}
         self.priv, self.der = _keypair()
         self.cred_id = _b64(os.urandom(16))
+        self.origin = {"Origin": "http://localhost:8000"}
 
     def tearDown(self):
         self.sp.stop()
@@ -79,31 +84,34 @@ class HwKey2faTests(ApiTest):
     def test_unlock_returns_challenge_when_2fa(self):
         self._register()
         self._enable()
-        r = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()
+        r = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()
         self.assertTrue(r.get("requires_2fa"))
         self.assertTrue(r.get("challenge"))
 
     def test_unlock_withholds_token_when_2fa(self):
         self._register()
         self._enable()
-        r = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()
+        r = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()
         self.assertNotIn("token", r)
 
     def test_twofa_unlock_valid(self):
         self._register()
         self._enable()
-        ch = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["challenge"]
+        ch = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()[
+            "challenge"
+        ]
         ad, cd, sig = _assertion(self.priv, ch)
         r = self.client.post(
             "/api/vault/unlock/2fa",
             json={
                 "vault_id": "default",
-                "password": "m1",
+                "password": "master-password-1",
                 "credential_id": self.cred_id,
                 "authenticator_data": _b64(ad),
                 "client_data_json": _b64(cd),
                 "signature": _b64(sig),
             },
+            headers=self.origin,
         )
         self.assertEqual(r.status_code, 200)
         tok = r.json()["token"]
@@ -114,7 +122,9 @@ class HwKey2faTests(ApiTest):
     def test_twofa_wrong_password_401(self):
         self._register()
         self._enable()
-        ch = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["challenge"]
+        ch = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()[
+            "challenge"
+        ]
         ad, cd, sig = _assertion(self.priv, ch)
         r = self.client.post(
             "/api/vault/unlock/2fa",
@@ -126,13 +136,16 @@ class HwKey2faTests(ApiTest):
                 "client_data_json": _b64(cd),
                 "signature": _b64(sig),
             },
+            headers=self.origin,
         )
         self.assertEqual(r.status_code, 401)
 
     def test_twofa_bad_assertion_401(self):
         self._register()
         self._enable()
-        ch = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["challenge"]
+        ch = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()[
+            "challenge"
+        ]
         ad, cd, sig = _assertion(self.priv, ch)
         bad = bytearray(sig)
         bad[-1] ^= 0xFF
@@ -140,30 +153,34 @@ class HwKey2faTests(ApiTest):
             "/api/vault/unlock/2fa",
             json={
                 "vault_id": "default",
-                "password": "m1",
+                "password": "master-password-1",
                 "credential_id": self.cred_id,
                 "authenticator_data": _b64(ad),
                 "client_data_json": _b64(cd),
                 "signature": _b64(bytes(bad)),
             },
+            headers=self.origin,
         )
         self.assertEqual(r.status_code, 401)
 
     def test_twofa_unknown_credential_404(self):
         self._register()
         self._enable()
-        ch = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()["challenge"]
+        ch = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()[
+            "challenge"
+        ]
         ad, cd, sig = _assertion(self.priv, ch)
         r = self.client.post(
             "/api/vault/unlock/2fa",
             json={
                 "vault_id": "default",
-                "password": "m1",
+                "password": "master-password-1",
                 "credential_id": _b64(os.urandom(16)),
                 "authenticator_data": _b64(ad),
                 "client_data_json": _b64(cd),
                 "signature": _b64(sig),
             },
+            headers=self.origin,
         )
         self.assertEqual(r.status_code, 404)
 
@@ -171,11 +188,11 @@ class HwKey2faTests(ApiTest):
         self._register()
         self._enable()
         self._enable(False)
-        r = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()
+        r = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()
         self.assertTrue(r.get("token"))
 
     def test_no_credential_no_lockout(self):
         # enabling 2fa without ever registering a key must not lock the user out
         self._enable()
-        r = self.client.post("/api/vault/unlock", json={"password": "m1"}).json()
+        r = self.client.post("/api/vault/unlock", json={"password": "master-password-1"}).json()
         self.assertTrue(r.get("token"))

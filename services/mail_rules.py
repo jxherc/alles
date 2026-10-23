@@ -2,9 +2,10 @@
 applying to the cache (markread/mute/label) + enqueuing autoreplies/vacation sends into the outbox
 are locally testable against the db."""
 
-from datetime import datetime
+from datetime import UTC, datetime
+from email.utils import parseaddr
 
-from core.database import CachedMessage, ScheduledMail
+from core.database import CachedMessage, MailAccount, ScheduledMail
 
 
 def _add_label(csv, label):
@@ -28,7 +29,7 @@ def _enqueue(db, account_id, to, subject, body):
         to=to,
         subject=subject,
         body=body or "",
-        send_at=datetime.utcnow().isoformat(),
+        send_at=datetime.now(UTC).replace(tzinfo=None).isoformat(),
         status="scheduled",
     )
     db.add(m)
@@ -37,6 +38,17 @@ def _enqueue(db, account_id, to, subject, body):
 
 def _field(rule, name, default=""):
     return rule.get(name, default) if isinstance(rule, dict) else getattr(rule, name, default)
+
+
+def _addr(s):
+    return (parseaddr(s or "")[1] or s or "").strip().lower()
+
+
+def _self_addrs(db, account_id):
+    acct = db.get(MailAccount, account_id)
+    if not acct:
+        return set()
+    return {a for a in (_addr(acct.email), _addr(acct.username)) if a}
 
 
 def apply_rules(msg, rules):
@@ -61,8 +73,14 @@ def apply_rules(msg, rules):
 def run_on_cache(db, account_id, rules):
     """apply markread / mute / label / autoreply rules over an account's cached messages.
     returns count applied. label dedupes; autoreply enqueues once per message (autoreplied guard)."""
+    # Reserve the writer before reading cached guards, including across server workers.
+    db.query(MailAccount).filter_by(id=account_id).update(
+        {MailAccount.id: MailAccount.id}, synchronize_session=False
+    )
+    db.expire_all()
     n = 0
-    for row in db.query(CachedMessage).filter_by(account_id=account_id).all():
+    own = _self_addrs(db, account_id)
+    for row in db.query(CachedMessage).filter_by(account_id=account_id, folder="INBOX").all():
         msg = {"from": row.sender or "", "subject": row.subject or ""}
         for act in apply_rules(msg, rules):
             a, arg = act["action"], act.get("action_arg", "")
@@ -77,7 +95,10 @@ def run_on_cache(db, account_id, rules):
                 if new != (row.labels or ""):
                     row.labels = new
                     n += 1
-            elif a == "autoreply" and not row.autoreplied and (row.sender or "").strip():
+            elif a == "autoreply" and not row.autoreplied:
+                sender = _addr(row.sender)
+                if not sender or sender in own:
+                    continue
                 subj = row.subject or ""
                 subj = subj if subj.lower().startswith("re:") else f"Re: {subj}"
                 _enqueue(db, account_id, row.sender, subj, arg)

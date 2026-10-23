@@ -1,9 +1,49 @@
-from tests._client import ApiTest
+from tests._client import VaultApiTest
 
 
-class NotesApiTest(ApiTest):
+class NotesApiTest(VaultApiTest):
     def _mk(self, **kw):
         return self.client.post("/api/notes", json=kw).json()
+
+    def test_pin_toggle_preserves_title_and_content(self):
+        # regression (F01, blocker): the pin button sends a partial PATCH with only
+        # {pinned:...}. NoteBody used to default title/content to "" so update_note's
+        # `is not None` was always true and silently wiped both on every pin/unpin.
+        nid = self._mk(title="keep me", content="important body")["id"]
+        pinned = self.client.patch(f"/api/notes/{nid}", json={"pinned": True}).json()
+        self.assertEqual(pinned["title"], "keep me")
+        self.assertEqual(pinned["content"], "important body")
+        self.assertTrue(pinned["pinned"])
+        unp = self.client.patch(f"/api/notes/{nid}", json={"pinned": False}).json()
+        self.assertEqual(unp["title"], "keep me")
+        self.assertEqual(unp["content"], "important body")
+        # explicit empty content must still be honored when actually sent
+        cleared = self.client.patch(f"/api/notes/{nid}", json={"content": ""}).json()
+        self.assertEqual(cleared["content"], "")
+
+    def test_stale_editor_cannot_overwrite_external_change(self):
+        note = self._mk(title="shared", content="first")
+        from services import vault_md
+
+        vault_md.write("Notes/shared.md", "external change")
+        response = self.client.patch(
+            "/api/notes/shared",
+            json={"content": "stale edit", "expected_hash": note["hash"]},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "document_conflict")
+        self.assertEqual(vault_md.read("Notes/shared.md")["content"], "external change")
+
+    def test_deleted_note_can_be_restored_from_vault_trash(self):
+        note = self._mk(title="recover me", content="important")
+        deleted = self.client.delete(f"/api/notes/{note['id']}")
+        self.assertEqual(deleted.status_code, 200)
+        self.assertTrue(deleted.json()["trashed"])
+        self.assertEqual(self.client.get("/api/notes").json(), [])
+        item = self.client.get("/api/vault-md/trash").json()[0]
+        restored = self.client.post("/api/vault-md/trash/restore", json={"id": item["id"]})
+        self.assertEqual(restored.status_code, 200)
+        self.assertEqual(self.client.get("/api/notes").json()[0]["content"], "important")
 
     def test_create_with_tags_normalized(self):
         n = self._mk(title="t", content="c", tags=["Work", "work", " Urgent "])
@@ -16,10 +56,13 @@ class NotesApiTest(ApiTest):
     def test_search_matches_title_content_tags(self):
         self._mk(title="grocery list", content="milk eggs", tags=["home"])
         self._mk(title="work plan", content="ship the thing", tags=["office"])
-        titles = lambda q: sorted(n["title"] for n in self.client.get(f"/api/notes?q={q}").json())
-        self.assertEqual(titles("milk"), ["grocery list"])       # content hit
-        self.assertEqual(titles("office"), ["work plan"])        # tag hit
-        self.assertEqual(titles("plan"), ["work plan"])          # title hit
+
+        def titles(q):
+            return sorted(n["title"] for n in self.client.get(f"/api/notes?q={q}").json())
+
+        self.assertEqual(titles("milk"), ["grocery list"])  # content hit
+        self.assertEqual(titles("office"), ["work plan"])  # tag hit
+        self.assertEqual(titles("plan"), ["work plan"])  # title hit
 
     def test_filter_by_tag(self):
         self._mk(title="a", tags=["x"])
@@ -55,20 +98,28 @@ class NotesApiTest(ApiTest):
         )
 
     def test_checklist_items_roundtrip_and_clean(self):
-        n = self._mk(title="todo", items=[
-            {"text": "buy milk", "done": False},
-            {"text": "  ", "done": True},          # blank → dropped
-            {"text": "call mom", "done": True},
-            {"bogus": 1},                           # malformed → dropped
-        ])
-        self.assertEqual(n["items"], [
-            {"text": "buy milk", "done": False},
-            {"text": "call mom", "done": True},
-        ])
+        n = self._mk(
+            title="todo",
+            items=[
+                {"text": "buy milk", "done": False},
+                {"text": "  ", "done": True},  # blank → dropped
+                {"text": "call mom", "done": True},
+                {"bogus": 1},  # malformed → dropped
+            ],
+        )
+        self.assertEqual(
+            n["items"],
+            [
+                {"text": "buy milk", "done": False},
+                {"text": "call mom", "done": True},
+            ],
+        )
 
     def test_toggle_item_via_patch(self):
         nid = self._mk(title="t", items=[{"text": "a", "done": False}])["id"]
-        n = self.client.patch(f"/api/notes/{nid}", json={"items": [{"text": "a", "done": True}]}).json()
+        n = self.client.patch(
+            f"/api/notes/{nid}", json={"items": [{"text": "a", "done": True}]}
+        ).json()
         self.assertTrue(n["items"][0]["done"])
 
     def test_due_date_stored(self):

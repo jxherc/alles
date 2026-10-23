@@ -31,6 +31,16 @@ class HealthLogicTests(ApiTest):
         ]
         self.assertEqual(latest_per_kind(entries)["weight"].value, 75)
 
+    def test_latest_per_kind_custom_key(self):
+        entries = [
+            HealthEntry(kind="custom", label="steps", date="2026-06-18", value=5000),
+            HealthEntry(kind="custom", label="bp", date="2026-06-19", value=120),
+            HealthEntry(kind="custom", label="steps", date="2026-06-20", value=7000),
+        ]
+        latest = latest_per_kind(entries, key=lambda e: (e.kind, e.label or ""))
+        self.assertEqual(latest[("custom", "steps")].value, 7000)
+        self.assertEqual(latest[("custom", "bp")].value, 120)
+
     def test_series_for_sorted_asc(self):
         entries = [
             self._e("weight", "2026-06-20", 79),
@@ -61,6 +71,14 @@ class HealthApiTests(ApiTest):
     def test_create_rejects_bad_kind(self):
         self.assertEqual(self._create(kind="vibes").status_code, 400)
 
+    def test_create_rejects_nonfinite_without_saving(self):
+        for value in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(value=value):
+                response = self._create(value=value)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["detail"], "value must be a finite number")
+        self.assertEqual(self.client.get("/api/health").json()["entries"], [])
+
     def test_custom_labels_get_separate_cards(self):
         self._create(kind="custom", label="blood pressure", value=120, unit="mmHg")
         self._create(kind="custom", label="steps", value=5000, unit="")
@@ -76,12 +94,54 @@ class HealthApiTests(ApiTest):
         self.assertNotIn("bp", kinds)  # coerced
         self.assertIn("custom", kinds)
 
+    def test_import_skips_nonfinite_values(self):
+        csv = (
+            "date,kind,value,unit\n"
+            "2026-06-20,weight,NaN,kg\n"
+            "2026-06-21,weight,Infinity,kg\n"
+            "2026-06-22,weight,-Infinity,kg\n"
+            "2026-06-23,weight,74.25,kg\n"
+        )
+        response = self.client.post("/api/health/import", json={"text": csv})
+        self.assertEqual(response.json()["imported"], 1)
+        entries = self.client.get("/api/health").json()["entries"]
+        self.assertEqual([e["value"] for e in entries], [74.25])
+
+    def test_import_canonicalizes_accepted_compact_date(self):
+        csv = "date,kind,value,unit\n20260620,weight,74.25,kg\n"
+        response = self.client.post("/api/health/import", json={"text": csv})
+        self.assertEqual(response.json()["imported"], 1)
+        self.assertEqual(self.client.get("/api/health").json()["entries"][0]["date"], "2026-06-20")
+
     def test_create_requires_value(self):
         self.assertEqual(self.client.post("/api/health", json={"kind": "weight"}).status_code, 422)
 
     def test_create_defaults_date_to_today(self):
         r = self.client.post("/api/health", json={"kind": "sleep", "value": 7})
         self.assertEqual(r.json()["date"], date.today().isoformat())
+
+    def test_accepted_compact_date_is_stored_canonically(self):
+        compact = self._create(value=80, date="20260620")
+        self.assertEqual(compact.status_code, 200)
+        self.assertEqual(compact.json()["date"], "2026-06-20")
+        self._create(value=79, date="2026-06-21")
+        card = next(
+            kind
+            for kind in self.client.get("/api/health/overview").json()["kinds"]
+            if kind["kind"] == "weight"
+        )
+        self.assertEqual(card["latest"]["date"], "2026-06-21")
+
+    def test_accepted_week_date_is_stored_canonically(self):
+        response = self._create(date="2026-W25-6")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["date"], "2026-06-20")
+
+    def test_patch_canonicalizes_accepted_compact_date(self):
+        entry = self._create().json()
+        response = self.client.patch(f"/api/health/{entry['id']}", json={"date": "20260621"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["date"], "2026-06-21")
 
     def test_list_contains_created(self):
         self._create()
@@ -129,7 +189,11 @@ class HealthApiTests(ApiTest):
     def test_overview_has_baseline(self):
         for i, v in enumerate([7, 7, 8, 7, 7, 8]):  # steady sleep
             self._create(kind="sleep", value=v, date=f"2026-06-{10 + i:02d}")
-        s = next(k for k in self.client.get("/api/health/overview").json()["kinds"] if k["kind"] == "sleep")
+        s = next(
+            k
+            for k in self.client.get("/api/health/overview").json()["kinds"]
+            if k["kind"] == "sleep"
+        )
         self.assertGreaterEqual(s["baseline"]["n"], 5)
         self.assertAlmostEqual(s["baseline"]["mean"], 44 / 6, places=2)
 
@@ -137,14 +201,22 @@ class HealthApiTests(ApiTest):
         for i, v in enumerate([7, 8, 6, 7, 8, 6, 7]):  # varied baseline so MAD > 0
             self._create(kind="sleep", value=v, date=f"2026-06-{10 + i:02d}")
         self._create(kind="sleep", value=2.0, date="2026-06-20")  # latest is way low
-        s = next(k for k in self.client.get("/api/health/overview").json()["kinds"] if k["kind"] == "sleep")
+        s = next(
+            k
+            for k in self.client.get("/api/health/overview").json()["kinds"]
+            if k["kind"] == "sleep"
+        )
         self.assertEqual(s["latest"]["value"], 2.0)
         self.assertEqual(s["anomaly"]["dir"], "low")
 
     def test_overview_no_anomaly_when_steady(self):
         for i, v in enumerate([7, 8, 6, 7, 8, 7]):  # normal day, nothing odd
             self._create(kind="sleep", value=v, date=f"2026-06-{10 + i:02d}")
-        s = next(k for k in self.client.get("/api/health/overview").json()["kinds"] if k["kind"] == "sleep")
+        s = next(
+            k
+            for k in self.client.get("/api/health/overview").json()["kinds"]
+            if k["kind"] == "sleep"
+        )
         self.assertIsNone(s["anomaly"])
 
     def test_anomalies_route(self):
@@ -194,3 +266,29 @@ class HealthTargetTests(ApiTest):
         self.client.put("/api/health/target", json={"kind": "weight", "value": 68})
         self.client.put("/api/health/target", json={"kind": "weight", "value": 0})
         self.assertIsNone(self._kind("weight").get("target"))
+
+    def test_nonfinite_target_does_not_clear_or_replace_saved_target(self):
+        self.client.post("/api/health", json={"kind": "weight", "value": 72})
+        self.client.put("/api/health/target", json={"kind": "weight", "value": 68})
+        for value in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(value=value):
+                response = self.client.put(
+                    "/api/health/target", json={"kind": "weight", "value": value}
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(self._kind("weight")["target"], 68)
+
+
+class HealthCorrectionTests(ApiTest):
+    def test_nonfinite_correction_cannot_replace_saved_value(self):
+        entry = self.client.post("/api/health", json={"kind": "weight", "value": 74.25}).json()
+        for value in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(value=value):
+                response = self.client.patch(
+                    f"/api/health/{entry['id']}",
+                    content='{"value":' + value + "}",
+                    headers={"content-type": "application/json"},
+                )
+                self.assertEqual(response.status_code, 400)
+                saved = self.client.get("/api/health").json()["entries"][0]
+                self.assertEqual(saved["value"], 74.25)

@@ -88,3 +88,32 @@ export function generateHarmony(accentHex, type, mode) {
     panel: hslToHex(bgH, bgS * 0.6, panelL), faint: hslToHex(bH, bS, bL), accent: accentHex,
   };
 }
+
+// the six categorical hues (--cat-* in style.css). a name always lands on the same hue, so a
+// money category, tag or calendar keeps its color wherever it shows up
+export const CATEGORY_HUES = ['blue', 'teal', 'amber', 'pink', 'violet', 'green'];
+export function categoryHue(name) {
+  const key = String(name || '').trim().toLowerCase();
+  let hash = 0;
+  for (const ch of key) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
+  return CATEGORY_HUES[hash % CATEGORY_HUES.length];
+}
+
+// hues for a set of names shown together: each starts at its own hue and steps to the next free
+// one, so up to six names never share a color. groups go first to last, names sorted inside a group
+export function assignHues(...groups) {
+  const map = new Map();
+  let used = new Set();
+  for (const group of groups) {
+    const keys = [...new Set(group.map(name => String(name || '').trim().toLowerCase()).filter(Boolean))].sort();
+    for (const key of keys) {
+      if (map.has(key)) continue;
+      if (used.size === CATEGORY_HUES.length) used = new Set();
+      let at = CATEGORY_HUES.indexOf(categoryHue(key));
+      while (used.has(CATEGORY_HUES[at])) at = (at + 1) % CATEGORY_HUES.length;
+      used.add(CATEGORY_HUES[at]);
+      map.set(key, CATEGORY_HUES[at]);
+    }
+  }
+  return map;
+}

@@ -25,25 +25,6 @@ class SpearmanTests(unittest.TestCase):
         self.assertIsNone(ls.spearman([1, 2, 3], [5, 5, 5]))
 
 
-class MoodTests(unittest.TestCase):
-    def test_mood_ordering(self):
-        self.assertGreater(ls.mood_score("happy"), ls.mood_score("sad"))
-        self.assertGreater(ls.mood_score("great"), ls.mood_score("meh"))
-
-    def test_unknown_mood_neutral(self):
-        self.assertEqual(ls.mood_score("zxcv"), 3)
-
-
-class CorrelateTests(unittest.TestCase):
-    def test_correlate_output(self):
-        pairs = [(1, 2), (2, 4), (3, 6), (4, 8), (5, 10)]
-        out = ls.correlate(pairs)
-        self.assertAlmostEqual(out["rho"], 1.0, places=4)
-        self.assertEqual(out["n"], 5)
-        self.assertEqual(out["direction"], "positive")
-        self.assertIn(out["strength"], ("strong", "moderate", "weak", "none"))
-
-
 class HabitRiskTests(unittest.TestCase):
     TODAY = datetime.date(2026, 6, 23)
 

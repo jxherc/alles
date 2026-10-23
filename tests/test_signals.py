@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from core.database import (
     Book,
@@ -28,8 +28,12 @@ class SignalsTests(ApiTest):
 
     def test_weight_signal_latest_by_date_not_insertion(self):
         d = self.db()
-        d.add(HealthEntry(kind="weight", value=79, unit="kg", date=_iso(-1)))  # newer date, lower id
-        d.add(HealthEntry(kind="weight", value=80, unit="kg", date=_iso(-3)))  # backfill: older, higher id
+        d.add(
+            HealthEntry(kind="weight", value=79, unit="kg", date=_iso(-1))
+        )  # newer date, lower id
+        d.add(
+            HealthEntry(kind="weight", value=80, unit="kg", date=_iso(-3))
+        )  # backfill: older, higher id
         d.commit()
         d.close()
         h = [s for s in self._gather() if s["category"] == "health"]
@@ -67,8 +71,16 @@ class SignalsTests(ApiTest):
 
     def test_sub_signal_and_key_has_period(self):
         d = self.db()
-        d.add(Subscription(name="netflix", price=9.0, currency="$", cycle="monthly",
-                           active=True, next_due=_iso(3)))
+        d.add(
+            Subscription(
+                name="netflix",
+                price=9.0,
+                currency="$",
+                cycle="monthly",
+                active=True,
+                next_due=_iso(3),
+            )
+        )
         d.commit()
         d.close()
         s = [x for x in self._gather() if x["category"] == "sub"]
@@ -78,8 +90,17 @@ class SignalsTests(ApiTest):
 
     def test_far_sub_excluded(self):
         d = self.db()
-        d.add(Subscription(name="far", price=1.0, currency="$", cycle="yearly",
-                           active=True, next_due=_iso(40), remind_days=1))
+        d.add(
+            Subscription(
+                name="far",
+                price=1.0,
+                currency="$",
+                cycle="yearly",
+                active=True,
+                next_due=_iso(40),
+                remind_days=1,
+            )
+        )
         d.commit()
         d.close()
         self.assertEqual([s for s in self._gather() if s["category"] == "sub"], [])
@@ -103,6 +124,16 @@ class SignalsTests(ApiTest):
         d.close()
         self.assertEqual([s for s in self._gather() if s["category"] == "habit"], [])
 
+    def test_habit_done_today_with_existing_compact_date_excluded(self):
+        d = self.db()
+        h = Habit(name="floss", archived=False, cadence="daily")
+        d.add(h)
+        d.commit()
+        d.add(HabitLog(habit_id=h.id, date=date.today().strftime("%Y%m%d")))
+        d.commit()
+        d.close()
+        self.assertEqual([s for s in self._gather() if s["category"] == "habit"], [])
+
     def test_event_today_signal(self):
         d = self.db()
         d.add(CalendarEvent(title="lunch", start_dt=_iso(0) + "T12:00", all_day=False))
@@ -112,9 +143,31 @@ class SignalsTests(ApiTest):
         self.assertEqual(len(e), 1)
         self.assertEqual(e[0]["data"]["time"], "12:00")
 
+    def test_monthly_31st_event_signal_appears_on_short_month_clamp(self):
+        d = self.db()
+        d.add(
+            CalendarEvent(
+                title="monthly close",
+                start_dt="2026-01-31T08:00:00",
+                recurrence="monthly",
+                all_day=False,
+            )
+        )
+        d.commit()
+        d.close()
+
+        e = self._gather(today=date(2026, 2, 28), categories={"event"})
+        self.assertEqual([s["title"] for s in e], ["monthly close"])
+
     def test_reminder_signal(self):
         d = self.db()
-        d.add(Reminder(text="call mom", trigger_at=datetime.utcnow(), fired=False))
+        d.add(
+            Reminder(
+                text="call mom",
+                trigger_at=datetime.now(UTC).replace(tzinfo=None),
+                fired=False,
+            )
+        )
         d.commit()
         d.close()
         r = [s for s in self._gather() if s["category"] == "reminder"]
@@ -133,8 +186,11 @@ class SignalsTests(ApiTest):
     def test_keys_stable_across_calls(self):
         d = self.db()
         d.add(Task(title="x", done=False, due_date=_iso(-1)))
-        d.add(Subscription(name="s", price=1, currency="$", cycle="monthly",
-                           active=True, next_due=_iso(2)))
+        d.add(
+            Subscription(
+                name="s", price=1, currency="$", cycle="monthly", active=True, next_due=_iso(2)
+            )
+        )
         d.commit()
         d.close()
         k1 = sorted(s["key"] for s in self._gather())
@@ -143,7 +199,7 @@ class SignalsTests(ApiTest):
 
     def test_sorted_by_urgency_desc(self):
         d = self.db()
-        d.add(Book(title="b", status="reading"))          # urgency 15
+        d.add(Book(title="b", status="reading"))  # urgency 15
         d.add(Task(title="t", done=False, due_date=_iso(-1)))  # urgency 70
         d.commit()
         d.close()

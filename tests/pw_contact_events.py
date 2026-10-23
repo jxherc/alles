@@ -4,6 +4,7 @@ needs a fresh instance with the current routes:
   ALLES_DATA=.tmp_ce AUTH_ENABLED=false PORT=8077 python app.py
   PYTHONIOENCODING=utf-8 python tests/pw_contact_events.py
 """
+
 from playwright.sync_api import sync_playwright
 
 BASE = "http://contacts.localhost:8077"

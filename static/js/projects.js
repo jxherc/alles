@@ -1,12 +1,13 @@
 import { toast } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
+import { t } from './i18n.js';
 
 let _projects = [];
 
 export async function loadProjects() {
   try {
-    const r = await fetch('/api/projects');
-    _projects = await r.json();
+    const projects = await fetch('/api/projects').then(r => r.ok ? r.json() : []);
+    _projects = Array.isArray(projects) ? projects : [];
   } catch (e) { _projects = []; }
   return _projects;
 }
@@ -31,7 +32,13 @@ export async function deleteProject(id) {
 }
 
 export async function assignSession(projectId, sessionId) {
-  await fetch(`/api/projects/${projectId}/sessions/${sessionId}`, { method: 'POST' });
+  const response = await fetch(`/api/projects/${projectId}/sessions/${sessionId}`, { method: 'POST' });
+  if (!response.ok) throw new Error('project assignment failed');
+}
+
+export async function unassignSession(projectId, sessionId) {
+  const response = await fetch(`/api/projects/${projectId}/sessions/${sessionId}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('project unassignment failed');
 }
 
 // render project folders above the session list
@@ -39,25 +46,32 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   const list = document.getElementById('session-list');
   if (!list) return;
 
-  // only inject if there are projects
-  const projectSessions = sessions.filter(s => s.project_id);
-  if (!_projects.length) return;
+  const afterlife = document.body.classList.contains('afterlife-aide-projects');
+  if (!_projects.length && !afterlife) return;
 
   let html = '';
-  for (const p of _projects) {
+  if (afterlife) {
+    const taskSessions = sessions.filter(session => !session.project_id);
+    html += `<section class="aide-session-section" data-session-drop="unassigned"><span class="section-label">${t('aide.tasks')}</span>${taskSessions.map(s => `<div class="session-item" data-id="${s.id}">
+      <button type="button" class="session-open" aria-haspopup="menu" aria-current="false" aria-label="open session ${_esc(s.name)}"><span class="session-name">${_esc(s.name)}</span></button>
+    </div>`).join('') || `<span class="aide-session-empty">${t('aide.no_tasks')}</span>`}</section><span class="section-label aide-projects-label">projects</span>`;
+  }
+  const groups = _projects;
+  for (const p of groups) {
     const pSessions = sessions.filter(s => s.project_id === p.id);
-    const dot = p.color ? `background:${p.color}` : '';
-    html += `<div class="project-folder" data-id="${p.id}">
+    html += `<div class="project-folder${afterlife ? ' open' : ''}" data-id="${p.id}">
   <div class="project-folder-head">
-    <span class="project-dot" style="${dot}"></span>
-    <span class="project-name">${_esc(p.name)}</span>
-    <span class="project-count">${pSessions.length}</span>
-    <button class="project-del" data-id="${p.id}" title="delete project (chats are kept)">×</button>
+    <button type="button" class="project-folder-toggle" aria-expanded="${String(afterlife)}" aria-label="toggle project ${_esc(p.name)}">
+      <svg class="project-folder-icon project-folder-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg>
+      <svg class="project-folder-icon project-folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8V6.5h6l2-2h5l2 3H21"/><path d="M3 9h18l-2 10H5Z"/></svg>
+      <span class="project-name">${_esc(p.name)}</span>
+      <span class="project-count">${pSessions.length}</span>
+    </button>
+    <button type="button" class="project-del" data-id="${p.id}" aria-label="delete project ${_esc(p.name)}" title="delete project (chats are kept)">×</button>
   </div>
-  <div class="project-sessions" id="proj-sessions-${p.id}" style="display:none">
+  <div class="project-sessions" id="proj-sessions-${p.id}" style="display:${afterlife ? 'flex' : 'none'}">
     ${pSessions.map(s => `<div class="session-item" data-id="${s.id}" data-project="${p.id}">
-      <div class="session-dot"></div>
-      <span class="session-name">${_esc(s.name)}</span>
+      <button type="button" class="session-open" aria-haspopup="menu" aria-current="false" aria-label="open session ${_esc(s.name)}"><span class="session-name">${_esc(s.name)}</span></button>
     </div>`).join('')}
   </div>
 </div>`;
@@ -66,9 +80,16 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   // prepend project folders
   list.insertAdjacentHTML('afterbegin', html);
 
-  // clicking a project opens its workspace page (not just a toggle)
-  list.querySelectorAll('.project-folder-head').forEach(head => {
-    head.addEventListener('click', () => window._openProject?.(head.closest('.project-folder').dataset.id));
+  // Project rows expand and collapse in place; their conversations stay directly below.
+  list.querySelectorAll('.project-folder-toggle').forEach(toggleButton => {
+    const toggle = () => {
+      const folder = toggleButton.closest('.project-folder');
+      const open = folder.classList.toggle('open');
+      toggleButton.setAttribute('aria-expanded', String(open));
+      const sessions = folder.querySelector('.project-sessions');
+      if (sessions) sessions.style.display = open ? 'flex' : 'none';
+    };
+    toggleButton.addEventListener('click', toggle);
   });
 
   // drag a chat onto a project to file it there
@@ -79,15 +100,36 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
       e.preventDefault(); folder.classList.remove('drag-over');
       const sid = e.dataTransfer.getData('text/session');
       if (!sid) return;
-      await assignSession(folder.dataset.id, sid);
-      toast('moved to project', 'success');
-      onChange?.();
+      try {
+        await assignSession(folder.dataset.id, sid);
+        toast('moved to project', 'success');
+        onChange?.();
+      } catch {
+        toast('could not move to project', 'error');
+      }
     });
   });
 
-  if (onSelect) {
-    list.querySelectorAll('.session-item[data-project]').forEach(el => {
-      el.addEventListener('click', () => onSelect(el.dataset.id));
+  const taskTarget = list.querySelector('[data-session-drop="unassigned"]');
+  if (taskTarget) {
+    taskTarget.addEventListener('dragover', event => {
+      event.preventDefault();
+      taskTarget.classList.add('drag-over');
+    });
+    taskTarget.addEventListener('dragleave', () => taskTarget.classList.remove('drag-over'));
+    taskTarget.addEventListener('drop', async event => {
+      event.preventDefault();
+      taskTarget.classList.remove('drag-over');
+      const sessionId = event.dataTransfer.getData('text/session');
+      const session = sessions.find(item => String(item.id) === String(sessionId));
+      if (!session?.project_id) return;
+      try {
+        await unassignSession(session.project_id, sessionId);
+        toast('moved to tasks', 'success');
+        onChange?.();
+      } catch {
+        toast('could not move to tasks', 'error');
+      }
     });
   }
 

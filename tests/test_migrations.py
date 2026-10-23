@@ -5,6 +5,7 @@ import os
 import tempfile
 import types
 import unittest
+from pathlib import Path
 
 from sqlalchemy import create_engine, text
 
@@ -141,6 +142,109 @@ class RunnerTests(unittest.TestCase):
                 runner.add_column(c, "nonexistent_table", "x", "TEXT")
 
 
+class MigrationHistoryTests(unittest.TestCase):
+    def _engine(self):
+        fd, path = tempfile.mkstemp(suffix=".db")
+        os.close(fd)
+        self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
+        engine = create_engine(f"sqlite:///{path}")
+        self.addCleanup(engine.dispose)
+        return engine
+
+    def test_duplicate_module_versions_are_rejected(self):
+        modules = [
+            _fake(1, "one", lambda conn: None),
+            _fake(1, "other", lambda conn: None),
+        ]
+        with self.assertRaisesRegex(runner.MigrationHistoryError, "duplicate"):
+            runner.migration_catalog(modules)
+
+    def test_unknown_history_name_is_rejected_before_migrations_run(self):
+        engine = self._engine()
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "CREATE TABLE schema_migrations "
+                    "(version INTEGER PRIMARY KEY, name TEXT, applied_at TEXT)"
+                )
+            )
+            conn.execute(text("INSERT INTO schema_migrations VALUES (1, 'not-baseline', 'old')"))
+        with self.assertRaisesRegex(runner.MigrationHistoryError, "does not match"):
+            runner.run_migrations(engine)
+
+    def test_every_known_photo_fork_prefix_maps_to_canonical_versions(self):
+        modules = runner.discover()
+        catalog = runner.migration_catalog(modules)
+        for fork_end in range(9, 14):
+            with self.subTest(fork_end=fork_end):
+                engine = self._engine()
+                photo_columns = {"id TEXT PRIMARY KEY"}
+                for version in range(9, fork_end + 1):
+                    for column in runner.PHOTO_FORK_COLUMNS[version]:
+                        coltype = "BLOB" if column == "clip" else "TEXT"
+                        photo_columns.add(f'"{column}" {coltype}')
+                with engine.begin() as conn:
+                    conn.execute(text(f"CREATE TABLE photos ({', '.join(photo_columns)})"))
+                    conn.execute(
+                        text(
+                            "CREATE TABLE schema_migrations "
+                            "(version INTEGER PRIMARY KEY, name TEXT, applied_at TEXT)"
+                        )
+                    )
+                    for version in range(1, 9):
+                        conn.execute(
+                            text("INSERT INTO schema_migrations VALUES (:v,:n,'old')"),
+                            {"v": version, "n": catalog[version]},
+                        )
+                    for version in range(9, fork_end + 1):
+                        conn.execute(
+                            text("INSERT INTO schema_migrations VALUES (:v,:n,'fork')"),
+                            {"v": version, "n": runner.PHOTO_FORK_NAMES[version]},
+                        )
+                    result = runner.reconcile_known_migration_history(conn, modules=modules)
+
+                self.assertEqual(result["kind"], "canonical")
+                with engine.connect() as conn:
+                    history = dict(
+                        conn.execute(
+                            text("SELECT version,name FROM schema_migrations ORDER BY version")
+                        ).fetchall()
+                    )
+                self.assertNotIn(9, history)
+                self.assertNotIn(10, history)
+                self.assertNotIn(11, history)
+                for old_version in range(9, fork_end + 1):
+                    target = runner.PHOTO_FORK_TARGETS[old_version]
+                    self.assertEqual(history[target], catalog[target])
+
+    def test_false_success_note_drop_marker_is_rewound(self):
+        engine = self._engine()
+        catalog = runner.migration_catalog()
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TABLE notes (id TEXT PRIMARY KEY)"))
+            conn.execute(
+                text(
+                    "CREATE TABLE schema_migrations "
+                    "(version INTEGER PRIMARY KEY, name TEXT, applied_at TEXT)"
+                )
+            )
+            conn.execute(
+                text("INSERT INTO schema_migrations VALUES (9,:name,'old')"),
+                {"name": catalog[9]},
+            )
+            conn.execute(
+                text("INSERT INTO schema_migrations VALUES (10,:name,'old')"),
+                {"name": catalog[10]},
+            )
+            runner.reconcile_known_migration_history(conn)
+        with engine.connect() as conn:
+            versions = {
+                row[0] for row in conn.execute(text("SELECT version FROM schema_migrations"))
+            }
+        self.assertNotIn(9, versions)
+        self.assertNotIn(10, versions)
+
+
 class BaselineAndInitTests(unittest.TestCase):
     """Task 0a-2 - the squashed baseline migration + init_db integration."""
 
@@ -190,9 +294,12 @@ class BaselineAndInitTests(unittest.TestCase):
         # schema_migrations exists with the baseline row
         self.assertIn("schema_migrations", tables)
         # every audit-baseline table+columns is present + identical (no column lost/renamed)
-        with open("docs/evidence/0a-migrations/baseline-schema.json") as f:
+        fixture = Path(__file__).parent / "fixtures" / "migrations" / "baseline-schema.json"
+        with fixture.open(encoding="utf-8") as f:
             base = json.load(f)
         for t, expected_cols in base["columns"].items():
+            if t == "notes":
+                continue  # the notes table was retired in m0010 (notes live in the vault now)
             self.assertIn(t, tables, f"table {t} missing after init_db")
             # later numbered migrations may ADD columns (e.g. m0002 -> memories); the invariant
             # is that no baseline column is ever LOST, not byte-equality.
@@ -217,18 +324,20 @@ class BaselineAndInitTests(unittest.TestCase):
         try:
             db.init_db()
             con = sqlite3.connect(path)
-            con.execute("ALTER TABLE notes DROP COLUMN due")
+            con.execute(
+                "ALTER TABLE tasks DROP COLUMN notes"
+            )  # notes-table retired; use tasks.notes
             con.commit()
             con.close()
-            db.init_db()  # baseline ALWAYS re-runs -> re-adds notes.due
+            db.init_db()  # baseline ALWAYS re-runs -> re-adds tasks.notes
             con = sqlite3.connect(path)
-            cols = {r[1] for r in con.execute("PRAGMA table_info(notes)")}
+            cols = {r[1] for r in con.execute("PRAGMA table_info(tasks)")}
             con.close()
         finally:
             db.engine.dispose()
             db.DB_PATH, db.engine = orig
             db.SessionLocal.configure(bind=db.engine)
-        self.assertIn("due", cols)
+        self.assertIn("notes", cols)
 
 
 if __name__ == "__main__":
