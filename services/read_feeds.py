@@ -60,7 +60,8 @@ def parse_feed(xml, *, strict=False) -> dict:
                     links.append((c.get("rel"), href.strip()))
         link = ""
         for rel, href in links:
-            if rel in (None, "alternate"):  # the article URL, not self/enclosure
+            # the article URL, not self/enclosure; and only a web address, never javascript: or data:
+            if rel in (None, "alternate") and href.lower().startswith(("http://", "https://")):
                 link = href
                 break
         if not link and links:

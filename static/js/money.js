@@ -1408,7 +1408,7 @@ function _renderTxnMain(t, an) {
   </span>`;
   return `
     <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${t.id}">
-      <span class="tx-date">${(t.date || '').slice(5)}</span>
+      <span class="tx-date">${esc((t.date || '').slice(5))}</span>
       <span class="tx-payee">${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
       <span class="tx-cat">${xf ? '⇄ transfer' : (t.category ? `${catDot(t.category)}${esc(t.category)}` : '')}</span>
       ${xf ? '' : `<span class="tx-tags">${tags}</span>`}

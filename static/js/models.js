@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { escapeHtml, toast } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
 import { providerLogo, providerKey, brandColor } from './brandlogo.js';
 import { sortModels, filterNewest } from './modelfilter.js';
@@ -336,10 +336,10 @@ export function renderModelList(filter = '') {
     const epCtx = [ep.provider, ep.name, ep.base_url].filter(Boolean).join(' ');
     const color = brandColor(providerKey(epCtx));
     const logoFor = m => providerLogo(providerKey(epCtx + ' ' + m), { size: 14 });
-    html += `<div class="provider-label" style="color:${color}">${ep.name}</div>`;
+    html += `<div class="provider-label" style="color:${color}">${escapeHtml(String(ep.name || ''))}</div>`;
     if (!models.length && !imgs.length) {
       html += `<div style="padding:0.3rem 1rem;font-size:0.75rem;color:var(--muted)">
-        no models: <button style="background:none;border:none;cursor:pointer;color:var(--text);font:inherit;font-size:0.75rem" onclick="probeEndpoint('${ep.id}')">probe</button>
+        no models: <button style="background:none;border:none;cursor:pointer;color:var(--text);font:inherit;font-size:0.75rem" onclick="probeEndpoint('${String(ep.id || '').replace(/[^\w-]/g, '')}')">probe</button>
       </div>`;
       continue;
     }

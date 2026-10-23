@@ -917,7 +917,8 @@ function _md(text) {
   // pull from window if util.js already loaded it
   if (window._mdToHtml) return window._mdToHtml(text);
   // basic fallback
-  return `<p>${text.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')}</p>`;
+  const safe = String(text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<p>${safe.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')}</p>`;
 }
 
 

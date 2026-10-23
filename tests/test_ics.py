@@ -167,3 +167,16 @@ class IcsApiTest(ApiTest):
         imp = self.client.post("/api/calendar/import", json={"ics": r.text})
         self.assertEqual(imp.json()["imported"], 1)
         self.assertEqual(self.client.get("/api/calendar").json()[0]["title"], "Exported")
+
+
+class EventColorTest(ApiTest):
+    def test_a_colour_must_be_a_palette_name_or_hex(self):
+        bad = self.client.post(
+            "/api/calendar",
+            json={"title": "x", "start_dt": "2026-10-29T09:00", "color": '#fff" onclick="x'},
+        )
+        self.assertEqual(bad.status_code, 422)
+        ok = self.client.post(
+            "/api/calendar", json={"title": "x", "start_dt": "2026-10-29T09:00", "color": "#5b8def"}
+        )
+        self.assertEqual(ok.status_code, 200, ok.text)

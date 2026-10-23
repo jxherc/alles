@@ -8,17 +8,23 @@ export function escapeHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// allow only safe url schemes in rendered markdown; block javascript:/vbscript:/data: etc.
-// relative paths, anchors, http(s), mailto, and tel are fine.
+// allow only safe url schemes in rendered markdown: relative paths, anchors, http(s), mailto and
+// tel. the scheme is read the way the browser reads it, with control characters and spaces taken
+// out first, so "\u0001javascript:" or "java<tab>script:" can't slip past
 export function _safeUrl(u) {
   const t = String(u || '').trim();
-  if (/^\s*(javascript|vbscript|data|file):/i.test(t)) return '#';
+  const probe = t.replace(/[\u0000-\u0020\u007f-\u009f]/g, '');
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(probe)?.[1]?.toLowerCase();
+  if (scheme && !['http', 'https', 'mailto', 'tel'].includes(scheme)) return '#';
   return t.replace(/"/g, '%22');
 }
 
 // very minimal markdown → html
 // handles: **bold**, *italic*, `code`, ```blocks```, # headings, - lists
-export function mdToHtml(text) {
+// remoteImages: model answers, artifacts and the like show a remote image as a link, because
+// loading it would tell that server the page was read (and a steered answer can put chat text in
+// its address). the owner's own notes load them
+export function mdToHtml(text, { remoteImages = false } = {}) {
   if (!text) return '';
 
   const thinkingBlocks = [];
@@ -77,8 +83,13 @@ export function mdToHtml(text) {
     markup.push(html);
     return `${markupPrefix}${markup.length - 1}\x00`;
   };
-  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, u) =>
-    keepMarkup(`<img class="md-img" src="${urlAttribute(u)}" alt="${escapeHtml(attributeText(alt))}">`));
+  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, u) => {
+    const label = escapeHtml(attributeText(alt));
+    if (!remoteImages && /^\s*https?:/i.test(attributeText(u))) {
+      return keepMarkup(`<a class="md-img-link" href="${urlAttribute(u)}" target="_blank" rel="noreferrer">image: ${label || 'open'}</a>`);
+    }
+    return keepMarkup(`<img class="md-img" src="${urlAttribute(u)}" alt="${label}">`);
+  });
   out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, txt, u) =>
     keepMarkup(`<a href="${urlAttribute(u)}" target="_blank" rel="noreferrer">`) + txt + keepMarkup('</a>'));
 

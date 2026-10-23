@@ -446,7 +446,7 @@ function _renderReader(body) {
       <div class="read-reader-bar">
         <button class="btn" id="read-back">${_si('chevron-left') || '←'} back</button>
         <button class="btn" type="button" id="read-note">take note</button>
-        <a class="btn" href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open original ${_si('link')}</a>
+        <a class="btn" href="${esc(_safeUrl(it.url))}" target="_blank" rel="noopener">open original ${_si('link')}</a>
       </div>
       <article class="read-article">
         ${it.sourceChanged ? '<p class="read-source-notice" role="status">this article changed since the note was saved. the current text is shown below.</p>' : ''}
@@ -464,7 +464,7 @@ function _renderReader(body) {
             <button type="button" class="btn" id="read-check-text" hidden>check saved text</button>
           </div>
         </section>
-        ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page. <a href="${_safeUrl(it.url)}" target="_blank" rel="noopener">open the original</a>.</p>`}
+        ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page. <a href="${esc(_safeUrl(it.url))}" target="_blank" rel="noopener">open the original</a>.</p>`}
       </article>
     </div>`;
   const place = _attachReadingPlace(body, it);

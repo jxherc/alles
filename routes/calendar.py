@@ -1,9 +1,10 @@
 import json
+import re
 from datetime import UTC
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import (
@@ -245,6 +246,16 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
     return calendar_events.event_dict(e)
 
 
+# an event colour is a palette name or a real hex; the page puts it inside style="…"
+_COLOR = re.compile(r"^(#[0-9a-fA-F]{3,8}|[a-z]{1,20})?$")
+
+
+def _check_color(value):
+    if value is not None and not _COLOR.match(value):
+        raise ValueError("color must be a palette name or a hex like #5b8def")
+    return value
+
+
 class EventBody(BaseModel):
     title: str
     request_id: str = ""
@@ -258,6 +269,8 @@ class EventBody(BaseModel):
     all_day: bool = False
     color: str = ""
     reminders: list[int] = []
+
+    _color = field_validator("color")(_check_color)
     recurrence: str = ""
     recur_interval: int = 1
     recur_byday: str = ""
@@ -347,6 +360,8 @@ class EventPatch(BaseModel):
     all_day: Optional[bool] = None
     color: Optional[str] = None
     reminders: Optional[list[int]] = None
+
+    _color = field_validator("color")(_check_color)
     recurrence: Optional[str] = None
     recur_interval: Optional[int] = None
     recur_byday: Optional[str] = None

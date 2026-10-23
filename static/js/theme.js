@@ -754,7 +754,7 @@ function _renderEditor() {
         ${_seg('bgPattern', PATTERNS)}
         <div class="te-bg-extra" style="${NO_FX.has(_draft.bgPattern) ? 'display:none' : ''}">
           <label class="te-color te-inline"><input type="color" id="te-effect-color" value="${esc(c.text)}"><span>effect color</span></label>
-          <label class="te-slider"><span>intensity</span><input type="range" id="te-intensity" min="0" max="1" step="0.05" value="${_draft.effect?.intensity ?? 1}"></label>
+          <label class="te-slider"><span>intensity</span><input type="range" id="te-intensity" min="0" max="1" step="0.05" value="${esc(_draft.effect?.intensity ?? 1)}"></label>
         </div>
         <button type="button" class="btn te-toggle-btn" id="te-frosted" aria-pressed="${!!_draft.frosted}">frosted glass: ${_draft.frosted ? 'on' : 'off'}</button>
       </div>

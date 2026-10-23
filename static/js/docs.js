@@ -666,7 +666,7 @@ function splitMarkdownDocument(markdown) {
 function renderPreview(markdown = currentContent()) {
   const preview = $('wiki-preview');
   if (!preview) return;
-  preview.innerHTML = mdToHtml(prepMarkdown(markdown));
+  preview.innerHTML = mdToHtml(prepMarkdown(markdown), { remoteImages: true });
   enhanceMarkdown(preview);
 }
 

@@ -1916,7 +1916,11 @@ async def _calendar_create(a):
         "end_dt": a.get("end_dt") or None,
         "all_day": a.get("all_day", False),
         "description": a.get("description", ""),
-        "color": a.get("color", "") or "accent",
+        # a palette name or a real hex only: the page puts it inside style="…"
+        "color": a.get("color", "")
+        if isinstance(a.get("color"), str)
+        and re.fullmatch(r"#[0-9a-fA-F]{3,8}|[a-z]{1,20}", a.get("color", ""))
+        else "accent",
         "recurrence": a.get("recurrence", "") or "",
     }
     if (

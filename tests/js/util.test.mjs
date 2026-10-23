@@ -143,3 +143,23 @@ test('mdToHtml nests indented list items', () => {
   );
   assert.equal(mdToHtml('- a\n    - four space'), '<ul><li>a<ul><li>four space</li></ul></li></ul>');
 });
+
+test('_safeUrl reads the scheme the way the browser does', () => {
+  assert.equal(_safeUrl('\u0001javascript:alert(1)'), '#');
+  assert.equal(_safeUrl('java\tscript:alert(1)'), '#');
+  assert.equal(_safeUrl(' \n javascript:alert(1)'), '#');
+  assert.equal(_safeUrl('JaVaScRiPt:alert(1)'), '#');
+  assert.equal(_safeUrl('ftp://example.com'), '#');
+  assert.equal(_safeUrl('https://example.com/a?b=1&c=2'), 'https://example.com/a?b=1&c=2');
+  assert.equal(_safeUrl('tel:+15551234'), 'tel:+15551234');
+  assert.equal(_safeUrl('notes/page.md'), 'notes/page.md');
+});
+
+test('mdToHtml shows a remote image as a link unless the caller allows it', () => {
+  const md = '![chart](https://tracker.example/p.png?q=secret)';
+  const out = mdToHtml(md);
+  assert.doesNotMatch(out, /<img/);
+  assert.match(out, /image: chart/);
+  assert.match(mdToHtml(md, { remoteImages: true }), /<img class="md-img" src="https:\/\/tracker\.example/);
+  assert.match(mdToHtml('![x](/api/uploads/abc)'), /<img class="md-img" src="\/api\/uploads\/abc"/);
+});

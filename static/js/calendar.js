@@ -320,7 +320,9 @@ const PALETTE = {
 };
 const COLOR_NAMES = ['accent', 'tomato', 'tangerine', 'banana', 'sage', 'basil', 'peacock', 'blueberry', 'lavender', 'grape', 'graphite'];
 const calById = id => _calendars.find(c => c.id === id);
-const hexOf = name => PALETTE[name] || (String(name || '').startsWith('#') ? name : PALETTE.accent);
+// a custom colour must be a real hex: it lands inside style="…", where anything after a quote
+// would be markup (an event colour can come from aide, steered by a mail or a page)
+const hexOf = name => PALETTE[name] || (/^#[0-9a-f]{3,8}$/i.test(String(name || '')) ? name : PALETTE.accent);
 const evColorName = e => e.color || calById(e.calendar_id)?.color || 'accent';
 const evHex = e => hexOf(evColorName(e));
 
