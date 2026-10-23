@@ -13,7 +13,11 @@ import { reminderTimeFromWall } from './reminders.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 // ── compose recipient chips + address autocomplete (4d) ──────────────────────
-const _validEmail = s => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+// "wang@example.cn" or "王 <wang@example.cn>"
+const _validEmail = s => {
+  const named = /<([^<>]+)>\s*$/.exec(String(s || ''));
+  return /^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/.test((named ? named[1] : String(s || '')).trim());
+};
 let _addrBook = null;
 async function _loadAddrBook() {
   if (_addrBook) return _addrBook;
@@ -79,7 +83,8 @@ function _initChipField(wrap) {
   input.addEventListener('keydown', e => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { _acNav(e); return; }
     if (e.key === 'Enter' || e.key === 'Tab') { if (_acPick(e)) return; if (input.value.trim()) { if (e.key !== 'Tab') e.preventDefault(); commit(); } return; }
-    if (e.key === ' ' || e.key === ',' || e.key === ';') { if (input.value.trim()) { e.preventDefault(); commit(); } }
+    // a space ends a chip only after a whole address: "王 <wang@…>" has a space inside it
+    if (e.key === ',' || e.key === ';' || (e.key === ' ' && _validEmail(input.value.trim()) && !input.value.includes('<'))) { if (input.value.trim()) { e.preventDefault(); commit(); } }
     else if (e.key === 'Backspace' && !input.value && chips.length) { input.value = chips.pop(); render(); sync(); _hideAc(); }
     else if (e.key === 'Escape' && _acEl) { e.preventDefault(); e.stopPropagation(); _hideAc(); }
   });
@@ -1780,6 +1785,8 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
     if (!_accounts.some(account => account.id === account_id)) { toast('choose an available sending account', 'error'); return; }
     commitMailRecipients(root);
     if (!$('mc-to').value.trim()) { toast('recipient required', 'error'); return; }
+    const bad = ['mc-to', 'mc-cc', 'mc-bcc'].flatMap(id => ($(id)?.value || '').split(/,(?![^<]*>)/).map(v => v.trim()).filter(Boolean)).filter(v => !_validEmail(v));
+    if (bad.length) { toast(`fix ${bad.length === 1 ? 'this address' : 'these addresses'} first: ${bad.join(', ')}`, 'error'); return; }
     const pending = {
       version: 1, action, request_id: savedRequestId(), recovery_scope: _outboxScopes[0], account_id,
       subject: $('mc-subj').value,
@@ -1822,8 +1829,15 @@ async function _wireRichCompose(defaultAid, root, current) {
         const range = selection?.rangeCount && editor.contains(selection.getRangeAt(0).commonAncestorContainer)
           ? selection.getRangeAt(0).cloneRange() : null;
         const command = button.dataset.cmd;
-        const value = command === 'createLink' ? await dlgPrompt('', '', { title: 'insert a link', label: 'link url', confirmLabel: 'insert' }) : null;
+        let value = command === 'createLink' ? await dlgPrompt('', '', { title: 'insert a link', label: 'link url', confirmLabel: 'insert' }) : null;
         if (!current() || (command === 'createLink' && !value)) return;
+        // "example.org/page" becomes https://example.org/page; sent bare it was a broken relative link
+        if (command === 'createLink') {
+          value = value.trim();
+          if (/^[\w.-]+@[\w.-]+\.\w+$/.test(value)) value = `mailto:${value}`;
+          else if (!/^[a-z][a-z0-9+.-]*:/i.test(value)) value = `https://${value.replace(/^\/+/, '')}`;
+          if (!/^(https?|mailto):/i.test(value)) { toast('use a web or email address for a link', 'error'); return; }
+        }
         editor.focus();
         if (range && editor.contains(range.commonAncestorContainer)) {
           selection.removeAllRanges(); selection.addRange(range);
