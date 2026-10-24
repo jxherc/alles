@@ -1,24 +1,30 @@
 """4a - verify the editor scheduling advisor end to end: a live overlap warning when the
 proposed time double-books, and a free-slot finder that fills the time on click.
 
-needs a fresh instance with the current routes:
-  ALLES_DATA=.tmp_adv AUTH_ENABLED=false PORT=8077 python app.py
-  PYTHONIOENCODING=utf-8 python tests/pw_calendar_advisor.py
+runs against an owned throwaway server like the other gates: PORT and ALLES_TEST_RUN_ID come
+from the gate runner.
 """
 
-from datetime import date
+import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
+from browser_gate_safety import require_server_ownership
 from playwright.sync_api import sync_playwright
 
-BASE = "http://calendar.localhost:8077"
+# the browser's zone is pinned and "today" is counted there, whatever zone the runner has
+ZONE = "America/Toronto"
 
 
 def main():
-    today = date.today().isoformat()
+    base = "http://127.0.0.1:" + os.environ["PORT"]
+    require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
+    today = datetime.now(ZoneInfo(ZONE)).date().isoformat()
     with sync_playwright() as p:
         b = p.chromium.launch()
-        pg = b.new_context(service_workers="block").new_page()
-        pg.goto(BASE, wait_until="domcontentloaded")
+        pg = b.new_context(service_workers="block", timezone_id=ZONE).new_page()
+        assert pg.request.post(base + "/api/setup/dismiss").ok
+        pg.goto(base + "/?view=calendar", wait_until="domcontentloaded")
         pg.wait_for_timeout(800)
         ids = pg.evaluate(
             """async (today) => {
@@ -33,7 +39,11 @@ def main():
         bid = ids[1]
         pg.reload(wait_until="domcontentloaded")
         pg.wait_for_timeout(1000)
-        pg.evaluate("(bid) => document.querySelector(`[data-id='${bid}']`)?.click()", bid)
+        # a short month cell keeps one event and folds the rest into "+1 more": open the day,
+        # where a timed event opens on a real press (it can also be dragged)
+        pg.click(f".cal-more[data-day='{today}'], .cal-day-open[data-day='{today}']")
+        pg.wait_for_timeout(500)
+        pg.click(f".cal-tev[data-id='{bid}']")
         pg.wait_for_timeout(800)
         warn = pg.evaluate("() => document.getElementById('cal-conflict')?.textContent || ''")
         assert "overlaps" in warn and "ADV_A" in warn, warn

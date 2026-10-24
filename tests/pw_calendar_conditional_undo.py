@@ -273,7 +273,7 @@ def run():
                             receipt = activate_undo(original)
                             assert receipt["status"] == 409, receipt
                             assert receipt["body"] == {
-                                "detail": "This event changed after quick add. Newer changes were kept."
+                                "detail": "this event changed after quick add. the newer changes were kept"
                             }
                             expect(status).to_have_text(
                                 "could not confirm removing “"

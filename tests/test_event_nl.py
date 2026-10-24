@@ -1,7 +1,8 @@
 import unittest
 from datetime import date
 
-from services.event_nl import _extract_time, parse_event
+from services.event_nl import NotADate, _extract_time, parse_event
+from tests._client import ApiTest
 
 T = date(2026, 6, 14)
 
@@ -53,12 +54,91 @@ class EventTests(unittest.TestCase):
         self.assertEqual(p["start_dt"], "2026-06-14")
         self.assertEqual(p["title"], "buy milk")
 
-    def test_malformed_iso_date_does_not_crash(self):
-        # an impossible date must not reach date.fromisoformat() and 500;
-        # it should fall back to an all-day event today, keeping the text as title
-        p = parse_event("file taxes 2026-13-40", T)
-        self.assertEqual(p["start_dt"], "2026-06-14")
-        self.assertIn("file taxes", p["title"])
+    def test_malformed_iso_date_is_refused_not_moved_to_today(self):
+        with self.assertRaisesRegex(NotADate, "2026-13-40 isn't a date"):
+            parse_event("file taxes 2026-13-40", T)
+
+    def test_dates_and_times_that_dont_exist_are_refused(self):
+        friday = date(2026, 10, 23)
+        for text, reason in (
+            ("lunch feb 30", "feb 30 isn't a date"),
+            ("lunch apr 31", "apr 31 isn't a date"),
+            ("dinner 31 jun", "31 jun isn't a date"),
+            ("lunch feb 29", "feb 29 isn't a date in 2027"),
+            ("meeting 25:00", "25:00 isn't a time"),
+            ("call 12:60", "12:60 isn't a time"),
+            ("lunch 1:75pm", "1:75pm isn't a time"),
+            ("lunch 13pm", "13pm isn't a time"),
+            ("party 2026-13-45", "2026-13-45 isn't a date"),
+        ):
+            with self.subTest(text=text), self.assertRaises(NotADate) as caught:
+                parse_event(text, friday)
+            self.assertEqual(str(caught.exception), reason)
+
+    def test_an_odd_h_mm_is_text_when_a_real_time_is_there(self):
+        wednesday = date(2026, 10, 21)
+        p = parse_event("bible study matthew 28:19 7pm", wednesday)
+        self.assertEqual(
+            (p["start_dt"], p["title"]), ("2026-10-21T19:00", "bible study matthew 28:19")
+        )
+        p = parse_event("noon lunch 28:19 ref", wednesday)
+        self.assertEqual(p["start_dt"], "2026-10-21T12:00")
+        # alone, or right after "at", it was meant as the time
+        for text in ("bible study matthew 28:19", "meet at 25:00 re q3"):
+            with self.subTest(text=text), self.assertRaises(NotADate):
+                parse_event(text, wednesday)
+
+    def test_until_a_day_without_a_repeat_is_just_the_day(self):
+        p = parse_event("until fri finish essay", date(2026, 10, 21))
+        self.assertEqual(
+            (p["start_dt"], p["title"], p["recur_until"]), ("2026-10-23", "finish essay", None)
+        )
+        p = parse_event("standup every monday until dec 1", date(2026, 10, 21))
+        self.assertEqual(
+            (p["start_dt"], p["recurrence"], p["recur_until"], p["title"]),
+            ("2026-10-26", "weekly", "2026-12-01", "standup"),
+        )
+
+    def test_a_dot_between_hour_and_minutes_is_a_time(self):
+        friday = date(2026, 10, 23)
+        p = parse_event("dinner 12.30pm", friday)
+        self.assertEqual((p["start_dt"], p["title"]), ("2026-10-23T12:30", "dinner"))
+        p = parse_event("lunch 1.30-2.30pm", friday)
+        self.assertEqual((p["start_dt"], p["end_dt"]), ("2026-10-23T13:30", "2026-10-23T14:30"))
+        with self.assertRaisesRegex(NotADate, "9.75pm isn't a time"):
+            parse_event("call 9.75pm", friday)
+
+    def test_weekdays_read_like_tasks(self):
+        friday = date(2026, 10, 23)
+        for text, start, title in (
+            ("next week monday standup", "2026-10-26", "standup"),
+            ("buy sun screen", "2026-10-23", "buy sun screen"),
+            ("every sun water plants", "2026-10-25", "water plants"),
+            ("every fri 5pm drinks", "2026-10-30T17:00", "drinks"),
+            # a short day as the first word, or tue/thu/fri anywhere, is the day
+            ("fri dinner 7pm", "2026-10-30T19:00", "dinner"),
+            ("mon standup 9am", "2026-10-26T09:00", "standup"),
+            ("sat brunch 11am", "2026-10-24T11:00", "brunch"),
+            ("tue dentist", "2026-10-27", "dentist"),
+            ("wed team lunch", "2026-10-28", "team lunch"),
+            ("sun brunch with family", "2026-10-25", "brunch with family"),
+            ("dinner fri with sam", "2026-10-30", "dinner with sam"),
+            ("next week fri review", "2026-10-30", "review"),
+            ("on monday: standup", "2026-10-26", "standup"),
+            ("until fri finish essay", "2026-10-30", "finish essay"),
+        ):
+            with self.subTest(text=text):
+                p = parse_event(text, friday)
+                self.assertEqual((p["start_dt"], p["title"]), (start, title))
+
+    def test_a_line_with_no_when_says_so(self):
+        friday = date(2026, 10, 23)
+        self.assertTrue(parse_event("asdf", friday)["no_date"])
+        # "may 45 people" isn't a date, so it's plain text
+        self.assertTrue(parse_event("may 45 people come", friday)["no_date"])
+        for text in ("lunch 1pm", "team sync tomorrow", "standup daily", "lunch feb 29 2028"):
+            with self.subTest(text=text):
+                self.assertFalse(parse_event(text, friday)["no_date"])
 
 
 class RecurrenceTests(unittest.TestCase):
@@ -145,3 +225,20 @@ class RangeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QuickAddApiTest(ApiTest):
+    def test_a_date_that_doesnt_exist_is_a_400_with_the_reason(self):
+        r = self.client.post("/api/calendar/quick", json={"text": "lunch feb 30"})
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()["detail"], "feb 30 isn't a date")
+        self.assertEqual(self.client.get("/api/calendar").json(), [])
+
+    def test_text_with_no_date_lands_today_and_says_so(self):
+        r = self.client.post("/api/calendar/quick", json={"text": "asdf"})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.headers.get("x-alles-no-date"), "1")
+        self.assertTrue(r.json()["all_day"])
+        self.assertNotIn("no_date", r.json())
+        r = self.client.post("/api/calendar/quick", json={"text": "lunch tomorrow 1pm"})
+        self.assertIsNone(r.headers.get("x-alles-no-date"))

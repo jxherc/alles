@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
-import { calendarDateKey, configureLocalization, formatCalendarDate, formatDateParts, formatDateTime } from '../../static/js/i18n.js';
+import { calendarDateKey, chosenTimeZone, configureLocalization, formatCalendarDate, formatClock, formatDateParts, formatDateTime } from '../../static/js/i18n.js';
 import { recordTarget } from '../../static/js/recordlinks.js';
 
 const source = readFileSync(new URL('../../static/js/specialist_groups.js', import.meta.url), 'utf8');
@@ -107,7 +107,7 @@ function harness(data = fixtures()) {
   const window = { _openRecord: (...args) => { calls.push(args); return open(...args); } };
   const context = vm.createContext({
     document: { createElement: tag => new Element(tag), getElementById: id => elements.find(el => el.id === id) },
-    window, location, recordTarget, formatCalendarDate, formatDateParts, formatDateTime,
+    window, location, recordTarget, formatCalendarDate, formatClock, formatDateParts, formatDateTime, chosenTimeZone,
     calendarDateKey: value => value === undefined ? today : calendarDateKey(value),
     disposePlanBoard() {},
   });

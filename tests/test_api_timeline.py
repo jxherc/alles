@@ -165,7 +165,7 @@ class TimelineApiTest(ApiTest):
 
     def test_calendar_event_in_window(self):
         d = self.db()
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now()  # events are wall time; with no zone set that's the server's clock
         d.add(
             CalendarEvent(
                 title="today standup",

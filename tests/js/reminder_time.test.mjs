@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 globalThis.window = { addEventListener() {}, dispatchEvent() {} };
 globalThis.document = { documentElement: { style: { setProperty() {} } }, addEventListener() {}, querySelectorAll: () => [] };
-const { configureLocalization } = await import('../../static/js/i18n.js');
-const { reminderTimeFromWall, parseReminderTime, reminderRequest } = await import('../../static/js/reminders.js');
+const { configureLocalization, formatClock } = await import('../../static/js/i18n.js');
+const { reminderTimeFromWall, parseReminderTime, reminderRequest, reminderTimeLabel } = await import('../../static/js/reminders.js');
 const zone = timezone => configureLocalization({ language: 'en', region: 'CA', timezone });
 
 test('reminder wall clocks use the configured timezone and reject missing dates', () => {
@@ -48,4 +48,26 @@ test('reminder identities retain secure randomness when randomUUID is unavailabl
     assert.match(request.request_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     assert.notEqual(request.request_id, reminderRequest('fixture', new Date('2032-06-10T05:30:00Z')).request_id);
   } finally { Object.defineProperty(globalThis, 'crypto', original); }
+});
+
+test('a reminder time reads like plan and home: one date-time style, not a relative count', () => {
+  zone('America/Toronto');
+  const now = Date.parse('2026-10-23T12:00:00Z');
+  // stored utc without its z, an hour away and a day away read the same way
+  assert.match(reminderTimeLabel('2026-10-23T13:00:00', now), /^Oct 23, 2026, 9:00\s?a\.?m\.?$/i);
+  assert.match(reminderTimeLabel('2026-10-24T13:00:00Z', now), /^Oct 24, 2026, 9:00\s?a\.?m\.?$/i);
+  assert.equal(reminderTimeLabel('2026-10-23T11:00:00', now), 'due now');
+  assert.equal(reminderTimeLabel('', now), '');
+});
+
+test('the reminders list and home share one short time style', () => {
+  configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '12' });
+  try {
+    const now = Date.parse('2026-10-23T12:00:00Z');
+    assert.ok(reminderTimeLabel('2026-10-24T23:30:00Z', now).endsWith(formatClock('19:30')));
+    configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '24' });
+    assert.ok(reminderTimeLabel('2026-10-24T23:30:00Z', now).endsWith(formatClock('19:30')));
+  } finally {
+    configureLocalization({});
+  }
 });

@@ -5,10 +5,10 @@ const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 const SPECS = {
   notes: { title: 'notes & docs', apply: () => window._reloadNotes?.(), fields: [
     { k: 'vault_dir', type: 'text', label: 'vault folder (Obsidian)', ph: 'data/vault' },
-    { type: 'note', text: 'Your notes & docs live here as plain markdown. Point this at an Obsidian vault folder, or copy the path and "Open folder as vault" in Obsidian.' },
+    { type: 'note', text: 'your notes & docs live here as plain markdown. point this at an Obsidian vault folder, or copy the path and use "open folder as vault" in Obsidian.' },
     { type: 'action', label: 'open in Obsidian', act: '_openInObsidian' },
     { type: 'action', label: 'copy vault path', act: '_copyVaultPath' },
-    { type: 'note', text: 'Sync across devices: install Syncthing here and on your phone/laptop, add this vault folder on each, and link them. Obsidian then opens the same notes everywhere.' },
+    { type: 'note', text: 'to sync across devices, install Syncthing here and on your phone or laptop, add this vault folder on each, and link them. Obsidian then opens the same notes everywhere.' },
     { type: 'action', label: 'download Obsidian plugin', act: '_downloadPlugin' },
   ] },
   files: { title: 'files', apply: () => window._reloadFiles?.(), fields: [
@@ -40,7 +40,7 @@ const SPECS = {
   ] },
   journal: { title: 'journal', apply: () => window._reloadJournal?.(), fields: [
     { k: 'journal_mirror_vault', type: 'toggle', label: 'mirror to Obsidian daily notes' },
-    { type: 'note', text: 'Writes each entry to Journal/YYYY-MM-DD.md in your vault, editable in Obsidian and synced back. Off by default. Setting a journal passcode pauses this and removes the mirrored files.' },
+    { type: 'note', text: 'writes each entry to Journal/YYYY-MM-DD.md in your vault, editable in Obsidian and synced back. off by default. setting a journal passcode pauses this and removes the mirrored files.' },
   ] },
 };
 
@@ -56,11 +56,11 @@ export function appSettingValue(el) {
 
 export function renderAppSettingField(f, val) {
   if (f.type === 'choice') {
-    return `<div class="aps-field"><label>${f.label}</label><div class="seg" data-k="${f.k}"${f.num ? ' data-num="1"' : ''}>` +
-      f.opts.map(([v, l]) => `<button type="button" class="seg-opt${String(val) === String(v) ? ' active' : ''}" data-val="${v}">${l}</button>`).join('') + `</div></div>`;
+    return `<div class="aps-field"><label>${f.label}</label><div class="seg" data-k="${f.k}"${f.num ? ' data-num="1"' : ''} role="group" aria-label="${esc(f.label)}">` +
+      f.opts.map(([v, l]) => `<button type="button" class="seg-opt${String(val) === String(v) ? ' active' : ''}" data-val="${v}" aria-pressed="${String(val) === String(v)}">${l}</button>`).join('') + `</div></div>`;
   }
   if (f.type === 'toggle') {
-    return `<div class="aps-field aps-toggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label style="margin:0">${f.label}</label><div class="s-switch${val ? ' on' : ''}" data-tk="${f.k}"></div></div>`;
+    return `<div class="aps-field aps-toggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label style="margin:0">${f.label}</label><div class="s-switch${val ? ' on' : ''}" data-tk="${f.k}" role="switch" tabindex="0" aria-checked="${Boolean(val)}" aria-label="${esc(f.label)}"></div></div>`;
   }
   if (f.type === 'note') return `<div class="aps-note" style="font-size:0.75rem;opacity:0.7;line-height:1.45;margin:2px 0 6px">${esc(f.text)}</div>`;
   if (f.type === 'action') return `<button type="button" class="aps-action" data-act="${esc(f.act)}">${esc(f.label)}</button>`;
@@ -91,8 +91,15 @@ async function _copyVaultPath() {
 function _downloadPlugin() { location.href = '/api/download/obsidian-plugin'; }
 const ACTIONS = { _openInObsidian, _copyVaultPath, _downloadPlugin };
 
-export function closeAppSettings() {
-  if (_open) { _open.pop.remove(); document.removeEventListener('click', _outside); _open = null; }
+// focus goes back to the button that opened it, unless the person already moved somewhere else
+export function closeAppSettings({ restoreFocus = true } = {}) {
+  if (!_open) return;
+  const { pop, anchor, place } = _open;
+  const held = !document.activeElement || document.activeElement === document.body || pop.contains(document.activeElement);
+  pop.remove(); document.removeEventListener('click', _outside); _open = null;
+  window.removeEventListener('resize', place);
+  window.visualViewport?.removeEventListener('resize', place);
+  if (restoreFocus && held && anchor?.isConnected) anchor.focus();
 }
 function _outside(e) {
   if (_open && !_open.pop.contains(e.target) && !e.target.closest('.app-cog')) closeAppSettings();
@@ -104,20 +111,76 @@ export async function openAppSettings(app, anchor) {
   const spec = SPECS[app];
   if (!spec) return;
   const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  if (_open) return;   // a second open raced this one's settings read
   const pop = document.createElement('div');
   pop.className = 'app-settings-pop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', `${spec.title} settings`);
+  pop.tabIndex = -1;   // a tap on its text keeps focus in here, so escape still closes it
   pop.innerHTML = `<div class="app-settings-title">${spec.title} settings</div>` + spec.fields.map(f => renderAppSettingField(f, s[f.k])).join('');
   document.body.appendChild(pop);
-  const r = anchor.getBoundingClientRect();
-  pop.style.top = (r.bottom + 6) + 'px';
-  pop.style.left = Math.max(8, Math.min(r.right - pop.offsetWidth, window.innerWidth - pop.offsetWidth - 8)) + 'px';
-  _open = { pop, app };
+  // a phone can be shorter than the popover: it never grows past the screen and scrolls inside,
+  // opens below the button, above it when it only fits there, else pinned inside the screen
+  pop.style.overflowY = 'auto';
+  pop.style.overscrollBehavior = 'contain';
+  const place = () => {
+    if (!anchor.isConnected) return;
+    const r = anchor.getBoundingClientRect();
+    const vh = window.visualViewport?.height || window.innerHeight;
+    pop.style.maxHeight = `${Math.max(120, vh - 16)}px`;
+    const h = pop.offsetHeight;
+    const top = r.bottom + 6 + h <= vh - 8 ? r.bottom + 6
+      : r.top - 6 - h >= 8 ? r.top - 6 - h
+      : Math.max(8, vh - 8 - h);
+    pop.style.top = top + 'px';
+    pop.style.left = Math.max(8, Math.min(r.right - pop.offsetWidth, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+  };
+  place();
+  window.addEventListener('resize', place);
+  window.visualViewport?.addEventListener('resize', place);
+  _open = { pop, app, anchor, place };
+  const controls = () => [...pop.querySelectorAll('button, input, textarea, [role="switch"]')]
+    .filter(node => !node.disabled && node.getClientRects().length);
+  pop.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation();
+      closeAppSettings();
+      return;
+    }
+    // tab is walked here, not left to the browser: safari's tab skips buttons, so its first stop
+    // isn't ours. past either end it closes and hands focus back to the button that opened it,
+    // since the popover lives at the end of the page, far from that button
+    if (e.key !== 'Tab') return;
+    const items = controls();
+    if (!items.length) return;
+    e.preventDefault();
+    const at = items.indexOf(document.activeElement);
+    const next = at < 0 ? (e.shiftKey ? items.length - 1 : 0) : at + (e.shiftKey ? -1 : 1);
+    if (next < 0 || next >= items.length) closeAppSettings();
+    else items[next].focus();
+  });
+  // focus leaving for somewhere else closes it, like clicking outside does. with no next target
+  // (it went to the page) only a tap inside the popover itself keeps it open
+  let pressedInside = false;
+  pop.addEventListener('pointerdown', () => { pressedInside = true; setTimeout(() => { pressedInside = false; }, 0); });
+  pop.addEventListener('focusout', e => {
+    if (_open?.pop !== pop) return;
+    if (e.relatedTarget) {
+      if (!pop.contains(e.relatedTarget)) closeAppSettings({ restoreFocus: false });
+      return;
+    }
+    const tappedInside = pressedInside;
+    requestAnimationFrame(() => {
+      if (_open?.pop === pop && !tappedInside && !pop.contains(document.activeElement)
+          && (!document.activeElement || document.activeElement === document.body)) closeAppSettings();
+    });
+  });
 
   // choices (segmented)
   pop.querySelectorAll('.seg[data-k]').forEach(seg => {
     const num = seg.dataset.num === '1';
     seg.querySelectorAll('.seg-opt').forEach(opt => opt.addEventListener('click', () => {
-      seg.querySelectorAll('.seg-opt').forEach(o => o.classList.toggle('active', o === opt));
+      seg.querySelectorAll('.seg-opt').forEach(o => { o.classList.toggle('active', o === opt); o.setAttribute('aria-pressed', String(o === opt)); });
       _patch(spec, seg.dataset.k, num ? Number(opt.dataset.val) : opt.dataset.val);
     }));
   });
@@ -125,6 +188,7 @@ export async function openAppSettings(app, anchor) {
   pop.querySelectorAll('.s-switch[data-tk]').forEach(sw => sw.addEventListener('click', () => {
     const on = !sw.classList.contains('on');
     sw.classList.toggle('on', on);
+    sw.setAttribute('aria-checked', String(on));
     _patch(spec, sw.dataset.tk, on);
   }));
   // text / textarea (debounced)
@@ -133,10 +197,13 @@ export async function openAppSettings(app, anchor) {
   });
   // action buttons (e.g. mail's accounts / rules panels) → close the popover, run the hook
   pop.querySelectorAll('.aps-action').forEach(btn => btn.addEventListener('click', () => {
-    closeAppSettings();
+    closeAppSettings({ restoreFocus: false });
     (ACTIONS[btn.dataset.act] || window[btn.dataset.act])?.();
   }));
   setTimeout(() => document.addEventListener('click', _outside), 0);
+  // keyboard and screen readers start inside: the chosen option of a choice, else the first control
+  const first = pop.querySelector('button, input, textarea, [role="switch"]');
+  (first?.closest('.seg')?.querySelector('.seg-opt.active') || first)?.focus();
 }
 
 let _cogsBound = false;

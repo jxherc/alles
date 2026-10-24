@@ -231,7 +231,9 @@ def run():
                         )
                         expect(panel).to_be_visible()
                         for _ in range(24):
-                            if panel.locator(".dp-head span").inner_text() == FIXTURE_MONTH_LABEL:
+                            month = panel.locator(".dp-head span").inner_text().strip()
+                            year = panel.locator(".dp-year").input_value()
+                            if f"{month} {year}" == FIXTURE_MONTH_LABEL:
                                 break
                             panel.locator('[data-nav="-1"]').press("Enter")
                         else:

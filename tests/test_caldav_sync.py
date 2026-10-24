@@ -73,6 +73,27 @@ class CaldavSyncTests(unittest.TestCase):
         ics = cd._event_ics("u5", "Solo", "2026-06-23T14:30:00", False)
         self.assertNotIn("DTEND", ics)
 
+    def test_zoned_times_land_on_the_owner_wall_clock(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        tokyo = datetime(2026, 12, 15, 9, 0, tzinfo=ZoneInfo("Asia/Tokyo"))
+        with mock.patch(
+            "services.calendar_events.load_settings", return_value={"timezone": "America/Toronto"}
+        ):
+            self.assertEqual(cd._iso(tokyo), "2026-12-14T19:00:00")
+        # summer is a different offset; each instant gets its own
+        summer = datetime(2026, 7, 15, 9, 0, tzinfo=ZoneInfo("Asia/Tokyo"))
+        with mock.patch(
+            "services.calendar_events.load_settings", return_value={"timezone": "America/Toronto"}
+        ):
+            self.assertEqual(cd._iso(summer), "2026-07-14T20:00:00")
+        # floating times and dates stay as they are
+        self.assertEqual(cd._iso(datetime(2026, 7, 15, 9, 0)), "2026-07-15T09:00:00")
+        # no zone chosen: the offset is kept rather than guessing the server's zone
+        with mock.patch("services.calendar_events.load_settings", return_value={"timezone": ""}):
+            self.assertEqual(cd._iso(tokyo), "2026-12-15T09:00:00+09:00")
+
     def test_save_keeps_password_when_blank(self):
         cd.save_cfg({"url": "u1", "username": "me", "password": "secret"})
         cd.save_cfg({"url": "u2", "username": "me", "password": ""})  # editing without re-typing pw

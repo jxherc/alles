@@ -1,16 +1,16 @@
 import { confirm as confirmDialog } from './dialog.js';
-import { createFocusBoundary } from './kokuen.js?v=1';
+import { createFocusBoundary } from './kokuen.js?v=2';
 import { initDatePickers } from './datepick.js';
 import { populateDropdown, getDropdownValue } from './dropdown.js?v=212';
-import { resolvedTimeZone } from './i18n.js';
+import { chosenTimeZone, resolvedTimeZone } from './i18n.js';
 import { toast } from './util.js';
 import { recordTarget } from './recordlinks.js';
-import { editorDates, eventTimeValues } from './calendar.js';
+import { editorDates, eventTimeValues, storedWallTime } from './calendar.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const PREFIX = 'alles.capture.pending.v1:';
 let active = false;
-const eventInstant = value => Date.parse(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : value + 'Z');
+const wallInstant = value => Date.parse(String(value || '') + 'Z');
 
 async function pendingStore() {
   const response = await fetch('/api/tasks/draft-scope', { cache: 'no-store' });
@@ -126,6 +126,14 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
     }
   };
   const focus = createFocusBoundary(dialog, { trigger, onEscape: () => close() });
+  const focusLost = () => !document.activeElement || document.activeElement === document.body;
+  // a click on the disabled button drops focus to body, where the boundary can't hear escape
+  const onLostEscape = event => {
+    if (event.key !== 'Escape' || event.defaultPrevented || !focusLost()) return;
+    event.preventDefault();
+    close();
+  };
+  document.addEventListener('keydown', onLostEscape);
   function lock() {
     fields.inert = Boolean(frozen || saved || busy);
     accept.disabled = busy;
@@ -151,6 +159,7 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
       if (!saved) { status.textContent = 'could not clear the saved retry; try closing again'; status.focus(); return false; }
     }
     focus.deactivate({ restoreFocus }); focus.destroy(); ov.remove(); active = false;
+    document.removeEventListener('keydown', onLostEscape);
     if (cleared) document.querySelectorAll('.capture-resume[data-capture-recovery]').forEach(node => node.remove());
     if (restoreFocus && !trigger?.isConnected && savedFocus?.isConnected && savedFocus.getClientRects().length) savedFocus.focus();
     return true;
@@ -177,8 +186,9 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
           if (!start || (!allDay && !start.includes('T')) || (allDay && end && end < start)) { status.textContent = 'choose a valid start and an end after it'; el('start').focus(); return; }
           const times = allDay ? { start_dt: start, end_dt: end || null }
             : eventTimeValues(candidate.all_day ? null : candidate, dates, { start, end });
-          // Repeated autumn clock times can be equal while their original instants differ.
-          if (!allDay && (!Number.isFinite(eventInstant(times.start_dt)) || (times.end_dt && (!Number.isFinite(eventInstant(times.end_dt)) || eventInstant(times.end_dt) <= eventInstant(times.start_dt))))) {
+          // plan keeps wall time, so a zoned proposal is saved as the time shown here
+          if (!allDay) for (const key of ['start_dt', 'end_dt']) times[key] = storedWallTime(times[key]);
+          if (!allDay && (!Number.isFinite(wallInstant(times.start_dt)) || (times.end_dt && (!Number.isFinite(wallInstant(times.end_dt)) || wallInstant(times.end_dt) <= wallInstant(times.start_dt))))) {
             status.textContent = 'choose a valid start and an end after it'; el('start').focus(); return;
           }
           Object.assign(body, { all_day: allDay, ...times, location: el('location').value, description: el('notes').value });
@@ -186,7 +196,8 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
         store.put({ kind, body }); frozen = body;
       }
       attemptedSave = true; busy = true; lock(); status.textContent = 'confirming the saved item…'; status.focus();
-      const response = await fetch(kind === 'task' ? '/api/tasks' : '/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(frozen) });
+      const zone = kind === 'event' && chosenTimeZone() ? { 'x-alles-time-zone': chosenTimeZone() } : {};
+      const response = await fetch(kind === 'task' ? '/api/tasks' : '/api/calendar', { method: 'POST', headers: { 'content-type': 'application/json', ...zone }, body: JSON.stringify(frozen) });
       const data = await response.json();
       if (!response.ok) {
         // A rejected retry says nothing about whether an earlier attempt committed.
@@ -201,7 +212,7 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
       try { store.clear(); }
       catch { status.textContent += '; its browser retry copy could not be cleared'; }
     } catch (error) { status.textContent = frozen && error.status !== 410 ? `could not confirm whether this ${kind} was saved. retry checks the same ${kind} and will not add a duplicate.` : error.message; }
-    finally { busy = false; lock(); if (attemptedSave && dialog.contains(document.activeElement)) (saved ? open : accept).focus(); }
+    finally { busy = false; lock(); if (attemptedSave && (focusLost() || dialog.contains(document.activeElement))) (saved ? open : accept).focus(); }
     if (saved) savedFocus = onSaved?.(saved, kind);
   };
   if (frozen) status.textContent = `this ${kind}'s save has not been confirmed. retry checks the same ${kind} and will not add a duplicate.`;

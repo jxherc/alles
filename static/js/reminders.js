@@ -2,7 +2,7 @@ import { toast } from './util.js';
 import { confirm } from './dialog.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePicker, dateTimeParts } from './datepick.js';
-import { calendarDateKey, formatDate, formatDateParts, formatTime, resolvedTimeZone } from './i18n.js';
+import { calendarDateKey, formatDateParts, formatDateTime, resolvedTimeZone } from './i18n.js';
 
 let _reminders = [];
 let _pollTimer = null;
@@ -72,7 +72,7 @@ function _render() {
       <div class="settings-list-row" data-id="${_esc(r.id)}">
         <div style="flex:1;min-width:0">
           <div class="row-name">${_esc(r.text)}</div>
-          <div class="reminder-meta">${_esc(_fmtTime(r.trigger_at))} · ${r.type === 'message' ? 'scheduled message' : 'reminder'}${r.delivery_started ? ' · delivery started; check the conversation for a reply' : ''}</div>
+          <div class="reminder-meta">${_esc(reminderTimeLabel(r.trigger_at))} · ${r.type === 'message' ? 'scheduled message' : 'reminder'}${r.delivery_started ? ' · delivery started; check the conversation for a reply' : ''}</div>
         </div>
         <button type="button" class="act-btn" data-reminder-cancel="${_esc(r.id)}"${_cancelling.has(r.id) ? ' disabled' : ''}>cancel</button>
       </div>`).join(''));
@@ -102,7 +102,7 @@ function _renderCancelRecovery() {
     return `<div class="settings-list-row">
       <div style="flex:1;min-width:0">
         <div class="row-name">${_esc(entry.reminder.text)}</div>
-        <div class="reminder-meta">${_esc(_fmtTime(entry.reminder.trigger_at))} · ${entry.reminder.type === 'message' ? 'scheduled message' : 'reminder'}</div>
+        <div class="reminder-meta">${_esc(reminderTimeLabel(entry.reminder.trigger_at))} · ${entry.reminder.type === 'message' ? 'scheduled message' : 'reminder'}</div>
         <div class="reminder-meta" role="status">${_esc(status)}</div>
       </div>
       <button type="button" class="act-btn" data-reminder-recover="${_esc(id)}"${busy ? ' disabled' : ''}>${label}</button>
@@ -169,15 +169,14 @@ async function _undoReminder(id, button) {
   }
 }
 
-function _fmtTime(iso) {
+// one time style everywhere: here with its date ("oct 24, 2026, 9:00 am"); plan's overview and
+// home show the same short time next to their day (i18n formatClock)
+export function reminderTimeLabel(iso, now = Date.now()) {
   if (!iso) return '';
   const d = new Date(iso + (/(Z|[+-]\d\d:\d\d)$/.test(iso) ? '' : 'Z'));
-  const diff = d.getTime() - Date.now();
-  if (diff < 0) return 'due now';
-  if (diff < 60000) return 'in <1m';
-  if (diff < 3600000) return `in ${Math.round(diff / 60000)}m`;
-  if (diff < 86400000) return `in ${Math.round(diff / 3600000)}h`;
-  return `${formatDate(d)} ${formatTime(d, { hour: '2-digit', minute: '2-digit' })}`;
+  if (Number.isNaN(d.getTime())) return '';
+  if (d.getTime() < now) return 'due now';
+  return formatDateTime(d, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 // The picker displays the configured timezone, which may differ from this browser's zone.

@@ -1,19 +1,30 @@
-"""verify two overlapping timed events render side-by-side (not stacked/hidden)."""
+"""verify two overlapping timed events render side-by-side (not stacked/hidden).
 
-from datetime import date
+runs against an owned throwaway server like the other gates: PORT and ALLES_TEST_RUN_ID come
+from the gate runner.
+"""
 
+import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from browser_gate_safety import require_server_ownership
 from playwright.sync_api import sync_playwright
 
-BASE = "http://calendar.localhost:8077"
+# the browser's zone is pinned and "today" is counted there, whatever zone the runner has
+ZONE = "America/Toronto"
 
 
 def main():
-    d = date.today().isoformat()
+    base = "http://127.0.0.1:" + os.environ["PORT"]
+    require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
+    d = datetime.now(ZoneInfo(ZONE)).date().isoformat()
     with sync_playwright() as p:
         b = p.chromium.launch()
-        ctx = b.new_context(service_workers="block")
+        ctx = b.new_context(service_workers="block", timezone_id=ZONE)
         pg = ctx.new_page()
-        pg.goto(BASE, wait_until="domcontentloaded")
+        assert ctx.request.post(base + "/api/setup/dismiss").ok
+        pg.goto(base + "/?view=calendar", wait_until="domcontentloaded")
         pg.wait_for_timeout(800)
         pg.evaluate(
             """async (d) => {

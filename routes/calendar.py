@@ -3,7 +3,8 @@ import re
 from datetime import UTC
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session as DbSession
 
@@ -22,19 +23,42 @@ from services.commitment_sources import CommitmentSource
 router = APIRouter(prefix="/api")
 
 
+def _ready(payload) -> JSONResponse:
+    """a big read (thousands of events, months of repeats) turned into json here, in the
+    threadpool running the route. handed back as plain data, fastapi encodes it on the event
+    loop, which stalled every other request (/health too) for up to a second. the payloads are
+    already plain json types"""
+    return JSONResponse(payload)
+
+
+def _zone_name(time_zone: str = "", x_alles_time_zone: str = Header(default="")) -> str:
+    """the browser's zone for this request (a time_zone param or the x-alles-time-zone header
+    the calendar sends on every request). it's also kept for background work while the owner
+    hasn't set a timezone."""
+    name = (time_zone or x_alles_time_zone or "").strip()
+    calendar_events.remember_zone(name)
+    return name
+
+
+def _read_zone(name: str = Depends(_zone_name)):
+    """the zone a reader converts stored times in: the request's, else the owner's"""
+    return calendar_events.owner_zone(name)
+
+
 @router.get("/calendar")
-def list_events(db: DbSession = Depends(get_db)):
+def list_events(db: DbSession = Depends(get_db), _zone=Depends(_zone_name)):
+    # the raw rows: the calendar page reads a kept offset in the browser's own zone
     rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
-    return [calendar_events.event_dict(e) for e in rows]
+    return _ready([calendar_events.event_dict(e) for e in rows])
 
 
 @router.get("/calendar/conflicts")
-def calendar_conflicts(db: DbSession = Depends(get_db)):
+def calendar_conflicts(db: DbSession = Depends(get_db), zone=Depends(_read_zone)):
     """4a - overlapping timed events (scheduling advisor)."""
     from services import cal_conflict
 
-    rows = [calendar_events.event_dict(e) for e in db.query(CalendarEvent).all()]
-    return {"conflicts": cal_conflict.conflicts(rows)}
+    rows = [calendar_events.wall_event(e, zone) for e in db.query(CalendarEvent).all()]
+    return _ready({"conflicts": cal_conflict.conflicts(rows)})
 
 
 @router.get("/calendar/free-slots")
@@ -44,6 +68,7 @@ def calendar_free_slots(
     day_end: str = "17:00",
     duration_min: int = 30,
     db: DbSession = Depends(get_db),
+    zone=Depends(_read_zone),
 ):
     """4a - open slots on `day` that fit a `duration_min` meeting."""
     from datetime import date as _date
@@ -51,34 +76,44 @@ def calendar_free_slots(
     from datetime import timedelta as _td
 
     from services import cal_conflict
-    from services.recur import expand
 
     try:
         d = _date.fromisoformat(day)
     except ValueError:
         return {"day": day, "slots": []}  # bad day -> no slots rather than a 500
+    if duration_min < 1:
+        raise HTTPException(400, "a free time needs to be at least a minute long")
     rs = _dt.combine(d, _dt.min.time())
     re_ = rs + _td(days=1)
     # expand recurring events onto `day` first, or a weekly/daily meeting whose master
     # start is on another date is invisible to free_slots and we'd offer a busy slot.
     rows = []
     for e in db.query(CalendarEvent).all():
-        base = calendar_events.event_dict(e)
+        base = calendar_events.wall_event(e, zone)
         if e.recurrence:
             try:
-                bs = _dt.fromisoformat((e.start_dt or "")[:16])
-                be = _dt.fromisoformat((e.end_dt or "")[:16]) if e.end_dt else bs + _td(minutes=30)
+                bs = _dt.fromisoformat((base["start_dt"] or "")[:16])
+                be = (
+                    _dt.fromisoformat((base["end_dt"] or "")[:16])
+                    if base["end_dt"]
+                    else bs + _td(minutes=30)
+                )
                 dur = be - bs
             except (ValueError, TypeError):
                 dur = _td(minutes=30)
-            for occ in expand(base, rs, re_):
-                rows.append(dict(base, start_dt=occ.isoformat(), end_dt=(occ + dur).isoformat()))
+            # from the day before: last night's late repeat can still run into this morning
+            raw = calendar_events.event_dict(e)
+            for occ in calendar_events.occurrence_starts(raw, rs - _td(days=1), re_, zone):
+                if occ + dur > rs:
+                    rows.append(
+                        dict(base, start_dt=occ.isoformat(), end_dt=(occ + dur).isoformat())
+                    )
         else:
             rows.append(base)
     slots = cal_conflict.free_slots(
         rows, day, day_start=day_start, day_end=day_end, duration_min=duration_min
     )
-    return {"day": day, "slots": slots}
+    return _ready({"day": day, "slots": slots})
 
 
 @router.get("/calendar/tasks")
@@ -118,7 +153,7 @@ def calendar_birthdays(db: DbSession = Depends(get_db)):
 
 
 @router.post("/calendar/{eid}/duplicate")
-def duplicate_event(eid: str, db: DbSession = Depends(get_db)):
+def duplicate_event(eid: str, db: DbSession = Depends(get_db), name=Depends(_zone_name)):
     """clone an event (new id), same fields — Google Calendar 'duplicate'."""
     e = db.get(CalendarEvent, eid)
     if not e:
@@ -131,7 +166,9 @@ def duplicate_event(eid: str, db: DbSession = Depends(get_db)):
         "caldav_uid",
         "subscription_id",
     }
-    clone = CalendarEvent(**{c: getattr(e, c) for c in cols})
+    # an exact copy: a kept offset stays kept, so the copy repeats at the same moments
+    data = {c: getattr(e, c) for c in cols}
+    clone = CalendarEvent(**data)
     db.add(clone)
     db.commit()
     db.refresh(clone)
@@ -145,18 +182,22 @@ def free_time(
     work_start: int = 9,
     work_end: int = 18,
     db: DbSession = Depends(get_db),
+    zone=Depends(_read_zone),
 ):
     """open slots on a given date that fit `minutes`, avoiding existing timed events."""
     from datetime import date as _date
     from datetime import datetime as _dt
     from datetime import timedelta as _td
 
-    from services.recur import expand, free_slots
+    from services.recur import free_slots
 
     try:
         day = _date.fromisoformat(date)
     except ValueError:
         raise HTTPException(400, "bad date")
+    _check_hours(work_start, work_end)
+    if minutes < 1:
+        raise HTTPException(400, "a free time needs to be at least a minute long")
     rs = _dt.combine(day, _dt.min.time())
     re_ = rs + _td(days=1)
     busy = []
@@ -164,44 +205,51 @@ def free_time(
         if e.all_day:
             continue
         try:
-            base_s = _dt.fromisoformat(e.start_dt)
-            base_e = _dt.fromisoformat(e.end_dt) if e.end_dt else base_s + _td(hours=1)
+            # an old import or an api write can still hold an offset
+            base_s = _dt.fromisoformat(calendar_events.wall_time(e.start_dt, zone))
+            base_e = (
+                _dt.fromisoformat(calendar_events.wall_time(e.end_dt, zone)) if e.end_dt else None
+            )
+            base_e = base_e or base_s + _td(hours=1)
             dur = base_e - base_s
         except (ValueError, TypeError):
             continue
+        # anything overlapping the day counts: last night's 22:00-02:00 too, repeats included
         if e.recurrence:
-            for occ in expand(calendar_events.event_dict(e), rs, re_):
-                busy.append((occ, occ + dur))
-        elif rs <= base_s < re_:
+            raw = calendar_events.event_dict(e)
+            for occ in calendar_events.occurrence_starts(raw, rs - _td(days=1), re_, zone):
+                if occ + dur > rs:
+                    busy.append((occ, occ + dur))
+        elif base_s < re_ and base_e > rs:
             busy.append((base_s, base_e))
-    return {"date": date, "slots": free_slots(busy, day, minutes, work_start, work_end)}
+    return _ready({"date": date, "slots": free_slots(busy, day, minutes, work_start, work_end)})
 
 
 @router.get("/calendar/agenda")
-def agenda(days: int = 30, db: DbSession = Depends(get_db)):
+def agenda(days: int = 30, db: DbSession = Depends(get_db), zone=Depends(_read_zone)):
     """upcoming events grouped by day — a flat agenda list for the next N days. recurring events
     are expanded into their occurrences (a weekly event whose master start is in the past still
     has upcoming instances), matching the month/week views."""
     from datetime import date, datetime, timedelta
 
-    from services.recur import expand
-
-    today = date.today()
+    # "today" is the owner's day, not the server's (a utc container is a day ahead every evening)
+    today = calendar_events.owner_now(zone).date()
     until = today + timedelta(days=days)
     rs = datetime.combine(today, datetime.min.time())
     re_ = datetime.combine(until, datetime.max.time())
     groups: dict[str, list] = {}
     for e in db.query(CalendarEvent).all():
-        base = calendar_events.event_dict(e)
+        base = calendar_events.wall_event(e, zone)
+        start_dt, end_dt = base["start_dt"], base["end_dt"]
         if e.recurrence:
             try:
-                start0 = datetime.fromisoformat(e.start_dt)
-                dur = (
-                    (datetime.fromisoformat(e.end_dt) - start0) if e.end_dt else timedelta(hours=1)
-                )
+                start0 = datetime.fromisoformat(start_dt)
+                dur = (datetime.fromisoformat(end_dt) - start0) if end_dt else timedelta(hours=1)
             except (ValueError, TypeError):
                 continue
-            for occ in expand(base, rs, re_):
+            for occ in calendar_events.occurrence_starts(
+                calendar_events.event_dict(e), rs, re_, zone
+            ):
                 ev = dict(
                     base, start_dt=occ.isoformat(), end_dt=(occ + dur).isoformat(), recurring=True
                 )
@@ -210,11 +258,11 @@ def agenda(days: int = 30, db: DbSession = Depends(get_db)):
             # a multi-day event (a camping trip, a conference) shows on every day it covers,
             # not just the first; a timed one ending at midnight doesn't spill into the next day
             try:
-                first = date.fromisoformat((e.start_dt or "")[:10])
-                last = date.fromisoformat((e.end_dt or e.start_dt or "")[:10])
+                first = date.fromisoformat((start_dt or "")[:10])
+                last = date.fromisoformat((end_dt or start_dt or "")[:10])
             except ValueError:
                 continue
-            if e.end_dt and not e.all_day and (e.end_dt[11:16] in ("", "00:00")) and last > first:
+            if end_dt and not e.all_day and (end_dt[11:16] in ("", "00:00")) and last > first:
                 last -= timedelta(days=1)
             day = max(first, today)
             while day <= min(last, until):
@@ -224,7 +272,7 @@ def agenda(days: int = 30, db: DbSession = Depends(get_db)):
                 day += timedelta(days=1)
     for evs in groups.values():
         evs.sort(key=lambda x: x["start_dt"])
-    return {"days": [{"date": d, "events": groups[d]} for d in sorted(groups)]}
+    return _ready({"days": [{"date": d, "events": groups[d]} for d in sorted(groups)]})
 
 
 class QuickEvent(BaseModel):
@@ -232,13 +280,25 @@ class QuickEvent(BaseModel):
 
 
 @router.post("/calendar/quick")
-def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
+def quick_event(
+    body: QuickEvent,
+    response: Response,
+    db: DbSession = Depends(get_db),
+    zone=Depends(_read_zone),
+):
     """natural-language event: 'lunch with sam friday 1pm', 'dentist june 20 9am'."""
-    from services.event_nl import parse_event
+    from services.event_nl import NotADate, parse_event
 
     if not body.text.strip():
         raise HTTPException(400, "empty")
-    p = parse_event(body.text, language=load_settings().get("language", "en"))
+    try:
+        p = parse_event(
+            body.text,
+            today=calendar_events.owner_now(zone).date(),
+            language=load_settings().get("language", "en"),
+        )
+    except NotADate as error:
+        raise HTTPException(400, str(error)) from None
     end = p["end_dt"]
     if not p["all_day"] and not end and p["start_dt"]:
         end = calendar_events.plus_minutes(p["start_dt"], calendar_events.default_duration()) or end
@@ -254,6 +314,9 @@ def quick_event(body: QuickEvent, db: DbSession = Depends(get_db)):
     db.add(e)
     db.commit()
     db.refresh(e)
+    if p["no_date"]:
+        # a header, not a field: the undo sends this exact record back to compare
+        response.headers["X-Alles-No-Date"] = "1"
     return calendar_events.event_dict(e)
 
 
@@ -296,27 +359,27 @@ def _occurrence_index(event, occ, time_zone):
     from datetime import date, datetime, timedelta
     from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-    from services.recur import expand
-
     try:
         day = date.fromisoformat(occ)
+        zone = ZoneInfo(time_zone)
         start = datetime.fromisoformat(event["start_dt"])
-        if start.tzinfo is not None and not event.get("all_day"):
-            start = start.astimezone(ZoneInfo(time_zone)).replace(tzinfo=None)
-        else:
-            start = start.replace(tzinfo=None)
     except (ValueError, TypeError, ZoneInfoNotFoundError):
-        raise HTTPException(400, "Use a valid occurrence date and timezone.") from None
-    local = {**event, "start_dt": start.isoformat(), "recur_except": []}
-    dates = expand(
-        local,
+        raise HTTPException(400, "use a real occurrence date and time zone") from None
+    if start.tzinfo is not None and not event.get("all_day"):
+        start = start.astimezone(zone)
+    start = start.replace(tzinfo=None)
+    # a kept offset repeats in its own frame; occurrence_starts reads each start here
+    dates = calendar_events.occurrence_starts(
+        {**event, "recur_except": []},
         start.replace(second=0, microsecond=0),
         datetime.combine(day + timedelta(days=1), datetime.min.time()),
+        zone,
         cap=8000,
     )
     matches = [i for i, value in enumerate(dates) if value.date() == day]
-    if not matches or occ in event.get("recur_except", []):
-        raise HTTPException(409, "This occurrence is no longer in the series. Reload the calendar.")
+    skipped = calendar_events.frame_day(event, occ, zone) in event.get("recur_except", [])
+    if not matches or skipped:
+        raise HTTPException(409, "this occurrence is no longer in the series. reload the calendar")
     return matches[0], day
 
 
@@ -324,40 +387,37 @@ def _occurrence_dates(event, day, time_zone):
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
+    found = calendar_events.frame_occurrence(event, day, ZoneInfo(time_zone))
+    if found:
+        # a kept offset: the occurrence at its own moments, in the series' frame
+        start, end = found
+        return {
+            "start_dt": start.isoformat(),
+            "end_dt": end.isoformat() if end else event.get("end_dt"),
+        }
     start = datetime.fromisoformat(event["start_dt"])
-    zone = ZoneInfo(time_zone) if start.tzinfo is not None and not event.get("all_day") else None
-    local_start = start.astimezone(zone) if zone else start
-    delta = day - local_start.date()
+    delta = day - start.date()
     result = {}
     for key in ("start_dt", "end_dt"):
         raw = event.get(key)
         if not raw or not delta.days:
             result[key] = raw
             continue
-        if key == "end_dt" and zone:
-            continue  # A timed occurrence keeps its elapsed duration across clock changes.
-        value = datetime.fromisoformat(raw)
-        value = (value.astimezone(zone) if zone else value) + delta
-        if zone and value.astimezone(UTC).astimezone(zone).replace(tzinfo=None) != value.replace(
-            tzinfo=None
-        ):
-            raise HTTPException(
-                400, "This occurrence falls in a timezone gap. Choose another time."
-            )
+        value = datetime.fromisoformat(raw) + delta
         result[key] = value.date().isoformat() if len(raw) == 10 else value.isoformat()
-    if zone and event.get("end_dt") and delta.days:
-        duration = datetime.fromisoformat(event["end_dt"]).astimezone(UTC) - start.astimezone(UTC)
-        result["end_dt"] = (
-            (datetime.fromisoformat(result["start_dt"]).astimezone(UTC) + duration)
-            .astimezone(zone)
-            .isoformat()
-        )
     return result
 
 
 @router.post("/calendar")
-def create_event(body: EventBody, db: DbSession = Depends(get_db)):
-    return calendar_events.event_dict(calendar_events.create_event(db, body.model_dump()))
+def create_event(
+    body: EventBody,
+    time_zone: str = "",
+    x_alles_time_zone: str = Header(default=""),
+    db: DbSession = Depends(get_db),
+):
+    zone_name = _zone_name(time_zone, x_alles_time_zone)
+    event = calendar_events.create_event(db, body.model_dump(), time_zone=zone_name)
+    return calendar_events.event_dict(event)
 
 
 class EventPatch(BaseModel):
@@ -388,7 +448,8 @@ def update_event(
     body: EventPatch,
     scope: str = "all",
     occ: str = "",
-    time_zone: str = "UTC",
+    time_zone: str = "",
+    x_alles_time_zone: str = Header(default=""),
     db: DbSession = Depends(get_db),
 ):
     """Scoped edits create the replacement and update the master in one transaction."""
@@ -398,12 +459,16 @@ def update_event(
     if not e:
         raise HTTPException(404)
     if scope not in {"all", "this", "following"}:
-        raise HTTPException(400, "Unknown edit scope.")
+        raise HTTPException(400, "unknown edit scope")
     old = calendar_events.event_dict(e)
     old.pop("id")
     old.pop("created_at")
     patch = body.model_dump(exclude_unset=True)
-    data = {**old, **patch}
+    time_zone = _zone_name(time_zone, x_alles_time_zone)
+    zone = calendar_events.write_zone(time_zone)
+    data = calendar_events.day_only({**old, **patch})
+    if scope == "all":
+        _settle(data, patch, old, zone)
     calendar_events.validate_event(data)
     result = e
     try:
@@ -412,11 +477,20 @@ def update_event(
                 setattr(e, k, v)
         else:
             if not e.recurrence:
-                raise HTTPException(409, "This event is no longer recurring. Reload the calendar.")
-            index, day = _occurrence_index(old, occ, time_zone)
-            for key, value in _occurrence_dates(old, day, time_zone).items():
+                raise HTTPException(409, "this event no longer repeats. reload the calendar")
+            from datetime import date
+            from zoneinfo import ZoneInfo
+
+            index, day = _occurrence_index(old, occ, time_zone or "UTC")
+            dates = _occurrence_dates(old, day, time_zone or "UTC")
+            for key, value in dates.items():
                 if key not in patch:
                     data[key] = value
+            # the picked day in the series' own frame: a kept offset skips and ends on its days
+            framed = calendar_events.frame_day(old, occ, ZoneInfo(time_zone or "UTC"))
+            if scope == "following" and "recur_except" not in patch:
+                data["recur_except"] = [v for v in old["recur_except"] if v >= framed]
+            _settle(data, patch, {**old, **dates}, zone)
             calendar_events.validate_event(data)
             if scope == "this":
                 data.update(
@@ -427,12 +501,11 @@ def update_event(
                     recur_until=None,
                     recur_except=[],
                 )
-                e.recur_except = json.dumps([*old["recur_except"], occ])
+                e.recur_except = json.dumps([*old["recur_except"], framed])
             else:
                 if data.get("recur_count") == old.get("recur_count") and old.get("recur_count"):
                     data["recur_count"] = old["recur_count"] - index
-                data["recur_except"] = [value for value in old["recur_except"] if value >= occ]
-                e.recur_until = (day - timedelta(days=1)).isoformat()
+                e.recur_until = (date.fromisoformat(framed) - timedelta(days=1)).isoformat()
             result = CalendarEvent(**calendar_events.event_columns(data))
             db.add(result)
         db.commit()
@@ -443,6 +516,18 @@ def update_event(
     return calendar_events.event_dict(result)
 
 
+_RULES = ("recurrence", "recur_interval", "recur_byday", "recur_count", "recur_until")
+
+
+def _settle(data, patch, base, zone):
+    """a time or a repeat rule picked in a zone the owner chose becomes wall time there. an edit
+    that leaves them alone (a title, a note) leaves a kept offset alone too"""
+    picked = {k for k in (*_RULES, "recur_except") if k in patch and patch[k] != base.get(k)}
+    if not zone or not (picked or calendar_events.times_moved(patch, base)):
+        return
+    calendar_events.to_wall_series(data, zone, base.get("start_dt"), picked)
+
+
 @router.delete("/calendar/{eid}")
 def delete_event(
     eid: str,
@@ -450,6 +535,7 @@ def delete_event(
     occ: str = "",
     db: DbSession = Depends(get_db),
     expected: dict | None = None,
+    name: str = Depends(_zone_name),
 ):
     """scope='all' deletes the event/series; 'this' excludes one occurrence (occ
     date); 'following' ends the series the day before occ."""
@@ -457,22 +543,27 @@ def delete_event(
 
     if expected is not None:
         if scope != "all" or occ:
-            raise HTTPException(422, "Quick-add undo must delete the whole event.")
+            raise HTTPException(422, "quick-add undo must delete the whole event")
         if expected.get("id") != eid:
-            raise HTTPException(409, "This event does not match the saved quick-add receipt.")
+            raise HTTPException(409, "this event doesn't match the saved quick-add receipt")
     e = db.get(CalendarEvent, eid)
     if not e:
         raise HTTPException(404)
+    # the day the browser picked, in the series' own frame: a kept offset's days are its own
+    zone = calendar_events.owner_zone(name)
     if scope == "this" and occ and e.recurrence:
         ex = calendar_events.json_list(e.recur_except)
-        if occ[:10] not in ex:
-            ex.append(occ[:10])
+        day = calendar_events.frame_day(calendar_events.event_dict(e), occ[:10], zone)
+        if day not in ex:
+            ex.append(day)
         e.recur_except = json.dumps(ex)
         db.commit()
         return {"ok": True, "scope": "this"}
     if scope == "following" and occ and e.recurrence:
         try:
-            e.recur_until = (date.fromisoformat(occ[:10]) - timedelta(days=1)).isoformat()
+            date.fromisoformat(occ[:10])
+            day = calendar_events.frame_day(calendar_events.event_dict(e), occ[:10], zone)
+            e.recur_until = (date.fromisoformat(day) - timedelta(days=1)).isoformat()
             e.recur_count = None
             db.commit()
             return {"ok": True, "scope": "following"}
@@ -503,15 +594,15 @@ class IcsImport(BaseModel):
 
 
 @router.post("/calendar/import")
-def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
+def import_ics(body: IcsImport, db: DbSession = Depends(get_db), name=Depends(_zone_name)):
     """import events from a pasted/uploaded .ics."""
     from services.ics import parse_ics
 
     content = body.ics.lstrip("\ufeff").strip()
     lines = content.splitlines()
     if not lines or lines[0] != "BEGIN:VCALENDAR" or lines[-1] != "END:VCALENDAR":
-        raise HTTPException(400, "Choose a complete .ics calendar file.")
-    events = parse_ics(content)
+        raise HTTPException(400, "choose a complete .ics calendar file")
+    events = parse_ics(content, zone=calendar_events.write_zone(name))
     end_fields = sum(line.split(":", 1)[0].split(";")[0].upper() == "DTEND" for line in lines)
     if (
         lines.count("BEGIN:VEVENT") != len(events)
@@ -520,7 +611,7 @@ def import_ics(body: IcsImport, db: DbSession = Depends(get_db)):
     ):
         raise HTTPException(
             400,
-            "An event in this file is incomplete or has an invalid date. No events were imported.",
+            "an event in this file is incomplete or has a date that doesn't exist. nothing was imported",
         )
     # Validate the entire file before adding any rows; retries must not duplicate a partial import.
     for ev in events:
@@ -830,8 +921,14 @@ def list_booking_pages(db: DbSession = Depends(get_db)):
     return [_bp_out(b) for b in db.query(BookingPage).all()]
 
 
+def _check_hours(start: int, end: int) -> None:
+    if not (0 <= start <= 23 and 1 <= end <= 24 and start < end):
+        raise HTTPException(400, "working hours run from 0 to 24, and they end after they start")
+
+
 @router.post("/calendar/booking-pages")
 def create_booking_page(body: BookingPageBody, db: DbSession = Depends(get_db)):
+    _check_hours(body.work_start, body.work_end)
     b = BookingPage(
         title=body.title or "Book a time",
         duration_min=max(5, body.duration_min),

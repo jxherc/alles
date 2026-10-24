@@ -15,6 +15,14 @@ from browser_gate_safety import require_server_ownership
 
 from services.appearance import from_legacy
 
+# the reminders module app.js really loaded, so a static version bump can't split the instance.
+# app.js comes from its preload link: page.clock fakes away performance's resource entries
+REMINDERS = r"""(async () => {
+  const app = document.querySelector('link[rel="modulepreload"][href^="/static/js/app.js"]').href;
+  const spec = (await (await fetch(app)).text()).match(/["'](\.\/reminders\.js[^"']*)["']/)[1];
+  return import(new URL(spec, app).href);
+})()"""
+
 base = "http://127.0.0.1:" + os.environ["PORT"]
 require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
 out = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
@@ -138,7 +146,7 @@ with sync_playwright() as pw:
                 expect(page.locator(".toast.error")).to_be_visible()
                 page.unroute(endpoint, lost)
                 # A refresh after the lost delete must not erase the cancellation recovery action.
-                page.evaluate("import('/static/js/reminders.js?v=243').then(m=>m.loadReminders())")
+                page.evaluate(REMINDERS + ".then(m=>m.loadReminders())")
                 expect(page.locator(f'[data-reminder-cancel="{original["id"]}"]')).to_have_count(0)
                 recover = page.locator(f'[data-reminder-recover="{original["id"]}"]')
                 expect(recover).to_have_text("retry cancel")
@@ -179,7 +187,7 @@ with sync_playwright() as pw:
                     base + "/api/reminders",
                     data={"text": "owned sibling " + label, "trigger_at": "2032-11-06T14:35:17Z"},
                 ).json()
-                page.evaluate("import('/static/js/reminders.js?v=243').then(m=>m.loadReminders())")
+                page.evaluate(REMINDERS + ".then(m=>m.loadReminders())")
                 page.locator(f'[data-reminder-cancel="{sibling["id"]}"]').press("Enter")
                 dismiss = page.locator(f'[data-reminder-dismiss="{sibling["id"]}"]')
                 expect(dismiss).to_be_enabled()
@@ -260,9 +268,7 @@ with sync_playwright() as pw:
                             else "2032-11-06T14:35:17Z",
                         },
                     ).json()
-                    page.evaluate(
-                        "import('/static/js/reminders.js?v=243').then(m=>m.loadReminders())"
-                    )
+                    page.evaluate(REMINDERS + ".then(m=>m.loadReminders())")
                     page.locator(f'[data-reminder-cancel="{scheduled["id"]}"]').press("Enter")
                     undo = page.locator(f'[data-reminder-recover="{scheduled["id"]}"]')
                     expect(undo).to_have_text("undo")
@@ -303,7 +309,7 @@ with sync_playwright() as pw:
                         "trigger_at": (fixed + timedelta(minutes=1)).isoformat(),
                     },
                 ).json()
-                page.evaluate("import('/static/js/reminders.js?v=243').then(m=>m.loadReminders())")
+                page.evaluate(REMINDERS + ".then(m=>m.loadReminders())")
                 page.clock.set_fixed_time(fixed)
                 page.locator(f'[data-reminder-cancel="{scheduled["id"]}"]').press("Enter")
                 undo = page.locator(f'[data-reminder-recover="{scheduled["id"]}"]')

@@ -10,6 +10,8 @@ Date-only callers use the configured owner timezone, then server local time.
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
@@ -174,7 +176,7 @@ def today_view(
     overdue.sort(key=lambda x: x["due"])
 
     reminders = [
-        {"id": d["id"], "text": d["text"], "at": d["at"]}
+        {"id": d["id"], "text": d["text"], "at": d["at"], "trigger_at": d["trigger_at"]}
         for d in (s["data"] for s in g.get("reminder", []))
     ]
 
@@ -233,4 +235,6 @@ def today_view(
     from services.today_sections import build
 
     response["sections"] = build(db, response.copy())
-    return response
+    # encoded here in the route's worker thread: returned as data, fastapi would walk it on the
+    # event loop, and home is the busiest read there is
+    return JSONResponse(jsonable_encoder(response))

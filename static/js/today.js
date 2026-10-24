@@ -1,4 +1,4 @@
-import { calendarDateKey, formatDate, formatDateParts, resolvedTimeZone, t, tp } from './i18n.js';
+import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDate, formatDateParts, formatDateTime, t, tp } from './i18n.js';
 import { autosizeTextarea, wireAutosizeTextarea } from './text_entry.js?v=1';
 import { toast } from './util.js';
 import { appGlyph } from './icons.js';
@@ -51,16 +51,43 @@ export function homeGreetingFor(date = new Date(), random = Math.random) {
   return { period, text: t(pool[index]) };
 }
 
+// today's reminders read as a time. one left over from an earlier day says which day too: the
+// full text the reminders list uses goes to aide and the tooltip, and the narrow time column gets
+// it on two lines, day over time (the year only when it isn't this one)
+function reminderRow(item, date) {
+  const row = { view: 'reminders', id: item.id, meta: formatClock(item.at), title: item.text, kind: 'reminder' };
+  const day = String(item.trigger_at || '').slice(0, 10);
+  if (!day || !date || day === date) return row;
+  const short = day.slice(0, 4) === date.slice(0, 4) ? { month: 'short', day: 'numeric' } : { dateStyle: 'short' };
+  return {
+    ...row,
+    meta: formatDateTime(item.trigger_at, { dateStyle: 'medium', timeStyle: 'short' }),
+    lines: [formatCalendarDate(day, short), row.meta],
+  };
+}
+
 export function dailyRows(day) {
   const rows = [];
-  for (const item of day?.events || []) rows.push({ view: 'calendar', id: item.id, occurrence: day.date, meta: item.time || t('home.all_day'), title: item.title, kind: 'event' });
+  for (const item of day?.events || []) rows.push({ view: 'calendar', id: item.id, occurrence: day.date, meta: item.time ? formatClock(item.time) : t('home.all_day'), title: item.title, kind: 'event' });
   for (const item of day?.tasks?.overdue || []) rows.push({ view: 'tasks', id: item.id, meta: t('home.overdue'), title: item.title, urgent: true, kind: 'task' });
   for (const item of day?.tasks?.due_today || []) rows.push({ view: 'tasks', id: item.id, meta: t('common.today'), title: item.title, kind: 'task' });
-  for (const item of day?.reminders || []) rows.push({ view: 'reminders', id: item.id, meta: item.at, title: item.text, kind: 'reminder' });
+  for (const item of day?.reminders || []) rows.push(reminderRow(item, day.date));
   for (const item of day?.renewing || []) rows.push({ view: 'subs', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: `${item.name} ${t('home.renews')}`, kind: 'renewal' });
   for (const item of day?.day_events || []) rows.push({ view: 'days', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: item.name, kind: 'date' });
   for (const item of day?.habits || []) rows.push({ view: 'habits', id: item.id, meta: t('home.not_done'), title: item.name, kind: 'habit' });
   return rows;
+}
+
+// anything tied to today (events, reminders, birthdays, renewals, habits) always shows; open tasks
+// fill up to 6 and the rest are counted on a row that opens plan, where they live. habits live in
+// health, so they never hide behind it
+export function homeScheduleRows(rows, limit = 6) {
+  const tasks = rows.filter(item => item.kind === 'task');
+  const shown = new Set(tasks.slice(0, limit));
+  const out = rows.filter(item => item.kind !== 'task' || shown.has(item));
+  const hidden = tasks.length - shown.size;
+  if (hidden) out.push({ view: 'plan', id: '', meta: '', title: tp('home.more_in_plan', hidden), kind: 'more' });
+  return out;
 }
 
 export function homeDayRequest(sections) {
@@ -116,7 +143,7 @@ export function orderedVisibleHomeSections(value) {
 
 function dayRow(item, extra = '') {
   return `<button class="today-row${item.urgent ? ' urgent' : ''}" type="button" data-view="${esc(item.view)}" data-record="${esc(item.id || '')}" data-occurrence="${esc(item.occurrence || '')}">
-    <span><b>${esc(item.title)}</b>${extra}</span><em>${esc(item.meta)}</em>
+    <span><b>${esc(item.title)}</b>${extra}</span>${item.lines ? `<em title="${esc(item.meta)}">${item.lines.map(esc).join('<br>')}</em>` : `<em>${esc(item.meta)}</em>`}
   </button>`;
 }
 
@@ -211,19 +238,12 @@ function render() {
   if (!root || !data) return;
 
   const day = data.today || {};
-  const allRows = dailyRows(day);
-  // anything tied to today (events, reminders, birthdays, renewals) always shows; open tasks and
-  // habits fill up to 6 and the rest are counted, never dropped without a word
-  const loose = allRows.filter(item => item.kind === 'task' || item.kind === 'habit');
-  const shownLoose = new Set(loose.slice(0, 6));
-  const hidden = loose.length - shownLoose.size;
+  const dayItems = homeScheduleRows(dailyRows(day));
   const needs = data.needs_you || [];
   const running = data.in_progress || [];
   const briefs = data.briefs || [];
   const openTasks = day.tasks?.open_count;
 
-  const dayItems = allRows.filter(item => !loose.includes(item) || shownLoose.has(item));
-  if (hidden) dayItems.push({ view: 'plan', id: '', meta: '', title: tp('home.more_in_plan', hidden), kind: 'more' });
   const blocks = {
     needs_you: section(
       'needs_you',
@@ -319,7 +339,8 @@ async function load() {
   showStatus(t('home.loading'));
   try {
     const date = calendarDateKey();
-    const timezone = encodeURIComponent(resolvedTimeZone());
+    // only a zone the browser really reports; the server remembers it for reminders
+    const timezone = encodeURIComponent(chosenTimeZone());
     const todayResponse = await fetch(`/api/today?date=${date}&timezone=${timezone}`);
     if (generation !== loadGeneration) return false;
     if (!todayResponse.ok) throw new Error(t('home.unavailable'));
@@ -399,7 +420,11 @@ async function json(url, options = {}) {
     headers: { 'content-type': 'application/json', ...(options.headers || {}) },
     body: options.body && typeof options.body !== 'string' ? JSON.stringify(options.body) : options.body,
   });
-  if (!response.ok) throw new Error('request failed');
+  if (!response.ok) {
+    // a 400 says why ("feb 30 isn't a date"); anything else stays generic
+    const detail = response.status === 400 ? (await response.json().catch(() => ({})))?.detail : '';
+    throw new Error(typeof detail === 'string' && detail ? detail : 'request failed');
+  }
   return response.json();
 }
 
@@ -431,9 +456,10 @@ function homeNoteSaved(saved, text, focus = false) {
     open.onclick = () => openCapturedNote(saved.path).catch(() => toast('could not open the saved note', 'error'));
     host.replaceChildren(status, open);
     if (focus && input?.getClientRects().length) open.focus();
-    // the floating "note saved · open note" goes after a while, unless you're on it
+    // on wide screens "note saved · open note" floats, so it goes after a while unless you're
+    // on it. on a phone it sits in the page; hiding it would pull the page up under the finger
     clearTimeout(homeNoteSaved.timer);
-    homeNoteSaved.timer = setTimeout(function clear() {
+    if (window.matchMedia?.('(min-width: 761px)').matches) homeNoteSaved.timer = setTimeout(function clear() {
       if (host.contains(document.activeElement)) { homeNoteSaved.timer = setTimeout(clear, 4000); return; }
       if (host.dataset.savedNoteRequest === saved.request_id) host.replaceChildren();
     }, 8000);

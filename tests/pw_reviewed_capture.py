@@ -416,10 +416,10 @@ def run():
                             with page.expect_response(base + endpoint) as aware_saved:
                                 page.locator("#capture-accept").click()
                             assert aware_saved.value.ok, aware_saved.value.text()
-                            assert (
-                                aware_saved.value.json()["start_dt"] == "2032-06-20T14:00:00.000Z"
-                            )
-                            assert aware_saved.value.json()["end_dt"] == "2032-06-20T15:00:00Z"
+                            # plan stores wall time: the edited start as typed, the untouched
+                            # end at its own instant, both read in the configured zone
+                            assert aware_saved.value.json()["start_dt"] == "2032-06-20T10:00:00"
+                            assert aware_saved.value.json()["end_dt"] == "2032-06-20T11:00:00"
                             expect(page.locator(".capture-status")).to_contain_text("saved in plan")
                             page.locator("#capture-cancel").click()
                             page.screenshot(path=str(out / f"{profile}-aware.png"), full_page=True)
@@ -441,14 +441,18 @@ def run():
                                 if variant == "all-day-round-trip":
                                     page.locator("#capture-all-day").click()
                                     page.locator("#capture-all-day").click()
-                                with page.expect_response(base + endpoint) as folded:
-                                    page.locator("#capture-accept").click()
-                                assert folded.value.ok, folded.value.text()
-                                assert folded.value.json()["start_dt"] == aware_times["start"]
-                                assert folded.value.json()["end_dt"] == aware_times["end"]
+                                # both ends are 1:30 on the wall clock (before and after the
+                                # clocks go back). wall time can't hold that, so the review asks
+                                # for a real end instead of saving an empty event
+                                count = len(api.get(endpoint).json())
+                                page.locator("#capture-accept").click()
                                 expect(page.locator(".capture-status")).to_contain_text(
-                                    "saved in plan"
+                                    "choose a valid start and an end after it"
                                 )
+                                assert page.locator("#capture-start").evaluate(
+                                    "el => el === document.activeElement || el.contains(document.activeElement)"
+                                )
+                                assert len(api.get(endpoint).json()) == count
                                 page.screenshot(
                                     path=str(out / f"{profile}-fold-{variant}.png"), full_page=True
                                 )

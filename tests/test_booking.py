@@ -67,8 +67,8 @@ class BookingTests(ApiTest):
         db.close()
 
         self.assertEqual(
-            self._slots(tok),
-            [{"start": f"{DAY}T09:30", "end": f"{DAY}T10:00"}],
+            [(s["start"], s["end"]) for s in self._slots(tok)],
+            [(f"{DAY}T09:30", f"{DAY}T10:00")],
         )
         refused = self.client.post(
             f"/book/{tok}", json={"date": DAY, "time": "09:00", "name": "Sam"}

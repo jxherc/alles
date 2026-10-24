@@ -4,14 +4,13 @@ in services.signals (shared with the today widget + proactive agent); this just
 formats the signals into digest lines. routes.briefing previews/sends it on
 demand, and services.automations reuses it for daily_at digest rules."""
 
-from datetime import date
-
 
 def compose_briefing(db, today=None) -> dict:
     """gather today's digest. returns {title, body, lines, has_content}."""
     from services import signals
 
-    today = today or date.today()
+    # the owner's today, not the server's: a utc box is a day off for half the world
+    today = today or signals.calendar_today()
     unavailable = set()
     g = signals.by_category(
         signals.gather(

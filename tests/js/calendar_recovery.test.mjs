@@ -10,7 +10,7 @@ globalThis.document = {
 };
 globalThis.window = { addEventListener: noop, dispatchEvent: noop, location: { hostname: 'calendar.localhost' } };
 const { configureLocalization } = await import('../../static/js/i18n.js');
-const { editorDates, eventTimeValues, wallTimeForStorage } = await import('../../static/js/calendar.js');
+const { editorDates, eventTimeValues, storedWallTime, wallTimeForStorage, calendarPlacementDate } = await import('../../static/js/calendar.js');
 const { dateTimeParts } = await import('../../static/js/datepick.js');
 const zone = timezone => configureLocalization({ language: 'en', region: 'CA', timezone });
 
@@ -38,19 +38,20 @@ test('all-series description edits retain origin; time edits apply a delta to th
   assert.deepEqual(eventTimeValues(event, initial, { start: '2026-10-03T00:45', end: '2026-10-03T01:30' }), { start_dt: '2026-09-26T00:45', end_dt: '2026-09-26T01:30' });
 });
 
-test('single/following occurrences retain multi-day wall duration across DST', () => {
+test('single/following occurrences of a kept offset keep their own moments and length across DST', () => {
   zone('America/Toronto');
+  // fridays 13:00 utc, the offset's own frame: 09:00 in toronto before the change, 08:00 after
   const event = { start_dt: '2026-10-30T13:00:00Z', end_dt: '2026-10-31T14:00:00Z', recurrence: 'weekly' };
   const dates = editorDates(event, '2026-11-06');
-  assert.deepEqual(dates, { start: '2026-11-06T09:00', end: '2026-11-07T10:00' });
+  assert.deepEqual(dates, { start: '2026-11-06T08:00', end: '2026-11-07T09:00' });
   for (const scope of ['this', 'following']) {
-    assert.deepEqual(eventTimeValues(event, dates, dates, scope), { start_dt: '2026-11-06T14:00:00.000Z', end_dt: '2026-11-07T15:00:00.000Z' });
+    assert.deepEqual(eventTimeValues(event, dates, dates, scope), { start_dt: '2026-11-06T13:00:00.000Z', end_dt: '2026-11-07T14:00:00.000Z' });
   }
 });
 
 test('DST gap is rejected for aware events and both fold offsets are retained', () => {
   zone('America/Toronto');
-  assert.throws(() => wallTimeForStorage('2026-03-08T02:30', '2026-03-01T07:30:00Z'), /does not exist/);
+  assert.throws(() => wallTimeForStorage('2026-03-08T02:30', '2026-03-01T07:30:00Z'), /doesn't exist/);
   assert.equal(wallTimeForStorage('2026-11-01T01:30', '2026-10-25T05:30:00Z'), '2026-11-01T05:30:00.000Z');
   assert.equal(wallTimeForStorage('2026-11-01T01:30', '2026-11-08T06:30:00Z'), '2026-11-01T06:30:00.000Z');
 });
@@ -66,10 +67,11 @@ test('literal picker datetimes do not normalize a browser DST gap or change zone
 test('recurring aware events retain elapsed duration and precision through a clock change', () => {
   zone('America/Toronto');
   const event = { start_dt: '2026-11-01T03:30:05.123Z', end_dt: '2026-11-01T07:30:05.123Z', recurrence: 'weekly' };
+  // sundays 03:30 utc: saturday 23:30 in toronto before the change, 22:30 after
   const initial = editorDates(event, '2026-11-07');
-  assert.deepEqual(initial, { start: '2026-11-07T23:30', end: '2026-11-08T03:30' });
+  assert.deepEqual(initial, { start: '2026-11-07T22:30', end: '2026-11-08T02:30' });
   const next = eventTimeValues(event, initial, initial, 'this');
-  assert.deepEqual(next, { start_dt: '2026-11-08T04:30:05.123Z', end_dt: '2026-11-08T08:30:05.123Z' });
+  assert.deepEqual(next, { start_dt: '2026-11-08T03:30:05.123Z', end_dt: '2026-11-08T07:30:05.123Z' });
   assert.equal(new Date(next.end_dt) - new Date(next.start_dt), 4 * 3600000);
   const floating = { start_dt: '2026-10-31T23:30:05', end_dt: '2026-11-01T02:30:05', recurrence: 'weekly' };
   const dates = editorDates(floating, '2026-11-07');
@@ -82,4 +84,18 @@ test('elapsed duration gives a valid end when the old wall-clock end falls in a 
   const initial = editorDates(event, '2026-03-08');
   assert.deepEqual(initial, { start: '2026-03-08T01:30', end: '2026-03-08T03:30' });
   assert.deepEqual(eventTimeValues(event, initial, initial, 'this'), { start_dt: '2026-03-08T06:30:00.000Z', end_dt: '2026-03-08T07:30:00.000Z' });
+});
+
+test('a zoned value is stored as the wall time it shows; naive values pass through', () => {
+  zone('America/Toronto');
+  assert.equal(storedWallTime('2032-06-20T14:00:00.000Z'), '2032-06-20T10:00:00');
+  assert.equal(storedWallTime('2026-11-01T07:30:05.123Z'), '2026-11-01T02:30:05.123');
+  assert.equal(storedWallTime('2026-09-25T22:30'), '2026-09-25T22:30');
+  assert.equal(storedWallTime(null), null);
+});
+
+test('python microseconds read as the same wall time, not a browser-zone instant', () => {
+  zone('America/Toronto');
+  assert.equal(calendarPlacementDate('2026-11-07T23:30:05.123000').toISOString(), '2026-11-07T23:30:05.123Z');
+  assert.equal(calendarPlacementDate('2026-11-07T23:30:05.123').toISOString(), '2026-11-07T23:30:05.123Z');
 });

@@ -11,7 +11,40 @@ reuses the date extraction from task_nl and adds time-of-day parsing.
 import re
 from datetime import date, datetime, time, timedelta
 
-from services.task_nl import _extract_date
+from services.task_nl import NotADate, _extract_date, check_dates
+
+__all__ = ["NotADate", "parse_event"]
+
+
+def _check_real(t: str, today: date) -> None:
+    """raise NotADate for an explicit date/time that can't exist. the parsers below would
+    quietly clamp or skip it and the event would land on the wrong day."""
+    check_dates(t, today)
+    # "12.30pm" is a time too, so the minutes can follow a dot
+    ampm = [
+        (m, 1 <= int(m.group(1)) <= 12 and int(m.group(2) or 0) <= 59)
+        for m in re.finditer(r"\b(\d{1,2})(?:[:.](\d{2}))?\s*[ap]\.?m\.?(?!\w)", t, re.I)
+    ]
+    taken = [m.span() for m, _ in ampm]
+    clocks = [
+        (m, int(m.group(1)) <= 23 and int(m.group(2)) <= 59)
+        for m in re.finditer(r"\b(\d{1,2}):(\d{2})(?!\d)", t)
+        if not any(a <= m.start() < b for a, b in taken)
+    ]
+    # a real time anywhere means an odd h:mm is just text, like a verse ("matthew 28:19 7pm")
+    if re.search(r"\b(?:noon|midday|midnight)\b", t, re.I) or any(ok for _, ok in ampm + clocks):
+        return
+    for m, ok in ampm:  # am/pm says it was meant as a time
+        if not ok:
+            raise NotADate(f"{m.group(0).strip().lower()} isn't a time")
+    for m, ok in clocks:
+        if ok:
+            continue
+        # an h:mm reads as the time next to at/from/until or in a range, or when it's the only one
+        near = re.search(r"(?:\bat|@|\bfrom|\buntil|\btill|\bto|[-–])\s*$", t[: m.start()], re.I)
+        near = near or re.match(r"\s*(?:[-–]|to\b|until\b|till\b)", t[m.end() :], re.I)
+        if near or len(clocks) == 1:
+            raise NotADate(f"{m.group(0)} isn't a time")
 
 
 def _extract_time(t: str):
@@ -23,7 +56,7 @@ def _extract_time(t: str):
     if m:
         return time(0, 0), t[: m.start()] + " " + t[m.end() :]
     # 1pm, 1:30pm, 9 am
-    m = re.search(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)\b", t, re.I)
+    m = re.search(r"\b(\d{1,2})(?:[:.](\d{2}))?\s*([ap]\.?m\.?)\b", t, re.I)
     if m:
         h = int(m.group(1)) % 12
         if m.group(3).lower().startswith("p"):
@@ -54,13 +87,13 @@ def _parse_clock(s: str):
         return time(12, 0), True  # unambiguous, so the start-inherit logic leaves it alone
     if re.match(r"midnight$", s, re.I):
         return time(0, 0), True
-    m = re.match(r"(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?$", s, re.I)
+    m = re.match(r"(\d{1,2})(?:[:.](\d{2}))?\s*([ap])\.?m\.?$", s, re.I)
     if m:
         h = int(m.group(1)) % 12
         if m.group(3).lower() == "p":
             h += 12
         return time(h % 24, int(m.group(2) or 0)), True
-    m = re.match(r"(\d{1,2})(?::(\d{2}))?$", s)
+    m = re.match(r"(\d{1,2})(?:[:.](\d{2}))?$", s)
     if m:
         return time(int(m.group(1)) % 24, int(m.group(2) or 0)), False
     return None, False
@@ -69,8 +102,8 @@ def _parse_clock(s: str):
 def _extract_time_range(t: str):
     """'1-2pm' / '3pm to 4:30pm' / '9-10am' / 'noon to 2pm' → (start, end, remaining). the end
     must carry an am/pm (or be noon/midnight); a start without one inherits it when sensible."""
-    clk = r"(?:noon|midday|midnight|\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?)"
-    clk_end = r"(?:noon|midday|midnight|\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?)"
+    clk = r"(?:noon|midday|midnight|\d{1,2}(?:[:.]\d{2})?\s*(?:[ap]\.?m\.?)?)"
+    clk_end = r"(?:noon|midday|midnight|\d{1,2}(?:[:.]\d{2})?\s*[ap]\.?m\.?)"
     m = re.search(rf"\b({clk})\s*(?:to|until|-|–)\s*({clk_end})\b", t, re.I)
     if not m:
         return None, None, t
@@ -103,7 +136,8 @@ def _extract_recurrence(t: str):
     the weekday is LEFT in the text so the date parser sets the first occurrence."""
     m = re.search(r"\bevery\s+(?=mon|tue|wed|thu|fri|sat|sun)", t, re.I)
     if m:
-        return "weekly", t[: m.start()] + " " + t[m.end() :]
+        # "on" keeps a short "every sun" a day for the date parser, and leaves with it
+        return "weekly", t[: m.start()] + " on " + t[m.end() :]
     for pat, rec in (
         (r"\b(?:every\s*day|daily)\b", "daily"),
         (r"\b(?:every\s*week|weekly)\b", "weekly"),
@@ -126,11 +160,14 @@ def parse_event(text: str, today: date | None = None, language: str = "en") -> d
         "all_day": False,
         "recurrence": "",
         "recur_until": None,
+        "no_date": False,
     }
     t = f" {normalize_quick_add(text, language)} "
+    _check_real(t, today)
 
-    recur_until, t = _extract_until(t, today)
+    # "until <day>" ends a repeat; without one it's just when the event is ("until fri finish essay")
     recurrence, t = _extract_recurrence(t)
+    recur_until, t = _extract_until(t, today) if recurrence else (None, t)
     out["recurrence"] = recurrence
     out["recur_until"] = (
         recur_until if recurrence else None
@@ -166,5 +203,7 @@ def parse_event(text: str, today: date | None = None, language: str = "en") -> d
     # so a plain title like "look at code" keeps its words
     if due or tm is not None:
         t = re.sub(r"\b(at|on|by|this|next)\b", " ", t, flags=re.I)
-    out["title"] = re.sub(r"\s+", " ", t).strip(" -,") or text.strip()
+    out["title"] = re.sub(r"\s+", " ", t).strip(" -,:;") or text.strip()
+    # nothing said when: it still lands today, and the receipt says so
+    out["no_date"] = not due and tm is None and not recurrence
     return out

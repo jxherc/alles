@@ -103,7 +103,20 @@ def run():
             def open_event(eid):
                 page.locator('#cal-view [data-view="month"]').click()
                 page.locator("#cal-today").click()
-                page.locator(f'.cal-chip[data-id="{eid}"]').press("Enter")
+                chip = page.locator(f'.cal-chip[data-id="{eid}"]')
+                expect(
+                    page.locator(f'.cal-chip[data-id="{eid}"], .cal-more[data-day="{day}"]').first
+                ).to_be_visible()
+                # the month trims lines a frame after it draws; read it once that's done
+                page.evaluate(
+                    "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+                )
+                if chip.count():
+                    chip.press("Enter")
+                else:
+                    # a short month cell (phone, 200% zoom) keeps the rest behind "+N more"
+                    page.locator(f'.cal-more[data-day="{day}"]').press("Enter")
+                    page.locator(f'.cal-tev[data-id="{eid}"]').click()
                 expect(page.locator("#cal-inv-btn")).to_be_visible()
 
             def tools():
@@ -224,7 +237,7 @@ def run():
                     )
                 assert malformed.value.status == 400
                 expect(page.locator("#cal-import-status")).to_contain_text("malformed.ics")
-                expect(page.locator("#cal-import-status")).to_contain_text("was not confirmed")
+                expect(page.locator("#cal-import-status")).to_contain_text("isn't a calendar file")
                 expect(page.locator("#cal-import-retry")).to_be_enabled()
                 assert rows() == before
 
@@ -237,7 +250,7 @@ def run():
                 chooser.value.set_files(
                     {"name": "unconfirmed.ics", "mimeType": "text/calendar", "buffer": ics.encode()}
                 )
-                expect(page.locator("#cal-import-status")).to_contain_text("was not confirmed")
+                expect(page.locator("#cal-import-status")).to_contain_text("wasn't confirmed")
                 assert rows() == before
                 page.unroute("**/api/calendar/import", malformed_receipt)
 
@@ -251,7 +264,7 @@ def run():
                     {"name": "synthetic.ics", "mimeType": "text/calendar", "buffer": ics.encode()}
                 )
                 expect(page.locator("#cal-import-status")).to_contain_text("synthetic.ics")
-                expect(page.locator("#cal-import-status")).to_contain_text("was not confirmed")
+                expect(page.locator("#cal-import-status")).to_contain_text("wasn't confirmed")
                 assert (
                     page.locator("#cal-import-file").evaluate("el => el.files[0].name")
                     == "synthetic.ics"
@@ -344,7 +357,7 @@ def run():
                 slot.click()
                 prompt(label + " booked")
                 error = page.locator(".cal-scope-ov [role=alert]")
-                expect(error).to_contain_text("was not confirmed")
+                expect(error).to_contain_text("wasn't confirmed")
                 expect(slot).to_be_enabled()
                 assert len(rows()) == len(before) + 2
                 snapshot("booking-refused")

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { plainError } from '../../static/js/util.js';
 
 const source = readFileSync(new URL('../../static/js/calendar.js', import.meta.url), 'utf8');
 const actual = name => source.match(new RegExp(`^(?:async )?function ${name}\\([^]*?^}`, 'm'))[0];
@@ -42,7 +43,8 @@ function harness() {
   };
   const context = vm.createContext({ document, nodes, state, Date, Number,
     fetch: async (url, options = {}) => { requests.push({ url, ...options }); return state.handler(url, options); },
-    toast: (message, type) => toasts.push({ message, type }),
+    toast: (message, type) => toasts.push({ message, type }), plainError, zoneHeader: () => ({ 'x-alles-time-zone': 'UTC' }),
+    withZone: (init = {}) => ({ ...init, headers: { ...(init.headers || {}), 'x-alles-time-zone': 'UTC' } }),
     tr: key => key, trp: (key, count) => `${key}:${count}`, esc: value => String(value),
     dlgPrompt: async (_message, initial) => state.prompts.length ? state.prompts.shift() : initial,
     ymd: () => '2026-10-16', localISO: date => `2026-10-16T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
@@ -52,7 +54,7 @@ function harness() {
   });
   vm.runInContext(`let _editing = null, _cursor = new Date();
     const RSVP_LABEL = { invited: 'invited' };
-    ${['readCalendarResponse', 'saveCalendarRequest', 'renderAttendees', 'renderInviteSuggestions', 'findTime'].map(actual).join('\n')}
+    ${['readCalendarResponse', 'sameStoredTime', 'saveCalendarRequest', 'renderAttendees', 'renderInviteSuggestions', 'findTime'].map(actual).join('\n')}
     globalThis.findTime = findTime; globalThis.renderAttendees = renderAttendees;
   `, context);
   function editor(id) {
@@ -238,3 +240,19 @@ test('refused import exposes separate retained-file retry and replacement action
   assert.equal(h.document.getElementById('cal-import-feedback').hidden, true);
   assert.equal(h.document.activeElement, h.nodes.get('cal-import'));
 });
+
+for (const [detail, expected] of [
+  ['choose a complete .ics calendar file', /“bad\.ics” isn't a calendar file alles can read/],
+  // a real .ics with one broken event is refused too; that's not "not a calendar"
+  ["an event in this file is incomplete or has a date that doesn't exist. nothing was imported",
+    /couldn't import “bad\.ics”\. an event in this file is incomplete/],
+]) {
+  test(`import 400 tells the server's reason: ${detail.slice(0, 24)}`, async () => {
+    const h = harness(); h.importControls();
+    h.state.handler = () => ({ ok: false, status: 400, json: async () => ({ detail }) });
+    const file = h.nodes.get('cal-import-file'); file.files = [{ name: 'bad.ics', text: async () => 'synthetic ics' }];
+    await file.listeners.change({ target: file });
+    assert.equal(h.document.getElementById('cal-import-feedback').hidden, false);
+    assert.match(h.document.getElementById('cal-import-status').textContent, expected);
+  });
+}

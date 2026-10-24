@@ -17,10 +17,9 @@ _WD = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
 def free_slots(busy, day, minutes, work_start=9, work_end=18):
     """open windows on `day` (within work hours) that fit `minutes`, avoiding the
     busy intervals. busy = list of (start_dt, end_dt). returns [{start, end}] ISO."""
-    from datetime import time as _time
-
-    win_s = datetime.combine(day, _time(work_start, 0))
-    win_e = datetime.combine(day, _time(work_end, 0))
+    # hours from midnight, so work_end=24 is the end of the day rather than an error
+    win_s = datetime.combine(day, datetime.min.time()) + timedelta(hours=work_start)
+    win_e = datetime.combine(day, datetime.min.time()) + timedelta(hours=work_end)
     iv = []
     for s, e in busy:
         s, e = max(s, win_s), min(e, win_e)

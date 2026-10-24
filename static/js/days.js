@@ -220,7 +220,7 @@ function _card(e) {
       ${e.progress != null && e.mode !== 'today' ? `<div class="day-bar"><i style="width:${Math.round(e.progress * 100)}%"></i></div>` : ''}
       <div class="day-actions">
         <button class="btn" data-act="edit">edit</button>
-        <button class="btn danger" data-act="del">×</button>
+        <button class="btn danger" data-act="del" aria-label="delete" title="delete">×</button>
       </div>
     </div>`;
 }
@@ -250,6 +250,16 @@ function _editCard(e) {
     </div>`;
 }
 
+// every action redraws the grid, so focus goes back to the same control in the card; an edit
+// lands on the name field, save/cancel on the card's edit, a delete on the next card's edit
+function _refocus(grid, id, act, nextId = '') {
+  const card = grid?.querySelector(`.day-card[data-id="${CSS.escape(id)}"]`);
+  const target = act === 'name' ? card?.querySelector('[data-f="name"]')
+    : act === 'del' ? grid?.querySelector(`.day-card[data-id="${CSS.escape(nextId)}"] [data-act="edit"]`)
+    : card?.querySelector(`[data-act="${act}"]`) || card?.querySelector('[data-act="edit"]');
+  (target || $('day-add-btn'))?.focus();
+}
+
 function _wire(grid) {
   $('days-retry')?.addEventListener('click', async () => {
     $('days-retry').disabled = true;
@@ -266,10 +276,19 @@ function _wire(grid) {
     busy(_pending.has(id));
     card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
       const act = btn.dataset.act;
-      if (act === 'edit') { _editing = id; _render(); return; }
-      if (act === 'cancel') { _editing = null; _render(); return; }
+      if (act === 'edit') { _editing = id; _render(); _refocus(grid, id, 'name'); return; }
+      if (act === 'cancel') { _editing = null; _render(); _refocus(grid, id, 'edit'); return; }
+      if (_pending.has(id)) return;
+      const cards = [...grid.querySelectorAll('.day-card[data-id]')], at = cards.indexOf(card);
+      const nextId = (cards[at + 1] || cards[at - 1])?.dataset.id || '';
+      // ask before going busy: a disabled button can't take focus back when the dialog closes
+      if (act === 'del' && !await dlgConfirm(`stop counting ${_events.find(x => x.id === id)?.name || 'this'}?`)) {
+        if (btn.isConnected) btn.focus();
+        return;
+      }
       if (_pending.has(id)) return;
       _pending.add(id); busy(true);
+      let landed = '';
       try {
         if (act === 'pin') {
           const e = _events.find(x => x.id === id);
@@ -278,14 +297,14 @@ function _wire(grid) {
             body: JSON.stringify({ pinned: !e.pinned }),
           }, value => value?.id === id && value.pinned === !e.pinned);
           ++_loadSequence;
+          landed = 'pin';
           await loadDays(); return;
         }
         if (act === 'del') {
-          const e = _events.find(x => x.id === id);
-          if (!await dlgConfirm(`stop counting ${e?.name || 'this'}?`)) return;
           await dayJson(fetch, `/api/days/${id}`, { method: 'DELETE' }, value => value?.ok === true);
           ++_loadSequence;
           _events = _events.filter(item => item.id !== id);
+          landed = 'del';
           await loadDays(); return;
         }
         if (act === 'save') {
@@ -302,6 +321,7 @@ function _wire(grid) {
           ++_loadSequence;
           if (_editing === id && card.isConnected && _editFields.every(field => v(field) === submitted[field])) _editing = null;
           toast('saved', 'success');
+          landed = 'edit';
           await loadDays(); return;
         }
       } catch (error) { toast(error.message || 'could not confirm this change; try again', 'error'); }
@@ -309,6 +329,15 @@ function _wire(grid) {
         _pending.delete(id); busy(false);
         const current = grid.querySelector(`.day-card[data-id="${CSS.escape(id)}"]`);
         current?.querySelectorAll('[data-act]').forEach(button => { button.disabled = false; });
+        // only when focus was lost to the redraw or the disabled button, never stolen from elsewhere
+        const lost = !document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected;
+        if (lost || btn === document.activeElement) {
+          if (landed === 'del') _refocus(grid, id, 'del', nextId);
+          else if (landed) _refocus(grid, id, landed === 'edit' && _editing === id ? 'save' : landed);
+          // a change that failed leaves the card as it was; back to the button that was pressed
+          else if (btn.isConnected) btn.focus();
+          else _refocus(grid, id, act === 'del' ? 'edit' : act);
+        }
       }
     }));
   });

@@ -212,6 +212,10 @@
     "calendar.quick_undone": "已移除「{title}」",
     "calendar.quick_undo_failed": "無法確認是否已移除「{title}」。請再次嘗試復原。",
     "calendar.added": "已新增「{title}」",
+    "calendar.added_today": "找不到日期，已將「{title}」新增到今天",
+    "calendar.editor_edit": "編輯行程",
+    "calendar.editor_new": "新增行程",
+    "calendar.overlap_pick": "哪個行程？",
     "calendar.agenda": "議程",
     "calendar.booking_pages": "預約頁面",
     "calendar.day": "日",
@@ -436,6 +440,8 @@
     "schedule.confirmed": "已排程 - aide 將於 {when} 回覆"
   },
   "plurals": {
+    "calendar.overlap_more": {"other": "另有 {count} 個行程，{start} – {end}"},
+    "calendar.overlap_stack": {"other": "{count} 個行程，{start} – {end}"},
     "credits.entry_shown": {"other": "顯示 {count} 個項目"},
     "credits.gap_remaining": {"other": "尚有 {count} 個發行缺口"},
     "credits.item_count": {"other": "{count} 個項目"},

@@ -70,6 +70,17 @@ def status() -> dict:
 
 def _iso(dt) -> str:
     if isinstance(dt, datetime):
+        # a zoned caldav time moves to the owner's wall clock, like every other stored event;
+        # dropping the zone as-is put a 9am tokyo call at 9am here
+        if dt.tzinfo is not None:
+            from services.calendar_events import write_zone
+
+            zone = write_zone()
+            # no timezone set: keep the offset; every reader converts it, which beats guessing
+            # the server's (often utc) zone and storing the wrong wall time for good
+            if zone is None:
+                return dt.replace(microsecond=0).isoformat()
+            dt = dt.astimezone(zone).replace(tzinfo=None)
         return dt.strftime("%Y-%m-%dT%H:%M:%S")
     # date only
     return dt.strftime("%Y-%m-%d") + "T00:00:00"
@@ -80,9 +91,14 @@ def _ical_dt(value: str) -> str:
     if not raw:
         return ""
     try:
-        return datetime.fromisoformat(raw).strftime("%Y%m%dT%H%M%S")
+        when = datetime.fromisoformat(raw)
     except ValueError:
         pass
+    else:
+        # a stored offset goes out as utc; naive wall time stays floating
+        if when.tzinfo is not None:
+            return when.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+        return when.strftime("%Y%m%dT%H%M%S")
     compact = raw.replace("-", "").replace(":", "").replace(" ", "T")
     if "T" not in compact:
         return compact

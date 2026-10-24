@@ -1,7 +1,7 @@
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
 import { calendarDateKey, t as tr } from './i18n.js';
-import { createFocusBoundary, setControlState } from './kokuen.js?v=1';
+import { createFocusBoundary, setControlState } from './kokuen.js?v=2';
 import { toast } from './util.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -100,6 +100,11 @@ async function recoverTaskDraft(generation) {
 
 function _wireTabs() {
   if (_tabsWired) return; _tabsWired = true;
+  // the receipt floats on wide screens and lifts toasts, so it leaves with the tasks view
+  const view = document.getElementById('tasks-view');
+  if (view && typeof MutationObserver === 'function') {
+    new MutationObserver(renderCompletion).observe(view, { attributes: true, attributeFilter: ['style', 'hidden'] });
+  }
   document.getElementById('task-completion-undo')?.addEventListener('click', undoCompletion);
   document.getElementById('task-completion-dismiss')?.addEventListener('click', () => {
     const focused = document.activeElement?.id === 'task-completion-dismiss';
@@ -332,7 +337,8 @@ function renderCompletion() {
   const receipt = _completionReceipt;
   const container = document.getElementById('task-completion-receipt');
   if (!container) return;
-  container.hidden = !receipt;
+  const view = document.getElementById('tasks-view');
+  container.hidden = !receipt || Boolean(view && (view.hidden || view.style.display === 'none'));
   const message = receipt ? tr(receipt.message, { task: receipt.title }) : '';
   const announcer = document.getElementById('task-completion-announcer');
   if (announcer && announcer.textContent !== message) announcer.textContent = message;

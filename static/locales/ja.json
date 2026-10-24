@@ -212,6 +212,10 @@
     "calendar.quick_undone": "「{title}」を削除しました",
     "calendar.quick_undo_failed": "「{title}」の削除を確認できませんでした。もう一度元に戻してください。",
     "calendar.added": "「{title}」を追加しました",
+    "calendar.added_today": "日付が見つからないため、「{title}」を今日に追加しました",
+    "calendar.editor_edit": "予定を編集",
+    "calendar.editor_new": "新しい予定",
+    "calendar.overlap_pick": "どの予定？",
     "calendar.agenda": "予定一覧",
     "calendar.booking_pages": "予約ページ",
     "calendar.day": "日",
@@ -436,6 +440,8 @@
     "schedule.confirmed": "予約しました - aide は {when} に回答します"
   },
   "plurals": {
+    "calendar.overlap_more": {"other": "ほか {count} 件の予定、{start} – {end}"},
+    "calendar.overlap_stack": {"other": "{count} 件の予定、{start} – {end}"},
     "credits.entry_shown": {"other": "{count} 件を表示"},
     "credits.gap_remaining": {"other": "リリース上の不足が {count} 件あります"},
     "credits.item_count": {"other": "{count} 件"},

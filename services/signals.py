@@ -70,14 +70,14 @@ def _sig(category, key, urgency, title, detail, link, data):
     }
 
 
-def _event_occurs_on(e: CalendarEvent, day: date) -> bool:
+def _event_occurs_on(e: CalendarEvent, day: date, zone=None) -> bool:
     """does a (possibly recurring) calendar event land on `day`? delegates to the real
     recurrence engine (recur.expand) so the today widget / briefing agree with the calendar —
     interval, weekly byday, count and excluded dates all honored. routes.today re-exports this."""
-    from services import recur
-
     # getattr w/ defaults so a partial event stub (tests, lightweight callers) still works —
     # not every object handed in carries the full recur_* column set
+    from services.calendar_events import occurrence_starts
+
     ev = {
         "start_dt": getattr(e, "start_dt", None),
         "recurrence": getattr(e, "recurrence", ""),
@@ -86,9 +86,12 @@ def _event_occurs_on(e: CalendarEvent, day: date) -> bool:
         "recur_count": getattr(e, "recur_count", None),
         "recur_until": getattr(e, "recur_until", None),
         "recur_except": getattr(e, "recur_except", "[]"),
+        # an all-day date isn't a kept offset: "2026-10-30T00:00:00Z" is the 30th everywhere
+        "all_day": getattr(e, "all_day", False),
     }
     rs = datetime.combine(day, datetime.min.time())
-    return bool(recur.expand(ev, rs, rs + timedelta(days=1)))
+    # a row that kept its offset repeats in its own frame and lands on the owner's day
+    return bool(occurrence_starts(ev, rs, rs + timedelta(days=1), zone))
 
 
 # -- collectors: one family each, returning a list of signals -----------------
@@ -140,13 +143,16 @@ def _tasks(db, today):
     return out
 
 
-def _events(db, today):
+def _events(db, today, *, timezone_name=None):
+    from services.calendar_events import owner_zone, wall_time
+
     out = []
     iso = today.isoformat()
+    zone = owner_zone(timezone_name or "")
     for e in db.query(CalendarEvent).all():
-        if not _event_occurs_on(e, today):
+        if not _event_occurs_on(e, today, zone):
             continue
-        full = str(e.start_dt)
+        full = str(wall_time(e.start_dt, zone))
         t = full[11:16] if len(full) > 10 else ""
         timed = (not e.all_day) and bool(t)
         out.append(
@@ -170,18 +176,15 @@ def _events(db, today):
 
 
 def calendar_zone(timezone_name=None):
-    """Use the viewer's zone, then the configured owner zone, then server local time."""
+    """the viewer's zone, else the owner's (the setting, then the last browser zone seen), else
+    server local time. a bad viewer zone raises, so a route can refuse it"""
     if timezone_name:
         return ZoneInfo(timezone_name)
 
     from core.settings import load_settings
+    from services.calendar_events import owner_zone
 
-    configured = load_settings().get("timezone")
-    try:
-        return ZoneInfo(configured) if configured else None
-    except (KeyError, ValueError):
-        # Older or manually edited settings must not break date-only callers.
-        return None
+    return owner_zone(settings=load_settings())
 
 
 def calendar_today(timezone_name=None):
@@ -206,7 +209,14 @@ def _reminders(db, today, *, timezone_name=None):
                     r.text,
                     f"reminder {at}",
                     "reminders",
-                    {"id": r.id, "text": r.text, "at": at},
+                    # trigger_at keeps the day, so an overdue one from yesterday can say so.
+                    # whole seconds: every browser's Date parses that, not all take micros
+                    {
+                        "id": r.id,
+                        "text": r.text,
+                        "at": at,
+                        "trigger_at": local_trigger.isoformat(timespec="seconds"),
+                    },
                 )
             )
     return out
@@ -631,6 +641,8 @@ def gather(db, today=None, *, categories=None, timezone_name=None, unavailable=N
                 out.extend(finance_rows.get(name, ()))
             elif name == "reminder":
                 out.extend(_reminders(db, today, timezone_name=timezone_name))
+            elif name == "event":
+                out.extend(_events(db, today, timezone_name=timezone_name))
             else:
                 out.extend(_COLLECTORS[name](db, today))
     out.sort(key=lambda s: -s["urgency"])

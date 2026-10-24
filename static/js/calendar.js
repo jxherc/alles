@@ -3,10 +3,10 @@ import { replaceLinkedRecord } from './recordlinks.js';
 import { initCustomDropdown } from './dropdown.js?v=212';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
-import { wireActionMenu } from './kokuen.js?v=1';
+import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=2';
 import { openAppSettings } from './appsettings.js';
 import { wireGridNav, WEEK_ROWS } from './grid_nav.js';
-import { formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
+import { chosenTimeZone, formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 const _browserTimeZone = () => {
@@ -63,12 +63,12 @@ const _cloneCalendarDate = value => value instanceof CalendarWallDate
 
 export function calendarPlacementDate(value) {
   const text = typeof value === 'string' ? value.trim() : '';
-  const naive = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/.exec(text);
+  const naive = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?)?$/.exec(text);
   if (naive) {
     const [, year, month, day, hour = '0', minute = '0', second = '0', millis = '0'] = naive;
     return _calendarWallDate(
       Number(year), Number(month) - 1, Number(day),
-      Number(hour), Number(minute), Number(second), Number(millis.padEnd(3, '0')),
+      Number(hour), Number(minute), Number(second), Number(millis.slice(0, 3).padEnd(3, '0')),
     );
   }
   return _instantAsCalendarWallDate(value);
@@ -131,6 +131,16 @@ const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() ==
 
 // Editor dates are wall-clock values; untouched values retain their original precision/offset.
 function occurrenceDates(event, occ) {
+  // a kept offset: the occurrence at its own moment, the same one the grid shows on that day
+  if (event.recurrence && !event.all_day && keptFrame(event.start_dt)) {
+    const day = calendarPlacementDate(String(occ).slice(0, 10));
+    const next = _cloneCalendarDate(day); next.setDate(next.getDate() + 1);
+    const hit = expand(day, next, [{ ...event, recur_except: [] }])[0];
+    if (hit) {
+      const length = event.end_dt ? new Date(event.end_dt).getTime() - new Date(event.start_dt).getTime() : null;
+      return { start_dt: new Date(hit._at).toISOString(), end_dt: length == null ? null : new Date(hit._at + length).toISOString() };
+    }
+  }
   const start = calendarPlacementDate(event.start_dt);
   const delta = calendarPlacementDate(occ).getTime() - calendarPlacementDate(ymd(start)).getTime();
   if (!delta) return { start_dt: event.start_dt, end_dt: event.end_dt || null };
@@ -182,10 +192,19 @@ export function wallTimeForStorage(value, original) {
   const matches = [...offsets].map(offset => wall - offset)
     .filter(instant => _instantAsCalendarWallDate(new Date(instant)).getTime() === wall)
     .sort((a, b) => a - b);
-  if (!matches.length) throw new Error('That time does not exist in this timezone. Choose another time.');
+  if (!matches.length) throw new Error("that time doesn't exist in this time zone. choose another time");
   const previous = new Date(original).getTime();
   const previousOffset = _instantAsCalendarWallDate(new Date(previous)).getTime() - previous;
   return new Date(matches.find(instant => wall - instant === previousOffset) ?? matches[0]).toISOString();
+}
+
+// plan stores wall time; a zoned value becomes the wall time it shows as here
+export function storedWallTime(value) {
+  if (typeof value !== 'string' || !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)) return value;
+  const wall = calendarPlacementDate(value);
+  if (Number.isNaN(wall.getTime())) return value;
+  const ms = wall.getMilliseconds();
+  return `${localISO(wall)}:${_pad(wall.getSeconds())}${ms ? '.' + String(ms).padStart(3, '0') : ''}`;
 }
 
 export function eventTimeValues(event, initial, values, scope = 'all') {
@@ -217,20 +236,30 @@ async function readCalendarResponse(response) {
   if (!response.ok) throw Object.assign(new Error(typeof data?.detail === 'string' ? data.detail : 'the calendar request failed. retry'), { status: response.status });
   return data;
 }
+// every calendar request says the browser's zone: the server reads an offset a row kept in
+// the same zone this page does, and remembers it for reminders. nothing when the browser won't say
+const zoneHeader = () => { const zone = chosenTimeZone(); return zone ? { 'x-alles-time-zone': zone } : {}; };
+const withZone = (init = {}) => ({ ...init, headers: { ...(init.headers || {}), ...zoneHeader() } });
+// the server keeps wall time, so a zoned value comes back naive at the same moment
+function sameStoredTime(saved, sent) {
+  return saved === sent || (typeof saved === 'string' && typeof sent === 'string' && saved.length > 10
+    && calendarPlacementDate(saved).getTime() === calendarPlacementDate(sent).getTime());
+}
 async function saveCalendarRequest(url, method, body, expectedId = null) {
   const data = await readCalendarResponse(await fetch(url, {
-    method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    method, headers: { 'content-type': 'application/json', ...zoneHeader() }, body: JSON.stringify(body),
   }));
   if (!data || typeof data.id !== 'string' || !data.id || data.title !== body.title
-      || data.start_dt !== body.start_dt || !Object.prototype.hasOwnProperty.call(data, 'end_dt')
-      || (body.end_dt && data.end_dt !== body.end_dt) || data.description !== body.description
+      || !sameStoredTime(data.start_dt, body.start_dt) || !Object.prototype.hasOwnProperty.call(data, 'end_dt')
+      || (body.end_dt && !sameStoredTime(data.end_dt, body.end_dt)) || data.description !== body.description
       || (expectedId && data.id !== expectedId)) {
-    throw new Error('The calendar did not confirm the saved event. Your draft is still here.');
+    throw new Error("the calendar didn't confirm the save. your draft is still here");
   }
   return data;
 }
 function editorError(message) {
   const el = document.getElementById('cal-save-error');
+  message = plainError(message);
   if (el) { el.textContent = message; el.hidden = false; el.scrollIntoView({ block: 'nearest' }); }
   else toast(message, 'error');
 }
@@ -240,10 +269,52 @@ function editorBusy(busy) {
   const save = document.getElementById('cal-save');
   if (save) { save.disabled = busy; save.textContent = busy ? 'saving…' : (_editing ? 'save' : 'create'); }
 }
+// the editor is replaced by the grid, so focus goes to the event's chip, else the day's
+// "+N more", else "+ event"; never the page body
+function focusAfterEditor(id = '', day = '') {
+  const list = document.getElementById('calendar-list');
+  const shown = node => node?.isConnected && node.getClientRects().length ? node : null;
+  const own = id ? `:is(button.cal-chip, button.cal-allday-ev, .cal-tev)[data-id="${CSS.escape(id)}"]` : '';
+  const target = (own && (shown(list?.querySelector(`${own}[data-occ="${CSS.escape(day)}"]`)) || shown(list?.querySelector(own))))
+    || (day && shown(list?.querySelector(`.cal-more[data-day="${CSS.escape(day)}"]`)))
+    || shown(document.getElementById('cal-new-btn'));
+  target?.focus();
+}
+// Escape leaves the editor like back. an open picker, menu or dialog takes its own Escape first:
+// it stops the key or marks it handled
+function escapeLeaves(e) {
+  if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return;
+  e.preventDefault();
+  leaveEditor();
+}
+// safari leaves focus on the page after a click on a button or on blank space, where the
+// editor's own listener never hears the key, so the page listens while the editor is open
+let _pageEscape = null;
+function watchPageEscape(editor) {
+  if (_pageEscape) document.removeEventListener('keydown', _pageEscape);
+  _pageEscape = e => {
+    if (!editor?.isConnected) { document.removeEventListener('keydown', _pageEscape); _pageEscape = null; return; }
+    // a click on the discard question's text drops focus to the page too: that Escape is the
+    // question's, not a second request to leave
+    if (document.querySelector('.dialog-overlay')) return;
+    if (e.target === document.body || e.target === document.documentElement) escapeLeaves(e);
+  };
+  document.addEventListener('keydown', _pageEscape);
+}
+
+let _leaving = false;
 async function leaveEditor() {
-  if (_saving) return;
-  if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm('discard your unsaved event changes?'))) return;
-  await loadCalendar();
+  if (_saving || _leaving) return;
+  _leaving = true;   // one question at a time, however many escapes or clicks arrive meanwhile
+  try {
+    if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm('discard your unsaved event changes?'))) {
+      // kept: the question handed focus back to the page it came from, so put it in the editor
+      if (document.activeElement === document.body) focusEditor(Boolean(_editing));
+      return;
+    }
+    const id = _editing?.id || '', day = (_editOcc || _editing?.start_dt || '').slice(0, 10);
+    if (await loadCalendar()) focusAfterEditor(id, day);
+  } finally { _leaving = false; }
 }
 function calendarLoadError(message) {
   const host = document.getElementById('calendar-list');
@@ -280,7 +351,7 @@ function calendarMetadataNotice() {
   const notice = document.createElement('div');
   notice.id = 'cal-metadata-error'; notice.className = 'cal-load-error'; notice.setAttribute('role', 'alert');
   const text = document.createElement('span');
-  text.textContent = `Calendar names are unavailable. Events are still available; calendar selection is paused. ${_calendarMetadataError}`;
+  text.textContent = `calendar names didn't load, so picking a calendar is paused. events still work. ${plainError(_calendarMetadataError)}`;
   const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'retry';
   retry.addEventListener('click', retryCalendarView);
   notice.append(text, retry); layout.before(notice);
@@ -345,14 +416,15 @@ export async function loadCalendar(fetcher = fetch, canReplaceEditor = () => tru
   const sequence = ++_loadSequence;
   const preserveEditor = _preserveEditorOnRetry && Boolean(document.querySelector('.cal-editor'));
   try {
-  const requiredList = async url => { const data = await readCalendarResponse(await fetcher(url)); if (!Array.isArray(data)) throw new Error('The calendar returned an invalid list.'); return data; };
+  const requiredList = async (url, init) => { const data = await readCalendarResponse(await (init ? fetcher(url, init) : fetcher(url))); if (!Array.isArray(data)) throw new Error('the calendar sent back something unreadable. retry'); return data; };
   const [cals, evs, s, tasks, subs, bdays] = await Promise.all([
-    requiredList('/api/calendars').then(items => ({ items, error: '' })).catch(error => ({ error: error.message || 'Check your connection and retry.' })),
-    requiredList('/api/calendar'),
+    requiredList('/api/calendars').then(items => ({ items, error: '' })).catch(error => ({ error: error.message || 'check your connection and retry' })),
+    // the browser's zone: the server reads kept offsets in it and remembers it for reminders
+    requiredList('/api/calendar', { headers: zoneHeader() }),
     fetcher('/api/settings').then(r => r.json()).catch(() => ({})),
-    fetcher('/api/calendar/tasks').then(r => r.json()).catch(() => []),
-    fetcher('/api/calendar/subscriptions').then(r => r.json()).catch(() => []),
-    fetcher('/api/calendar/birthdays').then(r => r.json()).catch(() => []),
+    fetcher('/api/calendar/tasks', withZone()).then(r => r.json()).catch(() => []),
+    fetcher('/api/calendar/subscriptions', withZone()).then(r => r.json()).catch(() => []),
+    fetcher('/api/calendar/birthdays', withZone()).then(r => r.json()).catch(() => []),
   ]);
   if (sequence !== _loadSequence) return false;
   _tasks = Array.isArray(tasks) ? tasks : [];
@@ -384,7 +456,7 @@ export async function loadCalendar(fetcher = fetch, canReplaceEditor = () => tru
   calendarMetadataNotice();
   return true;
   } catch (error) {
-    if (sequence === _loadSequence) calendarLoadError(error.message || 'Check your connection and retry.');
+    if (sequence === _loadSequence) calendarLoadError(error.message || 'check your connection and retry');
     return false;
   }
 }
@@ -414,6 +486,10 @@ function _bindNav() {
     setToolsOpen(false);
     toolsToggle.focus();
   });
+  // the month cap depends on the width, so a rotate or resize across it redraws the grid
+  window.matchMedia?.(MONTH_NARROW).addEventListener?.('change', () => {
+    if (_view === 'month' && document.querySelector('#calendar-list > .cal-grid')) render();
+  });
   const compactToolbar = window.matchMedia?.('(max-width: 760px)');
   compactToolbar?.addEventListener('change', () => {
     if (compactToolbar.matches && tools?.contains(document.activeElement)) setToolsOpen(true);
@@ -442,6 +518,18 @@ function _bindNav() {
     quickFeedback.hidden = false;
     quickStatus.textContent = message;
     quickUndo.hidden = !quickEvent;
+    clearTimeout(quickMessage.timer);
+    // on wide screens it floats, so it can go like home's receipt; not while it's busy,
+    // focused or under the pointer. on a phone it sits in the page and hiding it would
+    // pull everything up under the finger
+    if (!window.matchMedia?.('(min-width: 761px)').matches) return;
+    quickMessage.timer = setTimeout(function hide() {
+      if (quickBusy || quickFeedback.contains(document.activeElement) || quickFeedback.matches(':hover')) {
+        quickMessage.timer = setTimeout(hide, 4000);
+        return;
+      }
+      quickFeedback.hidden = true;
+    }, 8000);
   };
   const setQuickBusy = busy => {
     quickBusy = busy;
@@ -464,16 +552,18 @@ function _bindNav() {
       const sameEditor = () => _readDraft === draftReader && (!draftReader || draftReader() === draftValue);
       quickEvent = null;
       quickMessage(tr('common.saving'));
-      const r = await fetch('/api/calendar/quick', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+      const r = await fetch('/api/calendar/quick', { method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() }, body: JSON.stringify({ text }) });
       const ev = await readCalendarResponse(r);
       if (typeof ev?.id !== 'string' || !ev.id || typeof ev.title !== 'string' || !ev.start_dt) throw new Error();
       quickEvent = ev;
       quick.value = '';
-      quickMessage(tr('calendar.added', { title: ev.title }));
+      quickMessage(tr(r.headers?.get?.('x-alles-no-date') === '1' ? 'calendar.added_today' : 'calendar.added', { title: ev.title }));
       _cursor = calendarPlacementDate(ev.start_dt); _cursor.setHours(0, 0, 0, 0);
       await loadCalendar(fetch, sameEditor);
-    } catch { quickMessage(tr('calendar.quick_unconfirmed')); }
-    finally { setQuickBusy(false); }
+    } catch (error) {
+      // a 400 is the server saying why ("feb 30 isn't a date"); the text stays to fix
+      quickMessage(error?.status === 400 ? plainError(error.message) : tr('calendar.quick_unconfirmed'));
+    } finally { setQuickBusy(false); }
   });
   quickUndo?.addEventListener('click', async () => {
     if (quickBusy || _saving || !quickEvent) return;
@@ -484,7 +574,7 @@ function _bindNav() {
       const draftReader = _readDraft, draftValue = draftReader?.();
       const sameEditor = () => _readDraft === draftReader && (!draftReader || draftReader() === draftValue);
       const response = await fetch(`/api/calendar/${encodeURIComponent(event.id)}`, {
-        method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify(event),
+        method: 'DELETE', headers: { 'content-type': 'application/json', ...zoneHeader() }, body: JSON.stringify(event),
       });
       // A retry after a lost acknowledgment may find the exact event already gone.
       if (response.status !== 404 && (await readCalendarResponse(response))?.ok !== true) throw new Error();
@@ -520,7 +610,7 @@ function _bindNav() {
       const origin = [imp, retry, choose, more].includes(document.activeElement) ? document.activeElement : null;
       importing = true; imp.disabled = true; fileInp.disabled = true; retry.disabled = true; choose.disabled = true;
       try {
-        const r = await fetch('/api/calendar/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ics: await f.text() }) });
+        const r = await fetch('/api/calendar/import', { method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() }, body: JSON.stringify({ ics: await f.text() }) });
         const d = await readCalendarResponse(r);
         if (!Number.isInteger(d?.imported) || d.imported < 0) throw new Error('the calendar did not confirm the import. check the calendar before importing again.');
         if (document.getElementById('cal-import-file') !== fileInp) return;
@@ -530,10 +620,14 @@ function _bindNav() {
         await loadCalendar(fetch, () => !document.querySelector('.cal-editor'));
       } catch (error) {
         if (document.getElementById('cal-import-file') === fileInp) {
-          // a 400 means the file was read and refused (not a calendar); only a lost reply is unknown
-          status.textContent = error?.status === 400
-            ? `“${f.name || 'selected file'}” isn't a calendar file alles can read. choose an .ics file.`
-            : `the import of “${f.name || 'selected file'}” wasn't confirmed. check the calendar before retrying, or choose another file.`;
+          // a 400 means the file was read and refused; only a lost reply is unknown. a real .ics
+          // with one bad event is refused too, so pass the server's reason through
+          const name = f.name || 'selected file';
+          status.textContent = error?.status !== 400
+            ? `the import of “${name}” wasn't confirmed. check the calendar before retrying, or choose another file.`
+            : /complete \.ics calendar file/i.test(error.message || '')
+              ? `“${name}” isn't a calendar file alles can read. choose an .ics file.`
+              : `couldn't import “${name}”. ${plainError(error.message)}`;
           feedback.hidden = false;
         }
       } finally {
@@ -608,7 +702,7 @@ let _bookingPages = [];
 async function renderBookingPages() {
   const el = document.getElementById('cal-book-list');
   if (!el) return;
-  _bookingPages = await fetch('/api/calendar/booking-pages').then(r => r.json()).catch(() => []);
+  _bookingPages = await fetch('/api/calendar/booking-pages', withZone()).then(r => r.json()).catch(() => []);
   if (!_bookingPages.length) { el.innerHTML = '<div class="cal-feed-empty">none yet</div>'; return; }
   el.innerHTML = _bookingPages.map(b => `
     <div class="cal-feed-row" data-id="${b.id}">
@@ -624,7 +718,7 @@ async function renderBookingPages() {
       catch { toast(url, ''); }
     });
     row.querySelector('[data-act="del"]').addEventListener('click', async () => {
-      await fetch(`/api/calendar/booking-pages/${b.id}`, { method: 'DELETE' });
+      await fetch(`/api/calendar/booking-pages/${b.id}`, withZone({ method: 'DELETE' }));
       renderBookingPages();
     });
   });
@@ -636,7 +730,7 @@ async function addBookingPage() {
   const dur = await dlgPrompt('', '30', { title: 'new booking page', label: 'slot length, in minutes', confirmLabel: 'create page' });
   try {
     await fetch('/api/calendar/booking-pages', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() },
       body: JSON.stringify({ title: title?.trim() || 'Book a time', duration_min: parseInt(dur) || 30 }),
     });
     toast('booking page created', 'success');
@@ -666,7 +760,7 @@ function renderFeeds() {
     </div>`).join('');
   el.querySelectorAll('.cal-feed-row').forEach(row => {
     row.querySelector('[data-act="del"]').addEventListener('click', async () => {
-      await fetch(`/api/calendar/subscriptions/${row.dataset.id}`, { method: 'DELETE' });
+      await fetch(`/api/calendar/subscriptions/${row.dataset.id}`, withZone({ method: 'DELETE' }));
       loadCalendar();
     });
   });
@@ -679,7 +773,7 @@ async function addFeed() {
   toast('subscribing…');
   try {
     const r = await fetch('/api/calendar/subscriptions', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() },
       body: JSON.stringify({ name: name?.trim() || 'Subscription', url: url.trim() }),
     });
     if (!r.ok) throw 0;
@@ -696,9 +790,9 @@ function renderMini() {
   const startDay = _lead(y, m);
   const dim = new Date(y, m + 1, 0).getDate();
   const miniWd = _weekdayLabels('narrow');
-  let html = `<div class="cal-mini-head"><button class="cal-mini-nav" data-d="-1">‹</button>
+  let html = `<div class="cal-mini-head"><button type="button" class="cal-mini-nav" data-d="-1" aria-label="previous month">‹</button>
     <span>${formatCalendarDate(_miniCursor, { month: 'long', year: 'numeric' })}</span>
-    <button class="cal-mini-nav" data-d="1">›</button></div><div class="cal-mini-grid">`;
+    <button type="button" class="cal-mini-nav" data-d="1" aria-label="next month">›</button></div><div class="cal-mini-grid">`;
   html += '<div class="cal-row" role="row">';
   for (const w of miniWd) html += `<div class="cal-mini-wd" role="columnheader">${w}</div>`;
   html += '</div><div class="cal-row" role="row">';
@@ -796,11 +890,11 @@ function _spanKeys(o) {
 // sets .col (which sub-column) and .ncols (how many the cluster needs) on each item.
 function _layoutCols(evs) {
   evs.sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
-  let cluster = [], clusterEnd = -Infinity, colEnds = [];
+  let cluster = [], clusterEnd = -Infinity, colEnds = [], cid = 0;
   const flush = () => {
     const n = cluster.reduce((m, e) => Math.max(m, e.col + 1), 1);
-    cluster.forEach(e => { e.ncols = n; });
-    cluster = []; colEnds = [];
+    cluster.forEach(e => { e.ncols = n; e.cid = cid; });
+    cluster = []; colEnds = []; cid++;
   };
   for (const e of evs) {
     if (e.startMs >= clusterEnd) flush();   // a gap → start a fresh cluster
@@ -858,18 +952,30 @@ function visibleEvents() {
   return list;
 }
 
-function expand(rs, re, events = visibleEvents()) {
+export function expand(rs, re, events = visibleEvents()) {
   const out = [];
   for (const e of events) {
-    const start = calendarPlacementDate(e.start_dt);
+    // an all-day event is its date wherever you are: "2026-10-30T00:00:00Z" is the 30th, not the
+    // evening of the 29th in toronto
+    const start = calendarPlacementDate(e.all_day ? String(e.start_dt).slice(0, 10) : e.start_dt);
     if (isNaN(start)) continue;
-    if (!e.recurrence) { if (start >= rs && start < re) out.push({ ...e, _date: start }); continue; }
+    if (!e.recurrence) {
+      // a multi-day all-day event that began before the range still covers days in it (_spanKeys)
+      const last = e.all_day && e.end_dt ? calendarPlacementDate(String(e.end_dt).slice(0, 10)) : start;
+      if (start < re && (start >= rs || last >= rs)) out.push({ ...e, _date: start });
+      continue;
+    }
+    // a repeat that kept its offset repeats in that offset's own frame - its weekdays, weeks,
+    // month days, last day and skipped days - and each start is then read here, like the server
+    const kept = e.all_day ? null : keptFrame(e.start_dt);
+    const first = kept ? kept.wall : start;
+    const seen = kept ? cand => _instantAsCalendarWallDate(new Date(cand.getTime() - kept.offset)) : cand => cand;
     const interval = Math.max(1, e.recur_interval || 1);
     const until = e.recur_until ? calendarPlacementDate(e.recur_until + 'T23:59:59') : null;
     const count = e.recur_count || null;
     const excepts = new Set((e.recur_except || []).map(d => String(d).slice(0, 10)));
     const byday = e.recurrence === 'weekly' ? parseByday(e.recur_byday) : null;
-    const gen = candidates(start, e.recurrence, interval, byday);
+    const gen = candidates(first, e.recurrence, interval, byday);
     let emitted = 0, guard = 0;
     while (guard++ < 8000) {
       const nx = gen.next(); if (nx.done) break;
@@ -878,12 +984,24 @@ function expand(rs, re, events = visibleEvents()) {
       if (count != null && emitted >= count) break;
       emitted++;
       if (excepts.has(ymd(cand))) continue;
-      if (cand >= re) break;
-      if (cand >= rs) out.push({ ...e, _date: _cloneCalendarDate(cand), _recur: true });
+      const at = seen(cand);
+      if (at >= re) break;
+      if (at >= rs) out.push({ ...e, _date: _cloneCalendarDate(at), _recur: true, ...(kept ? { _at: cand.getTime() - kept.offset } : {}) });
       if (out.length > 3000) break;
     }
   }
   return out;
+}
+
+// a stored time that kept its offset: its wall time in that offset's frame, and the offset. null
+// for wall time
+export function keptFrame(value) {
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?)(Z|[+-]\d{2}:?\d{2})$/i.exec(String(value || '').trim());
+  if (!match) return null;
+  const digits = match[2].replace(/\D/g, '');
+  const sign = match[2][0] === '-' ? -1 : 1;
+  const offset = /z/i.test(match[2]) ? 0 : sign * (Number(digits.slice(0, 2)) * 60 + Number(digits.slice(2, 4) || 0)) * 60000;
+  return { wall: calendarPlacementDate(match[1]), offset };
 }
 
 // ── rendering ────────────────────────────────────────────────────────────────
@@ -901,14 +1019,15 @@ async function renderAgenda(lbl) {
   if (lbl) lbl.textContent = tr('calendar.agenda');
   const el = document.getElementById('calendar-list');
   if (!el) return;
-  const d = await fetch('/api/calendar/agenda?days=60').then(r => r.json()).catch(() => ({ days: [] }));
+  const d = await fetch('/api/calendar/agenda?days=60', withZone()).then(r => r.json()).catch(() => ({ days: [] }));
   if (!d.days?.length) { el.innerHTML = `<div class="cal-agenda-empty">${esc(tr('calendar.nothing_upcoming'))}</div>`; return; }
   let html = '<div class="cal-agenda">';
   for (const g of d.days) {
     const dd = new Date(g.date + 'T00:00:00');
     html += `<div class="cal-agenda-day"><div class="cal-agenda-date">${formatCalendarDate(dd, { weekday: 'short', month: 'short', day: 'numeric' })}</div><div class="cal-agenda-evs">`;
     for (const o of g.events) {
-      const t = o.all_day ? 'all day' : timeShort(calendarPlacementDate(o.start_dt));
+      // a later day of a multi-day event reads as all day there, like plan does, not a fresh start time
+      const t = o.all_day || o.continued ? 'all day' : timeShort(calendarPlacementDate(o.start_dt));
       html += `<div class="cal-agenda-ev" data-id="${o.id}" data-occ="${o.recurring ? o.start_dt.slice(0, 10) : ''}"><span class="cal-agenda-dot" style="background:${evHex(o)}"></span><span class="cal-agenda-time">${esc(t)}</span><span class="cal-agenda-title">${esc(o.title)}${o.recurring ? ' <span class="cal-agenda-recur">(repeats)</span>' : ''}</span></div>`;
     }
     html += '</div></div>';
@@ -969,8 +1088,116 @@ function _bdayMap() {
   return m;
 }
 const _bdayKey = d => String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const _bdayChips = (map, d) => (map[_bdayKey(d)] || []).slice(0, 2)
+const _bdayChips = (map, d) => (map[_bdayKey(d)] || [])
   .map(n => `<div class="cal-bday" title="${esc(n)}'s birthday">${_si('cake')} ${esc(n)}</div>`).join('');
+// the title gets its own span: the chip is a flex row, so an ellipsis on it never shows.
+// in a month cell a task line opens its day instead of completing it: the lines are packed
+// tight there and a stray tap shouldn't tick a task off. the day's 44px toggle completes it
+const _taskChip = t =>
+  `<button type="button" class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" aria-label="${esc(t.done ? `${t.title}, done` : t.title)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span><span class="cal-task-title">${esc(t.title)}</span></button>`;
+// the day/week all-day row has room for a real control: a 44px button you can tab to and toggle
+// with enter or space. month cells keep the compact chip
+const _taskToggle = t =>
+  `<button type="button" class="cal-task${t.done ? ' done' : ''}" role="checkbox" aria-checked="${t.done ? 'true' : 'false'}" data-task="${esc(t.id)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span><span class="cal-task-title">${esc(t.title)}</span></button>`;
+const _tasksByDay = () => {
+  const out = {};
+  for (const t of _tasks) (out[t.date] = out[t.date] || []).push(t);
+  return out;
+};
+async function _toggleCalTask(id, refocus = false) {
+  const t = _tasks.find(x => x.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  const ok = await fetch(`/api/tasks/${t.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ done: t.done }) })
+    .then(r => r.ok, () => false);
+  if (!ok) { t.done = !t.done; toast("couldn't update the task. retry", 'error'); }
+  render();
+  // the row is redrawn, so put focus back on the same task's new toggle
+  if (refocus) document.querySelector(`.cal-tg-allday .cal-task[data-task="${CSS.escape(id)}"]`)?.focus();
+}
+// month cells fit 4 lines, 3 on a phone; the rest is counted on a "+N more" that opens the day
+const MONTH_NARROW = '(max-width: 600px)';
+export const monthCellFit = (count, narrow) => Math.min(count, narrow ? 3 : 4);
+// the date row is one 44px strip in every cell, covered by a button that opens the day: a tap
+// on the date does the same everywhere, and "+N more" lives in that strip instead of on a line
+// of its own, so a short cell (a laptop, a phone) still shows a title. with nothing hidden the
+// button is pointer-only (tabindex -1): the grid's arrow keys already reach every day
+const HEAD_STYLE = 'position:relative;display:flex;align-items:flex-start;min-height:44px';
+// inset from the strip's edge, so the button's focus ring clears the number
+const NUM_STYLE = 'position:relative;z-index:1;pointer-events:none;margin:2px 0 0 6px';
+const _dayLabel = day => formatCalendarDate(calendarPlacementDate(day), { month: 'short', day: 'numeric' }).toLowerCase();
+const _dayBtn = (day, n) => n > 0
+  ? `<button type="button" class="cal-more" data-day="${day}" aria-label="${n} more on ${esc(_dayLabel(day))}" style="${DAY_BTN_STYLE}">+${n} more</button>`
+  : `<button type="button" class="cal-day-open" data-day="${day}" tabindex="-1" aria-label="open ${esc(_dayLabel(day))}" style="${DAY_BTN_STYLE}"></button>`;
+const DAY_BTN_STYLE = 'position:absolute;inset:0;margin:0;width:100%;display:flex;align-items:flex-start;justify-content:flex-end;padding:2px 6px 0;background:none;border:0;color:var(--muted);font:inherit;font-size:0.75rem;cursor:pointer';
+function _setMore(cell, n) {
+  const head = cell.querySelector('.cal-cell-head');
+  if (!head) return null;
+  let btn = head.querySelector('.cal-more, .cal-day-open');
+  const want = n > 0 ? 'cal-more' : 'cal-day-open';
+  if (!btn || !btn.classList.contains(want)) {
+    const focused = btn && btn === document.activeElement;
+    btn?.remove();
+    head.insertAdjacentHTML('beforeend', _dayBtn(cell.dataset.date, n));
+    btn = head.querySelector(`.${want}`);
+    initKokuenPrimitives(head);   // kokuen styles it; size it now, before the trim measures
+    if (focused) btn.focus();
+  }
+  if (n <= 0) return null;
+  btn.setAttribute('aria-label', `${n} more on ${_dayLabel(cell.dataset.date)}`);
+  // a phone cell is about 50px wide: just "+N" there
+  btn.textContent = head.clientWidth && head.clientWidth < 100 ? `+${n}` : `+${n} more`;
+  return btn;
+}
+// a phone squeezes the month into the screen, so a cell can be shorter than its lines. drop lines
+// until the last one sits inside the cell; clipped, it couldn't be seen or tapped
+function _fitMonthCells(grid, counts) {
+  for (let pass = 0; pass < 3; pass++) {
+    let trimmed = false;
+    for (const cell of grid.querySelectorAll('.cal-cell[data-date]')) {
+      const box = cell.querySelector('.cal-cell-events');
+      const lines = [...box.children];
+      while (lines.length && box.getBoundingClientRect().bottom > cell.getBoundingClientRect().bottom + 0.5) {
+        const line = lines.pop(), focused = line.contains(document.activeElement);
+        line.remove();
+        const more = _setMore(cell, counts[cell.dataset.date] - lines.length);
+        if (focused) more?.focus();   // the line it was on is gone
+        trimmed = true;
+      }
+    }
+    if (!trimmed) break;
+  }
+  // the label reads the cell's width, which a resize changes
+  for (const cell of grid.querySelectorAll('.cal-cell[data-date]')) {
+    const shown = cell.querySelector('.cal-cell-events')?.children.length || 0;
+    _setMore(cell, (counts[cell.dataset.date] || 0) - shown);
+  }
+}
+// put each cell back to its first fit, so a cell that grew (a rotate, a taller window) gets its
+// lines back before the next trim. a cell holding focus keeps what it has
+function _refillMonthCells(grid, items) {
+  const narrow = Boolean(window.matchMedia?.(MONTH_NARROW).matches);
+  for (const cell of grid.querySelectorAll('.cal-cell[data-date]')) {
+    const box = cell.querySelector('.cal-cell-events'), list = items[cell.dataset.date] || [];
+    if (!box || box.contains(document.activeElement)) continue;
+    const fit = monthCellFit(list.length, narrow);
+    box.innerHTML = list.slice(0, fit).join('');
+    _setMore(cell, list.length - fit);
+  }
+  // kokuen would size the new chips on its own a moment later, after the trim already measured
+  // them small; size them now
+  initKokuenPrimitives(grid);
+}
+// "+N more" and a month task line open their day; the month and that button are gone after, so
+// focus lands on what was picked, else the day's first event or task, else "today"
+function _openDay(day, focusSelector = '') {
+  _cursor = calendarPlacementDate(day); _view = 'day'; localStorage.setItem('cal-view', _view); _syncViewBtns(); render();
+  const list = document.getElementById('calendar-list');
+  const target = (focusSelector && list?.querySelector(focusSelector))
+    || list?.querySelector('.cal-tg-allday button, .cal-tev[data-id]') || document.getElementById('cal-today');
+  target?.focus();
+}
+let _monthFitWatch = null;
 
 function renderMonth() {
   const el = document.getElementById('calendar-list');
@@ -984,9 +1211,13 @@ function renderMonth() {
   const occ = expand(rangeStart, rangeEnd);
   const byDay = {};
   for (const o of occ) for (const k of _spanKeys(o)) (byDay[k] = byDay[k] || []).push(o);
-  const tasksByDay = {};
-  for (const t of _tasks) (tasksByDay[t.date] = tasksByDay[t.date] || []).push(t);
+  const tasksByDay = _tasksByDay();
   const bmap = _bdayMap();
+  const narrow = Boolean(window.matchMedia?.(MONTH_NARROW).matches);
+  const counts = {}, lines = {};
+  // a cell under ~150px cut "9:00 AM lunch" to "9:00 A…": there the title leads and the time follows
+  const titleFirst = narrow || (el.clientWidth && el.clientWidth / 7 < 150);
+  const chipText = o => o.all_day ? o.title : titleFirst ? `${o.title} ${timeShort(o._date)}` : `${timeShort(o._date)} ${o.title}`;
 
   const cells = [];
   for (let i = 0; i < startDay; i++) cells.push(null);
@@ -1001,48 +1232,60 @@ function renderMonth() {
     if (!cell) { html += '<div class="cal-cell empty" aria-hidden="true"></div>'; continue; }
     const key = ymd(cell);
     const evts = (byDay[key] || []).sort((a, b) => (a.all_day ? 0 : a._date) - (b.all_day ? 0 : b._date));
-    // a cell fits 3 lines; everything past that is counted on a real "+N more" that opens the day,
-    // so nothing (tasks, birthdays, the count itself) is cut off without a word
+    // everything past the fit is counted on a real "+N more" that opens the day, and the day
+    // view shows all of it (tasks and birthdays too), so nothing is cut off without a word
     const items = [
       ...evts.map(o =>
-        `<button type="button" class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc((o.all_day ? '' : timeShort(o._date) + ' ') + o.title)}</button>`),
-      ...(tasksByDay[key] || []).map(t =>
-        `<div class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}">${t.done ? _si('check') : ''}</span>${esc(t.title)}</div>`),
+        `<button type="button" class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(chipText(o))}</button>`),
+      ...(tasksByDay[key] || []).map(_taskChip),
       ...(bmap[_bdayKey(cell)] || []).map(n => `<div class="cal-bday" title="${esc(n)}'s birthday">${_si('cake')} ${esc(n)}</div>`),
     ];
-    const fit = items.length > 3 ? 2 : 3;
-    const more = items.length > fit ? `<button type="button" class="cal-more" data-day="${key}">+${items.length - fit} more</button>` : '';
+    counts[key] = items.length;
+    lines[key] = items;
+    const fit = monthCellFit(items.length, narrow);
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
-      <div class="cal-cell-num">${cell.getDate()}</div>
-      <div class="cal-cell-events">${items.slice(0, fit).join('')}${more}</div></div>`;
+      <div class="cal-cell-head" style="${HEAD_STYLE}"><div class="cal-cell-num" style="${NUM_STYLE}">${cell.getDate()}</div>${_dayBtn(key, items.length - fit)}</div>
+      <div class="cal-cell-events">${items.slice(0, fit).join('')}</div></div>`;
   }
   html += '</div></div>';
   el.innerHTML = html;
+  // chips only get their 44px from kokuen after this task, and the space can still change (a
+  // rotate, the phone's url bar), so fit once it's laid out and again when the space changes
+  const grid = el.querySelector('.cal-grid');
+  _monthFitWatch?.disconnect();
+  let seen = '';
+  _monthFitWatch = typeof ResizeObserver === 'function' ? new ResizeObserver(([entry]) => {
+    if (!grid.isConnected) { _monthFitWatch?.disconnect(); return; }
+    // only a real size change refills; refilling moves lines, which can't feed back forever
+    // because the next call sees the same size and stops
+    const size = `${Math.round(entry.contentRect.width)}x${Math.round(entry.contentRect.height)}`;
+    if (size === seen) return;
+    if (seen) _refillMonthCells(grid, lines);
+    else initKokuenPrimitives(grid);
+    seen = size;
+    _fitMonthCells(grid, counts);
+  }) : null;
+  _monthFitWatch?.observe(el.parentElement || el);
   // Enter on a day creates an event there, same as a click on its empty space
   wireGridNav(el.querySelector('.cal-grid'), {
     cells: '.cal-cell:not(.empty)', steps: WEEK_ROWS, label: tr('calendar.month'),
     start: c => c.classList.contains('today'),
   });
-  el.querySelectorAll('.cal-cell:not(.empty)').forEach(c => c.addEventListener('click', async ev => {
+  el.querySelectorAll('.cal-cell:not(.empty)').forEach(c => c.addEventListener('click', ev => {
     const task = ev.target.closest('.cal-task');
     if (task) {
       ev.stopPropagation();
-      const t = _tasks.find(x => x.id === task.dataset.task);
-      if (t) {
-        t.done = !t.done;
-        await fetch(`/api/tasks/${t.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ done: t.done }) }).catch(() => {});
-        render();
-      }
+      _openDay(c.dataset.date, `.cal-tg-allday .cal-task[data-task="${CSS.escape(task.dataset.task)}"]`);
       return;
     }
-    const more = ev.target.closest('.cal-more');
+    const more = ev.target.closest('.cal-more, .cal-day-open');
     if (more) {
-      _cursor = calendarPlacementDate(more.dataset.day); _view = 'day'; localStorage.setItem('cal-view', _view); _syncViewBtns(); render();
+      _openDay(more.dataset.day);
       return;
     }
     const chip = ev.target.closest('.cal-chip');
     if (chip) { openEvent(chip.dataset.id, chip.dataset.occ); return; }
-    openEditor(null, c.dataset.date);
+    createAt(c.dataset.date);
   }));
 }
 
@@ -1071,31 +1314,77 @@ function renderTimeGrid(el, days, occ) {
   for (const d of days) head += `<div class="cal-tg-dayhead${sameDay(d, today) ? ' today' : ''}" data-date="${ymd(d)}"><span class="cal-tg-wd">${esc(formatCalendarDate(d, { weekday: 'short' }))}</span> <span class="cal-tg-dn">${d.getDate()}</span></div>`;
   let allday = '<div class="cal-tg-gutter">all-day</div>';
   const bmap = _bdayMap();
+  const tasksByDay = _tasksByDay();
   for (const d of days) {
+    // a real button like the tasks under it: 44px, and tab plus enter opens it
     const items = occ.filter(o => o.all_day && _spanKeys(o).includes(ymd(d)))
-      .map(o => `<div class="cal-allday-ev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}</div>`).join('');
-    allday += `<div class="cal-tg-allday" data-date="${ymd(d)}">${items}${_bdayChips(bmap, d)}</div>`;
+      .map(o => `<button type="button" class="cal-allday-ev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}</button>`).join('');
+    // the day's tasks live here too, so a "+N more" from the month always lands on them
+    const tasks = (tasksByDay[ymd(d)] || []).map(_taskToggle).join('');
+    allday += `<div class="cal-tg-allday" data-date="${ymd(d)}">${items}${tasks}${_bdayChips(bmap, d)}</div>`;
   }
   let gutter = '';
   for (let h = 0; h < 24; h++) gutter += `<div class="cal-tg-hour" style="height:${HOUR_H}px">${h === 0 ? '' : (h % 12 || 12) + (h < 12 ? 'a' : 'p')}</div>`;
   const nowTop = (today.getHours() + today.getMinutes() / 60) * HOUR_H;
+  // overlapping events sit side by side; when that leaves each under 44px (four overlaps on a
+  // phone drew 14px boxes, six at 640px drew 12px) the group becomes one stack that opens its
+  // day. a week only: in the day view a stack would open the same day again
+  const colWidth = width => (width - 52) / days.length;   // 52: the hour gutter at its widest
+  const stacks = (n, width) => days.length > 1 && n > 1 && (colWidth(width) - 4) / n < 44;
+  // the day view keeps as many 44px boxes side by side as fit and folds the rest into "+N",
+  // which lists them
+  const fits = width => Math.max(2, Math.floor((colWidth(width) - 4) / 44));
+  const folds = (n, width) => days.length === 1 && n > fits(width);
+  const layout = width => [...grouped].map(n => `${stacks(n, width)}${folds(n, width) ? fits(width) : 0}`).join();
+  const grouped = new Set();   // the overlap sizes on screen, to re-check on a resize
   let cols = '';
   for (const d of days) {
     let evHtml = '';
+    const stacked = new Set();
     const dayEvs = occ.filter(x => !x.all_day && sameDay(x._date, d)).map(o => {
       const bs = new Date(o.start_dt), be = o.end_dt ? new Date(o.end_dt) : new Date(bs.getTime() + 3600000);
       const durH = Math.max(0.5, (be - bs) / 3600000);
       const startMs = o._date.getTime();
-      return { o, durH, startMs, endMs: startMs + durH * 3600000 };
+      const end = _cloneCalendarDate(o._date); end.setTime(startMs + (be - bs));
+      return { o, durH, startMs, endMs: startMs + durH * 3600000, end };
     });
     _layoutCols(dayEvs);
+    const folded = new Map();   // cluster -> the events behind its "+N"
     for (const it of dayEvs) {
       const o = it.o;
       const top = (o._date.getHours() + o._date.getMinutes() / 60) * HOUR_H;
+      if (it.ncols > 1) grouped.add(it.ncols);
+      if (folds(it.ncols, el.clientWidth)) {
+        const keep = fits(el.clientWidth) - 1;
+        if (it.col >= keep) { folded.set(it.cid, [...(folded.get(it.cid) || []), it]); continue; }
+        Object.assign(it, { ncols: keep + 1 });
+      }
+      if (stacks(it.ncols, el.clientWidth)) {
+        if (stacked.has(it.cid)) continue;
+        stacked.add(it.cid);
+        const group = dayEvs.filter(x => x.cid === it.cid);   // in start order, so `it` is first
+        const height = (Math.max(...group.map(x => x.endMs)) - it.startMs) / 3600000 * HOUR_H - 2;
+        const last = group.reduce((latest, x) => (x.end > latest ? x.end : latest), it.end);
+        // the box shows the count; a half-hour box has no room for a word
+        const name = trp('calendar.overlap_stack', group.length, { start: timeShort(o._date), end: timeShort(last) });
+        evHtml += `<div class="cal-tstack" role="button" tabindex="0" aria-label="${esc(name)}" data-day="${ymd(d)}" data-first="${o.id}" style="top:${top}px;height:${height}px" title="${esc(group.map(x => x.o.title).join(', '))}"><div class="cal-tev-box" aria-hidden="true">${_si('columns')}<b>${group.length}</b></div></div>`;
+        continue;
+      }
       const hx = evHex(o);
       const w = `calc((100% - 4px) / ${it.ncols})`;
       const left = `calc(2px + ${it.col} * (100% - 4px) / ${it.ncols})`;
-      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - 2}px;left:${left};width:${w};right:auto;background:color-mix(in srgb, ${hx} 24%, transparent);color:var(--text);border-left:3px solid ${hx}" title="${chipTitle(o)}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div>`;
+      // dom order is time order, so tab walks the day in time order
+      const name = `${o.title}, ${timeShort(o._date)} – ${timeShort(it.end)}`;
+      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" role="button" tabindex="0" aria-label="${esc(name)}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - 2}px;left:${left};width:${w};right:auto" title="${chipTitle(o)}"><div class="cal-tev-box" style="background:color-mix(in srgb, ${hx} 24%, transparent);color:var(--text);border-left:3px solid ${hx}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div></div>`;
+    }
+    for (const hidden of folded.values()) {
+      const n = fits(el.clientWidth), first = hidden[0];
+      const top = (first.o._date.getHours() + first.o._date.getMinutes() / 60) * HOUR_H;
+      const height = (Math.max(...hidden.map(x => x.endMs)) - first.startMs) / 3600000 * HOUR_H - 2;
+      const last = hidden.reduce((latest, x) => (x.end > latest ? x.end : latest), first.end);
+      const name = trp('calendar.overlap_more', hidden.length, { start: timeShort(first.o._date), end: timeShort(last) });
+      const picks = JSON.stringify(hidden.map(x => ({ value: `${x.o.id}@${ymd(x.o._date)}`, label: `${timeShort(x.o._date)} ${x.o.title}` })));
+      evHtml += `<div class="cal-tstack cal-tmore" role="button" tabindex="0" aria-label="${esc(name)}" data-picks="${esc(picks)}" style="top:${top}px;height:${height}px;left:calc(2px + ${n - 1} * (100% - 4px) / ${n});width:calc((100% - 4px) / ${n});right:auto"><div class="cal-tev-box" aria-hidden="true"><b>+${hidden.length}</b></div></div>`;
     }
     const isToday = sameDay(d, today);
     const nowLine = isToday ? `<div class="cal-now-line" style="top:${nowTop}px"></div>` : '';
@@ -1111,15 +1400,60 @@ function renderTimeGrid(el, days, occ) {
   el.querySelectorAll('.cal-allday-ev').forEach(ev => ev.addEventListener('click', e => {
     e.stopPropagation(); openEvent(ev.dataset.id, ev.dataset.occ);
   }));
-  el.querySelectorAll('.cal-tg-allday').forEach(s => s.addEventListener('click', e => { if (e.target === s) openEditor(null, s.dataset.date, null, true); }));
+  el.querySelectorAll('.cal-tg-allday .cal-task').forEach(t => t.addEventListener('click', e => {
+    e.stopPropagation(); _toggleCalTask(t.dataset.task, true);
+  }));
+  el.querySelectorAll('.cal-tg-allday').forEach(s => s.addEventListener('click', e => { if (e.target === s) createAt(s.dataset.date, null, true); }));
+  el.querySelectorAll('.cal-tstack').forEach(stack => stack.addEventListener('click', () => openStack(stack)));
   attachDrag(el, days);   // drag to create / move / resize timed events
   const sc = el.querySelector('.cal-tg-scroll'); if (sc) sc.scrollTop = Math.max(0, nowTop - 3 * HOUR_H);
+  // turning a phone sideways can change whether the week stacks its overlaps
+  const grid = el.querySelector('.cal-timegrid');
+  _gridWidthWatch?.disconnect();
+  const drawn = layout(el.clientWidth);
+  _gridWidthWatch = grouped.size && typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
+    if (!grid.isConnected) { _gridWidthWatch?.disconnect(); return; }
+    if (layout(el.clientWidth) !== drawn) render();
+  }) : null;
+  _gridWidthWatch?.observe(el);
+}
+let _gridWidthWatch = null;
+
+// a stack of overlapping events opens their day, on the first of them. the day view's "+N"
+// lists the events it folded away
+async function openStack(stack) {
+  if (!stack.classList.contains('cal-tmore')) {
+    _openDay(stack.dataset.day, `.cal-tev[data-id="${CSS.escape(stack.dataset.first)}"]`);
+    return;
+  }
+  const picked = await dlgChoose(tr('calendar.overlap_pick'), JSON.parse(stack.dataset.picks));
+  if (picked) { const [id, occ] = picked.split('@'); openEvent(id, occ); }
+  else stack.focus();
 }
 
 function hasOccurrence(event, day) {
   const start = calendarPlacementDate(`${day}T00:00`);
   const end = _cloneCalendarDate(start); end.setDate(end.getDate() + 1);
   return expand(start, end, [event]).some(item => ymd(item._date) === day);
+}
+
+// a tap on an empty cell or slot focused nothing, so focus fell to the page: start in the editor
+function createAt(day, hour, allDay) {
+  openEditor(null, day, hour, allDay);
+  focusEditor(false);
+}
+
+// on a touch screen a focused field raises the keyboard over the event, so the editor's heading
+// takes focus there. with a keyboard the title takes it, and an existing title keeps its text
+// ahead of the caret instead of getting typed in front of
+function focusEditor(existing) {
+  const title = document.getElementById('cal-title');
+  if (window.matchMedia?.('(pointer: coarse)')?.matches) {
+    document.getElementById('cal-ed-head')?.focus();
+    return;
+  }
+  title?.focus();
+  if (existing && title) title.setSelectionRange(title.value.length, title.value.length);
 }
 
 export function openEvent(id, occ) {
@@ -1130,7 +1464,7 @@ export function openEvent(id, occ) {
     return true;
   }
   openEditor(ev, null, null, false, occ);
-  document.getElementById('cal-title')?.focus();
+  focusEditor(true);
   return true;
 }
 
@@ -1181,7 +1515,7 @@ async function findFreeSlots() {
   if (!day) { toast('set a start date first', ''); return; }
   const span = _proposedSpan();
   const dur = span ? Math.max(15, Math.round((span[1] - span[0]) / 60000)) : 30;
-  const slots = await fetch(`/api/calendar/free-slots?day=${day}&duration_min=${dur}`)
+  const slots = await fetch(`/api/calendar/free-slots?day=${day}&duration_min=${dur}`, withZone())
     .then(r => r.ok ? r.json() : { slots: [] }).then(j => j.slots || []).catch(() => []);
   if (!slots.length) { box.innerHTML = '<div class="cal-slots-empty">no free slots in your 9-5 that day</div>'; return; }
   box.innerHTML = slots.map(s =>
@@ -1211,7 +1545,7 @@ function attachDrag(el, days) {
     const tev = e.target.closest('.cal-tev');
     const slot = e.target.closest('.cal-tg-slot');
     if (resize && tev) {
-      st = { mode: 'resize', tev, id: tev.dataset.id, occ: tev.dataset.occ, y0: e.clientY, h0: tev.offsetHeight, moved: false };
+      st = { mode: 'resize', tev, id: tev.dataset.id, occ: tev.dataset.occ, y0: e.clientY, h0: tev.offsetHeight, top0: tev.offsetTop, moved: false };
     } else if (tev) {
       st = { mode: 'move', tev, id: tev.dataset.id, occ: tev.dataset.occ, y0: e.clientY, x0: e.clientX, top0: tev.offsetTop, ci: cols.indexOf(tev.closest('.cal-tg-col')), moved: false };
       tev.classList.add('dragging');
@@ -1229,19 +1563,24 @@ function attachDrag(el, days) {
     e.preventDefault();
   }
 
+  // the day ends at 24:00: dragging past the bottom used to wrap into the next morning. only a
+  // move into another column changes the day
+  const DAY_H = 24 * HOUR_H;
   function move(e) {
     if (!st) return;
     if (st.mode === 'move') {
       if (Math.abs(e.clientY - st.y0) > 3 || Math.abs(e.clientX - st.x0) > 3) st.moved = true;
-      st.tev.style.top = snap(st.top0 + (e.clientY - st.y0)) + 'px';
+      // the box ends by midnight; one that already ran past it (an overnight event) may stay there
+      const lowest = Math.max(st.top0, DAY_H - st.tev.offsetHeight - 2);
+      st.tev.style.top = Math.min(snap(st.top0 + (e.clientY - st.y0)), lowest) + 'px';
       const ci = colAt(e.clientX);
       if (ci >= 0 && ci !== st.ci) { cols[ci].appendChild(st.tev); st.ci = ci; }
     } else if (st.mode === 'resize') {
       if (Math.abs(e.clientY - st.y0) > 3) st.moved = true;
-      st.tev.style.height = Math.max(SNAP, snap(st.h0 + (e.clientY - st.y0))) + 'px';
+      st.tev.style.height = Math.min(Math.max(SNAP, snap(st.h0 + (e.clientY - st.y0))), DAY_H - st.top0) + 'px';
     } else {
       const rect = cols[st.ci].getBoundingClientRect();
-      const cur = snap(e.clientY - rect.top);
+      const cur = Math.min(snap(e.clientY - rect.top), DAY_H);
       st.top = Math.min(cur, st.y); st.h = Math.max(SNAP, Math.abs(cur - st.y));
       st.ghost.style.top = st.top + 'px'; st.ghost.style.height = st.h + 'px';
       if (Math.abs(cur - st.y) > 4) st.moved = true;
@@ -1257,8 +1596,8 @@ function attachDrag(el, days) {
       s.ghost.remove();
       if (s.moved) {
         _prefill = { start: atTime(days[s.ci], s.top), end: atTime(days[s.ci], s.top + s.h) };
-        openEditor(null, ymd(days[s.ci]));
-      } else openEditor(null, s.date, s.hour);
+        createAt(ymd(days[s.ci]));
+      } else createAt(s.date, s.hour);
       return;
     }
     s.tev.classList.remove('dragging');
@@ -1266,10 +1605,25 @@ function attachDrag(el, days) {
     const ci = s.ci >= 0 ? s.ci : cols.indexOf(s.tev.closest('.cal-tg-col'));
     const date = days[ci];
     const top = s.tev.offsetTop, h = s.tev.offsetHeight;
-    await applyTimeChange(s.id, s.occ, atTime(date, top), atTime(date, top + h));
+    if (s.mode === 'resize') {
+      // only the end moves: a start off the 15-minute lines (13:10) stays where it was
+      await applyTimeChange(s.id, s.occ, ...resizedTimes(s.id, s.occ, atTime(date, top + h)));
+      return;
+    }
+    // a move keeps the event's own length: the box can be taller than it (15 minutes draw as 30)
+    const start = atTime(date, top);
+    await applyTimeChange(s.id, s.occ, start, endAfterMove(s.id, s.occ, start));
   }
 
   body.addEventListener('mousedown', down);
+  // dragging stays pointer-only; the keyboard opens the event and changes its time in the editor
+  body.addEventListener('keydown', e => {
+    const tev = (e.key === 'Enter' || e.key === ' ') && e.target.closest('.cal-tev[data-id], .cal-tstack');
+    if (!tev) return;
+    e.preventDefault();
+    if (tev.classList.contains('cal-tstack')) openStack(tev);
+    else openEvent(tev.dataset.id, tev.dataset.occ);
+  });
 }
 
 export function buildCopy(ev, ov) {
@@ -1283,6 +1637,23 @@ export function buildCopy(ev, ov) {
   };
 }
 
+function resizedTimes(id, occ, end) {
+  const ev = _events.find(e => e.id === id);
+  const start = ev ? editorDates(ev, occ).start : '';
+  const from = calendarPlacementDate(start).getTime();
+  // the end snaps to a line; one that would land on or before the start keeps 15 minutes
+  if (!start || calendarPlacementDate(end).getTime() > from) return [start || end, end];
+  return [start, localISO(new CalendarWallDate(from + 15 * 60000))];
+}
+
+function endAfterMove(id, occ, start) {
+  const ev = _events.find(e => e.id === id);
+  const was = ev ? editorDates(ev, occ) : null;
+  if (!was?.end) return '';
+  const length = calendarPlacementDate(was.end).getTime() - calendarPlacementDate(was.start).getTime();
+  return localISO(new CalendarWallDate(calendarPlacementDate(start).getTime() + length));
+}
+
 async function applyTimeChange(id, occ, newStart, newEnd) {
   const ev = _events.find(e => e.id === id);
   if (!ev || _saving) return;
@@ -1292,8 +1663,8 @@ async function applyTimeChange(id, occ, newStart, newEnd) {
     if (!scope) return;
     const times = eventTimeValues(ev, editorDates(ev, occ), { start: newStart, end: newEnd || '' }, scope);
     const body = buildCopy(ev, times);
-    await saveCalendarRequest(`/api/calendar/${id}?${new URLSearchParams({ scope, occ, time_zone: resolvedTimeZone() })}`, 'PATCH', body, scope === 'all' ? id : null);
-  } catch (error) { toast(error.message || 'Could not move the event. Retry.', 'error'); }
+    await saveCalendarRequest(`/api/calendar/${id}?${new URLSearchParams({ scope, occ, time_zone: chosenTimeZone() })}`, 'PATCH', body, scope === 'all' ? id : null);
+  } catch (error) { toast(plainError(error.message || "couldn't move the event. retry"), 'error'); }
   finally { _saving = false; await loadCalendar(); }
 }
 
@@ -1315,7 +1686,7 @@ async function findTime() {
   const mins = parseInt(answer) || 60;
   const dstr = ymd(_cursor);
   let slots = [];
-  try { slots = (await fetch(`/api/calendar/free?date=${dstr}&minutes=${mins}`).then(r => r.json())).slots || []; }
+  try { slots = (await fetch(`/api/calendar/free?date=${dstr}&minutes=${mins}`, { headers: zoneHeader() }).then(r => r.json())).slots || []; }
   catch { toast('could not load free slots', 'error'); return; }
   const ov = document.createElement('div');
   ov.className = 'cal-scope-ov';
@@ -1349,7 +1720,7 @@ async function findTime() {
         await loadCalendar(fetch, () => !document.querySelector('.cal-editor'));
       } catch {
         if (ov.isConnected) {
-          errorBox.textContent = `Booking “${titleDraft}” was not confirmed. Check the calendar before trying again.`;
+          errorBox.textContent = `“${titleDraft}” wasn't confirmed. check the calendar before trying again`;
           errorBox.hidden = false;
         }
       } finally {
@@ -1385,12 +1756,18 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   const rec = event?.recurrence || '';
   const reminders = new Set(event?.reminders || (isNew ? [10] : []));
   const startDow = calendarPlacementDate(start).getDay();
-  let byday = new Set(parseBydayJs(event?.recur_byday) || (rec === 'weekly' ? [startDow] : []));
+  // a kept offset's repeat days are its own frame's: shown and picked as the days they land on here
+  const shift = frameShift(event);
+  const storedDays = parseBydayJs(event?.recur_byday);
+  let byday = new Set(storedDays ? storedDays.map(i => (i + shift + 7) % 7) : (rec === 'weekly' ? [startDow] : []));
   if (rec === 'weekly' && byday.size === 0) byday.add(startDow);
+  const untilShown = shiftDay(event?.recur_until, shift);
+  _rulesShown = event ? { byday: dowLetters(byday), until: untilShown, raw: { byday: event.recur_byday || '', until: event.recur_until || null } } : null;
   let color = event?.color || '';   // '' = use the calendar's colour
   const endsMode = event?.recur_count ? 'after' : (event?.recur_until ? 'on' : 'never');
 
-  el.innerHTML = `<div class="cal-editor">
+  el.innerHTML = `<div class="cal-editor" role="form" aria-labelledby="cal-ed-head">
+    <h2 class="cal-ed-head" id="cal-ed-head" tabindex="-1">${esc(tr(isNew ? 'calendar.editor_new' : 'calendar.editor_edit'))}</h2>
     <input class="note-editor-title" id="cal-title" aria-label="event title" value="${esc(event?.title || '')}" placeholder="event title…">
     <div class="cal-ed-grid">
       <div><div class="cal-flabel">start</div><div class="date-input" id="cal-start" aria-label="start" data-type="datetime" data-value="${start}" data-ph="start" style="width:100%"></div></div>
@@ -1416,7 +1793,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
         <span class="cal-flabel">ends</span>
         <div class="cal-ends-choices">
         <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="never" aria-checked="${endsMode === 'never'}" tabindex="${endsMode === 'never' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>never</button></div>
-        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="on" aria-checked="${endsMode === 'on'}" tabindex="${endsMode === 'on' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>on</button><div class="date-input cal-ends-date" id="cal-until" aria-label="repeat until" data-type="date" data-value="${event?.recur_until || ''}" data-ph="date" style="width:130px"></div></div>
+        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="on" aria-checked="${endsMode === 'on'}" tabindex="${endsMode === 'on' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>on</button><div class="date-input cal-ends-date" id="cal-until" aria-label="repeat until" data-type="date" data-value="${untilShown || ''}" data-ph="date" style="width:130px"></div></div>
         <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="after" aria-checked="${endsMode === 'after'}" tabindex="${endsMode === 'after' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>after</button><input class="settings-input cal-int" id="cal-count" aria-label="number of occurrences" type="text" inputmode="numeric" value="${event?.recur_count || 10}"> times</div>
         </div>
       </div>
@@ -1477,18 +1854,19 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
   // all day picks days, not times: the start and end fields switch between the two in place
   const keptTimes = {};
-  const syncAllDayFields = on => {
+  const syncAllDayFields = (on, capture = true) => {
     for (const id of ['cal-start', 'cal-end']) {
       const field = document.getElementById(id);
       if (!field) continue;
       const value = String(field.value || '');
       const day = value.slice(0, 10);
-      if (on && value.length > 10) keptTimes[id] = value.slice(10);   // turning it back gives the times back
+      if (capture && on && value.length > 10) keptTimes[id] = value.slice(10);   // turning it back gives the times back
       field.dataset.type = on ? 'date' : 'datetime';
       field.value = !day ? '' : on ? day : `${day}${keptTimes[id] || `T${id === 'cal-start' ? hh : String(Math.min(+hh + 1, 23)).padStart(2, '0')}:00`}`;
     }
   };
-  if (document.getElementById('cal-allday')?.getAttribute('aria-checked') === 'true') syncAllDayFields(true);
+  // an event that opens all day only has a placeholder midnight; keeping it would turn it into 00:00-00:00
+  if (document.getElementById('cal-allday')?.getAttribute('aria-checked') === 'true') syncAllDayFields(true, false);
   document.getElementById('cal-allday-row').addEventListener('click', e => {
     if (e.target.closest('.date-input')) return;
     const c = document.getElementById('cal-allday');
@@ -1554,6 +1932,9 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   _readDraft = () => JSON.stringify(collectBody(byday));
   _draftSnapshot = _readDraft();
   document.getElementById('cal-back').addEventListener('click', leaveEditor);
+  const editor = el.querySelector('.cal-editor');
+  editor?.addEventListener('keydown', escapeLeaves);
+  watchPageEscape(editor);
   document.getElementById('cal-source')?.addEventListener('click', async () => {
     if (_saving) return;
     if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm('discard unsaved event changes?'))) return;
@@ -1563,7 +1944,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   document.getElementById('cal-dup')?.addEventListener('click', async () => {
     if (!_editing?.id) return;
     try {
-      await fetch(`/api/calendar/${_editing.id}/duplicate`, { method: 'POST' });
+      await fetch(`/api/calendar/${_editing.id}/duplicate`, withZone({ method: 'POST' }));
       toast('event duplicated', 'success');
       loadCalendar();
     } catch { toast('duplicate failed', 'error'); }
@@ -1575,7 +1956,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     const inp = document.getElementById('cal-meeting');
     if (event?.id) {
       try {
-        const d = await fetch(`/api/calendar/${event.id}/meeting-link`, { method: 'POST' }).then(r => r.json());
+        const d = await fetch(`/api/calendar/${event.id}/meeting-link`, withZone({ method: 'POST' })).then(r => r.json());
         inp.value = d.meeting_url; toast('video room added', 'success');
       } catch { toast('failed', 'error'); }
     } else {
@@ -1599,17 +1980,17 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     inviteButton.disabled = true;
     try {
       const attendee = await readCalendarResponse(await fetch(`/api/calendar/${event.id}/invite`, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, email }),
+        method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() }, body: JSON.stringify({ name, email }),
       }));
       if (typeof attendee?.id !== 'string' || !attendee.id || attendee.event_id !== event.id
-          || attendee.name !== name || attendee.email !== email) throw new Error('Invite not confirmed. Check the attendee list before trying again.');
+          || attendee.name !== name || attendee.email !== email) throw new Error("the invite wasn't confirmed. check the guest list before trying again");
       if (!ownsInvite()) return;
       if (inviteName.value === originalName && inviteEmail.value === originalEmail) {
         inviteName.value = ''; inviteEmail.value = '';
       }
       await renderAttendees(event.id);
     } catch (error) { if (ownsInvite()) toast(error.message === 'Failed to fetch'
-      ? 'Invite not confirmed. Check the attendee list before trying again.' : (error.message || 'invite failed'), 'error'); }
+      ? "the invite wasn't confirmed. check the guest list before trying again" : (error.message || 'invite failed'), 'error'); }
     finally { inviteButton.disabled = false; }
   });
 }
@@ -1620,7 +2001,7 @@ async function renderAttendees(eid) {
   const box = document.getElementById('cal-invites');
   const ownsBox = () => _editing?.id === eid && document.getElementById('cal-invites') === box;
   if (!box || !ownsBox()) return;
-  const list = await fetch(`/api/calendar/${eid}/attendees`).then(r => r.json()).catch(() => []);
+  const list = await fetch(`/api/calendar/${eid}/attendees`, withZone()).then(r => r.json()).catch(() => []);
   if (!ownsBox()) return;
   if (!list.length) {
     box.innerHTML = '<div class="cal-inv-empty">no invites yet</div>';
@@ -1634,7 +2015,7 @@ async function renderAttendees(eid) {
     box.querySelectorAll('.cal-inv-row').forEach(row => {
       row.querySelector('[data-act="del"]').addEventListener('click', async () => {
         if (!ownsBox()) return;
-        await fetch(`/api/calendar/attendees/${row.dataset.id}`, { method: 'DELETE' });
+        await fetch(`/api/calendar/attendees/${row.dataset.id}`, withZone({ method: 'DELETE' }));
         if (ownsBox()) renderAttendees(eid);
       });
     });
@@ -1647,7 +2028,7 @@ async function renderInviteSuggestions(eid) {
   const box = document.getElementById('cal-inv-suggest');
   const ownsBox = () => _editing?.id === eid && document.getElementById('cal-inv-suggest') === box;
   if (!box || !ownsBox()) return;
-  const sugg = await fetch(`/api/calendar/${eid}/invite-suggestions`)
+  const sugg = await fetch(`/api/calendar/${eid}/invite-suggestions`, withZone())
     .then(r => r.ok ? r.json() : { suggestions: [] }).then(j => j.suggestions || []).catch(() => []);
   if (!ownsBox()) return;
   if (!sugg.length) { box.innerHTML = ''; return; }
@@ -1659,7 +2040,7 @@ async function renderInviteSuggestions(eid) {
   box.querySelectorAll('.cal-inv-chip').forEach(b => b.addEventListener('click', async () => {
     if (!ownsBox()) return;
     await fetch(`/api/calendar/${eid}/invite`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() },
       body: JSON.stringify({ name: b.dataset.name, email: b.dataset.email }),
     });
     if (ownsBox()) renderAttendees(eid);
@@ -1669,6 +2050,24 @@ async function renderInviteSuggestions(eid) {
 function parseBydayJs(s) {
   return s ? (s.split(',').map(t => DOW_LETTER.indexOf(t.trim().toUpperCase())).filter(v => v >= 0)) : null;
 }
+const dowLetters = days => [...days].sort((a, b) => a - b).map(i => DOW_LETTER[i]).join(',');
+
+// days between a kept-offset start's own date and the date it lands on here (sunday 09:00 in
+// tokyo is saturday here in toronto: -1). 0 for wall time
+function frameShift(event) {
+  const kept = event && event.recurrence && !event.all_day ? keptFrame(event.start_dt) : null;
+  if (!kept) return 0;
+  const here = calendarPlacementDate(ymd(calendarPlacementDate(event.start_dt)));
+  return Math.round((here - calendarPlacementDate(ymd(kept.wall))) / 86400000);
+}
+function shiftDay(value, days) {
+  if (!value || !days) return value || '';
+  const day = calendarPlacementDate(String(value).slice(0, 10)); day.setDate(day.getDate() + days);
+  return ymd(day);
+}
+// what the editor showed for a repeat's days. left as shown, they go back as stored, so saving a
+// title leaves a kept offset's rule exactly as it was; changed, they're days here
+let _rulesShown = null;
 
 function collectBody(byday) {
   const el = document.getElementById('calendar-list');
@@ -1689,10 +2088,14 @@ function collectBody(byday) {
     reminders,
     recurrence: rec,
     recur_interval: rec ? Math.max(1, parseInt(document.getElementById('cal-interval').value) || 1) : 1,
-    recur_byday: rec === 'weekly' ? [...byday].sort((a, b) => a - b).map(i => DOW_LETTER[i]).join(',') : '',
+    recur_byday: rec === 'weekly' ? dowLetters(byday) : '',
     recur_count: rec && ends === 'after' ? Math.max(1, parseInt(document.getElementById('cal-count').value) || 1) : null,
     recur_until: rec && ends === 'on' ? (document.getElementById('cal-until').value || null) : null,
   };
+  if (_editing && _rulesShown) {
+    if (body.recur_byday === _rulesShown.byday) body.recur_byday = _rulesShown.raw.byday;
+    if ((body.recur_until || '') === (_rulesShown.until || '')) body.recur_until = _rulesShown.raw.until;
+  }
   return body;
 }
 
@@ -1708,7 +2111,7 @@ async function saveEvent(byday) {
     const selectedDay = body.start_dt.slice(0, 10);
     Object.assign(body, eventTimeValues(_editing, _editDates, { start: body.start_dt, end: body.end_dt || '' }, scope));
     const id = _editing?.id;
-    const query = new URLSearchParams({ scope, occ, time_zone: resolvedTimeZone() });
+    const query = new URLSearchParams({ scope, occ, time_zone: chosenTimeZone() });
     editorBusy(true);
     const saved = await saveCalendarRequest(id ? `/api/calendar/${id}?${query}` : '/api/calendar', id ? 'PATCH' : 'POST', body, id && scope === 'all' ? id : null);
     if (id) replaceLinkedRecord('calendar', id, saved.id,
@@ -1716,10 +2119,10 @@ async function saveEvent(byday) {
     toast(id ? 'saved' : 'created', 'success');
     if (!(await loadCalendar())) {
       openEditor(saved);
-      editorError('Saved, but the calendar could not reload. Your saved event is shown here.');
-    }
+      editorError("saved, but the calendar couldn't reload. your saved event is shown here");
+    } else focusAfterEditor(saved.id, selectedDay);
   } catch (error) {
-    editorError(error.message === 'Failed to fetch' ? 'Could not save. Check your connection and retry; your draft is still here.' : (error.message || 'Could not save. Retry; your draft is still here.'));
+    editorError(error.message === 'Failed to fetch' ? "couldn't save. check your connection and retry; your draft is still here" : (error.message || "couldn't save. retry; your draft is still here"));
   } finally { _saving = false; editorBusy(false); }
 }
 
@@ -1731,10 +2134,11 @@ async function deleteEvent() {
     const scope = _editing.recurrence ? await chooseScope('delete', hasOccurrence(_editing, occ)) : 'all';
     if (!scope) return;
     editorBusy(true);
-    const response = await readCalendarResponse(await fetch(`/api/calendar/${_editing.id}?${new URLSearchParams({ scope, occ })}`, { method: 'DELETE' }));
-    if (response?.ok !== true) throw new Error('The calendar did not confirm deletion. Retry.');
-    if (!(await loadCalendar())) { document.querySelector('.cal-editor')?.remove(); calendarLoadError('Event deleted. Retry to refresh the list.'); }
-  } catch (error) { editorError(error.message || 'Could not delete. Check your connection and retry.'); }
+    const response = await readCalendarResponse(await fetch(`/api/calendar/${_editing.id}?${new URLSearchParams({ scope, occ })}`, withZone({ method: 'DELETE' })));
+    if (response?.ok !== true) throw new Error("the calendar didn't confirm the delete. retry");
+    if (!(await loadCalendar())) { document.querySelector('.cal-editor')?.remove(); calendarLoadError('event deleted. retry to refresh the list'); }
+    else focusAfterEditor('', occ);
+  } catch (error) { editorError(error.message || "couldn't delete. check your connection and retry"); }
   finally { _saving = false; editorBusy(false); }
 }
 

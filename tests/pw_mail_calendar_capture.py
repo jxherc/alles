@@ -160,7 +160,22 @@ def run():
                     assert saved["calendar_id"] == calendars[0]["id"]
                     page.goto(base + "/?view=plan", wait_until="networkidle")
                     page.get_by_role("tab", name="calendar", exact=True).click()
-                    chip = page.locator(f'.cal-chip[data-id="{result["id"]}"]')
+                    day = result["start_dt"][:10]
+                    expect(
+                        page.locator(
+                            f'.cal-chip[data-id="{result["id"]}"], .cal-more[data-day="{day}"]'
+                        ).first
+                    ).to_be_visible()
+                    page.evaluate(
+                        "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+                    )
+                    if not page.locator(f'.cal-chip[data-id="{result["id"]}"]').count():
+                        # a phone month cell fits one line; the rest sit behind "+N more",
+                        # which opens the day (and the day view stays across the reloads below)
+                        page.locator(f'.cal-more[data-day="{day}"]').click()
+                    chip = page.locator(
+                        f':is(.cal-chip, .cal-tev, .cal-allday-ev)[data-id="{result["id"]}"]'
+                    )
                     expect(chip).to_be_visible()
                     chip.scroll_into_view_if_needed()
                     page.screenshot(path=str(output / f"{device}-visible.png"), full_page=True)

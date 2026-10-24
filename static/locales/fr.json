@@ -212,6 +212,10 @@
     "calendar.quick_undone": "« {title} » supprimé",
     "calendar.quick_undo_failed": "suppression de « {title} » non confirmée. réessayez d’annuler.",
     "calendar.added": "« {title} » ajouté",
+    "calendar.added_today": "aucune date trouvée, « {title} » ajouté à aujourd’hui",
+    "calendar.editor_edit": "modifier l’événement",
+    "calendar.editor_new": "nouvel événement",
+    "calendar.overlap_pick": "quel événement ?",
     "calendar.agenda": "agenda",
     "calendar.booking_pages": "pages de réservation",
     "calendar.day": "jour",
@@ -436,6 +440,8 @@
     "schedule.confirmed": "planifié - aide répondra {when}"
   },
   "plurals": {
+    "calendar.overlap_more": {"one": "{count} autre événement, {start} – {end}", "many": "{count} autres événements, {start} – {end}", "other": "{count} autres événements, {start} – {end}"},
+    "calendar.overlap_stack": {"one": "{count} événement, {start} – {end}", "many": "{count} événements, {start} – {end}", "other": "{count} événements, {start} – {end}"},
     "credits.entry_shown": {"one": "{count} entrée affichée", "many": "{count} entrées affichées", "other": "{count} entrées affichées"},
     "credits.gap_remaining": {"one": "{count} écart de version reste", "many": "{count} écarts de version restent", "other": "{count} écarts de version restent"},
     "credits.item_count": {"one": "{count} élément", "many": "{count} éléments", "other": "{count} éléments"},

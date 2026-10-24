@@ -212,6 +212,10 @@
     "calendar.quick_undone": "已移除“{title}”",
     "calendar.quick_undo_failed": "无法确认是否已移除“{title}”。请再次尝试撤销。",
     "calendar.added": "已添加“{title}”",
+    "calendar.added_today": "未找到日期，已将“{title}”添加到今天",
+    "calendar.editor_edit": "编辑日程",
+    "calendar.editor_new": "新建日程",
+    "calendar.overlap_pick": "哪个日程？",
     "calendar.agenda": "日程",
     "calendar.booking_pages": "预约页面",
     "calendar.day": "日",
@@ -436,6 +440,8 @@
     "schedule.confirmed": "已安排 - aide 将在 {when} 回复"
   },
   "plurals": {
+    "calendar.overlap_more": {"other": "另有 {count} 个日程，{start} – {end}"},
+    "calendar.overlap_stack": {"other": "{count} 个日程，{start} – {end}"},
     "credits.entry_shown": {"other": "显示 {count} 个条目"},
     "credits.gap_remaining": {"other": "还剩 {count} 个发行缺口"},
     "credits.item_count": {"other": "{count} 项"},

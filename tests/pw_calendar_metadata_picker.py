@@ -85,6 +85,29 @@ def run():
                     page.locator("#cal-next" if n < target else "#cal-prev").click()
                 raise AssertionError("fixture month unavailable")
 
+            def month_event(eid, day):
+                # a phone month cell fits one line; the rest sit behind "+N more", which
+                # opens the day. the fit runs a frame after the grid draws
+                expect(
+                    page.locator(f'.cal-chip[data-id="{eid}"], .cal-more[data-day="{day}"]').first
+                ).to_be_visible()
+                page.evaluate(
+                    "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+                )
+                chip = page.locator(f'.cal-chip[data-id="{eid}"]')
+                if chip.count():
+                    return chip.first
+                return page.locator(f'.cal-more[data-day="{day}"]')
+
+            def open_event(eid, day):
+                target = month_event(eid, day)
+                if "cal-more" in (target.get_attribute("class") or ""):
+                    target.click()
+                    target = page.locator(f':is(.cal-tev, .cal-allday-ev)[data-id="{eid}"]').first
+                    # the next reload should land on the month again, like the gate expects
+                    page.evaluate("() => localStorage.setItem('cal-view', 'month')")
+                target.click()
+
             def fail(route):
                 allowed.add(route.request.url)
                 route.fulfill(
@@ -114,7 +137,7 @@ def run():
                 begin("optional-metadata-retains-events-and-id")
                 expect(page.locator("#cal-metadata-error")).to_be_visible()
                 expect(page.locator("#cal-load-error")).to_have_count(0)
-                page.locator(f'.cal-chip[data-id="{event["id"]}"]').click()
+                open_event(event["id"], "2026-09-25")
                 expect(page.locator("#cal-calendar")).to_have_attribute("aria-disabled", "true")
                 expect(page.locator("#cal-calendar")).to_have_attribute("data-value", cal["id"])
                 page.locator("#cal-desc").fill("Description saved without metadata")
@@ -150,7 +173,7 @@ def run():
                 calendar()
                 expect(page.locator("#cal-metadata-error")).to_be_visible()
                 expect(page.locator(".cal-cal-name").filter(has_text=cal["name"])).to_have_count(1)
-                page.locator(f'.cal-chip[data-id="{event["id"]}"]').click()
+                open_event(event["id"], "2026-09-25")
                 page.locator("#cal-desc").fill("Unsaved metadata retry draft")
                 before = context.request.get(base + "/api/calendar").json()
                 page.unroute("**/api/calendars", fail)
@@ -203,7 +226,7 @@ def run():
                 page.locator("#cal-load-error").get_by_role("button", name="retry").click()
                 expect(page.locator("#plan-view > .specialist-state")).to_be_hidden()
                 calendar(select_tab=False)
-                expect(page.locator(f'.cal-chip[data-id="{event["id"]}"]')).to_be_visible()
+                expect(month_event(event["id"], "2026-09-25")).to_be_visible()
                 passed()
 
                 begin("narrow-picker-seven-columns-and-focus")

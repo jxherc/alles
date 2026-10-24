@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -12,7 +13,7 @@ from core.database import DB_PATH, Task, get_db
 from core.settings import load_settings
 from services.commitment_requests import create_request
 from services.commitment_sources import TaskSource, capture_source, source_dict, source_json
-from services.task_nl import parse_task, reschedule_date
+from services.task_nl import NotADate, parse_task, reschedule_date
 from services.task_status import TASK_STAGES, apply_status
 from services.task_status import normalize_stage as _stage
 
@@ -101,6 +102,9 @@ def _due(value):
         return None
     text = str(value).strip()
     try:
+        # fromisoformat also takes "20261020" and "2026-W43-1", which string compares misread
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?", text):
+            raise ValueError
         if len(text) == 10:
             date.fromisoformat(text)
         else:
@@ -226,7 +230,10 @@ def list_view(view: str, db: DbSession = Depends(get_db)):
 
 
 def _active_queue(view: str, db: DbSession) -> list:
-    today = date.today().isoformat()
+    from services.calendar_events import owner_now
+
+    # due dates are the owner's days; a utc server is a day ahead every evening
+    today = owner_now().date().isoformat()
     rows = _ordered(db.query(Task).filter(Task.done == False).all())
     if view == "today":
         rows = [t for t in rows if t.due_date and t.due_date[:10] <= today]  # due or overdue
@@ -304,6 +311,12 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
         return _fmt(t)
 
 
+def _owner_today():
+    from services.calendar_events import owner_now
+
+    return owner_now().date()
+
+
 class QuickBody(BaseModel):
     text: str
     project: str = ""
@@ -318,11 +331,15 @@ def quick_add(body: QuickBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "empty")
     if body.preview and len(body.text) > 6000:
         raise HTTPException(400, "capture must be at most 6000 characters")
-    p = parse_task(
-        body.text,
-        today=body.today if body.preview else None,
-        language=load_settings().get("language", "en"),
-    )
+    try:
+        p = parse_task(
+            body.text,
+            today=body.today or _owner_today(),
+            language=load_settings().get("language", "en"),
+            strict=True,
+        )
+    except NotADate as error:
+        raise HTTPException(400, str(error)) from None
     if body.preview:
         return {
             "preview": True,

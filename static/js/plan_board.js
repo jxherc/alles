@@ -10,6 +10,10 @@ const PLAN_TASK_MIME = 'application/x-alles-plan-task';
 
 let selectedTaskId = '';
 let disposeBoardMenu = () => {};
+// a move or complete redraws the whole board; these say where focus goes in the new one and
+// what the status line said, so "moved to blocked" isn't wiped by the redraw
+let pendingFocus = null;
+let pendingStatus = '';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -340,10 +344,30 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
         body: JSON.stringify(body),
       });
       setStatus(successMessage);
+      pendingStatus = successMessage;
+      const focus = pendingFocus;
       await refresh();
+      // the new board is staged off-page and only attached once the refresh settles, so focus
+      // goes in here, not while it renders
+      const board = document.querySelector('.plan-board-root');
+      if (focus && board?.isConnected) {
+        const selected = board.querySelector(`.plan-board-card[data-task-id="${CSS.escape(focus.taskId)}"][aria-selected="true"]`);
+        restoreBoardFocus(board, board.querySelector('.plan-board-detail'), focus, Boolean(selected));
+      }
     } catch (error) {
+      pendingFocus = null;
+      pendingStatus = '';
       setStatus(`${plainError(error.message)}. the task stayed in ${STAGE_LABELS[task.stage] || 'completed'}.`, 'danger');
     }
+  }
+
+  // remember the action and the card after this one, so the redrawn board can put focus back
+  function act(task, action, body, message) {
+    const cards = [...(lists.get(task.stage)?.querySelectorAll('.plan-board-card:not([hidden])') || [])];
+    const at = cards.findIndex(card => card.dataset.taskId === String(task.id));
+    const next = cards[at + 1] || cards[at - 1];
+    pendingFocus = { action, taskId: String(task.id), stage: task.stage, nextId: next?.dataset.taskId || '' };
+    return patchTask(task, body, message);
   }
 
   function renderTaskDetail(task) {
@@ -364,15 +388,18 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
     const index = STAGES.indexOf(task.stage);
     const back = el('button', '', 'move back');
     back.type = 'button';
+    back.dataset.act = 'back';
     back.disabled = index <= 0;
-    back.addEventListener('click', () => patchTask(task, { stage: STAGES[index - 1] }, `moved to ${STAGE_LABELS[STAGES[index - 1]]}`));
+    back.addEventListener('click', () => act(task, 'back', { stage: STAGES[index - 1] }, `moved to ${STAGE_LABELS[STAGES[index - 1]]}`));
     const forward = el('button', '', 'move forward');
     forward.type = 'button';
+    forward.dataset.act = 'forward';
     forward.disabled = index >= STAGES.length - 1;
-    forward.addEventListener('click', () => patchTask(task, { stage: STAGES[index + 1] }, `moved to ${STAGE_LABELS[STAGES[index + 1]]}`));
+    forward.addEventListener('click', () => act(task, 'forward', { stage: STAGES[index + 1] }, `moved to ${STAGE_LABELS[STAGES[index + 1]]}`));
     const complete = el('button', 'plan-board-complete', 'mark complete');
     complete.type = 'button';
-    complete.addEventListener('click', () => patchTask(task, { stage: 'done' }, 'task completed'));
+    complete.dataset.act = 'complete';
+    complete.addEventListener('click', () => act(task, 'complete', { stage: 'done' }, 'task completed'));
     actions.append(back, forward, complete);
     detail.append(stage, title, facts, notes, actions);
   }
@@ -574,7 +601,31 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
   root.append(toolbar, stageStrip, status, layout);
   target.replaceChildren(root);
   disposeBoardMenu = filter.dispose;
+  if (pendingStatus && status.hidden) setStatus(pendingStatus);
+  pendingStatus = '';
+  const focus = pendingFocus;
+  pendingFocus = null;
+  // a completed task left its column; the one after it takes the detail
+  if (focus?.action === 'complete' && !byId.has(focus.taskId) && byId.has(focus.nextId)) selectedTaskId = focus.nextId;
   const initial = byId.get(selectedTaskId) || byId.get(String(grouped.doing[0]?.id || '')) || byId.get(String(tasks[0]?.id || ''));
   if (initial) selectTask(initial.id);
   else renderCompleted();
+}
+
+// after move back/forward: the same button if it still works, else the other one, else the card.
+// after complete: the next card in that column, else its first card, else its quick add
+export function restoreBoardFocus(root, detail, focus, stillSelected) {
+  const shown = node => node && !node.disabled && node.getClientRects().length ? node : null;
+  const card = id => id && shown(root.querySelector(`.plan-board-card[data-task-id="${CSS.escape(id)}"]:not([hidden]) .plan-board-card-main`));
+  let target = null;
+  if (focus.action === 'complete') {
+    target = card(focus.nextId)
+      || shown(root.querySelector(`.plan-board-list[data-stage="${focus.stage}"] .plan-board-card:not([hidden]) .plan-board-card-main`))
+      || shown(root.querySelector(`.plan-board-column[data-stage="${focus.stage}"] .plan-board-inline-add input`));
+  } else {
+    const other = focus.action === 'back' ? 'forward' : 'back';
+    if (stillSelected) target = shown(detail.querySelector(`[data-act="${focus.action}"]`)) || shown(detail.querySelector(`[data-act="${other}"]`));
+    target = target || card(focus.taskId);
+  }
+  target?.focus();
 }

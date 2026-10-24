@@ -212,6 +212,10 @@
     "calendar.quick_undone": "تمت إزالة «{title}»",
     "calendar.quick_undo_failed": "تعذر تأكيد إزالة «{title}». حاول التراجع مرة أخرى.",
     "calendar.added": "تمت إضافة «{title}»",
+    "calendar.added_today": "لم يُعثر على تاريخ، فأُضيف «{title}» إلى اليوم",
+    "calendar.editor_edit": "تعديل الحدث",
+    "calendar.editor_new": "حدث جديد",
+    "calendar.overlap_pick": "أي حدث؟",
     "calendar.agenda": "جدول الأعمال",
     "calendar.booking_pages": "صفحات الحجز",
     "calendar.day": "يوم",
@@ -436,6 +440,22 @@
     "schedule.confirmed": "تمت الجدولة - سيجيب aide في {when}"
   },
   "plurals": {
+    "calendar.overlap_more": {
+      "zero": "{count} أحداث أخرى، {start} – {end}",
+      "one": "حدث آخر ({count})، {start} – {end}",
+      "two": "حدثان آخران ({count})، {start} – {end}",
+      "few": "{count} أحداث أخرى، {start} – {end}",
+      "many": "{count} حدثًا آخر، {start} – {end}",
+      "other": "{count} حدث آخر، {start} – {end}"
+    },
+    "calendar.overlap_stack": {
+      "zero": "{count} أحداث، {start} – {end}",
+      "one": "حدث واحد ({count})، {start} – {end}",
+      "two": "حدثان ({count})، {start} – {end}",
+      "few": "{count} أحداث، {start} – {end}",
+      "many": "{count} حدثًا، {start} – {end}",
+      "other": "{count} حدث، {start} – {end}"
+    },
     "credits.entry_shown": {
       "zero": "لا توجد بنود معروضة ({count})",
       "one": "بند واحد معروض ({count})",

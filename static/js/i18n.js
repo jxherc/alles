@@ -216,6 +216,10 @@ const BUILTIN_ENGLISH = {
     "calendar.quick_undone": "removed “{title}”",
     "calendar.quick_undo_failed": "could not confirm removing “{title}”. try undo again.",
     "calendar.added": "added “{title}”",
+    "calendar.added_today": "no date found, added “{title}” to today",
+    "calendar.editor_edit": "edit event",
+    "calendar.editor_new": "new event",
+    "calendar.overlap_pick": "which event?",
     "calendar.agenda": "agenda",
     "calendar.booking_pages": "booking pages",
     "calendar.day": "day",
@@ -440,6 +444,14 @@ const BUILTIN_ENGLISH = {
     "schedule.confirmed": "scheduled - aide will answer it {when}"
   },
   "plurals": {
+    "calendar.overlap_more": {
+      "one": "{count} more event, {start} – {end}",
+      "other": "{count} more events, {start} – {end}"
+    },
+    "calendar.overlap_stack": {
+      "one": "{count} event, {start} – {end}",
+      "other": "{count} events, {start} – {end}"
+    },
     "credits.entry_shown": {
       "one": "{count} entry shown",
       "other": "{count} entries shown"
@@ -748,6 +760,15 @@ export function formatTimeForLocale(value, locale, options = {}) {
   return new Intl.DateTimeFormat(locale || 'en', options).format(new Date(value));
 }
 
+// a server wall clock ("19:30") read the way every time in the app reads: the same short time
+// style reminders show next to their date, in the owner's 12/24-hour choice
+export function formatClock(hhmm) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || ''));
+  if (!match) return String(hhmm || '');
+  return new Intl.DateTimeFormat(localeTag(), _options({ timeStyle: 'short', timeZone: 'UTC' }, true))
+    .format(new Date(Date.UTC(2000, 0, 1, Number(match[1]), Number(match[2]))));
+}
+
 export function formatDateTime(value, options = {}) {
   const fields = Object.keys(options).length
     ? options
@@ -760,11 +781,17 @@ export function formatDateParts(value, options = {}) {
 }
 
 export function resolvedTimeZone() {
+  return chosenTimeZone() || 'UTC';
+}
+
+// the zone the owner set, else the browser's own. '' when the browser won't say: then the
+// server shouldn't be told 'UTC' as if someone chose it
+export function chosenTimeZone() {
   if (_timezone) return _timezone;
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
   } catch {
-    return 'UTC';
+    return '';
   }
 }
 

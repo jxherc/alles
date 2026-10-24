@@ -88,7 +88,8 @@ def run():
                 page.locator(selector).click()
                 months = "January February March April May June July August September October November December".split()
                 for _ in range(12):
-                    month, year = page.locator(".date-panel .dp-head span").inner_text().split()
+                    month = page.locator(".date-panel .dp-head span").inner_text().strip()
+                    year = page.locator(".date-panel .dp-year").input_value()
                     current = int(year) * 12 + months.index(month)
                     target = day.year * 12 + day.month - 1
                     if current == target:

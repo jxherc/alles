@@ -32,6 +32,8 @@ const {
   addMonths,
   buildCopy,
   calendarPlacementDate,
+  expand,
+  monthCellFit,
   queueSearchRender,
   resolveCalendarWeekStart,
 } = await import('../../static/js/calendar.js');
@@ -127,7 +129,8 @@ test('calendar placement follows the selected timezone and preserves naive wall 
 
   const source = await import('node:fs').then(fs => fs.readFileSync(
     new URL('../../static/js/calendar.js', import.meta.url), 'utf8'));
-  assert.match(source, /calendarPlacementDate\(e\.start_dt\)/);
+  // timed rows by their wall time or instant; an all-day row by its date
+  assert.match(source, /calendarPlacementDate\(e\.all_day \? String\(e\.start_dt\)\.slice\(0, 10\) : e\.start_dt\)/);
   assert.match(source, /timeShort = dt => formatTime\(dt,[\s\S]*?hour: 'numeric', minute: '2-digit',[\s\S]*?\}\);/);
   assert.match(source.match(/const timeShort[\s\S]*?\}\);/)?.[0] || '', /CalendarWallDate \? 'UTC' : _browserTimeZone\(\)/);
 });
@@ -181,4 +184,22 @@ test('editing recurrence end values selects the matching custom radio choice', a
   assert.match(source, /getElementById\('cal-count'\)[\s\S]{0,320}selectEndsMode\('after'\)/);
   assert.match(source, /choice\.tabIndex = selected \? 0 : -1/);
   assert.match(source, /event\.key === 'ArrowRight'[\s\S]{0,700}choices\[next\]\.focus\(\)/);
+});
+
+test('month cells fit 4 lines (3 on a phone); "+N more" sits in the date row, not on a line', () => {
+  assert.equal(monthCellFit(4, false), 4);
+  assert.equal(monthCellFit(5, false), 4);
+  assert.equal(monthCellFit(3, true), 3);
+  assert.equal(monthCellFit(4, true), 3);
+  assert.equal(monthCellFit(0, true), 0);
+});
+
+test('an all-day event that began before the week still shows on its later days', () => {
+  const sat = { id: 'trip', title: 'trip', all_day: true, start_dt: '2026-10-17T00:00:00', end_dt: '2026-10-19T00:00:00' };
+  const done = { id: 'old', title: 'old', all_day: true, start_dt: '2026-10-10T00:00:00', end_dt: '2026-10-11T00:00:00' };
+  const later = { id: 'later', title: 'later', all_day: true, start_dt: '2026-10-26T00:00:00', end_dt: '2026-10-27T00:00:00' };
+  const rs = calendarPlacementDate('2026-10-18');   // sunday
+  const re = calendarPlacementDate('2026-10-25');
+  const ids = expand(rs, re, [sat, done, later]).map(o => o.id);
+  assert.deepEqual(ids, ['trip']);
 });

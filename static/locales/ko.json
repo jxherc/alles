@@ -212,6 +212,10 @@
     "calendar.quick_undone": "“{title}” 삭제됨",
     "calendar.quick_undo_failed": "“{title}” 삭제 여부를 확인하지 못했습니다. 실행 취소를 다시 시도하세요.",
     "calendar.added": "‘{title}’ 추가됨",
+    "calendar.added_today": "날짜를 찾지 못해 ‘{title}’을(를) 오늘에 추가함",
+    "calendar.editor_edit": "일정 편집",
+    "calendar.editor_new": "새 일정",
+    "calendar.overlap_pick": "어느 일정인가요?",
     "calendar.agenda": "일정",
     "calendar.booking_pages": "예약 페이지",
     "calendar.day": "일",
@@ -436,6 +440,8 @@
     "schedule.confirmed": "예약됨 - aide가 {when}에 답변합니다"
   },
   "plurals": {
+    "calendar.overlap_more": {"other": "일정 {count}개 더, {start} – {end}"},
+    "calendar.overlap_stack": {"other": "일정 {count}개, {start} – {end}"},
     "credits.entry_shown": {"other": "{count}개 항목 표시"},
     "credits.gap_remaining": {"other": "릴리스 누락 {count}개가 남아 있습니다"},
     "credits.item_count": {"other": "{count}개 항목"},

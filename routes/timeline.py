@@ -24,7 +24,7 @@ from core.database import (
     Transaction,
     get_db,
 )
-from services import actual_finance
+from services import actual_finance, calendar_events
 
 router = APIRouter(prefix="/api")
 
@@ -228,26 +228,36 @@ def _aggregate(db, want: set, days: int, unavailable: set[str]) -> list:
 
     if "calendar" in want:
         # past occurrences within the window (recurrence-aware, cheap expansion)
+        # events are owner wall time: compare them with the owner's clock, not utc. a row that
+        # kept its offset reads as wall time like the rest, or comparing it crashes
+        zone = calendar_events.owner_zone()
+        now = calendar_events.owner_now(zone)
+        since = now - timedelta(days=days)
         for e in db.query(CalendarEvent).all():
-            sd = _dt(e.start_dt)
+            start = calendar_events.wall_time(e.start_dt, zone)
+            sd = _dt(start)
             if not sd:
                 continue
             rec = (e.recurrence or "").strip()
             occs = []
             if not rec:
-                if cutoff <= sd <= datetime.now(UTC).replace(tzinfo=None):
+                if since <= sd <= now:
                     occs.append(sd)
+            elif calendar_events.frame_of(e.start_dt) and not e.all_day:
+                # a repeat that kept its offset repeats in its own frame, read on the owner's clock
+                occs = calendar_events.occurrence_starts(
+                    calendar_events.event_dict(e), since, now + timedelta(microseconds=1), zone
+                )
             else:
                 step = {"daily": 1, "weekly": 7, "monthly": 30}.get(rec, 0)
                 if step:
                     d = sd
                     guard = 0
-                    while d <= datetime.now(UTC).replace(tzinfo=None) and guard < 800:
-                        if d >= cutoff:
+                    while d <= now and guard < 800:
+                        if d >= since:
                             occs.append(d)
                         d = d + timedelta(days=step)
                         guard += 1
-            when = "" if e.all_day else str(e.start_dt)[11:16]
             for o in occs[-6:]:
                 out.append(
                     _ev(
@@ -255,7 +265,7 @@ def _aggregate(db, want: set, days: int, unavailable: set[str]) -> list:
                         "calendar",
                         "calendar",
                         e.title,
-                        ("all-day" if e.all_day else when),
+                        ("all-day" if e.all_day else o.strftime("%H:%M")),
                         "calendar",
                         e.id,
                     )

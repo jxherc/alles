@@ -172,6 +172,10 @@ class SignalsTests(ApiTest):
         d.close()
         r = [s for s in self._gather() if s["category"] == "reminder"]
         self.assertEqual(len(r), 1)
+        # the full local trigger, not just the clock, so home can date a leftover one
+        local = datetime.fromisoformat(r[0]["data"]["trigger_at"])
+        self.assertIsNotNone(local.tzinfo)
+        self.assertEqual(local.strftime("%H:%M"), r[0]["data"]["at"])
 
     def test_categories_filter(self):
         d = self.db()

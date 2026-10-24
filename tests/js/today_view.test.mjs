@@ -9,6 +9,7 @@ import {
   homeDayRequest,
   homeAidePreview,
   homeGreetingFor,
+  homeScheduleRows,
   orderedVisibleHomeSections,
   normalizeTodayPreferences,
 } from '../../static/js/today.js';
@@ -131,6 +132,8 @@ test('Home note confirmation precedes refresh and tasks use reviewed acceptance'
   assert.doesNotMatch(submit, /json\('\/api\/tasks'/);
   const confirmed = today.match(/function homeNoteSaved\([\s\S]*?\n}/)?.[0] || '';
   assert.ok(confirmed.indexOf('toast(') < confirmed.indexOf('void load()'));
+  // on a phone the receipt sits in the page, so it never hides itself under the finger
+  assert.match(confirmed, /if \(window\.matchMedia\?\.\('\(min-width: 761px\)'\)\.matches\) homeNoteSaved\.timer = setTimeout/);
   assert.doesNotMatch(submit, /if \(refreshed\)/);
 });
 
@@ -153,4 +156,70 @@ test('daily rows keep every dated item no matter how many tasks are due', () => 
   assert.ok(rows.some(row => row.id === 'r'));
   assert.ok(rows.some(row => row.id === 'd'));
   assert.equal(rows.length, 17);
+});
+
+test('home counts only hidden tasks as more in plan and always shows habits', () => {
+  configureLocalization({ language: 'en' });
+  const tasks = n => Array.from({ length: n }, (_, i) => ({ id: `t${i}`, title: `task ${i}` }));
+  const habits = [{ id: 'h1', name: 'walk' }, { id: 'h2', name: 'stretch' }];
+  const six = homeScheduleRows(dailyRows({ tasks: { overdue: tasks(6) }, habits }));
+  assert.deepEqual(six.map(row => row.kind), [...Array(6).fill('task'), 'habit', 'habit']);
+  const eight = homeScheduleRows(dailyRows({ tasks: { overdue: tasks(8) }, habits }));
+  assert.equal(eight.filter(row => row.kind === 'habit').length, 2);
+  assert.equal(eight.filter(row => row.kind === 'task').length, 6);
+  assert.deepEqual(eight.at(-1), { view: 'plan', id: '', meta: '', title: '2 more tasks in plan', kind: 'more' });
+});
+
+test('home times read like the reminders list, in the owner\'s 12/24-hour choice', async () => {
+  const { formatClock } = await import('../../static/js/i18n.js');
+  try {
+    configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '12' });
+    const rows = dailyRows({ date: '2026-10-23', events: [{ id: 'e', title: 'dentist', time: '14:05' }],
+      reminders: [{ id: 'r', text: 'call mom', at: '19:30' }] });
+    assert.equal(rows.find(row => row.kind === 'event').meta, '2:05 PM');
+    assert.equal(rows.find(row => row.kind === 'reminder').meta, '7:30 PM');
+    configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '24' });
+    assert.equal(formatClock('19:30'), '19:30');
+    assert.equal(formatClock('not a time'), 'not a time');
+  } finally {
+    configureLocalization({});
+  }
+});
+
+test('a reminder left over from an earlier day shows its date; today\'s keep the short time', async () => {
+  const { formatDateTime } = await import('../../static/js/i18n.js');
+  try {
+    configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '12' });
+    const rows = dailyRows({ date: '2026-10-23', reminders: [
+      { id: 'old', text: 'pay rent', at: '19:30', trigger_at: '2026-10-21T19:30:00-04:00' },
+      { id: 'now', text: 'call mom', at: '08:15', trigger_at: '2026-10-23T08:15:00-04:00' },
+      { id: 'legacy', text: 'no date', at: '09:00' },
+      { id: 'last-year', text: 'renew', at: '10:00', trigger_at: '2025-12-30T10:00:00-05:00' },
+    ] });
+    const row = id => rows.find(item => item.id === id);
+    // the full text is the reminders list's own (reminderTimeLabel); it feeds aide and the tooltip
+    assert.equal(row('old').meta, formatDateTime('2026-10-21T19:30:00-04:00', { dateStyle: 'medium', timeStyle: 'short' }));
+    assert.match(row('old').meta, /^Oct 21, 2026, 7:30\sPM$/);
+    assert.equal(row('old').lines[0], 'Oct 21');
+    assert.match(row('old').lines[1], /^7:30\sPM$/);
+    assert.match(row('now').meta, /^8:15\sAM$/);
+    assert.equal(row('now').lines, undefined);
+    assert.match(row('legacy').meta, /^9:00\sAM$/);
+    assert.equal(row('legacy').lines, undefined);
+    assert.equal(row('last-year').lines[0], '12/30/25');
+    const old = { id: 'old', text: 'pay rent', at: '19:30', trigger_at: '2026-10-21T19:30:00-04:00' };
+    assert.match(homeDayRequest({ today: { date: '2026-10-23', reminders: [old] } }), /reminder: Oct 21, 2026, 7:30 PM — pay rent/);
+    configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '24' });
+    const late = dailyRows({ date: '2026-10-23', reminders: [{ id: 'x', text: 'x', at: '23:45', trigger_at: '2026-10-22T23:45:00-04:00' }] });
+    assert.deepEqual(late[0].lines, ['Oct 22', '23:45']);
+  } finally {
+    configureLocalization({});
+  }
+});
+
+test('home draws a left-over reminder as day over time, escaped', () => {
+  const today = readFileSync(new URL('../../static/js/today.js', import.meta.url), 'utf8');
+  const row = today.match(/function dayRow\([\s\S]*?\n}/)?.[0] || '';
+  assert.match(row, /item\.lines\.map\(esc\)\.join\('<br>'\)/);
+  assert.match(row, /title="\$\{esc\(item\.meta\)\}"/);
 });

@@ -264,3 +264,28 @@ class TodayGoldenTests(ApiTest):
             self.assertEqual(d.get(Subscription, sid).next_due, today)
         finally:
             d.close()
+
+    def test_reminder_carries_its_local_trigger_day(self):
+        # stored as naive utc; 2026-09-24 01:15 utc is still the 23rd in toronto
+        d = self.db()
+        d.add(
+            Reminder(
+                text="left over",
+                trigger_at=datetime(2026, 9, 24, 1, 15, 30, 123456),
+                fired=False,
+            )
+        )
+        d.add(Reminder(text="today", trigger_at=datetime(2026, 9, 25, 12, 0), fired=False))
+        d.commit()
+        d.close()
+        r = self.client.get(
+            "/api/today", params={"date": "2026-09-25", "timezone": "America/Toronto"}
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(
+            sorted((x["text"], x["at"], x["trigger_at"]) for x in r.json()["reminders"]),
+            [
+                ("left over", "21:15", "2026-09-23T21:15:30-04:00"),
+                ("today", "08:00", "2026-09-25T08:00:00-04:00"),
+            ],
+        )

@@ -45,9 +45,10 @@ def free_slots(events, day, *, day_start="09:00", day_end="17:00", duration_min=
     busy = []
     for ev in events:
         sp = _span(ev)
-        if sp and sp[0].date().isoformat() == day:
-            # clip to the working window so an event outside hours (e.g. 18:00-19:00 with a
-            # 17:00 day_end) can't make a free slot spill past day_end
+        # anything overlapping the window counts, last night's 22:00-02:00 too. clipped to the
+        # window so an event outside hours (18:00-19:00 with a 17:00 day_end) can't make a free
+        # slot spill past day_end
+        if sp and sp[0] < hi and sp[1] > lo:
             s, e = max(sp[0], lo), min(sp[1], hi)
             if e > s:
                 busy.append((s, e))

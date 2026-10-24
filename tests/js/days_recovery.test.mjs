@@ -11,11 +11,11 @@ const deferred = () => { let resolve; const promise = new Promise(r => { resolve
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 function harness(fetcher = async () => response({ events: [event] })) {
-  const nodes = new Map(), toasts = [];
+  const nodes = new Map(), toasts = [], seen = { focused: '', confirm: async () => true };
   const node = key => {
     if (!nodes.has(key)) nodes.set(key, { value: '', dataset: {}, listeners: {}, disabled: false, isConnected: true,
       addEventListener(name, listener) { this.listeners[name] = listener; },
-      setAttribute() {}, removeAttribute() {}, focus() {}, querySelectorAll: () => [] });
+      setAttribute() {}, removeAttribute() {}, focus() { seen.focused = key; }, querySelectorAll: () => [] });
     return nodes.get(key);
   };
   node('day-name').value = 'original countdown';
@@ -31,7 +31,7 @@ function harness(fetcher = async () => response({ events: [event] })) {
   const context = vm.createContext({
     fetch: (...args) => fetcher(...args), window: {}, CSS: { escape: String },
     document: { getElementById: node, activeElement: null },
-    toast: (...args) => toasts.push(args), plainError: message => String(message), dlgConfirm: async () => true,
+    toast: (...args) => toasts.push(args), plainError: message => String(message), dlgConfirm: (...args) => seen.confirm(...args),
     initCustomDropdown() {}, initDatePicker() {}, formatDate() {}, formatNumber: String,
   });
   vm.runInContext(source + `
@@ -41,7 +41,7 @@ function harness(fetcher = async () => response({ events: [event] })) {
       state: () => ({ events: _events, editing: _editing }) };
   `, context);
   context.subject.seed([{ ...event }]); context.subject.wire(grid);
-  return { ...context.subject, node, fields, toasts };
+  return { ...context.subject, node, fields, toasts, seen };
 }
 
 test('pending countdown add submits once and keeps newer name and category', async () => {
@@ -107,4 +107,13 @@ test('a saved edit does not close a newer edit typed while waiting', async () =>
   assert.equal(writes, 1);
   assert.equal(h.state().editing, 'event-1');
   assert.equal(h.fields.name.value, 'newer unsaved edit');
+});
+
+test('delete asks before going busy, so a cancelled confirm hands focus back to the ×', async () => {
+  let writes = 0;
+  const h = harness(async (path, options) => { if (options) writes++; return response({ events: [event] }); });
+  h.seen.confirm = async () => { assert.equal(h.node('del').disabled, false, 'the × is still usable while asking'); return false; };
+  await h.node('del').listeners.click();
+  assert.equal(writes, 0);
+  assert.equal(h.seen.focused, 'del');
 });

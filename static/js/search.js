@@ -1,4 +1,5 @@
 import { filterCommands } from './palette.js';
+import { chosenTimeZone } from './i18n.js';
 
 let _debounce = null;
 let _financeDebounce = null;
@@ -221,7 +222,9 @@ export function initSearch() {
 async function _runSearch(query) {
   const requestId = ++_requestSequence;
   try {
-    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    // event days are the owner's days, so the server needs the browser's zone
+    const zone = chosenTimeZone();
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { headers: zone ? { 'x-alles-time-zone': zone } : {} });
     if (requestId !== _requestSequence) return;
     if (!response.ok) {
       const state = [401, 403].includes(response.status) ? 'permission' : response.status >= 500 ? 'unavailable' : 'error';
@@ -325,9 +328,10 @@ function _renderResults(data, query, status = null, preserveSelection = false) {
   matches += _group('go to', navHits, command => _row(`data-type="nav" data-view="${_esc(command.view)}"`, command.label, command.hint));
   matches += _group('chats', chats, chat => _row(`data-type="chat" data-id="${_esc(chat.session_id)}"`, chat.session_name, chat.snippet));
   matches += _group('docs', notes, note => _row(`data-type="note" data-path="${_esc(note.path)}"`, note.name, note.snippet));
-  matches += _group('mail', mail, message => _row('data-type="nav" data-view="mail"', message.subject, _fromName(message.from)));
-  matches += _group('tasks', tasks, task => _row('data-type="nav" data-view="tasks"', task.title, task.done ? 'done' : ''));
-  matches += _group('calendar', calendar, event => _row('data-type="nav" data-view="calendar"', event.title, event.when));
+  // tasks, events and messages open the record itself, not just their app
+  matches += _group('mail', mail, message => _row(`data-type="mail" data-view="mail" data-id="${_esc(message.uid)}" data-aid="${_esc(message.account_id)}" data-folder="${_esc(message.folder || 'INBOX')}"`, message.subject, _fromName(message.from)));
+  matches += _group('tasks', tasks, task => _row(`data-type="record" data-view="tasks" data-id="${_esc(task.id)}"`, task.title, task.done ? 'done' : ''));
+  matches += _group('calendar', calendar, event => _row(`data-type="record" data-view="calendar" data-id="${_esc(event.id)}"`, event.title, event.when));
   matches += _group('books', books, book => _row('data-type="nav" data-view="books"', book.title, [book.author, book.status].filter(Boolean).join(' · ')));
   matches += _group('read', read, item => _row('data-type="nav" data-view="read"', item.title, item.site));
   matches += _group('habits', habits, habit => _row('data-type="nav" data-view="habits"', habit.name, ''));
@@ -362,16 +366,22 @@ function _fromName(from) {
   return (match ? (match[1].replace(/"/g, '').trim() || match[2]) : from) || '';
 }
 
+// a record opens in its app's editor, which takes focus; a plain "go to" hands focus back
+async function _openOption(option) {
+  const { type, view, id } = option.dataset;
+  if (type === 'chat' || type === 'note') return [await window._openSearchResult?.(type, type === 'chat' ? id : option.dataset.path), true];
+  if (type === 'record' && window._openRecord) return [await window._openRecord(view, id), true];
+  // a message needs mail's own opener; without it the inbox is the closest place
+  if (type === 'mail' && window._openMailMessage) return [await window._openMailMessage(option.dataset.aid, id, option.dataset.folder), true];
+  return [await window._navigateTo?.(view), false];
+}
+
 async function _go(option) {
   const type = option.dataset.type;
-  let opened = false;
-  try {
-    opened = type === 'chat' || type === 'note'
-      ? await window._openSearchResult?.(type, type === 'chat' ? option.dataset.id : option.dataset.path)
-      : await window._navigateTo?.(option.dataset.view);
-  } catch {}
+  let opened = false, ownsFocus = false;
+  try { [opened, ownsFocus] = await _openOption(option); } catch {}
   if (opened) {
-    closeSearch({ restoreFocus: type !== 'chat' && type !== 'note' });
+    closeSearch({ restoreFocus: !ownsFocus });
     const target = type === 'chat' ? document.getElementById('composer-ta')
       : type === 'note' ? document.getElementById('wiki-preview') : null;
     if (target?.getClientRects().length) target.focus({ preventScroll: true });

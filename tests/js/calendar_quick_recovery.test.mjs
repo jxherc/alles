@@ -7,7 +7,8 @@ import { isDeepStrictEqual } from 'node:util';
 const source = readFileSync(new URL('../../static/js/calendar.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
 const copy = value => JSON.parse(JSON.stringify(value));
-const response = (data, ok = true, status = ok ? 200 : 503) => ({ ok, status, json: async () => copy(data) });
+const response = (data, ok = true, status = ok ? 200 : 503, headers = {}) => ({ ok, status, json: async () => copy(data),
+  headers: { get: name => headers[name.toLowerCase()] ?? null } });
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; }
 function actual(name) {
   const body = source.match(new RegExp(`^(?:export )?(?:async )?function ${name}\\([^]*?^}`, 'm'))?.[0];
@@ -27,7 +28,7 @@ function harness() {
   const nodes = new Map(), requests = [], records = new Map(), errors = [], opens = [];
   const state = { editor: false, confirm: true, postGate: null, listGate: null,
     postError: false, listError: false, malformed: false, deleteGate: null, lostDeleteAck: false,
-    occurrenceValid: true, renders: 0, pickerRefreshes: 0 };
+    occurrenceValid: true, renders: 0, pickerRefreshes: 0, wide: true, postRefusal: null, noDate: false };
   const document = { activeElement: null, getElementById: id => nodes.get(id) || null,
     querySelector: selector => selector === '.cal-editor' && state.editor ? editor : null };
   function node(id) {
@@ -41,18 +42,29 @@ function harness() {
   }
   for (const id of ['cal-quick', 'cal-quick-feedback', 'cal-quick-status', 'cal-title', 'cal-desc', 'retry', 'elsewhere']) node(id);
   nodes.get('cal-quick-feedback').hidden = true;
+  Object.assign(nodes.get('cal-quick-feedback'), {
+    hovered: false,
+    contains(other) { return other === this || other === nodes.get('cal-quick-undo'); },
+    matches(selector) { return selector === ':hover' && this.hovered; },
+  });
+  // the receipt hides on a timer; tests step it by hand
+  const timers = new Map(); let timerId = 0;
+  const setTimeout = (fn, ms) => { timers.set(++timerId, { fn, ms }); return timerId; };
+  const clearTimeout = id => { timers.delete(id); };
+  const runTimers = () => { const due = [...timers.values()]; timers.clear(); for (const { fn } of due) fn(); return due.map(({ ms }) => ms); };
   if (html.includes('id="cal-quick-undo"')) node('cal-quick-undo').hidden = true;
   const editor = { remove() { state.editor = false; } };
   const fetcher = async (url, options = {}) => {
     const method = options.method || 'GET'; requests.push({ url, method, body: options.body, headers: options.headers });
     if (url === '/api/calendar/quick' && method === 'POST') {
       if (state.postError) return response({ detail: 'synthetic create failure' }, false);
+      if (state.postRefusal) return response({ detail: state.postRefusal }, false, 400);
       const saved = event('created-' + (records.size + 1));
       saved.title = JSON.parse(options.body).text;
       records.set(saved.id, copy(saved));
       const receipt = copy(saved);
       if (state.postGate) await state.postGate.promise;
-      return response(state.malformed ? { title: saved.title } : receipt);
+      return response(state.malformed ? { title: saved.title } : receipt, true, 200, state.noDate ? { 'x-alles-no-date': '1' } : {});
     }
     if (method === 'DELETE') {
       if (state.deleteGate) await state.deleteGate.promise;
@@ -73,7 +85,9 @@ function harness() {
     if (['/api/calendars', '/api/calendar/tasks', '/api/calendar/subscriptions', '/api/calendar/birthdays'].includes(url)) return response([]);
     throw new Error('unexpected synthetic request: ' + method + ' ' + url);
   };
-  const context = vm.createContext({ document, window: {}, fetch: fetcher, Date, URLSearchParams,
+  const context = vm.createContext({ document, window: { matchMedia: () => ({ matches: state.wide }) }, fetch: fetcher, plainError: message => message,
+    zoneHeader: () => ({ 'x-alles-time-zone': 'America/Toronto' }),
+    withZone: (init = {}) => ({ ...init, headers: { ...(init.headers || {}), 'x-alles-time-zone': 'America/Toronto' } }), Date, URLSearchParams, setTimeout, clearTimeout,
     localStorage: { getItem: () => null }, nodes, state, opens,
     tr: (key, values = {}) => key + (values.title ? ':' + values.title : ''),
     dlgConfirm: async () => state.confirm, calendarPlacementDate: value => new Date(value),
@@ -82,6 +96,8 @@ function harness() {
     render() { state.renders++; state.editor = false; }, calendarLoadError: message => errors.push(message),
     editorBusy() {}, editorError: message => errors.push(message), chooseScope: async () => 'all',
     hasOccurrence: () => state.occurrenceValid,
+    // a desktop open: the title takes focus (touch is covered in plan_focus)
+    focusEditor() { nodes.get('cal-title').focus(); },
   });
   vm.runInContext(`
     let _saving = false, _readDraft = null, _draftSnapshot = '', _cursor = new Date();
@@ -95,7 +111,7 @@ function harness() {
       _readDraft = () => JSON.stringify([nodes.get('cal-title').value, nodes.get('cal-desc').value]);
       _draftSnapshot = _readDraft();
     }
-    ${['readCalendarResponse', 'loadCalendar', 'retryCalendarView', 'openEvent', 'deleteEvent'].map(actual).join('\n')}
+    ${['readCalendarResponse', 'loadCalendar', 'retryCalendarView', 'openEvent', 'focusAfterEditor', 'deleteEvent'].map(actual).join('\n')}
     ${quickBindings}
     globalThis.subject = { load: loadCalendar, retry: retryCalendarView, open: openEvent, remove: deleteEvent,
       seed: events => { _events = events; _eventsReady = true; },
@@ -110,7 +126,7 @@ function harness() {
     const current = subject.state();
     return subject.open(current.editing, current.occurrence);
   };
-  return { ...subject, current: subject.state, nodes, document, state, records, requests, errors, opens,
+  return { ...subject, current: subject.state, nodes, document, state, records, requests, errors, opens, runTimers,
     snapshot: () => copy({ ...subject.state(), title: nodes.get('cal-title').value,
       description: nodes.get('cal-desc').value, active: document.activeElement?.id,
       selection: [nodes.get('cal-desc').selectionStart, nodes.get('cal-desc').selectionEnd] }),
@@ -305,4 +321,42 @@ test('pending undo remains single-flight and keeps a newer editor draft and focu
   assert.deepEqual(h.snapshot(), before);
   assert.equal(h.requests.filter(request => request.method === 'DELETE').length, 1);
   assert.equal(h.nodes.get('cal-quick-undo').hidden, true);
+});
+
+test('the quick-add receipt hides after a while, but not while focus or the pointer is on it', async () => {
+  const h = harness(); await h.enter();
+  const feedback = h.nodes.get('cal-quick-feedback');
+  assert.equal(feedback.hidden, false);
+  h.nodes.get('cal-quick-undo').focus();
+  assert.deepEqual(h.runTimers(), [8000]); assert.equal(feedback.hidden, false);
+  h.nodes.get('elsewhere').focus(); feedback.hovered = true;
+  assert.deepEqual(h.runTimers(), [4000]); assert.equal(feedback.hidden, false);
+  feedback.hovered = false;
+  h.runTimers(); assert.equal(feedback.hidden, true);
+  // a new message starts its own clock instead of stacking timers
+  await h.enter('second lunch'); await h.enter('third lunch');
+  assert.equal(feedback.hidden, false);
+  assert.deepEqual(h.runTimers(), [8000]); assert.equal(feedback.hidden, true);
+});
+
+test('on a phone the receipt stays put instead of hiding under the finger', async () => {
+  const h = harness(); h.state.wide = false; await h.enter();
+  assert.deepEqual(h.runTimers(), []);
+  assert.equal(h.nodes.get('cal-quick-feedback').hidden, false);
+});
+
+test('a date that does not exist shows the reason and keeps the text', async () => {
+  const h = harness(); h.state.postRefusal = "feb 30 isn't a date";
+  await h.enter('lunch feb 30');
+  assert.equal(h.nodes.get('cal-quick-status').textContent, "feb 30 isn't a date");
+  assert.equal(h.nodes.get('cal-quick').value, 'lunch feb 30');
+  assert.equal(h.nodes.get('cal-quick-undo').hidden, true);
+});
+
+test('a line with no date says it went to today', async () => {
+  const h = harness(); h.state.noDate = true;
+  await h.enter('asdf');
+  assert.equal(h.nodes.get('cal-quick-status').textContent, 'calendar.added_today:asdf');
+  h.state.noDate = false; await h.enter('lunch tomorrow 1pm');
+  assert.equal(h.nodes.get('cal-quick-status').textContent, 'calendar.added:lunch tomorrow 1pm');
 });

@@ -1,3 +1,6 @@
+from datetime import date, timedelta
+from unittest.mock import patch
+
 from core.database import CalendarEvent
 from services import ics
 from tests._client import ApiTest
@@ -125,8 +128,11 @@ class IcsServiceTest(ApiTest):  # ApiTest only for convenience; these are pure
         self.assertIsNone(out[0]["end_dt"])
 
 
+_NY = {"timezone": "America/New_York"}
+
+
 class IcsZoneTest(ApiTest):  # pure too
-    def test_utc_and_tzid_times_keep_their_zone(self):
+    def test_utc_and_tzid_times_land_on_local_wall_time(self):
         text = (
             "BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:utc\nDTSTART:20261029T190000Z\n"
             "DTEND:20261029T200000Z\nEND:VEVENT\nBEGIN:VEVENT\nSUMMARY:la\n"
@@ -134,18 +140,80 @@ class IcsZoneTest(ApiTest):  # pure too
             "BEGIN:VEVENT\nSUMMARY:outlook\nDTSTART;TZID=Pacific Standard Time:20261029T090000\n"
             "END:VEVENT\nEND:VCALENDAR"
         )
-        utc, la, outlook = ics.parse_ics(text)
-        self.assertEqual(utc["start_dt"], "2026-10-29T19:00:00+00:00")
-        self.assertEqual(utc["end_dt"], "2026-10-29T20:00:00+00:00")
-        self.assertEqual(la["start_dt"], "2026-10-29T09:00:00-07:00")
+        with patch("services.calendar_events.load_settings", return_value=_NY):
+            utc, la, outlook = ics.parse_ics(text)
+        # stored naive, in the owner's zone, like events made in the app
+        self.assertEqual(utc["start_dt"], "2026-10-29T15:00:00")
+        self.assertEqual(utc["end_dt"], "2026-10-29T16:00:00")
+        self.assertEqual(la["start_dt"], "2026-10-29T12:00:00")
         self.assertEqual(outlook["start_dt"], "2026-10-29T09:00:00")
 
-    def test_a_zoned_time_exports_as_utc_and_comes_back(self):
+    def test_no_owner_zone_keeps_the_offset_instead_of_guessing(self):
+        # a container's server zone is usually utc; converting there would move the event for
+        # good, so with no zone to go by the instant is kept as it was sent
+        for stamp, want in (
+            ("20270115T190000Z", "2027-01-15T19:00:00+00:00"),
+            ("20270715T190000Z", "2027-07-15T19:00:00+00:00"),
+        ):
+            text = f"BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART:{stamp}\nEND:VEVENT\nEND:VCALENDAR"
+            for blank in ({"timezone": ""}, {"timezone": "Not/AZone"}, {}):
+                with patch("services.calendar_events.load_settings", return_value=blank):
+                    got = ics.parse_ics(text)[0]["start_dt"]
+                self.assertEqual(got, want, (stamp, blank))
+        # with the browser's zone given, winter and summer each get their own offset
+        from zoneinfo import ZoneInfo
+
+        text = (
+            "BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART:20270115T190000Z\nEND:VEVENT\n"
+            "BEGIN:VEVENT\nDTSTART:20270715T190000Z\nEND:VEVENT\nEND:VCALENDAR"
+        )
+        winter, summer = ics.parse_ics(text, zone=ZoneInfo("America/Toronto"))
+        self.assertEqual(winter["start_dt"], "2027-01-15T14:00:00")
+        self.assertEqual(summer["start_dt"], "2027-07-15T15:00:00")
+
+    def test_an_event_across_the_autumn_change_keeps_its_length(self):
+        from zoneinfo import ZoneInfo
+
+        text = (
+            "BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:late\nDTSTART:20261101T053000Z\n"
+            "DTEND:20261101T063000Z\nEND:VEVENT\nEND:VCALENDAR"
+        )
+        (event,) = ics.parse_ics(text, zone=ZoneInfo("America/Toronto"))
+        self.assertEqual(
+            (event["start_dt"], event["end_dt"]), ("2026-11-01T01:30:00", "2026-11-01T02:30:00")
+        )
+
+    def test_an_older_zoned_row_exports_as_utc_and_comes_back_local(self):
         out = ics.to_ics(
             [{"title": "x", "start_dt": "2026-10-29T09:00:00-07:00", "all_day": False}]
         )
         self.assertIn("DTSTART:20261029T160000Z", out)
-        self.assertEqual(ics.parse_ics(out)[0]["start_dt"], "2026-10-29T16:00:00+00:00")
+        with patch("services.calendar_events.load_settings", return_value=_NY):
+            self.assertEqual(ics.parse_ics(out)[0]["start_dt"], "2026-10-29T12:00:00")
+
+    def test_an_imported_utc_event_blocks_free_time_and_shows_in_agenda(self):
+        day = date.today() + timedelta(days=1)
+        stamp = day.strftime("%Y%m%d")
+        text = (
+            "BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:google call\n"
+            f"DTSTART:{stamp}T140000Z\nDTEND:{stamp}T150000Z\nEND:VEVENT\nEND:VCALENDAR"
+        )
+        with patch("services.calendar_events.load_settings", return_value={"timezone": "UTC"}):
+            r = self.client.post("/api/calendar/import", json={"ics": text})
+        self.assertEqual(r.status_code, 200, r.text)
+        free = self.client.get("/api/calendar/free", params={"date": day.isoformat()})
+        self.assertEqual(free.status_code, 200, free.text)
+        d = day.isoformat()
+        self.assertEqual(
+            free.json()["slots"],
+            [
+                {"start": f"{d}T09:00", "end": f"{d}T14:00"},
+                {"start": f"{d}T15:00", "end": f"{d}T18:00"},
+            ],
+        )
+        days = self.client.get("/api/calendar/agenda", params={"days": 3}).json()["days"]
+        hit = [e for g in days if g["date"] == d for e in g["events"]]
+        self.assertEqual([e["start_dt"] for e in hit], [f"{d}T14:00:00"])
 
 
 class IcsApiTest(ApiTest):

@@ -7,7 +7,7 @@ once even across the 30s job ticks; all-day events anchor their reminders to 09:
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 from core.settings import data_dir
@@ -60,16 +60,20 @@ def _ev_dict(e):
     }
 
 
-async def fire_due():
+def _due_now(fired):
+    """the reminders due this tick as (key, body), with the owner's wall clock now. it loads every
+    event and expands repeats, which stalled the event loop for over a second on a big calendar,
+    so it runs in a worker thread"""
     from core.database import CalendarEvent, SessionLocal
-    from services import recur
-    from services.push_delivery import broadcast_result
+    from services.calendar_events import occurrence_starts, owner_now, owner_zone
 
-    fired = _load()
-    now = datetime.now()
+    # stored times are the owner's wall clock, so "now" is too: on a utc server the server's
+    # clock fired every reminder hours early or late
+    zone = owner_zone()
+    now = owner_now(zone)
     rs, re = now - timedelta(minutes=2), now + timedelta(hours=26)
+    due = []
     db = SessionLocal()
-    changed = False
     try:
         for e in db.query(CalendarEvent).all():
             try:
@@ -80,7 +84,8 @@ async def fire_due():
                 mins = []
             if not mins:
                 continue
-            for occ in recur.expand(_ev_dict(e), rs, re, cap=200):
+            # a row that kept its offset repeats in its own frame, read at the owner's wall time
+            for occ in occurrence_starts(_ev_dict(e), rs, re, zone, cap=200):
                 anchor = (
                     occ.replace(hour=9, minute=0, second=0, microsecond=0) if e.all_day else occ
                 )
@@ -89,43 +94,53 @@ async def fire_due():
                     if not (ft <= now < ft + timedelta(seconds=_GRACE)):
                         continue
                     key = f"{e.id}|{occ.date().isoformat()}|{off}"
-                    pending_key = f"pending:{key}"
-                    uncertain_key = f"uncertain:{key}"
-                    if key in fired or pending_key in fired or uncertain_key in fired:
+                    if key in fired or f"pending:{key}" in fired or f"uncertain:{key}" in fired:
                         continue
                     when = (
                         "now" if off <= 0 else (f"in {off} min" if off < 60 else f"in {off // 60}h")
                     )
                     at = "" if e.all_day else f" at {occ.strftime('%H:%M')}"
-                    fired.add(pending_key)
-                    if not _save():
-                        fired.discard(pending_key)
-                        log.warning("calendar reminder claim could not be saved; delivery skipped")
-                        continue
-                    try:
-                        result = await broadcast_result(
-                            {
-                                "title": "event reminder",
-                                "body": f"{e.title} — {when}{at}",
-                                "url": "/",
-                                "tag": key,
-                            }
-                        )
-                        fired.discard(pending_key)
-                        if result["sent"]:
-                            fired.add(key)
-                        elif result["uncertain"]:
-                            fired.add(uncertain_key)
-                        changed = True
-                        _save()
-                    except Exception as exc:
-                        fired.discard(pending_key)
-                        fired.add(uncertain_key)
-                        changed = True
-                        _save()
-                        log.warning("calendar reminder outcome uncertain: %s", type(exc).__name__)
+                    due.append((key, f"{e.title} — {when}{at}"))
     finally:
         db.close()
+    return now, due
+
+
+async def fire_due():
+    import asyncio
+
+    from services.push_delivery import broadcast_result
+
+    fired = _load()
+    now, due = await asyncio.to_thread(_due_now, set(fired))
+    changed = False
+    for key, body in due:
+        pending_key = f"pending:{key}"
+        uncertain_key = f"uncertain:{key}"
+        if key in fired or pending_key in fired or uncertain_key in fired:
+            continue
+        fired.add(pending_key)
+        if not _save():
+            fired.discard(pending_key)
+            log.warning("calendar reminder claim could not be saved; delivery skipped")
+            continue
+        try:
+            result = await broadcast_result(
+                {"title": "event reminder", "body": body, "url": "/", "tag": key}
+            )
+            fired.discard(pending_key)
+            if result["sent"]:
+                fired.add(key)
+            elif result["uncertain"]:
+                fired.add(uncertain_key)
+            changed = True
+            _save()
+        except Exception as exc:
+            fired.discard(pending_key)
+            fired.add(uncertain_key)
+            changed = True
+            _save()
+            log.warning("calendar reminder outcome uncertain: %s", type(exc).__name__)
     if changed:
         cutoff = (now.date() - timedelta(days=2)).isoformat()
         for k in [k for k in fired if k.split("|")[1] < cutoff]:

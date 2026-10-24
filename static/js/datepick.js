@@ -135,13 +135,20 @@ function _openPanel(el) {
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-label', el.getAttribute('aria-label') || 'choose date');
   el.setAttribute('aria-expanded', 'true');
+  // a tap on a weekday label, the month name or the time row's background focuses the panel
+  // itself, so escape still reaches it
+  panel.tabIndex = -1;
   panel.addEventListener('keydown', event => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); _close(); return; }
     if (event.key !== 'Tab') return;
-    const items = [...panel.querySelectorAll('button')];
-    const first = items[0], last = items[items.length - 1];
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    // tab is walked here over every control, inputs too: safari's own tab skips buttons and
+    // walked out of the panel with it still open
+    const items = [...panel.querySelectorAll('button, input')].filter(node => !node.disabled && node.getClientRects().length);
+    if (!items.length) return;
+    event.preventDefault();
+    const at = items.indexOf(document.activeElement);
+    const next = at < 0 ? (event.shiftKey ? items.length - 1 : 0) : (at + (event.shiftKey ? -1 : 1) + items.length) % items.length;
+    items[next].focus();
   });
   document.body.appendChild(panel);
   const cur = _parse(el);
@@ -157,23 +164,13 @@ function _render(el) {
   const { panel, view, sel } = _open;
   const active = panel.contains(document.activeElement) ? document.activeElement : null;
   const focusKey = active?.dataset.d ? `[data-d="${active.dataset.d}"]` : active?.dataset.step ? `[data-step="${active.dataset.step}"]` : active?.dataset.nav ? `[data-nav="${active.dataset.nav}"]`
-    : active?.dataset.part ? `[data-part="${active.dataset.part}"]` : active?.classList.contains('dp-year') ? '.dp-year' : null;
+    : active?.dataset.part ? `[data-part="${active.dataset.part}"]` : active?.classList.contains('dp-year') ? '.dp-year'
+    : active?.classList.contains('dp-now') ? '.dp-now' : null;
   const isDate = _isDate(el);
   const monthName = formatCalendarDate(
     `${view.y}-${_z(view.mo + 1)}-01`,
     { month: 'long' },
   );
-  const weekStart = resolveDatePickerWeekStart();
-  const first = (new Date(view.y, view.mo, 1).getDay() - weekStart + 7) % 7;
-  const days = new Date(view.y, view.mo + 1, 0).getDate();
-  const weekdays = datePickerWeekdayLabels();
-  const orderedWeekdays = [...weekdays.slice(weekStart), ...weekdays.slice(0, weekStart)];
-  let grid = orderedWeekdays.map(d => `<span class="dp-dow">${d}</span>`).join('');
-  for (let i = 0; i < first; i++) grid += '<span></span>';
-  for (let d = 1; d <= days; d++) {
-    const on = sel.y === view.y && sel.mo === view.mo && sel.d === d;
-    grid += `<button type="button" class="dp-day${on ? ' sel' : ''}" data-d="${d}">${d}</button>`;
-  }
   const time = isDate ? '' : `
     <div class="dp-time">
       <button type="button" class="dp-step" data-step="h-1" aria-label="previous hour">‹</button><input class="dp-tv" data-part="h" inputmode="numeric" maxlength="2" aria-label="hour" value="${_z(sel.h)}"><button type="button" class="dp-step" data-step="h1" aria-label="next hour">›</button>
@@ -182,44 +179,64 @@ function _render(el) {
     </div>`;
   panel.innerHTML = `
     <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="previous month">‹</button><span>${monthName} <input class="dp-year" inputmode="numeric" maxlength="4" aria-label="year" value="${view.y}"></span><button type="button" class="dp-nav" data-nav="1" aria-label="next month">›</button></div>
-    <div class="dp-grid">${grid}</div>${time}
+    <div class="dp-grid">${_grid(view, sel)}</div>${time}
     <div class="dp-foot"><button type="button" class="dp-clear">clear</button><button type="button" class="dp-now">now</button></div>`;
 
+  // safari doesn't focus a clicked button, so focus would sit on <body>: the rebuild couldn't
+  // put it back and escape stopped closing the picker. focus what was clicked first
+  const hold = b => { if (panel.contains(b) && document.activeElement !== b) b.focus({ preventScroll: true }); };
   panel.querySelectorAll('.dp-nav').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
+    hold(b);
     view.mo += +b.dataset.nav;
     if (view.mo < 0) { view.mo = 11; view.y--; }
     if (view.mo > 11) { view.mo = 0; view.y++; }
     _render(el);
   }));
-  panel.querySelectorAll('.dp-day').forEach(b => b.addEventListener('click', e => {
+  const grid = panel.querySelector('.dp-grid');
+  grid.addEventListener('click', e => {
     e.stopPropagation();
+    const b = e.target.closest('.dp-day');
+    if (!b) return;
     sel.y = view.y; sel.mo = view.mo; sel.d = +b.dataset.d;
+    hold(b);
     _commit(el);
     if (isDate) _close(); else _render(el);
-  }));
+  });
   panel.querySelectorAll('.dp-step').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
+    hold(b);
     const s = b.dataset.step;
     if (s.startsWith('h')) sel.h = (sel.h + (s === 'h1' ? 1 : 23)) % 24;
     // minutes move in fives (onto the next five); one at a time took 30 clicks to reach :30
     else sel.mi = s === 'mi1' ? (Math.floor(sel.mi / 5) * 5 + 5) % 60 : (Math.ceil(sel.mi / 5) * 5 + 55) % 60;
     _commit(el); _render(el);
   }));
-  // hour, minute and year can be typed; they apply on enter or when the field is left
-  const typed = (input, apply) => {
-    const run = () => { const n = parseInt(input.value, 10); if (Number.isFinite(n)) apply(n); _render(el); };
+  // hour and minute can be typed. leaving the field applies them in place: change fires on the
+  // mousedown/tab that leaves it, and a rebuild there ate that click or dropped focus to <body>
+  panel.querySelectorAll('.dp-tv').forEach(input => {
+    const part = input.dataset.part;
+    const apply = () => {
+      if (_open?.panel !== panel) return;
+      const n = parseInt(input.value, 10);
+      if (Number.isFinite(n) && n >= 0 && n <= (part === 'h' ? 23 : 59) && n !== sel[part]) { sel[part] = n; _commit(el); }
+      input.value = _z(sel[part]);
+    };
     input.addEventListener('click', e => e.stopPropagation());
-    input.addEventListener('change', run);
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
-  };
-  panel.querySelectorAll('.dp-tv').forEach(input => typed(input, n => {
-    if (input.dataset.part === 'h' && n >= 0 && n <= 23) sel.h = n;
-    if (input.dataset.part === 'mi' && n >= 0 && n <= 59) sel.mi = n;
-    _commit(el);
-  }));
+    input.addEventListener('change', apply);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); _render(el); } });
+  });
+  // the year moves the grid as it's typed, so nothing needs rebuilding when the field is left
   const yearInput = panel.querySelector('.dp-year');
-  if (yearInput) typed(yearInput, n => { if (n >= 1000 && n <= 9999) view.y = n; });
+  yearInput.addEventListener('click', e => e.stopPropagation());
+  yearInput.addEventListener('input', () => {
+    const n = Number(yearInput.value);
+    if (!/^\d{4}$/.test(yearInput.value) || n < 1000 || n === view.y) return;
+    view.y = n;
+    grid.innerHTML = _grid(view, sel);
+  });
+  yearInput.addEventListener('change', () => { if (_open?.panel === panel) yearInput.value = view.y; });
+  yearInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); _render(el); } });
   // arrows walk the days, a week up or down, into the next or previous month
   panel.querySelector('.dp-grid')?.addEventListener('keydown', e => {
     const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
@@ -234,6 +251,7 @@ function _render(el) {
   panel.querySelector('.dp-clear').addEventListener('click', e => { e.stopPropagation(); el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })); _close(); });
   panel.querySelector('.dp-now').addEventListener('click', e => {
     e.stopPropagation();
+    hold(e.currentTarget);
     Object.assign(sel, _currentParts());
     view.y = sel.y; view.mo = sel.mo;
     _commit(el);
@@ -242,6 +260,21 @@ function _render(el) {
 
   _position(el, panel);
   if (focusKey) panel.querySelector(focusKey)?.focus({ preventScroll: true });
+}
+
+function _grid(view, sel) {
+  const weekStart = resolveDatePickerWeekStart();
+  const first = (new Date(view.y, view.mo, 1).getDay() - weekStart + 7) % 7;
+  const days = new Date(view.y, view.mo + 1, 0).getDate();
+  const weekdays = datePickerWeekdayLabels();
+  const orderedWeekdays = [...weekdays.slice(weekStart), ...weekdays.slice(0, weekStart)];
+  let grid = orderedWeekdays.map(d => `<span class="dp-dow">${d}</span>`).join('');
+  for (let i = 0; i < first; i++) grid += '<span></span>';
+  for (let d = 1; d <= days; d++) {
+    const on = sel.y === view.y && sel.mo === view.mo && sel.d === d;
+    grid += `<button type="button" class="dp-day${on ? ' sel' : ''}" data-d="${d}">${d}</button>`;
+  }
+  return grid;
 }
 
 function _commit(el) {

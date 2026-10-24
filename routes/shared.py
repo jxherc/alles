@@ -635,15 +635,33 @@ def book(token: str, body: BookBody, db: DbSession = Depends(get_db)):
     try:
         d = _date.fromisoformat(body.date)
     except ValueError:
-        raise HTTPException(400, "bad date")
-    today = _date.today()
-    if d < today or d > today + timedelta(days=max(0, page.days_ahead or 0)):
+        raise HTTPException(400, "use a date like 2026-11-10")
+    # a plain hh:mm on the owner's clock. "10:30z" or "11:00+09:00" was stored with its offset,
+    # outside the page's hours
+    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", body.time):
+        raise HTTPException(400, "use a time like 09:30")
+    # the booking window is in the owner's days, not the server's
+    now = calendar_events.owner_now()
+    if d < now.date() or d > now.date() + timedelta(days=max(0, page.days_ahead or 0)):
         raise HTTPException(409, "that date is outside the booking window")
-    start = f"{body.date}T{body.time}:00" if len(body.time) == 5 else f"{body.date}T{body.time}"
-    want = f"{body.date}T{body.time}"[:16]
+    start = f"{body.date}T{body.time}:00"
+    want = f"{body.date}T{body.time}"
     slots = calendar_events.compute_booking_slots(db, page, body.date)
-    if not any(s["start"][:16] == want for s in slots):
-        raise HTTPException(409, "that time isn't available")
+    if not any(s["start"] == want for s in slots):
+        # say what actually happened: gone, never offered, or someone else's now
+        begins, ends = calendar_events.work_hours(page.work_start, page.work_end)
+        at = datetime.fromisoformat(want)
+        midnight = datetime.fromisoformat(f"{body.date}T00:00")
+        opens, closes = midnight + timedelta(hours=begins), midnight + timedelta(hours=ends)
+        offered = opens <= at and at + timedelta(minutes=page.duration_min) <= closes
+        zone = calendar_events.owner_zone()
+        if at <= now:
+            raise HTTPException(409, "that time has passed")
+        if zone and not calendar_events.wall_exists(at, zone):
+            raise HTTPException(409, "the clocks skip that time that night")
+        if not offered:
+            raise HTTPException(409, "that isn't one of the times this page offers")
+        raise HTTPException(409, "that time was just taken")
     end = (datetime.fromisoformat(start) + timedelta(minutes=page.duration_min)).isoformat()
     # defensive overlap re-check right before insert (the slot list was computed above; a parallel
     # booking could have taken it). cheap backstop against double-booking.
@@ -672,10 +690,16 @@ def book_page(token: str, db: DbSession = Depends(get_db)):
     page = db.query(BookingPage).filter(BookingPage.token == token).first()
     if not page:
         return _not_found()
-    return HTMLResponse(_book_html(token, page.title, page.days_ahead))
+    from datetime import timedelta
+
+    # the page opens on the owner's today; the visitor's own clock can be a day either side
+    today = calendar_events.owner_now().date()
+    last = today + timedelta(days=max(0, page.days_ahead or 0))
+    zone = calendar_events.booking_zone_name()
+    return HTMLResponse(_book_html(token, page.title, today.isoformat(), last.isoformat(), zone))
 
 
-def _book_html(token, title, days_ahead):
+def _book_html(token, title, today, last, zone):
     return f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{_esc(title)}</title>
@@ -688,7 +712,9 @@ def _book_html(token, title, days_ahead):
   input{{width:100%;min-height:44px;background:#161616;color:#e8e6e3;border:1px solid #2a2a2a;border-radius:3px;padding:.45rem;font-size:.85rem}}
   #slots{{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem}}
   .slots-empty{{color:#85817c;font-size:.82rem}}
-  .slot{{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:#161616;border:1px solid #2a2a2a;border-radius:3px;padding:.35rem .6rem;color:#e8e6e3;cursor:pointer;font:inherit;font-size:.82rem}}
+  .tz{{color:#85817c;font-size:.75rem;margin-top:.4rem}}
+  .slot small{{display:block;color:#85817c;font-size:.7rem;font-weight:400}}
+  .slot{{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:#161616;border:1px solid #2a2a2a;border-radius:3px;padding:.35rem .6rem;color:#e8e6e3;cursor:pointer;font:inherit;font-size:.82rem}}
   .slot.sel{{border-color:#818cf8;background:#222;font-weight:600}} .slot:hover{{background:#222}}
   input:focus-visible,button:focus-visible{{outline:2px solid #e8e6e3;outline-offset:2px}}
   button.go{{min-height:44px;margin-top:1rem;background:#818cf8;color:#0a0a0a;border:none;border-radius:3px;padding:.5rem 1rem;cursor:pointer;font-size:.82rem}}
@@ -697,6 +723,7 @@ def _book_html(token, title, days_ahead):
 <div class="wrap">
   <h1>{_esc(title)}</h1>
   <label for="date">date</label><input type="date" id="date">
+  <p class="tz" id="tz">times in {_esc(zone)}</p>
   <div id="slots" role="group" aria-label="available times"></div>
   <label for="name">your name</label><input id="name">
   <label for="email">your email</label><input id="email" type="email">
@@ -707,8 +734,8 @@ def _book_html(token, title, days_ahead):
 const token = '{token}';
 let picked = null;
 const dEl = document.getElementById('date');
-const today = new Date(); dEl.value = today.toISOString().slice(0,10);
-dEl.min = dEl.value;
+dEl.value = dEl.min = '{today}';
+dEl.max = '{last}';
 dEl.addEventListener('change', loadSlots);
 async function loadSlots(){{
   picked = null;
@@ -718,6 +745,16 @@ async function loadSlots(){{
   for (const s of r.slots){{
     const b = document.createElement('button'); b.type = 'button'; b.className='slot'; b.textContent = s.start.slice(11,16);
     b.setAttribute('aria-pressed', 'false');
+    // a visitor in another zone also sees the time on their own clock
+    if (s.at) {{
+      const at = new Date(s.at), hm = at.toLocaleTimeString([], {{hour: '2-digit', minute: '2-digit', hour12: false}});
+      const otherDay = at.toLocaleDateString('sv') !== s.start.slice(0,10);
+      if (hm !== s.start.slice(11,16) || otherDay) {{
+        const mine = document.createElement('small');
+        mine.textContent = (otherDay ? at.toLocaleDateString([], {{weekday: 'short'}}) + ' ' : '') + hm + ' your time';
+        b.appendChild(mine);
+      }}
+    }}
     b.onclick = () => {{ box.querySelectorAll('.slot').forEach(x => {{ x.classList.remove('sel'); x.setAttribute('aria-pressed', 'false'); }}); b.classList.add('sel'); b.setAttribute('aria-pressed', 'true'); picked = s.start.slice(11,16); }};
     box.appendChild(b);
   }}
@@ -727,7 +764,7 @@ async function submit(){{
   const r = await fetch(`/book/${{token}}`, {{method:'POST',headers:{{'content-type':'application/json'}},body:JSON.stringify({{date:dEl.value,time:picked,name:document.getElementById('name').value,email:document.getElementById('email').value}})}});
   const m = document.getElementById('msg');
   if(r.ok){{ m.style.color='#4ade80'; m.textContent='booked! see you then.'; loadSlots(); }}
-  else {{ m.style.color='#f87171'; m.textContent='that time just got taken — pick another'; loadSlots(); }}
+  else {{ const why = await r.json().catch(() => ({{}})); m.style.color='#f87171'; m.textContent=(typeof why.detail === 'string' ? why.detail : "that time couldn't be booked") + ' — pick another'; loadSlots(); }}
 }}
 loadSlots();
 </script></body></html>"""

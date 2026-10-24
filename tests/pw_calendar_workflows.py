@@ -121,6 +121,10 @@ def run():
                 expect(page.locator("#cal-new-btn")).to_be_visible()
                 if page.locator("#cal-load-error").is_visible():
                     return
+                # a "+N more" opens the day view, and the view sticks across reloads
+                month_view = page.locator('#cal-view .seg-opt[data-view="month"]')
+                if month_view.get_attribute("aria-pressed") != "true":
+                    month_view.click()
                 months = "January February March April May June July August September October November December".split()
                 for _ in range(120):
                     month, year = page.locator("#cal-month-label").inner_text().split()
@@ -142,7 +146,8 @@ def run():
                 page.locator(selector).click()
                 months = "January February March April May June July August September October November December".split()
                 for _ in range(120):
-                    month, year = page.locator(".date-panel .dp-head span").inner_text().split()
+                    month = page.locator(".date-panel .dp-head span").inner_text().strip()
+                    year = page.locator(".date-panel .dp-year").input_value()
                     current = int(year) * 12 + months.index(month)
                     target = target_year * 12 + target_month - 1
                     if current == target:
@@ -158,7 +163,7 @@ def run():
                     for step, target, index in [("h1", hour, 0), ("mi1", minute, 1)]:
                         for _ in range(60):
                             if (
-                                int(page.locator(".date-panel .dp-tv").nth(index).inner_text())
+                                int(page.locator(".date-panel .dp-tv").nth(index).input_value())
                                 == target
                             ):
                                 break
@@ -171,11 +176,31 @@ def run():
                 page.locator("#cal-save").click()
                 expect(page.locator("#cal-title")).to_have_count(0)
 
+            def event_day(eid):
+                when = datetime.fromisoformat(saved(eid)["start_dt"].replace("Z", "+00:00"))
+                if when.tzinfo:
+                    when = when.astimezone(ZoneInfo("America/Toronto"))
+                return when.date().isoformat()
+
             def open_event(eid, occurrence=None):
-                selector = f'.cal-chip[data-id="{eid}"]'
-                if occurrence:
-                    selector += f'[data-occ="{occurrence}"]'
-                page.locator(selector).first.click()
+                occ = f'[data-occ="{occurrence}"]' if occurrence else ""
+                chip = page.locator(f'.cal-chip[data-id="{eid}"]{occ}')
+                day = occurrence or event_day(eid)
+                expect(
+                    page.locator(
+                        f'.cal-chip[data-id="{eid}"]{occ}, .cal-more[data-day="{day}"]'
+                    ).first
+                ).to_be_visible()
+                # the month trims lines a frame after it draws; read it once that's done
+                page.evaluate(
+                    "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+                )
+                if not chip.count():
+                    # a month cell only fits so many lines (one on a phone); the rest sit
+                    # behind "+N more", which opens that day
+                    page.locator(f'.cal-more[data-day="{day}"]').click()
+                    chip = page.locator(f':is(.cal-tev, .cal-allday-ev)[data-id="{eid}"]{occ}')
+                chip.first.click()
                 expect(page.locator("#cal-title")).to_be_visible()
 
             def scope(value):
@@ -316,7 +341,7 @@ def run():
                     new(label + " malformed")
                     handler = simulate("POST", status=200, payload=payload)
                     page.locator("#cal-save").click()
-                    expect(page.locator("#cal-save-error")).to_contain_text("did not confirm")
+                    expect(page.locator("#cal-save-error")).to_contain_text("didn't confirm")
                     expect(page.locator("#cal-title")).to_have_value(label + " malformed")
                     stop_simulation(handler)
                     page.locator("#cal-back").click()
@@ -330,7 +355,7 @@ def run():
                 new(label + " network retry")
                 handler = simulate("POST", abort=True)
                 page.locator("#cal-save").click()
-                expect(page.locator("#cal-save-error")).to_contain_text("Check your connection")
+                expect(page.locator("#cal-save-error")).to_contain_text("check your connection")
                 stop_simulation(handler)
                 pending = []
 
@@ -403,7 +428,8 @@ def run():
                 stop_simulation(handler)
                 page.locator("#cal-load-error").get_by_role("button", name="retry").click()
                 expect(page.locator("#cal-load-error")).to_have_count(0)
-                expect(page.locator(".cal-chip").first).to_be_visible()
+                # a phone cell with more than one line shows only its "+N more"
+                expect(page.locator(".cal-chip, .cal-more").first).to_be_visible()
                 calendar(reload=True)
                 passed()
 
@@ -463,11 +489,11 @@ def run():
                     assert rect["y"] + rect["height"] <= page.viewport_size["height"] + 1
                 shot("picker")
                 page.locator('.date-panel .dp-day[data-d="26"]').click()
-                page.keyboard.press("Escape")
+                # a date-only picker closes on the pick; escape now would leave the editor
+                expect(panel).to_have_count(0)
                 expect(page.locator("#cal-end")).to_be_focused()
-                assert (
-                    page.locator("#cal-end").get_attribute("data-value").startswith("2026-09-26T")
-                )
+                # all day is on, so the end field picks a day, not a time
+                assert page.locator("#cal-end").get_attribute("data-value") == "2026-09-26"
                 page.locator("#cal-save").scroll_into_view_if_needed()
                 shot("editor-actions")
                 save()
@@ -477,8 +503,9 @@ def run():
                 assert choices["recur_byday"] == "MO,FR"
                 assert choices["reminders"] == [10, 60]
                 assert choices["color"] == "tomato"
-                assert choices["start_dt"] == "2026-09-25T09:00"
-                assert choices["end_dt"] == "2026-09-26T09:00"
+                # an all-day event keeps days only
+                assert choices["start_dt"] == "2026-09-25"
+                assert choices["end_dt"] == "2026-09-26"
                 open_event(choices["id"])
                 expect(page.locator("#cal-allday")).to_have_attribute("aria-checked", "true")
                 expect(page.locator('.cal-dow-b[data-i="1"]')).to_have_attribute(
@@ -498,6 +525,37 @@ def run():
                 expect(page.locator("#cal-title")).to_have_count(0)
                 calendar(reload=True)
                 assert not any(row["id"] == choices["id"] for row in rows())
+
+                # typed hour, minute and year apply in place, so the tap or tab that leaves
+                # them still lands
+                new(label + " typed")
+                page.locator("#cal-start").click()
+                panel = page.locator(".date-panel")
+                for field in panel.locator(".dp-tv, .dp-year").all():
+                    rect = field.bounding_box()
+                    assert rect["width"] >= 44 and rect["height"] >= 44, rect
+                panel.locator('.dp-tv[data-part="mi"]').fill("35")
+                panel.locator('.dp-day[data-d="12"]').click()
+                typed = page.locator("#cal-start").get_attribute("data-value")
+                assert typed[8:10] == "12" and typed.endswith(":35"), typed
+                panel.locator('.dp-tv[data-part="h"]').fill("14")
+                page.keyboard.press("Tab")
+                assert panel.evaluate("e => e.contains(document.activeElement)")
+                assert page.locator("#cal-start").get_attribute("data-value")[11:16] == "14:35"
+                months = "January February March April May June July August September October November December".split()
+                shown = months.index(panel.locator(".dp-head span").inner_text().strip())
+                panel.locator(".dp-year").fill("2030")
+                panel.locator('[data-nav="1"]').click()
+                assert (
+                    panel.locator(".dp-head span").inner_text().strip() == months[(shown + 1) % 12]
+                )
+                assert panel.locator(".dp-year").input_value() == str(2030 + (shown == 11))
+                page.keyboard.press("Escape")
+                page.locator("#cal-back").click()
+                page.get_by_role("alertdialog").get_by_role(
+                    "button", name="confirm", exact=True
+                ).click()
+                expect(page.locator("#cal-title")).to_have_count(0)
                 passed()
 
                 begin("recurrence-origin-scope-cancel-and-failures")
@@ -599,7 +657,7 @@ def run():
                     page.route("**/api/calendar/**", lose_ack)
                     page.locator("#cal-save").click()
                     scope(scope_label)
-                    expect(page.locator("#cal-save-error")).to_contain_text("Check your connection")
+                    expect(page.locator("#cal-save-error")).to_contain_text("check your connection")
                     assert len(committed) == 1
                     child = committed[0]["body"]
                     after_commit = rows()
@@ -631,14 +689,17 @@ def run():
                 )
 
                 begin("aware-and-all-day-exact-reload")
+                # a zoned write is stored as wall time in the caller's zone
                 aware = context.request.post(
-                    base + "/api/calendar",
+                    base + "/api/calendar?time_zone=America%2FToronto",
                     data={
                         "title": label + " aware",
                         "start_dt": "2026-09-26T02:30:00Z",
                         "end_dt": "2026-09-26T03:30:15Z",
                     },
                 ).json()
+                assert aware["start_dt"] == "2026-09-25T22:30:00", aware
+                assert aware["end_dt"] == "2026-09-25T23:30:15", aware
                 calendar(reload=True)
                 open_event(aware["id"])
                 expect(page.locator("#cal-start")).to_have_attribute(
@@ -658,7 +719,7 @@ def run():
                 calendar(reload=True)
                 expect(page.locator(f'.cal-chip[data-id="{all_day["id"]}"]')).to_have_count(3)
                 open_event(all_day["id"])
-                expect(page.locator("#cal-end")).to_have_attribute("data-value", "2026-09-29T09:00")
+                expect(page.locator("#cal-end")).to_have_attribute("data-value", "2026-09-29")
                 page.locator("#cal-desc").fill("Preserve all three dates")
                 save()
                 calendar(reload=True)
@@ -677,14 +738,16 @@ def run():
                     expected_end,
                     weekday,
                 ) in [
+                    # stored as toronto wall time, so a weekly event keeps its clock time
+                    # across the change instead of its utc instant
                     (
                         "spring",
                         "2026-03-01T06:30:00Z",
                         "2026-03-01T07:30:00Z",
                         "2026-03-08",
-                        "2026-03-08T03:30",
-                        "2026-03-08T06:30:00.000Z",
-                        "2026-03-08T07:30:00.000Z",
+                        "2026-03-08T02:30",
+                        "2026-03-08T01:30:00",
+                        "2026-03-08T02:30:00",
                         "SU",
                     ),
                     (
@@ -692,14 +755,16 @@ def run():
                         "2026-11-01T03:30:05.123Z",
                         "2026-11-01T07:30:05.123Z",
                         "2026-11-07",
-                        "2026-11-08T03:30",
-                        "2026-11-08T04:30:05.123Z",
-                        "2026-11-08T08:30:05.123Z",
-                        "SA",
+                        "2026-11-08T02:30",
+                        "2026-11-07T23:30:05.123000",
+                        "2026-11-08T02:30:05.123000",
+                        # the weekday of the offset's own frame: sunday in utc, saturday in
+                        # toronto, where it's stored
+                        "SU",
                     ),
                 ]:
                     response = context.request.post(
-                        base + "/api/calendar",
+                        base + "/api/calendar?time_zone=America%2FToronto",
                         data={
                             "title": label + " " + case + " boundary",
                             "start_dt": start,
@@ -726,7 +791,7 @@ def run():
                     child = next(row for row in rows() if row["description"] == description)
                     assert child["start_dt"] == expected_start, child
                     assert child["end_dt"] == expected_end, child
-                    assert saved(original["id"])["start_dt"] == start
+                    assert saved(original["id"])["start_dt"] == original["start_dt"]
                     assert saved(original["id"])["recur_except"] == [occurrence]
                     remember(case + " boundary saved occurrence", child)
                 passed()

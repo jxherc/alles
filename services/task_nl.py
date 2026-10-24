@@ -17,6 +17,10 @@ _WD = {w: i for i, w in enumerate(WEEKDAYS)}
 _WD.update({w[:3]: i for w, i in list(_WD.items())})  # mon, tue, ...
 
 
+class NotADate(ValueError):
+    """the text names a date or time that doesn't exist, like 'feb 30' or '25:00'."""
+
+
 def _next_weekday(today: date, wd: int, allow_today=False) -> date:
     delta = (wd - today.weekday()) % 7
     if delta == 0 and not allow_today:
@@ -42,12 +46,17 @@ def reschedule_date(when: str, today: date | None = None) -> str:
     raise ValueError("unknown reschedule target")
 
 
-def parse_task(text: str, today: date | None = None, language: str = "en") -> dict:
+def parse_task(
+    text: str, today: date | None = None, language: str = "en", strict: bool = False
+) -> dict:
+    """strict refuses a date that can't exist ("feb 30") instead of moving it to a real one."""
     from services.localized_input import normalize_quick_add
 
     today = today or date.today()
     out = {"title": "", "due_date": None, "repeat": "", "priority": 0, "tags": ""}
     t = f" {normalize_quick_add(text, language)} "
+    if strict:
+        check_dates(t, today)
 
     # priority — a standalone ! (high-ish) or !! (high), on the app's 0=none..3=high scale
     m = re.search(r"\s(!{1,2})(?=\s)", t)
@@ -99,7 +108,8 @@ def parse_task(text: str, today: date | None = None, language: str = "en") -> di
     if not out["due_date"]:
         out["due_date"], t = _extract_date(t, today)
 
-    out["title"] = re.sub(r"\s+", " ", t).strip(" -,") or text.strip()
+    # "On Monday: standup" leaves a stray colon once the day is taken out
+    out["title"] = re.sub(r"\s+", " ", t).strip(" -,:;") or text.strip()
     return out
 
 
@@ -152,6 +162,64 @@ def _month_name_date(t: str, today: date):
     return None
 
 
+def check_dates(t: str, today: date) -> None:
+    """raise NotADate for an explicit date that can't exist. the parser would quietly clamp
+    "feb 30" to the 28th or skip "2026-13-45", and the item would land on the wrong day."""
+    import calendar as _c
+
+    for m in re.finditer(r"\b(\d{4})-(\d{2})-(\d{2})\b", t):
+        try:
+            date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            raise NotADate(f"{m.group(0)} isn't a date") from None
+    # only days 29-31 past the month's end: "may 45 people" isn't trying to be a date
+    for pat, order in (
+        (rf"\b({_MONTH_RE})\b\.?\s+(\d{{1,2}})(?:st|nd|rd|th)?(?!\d)(?:,?\s+(\d{{4}}))?\b", "md"),
+        (rf"\b(\d{{1,2}})(?:st|nd|rd|th)?(?!\d)\s+({_MONTH_RE})\b(?:,?\s+(\d{{4}}))?", "dm"),
+    ):
+        for m in re.finditer(pat, t, re.I):
+            name, day = (m.group(1), m.group(2)) if order == "md" else (m.group(2), m.group(1))
+            mon, day, yr = _MONTHS[name.lower()[:3]], int(day), m.group(3)
+            if not 29 <= day <= 31:
+                continue
+            year = int(yr) if yr else today.year
+            if not yr and (mon, day) < (today.month, today.day):
+                year += 1
+            if day > _c.monthrange(year, mon)[1]:
+                when = re.sub(r"\s+", " ", m.group(0).strip()).lower()
+                leap = mon == 2 and day == 29 and not yr
+                raise NotADate(f"{when} isn't a date in {year}" if leap else f"{when} isn't a date")
+
+
+_FULL_WD = r"monday|tuesday|wednesday|thursday|friday|saturday|sunday"
+_ABBR_WD = r"mon|tue|wed|thu|fri|sat|sun"
+
+
+def _bare_weekday(t: str):
+    """the first weekday that's being used as a day, with a leading on/this/by. a full name
+    counts anywhere, and so do tue/thu/fri, which mean nothing else. "sun", "sat", "mon" and
+    "wed" count as the first word ("sat brunch 11am") or where a day goes (after on/this/by/
+    until/due, or with nothing, a time or punctuation after it), so "buy sun screen" stays about
+    sunscreen. the weekday in "last friday" isn't one."""
+    for m in re.finditer(
+        rf"\b(?:(on|this|by|until|till|due)\s+)?({_FULL_WD}|{_ABBR_WD})\b\.?", t, re.I
+    ):
+        before, after = t[: m.start()], t[m.end() :]
+        if re.search(r"\blast\s+$", before, re.I):
+            continue
+        short = len(m.group(2)) == 3 and m.group(2).lower() not in ("tue", "thu", "fri")
+        if short and not m.group(1) and before.strip():
+            placed = re.search(r"\b(?:until|till|due|from|every)\s+$", before, re.I) or re.match(
+                r"\s*(?:$|[,;!?]|\d|@|(?:at|noon|midnight|morning|afternoon|evening|night|tonight)\b)",
+                after,
+                re.I,
+            )
+            if not placed:
+                continue
+        return m
+    return None
+
+
 def _extract_date(t: str, today: date):
     def strip(span):
         # A possessive date is part of the title even when it also suggests a due date.
@@ -175,20 +243,6 @@ def _extract_date(t: str, today: date):
     m = re.search(r"\b(tomorrow|tmr)\b", t, re.I)
     if m:
         return (today + timedelta(days=1)).isoformat(), strip(m.span())
-    m = re.search(r"\byesterday\b", t, re.I)
-    if m:
-        return (today - timedelta(days=1)).isoformat(), strip(m.span())
-    # "last friday" is the one that just went by; read as a bare weekday it landed next week
-    m = re.search(
-        r"\blast\s+(mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|"
-        r"fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b",
-        t,
-        re.I,
-    )
-    if m:
-        back = (today.weekday() - _WD[m.group(1).lower()[:3]]) % 7 or 7
-        return (today - timedelta(days=back)).isoformat(), strip(m.span())
-
     m = re.search(r"\bin\s+(\d{1,3})\s+(day|days|week|weeks)\b", t, re.I)
     if m:
         n = int(m.group(1)) * (7 if m.group(2).startswith("week") else 1)
@@ -198,6 +252,30 @@ def _extract_date(t: str, today: date):
     md = _month_name_date(t, today)
     if md:
         return md[0], strip(md[1])
+
+    # "next week monday" / "monday next week": that day in the week after this one (weeks
+    # start monday). a plain "next monday" is still the next monday to come
+    monday = today - timedelta(days=today.weekday()) + timedelta(days=7)
+    # a short day right next to "next week" is the day too ("next week fri review")
+    m = re.search(
+        rf"\bnext\s+week\s+(?:on\s+)?({_FULL_WD}|{_ABBR_WD})\b\.?"
+        rf"|\b(?:on\s+)?({_FULL_WD}|{_ABBR_WD})\.?\s+next\s+week\b",
+        t,
+        re.I,
+    )
+    if m:
+        due = monday + timedelta(days=_WD[(m.group(1) or m.group(2)).lower()[:3]])
+        return due.isoformat(), strip(m.span())
+    nw = re.search(r"\bnext\s+week\b", t, re.I)
+    if nw:
+        blanked = t[: nw.start()] + " " * (nw.end() - nw.start()) + t[nw.end() :]
+        wm = _bare_weekday(blanked)
+        if wm:
+            due = monday + timedelta(days=_WD[wm.group(2).lower()[:3]])
+            rest = t
+            for a, b in sorted([nw.span(), wm.span()], reverse=True):
+                rest = rest[:a] + " " + rest[b:]
+            return due.isoformat(), rest
 
     m = re.search(
         r"\bnext\s+(week|month|"
@@ -213,15 +291,27 @@ def _extract_date(t: str, today: date):
             return _add_month(today).isoformat(), strip(m.span())
         return _next_weekday(today, _WD[w[:3]]).isoformat(), strip(m.span())
 
-    # bare weekday → next occurrence
+    # bare weekday → next occurrence. it runs before the past days, so "send yesterday
+    # photos friday" is still due friday; "on monday" takes its "on" with it
+    m = _bare_weekday(t)
+    if m:
+        return _next_weekday(today, _WD[m.group(2).lower()[:3]]).isoformat(), strip(m.span())
+
+    # past days come after every forward date. "yesterday's" / "last thursday's" name a
+    # thing, not when it's due
+    m = re.search(r"\byesterday\b(?!['’]s\b)", t, re.I)
+    if m:
+        return (today - timedelta(days=1)).isoformat(), strip(m.span())
+    # "last friday" is the one that just went by; read as a bare weekday it landed next week
     m = re.search(
-        r"\b(mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|"
-        r"fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b",
+        r"\blast\s+(mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|"
+        r"fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b(?!['’]s\b)",
         t,
         re.I,
     )
     if m:
-        return _next_weekday(today, _WD[m.group(1).lower()[:3]]).isoformat(), strip(m.span())
+        back = (today.weekday() - _WD[m.group(1).lower()[:3]]) % 7 or 7
+        return (today - timedelta(days=back)).isoformat(), strip(m.span())
 
     return None, t
 

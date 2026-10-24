@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session as DbSession
 
@@ -18,7 +18,7 @@ from core.database import (
     Transaction,
     get_db,
 )
-from services import actual_finance
+from services import actual_finance, calendar_events
 
 router = APIRouter(prefix="/api")
 
@@ -173,7 +173,11 @@ def fts_search(
 
 
 @router.get("/search")
-def search(q: str = Query(""), db: DbSession = Depends(get_db)):
+def search(
+    q: str = Query(""),
+    x_alles_time_zone: str = Header(default=""),
+    db: DbSession = Depends(get_db),
+):
     empty = {
         "chats": [],
         "notes": [],
@@ -244,7 +248,15 @@ def search(q: str = Query(""), db: DbSession = Depends(get_db)):
         .limit(_LIMIT)
         .all()
     )
-    res["calendar"] = [{"id": e.id, "title": e.title, "when": (e.start_dt or "")[:10]} for e in evs]
+    zone = calendar_events.owner_zone(x_alles_time_zone.strip())
+    res["calendar"] = [
+        {
+            "id": e.id,
+            "title": e.title,
+            "when": calendar_events.wall_time(e.start_dt or "", zone)[:10],
+        }
+        for e in evs
+    ]
 
     # contacts
     cts = (

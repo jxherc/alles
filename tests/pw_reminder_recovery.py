@@ -10,6 +10,14 @@ from zoneinfo import ZoneInfo
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
+# the reminders module app.js really loaded, so a static version bump can't split the instance.
+# app.js comes from its preload link: page.clock fakes away performance's resource entries
+REMINDERS = r"""(async () => {
+  const app = document.querySelector('link[rel="modulepreload"][href^="/static/js/app.js"]').href;
+  const spec = (await (await fetch(app)).text()).match(/["'](\.\/reminders\.js[^"']*)["']/)[1];
+  return import(new URL(spec, app).href);
+})()"""
+
 
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
@@ -247,9 +255,7 @@ def run():
                         key(page.locator("#reminder-add-btn"))
                         expect(page.locator("#reminder-status")).to_contain_text("retry")
                         page.unroute(base + "/api/reminders")
-                        page.evaluate(
-                            'import("/static/js/reminders.js?v=243").then(m=>m.loadReminders())'
-                        )
+                        page.evaluate(REMINDERS + ".then(m=>m.loadReminders())")
                         expect(page.locator("[data-reminder-cancel]")).to_be_visible()
                         holding = {"active": True}
                         page.route(
@@ -332,9 +338,7 @@ def run():
                         with SessionLocal() as db:
                             db.get(Reminder, rid).notified = True
                             db.commit()
-                        page.evaluate(
-                            'import("/static/js/reminders.js?v=243").then(m=>m.loadReminders())'
-                        )
+                        page.evaluate(REMINDERS + ".then(m=>m.loadReminders())")
                         expect(page.locator("#reminder-list")).to_contain_text("delivery started")
                         key(page.locator("[data-reminder-cancel]"))
                         expect(page.locator(".toast.error")).to_contain_text("already started")
@@ -474,7 +478,9 @@ def run():
                             ),
                         )
                         page.evaluate(
-                            'void(window._oldReminderLoad=import("/static/js/reminders.js?v=243").then(m=>m.loadReminders()))'
+                            "void(window._oldReminderLoad="
+                            + REMINDERS
+                            + ".then(m=>m.loadReminders()))"
                         )
                         wait_held()
                         fill_panel()
@@ -488,7 +494,9 @@ def run():
                     elif case == "load-cancel-error":
                         page.route(base + "/api/reminders", hold)
                         page.evaluate(
-                            'void(window._oldReminderLoad=import("/static/js/reminders.js?v=243").then(m=>m.loadReminders()))'
+                            "void(window._oldReminderLoad="
+                            + REMINDERS
+                            + ".then(m=>m.loadReminders()))"
                         )
                         wait_held()
                         expect(page.locator("#reminder-list")).to_contain_text("loading reminders")
@@ -515,9 +523,7 @@ def run():
                         key(page.locator("[data-reminder-cancel]"))
                         wait_held()
                         page.route(base + "/api/reminders", fail)
-                        page.evaluate(
-                            'import("/static/js/reminders.js?v=243").then(m=>m.loadReminders()).catch(()=>{})'
-                        )
+                        page.evaluate(REMINDERS + ".then(m=>m.loadReminders()).catch(()=>{})")
                         retry = page.locator("[data-reminder-retry]")
                         expect(retry).to_be_visible()
                         retry.focus()
@@ -537,7 +543,9 @@ def run():
                         expect(button).to_be_disabled()
                         page.route(base + "/api/reminders", hold)
                         page.evaluate(
-                            'void(window._oldReminderLoad=import("/static/js/reminders.js?v=243").then(m=>m.loadReminders()))'
+                            "void(window._oldReminderLoad="
+                            + REMINDERS
+                            + ".then(m=>m.loadReminders()))"
                         )
                         expect(page.locator("#reminder-list")).to_contain_text("loading reminders")
                         expect(button).to_be_disabled()

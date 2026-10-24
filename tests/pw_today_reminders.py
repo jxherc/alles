@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -27,6 +28,9 @@ CASES = (
         "trigger": "2032-09-26T00:30:00",
         "clock": "20:30",
         "future": "2032-09-26T04:00:00",
+        "earlier": "2032-09-24T23:00:00",
+        "earlier_lines": r"Sep 24\n7:00\sPM",
+        "earlier_title": r"Sep 24, 2032, 7:00\sPM",
     },
     {
         "name": "tokyo-before-utc-midnight",
@@ -38,6 +42,9 @@ CASES = (
         "trigger": "2032-09-25T15:30:00",
         "clock": "00:30",
         "future": "2032-09-26T15:00:00",
+        "earlier": "2032-09-25T01:00:00",
+        "earlier_lines": r"Sep 25\n10:00\sAM",
+        "earlier_title": r"Sep 25, 2032, 10:00\sAM",
     },
     {
         "name": "configured-zone-overrides-browser",
@@ -49,6 +56,9 @@ CASES = (
         "trigger": "2032-09-25T15:30:00",
         "clock": "00:30",
         "future": "2032-09-26T15:00:00",
+        "earlier": "2032-09-25T01:00:00",
+        "earlier_lines": r"Sep 25\n10:00\sAM",
+        "earlier_title": r"Sep 25, 2032, 10:00\sAM",
     },
 )
 
@@ -130,12 +140,17 @@ def run():
                 ids = []
                 visible = f"call 家人 {label}"
                 future = f"tomorrow {label}"
+                earlier = f"left over {label}"
                 try:
                     settings = context.request.patch(
                         base + "/api/settings", data={"timezone": case["configured_zone"]}
                     )
                     assert settings.ok, settings.text()
-                    for text, trigger in ((visible, case["trigger"]), (future, case["future"])):
+                    for text, trigger in (
+                        (visible, case["trigger"]),
+                        (future, case["future"]),
+                        (earlier, case["earlier"]),
+                    ):
                         seeded = context.request.post(
                             base + "/api/reminders", data={"text": text, "trigger_at": trigger}
                         )
@@ -158,19 +173,36 @@ def run():
                         page.locator("#settings-modal-close").click()
                     row = page.locator(".today-schedule .today-row").filter(has_text=visible)
                     expect(row).to_be_visible()
-                    expect(row.locator("em")).to_have_text(case["clock"])
+                    # the server's wall clock, read in the app's own short time style
+                    clock = page.evaluate(
+                        "async c => (await import('/static/js/i18n.js')).formatClock(c)",
+                        case["clock"],
+                    )
+                    assert clock and clock != "", clock
+                    expect(row.locator("em")).to_have_text(clock)
                     expect(page.locator(".today-schedule")).not_to_contain_text(future)
+                    # one left over from an earlier local day says which day: day over time in
+                    # the narrow column, the reminders list's full text on hover
+                    leftover = page.locator(".today-schedule .today-row").filter(has_text=earlier)
+                    expect(leftover.locator("em")).to_have_text(
+                        re.compile(f"^{case['earlier_lines']}$"), use_inner_text=True
+                    )
+                    expect(leftover.locator("em")).to_have_attribute(
+                        "title", re.compile(f"^{case['earlier_title']}$")
+                    )
+                    meta, title = (leftover.locator(sel).bounding_box() for sel in ("em", "b"))
+                    assert meta["x"] + meta["width"] <= title["x"], (meta, title)
                     assert events["today_requests"], events
                     for url in events["today_requests"]:
                         params = parse_qs(urlsplit(url).query)
                         assert params.get("date") == [case["day"]], params
                         assert params.get("timezone") == [case["zone"]], params
                     page.reload(wait_until="networkidle")
-                    expect(row.locator("em")).to_have_text(case["clock"])
+                    expect(row.locator("em")).to_have_text(clock)
                     expect(page.locator(".today-schedule")).not_to_contain_text(future)
                     saved = context.request.get(base + "/api/reminders").json()
                     assert {r["id"]: r["trigger_at"] for r in saved if r["id"] in ids} == dict(
-                        zip(ids, (case["trigger"], case["future"]), strict=True)
+                        zip(ids, (case["trigger"], case["future"], case["earlier"]), strict=True)
                     )
                     row.click()
                     expect(page.locator("#plan-view")).to_be_visible()
@@ -185,7 +217,7 @@ def run():
                     page.keyboard.press("Enter")
                     expect(page.locator("#plan-view")).to_be_visible()
                     page.go_back(wait_until="networkidle")
-                    expect(row.locator("em")).to_have_text(case["clock"])
+                    expect(row.locator("em")).to_have_text(clock)
                     expect(page.locator(".today-schedule")).not_to_contain_text(future)
                     expect(row).to_be_visible()
                     box = page.wait_for_function(
