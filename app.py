@@ -17,6 +17,7 @@ from core.access_middleware import HostGuardMiddleware, PublicHttpsMiddleware
 from core.api_errors import ApiError, api_error_handler
 from core.database import ModelEndpoint, SessionLocal, init_db
 from core.observability_middleware import ObservabilityMiddleware
+from core.sse_flush import SseFlushMiddleware
 from core.server_config import (
     access_profile,
     bind_host,
@@ -383,6 +384,8 @@ async def _fire_due_reminders():
                 continue
             from datetime import datetime as dt
 
+            from sqlalchemy import func
+
             from core.database import Message
             from services.model_resolver import ModelResolutionError, resolve_session_model
 
@@ -392,6 +395,12 @@ async def _fire_due_reminders():
             except ModelResolutionError:
                 continue
             ep, model = selected.endpoint, selected.model
+            from routes import chat as chat_route
+
+            # a reply is running in this task (it may wait hours on a question): leave the
+            # reminder due for a later tick rather than holding its answer in memory meanwhile
+            if s.id in chat_route._streams:
+                continue
             # Scheduled model calls can cost money even if the process stops
             # before their response is saved. Claim first; a stale claim waits
             # for owner review instead of spending again automatically.
@@ -411,15 +420,34 @@ async def _fire_due_reminders():
                 # and the reminder itself still lands in the session below
                 log.warning(f"reminder LLM call failed for session {s.id}: {e}")
             full = "".join(acc) or "(reminder fired, but the model could not be reached)"
-            um = Message(session_id=s.id, role="user", content=r.text)
-            am = Message(session_id=s.id, role="assistant", content=full)
-            db.add(um)
-            db.add(am)
-            r.fired = True
-            s.message_count = (s.message_count or 0) + 2
-            s.last_message_at = dt.now(UTC).replace(tzinfo=None)
-            db.commit()
-            log.info(f"fired scheduled message for session {s.id}")
+
+            def land(owner, reminder_id=r.id, session_id=s.id, text=r.text, reply=full):
+                # question and answer go in together, and never inside a reply still running in
+                # this task: that would split the running turn's question from its answer
+                due_now = owner.get(Reminder, reminder_id)
+                task = owner.get(Session, session_id)
+                if due_now is None or task is None or due_now.fired:
+                    return
+                owner.add(Message(session_id=session_id, role="user", content=text))
+                owner.add(Message(session_id=session_id, role="assistant", content=reply))
+                due_now.fired = True
+                # counted in the database: turns saved while the model answered count too
+                owner.query(Session).filter_by(id=session_id).update(
+                    {Session.message_count: func.coalesce(Session.message_count, 0) + 2},
+                    synchronize_session=False,
+                )
+                task.last_message_at = dt.now(UTC).replace(tzinfo=None)
+                owner.commit()
+
+            if chat_route.write_after_turn(s.id, lambda land=land: land(db)):
+                log.info(f"fired scheduled message for session {s.id}")
+            else:
+                # a turn started while the model answered: nothing was saved, so asking again on
+                # a later tick is safe, and nothing waits in memory for a crash to lose
+                r.notified = False
+                db.commit()
+                log.info(f"scheduled message for session {s.id} waits for the running reply")
+                continue
             try:
                 await push_broadcast_result(
                     {"title": "aide", "body": full[:160], "url": "/", "tag": f"message-{r.id}"}
@@ -928,6 +956,14 @@ async def lifespan(app: FastAPI):
                 interrupted_andromeda_checks,
             )
 
+        from services.aide_calls import restore_held_lines
+
+        # call lines that waited for a running reply when alles stopped go in now
+        with SessionLocal() as restore_db:
+            restored_lines = restore_held_lines(restore_db)
+        if restored_lines:
+            log.info("restored %s held call transcript line(s)", restored_lines)
+
         from services.jarvis_handoff import resume_queued as resume_jarvis_handoffs
 
         resumed_handoffs = resume_jarvis_handoffs()
@@ -1191,6 +1227,50 @@ class StaticGzipMiddleware:
 
 
 app.add_middleware(StaticGzipMiddleware)
+
+
+# stage 1: only directives the app already lives within. script/style limits come later.
+_BASE_CSP = b"object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"
+# not same-origin: the photos map loads openstreetmap tiles from the browser, and their tile
+# policy needs a referer (same-origin is on their list of causes for the "access blocked" tile)
+_REFERRER_POLICY = b"strict-origin-when-cross-origin"
+
+
+class SecurityHeadersMiddleware:
+    """Baseline headers on every http response. Pure ASGI like the others, so streams pass
+    through chunk by chunk. A header a route already set wins, so the sandboxed file
+    previews keep their stricter CSP."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers") or [])
+                have = {name.lower() for name, _ in headers}
+                if b"x-content-type-options" not in have:
+                    headers.append((b"x-content-type-options", b"nosniff"))
+                if b"referrer-policy" not in have:
+                    headers.append((b"referrer-policy", _REFERRER_POLICY))
+                if b"content-security-policy" not in have:
+                    ctype = next((v for k, v in headers if k.lower() == b"content-type"), b"")
+                    if ctype.split(b";")[0].strip().lower() == b"text/html":
+                        headers.append((b"content-security-policy", _BASE_CSP))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
+app.add_middleware(SseFlushMiddleware)
+
+# added last, so it wraps every other middleware and their early answers get the headers too
+app.add_middleware(SecurityHeadersMiddleware)
 
 # routes
 app.include_router(auth_routes.router)
@@ -1460,18 +1540,25 @@ def _owned_browser_test_run_id() -> str:
 
 
 @app.get("/health")
-def health(request: Request, response: Response, deep: bool = False):
+async def health(request: Request, response: Response, deep: bool = False):
     # default stays a cheap liveness ping. ?deep=1 runs the full readiness check, but its details
     # (data-dir PATH, installed deps, provider/key state) are internal — only expose them in local
     # mode (no auth) or to an authenticated caller, never to an anonymous client when auth is on.
+    # async so a busy threadpool can't queue the liveness ping; the deep check goes to a thread
     test_run_id = _owned_browser_test_run_id()
     if test_run_id:
         response.headers["X-Alles-Test-Run-ID"] = test_run_id
-    if deep and (not auth_enabled() or _request_authed(request)):
-        from services import doctor
-
-        return {"ok": doctor.healthy(), "checks": doctor.run_all()}
+    if deep:
+        return await asyncio.to_thread(_deep_health, request)
     return {"ok": True}
+
+
+def _deep_health(request: Request) -> dict:
+    if auth_enabled() and not _request_authed(request):
+        return {"ok": True}
+    from services import doctor
+
+    return {"ok": doctor.healthy(), "checks": doctor.run_all()}
 
 
 @app.get("/api/ping")

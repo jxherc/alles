@@ -1,11 +1,16 @@
+import asyncio
 import io
 import json
 import logging
 import tempfile
+import threading
+import time
 from pathlib import Path
+from unittest import mock
 
 from core.database import AuditRecord
-from services import observability
+from core.observability_middleware import ObservabilityMiddleware
+from services import audit, observability
 from tests._client import ApiTest
 
 
@@ -59,6 +64,56 @@ class ObservabilityUnitTest(ApiTest):
             self.assertEqual(row.action, "http.post")
             self.assertEqual(row.target, "/api/tasks")
             self.assertNotIn("private task body", row.details)
+
+    def test_write_audit_is_stored_off_the_event_loop(self):
+        seen = []
+
+        def record(**fields):
+            try:
+                asyncio.get_running_loop()
+                on_loop = True
+            except RuntimeError:
+                on_loop = False
+            seen.append((fields["action"], on_loop, threading.current_thread().name))
+
+        with mock.patch.object(audit, "record", record):
+            response = self.client.post("/api/tasks", json={"title": "one"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(seen), 1)
+        action, on_loop, thread = seen[0]
+        self.assertEqual(action, "http.post")
+        self.assertFalse(on_loop)
+        self.assertTrue(thread.startswith("alles-audit"), thread)
+
+    def test_lifespan_shutdown_waits_for_queued_audit_rows(self):
+        stored = []
+        app_saw = []
+
+        def slow_record(**fields):
+            time.sleep(0.3)
+            stored.append(fields["action"])
+
+        async def lifespan_app(scope, receive, send):
+            await receive()
+            await send({"type": "lifespan.startup.complete"})
+            await receive()
+            app_saw.append(list(stored))
+            await send({"type": "lifespan.shutdown.complete"})
+
+        async def run():
+            inbox = asyncio.Queue()
+            inbox.put_nowait({"type": "lifespan.startup"})
+            inbox.put_nowait({"type": "lifespan.shutdown"})
+
+            async def send(_message):
+                pass
+
+            await ObservabilityMiddleware(lifespan_app)({"type": "lifespan"}, inbox.get, send)
+
+        with mock.patch.object(audit, "record", slow_record):
+            audit.submit(action="http.post", outcome="success", actor="owner")
+            asyncio.run(run())
+        self.assertEqual(app_saw, [["http.post"]])
 
     def test_read_request_is_not_audited(self):
         self.client.get("/api/tasks")

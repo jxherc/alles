@@ -1,8 +1,10 @@
+import asyncio
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest import mock
@@ -233,6 +235,22 @@ class DatabaseStartupTest(ApiTest):
                     secretstore._keys,
                     secretstore._active_id,
                 ) = original
+
+
+class EnginePoolTest(unittest.TestCase):
+    def test_pool_fits_every_thread_that_can_hold_a_connection(self):
+        import anyio.to_thread
+
+        async def request_threads():
+            return anyio.to_thread.current_default_thread_limiter().total_tokens
+
+        # sync routes, asyncio.to_thread jobs and the audit writer. past this, a writer queues on
+        # the pool for 30s instead of on sqlite's busy_timeout
+        jobs = min(32, (os.cpu_count() or 1) + 4)
+        pool = database.engine.pool
+        self.assertGreaterEqual(
+            pool.size() + pool._max_overflow, asyncio.run(request_threads()) + jobs + 1
+        )
 
 
 class CredentialSessionLockTest(ApiTest):

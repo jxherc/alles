@@ -1,5 +1,6 @@
 """Streaming-safe request logging and mutation audit middleware."""
 
+import asyncio
 import logging
 import time
 
@@ -14,6 +15,9 @@ class ObservabilityMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
+        if scope.get("type") == "lifespan":
+            await self.app(scope, _flush_audit_before_shutdown(receive), send)
+            return
         if scope.get("type") != "http":
             await self.app(scope, receive, send)
             return
@@ -52,7 +56,9 @@ class ObservabilityMiddleware:
             )
             if write_request and scope.get("path", "").startswith("/api/"):
                 headers = dict(scope.get("headers") or [])
-                audit.record(
+                # the db write runs on the audit thread. a busy db used to stall the whole loop
+                # here, /health included. shielded so a cancelled request still keeps its row
+                stored = audit.submit(
                     action=f"http.{method.lower()}",
                     outcome="success" if status < 400 else "denied" if status < 500 else "error",
                     actor=observability.actor_kind(headers),
@@ -60,3 +66,15 @@ class ObservabilityMiddleware:
                     request_id=request_id,
                     details={"status": status},
                 )
+                await asyncio.shield(asyncio.wrap_future(stored))
+
+
+def _flush_audit_before_shutdown(receive):
+    async def wrapped():
+        message = await receive()
+        if message.get("type") == "lifespan.shutdown":
+            # requests are drained by now. store any queued audit row before the app tears down
+            await asyncio.wrap_future(audit.flushed())
+        return message
+
+    return wrapped

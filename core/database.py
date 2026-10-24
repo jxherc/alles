@@ -165,7 +165,16 @@ from core.schema.base import _uid as _uid
 from core.settings import data_dir as _data_dir
 
 DB_PATH = os.environ.get("ALLES_DB") or str(_data_dir() / "aide.db")
-engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+# pooled connections move between threads, hence check_same_thread off. the pool sits above the
+# most connections in use at once (40 request threads, job threads, the audit writer), so a busy
+# writer waits on sqlite's busy_timeout below and never on a 30s pool checkout. extra connections
+# close again when they're handed back
+engine = create_engine(
+    f"sqlite:///{DB_PATH}",
+    connect_args={"check_same_thread": False},
+    pool_size=10,
+    max_overflow=70,
+)
 
 
 # wal mode so reads don't block writes

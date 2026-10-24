@@ -2,8 +2,10 @@
 
 import hashlib
 import logging
+import threading
 from datetime import UTC, datetime
 
+from sqlalchemy import event as sa_event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
@@ -17,6 +19,9 @@ from core.database import (
 from services.jarvis_store import create_run, json_value
 
 log = logging.getLogger("alles.jarvis.events")
+
+# mutation batches parked by _on_mutations until the committing session lets go of its connection
+_parked = threading.local()
 
 
 def utc_now() -> datetime:
@@ -71,7 +76,7 @@ def queue_event(
     return row, True
 
 
-def _on_mutations(mutations: list[dict]) -> None:
+def _write_mutations(mutations: list[dict]) -> None:
     db = SessionLocal()
     try:
         for mutation in mutations:
@@ -92,11 +97,34 @@ def _on_mutations(mutations: list[dict]) -> None:
         db.close()
 
 
+def _on_mutations(mutations: list[dict]) -> None:
+    # runs in after_commit, while the committing session still holds its pooled connection. a new
+    # session here wants a second one; under load every thread held one and waited on another until
+    # the pool timed out. park the batch and write it once the connection is back in the pool
+    batches = getattr(_parked, "batches", None)
+    if batches is None:
+        batches = _parked.batches = []
+    batches.append(list(mutations))
+
+
+def _after_transaction_end(session, transaction) -> None:
+    # a savepoint ending means the outer transaction still holds the connection
+    if transaction.parent is not None:
+        return
+    batches = getattr(_parked, "batches", None)
+    if not batches:
+        return
+    _parked.batches = []
+    _write_mutations([mutation for batch in batches for mutation in batch])
+
+
 def install() -> None:
     from services import events
 
     if _on_mutations not in events._subscribers:
         events.subscribe(_on_mutations)
+    if not sa_event.contains(SessionLocal, "after_transaction_end", _after_transaction_end):
+        sa_event.listen(SessionLocal, "after_transaction_end", _after_transaction_end)
 
 
 def review_event(db: DbSession, event: JarvisInboxEvent, *, allow: bool) -> JarvisInboxEvent:

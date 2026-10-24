@@ -4,7 +4,9 @@ import unittest
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import event as sa_event
 
+from core import database
 from core.database import (
     AutomationRule,
     CapabilityGrant,
@@ -37,6 +39,13 @@ class JarvisEventTest(ApiTest):
     def tearDown(self):
         if jarvis_events._on_mutations in events._subscribers:
             events._subscribers.remove(jarvis_events._on_mutations)
+        hook = (
+            database.SessionLocal,
+            "after_transaction_end",
+            jarvis_events._after_transaction_end,
+        )
+        if sa_event.contains(*hook):
+            sa_event.remove(*hook)
         super().tearDown()
 
     def test_app_mutation_enqueues_content_minimal_event_without_model_work(self):
@@ -54,6 +63,44 @@ class JarvisEventTest(ApiTest):
         self.assertNotIn("private task notes", row.safe_summary)
         self.assertEqual(db.query(JarvisRun).count(), 0)
         db.close()
+
+    def test_commit_hook_queues_the_event_without_a_second_connection(self):
+        # one connection and no overflow: a hook that opens its own session while the commit still
+        # holds the connection times out, like a full pool did under ~24 concurrent writes
+        with tempfile.TemporaryDirectory() as tmp:
+            eng = create_engine(
+                f"sqlite:///{Path(tmp) / 'one.db'}",
+                connect_args={"check_same_thread": False},
+                pool_size=1,
+                max_overflow=0,
+                pool_timeout=0.5,
+            )
+            database.Base.metadata.create_all(eng)
+            held = {"now": 0, "peak": 0}
+
+            def checkout(*_):
+                held["now"] += 1
+                held["peak"] = max(held["peak"], held["now"])
+
+            def checkin(*_):
+                held["now"] -= 1
+
+            sa_event.listen(eng, "checkout", checkout)
+            sa_event.listen(eng, "checkin", checkin)
+            database.SessionLocal.configure(bind=eng)
+            try:
+                db = self.db()
+                db.add(Task(title="one connection"))
+                db.commit()
+                db.close()
+                db = self.db()
+                row = db.query(JarvisInboxEvent).one()
+                db.close()
+            finally:
+                database.SessionLocal.configure(bind=self.eng)
+                eng.dispose()
+        self.assertEqual(row.entity_kind, "tasks")
+        self.assertEqual(held["peak"], 1)
 
     def test_unreviewed_event_never_dispatches_then_review_creates_one_run(self):
         db = self.db()
