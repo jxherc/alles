@@ -67,6 +67,8 @@ const ICON_GLYPHS = Object.freeze({
   '↓': 'chevron-down',
   '←': 'chevron-left',
   '→': 'chevron-right',
+  '‹': 'chevron-left',
+  '›': 'chevron-right',
 });
 
 function inferredIconName(element) {
@@ -95,7 +97,9 @@ function decorateIconControl(element) {
   if (!name) return;
   if (element.dataset.kokuenIcon !== name) element.dataset.kokuenIcon = name;
   if (!element.getAttribute('aria-label') && !element.getAttribute('aria-labelledby')) {
-    const fallback = element.getAttribute('title') || {
+    // ‹ › page through months and years, so "previous" reads better than "back" there
+    const pager = { '‹': 'previous', '›': 'next' }[(element.textContent || '').trim()];
+    const fallback = element.getAttribute('title') || pager || {
       close: 'close',
       trash: 'delete',
       send: 'send',

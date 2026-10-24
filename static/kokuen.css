@@ -1227,8 +1227,6 @@ body:is(
 }
 
 .server-workbench-choice-list { display: flex; flex-wrap: wrap; gap: var(--k-space-1, 4px) 0; }
-/* bare until picked (decision 0031); the row moves back by the padding so the first label sits under the legend */
-.server-workbench-choice-list { margin-inline-start: -12px; }
 .server-workbench-choice-list button[aria-checked="true"] {
   color: var(--k-text, var(--text));
   border-color: var(--k-line-strong, var(--faint));
@@ -1888,6 +1886,8 @@ body:is(
 
 :where(#finance-view) .finance-import-row:last-child { border-bottom: 0; }
 :where(#finance-view) .finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #f2897f); }
+/* the fix-it help reads under the row's words, not as a 10-line block in the date column */
+:where(#finance-view) .finance-import-row > .finance-import-repair-hint { grid-column: 2 / -1; margin: 0; }
 :where(#finance-view) .finance-import-row > .finance-import-metadata {
   color: var(--k-ink-muted, var(--muted));
   font-size: inherit;
@@ -1903,7 +1903,9 @@ body:is(
 :where(#finance-view) .finance-import-conversion {
   grid-column: 2 / -1;
   display: grid;
-  grid-template-columns: repeat(4, minmax(7rem, 1fr)) auto;
+  /* fields wrap to a new row before they get narrower than a whole date ("Oct 20, …" on an ipad),
+     and on a wide screen the five of them still fill the row */
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
   gap: var(--k-space-2);
   align-items: center;
 }
@@ -1957,13 +1959,21 @@ body:is(
   }
   .plan-board-root { height: auto; min-height: calc(100dvh - 104px); }
   .plan-board-toolbar { flex-wrap: wrap; }
-  .plan-board-add { min-width: calc(100% - 92px); max-width: none; }
+  .plan-board-add { min-width: 100%; max-width: none; }
   .plan-board-search { width: 100%; min-height: 44px; order: 4; }
   .plan-board-root .plan-board-add :where(input, button),
   .plan-board-root .plan-board-tool,
   .plan-board-root .plan-board-inline-add :where(input, button),
   .plan-board-root .plan-board-card-main { min-height: 44px; }
-  .plan-board-stage-strip { display: flex; }
+  /* the picked stage is a raised box, so the strip starts on the gutter (0043) */
+  .plan-board-stage-strip {
+    display: flex;
+    padding-inline: var(--k-gutter, 16px);
+    scroll-padding-inline: var(--k-gutter, 16px);
+  }
+  /* the add field takes the whole first row, so project always starts the next one: its bare
+     label lines up with the column and the hover box hangs past it (0031) */
+  .plan-board-filter-wrap { margin-inline-start: calc(-1 * var(--k-space-3, 12px)); }
   .plan-board-layout { display: block; overflow: visible; }
   .plan-board-columns { display: block; overflow: visible; }
   .plan-board-column { display: none; min-height: 430px; border-right: 0; }
@@ -2059,6 +2069,7 @@ body:is(
   :where(#finance-view) .finance-import-row-amount { grid-column: 2; grid-row: 1 / span 2; }
   :where(#finance-view) .finance-import-row-status { grid-column: 1 / -1; text-align: left; }
   :where(#finance-view) .finance-import-row > small { grid-column: 1 / -1; }
+  :where(#finance-view) .finance-import-row > .finance-import-repair-hint { grid-column: 1 / -1; }
   :where(#finance-view) .finance-import-conversion { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); }
   :where(#finance-view) .finance-import-match-resolution { grid-column: 1 / -1; }
   :where(#finance-view) .finance-actual-head { align-items: flex-start; flex-direction: column; }
@@ -2449,6 +2460,12 @@ html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-koku
   background: transparent;
   box-shadow: none;
   line-height: 1;
+}
+
+/* the icon layout outranks a plain [hidden] rule, so it must not show a control its owner hid
+   (the plan strip's ‹ › once showed with nothing to scroll) */
+html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-kokuen-icon][hidden] {
+  display: none;
 }
 
 /* kokuen-lint-disable-next-line target-size: the SVG is a glyph; its owning control keeps a 44px target. */
@@ -3391,16 +3408,6 @@ textarea[data-kokuen-entry="autogrow"] {
 #wiki-view[data-kokuen-surface="docs"] .docs-empty-actions {
   flex-wrap: wrap;
   gap: var(--k-space-2);
-}
-
-/* the row moves back by a text action's padding and the first action steps in again, so an
-   action that wraps to start a line puts its label on the column edge, like a row start (0031) */
-#wiki-view[data-kokuen-surface="docs"] .docs-empty-actions {
-  margin-inline-start: calc(-1 * var(--k-space-3));
-}
-
-#wiki-view[data-kokuen-surface="docs"] .docs-empty-actions > :first-child {
-  margin-inline-start: var(--k-space-3);
 }
 
 #wiki-view[data-kokuen-surface="docs"] .docs-empty-actions button {
@@ -4470,7 +4477,6 @@ html[dir="rtl"] :where(
 
   #settings-modal[data-kokuen-surface="settings"] .locale-segmented {
     justify-content: flex-start;
-    margin-inline-start: calc(-1 * var(--k-space-3));
   }
 
   #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger,

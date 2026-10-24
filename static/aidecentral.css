@@ -251,7 +251,7 @@ body.aide-central #messages > .msg-row + .msg-row .user-wrap { padding-top: var(
 body.aide-central .msg-actions { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: var(--k-space-1, 4px); }
 body.aide-central .context-provenance.is-tucked { margin: 0 0 0 var(--k-space-1, 4px); }
 body.aide-central .context-provenance.is-tucked > summary {
-  display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--k-space-2, 8px); border-radius: var(--k-radius-control, 4px);
+  display: inline-flex; align-items: center; min-height: var(--k-control, 44px); padding: 0 var(--k-space-2, 8px); border-radius: var(--k-radius-control, 4px);
   color: var(--k-muted, var(--muted)); font-size: 12px; list-style: none; cursor: pointer;
 }
 body.aide-central .context-provenance.is-tucked > summary::-webkit-details-marker { display: none; }

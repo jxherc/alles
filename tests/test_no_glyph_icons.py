@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-GLYPHS = re.compile("[\U0001f300-\U0001faff☀-➿⌀-⏿■-◿✓✕↻↺⇄⇆⇅↳]")
+GLYPHS = re.compile("[\U0001f300-\U0001faff☀-➿⌀-⏿■-◿✓✕↻↺⇄⇆⇅↳⟰-⟿⊕‹›⤺•]")
 # file -> substrings on a line where the glyph is text, not an icon
 ALLOWED = {
     "journal.js": ["MOODS"],  # mood faces are emoji content
@@ -24,7 +24,18 @@ ALLOWED = {
         "ICON_GLYPHS",
         "'✕': 'close'",
         "glyph === '×' || glyph === '✕'",
+        "'‹': 'chevron-left'",
+        "'›': 'chevron-right'",
+        "{ '‹': 'previous', '›': 'next' }",
     ],  # glyph -> svg map
+    # ‹ › pager buttons, replaced by kokuen's chevron svg at render
+    "datepick.js": ['class="dp-step"', 'class="dp-nav"'],
+    "specialist_groups.js": ["'specialist-view-scroll'"],
+    "calendar.js": ['class="cal-mini-nav"'],
+    "aideworkspace.js": ["back.textContent = '‹'"],
+    "index.html": ['id="cal-prev"', 'id="cal-next"', 'id="money-prev"', 'id="money-next"'],
+    # a breadcrumb separator and a markdown bullet parser: text, not marks
+    "andromeda.js": [".join(' › ')", "/^[-*•]\\s+(.*)$/"],
     "skills.js": ['data-kokuen-icon="close">✕'],  # replaced by its svg at render
     "vault.js": ['class="modal-close"'],  # ✕ close, replaced by its svg at render
     "connections.js": ['class="perm-rule-del"'],  # ✕ remove, replaced by its svg at render

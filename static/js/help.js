@@ -1,4 +1,4 @@
-import { createFocusBoundary } from './kokuen.js?v=2';
+import { createFocusBoundary } from './kokuen.js?v=3';
 import { HELP_TOPICS, findManualTopics, manualTopicForApp } from './help_content.js?v=1';
 
 let currentManual = null;

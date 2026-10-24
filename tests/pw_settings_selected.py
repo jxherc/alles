@@ -188,7 +188,15 @@ def run() -> None:
                     )
                     == "#a78bfa"
                 )
-                # the shared pill slides under the picked option (decision 0041)
+                # the shared pill slides under the picked option (decision 0041). the mode press
+                # above redrew the editor, so wait for motion.js's next pass to put it back
+                page.wait_for_function(
+                    """group => group.classList.contains('has-pill')
+                      && group.style.getPropertyValue('--pill-o') === '1'
+                      && group.style.getPropertyValue('--pill-x')
+                        === group.querySelector('[data-val="mono"]').offsetLeft + 'px'""",
+                    arg=font.element_handle(),
+                )
                 font_pill = _colors(font, "::before")
                 assert font_pill["background"] == fill, (theme, font_pill, fill)
                 assert _colors(mono)["color"] == text

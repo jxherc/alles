@@ -33,7 +33,7 @@ export function openEditor(url, opts = {}) {
           <button class="ie-tool" data-tool="brush" title="draw">draw</button>
           <button class="ie-tool" data-tool="text" title="text">text</button>
           <span class="ie-sep"></span>
-          <button class="ie-btn" data-act="rotl" title="rotate left">⟲</button>
+          <button class="ie-btn" data-act="rotl" title="rotate left" aria-label="rotate left">${_si('undo')}</button>
           <button class="ie-btn" data-act="rotr" title="rotate right" aria-label="rotate right">${_si('redo')}</button>
           <button class="ie-btn" data-act="fliph" title="flip horizontal" aria-label="flip horizontal">${_si('swap')}</button>
           <button class="ie-btn" data-act="flipv" title="flip vertical" aria-label="flip vertical">${_si('swap-v')}</button>

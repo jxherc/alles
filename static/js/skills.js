@@ -190,7 +190,7 @@ function _renderRail() {
     html += row('custom', 'custom');
   }
   html += `<div class="skl-rail-foot">
-      <button class="skl-rail-act${_state.mode === 'library' ? ' active' : ''}" data-act="library">⊕ library</button>
+      <button class="skl-rail-act${_state.mode === 'library' ? ' active' : ''}" data-act="library">${_si('plus')} library</button>
       <button class="skl-rail-act" data-act="github">${_si('download')} from github</button>
       <button class="skl-rail-act" data-act="upload">${_si('upload')} upload</button>
     </div>

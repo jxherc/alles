@@ -131,7 +131,7 @@ body.login-mode .app {
   box-shadow: 18px 0 50px rgba(0, 0, 0, 0.24);
 }
 .app-drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.app-drawer-kicker { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.app-drawer-kicker { color: var(--muted); font-size: 0.75rem; }
 .app-drawer-head h2 { font-size: 1.15rem; font-weight: 500; letter-spacing: -0.025em; }
 .app-drawer-head .icon-btn { font-size: 1rem; }
 .app-drawer-note { color: var(--muted); font-size: 0.75rem; margin: 0.35rem 0 1rem; max-width: 32ch; }
@@ -273,8 +273,6 @@ body.sidebar-hidden .sidebar { display: none; }
 .andromeda-kicker {
   color: var(--muted);
   font-size: 0.75rem;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 .andromeda-overview {
   border-left: 2px solid var(--ai);
@@ -840,8 +838,18 @@ html[data-kokuen-version="5"] .user-actions > button[data-kokuen-primitive]:focu
 .user-actions > button:focus-visible::before {
   content: ""; position: absolute; inset: 0 0 auto; height: 26px; border: 1px solid var(--focus); border-radius: var(--k-radius-control); pointer-events: none;
 }
-/* undo keeps a full 44px target but its label sits on the receipt's line */
-.user-actions > .memory-confirm button { min-height: 44px; display: inline-flex; align-items: flex-start; margin-top: -4px; padding: 4px 0 0; line-height: 18px; }
+/* undo keeps a full 44px target but its label sits on the receipt's line. the receipt and undo take
+   focus too, so they get the same label-line ring; undo's 4px of room each side is pulled back so
+   its word doesn't move */
+.user-actions > .memory-confirm { position: relative; }
+.user-actions > .memory-confirm button { position: relative; min-height: 44px; display: inline-flex; align-items: flex-start; margin: -4px -4px 0; padding: 4px 4px 0; line-height: 18px; }
+.user-actions > .memory-confirm:focus-visible,
+.user-actions > .memory-confirm button:focus-visible,
+html[data-kokuen-version="5"] .user-actions > .memory-confirm button[data-kokuen-primitive]:focus-visible { outline: none; }
+.user-actions > .memory-confirm:focus-visible::before,
+.user-actions > .memory-confirm button:focus-visible::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 26px; border: 1px solid var(--focus); border-radius: var(--k-radius-control); pointer-events: none;
+}
 .memory-confirm button { border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; padding: 0; }
 .context-provenance { margin: 0.65rem 0; color: var(--muted); font-size: 0.75rem; }
 .context-provenance > summary { cursor: pointer; }
@@ -1174,6 +1182,8 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
   background: color-mix(in srgb, var(--signal) 8%, transparent);
 }
 .agent-perm-msg { font-size: 0.75rem; color: var(--text); }
+/* the full resolved path of a step outside the task's folder: wraps anywhere, so a long one never pushes the buttons off */
+.agent-perm-outside { display: block; margin-top: 0.2rem; overflow-wrap: anywhere; }
 .agent-perm-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
 .agent-perm-actions button {
   font-family: inherit; font-size: 0.75rem; cursor: pointer;
@@ -1939,9 +1949,7 @@ body.is-aide.is-incognito .incognito-bar {
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.07em;
   line-height: 1.35;
-  text-transform: uppercase;
   padding: 0.75rem 0.85rem 0.22rem;
 }
 :where(#settings-modal) .s-nav-group:first-child { padding-top: 0.15rem; }
@@ -2115,13 +2123,12 @@ body.is-aide.is-incognito .incognito-bar {
 .s-field:last-child { margin-bottom: 0; }
 .s-field[hidden] { display: none; }
 .s-field label {
-  font-size: 0.75rem; color: var(--muted); letter-spacing: 0.05em; font-weight: 500;
-  text-transform: uppercase;
+  font-size: 0.75rem; color: var(--muted); font-weight: 500;
 }
 
 /* theme mode + accent color picker (appearance pane) */
-/* bare until picked (decision 0031); the row moves back by the padding so "dark" starts on the column */
-.theme-mode-row { display: flex; flex-wrap: wrap; margin-inline-start: -12px; }
+/* bare until picked; the picked one is a box, so the row stays on the column edge (0043) */
+.theme-mode-row { display: flex; flex-wrap: wrap; }
 .theme-mode-btn {
   flex: 0 0 auto; min-height: 44px; background: none; border: 1px solid transparent; border-radius: var(--k-radius-control);
   color: var(--muted); font: inherit; font-size: 13px; padding: 0 12px; cursor: pointer;
@@ -2235,11 +2242,19 @@ body.is-aide.is-incognito .incognito-bar {
 .dp-day.sel { background: var(--k-raised, var(--panel)); box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--muted)); color: var(--text); font-weight: 600; }
 .dp-time { display: flex; align-items: center; justify-content: center; gap: 0.15rem; margin-top: 0.55rem; }
 .dp-tv { font-variant-numeric: tabular-nums; min-width: 1.5rem; text-align: center; }
-/* typeable hour, minute and year: plain text until focused, then one bottom line */
-:is(input.dp-tv, input.dp-year) { width: 2.6ch; min-height: 32px; padding: 0; border: 0; border-bottom: 1px solid transparent; border-radius: 0; background: none; color: inherit; font: inherit; text-align: center; }
-input.dp-year { width: 4.6ch; }
-:is(input.dp-tv, input.dp-year):hover { border-bottom-color: var(--faint); }
-:is(input.dp-tv, input.dp-year):focus { outline: none; border-bottom-color: var(--text); }
+/* typeable hour, minute and year: plain text until focused, then one bottom line. the box is a
+   full 44px target, so the line is drawn under the digits instead of at the box edge */
+:is(input.dp-tv, input.dp-year) {
+  --dp-line: transparent; --dp-line-w: 2.6ch; --dp-line-h: 1px;
+  box-sizing: border-box; width: 2.6ch; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 0;
+  background: linear-gradient(var(--dp-line), var(--dp-line)) center calc(50% + 0.8em) / var(--dp-line-w) var(--dp-line-h) no-repeat;
+  color: inherit; font: inherit; text-align: center;
+}
+input.dp-year { width: 4.6ch; --dp-line-w: 4.6ch; }
+:is(input.dp-tv, input.dp-year):hover { --dp-line: var(--faint); }
+:is(input.dp-tv, input.dp-year):focus { outline: none; --dp-line: var(--k-field-focus, var(--text)); --dp-line-h: 2px; }
+/* kokuen's focus line sits on the box edge, 44px down; here it moves up under the digits */
+html .date-panel input:is(.dp-tv, .dp-year):focus-visible { box-shadow: none !important; }
 .dp-colon { color: var(--muted); margin: 0 0.15rem; }
 .dp-foot { display: flex; justify-content: space-between; margin-top: 0.55rem; }
 .dp-clear, .dp-now {
@@ -2743,7 +2758,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 .ctx-item.danger { color: var(--error); }
 .ctx-item.danger:hover { background: var(--bg); }
 .ctx-sep { height: 1px; background: var(--faint); margin: 0.25rem 0; }
-.ctx-label { padding: 0.2rem 0.85rem 0.1rem; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.ctx-label { padding: 0.2rem 0.85rem 0.1rem; font-size: 0.75rem; color: var(--muted); }
 .ctx-item.ctx-dis { opacity: 0.4; pointer-events: none; }
 .docs-ctx { min-width: 160px; }
 
@@ -2836,7 +2851,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 :where(#today-view) .today-section { border-top: 1px solid var(--faint); padding-top: 0.65rem; position: relative; }
 :where(#today-view) .today-section::before { content: ''; position: absolute; top: -1px; left: 0; width: 34px; height: 2px; background: transparent; opacity: 0; }
 :where(#today-view) .today-section > header { display: flex; align-items: center; justify-content: space-between; min-height: 28px; margin-bottom: 0.25rem; }
-:where(#today-view) .today-section h2 { color: var(--muted); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+:where(#today-view) .today-section h2 { color: var(--muted); font-size: 0.75rem; font-weight: 500; }
 :where(#today-view) .today-section > header span { color: var(--signal); font-size: 0.75rem; }
 :where(#today-view) .today-list { display: flex; flex-direction: column; }
 :where(#today-view) .today-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--faint) 65%, transparent); background: transparent; color: var(--text); font: inherit; text-align: left; padding: 0.68rem 0.15rem; cursor: pointer; }
@@ -2859,7 +2874,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 :where(#today-view) .today-customize-card { width: min(520px, 100%); max-height: min(720px, 90vh); overflow-y: auto; background: var(--bg); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 1rem; }
 :where(#today-view) .today-customize-card > header { display: flex; align-items: center; justify-content: space-between; }
 :where(#today-view) .today-customize-card h2 { font-size: 1rem; font-weight: 500; }
-:where(#today-view) .today-customize-card h3 { color: var(--muted); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin: 1rem 0 0.4rem; }
+:where(#today-view) .today-customize-card h3 { color: var(--muted); font-size: 0.75rem; font-weight: 500; margin: 1rem 0 0.4rem; }
 :where(#today-view) .today-customize-card > p { color: var(--muted); font-size: 0.75rem; margin: 0.25rem 0 0.8rem; }
 :where(#today-view) .today-customize-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.35rem 1rem; }
 :where(#today-view) .today-customize-options label, :where(#today-view) .today-density { color: var(--text); font-size: 0.75rem; }
@@ -3941,7 +3956,12 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .mail-sched-lbl { font-size: 0.75rem; color: var(--muted); }
 .mail-sched-chip { max-width: 100%; overflow-wrap: anywhere; font-size: 0.75rem; border: 1px solid var(--faint); border-radius: var(--k-radius-surface); padding: 0.1rem 0.5rem; display: inline-flex; align-items: center; gap: 0.3rem; color: var(--signal); }
 .mail-sched-cancel { min-width: 44px; min-height: 44px; flex-shrink: 0; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.8rem; padding: 0; }
-.mail-undo-bar { max-width: calc(100% - 2rem); position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 80; display: none; align-items: center; gap: 0.7rem; background: var(--panel); border: 1px solid var(--faint); border-radius: var(--k-radius-surface); padding: 0.5rem 0.9rem; font-size: 0.8rem; }
+/* max-content: centred on 50% it only had half the screen, so "snoozed until tomorrow" broke in two */
+/* a toast ("snooze undone") sat on the undo column's "undo" for its 3s on a phone, so while the
+   column holds a bar the toasts start above it. a bar is 1rem of padding + a 44px button + 2px */
+body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar) .toast-container { bottom: calc(1.2rem + 1rem + 46px + 0.5rem); }
+body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-undo-bar) .toast-container { bottom: calc(1.2rem + 2 * (1rem + 46px) + 0.5rem + 0.5rem); }
+.mail-undo-bar { width: max-content; max-width: calc(100% - 2rem); position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 80; display: none; align-items: center; gap: 0.7rem; background: var(--panel); border: 1px solid var(--faint); border-radius: var(--k-radius-surface); padding: 0.5rem 0.9rem; font-size: 0.8rem; }
 .mc-sched-at { width: 180px; font-size: 0.75rem; }
 /* 5c rich compose */
 .mail-richbar { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-bottom: 0.3rem; }
@@ -4009,7 +4029,8 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .mc-chipfield:has(> .mc-chip-input:focus-visible) { border-color: var(--focus); outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
 .mc-chip-label { font-size: 0.75rem; color: var(--muted); min-width: 1.6rem; }
 .mc-chips { display: contents; }
-.mc-chip { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--raised); color: var(--text); border-radius: var(--k-radius-surface); padding: 0.12rem 0.2rem 0.12rem 0.55rem; font-size: 0.75rem; }
+/* no block padding: the remove button is already 44px, and 4px more grew the row with the first chip */
+.mc-chip { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--raised); color: var(--text); border-radius: var(--k-radius-surface); padding: 0 0.2rem 0 0.55rem; font-size: 0.75rem; }
 .mc-chip.bad { background: color-mix(in srgb, var(--error) 18%, transparent); }
 .mc-chip-x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; line-height: 1; padding: 0 0.2rem; }
 .mc-chip-x:hover { color: var(--error); }
@@ -4038,7 +4059,7 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .mail-oauth:empty { display: none; }
 .mail-oauth { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.2rem; }
 .mail-google-btn { align-self: stretch; text-align: center; text-decoration: none; }
-.mail-or { font-size: 0.75rem; color: var(--muted); text-align: center; text-transform: uppercase; letter-spacing: 0.06em; }
+.mail-or { font-size: 0.75rem; color: var(--muted); text-align: center; }
 .mail-oauth-setup { border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.5rem 0.7rem; background: var(--panel); font-size: 0.75rem; }
 .mail-oauth-setup summary { min-height: var(--ui-control-height, 44px); align-content: center; cursor: pointer; color: var(--text); }
 .mail-oauth-steps { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.5rem; color: var(--muted); line-height: 1.5; }
@@ -4068,7 +4089,7 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 /* immich-style left rail + scrolling justified timeline */
 .photos-layout { flex: 1; display: flex; min-height: 0; }
 .photos-sidebar { width: var(--photos-rail-w, 184px); flex-shrink: 0; overflow-y: auto; border-right: 1px solid var(--faint); padding: 0.6rem var(--photos-rail-pad, 0.45rem) 1rem; display: flex; flex-direction: column; gap: 0.06rem; }
-.photos-nav-group { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); padding: 0.7rem 0.55rem 0.3rem; }
+.photos-nav-group { font-size: 0.75rem; color: var(--muted); padding: 0.7rem 0.55rem 0.3rem; }
 .photos-nav-group:first-child { padding-top: 0.15rem; }
 .photos-nav-item { display: flex; align-items: center; gap: 0.6rem; background: none; border: none; border-radius: var(--k-radius-surface); color: var(--muted); font: inherit; font-size: 0.78rem; padding: 0.4rem 0.55rem; cursor: pointer; text-align: left; white-space: nowrap; overflow: hidden; transition: color 0.15s, background 0.15s; }
 .photos-nav-item:hover { color: var(--text); background: var(--panel); }
@@ -4268,7 +4289,7 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 
 /* face chips in the lightbox info drawer */
 .photos-faces { margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px solid var(--faint); }
-.photos-faces-h { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.5rem; }
+.photos-faces-h { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; }
 .photos-faces-row { display: flex; flex-wrap: wrap; gap: 0.55rem; }
 .photos-face-chip { display: flex; flex-direction: column; align-items: center; gap: 0.22rem; border: none; background: none; padding: 0; cursor: pointer; color: var(--text); width: 52px; }
 .photos-face-chip.nolink { cursor: default; }
@@ -4615,7 +4636,7 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .usage-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
 .usage-card { border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.7rem 0.8rem; }
 .usage-num { font-size: 1.25rem; color: var(--text); font-variant-numeric: tabular-nums; }
-.usage-lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.15rem; }
+.usage-lbl { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
 .usage-mrow { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 0.8fr; gap: 0.5rem; padding: 0.4rem 0.2rem; border-bottom: 1px solid var(--faint); font-size: 0.75rem; color: var(--muted); }
 .usage-mname { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .usage-mtotal { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
@@ -4662,7 +4683,7 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .mv-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 .mv-scroll .vault-form { overflow: visible; }
 .vform-field { display: flex; flex-direction: column; gap: 0.28rem; }
-.vform-field > label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.vform-field > label { font-size: 0.75rem; color: var(--muted); }
 .vform-input { width: 100%; }
 textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; font: inherit; }
 .vform-row { display: flex; gap: 0.6rem; }
@@ -4785,7 +4806,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   background: var(--panel); border: 1px solid var(--faint); border-radius: var(--k-radius-surface);
   padding: 0.5rem; min-width: 170px; display: flex; flex-direction: column; gap: 0.25rem;
 }
-.sub-hist-head { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.sub-hist-head { font-size: 0.75rem; color: var(--muted); }
 .sub-hist-row { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text); }
 .sub-hist-empty { font-size: 0.75rem; color: var(--muted); }
 .sub-hist-pop .btn { margin-top: 0.3rem; }
@@ -4843,8 +4864,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-words { margin-left: auto; font-size: 0.75rem; color: var(--muted); }
 .jrnl-prompt { font-size: 0.82rem; color: var(--muted); font-style: italic; margin-bottom: 0.7rem; }
 .jrnl-mood-label { margin: var(--k-space-3) 0 var(--k-space-2); font-size: 0.8125rem; color: var(--muted); }
-/* bare until picked (decision 0031), so the row moves back by the padding and "happy" sits under the label */
-.jrnl-moods { display: flex; flex-wrap: wrap; gap: var(--k-space-1); margin-inline-start: calc(-1 * var(--k-space-2)); }
+.jrnl-moods { display: flex; flex-wrap: wrap; gap: var(--k-space-1); }
 .jrnl-mood { background: none; color: var(--text); border: 1px solid transparent; border-radius: var(--k-radius-control); font: inherit; font-size: 13px; line-height: 1.4; padding: 0 var(--k-space-2); cursor: pointer; transition: border-color .15s, background .15s; }
 .jrnl-mood:hover { background: var(--k-hover, var(--panel)); }
 /* neutral selection (decision 0019) */
@@ -4893,16 +4913,34 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-heat-head { display: flex; align-items: center; gap: 0.4rem; }
 .jrnl-heat-nav { font-size: 0.75rem; padding: 0 0.35rem; line-height: 1.4; }
 /* full-year contribution strip: month labels on top, 7×~53 grid filling the full width */
-.jrnl-heatmap { display: flex; flex-direction: column; gap: 4px; width: 100%; padding-bottom: 0.3rem; margin-bottom: 0.3rem; }
+.jrnl-heatmap { display: flex; flex-direction: column; gap: 4px; width: 100%; padding-bottom: 0.3rem; margin-bottom: 0.3rem; container-type: inline-size; }
 .jrnl-heatmonths { display: grid; gap: 3px; font-size: 0.75rem; color: var(--muted); line-height: 1; }
 .jrnl-hm { grid-row: 1; white-space: nowrap; }
 .jrnl-hm:last-child { justify-self: end; }
+/* the strip is a picture; a month label is the way in. the word stays small on top of the strip and
+   its 44px target reaches down over the cells, which take no clicks */
+.jrnl-heatmonths:has(> .jrnl-heat-month) { position: relative; z-index: 1; margin-bottom: -26px; }
+.jrnl-heat-month {
+  display: flex; align-items: flex-start; min-width: 44px; min-height: 44px; margin: 0; padding: 4px 0 0;
+  border: 0; background: none; color: var(--muted); font: inherit; font-size: 0.75rem; line-height: 1;
+  white-space: nowrap; cursor: pointer;
+  /* the word starts on the box's edge, so the ring sits just outside it */
+  --k-focus-offset: 2px;
+}
+.jrnl-heat-month:not([aria-disabled="true"]):hover { color: var(--text); }
+.jrnl-heat-month[aria-disabled="true"] { cursor: default; }
+.jrnl-heat-month:last-child { justify-self: end; justify-content: flex-end; }
+/* a phone-wide strip has ~7px weeks, too tight for twelve 44px targets in a line: two rows of six
+   above the strip */
+@container (max-width: 559px) {
+  .jrnl-heatmonths:has(> .jrnl-heat-month) { display: flex; flex-wrap: wrap; margin-bottom: 0; }
+  .jrnl-heat-month, .jrnl-heat-month:last-child { flex: 1 0 calc((100% - 5 * 3px) / 6); align-items: center; justify-content: center; padding: 0; }
+}
 .jrnl-heatgrid { display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; width: 100%; }
-.jrnl-hc { width: 100%; aspect-ratio: 1 / 1; border-radius: var(--k-radius-small); background: var(--faint); cursor: pointer; }
-.jrnl-hc.off { background: transparent; cursor: default; pointer-events: none; }
-.jrnl-hc[data-d=""] { cursor: default; }
+.jrnl-hc { width: 100%; aspect-ratio: 1 / 1; border-radius: var(--k-radius-small); background: var(--faint); }
+.jrnl-hc.off { background: transparent; pointer-events: none; }
 .jrnl-heatrow, .cal-row { display: contents; }
-:is(.jrnl-hc, .cal-cell, .cal-mini-day)[role="gridcell"]:focus-visible { outline: 2px solid var(--k-focus, var(--focus)); outline-offset: -2px; }
+:is(.cal-cell, .cal-mini-day)[role="gridcell"]:focus-visible { outline: 2px solid var(--k-focus, var(--focus)); outline-offset: -2px; }
 .jrnl-hc.l1 { background: color-mix(in srgb, var(--cat-green) 30%, var(--faint)); }
 .jrnl-hc.l2 { background: color-mix(in srgb, var(--cat-green) 55%, var(--faint)); }
 .jrnl-hc.l3 { background: color-mix(in srgb, var(--cat-green) 78%, var(--faint)); }
@@ -4937,7 +4975,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .skl-rail-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .skl-rail-count { font-size: 0.75rem; color: var(--muted); }
 .skl-rail-results { font-size: 0.75rem; color: var(--muted); padding: 0.28rem 0.5rem; }
-.skl-rail-sub { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; padding: 0.5rem 0.5rem 0.15rem; }
+.skl-rail-sub { font-size: 0.75rem; color: var(--muted); padding: 0.5rem 0.5rem 0.15rem; }
 .skl-rail-foot { display: flex; flex-direction: column; gap: 1px; margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid var(--faint); }
 .skl-rail-act { background: none; border: 0; color: var(--muted); font: inherit; font-size: 0.75rem;
   text-align: left; padding: 0.28rem 0.5rem; cursor: pointer; transition: color 0.15s; }
@@ -5017,7 +5055,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .cb-fitonly { padding: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .cb-table { }
 .cb-row { display: grid; grid-template-columns: minmax(0,2.4fr) 0.7fr 1fr 1.1fr 0.9fr 0.9fr 0.9fr 0.6fr; gap: 0.5rem; align-items: center; padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
-.cb-head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--muted); }
+.cb-head { font-size: 0.75rem; color: var(--muted); border-bottom: 1px solid var(--muted); }
 .cb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cb-name a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); text-decoration: none; }
 .cb-name a:hover { color: var(--link); }
@@ -5253,10 +5291,15 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .rc-out.ok { color: var(--green); }
 :where(#money-view) .rc-out.bad { color: var(--error); }
 :where(#money-view) .txn.is-transfer .tx-cat { color: var(--muted); }
-:where(#money-view) .txn-transfer { display: none; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; padding: 0.5rem 0.55rem; border: 1px dashed var(--faint); border-radius: var(--k-radius-control); }
+:where(#money-view) .txn-transfer { display: none; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.7rem; padding: 0.5rem 0.55rem; border: 1px dashed var(--faint); border-radius: var(--k-radius-control); container: money-transfer / inline-size; }
 :where(#money-view) .txn-transfer > * { height: 32px; box-sizing: border-box; }
 :where(#money-view) .tr-lbl { color: var(--muted); font-size: 0.78rem; }
 :where(#money-view) .tr-arrow { color: var(--muted); font-size: 0.9rem; }
+/* too narrow for from and to on one line: the arrow ended up alone after "from", and the field
+   labels already say which way it goes */
+@container money-transfer (max-width: 30rem) {
+  :where(#money-view) .tr-arrow { display: none; }
+}
 :where(#money-view) .recurs { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.5rem; }
 :where(#money-view) .recur-group { border-bottom: 1px solid var(--faint); }
 :where(#money-view) .recur-group:last-child { border-bottom: none; }
@@ -5377,7 +5420,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-entry-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
 #money-view .money-entry-actions > .btn { min-height: 44px; }
 @media (min-width: 721px) {
-  #money-view .txn-add { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--k-space-3, 12px); margin-bottom: var(--k-space-5, 24px); }
+  /* the account gets most of the row: on an ipad four equal columns cut "Main checking acco…",
+     while type and amount only ever hold a word or a number */
+  #money-view .txn-add { display: grid; grid-template-columns: minmax(8.5rem, 1fr) minmax(0, 2.4fr) minmax(6.5rem, 0.8fr) minmax(6.5rem, 0.8fr); gap: var(--k-space-3, 12px); margin-bottom: var(--k-space-5, 24px); }
   #money-view .txn-add > .money-field { width: 100% !important; }
   #money-view .txn-add > .btn { justify-self: start; }
 }
@@ -5429,7 +5474,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .day-section {
   grid-column: 1 / -1;
   font-size: 0.75rem; color: var(--muted);
-  letter-spacing: 0.08em; text-transform: uppercase;
   margin: 0.6rem 0 0.05rem;
 }
 .day-section:first-child { margin-top: 0; }
@@ -5452,7 +5496,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   margin-top: 0.45rem; overflow: hidden;
 }
 .day-bar i { display: block; height: 100%; background: var(--cat-blue); border-radius: var(--k-radius-control); }
-.day-actions { display: flex; gap: 0.3rem; margin-top: 0.5rem; }
+/* the actions sit on the card's bottom edge, so a row of cards lines them up with or without a bar */
+.day-actions { display: flex; gap: 0.3rem; margin-top: auto; padding-top: 0.5rem; }
 .day-actions .btn { font-size: 0.75rem; padding: 0.12rem 0.42rem; }
 .day-card.editing { gap: 0.3rem; }
 .day-card.editing .settings-input { font-size: 0.75rem; width: 100%; }
@@ -5543,8 +5588,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-status { flex: 1; min-width: 0; color: var(--muted); font-size: 13px; line-height: 1.4; text-align: right; }
 .setup-status[data-state="error"] { color: var(--error); }
 .setup-actions { min-height: 44px; display: flex; align-items: center; gap: 12px; margin-top: 16px; }
-/* a bare "back" keeps its label on the content edge */
-.setup-actions > #sw-back:first-child { margin-left: calc(-12px - 1px); }
 .setup-actions .btn { min-height: 44px; }
 @media (max-width: 620px) {
   .setup-card { max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
@@ -5573,7 +5616,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .prox-card-main { flex: 1; min-width: 0; }
 .prox-card-title { font-size: 0.82rem; color: var(--text); }
 .prox-card-body { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
-.prox-card-cat { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; padding-top: 0.15rem; }
+.prox-card-cat { font-size: 0.75rem; color: var(--muted); flex-shrink: 0; padding-top: 0.15rem; }
 .prox-card-x { flex-shrink: 0; width: 20px; height: 20px; font-size: 0.75rem; color: var(--muted); opacity: 0; padding: 0; }
 .prox-card:hover .prox-card-x { opacity: 1; }
 .prox-card-x:hover { color: var(--text); }
@@ -5947,7 +5990,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   animation: rise 0.12s ease forwards;
 }
-.schedule-pop-title { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.schedule-pop-title { font-size: 0.75rem; color: var(--muted); }
 .schedule-pop-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
 .schedule-pop button, .schedule-pop .date-input { min-height: 44px; }
 #schedule-status { font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
@@ -6051,8 +6094,6 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 
 @media (max-width: 620px) {
   .mem-policy { align-items: flex-start; flex-direction: column; }
-  /* stacked under the label, so the words start on its edge */
-  .mem-policy-options { margin-inline-start: -12px; }
   .mem-actions { opacity: 1; }
 }
 
@@ -6091,7 +6132,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cd-rel-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.25rem 0; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
 .cd-rel-name { flex: 1; text-align: left; background: none; border: none; color: var(--text); cursor: pointer; padding: 0; font-size: 0.78rem; }
 .cd-rel-name:hover { color: var(--link); text-decoration: underline; }
-.cd-rel-kind { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid var(--faint); border-radius: var(--k-radius-small); padding: 0 0.3rem; }
+.cd-rel-kind { color: var(--muted); font-size: 0.75rem; border: 1px solid var(--faint); border-radius: var(--k-radius-small); padding: 0 0.3rem; }
 .cd-addrel { display: flex; gap: 0.3rem; margin-top: 0.5rem; flex-wrap: wrap; align-items: center; }
 .cd-ev-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.25rem 0; border-bottom: 1px solid var(--faint); font-size: 0.78rem; }
 .cd-ev-row.past { opacity: 0.55; }
@@ -6153,13 +6194,14 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 /* temperature as a btop-style block meter: hard discrete colour steps (cold blue
    → hot red), no smooth blend, snaps to cells — reads like a terminal equaliser,
    not a draggable fader. each lit cell is coloured by its POSITION on the scale. */
+/* the bar is the 44px target; the meter inside stays 14px */
 .temp-bar {
-  display: flex; gap: 1px; height: 14px;
-  margin: 0.5rem 0 0.2rem; cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 1px; height: 44px;
+  margin: 0.2rem 0; cursor: pointer; user-select: none;
   touch-action: none;
 }
 .temp-bar .tc {
-  flex: 1; background: var(--faint);
+  flex: 1; height: 14px; background: var(--faint);
   transition: background 0.07s ease, transform 0.07s ease;
 }
 /* the level edge — last lit cell — pops a touch so you can read the value */
@@ -6197,14 +6239,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 @keyframes aps-in { from { transform: translateY(-4px); } to { transform: none; } }
 .app-settings-title {
-  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: 0.75rem;
   color: var(--muted); padding-bottom: 0.1rem;
 }
 .aps-field { display: flex; flex-direction: column; gap: 0.3rem; }
 .aps-field > label { font-size: 0.75rem; color: var(--text); }
-/* bare choices under a label start on its edge (decision 0031) */
-.aps-field > .seg,
-#persona-mode { margin-inline-start: -12px; }
 .aps-field .settings-textarea { min-height: 2.6rem; }
 /* action buttons in a settings popover (e.g. mail accounts / rules) — 4e */
 .aps-action { width: 100%; text-align: left; background: var(--bg); border: 1px solid var(--faint); border-radius: var(--k-radius-surface); color: var(--text); font: inherit; font-size: 0.76rem; padding: 0.42rem 0.6rem; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
@@ -6259,7 +6298,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 .cal-weekday {
   background: var(--bg); padding: 0.4rem 0.5rem;
-  font-size: 0.75rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 0.75rem; color: var(--muted);
 }
 .cal-cell {
   background: var(--bg); min-height: 96px; padding: 0.3rem 0.35rem;
@@ -6440,7 +6479,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 
 /* permission rules list (settings → tools) */
 .perm-rule-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.4rem; border: 1px solid var(--faint); border-radius: var(--k-radius-control); margin-bottom: 0.3rem; font-size: 0.75rem; }
-.perm-rule-act { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.08rem 0.4rem; border-radius: var(--k-radius-control); flex-shrink: 0; }
+.perm-rule-act { font-size: 0.75rem; padding: 0.08rem 0.4rem; border-radius: var(--k-radius-control); flex-shrink: 0; }
 .perm-allow { color: var(--green); background: color-mix(in srgb, var(--green) 16%, transparent); }
 .perm-ask { color: var(--signal); background: color-mix(in srgb, var(--signal) 16%, transparent); }
 .perm-deny { color: var(--error); background: color-mix(in srgb, var(--error) 16%, transparent); }
@@ -6494,7 +6533,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .p-cpu { text-align: right; display: flex; align-items: center; gap: 0.3rem; justify-content: flex-end; }
 .p-cpubar { font-family: inherit; letter-spacing: -0.5px; color: var(--faint); }
 .p-cpu b { min-width: 1.8rem; text-align: right; }
-.cal-more { font: inherit; font-size: 0.75rem; color: var(--muted); padding: 0 0 0 2px; background: none; border: 0; text-align: left; cursor: pointer; }
+/* a real 44px target: the cell clips anything that hangs out of it, and reaching up would eat the
+   chip above. the text sits on the first line like the chips */
+.cal-more {
+  font: inherit; font-size: 0.75rem; color: var(--muted); background: none; border: 0; text-align: left; cursor: pointer;
+  display: flex; align-items: flex-start; box-sizing: border-box; min-height: 44px; padding: 1px 0 0 2px;
+}
 .cal-more:hover { color: var(--text); }
 .cal-task {
   font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 3px;
@@ -6502,6 +6546,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   border-left: 2px solid var(--green);
 }
 .cal-task:hover { background: var(--panel); color: var(--text); }
+/* a task toggle that's a real button keeps the chip look; in the week/day all-day row it gets the
+   full 44px target (month cells keep their compact chips) */
+button.cal-task { width: 100%; margin: 0; border: 0; border-left: 2px solid var(--green); background: none; font: inherit; font-size: 0.75rem; text-align: left; }
+.cal-tg-allday .cal-task { min-height: 44px; }
+.cal-task-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cal-task-chk { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; border: 1px solid currentColor; border-radius: var(--k-radius-small); box-sizing: border-box; opacity: 0.6; }
 .cal-task-chk.on { opacity: 1; border-color: transparent; }
 .cal-task-chk .ic { width: 12px; height: 12px; }
@@ -6533,8 +6582,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   #calendar-view .page-view-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2, 8px); }
   .cal-date-controls { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); min-width: 0; }
   .cal-date-controls .cal-month-title { min-width: 0; white-space: normal; text-align: end; }
-  /* bare views start on the column: the row moves back by the option padding */
-  #cal-view { width: calc(100% + 12px); margin-left: -12px !important; flex-wrap: wrap; }
+  /* the picked view is a raised segment, so the row starts on the column edge (0043) */
+  #cal-view { width: 100%; flex-wrap: wrap; }
   .cal-primary-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
   #cal-tools-toggle { display: inline-flex; align-items: center; min-height: var(--k-control, 44px); }
   #cal-tools { display: none; }
@@ -6556,19 +6605,35 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 /* 5c — calendar view switcher is the shared segmented control, sized a touch larger than seg-sm */
 .seg.seg-cal { display: inline-flex; flex-shrink: 0; }
 .seg.seg-cal .seg-opt { flex: 0 0 auto; padding: 0 12px; font-size: 13px; letter-spacing: 0; white-space: nowrap; }
+/* a 320px phone is 12px short of the five views on one line; 2px less padding a side fits them
+   and "day" still keeps a 44px target */
+@media (max-width: 360px) {
+  .seg.seg-cal .seg-opt { padding-inline: 10px; }
+}
 .cal-flabel { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 0.25rem; }
 
 /* week/day time grid */
-.cal-timegrid { display: flex; flex-direction: column; flex: 1; min-height: 0; max-width: 920px; width: 100%; margin: 0 auto; }
+.cal-timegrid { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; margin: 0 auto; }
+/* a week uses the width; one day column alone reads better in a measure */
+.cal-timegrid.one-day { max-width: 920px; }
 .cal-tg-headrow, .cal-tg-alldayrow, .cal-tg-body { display: grid; grid-template-columns: 48px repeat(var(--cols), minmax(0, 1fr)); }
 .cal-tg-headrow { border-bottom: 1px solid var(--faint); flex-shrink: 0; }
 .cal-tg-dayhead { text-align: center; padding: 0.35rem 0; font-size: 0.75rem; color: var(--muted); border-left: 1px solid var(--faint); }
 .cal-tg-dayhead .cal-tg-dn { color: var(--text); font-weight: 500; margin-left: 0.2rem; }
 .cal-tg-dayhead.today, .cal-tg-dayhead.today .cal-tg-dn { color: var(--info); }
 .cal-tg-alldayrow { border-bottom: 1px solid var(--faint); flex-shrink: 0; }
-.cal-tg-gutter { font-size: 0.75rem; color: var(--muted); text-align: right; padding: 0.2rem 0.3rem; }
+.cal-tg-gutter { font-size: 0.75rem; color: var(--muted); text-align: right; padding: 0.2rem 0.3rem; white-space: nowrap; }
 .cal-tg-allday { border-left: 1px solid var(--faint); padding: 1px; min-height: 22px; min-width: 0; cursor: pointer; }
 .cal-allday-ev { font-size: 0.75rem; padding: 1px 4px; border-radius: var(--k-radius-control); cursor: pointer; color: var(--bg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
+/* the all-day event is a button now, with the same 44px row as the tasks beside it */
+button.cal-allday-ev { display: block; box-sizing: border-box; width: 100%; min-height: 44px; padding: 0 6px; border: 0; font: inherit; font-size: 0.75rem; text-align: left; }
+/* past a few rows (and a half, so it reads as more) the all-day band scrolls instead of eating the
+   hours under it. a phone's grid is short, so it stops at two and a half */
+.cal-tg-alldayrow { max-height: calc(4.5 * 44px + 2px); overflow-y: auto; overscroll-behavior: contain; }
+.cal-tg-alldayrow > .cal-tg-gutter { position: sticky; top: 0; align-self: start; }
+@media (max-width: 760px) {
+  .cal-tg-alldayrow { max-height: calc(2.5 * 44px + 2px); }
+}
 .cal-tg-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 .cal-tg-hour { font-size: 0.75rem; color: var(--muted); text-align: right; padding-right: 0.3rem; border-top: 1px solid var(--faint); box-sizing: border-box; }
 .cal-tg-col { position: relative; border-left: 1px solid var(--faint); }
@@ -6576,6 +6641,13 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-tg-slot:hover { background: var(--panel); }
 .cal-tg-slot.offhours { background: var(--panel); }   /* 8a working-hours shading (theme-aware; was #0d0d0d = black in light) */
 .cal-tg-slot.offhours:hover { background: color-mix(in srgb, var(--panel) 70%, var(--faint)); }
+/* phone: every day head stacks the weekday over the date the same way (they wrapped one by one),
+   and the gutter is wide enough for "all-day" on one line */
+@media (max-width: 600px) {
+  .cal-tg-headrow, .cal-tg-alldayrow, .cal-tg-body { grid-template-columns: 52px repeat(var(--cols), minmax(0, 1fr)); }
+  .cal-tg-dayhead > span { display: block; }
+  .cal-tg-dayhead .cal-tg-dn { margin-left: 0; }
+}
 /* 8a agenda view */
 .cal-agenda { max-width: 760px; margin: 0 auto; padding: 0.5rem 0; }
 .cal-agenda-empty, .cal-agenda-day + .cal-agenda-empty { color: var(--muted); padding: 2rem; text-align: center; }
@@ -6625,7 +6697,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-inv-suggest-lbl { flex-basis: 100%; color: var(--muted); font-size: 0.75rem; }
 .cal-inv-chip { background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--text); cursor: pointer; font-size: 0.75rem; padding: 0.1rem 0.4rem; }
 .cal-inv-chip:hover { border-color: var(--line-strong); color: var(--text); }
-.cal-inv-chip-kind { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; margin-left: 0.15rem; }
+.cal-inv-chip-kind { color: var(--muted); font-size: 0.75rem; margin-left: 0.15rem; }
 .cal-inv-chip:hover .cal-inv-chip-kind { color: var(--text); }
 .cal-invite-add { display: flex; gap: 0.3rem; margin-bottom: 0.4rem; }
 .cal-sched { display: flex; align-items: center; gap: 0.5rem; margin: 0.1rem 0 0.3rem; flex-wrap: wrap; }
@@ -6635,9 +6707,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-slots-empty { color: var(--muted); font-size: 0.75rem; }
 .cal-slot-chip { background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--text); cursor: pointer; font-size: 0.75rem; padding: 0.1rem 0.45rem; }
 .cal-slot-chip:hover { border-color: var(--line-strong); color: var(--text); }
-.cal-tev {
-  position: absolute; left: 2px; right: 2px; z-index: 2;
-  font-size: 0.75rem; padding: 1px 4px; border-radius: var(--k-radius-control); overflow: hidden; cursor: pointer;
+/* a timed event: the outer box is the button, as tall as the event lasts; the inner box draws it */
+.cal-tev { position: absolute; left: 2px; right: 2px; border-radius: var(--k-radius-control); cursor: pointer; }
+.cal-tev-box {
+  position: absolute; inset: 0; z-index: 2;
+  font-size: 0.75rem; padding: 1px 4px; border-radius: var(--k-radius-control); overflow: hidden;
   color: var(--bg); line-height: 1.25;
 }
 .cal-tev.accent, .cal-allday-ev.accent { background: var(--cat-blue); }
@@ -6706,6 +6780,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 
 /* rich editor */
 .cal-editor { max-width: 640px; padding: 0.4rem 0.2rem; }
+/* the editor's section title (sized by the shared type scale, decision 0041). on a touch screen
+   it takes focus when the editor opens, since a field would raise the keyboard: that focus is
+   only ever programmatic, so no ring */
+.cal-editor .cal-ed-head { margin: 0 0 var(--k-space-1, 4px); }
+.cal-editor .cal-ed-head:focus { outline: none; }
 .cal-save-error, .cal-load-error { color: var(--error); padding-block: 0.5rem; }
 .cal-load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .cal-quick-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) var(--k-space-3, 12px); overflow-wrap: anywhere; }
@@ -6751,7 +6830,33 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-tev { cursor: grab; }
 .cal-tev.dragging { cursor: grabbing; opacity: 0.85; z-index: 5; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
 .cal-tev-resize { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; cursor: ns-resize; }
-.cal-ghost { background: color-mix(in srgb, var(--info) 28%, transparent); border: 1px dashed var(--info); pointer-events: none; opacity: 0.8; }
+.cal-ghost { background: color-mix(in srgb, var(--info) 28%, transparent); border: 1px dashed var(--info); pointer-events: none; opacity: 0.8; z-index: 2; }
+/* one layer stack for the grid: empty slots, then each event's 44px tap area, then every event's
+   box. a tap just off a short event opens it, a tap on a neighbour's box opens the neighbour, and
+   a tap further out lands on the slot and creates */
+.cal-tg-body { isolation: isolate; }
+.cal-tev[data-id]::after, .cal-tstack::after {
+  content: ''; position: absolute; z-index: 1;
+  top: min(0px, calc(50% - var(--ui-control-height, 44px) / 2));
+  bottom: min(0px, calc(50% - var(--ui-control-height, 44px) / 2));
+  left: min(0px, calc(50% - var(--ui-control-height, 44px) / 2));
+  right: min(0px, calc(50% - var(--ui-control-height, 44px) / 2));
+}
+/* kokuen's 44px minimum would stretch the box past the event's end; the tap area above keeps it */
+html[data-kokuen-version="5"] .cal-tg-col > :is(.cal-tev, .cal-tstack)[data-kokuen-primitive] { min-height: 0 !important; min-width: 0 !important; }
+/* overlapping events in a narrow week: one box across the day, opening it */
+.cal-tstack { position: absolute; left: 1px; right: 1px; border-radius: var(--k-radius-control); cursor: pointer; }
+.cal-tstack .cal-tev-box {
+  display: flex; align-items: flex-start; justify-content: center; gap: 2px; padding: 2px; color: var(--text);
+  background: color-mix(in srgb, var(--text) 10%, var(--bg)); border: 1px solid var(--line-strong, var(--faint));
+}
+.cal-tstack .cal-tev-box svg { width: 12px; height: 12px; flex: none; margin-top: 1px; }
+/* the ring sits outside the box and above the neighbours, so no text or edge hides it */
+html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible { outline: none; }
+:is(.cal-tev[data-id], .cal-tstack):focus-visible::before {
+  content: ''; position: absolute; inset: -1px; z-index: 3; pointer-events: none;
+  outline: 2px solid var(--k-focus, var(--focus)); border-radius: calc(var(--k-radius-control) + 1px);
+}
 .cal-now-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--error); z-index: 3; pointer-events: none; }
 .cal-now-line::before { content: ''; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--error); }
 
@@ -6801,8 +6906,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   padding: 0.3rem 0 0.5rem;
 }
 .slash-cat-label {
-  font-size: 0.75rem; color: var(--muted);
-  letter-spacing: 0.08em; font-weight: 500; text-transform: uppercase;
+  font-size: 0.75rem; color: var(--muted); font-weight: 500;
   padding: 0.6rem 0.85rem 0.2rem;
   border-top: 1px solid var(--faint);
 }
@@ -7174,7 +7278,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .docs-editor-head .wiki-current { margin-left: 0.5rem; }
 .docs-editor-head { flex-wrap: wrap; row-gap: 0.3rem; }
 /* the current view mode is the one button that should read clearly */
-#wiki-mode-toggle { border-color: var(--line-strong); color: var(--text); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+#wiki-mode-toggle { border-color: var(--line-strong); color: var(--text); font-weight: 600; }
 .docs-tree-toggle {
   flex: 0 0 auto;
   margin-left: 0;
@@ -7572,7 +7676,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .wiki-outline-head { font-size: 0.75rem; color: var(--muted); text-transform: lowercase; letter-spacing: 0.05em; padding: 0 0.7rem 0.3rem; }
 /* version history panel (3l): roomier, aligned rows, readable diff */
 #wiki-history { width: 290px; padding: 0.7rem 0.8rem; }
-.wiki-rev-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin-bottom: 0.45rem; }
+.wiki-rev-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.45rem; }
 .wiki-rev { border-bottom: 1px solid var(--faint); }
 .wiki-rev:last-child { border-bottom: none; }
 .wiki-rev-row { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0; font-size: 0.75rem; }
@@ -7755,7 +7859,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .wiki-docs-settings-pop .wds-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .wiki-docs-settings-pop .wds-status.ok .wds-dot { background: var(--green); }
 .wiki-docs-settings-pop .wds-status.off .wds-dot { background: var(--muted); }
-.wiki-docs-settings-pop .wds-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-top: 0.2rem; }
+.wiki-docs-settings-pop .wds-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
 .wiki-docs-settings-pop .wds-models { display: flex; flex-direction: column; gap: 0.15rem; max-height: 230px; overflow-y: auto; }
 .wiki-docs-settings-pop .wds-model { display: flex; flex-direction: column; align-items: flex-start; gap: 0.05rem; background: none; border: 1px solid transparent; border-radius: var(--k-radius-control); color: var(--text); font: inherit; text-align: left; padding: 0.32rem 0.5rem; cursor: pointer; }
 .wiki-docs-settings-pop .wds-model:hover { background: var(--raised); }
@@ -8044,7 +8148,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 #mcp-server-list .row-meta[data-error="true"] { color: var(--error); white-space: normal; }
 .mcp-preset { font-size: 0.75rem; }
 :is(.mcp-advanced, .photon-keys) { margin: 0.55rem 0; color: var(--muted); font-size: 0.75rem; }
-:is(.mcp-advanced, .photon-keys) > summary { cursor: pointer; margin-bottom: 0.55rem; }
+/* the line is the whole 44px target (padded, so it keeps its open/closed triangle); the space under
+   it comes from the target now */
+:is(.mcp-advanced, .photon-keys) > summary { cursor: pointer; box-sizing: border-box; min-height: 44px; padding-block: calc((44px - 1lh) / 2); margin-bottom: 0; }
 :is(.mcp-advanced, .photon-keys)[open] > summary { color: var(--text); }
 /* 11a — macOS integration status */
 .macos-row { display: flex; align-items: center; gap: 0.45rem; font-size: 0.78rem; padding: 0.18rem 0; }
@@ -8485,9 +8591,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
     margin-left: 0;
     gap: var(--k-space-2, 8px);
   }
-  /* actions keep their own width: refresh starts the row with its label on the column edge,
+  /* actions keep their own width: refresh starts the row with its box on the column edge (0043),
      settings ends it */
-  .mail-head-actions #mail-refresh-btn { margin-inline-start: calc(-1 * var(--k-space-3, 12px)); }
   .mail-head-actions .app-cog { margin-inline-start: auto; }
   .mail-layout {
     flex-direction: column;
@@ -8506,7 +8611,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
     overflow-y: hidden;
     border-right: 0;
     border-bottom: 1px solid var(--faint);
-    padding: 0.4rem 0.55rem;
+    /* the picked folder is a filled box, so the strip starts on the gutter (0043) */
+    padding: 0.4rem var(--k-gutter, 16px);
+    scroll-padding-inline: var(--k-gutter, 16px);
     gap: 0.15rem;
   }
   #mail-view.sidebar-collapsed .mail-nav-label {
@@ -8553,6 +8660,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
     overflow-y: auto;
   }
   #mail-view .mail-main:empty { display: none; }
+  /* with no mailbox the list is hidden too, so the empty pane stays to say where one gets added */
+  #mail-view[data-no-account] .mail-main:empty { display: block; }
   #mail-view:has(.mail-main:empty) .mail-list { flex: 1; max-height: none; }
   #mail-view .mail-pane-warning:not([hidden]) { display: block; }
   #mail-view .mail-reader { height: auto; }
@@ -8660,7 +8769,7 @@ body.compact .nav-item { padding: 0.25rem 1rem; }
 .watch-dot.unknown { background: var(--faint); }
 .watch-name { font-size: 0.84rem; color: var(--text); font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .watch-kind {
-  font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em;
+  font-size: 0.75rem; color: var(--muted);
   display: inline-flex; align-items: center; gap: 0.2rem; flex-shrink: 0;
 }
 .watch-kind svg { width: 11px; height: 11px; }
@@ -8742,7 +8851,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .cp-hex { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--faint); color: var(--text); border-radius: var(--k-radius-control); padding: 4px 6px; font-size: 0.75rem; font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace; }
 .cp-eyedropper { background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--muted); padding: 4px; cursor: pointer; display: flex; }
 .cp-eyedropper:hover { color: var(--text); }
-.cp-section-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 9px 0 4px; }
+.cp-section-label { font-size: 0.75rem; color: var(--muted); margin: 9px 0 4px; }
 .cp-swatches { display: flex; flex-wrap: wrap; gap: 4px; }
 .cp-swatch { width: 18px; height: 18px; border-radius: var(--k-radius-control); border: 1px solid var(--faint); cursor: pointer; padding: 0; }
 .cp-recent-empty { font-size: 0.75rem; color: var(--muted); }
@@ -8754,7 +8863,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-title { font-size: 0.9rem; font-weight: 600; }
 .te-body { padding: 1rem; overflow-y: auto; }
 .te-sec { margin-bottom: 1.1rem; }
-.te-sec-h { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+.te-sec-h { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; }
 .te-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 0.5rem; }
 .te-preset { background: none; border: 1px solid transparent; border-radius: var(--k-radius-surface); min-height: 44px; padding: 0.4rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; color: var(--muted); }
 .te-preset:hover { background: var(--k-hover, var(--panel)); color: var(--text); }
@@ -8775,8 +8884,6 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-body .te-seg-opt.active { background: var(--raised); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 /* the background-pattern picker has many options now — let it wrap into a grid of chips */
 .te-seg[data-seg="bgPattern"] { display: flex; flex-wrap: wrap; }
-/* stacked under a section heading, the first word starts on the heading's edge */
-.te-sec > .te-seg { margin-inline-start: -12px; }
 .te-bg-extra { display: flex; gap: 1.2rem; align-items: center; margin-top: 0.6rem; flex-wrap: wrap; }
 .te-slider { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted); }
 .te-slider input[type=range] { -webkit-appearance: none; appearance: none; width: 110px; height: 4px; border-radius: var(--k-radius-control); background: var(--faint); outline: none; }
@@ -8821,14 +8928,20 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .habit-streak { font-size: 0.75rem; color: var(--muted); display: inline-flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
 .habit-streak svg { width: 12px; height: 12px; }
 .habit-streak.on { color: var(--cat-amber); }
-.habit-slip { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--signal); border: 1px solid var(--signal); border-radius: var(--k-radius-small); padding: 0.05rem 0.3rem; cursor: help; }
+.habit-slip { font-size: 0.75rem; font-weight: 600; color: var(--signal); border: 1px solid var(--signal); border-radius: var(--k-radius-small); padding: 0.05rem 0.3rem; cursor: help; }
 .habit-card.at-risk { border-color: color-mix(in srgb, var(--signal) 45%, var(--faint)); }
 .habit-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .habit-actions .icon-btn svg { width: 14px; height: 14px; }
 .habit-actions .icon-btn.danger:hover { color: var(--error); }
-.habit-week { display: flex; gap: 0.3rem; margin-bottom: 0.6rem; }
+/* seven 44px days barely fit a phone card, so the gap gives way first (0 to 0.3rem) */
+.habit-week { display: flex; gap: clamp(0px, calc((100% - 7 * 44px) / 6), 0.3rem); margin-bottom: 0.6rem; }
 .habit-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 0.3rem 0; border: 1px solid var(--faint); border-radius: var(--k-radius-control); background: none; color: var(--muted); cursor: pointer; transition: border-color 0.12s, background 0.12s; }
-.habit-day span { font-size: 0.75rem; text-transform: uppercase; }
+/* under ~340px seven 44px days can't fit at all, so the week goes 4 + 3 instead of cutting saturday off */
+@media (max-width: 340px) {
+  .habit-week { flex-wrap: wrap; gap: 4px; }
+  .habit-day { flex: 0 0 calc((100% - 12px) / 4); }
+}
+.habit-day span { font-size: 0.75rem; }
 .habit-day b { font-size: 0.78rem; font-weight: 500; }
 .habit-day .habit-day-state { font-size: 0.75rem; line-height: 1; }
 .habit-day:hover { border-color: var(--muted); color: var(--text); }
@@ -8869,9 +8982,9 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .read-feed-row .icon-btn { margin-left: auto; flex-shrink: 0; }
 .read-feeds-empty { font-size: 0.75rem; color: var(--muted); }
 .read-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
-/* bare until picked (decision 0031). 12px a side keeps 24px between words; the row moves back
-   by it so "all" starts on the column. feeds is a toggle, not one of the four, so it sits a step apart */
-.read-filters { display: flex; flex-wrap: wrap; gap: 0 var(--k-space-3); margin-inline-start: -12px; }
+/* bare until picked. the picked chip is a box, so the row stays on the column edge (0043). feeds is
+   a toggle, not one of the four, so it sits a step apart */
+.read-filters { display: flex; flex-wrap: wrap; gap: 0 var(--k-space-3); }
 .read-filter-choices { display: flex; flex-wrap: wrap; }
 .read-chip { background: none; border: 1px solid transparent; border-radius: var(--k-radius-control); color: var(--muted); padding: 0 12px; font-size: 0.75rem; cursor: pointer; }
 .read-chip:hover { color: var(--text); background: var(--k-hover, var(--panel)); }
@@ -8944,6 +9057,9 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .books-goal-set { margin-left: auto; min-height: 44px; background: none; border: 0; border-radius: var(--k-radius-control); color: var(--muted); font-size: 13px; padding: 0 12px; cursor: pointer; white-space: nowrap; }
 .books-goal-set:hover { color: var(--text); background: var(--hover, var(--panel)); }
 .books-empty { padding: 1.2rem 0; font-size: 0.75rem; color: var(--muted); max-width: 480px; }
+/* the save receipt keeps its distance from the shelf heading under it */
+.book-create-result { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); margin-bottom: var(--k-space-4, 16px); }
+.book-create-result p { margin: 0; }
 
 /* shared first-run empty state — give otherwise-blank views some presence */
 .empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.55rem; max-width: 400px; margin: clamp(2rem, 11vh, 5.5rem) auto 0; padding: 0 1rem; animation: rise 0.5s var(--ease, cubic-bezier(0.2,0.7,0.2,1)) both; }
@@ -8954,7 +9070,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .empty-state .btn { margin-top: 0.5rem; }
 .empty-state .btn svg { width: 13px; height: 13px; }
 .book-shelf { margin-bottom: 1.6rem; }
-.book-shelf-h { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.6rem; }
+.book-shelf-h { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.6rem; }
 .book-shelf-h span { color: var(--muted); }
 .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; }
 .book-card { display: flex; gap: 0.7rem; border: 1px solid var(--faint); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.7rem; position: relative; }
@@ -8964,6 +9080,8 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-info { flex: 1; min-width: 0; }
 .book-title { padding-right: 48px; font-size: 0.84rem; font-weight: 600; color: var(--text); line-height: 1.25; }
 .book-author { padding-right: 48px; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.35rem; }
+/* no author still keeps its line, or the stars ride up under remove and the 5th star's target hides */
+.book-author:empty { min-height: 1lh; }
 .book-stars { display: inline-flex; gap: 1px; margin-bottom: 0.4rem; }
 .book-star { background: none; border: none; padding: 0; cursor: pointer; color: var(--muted); display: flex; }
 .book-star svg { width: 14px; height: 14px; }
@@ -8984,8 +9102,6 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-del:hover { color: var(--error); }
 .book-add { border: 1px solid var(--faint); border-left: 2px solid var(--line-strong); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.8rem; margin-bottom: 1.2rem; max-width: 560px; display: flex; flex-direction: column; gap: 0.5rem; }
 .book-add-row { display: flex; gap: 0.4rem; align-items: center; }
-/* the shelf choice starts its row bare (decision 0031), so it moves back by its padding */
-#book-status { margin-inline-start: -12px; }
 .book-add-row .settings-input { flex: 1; min-width: 0; }
 .book-add-row .book-field { flex: 1; }
 .book-lookup { display: flex; flex-direction: column; gap: 0.2rem; max-height: 240px; overflow-y: auto; border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.3rem; }
@@ -9008,7 +9124,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .health-empty { padding: 1.2rem 0; font-size: 0.75rem; color: var(--muted); max-width: 460px; }
 .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
 .health-card { border: 1px solid var(--faint); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.8rem 0.9rem; }
-.health-card-h { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.3rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.health-card-h { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.3rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .health-target-btn { background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--muted); font-size: 0.75rem; letter-spacing: 0.03em; padding: 1px 8px; min-height: 44px; cursor: pointer; text-transform: none; white-space: nowrap; }
 .health-target-btn:hover { color: var(--text); border-color: var(--muted); }
 .health-target-btn.on { color: var(--text); border-color: var(--line-strong); }
@@ -9667,7 +9783,7 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
 .andromeda-view .andromeda-watch { margin-top: 16px; padding: 12px 0; border-top: 1px solid var(--andromeda-line); border-bottom: 1px solid var(--andromeda-line); }
 .andromeda-view .andromeda-watch-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
 .andromeda-view .andromeda-watch-head h2 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 560; }
-.andromeda-view .andromeda-watch-choices { display: flex; flex-wrap: wrap; gap: 4px; margin-inline-start: -13px; } /* labels start on the content edge */
+.andromeda-view .andromeda-watch-choices { display: flex; flex-wrap: wrap; gap: 4px; }
 .andromeda-view .andromeda-watch-choices [role="radio"] {
   min-height: 44px; padding: 0 12px; border: 1px solid transparent; border-radius: var(--k-radius-small);
   background: transparent; color: var(--muted); font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer;
@@ -11107,12 +11223,9 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 .ie-chk[aria-checked="true"] { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 /* at a column edge the row moves back by its padding so the mark, not the hover box, lines up */
 #cal-allday-row > .cal-chk-row { margin-inline-start: -10px; }
-.cal-editor .cal-sched-btn { margin-inline-start: -12px; }
 
 /* a text action that starts a row moves back by its padding so its label, not its hover tile, sits
    on the column edge (decision 0031). a right-aligned row doesn't move: the box keeps its place */
-#mail-accounts-close,
-.watch-bar-actions > .btn:first-child,
 .server-workbench-card > button { margin-inline-start: -12px; }
 /* rows made only of text actions move back as a whole, so every wrapped line starts on the edge */
 #contacts-view .page-view-head.contacts-head { margin-inline-start: -12px; }
@@ -11131,9 +11244,9 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 /* a hint never sits on the field label or box under it */
 #settings-modal .s-card-hint + :is(.s-field, .settings-textarea) { margin-top: var(--k-space-3, 12px); }
 /* rules quick start: the label sits above, so a wrapped choice lines up under the first one.
-   the choices are bare until picked (decision 0031), so the row moves back by their padding */
-.rule-presets { margin-inline-start: -12px; row-gap: 4px; }
-.rule-presets-label { flex: 0 0 100%; margin: 0 0 0 12px; }
+   the picked choice is a box, so the row stays on the column edge (0043) */
+.rule-presets { row-gap: 4px; }
+.rule-presets-label { flex: 0 0 100%; margin: 0; }
 .rule-preset { min-height: 44px; padding: 0 12px; border-color: transparent; }
 .rule-preset:hover { border-color: transparent; background: var(--k-hover, var(--panel)); }
 

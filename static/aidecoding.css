@@ -32,9 +32,11 @@
 @media (prefers-reduced-motion: no-preference) {
   #aide-coding-workspace:not([data-resizing]) .acw-body { transition: grid-template-columns 280ms cubic-bezier(.23, 1, .32, 1); }
 }
-/* the rail's edge: a 12px strip you can drag, a line that shows where it is when pointed at */
+/* the rail's edge: a strip you can drag (12px, its ::before widens the grab to 32px for a finger) and
+   a 2px line that shows where it is when pointed at */
 .acw-rail-resize { position: absolute; top: 0; right: -6px; bottom: 0; z-index: 3; width: 12px; cursor: col-resize; touch-action: none; }
 .acw-rail-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; background: transparent; transition: background-color 140ms ease; }
+.acw-rail-resize::before { content: ""; position: absolute; top: 0; bottom: 0; left: -10px; right: -10px; }
 .acw-rail-resize:hover::after, #aide-coding-workspace[data-resizing] .acw-rail-resize::after { background: var(--k-line-strong); }
 .acw-rail-resize:focus-visible { outline: none; }
 .acw-rail-resize:focus-visible::after { background: var(--k-focus); }

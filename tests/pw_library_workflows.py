@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
@@ -298,6 +299,10 @@ def run():
                 feeds.click()
                 expect(feeds).to_have_attribute("aria-pressed", "true")
                 expect(filters.nth(3)).to_have_attribute("aria-checked", "true")
+                # the feeds click redraws the filter row; motion.js puts the pill back on its next pass
+                expect(page.locator(".read-filter-choices")).to_have_class(
+                    re.compile(r"\bhas-pill\b")
+                )
                 visual = page.evaluate("""() => {
                     const radio = document.querySelector('.read-filter-choices [role="radio"][aria-checked="true"]');
                     const feeds = document.querySelector('#read-feeds-btn');

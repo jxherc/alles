@@ -93,6 +93,9 @@ test('plain glyph controls still receive semantic SVGs and accessible names once
     ['×', { title: 'remove attachment' }, 'trash', 'remove attachment'],
     ['↑', { title: 'send message' }, 'send', 'send message'],
     ['↑', { id: 'files-up-btn' }, 'chevron-up', 'move up'],
+    ['‹', { title: 'previous month' }, 'chevron-left', 'previous month'],
+    ['‹', {}, 'chevron-left', 'previous'],
+    ['›', {}, 'chevron-right', 'next'],
   ]) {
     const { decorate, icons } = harness();
     const button = new Element('button', text, attributes);

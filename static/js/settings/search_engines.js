@@ -4,7 +4,7 @@ import { _patchSettings, _esc } from './shared.js';
 import { toast } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=212';
-import { wireChoiceGroup } from '../kokuen.js?v=1';
+import { wireChoiceGroup } from '../kokuen.js?v=2';
 
 let _engines = [];
 let _settings = {};

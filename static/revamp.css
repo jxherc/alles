@@ -781,11 +781,6 @@ html:not(#_):not(#_) .specialist-workbench-plan > .specialist-workbench-main {
   grid-area: agenda;
 }
 
-/* the picked window's fill is a box, so it lines up with the boxes above and below it */
-html:not(#_):not(#_) .specialist-workbench-plan .specialist-choice-group {
-  margin-inline-start: 0;
-}
-
 /* the quick capture reads as the same soft composer as home's */
 html:not(#_):not(#_) .specialist-workbench .specialist-group-capture {
   display: grid;
@@ -837,15 +832,14 @@ html:not(#_):not(#_) .specialist-workbench .specialist-group-capture-status {
   padding: 0 var(--k-space-4) var(--k-space-2);
 }
 
-/* rows and choices inside a card move back by their padding, so their words start under the
-   card's heading and only the hover fill reaches past it (0031) */
+/* rows inside a card move back by their padding, so their words start under the card's heading
+   and only the hover fill reaches past it (0031). choice rows stay on the edge: the picked chip
+   is a box at rest (0043) */
 html:not(#_) .specialist-workbench :is(.specialist-habit-row, .specialist-record-row, .specialist-library-row, .specialist-message-row) {
+  /* button rows carry width:100%, which stopped 24px short after the pull-back */
+  width: calc(100% + 2 * var(--k-space-3));
   margin-inline: calc(-1 * var(--k-space-3));
   padding-inline: var(--k-space-3);
-}
-
-html:not(#_) .specialist-workbench .specialist-choice-group {
-  margin-inline-start: calc(-1 * var(--k-space-3));
 }
 
 html:not(#_) .specialist-workbench > .specialist-workbench-detail:empty {
@@ -987,16 +981,46 @@ html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-
   html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-sidebar, #cal-sidebar) {
     border-start-end-radius: 0;
   }
+
+  /* photos turns into a strip of pills here, and the picked pill is a box, so it starts on the
+     gutter (0043) and scrolling stops there too */
+  html:not(#_):not(#_) .photos-sidebar {
+    padding-inline: var(--k-gutter);
+    scroll-padding-inline: var(--k-gutter);
+  }
 }
 
-/* on a phone the views get their own row under the app name; its first and last words keep the
-   gutter (tabs keep their 12px of padding inside it), and scrolling stops on that line */
+/* on a phone the views get their own row under the app name. the picked view is a filled pill, so
+   the row starts on the gutter instead of moving back by the tab padding (0043), and scrolling stops
+   on that line */
 @media (max-width: 760px) {
   html:not(#_):not(#_) .specialist-group-tabs {
     margin-inline: 0;
-    padding-inline: calc(var(--k-gutter) - 12px);
-    scroll-padding-inline: calc(var(--k-gutter) - 12px);
+    padding-inline: var(--k-gutter);
+    scroll-padding-inline: var(--k-gutter);
   }
+}
+
+/* a strip that scrolls fades out on the side that has more views, so a clipped tab reads as "more"
+   instead of a cut word. a tab scrolled into view stops clear of the fade */
+html:not(#_):not(#_) .specialist-view-strip:has(> .specialist-view-scroll:not([hidden])) .specialist-group-tabs {
+  --view-fade-start: 0px;
+  --view-fade-end: 0px;
+  mask-image: linear-gradient(to right, transparent, #000 var(--view-fade-start), #000 calc(100% - var(--view-fade-end)), transparent);
+}
+
+html:not(#_):not(#_)[dir="rtl"] .specialist-view-strip:has(> .specialist-view-scroll:not([hidden])) .specialist-group-tabs {
+  mask-image: linear-gradient(to left, transparent, #000 var(--view-fade-start), #000 calc(100% - var(--view-fade-end)), transparent);
+}
+
+html:not(#_):not(#_) .specialist-view-strip:has(> .specialist-view-scroll:first-child:not([hidden], [aria-disabled="true"])) .specialist-group-tabs {
+  --view-fade-start: 24px;
+  scroll-padding-inline-start: 24px;
+}
+
+html:not(#_):not(#_) .specialist-view-strip:has(> .specialist-view-scroll:last-child:not([hidden], [aria-disabled="true"])) .specialist-group-tabs {
+  --view-fade-end: 24px;
+  scroll-padding-inline-end: 24px;
 }
 
 /* header actions at the end of the row (finance's guide) end on the gutter */
@@ -1228,6 +1252,30 @@ html:not(#_):not(#_) #subs-view > .page-view-footer > :is(input, .custom-select,
 html:not(#_):not(#_) #mail-view > .mail-head {
   border-bottom: 0;
   padding-block: var(--k-rhythm) var(--k-space-3);
+}
+
+/* the saved-search, recovery and outbox strips under it start on the same gutter */
+html:not(#_):not(#_) #mail-view > :is(.mail-saved, .mail-scheduled) {
+  padding-inline: var(--k-gutter);
+}
+
+/* outbox actions are bare words: side padding keeps the inset focus ring off the letters, and
+   a chip's last action and the "+N more" toggle pull back by it, so the words stay put (0043).
+   the strip's gap equals the pull-back, so the toggle never reaches into the chip before it */
+html:not(#_):not(#_) #mail-view .mail-scheduled {
+  gap: 0.5rem;
+}
+
+html:not(#_):not(#_) #mail-view .mail-sched-cancel {
+  padding-inline: 0.5rem;
+}
+
+html:not(#_):not(#_) #mail-view .mail-sched-chip > .mail-sched-cancel:last-child {
+  margin-inline-end: -0.5rem;
+}
+
+html:not(#_):not(#_) #mail-view .mail-scheduled > .mail-sched-cancel {
+  margin-inline: -0.5rem;
 }
 
 /* mail's account setup is a card on the gutter: what it is, its two actions at the card's edge,
@@ -1604,7 +1652,9 @@ html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row, .files
   padding-inline: var(--k-gutter);
 }
 
-@media (max-width: 760px) {
+/* up to an ipad in portrait the sidebar leaves too little room for one row: the folder name
+   squeezed to 0px and up slid under settings, so the actions take their own row */
+@media (max-width: 1023px) {
   html:not(#_):not(#_) #files-view .files-phase7-app-head {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "where settings" "actions actions";
@@ -1663,9 +1713,21 @@ html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row, .files
     margin-inline: var(--k-gutter);
   }
 
-  html:not(#_):not(#_) #photos-view .photos-filterbar {
+  html:not(#_):not(#_) #photos-view :is(.photos-filterbar, .photos-recovery, .photos-selbar) {
     padding-inline: 0;
   }
+}
+
+/* a phone's selection bar starts on the gutter like the photos under it */
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #photos-view .photos-selbar {
+    padding-inline: var(--k-gutter);
+  }
+}
+
+/* the bare × moves back by the room around its icon, so the icon lines up with the photos */
+html:not(#_):not(#_) #photos-view .photos-sel-clear {
+  margin-inline-start: -14px;
 }
 
 /* the view you're on is the toolbar's title, not a hidden label */
@@ -1921,6 +1983,18 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
 /* page sidebars share one width (Linear's is 244) */
 @media (min-width: 761px) {
   html:not(#_):not(#_) #cal-sidebar { width: 244px; box-sizing: border-box; }
+}
+
+/* calendar's mini month needs 7 days of 44px. from 1200px the sidebar makes room for them; below
+   that the month view does the same job and the mini month steps aside */
+@media (min-width: 1200px) {
+  html:not(#_):not(#_) #cal-sidebar { width: calc(7 * 44px + 2 * var(--k-gutter)); }
+  html:not(#_):not(#_) #cal-mini .cal-mini-grid { grid-template-columns: repeat(7, 44px); gap: 0; }
+  html:not(#_):not(#_) #cal-mini .cal-mini-day { min-height: 44px; padding: 0; }
+}
+
+@media (max-width: 1199px) {
+  html:not(#_):not(#_) #cal-mini { display: none; }
 }
 
 /* phone: an add form with two or more fields stacks them, one per line split by a quiet rule,
@@ -2441,6 +2515,11 @@ html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before 
   text-align: center;
 }
 
+/* with no mailbox there's nothing to pick, so it points at where one gets added */
+html:not(#_):not(#_) #mail-view[data-no-account]:has(#mail-sidebar > *) #mail-main:empty::before {
+  content: "no mail account yet. add one in mail settings";
+}
+
 /* overview cards: a card title owns one 44px row, so titles across a row of cards line up whether
    or not a head holds an action (inbox's "open mail") */
 html:not(#_):not(#_) .specialist-group-overview .specialist-workbench h2:not(.sr-only) {
@@ -2688,10 +2767,15 @@ html:not(#_):not(#_) .code-block > .code-block-header {
 }
 
 html:not(#_):not(#_) .code-block > .code-block-header .code-lang:empty { display: none; }
-html:not(#_):not(#_) .code-block > .code-block-header .code-lang { color: var(--k-muted); font-size: 12px; }
+html:not(#_):not(#_) .code-block > .code-block-header .code-lang { max-width: 6rem; overflow: hidden; color: var(--k-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 html:not(#_):not(#_) .code-block > .code-block-header .code-copy { min-height: 44px; padding: 0 var(--k-space-3); }
-html:not(#_):not(#_) .code-block > pre { padding-right: 96px; }
-@media (max-width: 600px) { html:not(#_):not(#_) .code-block > pre { padding-right: var(--k-space-3); } }
+/* the header hides what runs under it, so a long line needs a gutter as wide as the header (label
+   capped above, plus run when there is one) to scroll fully clear of it. code doesn't wrap, so the
+   gutter only adds scroll room. a phone's header is its own row, so it keeps the slim padding */
+@media (min-width: 601px) {
+  html:not(#_):not(#_) .code-block > pre { padding-right: 11rem; }
+  html:not(#_):not(#_) .code-block:has(.code-run) > pre { padding-right: 14rem; }
+}
 
 /* high contrast: a picked row drawn only by a fill vanishes, so it takes the system highlight */
 @media (forced-colors: active) {
@@ -2715,10 +2799,17 @@ html:not(#_):not(#_) .code-block > pre { padding-right: 96px; }
 html:not(#_):not(#_) #mail-view .mail-reader-head,
 html:not(#_):not(#_) #mail-view .mail-reader-body { padding-inline: var(--k-gutter); }
 html:not(#_):not(#_) #mail-view .mail-pane-nav { padding-inline: calc(var(--k-gutter) - 12px); }
+/* compose's form already starts on the gutter, so its lined "back to messages" sits on that edge */
+html:not(#_):not(#_) #mail-view .mail-compose .mail-pane-nav { padding-inline: 0; }
 
 html:not(#_)[data-kokuen-version="5"] #mail-view :is(#mail-unread, #mail-vip, #mail-to-task, #mail-to-cal, #mail-summarize, .mail-pane-back).btn {
   background: transparent;
   color: var(--k-soft);
+}
+
+/* the shared button weight skips [aria-pressed="true"], so "VIP" went thin when it was on */
+html:not(#_)[data-kokuen-version="5"] #mail-view #mail-vip.btn[aria-pressed="true"] {
+  font-weight: 500;
 }
 
 html:not(#_)[data-kokuen-version="5"] #mail-view :is(#mail-unread, #mail-vip, #mail-to-task, #mail-to-cal, #mail-summarize, .mail-pane-back).btn:hover {
@@ -2799,25 +2890,31 @@ html:not(#_) .read-card :is(.read-card-actions, .read-tag, .read-card-meta butto
 
 /* receipts with an undo (a task done, a quick-added event, a note saved from home) float near the
    bottom instead of being inserted above the list: inserted, they pushed the list 60px down the
-   moment you acted, right under your finger. toasts step up while one is showing */
-html:not(#_) :is(#task-completion-receipt, #cal-quick-feedback, #cal-import-feedback, #today-note-recovery:not(:empty)) {
-  position: fixed;
-  z-index: 450;
-  left: var(--k-gutter, 24px);
-  bottom: max(var(--k-space-4, 16px), env(safe-area-inset-bottom));
-  width: min(32rem, calc(100vw - 2 * var(--k-gutter, 24px)));
-  box-sizing: border-box;
-  margin: 0;
-  padding: var(--k-space-1, 4px) var(--k-space-1, 4px) var(--k-space-1, 4px) var(--k-space-4, 16px);
-  border: 1px solid var(--k-card-line, var(--faint));
-  border-radius: var(--k-radius-surface, 8px);
-  background: var(--k-raised, var(--panel));
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--k-text, #000) 14%, transparent);
-  font-size: 13px;
+   moment you acted, right under your finger. toasts step up while one is showing. only on a wide
+   screen: a phone's bottom edge holds controls (the calendar's back / next) the float sat on.
+   under the dialogs (200+), over the page's own panels (90 and below) */
+@media (min-width: 761px) {
+  html:not(#_) :is(#task-completion-receipt, #cal-quick-feedback, #today-note-recovery:has(> .note-saved-open)) {
+    position: fixed;
+    z-index: 150;
+    left: var(--k-gutter, 24px);
+    bottom: max(var(--k-space-4, 16px), env(safe-area-inset-bottom));
+    width: min(32rem, calc(100vw - 2 * var(--k-gutter, 24px)));
+    box-sizing: border-box;
+    margin: 0;
+    padding: var(--k-space-1, 4px) var(--k-space-1, 4px) var(--k-space-1, 4px) var(--k-space-4, 16px);
+    border: 1px solid var(--k-card-line, var(--faint));
+    border-radius: var(--k-radius-surface, 8px);
+    background: var(--k-raised, var(--panel));
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--k-text, #000) 14%, transparent);
+    font-size: 13px;
+  }
+  body:has(:is(#task-completion-receipt:not([hidden]), #cal-quick-feedback:not([hidden]), #today-note-recovery > .note-saved-open)) .toast-container { bottom: 5rem; }
 }
-html:not(#_) #today-note-recovery:not(:empty) { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); }
+/* only the short "note saved · open note" one: the pending-note recovery panel stays a panel */
+html:not(#_) #today-note-recovery:has(> .note-saved-open) { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); }
 html:not(#_) #today-note-recovery > p { margin: 0; }
-body:has(:is(#task-completion-receipt:not([hidden]), #cal-quick-feedback:not([hidden]), #cal-import-feedback:not([hidden]), #today-note-recovery:not(:empty))) .toast-container { bottom: 5rem; }
+@media (max-width: 760px) { html:not(#_) #today-note-recovery:has(> .note-saved-open) { margin-top: var(--k-space-2, 8px); } }
 
 /* the few marks css drew as text (▸ ▾ ⌄ ⌃ ✓ ▮) are svg masks now: the same shapes as the icon set,
    in the text's colour */
@@ -2845,16 +2942,23 @@ html:not(#_) :is(.agent-step-args-wrap[open] summary, .agent-step-args-wrap.open
 html:not(#_) :is(#aide-schedule-project, .aide-goal-memory summary)::after { -webkit-mask-image: var(--ic-chev-down); mask-image: var(--ic-chev-down); }
 html:not(#_) .aide-goal-memory[open] summary::after { -webkit-mask-image: var(--ic-chev-up); mask-image: var(--ic-chev-up); }
 html:not(#_) #messages .agent-step:not(.running):not(.error) .agent-step-status::before { -webkit-mask-image: var(--ic-check); mask-image: var(--ic-check); }
-html:not(#_) #system-host::after { content: ""; display: inline-block; width: 0.45em; height: 0.9em; vertical-align: -0.1em; background: var(--accent); }
-@media (forced-colors: active) {
-  html:not(#_) :is(.agent-step-args-wrap summary, .agent-step-args-wrap .custom-summary, .aide-goal-memory summary, #aide-schedule-project)::before,
-  html:not(#_) :is(.agent-step-args-wrap summary, .agent-step-args-wrap .custom-summary, .aide-goal-memory summary, #aide-schedule-project)::after { background: CanvasText; }
-}
+/* the live cursor only while live: loading, unavailable and static (no live monitoring) draw none */
+html:not(#_) #system-host:not([data-state="live"])::after { display: none; }
+html:not(#_) #system-host[data-state="live"]::after { content: ""; display: inline-block; width: 0.45em; height: 0.9em; vertical-align: -0.1em; background: var(--accent); }
 html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after {
   content: ""; display: inline-block; width: 1em; height: 1em; vertical-align: -0.15em; background: currentColor;
   -webkit-mask: var(--ic-chev-down) center / contain no-repeat; mask: var(--ic-chev-down) center / contain no-repeat;
 }
 html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger[aria-expanded="true"]::after { -webkit-mask-image: var(--ic-chev-up); mask-image: var(--ic-chev-up); }
+/* high contrast swaps a currentColor fill for Canvas, so every mask mark above vanished. this
+   sits after all of them: the same specificity earlier would lose to their fill */
+@media (forced-colors: active) {
+  html:not(#_) :is(.agent-step-args-wrap summary, .agent-step-args-wrap .custom-summary, .aide-goal-memory summary, #aide-schedule-project)::before,
+  html:not(#_) :is(.agent-step-args-wrap summary, .agent-step-args-wrap .custom-summary, .aide-goal-memory summary, #aide-schedule-project)::after,
+  html:not(#_) #messages .agent-step:not(.running):not(.error) .agent-step-status::before,
+  html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after,
+  html:not(#_) #system-host[data-state="live"]::after { background: CanvasText; }
+}
 
 /* each conversation row has its own "more" (rename, star, move, delete): right-click was the only
    way in, which an ipad can't do. a starred conversation shows its star */

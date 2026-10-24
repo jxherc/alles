@@ -3,7 +3,7 @@ import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from 
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker } from './datepick.js';
 import { formatDateTime } from './i18n.js';
-import { wireActionMenu } from './kokuen.js?v=1';
+import { wireActionMenu } from './kokuen.js?v=2';
 import { openAppSettings } from './appsettings.js';
 
 let _view = '';      // current view: '' | __fav__ | __archive__ | __hidden__ | __map__ | __memories__ | __trash__ | <albumId>

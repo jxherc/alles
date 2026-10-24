@@ -1,11 +1,11 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
-import { loadModels, addEndpoint, renderModelList } from '../models.js?v=212';
+import { loadModels, addEndpoint, renderModelList } from '../models.js?v=213';
 import { initCustomDropdowns, getDropdownValue, populateDropdown } from '../dropdown.js?v=212';
 import { _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 import { API_TYPES, authFor, mountProviderPicker } from '../model_providers.js';
-import { wireChoiceGroup } from '../kokuen.js?v=1';
+import { wireChoiceGroup } from '../kokuen.js?v=2';
 
 let _providersActive = false;
 let _providersCurrent = () => false;
