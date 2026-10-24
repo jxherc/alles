@@ -16,7 +16,9 @@ from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from services.appearance import from_legacy
+# set before any app import, so nothing this gate loads reads the owner's .env, however it's run
+os.environ["PYTHON_DOTENV_DISABLED"] = "1"
+from services.appearance import from_legacy  # noqa: E402
 
 PROFILES = [(w, t, False) for w in (1440, 820, 390) for t in ("light", "dark")]
 PROFILES += [(1440, t, True) for t in ("light", "dark")]
@@ -68,7 +70,6 @@ def run(configure_context=None, profiles=PROFILES):
     origin = urlsplit(base)
     data = Path(os.environ["ALLES_DATA"]).resolve()
     assert (data / ".alles-test-owner").read_text() == os.environ["ALLES_TEST_RUN_ID"]
-    assert os.environ["PYTHON_DOTENV_DISABLED"] == "1"
     require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
     out = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     rows = []
@@ -121,6 +122,9 @@ def run(configure_context=None, profiles=PROFILES):
                     return route.fulfill(
                         json={**fixture, "category": request.post_data_json["category"]}
                     )
+                if url.path == "/api/andromeda/answer":
+                    # no tool card and no spelling lookup: the answer beside a search stays local
+                    return route.fulfill(json={"kind": None, "did_you_mean": ""})
                 if url.path.startswith("/api/andromeda/") and not (
                     url.path.startswith("/api/andromeda/saved")
                     or url.path == "/api/andromeda/providers"
@@ -292,7 +296,8 @@ def run(configure_context=None, profiles=PROFILES):
                     base + "/api/read/" + identity, data={"archived": True}, max_redirects=0
                 ).ok
                 page.reload(wait_until="networkidle")
-                expect(opened).to_be_visible()
+                # a reload closes the result's actions menu: open it again to find the record
+                opened = library_button("open in Library: " + title)
                 open_record(identity)
                 page.go_back(wait_until="networkidle")
                 assert page.url == saved_url
@@ -307,7 +312,7 @@ def run(configure_context=None, profiles=PROFILES):
                 # Deleting a saved record removes the destination on the next reload.
                 assert api.delete(base + "/api/read/" + identity, max_redirects=0).ok
                 page.reload(wait_until="networkidle")
-                expect(save).to_be_visible()
+                save = library_button("save to Library: " + title)
                 expect(opened).to_have_count(0)
                 assert not records() and len(writes) == 1
                 assert [request["category"] for request in searches] == expected_categories

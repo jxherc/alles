@@ -8,7 +8,8 @@ test('stopStream aborts the active browser chat request', () => {
   assert.match(src, /let _chatAbort = null/);
   assert.match(src, /new AbortController\(\)/);
   assert.match(src, /signal: ctrl\.signal/);
-  assert.match(src, /_chatAbort\?\.abort\(\)/);
+  // stopStream aborts after telling the server which turn it stops
+  assert.match(src, /Promise\.race\(\[told\.then\(reply => \(reply\?\.ok \? streamDone : undefined\)\), deadline\]\)\.then\(\(\) => ctrl\.abort\(\)\)/);
   assert.match(src, /e\.name !== 'AbortError'/);
 });
 

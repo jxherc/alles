@@ -2,7 +2,7 @@ import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropd
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
-import { createMenuController, setControlState, wireChoiceGroup } from './kokuen.js?v=1';
+import { createMenuController, setControlState, wireChoiceGroup } from './kokuen.js?v=2';
 import { replaceRouteUrl } from './route_history.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -1465,7 +1465,8 @@ function renderProse(text, sources = _state.evidence || [], { done = false } = {
         const tr = document.createElement('tr');
         for (const cell of cells) {
           const td = document.createElement(index === 0 ? 'th' : 'td');
-          proseLine(td, cell, td, sources, done);
+          // a card after a cell would sit in the row as one more squeezed column; it goes under the table
+          proseLine(td, cell, wrap, sources, done);
           tr.append(td);
         }
         table.append(tr);
@@ -2086,6 +2087,26 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   }
 }
 
+// the list was rebuilt under the busy button: carry on reading at the first result that arrived
+function focusFirstNewResult(currentCategory, index, button) {
+  const active = document.activeElement;
+  if (active && active !== document.body && active !== button) return;
+  // nothing new came back: stay on the button while it's there, else the last result (the
+  // button hid itself, and focus would drop to the page)
+  if (currentCategory === 'all') {
+    const rows = resultRows();
+    if (rows[index]) { selectResult(index, { focus: true, scroll: true }); return; }
+    if (button.hidden && rows.length) { selectResult(rows.length - 1, { focus: true, scroll: true }); return; }
+  } else {
+    const items = el({ images: 'andromeda-images', news: 'andromeda-news', videos: 'andromeda-videos' }[currentCategory])?.children;
+    const added = items?.[index] || (button.hidden ? items?.[items.length - 1] : null);
+    const link = added?.matches('a[href]') ? added : added?.querySelector('a[href]');
+    if (link) { link.focus(); return; }
+  }
+  if (!button.hidden) button.focus();
+  else document.getElementById('andromeda-query')?.focus();
+}
+
 async function loadMoreResults() {
   const button = el('andromeda-more-results');
   if (!button || !_state.rawQuery) return;
@@ -2125,13 +2146,16 @@ async function loadMoreResults() {
       document.querySelectorAll('.andromeda-image-skeleton.page-skeleton').forEach(node => node.remove());
       status(failureMessage(tr('andromeda.more_failed'), result));
       updateMoreResults();
+      if (document.activeElement === document.body && !button.hidden) button.focus();
       return;
     }
+    const firstNew = _state.results.length;
     _state.results = mergePageResults(_state.results, result.results);
     _state.hasMore = !!result.has_more;
     _state.request = { ..._state.request, max_results: nextMax };
     renderAndromedaResults(_state.results, result.status, currentCategory);
     updateMoreResults();
+    focusFirstNewResult(currentCategory, firstNew, button);
     text('andromeda-result-meta', [
       trp('andromeda.result_count', _state.results.length),
       result.provider || tr('andromeda.provider'), `${result.elapsed_ms} ms`,
@@ -2142,6 +2166,7 @@ async function loadMoreResults() {
     document.querySelectorAll('.andromeda-image-skeleton.page-skeleton').forEach(node => node.remove());
     status(failureMessage(error.message || tr('andromeda.more_failed'), error));
     updateMoreResults();
+    if (document.activeElement === document.body && !button.hidden) button.focus();
   }
 }
 

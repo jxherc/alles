@@ -61,7 +61,10 @@ with sync_playwright() as pw:
                     creations.append((route, route.fetch()))
                     return None
                 if parsed.path == "/api/chat" and route.request.method == "POST":
-                    requests.append(route.request.post_data_json)
+                    # every send names its own turn for the stop button; the rest must repeat
+                    sent = dict(route.request.post_data_json)
+                    assert sent.pop("turn_token", "")
+                    requests.append(sent)
                     if state["hold"]:
                         held.append(route)
                         return None

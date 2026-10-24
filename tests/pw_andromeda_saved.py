@@ -300,8 +300,20 @@ def run(context_factory=None):
                     elif case == "lost-reply-reload-check":
                         fail_save()
                         identity = pending()[0]["request_id"]
+                        # the search rides in ?q, so a reload runs it again: its actions belong
+                        # to the results it shows, next to the save that still needs checking
                         page.reload(wait_until="networkidle")
                         expect(page.locator("#andromeda-save-query")).to_have_text(query)
+                        expect(page.locator(".andromeda-result")).to_have_count(8)
+                        expect(page.locator("#andromeda-actions")).to_be_visible()
+                        assert pending()[0]["request_id"] == identity
+                        # with no search in the address only the lost save is left: no actions
+                        # for results that aren't there
+                        page.goto(base + "/?app=andromeda", wait_until="networkidle")
+                        expect(page.locator("#andromeda-save-query")).to_have_text(query)
+                        expect(page.locator(".andromeda-result")).to_have_count(0)
+                        expect(page.locator("#andromeda-actions")).to_be_hidden()
+                        expect(page.locator("#andromeda-result-tools")).to_be_hidden()
                         assert pending()[0]["request_id"] == identity
                         page.locator("#andromeda-save-check").focus()
                         page.locator("#andromeda-save-check").press("Enter")

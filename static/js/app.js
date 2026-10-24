@@ -1,5 +1,5 @@
-import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, focusSessionMessage } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=212';
+import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, selectSessionFromRoute, focusSessionMessage } from './sessions.js';
+import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=213';
 import { icon, iconEl, ICON_NAMES, appGlyph } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
@@ -20,10 +20,10 @@ import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
 import { openManual } from './help.js?v=1';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
-import { loadVaultView, initVault } from './vault.js?v=283';
+import { loadVaultView, initVault } from './vault.js?v=284';
 import { loadContacts, addContact } from './contacts.js';
 import { initLiveFormat } from './liveformat.js';
-import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=485';
+import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=486';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos, closeLightbox } from './photos.js';
@@ -32,10 +32,10 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=8';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=9';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=241';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=290';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=291';
 import {
   setIncognitoMode,
   isIncognitoMode,
@@ -55,11 +55,11 @@ import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
 import { wireAutosizeTextarea } from './text_entry.js';
 import { initAideWorkspace } from './aideworkspace.js?v=278';
 import { initAideCentral } from './aidecentral.js?v=1';
-import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=2';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=249';
+import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=3';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=250';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
-import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=243';
+import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=244';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
 import { cachedLocalizationSettings, configureLocalization, formatDateTime, prepareLocalization, t } from './i18n.js';
@@ -84,6 +84,9 @@ let _popstateGeneration = 0;
 let _navigationGeneration = 0;
 
 async function init() {
+  // the archive starts closed. set that before the first wait, not after the settings load, so
+  // nothing in between (a test reading the page, a slow network) sees it open for a moment
+  setAideSidebarHidden(true);
   // phone numbers, card numbers and expiry format as you type, app-wide (one delegated listener)
   initLiveFormat();
   const params = new URLSearchParams(location.search);
@@ -425,7 +428,7 @@ async function _boot({ reachable = true } = {}) {
   window._reloadPhotos = loadPhotos;
   window._reloadCalendar = () => loadCalendar();
   window._reloadMail = startMailPoll;
-  window._reloadSystem = () => import('./system.js?v=263').then(m => m.initSystem());
+  window._reloadSystem = () => import('./system.js?v=264').then(m => m.initSystem());
   applySubdomainScope(initialRoute);
   const sourceMessage = new URLSearchParams(location.search).get('message');
   if (sourceMessage && document.body.classList.contains('is-aide') && !focusSessionMessage(sourceMessage)) {
@@ -855,7 +858,7 @@ window._openSearchResult = async (type, value, messageId = '') => {
   }
   if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat', { preserveSession: true }))) return false;
   if (type === 'chat') return selectSession(value, messageId);
-  const { openNote } = await import('./docs.js?v=259');
+  const { openNote } = await import('./docs.js?v=260');
   return openNote(value);
 };
 
@@ -869,10 +872,14 @@ async function revealLinkedRecord() {
   if (!isCurrent()) return false;
   const state = root.querySelector(':scope > .specialist-state')?.dataset.state;
   if (target.view !== 'chat' && state !== 'ready' && !(state === 'partial' && ['calendar', 'mail'].includes(target.view))) return false;
+  // an opener that already said what went wrong (e.g. which document is missing) keeps its message;
+  // error toasts replace each other, so the generic one would hide it
+  const earlier = document.querySelector('#toast-container .toast.error');
   try {
     if (await revealRecord(target, isCurrent)) return true;
   } catch { /* Keep the source app's retry and saved state available. */ }
-  if (isCurrent()) toast('could not open this item; refresh to check whether it is still available', 'error');
+  const shown = document.querySelector('#toast-container .toast.error');
+  if (isCurrent() && (!shown || shown === earlier)) toast('could not open this item; refresh to check whether it is still available', 'error');
   return false;
 }
 
@@ -974,7 +981,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=249');
+      const module = await import('./andromeda.js?v=250');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1044,7 +1051,7 @@ const showCompareView  = () => showView('compare-view',  'compare',  () => { ini
 const showWikiView     = (section = 'docs') => showView(
   'wiki-view',
   section === 'journal' ? 'journal' : 'wiki',
-  (track, request) => trackedImport(track, request, () => import('./docs.js?v=259'), module => module.initDocs(section, request)),
+  (track, request) => trackedImport(track, request, () => import('./docs.js?v=260'), module => module.initDocs(section, request)),
   section === 'journal' ? 'docs-journal-section' : '',
 );
 const showVaultView      = () => showView('vault-view',      'vault',     (_track, request) => loadVaultView(request));
@@ -1055,10 +1062,10 @@ const showRemindersView  = () => {
 };
 const showSubsView       = () => showView('subs-view',      'subs',      (track, request) => trackedImport(track, request, () => import('./subs.js'), module => module.initSubsPanel(request)));
 const showMoneyView      = () => showView('money-view',     'money',     (track, request) => trackedImport(track, request, () => import('./money.js'), module => module.initMoneyPanel(request)));
-const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=2'), module => module.initDaysPanel(request)));
+const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=3'), module => module.initDaysPanel(request)));
 const showJournalView    = () => showWikiView('journal');
 const showActivityView   = () => showView('activity-view',  'activity',  (track, request) => trackedImport(track, request, () => import('./activity.js'), module => module.initActivity(request)));
-const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=263'), module => module.initSystem(request)));
+const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=264'), module => module.initSystem(request)));
 const showWatchView      = () => showView('watch-view',     'watch',     (track, request) => trackedImport(track, request, () => import('./watch.js'), module => module.initWatch(request)));
 const showHabitsView     = () => showView('habits-view',    'habits',    (track, request) => trackedImport(track, request, () => import('./habits.js'), module => module.initHabits(request)));
 const showReadView       = () => showView('read-view',      'read',      (track, request) => trackedImport(track, request, () => import('./read.js'), module => module.initRead(request)));
@@ -1072,11 +1079,11 @@ const showMailView       = () => showView('mail-view',      'mail',      (_track
 const showPhotosView     = () => showView('photos-view',    'photos',    (_track, request) => { initPhotos(); return loadPhotos(request); });
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=308'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=309'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=249'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=250'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
@@ -1088,7 +1095,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'calendar') return loadCalendar(request);
   if (section === 'tasks') return loadTasks(request, readRecordTarget(location.href));
   if (section === 'reminders') return initReminderPanel(request, () => showSpecialistGroup(group, section));
-  if (section === 'days') return import('./days.js?v=2').then(module => module.initDaysPanel(request));
+  if (section === 'days') return import('./days.js?v=3').then(module => module.initDaysPanel(request));
   if (section === 'mail') return loadMail(request);
   if (section === 'contacts') return loadContacts('', request);
   if (section === 'books') return import('./books.js').then(module => module.initBooks(request));
@@ -1097,11 +1104,11 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'habits') return import('./habits.js').then(module => module.initHabits(request));
   if (section === 'money') return import('./money.js').then(module => module.initMoneyPanel(request));
   if (section === 'subs') return import('./subs.js').then(module => module.initSubsPanel(request));
-  if (group === 'docs') return import('./docs.js?v=259').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
+  if (group === 'docs') return import('./docs.js?v=260').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
-  if (group === 'server' && section === 'overview') return import('./system.js?v=263').then(module => module.initSystem(request));
+  if (group === 'server' && section === 'overview') return import('./system.js?v=264').then(module => module.initSystem(request));
   if (group === 'server' && section === 'activity') return import('./activity.js').then(module => module.initActivity(request));
   if (group === 'server' && section === 'watch') return import('./watch.js').then(module => module.initWatch(request));
 }
@@ -1119,14 +1126,22 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
     const previousOwner = resolveCompatibilityRoute({ view: previous, flags: _afterlifeFlags })?.host ?? currentSub();
     const nextOwner = route.host ?? viewToSub(groupRouteFor(identifier)?.group || identifier);
     if (previousOwner !== nextOwner) url.hash = '';
+    // home is today's old name
+    const mainView = sub => { const primary = appForSub(sub).primary; return primary === 'home' ? 'today' : primary; };
     if (!replace) {
       for (const param of ['record', 'record_view', 'occurrence', 'record_hash']) url.searchParams.delete(param);
+      // andromeda's search and activity's filter both live in ?q; on one host it would follow
+      // you into the other view and run there
+      if ((previous || mainView(currentSub())) !== identifier) url.searchParams.delete('q');
     }
     url.searchParams.delete('app');
-    // the address drops view= only for a group's own front page; journal inside docs kept none, so
-    // a reload opened docs home
+    // the address drops view= only for an app's own front page: a group's first section, or the
+    // main view of an app without groups (today, aide's conversation). journal inside docs kept
+    // none, so a reload opened docs home; aide's models keeps it, so a reload stays on models
     const grouped = groupRouteFor(identifier);
-    const frontPage = grouped && grouped.section === normalizeGroupSection(grouped.group, '');
+    const frontPage = grouped
+      ? grouped.section === normalizeGroupSection(grouped.group, '')
+      : (identifier === 'home' ? 'today' : identifier) === mainView(nextOwner);
     if (route.section || singleHost() || !frontPage) url.searchParams.set('view', identifier);
     else url.searchParams.delete('view');
     const target = url.pathname + url.search + url.hash;
@@ -1234,15 +1249,27 @@ window.addEventListener('popstate', async event => {
     }
   }
   if (generation !== _popstateGeneration) return;
+  const previousUrl = new URL(visibleRouteUrl(), url);
   acceptRoutePosition(targetPosition);
   if (route) await renderLocalRoute(route);
   else if (nextGroup) await renderLocalView(nextGroup.group, { view: nextGroup.group, section: nextGroup.section });
   else if (singleHost()) await renderLocalView('today');
   else {
-    // back to a bare app address (aide's skills -> back): that is the app's main view. without
-    // this the address changed and the old page stayed up
+    // back to a bare app address (aide's skills -> back, docs' journal -> back): that is the app's
+    // front page, rendered the way boot does it. renderLocalView('wiki') would show docs' old root
+    // inside its hidden workbench, a blank page
     const primary = appForSub(currentSub()).primary;
-    if (primary && primary !== _lastLocalView) await renderLocalView(primary === 'home' ? 'today' : primary);
+    const front = groupRouteFor(primary);
+    // the same front page with another query is another place in it (a files folder)
+    const moved = previousUrl.search !== url.search;
+    if (primary && (moved || _localViewKey(front?.group || primary, front?.section) !== _lastLocalView)) {
+      await renderLocalRoute({ view: primary, hashOwner: primary });
+    }
+  }
+  // aide's conversation keeps its owner in the hash: back from an earlier one reopens the one before
+  if (_lastLocalView === 'chat' && generation === _popstateGeneration) {
+    const navigation = _navigationGeneration;
+    await selectSessionFromRoute({ isCurrent: () => generation === _popstateGeneration && navigation === _navigationGeneration });
   }
 });
 
@@ -1253,6 +1280,12 @@ function renderLocalRoute(route) {
   return renderLocalView(route.view, route);
 }
 
+// a group keeps its section in the key, so back from plan's week to bare plan still re-renders
+function _localViewKey(v, section) {
+  if (v === 'home') v = 'today';
+  return GROUP_DEFINITIONS[v] ? `${v}:${normalizeGroupSection(v, section)}` : v;
+}
+
 const AIDE_TOOL_VIEWS = new Set([
   'chat', 'project', 'brain', 'skills', 'scheduled', 'proactive',
   'models', 'compare', 'gallery', 'cookbook', 'usage', 'aide-reminders',
@@ -1261,7 +1294,7 @@ const AIDE_TOOL_VIEWS = new Set([
 let _lastLocalView = '';
 function renderLocalView(v, route = {}) {
   if (v === 'home') v = 'today';
-  _lastLocalView = v;
+  _lastLocalView = _localViewKey(v, route.section);
   // memory lives in settings; a deep link or reload opens it over Aide
   if (v === 'memory') {
     const shown = renderLocalView('chat', route);
@@ -1569,10 +1602,10 @@ async function _renderFirstRun() {
   catch { return; }   // never let this block Home
   if (st.setup?.completed || st.setup?.dismissed) return;
   if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
-  (await import('./setupwizard.js?v=444')).openSetupWizard({ status: st });
+  (await import('./setupwizard.js?v=445')).openSetupWizard({ status: st });
 }
 // let anything (a settings link, the command palette) re-run the wizard on demand
-window._openSetupWizard = async () => (await import('./setupwizard.js?v=444')).openSetupWizard({ resume: true });
+window._openSetupWizard = async () => (await import('./setupwizard.js?v=445')).openSetupWizard({ resume: true });
 
 // aide's tools live in the collapsible "tools" group
 const _moreViews = new Set(['gallery','brain','models','aide-reminders','subs','days']);
@@ -1656,6 +1689,8 @@ function bindEvents() {
     // event doesn't ALSO reach the document-level `send` shortcut and fire doSend twice. (don't
     // exclude ctrl/meta here — the global shortcut is 'Ctrl+Enter' and never matches Cmd+Enter
     // on mac, so excluding metaKey would leave Cmd+Enter dead.)
+    // enter that picks an ime candidate isn't a send (safari reports it as keyCode 229)
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); doSend(); }
   });
   // dim send when empty (but never while recording — it doubles as the stop)
@@ -1945,9 +1980,12 @@ function bindEvents() {
     const f = e.target.files[0]; e.target.value = '';
     if (!f) return;
     const vcard = await f.text();
-    const r = await fetch('/api/contacts/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ vcard }) });
-    const d = await r.json().catch(() => ({}));
-    toast(`imported ${d.imported || 0} contact${d.imported === 1 ? '' : 's'}`, 'success');
+    const r = await fetch('/api/contacts/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ vcard }) }).catch(() => null);
+    const d = await r?.json().catch(() => ({}));
+    if (!r?.ok) { toast('could not import that file', 'error'); return; }
+    // a file with no cards in it imported nothing; that's not a success
+    if (!d?.imported) { toast('no contacts found in that file', 'error'); return; }
+    toast(`imported ${d.imported} contact${d.imported === 1 ? '' : 's'}`, 'success');
     loadContacts();
   });
 
@@ -2013,7 +2051,8 @@ function bindEvents() {
       setAideSidebarHidden(!document.body.classList.contains('sidebar-hidden'), { restoreFocus: true });
     }
     else if (matchesShortcut(e, shortcuts.new_chat)) { e.preventDefault(); document.getElementById('new-chat-btn')?.click(); }
-    else if (matchesShortcut(e, shortcuts.send)) { e.preventDefault(); doSend(); }
+    // a message's edit box sends its own words; this would send the composer's draft as well
+    else if (matchesShortcut(e, shortcuts.send) && !e.isComposing && !e.target?.closest?.('.edit-inline')) { e.preventDefault(); doSend(); }
   });
   document.addEventListener('click', () => {
     document.getElementById('ctx-menu').style.display = 'none';

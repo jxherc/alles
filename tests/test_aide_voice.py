@@ -301,3 +301,40 @@ class AideVoiceTests(ApiTest):
         self.assertTrue(aide_voice.wants_background("please work on the release in the background"))
         self.assertFalse(aide_voice.wants_background("explain background tasks"))
         self.assertFalse(aide_voice.wants_background("prepare a guide that runs in the background"))
+
+    def test_a_replayed_turn_reports_the_reply_the_conversation_holds_now(self):
+        def ask_again(newest, **body):
+            response = self.client.post(
+                "/api/chat",
+                json={"session_id": self.sid, "newest_id": newest, "file_ids": [], **body},
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+
+        def replay(call, turn_id):
+            _, response = self.turn(call, identity=turn_id)
+            receipt = self.events(response)[-1]["voice_turn"]
+            self.assertTrue(receipt["replayed"])
+            return receipt["user_message_id"], receipt["assistant_message_id"]
+
+        before = self.client.post("/api/chat", json={"session_id": self.sid, "message": "before"})
+        self.assertEqual(before.status_code, 200, before.text)
+        call = self.call()
+        turn_id, response = self.turn(call)
+        self.assertEqual(response.status_code, 200, response.text)
+        first, first_reply, asked, reply = (row[0] for row in self.rows())
+        words = self.rows()[2][2]
+
+        # regenerate swaps the reply: a replay names the new one, not the deleted one
+        ask_again(reply, message=words, regenerate_message_id=asked)
+        swapped = self.rows()[3][0]
+        self.assertNotEqual(swapped, reply)
+        self.assertEqual(replay(call, turn_id), (asked, swapped))
+
+        # an edit swaps it too
+        ask_again(swapped, message="said differently", edit_message_id=asked)
+        edited = self.rows()[3][0]
+        self.assertEqual(replay(call, turn_id), (asked, edited))
+
+        # an edit further up cuts the voice turn away: the replay says so instead of naming ghosts
+        ask_again(edited, message="before, edited", edit_message_id=first)
+        self.assertEqual(replay(call, turn_id), (None, None))

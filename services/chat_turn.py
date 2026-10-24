@@ -7,12 +7,15 @@ import uuid
 from contextlib import aclosing
 from datetime import UTC, datetime
 
+from sqlalchemy import func
+from sqlalchemy import text as sql_text
+
 from core.database import Memory, Message, ModelEndpoint, Persona, Session
 from core.settings import _ARTIFACT_INSTRUCTIONS, build_aide_system_prompt, owner_instructions
 from services import incognito as incognito_service
 from services.agent_runtime import merge_usage, provider_effort, run_agent
 from services.document_context import render_citations
-from services.llm import stream_chat
+from services.llm import stream_chat, until_stopped
 from services.memory_store import inject_memories
 
 _ART_RE = re.compile(r"<aide-artifact([^>]*)>([\s\S]*?)</aide-artifact>")
@@ -98,6 +101,7 @@ def _build_messages(
     file_ids: list[str] = None,
     mem_ctx: str = None,
     retry_message_id: str = "",
+    before_message_id: str = "",
 ) -> list[dict]:
     contextual_instructions = ""
     selected_documents_only = settings.get("selected_documents_only", False)
@@ -209,9 +213,18 @@ def _build_messages(
         query = db.query(Message).filter(Message.session_id == session.id)
         if retry_message_id:
             query = query.filter(Message.id != retry_message_id)
+        if before_message_id:
+            # an edit or regenerate: only the turns before its question, the rest is about to go
+            query = query.filter(
+                sql_text("messages.rowid < (SELECT rowid FROM messages WHERE id = :before)")
+            ).params(before=before_message_id)
         history = query.order_by(Message.timestamp.desc()).limit(limit).all()[::-1]
     else:
-        history = [m for m in session.messages if m.id != retry_message_id][-limit:]
+        earlier = session.messages
+        if before_message_id:
+            at = next((i for i, m in enumerate(earlier) if m.id == before_message_id), len(earlier))
+            earlier = earlier[:at]
+        history = [m for m in earlier if m.id != retry_message_id][-limit:]
     for m in history:
         msgs.append({"role": m.role, "content": m.content})
 
@@ -306,6 +319,9 @@ async def _stream_and_save(
         }
 
     try:
+        if (settings or {}).get("turn_ids"):
+            # first, so a reply stopped a moment later still knows its question's id and its own
+            yield {"turn": settings["turn_ids"]}
         if settings and "context_provenance" in settings:
             yield {"context_provenance": settings["context_provenance"]}
         if mode == "agent":
@@ -322,6 +338,8 @@ async def _stream_and_save(
                     session_id=session_id,
                 )
             ) as stream:
+                # run_agent watches the stop itself: it ends a stalled model read at once and
+                # lets a running tool finish its step, then says the agent stopped
                 async for chunk in stream:
                     provider_failed = provider_failed or bool(chunk.get("error"))
                     tool_activity = tool_activity or any(
@@ -344,10 +362,13 @@ async def _stream_and_save(
                 chat_kw["effort"] = provider_effort(settings)
             if settings and settings.get("agent_reasoning_mode") in {"on", "off"}:
                 chat_kw["thinking"] = settings["agent_reasoning_mode"] == "on"
-            async with aclosing(
-                stream_chat(messages, ep.base_url, ep.api_key, model, **chat_kw)
-            ) as stream:
-                async for chunk in stream:
+            async with (
+                aclosing(
+                    stream_chat(messages, ep.base_url, ep.api_key, model, **chat_kw)
+                ) as stream,
+                aclosing(until_stopped(stream, stop_event)) as chunks,
+            ):
+                async for chunk in chunks:
                     if stop_event.is_set():
                         break
                     if "error" in chunk:
@@ -405,16 +426,56 @@ async def _stream_and_save(
             agent_run_id,
             interrupted or stop_event.is_set(),
             response_recovery,
+            finished=completed and not provider_failed,
+            stopped=stop_event.is_set(),
         )
     if not completed and not provider_failed and not stop_event.is_set():
         yield {
             "error": "response ended before completion. review task activity before sending again."
         }
     if saved_message:
-        if "user_id" in saved_message:
+        # both ids, so the rows just sent can be edited or regenerated before a reload
+        if saved_message.get("user_id"):
             yield {"saved_user": {"id": saved_message["user_id"]}}
-        else:
-            yield {"saved_message": saved_message}
+        if saved_message.get("id"):
+            yield {
+                "saved_message": {
+                    k: v for k, v in saved_message.items() if k not in ("user_id", "replaced")
+                }
+            }
+    if ((settings or {}).get("asked_again") or {}).get("kind") == "regenerate":
+        # say whether the old answer was swapped: the page follows this, not its own guess
+        yield {"regenerated": {"replaced": bool(saved_message and saved_message.get("id"))}}
+
+
+def _drop_between(db, session_id: str, after_id: str, through_id: str) -> int:
+    # by insertion order (rowid): a coarse clock can stamp a question and its reply identically
+    def rowid(message_id):
+        return db.execute(
+            sql_text("SELECT rowid FROM messages WHERE id = :i"), {"i": message_id}
+        ).scalar()
+
+    after, through = rowid(after_id), rowid(through_id)
+    if after is None or through is None:
+        return 0
+    rows = (
+        db.query(Message)
+        .filter(Message.session_id == session_id)
+        .filter(sql_text("messages.rowid > :a AND messages.rowid <= :t"))
+        .params(a=after, t=through)
+        .all()
+    )
+    for message in rows:
+        db.delete(message)
+    return len(rows)
+
+
+def _asked_with(settings, meta: dict) -> dict:
+    # the notes and files a question was asked with, kept on it so an edit or regenerate asks the
+    # same way. what it already holds is never replaced
+    request = (settings or {}).get("response_retry_request") or {}
+    added = {key: request[key] for key in ("context_scope", "file_ids") if request.get(key)}
+    return {**added, **{key: meta[key] for key in ("context_scope", "file_ids") if key in meta}}
 
 
 def _save_turn(
@@ -432,11 +493,23 @@ def _save_turn(
     agent_run_id,
     interrupted,
     response_recovery=None,
+    *,
+    finished=True,
+    stopped=False,
 ):
     citation_report = None
     document = ((settings or {}).get("context_provenance") or {}).get("document") or {}
     if document.get("kind") == "vault_documents":
         full_text, citation_report = render_citations(full_text, document["documents"])
+    again = (settings or {}).get("asked_again") or {}
+    # an edit or regenerate only leaves a reply behind when one came: no empty interrupted row
+    # (blank lines aren't an answer either)
+    answered = bool(full_text.strip() or (tool_steps and not incognito))
+    keep_reply = answered or (bool(interrupted or tool_steps) and not again)
+    # a regenerate trades the old answer only for one that finished, or that the owner stopped
+    # after its words came: a dropped connection or a provider error mid-reply keeps the old one
+    if again.get("kind") == "regenerate" and not (answered and (finished or stopped)):
+        return {"user_id": (settings or {}).get("retry_message_id", ""), "replaced": False}
     if incognito:
         meta = {
             "usage": usage,
@@ -455,15 +528,23 @@ def _save_turn(
             meta["interrupted"] = True
         if response_recovery:
             meta["response_recovery"] = response_recovery
+        ids = (settings or {}).get("turn_ids") or {}
+        if again.get("kind") == "regenerate":
+            # the new answer came: now the old one and what followed it go
+            incognito_service.drop_between(session_id, again["after_id"], again["through_id"])
         incognito_service.append_turn(
             session_id,
             user_text,
             full_text,
             json.dumps(meta),
             retry_message_id=(settings or {}).get("retry_message_id", ""),
+            user_id=ids.get("user_id", ""),
+            assistant_id=ids.get("assistant_id", ""),
         )
         private = incognito_service.get_session(session_id)
         if private and private.messages:
+            asked = next((m for m in reversed(private.messages) if m.role == "user"), None)
+            kept = _asked_with(settings, asked.meta_dict() if asked else {})
             if not full_text:
                 private.messages[-1].meta = json.dumps(meta)
             elif len(private.messages) >= 2:
@@ -471,9 +552,15 @@ def _save_turn(
                 user_meta = user.meta_dict()
                 user_meta.pop("response_recovery", None)
                 user.meta = json.dumps(user_meta)
+            # private uploads are gone after the turn; their ids stay so an edit or regenerate
+            # can say the file is gone instead of answering without it
+            if asked and kept:
+                asked.meta = json.dumps({**asked.meta_dict(), **kept})
         if private and full_text and private.messages and private.messages[-1].role == "assistant":
+            asked = private.messages[-2] if len(private.messages) >= 2 else None
             return {
                 "id": private.messages[-1].id,
+                **({"user_id": asked.id} if asked and asked.role == "user" else {}),
                 **(
                     {"content": full_text, "source_citations": citation_report}
                     if citation_report is not None
@@ -498,7 +585,10 @@ def _save_turn(
             voice_event = aide_voice.prepare_save(db, voice_context)
             prior = aide_voice.data(voice_event)
             if prior.get("assistant_message_id"):
-                return {"id": prior["assistant_message_id"]}
+                return {
+                    "id": prior["assistant_message_id"],
+                    "user_id": prior.get("user_message_id") or "",
+                }
             if prior.get("user_message_id"):
                 return {"user_id": prior["user_message_id"]}
 
@@ -515,7 +605,19 @@ def _save_turn(
         added = 0
         am = None
         um = last
-        if voice_event is not None or not last or last.role != "user" or last.content != user_text:
+        ids = (settings or {}).get("turn_ids") or {}
+        if ids:
+            # the ids the stream announced first: a question asked again keeps its own row
+            um = db.get(Message, ids["user_id"])
+            if um is None:
+                um = Message(
+                    id=ids["user_id"], session_id=session_id, role="user", content=user_text
+                )
+                db.add(um)
+                added += 1
+        elif (
+            voice_event is not None or not last or last.role != "user" or last.content != user_text
+        ):
             um = Message(session_id=session_id, role="user", content=user_text)
             db.add(um)
             added += 1
@@ -526,11 +628,17 @@ def _save_turn(
                 live_call_id=voice_context["call_id"], voice_turn_id=voice_context["turn_id"]
             )
         user_meta.pop("response_recovery", None)
-        if response_recovery and not (full_text or interrupted or tool_steps):
+        if response_recovery and not keep_reply:
             user_meta["response_recovery"] = response_recovery
+        user_meta.update(_asked_with(settings, user_meta))
         um.meta = json.dumps(user_meta)
 
-        if full_text or interrupted or tool_steps:
+        if again.get("kind") == "regenerate":
+            # the new answer came: now the old one and what followed it go, up to the newest row
+            # the tab saw (a row written after that stays)
+            added -= _drop_between(db, session_id, again["after_id"], again["through_id"])
+
+        if keep_reply:
             meta = {
                 "usage": usage,
                 "model": model,
@@ -558,6 +666,7 @@ def _save_turn(
             if artifacts:
                 meta["artifacts"] = artifacts
             am = Message(
+                **({"id": ids["assistant_id"]} if ids.get("assistant_id") else {}),
                 session_id=session_id,
                 role="assistant",
                 content=full_text,
@@ -570,7 +679,15 @@ def _save_turn(
         # count every row we actually saved (user + assistant), not just one —
         # otherwise the sidebar count drifts a message behind every turn
         if added:
-            s.message_count = (s.message_count or 0) + added
+            # added in the database, not from the row read earlier: other writers count too
+            db.query(Session).filter_by(id=session_id).update(
+                {
+                    Session.message_count: func.max(
+                        func.coalesce(Session.message_count, 0) + added, 0
+                    )
+                },
+                synchronize_session=False,
+            )
 
         if voice_event is not None:
             aide_voice.link_saved(
@@ -588,6 +705,7 @@ def _save_turn(
         if am is not None:
             return {
                 "id": am.id,
+                "user_id": um.id,
                 **(
                     {"content": full_text, "source_citations": citation_report}
                     if citation_report is not None

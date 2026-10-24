@@ -7,7 +7,7 @@ import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from playwright.sync_api import expect, sync_playwright
 from pw_aide_questions_real import HOME, _require_throwaway_data_root, api
@@ -390,6 +390,17 @@ def run():
                         else:
                             expect(reply.locator(".ai-content")).to_contain_text("comparison")
                             if case.startswith("interrupted"):
+                                if case in ("interrupted-history-fail", "interrupted-pending"):
+                                    # the page hears its stop wasn't taken, so it lets go at
+                                    # once, like a closed page: the server keeps the reply as
+                                    # interrupted and the page never sees it saved, so +note has
+                                    # to read the history (the path these cases break)
+                                    page.route(
+                                        "**/api/chat/stop/**",
+                                        lambda route: route.fulfill(
+                                            json={"ok": False, "reason": "turn_changed"}
+                                        ),
+                                    )
                                 page.locator("#stop-btn").click()
                                 settled_reply(page, reply)
                                 close_archive(page)
@@ -412,6 +423,22 @@ def run():
                                         else None
                                     ),
                                 )
+                                history_reads = []
+                                if case in ("interrupted", "interrupted-private"):
+                                    # a confirmed stop reads the stream to its end: the saved
+                                    # reply, citations and all, is already on the page
+                                    expect(
+                                        reply.locator(".ai-content blockquote").first
+                                    ).to_have_text("open on monday")
+                                    page.on(
+                                        "request",
+                                        lambda request: (
+                                            history_reads.append(request.url)
+                                            if urlparse(request.url).path
+                                            == f"/api/sessions/{session}/history"
+                                            else None
+                                        ),
+                                    )
                                 if case in ("interrupted-history-fail", "interrupted-pending"):
                                     page.route(
                                         f"**/api/sessions/{session}/history",
@@ -444,6 +471,8 @@ def run():
                                 )
                                 assert "[[source:" not in stored["content"], stored["content"]
                                 assert len(note_writes) == 1
+                                # +note needed nothing more from the server than the save
+                                assert not history_reads, history_reads
                                 if case == "interrupted-private":
                                     assert (
                                         "saved from a private Aide conversation"

@@ -18,7 +18,7 @@ for (const count of [1, 2]) {
     const label = {}, chip = {}, turn = {};
     const context = vm.createContext({
       document: { getElementById(id) { return { 'aide-document-scope': chip, 'aide-document-scope-name': label, messages: { appendChild() {} } }[id]; } },
-      _makeRow() { return { row: turn }; }, scrollDown() {},
+      _makeRow() { return { row: turn }; }, scrollDown() {}, _wireEditButtons() {},
     });
     vm.runInContext(escaping + '\n' + scopeRenderer + '\n' + turnRenderer, context);
     context.renderDocumentScope(scope);

@@ -195,6 +195,12 @@ function render(events, partialSources = [], fetcher = fetch) {
     const { type, view, id } = r.dataset;
     try {
       if (type === 'doc') {
+        // a doc that's gone stays here with its path named, like a run that's gone. opening the
+        // link would land on docs under a generic "could not open this item"
+        const response = await fetcher(`/api/vault-md/file?path=${encodeURIComponent(id)}`);
+        const doc = response.ok ? await response.json().catch(() => null) : null;
+        if (!current()) return;
+        if (doc?.exists === false) throw new Error(`could not open ${id}: it was moved or deleted`);
         await window._openRecord?.('wiki', id);
       } else if (type === 'agent') {
         // These are conversation runs, distinct from the scheduled jobs in Home.

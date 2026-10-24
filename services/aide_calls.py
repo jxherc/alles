@@ -1,6 +1,7 @@
 """Durable call lifecycle and exactly-once finalized transcript persistence."""
 
 import json
+import threading
 from datetime import UTC, datetime
 
 from sqlalchemy import func
@@ -155,6 +156,13 @@ def append_final_transcript(
     if existing:
         if existing.role != role or existing.text != text:
             raise ValueError("call_event_identity_conflict")
+        # the event is kept, but its chat line may not be: it was held for a running turn when
+        # the process stopped, or the held write failed. the client's retry puts it in, once
+        session = db.get(Session, call.session_id)
+        if session is not None and not _line_held_or_saved(
+            db, session.id, call.id, provider_event_id
+        ):
+            _write_line(db, existing, session.id, call.id, role, text, provider_event_id)
         return existing, False
     event = append_event(
         db,
@@ -167,19 +175,144 @@ def append_final_transcript(
     session = db.get(Session, call.session_id)
     if not session:
         raise ValueError("call_session_missing")
-    db.add(
-        Message(
-            session_id=session.id,
-            role=role,
-            content=text,
-            meta=json.dumps(
-                {"live_call_id": call.id, "provider_event_id": provider_event_id},
+    _write_line(db, event, session.id, call.id, role, text, provider_event_id)
+    return event, True
+
+
+# transcript lines waiting for a running turn to end, by (call, provider event)
+_held_lines: set[tuple[str, str]] = set()
+_held_lock = threading.Lock()
+
+
+def _line_held_or_saved(db, session_id, call_id, provider_event_id) -> bool:
+    with _held_lock:
+        if (call_id, provider_event_id) in _held_lines:
+            return True
+    return _line_saved(db, session_id, call_id, provider_event_id)
+
+
+def _line_saved(db, session_id, call_id, provider_event_id) -> bool:
+    # the chat row carries the line's identity in its meta (LIKE may over-match: checked below)
+    rows = (
+        db.query(Message)
+        .filter(Message.session_id == session_id)
+        .filter(Message.meta.like(f"%{json.dumps(provider_event_id)}%"))
+        .all()
+    )
+    return any(
+        m.meta_dict().get("provider_event_id") == provider_event_id
+        and m.meta_dict().get("live_call_id") == call_id
+        for m in rows
+    )
+
+
+# a call event whose chat line waits for a running turn says so, committed with the event: if the
+# process stops before the turn ends, startup puts the line in (restore_held_lines)
+_HELD = "held"
+
+
+def _mark(event, state: str | None) -> None:
+    data = json.loads(event.data or "{}")
+    if state:
+        data["chat_line"] = state
+    else:
+        data.pop("chat_line", None)
+    event.data = json.dumps(data, separators=(",", ":"), sort_keys=True)
+
+
+def _write_line(db, event, session_id, call_id, role, text, provider_event_id) -> None:
+    meta = json.dumps(
+        {"live_call_id": call_id, "provider_event_id": provider_event_id},
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    key = (call_id, provider_event_id)
+
+    def add(owner) -> None:
+        if owner.get(Session, session_id) is None:
+            return
+        owner.add(Message(session_id=session_id, role=role, content=text, meta=meta))
+        # counted in the database: other writers' rows count too
+        owner.query(Session).filter_by(id=session_id).update(
+            {
+                Session.message_count: func.coalesce(Session.message_count, 0) + 1,
+                Session.last_message_at: _now(),
+            },
+            synchronize_session=False,
+        )
+
+    def now() -> None:
+        # committed while the turn registry says nobody answers, so no turn starts in between
+        add(db)
+        _mark(event, None)
+        db.commit()
+
+    event_id = event.id
+
+    def later() -> None:
+        # a reply was running in this task: the line goes in right after it, so it never lands
+        # between that reply's question and its answer
+        from core.database import SessionLocal
+
+        owner = SessionLocal()
+        try:
+            if not _line_saved(owner, session_id, call_id, provider_event_id):
+                add(owner)
+            held = owner.get(AideCallEvent, event_id)
+            if held is not None:
+                _mark(held, None)
+            owner.commit()
+        finally:
+            owner.close()
+            with _held_lock:
+                _held_lines.discard(key)
+
+    from routes import chat as chat_route
+
+    with _held_lock:
+        _held_lines.add(key)
+    try:
+        if chat_route.write_after_turn(session_id, now, later):
+            with _held_lock:
+                _held_lines.discard(key)
+        else:
+            # the caller commits this with the event, so a restart still knows the line is owed
+            _mark(event, _HELD)
+    except BaseException:
+        with _held_lock:
+            _held_lines.discard(key)
+        raise
+
+
+def restore_held_lines(db) -> int:
+    """At startup: put in every call line that was still waiting for a turn when alles stopped."""
+    owed = (
+        db.query(AideCallEvent)
+        .filter(AideCallEvent.kind == "final_transcript")
+        .filter(AideCallEvent.data.like(f'%"chat_line":"{_HELD}"%'))
+        .all()
+    )
+    restored = 0
+    for event in owed:
+        call = db.get(AideCall, event.call_id)
+        session = db.get(Session, call.session_id) if call is not None else None
+        if session is not None and not _line_saved(
+            db, session.id, call.id, event.provider_event_id
+        ):
+            meta = json.dumps(
+                {"live_call_id": call.id, "provider_event_id": event.provider_event_id},
                 separators=(",", ":"),
                 sort_keys=True,
-            ),
-        )
-    )
-    session.message_count = (session.message_count or 0) + 1
-    session.last_message_at = _now()
-    db.flush()
-    return event, True
+            )
+            db.add(Message(session_id=session.id, role=event.role, content=event.text, meta=meta))
+            db.query(Session).filter_by(id=session.id).update(
+                {
+                    Session.message_count: func.coalesce(Session.message_count, 0) + 1,
+                    Session.last_message_at: _now(),
+                },
+                synchronize_session=False,
+            )
+            restored += 1
+        _mark(event, None)
+    db.commit()
+    return restored

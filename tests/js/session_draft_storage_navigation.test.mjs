@@ -51,6 +51,8 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
       : name === 'composer-send-recovery' ? recovery : null, querySelectorAll: () => rows, dispatchEvent() {} },
     isIncognitoMode: () => privateMode, toast: text => notices.push(text),
     replaceRouteUrl(url) { effects.push(['route', url.href]); location.href = url.href; },
+    pushRouteUrl(url) { effects.push(['route', url.href]); location.href = url.href; },
+    routeHistoryPosition: () => 0,
     fetch: async url => {
       effects.push(['fetch', url]);
       return { ok: true, json: async () => ({ session: { id: url.split('/')[3], mode: 'chat' }, messages: [] }) };

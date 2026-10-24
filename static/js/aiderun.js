@@ -1,4 +1,4 @@
-import { createFocusBoundary } from './kokuen.js?v=1';
+import { createFocusBoundary } from './kokuen.js?v=2';
 import { renderAideQuestion } from './aidequestions.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { replaceRouteUrl } from './route_history.js';

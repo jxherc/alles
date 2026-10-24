@@ -1,10 +1,10 @@
-import { mdToHtml, toast } from './util.js';
+import { mdToHtml, plainError, toast } from './util.js';
 import { canRevertTool, docReceipt, piDocReceipts, stepKind, stepMark } from './agentview.js';
 import {
-  appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown,
+  appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown, wireMessageActions, rereadActiveSession,
   showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
 } from './sessions.js';
-import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=212';
+import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=213';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js?v=253';
 import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort } from './modes.js?v=256';
@@ -15,7 +15,7 @@ import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.
 import { saveAnswerNote } from './answer_note.js';
 import { saveAnswerTask } from './answer_task.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=1';
-import { compactResponseActions } from './response_actions.js?v=1';
+import { compactResponseActions } from './response_actions.js?v=2';
 
 // tools that change state / reach out — flagged in the agent panel + permission cards
 const DESTRUCTIVE_TOOLS = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
@@ -85,6 +85,13 @@ let _streaming = false;
 let _backgroundLaunching = false;
 let _chatAbort = null;
 let _chatSessionId = null;
+// the running turn's token: the stop button names it, so a late stop can't end the next turn
+let _chatTurnToken = '';
+// turns the owner stopped here; their stream may still end on its own a moment later
+const _stoppedTurns = new Set();
+// the running stream's end, and what its row shows while it stops
+let _chatStreamDone = null;
+let _chatStopping = null;
 let _streamToken = 0;
 
 export function getSendBlockReason() {
@@ -136,6 +143,44 @@ function restoreComposerInput(text) {
   composer.style.height = 'auto';
   composer.dispatchEvent(new Event('input', { bubbles: true }));
   composer.focus();
+}
+
+// a send refused before it started (409 turn_in_progress). its words went back into the
+// composer, so the retry or a fresh send takes them out again instead of doubling them
+let _refusedTurn = null;
+
+function noteRefusedTurn(sessionId, message, row, previousRow) {
+  if (previousRow) {
+    if (_refusedTurn?.row === previousRow) _refusedTurn.row = row;
+    return;
+  }
+  const before = row.previousElementSibling;
+  _refusedTurn = { sessionId, message, row, userRow: before?.querySelector('.user-bubble') ? before : null };
+}
+
+// the retry went through, so the copy put back in the composer has been sent
+function refusedRetryAccepted(sessionId, previousRow) {
+  if (!previousRow || _refusedTurn?.row !== previousRow) return;
+  const { message } = _refusedTurn;
+  _refusedTurn = null;
+  const composer = document.getElementById('composer-ta');
+  if (!composer || getActiveId() !== sessionId) return;
+  const value = composer.value;
+  // restoreComposerInput puts it in front of whatever was already typed
+  const next = value.trim() === message.trim() ? '' : value.startsWith(`${message}\n\n`) ? value.slice(message.length + 2) : value;
+  if (next === value) return;
+  composer.value = next;
+  composer.style.height = 'auto';
+  composer.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// sending again from the composer replaces the refused rows, it doesn't stack a second bubble
+function dropRefusedTurn(sessionId) {
+  const turn = _refusedTurn;
+  _refusedTurn = null;
+  if (turn?.sessionId !== sessionId) return;
+  turn.userRow?.remove();
+  turn.row.remove();
 }
 
 function restoreBackgroundInput(sessionId, text) {
@@ -293,6 +338,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
     retiredDraft: freshSession ? quotaRecord : null,
   }) : null;
   if (!documentScope) onAccepted(sessionId);
+  dropRefusedTurn(sessionId);
 
   // image model picked as the primary → generate (legacy single-pick path)
   if (!documentScope && isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
@@ -335,7 +381,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
   }
 
   showMessages();
-  appendUserMsg(text, documentScope);
+  const userRow = appendUserMsg(text, documentScope);
   if (!documentScope) {
     window._setAideDocumentScope(null);
     clearAttachments();
@@ -353,7 +399,56 @@ export async function sendMessage(text, onAccepted = () => {}) {
     reasoning_mode: getReasoningMode(sel.model),
     custom_effort: getCustomEffort(sel.model),
     context_scope: documentScope || undefined,
-  }, { freshSession, pendingDraft });
+  }, { freshSession, pendingDraft, userRow });
+}
+
+// edit and regenerate ask the server to answer a stored question again. it checks this tab saw
+// the newest turn and the question's notes and files are still there, then answers in one go.
+// resolves 'accepted' once it took the request; otherwise why not (nothing changed): 'stale'
+// (another tab moved the task on), 'gone' (the question was removed), 'offline', or 'refused'
+export function resendMessage(userRow, text, { edit = false, newestId = '', onAccepted = () => {} } = {}) {
+  const sessionId = getActiveId();
+  const messageId = userRow?.dataset.msgId;
+  if (!sessionId || !messageId || !text?.trim() || !canSendMessage()) return Promise.resolve('refused');
+  const sel = getSelected();
+  if (!sel) { showSendIssue('choose a model before sending.', true); return Promise.resolve('refused'); }
+  showMessages();
+  return new Promise(resolve => {
+    void streamReply({
+      session_id: sessionId,
+      message: text,
+      mode: getMode(),
+      // the server uses the notes and files the question was stored with, never the tab's
+      file_ids: [],
+      incognito: isIncognitoMode(),
+      permission_mode: getPermMode(),
+      effort: getEffort(sel.model),
+      reasoning_mode: getReasoningMode(sel.model),
+      custom_effort: getCustomEffort(sel.model),
+      [edit ? 'edit_message_id' : 'regenerate_message_id']: messageId,
+      newest_id: newestId,
+    }, {
+      userRow,
+      shownScope: userRow.contextScope || null,
+      resend: {
+        // a regenerate keeps the answer it replaces until the new one has words
+        keepOld: !edit,
+        accepted: row => { onAccepted(row); resolve('accepted'); },
+        refused: (reason, turn) => resolve(reason === 'stopped' ? { reason, turn } : reason),
+      },
+    });
+  });
+}
+
+// why an edit or regenerate was turned down, and plain words for the ones said here (a stale or
+// gone question is re-read first, and the edit box says what happened)
+function resendRefusal(status, error) {
+  if (error.code === 'history_moved') return { reason: 'stale' };
+  // the owner's own stop got there first: nothing was cut, the history is just re-read
+  if (error.code === 'turn_stopped') return { reason: 'stopped' };
+  if (status === 404) return { reason: 'gone' };
+  const detail = typeof error.detail === 'string' ? error.detail : error.detail?.message;
+  return { reason: 'refused', words: plainError(detail || 'couldn\'t answer this again') };
 }
 
 export function retrySavedResponse(request, previousRow) {
@@ -363,8 +458,22 @@ export function retrySavedResponse(request, previousRow) {
   return true;
 }
 
-async function streamReply(request, { freshSession = false, previousRow = null, pendingDraft = null } = {}) {
-  const { session_id: sessionId, message: text, context_scope: documentScope, incognito: privateReply } = request;
+// where focus goes when the control it was on goes away with the reply's end. keyboards stay on
+// the composer; on touch that would pop the on-screen keyboard over the reply, so the reply
+// itself takes focus there
+function focusAfterReply(row = document.getElementById('messages')?.lastElementChild) {
+  const composer = document.getElementById('composer-ta');
+  const coarse = globalThis.matchMedia?.('(pointer: coarse)')?.matches;
+  if (coarse && row?.isConnected) {
+    if (!row.hasAttribute('tabindex')) row.tabIndex = -1;
+    row.focus({ preventScroll: true });
+  } else composer?.focus();
+}
+
+async function streamReply(request, { freshSession = false, previousRow = null, pendingDraft = null, userRow = null, shownScope = null, resend = null } = {}) {
+  const { session_id: sessionId, message: text, incognito: privateReply } = request;
+  // an edit or regenerate leaves the notes to the server; the row still shows what it used
+  const documentScope = request.context_scope || shownScope;
   // Only the latest settled failure may retry. A new turn retires older controls.
   document.querySelectorAll('.aide-retry-response').forEach(button => button.remove());
   previousRow?.remove();
@@ -373,8 +482,18 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   const streamToken = ++_streamToken;
   _chatAbort = ctrl;
   _chatSessionId = sessionId;
+  const turnToken = _newImageRequestId();
+  _chatTurnToken = turnToken;
+  let streamEnd;
+  _chatStreamDone = new Promise(resolve => { streamEnd = resolve; });
+  const userStopped = () => ctrl.signal.aborted || _stoppedTurns.has(turnToken);
+  // what the server did with a regenerate's old answer, once it says
+  let regenOutcome;
 
   const { row, body } = createStreamingAiRow();
+  // an edit or regenerate answers in place, right under its question
+  if (resend && userRow?.isConnected) userRow.after(row);
+  let accepted = false;
 
   let thinkingEl = null;
   const contentEl = document.createElement('div');
@@ -396,6 +515,9 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   let thinkDone = false;
   let genStart = 0;     // first answer token time
   let providerError = false;
+  // a regenerate's old answer and the turns after it, hidden until the new answer has words
+  const replaced = [];
+  let streamBroke = false;
   let sourceUserId = request.retry_message_id || '';
   let receivedDone = false;
   let streamEnded = false;
@@ -409,6 +531,11 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   body.appendChild(progressEl);
   const setProgress = text => {
     if (progressEl.isConnected) progressEl.textContent = text;
+  };
+  // the reply's status line says it's stopping until the stream ends (it may have gone already)
+  _chatStopping = () => {
+    progressEl.textContent = 'stopping…';
+    if (!progressEl.isConnected) body.appendChild(progressEl);
   };
   const clearProgress = () => progressEl.remove();
 
@@ -464,13 +591,32 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     const r = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(request),
+      body: JSON.stringify({ ...request, turn_token: turnToken }),
       signal: ctrl.signal,
     });
 
+    if (!r.ok && resend) {
+      // refused before anything was cut: the history stays as it was
+      const error = await r.json().catch(() => ({}));
+      row.remove();
+      const refusal = resendRefusal(r.status, error);
+      if (refusal.words) toast(refusal.words, 'error');
+      resend.refused(refusal.reason);
+      return;
+    }
     if (!r.ok) {
       const error = await r.json().catch(() => ({}));
+      if (error.code === 'turn_stopped') {
+        // the owner's stop got there before the turn began: nothing was kept, and it ends the
+        // way any stop ends, without an error
+        if (userRow && !userRow.dataset.msgId) userRow.dataset.unsaved = '1';
+        row.dataset.unsaved = '1';
+        throw new DOMException('stopped before it started', 'AbortError');
+      }
       rejectedBeforeStart = r.status === 409 && error.code === 'turn_in_progress';
+      // never stored: an edit sends its words as a new message instead of cutting after it
+      if (userRow && !userRow.dataset.msgId) userRow.dataset.unsaved = '1';
+      row.dataset.unsaved = '1';
       const message = typeof error.detail === 'string' ? error.detail : error.detail?.message || 'could not start this answer';
       const chat = document.getElementById('chat');
       const followedReply = chat && chat.scrollHeight - chat.scrollTop - chat.clientHeight < 96;
@@ -478,6 +624,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         ? `<div class="error-msg model-error"><p role="status">${escHtml(message)}</p></div>`
         : `<div class="error-msg">${escHtml(message)}</div>`;
       body.classList.add('done');
+      if (rejectedBeforeStart && !pendingDraft && getActiveId() === sessionId) noteRefusedTurn(sessionId, request.message, row, previousRow);
+      else if (previousRow && _refusedTurn?.row === previousRow) _refusedTurn = null;
       if (rejectedBeforeStart && !pendingDraft && !previousRow && getActiveId() === sessionId) {
         // the words were refused, not sent: put them back so a reload doesn't lose them, and show
         // the work that holds this conversation (and any question it is waiting on) right away
@@ -496,7 +644,17 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       return;
     }
 
+    accepted = true;
+    if (resend?.keepOld && userRow?.isConnected) {
+      for (let next = userRow.nextElementSibling; next; next = next.nextElementSibling) {
+        if (next === row) continue;
+        next.style.display = 'none';
+        replaced.push(next);
+      }
+    }
+    resend?.accepted(row);
     pendingDraft?.accept();
+    refusedRetryAccepted(sessionId, previousRow);
     const reader = r.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
@@ -559,10 +717,27 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
           runId = chunk.agent_run.id || runId;
         }
 
-        if (chunk.saved_user?.id) sourceUserId = chunk.saved_user.id;
+        if (chunk.regenerated) regenOutcome = chunk.regenerated.replaced;
+
+        if (chunk.turn) {
+          // the server names both rows before anything else, so a reply stopped a moment later
+          // still knows its question's id and the id its own reply will be kept under
+          if (chunk.turn.user_id) {
+            sourceUserId = chunk.turn.user_id;
+            if (userRow?.isConnected) { userRow.dataset.msgId = chunk.turn.user_id; delete userRow.dataset.unsaved; }
+          }
+          if (chunk.turn.assistant_id && !row.dataset.msgId) row.dataset.reservedId = chunk.turn.assistant_id;
+        }
+
+        if (chunk.saved_user?.id) {
+          sourceUserId = chunk.saved_user.id;
+          // the question's own row can now be edited, regenerated or branched without a reload
+          if (userRow?.isConnected) userRow.dataset.msgId = chunk.saved_user.id;
+        }
 
         if (chunk.saved_message) {
           row.dataset.msgId = chunk.saved_message.id;
+          delete row.dataset.reservedId;
           if (typeof chunk.saved_message.content === 'string') accText = chunk.saved_message.content;
           sourceCitations = chunk.saved_message.source_citations;
         }
@@ -679,7 +854,9 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
             card.className = 'agent-perm';
             card.dataset.req = t.request_id;
             card.innerHTML = `
-              <div class="agent-perm-msg">approve: <b>${escHtml(toolSummary(t.name, t.args))}</b>?</div>
+              <div class="agent-perm-msg">approve: <b>${escHtml(toolSummary(t.name, t.args))}</b>?${t.outside
+                ? `<span class="agent-perm-outside">${escHtml(t.outside)}</span>`
+                : ''}</div>
               <div class="agent-perm-actions">
                 <button class="agent-perm-allow">approve</button>
                 <button class="agent-perm-deny">deny</button>
@@ -801,6 +978,14 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     }
 
   } catch (e) {
+    if (resend && !accepted) {
+      // no answer from the server: it may or may not have taken it (a stop can land after it
+      // did), so the edit box re-reads once the turn is let go
+      row.remove();
+      resend.refused(e.name === 'AbortError' ? 'stopped' : 'offline', turnToken);
+      return;
+    }
+    streamBroke ||= e.name !== 'AbortError';
     if (getActiveId() === sessionId && _streamToken === streamToken) {
       if (pendingDraft) pendingDraft.restore(accText);
       else if (!previousRow) {
@@ -817,22 +1002,33 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       _chatAbort = null;
       _chatSessionId = null;
     }
+    if (_chatTurnToken === turnToken) _chatTurnToken = '';
+    streamEnd();
     if (_streamToken === streamToken) setStreaming(false);
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
     finishThinking();   // freeze timer even if the reply was thinking-only
     clearProgress();
     cursor?.remove();
     body.classList.add('done');
-    if (ctrl.signal.aborted) appendInterruptionNotice(body);
+    // a reply that finished without being kept (a provider error) has no id to keep. one that
+    // was stopped or cut off may have been kept under its promised id: checked by that id later
+    if (row.dataset.reservedId && receivedDone && !ctrl.signal.aborted) {
+      delete row.dataset.reservedId;
+      row.dataset.unsaved = '1';
+    }
+    if (userStopped()) appendInterruptionNotice(body);
     else if (streamEnded && !receivedDone && !providerError) {
       appendInterruptionNotice(body, 'response ended before completion was confirmed. review any partial answer and task activity before sending again.');
     }
 
+    // a cancelled or answered question folds away with the steps: don't leave focus inside it
+    const focusInSteps = agentEl?.querySelector('.agent-step-list')?.contains(document.activeElement);
     if (agentEl && (toolEls.size || todoEl)) {
       const hasAttention = Boolean(
         agentEl.querySelector('.agent-step.error, .agent-step.running, .agent-perm:not(.approved):not(.denied), .aide-question-card:not(.answered):not(.cancelled)')
       );
       agentEl.classList.toggle('open', hasAttention);
+      if (focusInSteps && !hasAttention) focusAfterReply(row);
       const summary = agentEl.querySelector('.custom-summary');
       if (summary) {
         countSteps();
@@ -842,6 +1038,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     } else if (agentEl) {
       agentEl.remove();
       agentEl = null;
+      if (focusInSteps) focusAfterReply(row);
     }
 
     // provenance — let the reader see what the run actually touched
@@ -908,14 +1105,18 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
 
     // Retry a definite refusal before the turn is accepted, or a finished provider failure.
     // Unknown transport outcomes must not replay work that might already have happened.
-    if (rejectedBeforeStart || (sourceUserId && providerError && receivedDone && streamEnded && !ctrl.signal.aborted && !accText && !toolActivity && !(privateReply && request.file_ids.length))) {
+    if (rejectedBeforeStart || (sourceUserId && providerError && receivedDone && streamEnded && !userStopped() && !accText && !toolActivity && !(privateReply && request.file_ids.length))) {
       const retry = document.createElement('button');
       retry.type = 'button'; retry.className = 'btn aide-retry-response'; retry.textContent = 'retry response';
       retry.addEventListener('click', () => {
         if (!canSendMessage() || getActiveId() !== sessionId || _streamToken !== streamToken || !row.isConnected) return;
-        const restoreFocus = document.activeElement === retry;
-        void streamReply(rejectedBeforeStart ? request : { ...request, retry_message_id: sourceUserId }, { freshSession, previousRow: row, pendingDraft: rejectedBeforeStart ? pendingDraft : null });
-        if (restoreFocus) document.getElementById('composer-ta')?.focus();
+        // safari doesn't focus a clicked button, so nothing focused counts as the button too
+        const a = document.activeElement;
+        const restoreFocus = a === retry || !a || a === document.body;
+        // an edit or regenerate already cut and kept its question: the retry just answers it
+        const { edit_message_id: _edit, regenerate_message_id: _regen, newest_id: _newest, ...asked } = request;
+        void streamReply(rejectedBeforeStart ? request : { ...asked, retry_message_id: sourceUserId }, { freshSession, previousRow: row, pendingDraft: rejectedBeforeStart ? pendingDraft : null, userRow, shownScope });
+        if (restoreFocus) focusAfterReply();
       });
       body.querySelector('.error-msg')?.appendChild(retry);
       if (rejectedBeforeStart) {
@@ -954,6 +1155,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         html += `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
         html += `<button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>`;
         html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="${t('aide.review_plan_task')}">${t('aide.add_plan_task')}</button>`;
+        html += `<button class="msg-regen-btn act-btn" title="regenerate">regen</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>`;
         html += `<button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
       }
@@ -961,9 +1163,12 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         wrap.dataset.artifacts = JSON.stringify(artifacts);
         html += `<button class="act-btn" onclick="openArtifactFromMsg(this)">open artifact</button>`;
       }
+      // the same buttons a reload draws, so regenerate and branch work right away
+      if (!privateReply) html += `<button class="act-btn msg-branch-btn" title="branch a new aide task from here (keeps this one)">branch</button>`;
       actions.innerHTML = html;
       wrap.appendChild(actions);
       compactResponseActions(actions);
+      wireMessageActions(row);
       if (cleanText) import('./sessions.js').then(m => m.wireRewriteButtons(actions));
     }
 
@@ -974,6 +1179,30 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     }
 
     scrollDown();
+
+    if (replaced.length) {
+      // the server says whether it swapped the answers; the page follows that, never its own
+      // guess from the words it saw
+      if (regenOutcome === true) replaced.forEach(old => old.remove());
+      else if (regenOutcome === false) {
+        const hadFocus = row.contains(document.activeElement);
+        replaced.forEach(old => { old.style.display = ''; });
+        row.remove();
+        if (hadFocus) {
+          replaced[0].tabIndex = -1;
+          replaced[0].focus({ preventScroll: true });
+        }
+        if (!userStopped()) toast('couldn\'t get a new answer, so the old one stays.', 'error');
+      }
+    }
+    // the stream ended before the server said what it kept (stopped, or the connection broke
+    // after it took an edit or regenerate): what it kept is the truth, so read it again
+    const unheard = replaced.length && regenOutcome === undefined;
+    if (resend && accepted && (unheard || streamBroke || (streamEnded && !receivedDone && !providerError))) {
+      // after the turn is saved and let go, not before: a stop can still be finishing
+      void rereadActiveSession(sessionId, { afterTurn: turnToken });
+    }
+    _stoppedTurns.delete(turnToken);
 
     // name the chat from its first message (async; updates the sidebar when ready)
     if (freshSession && !privateReply && cleanText && row.dataset.msgId) {
@@ -1095,19 +1324,53 @@ function setStreaming(val, stoppable = true) {
   _streaming = val;
   document.getElementById('send-btn').disabled = val;
   const stop = document.getElementById('stop-btn');
+  // a new turn, or the end of one, ends any "stopping…"
+  stop.removeAttribute?.('aria-disabled');
+  stop.setAttribute?.('aria-label', t('common.stop'));
+  stop.title = '';
+  const stopHadFocus = stop.contains(document.activeElement);
   stop.classList.toggle('visible', val && stoppable);
   // the composer's moving light while Aide works
   document.body?.classList?.toggle('aide-working', !!val);
+  // stop hides when the reply ends: focus moves on instead of dropping to the page
+  if (stopHadFocus && !stop.classList.contains('visible')) focusAfterReply();
 }
 
 
 export function stopStream() {
   const sid = _chatSessionId;
-  _chatAbort?.abort();
+  const token = _chatTurnToken;
+  const ctrl = _chatAbort;
+  const streamDone = _chatStreamDone;
+  const unfocused = !document.activeElement || document.activeElement === document.body;
   _chatAbort = null;
   _chatSessionId = null;
-  if (sid) fetch(`/api/chat/stop/${sid}`, { method: 'POST' }).catch(() => {});
-  setStreaming(false);
+  _chatTurnToken = '';
+  if (!ctrl) {
+    setStreaming(false);
+    if (unfocused) focusAfterReply();
+    return;
+  }
+  if (token) _stoppedTurns.add(token);
+  // the old stream keeps the composer until it ends (at most 800ms): send stays off, the words
+  // stay in the box, and the stop control says it's stopping
+  const stop = document.getElementById('stop-btn');
+  stop.setAttribute('aria-disabled', 'true');
+  stop.setAttribute('aria-label', 'stopping…');
+  stop.title = 'stopping…';
+  _chatStopping?.();
+  if (unfocused) focusAfterReply();
+  if (!sid) { ctrl.abort(); return; }
+  // tell the server first, naming this turn. when it says it stopped this turn, keep reading so
+  // its last word (what it kept) arrives; otherwise, or after 800ms, drop the connection. a stop
+  // it hears before the connection goes counts as the owner's, and a late one ends nothing
+  const told = fetch(`/api/chat/stop/${encodeURIComponent(sid)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ turn_token: token }),
+  }).then(r => r.json()).catch(() => null);
+  const deadline = new Promise(resolve => setTimeout(resolve, 800));
+  Promise.race([told.then(reply => (reply?.ok ? streamDone : undefined)), deadline]).then(() => ctrl.abort());
 }
 
 
@@ -1141,10 +1404,10 @@ async function _sendImage(prompt, sessionId, fresh, target) {
   const request = { session_id: sessionId, prompt, model: sel.model, endpoint_id: sel.endpointId,
     request_id: _newImageRequestId() };
   showMessages();
-  appendUserMsg(prompt);
+  const userRow = appendUserMsg(prompt);
   clearAttachments();
   scrollDown();
-  const { body } = createStreamingAiRow();
+  const { row, body } = createStreamingAiRow();
   let error, retry;
   const send = async (again = false) => {
     setStreaming(true, false);
@@ -1168,6 +1431,15 @@ async function _sendImage(prompt, sessionId, fresh, target) {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'generation failed');
+      // the stored rows' ids, so an edit or regenerate after this isn't taken for another tab's
+      // turn; a private image is never stored
+      if (d.user_message_id && d.message_id) {
+        userRow.dataset.msgId = d.user_message_id;
+        row.dataset.msgId = d.message_id;
+      } else {
+        userRow.dataset.unsaved = '1';
+        row.dataset.unsaved = '1';
+      }
       const content = document.createElement('div');
       content.className = 'ai-content';
       content.innerHTML = mdToHtml(d.content);

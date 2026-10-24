@@ -196,7 +196,7 @@ def run():
                 expect(other).to_have_attribute("aria-current", "true")
                 open_sidebar()
                 search.fill("missing task")
-                expect(page.locator("#session-list")).to_have_text("no matching aide tasks")
+                expect(page.locator("#session-list")).to_have_text("no matching conversations")
                 expect(status).to_be_visible()
                 search.fill("")
                 expect(page.locator("#session-list .session-item")).to_have_count(2)

@@ -295,5 +295,113 @@ class WorkspaceFilesTests(unittest.TestCase):
             self.assertEqual(only, ["alpha.py"])
 
 
+class ConfineToolPathsTests(unittest.TestCase):
+    """The check every tool path gets before approval: resolved, symlinks followed, kept in."""
+
+    def setUp(self):
+        base = tempfile.TemporaryDirectory(prefix="alles-confine-")
+        self.addCleanup(base.cleanup)
+        root = Path(os.path.realpath(base.name))
+        self.project, self.extra, self.outside = root / "p", root / "extra", root / "out"
+        for d in (self.project / "sub", self.extra, self.outside):
+            d.mkdir(parents=True)
+        (self.project / "out-link").symlink_to(self.outside, target_is_directory=True)
+        (self.project / "file-link").symlink_to(self.outside / "f.txt")
+        self.settings = {
+            "agent_environment": "project",
+            "agent_cwd": str(self.project),
+            "agent_allowed_roots": [str(self.extra)],
+        }
+
+    def check(self, name, args, settings=None):
+        return at.confine_tool_paths(name, args, settings or self.settings)
+
+    def test_each_path_argument_is_kept_in(self):
+        out = str(self.outside / "x")
+        refused = [
+            ("write_file", {"path": "../out/x"}),
+            ("write_file", {"path": out}),
+            ("write_file", {"path": "file-link"}),
+            ("edit_file", {"path": "out-link/x"}),
+            ("delete_file", {"path": out}),
+            ("revert_file", {"path": "out-link/x"}),
+            ("read_file", {"path": "out-link/x"}),
+            ("list_files", {"path": str(self.outside)}),
+            ("glob_files", {"pattern": "*", "path": ".."}),
+            ("grep_files", {"pattern": "x", "path": ".."}),
+            ("code_symbols", {"path": out}),
+            ("shell", {"command": "ls", "cwd": "/"}),
+            ("bash", {"command": "ls", "cwd": "out-link"}),
+            ("git_status", {"cwd": ".."}),
+            ("git_diff", {"path": "../out/x"}),
+            ("git_commit", {"message": "m", "paths": ["sub/../../out/x"]}),
+            ("apply_patch", {"patch": "--- a/x\n+++ b/x\n", "cwd": "out-link"}),
+            ("apply_patch", {"patch": "--- a/../out/x\n+++ b/../out/x\n"}),
+            ("opencode_run", {"prompt": "p", "cwd": str(self.outside)}),
+            ("spawn_agent", {"task": "t", "cwd": "../out"}),
+            ("spawn_agents", {"tasks": ["plain words", {"task": "t", "cwd": "out-link"}]}),
+            # extra roots are for reading only
+            ("write_file", {"path": str(self.extra / "x")}),
+            ("shell", {"command": "ls", "cwd": str(self.extra)}),
+        ]
+        for name, args in refused:
+            with self.subTest(tool=name, args=args):
+                self.assertTrue(self.check(name, args), "should be refused")
+        allowed = [
+            ("write_file", {"path": "sub/../x.txt"}),
+            ("read_file", {"path": str(self.extra / "x")}),
+            ("list_files", {}),
+            ("shell", {"command": "ls"}),
+            ("apply_patch", {"patch": "--- a/x\n+++ b/x\n", "cwd": "sub"}),
+            ("spawn_agent", {"task": "t", "cwd": "sub"}),
+            ("web_search", {"query": "../../etc/passwd"}),
+        ]
+        for name, args in allowed:
+            with self.subTest(tool=name, args=args):
+                self.assertIsNone(self.check(name, args))
+
+    def test_reads_are_refused_and_writes_are_named_for_approval(self):
+        refused, outside = at.check_tool_paths(
+            "read_file", {"path": "out-link/f.txt"}, self.settings
+        )
+        self.assertIn("isn't inside", refused)
+        refused, outside = at.check_tool_paths(
+            "write_file", {"path": "out-link/f.txt"}, self.settings
+        )
+        self.assertEqual((refused, outside), (None, [str(self.outside / "f.txt")]))
+        refused, outside = at.check_tool_paths("spawn_agent", {"cwd": "out-link"}, self.settings)
+        self.assertIn("only works inside", refused)
+        # only the exact path the owner approved for this step gets through, re-resolved
+        at.set_agent_ctx(settings=self.settings)
+        try:
+            at.allow_outside_writes([str(self.outside / "f.txt")])
+            self.assertIsNone(self.check("write_file", {"path": "out-link/f.txt"}))
+            self.assertTrue(self.check("write_file", {"path": "out-link/g.txt"}))
+            at.clear_outside_writes()
+            self.assertTrue(self.check("write_file", {"path": "out-link/f.txt"}))
+        finally:
+            at.set_agent_ctx()
+
+    def test_general_has_nowhere_to_write_and_no_relative_paths(self):
+        general = {"agent_environment": "general", "agent_cwd": "", "agent_allowed_roots": []}
+        self.assertIn(
+            "General has no folder", self.check("write_file", {"path": "notes.txt"}, general)
+        )
+        self.assertEqual(
+            at.check_tool_paths("write_file", {"path": str(self.outside / "x")}, general),
+            (None, [str(self.outside / "x")]),
+        )
+        self.assertIn(
+            "General has no writable folder",
+            at._guard_path(str(self.outside / "x"), write=True, settings=general),
+        )
+        self.assertIn(
+            "isn't inside", self.check("read_file", {"path": str(self.outside / "x")}, general)
+        )
+        # the summary for an approval never crashes on a path it can't place
+        details = at.delegated_action_details("write_file", {"path": "notes.txt"}, general)
+        self.assertEqual(details["path_targets"], ())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -227,24 +227,95 @@ class DelegatedActionTest(ApiTest):
                 db.rollback()
                 db.close()
 
-    def test_exact_approved_external_write_can_pass_existing_path_guard(self):
+    def test_approve_mode_outside_write_needs_the_owner_to_approve_that_exact_path(self):
         with tempfile.TemporaryDirectory(prefix="alles-project-") as project_root:
             with tempfile.TemporaryDirectory(prefix="alles-extra-") as extra_root:
-                target = str(Path(extra_root) / "approved.txt")
-                other = str(Path(extra_root) / "not-approved.txt")
-                agent_tools.set_agent_ctx(
-                    settings={
-                        "agent_environment": "project",
-                        "agent_cwd": project_root,
-                        "agent_allowed_roots": [extra_root],
-                    }
-                )
+                extra = Path(extra_root).resolve()
+                target = str(extra / "approved.txt")
+                other = str(extra / "not-approved.txt")
+                settings = {
+                    "agent_environment": "project",
+                    "agent_cwd": project_root,
+                    "agent_allowed_roots": [extra_root],
+                    "agent_context_files": False,
+                    "agent_permission_mode": "approve",
+                }
+                # the path guard: an extra root is read-only until this step's approval
+                agent_tools.set_agent_ctx(settings=settings)
                 self.assertIn("read-only", agent_tools._guard_path(target, write=True))
-                agent_tools.authorize_delegated_paths([target])
+                agent_tools.allow_outside_writes([target])
                 self.assertIsNone(agent_tools._guard_path(target, write=True))
                 self.assertIn("read-only", agent_tools._guard_path(other, write=True))
-                agent_tools.clear_delegated_paths()
+                agent_tools.clear_outside_writes()
                 self.assertIn("read-only", agent_tools._guard_path(target, write=True))
+
+                def run(allow):
+                    prompts = []
+
+                    async def fake_chat(messages, *_args, **_kwargs):
+                        if not any(m.get("role") == "tool" for m in messages):
+                            yield {
+                                "tool_call": {
+                                    "call_id": "outside-write",
+                                    "name": "write_file",
+                                    "args": {"path": target, "content": "owner said yes"},
+                                }
+                            }
+                        yield {"done": True, "usage": {}}
+
+                    async def owner(request_id, exact_hash, *_args, **_kwargs):
+                        db = self.db()
+                        decide_action(
+                            db,
+                            db.get(DelegatedAction, request_id),
+                            allow=allow,
+                            exact_hash=exact_hash,
+                        )
+                        db.commit()
+                        db.close()
+                        return allow
+
+                    async def drive():
+                        async for chunk in agent_runtime.run_agent(
+                            [{"role": "user", "content": "save it there"}],
+                            SimpleNamespace(base_url="http://local/", api_key=""),
+                            "test",
+                            asyncio.Event(),
+                            dict(settings),
+                            [],
+                            [],
+                            [],
+                            session_id="",
+                        ):
+                            if "tool_permission" in chunk:
+                                prompts.append(chunk["tool_permission"])
+
+                    with tempfile.TemporaryDirectory(prefix="alles-agent-state-") as temp:
+                        with (
+                            mock.patch.object(agent_state, "DATA_DIR", Path(temp)),
+                            mock.patch.object(agent_runtime, "stream_chat", fake_chat),
+                            mock.patch.object(agent_runtime, "_await_permission", owner),
+                        ):
+                            asyncio.run(drive())
+                    return prompts
+
+                prompts = run(allow=False)
+                self.assertEqual(
+                    [p["outside"] for p in prompts],
+                    [f"writes outside this task's folder: {target}"],
+                )
+                self.assertFalse(Path(target).exists())
+                prompts = run(allow=True)
+                self.assertEqual(len(prompts), 1)
+                self.assertEqual(Path(target).read_text(), "owner said yes")
+                self.assertFalse(Path(other).exists())
+                db = self.db()
+                done = db.query(DelegatedAction).filter_by(state="completed").one()
+                self.assertEqual(done.target, target)
+                self.assertEqual(
+                    done.privacy_effect, f"writes outside this task's folder: {target}"
+                )
+                db.close()
 
     def test_durable_summary_keeps_exact_recipient_but_not_message_body(self):
         details = agent_tools.delegated_action_details(

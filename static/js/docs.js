@@ -243,7 +243,8 @@ function _wire() {
   // the keys a markdown editor is expected to have: open a doc by name, save, bold, italic
   document.addEventListener('keydown', event => {
     if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.defaultPrevented) return;
-    if ($('docs-workbench-view')?.style.display === 'none' || !$('wiki-tree')?.getClientRects().length) return;
+    // the reader, not the tree: the tree hides with the nav, a collapsed folder list, or a narrow screen
+    if ($('docs-workbench-view')?.style.display === 'none' || !$('wiki-view')?.getClientRects().length) return;
     const key = event.key.toLowerCase();
     if (key === 'o') {
       event.preventDefault();
@@ -434,7 +435,7 @@ export function showSection(section) {
     setHidden($('docs-context-panel'), true);
     setHidden($('wiki-ask'), true);
     $('wiki-view')?.classList.remove('no-note', 'docs-nav-open');
-    return import('./journal.js?v=253').then(module => module.initJournal());
+    return import('./journal.js?v=254').then(module => module.initJournal());
   }
 
   if (_section === 'notes') {
@@ -706,7 +707,7 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     const requestedPath = String(path);
     const openedDoc = await api('/api/vault-md/file?path=' + encodeURIComponent(requestedPath));
     if (requestGeneration !== _openGeneration || (canRefresh && !canRefresh())) return false;
-    if (!openedDoc.exists) throw new Error('That document no longer exists');
+    if (!openedDoc.exists) throw new Error('it was moved or deleted');
     if (expectedHash && openedDoc.hash !== expectedHash) {
       showInlineState(`${requestedPath} changed after this answer. The quoted version is kept with the answer.`, [
         { label: 'open current version', action: () => openNote(requestedPath) },
@@ -835,13 +836,22 @@ function updateActiveRows() {
   });
 }
 
+// only the doc that link names; the first fuzzy hit sent [[weekly review]] to some other doc.
+// [[Projects/plan]] and [[plan.md]] are how obsidian writes links too, so they match by path
+function linkedDoc(hits, name) {
+  const noExt = value => String(value || '').trim().toLowerCase().replace(/\.(md|markdown)$/i, '');
+  const wanted = noExt(name);
+  if (!wanted) return null;
+  if (wanted.includes('/')) {
+    return hits.find(item => noExt(item.path) === wanted) || hits.find(item => noExt(item.path).endsWith('/' + wanted)) || null;
+  }
+  return hits.find(item => String(item.name || '').toLowerCase() === wanted || stem(item.path).toLowerCase() === wanted) || null;
+}
+
 async function openByName(name) {
   try {
     const result = await api('/api/vault-md/search?q=' + encodeURIComponent(name));
-    const hits = result.results || [];
-    // only the doc with that exact name; the first fuzzy hit sent [[weekly review]] to some other doc
-    const wanted = name.toLowerCase();
-    const hit = hits.find(item => String(item.name || '').toLowerCase() === wanted || stem(item.path).toLowerCase() === wanted);
+    const hit = linkedDoc(result.results || [], name);
     if (hit) { await openNote(hit.path); return; }
     const choice = await openDialog({ title: `"${name}" doesn't exist yet`, actions: [{ id: 'cancel', label: 'cancel' }, { id: 'confirm', label: 'create it' }] });
     if (choice?.action !== 'confirm') return;
@@ -966,14 +976,15 @@ async function ensureEditor(guard) {
   _editor = _editorFactory(host, {
     doc: parts.body,
     onChange: editorChanged,
-    // pasted or dropped images go to _assets/ and come back as ![[name]]
+    // pasted or dropped images go to _assets/ and come back as ![[_assets/name]]. the bare name
+    // would show whichever image.png the vault finds first
     onImageUpload: async file => {
       const form = new FormData();
       form.append('file', file, file.name || 'pasted.png');
       const response = await fetch('/api/vault-md/asset', { method: 'POST', body: form });
       const saved = await response.json().catch(() => ({}));
-      if (!response.ok || !saved.name) { toast(typeof saved.detail === 'string' ? saved.detail : 'the image could not be saved', 'error'); return null; }
-      return saved.name;
+      if (!response.ok || !saved.path) { toast(typeof saved.detail === 'string' ? saved.detail : 'the image could not be saved', 'error'); return null; }
+      return saved.path;
     },
     wikiComplete: async query => {
       const result = await api('/api/vault-md/names');

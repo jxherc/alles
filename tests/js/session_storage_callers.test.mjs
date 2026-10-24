@@ -16,7 +16,7 @@ const askStart = app.indexOf('window._askInChat = async (');
 const askEnd = app.indexOf('\nconst showModelsView', askStart);
 assert.ok(privateDay && askStart >= 0 && askEnd > askStart);
 const ask = app.slice(askStart, askEnd);
-const dynamicImport = "import('./andromeda.js?v=249')";
+const dynamicImport = "import('./andromeda.js?v=250')";
 assert.equal(ask.split(dynamicImport).length, 2, 'bind only this actual module import to the synthetic search dependency');
 const boundAsk = ask.replace(dynamicImport, '__loadAndromeda()');
 function clickHandler(id) {

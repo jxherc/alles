@@ -374,16 +374,15 @@ def run():
                                     )
                                     stop = page.get_by_role("button", name="stop", exact=True)
                                     expect(stop).to_be_visible()
-                                    expect(send).to_be_disabled()
+                                    # stop takes send's place while a reply runs, so there is no
+                                    # second send to press
+                                    expect(send).to_be_hidden()
                                     snapshot("02-pending")
-                                    box = send.bounding_box()
-                                    page.mouse.click(
-                                        box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
-                                    )
                                     assert len(events["chat"]) == 1, events
                                     result["stop_tab_path"] = tab_to(page, stop)
                                     snapshot("02b-keyboard-stop")
                                     page.keyboard.press("Enter")
+                                    expect(send).to_be_visible()
                                     expect(send).to_be_enabled()
                                     expect(stop).to_be_hidden()
                                     expect(page.locator(".aide-interruption")).to_have_text(
@@ -500,9 +499,9 @@ def run():
                                     assert events["stop"] == [("POST", f"/api/chat/stop/{sid}")], (
                                         events
                                     )
-                                    assert Counter(events["failed"]) == Counter(
-                                        {("POST", "/api/chat", "net::ERR_ABORTED"): 1}
-                                    ), events
+                                    # the server ends the stopped stream itself, so the page
+                                    # reads it to its end
+                                    assert not events["failed"], events
                                     assert Counter(events["console"]) == Counter(
                                         {
                                             (

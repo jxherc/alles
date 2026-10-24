@@ -470,3 +470,130 @@ class ParseOllamaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StreamCutOffTests(unittest.TestCase):
+    """A stream that stops without the model saying it finished is cut off, not done."""
+
+    def _run(self, parser, lines):
+        class FakeResp:
+            async def aiter_lines(self_):
+                for line in lines:
+                    yield line
+
+        async def go():
+            return [ev async for ev in parser(FakeResp())]
+
+        return asyncio.run(go())
+
+    def test_openai_needs_a_finish_reason_or_done_sentinel(self):
+        cut = self._run(llm._parse_openai, ['data: {"choices":[{"delta":{"content":"half a"}}]}'])
+        self.assertEqual(cut, [{"delta": "half a"}])
+        finished = self._run(
+            llm._parse_openai,
+            [
+                'data: {"choices":[{"delta":{"content":"whole"}}]}',
+                'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}',
+            ],
+        )
+        self.assertTrue(finished[-1].get("done"))
+        sentinel = self._run(
+            llm._parse_openai, ['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]
+        )
+        self.assertTrue(sentinel[-1].get("done"))
+
+    def test_anthropic_needs_message_stop(self):
+        lines = [
+            'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"half"}}',
+        ]
+        self.assertEqual(self._run(llm._parse_anthropic, lines), [{"delta": "half"}])
+        whole = self._run(llm._parse_anthropic, [*lines, 'data: {"type":"message_stop"}'])
+        self.assertTrue(whole[-1].get("done"))
+
+    def test_ollama_needs_its_done_flag(self):
+        cut = self._run(llm._parse_ollama, ['{"message":{"content":"half"},"done":false}'])
+        self.assertEqual(cut, [{"delta": "half"}])
+
+    def test_a_provider_error_part_way_is_passed_on_in_its_own_words(self):
+        openai = self._run(
+            llm._parse_openai,
+            [
+                'data: {"choices":[{"delta":{"content":"half"}}]}',
+                'data: {"error":{"message":"upstream overloaded","code":502}}',
+                'data: {"choices":[{"delta":{"content":" never"}}]}',
+            ],
+        )
+        self.assertEqual(openai, [{"delta": "half"}, {"error": "upstream overloaded"}])
+        anthropic = self._run(
+            llm._parse_anthropic,
+            [
+                'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"half"}}',
+                'data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}',
+            ],
+        )
+        self.assertEqual(anthropic, [{"delta": "half"}, {"error": "Overloaded"}])
+        ollama = self._run(
+            llm._parse_ollama,
+            ['{"message":{"content":"half"},"done":false}', '{"error":"model runner crashed"}'],
+        )
+        self.assertEqual(ollama, [{"delta": "half"}, {"error": "model runner crashed"}])
+
+
+class OllamaUrlTests(unittest.TestCase):
+    def test_a_v1_suffix_still_reaches_the_native_api(self):
+        self.assertEqual(
+            llm._ollama_chat_url("http://127.0.0.1:11434/v1/"), "http://127.0.0.1:11434/api/chat"
+        )
+        self.assertEqual(
+            llm._ollama_chat_url("http://127.0.0.1:11434"), "http://127.0.0.1:11434/api/chat"
+        )
+        self.assertEqual(
+            llm._ollama_chat_url("https://box.example/ollama/v1"),
+            "https://box.example/ollama/api/chat",
+        )
+
+
+class UntilStoppedTests(unittest.TestCase):
+    def test_every_read_shares_one_context_and_leaves_the_callers_alone(self):
+        import contextvars
+
+        mark = contextvars.ContextVar("mark", default="unset")
+
+        async def stream():
+            mark.set("set by the stream")
+            yield mark.get()
+            yield mark.get()
+
+        async def go():
+            stop = asyncio.Event()
+            got = [chunk async for chunk in llm.until_stopped(stream(), stop)]
+            return got, mark.get()
+
+        got, outside = asyncio.run(go())
+        self.assertEqual(got, ["set by the stream", "set by the stream"])
+        self.assertEqual(outside, "unset")
+
+    def test_a_stop_ends_a_stalled_read_at_once(self):
+        closed = []
+
+        async def stream():
+            try:
+                yield "first"
+                await asyncio.sleep(30)
+                yield "never"
+            finally:
+                closed.append(True)
+
+        async def go():
+            stop = asyncio.Event()
+            asyncio.get_running_loop().call_later(0.05, stop.set)
+            got = []
+            started = asyncio.get_running_loop().time()
+            async for chunk in llm.until_stopped(stream(), stop):
+                got.append(chunk)
+            return got, asyncio.get_running_loop().time() - started
+
+        got, took = asyncio.run(go())
+        self.assertEqual(got, ["first"])
+        self.assertLess(took, 2)
+        self.assertEqual(closed, [True])

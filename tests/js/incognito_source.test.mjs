@@ -9,7 +9,8 @@ const uploads = readFileSync(new URL('../../static/js/uploads.js', import.meta.u
 
 test('incognito session ids and drafts are not written to browser storage', () => {
   assert.match(sessions, /if \(isIncognitoMode\(\)\) return;/);
-  assert.match(sessions, /if \(id && !isIncognitoMode\(\)\) location\.hash = id/);
+  // the address names the task, never a private one (replaced so it adds no history entry)
+  assert.match(sessions, /if \(id && !isIncognitoMode\(\)\) \{\n\s*const url = new URL\(location\.href\);\n\s*url\.hash = id;\n\s*replaceRouteUrl\(url\);/);
   assert.match(sessions, /if \(!options\.incognito\) await loadSessions\(\)/);
 });
 

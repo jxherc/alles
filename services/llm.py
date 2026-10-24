@@ -3,6 +3,8 @@ provider-agnostic streaming LLM client.
 yields dicts: {"delta": str} | {"thinking": str} | {"done": True, "usage": {...}}
 """
 
+import asyncio
+import contextvars
 import json
 import time
 from typing import AsyncGenerator
@@ -76,6 +78,23 @@ def _openai_chat_url(base_url: str) -> str:
         "/chat/completions" if path.endswith(("/v1", "/v1beta/openai")) else "/v1/chat/completions"
     )
     return urlunsplit((parsed.scheme, parsed.netloc, path + suffix, "", ""))
+
+
+def _ollama_chat_url(base_url: str) -> str:
+    # an ollama url saved with its openai-style /v1 still means the native api at the root
+    parsed = urlsplit((base_url or "").rstrip("/"))
+    path = parsed.path.rstrip("/")
+    if path.endswith("/v1"):
+        path = path[:-3]
+    return urlunsplit((parsed.scheme, parsed.netloc, path + "/api/chat", "", ""))
+
+
+def _provider_error(value) -> str:
+    """The provider's own words for an error it sent mid-stream."""
+    if isinstance(value, dict):
+        value = value.get("message") or value.get("error") or value.get("type") or ""
+    text = str(value or "").strip()
+    return text[:300] or "the model reported an error"
 
 
 def detect_provider(base_url: str) -> str:
@@ -342,7 +361,7 @@ async def stream_chat(
         }
         payload = _build_anthropic_payload(messages, model, **kw)
     elif provider == "ollama":
-        url = base_url.rstrip("/") + "/api/chat"
+        url = _ollama_chat_url(base_url)
         headers = {"content-type": "application/json"}
         if api_key:
             headers["authorization"] = f"Bearer {api_key}"
@@ -385,10 +404,65 @@ async def stream_chat(
         yield {"error": str(e)}
 
 
+async def until_stopped(stream, stop_event) -> AsyncGenerator[dict, None]:
+    """The provider's chunks until it ends or the owner stops.
+
+    A stop doesn't wait for the next chunk: a model that stalls mid-reply would otherwise keep
+    the turn (and its save) going long after the page let go. The pending read is cancelled,
+    which closes the provider's response.
+
+    Every read runs in one copied context, so what the stream sets or reads in a contextvar
+    holds from one chunk to the next (a fresh task per read would each start from a new copy).
+    """
+    if not hasattr(stop_event, "wait"):
+        # a plain flag with nothing to wait on: read straight through
+        async for chunk in stream:
+            yield chunk
+        return
+    loop = asyncio.get_running_loop()
+    ctx = contextvars.copy_context()
+
+    async def step():
+        return await stream.__anext__()
+
+    stopped = asyncio.ensure_future(stop_event.wait())
+    pending = None
+    try:
+        while True:
+            pending = loop.create_task(step(), context=ctx)
+            await asyncio.wait({pending, stopped}, return_when=asyncio.FIRST_COMPLETED)
+            if not pending.done():
+                return
+            try:
+                chunk = pending.result()
+            except StopAsyncIteration:
+                return
+            yield chunk
+    finally:
+        stopped.cancel()
+        # a read still running (a stop, or this turn being closed) must end before the stream
+        # is closed, or closing it fails as "already running"
+        if pending is not None and not pending.done():
+            pending.cancel()
+            # starlette re-sends its cancel on every pass when the page goes away; passing those on
+            # cut httpcore's own close short and left the provider connection stuck in the pool
+            again = None
+            while not pending.done():
+                try:
+                    await asyncio.wait({pending})
+                except asyncio.CancelledError as exc:
+                    again = exc
+            if again is not None:
+                raise again
+
+
 async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
     usage = {}
     # tool call accumulator: index -> {id, name, args_chunks}
     tool_acc: dict[int, dict] = {}
+    # the model said it was finished: a finish reason (or [DONE]). a stream that just stops
+    # without one was cut off, not done
+    finished = False
 
     async for line in resp.aiter_lines():
         if not line.startswith("data:"):
@@ -409,6 +483,10 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
             d = json.loads(raw)
         except Exception:
             continue
+        if isinstance(d, dict) and d.get("error"):
+            # the provider gave up mid-reply and said why
+            yield {"error": _provider_error(d["error"])}
+            return
 
         # grab usage whenever it shows up — combined with the finish chunk OR in a
         # trailing usage-only chunk (deepseek/openai/groq send it after finish_reason).
@@ -443,6 +521,8 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
                 tool_acc[idx]["args"].append(fn["arguments"])
 
         fr = choices[0].get("finish_reason")
+        if fr:
+            finished = True
         if fr and fr != "tool_calls":
             # emit accumulated tool calls now, but DON'T return — OpenAI-compat sends the
             # usage in a trailing chunk after finish_reason (with include_usage), so
@@ -458,7 +538,11 @@ async def _parse_openai(resp) -> AsyncGenerator[dict, None]:
             # keep reading for the trailing usage chunk + [DONE]
             continue
 
-    # stream ended without a [DONE] sentinel (some openai-compat servers skip it).
+    # stream ended without a [DONE] sentinel (some openai-compat servers skip it). that's done
+    # only if the model gave a finish reason; otherwise the reply was cut off mid-way, and saying
+    # done would pass a fragment off as a whole answer (a regenerate would swap the old one out)
+    if not finished:
+        return
     # flush any tool calls still accumulated, else a tool turn silently emits nothing.
     for idx in sorted(tool_acc):
         tc = tool_acc[idx]
@@ -478,6 +562,9 @@ async def _parse_ollama(resp) -> AsyncGenerator[dict, None]:
             d = json.loads(line)
         except Exception:
             continue
+        if isinstance(d, dict) and d.get("error"):
+            yield {"error": _provider_error(d["error"])}
+            return
         msg = d.get("message", {})
         content = msg.get("content", "")
         if content:
@@ -491,7 +578,7 @@ async def _parse_ollama(resp) -> AsyncGenerator[dict, None]:
                 },
             }
             return
-    yield {"done": True, "usage": {}}
+    # ended without ollama's done: cut off, not finished
 
 
 async def _parse_anthropic(resp) -> AsyncGenerator[dict, None]:
@@ -546,7 +633,11 @@ async def _parse_anthropic(resp) -> AsyncGenerator[dict, None]:
             yield {"done": True, "usage": usage}
             return
 
-    yield {"done": True, "usage": usage}
+        elif etype == "error":
+            # e.g. overloaded_error part way through: say so instead of ending quietly
+            yield {"error": _provider_error(d.get("error"))}
+            return
+    # ended without message_stop: cut off, not finished
 
 
 async def compact_messages(

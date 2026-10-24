@@ -420,3 +420,32 @@ test('mobile Docs keeps its navigation closed on the empty landing until request
     /#wiki-view\.no-note\.docs-nav-open \.docs-nav-panel\s*\{\s*display:\s*flex;/,
   );
 });
+
+test('a wikilink opens the doc it names, by name, by path or with its extension', () => {
+  const context = vm.createContext({});
+  vm.runInContext(
+    docs.match(/^const stem = [^\n]*\n/m)[0] + docs.match(/^function linkedDoc\([^]*?\n}/m)[0] + '\nglobalThis.linkedDoc = linkedDoc;',
+    context,
+  );
+  const hits = [
+    { name: 'plan', path: 'Archive/plan.md' },
+    { name: 'plan', path: 'Projects/plan.md' },
+    { name: 'planning', path: 'Projects/planning.md' },
+  ];
+  const find = name => context.linkedDoc(hits, name)?.path || null;
+  assert.equal(find('Projects/plan'), 'Projects/plan.md');
+  assert.equal(find('projects/plan.md'), 'Projects/plan.md');
+  assert.equal(find('plan.md'), 'Archive/plan.md');
+  assert.equal(find('plan'), 'Archive/plan.md');
+  // a folder-relative link still finds the doc further down
+  assert.equal(context.linkedDoc([{ name: 'plan', path: 'Work/Projects/plan.md' }], 'Projects/plan')?.path, 'Work/Projects/plan.md');
+  // a different doc with the same name is not the one the link names
+  assert.equal(find('Other/plan'), null);
+  assert.equal(find('weekly review'), null);
+});
+
+test('a pasted image embeds by its vault path, not a bare name another image can share', () => {
+  const upload = docs.match(/onImageUpload: async file => \{[^]*?\n    \},/)?.[0] || '';
+  assert.match(upload, /return saved\.path;/);
+  assert.doesNotMatch(upload, /return saved\.name/);
+});

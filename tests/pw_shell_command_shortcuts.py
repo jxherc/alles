@@ -44,6 +44,13 @@ def run() -> None:
 
             page.on("console", console)
 
+            def open_tools():
+                page.locator("#aide-more-btn").click()
+                page.locator('[data-aide-central-action="tools"]').click()
+                # the panel puts focus on its first control a frame after it opens; a tool
+                # pressed before that frame loses its key to "close"
+                expect(page.locator("#aide-work-panel-close")).to_be_focused()
+
             page.goto(base, wait_until="networkidle")
             if page.locator("#setup-wizard").is_visible():
                 page.locator("#setup-skip").click()
@@ -121,8 +128,7 @@ def run() -> None:
             expect(page.locator("#chat")).to_be_visible()
             page.wait_for_function("id => window._currentSession?.id === id", arg=session_id)
 
-            page.locator("#aide-more-btn").click()
-            page.locator('[data-aide-central-action="tools"]').click()
+            open_tools()
             page.locator('[data-aide-tool="review"]').press("Enter")
             expect(page.locator("#server-workbench-view")).to_be_visible()
             expect(
@@ -137,16 +143,14 @@ def run() -> None:
 
             page.goto(f"http://aide.localhost:{port}/#{session_id}", wait_until="networkidle")
             expect(page.locator("#chat")).to_be_visible()
-            page.locator("#aide-more-btn").click()
-            page.locator('[data-aide-central-action="tools"]').click()
+            open_tools()
             page.locator('[data-aide-tool="files"]').press("Enter")
             expect(page.locator("#files-workbench-view")).to_be_visible()
             assert page.url.startswith(f"http://files.localhost:{port}/")
 
             page.goto(f"http://aide.localhost:{port}/#{session_id}", wait_until="networkidle")
             expect(page.locator("#chat")).to_be_visible()
-            page.locator("#aide-more-btn").click()
-            page.locator('[data-aide-central-action="tools"]').click()
+            open_tools()
             page.locator('[data-aide-tool="browser"]').press("Enter")
             expect(page.locator("#andromeda-view")).to_be_visible()
             assert page.url.startswith(f"http://andromeda.localhost:{port}/")
@@ -241,8 +245,7 @@ def run() -> None:
             expect(page.locator("#composer-ta")).to_be_focused()
             assert page.url.startswith(base + "/")
 
-            page.locator("#aide-more-btn").click()
-            page.locator('[data-aide-central-action="tools"]').click()
+            open_tools()
             page.locator('[data-aide-tool="review"]').press("Enter")
             expect(page.locator("#server-workbench-view")).to_be_visible()
             expect(
@@ -259,8 +262,7 @@ def run() -> None:
             page.locator("#app-drawer-btn").click()
             page.locator('.app-drawer-item[data-view="chat"]').click()
             expect(page.locator("#chat")).to_be_visible()
-            page.locator("#aide-more-btn").click()
-            page.locator('[data-aide-central-action="tools"]').click()
+            open_tools()
             page.locator('[data-aide-tool="files"]').press("Enter")
             expect(page.locator("#files-workbench-view")).to_be_visible()
             assert page.url.startswith(base + "/")
@@ -269,8 +271,7 @@ def run() -> None:
             page.locator("#app-drawer-btn").click()
             page.locator('.app-drawer-item[data-view="chat"]').click()
             expect(page.locator("#chat")).to_be_visible()
-            page.locator("#aide-more-btn").click()
-            page.locator('[data-aide-central-action="tools"]').click()
+            open_tools()
             page.locator('[data-aide-tool="browser"]').press("Enter")
             expect(page.locator("#andromeda-view")).to_be_visible()
             assert page.url.startswith(base + "/")

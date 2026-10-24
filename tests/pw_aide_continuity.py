@@ -237,6 +237,11 @@ async def run_case(browser, state, endpoint, output, profile, case):
         await page.screenshot(path=str(case_dir / f"{label}.png"))
 
     async def select(label):
+        # read the archive's state only once boot has settled: before the styles apply and the
+        # shell scopes itself, the search box can look visible for a moment
+        await page.wait_for_function(
+            "document.readyState === 'complete' && !document.body.classList.contains('preboot')"
+        )
         if not await page.locator("#session-search").is_visible():
             await page.locator("#aide-more-btn").click()
             await page.locator('[data-aide-central-action="archive"]').click()
@@ -336,7 +341,10 @@ async def run_case(browser, state, endpoint, output, profile, case):
         if case != "incognito-stop":
             runs = api("GET", "/api/agent/runs")
             run = next(row for row in runs if row["session_id"] == sid)
-            assert run["status"] == ("done" if case == "switch-finish" else "cancelled"), run
+            # a stop now reaches the server first, so the run ends "stopped"; only a dropped page
+            # (navigate away) still cancels
+            expected = {"switch-finish": "done", "navigate-disconnect": "cancelled"}
+            assert run["status"] == expected.get(case, "stopped"), run
             assert run["text"] == (history[1]["content"] if len(history) == 2 else ""), run
             result["terminal_run"] = run
         state.releases[key].set()
@@ -365,7 +373,7 @@ async def run_case(browser, state, endpoint, output, profile, case):
             result["private_agent_run_files"] = private_files
             private_run_id = result["active_before"]["id"]
             private_run = api("GET", f"/api/agent/runs/{private_run_id}")
-            assert private_run["status"] == "cancelled", private_run
+            assert private_run["status"] == "stopped", private_run
             assert private_run["text"] == history[1]["content"], private_run
             await snapshot("03-private-memory-only")
             await page.locator("#incognito-exit").click()

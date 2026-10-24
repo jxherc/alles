@@ -7,8 +7,11 @@ import re
 from dataclasses import dataclass
 from uuid import UUID
 
+from sqlalchemy import text as sql_text
+from sqlalchemy.orm import object_session
+
 from core.api_errors import ApiError
-from core.database import AideCall, AideCallEvent, Session
+from core.database import AideCall, AideCallEvent, Message, Session
 from services import aide_calls, local_voice
 from services.aide_conversation import get_or_create_primary
 from services.model_resolver import ModelResolutionError, resolve_model, resolve_session_model
@@ -231,14 +234,45 @@ def turn_event(db, call_id, turn_id):
     return event
 
 
+def current_ids(db, user_id, assistant_id):
+    """The turn's rows as the conversation holds them now.
+
+    An edit or regenerate swaps a turn's reply (or cuts the turn away), and the receipt keeps the
+    ids it was saved with: read the reply that follows the question today instead.
+    """
+    if db is None or not user_id:
+        return user_id, assistant_id
+    if assistant_id and db.get(Message, assistant_id) is not None:
+        return user_id, assistant_id
+    asked = db.execute(
+        sql_text("SELECT rowid, session_id FROM messages WHERE id = :i"), {"i": user_id}
+    ).first()
+    if asked is None:
+        return None, None
+    following = db.execute(
+        sql_text(
+            "SELECT id, role FROM messages WHERE session_id = :s AND rowid > :r "
+            "ORDER BY rowid LIMIT 1"
+        ),
+        {"s": asked.session_id, "r": asked.rowid},
+    ).first()
+    return (
+        user_id,
+        following.id if following is not None and following.role == "assistant" else None,
+    )
+
+
 def receipt(event):
     values = data(event)
+    user_id, assistant_id = current_ids(
+        object_session(event), values.get("user_message_id"), values.get("assistant_message_id")
+    )
     return {
         "turn_id": values["turn_id"],
         "state": values["state"],
         "transcript": event.text or "",
-        "user_message_id": values.get("user_message_id"),
-        "assistant_message_id": values.get("assistant_message_id"),
+        "user_message_id": user_id,
+        "assistant_message_id": assistant_id,
         "run_id": values.get("run_id"),
         "error_code": values.get("error_code"),
     }

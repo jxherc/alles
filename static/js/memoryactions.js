@@ -87,6 +87,8 @@ export async function rememberUserMessage(button) {
   const row = button?.closest('.msg-row');
   const text = row?.querySelector('.user-bubble')?.textContent?.trim();
   if (!text || button.disabled) return;
+  // disabling drops focus to the page; only take it back if nothing else has it by then
+  const lost = () => !document.activeElement || document.activeElement === document.body || document.activeElement === button;
   button.disabled = true;
   const projectId = window._currentSession?.project_id || '';
   const response = await fetch('/api/memories', {
@@ -102,18 +104,33 @@ export async function rememberUserMessage(button) {
   if (!response?.ok) {
     button.disabled = false;
     button.textContent = memory?.detail || 'remember failed';
+    if (lost()) button.focus();
     return;
   }
   const status = document.createElement('span');
   status.className = 'memory-confirm';
-  status.innerHTML = `remembered ${projectId ? 'in Project' : 'globally'} · <button type="button">undo</button>`;
-  status.querySelector('button').addEventListener('click', async () => {
+  status.innerHTML = `remembered ${projectId ? 'in this project' : 'globally'} · <button type="button">undo</button>`;
+  const undo = status.querySelector('button');
+  let undoing = false;
+  undo.addEventListener('click', async () => {
+    if (undoing) return;
+    undoing = true;
     const undone = await fetch(`/api/memories/${encodeURIComponent(memory.id)}`, { method: 'DELETE' })
       .catch(() => null);
-    if (undone?.ok) status.textContent = 'memory undone';
+    undoing = false;
+    if (!undone?.ok) return;
+    const hadUndo = document.activeElement === undo;
+    status.textContent = 'memory undone';
+    // undo is gone with the old text: the receipt itself keeps focus
+    if (hadUndo || !document.activeElement || document.activeElement === document.body) {
+      status.tabIndex = -1;
+      status.focus();
+    }
   });
   // the receipt takes the button's place, right under the message
+  const refocus = lost();
   button.replaceWith(status);
+  if (refocus) undo.focus();
 }
 
 if (typeof window !== 'undefined') {

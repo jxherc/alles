@@ -49,16 +49,6 @@ def get_agent_ctx() -> dict:
     return _ctx.get()
 
 
-def authorize_delegated_paths(paths) -> None:
-    get_agent_ctx()["_delegated_write_targets"] = {
-        str(Path(path).expanduser().resolve()) for path in paths or ()
-    }
-
-
-def clear_delegated_paths() -> None:
-    get_agent_ctx().pop("_delegated_write_targets", None)
-
-
 def _settings() -> dict:
     return (_ctx.get() or {}).get("settings", {}) or {}
 
@@ -192,23 +182,20 @@ def _safe_text(value, limit: int = 20000) -> str:
     )
 
 
-def _resolve(path: str = ".") -> Path:
+def _resolve(path: str = ".", settings: dict | None = None) -> Path:
     p = Path(path or ".").expanduser()
     if not p.is_absolute():
         # resolve relative paths against the session's working dir when set, so
         # file ops land where shell runs (which already uses agent_cwd) — without
         # a working_dir this stays ROOT, the long-standing default.
-        base = ROOT
-        try:
-            settings = _settings()
-            cwd = settings.get("agent_cwd")
-            if cwd:
-                base = Path(cwd).expanduser()
-            elif settings.get("agent_environment") == "general":
-                raise ValueError("select a Project folder before using relative file paths")
-        except Exception:
-            if _settings().get("agent_environment") == "general":
-                raise
+        s = settings if settings is not None else _settings()
+        cwd = s.get("agent_cwd")
+        if cwd:
+            base = Path(cwd).expanduser()
+        elif s.get("agent_environment") == "general":
+            raise ValueError("select a Project folder before using relative file paths")
+        else:
+            base = ROOT
         p = base / p
     return p.resolve()
 
@@ -385,25 +372,135 @@ def _within(p, root) -> bool:
         return False
 
 
+def allow_outside_writes(paths) -> None:
+    """The owner just approved this one step's writes outside the folder, at these exact
+    resolved paths. Only the approval flow calls this; nothing approves by itself."""
+    get_agent_ctx()["_approved_outside"] = {str(path) for path in paths or ()}
+
+
+def clear_outside_writes() -> None:
+    get_agent_ctx().pop("_approved_outside", None)
+
+
+def _outside_write_approved(p) -> bool:
+    # re-resolved now: a link swapped in after the approval points somewhere else, and fails
+    try:
+        return str(Path(p).expanduser().resolve()) in get_agent_ctx().get("_approved_outside", ())
+    except (OSError, RuntimeError):
+        return False
+
+
 def _guard_path(p, write: bool = False, settings: dict | None = None) -> str | None:
     """error string if the path is off-limits, else None."""
     s = settings if settings is not None else _settings()
     if _is_secret_path(p) and not s.get("agent_allow_secrets"):
         return f"blocked: {p} looks like a credential/secret store (set agent_allow_secrets to override)"
-    try:
-        exact_delegated_write = write and str(
-            Path(p).expanduser().resolve()
-        ) in get_agent_ctx().get("_delegated_write_targets", set())
-    except (OSError, RuntimeError):
-        exact_delegated_write = False
-    if write and s.get("agent_environment") == "general" and not exact_delegated_write:
-        return (
-            "blocked: General has no writable folder; choose a Project or approve a scoped action"
-        )
-    if not exact_delegated_write and not any(_within(p, r) for r in _allowed_roots(s)):
-        return f"blocked: file access is confined to approved roots; {p} is outside them"
-    if write and not exact_delegated_write and not _within(p, _project_root(s)):
-        return f"blocked: extra approved roots are read-only; {p} is outside the project root"
+    if write:
+        general = s.get("agent_environment") == "general"
+        if not general and _within(p, _project_root(s)):
+            return None
+        if _outside_write_approved(p):
+            return None
+        if general:
+            return "blocked: General has no writable folder; choose a Project folder, or approve this one write in approve mode"
+        if any(_within(p, r) for r in _allowed_roots(s)):
+            return f"blocked: extra approved roots are read-only; {p} is outside the project root"
+        return f"blocked: that path isn't inside this task's folder: {p}"
+    if not any(_within(p, r) for r in _allowed_roots(s)):
+        return f"blocked: that path isn't inside this task's folder or its approved roots: {p}"
+    return None
+
+
+# the local files and folders each tool names, and whether it may change them. cwd-relative
+# extras (patch targets, git pathspecs, sub-agent folders) are handled in check_tool_paths
+_PATH_ARGS = {
+    "read_file": (("path", False),),
+    "list_files": (("path", False),),
+    "glob_files": (("path", False),),
+    "grep_files": (("path", False),),
+    "code_symbols": (("path", False),),
+    "find_definition": (("path", False),),
+    "diagnostics": (("path", False),),
+    "git_status": (("cwd", False),),
+    "git_diff": (("cwd", False),),
+    "write_file": (("path", True),),
+    "edit_file": (("path", True),),
+    "delete_file": (("path", True),),
+    "revert_file": (("path", True),),
+    "apply_patch": (("cwd", True),),
+    "shell": (("cwd", True),),
+    "bash": (("cwd", True),),
+    "opencode_run": (("cwd", True),),
+    "git_branch": (("cwd", True),),
+    "git_commit": (("cwd", True),),
+    "spawn_agent": (("cwd", True),),
+}
+# these hand a whole folder to something that then works on its own, so never outside
+_FOLDER_HANDOFFS = {"opencode_run", "spawn_agent", "spawn_agents"}
+
+
+def check_tool_paths(
+    name: str, args: dict, settings: dict | None = None
+) -> tuple[str | None, list[str]]:
+    """Where a tool points, before any approval: (why it can't run at all, the resolved paths
+    it would change outside this task's folder). Every path is resolved first, symlinks too,
+    so a link inside that leads out counts as out. Reads stay in the folder and the owner's
+    extra read-only roots; a write outside is only ever allowed by the owner approving that
+    exact path."""
+    s = settings if settings is not None else _settings()
+    args = args if isinstance(args, dict) else {}
+    checks = [(args.get(key) or ".", write, None) for key, write in _PATH_ARGS.get(name, ())]
+    if name in ("apply_patch", "git_diff", "git_commit"):
+        extra = {
+            "apply_patch": (_patch_targets(str(args.get("patch") or "")), True),
+            "git_diff": ([args.get("path")] if args.get("path") else [], False),
+            "git_commit": (args.get("paths") or [], True),
+        }[name]
+        for raw in extra[0]:
+            checks.append((raw, extra[1], args.get("cwd") or "."))
+    if name == "spawn_agents":
+        for item in args.get("tasks") or []:
+            if isinstance(item, dict) and item.get("cwd"):
+                checks.append((item["cwd"], True, None))
+    general = s.get("agent_environment") == "general"
+    outside = []
+    for raw, write, under in checks:
+        try:
+            base = _resolve(under, s) if under is not None else None
+            p = (base / str(raw)).resolve() if base is not None else _resolve(str(raw), s)
+        except ValueError:
+            return (
+                "blocked: General has no folder; choose a Project folder before using relative paths",
+                [],
+            )
+        except (OSError, RuntimeError):
+            return f"blocked: that path can't be checked: {raw}", []
+        if _is_secret_path(p) and not s.get("agent_allow_secrets"):
+            return _guard_path(p, write=write, settings=s), []
+        if not write:
+            if blocked := _guard_path(p, settings=s):
+                return blocked, []
+        elif general or not _within(p, _project_root(s)):
+            if name in _FOLDER_HANDOFFS:
+                return (
+                    f"blocked: {name} only works inside this task's folder; {p} is outside it",
+                    [],
+                )
+            if str(p) not in outside:
+                outside.append(str(p))
+    return None, outside
+
+
+def confine_tool_paths(name: str, args: dict, settings: dict | None = None) -> str | None:
+    """Why a tool can't run where it points right now, or None: the last check before it
+    runs. A write outside the folder passes only for the exact paths the owner approved for
+    this step, re-resolved now."""
+    refused, outside = check_tool_paths(name, args, settings)
+    if refused:
+        return refused
+    for path in outside:
+        if not _outside_write_approved(path):
+            return f"blocked: writes outside this task's folder need the owner's approval of that exact path: {path}"
     return None
 
 
@@ -1371,8 +1468,19 @@ async def _run_subagent(task: str, cwd: str = "") -> str:
     sub["agent_max_turns"] = cap
     sub["_agent_turn_cap"] = cap
     sub["agent_subagents"] = False  # no recursive spawning
+    # nobody sees a sub-agent's prompts, so what would ask the owner is refused; its actions
+    # are its own (the parent's task plus its own run), so two at once never look like one
+    sub["_sub_agent"] = True
+    sub["_parent_session_id"] = ctx.get("session_id") or ""
     if cwd:
-        sub["agent_cwd"] = cwd
+        # inside the parent's folder only, the same check every tool path gets
+        try:
+            folder = _resolve(cwd)
+        except ValueError:
+            return "[sub-agent error: General has no folder; choose a Project folder first]"
+        if blocked := _guard_path(folder, write=True):
+            return f"[sub-agent error: {blocked}]"
+        sub["agent_cwd"] = str(folder)
     stop = asyncio.Event()
     acc, think, steps = [], [], []
     async for _ in run_agent(
@@ -1589,6 +1697,8 @@ async def _gh_get_file(owner: str, repo: str, path: str, ref: str = "") -> dict:
 
 async def execute(name: str, args: dict) -> dict:
     args = args or {}
+    if blocked := confine_tool_paths(name, args):
+        return {"output": blocked, "error": True}
     if name == "ask_user":
         return {
             "output": "ask_user is available only inside an active Aide agent run",
@@ -1882,18 +1992,22 @@ async def execute(name: str, args: dict) -> dict:
 # ── cross-app tool implementations ──────────────────────────────────────────
 async def _calendar_list(start, end):
     from core.database import CalendarEvent, SessionLocal
+    from services.calendar_events import owner_zone, wall_time
 
     db = SessionLocal()
     try:
         rows = db.query(CalendarEvent).order_by(CalendarEvent.start_dt.asc()).all()
         out = []
+        zone = owner_zone()
         for e in rows:
-            d = (e.start_dt or "")[:10]
+            # a row that kept its offset reads at the owner's wall time, like the calendar shows it
+            when = wall_time(e.start_dt or "", zone)
+            d = when[:10]
             if start and d < start:
                 continue
             if end and d > end:
                 continue
-            line = f"- [{e.id[:8]}] {e.title} @ {e.start_dt}"
+            line = f"- [{e.id[:8]}] {e.title} @ {when}"
             if e.recurrence:
                 line += f" (repeats {e.recurrence})"
             out.append(line)
@@ -3087,6 +3201,10 @@ async def _npm_proxy_host_create(args):
 
 async def stream_execute(name: str, args: dict):
     args = args or {}
+    # the same check the agent loop makes before approval, for any caller that skips it
+    if blocked := confine_tool_paths(name, args):
+        yield {"type": "result", "result": {"output": blocked, "error": True}}
+        return
     if name in ("shell", "bash"):
         async for event in _stream_shell(
             args.get("command", "echo no command"), args.get("cwd", "")
@@ -4284,10 +4402,16 @@ def delegated_action_details(name: str, args: dict, settings: dict | None = None
     elif name in {"shell", "bash"}:
         raw_target = "Project shell"
     path_targets = []
-    if name == "apply_patch":
-        path_targets = [str(_resolve(path)) for path in _patch_targets(args.get("patch", ""))]
-    elif target_is_path and raw_target:
-        path_targets = [str(_resolve(raw_target))]
+    try:
+        if name == "apply_patch":
+            path_targets = [
+                str(_resolve(path, settings)) for path in _patch_targets(args.get("patch", ""))
+            ]
+        elif target_is_path and raw_target:
+            path_targets = [str(_resolve(raw_target, settings))]
+    except (ValueError, OSError, RuntimeError):
+        # a relative path with no folder to hold it: the summary names it as given
+        path_targets = []
     target = ", ".join(path_targets) if path_targets else raw_target
     root = _project_root(settings)
     outside = target_is_path and any(not _within(path, root) for path in path_targets)

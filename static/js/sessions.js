@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { plainError, toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
@@ -9,14 +9,14 @@ import {
   modelOverrideForNewSession,
   restoreSessionModel,
   selectAideDefault,
-} from './models.js?v=212';
+} from './models.js?v=213';
 import { t } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { loadAnswerNoteRecovery, reconcileAnswerNote } from './answer_note.js';
 import { loadAnswerTaskRecovery } from './answer_task.js';
 import { createMenuController } from './kokuen.js';
-import { replaceRouteUrl } from './route_history.js';
-import { compactResponseActions } from './response_actions.js?v=1';
+import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
+import { compactResponseActions } from './response_actions.js?v=2';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
@@ -273,7 +273,13 @@ export function newChat(options = {}) {
 // used after lazy-create so the in-flight stream isn't wiped.
 export function markActive(id) {
   _activeId = id;
-  if (id && !isIncognitoMode()) location.hash = id;
+  // replaced, not pushed: the new task takes the place of the fresh one. setting location.hash
+  // added a history entry and fired a popstate that re-routed chat in the middle of a send
+  if (id && !isIncognitoMode()) {
+    const url = new URL(location.href);
+    url.hash = id;
+    replaceRouteUrl(url);
+  }
   document.querySelectorAll('.session-item').forEach(el => {
     const active = el.dataset.id === id;
     syncSessionRowState(el, active);
@@ -294,7 +300,8 @@ export function renderSidebar(filter = '') {
   }
 
   if (!src.length) {
-    list.innerHTML = `<div class="empty-sessions">${fl ? t('aide.no_matching_tasks') : archive ? 'no earlier conversations' : t('aide.no_tasks')}</div>`;
+    const empty = fl ? (archive ? 'no matching conversations' : t('aide.no_matching_tasks')) : archive ? 'no earlier conversations' : t('aide.no_tasks');
+    list.innerHTML = `<div class="empty-sessions">${empty}</div>`;
     if (!fl && !archive) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
     return;
   }
@@ -344,15 +351,15 @@ export function renderSidebar(filter = '') {
     const more = el.querySelector('.session-more');
     more?.addEventListener('click', e => {
       e.stopPropagation();
-      const box = more.getBoundingClientRect();
-      openCtxMenu({ clientX: box.left, clientY: box.bottom }, sid, more);
+      openCtxMenu({ anchor: more.getBoundingClientRect() }, sid, more);
     });
     _bindSessionDrag(el);
   });
 }
 
 async function selectSidebarSession(id) {
-  const selected = await selectSession(id);
+  // a conversation opened from the list is a place: back returns to the one before
+  const selected = await selectSession(id, '', { push: true });
   if (selected) window._closeCompactAideSidebar?.();
   return selected;
 }
@@ -446,7 +453,9 @@ async function toggleSessionStar(id) {
   s.starred = next;
   const grouped = [..._sessions.today, ..._sessions.yesterday, ..._sessions.earlier].find(x => x.id === id);
   if (grouped) grouped.starred = next;
+  const hadFocus = document.activeElement?.closest?.(`.session-item[data-id="${id}"]`);
   renderSidebar(document.getElementById('session-search')?.value || '');
+  if (hadFocus) _focusSessionRow([id], '.star');
 }
 
 
@@ -480,19 +489,23 @@ export async function selectSession(id, messageId = '', options = {}) {
     ++_composerGeneration;
     document.getElementById('composer-send-recovery')?.setAttribute('hidden', '');
     _activeId = id;
+    // Reloading the same owner must retain live input (including text typed
+    // during a recovery fetch), not replace it with an older stored snapshot.
+    if (id !== previousId) restoreDraft(id);
+    setPrimaryConversationUnavailable(false);
+    window._currentSession = data.session;
+    const position = options.push ? routeHistoryPosition() : 0;
+    window._enterChatView?.({ preserveRecord: options.preserveRecord === true });
+    // the hash goes on after the chat route is in place: leaving another view clears it
     const sourceUrl = new URL(location.href);
     if (!options.preserveHash) sourceUrl.hash = id;
     if (messageId) sourceUrl.searchParams.set('message', messageId);
     // The boot fallback retains a missing reply's identity so the existing
     // source-link recovery notice can explain why the original did not open.
     else if (!options.preserveMessage) sourceUrl.searchParams.delete('message');
-    replaceRouteUrl(sourceUrl);
-    // Reloading the same owner must retain live input (including text typed
-    // during a recovery fetch), not replace it with an older stored snapshot.
-    if (id !== previousId) restoreDraft(id);
-    setPrimaryConversationUnavailable(false);
-    window._currentSession = data.session;
-    window._enterChatView?.({ preserveRecord: options.preserveRecord === true });
+    // entering chat from a tool page already added the entry
+    if (options.push && id !== previousId && routeHistoryPosition() === position) pushRouteUrl(sourceUrl);
+    else replaceRouteUrl(sourceUrl);
     document.querySelectorAll('.session-item').forEach(el => syncSessionRowState(el, el.dataset.id === id));
     renderMessages(data.messages);
     showMessages();
@@ -522,6 +535,20 @@ export async function selectSession(id, messageId = '', options = {}) {
   }
 }
 
+// back/forward onto the conversation: the hash names its owner. a bare address while an earlier
+// conversation shows means the main one; a new task with nothing saved yet stays as it is
+export async function selectSessionFromRoute({ isCurrent = () => true } = {}) {
+  if (isIncognitoMode()) return false;
+  const id = location.hash.slice(1);
+  if (id && id === _activeId) return true;
+  if (id && (!_sessionsLoaded || _allSessions.some(session => session.id === id))) {
+    const message = new URLSearchParams(location.search).get('message') || '';
+    return selectSession(id, message, { preserveHash: true, preserveMessage: true, preserveRecord: true, isCurrent });
+  }
+  if (!_activeId || window._currentSession?.primary) return true;
+  return await window._showPrimaryAide?.({ focus: false, isCurrent }) ?? false;
+}
+
 // Background completion updates its owner without reopening the conversation
 // or dismissing the archive, call, coding workspace, or another active view.
 window._reloadActiveSession = (sessionId = _activeId) => refreshActiveSessionQuietly(sessionId);
@@ -530,30 +557,44 @@ window._reloadActiveSession = (sessionId = _activeId) => refreshActiveSessionQui
 // selection, or composer draft. Never replace a foreground stream in progress.
 let _quietRefreshTimer = null;
 let _quietRefreshRequest = 0;
-function canRefreshAideHistory() {
+function canRefreshAideHistory(overEdits = false) {
   // Message edits have their own unsent text, separate from the composer draft.
-  // Keep the whole message tree intact until that editor is saved or cancelled.
+  // Keep the whole message tree intact until that editor is saved or cancelled. a re-read the
+  // edit itself asked for may draw over edit boxes: their words are kept and the boxes reopen
   const editor = document.getElementById('messages')?.querySelector(
-    'textarea:not([disabled]):not([readonly]), input:not([type="hidden"]):not([disabled]):not([readonly]), [contenteditable]:not([contenteditable="false"])',
+    `textarea${overEdits ? ':not(.edit-inline)' : ''}:not([disabled]):not([readonly]), input:not([type="hidden"]):not([disabled]):not([readonly]), [contenteditable]:not([contenteditable="false"])`,
   );
   return !editor && window._canRefreshAideMessages?.() !== false;
 }
-export async function refreshActiveSessionQuietly(sessionId) {
+
+// read the task again in place after an edit or regenerate found it moved on (or lost the
+// connection mid-way); open edit boxes come back with their words
+export function rereadActiveSession(sessionId = _activeId, { afterTurn = '' } = {}) {
+  return refreshActiveSessionQuietly(sessionId, { overEdits: true, afterTurn });
+}
+
+export async function refreshActiveSessionQuietly(sessionId, { overEdits = false, afterTurn = '' } = {}) {
   if (!sessionId || sessionId !== _activeId) return false;
   clearTimeout(_quietRefreshTimer);
-  if (!canRefreshAideHistory()) {
-    _quietRefreshTimer = setTimeout(() => refreshActiveSessionQuietly(sessionId), 750);
+  if (!canRefreshAideHistory(overEdits)) {
+    _quietRefreshTimer = setTimeout(() => refreshActiveSessionQuietly(sessionId, { overEdits }), 750);
     return false;
   }
   const request = ++_quietRefreshRequest;
   const generation = _composerGeneration;
   try {
-    const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/history`);
-    if (!response.ok) return false;
-    const data = await response.json();
+    let data;
+    // a stopped turn may still be saving: read once it has been let go (bounded)
+    for (let waited = 0; ; waited += 150) {
+      const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/history`);
+      if (!response.ok) return false;
+      data = await response.json();
+      if (!afterTurn || data.answering_turn !== afterTurn || waited >= 5000) break;
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
     if (request !== _quietRefreshRequest || generation !== _composerGeneration || sessionId !== _activeId) return false;
-    if (!canRefreshAideHistory()) {
-      _quietRefreshTimer = setTimeout(() => refreshActiveSessionQuietly(sessionId), 750);
+    if (!canRefreshAideHistory(overEdits)) {
+      _quietRefreshTimer = setTimeout(() => refreshActiveSessionQuietly(sessionId, { overEdits }), 750);
       return false;
     }
     const chat = document.getElementById('chat');
@@ -577,11 +618,13 @@ function renderMessages(msgs) {
   container.innerHTML = '';
   for (const m of msgs) {
     if (m.role === 'user') {
-      const row = appendUserMsg(m.content, m.meta?.response_recovery?.request?.context_scope);
+      const row = appendUserMsg(m.content, m.meta?.context_scope || m.meta?.response_recovery?.request?.context_scope);
       row.dataset.msgId = m.id;
       if (m.meta?.interrupted) appendInterruptionNotice(row.querySelector('.user-wrap') || row);
       else if (m.meta?.response_recovery || m === msgs.at(-1)) {
         const pending = createStreamingAiRow();
+        // a stand-in for a reply that never came: not a stored message
+        pending.row.dataset.unsaved = '1';
         pending.body.classList.add('done');
         appendResponseRecovery(pending.body, m, m === msgs.at(-1), pending.row);
       }
@@ -631,6 +674,7 @@ function renderMessages(msgs) {
   // wire edit + branch buttons after all messages are rendered
   _wireEditButtons(container);
   _wireBranchButtons(container);
+  _reopenEditDrafts(container);
   scrollDown({ force: true });
 }
 
@@ -676,7 +720,11 @@ export function appendUserMsg(text, documentScope = null) {
     <button class="msg-edit-btn" type="button" title="edit" aria-label="edit message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
     </div>
   </div>`;
+  // an edit or regenerate asks again with the same notes
+  row.contextScope = documentScope || null;
   document.getElementById('messages').appendChild(row);
+  // a just-sent message can be edited as soon as the server tells it its id
+  _wireEditButtons(row);
   scrollDown({ force: true });
   return row;
 }
@@ -769,10 +817,15 @@ function _makeAiRow() {
 
 function _wireBranchButtons(container) {
   container.querySelectorAll('.msg-branch-btn').forEach(btn => {
+    if (!_firstWiring(btn)) return;
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      const msgId = btn.dataset.msgId;
-      if (!msgId || !_activeId) return;
+      const row = btn.closest('.msg-row');
+      // a stopped reply only knows the id it was promised: check it was kept, by that id
+      if (row?.dataset.reservedId && !row.dataset.msgId) await _confirmReserved();
+      const msgId = btn.dataset.msgId || row?.dataset.msgId;
+      if (!_activeId) return;
+      if (!msgId) { toast(row?.dataset.unsaved ? 'this reply wasn\'t saved, so it can\'t be branched' : _RELOAD, 'error'); return; }
       btn.disabled = true;
       try {
         const r = await fetch(`/api/sessions/${_activeId}/fork`, {
@@ -790,6 +843,12 @@ function _wireBranchButtons(container) {
       }
     });
   });
+}
+
+// edit, regenerate and branch, for a row added after the list was drawn
+export function wireMessageActions(scope) {
+  _wireEditButtons(scope);
+  _wireBranchButtons(scope);
 }
 
 export function wireRewriteButtons(scope) {
@@ -822,96 +881,334 @@ export function wireRewriteButtons(scope) {
   });
 }
 
-function _wireEditButtons(container) {
-  container.querySelectorAll('.msg-edit-btn').forEach(btn => {
-    btn.addEventListener('click', async e => {
-      e.stopPropagation();
-      const wrap = btn.closest('.user-wrap');
-      const bubble = wrap?.querySelector('.user-bubble');
-      const row = btn.closest('.msg-row');
-      if (!bubble) return;
-      const original = bubble.innerText;
-      const ta = document.createElement('textarea');
-      ta.className = 'edit-inline';
-      ta.value = original;
-      bubble.replaceWith(ta);
-      ta.focus();
+// once per button: a just-sent row is wired when it's added, a reload wires the whole list
+const _wiredActions = new WeakSet();
+const _firstWiring = btn => !_wiredActions.has(btn) && !!_wiredActions.add(btn);
+// edit boxes still open; opening another closes the untouched ones
+const _openEdits = new Set();
+// changed edit drafts, by task and message, so leaving the task and coming back keeps them. kept
+// in this tab's session storage too, so a reload keeps them (private tasks: memory only)
+const _editDrafts = new Map();
+const _editDraftKey = (sid, id) => `${sid}\n${id}`;
+const _EDIT_DRAFTS = 'aide-edit-drafts-v1';
+try {
+  for (const [key, draft] of JSON.parse(sessionStorage.getItem(_EDIT_DRAFTS) || '[]')) _editDrafts.set(key, draft);
+} catch { /* storage off: memory only */ }
+function _storeEditDrafts() {
+  try {
+    sessionStorage.setItem(_EDIT_DRAFTS, JSON.stringify([..._editDrafts].filter(([, draft]) => !draft.private)));
+  } catch { /* storage off or full: memory only */ }
+}
+function _setEditDraft(key, draft) { _editDrafts.set(key, draft); _storeEditDrafts(); }
+// a private task's drafts end with private mode: they never reach storage, and once it's left
+// they don't stay in this tab's memory either
+function _forgetPrivateDrafts() {
+  if (isIncognitoMode()) return;
+  for (const [key, draft] of _editDrafts) if (draft.private) _editDrafts.delete(key);
+}
+function _dropEditDraft(key) { if (_editDrafts.delete(key)) _storeEditDrafts(); }
 
-      let done = false;  // guard so we only resolve the edit once
-      const restore = () => {
-        if (done) return; done = true;
-        const b = document.createElement('div');
-        b.className = 'user-bubble'; b.textContent = original;
-        if (ta.isConnected) ta.replaceWith(b);
-      };
-      const save = async () => {
-        if (done) return; done = true;
-        const newText = ta.value.trim() || original;
-        const msgId = row?.dataset.msgId;
-        const sid = _activeId;
-        if (msgId && sid) {
-          await fetch(`/api/sessions/${sid}/messages/${msgId}/edit`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ content: newText }),
-          });
-        }
-        // remove all subsequent rows from DOM
-        let next = row?.nextElementSibling;
-        while (next) { const n = next.nextElementSibling; next.remove(); next = n; }
-        // replace textarea with bubble
+function _userRowBefore(row) {
+  let prev = row?.previousElementSibling;
+  while (prev && !prev.querySelector('.user-bubble, .edit-inline')) prev = prev.previousElementSibling;
+  return prev || null;
+}
+
+const _OFFLINE = "can't reach alles right now. check the connection and try again";
+const _BUSY = 'wait for this reply to finish, or stop it first';
+const _RELOAD = 'reload the task first to change this message.';
+const _UNSAVED = 'this message wasn\'t saved, so it can\'t be answered again';
+
+// a reply stopped mid-way heard its id first but not whether it was kept. ask the saved history
+// by that exact id (never by its words); false when alles can't be reached
+async function _confirmReserved({ tries = 4, wait = 150 } = {}) {
+  const sid = _activeId;
+  for (let attempt = 1; ; attempt++) {
+    const pending = [...document.querySelectorAll('#messages > .msg-row[data-reserved-id]')].filter(row => !row.dataset.msgId);
+    if (!pending.length) return true;
+    const r = await fetch(`/api/sessions/${encodeURIComponent(sid)}/history`).catch(() => null);
+    const data = r?.ok ? await r.json().catch(() => null) : null;
+    if (!data || sid !== _activeId) return false;
+    const kept = new Set((data.messages || []).map(m => m.id));
+    for (const row of pending) {
+      if (!kept.has(row.dataset.reservedId)) continue;
+      row.dataset.msgId = row.dataset.reservedId;
+      delete row.dataset.reservedId;
+    }
+    if (pending.every(row => row.dataset.msgId)) return true;
+    if (attempt < tries) {
+      // a just-stopped reply is still being saved for a moment
+      await new Promise(resolve => setTimeout(resolve, wait));
+      continue;
+    }
+    // never kept (stopped before it had any words, in a private task): not a stored message
+    for (const row of pending) {
+      if (row.dataset.msgId) continue;
+      row.dataset.unsaved = '1';
+      delete row.dataset.reservedId;
+    }
+    return true;
+  }
+}
+
+// the newest message this tab got an id for from the server. the server only cuts when that is
+// still its newest, so turns another tab sent never vanish unseen. null: couldn't check
+async function _newestShownId() {
+  if (!await _confirmReserved()) return null;
+  return [...document.querySelectorAll('#messages > .msg-row[data-msg-id]')].at(-1)?.dataset.msgId || '';
+}
+
+// put words in the message box, in front of anything already typed there
+function _toComposer(text) {
+  const composer = document.getElementById('composer-ta');
+  if (!composer) return;
+  composer.value = composer.value.trim() ? `${text}\n\n${composer.value}` : text;
+  composer.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// the task moved on (another tab) or the connection dropped mid-way: read it again in place. an
+// edit box that still fits its question comes back open with its words
+async function _rereadTask(sid, why, kind, msgId, afterTurn = '') {
+  const fresh = sid === _activeId && await rereadActiveSession(sid, { afterTurn });
+  if (fresh) {
+    // the old box or button was drawn over: land on what's there now, never on the page
+    const row = [...document.querySelectorAll('#messages > .msg-row[data-msg-id]')].find(r => r.dataset.msgId === msgId);
+    const target = row?.querySelector('.edit-inline') || (row ? null : document.getElementById('composer-ta'));
+    if (target) target.focus({ preventScroll: true });
+    else if (row) _focusReply(row);
+  }
+  // stopped by its owner: the page just shows what was kept, nothing to explain
+  if (why === 'stopped' && fresh) return;
+  const editing = kind === 'edit';
+  const words = !fresh
+    ? (why === 'offline' ? _OFFLINE : 'this task changed in another tab. reload it first.')
+    : why === 'gone' ? `this message was removed in another tab.${editing ? ' your words are in the message box.' : ''}`
+    : why === 'offline' ? 'the connection dropped. this task is up to date now.'
+    : `this task changed in another tab. it's up to date now${editing ? ' and your edit is still open' : ''}.`;
+  toast(words, 'error');
+}
+
+function _dropRowsAfter(row, keep = null) {
+  let next = row?.nextElementSibling;
+  while (next) { const n = next.nextElementSibling; if (next !== keep) next.remove(); next = n; }
+}
+
+function _focusReply(reply) {
+  if (!reply?.isConnected) return;
+  reply.tabIndex = -1;
+  reply.focus({ preventScroll: true });
+}
+
+// a refused send's question and its error reply, never stored
+function _dropRefusedRows(row) {
+  const reply = row.nextElementSibling;
+  if (reply?.dataset.unsaved && reply.querySelector('.ai-body')) reply.remove();
+  row.remove();
+}
+
+// back on a task: open the edit boxes that still had changed words in them
+function _reopenEditDrafts(container) {
+  _forgetPrivateDrafts();
+  for (const [key, draft] of _editDrafts) {
+    const [sid, id] = key.split('\n');
+    if (sid !== _activeId) continue;
+    const row = [...container.querySelectorAll('.msg-row[data-msg-id]')].find(r => r.dataset.msgId === id);
+    const btn = row?.querySelector('.msg-edit-btn');
+    // the words changed under it (another tab): the old draft no longer fits
+    if (!btn || row.querySelector('.user-bubble')?.textContent !== draft.original) { _dropEditDraft(key); continue; }
+    _openEdit(btn, { text: draft.text, focus: false });
+  }
+}
+
+function _openEdit(btn, { text = null, focus = true } = {}) {
+  const wrap = btn.closest('.user-wrap');
+  const bubble = wrap?.querySelector('.user-bubble');
+  const row = btn.closest('.msg-row');
+  if (!bubble) return;
+  // an untouched box left open elsewhere just closes; one with changes keeps them
+  for (const open of [..._openEdits]) {
+    if (!open.ta.isConnected) _openEdits.delete(open);
+    else if (open.unchanged()) open.cancel();
+  }
+  // textContent, not innerText: the exact words the server holds, newlines and all
+  const original = bubble.textContent;
+  const sid = _activeId;
+  const draftKey = () => _editDraftKey(sid, row.dataset.msgId || '');
+  const ta = document.createElement('textarea');
+  ta.className = 'edit-inline';
+  // one row to start, so it grows from its words rather than from a two-row default
+  ta.rows = 1;
+  ta.value = text ?? original;
+  ta.setAttribute('aria-label', 'edit message');
+  // 16px on touch, or ios safari zooms the page in on focus
+  if (globalThis.matchMedia?.('(pointer: coarse)')?.matches) ta.style.fontSize = '16px';
+  // leaving the box never sends: a dismissed phone keyboard or a stray click would cut every
+  // later turn. only send (or enter) does; cancel (or escape) puts the words back
+  const actions = wrap.querySelector('.user-actions');
+  const editActions = document.createElement('div');
+  editActions.className = 'user-actions edit-actions';
+  const [cancelBtn, sendBtn] = ['cancel', 'send'].map(label => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `edit-${label}`;
+    button.textContent = label;
+    return button;
+  });
+  editActions.append(cancelBtn, sendBtn);
+  bubble.replaceWith(ta);
+  if (actions) { actions.style.display = 'none'; actions.after(editActions); }
+  else ta.after(editActions);
+  // grows with its words up to 40% of the screen, then scrolls
+  const grow = () => {
+    const cap = Math.round((globalThis.innerHeight || 800) * 0.4);
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, cap)}px`;
+    ta.style.overflowY = ta.scrollHeight > cap ? 'auto' : 'hidden';
+  };
+  grow();
+  if (focus) ta.focus();
+
+  let done = false;  // guard so we only resolve the edit once
+  const close = () => {
+    _openEdits.delete(entry);
+    _dropEditDraft(draftKey());
+    editActions.remove();
+    if (actions) actions.style.display = '';
+  };
+  const restore = ({ focus = false } = {}) => {
+    if (done) return; done = true;
+    const b = document.createElement('div');
+    b.className = 'user-bubble'; b.textContent = original;
+    if (ta.isConnected) ta.replaceWith(b);
+    close();
+    // cancel drops the box you were typing in: land back on the pencil that opened it
+    if (focus && btn.isConnected) btn.focus();
+  };
+  const entry = { ta, unchanged: () => ta.value === original, cancel: () => restore() };
+  _openEdits.add(entry);
+  const remember = () => {
+    if (!row.dataset.msgId) return;
+    if (ta.value === original) _dropEditDraft(draftKey());
+    else _setEditDraft(draftKey(), { text: ta.value, original, private: isIncognitoMode() });
+  };
+  remember();
+  const save = async () => {
+    if (done) return;
+    const newText = ta.value.trim();
+    // an empty box sends nothing; it isn't a way to ask the old words again
+    if (!newText) { ta.focus(); return; }
+    done = true;
+    const chat = await import('./chat.js');
+    if (sid !== _activeId || !ta.isConnected) return;
+    // the new words stay in the box to try again (cancel still puts the old ones back)
+    const keepEditing = () => { done = false; if (ta.isConnected) ta.focus(); };
+    if (!chat.canSendMessage()) { keepEditing(); toast(_BUSY, ''); return; }
+    // a refused send was never stored: its new words go out as a new message, nothing is cut
+    if (row.dataset.unsaved) {
+      close();
+      _dropRefusedRows(row);
+      chat.sendMessage(newText);
+      return;
+    }
+    if (!row.dataset.msgId) { keepEditing(); toast(_RELOAD, 'error'); return; }
+    const newest = await _newestShownId();
+    if (sid !== _activeId || !ta.isConnected) return;
+    if (newest === null) { keepEditing(); toast(_OFFLINE, 'error'); return; }
+    // the same words sent again ask again: the old answer stays until a new one has words
+    const same = newText === original.trim();
+    // the server checks, cuts and answers in one go; until it takes the request nothing moves
+    const result = await chat.resendMessage(row, same ? original : newText, {
+      edit: !same,
+      newestId: newest,
+      onAccepted: reply => {
+        const active = document.activeElement;
+        const hadFocus = editActions.contains(active) || ta === active || !active || active === document.body;
+        close();
+        if (!same) _dropRowsAfter(row, reply);
         const newBubble = document.createElement('div');
         newBubble.className = 'user-bubble';
-        newBubble.textContent = newText;
-        ta.replaceWith(newBubble);
-        // re-send
-        const { sendMessage } = await import('./chat.js');
-        sendMessage(newText);
-      };
+        newBubble.textContent = same ? original : newText;
+        if (ta.isConnected) ta.replaceWith(newBubble);
+        // the send button just went: focus moves on with it, not down to the page
+        if (hadFocus) _focusReply(reply);
+      },
+    });
+    if (result === 'accepted') return;
+    keepEditing();
+    if (result === 'gone') {
+      // the question went in another tab: its new words go to the message box instead
+      _dropEditDraft(draftKey());
+      _toComposer(newText);
+    }
+    const why = typeof result === 'object' ? result.reason : result;
+    if (why === 'stale' || why === 'gone' || why === 'offline' || why === 'stopped') {
+      await _rereadTask(sid, why, 'edit', row.dataset.msgId, result?.turn || '');
+    }
+  };
 
-      ta.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
-        if (e.key === 'Escape') { e.preventDefault(); restore(); }
-      });
-      ta.addEventListener('blur', () => {
-        // clicking away only commits a real change — an unchanged blur (e.g. you
-        // clicked another message's edit pencil) just cancels, so it can't silently
-        // wipe everything after this row and re-send
-        if (ta.value.trim() === original.trim()) restore();
-        else save();
-      });
+  ta.addEventListener('keydown', e => {
+    // enter that picks an ime candidate isn't a send (safari reports it as keyCode 229)
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key !== 'Enter' && e.key !== 'Escape') return;
+    // the box owns these keys: ctrl+enter must not also send the composer's draft
+    e.stopPropagation();
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { e.preventDefault(); restore({ focus: true }); }
+  });
+  ta.addEventListener('input', () => { grow(); remember(); });
+  cancelBtn.addEventListener('click', () => restore({ focus: true }));
+  sendBtn.addEventListener('click', () => save());
+  editActions.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); restore({ focus: true }); }
+  });
+}
+
+function _wireEditButtons(container) {
+  container.querySelectorAll('.msg-edit-btn').forEach(btn => {
+    if (!_firstWiring(btn)) return;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      // checked before any await: ios only raises the keyboard for a focus inside the tap itself
+      if (document.body.classList.contains('aide-working')) { toast(_BUSY, ''); return; }
+      _openEdit(btn);
     });
   });
 
   container.querySelectorAll('.msg-regen-btn').forEach(btn => {
+    if (!_firstWiring(btn)) return;
     btn.addEventListener('click', async e => {
       e.stopPropagation();
+      // a second tap while the first is still checking would drop the first one's new reply
+      if (btn.dataset.busy) return;
       const aiRow = btn.closest('.msg-row');
-      // find the preceding user row
-      let prev = aiRow?.previousElementSibling;
-      while (prev && !prev.querySelector('.user-bubble')) {
-        prev = prev.previousElementSibling;
-      }
-      const userText = prev?.querySelector('.user-bubble')?.innerText;
-      const userMsgId = prev?.dataset.msgId;
-      if (!userText) return;
-
+      const prev = _userRowBefore(aiRow);
+      const userText = prev?.querySelector('.user-bubble')?.textContent;
       const sid = _activeId;
-      if (userMsgId && sid) {
-        // edit user msg with same content — backend deletes everything after it
-        await fetch(`/api/sessions/${sid}/messages/${userMsgId}/edit`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ content: userText }),
-        }).catch(() => {});
+      if (!userText || !sid) return;
+      btn.dataset.busy = '1';
+      btn.setAttribute('aria-disabled', 'true');
+      try {
+        const chat = await import('./chat.js');
+        if (!chat.canSendMessage()) { toast(_BUSY, ''); return; }
+        if (prev.dataset.unsaved) { toast(_UNSAVED, 'error'); return; }
+        if (!prev.dataset.msgId) { toast(_RELOAD, 'error'); return; }
+        const newest = await _newestShownId();
+        if (sid !== _activeId || !aiRow.isConnected) return;
+        if (newest === null) { toast(_OFFLINE, 'error'); return; }
+        // something else already answered again (another regen, an edit): leave its reply be
+        if (!chat.canSendMessage()) return;
+        const result = await chat.resendMessage(prev, userText, {
+          newestId: newest,
+          onAccepted: reply => _focusReply(reply),
+        });
+        const why = typeof result === 'object' ? result.reason : result;
+        if (why === 'stale' || why === 'gone' || why === 'offline' || why === 'stopped') {
+          await _rereadTask(sid, why, 'regenerate', prev.dataset.msgId, result?.turn || '');
+        }
+      } finally {
+        delete btn.dataset.busy;
+        btn.removeAttribute('aria-disabled');
       }
-      // remove AI row + anything after from DOM
-      let next = aiRow?.nextElementSibling;
-      while (next) { const n = next.nextElementSibling; next.remove(); next = n; }
-      aiRow?.remove();
-
-      const { sendMessage } = await import('./chat.js');
-      sendMessage(userText);
     });
   });
 }
@@ -1138,6 +1435,38 @@ function startRename(el, id) {
 }
 
 
+// below and right of the point or button, flipped when it doesn't fit. the row's more button
+// sits near a phone's right edge, and a low row pushed delete off the bottom where touch can't go
+function placeCtxMenu(menu, at) {
+  const pad = 8;
+  menu.style.maxHeight = `${Math.max(0, innerHeight - pad * 2)}px`;
+  menu.style.overflowY = 'auto';
+  // kokuen's observer gives the rows their 44px only after this task; stamp them now so the
+  // height measured here is the height shown
+  menu.querySelectorAll('[role="menuitem"]:not([data-kokuen-primitive])').forEach(item => { item.dataset.kokuenPrimitive = 'menu-item'; });
+  // measured at the corner, so the last spot near an edge doesn't squeeze it
+  menu.style.left = menu.style.top = '0px';
+  const { width, height } = menu.getBoundingClientRect();
+  let x = at.left, y = at.bottom;
+  if (x + width > innerWidth - pad) x = at.right - width;
+  if (y + height > innerHeight - pad) y = at.top - height;
+  menu.style.left = `${Math.max(pad, Math.min(x, innerWidth - pad - width))}px`;
+  menu.style.top = `${Math.max(pad, Math.min(y, innerHeight - pad - height))}px`;
+}
+
+function _focusSessionRow(ids, control = '.session-open') {
+  for (const sid of ids) {
+    const target = sid && document.querySelector(`.session-item[data-id="${sid}"] ${control}`);
+    if (target?.getClientRects().length) { target.focus(); return true; }
+  }
+  return false;
+}
+
+function _focusSessionFallback() {
+  const search = document.getElementById('session-search');
+  (search?.getClientRects().length ? search : document.getElementById('composer-ta'))?.focus();
+}
+
 function openCtxMenu(e, id, source = null) {
   const menu = document.getElementById('ctx-menu');
   const s = _allSessions.find(x => x.id === id);
@@ -1155,16 +1484,20 @@ function openCtxMenu(e, id, source = null) {
     <button type="button" role="menuitem" class="ctx-item" data-action="new-project">new project</button>
     <button type="button" role="menuitem" class="ctx-item danger" data-action="delete">delete</button>
   `;
-  menu.style.left = e.clientX + 'px';
-  menu.style.top = e.clientY + 'px';
-
   _contextMenuController ||= createMenuController(menu);
   _contextMenuController.open({ source: source || e.currentTarget });
+  placeCtxMenu(menu, e.anchor || { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
 
   menu.querySelectorAll('.ctx-item').forEach(item => {
     item.addEventListener('click', async () => {
       const action = item.dataset.action;
       _contextMenuController.close({ restoreFocus: action !== 'rename' });
+      // every change rebuilds the list under the menu's button: come back to this row, or to the
+      // next one when it left the list
+      const ids = [...document.querySelectorAll('#session-list .session-item')].map(row => row.dataset.id);
+      const at = ids.indexOf(id);
+      const control = source?.classList?.contains('session-more') ? '.session-more' : '.session-open';
+      const refocus = (gone = false) => _focusSessionRow(gone ? [ids[at + 1], ids[at - 1]] : [id], control) || _focusSessionFallback();
       if (action === 'rename') {
         const el = document.querySelector(`.session-item[data-id="${id}"]`);
         if (el) startRename(el, id);
@@ -1174,17 +1507,20 @@ function openCtxMenu(e, id, source = null) {
           body: JSON.stringify({ starred: !s.starred }),
         });
         await loadSessions();
+        refocus();
       } else if (action === 'archive') {
         await fetch(`/api/sessions/${id}/archive`, { method: 'POST' });
         await loadSessions();
         // only reset the view if we archived the chat we're actually looking at —
         // archiving some other session while on a fresh chat shouldn't wipe it
         if (id === _activeId) newChat();
+        refocus(true);
       } else if (action === 'move-project') {
         const pid = item.dataset.pid;
         await fetch(`/api/projects/${pid}/sessions/${id}`, { method: 'POST' });
         await loadProjects();
         await loadSessions();
+        refocus();
         toast('moved to project', 'success');
       } else if (action === 'new-project') {
         const name = await _dlgPrompt('', '', { title: 'new project', label: 'project name', confirmLabel: 'create' });
@@ -1194,6 +1530,7 @@ function openCtxMenu(e, id, source = null) {
           await assignSession(p.id, id);   // file this chat into the new project
           await loadProjects();
           await loadSessions();
+          refocus();
           toast(`project "${name}" created`, 'success');
         }
       } else if (action === 'delete') {
@@ -1207,6 +1544,7 @@ function openCtxMenu(e, id, source = null) {
         const wasActive = id === _activeId;
         await loadSessions();
         if (wasActive) newChat();
+        refocus(true);
       }
     });
   });

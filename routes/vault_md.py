@@ -7,6 +7,7 @@ revisions. The service layer remains shared by Docs, Aide retrieval, search, and
 
 import logging
 import threading
+from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
@@ -162,6 +163,19 @@ def read_file(path: str):
         raise HTTPException(400, str(e))
 
 
+# types that run script when opened from the app's own origin
+_ACTIVE_MEDIA = frozenset(
+    {
+        "application/javascript",
+        "application/xhtml+xml",
+        "application/xml",
+        "text/html",
+        "text/javascript",
+        "text/xml",
+    }
+)
+
+
 @router.get("/raw")
 def raw_asset(path: str):
     """serve an embedded asset (image/pdf/etc.) by path or bare name — for ![[ ]] embeds."""
@@ -170,17 +184,36 @@ def raw_asset(path: str):
         data, mime = vault_md.file_bytes(resolved)
     except ValueError:
         raise HTTPException(404, "asset not found")
-    return Response(content=data, media_type=mime, headers={"cache-control": "no-cache"})
+    headers = {"cache-control": "no-cache", "x-content-type-options": "nosniff"}
+    media = mime.lower()
+    if media == "image/svg+xml":
+        # an svg embed still has to show as an <img>, where its script never runs. opened in its
+        # own tab the sandbox keeps that script off the alles origin
+        headers["content-security-policy"] = (
+            "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"
+        )
+    elif media in _ACTIVE_MEDIA or media.endswith("+xml"):
+        mime = "application/octet-stream"
+        headers["content-security-policy"] = "sandbox; default-src 'none'"
+        headers["content-disposition"] = "attachment; filename*=utf-8''" + quote(
+            resolved.rsplit("/", 1)[-1] or "asset"
+        )
+    return Response(content=data, media_type=mime, headers=headers)
 
 
 _ASSET_MAX = 20 * 1024 * 1024
+# plain raster only: an svg or html "image" would be served back from this origin
+_ASSET_TYPES = frozenset({"png", "jpg", "jpeg", "gif", "webp", "avif", "bmp"})
 
 
 @router.post("/asset")
 async def upload_asset(file: UploadFile):
-    """an image pasted or dropped into a doc lands in _assets/; the editor embeds it by name."""
-    if not (file.content_type or "").startswith("image/"):
-        raise HTTPException(400, "only images can be pasted into a doc")
+    """an image pasted or dropped into a doc lands in _assets/; the editor embeds it by path."""
+    name = (file.filename or "pasted.png").strip().lower()
+    # save_asset names a file with no extension .png
+    ext = name.rpartition(".")[2] if "." in name else "png"
+    if not (file.content_type or "").startswith("image/") or ext not in _ASSET_TYPES:
+        raise HTTPException(400, "only png, jpg, gif, webp, avif or bmp images go into a doc")
     data = await file.read(_ASSET_MAX + 1)
     if len(data) > _ASSET_MAX:
         raise HTTPException(413, "that image is over 20 MB")

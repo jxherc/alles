@@ -169,7 +169,9 @@ with sync_playwright() as pw:
                 field = page.locator("#andromeda-query")
                 search_form = page.locator("#andromeda-form")
                 idle_bounds = search_form.bounding_box()
-                assert idle_bounds and 44 <= idle_bounds["height"] <= 46, idle_bounds
+                assert idle_bounds and 44 <= idle_bounds["height"] <= 53, (
+                    idle_bounds
+                )  # the revamp search box is 52px
                 assert idle_bounds["width"] <= min(620, page.evaluate("innerWidth")) + 1, (
                     idle_bounds
                 )
@@ -192,7 +194,9 @@ with sync_playwright() as pw:
 
                 payload = search("owned local question !ai")
                 active_bounds = search_form.bounding_box()
-                assert active_bounds and 44 <= active_bounds["height"] <= 46, active_bounds
+                assert active_bounds and 44 <= active_bounds["height"] <= 53, (
+                    active_bounds
+                )  # the revamp search box is 52px
                 empty = page.locator("#andromeda-results .andromeda-empty")
                 expect(empty).to_contain_text("search is disabled")
                 row.update(payload=payload, empty_text=empty.inner_text())

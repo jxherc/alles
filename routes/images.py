@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -6,13 +7,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy import text as sql_text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session as DbSession
 
+from core.api_errors import ApiError
 from core.database import Message, ModelEndpoint, Photo, Session, get_db
 from services.photo_records import format_photo, generated_photo_batch
 
 router = APIRouter(prefix="/api/images")
+# how long a finished image waits for a reply running in its task before giving up
+_BUSY_WAIT_SECONDS = 60
 log = logging.getLogger("alles.images")
 
 
@@ -100,11 +106,20 @@ def _saved_chat_image(db: DbSession, key: str, fingerprint: str, title: str) -> 
         (photo := db.get(Photo, pid)) is None or photo.deleted_at is not None for pid in photo_ids
     ):
         raise HTTPException(410, "the image from this request was deleted")
+    asked = db.execute(
+        sql_text(
+            "SELECT id, role FROM messages WHERE session_id = :s AND rowid < "
+            "(SELECT rowid FROM messages WHERE id = :a) ORDER BY rowid DESC LIMIT 1"
+        ),
+        {"s": assistant.session_id, "a": assistant.id},
+    ).first()
     return {
         "content": assistant.content,
         "doc_id": meta.get("note_id"),
         "doc_title": title,
         "images": [{"id": pid, "original": f"/api/photos/original/{pid}"} for pid in photo_ids],
+        "user_message_id": asked.id if asked is not None and asked.role == "user" else None,
+        "message_id": assistant.id,
     }
 
 
@@ -126,6 +141,10 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
         replay = _saved_chat_image(db, request_key, fingerprint, title)
         if replay is not None:
             return replay
+    from routes import chat as chat_route
+
+    # a reply is running in this task: an image turn landing inside it would split it
+    chat_route._require_idle_session(s.id)
     ep = (
         db.get(ModelEndpoint, body.endpoint_id)
         if body.endpoint_id
@@ -146,6 +165,21 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
         )
 
     alt = _alt(body.prompt)
+    # one started while the image was drawn (another tab): this turn goes in after it, but a
+    # turn can wait on a question for hours, so the wait has an end
+    waited = 0.0
+    while s.id in chat_route._streams:
+        if waited >= _BUSY_WAIT_SECONDS:
+            raise ApiError(
+                409,
+                "turn_in_progress",
+                "a reply is still running in this task. ask for the image again once it's done.",
+            )
+        await asyncio.sleep(0.25)
+        waited += 0.25
+    if not s.incognito:
+        # read again: other turns landed while the image was drawn
+        db.refresh(s)
 
     # incognito → leave no trace anywhere: don't touch the gallery/documents/history,
     # just inline the image as a data-uri so it shows in the (ephemeral) thread.
@@ -178,11 +212,17 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
             )
             if request_key:
                 assistant.id = request_key
-            db.add(Message(session_id=s.id, role="user", content=body.prompt))
+            asked = Message(session_id=s.id, role="user", content=body.prompt)
+            db.add(asked)
+            db.flush()
             db.add(assistant)
             if not s.name or s.name == "new chat":
                 s.name = title
-            s.message_count = (s.message_count or 0) + 2
+            # counted in the database, so turns saved meanwhile aren't overwritten
+            db.query(Session).filter_by(id=s.id).update(
+                {Session.message_count: func.coalesce(Session.message_count, 0) + 2},
+                synchronize_session=False,
+            )
             s.last_message_at = datetime.now(UTC).replace(tzinfo=None)
     except IntegrityError as exc:
         # The photo batch has rolled back and removed this request's imported files.
@@ -232,4 +272,7 @@ async def generate_in_chat(body: ChatImageBody, db: DbSession = Depends(get_db))
         "doc_id": note_id,  # frontend uses this as a "saved" flag + to rename the chat
         "doc_title": title,
         "images": image_links,
+        # the rows' ids, so the tab can edit or regenerate after this without a reload
+        "user_message_id": asked.id,
+        "message_id": assistant.id,
     }

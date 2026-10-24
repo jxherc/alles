@@ -16,17 +16,18 @@ from services.agent_state import finish_run, record_event, start_run, update_run
 from services.agent_tools import (
     MUTATING_TOOLS,
     UNTRUSTED_TOOLS,
-    authorize_delegated_paths,
+    allow_outside_writes,
     build_tool_defs,
     capture_checkpoint,
-    clear_delegated_paths,
+    check_tool_paths,
+    clear_outside_writes,
     guard_untrusted,
     preview_change,
     set_agent_ctx,
     stream_execute,
 )
 from services.aide_questions import normalize_answer, normalize_request
-from services.llm import clear_cooldown, stream_chat
+from services.llm import clear_cooldown, stream_chat, until_stopped
 
 # a single flaky model/network call shouldn't kill a whole agent run. retry
 # transient errors a couple times before giving up; tests patch the base to 0.
@@ -79,6 +80,17 @@ def provider_effort(settings: dict | None) -> str:
         ).lower()
         return {"quick": "low", "thorough": "high"}.get(verification, "medium")
     return effort if effort in {"low", "medium", "high", "xhigh", "max"} else "medium"
+
+
+def _outside_words(name: str, outside: list[str]) -> str:
+    verb = "runs commands" if name in ("shell", "bash") else "writes"
+    return f"{verb} outside this task's folder: " + ", ".join(outside)
+
+
+def _action_refused(code: str) -> str:
+    if code == "uncertain_action_outcome":
+        return "[not performed] an earlier try of this exact action ended without a known outcome. Check what happened before trying it again."
+    return f"[not performed] this action was refused ({code})."
 
 
 def _retryable(msg: str) -> bool:
@@ -545,14 +557,17 @@ async def run_agent(
         _persona = None
         _delegated_scope_kind = "general"
         _delegated_scope_id = ""
-        if session_id:
+        # a sub-agent has no task of its own: its actions belong to its parent's
+        _sub_agent = bool(settings.get("_sub_agent"))
+        _action_session = session_id or settings.get("_parent_session_id") or ""
+        if _action_session:
             try:
                 from core.database import Session as _Sess
                 from core.database import SessionLocal as _SL
 
                 _pdb = _SL()
                 try:
-                    _s = _pdb.get(_Sess, session_id)
+                    _s = _pdb.get(_Sess, _action_session)
                     if _s and _s.project_id:
                         _delegated_scope_kind = "project"
                         _delegated_scope_id = _s.project_id
@@ -662,10 +677,15 @@ async def run_agent(
                     thinking_acc
                 )  # so a retry can drop this attempt's partial thinking
                 err_chunk = None
-                async with aclosing(
-                    stream_chat(agent_messages, ep.base_url, ep.api_key, model, **llm_kwargs)
-                ) as stream:
-                    async for chunk in stream:
+                saw_done = False
+                # a stop ends a stalled model read at once; tools below still finish their step
+                async with (
+                    aclosing(
+                        stream_chat(agent_messages, ep.base_url, ep.api_key, model, **llm_kwargs)
+                    ) as stream,
+                    aclosing(until_stopped(stream, stop_event)) as chunks,
+                ):
+                    async for chunk in chunks:
                         if stop_event.is_set():
                             break
                         if "error" in chunk:
@@ -683,7 +703,12 @@ async def run_agent(
                             tool_calls.append(chunk["tool_call"])
                             committed = True
                         elif "done" in chunk:
+                            saw_done = True
                             usage = merge_usage(usage, chunk.get("usage", {}))
+                if not stop_event.is_set() and err_chunk is None and not saw_done:
+                    # the stream ended without the model saying it was finished: a fragment, or
+                    # a tool call cut part way. never pass that off as a whole answer
+                    err_chunk = {"error": "the model's reply was cut off before it finished"}
                 if stop_event.is_set() or err_chunk is None:
                     break
                 # got an error. retry only if no REAL output streamed yet + it's transient.
@@ -756,6 +781,7 @@ async def run_agent(
                     "completed": False,
                 }
                 tool_steps.append(step)
+                clear_outside_writes()  # an approval covers one step only
                 record_event(run_id, "tool_start", step, tool_steps=tool_steps)
                 yield {"tool_start": {"call_id": call_id, "name": name, "args": args}}
 
@@ -774,12 +800,28 @@ async def run_agent(
                 delegated_action = None
                 delegated_action_id = None
                 delegated_request = None
-                if name in MUTATING_TOOLS:
+                # where it points comes first, in every mode. a write outside this task's folder
+                # (or any write in General) needs the owner to approve that exact path, so it
+                # never happens by itself: not in full_auto or full access, not in a run nobody
+                # watches, not in a sub-agent
+                confined, outside = check_tool_paths(name, args, settings)
+                if outside and not confined and decision != "deny":
+                    if _sub_agent:
+                        confined = f"[not performed] a sub-agent can't change anything outside its task's folder: {', '.join(outside)}"
+                    elif mode in ("full_auto", "full_access") or settings.get("agent_detached"):
+                        confined = (
+                            f"[not performed] this {_outside_words(name, outside)}. that only "
+                            "happens with the owner's approval of that one step; switch to "
+                            "approve mode to ask for it."
+                        )
+                if name in MUTATING_TOOLS and not confined and not outside:
                     diff = preview_change(name, args)
                     if diff:
                         step["diff"] = diff[:8000]  # persist so the convo can re-show it on reload
                         yield {"tool_diff": {"call_id": call_id, "diff": diff}}
-                if decision == "deny":
+                if confined:
+                    gate = {"output": confined, "error": True}
+                elif decision == "deny":
                     gate = (
                         {
                             "output": "[plan mode] not executed. Describe this change in your plan instead of running it.",
@@ -791,9 +833,20 @@ async def run_agent(
                             "error": True,
                         }
                     )
+                elif decision == "ask" and _sub_agent:
+                    # nobody sees a sub-agent's prompts: it never waits on one
+                    gate = {
+                        "output": "[approval unavailable to a sub-agent] action not performed. Report that this step needs the owner's approval, so the main agent can ask for it.",
+                        "error": True,
+                    }
                 elif decision == "ask" and settings.get("agent_detached"):
                     gate = {
                         "output": "[approval unavailable in detached run] action not performed. Continue safely without it or report that the owner must resume this task in the tab.",
+                        "error": True,
+                    }
+                elif name == "ask_user" and _sub_agent:
+                    gate = {
+                        "output": "[a sub-agent can't ask the owner] put the question in your report instead.",
                         "error": True,
                     }
                 elif name in MUTATING_TOOLS:
@@ -806,6 +859,15 @@ async def run_agent(
                     )
 
                     details = delegated_action_details(name, args, settings)
+                    if outside:
+                        # the prompt names exactly what gets written, resolved, and says where
+                        details = {
+                            **details,
+                            "target": ", ".join(outside),
+                            "target_is_path": True,
+                            "path_targets": tuple(outside),
+                            "privacy_effect": _outside_words(name, outside),
+                        }
                     delegated_request = ActionRequest(
                         origin="aide",
                         scope_kind=_delegated_scope_kind,
@@ -816,11 +878,15 @@ async def run_agent(
                         data_summary=details["data_summary"],
                         privacy_effect=details["privacy_effect"],
                         cost=details["cost"],
-                        arguments_hash=hash_arguments(args),
+                        # a sub-agent's run is part of who asks: two sub-agents doing the same
+                        # thing at once are two actions, not one done twice
+                        arguments_hash=hash_arguments(
+                            {"arguments": args, "sub_agent_run": run_id} if _sub_agent else args
+                        ),
                         mutating=True,
                         target_is_path=details["target_is_path"],
                         path_targets=details["path_targets"],
-                        session_id=session_id or None,
+                        session_id=_action_session or None,
                         agent_run_id=run_id,
                     )
                     _ddb = SessionLocal()
@@ -828,22 +894,33 @@ async def run_agent(
                         delegated_action, already_allowed = request_action(
                             _ddb,
                             delegated_request,
-                            force_approval=decision == "ask",
-                            auto_authorize=decision == "allow",
+                            # outside the folder: always a fresh prompt, never a rule or grant
+                            force_approval=decision == "ask" or bool(outside),
+                            auto_authorize=decision == "allow" and not outside,
                         )
                         _ddb.commit()
                         _ddb.refresh(delegated_action)
                         req_id = delegated_action.id
                         delegated_action_id = req_id
                         exact_hash = delegated_action.exact_hash
+                    except ValueError as exc:
+                        # a refused action is the tool's answer, never a crashed reply
+                        _ddb.rollback()
+                        gate = {"output": _action_refused(str(exc)), "error": True}
                     finally:
                         _ddb.close()
-                    if already_allowed:
+                    if gate is not None:
+                        pass
+                    elif already_allowed:
                         _ddb = SessionLocal()
                         try:
                             delegated_action = _ddb.get(DelegatedAction, req_id)
                             begin_action(_ddb, delegated_action, delegated_request)
                             _ddb.commit()
+                        except ValueError as exc:
+                            _ddb.rollback()
+                            delegated_action_id = None
+                            gate = {"output": _action_refused(str(exc)), "error": True}
                         finally:
                             _ddb.close()
                     else:
@@ -851,7 +928,12 @@ async def run_agent(
                         record_event(
                             run_id,
                             "permission_request",
-                            {"call_id": call_id, "name": name, "action_id": req_id},
+                            {
+                                "call_id": call_id,
+                                "name": name,
+                                "action_id": req_id,
+                                **({"outside": list(outside)} if outside else {}),
+                            },
                         )
                         yield {
                             "tool_permission": {
@@ -861,6 +943,7 @@ async def run_agent(
                                 "args": args,
                                 "diff": diff,
                                 "exact_hash": exact_hash,
+                                **({"outside": _outside_words(name, outside)} if outside else {}),
                             }
                         }
                         allowed = await _await_permission(req_id, exact_hash, stop_event)
@@ -876,6 +959,10 @@ async def run_agent(
                                 delegated_action = _ddb.get(DelegatedAction, req_id)
                                 begin_action(_ddb, delegated_action, delegated_request)
                                 _ddb.commit()
+                            except ValueError as exc:
+                                _ddb.rollback()
+                                delegated_action_id = None
+                                gate = {"output": _action_refused(str(exc)), "error": True}
                             finally:
                                 _ddb.close()
                         else:
@@ -961,8 +1048,10 @@ async def run_agent(
                         step["output"] = result["output"]
                         step["error"] = True
                 else:
-                    if delegated_action_id is not None and delegated_request.path_targets:
-                        authorize_delegated_paths(delegated_request.path_targets)
+                    if outside:
+                        # exactly what the owner approved, resolved again now: a link swapped
+                        # in since then points somewhere else and is refused by the tool
+                        allow_outside_writes(outside)
                     # snapshot files before edits so the run can be reverted
                     if name in ("write_file", "edit_file", "apply_patch"):
                         capture_checkpoint(run_id, name, args)
@@ -997,7 +1086,6 @@ async def run_agent(
                             _ddb.commit()
                         finally:
                             _ddb.close()
-                    clear_delegated_paths()
 
                 # pull any screenshot image out — feed it back as vision, not as text
                 img = result.get("image")
@@ -1123,7 +1211,8 @@ async def run_agent(
     except (asyncio.CancelledError, GeneratorExit):
         if not terminal:
             update_run(run_id, text="".join(accumulated))
-            finish_run(run_id, "cancelled")
+            # the owner's stop is a stop, not a closed page
+            finish_run(run_id, "stopped" if stop_event.is_set() else "cancelled")
         raise
     except Exception as e:
         record_event(run_id, "error", {"error": str(e)})

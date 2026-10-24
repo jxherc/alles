@@ -460,6 +460,7 @@ async def _execute(run_id: str) -> None:
     _stops[run_id] = stop
     _stream_text[run_id] = ""
     keep_stream = False
+    claimed = ""
     db = SessionLocal()
     try:
         run = db.get(JarvisRun, run_id)
@@ -512,6 +513,21 @@ async def _execute(run_id: str) -> None:
             db.add(session)
             db.flush()
             run.session_id = session.id
+        # the task's turn is this work's while it runs: an edit, a send or another handoff in the
+        # same task waits or is turned away, so nothing lands between its question and answer
+        from routes import chat as chat_route
+
+        claimed = session.id
+        db.commit()
+        while not chat_route.claim_turn(claimed, stop):
+            if stop.is_set():
+                _finish(run_id, "cancelled", result="")
+                claimed = ""
+                return
+            await asyncio.sleep(0.25)
+        db.refresh(run)
+        if run.state != "queued":
+            return
         transition_run(db, run, "running")
         run.attempt_count = (run.attempt_count or 0) + 1
         db.commit()
@@ -653,6 +669,10 @@ async def _execute(run_id: str) -> None:
         log.warning("Aide background work failed: %s", type(exc).__name__)
         _finish(run_id, "failed", error="Aide could not finish this work")
     finally:
+        if claimed:
+            from routes import chat as chat_route
+
+            chat_route.release_turn(claimed, stop)
         if db is not None:
             db.close()
         _stops.pop(run_id, None)

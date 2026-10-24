@@ -108,6 +108,8 @@ def append_turn(
     meta: str = "{}",
     *,
     retry_message_id: str = "",
+    user_id: str = "",
+    assistant_id: str = "",
 ) -> bool:
     with _LOCK:
         session = get_session(session_id)
@@ -121,14 +123,57 @@ def append_turn(
             and last.role == "user"
             and last.content == user_text
         ):
-            session.messages.append(IncognitoMessage(role="user", content=user_text))
+            # the ids the turn's stream announced, when it named them
+            taken = any(m.id == user_id for m in session.messages)
+            mine = {"id": user_id} if user_id and not taken else {}
+            session.messages.append(IncognitoMessage(role="user", content=user_text, **mine))
         if assistant_text:
+            mine = {"id": assistant_id} if assistant_id else {}
             session.messages.append(
-                IncognitoMessage(role="assistant", content=assistant_text, meta=meta)
+                IncognitoMessage(role="assistant", content=assistant_text, meta=meta, **mine)
             )
         session.message_count = len(session.messages)
         session.last_message_at = datetime.now(UTC).replace(tzinfo=None)
         return True
+
+
+def edit_message(
+    session_id: str, message_id: str, content: str, *, through_id: str = ""
+) -> int | None:
+    """Replace a private message and drop what follows it (up to `through_id` when given).
+
+    None when it isn't there.
+    """
+    with _LOCK:
+        session = get_session(session_id)
+        if not session:
+            return None
+        at = next((i for i, m in enumerate(session.messages) if m.id == message_id), -1)
+        if at < 0:
+            return None
+        session.messages[at].content = content
+        return _drop_after(session, at, through_id)
+
+
+def drop_between(session_id: str, after_id: str, through_id: str) -> int:
+    """Drop the private messages after one message up to and including another."""
+    with _LOCK:
+        session = get_session(session_id)
+        if not session:
+            return 0
+        at = next((i for i, m in enumerate(session.messages) if m.id == after_id), -1)
+        return _drop_after(session, at, through_id) if at >= 0 else 0
+
+
+def _drop_after(session, at: int, through_id: str) -> int:
+    end = len(session.messages)
+    if through_id:
+        found = next((i for i, m in enumerate(session.messages) if m.id == through_id), -1)
+        end = found + 1 if found > at else at + 1
+    dropped = end - at - 1
+    del session.messages[at + 1 : end]
+    session.message_count = len(session.messages)
+    return dropped
 
 
 def put_upload(

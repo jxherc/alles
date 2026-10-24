@@ -338,6 +338,17 @@ def run(context_factory=None, cases=None):
                         expect(reply.locator(".ai-body")).to_contain_text("keep this source detail")
                         if source_case:
                             expect(page.locator("#stop-btn")).to_be_visible()
+                            if case != "source":
+                                # the page hears its stop wasn't taken, so it lets go at once,
+                                # like a closed page: the server keeps the reply as interrupted
+                                # and the page never sees it saved, so +plan task has to read the
+                                # history (the path these cases break)
+                                page.route(
+                                    "**/api/chat/stop/**",
+                                    lambda route: route.fulfill(
+                                        json={"ok": False, "reason": "turn_changed"}
+                                    ),
+                                )
                             page.locator("#stop-btn").click()
                         settled_reply(page, reply)
                         message = reply.locator("xpath=..").get_attribute("data-msg-id")
@@ -363,6 +374,22 @@ def run(context_factory=None, cases=None):
                             "message": message,
                         }
                         button = reply.locator('button[title="review this reply as a plan task"]')
+                        history_reads = []
+                        if case == "source":
+                            # a confirmed stop reads the stream to its end: the saved reply,
+                            # citations and all, is already on the page
+                            expect(reply.locator(".ai-body")).to_contain_text(
+                                "owned source passage"
+                            )
+                            page.on(
+                                "request",
+                                lambda request: (
+                                    history_reads.append(request.url)
+                                    if urlparse(request.url).path
+                                    == f"/api/sessions/{session}/history"
+                                    else None
+                                ),
+                            )
                         if case in ("source-fail", "source-pending"):
                             page.route(
                                 f"**/api/sessions/{session}/history",
@@ -424,6 +451,8 @@ def run(context_factory=None, cases=None):
                         expect(page.locator("#capture-title")).to_be_visible()
                         expect(page.locator("#capture-notes")).to_have_value(expected)
                         assert not writes
+                        # +plan task needed nothing more from the server for a confirmed stop
+                        assert not history_reads, history_reads
                         title = f"owned reviewed {case} {width}"
                         page.locator("#capture-title").fill(title)
                         if case == "cancel":

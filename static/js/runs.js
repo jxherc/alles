@@ -52,7 +52,7 @@ function rowHtml(r) {
   const edits = r.edits ? ` · ${r.edits} edit${r.edits > 1 ? 's' : ''}` : '';
   return `<div class="run-row" data-id="${esc(r.id)}">
     <div class="run-row-head">
-      <span class="run-status run-${esc(r.status)}" title="${esc(r.status)}">${_si(STATUS_ICON[r.status] || 'clock')}</span>
+      <span class="run-status run-${esc(r.status)}" role="img" aria-label="${esc(String(r.status || 'unknown').replace(/_/g, ' '))}" title="${esc(r.status)}">${_si(STATUS_ICON[r.status] || 'clock')}</span>
       <span class="run-model">${esc(r.model || 'agent')}</span>
       <span class="run-time">${esc(ago(r.updated_at || r.started_at))}</span>
     </div>
@@ -142,7 +142,7 @@ function detailHtml(run, src, id) {
   const todos = (run.todos || []).map(t => {
     // producer emits {step, status: pending|in_progress|completed}; tolerate legacy text/done too
     const done = t.status === 'completed' || t.status === 'done';
-    return `<div class="run-todo ${done ? 'done' : ''}">${_si(done ? 'check-circle' : 'circle')} ${esc(t.step || t.text || t.title || '')}</div>`;
+    return `<div class="run-todo ${done ? 'done' : ''}">${_si(done ? 'check-circle' : 'circle')}${done ? '<span class="sr-only">done:</span>' : ''} ${esc(t.step || t.text || t.title || '')}</div>`;
   }).join('');
   const steps = (run.tool_steps || []).slice(-12).map(s =>
     `<span class="run-step ${s.error ? 'err' : ''}" title="${esc(s.output || '')}">${esc(s.name || s.tool || 'tool')}</span>`).join('');

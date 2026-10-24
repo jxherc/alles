@@ -136,7 +136,10 @@ with sync_playwright() as pw:
                     payload["messages"] = state["history"]
                     return request.fulfill(response=response, json=payload)
                 if url.path == "/api/chat" and request.request.method == "POST":
-                    requests.append(request.request.post_data_json)
+                    # every send names its own turn for the stop button; the rest must repeat
+                    sent = dict(request.request.post_data_json)
+                    assert sent.pop("turn_token", "")
+                    requests.append(sent)
                     if state["hold"]:
                         held.append(request)
                         return None
@@ -257,7 +260,13 @@ with sync_playwright() as pw:
                 old_button = retry.element_handle()
                 retry.tap() if width <= 390 else retry.press("Enter")
                 old_button.evaluate("e=>e.click()")
-                expect(field).to_be_focused()
+                if width <= 390:
+                    # touch lands on the new reply, so the keyboard doesn't pop over it
+                    page.wait_for_function(
+                        "document.activeElement === document.querySelector('#messages').lastElementChild"
+                    )
+                else:
+                    expect(field).to_be_focused()
                 expect(field).to_have_value(newer)
                 expect(page.locator("#send-btn")).to_be_disabled()
                 deadline = time.monotonic() + 5

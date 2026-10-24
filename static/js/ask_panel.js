@@ -12,6 +12,7 @@ const SCREEN_LIMIT = 3000;
 let panel = null;
 let sessionId = '';
 let busy = null;          // the AbortController of the running answer
+let turnToken = '';       // names the running answer, so a late stop can't end the next one
 let shareScreen = true;
 let opener = null;
 
@@ -213,13 +214,14 @@ async function send() {
   const answer = row('aide', '<p class="ask-panel-wait">thinking…</p>');
   const controller = new AbortController();
   setBusy(controller);
+  turnToken = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   let text = '';
   try {
     const id = await ensureSession(question);
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: id, message: compose(question), simple: true }),
+      body: JSON.stringify({ session_id: id, message: compose(question), simple: true, turn_token: turnToken }),
       signal: controller.signal,
     });
     if (!res.ok || !res.body) throw await failure(res);
@@ -252,7 +254,8 @@ async function send() {
     $('ask-panel-new').hidden = false;
     $('ask-panel-open').hidden = false;
   } catch (err) {
-    if (err.name === 'AbortError') {
+    // a stop that got there before the answer began is still just a stop
+    if (err.name === 'AbortError' || err.code === 'turn_stopped') {
       if (!text) answer.innerHTML = '<p class="ask-panel-note">stopped.</p>';
     } else {
       const needsModel = /^model_/.test(err.code || '') || /model/i.test(err.message);
@@ -268,8 +271,16 @@ async function send() {
 
 function stop() {
   if (!busy) return;
-  busy.abort();
-  if (sessionId) fetch(`/api/chat/stop/${encodeURIComponent(sessionId)}`, { method: 'POST' }).catch(() => {});
+  const controller = busy;
+  if (!sessionId) { controller.abort(); return; }
+  // tell the server first, naming this answer, then drop the connection (at most 800ms later):
+  // a stop that arrives late never ends the next answer in the task
+  const told = fetch(`/api/chat/stop/${encodeURIComponent(sessionId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ turn_token: turnToken }),
+  }).catch(() => {});
+  Promise.race([told, new Promise(resolve => setTimeout(resolve, 800))]).then(() => controller.abort());
 }
 
 async function openInAide() {

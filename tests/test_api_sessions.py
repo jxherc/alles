@@ -9,29 +9,6 @@ from tests._client import ApiTest
 
 
 class SessionsApiTest(ApiTest):
-    def test_edit_deletes_same_timestamp_reply(self):
-        # a coarse clock can stamp the user msg and its assistant reply identically; editing the
-        # user msg must still drop the stale reply (and everything after), not leave it dangling
-        d = self.db()
-        s = Session(name="c")
-        d.add(s)
-        d.flush()
-        ts = datetime(2026, 6, 1, 12, 0, 0)
-        u = Message(session_id=s.id, role="user", content="q", timestamp=ts)
-        a = Message(session_id=s.id, role="assistant", content="old answer", timestamp=ts)
-        d.add_all([u, a])
-        d.commit()
-        sid, uid, aid = s.id, u.id, a.id
-        d.close()
-
-        r = self.client.post(f"/api/sessions/{sid}/messages/{uid}/edit", json={"content": "q2"})
-        self.assertEqual(r.status_code, 200)
-
-        d = self.db()
-        self.assertEqual(d.get(Message, uid).content, "q2")
-        self.assertIsNone(d.get(Message, aid))  # stale same-timestamp reply removed
-        d.close()
-
     def test_list_empty_shape(self):
         r = self.client.get("/api/sessions")
         self.assertEqual(r.status_code, 200)
@@ -214,7 +191,8 @@ class SessionsApiTest(ApiTest):
         archived = self.client.get("/api/sessions/archived").json()
         self.assertEqual([s["id"] for s in archived], [sid])
 
-    def test_edit_message_truncates_later(self):
+    def test_the_retired_edit_route_changes_nothing(self):
+        # edit and regenerate go through /api/chat, which checks everything before it cuts
         sid = self.client.post("/api/sessions", json={"name": "edit"}).json()["id"]
         d = self.db()
         base = datetime.now(UTC).replace(tzinfo=None)
@@ -224,12 +202,15 @@ class SessionsApiTest(ApiTest):
         )
         d.add_all([m1, m2])
         d.commit()
-        mid = m1.id
+        mid, newest = m1.id, m2.id
         d.close()
-        r = self.client.post(f"/api/sessions/{sid}/messages/{mid}/edit", json={"content": "edited"})
-        self.assertEqual(r.status_code, 200)
+        r = self.client.post(
+            f"/api/sessions/{sid}/messages/{mid}/edit",
+            json={"content": "edited", "newest_id": newest},
+        )
+        self.assertEqual(r.status_code, 410)
         msgs = self.client.get(f"/api/sessions/{sid}/history").json()["messages"]
-        self.assertEqual([m["content"] for m in msgs], ["edited"])  # the later reply was dropped
+        self.assertEqual([m["content"] for m in msgs], ["first", "reply"])
 
     def test_auto_name_heuristic_without_endpoint(self):
         sid = self.client.post("/api/sessions", json={"name": "new chat"}).json()["id"]

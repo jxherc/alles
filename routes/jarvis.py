@@ -348,6 +348,10 @@ async def add_handoff(body: HandoffBody, db: DbSession = Depends(get_db)):
     replay = bool(identity and db.get(JarvisRun, identity))
     preview = None
     if not replay:
+        from routes.chat import _require_idle_session
+
+        # a reply is running in this task: work landing in its history now would split it
+        _require_idle_session(session.id)
         try:
             preview = jarvis_handoff.model_preview(
                 db,

@@ -196,7 +196,16 @@ def get_history(session_id: str, response: Response, db: DbSession = Depends(get
                 "timestamp": m.timestamp.isoformat(),
             }
         )
-    return {"session": _fmt_session(s), "messages": msgs}
+    from routes.chat import _streams
+
+    # a page re-reading after a stop waits until its turn has been saved and let go
+    running = _streams.get(session_id)
+    return {
+        "session": _fmt_session(s),
+        "messages": msgs,
+        "answering": running is not None,
+        "answering_turn": getattr(running, "turn_token", "") if running is not None else "",
+    }
 
 
 class PatchSession(BaseModel):
@@ -335,37 +344,18 @@ def delete_session(session_id: str, db: DbSession = Depends(get_db)):
     return {"ok": True}
 
 
-class EditMessage(BaseModel):
-    content: str
-
-
 # POST /api/sessions/{id}/messages/{msg_id}/edit
+# retired: cutting here and answering in a second request left the history cut whenever the
+# answer was then refused. edit and regenerate go through /api/chat now (edit_message_id or
+# regenerate_message_id), which checks everything before it cuts
 @router.post("/sessions/{session_id}/messages/{msg_id}/edit")
-def edit_message(session_id: str, msg_id: str, body: EditMessage, db: DbSession = Depends(get_db)):
-    msg = db.get(Message, msg_id)
-    if not msg or msg.session_id != session_id:
-        raise HTTPException(404)
-    msg.content = body.content
-    # hard-delete everything after this message. order by rowid (insertion order), not timestamp:
-    # a coarse clock can stamp a turn's user msg + assistant reply identically, and a strict
-    # timestamp > would leave the stale reply behind.
-    from sqlalchemy import text
+def edit_message(session_id: str, msg_id: str):
+    from routes.chat import note_retired_edit
 
-    row = db.execute(text("SELECT rowid FROM messages WHERE id = :i"), {"i": msg_id}).scalar()
-    later = (
-        db.query(Message)
-        .filter(Message.session_id == session_id)
-        .filter(text("messages.rowid > :r"))
-        .params(r=row)
-        .all()
-    )
-    for m in later:
-        db.delete(m)
-    s = db.get(Session, session_id)
-    if s:
-        s.message_count = max(0, (s.message_count or 0) - len(later))
-    db.commit()
-    return {"ok": True}
+    # an open page from before the update ignores this and sends the edited words as a new
+    # question next; /api/chat turns that one away instead of saving it twice
+    note_retired_edit(session_id)
+    raise ApiError(410, "edit_moved", "reload alles to edit this message.")
 
 
 class ForkBody(BaseModel):

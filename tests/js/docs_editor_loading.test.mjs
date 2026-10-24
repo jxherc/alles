@@ -21,6 +21,7 @@ function harness({ mobile = false } = {}) {
   let saveBarrier = null;
   let document;
   const documentEvents = new Map();
+  const keydowns = [];
   function element(id = '') {
     const attrs = new Map();
     const classes = new Set();
@@ -41,6 +42,7 @@ function harness({ mobile = false } = {}) {
           || (id === 'docs-dialog' && target?.id === 'docs-dialog-input');
       },
       focus() { document.activeElement = this; documentEvents.get('focusin')?.({ target: this }); },
+      getClientRects() { return this.noRects ? [] : [{}]; },
       addEventListener(name, listener) { events.set(name, listener); },
       click() { events.get('click')?.({ target: this }); },
     };
@@ -51,7 +53,10 @@ function harness({ mobile = false } = {}) {
   }
   document = {
     getElementById: get, createElement: () => element(), querySelectorAll: () => [], activeElement: get('wiki-edit-btn'),
-    addEventListener(name, listener) { documentEvents.set(name, listener); },
+    addEventListener(name, listener) {
+      documentEvents.set(name, listener);
+      if (name === 'keydown') keydowns.push(listener);
+    },
   };
   get('docs-dialog').hidden = true;
   get('wiki-more-menu').hidden = true;
@@ -118,6 +123,12 @@ function harness({ mobile = false } = {}) {
       return finish;
     },
     escape() { documentEvents.get('keydown')?.({ key: 'Escape', preventDefault() {} }); },
+    key(init) {
+      const event = { altKey: false, shiftKey: false, ctrlKey: false, metaKey: false, defaultPrevented: false, ...init };
+      event.preventDefault = () => { event.defaultPrevented = true; };
+      keydowns.forEach(listener => listener(event));
+      return event;
+    },
     seed(path, content) { disk.set(path, { path, content, hash: path + '-base', exists: true, editable: true }); },
   };
 }
@@ -362,4 +373,28 @@ test('the visual editor keyboard hint is hidden in source mode', async () => {
   assert.equal(h.get('wiki-keyboard-hint').hidden, true);
   h.view('visual'); assert.equal(h.get('wiki-keyboard-hint').hidden, false);
   h.view('source'); assert.equal(h.get('wiki-keyboard-hint').hidden, true);
+});
+
+async function saved(h, content) {
+  for (let i = 0; i < 50 && h.disk.get('proof.md').content !== content; i++) await new Promise(resolve => setImmediate(resolve));
+  return h.disk.get('proof.md').content;
+}
+
+test('cmd+s saves while the document navigation is hidden', async () => {
+  const h = await opened(); h.wire();
+  const pending = h.enter(); h.loads[0].resolve(); await pending;
+  h.view('source'); h.type('changed');
+  // hidden nav, a collapsed folder list and a narrow screen all take the tree off screen
+  h.get('wiki-tree').noRects = true;
+  assert.equal(h.key({ key: 's', metaKey: true }).defaultPrevented, true);
+  assert.equal(await saved(h, 'changed'), 'changed');
+});
+
+test('cmd+s is left to the browser when the docs reader is not on screen', async () => {
+  const h = await opened(); h.wire();
+  const pending = h.enter(); h.loads[0].resolve(); await pending;
+  h.view('source'); h.type('changed');
+  h.get('wiki-view').noRects = true;
+  assert.equal(h.key({ key: 's', ctrlKey: true }).defaultPrevented, false);
+  assert.equal(h.disk.get('proof.md').content, 'original');
 });

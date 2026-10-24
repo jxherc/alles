@@ -172,7 +172,10 @@ def run():
                     has_text=f"daily event {label}"
                 ).click()
                 expect(page.locator("#cal-title")).to_have_value(f"daily event {label}")
-                expect(page.locator("#cal-title")).to_be_focused()
+                # touch focuses the editor heading so the phone keyboard stays down
+                touch = page.evaluate("matchMedia('(pointer: coarse)').matches")
+                assert touch == (width == 390), (label, touch)
+                expect(page.locator("#cal-ed-head" if touch else "#cal-title")).to_be_focused()
                 assert page.locator("#cal-start").evaluate("el => el.value") == f"{today}T09:00"
                 page.screenshot(path=str(output / f"event-open-{label}.png"), full_page=True)
                 page.locator("#cal-title").fill(f"changed occurrence {label}")
