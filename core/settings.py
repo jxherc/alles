@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -13,7 +14,16 @@ load_dotenv(encoding="utf-8-sig")  # utf-8-sig handles windows BOM
 
 def data_dir() -> Path:
     # base data dir; ALLES_DATA lets an isolated instance (autorun/tests) keep its files separate
-    return Path(os.environ.get("ALLES_DATA") or (Path(__file__).parent.parent / "data"))
+    raw = os.environ.get("ALLES_DATA")
+    if raw:
+        return Path(raw)
+    # a unittest run that reached app code before tests/__init__ set throwaway data would
+    # otherwise land on the owner's real data/aide.db
+    if sys.argv and sys.argv[0].endswith("-m unittest"):
+        raise RuntimeError(
+            "tests need throwaway data: import the tests package first (ALLES_DATA unset)"
+        )
+    return Path(__file__).parent.parent / "data"
 
 
 _SETTINGS_FILE = data_dir() / "settings.json"
@@ -448,13 +458,20 @@ def build_aide_system_prompt(
 
 
 def _today_line(values: dict) -> str:
-    """The current date in the owner's timezone (server time when none is set)."""
-    name = str(values.get("timezone") or "").strip()
-    try:
-        from zoneinfo import ZoneInfo
+    """The current date in the owner's zone: the timezone setting, else the zone a browser last
+    reported (like the calendar's background work), else server time."""
+    from zoneinfo import ZoneInfo
 
-        now = datetime.now(ZoneInfo(name)) if name else datetime.now().astimezone()
-    except (KeyError, ValueError):  # unknown or malformed zone name
+    for key in ("timezone", "detected_timezone"):
+        name = str(values.get(key) or "").strip()
+        if not name:
+            continue
+        try:
+            now = datetime.now(ZoneInfo(name))
+            break
+        except (KeyError, ValueError):  # unknown or malformed zone name
+            continue
+    else:
         name = ""
         now = datetime.now().astimezone()
     return f"Today is {now:%A, %Y-%m-%d} ({name or now.tzname() or 'server time'})."
