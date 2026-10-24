@@ -306,6 +306,21 @@ what it supports:
 - **unsent messages**: missing models and failed task creation keep the composer draft for retry.
   Ordinary drafts survive reload; private drafts stay in memory. Repeated send attempts during
   task creation do not start another request, and newer text remains after the first message is accepted.
+- **edit and regenerate**: one `/api/chat` request with `edit_message_id` (and the new words) or
+  `regenerate_message_id`, plus `newest_id`, the newest message the tab got from the server. the
+  server checks everything and builds the context first, so a refusal (`history_moved` when another
+  tab added to the task, `document_scope_changed`, `file_gone`, `context_changed`,
+  `turn_in_progress`) changes nothing. an edit then drops the turns after the question (only up to
+  `newest_id`); a regenerate asks the stored words again and keeps the old answer until the new one
+  has words or tool steps, so a dead endpoint or an early stop leaves it as it was. the stored
+  question is answered again with its own notes scope and files, never a copy or a wider scope. the
+  first event of a `/api/chat` stream started from the conversation (send, edit, regenerate, retry)
+  names the user and reply ids, so even a stopped reply can be edited; voice turns, background work
+  and handoffs don't send it. while a turn runs in a task, handoffs and image turns are refused with
+  `turn_in_progress`, and scheduled messages and live-call lines are added after it ends. an edit
+  only sends from its send button or Enter (never mid-composition, never empty); leaving the box
+  sends nothing, and a changed draft survives switching tasks and, outside private tasks, a reload.
+  the older edit route answers 410.
 - **cookbook**: a browser over **900+ open models** ranked against *your* actual hardware (what fits, at what quant, how fast), so you can pick + pull a local model that'll actually run
 - **usage**: a token dashboard: totals, a tokens-by-month chart, and a per-model breakdown, so you can see what you're spending
 - **skills**: write reusable procedures (a name, when-to-use, and the steps in markdown) that the agent discovers and loads on its own; it ranks your skills against each task and reaches for the right one. the built-in catalogue is installed on first launch. “start here” highlights six common tasks alongside pinned and custom skills; all skills remain available through search and categories.
@@ -314,9 +329,9 @@ The composer’s **help** button shows the current keyboard shortcuts and slash 
 
 the app-name menu also opens **help & manual**, with local search, provider requirements and recovery instructions. Finance has a **finance guide** link to the same manual. navigation from the manual uses the existing unsaved-draft checks.
 
-**the model picker**: every endpoint you add shows up here, with provider labels and logos. image-generation models are flagged with a 🎨, so you can run a **chat model and an image model together** (talk to sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release. model ids come from each endpoint's live catalog or its editable manual list; alles does not ship a guessed model lineup. a failed refresh keeps the last good list and marks it stale, while models removed by a provider leave new pickers and remain marked unavailable for old runs.
+**the model picker**: every endpoint you add shows up here, with provider labels and logos. image-generation models carry a palette icon, so you can run a **chat model and an image model together** (talk to sonnet, draw with gpt-image). a **newest-only** toggle collapses each family to its latest release. model ids come from each endpoint's live catalog or its editable manual list; alles does not ship a guessed model lineup. a failed refresh keeps the last good list and marks it stale, while models removed by a provider leave new pickers and remain marked unavailable for old runs.
 
-<p align="center"><img src="docs/screenshots/models.png" width="760" alt="the model picker: every provider in its brand colour, image models flagged with 🎨, a newest-only toggle"></p>
+<p align="center"><img src="docs/screenshots/models.png" width="760" alt="the model picker: every provider in its brand colour, image models flagged with a palette icon, a newest-only toggle"></p>
 
 ### apps
 one full-screen launcher for the nine specialist workbenches.
@@ -483,6 +498,18 @@ a real email client (read + send), with one-click setup for the big providers an
   its row in the unread view
 - archive asks the server to confirm its move before removing the local message. an unconfirmed
   result stays visible and asks for a mailbox refresh before another attempt
+- snooze and archive offer undo in their own bar, which never replaces a queued send's undo.
+  `/api/mail/archive` returns the moved message's `message_id`, and `/api/mail/move` accepts that
+  `message_id` without a uid to find the newest copy in the archive folder and move it back. a move
+  clears the cached lists of both folders
+- mail routes take folder names as the server lists them (modified UTF-7). every name goes to the
+  server as a quoted string; plain text that isn't a valid wire name is encoded first. uids,
+  folders, message ids, search text and account login text are checked before any connection opens,
+  and a bad value gets 400
+- an outbox send whose delivery is uncertain offers "check again" and "dismiss". dismiss asks first,
+  then calls `/api/mail/scheduled/{id}/cancel?dismiss=true`, which only turns an `uncertain` row into
+  `dismissed` (kept, but out of the list); a scheduled, sending or sent row gets 409. the strip shows
+  the newest three rows with a toggle for the rest
 - mail changes are never added to the generic offline queue, and older queued mail writes remain
   blocked for review. saved labels can be opened from the keyboard
 - vacation settings require a confirmed read before editing, retain changes after rejected or
@@ -551,11 +578,58 @@ a real email client (read + send), with one-click setup for the big providers an
 a calendar with month / week / day views and repeating events.
 
 - real time-grid week and day views, a month grid, and an **agenda list**
+- in week and day views an event's box is as long as the event (half an hour at least), and a
+  short one still takes a tap 44px tall. dragging an event moves it and keeps its length, and
+  stops at midnight; only a move into another column changes the day. the bottom edge changes
+  the length and leaves the start where it was. each event is a button: tab walks them in time
+  order, enter or space opens one, and escape leaves the editor (asking once about unsaved
+  changes) with focus back on it. in a week, overlapping events that would each be under 44px
+  wide side by side draw as one stack showing their count, which opens their day; the day view
+  keeps as many 44px boxes as fit and folds the rest into "+N", which lists them
+- opening an event with a keyboard puts the caret after its title; on a touch screen the
+  editor's heading takes focus, so no keyboard covers the event
+- an all-day event keeps its date as sent: no zone moves it
 - **recurring events**: daily / weekly / monthly, with a small **↻ marker** on every repeating occurrence so you never mistake one instance for a one-off
 - **import / export `.ics`**: round-trip with apple calendar, google, outlook (export everything, or import a `.ics` someone sent you)
 - **natural-language quick-add** right in the header: "lunch with sam friday 1pm" makes the timed event; "team sync tomorrow" makes an all-day one; and it now understands repeats too: "standup daily 9am", "yoga every monday 6pm", "class every week until 2026-08-01"
 - quick-add undo removes the exact saved event only while its values are unchanged. newer edits
   remain saved; an interrupted response can be retried without deleting another event.
+- quick-add refuses a date or time that doesn't exist and says why ("feb 30 isn't a date",
+  "25:00 isn't a time"); the text stays in the box to fix. a line with no date or time still lands
+  on today as an all-day event, and the receipt says "no date found, added … to today".
+- event times are stored as the owner's wall time. a time sent with an offset or `Z` (an
+  imported `.ics`, a captured mail proposal, an api call) is turned into wall time only in a zone
+  the owner chose: the browser's, sent with the request (`time_zone` or the `x-alles-time-zone`
+  header the calendar sends on every request), else the timezone setting. otherwise it is kept as
+  stored, offset and all, which is correct data: every reader (month, week and day, agenda, free
+  time, conflicts, booking pages, home, search, the timeline, aide's event list, reminders)
+  converts it on read, and nothing rewrites it later: an edit that leaves the times alone (a title,
+  a note) keeps the offset, and a copy keeps it too.
+- a repeating event that kept its offset repeats in that offset's own frame: its weekdays, its
+  every-other weeks, the day of its month, its last day and the days it skips are that frame's,
+  and each occurrence is then shown on the viewer's clock, so every zone sees the same moments,
+  across daylight saving too (sunday 09:00 in tokyo is saturday 20:00, then 19:00, in toronto).
+  skipping or ending it from another zone names the day in its own frame. the editor shows and
+  takes its repeat days as the days they land on here; a new time or new days picked here turn
+  it into wall time here, its other days moving with it, except a monthly repeat whose date would
+  move ("the 1st" in tokyo is the last day of a month in toronto), which stays in its frame.
+- migration 74 rewrites old zoned one-off rows at upgrade only when the timezone setting is set;
+  an event that would end at or before its start there keeps its length. repeating rows keep
+  their offset, since their days belong to its frame.
+- background work (reminders, home and the daily briefing, the booking page, the activity
+  timeline, aide's event list and its date line, export) uses one owner zone: the timezone
+  setting, else the last zone a browser reported, else the server's. a browser that only reports
+  utc doesn't replace a real zone seen before, so set the timezone in settings if you really live
+  on utc, or for behaviour that doesn't follow you when you travel. an export sends wall times
+  as utc instants read in that zone, so other calendars show the same moment without a
+  timezone block; with no zone known they stay floating.
+- a public booking page opens on the owner's today and offers only times still ahead, inside its
+  window (`days_ahead`), labelled with the owner's zone; a visitor elsewhere also sees each time
+  on their own clock. working hours run from 0 to 24, and a time the clocks skip in spring isn't
+  offered. a booking takes a plain hh:mm, and a refusal says why: the date is outside the window,
+  the time has passed, the clocks skip it, the page doesn't offer it, or it was just taken. free
+  time, free slots and booking count events (repeats too) that started the night before and run
+  into the day.
 - optional **two-way sync with caldav** (the open calendar-sync standard used by icloud and google) if you add your credentials
 
 <p align="center"><img src="docs/screenshots/calendar.png" width="760" alt="calendar: month view with events"></p>
@@ -1095,7 +1169,7 @@ graph TD
 - **checkpoints**: `write_file`, `edit_file`, and `apply_patch` attempt to capture the original text before changing it. revert restores available checkpoints; it does not undo shell commands, remote actions, or edits that were not captured
 - **provenance you can see**: every agent reply has a **sources** button listing exactly what that run touched (files, urls fetched, searches, shell commands), and a **runs drawer** (the ⟳ in the top bar) browses past runs: their status, to-do list, tool steps, and the same sources; so the agent is inspectable, not a black box
 - **prompt-injection guard**: when the agent reads something it didn't write (a web page, an email, a file, repo contents, an mcp result), that text is wrapped as *data, not instructions* before it goes back to the model, and scanned for the classic attacks ("ignore previous instructions," "reveal your system prompt," "email the api key to…"). anything that trips gets flagged. this reduces the chance of untrusted content steering the run; it does not guarantee that a model will ignore every attack. *(it's a seatbelt, not a force field, see security.)*
-- **approved file roots**: agent file reads stay inside the selected project folder plus any extra folders you approve in settings. extra folders start read-only; writes, diff previews, checkpoints, patches, and reverts stay inside the selected project. credential stores (`~/.ssh`, `~/.aws`, `.env`, `*.pem`, `id_rsa`, `.netrc`, `.docker/config.json`…) remain blocked by default. shell commands are a separate boundary and can still reach the host unless you enable the docker sandbox.
+- **approved file roots**: agent file reads stay inside the selected project folder plus any extra folders you approve in settings. extra folders start read-only. every path a tool names is resolved first, links included, and checked before anything is approved. writes, deletes, reverts, patches and a shell's working folder stay inside the selected project; the one way out is approve mode, where the owner approves that single step (any write in General works the same way). the prompt shows the full resolved path and says it's outside this task's folder, the approval covers that exact path for that one step and is re-checked when it runs (a link swapped in meanwhile is refused), and nothing remembers it. full auto, full access, unattended runs and sub-agents never write outside; they say to switch to approve mode. credential stores (`~/.ssh`, `~/.aws`, `.env`, `*.pem`, `id_rsa`, `.netrc`, `.docker/config.json`…) remain blocked by default. shell commands are a separate boundary and can still reach the host unless you enable the docker sandbox.
 - **sandbox**: the shell can run inside a docker container with the workspace mounted at `/work` and (optionally) no network, so commands can't touch your real filesystem
 - **automatic behavior**: a plain aide turn that clearly asks for work can enter the tool loop or keep
   running in the background. simple questions stay simple, and every mutation still follows its
@@ -3649,6 +3723,7 @@ known versions run in ascending order.
 | 71 | `andromeda_search_watch` | [m0071_andromeda_search_watch.py](core/migrations/m0071_andromeda_search_watch.py) |
 | 72 | `coding_projects` | [m0072_coding_projects.py](core/migrations/m0072_coding_projects.py) |
 | 73 | `aide_goals` | [m0073_aide_goals.py](core/migrations/m0073_aide_goals.py) |
+| 74 | `calendar_wall_times` | [m0074_calendar_wall_times.py](core/migrations/m0074_calendar_wall_times.py) |
 
 </details>
 

@@ -1426,7 +1426,7 @@ class ScheduledMail(Base):
     request_delay = Column(Integer, nullable=True)
     status = Column(
         String, default="scheduled"
-    )  # scheduled | sending | sent | uncertain | canceled
+    )  # scheduled | sending | sent | uncertain | canceled | dismissed
     created_at = Column(DateTime, default=_now)
 
 

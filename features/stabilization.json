@@ -3435,7 +3435,7 @@
       "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit a UTC-offset proposal in the selected timezone",
-      "expected": "The changed start maps to the intended instant and the untouched end retains its exact value.",
+      "expected": "The changed start is saved as the wall time typed, and the untouched end is saved as the wall time of its original instant, both in the selected timezone.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -3448,7 +3448,7 @@
       "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "accept an event across the autumn clock rollback",
-      "expected": "Equal displayed clock times preserve the distinct original start and end instants and the original one-hour duration.",
+      "expected": "Equal displayed wall-clock start and end are refused in the review with \"choose a valid start and an end after it\", focus stays on the start, and nothing is saved.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -3461,7 +3461,7 @@
       "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "accept an event across the autumn clock rollback after toggling all-day mode",
-      "expected": "Equal displayed clock times preserve the distinct original start and end instants and the original one-hour duration.",
+      "expected": "After toggling all-day off again, equal displayed wall-clock start and end are refused in the review with \"choose a valid start and an end after it\", and nothing is saved.",
       "status": "untested",
       "evidence": [],
       "required_profiles": [
@@ -8380,7 +8380,7 @@
     },
     {
       "id": "inbox.signature-management.workflow",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "workflow",
       "expected": "Create, edit, insert literal multiline text, persist a draft, remove the saved signature and reload. Editing or removal leaves the draft unchanged.",
@@ -8393,7 +8393,7 @@
     },
     {
       "id": "inbox.signature-management.edit-reject",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit reject",
       "expected": "Rejected edits retain input and retry against the saved version without a duplicate.",
@@ -8406,7 +8406,7 @@
     },
     {
       "id": "inbox.signature-management.edit-lost",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit lost",
       "expected": "An actual saved edit with a lost reply is confirmed by current readback.",
@@ -8419,7 +8419,7 @@
     },
     {
       "id": "inbox.signature-management.edit-uncertain",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit uncertain",
       "expected": "An edit with unavailable acknowledgement and readback retains text; retry confirms the same version.",
@@ -8432,7 +8432,7 @@
     },
     {
       "id": "inbox.signature-management.edit-uncertain-change",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit uncertain change",
       "expected": "After an uncertain edit, changed input saves a later version without overwriting unrelated concurrent edits.",
@@ -8445,7 +8445,7 @@
     },
     {
       "id": "inbox.signature-management.edit-conflict",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit conflict",
       "expected": "A newer edit before submit remains saved; the old form retains its text for review.",
@@ -8458,7 +8458,7 @@
     },
     {
       "id": "inbox.signature-management.edit-race",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit race",
       "expected": "A newer edit between preflight and save rejects the stale conditional write and retains form text.",
@@ -8471,7 +8471,7 @@
     },
     {
       "id": "inbox.signature-management.edit-deleted",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit deleted",
       "expected": "An open editor cannot recreate a removed signature; text stays available for an explicit new signature.",
@@ -8484,7 +8484,7 @@
     },
     {
       "id": "inbox.signature-management.edit-read-reject",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit read reject",
       "expected": "Failed preflight reads retain edit input, and a later retry saves successfully.",
@@ -8497,7 +8497,7 @@
     },
     {
       "id": "inbox.signature-management.edit-cancel",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit cancel",
       "expected": "Cancel preserves the saved signature and restores keyboard focus.",
@@ -8510,7 +8510,7 @@
     },
     {
       "id": "inbox.signature-management.remove-reject",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove reject",
       "expected": "Rejected removal stays visible and the explicit retry checks the same captured version.",
@@ -8523,7 +8523,7 @@
     },
     {
       "id": "inbox.signature-management.remove-lost",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove lost",
       "expected": "Lost removal acknowledgement is recovered by current absence without changing the draft.",
@@ -8536,7 +8536,7 @@
     },
     {
       "id": "inbox.signature-management.remove-uncertain",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove uncertain",
       "expected": "Unavailable removal acknowledgement and readback retain the captured retry; repetition confirms absence.",
@@ -8549,7 +8549,7 @@
     },
     {
       "id": "inbox.signature-management.remove-conflict",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove conflict",
       "expected": "A newer saved edit survives both the stale removal and its retry; reloading presents current state.",
@@ -8562,7 +8562,7 @@
     },
     {
       "id": "inbox.signature-management.remove-cancel",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove cancel",
       "expected": "Cancel sends no deletion and restores keyboard focus.",
@@ -8575,7 +8575,7 @@
     },
     {
       "id": "inbox.signature-management.remove-late",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove late",
       "expected": "A late removal acknowledgement cannot alter a replacement composer.",
@@ -8588,7 +8588,7 @@
     },
     {
       "id": "inbox.signature-management.remove-busy",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove busy",
       "expected": "Repeated removal input while busy sends one request and keeps controls unavailable.",
@@ -8601,7 +8601,7 @@
     },
     {
       "id": "inbox.signature-management.long-name",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "long name",
       "expected": "Long saved names keep management actions reachable without horizontal page overflow.",
@@ -8614,7 +8614,7 @@
     },
     {
       "id": "inbox.signature-management.remove-read-late",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove read late",
       "expected": "A list response captured before a successful removal cannot put the removed signature back on screen; focus stays on an available control.",
@@ -8627,7 +8627,7 @@
     },
     {
       "id": "inbox.signature-management.edit-offline",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "edit offline",
       "expected": "An offline edit retains entered text and saves after explicit retry on reconnect.",
@@ -8640,7 +8640,7 @@
     },
     {
       "id": "inbox.signature-management.remove-offline",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove offline",
       "expected": "Offline removal stays unconfirmed and never enters the generic offline queue; explicit retry after reconnect confirms removal.",
@@ -8653,7 +8653,7 @@
     },
     {
       "id": "inbox.signature-management.remove-overlap",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove overlap",
       "expected": "An unresolved signature removal keeps its captured retry and warning. Other removals stay unavailable until the first is checked; both can then be removed without losing draft text.",
@@ -8666,7 +8666,7 @@
     },
     {
       "id": "inbox.signature-management.remove-reload",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove reload",
       "expected": "Reloading signatures confirms an uncertain removal and restores keyboard focus to manage signatures when the retry button disappears.",
@@ -8679,7 +8679,7 @@
     },
     {
       "id": "inbox.signature-management.remove-reload-focus",
-      "feature": "inbox.signature-management",
+      "feature": "inbox.mail-and-contacts",
       "app": "inbox",
       "workflow": "remove reload focus",
       "expected": "Reloading confirms an uncertain removal without stealing focus from a field edited while the read was pending.",
