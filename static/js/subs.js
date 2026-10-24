@@ -333,7 +333,7 @@ function _row(s) {
         ${s.renewal_review_required ? '<span class="sub-review-required" title="review this subscription currency before posting the renewal">currency review needed</span>'
           : s.payable ? `<button class="btn" data-act="paid" title="mark this renewal paid">paid</button>`
           : (s.active ? `<span class="sub-notdue" title="next charge ${esc(s.next_due)}">not due</span>` : '')}
-        ${s.paid_count ? `<button class="btn" data-act="history" title="payment history + undo">⤺ ${s.paid_count}</button>` : ''}
+        ${s.paid_count ? `<button class="btn" data-act="history" title="payment history + undo" aria-label="payment history, ${s.paid_count} paid">${_si('history')} ${s.paid_count}</button>` : ''}
         <button class="btn" data-act="toggle">${s.active ? 'pause' : 'resume'}</button>
         <button class="btn" data-act="edit">edit</button>
         <button class="btn danger" data-act="del">×</button>
@@ -421,7 +421,13 @@ function closeHistory() {
   if (_busy) return;
   const id = _history?.id; _history = null;
   document.querySelectorAll('.sub-hist-pop').forEach(pop => pop.remove());
-  if (id) $('subs-list')?.querySelector(`[data-id="${CSS.escape(id)}"] [data-act="history"]`)?.focus();
+  if (id) _rowFocus(id)?.focus();
+}
+
+// the row's history button, or edit once undo took the last payment and history went away
+function _rowFocus(id) {
+  const row = $('subs-list')?.querySelector(`[data-id="${CSS.escape(id)}"]`);
+  return row?.querySelector('[data-act="history"]') || row?.querySelector('.sub-actions [data-act="edit"]');
 }
 
 async function showHistory(id) {
@@ -437,8 +443,9 @@ async function showHistory(id) {
   } catch { state.error = 'could not load payments. retry to see the history.'; }
   if (_history !== state) return;
   const focused = document.activeElement;
-  const ownsFocus = focused?.closest('.sub-item')?.dataset.id === id
-    && (focused.matches('[data-act="history"]') || !!focused.closest('.sub-hist-pop'));
+  // safari doesn't focus a tapped or clicked button, so opening by pointer leaves <body> focused
+  const ownsFocus = !focused || focused === document.body || (focused.closest('.sub-item')?.dataset.id === id
+    && (focused.matches('[data-act="history"]') || !!focused.closest('.sub-hist-pop')));
   state.loading = false; renderHistory();
   // a row near the bottom opened its payments past the screen edge, hiding undo
   document.querySelector?.('.sub-hist-pop')?.scrollIntoView?.({ block: 'nearest' });
@@ -449,12 +456,13 @@ function renderHistory() {
   document.querySelectorAll?.('.sub-hist-pop').forEach(pop => pop.remove());
   const state = _history; if (!state) return;
   const row = $('subs-list')?.querySelector(`[data-id="${CSS.escape(state.id)}"]`); if (!row) return;
-  const sub = _subs.find(s => s.id === state.id), payment = state.pays.find(p => p.can_undo);
+  // a refreshing list may still hold a stale undo, so it waits for the server's answer
+  const sub = _subs.find(s => s.id === state.id), payment = !state.loading && state.pays.find(p => p.can_undo);
   const pop = document.createElement('div'); pop.className = 'sub-hist-pop'; pop.setAttribute('aria-label', 'payment history'); pop.setAttribute('role', 'region');
   pop.innerHTML = '<div class="sub-hist-head">payments</div><button class="btn" data-history-close>close</button>'
     + (state.loading ? '<div role="status">loading payments…</div>' : '')
     + (state.error ? `<div role="alert">${esc(state.error)}</div><button class="btn" data-history-retry>refresh history</button>` : '')
-    + state.pays.map(p => `<div class="sub-hist-row"><span>${esc(p.date)}</span><span>${esc(p.currency || sub?.currency || '')}${(p.amount || 0).toFixed(2)}</span></div>`).join('')
+    + state.pays.map(p => `<div class="sub-hist-row"><span>${esc(p.date)}</span><span>${esc(_amt(p.currency || sub?.currency || '', p.amount))}</span></div>`).join('')
     + (!state.loading && !state.error && !state.pays.length ? '<div class="sub-hist-empty">no payments yet</div>' : '')
     + (payment ? `<button class="btn" data-act="undo-last">undo ${esc(payment.date)}</button>` : '');
   row.appendChild(pop);
@@ -467,7 +475,8 @@ function renderHistory() {
     _loading = false; _busy = true; ++_generation; _render();
     try {
       await api(`/api/subscriptions/${state.id}/payments/undo`, { method: 'POST', body: { payment_id: payment.id } });
-      state.pays = state.pays.filter(p => p.id !== payment.id); state.error = '';
+      // still refreshing: "no payments yet" here would read as done while every button is still disabled
+      state.pays = state.pays.filter(p => p.id !== payment.id); state.error = ''; state.loading = true;
       toast('payment undone', 'success'); await loadSubs();
       if (_history === state) await showHistory(state.id);
     } catch (error) {
@@ -477,7 +486,11 @@ function renderHistory() {
       const focused = document.activeElement;
       const ownsFocus = !focused || focused === document.body || !!focused.closest('.sub-hist-pop');
       _busy = false; _render();
-      if (ownsFocus && navigation === _navigation && _history === state && $('subs-view')?.offsetParent) document.querySelector('.sub-hist-pop [data-act="undo-last"], .sub-hist-pop [data-history-retry]')?.focus();
+      if (ownsFocus && navigation === _navigation && $('subs-view')?.offsetParent) {
+        // undoing the last payment leaves no undo: close is next, else the row itself
+        const pop = _history?.id === state.id ? document.querySelector('.sub-hist-pop') : null;
+        (pop?.querySelector('[data-act="undo-last"], [data-history-retry]') || pop?.querySelector('[data-history-close]') || _rowFocus(state.id))?.focus();
+      }
     }
   });
   setBusy();

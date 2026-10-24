@@ -232,7 +232,11 @@ test('shortcut capture saves a deliberate key, escape keeps it, backspace clears
   assert.equal((await keydown(field, 'k', { ctrlKey: true })).prevented, true);
   assert.equal(field.value, 'Ctrl+K'); assert.equal(h.shortcutWrites.at(-1).search, 'Ctrl+K');
   await keydown(field, 'Escape'); assert.equal(field.value, 'Ctrl+K');
+  // escape used to clear it, so it says which key does now
+  assert.match(h.toasts.at(-1).message, /backspace clears/);
+  // cmd+key is always refused as a system shortcut, so the hint doesn't offer it
   await keydown(field, 'j'); assert.equal(field.value, 'Ctrl+K');
+  assert.equal(h.toasts.at(-1).message, 'add ctrl or alt to the key');
   await keydown(field, 'Backspace'); assert.equal(field.value, ''); assert.equal(h.shortcutWrites.at(-1).search, '');
 });
 

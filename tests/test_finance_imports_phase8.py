@@ -130,6 +130,22 @@ class FinanceImportsPhase8Tests(ApiTest):
             )
         self.assertEqual(result, {"ok": True})
 
+    def test_a_preview_says_when_it_was_made(self):
+        from datetime import datetime
+
+        preview = self._preview(
+            "交易日期,交易摘要,支出金额,收入金额,交易币种,交易流水号\n"
+            "2026-07-04,午餐,38.60,,CNY,cmb-when\n",
+            profile="cmb-csv",
+        )
+        made = datetime.fromisoformat(preview["created_at"])
+        self.assertIsNotNone(made.tzinfo)
+        listed = self.client.get("/api/finance/imports").json()
+        rows = (
+            listed if isinstance(listed, list) else listed.get("imports", listed.get("items", []))
+        )
+        self.assertTrue(any(item.get("created_at") for item in rows), listed)
+
     def test_every_money_changing_import_action_requires_a_recent_owner_session(self):
         from core import auth
 

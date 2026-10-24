@@ -388,7 +388,7 @@ with sync_playwright() as pw:
                 ).to_contain_text("−CAD\u00a010.00")
                 page.locator('[data-money-task="accounts"]').press("Enter")
                 expect(page.locator(f'.money-acct[data-id="{aid}"] .ma-bal')).to_have_text(
-                    "USD\u00a0-10.00"
+                    "−USD\u00a010.00"
                 )
                 page.locator(f'[data-edit-txn="{usd["id"]}"]').press("Enter")
                 page.locator('.txn-edit [data-f="payee"]').fill("owned edited USD expense")
@@ -478,7 +478,7 @@ with sync_playwright() as pw:
                 overview = page.locator('#finance-tabs [data-group-section="overview"]')
                 if overview.get_attribute("aria-selected") != "true":
                     overview.press("Enter")
-                expect(page.locator("#finance-view")).to_contain_text("USD\u00a0-10.00")
+                expect(page.locator("#finance-view")).to_contain_text("−USD\u00a010.00")
                 expect(page.locator("#finance-view")).to_contain_text("CAD\u00a090.00")
                 expect(page.locator("#finance-view")).to_contain_text("currency not set\u00a093.00")
                 capture("overview")

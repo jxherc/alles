@@ -350,8 +350,13 @@ function _initSettings() {
       if (e.key === 'Tab') return;
       e.preventDefault();
       e.stopPropagation();
-      // escape leaves the field as it was; backspace or delete clears the shortcut on purpose
-      if (e.key === 'Escape') { inp.blur(); return; }
+      // escape leaves the field as it was; backspace or delete clears the shortcut on purpose.
+      // escape used to clear it, so say which key does now
+      if (e.key === 'Escape') {
+        if (inp.value) toast('kept it · backspace clears a shortcut', '');
+        inp.blur();
+        return;
+      }
       if ((e.key === 'Backspace' || e.key === 'Delete') && !e.ctrlKey && !e.altKey && !e.metaKey) {
         inp.value = '';
         saveShortcuts({ [inp.dataset.shortcut]: '' });
@@ -362,7 +367,7 @@ function _initSettings() {
       const combo = eventToShortcut(e);
       if (!combo) return;
       // a bare letter would fire while typing anywhere; function keys can stand alone
-      if (!e.ctrlKey && !e.altKey && !e.metaKey && !/^F\d{1,2}$/.test(e.key)) { toast('add ctrl, alt or cmd to the key', 'error'); return; }
+      if (!e.ctrlKey && !e.altKey && !e.metaKey && !/^F\d{1,2}$/.test(e.key)) { toast('add ctrl or alt to the key', 'error'); return; }
       if (isReservedShortcut(combo)) { toast(`${combo} is a system/browser shortcut: pick another`, 'error'); return; }
       const taken = Object.entries(loadShortcuts()).find(([action, value]) => action !== inp.dataset.shortcut && value && value.toLowerCase() === combo.toLowerCase());
       if (taken) { toast(`${combo} is already used for ${taken[0].replace(/_/g, ' ')}`, 'error'); return; }
@@ -762,6 +767,8 @@ function loadShortcutSettings() {
   document.querySelectorAll('.shortcut-input').forEach(inp => {
     inp.value = shortcuts[inp.dataset.shortcut] || '';
     inp.placeholder = 'press keys';
+    // a placeholder only shows on an empty field and this doesn't fit in it anyway
+    inp.title = 'press keys · backspace clears';
     inp.readOnly = true;   // it's a key-capture field, not free text
   });
 }

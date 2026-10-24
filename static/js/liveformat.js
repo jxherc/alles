@@ -111,8 +111,10 @@ export function formatDecimal(value, typing = false) {
   const commas = (text.match(/,/g) || []).length;
   if (text.includes('.') || commas > 1) text = text.replace(/,/g, '');
   else if (commas === 1 && !typing) {
-    // three digits after it is a thousands comma (1,650), one or two is a decimal one (12,50)
-    text = /,\d{3}$/.test(text) ? text.replace(',', '') : text.replace(',', '.');
+    // three digits after it is a thousands comma (1,650), one or two is a decimal one (12,50).
+    // a thousands group never starts with 0, so 0,125 is a decimal
+    const thousands = /,\d{3}$/.test(text) && /^[1-9]/.test(text.replace(/[^\d,]/g, ''));
+    text = thousands ? text.replace(',', '') : text.replace(',', '.');
   }
   text = text.replace(/[^\d.,]/g, '');
   const dot = text.indexOf('.');
@@ -132,18 +134,43 @@ export function formatDate(value, deleting = false) {
 // a birthday can be typed as words: "march 3", "3 mar", "march 3 1990". it ends as --03-03 (no
 // year) or 1990-03-03, the forms contacts reads. digits still format like any date
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+// while typing: words stay as typed, and so does a day with its space ("3 ") since the month
+// is on its way. a year-less --03-03 keeps its leading dashes. leaving the field runs this and
+// then finishBirthday, so both have to leave --03-03 as it is. a stored month-day (03-03, the
+// form contacts also accepts) stays too: run through the date dashes it became 0303-. so does
+// a month-day on its way in: a lone "-" (the start of --) or "03-" while typing
+const MONTH_DAY = /^(?:--)?(\d{1,2})-(\d{1,2})$/;
+const MONTH_DAY_TYPING = /^-$|^\d{1,2}-$/;
+export function formatBirthday(value, deleting = false) {
+  const text = String(value ?? '');
+  if (/[a-z]/i.test(text) || /^\d{1,2} $/.test(text) || MONTH_DAY.test(text)
+    || (!deleting && MONTH_DAY_TYPING.test(text))) return text;
+  if (!text.startsWith('--')) return formatDate(text, deleting);
+  const digits = text.replace(/\D/g, '').slice(0, 4);
+  if (digits.length > 2 || (digits.length === 2 && !deleting)) return `--${digits.slice(0, 2)}-${digits.slice(2)}`;
+  return `--${digits}`;
+}
+
 export function finishBirthday(value) {
   const text = String(value ?? '').trim().toLowerCase().replace(/,/g, ' ').replace(/\s+/g, ' ');
+  const pad = n => String(n).padStart(2, '0');
+  // four digits typed as 0303 come out of the date dashes as 0303-: a month and a day, if they
+  // can be one (1990- can't, so a typed year stays a year)
+  const monthDay = MONTH_DAY.exec(text) || /^(\d{2})(\d{2})-?$/.exec(text);
+  const [mm, dd] = monthDay ? [Number(monthDay[1]), Number(monthDay[2])] : [0, 0];
+  if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) return `--${pad(mm)}-${pad(dd)}`;
+  if (MONTH_DAY.test(text)) return text;
   if (!/[a-z]/.test(text)) return formatDate(text);
   let name = '', day = 0, year = '';
   const monthFirst = /^([a-z]+)\.? (\d{1,2})(?:st|nd|rd|th)?(?: (\d{4}))?$/.exec(text);
-  const dayFirst = /^(\d{1,2})(?:st|nd|rd|th)? ([a-z]+)\.?(?: (\d{4}))?$/.exec(text);
+  // the space is optional: "3march" still reads as a day and a month
+  const dayFirst = /^(\d{1,2})(?:st|nd|rd|th)? ?([a-z]+)\.?(?: (\d{4}))?$/.exec(text);
   if (monthFirst) [, name, day, year] = monthFirst;
   else if (dayFirst) [, day, name, year] = dayFirst;
   const month = MONTHS.indexOf(name.slice(0, 3)) + 1;
   day = Number(day);
   if (!month || day < 1 || day > 31) return String(value ?? '').trim();
-  const pad = n => String(n).padStart(2, '0');
   return year ? `${year}-${pad(month)}-${pad(day)}` : `--${pad(month)}-${pad(day)}`;
 }
 
@@ -177,7 +204,7 @@ const KINDS = {
   card: { keep: DIGIT, format: value => formatCard(value) },
   expiry: { keep: DIGIT, format: (value, event) => formatExpiry(value, deleting(event)) },
   date: { keep: DIGIT, format: (value, event) => formatDate(value, deleting(event)) },
-  birthday: { keep: /[\da-z]/i, format: (value, event) => (/[a-z]/i.test(value) ? value : formatDate(value, deleting(event))), finish: finishBirthday },
+  birthday: { keep: /[\da-z]/i, format: (value, event) => formatBirthday(value, deleting(event)), finish: finishBirthday },
   time: { keep: DIGIT, format: (value, event) => formatTime(value, deleting(event)) },
   code: { keep: DIGIT, format: value => String(value).replace(/\D/g, '').slice(0, 6) },
   digits: { keep: DIGIT, format: value => String(value).replace(/\D/g, '') },
@@ -271,6 +298,18 @@ function reformat(el, kind, event) {
   el._liveLast = next;
 }
 
+// run a field's finish step now, so whatever reads it next gets the settled value.
+// true when it changed the value
+function settle(el) {
+  const spec = KINDS[kindOf(el)];
+  if (!spec?.finish) return false;
+  const done = spec.finish(spec.format(el.value));
+  if (done === el.value) return false;
+  el.value = done;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}
+
 let wired = false;
 /** format shaped fields live, app-wide. safe to call more than once. */
 export function initLiveFormat(root = document) {
@@ -284,6 +323,7 @@ export function initLiveFormat(root = document) {
     if (kind === 'phone' && !el.getAttribute('autocomplete')) el.setAttribute('autocomplete', 'tel');
     if (['card', 'expiry', 'date', 'time', 'code'].includes(kind) && !el.getAttribute('inputmode')) el.setAttribute('inputmode', 'numeric');
     el._liveLast = el.value;
+    el._liveChange = null;
   });
   root.addEventListener('input', event => {
     if (event.isComposing) return;
@@ -295,10 +335,32 @@ export function initLiveFormat(root = document) {
   root.addEventListener('keydown', event => {
     if (event.key !== 'Enter' || event.isComposing) return;
     const el = event.target;
-    const spec = KINDS[kindOf(el)];
-    if (!spec?.finish) return;
-    const done = spec.finish(spec.format(el.value));
-    if (done !== el.value) { el.value = done; el.dispatchEvent(new Event('input', { bubbles: true })); }
+    if (!settle(el)) return;
+    // webkit (safari, ipad) takes a value set from script as already committed, so neither this
+    // enter nor the blur after it fires change, and fields that save on change never save.
+    // chromium still fires its own in this same task, so only stand in when none came
+    let heard = false;
+    const hear = change => { if (change.target === el) heard = true; };
+    root.addEventListener('change', hear, true);
+    setTimeout(() => {
+      root.removeEventListener('change', hear, true);
+      if (heard || !el.isConnected) return;
+      el._liveChange = el.value;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }, 0);
+  }, true);
+  // same for change: the browser fires it before focusout, and fields that save on change
+  // (envelope amounts) would get 42,50 instead of 42.50
+  root.addEventListener('change', event => {
+    const el = event.target;
+    // a field whose own enter handler cancels the key gets the stand-in above, and chromium
+    // still fires its real change on blur. same value means it's the same commit: drop it
+    if (event.isTrusted && el._liveChange != null) {
+      const same = el._liveChange === el.value;
+      el._liveChange = null;
+      if (same) { event.stopImmediatePropagation(); return; }
+    }
+    settle(el);
   }, true);
   // pasted or filled-in values get tidied when you leave the field
   root.addEventListener('focusout', event => {

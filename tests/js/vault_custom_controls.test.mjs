@@ -116,7 +116,7 @@ test('recent-owner retries are limited to bodyless browser-access requests', () 
 });
 
 test('Vault dialogs use the shared focus boundary and return to their invoking control', () => {
-  assert.match(vault, /import \{ createFocusBoundary \} from '\.\/kokuen\.js\?v=1'/);
+  assert.match(vault, /import \{ createFocusBoundary \} from '\.\/kokuen\.js\?v=2'/);
   assert.match(vault, /function _activateManagedModal/);
   assert.match(vault, /function _activateTemporaryModal/);
   assert.match(vault, /_modalFocusBoundary\?\.deactivate\(\)/);
@@ -139,4 +139,42 @@ test('card verification values and private keys are masked until explicitly reve
   assert.match(vault, /private_key:\s+\{[^\n]+kind: 'secretarea'/);
   assert.match(vault, /def\.kind === 'secretarea'/);
   assert.match(vault, /classList\.toggle\('is-revealed', show\)/);
+});
+
+test('closing the entry form gives focus back to its opener, delete moves to the next entry', () => {
+  const helpers = vault.slice(vault.indexOf('function _settleFocus'), vault.indexOf('function _closeModal'));
+  const button = (id, visible = true) => ({ id, isConnected: true, getClientRects: () => (visible ? [1] : []), focus() { ctx.document.activeElement = this; } });
+  const newBtn = button('vault-new-btn');
+  const rows = { a: button('a'), b: button('b'), c: button('c') };
+  const ctx = {
+    CSS: { escape: s => s },
+    _entries: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+    document: { body: { isConnected: true, getClientRects: () => [1] } },
+    $: id => (id === 'vault-new-btn' ? newBtn : {
+      querySelector: sel => (sel === '[data-vault-open]' ? rows.a : rows[sel.match(/"(.+)"/)?.[1]] || null),
+    }),
+  };
+  vm.runInNewContext(`${helpers}\nthis.api = { _settleFocus, _entryButton, _entryAfter };`, ctx);
+  const { _settleFocus, _entryButton, _entryAfter } = ctx.api;
+
+  // + new kept focus through create: it stays there
+  ctx.document.activeElement = newBtn;
+  _settleFocus(newBtn);
+  assert.equal(ctx.document.activeElement, newBtn);
+  // an edited row was rebuilt under focus: its new button takes it
+  ctx.document.activeElement = ctx.document.body;
+  _settleFocus(_entryButton('b'));
+  assert.equal(ctx.document.activeElement, rows.b);
+  // a click elsewhere while saving keeps its focus
+  const other = button('other');
+  ctx.document.activeElement = other;
+  _settleFocus(_entryButton('c'));
+  assert.equal(ctx.document.activeElement, other);
+  assert.equal(_entryAfter('b'), 'c');
+  assert.equal(_entryAfter('c'), 'b');
+
+  const save = vault.slice(vault.indexOf('async function _saveForm'), vault.indexOf('async function _delFromForm'));
+  assert.match(save, /toast\('passkey created', 'success'\);\n\s+_closeModal\(\);\n\s+await _loadEntries\(\);\n\s+_settleFocus\(\$\('vault-new-btn'\)\);/);
+  assert.match(save, /_settleFocus\(editing \? _entryButton\(id\) : \$\('vault-new-btn'\)\);/);
+  assert.match(vault, /const next = _entryAfter\(id\);\n\s+_closeModal\(\); await _loadEntries\(\);\n\s+_settleFocus\(_entryButton\(next\)\);/);
 });

@@ -11,10 +11,14 @@ const source = readFileSync(new URL('../../static/js/money.js', import.meta.url)
 function harness(values = {}, { canonical = false, targetEditor = null, apiHandler = null, originalEditor = {} } = {}) {
   const elements = new Map();
   const requests = [], notices = [];
+  // like a page after a tap in safari: nothing focused but <body>
+  const document = { body: { id: 'body' }, getElementById: id => get(id), querySelectorAll: () => [] };
+  document.activeElement = document.body;
   const get = id => {
     if (!elements.has(id)) elements.set(id, {
-      value: values[id] ?? '', dataset: { value: values[id] ?? '' }, textContent: '',
+      id, value: values[id] ?? '', dataset: { value: values[id] ?? '' }, textContent: '',
       querySelector: () => null, querySelectorAll: () => [],
+      focus() { document.activeElement = this; },
     });
     return elements.get(id);
   };
@@ -24,7 +28,7 @@ function harness(values = {}, { canonical = false, targetEditor = null, apiHandl
     : null;
   const context = vm.createContext({
     calendarDateKey,
-    document: { getElementById: get, querySelectorAll: () => [] }, location: { search: '' }, URLSearchParams,
+    document, CSS: { escape: String }, location: { search: '' }, URLSearchParams,
     crypto: webcrypto, TextEncoder,
     fetch: async () => {},
     sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
@@ -42,7 +46,7 @@ function harness(values = {}, { canonical = false, targetEditor = null, apiHandl
       applySearch, saveSplits, readSplits: _readSplitRows, decimal: _decimal };
     globalThis.subject.setTransactions = rows => { _txns = rows; };
   `, context);
-  return { ...context.subject, requests, notices, get };
+  return { ...context.subject, requests, notices, get, document };
 }
 
 test('canonical assignment sends stable category identity and the observed amount', async () => {
@@ -111,6 +115,14 @@ test('a retained editor outside the loaded list preserves its unchanged amount a
   assert.equal('amount' in h.requests[0].body, false);
   assert.equal('account_id' in h.requests[0].body, false);
   assert.deepEqual(h.notices, []);
+});
+
+test('a tapped save (safari leaves focus on body) still puts focus back on the list', async () => {
+  const h = harness(valid, { originalEditor: { originalAccount: 'a', originalAmount: '-56.78' } });
+  await h.saveTxn('t');
+  assert.deepEqual(h.notices, []);
+  // the edited row isn't in this stand-in list, so the search box is next
+  assert.equal(h.document.activeElement.id, 'txn-search');
 });
 
 test('a retained editor outside the loaded list still sends an explicitly changed amount', async () => {

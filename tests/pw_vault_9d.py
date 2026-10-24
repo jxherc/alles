@@ -59,7 +59,7 @@ def main():
         # ---- passkey type present in the new-item form ----
         pg.eval_on_selector("#vault-new-btn", "el => el.click()")
         pg.wait_for_selector("#vf-type", timeout=6000)
-        r["passkey_type_present"] = "Passkey" in (
+        r["passkey_type_present"] = "passkey|passkey" in (
             pg.get_attribute("#vf-type", "data-options") or ""
         )
 
@@ -78,7 +78,8 @@ def main():
         pg.wait_for_timeout(300)
         list_txt = pg.text_content("#vault-entry-list") or ""
         r["create_passkey_adds_entry"] = "github.com" in list_txt
-        r["passkey_listed"] = "Passkey" in list_txt  # the type label shows on the row
+        # the type label shows on the row
+        r["passkey_listed"] = "passkey" in (pg.text_content(".vault-entry .vault-entry-cat") or "")
         pg.screenshot(path=str(EVID / "passkey-list.png"))
 
         # ---- 2FA toggle in manage modal + retired autofill notice ----

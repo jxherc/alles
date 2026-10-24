@@ -291,6 +291,8 @@ def _batch_payload(db: DbSession, batch: FinanceImportBatch) -> dict:
             state.base_currency_code if state and state.mode == "actual" else ""
         ),
         "status": batch.status,
+        # stored as naive utc; the receipts list labels repeat previews of a file by time
+        "created_at": batch.created_at.replace(tzinfo=UTC).isoformat() if batch.created_at else "",
         "counts": _counts(rows),
         "receipt": {
             **json.loads(batch.receipt_json or "{}"),

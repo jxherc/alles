@@ -66,3 +66,13 @@ test('loadSubs starts panel requests together', async () => {
   releaseMain();
   await loading;
 });
+
+test('history keeps loading after an undo until the refreshed list lands', async () => {
+  const { readFileSync } = await import('node:fs');
+  const subs = readFileSync(new URL('../../static/js/subs.js', import.meta.url), 'utf8');
+  const undo = subs.slice(subs.indexOf(`pop.querySelector('[data-act="undo-last"]')?.addEventListener`), subs.indexOf('function esc('));
+  // the empty "no payments yet" used to show mid-refresh while every button was still disabled
+  assert.match(undo, /state\.pays = state\.pays\.filter\(p => p\.id !== payment\.id\); state\.error = ''; state\.loading = true;\r?\n\s+toast\('payment undone', 'success'\); await loadSubs\(\);\r?\n\s+if \(_history === state\) await showHistory\(state\.id\);/);
+  assert.match(subs, /payment = !state\.loading && state\.pays\.find\(p => p\.can_undo\)/);
+  assert.match(subs, /\(!state\.loading && !state\.error && !state\.pays\.length \? '<div class="sub-hist-empty">no payments yet<\/div>' : ''\)/);
+});

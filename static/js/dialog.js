@@ -10,8 +10,16 @@ function _overlay() {
 
 let dialogSequence = 0;
 
+// safari doesn't focus a clicked or tapped button, so a dialog opened from one saw <body> as the
+// focus to give back. remember the last control pressed and return there instead
+let _pressed = null;
+globalThis.document?.addEventListener?.('pointerdown', event => {
+  _pressed = event.target?.closest?.('button, a[href], input, textarea, [tabindex]') || null;
+}, true);
+
 function _wireDialog(overlay, resolve, valueFromConfirm, canSubmit = () => true) {
-  const previousFocus = document.activeElement;
+  const active = document.activeElement;
+  const previousFocus = active && active !== document.body ? active : (_pressed?.isConnected ? _pressed : active);
   const card = overlay.querySelector('[role="dialog"], [role="alertdialog"]');
   let busy = false, closed = false;
   const focusable = () => [...overlay.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])')]
@@ -31,17 +39,15 @@ function _wireDialog(overlay, resolve, valueFromConfirm, canSubmit = () => true)
       return;
     }
     if (event.key !== 'Tab') return;
+    // move focus ourselves every time: safari's plain tab skips buttons, so from "cancel" it left
+    // the dialog for the page behind it (and escape stopped working there)
+    event.preventDefault();
     const items = focusable();
-    if (!items.length) { event.preventDefault(); return; }
-    const first = items[0];
-    const last = items[items.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+    if (!items.length) return;
+    const at = items.indexOf(document.activeElement);
+    const step = event.shiftKey ? -1 : 1;
+    const next = at < 0 ? (event.shiftKey ? items.length - 1 : 0) : (at + step + items.length) % items.length;
+    items[next].focus();
   });
   overlay.addEventListener('pointerdown', event => {
     if (event.target === overlay && busy) event.preventDefault();

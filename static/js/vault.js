@@ -2,7 +2,7 @@ import { toast } from './util.js';
 import { confirm } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
 import { formatDateTime, formatNumber } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=1';
+import { createFocusBoundary } from './kokuen.js?v=2';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -77,15 +77,15 @@ const FIELD_DEFS = {
 
 // the item types. selecting one decides which fields the form shows.
 const TYPES = [
-  { key: 'login',    label: 'Login',            fields: ['username', 'password', 'totp', 'url', 'notes'] },
+  { key: 'login',    label: 'login',            fields: ['username', 'password', 'totp', 'url', 'notes'] },
   { key: 'apikey',   label: 'API key',          fields: ['apikey', 'endpoint', 'totp', 'notes'] },
-  { key: 'card',     label: 'Credit card',      fields: ['cardholder', 'number', 'expiry', 'cvv', 'address', 'notes'] },
-  { key: 'note',     label: 'Secure note',      fields: ['notes'] },
-  { key: 'identity', label: 'Identity',         fields: ['fullname', 'email', 'phone', 'home_address', 'notes'] },
-  { key: 'bank',     label: 'Bank account',     fields: ['account_holder', 'bank_name', 'account_number', 'routing', 'notes'] },
+  { key: 'card',     label: 'credit card',      fields: ['cardholder', 'number', 'expiry', 'cvv', 'address', 'notes'] },
+  { key: 'note',     label: 'secure note',      fields: ['notes'] },
+  { key: 'identity', label: 'identity',         fields: ['fullname', 'email', 'phone', 'home_address', 'notes'] },
+  { key: 'bank',     label: 'bank account',     fields: ['account_holder', 'bank_name', 'account_number', 'routing', 'notes'] },
   { key: 'ssh',      label: 'SSH key',          fields: ['private_key', 'public_key', 'passphrase', 'notes'] },
-  { key: 'license',  label: 'Software license', fields: ['license_key', 'registered_to', 'notes'] },
-  { key: 'passkey',  label: 'Passkey',          fields: ['rp_id', 'username', 'notes'] },
+  { key: 'license',  label: 'software license', fields: ['license_key', 'registered_to', 'notes'] },
+  { key: 'passkey',  label: 'passkey',          fields: ['rp_id', 'username', 'notes'] },
 ];
 const TYPE_BY_KEY = Object.fromEntries(TYPES.map(t => [t.key, t]));
 const PRIMARY = {
@@ -302,8 +302,9 @@ export function initVault() {
   $('vault-bio-unlock-btn')?.addEventListener('click', _bioUnlock);
   $('vault-pw-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
   $('vault-pw-confirm')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
-  // a message about the last try clears once either field changes, so it never describes old input
-  for (const id of ['vault-pw-input', 'vault-pw-confirm']) $(id)?.addEventListener('input', () => { if (!_unlocking) _unlockError(''); });
+  // a message about the last try clears once either field changes, so it never describes old input.
+  // a failed setup check isn't about the input, so it stays until retry
+  for (const id of ['vault-pw-input', 'vault-pw-confirm']) $(id)?.addEventListener('input', () => { if (!_unlocking && _setupState) _unlockError(''); });
   // 8a — unified icons on the toolbar (settings is now rightmost)
   const dec = (id, name, label) => { const b = $(id); if (b) b.innerHTML = `${_si(name)} ${label}`; };
   dec('vault-manage-btn', 'gear', 'settings');
@@ -1015,6 +1016,7 @@ async function _bioUnlock() {
     const j = await r.json();
     _token = j.token; _vaultId = j.vault_id; _unlocked = true;
     await loadVaultView();
+    _settleFocus(_entryButton());
   } catch (e) { toast('biometric unlock cancelled', ''); }
 }
 
@@ -1353,6 +1355,22 @@ async function _openSavedEntry(ov) {
   }
 }
 
+// the list or the lock screen was rebuilt under the focused control. step in only when focus fell
+// to <body> or onto something now hidden, so focus a closed form gave back to its opener (or a click
+// elsewhere in the meantime) stays put
+function _settleFocus(target) {
+  const active = document.activeElement;
+  if (active && active !== document.body && active.isConnected && active.getClientRects().length) return;
+  if (target?.getClientRects().length) target.focus();
+}
+const _entryButton = id => (id && $('vault-entry-list')?.querySelector(`[data-vault-open="${CSS.escape(id)}"]`))
+  || $('vault-entry-list')?.querySelector('[data-vault-open]') || $('vault-new-btn');
+// the entry below the deleted one, else the one above
+function _entryAfter(id) {
+  const at = _entries.findIndex(entry => entry.id === id);
+  return at < 0 ? '' : (_entries[at + 1] || _entries[at - 1])?.id || '';
+}
+
 function _closeModal() {
   _revealGeneration++;
   if (_totpTimer) { clearInterval(_totpTimer); _totpTimer = null; }
@@ -1557,6 +1575,7 @@ async function _saveForm(editing) {
     toast('passkey created', 'success');
     _closeModal();
     await _loadEntries();
+    _settleFocus($('vault-new-btn'));
     return;
   }
 
@@ -1625,6 +1644,8 @@ async function _saveForm(editing) {
     toast(editing ? 'saved' : 'entry added', 'success');
     _closeModal();
     await _loadEntries();
+    // focus goes back to what opened the form: + new stays put, an edited row was rebuilt
+    _settleFocus(editing ? _entryButton(id) : $('vault-new-btn'));
   } catch (error) {
     if (_sameForm(ov, token)) _formError(ov, `${error.message || 'could not save; try again'}. your input is kept.`);
     else await refreshDismissedForm();
@@ -1646,7 +1667,9 @@ async function _delFromForm(id) {
     const response = await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
     if (!response.ok && response.status !== 404) throw Object.assign(new Error('delete failed'), { status: response.status });
     if (!current()) return;
+    const next = _entryAfter(id);
     _closeModal(); await _loadEntries();
+    _settleFocus(_entryButton(next));
   }, 'could not confirm deletion. your input is kept. retry safely or close and check the list.');
 }
 
@@ -1685,6 +1708,7 @@ async function _doUnlock() {
     $('vault-pw-input').value = '';
     $('vault-pw-confirm').value = '';
     await loadVaultView();
+    _settleFocus(_entryButton());
   } catch {
     if (generation !== _unlockGeneration) return;
     _unlockError('unlock failed. try again.');
@@ -1714,6 +1738,7 @@ async function _do2fa(pw, j) {
     _token = d.token; _vaultId = d.vault_id || vid; _unlocked = true;
     if ($('vault-pw-input')) $('vault-pw-input').value = '';
     await loadVaultView();
+    _settleFocus(_entryButton());
     return;
   }
   if (methods.includes('passkey')) { await _do2faPasskey(pw, j, vid); return; }
@@ -1749,6 +1774,7 @@ async function _do2faPasskey(pw, j, vid) {
     _token = d.token; _vaultId = d.vault_id || vid; _unlocked = true;
     if ($('vault-pw-input')) $('vault-pw-input').value = '';
     await loadVaultView();
+    _settleFocus(_entryButton());
   } catch (e) { toast('security key unlock cancelled', ''); }
 }
 
@@ -1800,6 +1826,7 @@ async function _doLock() {
   $('vault-watchtower-btn')?.classList.remove('active');
   _closeModal();
   await loadVaultView();
+  _settleFocus($('vault-pw-input'));
   await locking;
 }
 
@@ -1936,7 +1963,10 @@ window._vaultDel = async id => {
   try {
     const response = await _vfetch(`/api/vault/${id}`, { method: 'DELETE' });
     if (!response.ok && response.status !== 404) throw Object.assign(new Error('delete failed'), { status: response.status });
-    if (_sameVault(token, vaultId)) await _loadEntries();
+    if (!_sameVault(token, vaultId)) return;
+    const next = _entryAfter(id);
+    await _loadEntries();
+    _settleFocus(_entryButton(next));
   } catch (error) {
     if (!_sameVault(token, vaultId)) return;
     if (error.status === 403) await _doLock();

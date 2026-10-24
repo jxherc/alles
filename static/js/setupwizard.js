@@ -1,9 +1,9 @@
 // server-owned first-run setup: resumable across browsers and safe to dismiss.
 import { toast } from './util.js';
 import { requestWithRecentOwner } from './recent_owner.js';
-import { addEndpoint } from './models.js?v=212';
+import { addEndpoint } from './models.js?v=213';
 import { resolvedTimeZone } from './i18n.js';
-import { wireChoiceGroup } from './kokuen.js?v=1';
+import { wireChoiceGroup } from './kokuen.js?v=2';
 import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';
 const STEPS = ['basics', 'access', 'files', 'ai_search', 'protection'];
 const TITLES = { basics: 'basics', access: 'access', files: 'files', ai_search: 'AI + search', protection: 'protection' };
@@ -152,7 +152,21 @@ function _close({ restoreFocus = true } = {}) {
   if (_background) { _background.node.inert = _background.inert; _background = null; }
   const target = _returnFocus;
   _returnFocus = null;
-  if (restoreFocus && target?.isConnected) target.focus();
+  if (!restoreFocus) return;
+  if (target?.isConnected && target !== document.body) target.focus();
+  else _pageFocus();
+}
+
+// a wizard that opened on its own saved <body>: start on home's capture box. on a touch screen
+// that would pop the keyboard open, so there the page heading takes focus instead
+function _pageFocus() {
+  const capture = $('today-capture-input');
+  const touch = globalThis.matchMedia?.('(pointer: coarse)')?.matches;
+  if (!touch && capture?.getClientRects().length) { capture.focus(); return; }
+  const heading = [...document.querySelectorAll('.app h1, .app h2')].find(node => node.getClientRects().length);
+  if (!heading) return;
+  if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
+  heading.focus({ preventScroll: true });
 }
 
 async function _dismiss() {
@@ -264,9 +278,9 @@ function _renderBasics(body) {
     : 'region follows this browser automatically.';
   body.innerHTML = `
     <div class="setup-title" id="setup-title">make alles yours</div>
-    <div class="setup-sub"><span id="sw-region-status">${regionText}</span> Check your username and timezone. English is the reviewed interface language for now.</div>
+    <div class="setup-sub"><span id="sw-region-status">${regionText}</span> check your username and timezone. English is the reviewed interface language for now.</div>
     <label class="setup-field"><span>username</span><input class="settings-input setup-input" id="sw-name" autocomplete="username" aria-describedby="sw-name-help" value="${esc(_state.username)}"></label>
-    <p class="setup-note" id="sw-name-help">Synced across your apps. Set a separate greeting name for this browser in Settings → General.</p>
+    <p class="setup-note" id="sw-name-help">synced across your apps. set a separate greeting name for this browser in settings → general.</p>
     <label class="setup-field"><span>timezone</span><input class="settings-input setup-input" id="sw-timezone" placeholder="Asia/Taipei" value="${esc(_state.timezone || defaults.timezone)}"></label>
     ${_actions(false)}`;
   $('sw-name').focus();
@@ -310,7 +324,7 @@ function _renderAccess(body) {
   const selected = _state.access_profile || 'device';
   body.innerHTML = `
     <div class="setup-title" id="setup-title">choose where alles answers</div>
-    <div class="setup-sub">Device-only is the safe default. Network access takes effect after the server restarts.</div>
+    <div class="setup-sub">device-only is the safe default. network access takes effect after the server restarts.</div>
     ${_choiceGroup('sw-access', [
       { value: 'device', label: 'this device', note: 'localhost only' },
       { value: 'lan', label: 'home network', note: 'other devices on your LAN' },
@@ -380,10 +394,10 @@ function _renderFiles(body) {
   const keep = Boolean(_state.keep_vault_inside_alles);
   body.innerHTML = `
     <div class="setup-title" id="setup-title">put your files where you can see them</div>
-    <div class="setup-sub">The document folder holds Markdown files. Passwords stay in the Vault app. Existing folders are not moved; you can connect Obsidian after saving these locations.</div>
-    ${_switch('sw-keep-vault', 'keep documents and files inside Alles', keep, 'recommended: ~/Alles/Vault and ~/Alles/Files')}
+    <div class="setup-sub">the document folder holds Markdown files. passwords stay in the vault app. existing folders aren't moved; you can connect Obsidian after saving these locations.</div>
+    ${_switch('sw-keep-vault', 'keep documents and files inside alles', keep, 'recommended: ~/Alles/Vault and ~/Alles/Files')}
     <label class="setup-field"><span>document folder</span><input class="settings-input setup-input" id="sw-vault" value="${esc(_state.vault_preview)}"></label>
-    <label class="setup-field"><span>Files folder</span><input class="settings-input setup-input" id="sw-files" value="${esc(_state.files_preview)}"></label>
+    <label class="setup-field"><span>files folder</span><input class="settings-input setup-input" id="sw-files" value="${esc(_state.files_preview)}"></label>
     <div id="sw-obsidian"></div>
     ${_actions(true, _filesSaved ? 'continue' : 'save locations')}`;
   _bindSwitch('sw-keep-vault');
@@ -448,7 +462,7 @@ function _renderAiSearch(body) {
     ? _state.search_provider : 'duckduckgo';
   body.innerHTML = `
     <div class="setup-title" id="setup-title">connect the tools you want</div>
-    <div class="setup-sub">A model is optional. Search defaults to DuckDuckGo and needs no account.</div>
+    <div class="setup-sub">a model is optional. search defaults to DuckDuckGo and needs no account.</div>
     <div class="setup-section-label">AI model, optional</div>
     <div class="model-provider-list" id="sw-models" aria-label="model providers"></div>
     <div id="sw-model-fields"></div>
@@ -515,14 +529,14 @@ function _renderProtection(body) {
   const enabled = Boolean(_state.automatic_backup_enabled);
   body.innerHTML = `
     <div class="setup-title" id="setup-title">keep a way back</div>
-    <div class="setup-sub">Alles can make one encrypted local backup per day and keep the latest seven. Store the recovery key separately.</div>
+    <div class="setup-sub">alles can make one encrypted local backup per day and keep the latest seven. store the recovery key separately.</div>
     ${_switch('sw-auto-backup', 'automatic encrypted backups', enabled, 'daily, with seven-backup retention')}
     <div id="sw-backup-fields"></div>
     ${_actions()}`;
   const fields = on => {
     $('sw-backup-fields').innerHTML = on ? `
       <label class="setup-field"><span>backup folder</span><input class="settings-input setup-input" id="sw-backup-dir" value="${esc(_state.automatic_backup_dir)}"></label>
-      <p class="setup-note">This folder must be outside Alles data. Download the recovery key from Settings → Backup after setup.</p>` : '';
+      <p class="setup-note">this folder must be outside alles data. download the recovery key from settings → backup after setup.</p>` : '';
   };
   fields(enabled);
   _bindSwitch('sw-auto-backup', fields);
@@ -546,13 +560,13 @@ function _renderProtection(body) {
 function _renderDone(body) {
   body.innerHTML = `
     <div class="setup-title" id="setup-title">alles is ready</div>
-    <div class="setup-sub">Your choices are saved on the server. You can change them later in Settings.</div>
+    <div class="setup-sub">your choices are saved on the server. you can change them later in settings.</div>
     <div class="setup-summary">
       <span>access</span><strong>${esc(_state.access_profile || 'device')}</strong>
       <span>document folder</span><strong>${esc(_state.vault_preview || 'not connected')}</strong>
       <span>backup</span><strong>${_state.automatic_backup_enabled ? 'daily encrypted' : 'off'}</strong>
     </div>
-    <div class="setup-actions"><span></span><button class="btn primary" type="button" id="sw-start">open alles</button></div>`;
+    <div class="setup-actions"><button class="btn primary" type="button" id="sw-start" style="margin-left:auto">open alles</button></div>`;
   $('sw-start').addEventListener('click', _close);
   $('sw-start').focus();
 }

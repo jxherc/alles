@@ -144,7 +144,12 @@ test('Money summary can wrap its currency prefix while preserving one complete n
   assert.equal(strip(amount), h.fmt(12345678.9));
   assert.equal(strip(h.summaryAmount(-12345678.9, true)), '−CAD\u00a012,345,678.90');
   assert.equal(strip(h.summaryAmount(0, true)), '+CAD\u00a00.00');
-  assert.equal(strip(h.summaryAmount(-12.34)), 'CAD\u00a0-12.34');
+  // one sign style: a true minus before the code, never a hyphen after it
+  assert.equal(strip(h.summaryAmount(-12.34)), '−CAD\u00a012.34');
+  assert.equal(h.fmt(-980098.43, 'USD'), '−USD\u00a0980,098.43');
+  assert.equal(h.fmt(-0.001, 'USD'), 'USD\u00a00.00');
+  // with no currency the label isn't the amount, so the minus stays on the number
+  assert.equal(h.fmt(-93, 'XXX'), 'currency not set\u00a0−93.00');
 });
 
 test('native rows use historical currency and unknown evidence stays unknown', () => {

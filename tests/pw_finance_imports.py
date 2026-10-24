@@ -20,6 +20,11 @@ from pw_finance_helpers import show_money_sections
 from services.appearance import from_legacy
 
 
+def receipt_label(name, status):
+    # recent receipts read "file · status · time · rows"; match the file and status
+    return re.compile("^" + re.escape(f"{name} · {status}") + "( · |$)")
+
+
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
     require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -278,7 +283,7 @@ def run():
                 receipt = page.locator(".finance-import-receipt")
                 expect(receipt).to_contain_text(account["name"])
                 for text in [
-                    "USD -12.34",
+                    "−USD\u00a012.34",
                     "category: food",
                     "notes: weekly shop",
                     "tags: food,home",
@@ -359,7 +364,7 @@ def run():
                 expect(page.locator(f"#rc-out-{aid}")).to_contain_text("reconciled")
                 page.locator("#money-manage-toggle").click()
                 page.locator("#money-import").click()
-                page.get_by_role("button", name=name + " · applied", exact=True).click()
+                page.get_by_role("button", name=receipt_label(name, "applied")).click()
                 page.get_by_role("button", name="undo this import", exact=True).click()
                 page.get_by_role("alertdialog").get_by_role(
                     "button", name="confirm", exact=True
@@ -374,7 +379,7 @@ def run():
                 expect(row.locator(".tx-clear")).not_to_have_class(re.compile(r"\bon\b"))
                 page.locator("#money-manage-toggle").click()
                 page.locator("#money-import").click()
-                page.get_by_role("button", name=name + " · applied", exact=True).click()
+                page.get_by_role("button", name=receipt_label(name, "applied")).click()
                 undo_path = base + f"/api/finance/imports/{batch['id']}/undo"
                 page.route(
                     undo_path,
@@ -400,7 +405,7 @@ def run():
                 assert any(row["id"] == manual["id"] for row in transactions())
                 assert not any(row["account_id"] == accounts[0]["id"] for row in transactions())
                 page.reload(wait_until="networkidle")
-                page.get_by_role("button", name=name + " · undone", exact=True).click()
+                page.get_by_role("button", name=receipt_label(name, "undone")).click()
                 expect(receipt).to_contain_text("undone")
                 capture("undone")
                 passed(record)

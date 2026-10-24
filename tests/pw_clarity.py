@@ -68,7 +68,7 @@ def run():
                     expect(field).to_have_accessible_name("username")
                     expect(field).to_have_attribute("autocomplete", "username")
                     expect(field).to_have_accessible_description(
-                        "Synced across your apps. Set a separate greeting name for this browser in Settings → General."
+                        "synced across your apps. set a separate greeting name for this browser in settings → general."
                     )
                     username = "owner & 研究 " + label
                     field.fill(username)

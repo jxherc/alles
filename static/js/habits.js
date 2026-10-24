@@ -387,13 +387,22 @@ function _wire(body) {
     await loadHabits();
   })));
 
+  // escape on the edit card is cancel. an open frequency menu keeps its escape to itself
+  body.querySelectorAll('.habit-card.editing[data-id]').forEach(card => card.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    event.preventDefault();
+    card.querySelector('[data-act="cancel"]')?.click();
+  }));
+
   body.querySelectorAll('.habit-card[data-id]').forEach(card => {
     const id = card.dataset.id;
     card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
       const act = btn.dataset.act;
       if (_saving) return;
-      if (act === 'edit') { if (!await closeAdd()) return; _editing = id; _draft = null; _render(); return; }
-      if (act === 'cancel') { _editing = null; _draft = null; _render(); return; }
+      // the card is rebuilt under the button: put focus where the next step is
+      const inCard = selector => $('habits-body')?.querySelector(`.habit-card[data-id="${CSS.escape(id)}"] ${selector}`);
+      if (act === 'edit') { if (!await closeAdd()) return; _editing = id; _draft = null; _render(); inCard('[data-f="name"]')?.focus(); return; }
+      if (act === 'cancel') { _editing = null; _draft = null; _render(); inCard('[data-act="edit"]')?.focus(); return; }
       if (act === 'del') {
         const h = _habits.find(x => x.id === id);
         if (!await dlgConfirm(`delete "${h?.name || 'this habit'}" and its history?`)) return;

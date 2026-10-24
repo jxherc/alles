@@ -293,7 +293,7 @@ function financeHarness(extraContext = {}) {
     ...extraContext,
   });
   vm.runInContext(specialistSource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') + `
-    globalThis.financeSubject = { render: _renderFinance, status: _renderActualStatus, receipt: _renderImportReceipt };
+    globalThis.financeSubject = { render: _renderFinance, status: _renderActualStatus, receipt: _renderImportReceipt, history: _receiptHistory };
   `, context);
   return { ...context.financeSubject, target: new Element('div'), focused: () => focused };
 }
@@ -337,7 +337,19 @@ test('Finance overview labels live canonical balances with base and keeps native
   })[path] }));
   const rows = h.target.querySelector('.finance-daily').querySelectorAll('.specialist-group-row');
   assert.equal(rows[0].children[1].textContent, 'CAD\u00a013.50');
-  assert.equal(rows[1].children[1].textContent, 'USD\u00a097.00 · currency not set\u00a0-7.00');
+  // one sign style: a true minus, kept on the number when there's no currency code
+  assert.equal(rows[1].children[1].textContent, 'USD\u00a097.00 · currency not set\u00a0−7.00');
+});
+
+test('Finance overview puts a true minus before the currency code', async () => {
+  const h = financeHarness();
+  await h.render(h.target, async path => ({ ok: true, json: async () => ({
+    '/api/money/accounts': [{ name: 'card', currency: 'USD', currency_code: 'USD', balance: -980098.43 }],
+    '/api/subscriptions?advance=false': { subscriptions: [] },
+    '/api/finance/actual': healthyFinance,
+  })[path] }));
+  const rows = h.target.querySelector('.finance-daily').querySelectorAll('.specialist-group-row');
+  assert.equal(rows[0].children[1].textContent, '−USD\u00a0980,098.43');
 });
 
 test('Finance keeps an unhealthy authoritative ledger warning open before daily work', async () => {
@@ -430,7 +442,7 @@ test('Plan sorts wall times and offset timestamps in one configured timezone', (
 });
 
 test('Plan loads expanded calendar occurrences for its eight-day window', () => {
-  assert.match(specialistSource, /_json\(request, '\/api\/calendar\/agenda\?days=8'\)/);
+  assert.match(specialistSource, /_json\(request, '\/api\/calendar\/agenda\?days=8', \{ headers: chosenTimeZone\(\) \? \{ 'x-alles-time-zone': chosenTimeZone\(\) \} : \{\} \}\)/);
   assert.match(specialistSource, /_asArray\(agendaPayload, 'days'\)\.flatMap\(day => _asArray\(day, 'events'\)/);
   assert.match(specialistSource, /event\?\.continued && day\?\.date \? \{ \.\.\.event, start_dt: day\.date \}/);
 });
@@ -672,4 +684,83 @@ test('Plan reads reminder times as the utc the server stores them in', () => {
   } finally {
     configureLocalization({});
   }
+});
+
+test('recent receipts keep one preview per file and account, labelled by time and size', () => {
+  const h = financeHarness({
+    formatDateTime: (value, options) => new Intl.DateTimeFormat('en-CA', { ...options, timeZone: 'UTC' }).format(value),
+  });
+  const receipt = (id, status, sha, account, rows, created_at) => ({ id, status, source_name: 'bank.csv', source_sha256: sha, account_id: account, counts: { rows }, created_at });
+  const opened = [];
+  const buttons = h.history([
+    receipt('newest', 'preview', 'aaa', 'chequing', 9, '2000-01-02T02:41:00'),
+    receipt('older', 'preview', 'aaa', 'chequing', 9, '2000-01-02T02:40:00'),
+    receipt('other-account', 'preview', 'aaa', 'savings', 9, '2000-01-02T02:39:00'),
+    receipt('applied', 'applied', 'aaa', 'chequing', 1, ''),
+  ], item => opened.push(item.id));
+  assert.deepEqual(buttons.map(button => button.textContent), [
+    'bank.csv · preview · jan 2, 2:41 a.m. · 9 rows',
+    'bank.csv · preview · jan 2, 2:39 a.m. · 9 rows',
+    'bank.csv · applied · 1 row',
+  ]);
+  buttons[0].events.click();
+  assert.deepEqual(opened, ['newest']);
+});
+
+test('a preview with rows to review says what to do where apply would be', () => {
+  const h = financeHarness();
+  const receipt = importReceipt('alles', 'preview');
+  receipt.rows.push({ id: 'row-3', row_number: 3, status: 'needs_review', conflict_reason: 'date is missing or ambiguous', parsed: {} });
+  receipt.counts.rows++; receipt.counts.conflicts = 1;
+  h.receipt(h.target, receipt, () => assert.fail('render must not send a request'), () => {});
+  assert.equal(h.target.querySelector('.finance-import-apply'), null);
+  assert.equal(h.target.querySelector('.finance-import-blocked').textContent, 'fix the 1 row that needs review, then preview again');
+  receipt.rows.push({ id: 'row-4', row_number: 4, status: 'needs_review', conflict_reason: 'date is missing or ambiguous', parsed: {} });
+  receipt.counts.rows++; receipt.counts.conflicts = 2;
+  h.receipt(h.target, receipt, () => assert.fail('render must not send a request'), () => {});
+  assert.equal(h.target.querySelector('.finance-import-blocked').textContent, 'fix the 2 rows that need review, then preview again');
+});
+
+test('applying an import leaves focus on the new receipt status, not the page', async () => {
+  const h = financeHarness({
+    confirmDialog: async () => true,
+    requestWithRecentOwner: (request, url, options) => request(url, options),
+  });
+  const receipt = importReceipt('alles', 'preview');
+  receipt.rows[0].status = 'pending'; receipt.counts.applied = 0; receipt.counts.pending = 2;
+  const applied = { ...receipt, status: 'applied', counts: { ...receipt.counts, pending: 0, applied: 2 }, rows: receipt.rows.map(row => ({ ...row, status: 'applied' })) };
+  const request = async () => ({ ok: true, json: async () => applied });
+  const refresh = next => { h.receipt(h.target, next, request, refresh); };
+  h.receipt(h.target, receipt, request, refresh);
+  await h.target.querySelector('.finance-import-apply').events.click();
+  const status = h.target.querySelector('.finance-import-message');
+  assert.equal(h.focused(), status);
+  assert.equal(status.textContent, 'import applied');
+  assert.equal(status.tabIndex, -1);
+});
+
+test('statement amounts use the same true minus as Money', () => {
+  const h = financeHarness();
+  const receipt = importReceipt('alles', 'preview');
+  receipt.rows[1].parsed = { date: '2026-04-05', payee: 'groceries', amount_text: '-12.34', currency_code: 'USD' };
+  h.receipt(h.target, receipt, () => {}, () => {});
+  const amounts = h.target.querySelectorAll('.finance-import-row-amount').map(node => node.textContent);
+  assert.deepEqual(amounts, ['', '−USD\u00a012.34']);
+});
+
+test('fixing a row in place leaves focus on the new receipt status, not the page', async () => {
+  const h = financeHarness({ requestWithRecentOwner: (request, url, options) => request(url, options) });
+  const receipt = importReceipt('alles', 'preview');
+  receipt.rows[1] = { id: 'row-2', row_number: 2, status: 'needs_review', conflict_reason: 'confirm account ending 1234', parsed: { account_suffix: '1234' } };
+  receipt.counts.pending = 0; receipt.counts.conflicts = 1;
+  const fixed = { ...receipt, counts: { ...receipt.counts, pending: 1, conflicts: 0 }, rows: [receipt.rows[0], { ...receipt.rows[1], status: 'pending' }] };
+  const request = async () => ({ ok: true, json: async () => fixed });
+  const refresh = next => { h.receipt(h.target, next, request, refresh); };
+  h.receipt(h.target, receipt, request, refresh);
+  assert.equal(h.target.querySelector('.finance-import-blocked').textContent, 'resolve the 1 row that needs review above, then apply');
+  await h.target.querySelector('.finance-import-confirm-account').events.click();
+  const status = h.target.querySelector('.finance-import-message');
+  assert.equal(h.focused(), status);
+  assert.equal(status.textContent, 'ending 1234 confirmed');
+  assert.ok(h.target.querySelector('.finance-import-apply'));
 });

@@ -5,11 +5,12 @@ import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from 
 import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=212';
 import { initDatePicker, calendarDateParts } from './datepick.js';
 import { calendarDateKey, formatCalendarDate, formatDate, formatNumber } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=1';
+import { createFocusBoundary } from './kokuen.js?v=2';
 import { bankRequest as _ownerFetch, openPlaidLink } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';
 import { tickNumbers } from './motion.js';
+import { formatDecimal } from './liveformat.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 // one hue per category for everything on screen: the chart's categories pick first so its bars
@@ -193,7 +194,14 @@ function _monthLabel(m) {
 function currencyPrefix(currency = _cur) {
   return currency === 'XXX' ? 'currency not set\u00a0' : currency + (/^[A-Z]{3}$/.test(currency) ? '\u00a0' : '');
 }
-const fmt = (n, currency = _cur) => `${currencyPrefix(currency)}${formatNumber(Math.round((n || 0) * 100) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// a true minus before the code (−USD 12.00), the same as signed(). with no currency the label
+// isn't part of the amount, so there the minus stays on the number
+const fmt = (n, currency = _cur) => {
+  const cents = Math.round((n || 0) * 100);
+  const number = formatNumber(Math.abs(cents) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sign = cents < 0 ? '−' : '';
+  return currency === 'XXX' ? `${currencyPrefix(currency)}${sign}${number}` : `${sign}${currencyPrefix(currency)}${number}`;
+};
 const signed = (n, currency = _cur) => (n >= 0 ? '+' : '−') + fmt(Math.abs(n), currency);
 
 function transactionCurrency(transaction) {
@@ -924,8 +932,8 @@ function summaryCards() {
 
 function summaryAmount(n, showSign = false, currency = _cur) {
   const prefix = currencyPrefix(currency);
-  const amount = fmt(showSign ? Math.abs(n) : n, currency).slice(prefix.length);
-  const sign = showSign ? (n >= 0 ? '+' : '−') : '';
+  const amount = fmt(Math.abs(n), currency).slice(prefix.length);
+  const sign = Math.round((n || 0) * 100) < 0 ? '−' : showSign ? '+' : '';
   // with no currency the figure leads and the safety label sits under it, so a sign stays on the number
   if (currency === 'XXX') return `<span class="ms-number">${esc(sign + amount)}</span><span class="ms-currency">${esc(prefix.trim())}</span>`;
   return `${esc(sign + prefix)}<wbr><span class="ms-number">${esc(amount)}</span>`;
@@ -1062,8 +1070,8 @@ function goalsCard() {
 function reportsCard() {
   if (!comparableTotals()) return currencyBoundary();
   return `<div class="report-form">
-      ${moneyField('start date', `<div class="date-input" id="rp-start" data-type="date" data-value="" data-ph="start" style="width:128px"></div>`)}
-      ${moneyField('end date', `<div class="date-input" id="rp-end" data-type="date" data-value="" data-ph="end" style="width:128px"></div>`)}
+      ${moneyField('start date', `<div class="date-input" id="rp-start" data-type="date" data-value="" data-ph="start" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
+      ${moneyField('end date', `<div class="date-input" id="rp-end" data-type="date" data-value="" data-ph="end" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
       <button class="btn" id="rp-run">run</button>
       <a class="btn" id="rp-export" href="#" style="display:none">export csv</a>
     </div>
@@ -1328,8 +1336,8 @@ function addTxnRow() {
   const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const first = _accounts[0]?.id || '';
   return `<div class="txn-add">
-    ${moneyField('date', `<div class="date-input" id="tx-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>`)}
-    ${moneyField('account', `<div class="settings-input custom-select" id="tx-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>`)}
+    ${moneyField('date', `<div class="date-input" id="tx-date" data-type="date" data-value="${_today()}" data-ph="date" style="flex:1 1 9.5rem"></div>`)}
+    ${moneyField('account', `<div class="settings-input custom-select" id="tx-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="flex:1 1 11rem"></div>`)}
     ${moneyField('type', `<div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|expense;+|income" style="width:106px"></div>`)}
     ${moneyField('amount', `<input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
     ${moneyField('payee', `<input type="text" id="tx-payee" class="settings-input" placeholder="payee / what" style="flex:1.4;min-width:120px;grid-column:1 / -1">`)}
@@ -1354,17 +1362,20 @@ function toggleTransactionDetails() {
   toggle.setAttribute('aria-expanded', String(_moneyEntryDetailsOpen));
 }
 
+// the two accounts take up to half the row each, so at tablet width they fill the first line
+// (long names fit) and date, amount and the button share the second instead of the button
+// wrapping alone. wide screens still fit it all on one line
 function transferRow() {
   if (_accounts.length < 2) return '';
   const opts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const a0 = _accounts[0]?.id || '', a1 = _accounts[1]?.id || '';
   return `<div class="txn-transfer" id="txn-transfer" style="display:none">
     <span class="tr-lbl">move</span>
-    ${moneyField('from account', `<div class="settings-input custom-select" id="tr-from" data-value="${esc(a0)}" data-options="${esc(opts)}" style="width:130px"></div>`)}
+    ${moneyField('from account', `<div class="settings-input custom-select" id="tr-from" data-value="${esc(a0)}" data-options="${esc(opts)}" style="flex:1 1 clamp(11rem, calc(50% - 3rem), 18rem);min-width:11rem"></div>`)}
     <span class="tr-arrow" aria-hidden="true">${_si('arrow-right')}</span>
-    ${moneyField('to account', `<div class="settings-input custom-select" id="tr-to" data-value="${esc(a1)}" data-options="${esc(opts)}" style="width:130px"></div>`)}
-    ${moneyField('date', `<div class="date-input" id="tr-date" data-type="date" data-value="${_today()}" data-ph="date" style="width:128px"></div>`)}
-    ${moneyField('amount', `<input type="text" id="tr-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
+    ${moneyField('to account', `<div class="settings-input custom-select" id="tr-to" data-value="${esc(a1)}" data-options="${esc(opts)}" style="flex:1 1 clamp(11rem, calc(50% - 3rem), 18rem);min-width:11rem"></div>`)}
+    ${moneyField('date', `<div class="date-input" id="tr-date" data-type="date" data-value="${_today()}" data-ph="date" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
+    ${moneyField('amount', `<input type="text" id="tr-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="flex:1 1 7rem;min-width:7rem">`)}
     <button class="btn primary" id="tr-do">transfer</button>
   </div>`;
 }
@@ -1445,9 +1456,9 @@ function editTxnRow(t) {
   const neg = (t.amount || 0) < 0;
   return `<div class="txn txn-edit" data-id="${t.id}" data-original-account="${esc(t.account_id)}" data-original-amount="${esc(String(t.amount))}" role="group" aria-label="edit ${esc(t.payee || 'transaction')}">
     <h3>edit ${esc(t.payee || 'transaction')}<span data-edit-context hidden> · outside this list</span></h3>
-    ${moneyField('date', `<div class="date-input" data-f="date" data-type="date" data-value="${esc(t.date || _today())}" data-ph="date" style="width:124px"></div>`)}
-    ${moneyField('account', `<div class="settings-input custom-select" data-f="account_id" data-value="${esc(t.account_id)}" data-options="${esc(acctOpts)}" style="width:120px"></div>`)}
-    ${moneyField('payee', `<input type="text" class="settings-input" data-f="payee" value="${esc(t.payee || '')}" placeholder="payee" style="flex:1.4;min-width:90px">`)}
+    ${moneyField('date', `<div class="date-input" data-f="date" data-type="date" data-value="${esc(t.date || _today())}" data-ph="date" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
+    ${moneyField('account', `<div class="settings-input custom-select" data-f="account_id" data-value="${esc(t.account_id)}" data-options="${esc(acctOpts)}" style="flex:1 1 11rem;min-width:11rem"></div>`)}
+    ${moneyField('payee', `<input type="text" class="settings-input" data-f="payee" value="${esc(t.payee || '')}" placeholder="payee" style="flex:1.4 1 9.5rem;min-width:9.5rem">`)}
     ${moneyField('category', `<input type="text" class="settings-input" data-f="category" value="${esc(t.category || '')}" placeholder="category" style="flex:1;min-width:80px">`)}
     ${moneyField('type', `<div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|expense;+|income" style="width:100px"></div>`)}
     ${moneyField('amount', `<input type="text" class="settings-input" data-f="amount" value="${Math.abs(t.amount || 0)}" inputmode="decimal" style="width:84px">`)}
@@ -1820,6 +1831,12 @@ function _wireTxnRows() {
     const id = b.dataset.cancelTxn; _editTxn = null; render(true);
     ($('txn-rows').querySelector(`[data-edit-txn="${CSS.escape(id)}"]`) || $('txn-search'))?.focus();
   }));
+  // escape is cancel. an open menu or date picker keeps its escape to itself (it stops it)
+  root.querySelectorAll('.txn-edit').forEach(row => row.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    event.preventDefault();
+    row.querySelector('[data-cancel-txn]')?.click();
+  }));
   // 4a actions
   root.querySelectorAll('[data-clear-txn]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleCleared(b.dataset.clearTxn); }));
   root.querySelectorAll('[data-split-txn]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleSplit(b.dataset.splitTxn); }));
@@ -1878,11 +1895,19 @@ function toggleAmountRange() {
   }
 }
 
+// the range filters run while you type, and typing keeps a lone decimal comma (12,5) until
+// the field is left. read it the way it will settle instead of toasting mid-typing. anything
+// else (1,234.56) is still _decimal's to refuse
+function _rangeAmount(id) {
+  const text = $(id)?.value.trim() || '';
+  return /^[^.,]*,[^.,]*$/.test(text) ? formatDecimal(text) : text;
+}
+
 export async function applySearch() {
   const sequence = ++_searchSequence;
   const q = $('txn-search')?.value.trim() || '';
-  const mn = $('txn-min')?.value.trim() || '';
-  const mx = $('txn-max')?.value.trim() || '';
+  const mn = _rangeAmount('txn-min');
+  const mx = _rangeAmount('txn-max');
   if (!q && !mn && !mx) {   // nothing to filter → back to the plain month list
     _searchResults = null;
     _searchStatus = '';
@@ -2071,8 +2096,37 @@ function transactionEntrySnapshot() {
 }
 async function delTxn(id) {
   if (!await dlgConfirm('delete this transaction?')) return;
-  try { await api(`/api/money/transactions/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast('delete failed', 'error'); }
+  const next = _rowAfter(id), focusVersion = _moneyFocusChange;
+  try { await api(`/api/money/transactions/${id}`, { method: 'DELETE' }); }
+  catch { toast('delete failed', 'error'); return; }
+  // gone at once, even if the refresh fails. load(fetch, true) keeps an active search (load()
+  // alone drops back to the month); then focus lands on the next row
+  _dropRows(row => row.id === id);
+  await load(fetch, true);
+  _focusAfterRowDelete(next, focusVersion);
+}
+
+// take deleted rows out of what's on screen, so the redraw before the fresh read doesn't bring
+// them back (and hand focus to a row that's gone)
+function _dropRows(gone) {
+  _txns = _txns.filter(row => !gone(row));
+  if (_searchResults) _searchResults = _searchResults.filter(row => !gone(row));
+  renderTxns();
+}
+
+// the row the user meets next once this one is gone: the one below, else the one above
+function _rowAfter(id) {
+  const rows = _searchResults !== null ? _searchResults : _txns;
+  const at = rows.findIndex(row => row.id === id || (id && row.transfer_id === id));
+  if (at < 0) return '';
+  const rest = rows.filter((row, i) => i !== at && !(id && row.transfer_id === id));
+  return (rest[at] || rest[at - 1])?.id || '';
+}
+
+function _focusAfterRowDelete(next, focusVersion) {
+  if (focusVersion !== _moneyFocusChange || (document.activeElement && document.activeElement !== document.body)) return;
+  const rows = $('txn-rows');
+  (next && rows?.querySelector(`.txn[data-id="${CSS.escape(next)}"] .tx-del`) || $('txn-search'))?.focus();
 }
 
 // ── 4a: splits, tags, receipts, cleared, reconcile ────────────────────────────
@@ -2211,8 +2265,12 @@ async function doTransfer() {
 }
 async function delTransfer(tid) {
   if (!await dlgConfirm('delete this transfer (removes both legs)?')) return;
-  try { await api(`/api/money/transfer/${tid}`, { method: 'DELETE' }); await load(); }
-  catch { toast('delete failed', 'error'); }
+  const next = _rowAfter(tid), focusVersion = _moneyFocusChange;
+  try { await api(`/api/money/transfer/${tid}`, { method: 'DELETE' }); }
+  catch { toast('delete failed', 'error'); return; }
+  _dropRows(row => row.transfer_id === tid);
+  await load(fetch, true);
+  _focusAfterRowDelete(next, focusVersion);
 }
 async function saveTxn(id) {
   const row = $('money-body').querySelector(`.txn-edit[data-id="${id}"]`);
@@ -2243,7 +2301,9 @@ async function saveTxn(id) {
     row.dataset.originalAmount = String(saved.amount);
     if (_editTxn === id) _editTxn = null;
     await load(fetch, true);
-    if (row.contains(focused) && focusVersion === _moneyFocusChange && document.activeElement === document.body) {
+    // safari doesn't focus a tapped button, so a tap on save leaves focus on <body> already
+    const owned = !focused || focused === document.body || row.contains(focused);
+    if (owned && focusVersion === _moneyFocusChange && document.activeElement === document.body) {
       ($('txn-rows').querySelector(`[data-edit-txn="${CSS.escape(id)}"]`) || $('txn-search'))?.focus();
     }
   } catch { toast('save failed', 'error'); }
@@ -2319,7 +2379,7 @@ async function runBaseNw() {
   const out = $('nw-base-out'); if (!out) return;
   try {
     const d = await api(`/api/money/networth-base?base=${encodeURIComponent(base)}`);
-    out.textContent = `${formatNumber(d.net_worth, { minimumFractionDigits: 2 })} ${d.base}`;
+    out.textContent = fmt(d.net_worth, d.base);
   } catch { out.textContent = 'fx failed'; }
 }
 async function addHolding() {

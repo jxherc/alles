@@ -19,7 +19,7 @@ assert.match(wizard, /\/api\/setup\/resume/);
 assert.match(wizard, /\/api\/setup\/obsidian/);
 assert.match(wizard, /role="radiogroup"/);
 assert.match(wizard, /role="switch"/);
-assert.match(wizard, /import \{ wireChoiceGroup \} from '\.\/kokuen\.js\?v=1'/);
+assert.match(wizard, /import \{ wireChoiceGroup \} from '\.\/kokuen\.js\?v=2'/);
 assert.match(wizard, /wireChoiceGroup\(group\)/);
 assert.match(wizard, /button\.setAttribute\('aria-busy', 'true'\)/);
 assert.match(wizard, /button\.removeAttribute\('aria-busy'\)/);

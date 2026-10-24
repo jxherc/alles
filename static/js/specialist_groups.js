@@ -2,7 +2,8 @@
 // data; the existing app modules continue to own their full, proven screens.
 
 import { confirm as confirmDialog } from './dialog.js';
-import { calendarDateKey, formatCalendarDate, formatDateParts, formatDateTime, formatNumber, t } from './i18n.js';
+import { initDatePicker } from './datepick.js';
+import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDateParts, formatDateTime, formatNumber, t } from './i18n.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
@@ -347,12 +348,13 @@ function _agendaRows(target, rows, emptyCopy, openRecord) {
       item.className += ' specialist-library-row';
       item.type = 'button';
       item.dataset.planAgendaRecord = row.id;
-      item.setAttribute('aria-label', `open ${row.type}: ${row.title}${row.date ? ` · ${row.date}` : ''}${row.time ? ` ${row.time}` : ''}`);
+      item.setAttribute('aria-label', `open ${row.type}: ${row.title}${row.date ? ` · ${row.date}` : ''}${row.time ? ` ${formatClock(row.time)}` : ''}`);
       item.addEventListener('click', () => openRecord(row, item));
     }
     const meta = row.meta && row.meta !== row.type ? `${row.type} · ${row.meta}` : row.type;
     item.append(
-      _el('span', 'specialist-record-time', row.time || (byDay ? (row.type === 'task' ? 'due' : 'all day') : row.date) || '--'),
+      // row.time stays "09:00" for sorting; it reads like every other time in the app
+      _el('span', 'specialist-record-time', (row.time && formatClock(row.time)) || (byDay ? (row.type === 'task' ? 'due' : 'all day') : row.date) || '--'),
       _el('strong', 'specialist-record-title', row.title),
       _el('span', 'specialist-record-meta', meta),
     );
@@ -367,7 +369,7 @@ async function _renderPlan(target, request, section = 'overview') {
     return renderPlanBoard(target, request, () => _refresh('plan'));
   }
   const [eventsResult, tasksResult, remindersResult] = await Promise.allSettled([
-    _json(request, '/api/calendar/agenda?days=8'),
+    _json(request, '/api/calendar/agenda?days=8', { headers: chosenTimeZone() ? { 'x-alles-time-zone': chosenTimeZone() } : {} }),
     _json(request, '/api/tasks'),
     _json(request, '/api/reminders'),
   ]);
@@ -1061,9 +1063,20 @@ function _renderActualStatus(value, request) {
   return panel;
 }
 
+// a true minus before the code (−USD 12.00), as Money writes it. with no currency the label
+// isn't part of the amount, so there the minus stays on the number
 function financeAmount(value, currency = '') {
-  const number = formatNumber(value ?? 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${currency === 'XXX' ? 'currency not set' : currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}${number}`;
+  const cents = Math.round(Number(value ?? 0) * 100);
+  const number = formatNumber(Math.abs(cents) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sign = cents < 0 ? '−' : '';
+  const code = `${currency === 'XXX' ? 'currency not set' : currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}`;
+  return currency === 'XXX' ? `${code}${sign}${number}` : `${sign}${code}${number}`;
+}
+
+// a statement amount as the file wrote it (-12.34), in the same sign style
+function _importAmount(code, text) {
+  const negative = /^-/.test(text);
+  return `${negative ? '−' : ''}${code ? `${code}\u00a0` : ''}${negative ? text.slice(1) : text}`;
 }
 
 async function _renderFinance(target, request) {
@@ -1220,19 +1233,30 @@ function _renderImportReceipt(target, receipt, request, refresh) {
   const message = _el('p', 'finance-import-message');
   message.setAttribute('role', 'status');
   message.setAttribute('aria-live', 'polite');
+  // a refresh rebuilds the receipt, and the pressed button goes with it: say what happened on the
+  // new receipt's status line and keep focus there, unless you've moved on meanwhile
+  const settleOnStatus = done => {
+    const status = target.querySelector('.finance-import-message');
+    const active = document.activeElement;
+    if (!status || (active && active !== document.body && active.isConnected)) return;
+    status.textContent = done;
+    status.tabIndex = -1;
+    status.focus();
+  };
   heading.append(
     _el('strong', '', receipt.source_name),
     _el('span', '', receipt.receipt?.account_name || receipt.account_id),
     _el('span', '', `${receipt.counts.rows} rows · ${receipt.counts.pending} ready · ${receipt.counts.duplicates} duplicate · ${receipt.counts.conflicts} review`),
   );
   const rows = _el('div', 'finance-import-rows');
+  let reviewInFile = 0;
   for (const row of receipt.rows) {
     const parsed = row.parsed || {};
     const item = _el('div', `finance-import-row finance-import-row-${row.status}`);
     item.append(
       _el('span', 'finance-import-row-date', parsed.date || `line ${row.row_number}`),
       _el('strong', '', parsed.payee || row.conflict_reason || (parsed.date ? 'unnamed transaction' : 'needs review')),
-      _el('span', 'finance-import-row-amount', parsed.amount_text ? `${parsed.currency_code} ${parsed.amount_text}` : ''),
+      _el('span', 'finance-import-row-amount', parsed.amount_text ? _importAmount(parsed.currency_code || '', String(parsed.amount_text)) : ''),
       _el('span', 'finance-import-row-status', row.status.replace('_', ' ')),
     );
     for (const key of ['category', 'notes', 'tags']) {
@@ -1241,6 +1265,8 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     if (row.conflict_reason && parsed.payee) item.append(_el('small', '', row.conflict_reason));
     const repairHint = _importRepairHint(row);
     if (repairHint) item.append(_el('p', 'specialist-group-note finance-import-repair-hint', repairHint));
+    // these reasons get a fix right in the row; anything else is fixed in the file
+    if (['needs_review', 'conflict'].includes(row.status) && !/conversion evidence|confirm account ending|no bank reference.*different statement|incomplete Actual write no longer matches/i.test(row.conflict_reason || '')) reviewInFile += 1;
     if (row.status === 'needs_review' && /conversion evidence/i.test(row.conflict_reason || '')) {
       const form = _el('form', 'finance-import-conversion');
       const baseCode = receipt.canonical_base_currency_code || 'base';
@@ -1254,9 +1280,10 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       rate.inputMode = 'decimal';
       rate.placeholder = `${baseCode} per ${parsed.currency_code || 'source unit'}`;
       rate.setAttribute('aria-label', `conversion rate in ${baseCode} per ${parsed.currency_code || 'source unit'}`);
-      const rateDate = _el('input');
-      rateDate.name = 'rate_date';
-      rateDate.type = 'date';
+      const rateDate = _el('div', 'date-input');
+      rateDate.dataset.type = 'date';
+      rateDate.dataset.value = '';
+      rateDate.dataset.ph = 'rate date';
       rateDate.setAttribute('aria-label', 'conversion rate date');
       const source = _el('input');
       source.name = 'source';
@@ -1265,17 +1292,20 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       const save = _el('button', '', 'save reviewed conversion');
       save.type = 'submit';
       form.append(baseAmount, rate, rateDate, source, save);
+      initDatePicker(rateDate);
       form.addEventListener('submit', async event => {
         event.preventDefault();
         _setAsyncControlBusy(save, true);
         message.textContent = '';
         try {
-          const body = Object.fromEntries(new FormData(form));
+          // the picker isn't a form field, so its date goes in by hand
+          const body = { ...Object.fromEntries(new FormData(form)), rate_date: rateDate.dataset.value || '' };
           await refresh(await _json(
             request,
             `/api/finance/imports/${encodeURIComponent(receipt.id)}/rows/${encodeURIComponent(row.id)}/conversion`,
             { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) },
           ));
+          settleOnStatus('conversion saved');
         } catch (error) {
           message.textContent = error?.message || 'conversion evidence could not be saved';
         } finally { _setAsyncControlBusy(save, false); }
@@ -1305,6 +1335,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
               }),
             },
           ));
+          settleOnStatus(`ending ${parsed.account_suffix || ''} confirmed`);
         } catch (error) {
           message.textContent = error?.message || 'account suffix could not be confirmed';
         } finally { _setAsyncControlBusy(confirm, false); }
@@ -1330,6 +1361,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
               body: JSON.stringify({ decision }),
             },
           ));
+          settleOnStatus(decision === 'duplicate' ? 'marked as a duplicate' : 'marked to import as new');
         } catch (error) {
           message.textContent = error?.message || 'match decision could not be saved';
         } finally {
@@ -1368,6 +1400,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
               body: JSON.stringify({ decision }),
             },
           ));
+          settleOnStatus(decision === 'keep' ? 'edited transaction kept' : 'row is back in the import queue');
         } catch (error) {
           message.textContent = error?.message || 'interrupted import could not be recovered';
         } finally {
@@ -1390,7 +1423,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
   const actions = _el('div', 'finance-import-actions');
   const receiptMutationButtons = [];
   let receiptMutationBusy = false;
-  const mutateReceipt = async (path, failureMessage, confirmation = '') => {
+  const mutateReceipt = async (path, failureMessage, confirmation = '', done = '') => {
     if (receiptMutationBusy) return;
     if (confirmation && !await confirmDialog(confirmation)) return;
     receiptMutationBusy = true;
@@ -1398,6 +1431,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     message.textContent = '';
     try {
       await refresh(await _json(request, path, { method: 'POST' }));
+      settleOnStatus(done);
     } catch (error) {
       message.textContent = error?.message || failureMessage;
     } finally {
@@ -1406,6 +1440,16 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     }
   };
   const canFinishDuplicates = receipt.counts.rows > 0 && receipt.counts.duplicates === receipt.counts.rows;
+  const unresolvedClaim = receipt.rows.some(row => row.status === 'applying'
+    || (row.status === 'conflict' && row.created_transaction_id));
+  if (receipt.status === 'preview' && receipt.counts.conflicts > 0 && receipt.counts.applying === 0 && !unresolvedClaim) {
+    // apply waits for review. say so where the button would be instead of leaving a gap
+    const count = receipt.counts.conflicts;
+    const rowsText = `${count} row${count === 1 ? '' : 's'} that need${count === 1 ? 's' : ''} review`;
+    actions.append(_el('p', 'specialist-group-note finance-import-blocked', reviewInFile
+      ? `fix the ${rowsText}, then preview again`
+      : `resolve the ${rowsText} above, then apply`));
+  }
   if (receipt.status === 'preview' && (receipt.counts.pending > 0 || canFinishDuplicates) && receipt.counts.conflicts === 0 && receipt.counts.applying === 0) {
     const label = receipt.counts.pending > 0
       ? `apply ${receipt.counts.pending} ready row${receipt.counts.pending === 1 ? '' : 's'}`
@@ -1415,12 +1459,12 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     apply.addEventListener('click', () => mutateReceipt(
       `/api/finance/imports/${encodeURIComponent(receipt.id)}/apply`,
       'import could not be applied',
+      '',
+      'import applied',
     ));
     receiptMutationButtons.push(apply);
     actions.append(apply);
   }
-  const unresolvedClaim = receipt.rows.some(row => row.status === 'applying'
-    || (row.status === 'conflict' && row.created_transaction_id));
   if (['applied', 'preview'].includes(receipt.status) && receipt.counts.applied > 0 && receipt.receipt?.ledger_backend === 'actual') {
     actions.append(_el('p', 'specialist-group-note', 'undo is unavailable for Actual imports. review the imported transactions in the ledger before deleting.'));
   } else if (['applied', 'preview'].includes(receipt.status) && receipt.counts.applied > 0 && !unresolvedClaim) {
@@ -1434,6 +1478,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       `/api/finance/imports/${encodeURIComponent(receipt.id)}/undo`,
       'import could not be undone',
       'undo this import? only transactions created by this receipt will be removed.',
+      'import undone',
     ));
     receiptMutationButtons.push(undo);
     actions.append(undo);
@@ -1528,12 +1573,7 @@ async function _renderImports(target, request) {
     _renderImportReceipt(receiptTarget, receipt, request, showReceipt);
     try {
       const history = await _json(request, '/api/finance/imports');
-      historyTarget.replaceChildren(...history.map(item => {
-        const button = _el('button', '', `${item.source_name} · ${item.status}`);
-        button.type = 'button';
-        button.addEventListener('click', () => showReceipt(item));
-        return button;
-      }));
+      historyTarget.replaceChildren(..._receiptHistory(history, showReceipt));
     } catch {
       historyTarget.replaceChildren(_el(
         'p',
@@ -1603,13 +1643,47 @@ async function _renderImports(target, request) {
   if (historyUnavailable) {
     historyTarget.replaceChildren(_el('p', 'specialist-group-empty', 'recent receipts are unavailable; new imports still work.'));
   } else {
-    historyTarget.replaceChildren(...receipts.map(item => {
-      const button = _el('button', '', `${item.source_name} · ${item.status}`);
-      button.type = 'button';
-      button.addEventListener('click', () => showReceipt(item));
-      return button;
-    }));
+    historyTarget.replaceChildren(..._receiptHistory(receipts, showReceipt));
   }
+}
+
+// every preview makes a new receipt, so previewing one file twice listed it twice with the same
+// label. keep the newest preview per file + account (the list comes newest first), and tell the
+// rest apart by when and how many rows
+function _receiptHistory(receipts, open) {
+  const previews = new Set();
+  return receipts.filter(item => {
+    if (item.status !== 'preview') return true;
+    const key = `${item.source_sha256 || item.id}\n${item.account_id}`;
+    if (previews.has(key)) return false;
+    previews.add(key);
+    return true;
+  }).map(item => {
+    const rows = item.counts?.rows;
+    const label = [
+      item.source_name,
+      item.status,
+      _receiptTime(item.created_at),
+      Number.isFinite(rows) ? `${rows} row${rows === 1 ? '' : 's'}` : '',
+    ].filter(Boolean).join(' · ');
+    const button = _el('button', '', label);
+    button.type = 'button';
+    button.addEventListener('click', () => open(item));
+    return button;
+  });
+}
+
+// the server keeps utc without a zone mark. today's receipts show the time, older ones the date too
+function _receiptTime(value) {
+  const raw = String(value || '');
+  if (!raw) return '';
+  const when = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(raw) ? raw : `${raw}Z`);
+  if (Number.isNaN(when.valueOf())) return '';
+  const today = formatDateTime(new Date(), { year: 'numeric', month: 'numeric', day: 'numeric' });
+  const sameDay = formatDateTime(when, { year: 'numeric', month: 'numeric', day: 'numeric' }) === today;
+  return formatDateTime(when, sameDay
+    ? { hour: 'numeric', minute: '2-digit' }
+    : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toLowerCase();
 }
 
 const OVERVIEWS = Object.freeze({
@@ -1714,7 +1788,11 @@ function _wire(group, root) {
       tabs[next].click();
     });
   });
-  root.querySelector('[data-files-back]')?.addEventListener('click', () => window._navigateSpecialistSection?.('files', 'files'));
+  root.querySelector('[data-files-back]')?.addEventListener('click', async () => {
+    await window._navigateSpecialistSection?.('files', 'files');
+    // the back button hides on files, so the picked tab takes focus instead of the page
+    if (document.activeElement === document.body) root.querySelector('#files-tabs [role="tab"][aria-selected="true"]')?.focus();
+  });
 }
 
 async function _refresh(group) {
