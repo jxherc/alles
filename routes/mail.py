@@ -252,6 +252,24 @@ def _get(db, aid) -> MailAccount:
     return a
 
 
+def _imap_args(uid, *folders, message_id=None):
+    """refuse a uid, folder or Message-ID that could carry a second IMAP command, before
+    anything is sent. uid None: the request names no uid.
+
+    folder parameters across the mail API are wire names, the way LIST hands them out (modified
+    UTF-7: "Entw&APw-rfe"). plain text that isn't valid modified UTF-7 ("Entwürfe", "R&D") is
+    encoded on the way out; a plain name that is valid modified UTF-7 reads as a wire name"""
+    try:
+        if uid is not None:
+            mailsvc.message_uid(uid)
+        if message_id is not None:
+            mailsvc.message_id_arg(message_id)
+        for folder in folders:
+            mailsvc.mailbox_name(folder)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
 def _account_scope(scope):
     if scope and scope not in _mail_recovery_scopes("alles-mail-account"):
         raise HTTPException(403, "this pending account belongs to a different mail store")
@@ -306,6 +324,20 @@ def _account_fields(body, *, partial=False):
     data = body.model_dump(
         exclude_unset=partial, exclude={"request_id", "recovery_scope", "expected_revision"}
     )
+    # these reach LOGIN and the server connection: a line break would end a command. username and
+    # password go as quoted strings, which may hold any ascii but NUL, CR and LF (a tab is fine);
+    # an address or host name has no use for any control character
+    for field, refused in (
+        ("email", r"[\x00-\x1f\x7f]"),
+        ("username", r"[\x00\r\n]"),
+        ("password", r"[\x00\r\n]"),
+        ("imap_host", r"[\x00-\x1f\x7f]"),
+        ("smtp_host", r"[\x00-\x1f\x7f]"),
+    ):
+        if re.search(refused, data.get(field) or ""):
+            raise HTTPException(
+                400, f"the {field.replace('_', ' ')} can't hold a line break or control character"
+            )
     if partial and not data.get("password"):
         data.pop("password", None)
     return data
@@ -509,6 +541,7 @@ def inbox(
 ):
     from services import mail_cache
 
+    _imap_args(None, folder)
     a = _get(db, aid)
     try:
         msgs = mailsvc.fetch_inbox(_acct_dict(a), folder, limit, quick=quick)
@@ -565,6 +598,7 @@ def read(
     """mark read/unread — cache is the source of truth, IMAP is best-effort."""
     from services import mail_cache
 
+    _imap_args(uid, folder)
     a = _get(db, aid)
     matched = mail_cache.set_seen(db, aid, folder, uid, seen)
     if not matched:
@@ -617,6 +651,7 @@ def flag(
     """star/flag a message — local cache is the source of truth, IMAP is best-effort."""
     from services import mail_cache
 
+    _imap_args(uid, folder)
     a = _get(db, aid)
     matched = mail_cache.set_flag(db, aid, folder, uid, flagged)
     if not matched:
@@ -699,11 +734,15 @@ class ArchiveBody(BaseModel):
 def archive_message(aid: str, body: ArchiveBody, db: DbSession = Depends(get_db)):
     from services import mail_cache
 
+    _imap_args(body.uid, body.folder)
     acct = _get(db, aid)
     moved = False
+    message_id = ""
     try:
         result = mailsvc.move_message(_acct_dict(acct), body.uid, "Archive", body.folder)
         moved = isinstance(result, dict) and result.get("ok") is True
+        if moved:
+            message_id = str(result.get("message_id") or "")
     except Exception:
         pass
     if body.require_server and not moved:
@@ -711,16 +750,20 @@ def archive_message(aid: str, body: ArchiveBody, db: DbSession = Depends(get_db)
             502,
             "could not confirm archive on the mail server; refresh the mailbox before trying again",
         )
+    # message_id is what an undo sends back to /move: the archived copy has a new uid
     return {
         "archived": mail_cache.archive(db, aid, body.folder, body.uid),
         "moved_on_server": moved,
+        "message_id": message_id,
     }
 
 
 class MoveBody(BaseModel):
-    uid: str
+    uid: str = ""
     dest: str
     folder: str = "INBOX"
+    # instead of a uid: the newest message in `folder` with this Message-ID (undoing an archive)
+    message_id: str = ""
 
 
 @router.post("/move/{aid}")
@@ -728,14 +771,25 @@ def move_message(aid: str, body: MoveBody, db: DbSession = Depends(get_db)):
     """2h - move a message to another IMAP folder (best-effort server-side, drops it from cache)."""
     from services import mail_cache
 
+    if not body.uid and not body.message_id:
+        raise HTTPException(400, "say which message to move")
+    _imap_args(
+        body.uid or None, body.folder, body.dest, message_id=None if body.uid else body.message_id
+    )
     acct = _get(db, aid)
     moved = False
+    uid = body.uid
     try:
-        mailsvc.move_message(_acct_dict(acct), body.uid, body.dest, body.folder)
+        result = mailsvc.move_message(
+            _acct_dict(acct), body.uid, body.dest, body.folder, message_id=body.message_id
+        )
         moved = True
+        if isinstance(result, dict) and result.get("uid"):
+            uid = str(result["uid"])
     except Exception:
         pass
-    mail_cache.archive(db, aid, body.folder, body.uid)  # drop from the source cache view
+    if uid:
+        mail_cache.archive(db, aid, body.folder, uid)  # drop from the source cache view
     return {"ok": True, "moved_on_server": moved, "dest": body.dest}
 
 
@@ -1012,10 +1066,15 @@ def cancel_scheduled(
     db: DbSession = Depends(get_db),
     recovery_scope: str = "",
     reserve_if_missing: bool = False,
+    dismiss: bool = False,
 ):
     from core.database import ScheduledMail
 
     _outbox_scope(recovery_scope)
+    if dismiss:
+        if reserve_if_missing:
+            raise HTTPException(400, "dismiss takes no reservation")
+        return _dismiss_uncertain(db, sid)
     if reserve_if_missing:
         if not recovery_scope:
             raise HTTPException(400, "a mail store scope is required to cancel a pending request")
@@ -1054,6 +1113,30 @@ def cancel_scheduled(
         if canceled:
             db.commit()
         return {"ok": True, "status": "canceled"}
+    finally:
+        db.rollback()
+
+
+def _dismiss_uncertain(db, sid):
+    """take an uncertain delivery off the outbox list once the owner has checked Sent. only an
+    uncertain row changes, and only its status: a scheduled send is never canceled here and
+    nothing is deleted, so the record stays for a later look"""
+    from core.database import ScheduledMail
+
+    try:
+        changed = (
+            db.query(ScheduledMail)
+            .filter(ScheduledMail.id == sid, ScheduledMail.status == "uncertain")
+            .update({ScheduledMail.status: "dismissed"}, synchronize_session=False)
+        )
+        db.commit()
+        db.expire_all()
+        message = db.get(ScheduledMail, sid)
+        if not message:
+            raise HTTPException(404, "outbox message not found")
+        if message.status != "dismissed":
+            raise HTTPException(409, "only a delivery marked uncertain can be dismissed")
+        return {"ok": True, "status": "dismissed", "changed": bool(changed)}
     finally:
         db.rollback()
 
@@ -1431,6 +1514,7 @@ def idle_status(aid: str, db: DbSession = Depends(get_db)):
 
 @router.get("/message/{aid}")
 def message(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(get_db)):
+    _imap_args(uid, folder)
     a = _get(db, aid)
     try:
         return mailsvc.fetch_message(_acct_dict(a), uid, folder)
@@ -1442,15 +1526,19 @@ def message(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(g
 def search_mail(
     aid: str, q: str, folder: str = "INBOX", limit: int = 40, db: DbSession = Depends(get_db)
 ):
+    _imap_args(None, folder)
     a = _get(db, aid)
     try:
         return {"messages": mailsvc.search(_acct_dict(a), q, folder, limit)}
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
     except Exception as e:
         return {"error": str(e)[:200], "messages": []}
 
 
 @router.get("/threads/{aid}")
 def threads(aid: str, folder: str = "INBOX", limit: int = 60, db: DbSession = Depends(get_db)):
+    _imap_args(None, folder)
     a = _get(db, aid)
     try:
         msgs = mailsvc.fetch_inbox(_acct_dict(a), folder, limit)
@@ -1461,6 +1549,7 @@ def threads(aid: str, folder: str = "INBOX", limit: int = 60, db: DbSession = De
 
 @router.get("/attachments/{aid}")
 def attachments(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(get_db)):
+    _imap_args(uid, folder)
     a = _get(db, aid)
     try:
         return {"attachments": mailsvc.list_attachments(_acct_dict(a), uid, folder)}
@@ -1476,6 +1565,7 @@ def attachment(
 
     from fastapi.responses import Response
 
+    _imap_args(uid, folder)
     a = _get(db, aid)
     try:
         res = mailsvc.fetch_attachment(_acct_dict(a), uid, index, folder)
@@ -1502,6 +1592,7 @@ def folders(aid: str, db: DbSession = Depends(get_db)):
 
 @router.post("/seen/{aid}")
 def seen(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(get_db)):
+    _imap_args(uid, folder)
     a = _get(db, aid)
     try:
         return mailsvc.mark_seen(_acct_dict(a), uid, folder)
@@ -1729,6 +1820,13 @@ def commitment_source(kind: str, record_id: str, db: DbSession = Depends(get_db)
     account = db.get(MailAccount, source["account_id"])
     if account is None:
         unavailable(404, "source account is no longer available")
+    try:
+        mailsvc.message_uid(source["uid"])
+        mailsvc.mailbox_name(source["folder"])
+    except ValueError:
+        # an older saved source can hold a uid no server hands out ("007"): the excerpt stays,
+        # but there's nothing to fetch, so don't offer an endless retry
+        unavailable(404, "the original message can't be opened; the saved excerpt is still here")
     try:
         message = mailsvc.fetch_message(
             _acct_dict(account), source["uid"], source["folder"], refresh=True

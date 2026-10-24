@@ -1,9 +1,10 @@
 // unit tests for url-scheme filtering in markdown rendering (static/js/util.js).
 // run: node --test tests/js/
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { _safeUrl, escapeHtml, mdToHtml } from '../../static/js/util.js';
+import { _safeUrl, escapeHtml, mdToHtml, safeMailHtml } from '../../static/js/util.js';
 
 test('escapeHtml escapes quotes (attribute-injection defense)', () => {
   const out = escapeHtml('" onfocus=alert(1) x="<b>');
@@ -119,6 +120,8 @@ test('plainError swaps what the browser throws for plain words', async () => {
   assert.equal(plainError('[object Object]'), 'something went wrong. try again');
   assert.equal(plainError(''), 'something went wrong. try again');
   assert.equal(plainError(undefined), 'something went wrong. try again');
+  assert.equal(plainError('path escapes vault'), 'that name points outside your documents folder');
+  assert.equal(plainError('rename failed: path escapes vault'), 'rename failed: that name points outside your documents folder');
 });
 
 test('plainError leaves the app\'s own messages alone', async () => {
@@ -162,4 +165,50 @@ test('mdToHtml shows a remote image as a link unless the caller allows it', () =
   assert.match(out, /image: chart/);
   assert.match(mdToHtml(md, { remoteImages: true }), /<img class="md-img" src="https:\/\/tracker\.example/);
   assert.match(mdToHtml('![x](/api/uploads/abc)'), /<img class="md-img" src="\/api\/uploads\/abc"/);
+});
+
+test('mdToHtml reads an image address the way the browser does before loading it', () => {
+  // each of these resolves to https://tracker.example in a browser
+  for (const u of ['//tracker.example/p.png?q=hi', String.raw`/\tracker.example/p.png`,
+    String.raw`\\\\tracker.example/p.png`, '\u0001https://tracker.example/p.png', 'HTTPS://tracker.example/p.png']) {
+    const out = mdToHtml(`![x](${u})`);
+    assert.doesNotMatch(out, /<img/, u);
+    assert.match(out, /class="md-img-link"/, u);
+  }
+  assert.match(mdToHtml('![x](notes/p.png)'), /<img class="md-img" src="notes\/p\.png"/);
+});
+
+test('safeMailHtml gives an image its width cap back and drops the rest', () => {
+  // node has no DOMParser, so this stands in for one parsed <img>; the filter is what's under test
+  const attrs = new Map([['src', '/api/uploads/abc'], ['alt', 'photo'], ['style', 'width:4032px'], ['onerror', 'x()']]);
+  const img = {
+    nodeType: 1, tagName: 'IMG', namespaceURI: 'http://www.w3.org/1999/xhtml', childNodes: [],
+    get attributes() { return [...attrs].map(([name, value]) => ({ name, value })); },
+    removeAttribute: name => attrs.delete(name), setAttribute: (name, value) => attrs.set(name, value),
+  };
+  const body = { childNodes: [img], get innerHTML() { return [...attrs].map(([n, v]) => `${n}="${v}"`).join(' '); } };
+  globalThis.DOMParser = class { parseFromString() { return { body }; } };
+  try {
+    assert.equal(safeMailHtml('<img>'), 'src="/api/uploads/abc" alt="photo" style="max-width:100%"');
+  } finally { delete globalThis.DOMParser; }
+});
+
+test('the mail link button turns typed text into a web or email link', () => {
+  // _linkHref lives in mail.js, which needs a whole page to import, so pull just the function
+  const src = readFileSync(new URL('../../static/js/mail.js', import.meta.url), 'utf8');
+  const fn = src.match(/^function _linkHref\([^]*?^}/m)?.[0];
+  assert.ok(fn, '_linkHref exists');
+  const linkHref = new Function(`${fn}\nreturn _linkHref;`)();
+  assert.equal(linkHref('jane+news@gmail.com'), 'mailto:jane+news@gmail.com');
+  assert.equal(linkHref("o'brien@example.com"), "mailto:o'brien@example.com");
+  assert.equal(linkHref('https://a@b.com'), 'https://a@b.com');
+  assert.equal(linkHref(' example.org/page '), 'https://example.org/page');
+  assert.equal(linkHref('example.com:8080/page'), 'https://example.com:8080/page');
+  assert.equal(linkHref('localhost:3000'), 'https://localhost:3000');
+  assert.equal(linkHref('tel:911'), null);
+  assert.equal(linkHref('sms:12345'), null);
+  assert.equal(linkHref('mailto:a@b.com'), 'mailto:a@b.com');
+  assert.equal(linkHref('   '), '');
+  assert.equal(linkHref('javascript:alert(1)'), null);
+  assert.equal(linkHref('tel:5551234567'), null);
 });

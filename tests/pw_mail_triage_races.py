@@ -126,7 +126,10 @@ with sync_playwright() as pw:
                 if case.startswith("vip-reader-"):
                     row("701").locator(".mail-open").click()
                     expect(vip()).to_have_attribute("aria-disabled", "false")
-                    expect(vip()).to_have_text("+ VIP" if adding else "VIP ★")
+                    # a toggle: the state is aria-pressed, the label stays "VIP"
+                    expect(vip()).to_have_accessible_name("VIP sender")
+                    expect(vip()).to_have_text("VIP")
+                    expect(vip()).to_have_attribute("aria-pressed", "false" if adding else "true")
 
                     def delay(route):
                         if route.request.method == "POST":
@@ -158,7 +161,8 @@ with sync_playwright() as pw:
                             route.fulfill(response=response)
                     expect(vip()).to_have_attribute("aria-disabled", "false")
                     final = not adding if mode == "reject" else adding
-                    expect(vip()).to_have_text("VIP ★" if final else "+ VIP")
+                    expect(vip()).to_have_attribute("aria-pressed", "true" if final else "false")
+                    expect(vip()).to_have_text("VIP")
                     assert (
                         "sender@example.invalid" in api.get("/api/mail/vips").json()["vips"]
                     ) == final

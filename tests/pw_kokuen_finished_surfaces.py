@@ -941,10 +941,11 @@ def _docs_notes_journal(browser: Browser, errors: list[str]) -> None:
             "el => ({scrollWidth: el.scrollWidth, clientWidth: el.clientWidth})"
         )
         assert heatmap.locator(".jrnl-hm").last.evaluate(
-            "el => el.textContent === 'Dec' && el.getBoundingClientRect().right <= el.parentElement.getBoundingClientRect().right + 0.5"
+            "el => el.textContent === 'dec' && el.getBoundingClientRect().right <= el.parentElement.getBoundingClientRect().right + 0.5"
         )
-        assert heatmap.locator(".jrnl-hm").evaluate_all(
-            "labels => labels.every((label, index) => index === 0 || label.getBoundingClientRect().left >= labels[index - 1].getBoundingClientRect().right - 0.5)"
+        # month buttons: one row above the strip, or two rows of six on a narrow strip; never overlapping
+        assert heatmap.locator(".jrnl-heat-month").evaluate_all(
+            "labels => labels.length === 12 && labels.map(label => label.getBoundingClientRect()).every((a, i, all) => all.every((b, j) => j <= i || a.right <= b.left + 0.5 || b.right <= a.left + 0.5 || a.bottom <= b.top + 0.5 || b.bottom <= a.top + 0.5))"
         )
         _assert_no_overflow(page)
         page.screenshot(path=str(OUTPUT / f"docs-journal-{label}.png"), full_page=True)

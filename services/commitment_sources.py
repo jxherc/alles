@@ -39,7 +39,9 @@ class MailSource(BaseModel):
 class MailOrigin(BaseModel):
     account_id: str = Field(min_length=1, max_length=128)
     folder: str = Field(default="INBOX", min_length=1, max_length=1024)
-    uid: str = Field(pattern=r"^[0-9]{1,20}$")
+    # what IMAP hands out (a nonzero uid, as services.mail.message_uid takes it). saved sources
+    # keep the older, looser pattern so a stored one still loads and shows its excerpt
+    uid: str = Field(pattern=r"^[1-9][0-9]{0,9}$")
     message_id: str = Field(default="", max_length=1000)
     sender: str = Field(default="", alias="from", max_length=10000)
     to: str = Field(default="", max_length=10000)

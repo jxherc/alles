@@ -9,7 +9,8 @@ export function recordTarget(view, id, occurrence = '', hash = '') {
     return { view, id, occurrence: '' };
   }
   if (!VIEWS.has(view) || typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,160}$/.test(id)) return null;
-  if (view === 'mail' && !/^(task|event)-[a-zA-Z0-9_-]+$/.test(id)) return null;
+  // msg- ids are search opening one message on the inbox host
+  if (view === 'mail' && !/^(task|event|msg)-[a-zA-Z0-9_-]+$/.test(id)) return null;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(occurrence) ? occurrence : '';
   return { view, id, occurrence: view === 'calendar' ? date : '', ...(view === 'read' && /^[a-f0-9]{64}$/.test(hash) ? { hash } : {}) };
 }
@@ -47,7 +48,7 @@ export function clearLinkedRecord(view) {
 
 export async function revealRecord(target, isCurrent = () => true) {
   if (target.view === 'wiki') {
-    const module = await import('./docs.js?v=259');
+    const module = await import('./docs.js?v=260');
     return isCurrent() && module.openLinkedDocument(target.id, isCurrent);
   }
   if (target.view === 'read') {

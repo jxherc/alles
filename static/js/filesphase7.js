@@ -1,7 +1,7 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { formatDate } from './i18n.js';
-import { replaceRouteUrl } from './route_history.js';
+import { pushRouteUrl, replaceRouteUrl } from './route_history.js';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '')
@@ -25,6 +25,8 @@ const state = {
   operations: [],
   transferAction: 'copy',
   detailReturnPath: '',
+  returnPath: '',
+  popFocus: false,
   previewPath: '',
   hiddenCompleted: true,
   indexStatus: new Map(),
@@ -138,16 +140,41 @@ function locationLabel(location) {
   return location.endpoint || 'WebDAV';
 }
 
-function writeUrl() {
+// a folder the user opens is its own history entry, so Back goes to the folder before it
+function writeUrl(push = false) {
   try {
     const url = new URL(location.href);
     if (state.locationId) url.searchParams.set('location', state.locationId);
     else url.searchParams.delete('location');
     if (state.cwd) url.searchParams.set('p', state.cwd);
     else url.searchParams.delete('p');
-    replaceRouteUrl(url);
+    if (push && url.href !== location.href) pushRouteUrl(url);
+    else replaceRouteUrl(url);
   } catch {}
 }
+
+// Back/forward between folders: the shell redraws files with loadFiles(), which reads state.cwd,
+// so take the folder from the entry first. module scope, so it runs before the shell's listener
+if (typeof window !== 'undefined') window.addEventListener('popstate', () => {
+  if (!initialized) return;
+  // only a files entry: writeUrl() gives every one its location
+  const params = new URLSearchParams(location.search);
+  if (!params.has('location')) return;
+  const cwd = params.get('p') || '', locationId = params.get('location');
+  if ((cwd === state.cwd && locationId === state.locationId) || !state.locations.some(place => place.id === locationId)) return;
+  // land on the folder Back came out of: in "a", coming back from "a/b/c" that's the "a/b" row
+  const rest = locationId !== state.locationId ? '' : !cwd ? state.cwd : state.cwd.startsWith(cwd + '/') ? state.cwd.slice(cwd.length + 1) : '';
+  state.returnPath = rest ? (cwd ? cwd + '/' : '') + rest.split('/')[0] : '';
+  // any other step (forward into a subfolder, a sibling) lands on the first row, like opening it
+  state.popFocus = true;
+  state.cwd = cwd;
+  if (locationId !== state.locationId) {
+    state.locationId = locationId;
+    state.selected.clear();
+    renderLocations();
+    renderLocationStatus();
+  }
+});
 
 async function loadLocations(fetcher = fetch) {
   const data = await request('/api/storage-locations', {}, fetcher);
@@ -375,7 +402,7 @@ function beginFilesRequest(host) {
   renderFilesLoading(host);
 }
 
-export async function loadFiles(path = state.cwd, fetcher = fetch) {
+export async function loadFiles(path = state.cwd, fetcher = fetch, { push = false } = {}) {
   const host = $('files-list');
   if (!host) return;
   clearFilesSearch();
@@ -409,7 +436,14 @@ export async function loadFiles(path = state.cwd, fetcher = fetch) {
     renderItems();
     renderSelection();
     applyWriteState();
-    writeUrl();
+    writeUrl(push);
+    // a redrawn list drops focus: put it on the folder Back came out of, or the new folder's first row
+    const back = state.returnPath, popped = state.popFocus;
+    state.returnPath = '';
+    state.popFocus = false;
+    if ((push || back || popped) && (!document.activeElement || document.activeElement === document.body)) {
+      (back && host.querySelector(`.file-row[data-path="${CSS.escape(back)}"]`) || host.querySelector('.file-row'))?.focus({ preventScroll: !back });
+    }
   } catch (error) {
     if (sequence !== viewSequence) return;
     state.items = [];
@@ -562,7 +596,8 @@ function renderItems() {
   if (!host) return;
   host.setAttribute('aria-busy', 'false');
   if (!state.items.length) {
-    const copy = state.view === 'all' ? 'this folder is empty' : `no ${state.view === 'trash' ? 'deleted files' : state.view + ' files'}`;
+    const copy = state.searchTerm ? `no files match “${state.searchTerm}”`
+      : state.view === 'all' ? 'this folder is empty' : `no ${state.view === 'trash' ? 'deleted files' : state.view + ' files'}`;
     host.innerHTML = `<div class="files-empty">${esc(copy)}</div>`;
     updateSelectAll();
     return;
@@ -637,7 +672,7 @@ function openItem(item) {
       loadCurrentView();
       return;
     }
-    loadFiles(item.path);
+    loadFiles(item.path, undefined, { push: true });
     return;
   }
   renderDetails(item);
@@ -1857,7 +1892,7 @@ function bindEvents() {
       state.cwd = button.dataset.crumbPath;
       loadCurrentView();
     } else {
-      loadFiles(button.dataset.crumbPath);
+      loadFiles(button.dataset.crumbPath, undefined, { push: true });
     }
   });
   $('files-up-btn')?.addEventListener('click', () => {
@@ -1867,7 +1902,7 @@ function bindEvents() {
     }
     if (state.view !== 'all') return loadFiles('');
     const parent = state.cwd.includes('/') ? state.cwd.slice(0, state.cwd.lastIndexOf('/')) : '';
-    loadFiles(parent);
+    loadFiles(parent, undefined, { push: true });
   });
   $('files-list')?.addEventListener('click', event => {
     if (event.target.closest('[data-files-retry]')) {

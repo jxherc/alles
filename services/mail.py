@@ -94,6 +94,9 @@ def _open_imap(acct) -> imaplib.IMAP4:
 
 
 def _imap(acct) -> imaplib.IMAP4:
+    if acct.get("auth_type") != "oauth":
+        user = _login_text(acct.get("username") or acct.get("email", ""), "username")
+        password = _login_text(acct.get("password", ""), "password")
     key = _acct_key(acct)
     now = time.monotonic()
     with _LOCK:
@@ -123,7 +126,7 @@ def _imap(acct) -> imaplib.IMAP4:
             authstr = mail_oauth.xoauth2(acct.get("email", ""), tok)
             M.authenticate("XOAUTH2", lambda _challenge: authstr.encode())
         else:
-            M.login(acct.get("username") or acct.get("email", ""), acct.get("password", ""))
+            M.login(_quoted(user), password)  # imaplib quotes the password itself
     except Exception:
         try:
             M.logout()
@@ -182,12 +185,130 @@ def _date_ts(date: str) -> float:
         return 0
 
 
+_UID = re.compile(r"[1-9][0-9]{0,9}")
+
+
+def message_uid(uid) -> bytes:
+    """a message uid the way IMAP gets it. anything but plain digits never reaches the server: a
+    CRLF in it would send a second command, a comma or colon would pick other messages."""
+    text = uid.decode("ascii", "replace") if isinstance(uid, bytes) else str(uid)
+    if not _UID.fullmatch(text):
+        raise ValueError("not a message id")
+    return text.encode()
+
+
+# control characters (C0, C1) and line separators can't be part of a folder name
+_NOT_A_FOLDER = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]")
+
+
+def _utf7_imap(name: str) -> str:
+    """RFC 3501 modified UTF-7, how a folder name beyond ascii goes on the wire ("Entwürfe" ->
+    "Entw&APw-rfe")."""
+    out, run = [], []
+
+    def flush():
+        if run:
+            raw = base64.b64encode("".join(run).encode("utf-16-be")).decode("ascii")
+            out.append("&" + raw.rstrip("=").replace("/", ",") + "-")
+            run.clear()
+
+    for char in name:
+        if 0x20 <= ord(char) <= 0x7E:
+            flush()
+            out.append("&-" if char == "&" else char)
+        else:
+            run.append(char)
+    flush()
+    return "".join(out)
+
+
+_MUTF7_RUN = re.compile(r"&([A-Za-z0-9+,]*)-")
+
+
+def _utf7_imap_decode(name: str):
+    """the text a modified UTF-7 name stands for, None if it isn't valid modified UTF-7"""
+    out, i = [], 0
+    while i < len(name):
+        if name[i] == "&":
+            m = _MUTF7_RUN.match(name, i)
+            if not m:
+                return None
+            body = m.group(1)
+            try:
+                raw = base64.b64decode(body.replace(",", "/") + "=" * (-len(body) % 4))
+                out.append(raw.decode("utf-16-be") if body else "&")
+            except ValueError:
+                return None
+            i = m.end()
+        elif 0x20 <= ord(name[i]) <= 0x7E:
+            out.append(name[i])
+            i += 1
+        else:
+            return None
+    return "".join(out)
+
+
+def mailbox_name(folder) -> str:
+    """a folder name as it goes on the wire. the API takes wire names, as LIST hands them out:
+    an ascii name that is valid modified UTF-7 (and encodes back the same way) passes as it is,
+    so "Entw&APw-rfe" and "a&-b" stay. anything else is plain text and gets encoded: "Entwürfe"
+    -> "Entw&APw-rfe", "R&D" -> "R&-D". (a plain name that happens to be valid modified UTF-7
+    can't be told apart, so it's read as a wire name.) control and line-separator characters
+    can't be part of a folder, so they're refused."""
+    name = str(folder or "")
+    if not name or len(name) > 512 or _NOT_A_FOLDER.search(name):
+        raise ValueError("not a folder name")
+    if name.isascii():
+        text = _utf7_imap_decode(name)
+        if text is not None and _utf7_imap(text) == name:
+            return name
+    return _utf7_imap(name)
+
+
+def _quoted(text: str) -> str:
+    """one IMAP quoted string (ascii, no line breaks: callers check that first)"""
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _box(folder) -> str:
+    """a folder as a command argument: always quoted, so "Sent Messages" stays one name and
+    nothing in it can add parameters or a second command"""
+    return _quoted(mailbox_name(folder))
+
+
+def message_id_arg(message_id) -> str:
+    """a Message-ID for a HEADER search, quoted. printable ascii only, which a Message-ID is."""
+    mid = str(message_id or "").strip()
+    if not mid or len(mid) > 998 or any(not 33 <= ord(c) <= 126 for c in mid):
+        raise ValueError("not a message id")
+    return _quoted(mid)
+
+
+def _login_text(value, what: str) -> str:
+    """a username or password for LOGIN. imaplib sends both as given (it only quotes the
+    password), so a line break would end the command early"""
+    text = str(value or "")
+    # a quoted string may hold any ascii but NUL, CR and LF (tab included)
+    if re.search(r"[\x00\r\n]", text):
+        raise ValueError(f"the mail {what} has a line break or control character")
+    if not text.isascii():
+        raise ValueError(f"this mail login can't take characters beyond plain ascii in the {what}")
+    return text
+
+
+def _search_text(text) -> str:
+    """search words as one quoted IMAP string, so they stay words and never become commands."""
+    if re.search(r"[\x00-\x1f\x7f]", text):
+        raise ValueError("search text can't hold line breaks or control characters")
+    return _quoted(text)
+
+
 def check(acct) -> dict:
     """Test the connection: login + select INBOX."""
     M = _imap(acct)
     ok = False
     try:
-        M.select("INBOX", readonly=True)
+        M.select(_box("INBOX"), readonly=True)
         ok = True
         return {"ok": True}
     finally:
@@ -201,26 +322,26 @@ def list_folders(acct) -> list[str]:
         typ, data = M.list()
         out = []
         for line in data or []:
-            try:
-                s = line.decode(errors="replace")
-                if '"' in s:
-                    out.append(
-                        s.split('"')[-2]
-                        if s.rstrip().endswith('"')
-                        else s.split(" ")[-1].strip('"')
-                    )
-                else:
-                    out.append(s.split(" ")[-1])
-            except Exception:
+            # each line is (flags) delimiter name, the name an atom, a quoted string (with \\
+            # and \" escapes) or a literal, which imaplib hands over as (head, name bytes) and
+            # follows with the empty rest of its line
+            if isinstance(line, tuple):
+                name = (line[1] or b"").decode("utf-8", "replace")
+            elif line:
+                parts = _imap_tokenize("(" + line.decode("utf-8", "replace") + ")")
+                name = parts[2] if len(parts) > 2 and isinstance(parts[2], str) else ""
+            else:
                 continue
+            if name:
+                out.append(name)
         ok = True
-        return [f for f in out if f]
+        return out
     finally:
         _release_imap(acct, M, ok)
 
 
 def _select_count(M, folder: str) -> int:
-    typ, sd = M.select(folder, readonly=True)
+    typ, sd = M.select(_box(folder), readonly=True)
     if typ != "OK":
         raise ValueError("could not open folder")
     try:
@@ -249,6 +370,7 @@ def _mailbox_sig(M, exists: int) -> tuple:
 
 
 def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = False) -> list[dict]:
+    _box(folder)  # refused before a connection opens
     key = _acct_key(acct)
     cache_key = (key, folder, int(limit or 30))
     if not quick:
@@ -592,6 +714,7 @@ def _fetch_message_rfc822(M, uid_b):
 
 
 def fetch_message(acct, uid: str, folder: str = "INBOX", *, refresh: bool = False) -> dict:
+    uid_b, box = message_uid(uid), _box(folder)
     cache_key = (_acct_key(acct), folder, str(uid))
     cached = None if refresh else _cached(_MESSAGE_CACHE, cache_key)
     if cached is not None:
@@ -600,8 +723,7 @@ def fetch_message(acct, uid: str, folder: str = "INBOX", *, refresh: bool = Fals
     M = _imap(acct)
     ok = False
     try:
-        M.select(folder, readonly=True)
-        uid_b = uid.encode() if isinstance(uid, str) else uid
+        M.select(box, readonly=True)
         result = None
         try:
             result = _fetch_message_parts(M, uid_b)
@@ -629,12 +751,13 @@ def is_vip(sender: str, vips) -> bool:
 
 def set_seen(acct, uid, seen: bool, folder: str = "INBOX") -> dict:
     """add/remove the \\Seen IMAP flag (read/unread toggle, best-effort)."""
+    uid, box = message_uid(uid), _box(folder)
     M = _imap(acct)
     ok = False
     try:
-        M.select(folder)
+        M.select(box)
         op = "+FLAGS" if seen else "-FLAGS"
-        M.uid("store", uid.encode() if isinstance(uid, str) else uid, op, r"(\Seen)")
+        M.uid("store", uid, op, r"(\Seen)")
         ok = True
         return {"ok": True}
     finally:
@@ -643,12 +766,13 @@ def set_seen(acct, uid, seen: bool, folder: str = "INBOX") -> dict:
 
 def set_flag(acct, uid, flagged: bool, folder: str = "INBOX") -> dict:
     """add/remove the \\Flagged IMAP flag (best-effort star sync)."""
+    uid, box = message_uid(uid), _box(folder)
     M = _imap(acct)
     ok = False
     try:
-        M.select(folder)
+        M.select(box)
         op = "+FLAGS" if flagged else "-FLAGS"
-        M.uid("store", uid.encode() if isinstance(uid, str) else uid, op, r"(\Flagged)")
+        M.uid("store", uid, op, r"(\Flagged)")
         ok = True
         return {"ok": True}
     finally:
@@ -657,20 +781,14 @@ def set_flag(acct, uid, flagged: bool, folder: str = "INBOX") -> dict:
 
 def mark_seen(acct, uid, folder: str = "INBOX") -> dict:
     """Set the \\Seen flag so opening a mail actually marks it read on the server."""
+    uid, box = message_uid(uid), _box(folder)
     M = _imap(acct)
     ok = False
     try:
-        M.select(folder)  # writable (not readonly)
-        M.uid("store", uid.encode() if isinstance(uid, str) else uid, "+FLAGS", r"(\Seen)")
+        M.select(box)  # writable (not readonly)
+        M.uid("store", uid, "+FLAGS", r"(\Seen)")
         ok = True
-        # drop cached lists for this folder so a refresh reflects the read state
-        akey = _acct_key(acct)
-        with _LOCK:
-            for k in [k for k in _LIST_CACHE if k[0] == akey and k[1] == folder]:
-                _LIST_CACHE.pop(k, None)
-            for k in [k for k in _LAST_LIST if k[0] == akey and k[1] == folder]:
-                _LAST_LIST.pop(k, None)
-                _LAST_SIG.pop(k, None)
+        _forget_lists(acct, folder)
         return {"ok": True}
     finally:
         _release_imap(acct, M, ok)
@@ -752,12 +870,12 @@ def _do_move(M, uid, dest, src):
         if status != "OK":
             raise RuntimeError(f"mail server did not confirm {action}")
 
-    checked(M.select(src), "select the source folder")
-    u = uid.encode() if isinstance(uid, str) else uid
+    u, src_box, dest_box = message_uid(uid), _box(src), _box(dest)
+    checked(M.select(src_box), "select the source folder")
     if _has_move(M):
-        checked(M.uid("MOVE", u, dest), "move the message")
+        checked(M.uid("MOVE", u, dest_box), "move the message")
     else:
-        checked(M.uid("COPY", u, dest), "copy the message")
+        checked(M.uid("COPY", u, dest_box), "copy the message")
         checked(M.uid("STORE", u, "+FLAGS", r"(\Deleted)"), "mark the source message deleted")
         # scope the expunge to JUST this uid (UIDPLUS) — a plain EXPUNGE would purge every
         # other \Deleted message the user has flagged in this folder. fall back only if the
@@ -769,25 +887,78 @@ def _do_move(M, uid, dest, src):
     return True
 
 
-def move_message(acct, uid, dest, src: str = "INBOX") -> dict:
-    """move a message to another folder (best-effort, server-side)."""
+def _message_id(M, folder, uid) -> str:
+    """the Message-ID of one message, '' when it has none or the read fails (the move still goes)."""
+    try:
+        M.select(_box(folder))
+        typ, data = M.uid("FETCH", uid, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+    except Exception:
+        return ""
+    if typ != "OK":
+        return ""
+    for part in data or []:
+        if isinstance(part, tuple) and part[1]:
+            return (email.message_from_bytes(part[1]).get("Message-ID", "") or "").strip()
+    return ""
+
+
+def _uid_by_message_id(M, folder, message_id) -> bytes:
+    """newest uid in `folder` with this Message-ID. a move gives the message a new uid, so this is
+    how an undo finds it again; the copy that just arrived is the newest one."""
+    quoted = message_id_arg(message_id)
+    if M.select(_box(folder))[0] != "OK":
+        raise RuntimeError("mail server did not open the folder")
+    typ, data = M.uid("SEARCH", None, "HEADER", "Message-ID", quoted)
+    uids = (data[0] or b"").split() if typ == "OK" and data else []
+    if not uids:
+        raise LookupError("the message is not in that folder")
+    return max(uids, key=int)
+
+
+def _forget_lists(acct, *folders):
+    """drop cached lists for these folders so the next read shows a move or a read change."""
+    akey = _acct_key(acct)
+    with _LOCK:
+        for k in [k for k in _LIST_CACHE if k[0] == akey and k[1] in folders]:
+            _LIST_CACHE.pop(k, None)
+        for k in [k for k in _LAST_LIST if k[0] == akey and k[1] in folders]:
+            _LAST_LIST.pop(k, None)
+            _LAST_SIG.pop(k, None)
+
+
+def move_message(acct, uid, dest, src: str = "INBOX", message_id: str = "") -> dict:
+    """move a message to another folder (best-effort, server-side). with no uid, the newest message
+    in src with `message_id` moves. the reply carries the Message-ID, so an undo can find it again."""
+    # everything is checked before a connection opens
+    _box(src)
+    _box(dest)
+    if uid:
+        uid = message_uid(uid)
+    else:
+        message_id_arg(message_id)
     M = _imap(acct)
     ok = False
     try:
+        if uid:
+            message_id = _message_id(M, src, uid)
+        else:
+            uid = _uid_by_message_id(M, src, message_id)
         _do_move(M, uid, dest, src)
         ok = True
-        return {"ok": True, "uid": str(uid), "dest": dest}
+        _forget_lists(acct, src, dest)
+        uid = uid.decode() if isinstance(uid, bytes) else str(uid)
+        return {"ok": True, "uid": uid, "dest": dest, "message_id": message_id}
     finally:
         _release_imap(acct, M, ok)
 
 
 def delete_message(acct, uid, folder: str = "INBOX") -> dict:
     """soft-delete: flag \\Deleted + expunge from the folder (best-effort)."""
+    u, box = message_uid(uid), _box(folder)
     M = _imap(acct)
     ok = False
     try:
-        M.select(folder)
-        u = uid.encode() if isinstance(uid, str) else uid
+        M.select(box)
         M.uid("STORE", u, "+FLAGS", r"(\Deleted)")
         M.expunge()
         ok = True
@@ -805,14 +976,22 @@ def search(acct, query: str, folder: str = "INBOX", limit: int = 40) -> list[dic
     q = (query or "").strip()
     if not q:
         return []
+    box = _box(folder)
+    quoted = _search_text(q)
     M = _imap(acct)
     ok = False
     try:
-        M.select(folder, readonly=True)
-        try:
-            typ, data = M.uid("search", "CHARSET", "UTF-8", "TEXT", q.encode("utf-8"))
-        except Exception:
-            typ, data = M.uid("search", None, "TEXT", q)
+        M.select(box, readonly=True)
+        if q.isascii():
+            typ, data = M.uid("search", None, "TEXT", quoted)
+        else:
+            # a quoted string is ascii only: other text goes as a counted literal, which the
+            # server reads as data however it looks
+            try:
+                M.literal = q.encode("utf-8")
+                typ, data = M.uid("search", "CHARSET", "UTF-8", "TEXT")
+            finally:
+                M.literal = None
         if typ != "OK" or not data:
             ok = True
             return []
@@ -1002,8 +1181,8 @@ def attachments_of(msg) -> list[dict]:
 
 
 def _full_message(M, uid, folder):
-    M.select(folder, readonly=True)
-    typ, msgd = M.uid("fetch", uid.encode() if isinstance(uid, str) else uid, "(RFC822)")
+    M.select(_box(folder), readonly=True)
+    typ, msgd = M.uid("fetch", message_uid(uid), "(RFC822)")
     for part in msgd or []:
         if isinstance(part, tuple) and part[1]:
             return email.message_from_bytes(part[1])
@@ -1011,6 +1190,8 @@ def _full_message(M, uid, folder):
 
 
 def list_attachments(acct, uid, folder: str = "INBOX") -> list[dict]:
+    message_uid(uid)  # refused before a connection opens
+    mailbox_name(folder)
     M = _imap(acct)
     ok = False
     try:
@@ -1023,6 +1204,8 @@ def list_attachments(acct, uid, folder: str = "INBOX") -> list[dict]:
 
 def fetch_attachment(acct, uid, index: int, folder: str = "INBOX"):
     """returns (filename, content_type, bytes) for one attachment, or None."""
+    message_uid(uid)  # refused before a connection opens
+    mailbox_name(folder)
     M = _imap(acct)
     ok = False
     try:

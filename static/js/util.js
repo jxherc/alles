@@ -85,7 +85,9 @@ export function mdToHtml(text, { remoteImages = false } = {}) {
   };
   out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, u) => {
     const label = escapeHtml(attributeText(alt));
-    if (!remoteImages && /^\s*https?:/i.test(attributeText(u))) {
+    // read the way the browser reads it: "//host", "/\host" and "\u0001https:" load remotely too
+    const probe = attributeText(u).replace(/[\u0000-\u0020\u007f-\u009f]/g, '');
+    if (!remoteImages && /^(https?:|[\\/]{2})/i.test(probe)) {
       return keepMarkup(`<a class="md-img-link" href="${urlAttribute(u)}" target="_blank" rel="noreferrer">image: ${label || 'open'}</a>`);
     }
     return keepMarkup(`<img class="md-img" src="${urlAttribute(u)}" alt="${label}">`);
@@ -293,6 +295,7 @@ const RAW_ERRORS = [
     "the browser blocked this. allow it in the site's settings and try again"],
   [/quotaexceeded|exceeded the quota/i, 'this browser is out of space for alles'],
   [/the (user|operation) (was )?aborted|signal is aborted/i, 'stopped before it finished. try again'],
+  [/path escapes vault/i, 'that name points outside your documents folder'],
   [/^(\w*Error|DOMException)\b|\b(undefined|NaN)\b|\[object \w+\]|^null$/,
     'something went wrong. try again'],
 ];
@@ -395,7 +398,8 @@ _g.runCode = async function(btn) {
 // html going into an editable box in the page itself (mail compose) is cleaned first: a reply
 // quote or a draft from another mail app could carry <img onerror> or <script>, which would run
 // as alles. it's parsed in an inert document, then only plain formatting, safe links and
-// images survive; every attribute but href/src/alt is dropped
+// images survive; every attribute but href/src/alt is dropped, and an image gets its width cap
+// back since the compose image button's style="max-width:100%" goes with the rest
 const SAFE_TAGS = new Set(['A', 'B', 'BLOCKQUOTE', 'BR', 'CODE', 'DIV', 'EM', 'H1', 'H2', 'H3', 'H4', 'HR', 'I', 'IMG',
   'LI', 'OL', 'P', 'PRE', 'S', 'SPAN', 'STRONG', 'SUB', 'SUP', 'TABLE', 'TBODY', 'TD', 'TH', 'THEAD', 'TR', 'U', 'UL']);
 const DROP_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'TEMPLATE', 'NOSCRIPT', 'SVG', 'MATH', 'LINK', 'META', 'BASE', 'FORM', 'INPUT', 'TEXTAREA', 'BUTTON', 'SELECT']);
@@ -420,6 +424,7 @@ export function safeMailHtml(html) {
           || (tag === 'DIV' && ((name === 'class' && value === 'mail-sig') || name === 'data-sig'));
         if (!ok) child.removeAttribute(attr.name);
       }
+      if (tag === 'IMG') child.setAttribute('style', 'max-width:100%');
     }
   };
   clean(doc.body);

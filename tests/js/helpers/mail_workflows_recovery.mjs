@@ -32,6 +32,7 @@ export function harness() {
       this.classList = { toggle() {}, add() {}, remove() {} };
     }
     get id() { return this.attrs.id || ''; }
+    set id(value) { this.attrs.id = value; }
     get isContentEditable() { return this.attrs.contenteditable === 'true'; }
     get innerText() { return this.textContent; }
     get className() { return this.attrs.class || ''; }
@@ -63,6 +64,7 @@ export function harness() {
     }
     get innerHTML() { return this.html ?? this.textContent; }
     matches(selector) {
+      if (selector.includes(',')) return selector.split(',').some(part => this.matches(part.trim()));
       if (selector.endsWith(':not(:disabled)')) return !this.disabled && this.matches(selector.slice(0, -15));
       const attribute = /\[([^=\]]+)(?:="?([^"\]]+)"?)?\]/.exec(selector);
       if (attribute && (!(attribute[1] in this.attrs) || (attribute[2] != null && this.attrs[attribute[1]] !== attribute[2]))) return false;
@@ -92,6 +94,9 @@ export function harness() {
   document.body.innerHTML = '<div id="mail-view"><button id="mail-compose-btn">compose</button><input id="mail-search"><div id="mail-outbox-recovery"></div><div id="mail-scheduled"></div><div class="mail-layout"><div id="mail-list"></div><div id="mail-main"></div></div></div>';
   document.querySelectorAll = selector => document.body.querySelectorAll(selector);
   document.querySelector = selector => document.body.querySelector(selector);
+  document.listeners = {};
+  document.addEventListener = (type, listener) => { (document.listeners[type] ||= []).push(listener); };
+  document.removeEventListener = (type, listener) => { document.listeners[type] = (document.listeners[type] || []).filter(fn => fn !== listener); };
   const $ = id => document.getElementById(id);
   const notices = [], confirms = [], writes = [], timers = [];
   let confirmation = false, uuid = 0;

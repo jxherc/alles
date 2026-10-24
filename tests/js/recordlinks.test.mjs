@@ -49,7 +49,8 @@ test('reading source links preserve exact item and text version without leaking 
 });
 
 test('mail source links keep only the Plan record identity across hosts', () => {
-  for (const kind of ['task', 'event']) {
+  // msg- is one message opened from search
+  for (const kind of ['task', 'event', 'msg']) {
     const target = recordTarget('mail', `${kind}-abc-123`);
     const url = withRecordTarget('https://inbox.example.test/?view=mail', target);
     assert.deepEqual(readRecordTarget(url), target);
@@ -57,6 +58,7 @@ test('mail source links keep only the Plan record identity across hosts', () => 
   }
   assert.equal(recordTarget('mail', 'account-123'), null);
   assert.equal(recordTarget('mail', 'task-'), null);
+  assert.equal(recordTarget('mail', 'msg-'), null);
 });
 
 test('saving a linked series keeps its selected day and follows an explicit date change', () => {

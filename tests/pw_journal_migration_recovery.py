@@ -44,7 +44,7 @@ def run() -> None:
             if width == 1440:
                 trigger.click()
                 expect(page.locator(".jrnl-migration-layer")).to_contain_text(
-                    "No Journal entries to copy yet."
+                    "no journal entries to copy yet."
                 )
                 expect(page.locator(".jrnl-migration-layer [data-prepare]")).to_have_count(0)
                 page.keyboard.press("Escape")

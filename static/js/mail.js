@@ -1,7 +1,7 @@
-import { safeMailHtml, toast } from './util.js';
+import { plainError, safeMailHtml, toast } from './util.js';
 import { openCaptureReview, showPendingCapture } from './capture.js';
-import { readRecordTarget } from './recordlinks.js';
-import { replaceRouteUrl } from './route_history.js';
+import { readRecordTarget, recordTarget } from './recordlinks.js';
+import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt, fields as dlgFields } from './dialog.js';
 import { populateDropdown, getDropdownValue } from './dropdown.js?v=212';
 import { initDatePicker as _dpInit } from './datepick.js';
@@ -75,8 +75,17 @@ function _initChipField(wrap) {
   let chips = [];
   const sync = () => { hidden.value = chips.join(', '); hidden.dispatchEvent(new Event('input', { bubbles: true })); };
   const render = () => {
-    chipsBox.innerHTML = chips.map((c, i) => `<span class="mc-chip${_validEmail(c) ? '' : ' bad'}" title="${esc(c)}">${esc(c)}<button type="button" class="mc-chip-x" data-i="${i}">×</button></span>`).join('');
-    chipsBox.querySelectorAll('.mc-chip-x').forEach(b => b.addEventListener('mousedown', e => { e.preventDefault(); chips.splice(+b.dataset.i, 1); render(); sync(); }));
+    // the icon is pinned to close: kokuen turns a × named "remove …" into a trash can
+    chipsBox.innerHTML = chips.map((c, i) => `<span class="mc-chip${_validEmail(c) ? '' : ' bad'}" title="${esc(c)}">${esc(c)}<button type="button" class="mc-chip-x" data-i="${i}" data-kokuen-icon="close" aria-label="remove ${esc(c)}">×</button></span>`).join('');
+    chipsBox.querySelectorAll('.mc-chip-x').forEach(b => {
+      // mousedown keeps focus in the input; click is what Enter/Space on the focused × fires
+      b.addEventListener('mousedown', e => e.preventDefault());
+      b.addEventListener('click', () => {
+        const focused = document.activeElement === b;
+        chips.splice(+b.dataset.i, 1); render(); sync();
+        if (focused) input.focus();
+      });
+    });
   };
   const add = raw => { (raw || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean).forEach(a => { if (!chips.some(c => c.toLowerCase() === a.toLowerCase())) chips.push(a); }); render(); sync(); };
   const commit = () => { const v = input.value.trim(); if (v) { add(v); input.value = ''; } _hideAc(); };
@@ -195,6 +204,8 @@ function mailEditor() {
   return null;
 }
 let _mailReturnTarget = null;
+// history position of a reader that covers the list (phone, tablet), so Back closes it
+let _readerEntry = null;
 function mailPaneReturnTarget(trigger = document.activeElement) {
   if ($('mail-main')?.contains(trigger)) return _mailReturnTarget;
   const row = trigger?.closest('.mail-row');
@@ -216,6 +227,8 @@ function restoreMailListFocus(target) {
   element?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
 }
 async function backToMailList() {
+  // the reader has its own history entry: going back through it keeps one Back = one step
+  if (_readerEntry !== null && _readerEntry === routeHistoryPosition() && !mailEditor()) { history.back(); return; }
   const target = _mailReturnTarget;
   if (!await prepareMailNavigation()) return;
   $('mail-main').replaceChildren();
@@ -311,6 +324,41 @@ export async function prepareMailNavigation() {
   if (leaving.settings) { leaving.settings.root.remove(); _mailSettings = null; }
   return true;
 }
+// a message as a record id ("msg-" + base64url of [account, folder, uid]) so a link survives the
+// jump to mail's own host
+function mailRecordId(aid, uid, folder) {
+  const bytes = new TextEncoder().encode(JSON.stringify([aid, folder, String(uid)]));
+  return 'msg-' + btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function mailRecordParts(id) {
+  const match = /^msg-([A-Za-z0-9_-]+)$/.exec(id || '');
+  if (!match) return null;
+  try {
+    const bytes = Uint8Array.from(atob(match[1].replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    const [aid, folder, uid] = JSON.parse(new TextDecoder().decode(bytes));
+    return [aid, folder, uid].every(value => typeof value === 'string' && value) ? { aid, folder, uid } : null;
+  } catch { return null; }
+}
+// global search opens one message: go to mail, then open it the way its row would, so Back on a
+// phone or tablet returns to the list
+// the list's open button for a message, so Back from its reader lands on that row
+function mailRowOpener(aid, uid, folder) {
+  const row = [...($('mail-list')?.querySelectorAll('.mail-row[data-aid]') || [])]
+    .find(node => mailIdentity(node.dataset.aid, node.dataset.uid, node.dataset.folder) === mailIdentity(aid, uid, folder));
+  return row?.querySelector('.mail-open') || null;
+}
+async function openMailFromSearch(aid, uid, folder = 'INBOX') {
+  if (!aid || uid == null || uid === '') return false;
+  folder ||= 'INBOX';
+  // the record route also covers mail on another host (inbox.*), once recordlinks takes msg- ids
+  const id = mailRecordId(aid, uid, folder);
+  if (typeof window._openRecord === 'function' && recordTarget('mail', id)) return window._openRecord('mail', id);
+  if (typeof window._navigateTo === 'function' && !await window._navigateTo('mail')) return false;
+  await openMessage(aid, String(uid), folder, null, () => true, mailRowOpener(aid, uid, folder));
+  return true;
+}
+if (typeof window !== 'undefined') window._openMailMessage = openMailFromSearch;
+
 let _inited = false;
 export function initMail() {
   if (_inited) return;
@@ -360,7 +408,8 @@ function preserveMailReadFocus(list) {
   const describe = node => {
     if (!list.contains(node)) return null;
     const row = node.closest('.mail-row');
-    return { id: node.id, label: label(node), row: row && Object.fromEntries(['aid', 'uid', 'folder', 'id', 'thread'].map(key => [key, row.dataset[key] || ''])) };
+    return { id: node.id, label: label(node), at: row ? [...list.querySelectorAll('.mail-row')].indexOf(row) : -1,
+      row: row && Object.fromEntries(['aid', 'uid', 'folder', 'id', 'thread'].map(key => [key, row.dataset[key] || ''])) };
   };
   const initial = describe(document.activeElement);
   return render => {
@@ -371,6 +420,11 @@ function preserveMailReadFocus(list) {
     if (!target && focus.row) {
       const row = [...list.querySelectorAll('.mail-row')].find(node => Object.entries(focus.row).every(([key, value]) => (node.dataset[key] || '') === value));
       target = row && ([...row.querySelectorAll('button')].find(node => label(node) === focus.label) || row.querySelector('.mail-open'));
+      // the row left the list (snoozed, archived): the one that took its place, else the new last
+      if (!row && focus.at >= 0) {
+        const rows = [...list.querySelectorAll('.mail-row')];
+        target = rows[Math.min(focus.at, rows.length - 1)]?.querySelector('.mail-open');
+      }
     }
     target ||= list.querySelector('#mail-read-retry, .mail-open, [role="status"]');
     if (target) { if (!target.matches('button')) target.tabIndex = -1; target.focus(); }
@@ -409,7 +463,7 @@ async function loadCachedMail(key, label, urlFor, empty = 'no mail here', fetche
     if (result.status === 'fulfilled') messages.push(...result.value);
     else {
       const account = accts[index];
-      errors.push(`${acctName(account.id)}: ${result.reason?.message || 'could not read messages'}`);
+      errors.push(`${acctName(account.id)}: ${mailProblem(result.reason?.message || 'could not read messages')}`);
       messages.push(...owner.previous.filter(message => message.account_id === account.id));
     }
   });
@@ -875,8 +929,12 @@ async function openCurrentDraft() {
 
 export async function loadMail(fetcher = fetch) {
   initMail();
+  // Back from a reader's own entry: close it, even mid-load, and land on the row it came from
+  const leftReader = _readerEntry !== null && routeHistoryPosition() < _readerEntry;
+  const returnTarget = leftReader && !mailSettings() && !mailEditor() && $('mail-main').firstElementChild?.matches('.mail-reader, .mail-empty') ? _mailReturnTarget : null;
+  if (leftReader) _readerEntry = null;
   if (!mailSettings()) ++_messageGeneration;
-  if (_mailReader?.root.isConnected && _mailReader.generation !== _mailPaneGeneration) clearMailReader();
+  if (returnTarget || (_mailReader?.root.isConnected && _mailReader.generation !== _mailPaneGeneration)) clearMailReader();
   const paneGeneration = _messageGeneration;
   showPendingCapture($('mail-view'));
   startMailPoll(fetcher).catch(error => console.error(error));
@@ -904,7 +962,9 @@ export async function loadMail(fetcher = fetch) {
   }
   _renderSavedBar();
   const query = $('mail-search')?.value.trim();
-  return query ? searchMail(query, fetcher) : _reloadCurrent({ fetcher });
+  const shown = await (query ? searchMail(query, fetcher) : _reloadCurrent({ fetcher }));
+  if (returnTarget && !$('mail-main').firstElementChild && (document.activeElement === document.body || !document.activeElement)) restoreMailListFocus(returnTarget);
+  return shown;
 }
 
 function syncAccountSelect() {
@@ -935,7 +995,7 @@ async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = fals
   const map = ms => ms.map(m => ({ ...m, account_id: account.id, account_name: account.name || account.email, folder }));
   // IMAP failed but the server handed back the cached copy → show it (offline-friendly) instead of erroring
   if (d.error && !d.messages.length) throw new Error(d.error);
-  return { messages: map(d.messages), warning: d.error ? `showing saved mail; ${d.error}` : '' };
+  return { messages: map(d.messages), warning: d.error ? `showing saved mail; ${mailProblem(d.error)}` : '' };
 }
 
 // providers don't agree on a sent-folder name; sniff it once per account
@@ -974,6 +1034,12 @@ function updateMailRows(matches, changes, remove = false) {
   const list = $('mail-list');
   if (list?.querySelector('.mail-row[data-aid]')) preserveMailReadFocus(list)(() => renderInbox(_lastMsgs, _mailErrors));
 }
+// "could not confirm unmute. Failed to fetch" toasted as only "can't reach alles…", which lost
+// the change it was about. the reason is made plain on its own; offline it just says what to do
+function failedBecause(what, error, fallback) {
+  const reason = error?.message ? plainError(error.message) : fallback;
+  return `${what}. ${reason === plainError('failed to fetch') ? 'check the connection and try again' : reason}`;
+}
 async function changeMail(button, key, request, valid, apply, success, failure, waitWhileCurrent = null) {
   while (_mailChanges.has(key)) {
     if (!waitWhileCurrent || !waitWhileCurrent()) return;
@@ -990,12 +1056,70 @@ async function changeMail(button, key, request, valid, apply, success, failure, 
     apply(result);
     if (success) toast(success, 'success');
   } catch (error) {
-    toast(`${failure}. ${error.message || 'check the mailbox before trying again'}`, 'error');
+    toast(failedBecause(failure, error, 'check the mailbox before trying again'), 'error');
   } finally {
     _mailChanges.delete(key); release(); button?.setAttribute('aria-disabled', 'false'); paintMailChanges();
   }
 }
 const mailPost = (url, body) => mailJson(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+// a queued send's undo and a row change's undo live in one fixed column, so neither ever covers
+// the other whichever came first, and the column closes up when one goes. the bars drop their
+// own fixed spot inside it
+function stackUndoBar(bar) {
+  let stack = $('mail-undo-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'mail-undo-stack';
+    stack.style.cssText = 'position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;align-items:center;gap:.5rem;width:max-content;max-width:calc(100% - 2rem)';
+    $('mail-view')?.appendChild(stack);
+    // the column sits over the end of the list: while a bar shows, the list gets that much room
+    // at its bottom, so the last row (and its snooze, mute…) can scroll clear of it
+    const room = () => {
+      const list = $('mail-list');
+      if (list) list.style.paddingBottom = stack.children.length ? `calc(${stack.offsetHeight}px + 1.7rem)` : '';
+    };
+    if (typeof MutationObserver === 'function') new MutationObserver(room).observe(stack, { childList: true });
+  }
+  bar.style.cssText = 'display:flex;position:static;transform:none;max-width:100%';
+  stack.appendChild(bar);
+}
+// row triage (snooze, archive) gets its own undo bar, so it never replaces a queued send's undo
+function showTriageUndo(text, undo) {
+  $('mail-triage-undo')?.remove();
+  const bar = document.createElement('div');
+  bar.id = 'mail-triage-undo'; bar.className = 'mail-undo-bar'; bar.setAttribute('role', 'status');
+  bar.innerHTML = `<span>${esc(text)}</span><button type="button" class="btn">undo</button>`;
+  stackUndoBar(bar);
+  const button = bar.querySelector('button');
+  button.addEventListener('click', async () => {
+    if (bar.dataset.busy) return;
+    bar.dataset.busy = '1';
+    try { if (await undo()) bar.remove(); }
+    finally { delete bar.dataset.busy; }
+  });
+  // not while someone is on it or it's still working
+  const expire = () => { if (bar.contains(document.activeElement) || bar.dataset.busy) setTimeout(expire, 1000); else bar.remove(); };
+  setTimeout(expire, 8000);
+}
+// undo puts a hidden row back as it was; renderInbox sorts it into place
+function restoreMailRow(message, context) {
+  if (_listContext !== context) return;
+  const same = row => sameMail(row, message.account_id, message.uid, message.folder);
+  const cached = readCache();
+  const listed = !message.muted && !((message.snoozed_until || '') > new Date().toISOString().slice(0, -1));
+  if (Array.isArray(cached) && listed) writeCache([...cached.filter(row => !same(row)), message].sort((a, b) => _msgTime(b) - _msgTime(a)));
+  if ($('mail-list')) renderInbox([..._lastMsgs.filter(row => !same(row)), message], _mailErrors);
+}
+function focusMailRow(match) {
+  // only from the undo itself: someone who moved on keeps their place
+  const active = document.activeElement;
+  if (active && active !== document.body && !active.closest('#mail-triage-undo')) return;
+  const list = $('mail-list');
+  const message = _lastMsgs.find(match);
+  const row = message && [...list.querySelectorAll('.mail-row[data-aid]')].find(node => sameMail(message, node.dataset.aid, node.dataset.uid, node.dataset.folder));
+  (row?.querySelector('.mail-open') || list.querySelector('.mail-open') || $('mail-compose-btn'))?.focus();
+}
 
 // Gmail-style left sidebar (4b): folders/categories as icon+label rows
 const _MAIL_NAV = [
@@ -1209,7 +1333,7 @@ async function loadInbox(force = false, silent = false, fetcher = fetch) {
       messages.push(...result.value.messages);
       if (result.value.warning) errors.push(`${acctName(id)}: ${result.value.warning}`);
     } else {
-      errors.push(`${acctName(id)}: ${result.reason?.message || 'could not read messages'}`);
+      errors.push(`${acctName(id)}: ${mailProblem(result.reason?.message || 'could not read messages')}`);
       if (Array.isArray(cached)) messages.push(...cached.filter(message => message.account_id === id));
     }
   });
@@ -1380,10 +1504,26 @@ function _wireRows(list) {
   list.querySelectorAll('[data-archive]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
     const { aid, uid, folder } = btn.closest('.mail-row').dataset;
-    changeMail(btn, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/archive/${aid}`, { uid, folder, require_server: true }),
+    const key = mailIdentity(aid, uid, folder);
+    // the move gives the mail a new uid in the archive, so undo finds it again by its Message-ID
+    const undo = messageId => async () => {
+      let back = false;
+      await changeMail(null, key, () => mailPost(`/api/mail/move/${aid}`, { message_id: messageId, folder: 'Archive', dest: folder }),
+        result => result?.moved_on_server === true, () => { back = true; },
+        'moved back', 'could not move it back from the archive');
+      if (!back) return false;
+      await _reloadCurrent({ force: true });
+      focusMailRow(row => row.account_id === aid && row.message_id === messageId);
+      return true;
+    };
+    changeMail(btn, key, () => mailPost(`/api/mail/archive/${aid}`, { uid, folder, require_server: true }),
       result => result?.moved_on_server === true,
-      () => updateMailRows(message => sameMail(message, aid, uid, folder), {}, true),
-      'archived', 'archive is unconfirmed; refresh the mailbox before trying again');
+      result => {
+        updateMailRows(message => sameMail(message, aid, uid, folder), {}, true);
+        if (result.message_id) showTriageUndo('archived', undo(result.message_id));
+        else toast('archived', 'success');
+      },
+      '', 'archive is unconfirmed; refresh the mailbox before trying again');
   }));
   list.querySelectorAll('[data-label]').forEach(btn => btn.addEventListener('click', async e => {
     e.stopPropagation();
@@ -1403,16 +1543,41 @@ function _wireRows(list) {
   list.querySelectorAll('[data-snooze]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
     const { aid, uid, folder } = btn.closest('.mail-row').dataset;
+    const key = mailIdentity(aid, uid, folder), same = row => sameMail(row, aid, uid, folder);
+    const before = _lastMsgs.find(same), context = _listContext;
     const until = btn.dataset.snoozed === 'true' ? '' : new Date(Date.now() + 864e5).toISOString();
-    changeMail(btn, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/snooze/${aid}`, { uid, folder, until }),
-      result => Number.isInteger(result?.snoozed) && result.snoozed > 0,
-      () => updateMailRows(row => sameMail(row, aid, uid, folder), { snoozed_until: until }, hideRemovesRow('snoozed', Boolean(until))),
-      until ? 'snoozed until tomorrow' : 'snooze ended', `could not confirm ${until ? 'snooze' : 'ending snooze'}`);
+    const previous = until ? '' : before?.snoozed_until || '';
+    const snooze = value => () => mailPost(`/api/mail/snooze/${aid}`, { uid, folder, until: value });
+    const saved = result => Number.isInteger(result?.snoozed) && result.snoozed > 0;
+    // undo sends the old value back: '' wakes a fresh snooze, the old time puts an ended one back
+    const undo = async () => {
+      let back = false;
+      await changeMail(null, key, snooze(previous), saved, () => { back = true; }, until ? 'snooze undone' : 'snoozed again', 'could not undo the snooze');
+      if (!back) return false;
+      restoreMailRow({ ...before, snoozed_until: previous }, context);
+      focusMailRow(same);
+      return true;
+    };
+    changeMail(btn, key, snooze(until), saved,
+      () => {
+        updateMailRows(same, { snoozed_until: until }, hideRemovesRow('snoozed', Boolean(until)));
+        if (before) showTriageUndo(until ? 'snoozed until tomorrow' : 'snooze ended', undo);
+        else toast(until ? 'snoozed until tomorrow' : 'snooze ended', 'success');
+      },
+      '', `could not confirm ${until ? 'snooze' : 'ending snooze'}`);
   }));
   paintMailChanges();
 }
 
 export async function openMailSource(id, isCurrent = () => true) {
+  const message = mailRecordParts(id);
+  if (message) {
+    if (!isCurrent()) return false;
+    // openMessage drops the record from the url, which ends the caller's url check; its own
+    // generation check still stops a stale open
+    await openMessage(message.aid, message.uid, message.folder, null, () => true, mailRowOpener(message.aid, message.uid, message.folder));
+    return true;
+  }
   const match = /^(task|event)-([a-zA-Z0-9_-]+)$/.exec(id);
   if (!match || !isCurrent() || !await prepareMailNavigation()) return false;
   if (!isCurrent()) return false;
@@ -1464,6 +1629,10 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   const main = $('mail-main');
   main.innerHTML = '<div class="mail-empty" role="status">loading message...</div>';
   showMailPane(main.firstElementChild, returnTarget);
+  if (!verified && !$('mail-list')?.getClientRects().length && _readerEntry !== routeHistoryPosition()) {
+    pushRouteUrl(location.pathname + location.search + location.hash);
+    _readerEntry = routeHistoryPosition();
+  }
   let m;
   try {
     m = verified || await mailJson(`/api/mail/message/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`);
@@ -1496,7 +1665,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
       <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
         <button class="btn" id="mail-reply">reply</button>
         <button class="btn" id="mail-unread" title="mark as unread">unread</button>
-        <button class="btn" id="mail-vip" title="VIP sender">+ VIP</button>
+        <button class="btn" id="mail-vip" title="VIP sender" aria-label="VIP sender">${_si('plus')} VIP</button>
         <button class="btn" id="mail-to-task" title="review a task from this mail">${_si('check-circle')} make a task</button>
         <button class="btn" id="mail-to-cal" title="extract and review an event from this mail">${_si('calendar')} add to calendar</button>
         <button class="btn" id="mail-summarize" title="AI summary + action items">summarize</button>
@@ -1529,7 +1698,13 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   unread.addEventListener('click', () => { if (current() && unread.getAttribute('aria-disabled') !== 'true') changeRead(false); });
   changeRead(true);
   let vipState = null, vipLoading = false;
-  const paintVip = on => { vipState = on; vip.classList.toggle('on', on); vip.innerHTML = on ? `VIP ${_si('star-fill')}` : `${_si('plus')} VIP`; };
+  // a toggle: aria-pressed says on or off, the icon shows it (plus to add, a filled star once on)
+  // and "VIP" stays put
+  const paintVip = on => {
+    vipState = on; vip.classList.toggle('on', on);
+    vip.setAttribute('aria-pressed', String(on)); vip.setAttribute('aria-label', 'VIP sender');
+    vip.innerHTML = `${_si(on ? 'star-fill' : 'plus')} VIP`;
+  };
   const loadVip = async () => {
     if (vipLoading || !current()) return;
     vipLoading = true; vip.setAttribute('aria-disabled', 'true');
@@ -1542,7 +1717,8 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
       if (!Array.isArray(result?.vips) || result.vips.some(value => typeof value !== 'string')) throw new Error('could not read VIP senders');
       if (current()) paintVip(result.vips.some(value => value.toLowerCase() === senderAddr));
     } catch (error) {
-      if (current()) { vip.textContent = 'retry VIP status'; toast(error.message || 'could not read VIP senders', 'error'); }
+      // not a toggle until the state is known: its name is what it does now
+      if (current()) { vip.removeAttribute('aria-pressed'); vip.removeAttribute('aria-label'); vip.textContent = 'retry VIP status'; toast(error.message || 'could not read VIP senders', 'error'); }
     } finally { vipLoading = false; vip.setAttribute('aria-disabled', 'false'); }
   };
   loadVip();
@@ -1656,7 +1832,7 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
     <div class="mail-form-head">
       <div>
         <div class="mail-compose-head">new message</div>
-        <div class="mail-form-sub">from ${esc(acctName(defaultAid))}</div>
+        <div class="mail-form-sub">${!_accounts.length ? 'no sending account yet' : missingAccount ? 'from an unavailable account' : `from ${esc(acctName(defaultAid))}`}</div>
       </div>
       <div class="mail-form-actions">
         <button class="btn" id="mc-save">save draft</button>
@@ -1691,12 +1867,12 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
     <div class="mail-richbar" id="mc-richbar">
       <button class="btn mc-rt" data-cmd="bold" title="bold"><b>B</b></button>
       <button class="btn mc-rt" data-cmd="italic" title="italic"><i>I</i></button>
-      <button class="btn mc-rt" data-cmd="insertUnorderedList" title="bullet list">•</button>
+      <button class="btn mc-rt" type="button" data-cmd="insertUnorderedList" title="bullet list" aria-label="bullet list">${_si('list')}</button>
       <button class="btn mc-rt" type="button" data-cmd="createLink" title="link" aria-label="insert link">${_si('link')}</button>
       <button class="btn" type="button" id="mc-image" title="inline image" aria-label="insert image">${_si('image')}</button>
       <button class="btn" type="button" id="mc-suggest" title="AI reply suggestions" aria-label="suggest replies">${_si('sparkles')} suggest</button>
       <span class="mail-sig-wrap" id="mc-sig-list"></span>
-      <button class="btn" id="mc-sig-add" title="save a new signature">＋ sig</button>
+      <button class="btn" id="mc-sig-add" title="save a new signature">${_si('plus')} sig</button>
       <button class="btn" type="button" id="mc-sig-manage" aria-expanded="false" aria-controls="mc-sig-manager">manage signatures</button>
       <button class="btn" id="mc-sig-retry" style="display:none">retry signatures</button>
       <span id="mc-sig-status" class="mail-status" role="status"></span>
@@ -1819,6 +1995,20 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
   return editor;
 }
 
+// what the link button inserts. "example.org/page" and "localhost:3000" get https:// (sent bare
+// they were broken relative links), a bare address gets mailto:. '' is nothing typed, null is
+// anything that isn't a web or email address
+function _linkHref(raw) {
+  const value = String(raw ?? '').trim();
+  if (!value) return '';
+  // jane+news@ and o'brien@ are emails; user:pw@host and anything with a / never are
+  if (/^[^\s@/:]+@[\w.-]+\.\w+$/.test(value)) return `mailto:${value}`;
+  // host:port isn't a scheme, but only when it looks like a host: tel:911 stays a scheme and gets refused
+  const hostPort = /^(localhost|[\w-]+(\.[\w-]+)+):\d{1,5}(?:[/?#]|$)/i.test(value);
+  const href = /^[a-z][a-z0-9+.-]*:/i.test(value) && !hostPort ? value : `https://${value.replace(/^\/+/, '')}`;
+  return /^(https?|mailto):/i.test(href) ? href : null;
+}
+
 async function _wireRichCompose(defaultAid, root, current) {
   const $ = id => root.querySelector('#' + id);
   const toolbar = $('mc-richbar');
@@ -1834,12 +2024,10 @@ async function _wireRichCompose(defaultAid, root, current) {
         const command = button.dataset.cmd;
         let value = command === 'createLink' ? await dlgPrompt('', '', { title: 'insert a link', label: 'link url', confirmLabel: 'insert' }) : null;
         if (!current() || (command === 'createLink' && !value)) return;
-        // "example.org/page" becomes https://example.org/page; sent bare it was a broken relative link
         if (command === 'createLink') {
-          value = value.trim();
-          if (/^[\w.-]+@[\w.-]+\.\w+$/.test(value)) value = `mailto:${value}`;
-          else if (!/^[a-z][a-z0-9+.-]*:/i.test(value)) value = `https://${value.replace(/^\/+/, '')}`;
-          if (!/^(https?|mailto):/i.test(value)) { toast('use a web or email address for a link', 'error'); return; }
+          value = _linkHref(value);
+          if (value === null) toast('use a web or email address for a link', 'error');
+          if (!value) return;
         }
         editor.focus();
         if (range && editor.contains(range.commonAncestorContainer)) {
@@ -2043,11 +2231,12 @@ async function _wireRichCompose(defaultAid, root, current) {
 
 const OUTGOING_PREFIX = 'alles-mail-outbox:';
 const OUTGOING_FIELDS = ['to', 'cc', 'bcc', 'subject', 'body', 'html', 'in_reply_to', 'references'];
-const OUTGOING_STATES = ['scheduled', 'sending', 'sent', 'uncertain', 'canceled'];
+const OUTGOING_STATES = ['scheduled', 'sending', 'sent', 'uncertain', 'canceled', 'dismissed'];
 let _outboxScopes = [], _outboxRows = [], _outboxPending = null, _outboxKnown = null;
 let _outboxCancelOwner = null;
 let _outboxRead = 0, _outboxReady = false, _outboxOperation = null;
 let _outboxAnnounced = '';
+let _outboxShowAll = false;   // the strip shows the newest three until asked for the rest
 let _outboxReadError = '', _outboxStorageError = '', _outboxNotice = '', _outboxConflict = false;
 const outgoingKey = scope => OUTGOING_PREFIX + scope;
 const outgoingHtml = message => message.html || esc(message.body).replace(/\r\n?|\n/g, '<br>');
@@ -2102,9 +2291,11 @@ function outgoingStatus(row) {
   if (row.status === 'uncertain') return 'delivery is uncertain. check Sent before sending again';
   if (row.status === 'sent') return 'sent';
   if (row.status === 'canceled') return 'delivery canceled';
+  if (row.status === 'dismissed') return 'off the outbox list. check Sent before sending again';
   const instant = new Date(outgoingInstant(row.send_at));
   return Number.isFinite(instant.getTime()) ? `scheduled for ${formatDate(instant)} ${formatTime(instant, { hour: '2-digit', minute: '2-digit' })}` : 'scheduled time unavailable';
 }
+const outboxOrder = () => [..._outboxRows].sort((a, b) => (outgoingInstant(b.send_at) || 0) - (outgoingInstant(a.send_at) || 0));
 function paintOutbox() {
   const bar = $('mail-outbox-recovery'), strip = $('mail-scheduled');
   if (!bar || !strip) return;
@@ -2112,7 +2303,7 @@ function paintOutbox() {
   const pending = _outboxPending, busy = Boolean(_outboxOperation);
   let message = _outboxReadError || _outboxStorageError || _outboxNotice;
   if (!message && pending) message = pending.cancel_requested || pending.action === 'cancel' ? 'cancellation is unconfirmed. check the current outcome or retry cancellation.' : `delivery of “${pending.subject.trim() || 'untitled message'}” is unconfirmed. retry uses the same request.`;
-  if (busy) message = _outboxOperation.action === 'cancel' ? 'canceling delivery…' : (_outboxOperation.action === 'cleanup' ? 'removing the saved draft…' : 'queueing message…');
+  if (busy) message = { cancel: 'canceling delivery…', cleanup: 'removing the saved draft…', check: 'checking delivery…' }[_outboxOperation.action] || 'queueing message…';
   const button = (id, label, blocked = busy) => `<button type="button" class="btn" id="${id}" aria-disabled="${blocked}">${label}</button>`;
   let actions = '';
   if (pending || _outboxReadError || _outboxStorageError) actions += button('mail-outbox-check', 'check delivery status', false);
@@ -2142,16 +2333,76 @@ function paintOutbox() {
     const recovered = await compose({ ...message, id: '', body: outgoingHtml(message), account_id: p.account_id || row.account_id, _outgoing: p });
     if (row?.status === 'canceled' && recovered && mailEditor() === recovered && recovered.snapshot() === recovered.outgoingSnapshot && sameOutgoing(recovered.outgoing, p)) await finishOutgoing(p, row, true);
   });
-  strip.innerHTML = _outboxRows.length ? '<span class="mail-sched-lbl">outbox</span>' + _outboxRows.map(row => `<span class="mail-sched-chip"><span>${esc(row.subject || '(no subject)')} · ${esc(outgoingStatus(row))}</span>${row.status === 'scheduled' ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-cancel-${esc(row.id)}" data-cancel="${esc(row.id)}" aria-label="cancel ${esc(row.subject || 'untitled message')}" aria-disabled="${Boolean(pending || busy || _outboxReadError || _outboxStorageError)}">cancel</button>` : ''}</span>`).join('') : '';
+  // newest first and three at a time: a pile of old uncertain ones never buries compose
+  const rows = outboxOrder();
+  const shown = _outboxShowAll ? rows : rows.slice(0, 3);
+  const name = row => esc(row.subject || 'untitled message');
+  const rowActions = row => row.status === 'scheduled'
+    ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-cancel-${esc(row.id)}" data-cancel="${esc(row.id)}" aria-label="cancel ${name(row)}" aria-disabled="${Boolean(pending || busy || _outboxReadError || _outboxStorageError)}">cancel</button>`
+    : row.status === 'uncertain'
+      ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-recheck-${esc(row.id)}" data-recheck="${esc(row.id)}" aria-label="check again: ${name(row)}">check again</button>`
+        + `<button type="button" class="mail-sched-cancel" id="mail-outbox-dismiss-${esc(row.id)}" data-dismiss="${esc(row.id)}" aria-label="dismiss ${name(row)}" aria-disabled="${busy}">${_si('close')} dismiss</button>`
+      : '';
+  const more = rows.length > 3 ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-more" aria-expanded="${_outboxShowAll}">${_outboxShowAll ? 'show fewer' : `+${rows.length - 3} more`}</button>` : '';
+  strip.innerHTML = rows.length ? '<span class="mail-sched-lbl">outbox</span>' + shown.map(row => `<span class="mail-sched-chip" data-row="${esc(row.id)}"><span>${esc(row.subject || '(no subject)')} · ${esc(outgoingStatus(row))}</span>${rowActions(row)}</span>`).join('') + more : '';
   strip.querySelectorAll('[data-cancel]').forEach(button => button.addEventListener('click', () => {
     if (button.getAttribute('aria-disabled') !== 'true') cancelOutgoing(_outboxRows.find(row => row.id === button.dataset.cancel));
   }));
+  strip.querySelectorAll('[data-recheck]').forEach(button => button.addEventListener('click', () => recheckOutgoing(button.dataset.recheck)));
+  strip.querySelectorAll('[data-dismiss]').forEach(button => button.addEventListener('click', () => {
+    if (button.getAttribute('aria-disabled') !== 'true') dismissOutgoing(button.dataset.dismiss);
+  }));
+  $('mail-outbox-more')?.addEventListener('click', () => { _outboxShowAll = !_outboxShowAll; paintOutbox(); $('mail-outbox-more')?.focus(); });
   const editor = mailEditor();
   if (editor) for (const id of ['mc-send', 'mc-schedule']) editor.root.querySelector('#' + id)?.setAttribute('aria-disabled', String(!_outboxReady || busy || Boolean(pending || _outboxReadError || _outboxStorageError || (editor.outboxScope && !_outboxScopes.includes(editor.outboxScope)))));
   if (focused && document.activeElement === document.body) {
     const target = document.getElementById(focused) || (!bar.hidden ? $('mail-outbox-status') : editor?.root.querySelector('#mc-send') || $('mail-compose-btn'));
     if (target?.getClientRects().length) target.focus();
   }
+}
+// after a row leaves the strip: the next row's first action, else where you write mail
+function focusOutboxNext(at) {
+  const chips = [...($('mail-scheduled')?.querySelectorAll('.mail-sched-chip') || [])];
+  const next = chips.slice(Math.max(0, at)).concat(chips.slice(0, Math.max(0, at)).reverse())
+    .map(chip => [...chip.querySelectorAll('button')].find(button => button.getAttribute('aria-disabled') !== 'true')).find(Boolean);
+  const editor = mailEditor();
+  (next || editor?.root.querySelector('.mc-chip-input') || editor?.root.querySelector('#mc-subj') || $('mail-compose-btn'))?.focus();
+}
+// an uncertain row, read again from the server: still uncertain, or another tab moved it on
+async function recheckOutgoing(id) {
+  const at = outboxOrder().findIndex(row => row.id === id);
+  let message = '', kind = '';
+  try {
+    const result = await mailJson(`/api/mail/scheduled?request_id=${encodeURIComponent(id)}&recovery_scope=${encodeURIComponent(_outboxScopes[0] || '')}`, { cache: 'no-store' });
+    if (!Array.isArray(result?.scheduled) || result.scheduled.length > 1 || result.scheduled.some(row => !validOutgoingRow(row) || row.id !== id)) throw new Error('could not read the outbox');
+    const row = result.scheduled[0];
+    _outboxRows = _outboxRows.filter(value => value.id !== id);
+    if (row && ['scheduled', 'sending', 'uncertain'].includes(row.status)) _outboxRows.push(row);
+    message = row ? outgoingStatus(row) : 'no longer in the outbox';
+    kind = row?.status === 'uncertain' ? '' : 'success';
+  } catch (error) { message = failedBecause('could not check delivery', error, 'try again'); kind = 'error'; }
+  paintOutbox();
+  if (!$(`mail-outbox-recheck-${id}`)) focusOutboxNext(at);
+  else if (document.activeElement === document.body) $(`mail-outbox-recheck-${id}`).focus();
+  toast(message, kind);
+}
+// off the list once the owner has checked Sent. the server only takes uncertain rows; a scheduled
+// send is never touched, and the row is kept, just not listed
+async function dismissOutgoing(id) {
+  if (_outboxRows.find(row => row.id === id)?.status !== 'uncertain') return;
+  if (!await dlgConfirm('remove from this list? it may already have gone out.')) return;
+  const at = outboxOrder().findIndex(row => row.id === id);
+  try {
+    await mailJson(`/api/mail/scheduled/${encodeURIComponent(id)}/cancel?dismiss=true&recovery_scope=${encodeURIComponent(_outboxScopes[0] || '')}`, { method: 'POST' });
+  } catch (error) {
+    toast(failedBecause('could not dismiss it', error, 'try again'), 'error');
+    if (error.status === 404 || error.status === 409) await recheckOutgoing(id);
+    return;
+  }
+  _outboxRows = _outboxRows.filter(row => row.id !== id);
+  paintOutbox();
+  focusOutboxNext(at);
+  toast('removed from the outbox list', 'success');
 }
 async function _renderScheduled() {
   const generation = ++_outboxRead;
@@ -2252,11 +2503,16 @@ async function submitOutgoing() {
   }
   const operation = { pending, action: 'queue', retired: false };
   _outboxOperation = operation; ++_outboxRead; _outboxNotice = ''; paintOutbox();
+  let accepted = false;
   try {
     await mailJson(`/api/mail/${pending.action === 'send' ? 'send-undoable' : 'schedule'}/${encodeURIComponent(pending.account_id)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...pending.message, request_id: pending.request_id, recovery_scope: pending.recovery_scope }) });
+    accepted = true;
   } catch (error) { if (!operation.retired && sameOutgoing(pending, _outboxPending)) _outboxNotice = `delivery request unconfirmed. ${error.message || 'check its status or retry.'}`; }
-  finally { if (_outboxOperation === operation) _outboxOperation = null; paintOutbox(); }
+  // an accepted request reads "checking delivery…" until the outbox confirms it; painting it as
+  // pending in between flashed "unconfirmed" after every good send
+  finally { if (_outboxOperation === operation) { if (accepted) operation.action = 'check'; else _outboxOperation = null; } paintOutbox(); }
   if (!operation.retired && sameOutgoing(pending, _outboxPending)) await _renderScheduled();
+  if (_outboxOperation === operation) { _outboxOperation = null; paintOutbox(); }
 }
 async function cancelOutgoing(row = null, scope = _outboxScopes[0]) {
   if (_outboxStorageError || !_outboxReady || (_outboxOperation && _outboxOperation.action === 'cancel') || _outboxConflict) return;
@@ -2294,7 +2550,7 @@ async function forgetOutgoing(unreadable) {
 }
 function _showUndoBar(row, scope) {
   let bar = $('mail-undo-bar');
-  if (!bar) { bar = document.createElement('div'); bar.id = 'mail-undo-bar'; bar.className = 'mail-undo-bar'; $('mail-view')?.appendChild(bar); }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'mail-undo-bar'; bar.className = 'mail-undo-bar'; stackUndoBar(bar); }
   bar.dataset.id = row.id; bar.dataset.scope = scope;
   bar.innerHTML = '<span>queued to send</span><button type="button" class="btn" id="mail-undo-btn">undo</button>';
   bar.style.display = 'flex';
@@ -2364,7 +2620,7 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
     const focus = root.contains(document.activeElement) ? document.activeElement.id : '';
     const blocked = busy || Boolean(pending || storageError);
     el('mail-rules-list').innerHTML = rows.map(row => `<div class="mail-rule-row" data-id="${esc(row.id)}">
-      <span>if <b>${esc(row.match_field)}</b> contains “${esc(row.match_value)}” → <b>${esc(({ markread: 'mark read', autoreply: 'auto-reply' })[row.action] || row.action)}</b>${row.action_arg ? ` (${esc(row.action_arg)})` : ''}${row.enabled ? '' : ' · paused'}</span>
+      <span>if <b>${esc(row.match_field)}</b> contains “${esc(row.match_value)}” ${_si('arrow-right')}<span class="sr-only">then</span> <b>${esc(({ markread: 'mark read', autoreply: 'auto-reply' })[row.action] || row.action)}</b>${row.action_arg ? ` (${esc(row.action_arg)})` : ''}${row.enabled ? '' : ' · paused'}</span>
       <button type="button" class="btn danger mail-rule-del" id="mr-delete-${esc(row.id)}" data-id="${esc(row.id)}" aria-label="remove rule for ${esc(row.match_value)}" aria-disabled="${blocked}">remove</button>
     </div>`).join('') || '<div class="mail-empty-sm">no rules yet</div>';
     el('mr-add').setAttribute('aria-disabled', String(blocked));
@@ -2777,6 +3033,8 @@ function mountAccountRecovery(root, current, changed) {
 const accountRecoveryHtml = '<div class="mail-saved-status"><p id="ma-recovery-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="ma-recovery-actions"></div></div>';
 
 async function accountsPanel(firstRun = false) {
+  // what opened it gets focus back on close (the cog popover's button is gone by then)
+  const opener = $('mail-main')?.contains(document.activeElement) ? null : document.activeElement;
   if (!await prepareMailNavigation()) return;
   const main = $('mail-main'), generation = _messageGeneration;
   const current = () => main.isConnected && generation === _messageGeneration;
@@ -2821,7 +3079,15 @@ async function accountsPanel(firstRun = false) {
     if (focused && document.activeElement === document.body) root.querySelector('#mail-add-acct').focus();
   }
   root.querySelector('#mail-add-acct').addEventListener('click', () => { if (!_accountRecovery.pending && !_accountRecovery.error && !_accountRecovery.write) acctForm(null); });
-  root.querySelector('#mail-accounts-close').addEventListener('click', () => { if (live()) { ++_messageGeneration; root.remove(); _mailSettings = null; _mailSettingsReturn = null; _reloadCurrent(); } });
+  // opened from the cog's menu (gone now) or anything else that left focus nowhere: start on
+  // the panel's main action
+  if (!document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected) root.querySelector('#mail-add-acct')?.focus();
+  root.querySelector('#mail-accounts-close').addEventListener('click', () => {
+    if (!live()) return;
+    ++_messageGeneration; root.remove(); _mailSettings = null; _mailSettingsReturn = null; _reloadCurrent();
+    const back = opener && opener !== document.body && opener.isConnected && opener.getClientRects().length ? opener : null;
+    (back || $('mail-view')?.querySelector('.app-cog[data-app="mail"]') || $('mail-compose-btn'))?.focus();
+  });
   paintRows(); paintRecovery();
 }
 
@@ -3201,13 +3467,19 @@ async function renderOauthBox(acct, editor) {
   paint();
 }
 
-// turn a raw IMAP/SMTP error into something a human can act on
-function friendlyMailError(err) {
+// what a read failure says in the list: "[Errno 61] Connection refused" reads as a refused server
+function mailProblem(text) { return plainError(friendlyMailError(text, true)); }
+
+// turn a raw IMAP/SMTP error into something a human can act on. inList: it shows in the mail list,
+// where the account form's "get app password" button isn't
+function friendlyMailError(err, inList = false) {
   const e = (err || '').toLowerCase();
   if (e.includes('application-specific password') || e.includes('badcredentials') || e.includes('support.google'))
-    return 'this provider wants an app password, not your normal password - tap "get app password" above.';
+    return inList ? 'this provider wants an app password, not your normal one. add it in mail settings, under accounts.'
+      : 'this provider wants an app password, not your normal password - tap "get app password" above.';
   if (e.includes('authenticationfailed') || e.includes('invalid credentials') || e.includes('authentication failed') || e.includes('not accepted') || e.includes('login failed'))
-    return 'login rejected - paste the app password with no spaces, and make sure 2-step verification is on.';
+    return inList ? 'login rejected. check the app password in mail settings, under accounts.'
+      : 'login rejected - paste the app password with no spaces, and make sure 2-step verification is on.';
   if (e.includes('getaddrinfo') || e.includes('name or service') || e.includes('nodename') || e.includes('temporary failure in name'))
     return "couldn't reach the server - double-check the imap host.";
   if (e.includes('timed out') || e.includes('timeout'))

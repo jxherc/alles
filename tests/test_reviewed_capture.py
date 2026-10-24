@@ -269,6 +269,30 @@ class ReviewedCaptureTests(ApiTest):
         self.assertEqual(retry.json()["id"], rid)
         self.assertTrue(retry.json()["done"])
 
+    def test_a_source_uid_must_be_one_imap_hands_out(self):
+        for uid in ["007", "0", "12345678901"]:
+            with self.subTest(uid=uid):
+                response = self.client.post(
+                    "/api/mail/make-task",
+                    json={"title": "x", "preview": True, "source": self.origin | {"uid": uid}},
+                )
+                self.assertEqual(response.status_code, 422)
+
+    def test_an_older_saved_source_with_a_uid_no_server_uses_is_not_an_endless_retry(self):
+        _, created = self.accept_task()
+        with self.db() as db:
+            task = db.get(Task, created["id"])
+            stored = json.loads(task.source_json)
+            task.source_json = json.dumps(stored | {"uid": "007"})
+            db.commit()
+        with mock.patch("services.mail.fetch_message") as fetch:
+            response = self.client.get(f"/api/mail/source/task/{created['id']}")
+        fetch.assert_not_called()
+        self.assertEqual(response.status_code, 404)
+        detail = response.json()["detail"]
+        self.assertIn("saved excerpt", detail["message"])
+        self.assertEqual(detail["source"]["excerpt"], stored["excerpt"])
+
     def test_source_lookup_rejects_reused_uid_or_changed_content(self):
         _, saved = self.accept_task()
         endpoint = "/api/mail/source/task/" + saved["id"]

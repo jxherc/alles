@@ -414,8 +414,10 @@ with sync_playwright() as pw:
                     ).json()
                     open_row(original)
                     body.fill("exact reply 中文")
-                    page.locator('#mc-richbar [data-cmd="bold"]').click()
+                    # End before bold: on a mac End scrolls, and when the pane has nothing to
+                    # scroll chromium moves the caret instead, which drops the pending bold
                     body.press("End")
+                    page.locator('#mc-richbar [data-cmd="bold"]').click()
                     body.press("X")
                     page.route(endpoint, fail)
                     page.locator("#mc-save").click()

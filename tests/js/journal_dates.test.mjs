@@ -76,5 +76,61 @@ test('failed or overlapping autosaves keep the entry dirty for navigation retry'
 
 test('journal hydration failures stay visible and immediately retryable', () => {
   assert.match(source, /catch \(error\) \{\s*_lastHydratedAt = 0/);
-  assert.match(source, /Journal could not refresh\. Try again\./);
+  assert.match(source, /journal could not refresh\. try again\./);
+});
+
+test('the year strip is a picture: no cell takes a click or a tab stop, the months are the way in', async () => {
+  const { formatCalendarDate } = await import('../../static/js/i18n.js');
+  const vm = await import('node:vm');
+  const body = source.match(/function stopAt\([\s\S]*?\n}\n/)?.[0] + source.match(/async function loadHeatmap\(\) \{[\s\S]*?\n}\n/)?.[0];
+  assert.ok(!body.includes('undefined'));
+  assert.doesNotMatch(source, /grid_nav|wireGridNav/);
+  const nodes = {}, days = [];
+  const node = id => (nodes[id] ||= {
+    id, textContent: '', disabled: false, html: '',
+    set innerHTML(value) { this.html = value; }, get innerHTML() { return this.html; },
+    contains: () => false, querySelectorAll: () => [], querySelector: () => null,
+  });
+  const context = vm.createContext({
+    document: { getElementById: node, activeElement: null }, esc: s => String(s), formatCalendarDate,
+    jget: async () => ({ year: 2026, days: { '2026-03-02': { level: 2, words: 120, mood: '' }, '2026-03-09': { level: 1, words: 20, mood: '' }, '2026-10-12': { level: 1, words: 30, mood: '' } } }),
+    todayISO: () => '2026-10-23', _day: '2026-10-12', _heatYear: null, navigateDay: day => days.push(day),
+  });
+  vm.runInContext(body, context);
+  await context.loadHeatmap();
+  const html = nodes['jrnl-heatmap'].html;
+  assert.match(html, /<div class="jrnl-heatgrid" role="img" aria-label="journal 2026: entries on 3 days, most in March"/);
+  assert.doesNotMatch(html, /tabindex|role="gridcell"|role="row"|aria-owns/);
+  assert.equal((html.match(/<span class="jrnl-hc[^"]*"[^>]*aria-hidden="true"/g) || []).length, (html.match(/<span class="jrnl-hc/g) || []).length);
+  const months = [...html.matchAll(/<button type="button" class="jrnl-hm jrnl-heat-month"[^>]*data-month="([^"]+)"[^>]*>(\w+)<\/button>/g)];
+  assert.equal(months.length, 12);
+  assert.deepEqual([months[2][1], months[2][2]], ['2026-03-01', 'mar']);
+  assert.match(months[2][0], /aria-label="mar 2026, 2 entries"/);
+  // a month after today has nothing to open yet
+  assert.match(months[10][0], /aria-disabled="true"/);
+  assert.doesNotMatch(months[9][0], /aria-disabled/);
+});
+
+test('journal arrows are svg chevrons with names', () => {
+  for (const id of ['jrnl-prev', 'jrnl-next', 'jrnl-heat-prev', 'jrnl-heat-next']) {
+    assert.match(source, new RegExp(`id="${id}"[^>]*aria-label="[^"]+">\\$\\{_si\\('chevron-(left|right)'\\)\\}</button>`));
+  }
+});
+
+test('a next arrow that turns disabled under focus hands focus to its opposite, not <body>', async () => {
+  const vm = await import('node:vm');
+  const fn = source.match(/function stopAt\([\s\S]*?\n}\n/)?.[0];
+  assert.ok(fn);
+  const next = { disabled: false }, prev = {};
+  const document = { activeElement: next, getElementById: id => ({ 'jrnl-next': next, 'jrnl-prev': prev })[id] };
+  prev.focus = () => { document.activeElement = prev; };
+  const context = vm.createContext({ document });
+  vm.runInContext(fn, context);
+  context.stopAt('jrnl-next', 'jrnl-prev', false);
+  assert.equal(document.activeElement, next);
+  context.stopAt('jrnl-next', 'jrnl-prev', true);
+  assert.equal(next.disabled, true);
+  assert.equal(document.activeElement, prev);
+  assert.match(source, /stopAt\('jrnl-next', 'jrnl-prev', _day >= todayISO\(\)\)/);
+  assert.match(source, /stopAt\('jrnl-heat-next', 'jrnl-heat-prev', d\.year >= new Date\(\)\.getFullYear\(\)\)/);
 });

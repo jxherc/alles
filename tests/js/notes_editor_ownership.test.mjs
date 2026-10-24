@@ -10,7 +10,7 @@ const response = (data, status = 200) => ({ ok: status < 400, status, json: asyn
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 function harness() {
-  const elements = new Map(), writes = [], toasts = [], disk = new Map();
+  const elements = new Map(), writes = [], toasts = [], disk = new Map(), pickers = [];
   let held = null, fail = null, created = 0;
   function element(id = '', value = '') {
     const listeners = new Map();
@@ -60,10 +60,11 @@ function harness() {
     document: { getElementById: id => elements.get(id), querySelectorAll: () => [] },
     fetch: fetcher, URLSearchParams, location: { hash: '' }, setTimeout, clearTimeout,
     toast: (message, kind) => toasts.push({ message, kind }),
+    initDatePicker: el => { pickers.push(el); },
   });
   vm.runInContext(source + '\nglobalThis.subject = { open: openEditor, save: saveCurrentNote, newNote, load: loadNotes, current: () => _editing };', context);
   return {
-    ...context.subject, get: id => elements.get(id), writes, toasts, disk,
+    ...context.subject, get: id => elements.get(id), writes, toasts, disk, pickers,
     seed(id = 'a') { const value = note(id); disk.set(id, value); return value; },
     refuse() { fail = 503; },
     hold(method = 'PATCH') { let release; const promise = new Promise(resolve => { release = resolve; }); held = { method, promise }; return release; },
@@ -177,4 +178,29 @@ test('Archive refusal keeps the note, reports failure, and supports a successful
   await button.click();
   assert.equal(h.disk.has('a'), false);
   assert.equal(h.toasts.at(-1).message, 'archived');
+});
+
+test('the due date is the app date picker, and its value is what saves', async () => {
+  assert.doesNotMatch(source, /<input[^>]*type="date"/);
+  const h = harness(); h.open(h.seed());
+  const due = h.get('note-edit-due');
+  assert.deepEqual(h.pickers, [due]);
+  due.value = '2026-11-02';
+  await h.get('note-save-btn').click();
+  assert.equal(h.writes.at(-1).body.due, '2026-11-02');
+});
+
+test('the due date is named "due date", plus the chosen date once there is one', () => {
+  assert.match(source, /<span id="note-due-label" hidden>due date<\/span>/);
+  assert.doesNotMatch(source, /id="note-edit-due"[^>]*aria-label=/);
+  assert.doesNotMatch(source, />\+ checklist item</);
+  const fn = source.match(/const nameDue = [^\n]+/)?.[0];
+  assert.ok(fn);
+  for (const [value, name] of [['', 'note-due-label'], ['2026-11-02', 'note-due-label note-edit-due']]) {
+    const attrs = {};
+    const due = { value, setAttribute: (key, v) => { attrs[key] = v; } };
+    new Function('due', `${fn}; nameDue();`)(due);
+    assert.equal(attrs['aria-labelledby'], name, value || 'empty');
+  }
+  assert.match(source, /due\.addEventListener\('change', nameDue\)/);
 });

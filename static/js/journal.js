@@ -1,8 +1,7 @@
 // journal — one entry per day. mood + tags + prompt + streak + on-this-day + AI reflect.
 import { toast, mdToHtml } from './util.js';
 import { formatCalendarDate, formatTime } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=1';
-import { wireGridNav, WEEK_COLUMNS } from './grid_nav.js';
+import { createFocusBoundary } from './kokuen.js?v=2';
 import { replaceRouteUrl } from './route_history.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
@@ -102,7 +101,7 @@ async function migrationRequest(url, options = {}) {
   const response = await fetch(url, { ...options, headers });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.detail || 'Journal copy could not continue');
+    const error = new Error(data.detail || 'the journal copy could not continue');
     error.status = response.status;
     error.code = data.code || '';
     throw error;
@@ -118,7 +117,7 @@ async function openMarkdownCopy() {
     clearTimeout(_saveTimer);
     _saveTimer = null;
     if (!await save(false)) {
-      toast('Save the current Journal entry before copying it to Markdown', 'error');
+      toast('save the current journal entry before copying it to Markdown', 'error');
       _copyDialogOpen = false;
       return;
     }
@@ -129,7 +128,7 @@ async function openMarkdownCopy() {
     plan = await migrationRequest('/api/journal-migration/plan');
   }
   catch (error) {
-    toast(error.status === 403 ? 'Unlock Journal and confirm your owner session first' : error.message, 'error');
+    toast(error.status === 403 ? 'unlock the journal and confirm your owner session first' : error.message, 'error');
     _copyDialogOpen = false;
     return;
   }
@@ -139,15 +138,15 @@ async function openMarkdownCopy() {
   layer.setAttribute('aria-modal', 'true');
   layer.setAttribute('aria-labelledby', 'jrnl-migration-title');
   const copyDescription = current => current.count
-    ? `This makes ${current.count} daily Markdown file${current.count === 1 ? '' : 's'} in <b>Journal/</b> so Obsidian and Docs can read them.`
-    : 'No Journal entries to copy yet.';
+    ? `this makes ${current.count} daily Markdown file${current.count === 1 ? '' : 's'} in <b>Journal/</b> so Obsidian and docs can read them.`
+    : 'no journal entries to copy yet.';
   function copyControls(current) {
     if (!current.count) return '<div class="jrnl-migration-actions"><button type="button" data-close>done</button></div>';
     const conflicts = current.conflicts?.length
-      ? `<div class="jrnl-migration-error">${current.conflicts.length} existing Markdown file${current.conflicts.length === 1 ? '' : 's'} would conflict. Nothing can be copied until those files are moved or renamed.</div>`
+      ? `<div class="jrnl-migration-error">${current.conflicts.length} existing Markdown file${current.conflicts.length === 1 ? '' : 's'} would conflict. nothing can be copied until those files are moved or renamed.</div>`
       : '';
     const invalid = current.invalid_dates?.length
-      ? `<div class="jrnl-migration-error">${current.invalid_dates.length} Journal date${current.invalid_dates.length === 1 ? '' : 's'} need repair before copying.</div>`
+      ? `<div class="jrnl-migration-error">${current.invalid_dates.length} journal date${current.invalid_dates.length === 1 ? '' : 's'} need repair before copying.</div>`
       : '';
     const disabled = current.conflicts?.length || current.invalid_dates?.length;
     return `${conflicts}${invalid}
@@ -164,12 +163,12 @@ async function openMarkdownCopy() {
   layer.innerHTML = `
     <div class="jrnl-migration-card">
       <div class="jrnl-migration-head">
-        <h2 id="jrnl-migration-title">copy Journal to Markdown</h2>
+        <h2 id="jrnl-migration-title">copy journal to Markdown</h2>
         <button type="button" data-close aria-label="close">close</button>
       </div>
       <p data-copy-description>${copyDescription(plan)}</p>
       <p class="jrnl-migration-warning">${esc(plan.privacy_warning)}</p>
-      <p class="jrnl-migration-note">Journal stays the source of truth. The database is not deleted, and you can roll back files that Alles created unchanged.</p>
+      <p class="jrnl-migration-note">journal stays the source of truth. the database is not deleted, and you can roll back files that alles created unchanged.</p>
       <div class="jrnl-migration-operations" data-operations hidden></div>
       <div data-new-copy>
         ${copyControls(plan)}
@@ -208,7 +207,7 @@ async function openMarkdownCopy() {
         : `<button type="button" data-operation="${id}" data-action="rollback" data-rollback>${item.state === 'applied' ? 'roll back copied files' : 'retry rollback'}</button>`;
       return `<div class="jrnl-migration-operation"><p>${label} copy ${id.slice(0, 8)} · ${esc(item.count)} file${item.count === 1 ? '' : 's'}${item.rollback_conflicts ? ` · ${esc(item.rollback_conflicts)} conflict${item.rollback_conflicts === 1 ? '' : 's'}` : ''}</p><div class="jrnl-migration-actions">${action}</div></div>`;
     });
-    const unavailable = data.unavailable.map(id => `<p class="jrnl-migration-error">copy ${esc(id.slice(0, 8))} cannot be opened. Its private recovery record needs inspection; no files were removed.</p>`);
+    const unavailable = data.unavailable.map(id => `<p class="jrnl-migration-error">copy ${esc(id.slice(0, 8))} cannot be opened. its private recovery record needs inspection; no files were removed.</p>`);
     operations.innerHTML = pending ? `<h3>existing copy work</h3>${rows.join('')}${unavailable.join('')}` : '';
   }
   renderOperations(existing);
@@ -232,22 +231,22 @@ async function openMarkdownCopy() {
             layer.querySelector('.jrnl-migration-warning').textContent = plan.privacy_warning;
           } catch {
             newCopy.hidden = true;
-            report('Copy work changed, but its new plan could not be loaded. Close and reopen to check before another copy.', true);
+            report('copy work changed, but its new plan could not be loaded. close and reopen to check before another copy.', true);
             layer.querySelector('[data-close]')?.focus();
             return;
           }
         }
         report(result.state === 'applied'
-          ? `${result.installed} Markdown file${result.installed === 1 ? '' : 's'} copied. Journal is still intact.`
+          ? `${result.installed} Markdown file${result.installed === 1 ? '' : 's'} copied. the journal is still intact.`
           : result.rollback_conflicts?.length
-            ? 'Some copied files changed later, so Alles left them in place.'
-            : 'Copied Markdown files rolled back. Journal was never removed.');
+            ? 'some copied files changed later, so alles left them in place.'
+            : 'copied Markdown files rolled back. the journal was never removed.');
         (operations.querySelector('[data-operation]') || newCopy.querySelector('input') || layer.querySelector('[data-close]'))?.focus();
       } catch (error) {
         try { renderOperations(await migrationRequest('/api/journal-migration/operations')); }
         catch { /* preserve the last visible recovery choice until the dialog is reopened */ }
         if (!newCopy.hidden) newCopy.hidden = true;
-        report(error.status === 403 ? 'Unlock Journal and confirm your owner session first.' : `${error.message} Close and reopen to check copy work before retrying.`, true);
+        report(error.status === 403 ? 'unlock the journal and confirm your owner session first.' : `${error.message} close and reopen to check copy work before retrying.`, true);
         if (button.isConnected) button.disabled = false;
       }
       return;
@@ -255,7 +254,7 @@ async function openMarkdownCopy() {
     if (!button.hasAttribute('data-prepare')) return;
     const input = newCopy.querySelector('input');
     if (input.value !== plan.confirmation) {
-      report('The confirmation line does not match.', true);
+      report('the confirmation line does not match.', true);
       input.focus();
       return;
     }
@@ -270,13 +269,13 @@ async function openMarkdownCopy() {
       renderOperations({ operations: [{ ...prepared, rollback_conflicts: prepared.rollback_conflicts?.length || 0 }], unavailable: [] });
       const latest = await migrationRequest('/api/journal-migration/operations');
       renderOperations(latest);
-      report(`${prepared.count} file${prepared.count === 1 ? '' : 's'} prepared privately. No Markdown file has changed yet.`);
+      report(`${prepared.count} file${prepared.count === 1 ? '' : 's'} prepared privately. no Markdown file has changed yet.`);
       operations.querySelector('[data-apply]')?.focus();
     } catch (error) {
       try { renderOperations(await migrationRequest('/api/journal-migration/operations')); }
       catch { newCopy.hidden = true; }
-      const message = error.status === 403 ? 'Unlock Journal and confirm your owner session first.' : error.message;
-      report(`${message} Close and reopen to check copy work before retrying.`, true);
+      const message = error.status === 403 ? 'unlock the journal and confirm your owner session first.' : error.message;
+      report(`${message} close and reopen to check copy work before retrying.`, true);
     }
   });
   boundary.activate({ focus: newCopy.hidden ? operations.querySelector('button') || layer.querySelector('[data-close]') : newCopy.querySelector('input') });
@@ -293,9 +292,9 @@ async function buildJournal() {
       <div class="jrnl-wrap">
         <div class="jrnl-main">
           <div class="jrnl-datebar">
-            <button class="btn" id="jrnl-prev" title="previous day">‹</button>
+            <button class="btn" id="jrnl-prev" title="previous day" aria-label="previous day">${_si('chevron-left')}</button>
             <div class="jrnl-date" id="jrnl-date"></div>
-            <button class="btn" id="jrnl-next" title="next day">›</button>
+            <button class="btn" id="jrnl-next" title="next day" aria-label="next day">${_si('chevron-right')}</button>
             <button class="btn" id="jrnl-today">today</button>
             <span class="jrnl-words" id="jrnl-words"></span>
           </div>
@@ -325,9 +324,9 @@ async function buildJournal() {
           <div id="jrnl-results" class="jrnl-results"></div>
           <div class="jrnl-side-title jrnl-heat-head">
             <span class="jrnl-heat-label">activity</span>
-            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="previous year">‹</button>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="previous year" aria-label="previous year">${_si('chevron-left')}</button>
             <span id="jrnl-heat-year"></span>
-            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="next year">›</button>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="next year" aria-label="next year">${_si('chevron-right')}</button>
           </div>
           <div id="jrnl-heatmap" class="jrnl-heatmap"></div>
         </div>
@@ -469,9 +468,16 @@ async function buildJournal() {
   } catch (error) {
     _lastHydratedAt = 0;
     const status = document.getElementById('jrnl-saved');
-    if (status) status.textContent = 'Journal could not refresh. Try again.';
+    if (status) status.textContent = 'journal could not refresh. try again.';
     return [];
   }
+}
+
+// a focused button that turns disabled drops focus to <body>: hand it to its opposite first
+function stopAt(id, backId, stop) {
+  const button = document.getElementById(id);
+  if (stop && document.activeElement === button) document.getElementById(backId)?.focus();
+  button.disabled = stop;
 }
 
 async function loadHeatmap() {
@@ -482,7 +488,7 @@ async function loadHeatmap() {
     const d = await jget('/api/journal/calendar?year=' + year);
     _heatYear = d.year;
     document.getElementById('jrnl-heat-year').textContent = d.year;
-    document.getElementById('jrnl-heat-next').disabled = d.year >= new Date().getFullYear();
+    stopAt('jrnl-heat-next', 'jrnl-heat-prev', d.year >= new Date().getFullYear());
     // github-style contribution grid: 7 day-rows × ~53 week-columns, weeks left→right
     // from the Sunday on/before Jan 1. cells are a flat list laid out column-major by
     // the css grid (grid-auto-flow:column), so each 1fr column fills the full width.
@@ -491,7 +497,6 @@ async function loadHeatmap() {
     const end = new Date(Date.UTC(d.year, 11, 31));
     const today = todayISO();
     let cells = '', weeks = 0;
-    const rowsByDay = Array.from({ length: 7 }, () => []);
     for (let c = new Date(start); c <= end; c.setUTCDate(c.getUTCDate() + 7)) {
       for (let r = 0; r < 7; r++) {
         const dt = new Date(c); dt.setUTCDate(dt.getUTCDate() + r);
@@ -502,37 +507,38 @@ async function loadHeatmap() {
         if (!inYear) cls.push('off');
         if (iso === today) cls.push('today');
         if (iso === _day) cls.push('sel');
-        const title = esc(info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso);
-        const clickable = inYear && iso <= today;
-        if (inYear) rowsByDay[r].push(`jh-${iso}`);
-        cells += inYear
-          ? `<span class="${cls.join(' ')}" id="jh-${iso}" data-d="${clickable ? iso : ''}" title="${title}" aria-label="${title}"${clickable ? '' : ' aria-disabled="true"'}${iso === _day ? ' aria-selected="true"' : ''}></span>`
-          : `<span class="${cls.join(' ')}" data-d="" aria-hidden="true"></span>`;
+        // a picture: a pointer still gets the day on hover, nothing here takes a click or a tab stop
+        const title = inYear ? ` title="${esc(info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso)}"` : '';
+        cells += `<span class="${cls.join(' ')}" data-d="${inYear ? iso : ''}"${title} aria-hidden="true"></span>`;
       }
       weeks++;
     }
-    // month labels sit above the column where each month's 1st falls
-    const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    // month labels sit above the column where each month's 1st falls. they're the way in: a month
+    // opens on its 1st (the picker can't open on a chosen month)
+    const M = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const written = Object.keys(d.days).filter(iso => iso.startsWith(`${d.year}-`));
+    const perMonth = M.map((_, m) => written.filter(iso => Number(iso.slice(5, 7)) === m + 1).length);
     let months = '';
     for (let m = 0; m < 12; m++) {
       const wk = Math.floor((Date.UTC(d.year, m, 1) - start.getTime()) / (7 * 86400000));
       const column = m === 11 ? `${wk + 1} / -1` : wk + 1;
-      months += `<span class="jrnl-hm" style="grid-column:${column}">${M[m]}</span>`;
+      const first = `${d.year}-${String(m + 1).padStart(2, '0')}-01`;
+      const ahead = first > today;
+      months += `<button type="button" class="jrnl-hm jrnl-heat-month" style="grid-column:${column}" data-month="${first}" aria-label="${M[m]} ${d.year}${perMonth[m] ? `, ${perMonth[m]} entr${perMonth[m] === 1 ? 'y' : 'ies'}` : ''}"${ahead ? ' aria-disabled="true"' : ''}>${M[m]}</button>`;
     }
+    const busiest = perMonth.indexOf(Math.max(...perMonth));
+    const summary = written.length
+      ? `journal ${d.year}: entries on ${written.length} day${written.length === 1 ? '' : 's'}, most in ${formatCalendarDate(`${d.year}-${String(busiest + 1).padStart(2, '0')}-01`, { month: 'long' })}`
+      : `journal ${d.year}: no entries yet`;
+    // the strip redraws after every day change: a focused month stays focused
+    const focused = el.contains(document.activeElement) ? document.activeElement.dataset.month : '';
     el.innerHTML =
       `<div class="jrnl-heatmonths" style="grid-template-columns:repeat(${weeks},minmax(0,1fr))">${months}</div>` +
-      `<div class="jrnl-heatgrid" style="grid-template-columns:repeat(${weeks},minmax(0,1fr))">${cells}` +
-      // weekday rows for assistive tech; boxless, so the column-major layout stays put
-      rowsByDay.map(ids => `<div class="jrnl-heatrow" role="row" aria-owns="${ids.join(' ')}"></div>`).join('') +
-      '</div>';
-    el.querySelectorAll('.jrnl-hc[data-d]:not([data-d=""])').forEach(c => {
-      if (c.dataset.d) c.onclick = () => navigateDay(c.dataset.d);
-    });
-    // in-year cells run day by day down each week column
-    wireGridNav(el.querySelector('.jrnl-heatgrid'), {
-      cells: '.jrnl-hc[id]', steps: WEEK_COLUMNS, label: `journal ${d.year}`,
-      start: c => c.classList.contains('sel') || c.classList.contains('today'),
-    });
+      `<div class="jrnl-heatgrid" role="img" aria-label="${esc(summary)}" style="grid-template-columns:repeat(${weeks},minmax(0,1fr))">${cells}</div>`;
+    el.querySelectorAll('.jrnl-heat-month').forEach(button => button.addEventListener('click', () => {
+      if (button.getAttribute('aria-disabled') !== 'true') navigateDay(button.dataset.month);
+    }));
+    if (focused) el.querySelector(`.jrnl-heat-month[data-month="${focused}"]`)?.focus({ preventScroll: true });
   } catch { el.innerHTML = ''; }
 }
 
@@ -657,7 +663,7 @@ function showLock(mode) {
         <div class="jrnl-lock-card" role="status">
           <div class="jrnl-lock-icon">${_si('lock')}</div>
           <div class="jrnl-lock-title">journal unavailable</div>
-          <p class="jrnl-lock-err">Alles could not verify the journal lock. Reload when the server is reachable.</p>
+          <p class="jrnl-lock-err">alles could not verify the journal lock. reload when the server is reachable.</p>
         </div>
       </div>`;
     return;
@@ -744,7 +750,7 @@ function updateEditorAvailability() {
 function renderDay() {
   _setDayUrl();
   document.getElementById('jrnl-date').textContent = formatJournalDay(_day);
-  document.getElementById('jrnl-next').disabled = _day >= todayISO();
+  stopAt('jrnl-next', 'jrnl-prev', _day >= todayISO());
 }
 
 async function load() {

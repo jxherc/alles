@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { initDatePicker } from './datepick.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _notes = [];
@@ -152,10 +153,11 @@ function openEditor(note) {
       <input class="note-editor-title" id="note-edit-title" value="${esc(note.title)}" placeholder="title...">
       <textarea class="note-editor-body" id="note-edit-body" rows="7">${esc(note.content)}</textarea>
       <div class="note-checklist" id="note-checklist"></div>
-      <button class="act-btn" id="note-add-item" style="align-self:flex-start">+ checklist item</button>
+      <button class="act-btn" id="note-add-item" style="align-self:flex-start">${_si('plus')} checklist item</button>
       <div class="note-editor-fields">
         <input class="note-editor-title" id="note-edit-tags" value="${esc((note.tags || []).join(', '))}" placeholder="tags, comma separated…" style="font-size:0.78rem;flex:1">
-        <input type="date" class="note-editor-title" id="note-edit-due" value="${esc(note.due || '')}" style="font-size:0.78rem;width:auto" title="due date">
+        <span id="note-due-label" hidden>due date</span>
+        <div class="date-input note-edit-due" id="note-edit-due" data-type="date" data-ph="due date" data-value="${esc(note.due || '')}" aria-labelledby="note-due-label"></div>
       </div>
       <div style="display:flex;gap:0.4rem;justify-content:flex-end">
         <button class="btn" id="note-obsidian-btn" title="open this note in Obsidian">obsidian</button>
@@ -164,6 +166,12 @@ function openEditor(note) {
       </div>
     </div>`;
 
+  // named "due date", plus the date once there is one (the empty field's own text would repeat it)
+  const due = document.getElementById('note-edit-due');
+  const nameDue = () => due.setAttribute('aria-labelledby', due.value ? 'note-due-label note-edit-due' : 'note-due-label');
+  initDatePicker(due);
+  nameDue();
+  due.addEventListener('change', nameDue);
   (note.items || []).forEach(it => _addChecklistRow(it.text, it.done));
   document.getElementById('note-add-item').addEventListener('click', () => _addChecklistRow('', false, true));
 

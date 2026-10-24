@@ -105,6 +105,49 @@ class OutboxRecoveryProbe(ApiTest):
         self.assertEqual(final, "uncertain")
         self.assertTrue(any(row["id"] == identity for row in listed))
 
+    def make_uncertain(self, identity):
+        def synthetic_unknown(account, message):
+            raise RuntimeError("owned unknown delivery outcome")
+
+        with self.db() as db:
+            mail_outbox.process_due(db, now_iso="2033-01-01T00:00:00", send_fn=synthetic_unknown)
+            self.assertEqual(db.get(ScheduledMail, identity).status, "uncertain")
+
+    def test_dismiss_takes_an_uncertain_delivery_off_the_list_and_keeps_the_record(self):
+        identity = self.queue()
+        self.make_uncertain(identity)
+        response = self.client.post(
+            f"/api/mail/scheduled/{identity}/cancel", params={"dismiss": True}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "dismissed")
+        listed = self.client.get("/api/mail/scheduled").json()["scheduled"]
+        self.assertFalse(any(row["id"] == identity for row in listed))
+        # the record is still there for a recovery read, and a retry is harmless
+        one = self.client.get("/api/mail/scheduled", params={"request_id": identity}).json()
+        self.assertEqual([row["status"] for row in one["scheduled"]], ["dismissed"])
+        again = self.client.post(f"/api/mail/scheduled/{identity}/cancel", params={"dismiss": True})
+        self.assertEqual((again.status_code, again.json()["changed"]), (200, False))
+
+    def test_dismiss_never_cancels_a_pending_or_sent_delivery(self):
+        def dismiss(identity):
+            return self.client.post(
+                f"/api/mail/scheduled/{identity}/cancel", params={"dismiss": True}
+            )
+
+        sent = self.queue()
+        with self.db() as db:
+            mail_outbox.process_due(
+                db, now_iso="2033-01-01T00:00:00", send_fn=lambda account, message: None
+            )
+        pending = self.queue()
+        self.assertEqual(dismiss(pending).status_code, 409)
+        self.assertEqual(dismiss(sent).status_code, 409)
+        with self.db() as db:
+            self.assertEqual(db.get(ScheduledMail, pending).status, "scheduled")
+            self.assertEqual(db.get(ScheduledMail, sent).status, "sent")
+        self.assertEqual(dismiss("00000000-0000-4000-8000-000000000000").status_code, 404)
+
     def test_cancel_sent_does_not_relabel_history(self):
         identity = self.queue()
         with self.db() as db:

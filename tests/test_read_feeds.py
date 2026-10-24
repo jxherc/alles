@@ -45,6 +45,27 @@ class ParseFeedTests(unittest.TestCase):
             ["https://atom.example.com/a", "https://atom.example.com/b"],
         )
 
+    def test_item_without_a_web_link_is_skipped(self):
+        rss = (
+            "<rss><channel><item><title>t</title>"
+            "<link>javascript:alert(document.domain)</link></item></channel></rss>"
+        )
+        self.assertEqual(parse_feed(rss)["items"], [])
+        atom = (
+            '<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>t</title>'
+            '<link rel="alternate" href="data:text/html,x"/></entry></feed>'
+        )
+        self.assertEqual(parse_feed(atom)["items"], [])
+        # a non-alternate web link still beats a script one
+        mixed = (
+            '<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>t</title>'
+            '<link rel="alternate" href="javascript:x"/>'
+            '<link rel="related" href="https://atom.example.com/r"/></entry></feed>'
+        )
+        self.assertEqual(
+            [i["link"] for i in parse_feed(mixed)["items"]], ["https://atom.example.com/r"]
+        )
+
     def test_garbage_is_empty(self):
         self.assertEqual(parse_feed("not xml at all"), {"title": "", "items": []})
         self.assertEqual(parse_feed(""), {"title": "", "items": []})

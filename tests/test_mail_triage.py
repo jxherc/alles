@@ -147,7 +147,9 @@ class MailTriageTests(ApiTest):
         remote.assert_called_once_with(mock.ANY, "2", "Archive", "INBOX")
         self.assertEqual(remote.call_args.args[0]["imap_host"], "imap.x.com")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"archived": 1, "moved_on_server": True})
+        self.assertEqual(
+            response.json(), {"archived": 1, "moved_on_server": True, "message_id": ""}
+        )
         uids = [
             m["uid"] for m in self.client.get(f"/api/mail/cached/{self.aid}").json()["messages"]
         ]

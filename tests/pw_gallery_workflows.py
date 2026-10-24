@@ -758,7 +758,7 @@ def run():
                 if width == 390:
                     page.get_by_role("button", name="open " + names[2], exact=True).tap()
                     page.get_by_role("button", name="close", exact=True).tap()
-                    page.get_by_role("button", name="← files", exact=True).tap()
+                    page.get_by_role("button", name="back to files", exact=True).tap()
                 else:
                     page.get_by_role("tab", name="files", exact=True).click()
                 expect(page.get_by_role("tab", name="files", exact=True)).to_have_attribute(

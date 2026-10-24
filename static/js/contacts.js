@@ -2,6 +2,7 @@ import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
 import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=212';
 import { formatDate, formatTime } from './i18n.js';
+import { pushRouteUrl, routeHistoryPosition } from './route_history.js';
 
 // 4a - typed relationship kinds (mirrors services/contacts_graph _INVERSE)
 const REL_KINDS = ['friend', 'colleague', 'spouse', 'partner', 'sibling', 'parent', 'child', 'manager', 'report', 'mentor', 'mentee'];
@@ -10,6 +11,8 @@ let _favOnly = false;
 let _wired = false;
 let _creatingContact = false;
 let _contactsLoad = 0;
+// an open contact has its own history entry, so Back returns to the list; focus lands on its row
+let _contactEntry = null, _returnTo = null;
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 function _wire() {
@@ -111,6 +114,7 @@ export async function loadContacts(q = '', fetcher = fetch) {
     const contacts = await response.json();
     if (!Array.isArray(contacts)) throw new Error('invalid contacts response');
     if (load !== _contactsLoad) return;
+    if (_contactEntry !== null && routeHistoryPosition() < _contactEntry) _contactEntry = null;
     if (!contacts.length) { list.innerHTML = `<div class="page-empty">${_favOnly ? 'no favorites' : 'no contacts'}</div>`; return; }
     list.innerHTML = contacts.map(c => `
       <div class="contact-item" data-id="${c.id}">
@@ -132,6 +136,8 @@ export async function loadContacts(q = '', fetcher = fetch) {
     }));
     list.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openContact(b.dataset.open)));
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => delContact(b.dataset.del)));
+    if (_returnTo && (!document.activeElement || document.activeElement === document.body)) list.querySelector(`[data-open="${CSS.escape(_returnTo)}"]`)?.focus();
+    _returnTo = null;
   } catch {
     if (load !== _contactsLoad) return;
     list.innerHTML = '<div class="page-empty" role="alert">could not load contacts. <button class="btn" id="contacts-retry">retry</button></div>';
@@ -143,6 +149,14 @@ async function delContact(id) {
   if (!await _dlgConfirm('delete contact?')) return;
   await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
   loadContacts();
+}
+
+// on the contact's own entry, leaving is a real Back (the shell redraws the list), so the
+// browser's Back never has to step over a list that's already showing
+function leaveContact() {
+  if (_contactEntry === null || _contactEntry !== routeHistoryPosition()) return false;
+  history.back();
+  return true;
 }
 
 const SCALARS = [['email', 'email'], ['phone', 'phone'], ['company', 'company'], ['title', 'title'],
@@ -157,6 +171,12 @@ async function openContact(id) {
   ]);
   if (!c) return;
   const list = document.getElementById('contacts-list');
+  const focusedId = list.contains(document.activeElement) ? document.activeElement.id : '';
+  if (_contactEntry !== routeHistoryPosition()) {
+    pushRouteUrl(location.pathname + location.search + location.hash);
+    _contactEntry = routeHistoryPosition();
+  }
+  _returnTo = id;
   const mapLink = (c.address || '').trim()
     ? `<a class="contact-map" href="https://www.openstreetmap.org/search?query=${encodeURIComponent(c.address)}" target="_blank" rel="noopener">${_si('map-pin')} map</a>` : '';
   list.innerHTML = `
@@ -191,7 +211,7 @@ async function openContact(id) {
       <p class="contact-error" id="cd-error" role="alert" hidden></p>
       <div class="cd-actions"><button class="btn primary" id="cd-save">save</button></div>
     </div>`;
-  document.getElementById('cd-back').addEventListener('click', () => loadContacts());
+  document.getElementById('cd-back').addEventListener('click', () => { if (!leaveContact()) loadContacts(); });
   document.getElementById('cd-me').addEventListener('click', async () => {
     await fetch(`/api/contacts/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ is_me: !c.is_me }) });
     openContact(id);
@@ -218,8 +238,10 @@ async function openContact(id) {
       const response = await fetch(`/api/contacts/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       await savedContact(response, body, id);
       toast('saved', 'success');
-      await loadContacts();
-      list.querySelector(`[data-open="${CSS.escape(id)}"]`)?.focus();
+      if (!leaveContact()) {
+        await loadContacts();
+        list.querySelector(`[data-open="${CSS.escape(id)}"]`)?.focus();
+      }
     } catch {
       error.textContent = 'could not save contact. your changes are still here; try save again.';
       error.hidden = false;
@@ -279,6 +301,10 @@ async function openContact(id) {
       openContact(id);
     });
   }
+  // the detail replaced whatever had focus: the same control after a redraw (set as me, a photo),
+  // else back, the first stop of a freshly opened contact
+  const active = document.activeElement;
+  if (!active || active === document.body || !active.isConnected) (focusedId && document.getElementById(focusedId) || document.getElementById('cd-back'))?.focus();
 }
 
 function renderRels(cid, rels) {
@@ -289,7 +315,7 @@ function renderRels(cid, rels) {
     <div class="cd-rel-row">
       <button class="cd-rel-name" data-go="${r.id}">${_esc(r.name)}</button>
       <span class="cd-rel-kind">${_esc(r.kind || 'linked')}</span>
-      <button class="cd-field-x" data-unlink="${r.id}" title="remove">×</button>
+      <button class="cd-field-x" data-unlink="${r.id}" title="remove" aria-label="remove link to ${_esc(r.name)}">${_si('close')}</button>
     </div>`).join('');
   box.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => openContact(b.dataset.go)));
   box.querySelectorAll('[data-unlink]').forEach(b => b.addEventListener('click', async () => {
@@ -333,7 +359,7 @@ function renderFields(c) {
     <div class="cd-field-row" data-id="${f.id}">
       <span class="cd-field-kind">${_esc(f.kind)}${f.label ? ' · ' + _esc(f.label) : ''}</span>
       <span class="cd-field-val">${_esc(f.value)}</span>
-      <button class="cd-field-x" data-del="${f.id}">×</button>
+      <button class="cd-field-x" data-del="${f.id}" aria-label="remove ${_esc(f.kind)} field">${_si('close')}</button>
     </div>`).join('');
   box.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
     await fetch(`/api/contacts/${c.id}/fields/${b.dataset.del}`, { method: 'DELETE' });
@@ -345,7 +371,7 @@ async function showGroups() {
   const list = document.getElementById('contacts-list');
   const groups = await fetch('/api/contacts/groups').then(r => r.json()).catch(() => []);
   list.innerHTML = `
-    <div class="contacts-bday-head">groups <button class="btn" id="cg-add" style="margin-left:8px">+ group</button> <button class="btn ic-btn-lbl" id="cg-back">${_si('chevron-left')} contacts</button></div>
+    <div class="contacts-bday-head">groups <button class="btn" id="cg-add" style="margin-left:8px">${_si('plus')} group</button> <button class="btn ic-btn-lbl" id="cg-back">${_si('chevron-left')} contacts</button></div>
     <div id="cg-list">${groups.length ? '' : '<div class="page-empty">no groups</div>'}</div>`;
   document.getElementById('cg-back').addEventListener('click', () => loadContacts());
   document.getElementById('cg-add').addEventListener('click', addGroup);

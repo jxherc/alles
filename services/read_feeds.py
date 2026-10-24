@@ -64,8 +64,9 @@ def parse_feed(xml, *, strict=False) -> dict:
             if rel in (None, "alternate") and href.lower().startswith(("http://", "https://")):
                 link = href
                 break
-        if not link and links:
-            link = links[0][1]
+        if not link:
+            # no alternate web link: take any web link, but an item with none is skipped
+            link = next((h for _, h in links if h.lower().startswith(("http://", "https://"))), "")
         if link:
             items.append(
                 {
