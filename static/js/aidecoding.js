@@ -791,9 +791,11 @@ function follow(projectId, chatId, after) {
 }
 
 function nearBottom() { const sc = $('aide-code-scroll'); return sc.scrollHeight - sc.scrollTop - sc.clientHeight < 160; }
+// new output never pulls the log while a finger is on it (that also stops safari's momentum)
+let _fingerDown = false;
 function scrollLog() {
   const scroller = $('aide-code-scroll');
-  if (nearBottom()) scroller.scrollTop = scroller.scrollHeight;
+  if (nearBottom() && !_fingerDown) scroller.scrollTop = scroller.scrollHeight;
   else $('aide-code-jump').hidden = false;  // something new arrived below where you're reading
 }
 
@@ -1404,6 +1406,8 @@ export function initAideCodingWorkspace() {
   $('aide-code-goal-clear').addEventListener('click', () => { input.value = '/goal clear'; $('aide-code-form').requestSubmit(); });
   $('aide-code-context').addEventListener('click', () => { input.value = '/context'; $('aide-code-form').requestSubmit(); });
   $('aide-code-scroll').addEventListener('scroll', () => { if (nearBottom()) $('aide-code-jump').hidden = true; }, { passive: true });
+  $('aide-code-scroll').addEventListener('touchstart', () => { _fingerDown = true; }, { passive: true });
+  for (const type of ['touchend', 'touchcancel']) $('aide-code-scroll').addEventListener(type, () => { _fingerDown = false; }, { passive: true });
   $('aide-code-jump').addEventListener('click', () => {
     const scroller = $('aide-code-scroll');
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });

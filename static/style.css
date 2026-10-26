@@ -94,6 +94,9 @@ html, body {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
+  /* the shell never scrolls: a pane that hits its end, or a swipe that starts on something that
+     can't scroll, must not rubber-band the whole page (ipad safari did, header and all) */
+  overscroll-behavior: none;
 }
 
 * { scrollbar-width: thin; scrollbar-color: var(--faint) transparent; }

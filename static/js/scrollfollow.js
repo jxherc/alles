@@ -3,6 +3,7 @@ const BOTTOM_GAP = 96;
 let _chat = null;
 let _jump = null;
 let _following = true;
+let _touching = false;
 let _wired = false;
 // a jump to the end asked for while the chat was hidden (no height yet); done once it shows
 let _pendingEnd = false;
@@ -46,6 +47,7 @@ export function scrollToLatest({ force = false } = {}) {
   _chat ||= document.getElementById('chat');
   _jump ||= document.getElementById('jump-latest');
   if (!_chat) return false;
+  if (_touching && !force) return false;
   const canFollow = shouldAutoFollow({
     following: _following,
     distance: distanceFromBottom(_chat),
@@ -76,6 +78,24 @@ export function initScrollFollow() {
   _chat.addEventListener('wheel', event => {
     if (event.deltaY < 0) pauseScrollFollow();
   }, { passive: true });
+  // a touch screen sends no wheel: a finger dragging the conversation down (back to older
+  // messages) is the same ask, and while a finger is down a growing reply never pulls the
+  // view, which would also stop safari's momentum mid-swipe
+  let touchY = null;
+  _chat.addEventListener('touchstart', event => {
+    _touching = true;
+    touchY = event.touches?.[0]?.clientY ?? null;
+  }, { passive: true });
+  _chat.addEventListener('touchmove', event => {
+    const y = event.touches?.[0]?.clientY;
+    if (touchY != null && y != null && y - touchY > 4) pauseScrollFollow();
+  }, { passive: true });
+  const lift = () => { _touching = false; touchY = null; };
+  _chat.addEventListener('touchend', lift, { passive: true });
+  _chat.addEventListener('touchcancel', lift, { passive: true });
+  _chat.addEventListener('keydown', event => {
+    if (['ArrowUp', 'PageUp', 'Home'].includes(event.key)) pauseScrollFollow();
+  });
   document.addEventListener('selectionchange', () => {
     if (selectionInsideChat()) pauseScrollFollow();
   });
@@ -90,7 +110,7 @@ export function initScrollFollow() {
   if (typeof ResizeObserver === 'function') {
     const messages = document.getElementById('messages');
     const stick = () => {
-      if (!_chat.clientHeight || !(_pendingEnd || _following)) return;
+      if (!_chat.clientHeight || _touching || !(_pendingEnd || _following)) return;
       _pendingEnd = false;
       if (distanceFromBottom(_chat) > 1) _chat.scrollTop = _chat.scrollHeight;
       refreshScrollFollow();

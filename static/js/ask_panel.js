@@ -245,9 +245,11 @@ async function send() {
         if (chunk.error) throw Object.assign(new Error(chunk.error), { code: '' });
         if (typeof chunk.delta === 'string') {
           text += chunk.delta;
-          answer.innerHTML = mdToHtml(text);
           const log = $('ask-panel-log');
-          log.scrollTop = log.scrollHeight;
+          // follow the answer only while the reader is at the end; scrolling up to reread stays put
+          const following = log.scrollHeight - log.scrollTop - log.clientHeight < 96;
+          answer.innerHTML = mdToHtml(text);
+          if (following) log.scrollTop = log.scrollHeight;
         }
       }
     }
