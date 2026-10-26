@@ -95,7 +95,7 @@ def run():
                     expect(page.locator("#s-username")).to_have_value(username)
                     greeting = page.locator("#s-user-name")
                     expect(greeting).to_have_accessible_name(
-                        "greeting name : aide uses it in this browser"
+                        "greeting name: aide uses it in this browser"
                     )
                     expect(greeting).to_have_value("local greeting")
                     greeting.fill("new local greeting")

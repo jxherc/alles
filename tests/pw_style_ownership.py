@@ -132,7 +132,16 @@ def run():
                     "maxWidth": "150px",
                     "overflow": "hidden",
                 }, finance_private
-                assert finance_private["inside"]["goalMargin"] == "9.6px", finance_private
+                # 0.6rem: the px value follows the root size (decision 0044)
+                root_px = page.evaluate(
+                    "parseFloat(getComputedStyle(document.documentElement).fontSize)"
+                )
+                assert (
+                    abs(float(finance_private["inside"]["goalMargin"][:-2]) - 0.6 * root_px) < 0.01
+                ), (
+                    finance_private,
+                    root_px,
+                )
                 for zoom in (1, 2):
                     page.evaluate(
                         "zoom => document.documentElement.style.zoom = String(zoom)", zoom

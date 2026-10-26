@@ -273,8 +273,15 @@ def run():
                 page.locator("#read-q").fill("pending search")
                 expect(page.locator(".legacy-load-note")).to_contain_text("loading")
                 field.click()
-                field.press("End")
+                # mobile chromium ignores the End key in a text field, and with the larger type
+                # (0044) a centre click lands inside the draft, so put the caret at its end the
+                # way a phone does: a tap after the last character
+                box = field.bounding_box()
+                field.click(position={"x": box["width"] - 6, "y": box["height"] / 2})
                 expect(field).to_be_focused()
+                assert field.evaluate("f => f.selectionStart === f.value.length"), (
+                    field.input_value()
+                )
                 assert len(loading) == 2
                 for route in loading:
                     route.continue_()

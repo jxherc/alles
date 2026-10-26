@@ -348,7 +348,11 @@ def run():
                             assert fits, lang
                             page.keyboard.press("Escape")
                             expect(menu).to_be_hidden()
-                            assert page.locator("#aide-history-name").bounding_box()["height"] <= 21
+                            # one line: its height stays within one line box at any root size (0044)
+                            assert page.locator("#aide-history-name").evaluate(
+                                """el => { const cs = getComputedStyle(el); const line = parseFloat(cs.lineHeight) || 1.3 * parseFloat(cs.fontSize);
+                                    return el.getBoundingClientRect().height <= line + 1; }"""
+                            )
                         languages.append(lang)
                         if lang in ("ar", "zh-Hant"):
                             capture("locale-" + lang)

@@ -129,7 +129,11 @@ def run():
                     if compact:
                         expect(toggle).to_be_visible()
                         expect(quick).to_be_hidden()
-                        assert initial_height <= 190, initial_height
+                        # three rows at most: 190px at a 16px root, scaled with the root (0044)
+                        root_px = page.evaluate(
+                            "parseFloat(getComputedStyle(document.documentElement).fontSize)"
+                        )
+                        assert initial_height <= 190 * root_px / 16, (initial_height, root_px)
                     else:
                         expect(toggle).to_be_hidden()
                         expect(quick).to_be_visible()

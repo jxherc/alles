@@ -156,9 +156,10 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
     header = root.locator(":scope > .specialist-app-head")
     app_name = header.locator(".specialist-app-name")
     assert app_name.is_visible() and app_name.inner_text() == label
-    # decision 0041 type scale: an app's h2 is a 16px section title
-    assert (
-        round(app_name.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")) == 16
+    # decision 0041 type scale: an app's h2 is a role-16 section title, 1rem of the root (0044)
+    assert app_name.evaluate(
+        "element => Math.abs(parseFloat(getComputedStyle(element).fontSize)"
+        " - parseFloat(getComputedStyle(document.documentElement).fontSize)) < 0.5"
     )
     assert root.locator(":scope > .specialist-group-head").count() == 0
     assert header.locator("[data-specialist-home]").count() == 0
