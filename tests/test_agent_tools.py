@@ -1,12 +1,19 @@
 import asyncio
+import http.server
 import os
+import shlex
+import socket
+import socketserver
 import subprocess
+import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from services import agent_tools as at
+from services import shell_sandbox
 
 
 class ToolGatingTests(unittest.TestCase):
@@ -401,6 +408,374 @@ class ConfineToolPathsTests(unittest.TestCase):
         # the summary for an approval never crashes on a path it can't place
         details = at.delegated_action_details("write_file", {"path": "notes.txt"}, general)
         self.assertEqual(details["path_targets"], ())
+
+
+def _accept_once(server):
+    try:
+        server.accept()[0].close()
+    except OSError:
+        pass  # closed with nobody let in
+
+
+def _shell(command, cwd=""):
+    return asyncio.run(at.execute("shell", {"command": command, "cwd": cwd}))
+
+
+def _tool(tool, /, **args):
+    return asyncio.run(at.execute(tool, args))
+
+
+def _repo(folder):
+    # set up outside any sandbox, as the owner's own git would
+    for args in (
+        ["init", "-q"],
+        ["config", "user.email", "owner@example.invalid"],
+        ["config", "user.name", "owner"],
+    ):
+        subprocess.run(["git", *args], cwd=folder, check=True)
+
+
+class _Page(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    def log_message(self, *args):
+        pass
+
+
+def _local_server(test):
+    server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), _Page)
+    server.daemon_threads = True
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    test.addCleanup(server.server_close)
+    test.addCleanup(server.shutdown)
+    return server.server_address[1]
+
+
+@unittest.skipUnless(shell_sandbox.kind(), "no shell sandbox here (sandbox-exec or bubblewrap)")
+class ShellSandboxEscapeTests(unittest.TestCase):
+    """Under the real sandbox a command writes in its task's folder and its temp folder only."""
+
+    def setUp(self):
+        base = tempfile.TemporaryDirectory(prefix="alles-sandbox-")
+        self.addCleanup(base.cleanup)
+        root = Path(os.path.realpath(base.name))
+        self.project = root / "project"
+        self.outside = root / "outside"
+        self.project.mkdir()
+        self.outside.mkdir()
+        (self.outside / "keep.txt").write_text("outside words")
+        (self.project / "link").symlink_to(self.outside, target_is_directory=True)
+        # a stand-in home outside the folder: probes never aim at the owner's real one
+        self.home = root / "home"
+        self.home.mkdir()
+        patch = mock.patch.dict(os.environ, {"HOME": str(self.home)})
+        patch.start()
+        self.addCleanup(patch.stop)
+        at.set_agent_ctx(settings={"agent_cwd": str(self.project)}, run_id="sandbox-test")
+        self.addCleanup(shell_sandbox.drop_scratch, "sandbox-test")
+
+    def test_writes_inside_the_folder_work(self):
+        result = _shell(
+            "echo hi > made.txt && mkdir -p sub/deeper && echo x > sub/deeper/y && cat made.txt"
+        )
+        self.assertFalse(result["error"], result)
+        self.assertEqual(result["output"].strip(), "hi")
+        self.assertEqual((self.project / "sub" / "deeper" / "y").read_text(), "x\n")
+
+    def test_every_way_out_is_refused(self):
+        python = shlex.quote(sys.executable)
+        attempts = {
+            "cd up": "cd .. && echo x > outside/cd.txt",
+            "absolute path": f"echo x > {self.outside}/abs.txt",
+            "symlink": "echo x > link/sym.txt",
+            "symlink made now": f"ln -s {self.outside} fresh && echo x > fresh/new.txt",
+            "home": f"echo x > {self.home}/probe",
+            "tilde": "echo x > ~/tilde-probe",
+            "python": f"{python} -c \"open('{self.outside}/py.txt', 'w').write('x')\"",
+            "overwrite": f"echo gone > {self.outside}/keep.txt",
+            "delete": f"rm {self.outside}/keep.txt",
+            "move out of it": f"mv {self.outside}/keep.txt taken.txt",
+            "hard link": f"ln {self.outside}/keep.txt hard && echo gone >> hard",
+            "script": f"printf 'echo x > {self.outside}/script.txt' > s.sh && bash s.sh",
+        }
+        for name, command in attempts.items():
+            with self.subTest(name):
+                result = _shell(command)
+                self.assertTrue(result["error"], result)
+        self.assertEqual(sorted(p.name for p in self.outside.iterdir()), ["keep.txt"])
+        self.assertEqual((self.outside / "keep.txt").read_text(), "outside words")
+        self.assertEqual(list(self.home.iterdir()), [])
+
+    def test_git_hooks_never_run_and_what_git_config_starts_stays_inside(self):
+        _repo(self.project)
+        hooks = self.project / ".git" / "hooks"
+        hook = hooks / "pre-commit"
+        hook.write_text(
+            f"#!/bin/sh\necho hooked > {self.outside}/hook.txt\necho hooked > hook.txt\n"
+        )
+        hook.chmod(0o755)
+        # a clean filter in the repo's own config runs on `git add`: in here it can't write out
+        with (self.project / ".git" / "config").open("a") as config:
+            config.write(f'[filter "leak"]\n\tclean = "echo x > {self.outside}/filter.txt; cat"\n')
+        (self.project / ".gitattributes").write_text("*.txt filter=leak\n")
+        (self.project / "a.txt").write_text("hello\n")
+        result = _tool("git_commit", message="first", cwd=str(self.project))
+        self.assertFalse(result["error"], result)
+        log = subprocess.run(
+            ["git", "log", "--oneline"], cwd=self.project, capture_output=True, text=True
+        )
+        self.assertIn("first", log.stdout)
+        self.assertFalse((self.project / "hook.txt").exists())
+        self.assertEqual(sorted(p.name for p in self.outside.iterdir()), ["keep.txt"])
+        for name in ("git_status", "git_diff"):
+            with self.subTest(name):
+                self.assertFalse(_tool(name, cwd=str(self.project))["error"])
+
+    def test_apply_patch_goes_through_the_sandbox(self):
+        _repo(self.project)
+        (self.project / "notes.txt").write_text("one\n")
+        subprocess.run(["git", "add", "notes.txt"], cwd=self.project, check=True)
+        patch = "--- a/notes.txt\n+++ b/notes.txt\n@@ -1 +1 @@\n-one\n+two\n"
+        result = _tool("apply_patch", patch=patch, cwd=str(self.project))
+        self.assertFalse(result["error"], result)
+        self.assertEqual((self.project / "notes.txt").read_text(), "two\n")
+
+    def test_opencode_runs_confined_with_its_own_state(self):
+        bin_dir = self.project.parent / "bin"
+        bin_dir.mkdir()
+        fake = bin_dir / "opencode"
+        fake.write_text(
+            "#!/bin/sh\n"
+            'echo "$XDG_DATA_HOME" > data.txt\n'
+            f"echo x > {self.outside}/opencode.txt\n"
+            "echo done\n"
+        )
+        fake.chmod(0o755)
+        which = lambda name: str(fake) if name == "opencode" else None  # noqa: E731
+        with mock.patch.object(at.shutil, "which", which):
+            result = _tool("opencode_run", prompt="fix it", cwd=str(self.project))
+        self.assertIn("done", result["output"])
+        state = Path((self.project / "data.txt").read_text().strip())
+        self.assertTrue(state.is_relative_to(shell_sandbox.scratch("sandbox-test")), state)
+        self.assertEqual(sorted(p.name for p in self.outside.iterdir()), ["keep.txt"])
+
+    def test_alles_own_port_is_closed_and_other_local_ports_stay_open(self):
+        alles, dev = _local_server(self), _local_server(self)
+        fetch = (
+            f"{shlex.quote(sys.executable)} -c "
+            '"import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=5)" '
+        )
+        with mock.patch.dict(os.environ, {"PORT": str(alles), "AUTH_ENABLED": "true"}):
+            to_alles = _shell(fetch + f"http://127.0.0.1:{alles}/")
+            to_alles_by_name = _shell(fetch + f"http://localhost:{alles}/")
+            to_dev = _shell(fetch + f"http://127.0.0.1:{dev}/")
+        self.assertTrue(to_alles["error"], to_alles)
+        self.assertTrue(to_alles_by_name["error"], to_alles_by_name)
+        self.assertFalse(to_dev["error"], to_dev)
+
+    def test_the_temp_folder_is_private_and_kept_for_the_run(self):
+        first = _shell('echo note > "$TMPDIR/n.txt" && echo "$TMPDIR"')
+        self.assertFalse(first["error"], first)
+        temp = Path(first["output"].strip())
+        self.assertNotEqual(temp, Path(tempfile.gettempdir()).resolve())
+        second = _shell('cat "$TMPDIR/n.txt"')
+        self.assertEqual(second["output"].strip(), "note")
+        kept = shell_sandbox.scratch("sandbox-test")
+        shell_sandbox.drop_scratch("sandbox-test")
+        self.assertFalse(kept.exists())
+
+    @unittest.skipUnless(sys.platform == "darwin", "macOS profile")
+    def test_sockets_outside_the_folder_are_refused(self):
+        # a daemon's socket (docker's, say) would do the writing for it
+        listeners = []
+        for path in (self.outside / "d.sock", self.project / "i.sock"):
+            server = socket.socket(socket.AF_UNIX)
+            server.bind(str(path))
+            server.listen(2)
+            self.addCleanup(server.close)
+            threading.Thread(target=_accept_once, args=(server,), daemon=True).start()
+            listeners.append(path)
+        connect = "import socket, sys; socket.socket(socket.AF_UNIX).connect(sys.argv[1])"
+        python = shlex.quote(sys.executable)
+        outside, inside = (_shell(f'{python} -c "{connect}" {p}') for p in listeners)
+        self.assertTrue(outside["error"], outside)
+        self.assertFalse(inside["error"], inside)
+
+
+class ShellWithoutSandboxTests(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory(prefix="alles-nosandbox-")
+        self.addCleanup(folder.cleanup)
+        self.folder = Path(os.path.realpath(folder.name))
+        patch = mock.patch.object(shell_sandbox, "kind", return_value="")
+        patch.start()
+        self.addCleanup(patch.stop)
+        at.set_agent_ctx(settings={"agent_cwd": str(self.folder)})
+
+    def test_the_hint_names_what_to_do(self):
+        with mock.patch.object(shell_sandbox.sys, "platform", "linux"):
+            self.assertEqual(
+                shell_sandbox.missing_hint(),
+                "shell needs a sandbox here: install bubblewrap, or switch to approve mode",
+            )
+        self.assertEqual(at.shell_confinement({}), "")
+
+    def test_a_command_runs_only_after_the_owner_approved_it_unconfined(self):
+        refused = _shell("echo x > made.txt")
+        self.assertTrue(refused["error"])
+        self.assertEqual(refused["output"], shell_sandbox.missing_hint())
+
+        async def streamed():
+            return [e async for e in at.stream_execute("shell", {"command": "echo x > made.txt"})]
+
+        self.assertEqual(
+            asyncio.run(streamed())[-1]["result"]["output"], shell_sandbox.missing_hint()
+        )
+        self.assertFalse((self.folder / "made.txt").exists())
+        at.allow_unconfined_shell()
+        ran = _shell("echo x > made.txt")
+        self.assertFalse(ran["error"], ran)
+        self.assertTrue((self.folder / "made.txt").exists())
+        at.clear_outside_writes()  # the approval was for that one step
+        self.assertTrue(_shell("echo y > again.txt")["error"])
+
+    def test_every_tool_that_runs_a_command_refuses_unless_approved(self):
+        _repo(self.folder)
+        (self.folder / "ok.py").write_text("x = 1\n")
+        patch = "--- a/ok.py\n+++ b/ok.py\n@@ -1 +1 @@\n-x = 1\n+x = 2\n"
+        calls = {
+            "git_status": {},
+            "git_diff": {},
+            "git_branch": {"name": "side"},
+            "git_commit": {"message": "x"},
+            "apply_patch": {"patch": patch},
+            "diagnostics": {"path": str(self.folder / "ok.py")},
+            "opencode_run": {"prompt": "x"},
+        }
+        self.assertEqual(set(calls) | {"shell", "bash"}, set(at.CONFINED_TOOLS))
+        for name, args in calls.items():
+            with self.subTest(name):
+                result = _tool(name, cwd=str(self.folder), **args)
+                self.assertTrue(result["error"], result)
+                self.assertEqual(result["output"], shell_sandbox.missing_hint())
+        self.assertEqual((self.folder / "ok.py").read_text(), "x = 1\n")
+        at.allow_unconfined_shell()
+        self.assertFalse(_tool("git_status", cwd=str(self.folder))["error"])
+        at.clear_outside_writes()
+
+    def test_docker_keeps_working_where_it_is_on(self):
+        with mock.patch.object(at.shutil, "which", return_value="/usr/bin/docker"):
+            self.assertEqual(at.shell_confinement({"agent_sandbox": True}), "docker")
+        with mock.patch.object(at.shutil, "which", return_value=None):
+            self.assertEqual(at.shell_confinement({"agent_sandbox": True}), "")
+
+
+class SandboxDetectionTests(unittest.TestCase):
+    def test_a_sandbox_counts_only_once_a_probe_really_confined(self):
+        with (
+            mock.patch.object(shell_sandbox, "_tool", return_value=("bwrap", "/fake/bwrap")),
+            mock.patch.dict(shell_sandbox._works, clear=True),
+        ):
+            with mock.patch.object(shell_sandbox, "_probe", return_value=False) as probe:
+                self.assertEqual(shell_sandbox.kind(), "")
+                self.assertEqual(shell_sandbox.kind(), "")
+                probe.assert_called_once()
+            shell_sandbox._works.clear()
+            with mock.patch.object(shell_sandbox, "_probe", return_value=True):
+                self.assertEqual(shell_sandbox.kind(), "bwrap")
+        for tool in (("bwrap", ""), ("", "")):
+            with mock.patch.object(shell_sandbox, "_tool", return_value=tool):
+                self.assertEqual(shell_sandbox.kind(), "")
+
+    def test_bubblewrap_falls_back_to_a_read_only_proc_when_a_fresh_one_is_refused(self):
+        # a vm that hides part of its own /proc (instabox) refuses --proc /proc
+        tool = "/fake/bwrap"
+        with (
+            mock.patch.dict(shell_sandbox._proc, clear=True),
+            mock.patch.object(
+                shell_sandbox,
+                "_try",
+                side_effect=lambda name, t: shell_sandbox._proc[t][0] == "--ro-bind",
+            ),
+        ):
+            self.assertTrue(shell_sandbox._probe("bwrap", tool))
+            argv, _ = shell_sandbox._argv("bwrap", tool, ["true"], "/w", ["/w"], "/t")
+            self.assertIn(
+                ["--ro-bind", "/proc", "/proc"], [argv[i : i + 3] for i in range(len(argv))]
+            )
+            self.assertNotIn("--proc", argv)
+        with (
+            mock.patch.dict(shell_sandbox._proc, clear=True),
+            mock.patch.object(shell_sandbox, "_try", return_value=False),
+        ):
+            self.assertFalse(shell_sandbox._probe("bwrap", tool))
+            self.assertNotIn(tool, shell_sandbox._proc)
+
+    def test_bubblewrap_binds_only_the_folder_and_its_temp_writable(self):
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(os.path.realpath(raw))
+            runtime = base / "run-user"
+            runtime.mkdir()
+            with mock.patch.dict(os.environ, {"XDG_RUNTIME_DIR": str(runtime)}):
+                argv, env = shell_sandbox._argv(
+                    "bwrap",
+                    "/usr/bin/bwrap",
+                    ["bash", "-lc", "make"],
+                    base / "p" / "sub",
+                    [base / "p"],
+                    base / "tmp",
+                )
+        triples = [tuple(argv[i : i + 3]) for i in range(len(argv) - 2)]
+        pairs = [tuple(argv[i : i + 2]) for i in range(len(argv) - 1)]
+        self.assertEqual(argv[0], "/usr/bin/bwrap")
+        self.assertLess(
+            triples.index(("--ro-bind", "/", "/")),
+            triples.index(("--bind", str(base / "p"), str(base / "p"))),
+        )
+        self.assertIn(("--bind", str(base / "tmp"), "/tmp"), triples)
+        self.assertIn(("--tmpfs", str(runtime)), pairs)
+        self.assertIn(("--chdir", str(base / "p" / "sub")), pairs)
+        self.assertIn("--die-with-parent", argv)
+        self.assertIn("--new-session", argv)
+        # its own processes, ipc and host name, and a fresh /proc that shows only its processes
+        for flag in ("--unshare-pid", "--unshare-ipc", "--unshare-uts"):
+            self.assertIn(flag, argv)
+        self.assertLess(triples.index(("--ro-bind", "/", "/")), pairs.index(("--proc", "/proc")))
+        self.assertNotIn("--unshare-net", argv)  # alles has a password: the network stays
+        self.assertEqual(argv[-4:], ["--", "bash", "-lc", "make"])
+        self.assertEqual(env["TMPDIR"], "/tmp")
+        offline, _ = shell_sandbox._argv(
+            "bwrap", "/usr/bin/bwrap", ["true"], base, [base], base / "tmp", offline=True
+        )
+        self.assertIn("--unshare-net", offline)
+
+    def test_linux_gets_no_network_only_while_alles_has_no_password(self):
+        cases = (("linux", "false", True), ("linux", "true", False), ("darwin", "false", False))
+        for platform, auth, offline in cases:
+            with self.subTest(platform=platform, auth=auth):
+                with (
+                    mock.patch.object(at.sys, "platform", platform),
+                    mock.patch.dict(os.environ, {"AUTH_ENABLED": auth, "PORT": "6123"}),
+                ):
+                    self.assertEqual(at.sandbox_network(), ((6123,), offline))
+
+    def test_the_macos_profile_allows_writes_only_in_the_folder_and_temp(self):
+        profile = shell_sandbox._profile([Path('/w/a "b"')], Path("/t"))
+        self.assertIn("(allow default)", profile)
+        self.assertIn("(deny file-write*)", profile)
+        self.assertIn('(subpath "/w/a \\"b\\"")', profile)
+        self.assertIn('(subpath "/t")', profile)
+        self.assertIn("(deny appleevent-send)", profile)
+        self.assertIn("(deny network-outbound (remote unix-socket))", profile)
+        self.assertIn("mDNSResponder", profile)
+        self.assertIn("(deny signal (target others))", profile)
+        self.assertIn('(global-name-prefix "com.apple.coreservices.")', profile)
+        self.assertIn('(global-name "com.apple.FileCoordination")', profile)
+        closed = shell_sandbox._profile([Path("/w")], Path("/t"), closed_ports=(6769,))
+        self.assertIn('(deny network-outbound (remote ip "localhost:6769"))', closed)
 
 
 if __name__ == "__main__":

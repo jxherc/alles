@@ -14,7 +14,8 @@ import os
 import re
 import shlex
 import shutil
-import tempfile
+import signal
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
@@ -22,6 +23,7 @@ from urllib.parse import urlparse
 import httpx
 
 from core.settings import data_dir, load_settings
+from services import shell_sandbox
 
 ROOT = Path(__file__).parent.parent
 CODEX_HOME = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
@@ -32,7 +34,7 @@ _ctx = contextvars.ContextVar("agent_ctx", default={})
 _SENSITIVE_HEALTH_TOOLS = {"health_log", "health_summary"}
 
 
-def set_agent_ctx(settings=None, ep=None, model="", run_id="", session_id=""):
+def set_agent_ctx(settings=None, ep=None, model="", run_id="", session_id="", stop_event=None):
     _ctx.set(
         {
             "settings": settings or {},
@@ -40,6 +42,7 @@ def set_agent_ctx(settings=None, ep=None, model="", run_id="", session_id=""):
             "model": model,
             "run_id": run_id,
             "session_id": session_id,
+            "stop_event": stop_event,
             "_reads": set(),
         }
     )
@@ -379,7 +382,55 @@ def allow_outside_writes(paths) -> None:
 
 
 def clear_outside_writes() -> None:
-    get_agent_ctx().pop("_approved_outside", None)
+    ctx = get_agent_ctx()
+    ctx.pop("_approved_outside", None)
+    ctx.pop("_unconfined_ok", None)
+
+
+def allow_unconfined_shell() -> None:
+    """The owner approved this one shell step knowing nothing confines it here."""
+    get_agent_ctx()["_unconfined_ok"] = True
+
+
+def shell_confinement(settings: dict | None = None) -> str:
+    """What keeps the agent's shell writes in its folder: 'docker', 'sandbox-exec', 'bwrap', or ''."""
+    s = settings if settings is not None else _settings()
+    if s.get("agent_sandbox") and shutil.which("docker"):
+        return "docker"
+    return shell_sandbox.kind()
+
+
+# tools that run a command (git and its config, the project's own linters, a whole coding agent):
+# each one is confined like shell, or runs only when the owner approves it unconfined
+CONFINED_TOOLS = frozenset(
+    {
+        "shell",
+        "bash",
+        "git_status",
+        "git_diff",
+        "git_branch",
+        "git_commit",
+        "apply_patch",
+        "diagnostics",
+        "opencode_run",
+    }
+)
+
+
+def sandbox_network() -> tuple[tuple[int, ...], bool]:
+    """(ports a sandboxed command can't reach, whether it gets no network at all). alles's own api
+    would do for a command what the sandbox stops it doing itself; bubblewrap can't close one
+    port, so there it's no network while alles has no password."""
+    from core.settings import auth_enabled, get_port
+
+    try:
+        closed = (get_port(),)
+    except ValueError:
+        closed = ()
+    return closed, sys.platform.startswith("linux") and not auth_enabled()
+
+
+OFFLINE_NOTE = "no network in the sandbox while alles has no password"
 
 
 def _outside_write_approved(p) -> bool:
@@ -519,12 +570,65 @@ def _sandbox_cmd(command: str, workdir: str) -> list[str] | None:
     return cmd
 
 
-async def _stream_shell(command: str, cwd: str = ""):
+def _shell_write_roots() -> list[str]:
+    # the task's folder, plus a folder the owner approved for this one step
+    s = _settings()
+    roots = [] if s.get("agent_environment") == "general" else [str(_project_root(s))]
+    return roots + sorted(get_agent_ctx().get("_approved_outside", ()))
+
+
+# commands running right now, so a shutdown can end them instead of waiting them out
+_running: set = set()
+
+
+def _end(proc) -> None:
+    try:
+        if os.name == "nt":
+            proc.kill()
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)  # its own group: whatever it started goes too
+    except (ProcessLookupError, PermissionError, OSError):
+        pass
+
+
+def stop_commands() -> int:
+    """End every shell command still running (the server is going down)."""
+    procs = list(_running)
+    for proc in procs:
+        _end(proc)
+    return len(procs)
+
+
+async def _stream_shell(
+    command: str, cwd: str = "", sandbox: str = "", stdin_text: str | None = None
+):
+    """sandbox="must" runs the command confined to the task's folder or refuses, unless the
+    owner approved it unconfined. stdin_text is fed to the command (a patch for `git apply -`)."""
+    scratch = ""
+    offline = False
     try:
         workdir = str(_resolve(cwd or "."))
+        env = None
         sandboxed = _sandbox_cmd(command, workdir)
         if sandboxed:
             cmd = sandboxed
+        elif sandbox and shell_sandbox.kind():
+            closed, offline = sandbox_network()
+            cmd, extra, scratch = shell_sandbox.wrap(
+                command,
+                workdir,
+                _shell_write_roots(),
+                get_agent_ctx().get("run_id", ""),
+                closed_ports=closed,
+                offline=offline,
+            )
+            env = {**os.environ, **extra}
+        elif sandbox == "must" and not get_agent_ctx().get("_unconfined_ok"):
+            yield {
+                "type": "result",
+                "result": {"output": shell_sandbox.missing_hint(), "error": True},
+            }
+            return
         elif os.name == "nt":
             cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command]
         else:
@@ -532,9 +636,25 @@ async def _stream_shell(command: str, cwd: str = ""):
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             cwd=workdir,
+            env=env,
+            stdin=asyncio.subprocess.DEVNULL if stdin_text is None else asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
+            start_new_session=os.name != "nt",
         )
+        _running.add(proc)
+        if stdin_text is not None:
+
+            async def feed():
+                try:
+                    proc.stdin.write(stdin_text.encode("utf-8"))
+                    await proc.stdin.drain()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass  # it stopped reading; its own output says why
+                finally:
+                    proc.stdin.close()
+
+            asyncio.get_running_loop().create_task(feed())
         collected = []
         collected_len = 0
         loop = asyncio.get_event_loop()
@@ -553,29 +673,36 @@ async def _stream_shell(command: str, cwd: str = ""):
                     collected_len += len(text)
                 yield {"type": "output", "text": text}
         except asyncio.TimeoutError:
-            proc.kill()
+            _end(proc)
             try:
                 await proc.wait()  # reap, don't leave a zombie + leaked pipes
             except Exception:
                 pass
             yield {"type": "result", "result": {"output": "timeout after 180s", "error": True}}
             return
+        finally:
+            _running.discard(proc)
         await proc.wait()
+        output = _safe_text("".join(collected), 12000)
+        if offline and proc.returncode != 0:
+            output += f"\n({OFFLINE_NOTE})"
         yield {
             "type": "result",
-            "result": {
-                "output": _safe_text("".join(collected), 12000),
-                "error": proc.returncode != 0,
-            },
+            "result": {"output": output, "error": proc.returncode != 0},
         }
     except Exception as e:
         yield {"type": "result", "result": {"output": str(e), "error": True}}
+    finally:
+        if scratch:
+            shutil.rmtree(scratch, ignore_errors=True)
 
 
-async def _run_shell(command: str, cwd: str = "") -> dict:
+async def _run_shell(
+    command: str, cwd: str = "", sandbox: str = "", stdin_text: str | None = None
+) -> dict:
     out = []
     final = {"output": "", "error": False}
-    async for event in _stream_shell(command, cwd):
+    async for event in _stream_shell(command, cwd, sandbox, stdin_text):
         if event["type"] == "output":
             out.append(event["text"])
         elif event["type"] == "result":
@@ -669,29 +796,25 @@ async def _apply_patch_text(patch: str, cwd: str = "") -> dict:
         workdir = _resolve(cwd or ".")
         if not patch.strip():
             return {"output": "patch text required", "error": True}
-        with tempfile.NamedTemporaryFile("w", suffix=".patch", delete=False, encoding="utf-8") as f:
-            f.write(patch)
-            patch_path = f.name
-        try:
-            if (workdir / ".git").exists():
-                # apply_patch shells out to `git apply`, so the per-file write
-                # guard (secrets / workspace confinement) has to be enforced here
-                # too — otherwise a diff targeting ../.ssh/... or a .env slips past it.
-                for tgt in _patch_targets(patch):
-                    blocked = _guard_path((workdir / tgt).resolve(), write=True)
-                    if blocked:
-                        return {"output": blocked, "error": True}
-                quoted = json.dumps(patch_path) if os.name == "nt" else shlex.quote(patch_path)
-                return await _run_shell(f"git apply --whitespace=nowarn {quoted}", cwd=str(workdir))
-            return {
-                "output": "apply_patch currently requires a git worktree so `git apply` can apply the unified diff",
-                "error": True,
-            }
-        finally:
-            try:
-                Path(patch_path).unlink()
-            except Exception:
-                pass
+        if (workdir / ".git").exists():
+            # apply_patch shells out to `git apply`, so the per-file write
+            # guard (secrets / workspace confinement) has to be enforced here
+            # too — otherwise a diff targeting ../.ssh/... or a .env slips past it.
+            for tgt in _patch_targets(patch):
+                blocked = _guard_path((workdir / tgt).resolve(), write=True)
+                if blocked:
+                    return {"output": blocked, "error": True}
+            # on stdin: a sandbox with its own /tmp wouldn't see a patch file in the real one
+            return await _run_shell(
+                f"{_GIT} apply --whitespace=nowarn -",
+                cwd=str(workdir),
+                sandbox="must",
+                stdin_text=patch,
+            )
+        return {
+            "output": "apply_patch currently requires a git worktree so `git apply` can apply the unified diff",
+            "error": True,
+        }
     except Exception as e:
         return {"output": str(e), "error": True}
 
@@ -714,24 +837,29 @@ async def _todo_update(items: list[dict]) -> dict:
         return {"output": str(e), "error": True}
 
 
+# an agent's git never runs the repo's hooks or a file-system monitor from its config; anything
+# else its config can start (filters, say) runs inside the sandbox with the git command
+_GIT = "git -c core.hooksPath=/dev/null -c core.fsmonitor=false"
+
+
 async def _git_status(cwd: str = ".") -> dict:
-    return await _run_shell("git status --short --branch", cwd=cwd)
+    return await _run_shell(f"{_GIT} status --short --branch", cwd=cwd, sandbox="must")
 
 
 async def _git_diff(cwd: str = ".", staged: bool = False, path: str = "") -> dict:
-    cmd = "git diff --cached" if staged else "git diff"
+    cmd = f"{_GIT} diff --no-ext-diff --no-textconv" + (" --cached" if staged else "")
     if path:
         q = json.dumps(path) if os.name == "nt" else shlex.quote(path)
         cmd += f" -- {q}"
-    return await _run_shell(cmd, cwd=cwd)
+    return await _run_shell(cmd, cwd=cwd, sandbox="must")
 
 
 async def _git_branch(cwd: str = ".", name: str = "", checkout: bool = True) -> dict:
     if not name.strip():
         return {"output": "branch name required", "error": True}
     q = json.dumps(name.strip()) if os.name == "nt" else shlex.quote(name.strip())
-    cmd = f"git switch -c {q}" if checkout else f"git branch {q}"
-    return await _run_shell(cmd, cwd=cwd)
+    cmd = f"{_GIT} switch -c {q}" if checkout else f"{_GIT} branch {q}"
+    return await _run_shell(cmd, cwd=cwd, sandbox="must")
 
 
 async def _git_commit(cwd: str = ".", message: str = "", paths: list[str] | None = None) -> dict:
@@ -739,13 +867,13 @@ async def _git_commit(cwd: str = ".", message: str = "", paths: list[str] | None
         return {"output": "commit message required", "error": True}
     if paths:
         quoted = " ".join(json.dumps(p) if os.name == "nt" else shlex.quote(p) for p in paths)
-        add = await _run_shell(f"git add -- {quoted}", cwd=cwd)
+        add = await _run_shell(f"{_GIT} add -- {quoted}", cwd=cwd, sandbox="must")
     else:
-        add = await _run_shell("git add -A", cwd=cwd)
+        add = await _run_shell(f"{_GIT} add -A", cwd=cwd, sandbox="must")
     if add.get("error"):
         return add
     msg = json.dumps(message.strip()) if os.name == "nt" else shlex.quote(message.strip())
-    return await _run_shell(f"git commit -m {msg}", cwd=cwd)
+    return await _run_shell(f"{_GIT} commit -m {msg}", cwd=cwd, sandbox="must")
 
 
 async def _list_files(path: str = ".", depth: int = 1) -> dict:
@@ -1153,7 +1281,11 @@ async def _opencode_run(prompt: str, cwd: str = ".", model: str = "", agent: str
             parts.extend(["--model", shlex.quote(model)])
         if agent:
             parts.extend(["--agent", shlex.quote(agent)])
-    return await _run_shell(" ".join(parts), cwd=cwd)
+        if shell_confinement() in ("sandbox-exec", "bwrap"):
+            # it can't write its own data folder in there: it keeps that for this run instead,
+            # so it doesn't see the logins your own opencode saved
+            parts.insert(0, 'XDG_DATA_HOME="$TMPDIR/opencode" XDG_STATE_HOME="$TMPDIR/opencode"')
+    return await _run_shell(" ".join(parts), cwd=cwd, sandbox="must")
 
 
 def _pi_workspace():
@@ -1481,7 +1613,9 @@ async def _run_subagent(task: str, cwd: str = "") -> str:
         if blocked := _guard_path(folder, write=True):
             return f"[sub-agent error: {blocked}]"
         sub["agent_cwd"] = str(folder)
-    stop = asyncio.Event()
+    # the parent's stop is the sub-agent's stop: the owner's stop (or a shutdown) reaches it at
+    # its next model read, and a running tool step finishes, the same as for the parent
+    stop = ctx.get("stop_event") or asyncio.Event()
     acc, think, steps = [], [], []
     async for _ in run_agent(
         [{"role": "user", "content": task}], ep, model, stop, sub, acc, think, steps
@@ -1607,25 +1741,26 @@ async def _diagnostics(path: str = ".") -> dict:
     ext = p.suffix.lower() if p.is_file() else ""
     q = json.dumps(str(p)) if os.name == "nt" else shlex.quote(str(p))
     cwd = str(p if p.is_dir() else p.parent)
+    # these run the project's own code (its tsc, `python -m` from its folder): confined like shell
 
     if ext == ".py" or (p.is_dir()):
         if shutil.which("ruff"):
-            return await _run_shell(f"ruff check {q}", cwd=cwd)
+            return await _run_shell(f"ruff check {q}", cwd=cwd, sandbox="must")
         if ext == ".py":
-            r = await _run_shell(f"python -m pyflakes {q}", cwd=cwd)
+            r = await _run_shell(f"python -m pyflakes {q}", cwd=cwd, sandbox="must")
             if "No module named" not in r.get("output", ""):
                 return r
-            return await _run_shell(f"python -m py_compile {q}", cwd=cwd)
+            return await _run_shell(f"python -m py_compile {q}", cwd=cwd, sandbox="must")
     if ext in (".js", ".jsx", ".mjs", ".cjs"):
         if shutil.which("node"):
-            return await _run_shell(f"node --check {q}", cwd=cwd)
+            return await _run_shell(f"node --check {q}", cwd=cwd, sandbox="must")
     if ext in (".ts", ".tsx"):
         npx = shutil.which("npx.cmd") or shutil.which("npx")
         if npx:
-            return await _run_shell(f"npx --no-install tsc --noEmit {q}", cwd=cwd)
+            return await _run_shell(f"npx --no-install tsc --noEmit {q}", cwd=cwd, sandbox="must")
     # generic: try ruff for any dir, else nothing
     if shutil.which("ruff"):
-        return await _run_shell(f"ruff check {q}", cwd=cwd)
+        return await _run_shell(f"ruff check {q}", cwd=cwd, sandbox="must")
     return {
         "output": "no diagnostics tool available for this target (install ruff / node / tsc)",
         "error": False,
@@ -1791,7 +1926,9 @@ async def execute(name: str, args: dict) -> dict:
     if name == "spawn_agents":
         return await _spawn_agents(args.get("tasks", []))
     if name in ("shell", "bash"):
-        return await _run_shell(args.get("command", "echo no command"), args.get("cwd", ""))
+        return await _run_shell(
+            args.get("command", "echo no command"), args.get("cwd", ""), sandbox="must"
+        )
     if name == "read_file":
         return await _read_file(
             args.get("path", ""), int(args.get("start_line") or 1), int(args.get("end_line") or 0)
@@ -3207,7 +3344,7 @@ async def stream_execute(name: str, args: dict):
         return
     if name in ("shell", "bash"):
         async for event in _stream_shell(
-            args.get("command", "echo no command"), args.get("cwd", "")
+            args.get("command", "echo no command"), args.get("cwd", ""), sandbox="must"
         ):
             yield event
         return
@@ -4769,7 +4906,7 @@ async def agent_status() -> dict:
             "npx_fallback": bool(npx_path),
             "npx_path": npx_path or "",
         },
-        "sandbox": {"docker": bool(shutil.which("docker"))},
+        "sandbox": {"docker": bool(shutil.which("docker")), "shell": shell_confinement()},
         "computer_use": {"pyautogui": has_pyautogui},
         "connections": _connection_summary(),
         "mcp": {

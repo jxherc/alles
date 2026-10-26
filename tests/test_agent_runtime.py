@@ -125,8 +125,35 @@ class AgentSystemNoteSecurityTests(unittest.TestCase):
             }
         )
 
-        self.assertIn("an unsandboxed shell has the same host access as Alles", note)
+        self.assertIn("The shell's writes are sandboxed but its reads are not", note)
         self.assertIn("never read credential stores unless the owner explicitly asked", note)
+
+    def test_the_note_says_what_holds_the_shell_in(self):
+        base = {"agent_context_files": False, "agent_subagents": False}
+        cases = (
+            ("sandbox-exec", "full_auto", "Shell runs in a write sandbox"),
+            ("bwrap", "approve", "put temp files under $TMPDIR"),
+            ("", "approve", "shown to the owner as unconfined"),
+            ("", "full_auto", "shell commands don't run in this mode"),
+        )
+        for kind, mode, words in cases:
+            with self.subTest(kind=kind, mode=mode):
+                with mock.patch.object(ar, "shell_confinement", lambda settings=None: kind):
+                    note = ar.agent_system_note({**base, "agent_permission_mode": mode})
+                self.assertIn(words, note)
+
+    def test_the_note_says_when_the_sandbox_has_no_network(self):
+        base = {"agent_context_files": False, "agent_subagents": False}
+        for offline in (True, False):
+            with (
+                self.subTest(offline=offline),
+                mock.patch.object(ar, "shell_confinement", lambda settings=None: "bwrap"),
+                mock.patch.object(ar, "sandbox_network", lambda: ((6769,), offline)),
+            ):
+                note = ar.agent_system_note(base)
+            self.assertEqual(
+                "no network in the sandbox while alles has no password" in note, offline
+            )
 
     def test_detached_auto_reports_that_approval_actions_are_unavailable(self):
         note = ar.agent_system_note(
@@ -438,6 +465,10 @@ class FolderBoundaryTests(ApiTest):
         patch.start()
         self.addCleanup(patch.stop)
         patch = mock.patch.object(ar, "LLM_RETRY_BASE", 0)
+        patch.start()
+        self.addCleanup(patch.stop)
+        # these are about paths; a machine with no shell sandbox has its own tests below
+        patch = mock.patch.object(ar, "shell_confinement", lambda settings=None: "sandbox-exec")
         patch.start()
         self.addCleanup(patch.stop)
 
@@ -900,6 +931,209 @@ class FolderBoundaryTests(ApiTest):
             "sub done", next(c["tool_result"] for c in chunks if "tool_result" in c)["output"]
         )
         self.assertFalse((self.outside / "sub.txt").exists())
+
+    def test_with_no_shell_sandbox_only_the_owners_approval_runs_a_command(self):
+        from services import agent_tools, shell_sandbox
+
+        call = ("shell", {"command": "echo approved > approved.txt"})
+        nobody_asks = (
+            {"agent_permission_mode": "full_auto"},
+            {"agent_permission_mode": "full_access"},
+            {"agent_permission_mode": "full_auto", "agent_detached": True},
+            {"agent_permission_mode": "full_access", "_sub_agent": True},
+        )
+        with (
+            mock.patch.object(ar, "shell_confinement", lambda settings=None: ""),
+            mock.patch.object(shell_sandbox, "kind", return_value=""),
+        ):
+            for settings in nobody_asks:
+                with self.subTest(**settings):
+                    permission, asked = self.owner(allow=True)
+                    with mock.patch.object(ar, "_await_permission", permission):
+                        chunks = self.run_agent(
+                            self.one_call(*call),
+                            {**settings, "agent_cwd": str(self.project)},
+                            agent_tools.stream_execute,
+                        )
+                    result = next(c["tool_result"] for c in chunks if "tool_result" in c)
+                    self.assertTrue(result["error"])
+                    if settings["agent_permission_mode"] == "full_access" and not settings.get(
+                        "_sub_agent"
+                    ):
+                        self.assertEqual(result["output"], shell_sandbox.missing_hint())
+                    self.assertEqual(asked, [])
+                    self.assertFalse((self.project / "approved.txt").exists())
+            for allow in (False, True):
+                with self.subTest(approve=allow):
+                    permission, asked = self.owner(allow=allow)
+                    with mock.patch.object(ar, "_await_permission", permission):
+                        chunks = self.run_agent(
+                            self.one_call(*call),
+                            {"agent_permission_mode": "approve", "agent_cwd": str(self.project)},
+                            agent_tools.stream_execute,
+                        )
+                    prompt = next(c["tool_permission"] for c in chunks if "tool_permission" in c)
+                    self.assertTrue(prompt["unconfined"])
+                    self.assertIn("runs without a sandbox", prompt["outside"])
+                    self.assertEqual(prompt["args"]["command"], call[1]["command"])
+                    self.assertEqual(len(asked), 1)
+                    self.assertEqual((self.project / "approved.txt").exists(), allow)
+
+    def test_with_no_sandbox_a_read_tool_that_runs_git_asks_first_and_never_by_itself(self):
+        from services import shell_sandbox
+
+        for mode, prompted in (("full_auto", False), ("full_access", False), ("approve", True)):
+            with self.subTest(mode=mode):
+                ran = []
+
+                async def executor(tool, tool_args):
+                    ran.append(tool)
+                    yield {"type": "result", "result": {"output": "ran", "error": False}}
+
+                permission, asked = self.owner(allow=True)
+                with (
+                    mock.patch.object(ar, "shell_confinement", lambda settings=None: ""),
+                    mock.patch.object(ar, "_await_permission", permission),
+                ):
+                    chunks = self.run_agent(
+                        self.one_call("git_status", {}),
+                        {"agent_permission_mode": mode, "agent_cwd": str(self.project)},
+                        executor,
+                    )
+                prompt = next(
+                    (c["tool_permission"] for c in chunks if "tool_permission" in c), None
+                )
+                self.assertEqual(bool(prompt), prompted)
+                self.assertEqual(ran, ["git_status"] if prompted else [])
+                if prompted:
+                    self.assertTrue(prompt["unconfined"])
+                    self.assertIn("runs without a sandbox", prompt["outside"])
+                else:
+                    result = next(c["tool_result"] for c in chunks if "tool_result" in c)
+                    self.assertEqual(result["output"], shell_sandbox.missing_hint())
+
+    def test_full_auto_refuses_a_shell_with_no_sandbox_in_plain_words(self):
+        from services import shell_sandbox
+
+        ran = []
+
+        async def executor(tool, tool_args):
+            ran.append(tool)
+            yield {"type": "result", "result": {"output": "ran", "error": False}}
+
+        with mock.patch.object(ar, "shell_confinement", lambda settings=None: ""):
+            chunks = self.run_agent(
+                self.one_call("shell", {"command": "ls"}),
+                {"agent_permission_mode": "full_auto", "agent_cwd": str(self.project)},
+                executor,
+            )
+        self.assertEqual(ran, [])
+        self.assertFalse(any("tool_permission" in c for c in chunks))
+        result = next(c["tool_result"] for c in chunks if "tool_result" in c)
+        self.assertEqual(result["output"], shell_sandbox.missing_hint())
+
+    def test_a_sandboxed_shell_prompt_is_not_marked_unconfined(self):
+        async def executor(tool, tool_args):
+            yield {"type": "result", "result": {"output": "ran", "error": False}}
+
+        permission, asked = self.owner(allow=True)
+        with mock.patch.object(ar, "_await_permission", permission):
+            chunks = self.run_agent(
+                self.one_call("shell", {"command": "ls"}),
+                {"agent_permission_mode": "approve", "agent_cwd": str(self.project)},
+                executor,
+            )
+        prompt = next(c["tool_permission"] for c in chunks if "tool_permission" in c)
+        self.assertNotIn("unconfined", prompt)
+        self.assertNotIn("outside", prompt)
+
+    def stalled_sub_agents(self, stop, sid, press):
+        """The parent spawns two sub-agents whose model reads stall; `press()` runs once both are
+        reading. Returns the parent's chunks, how long it all took, and every run's status."""
+        started = []
+
+        async def model(messages, *a, **kw):
+            first = next(m["content"] for m in messages if m.get("role") == "user")
+            if str(first).startswith("SUB"):
+                started.append(first)
+                yield {"delta": "working"}
+                if len(started) == 2:
+                    asyncio.get_running_loop().create_task(press())
+                await asyncio.Event().wait()  # the model stalls
+            elif not any(m.get("role") == "tool" for m in messages):
+                tasks = [{"task": "SUB one"}, {"task": "SUB two"}]
+                yield {
+                    "tool_call": {"call_id": "c0", "name": "spawn_agents", "args": {"tasks": tasks}}
+                }
+            else:
+                yield {"delta": "parent done"}
+            yield {"done": True, "usage": {}}
+
+        async def go():
+            chunks = []
+            async for ch in ar.run_agent(
+                [{"role": "user", "content": "go"}],
+                SimpleNamespace(base_url="http://x/", api_key="k"),
+                "m",
+                stop,
+                {
+                    "agent_context_files": False,
+                    "agent_permission_mode": "full_access",
+                    "agent_cwd": str(self.project),
+                },
+                [],
+                [],
+                [],
+                session_id=sid,
+            ):
+                chunks.append(ch)
+            return chunks
+
+        loop = asyncio.new_event_loop()
+        self.addCleanup(loop.close)
+        began = loop.time()
+        with mock.patch.object(ar, "stream_chat", model):
+            chunks = loop.run_until_complete(asyncio.wait_for(go(), 10))
+        took = loop.time() - began
+        self.assertEqual(len(started), 2)
+        statuses = sorted(run["status"] for run in agent_state.list_runs(limit=10))
+        return chunks, took, statuses
+
+    def test_the_owners_stop_reaches_every_running_sub_agent(self):
+        stop = asyncio.Event()
+
+        async def press():
+            stop.set()
+
+        chunks, took, statuses = self.stalled_sub_agents(stop, self.session(), press)
+        self.assertLess(took, 5)
+        self.assertEqual(statuses, ["stopped", "stopped", "stopped"])
+        report = next(c["tool_result"] for c in chunks if "tool_result" in c)["output"]
+        self.assertEqual(report.count("Agent stopped."), 2, report)
+        self.assertNotIn("parent done", "".join(c.get("delta", "") for c in chunks))
+
+    def test_a_stop_for_this_turn_reaches_sub_agents_and_one_for_another_turn_does_not(self):
+        from routes import chat
+
+        sid = self.session()
+        stop = asyncio.Event()
+        stop.turn_token = "this turn"
+        self.assertTrue(chat.claim_turn(sid, stop))
+        self.addCleanup(chat._streams.pop, sid, None)
+        seen = {}
+
+        async def press():
+            seen["other"] = chat.stop_chat(sid, chat.StopBody(turn_token="another turn"))
+            await asyncio.sleep(0.15)
+            seen["running"] = sorted(run["status"] for run in agent_state.list_runs(limit=10))
+            seen["this"] = chat.stop_chat(sid, chat.StopBody(turn_token="this turn"))
+
+        _, took, statuses = self.stalled_sub_agents(stop, sid, press)
+        self.assertEqual(seen["other"]["ok"], False)
+        self.assertEqual(seen["running"], ["running", "running", "running"])
+        self.assertEqual(seen["this"], {"ok": True})
+        self.assertLess(took, 5)
+        self.assertEqual(statuses, ["stopped", "stopped", "stopped"])
 
 
 if __name__ == "__main__":

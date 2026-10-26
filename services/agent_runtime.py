@@ -11,19 +11,24 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from core.database import DelegatedAction, ModelEndpoint, SessionLocal
-from services import policy
+from services import policy, shell_sandbox
 from services.agent_state import finish_run, record_event, start_run, update_run
 from services.agent_tools import (
+    CONFINED_TOOLS,
     MUTATING_TOOLS,
+    OFFLINE_NOTE,
     UNTRUSTED_TOOLS,
     allow_outside_writes,
+    allow_unconfined_shell,
     build_tool_defs,
     capture_checkpoint,
     check_tool_paths,
     clear_outside_writes,
     guard_untrusted,
     preview_change,
+    sandbox_network,
     set_agent_ctx,
+    shell_confinement,
     stream_execute,
 )
 from services.aide_questions import normalize_answer, normalize_request
@@ -85,6 +90,9 @@ def provider_effort(settings: dict | None) -> str:
 def _outside_words(name: str, outside: list[str]) -> str:
     verb = "runs commands" if name in ("shell", "bash") else "writes"
     return f"{verb} outside this task's folder: " + ", ".join(outside)
+
+
+_UNCONFINED = "runs without a sandbox: it can change files anywhere alles can"
 
 
 def _action_refused(code: str) -> str:
@@ -420,10 +428,27 @@ def agent_system_note(settings: dict) -> str:
         )
     )
     extra = []
-    if settings.get("agent_sandbox") and shutil.which("docker"):
+    confinement = shell_confinement(settings)
+    if confinement == "docker":
         img = settings.get("agent_sandbox_image") or "alpine:latest"
         extra.append(
             f"- Shell runs INSIDE a docker sandbox ({img}). The workspace is mounted at /work. Filesystem outside /work and the host are not affected."
+        )
+    elif confinement:
+        extra.append(
+            "- Shell runs in a write sandbox (so do git, apply_patch, diagnostics and opencode_run): commands can write only inside this task's folder and a private temp folder ($TMPDIR, kept for this run). Writes anywhere else fail with 'Operation not permitted' or 'Read-only file system'; put temp files under $TMPDIR (e.g. mktemp \"$TMPDIR/x.XXXXXX\"). Git hooks don't run from the git tools."
+        )
+        if confinement == "bwrap" and sandbox_network()[1]:
+            extra.append(
+                f"- There is {OFFLINE_NOTE}: installs, fetches and pushes fail. Tell the owner if a step needs the network."
+            )
+    elif settings.get("agent_permission_mode") == "approve":
+        extra.append(
+            "- No shell sandbox on this machine: every shell command is shown to the owner as unconfined before it runs."
+        )
+    else:
+        extra.append(
+            f"- No shell sandbox on this machine, so shell commands don't run in this mode ({shell_sandbox.missing_hint()}). Use the file tools, or tell the owner."
         )
     if settings.get("agent_computer_use"):
         extra.append(
@@ -479,7 +504,7 @@ def agent_system_note(settings: dict) -> str:
         )
     elif pmode == "full_access":
         extra.append(
-            "- FULL ACCESS: ordinary in-scope work runs without approval. Disabled tools and file-tool secret/root guards still apply, but an unsandboxed shell has the same host access as Alles. Use shell only inside the selected Project and never read credential stores unless the owner explicitly asked."
+            "- FULL ACCESS: ordinary in-scope work runs without approval. Disabled tools and file-tool secret/root guards still apply. The shell's writes are sandboxed but its reads are not: use shell only inside the selected Project and never read credential stores unless the owner explicitly asked."
         )
     elif pmode == "full_auto" and settings.get("agent_detached"):
         extra.append(
@@ -621,7 +646,15 @@ async def run_agent(
                 update_run(run_id, worktree=_worktree, cwd=_worktree)
 
         # tools read sandbox/cwd/computer-use config + ep/model (for sub-agents) from here
-        set_agent_ctx(settings=settings, ep=ep, model=model, run_id=run_id, session_id=session_id)
+        # the stop rides along so a sub-agent stops with this run
+        set_agent_ctx(
+            settings=settings,
+            ep=ep,
+            model=model,
+            run_id=run_id,
+            session_id=session_id,
+            stop_event=stop_event,
+        )
 
         note = agent_system_note(settings)
         if settings.get("agent_context_files", True):
@@ -814,6 +847,12 @@ async def run_agent(
                             "happens with the owner's approval of that one step; switch to "
                             "approve mode to ask for it."
                         )
+                # a command nothing confines here (shell, git, a linter, a coding agent) runs only
+                # when the owner approves that one step knowing so. nothing that approves by itself
+                # runs one, and a read tool that would run one asks too
+                unconfined = name in CONFINED_TOOLS and not shell_confinement(settings)
+                if unconfined and decision == "allow":
+                    decision = "ask"
                 if name in MUTATING_TOOLS and not confined and not outside:
                     diff = preview_change(name, args)
                     if diff:
@@ -849,6 +888,10 @@ async def run_agent(
                         "output": "[a sub-agent can't ask the owner] put the question in your report instead.",
                         "error": True,
                     }
+                elif unconfined and (
+                    _sub_agent or settings.get("agent_detached") or mode != "approve"
+                ):
+                    gate = {"output": shell_sandbox.missing_hint(), "error": True}
                 elif name in MUTATING_TOOLS:
                     from services.agent_tools import delegated_action_details
                     from services.delegated_actions import (
@@ -868,6 +911,16 @@ async def run_agent(
                             "path_targets": tuple(outside),
                             "privacy_effect": _outside_words(name, outside),
                         }
+                    warning = "; ".join(
+                        part
+                        for part in (
+                            _outside_words(name, outside) if outside else "",
+                            _UNCONFINED if unconfined else "",
+                        )
+                        if part
+                    )
+                    if unconfined:
+                        details = {**details, "privacy_effect": warning}
                     delegated_request = ActionRequest(
                         origin="aide",
                         scope_kind=_delegated_scope_kind,
@@ -894,9 +947,10 @@ async def run_agent(
                         delegated_action, already_allowed = request_action(
                             _ddb,
                             delegated_request,
-                            # outside the folder: always a fresh prompt, never a rule or grant
-                            force_approval=decision == "ask" or bool(outside),
-                            auto_authorize=decision == "allow" and not outside,
+                            # outside the folder or unconfined: always a fresh prompt, never a
+                            # rule or grant
+                            force_approval=decision == "ask" or bool(outside) or unconfined,
+                            auto_authorize=decision == "allow" and not outside and not unconfined,
                         )
                         _ddb.commit()
                         _ddb.refresh(delegated_action)
@@ -943,7 +997,8 @@ async def run_agent(
                                 "args": args,
                                 "diff": diff,
                                 "exact_hash": exact_hash,
-                                **({"outside": _outside_words(name, outside)} if outside else {}),
+                                **({"outside": warning} if warning else {}),
+                                **({"unconfined": True} if unconfined else {}),
                             }
                         }
                         allowed = await _await_permission(req_id, exact_hash, stop_event)
@@ -985,6 +1040,7 @@ async def run_agent(
                             "name": name,
                             "args": args,
                             "diff": diff,
+                            **({"outside": _UNCONFINED, "unconfined": True} if unconfined else {}),
                         }
                     }
                     allowed = await _await_permission(req_id, "", stop_event)
@@ -1052,6 +1108,8 @@ async def run_agent(
                         # exactly what the owner approved, resolved again now: a link swapped
                         # in since then points somewhere else and is refused by the tool
                         allow_outside_writes(outside)
+                    if unconfined:
+                        allow_unconfined_shell()
                     # snapshot files before edits so the run can be reverted
                     if name in ("write_file", "edit_file", "apply_patch"):
                         capture_checkpoint(run_id, name, args)
@@ -1219,6 +1277,7 @@ async def run_agent(
         finish_run(run_id, "error")
         raise
     finally:
+        shell_sandbox.drop_scratch(run_id)
         if _worktree:
             try:
                 from services import worktrees
