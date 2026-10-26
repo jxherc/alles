@@ -112,7 +112,7 @@ class ManifestTests(ApiTest):
     def test_shell_cache_stamp_is_consistent(self):
         html = (STATIC / "index.html").read_text(encoding="utf-8")
         worker = (STATIC / "sw.js").read_text(encoding="utf-8")
-        app_stamp = re.search(r"const _v = '(\d+)'", html)
+        app_stamp = re.search(r'<script type="module" src="/static/js/app\.js\?v=(\d+)"', html)
         style_stamp = re.search(r"style\.css\?v=(\d+)", html)
         worker_stamp = re.search(r"const STAMP = '(\d+)'", worker)
         self.assertIsNotNone(app_stamp)
@@ -126,7 +126,7 @@ class ManifestTests(ApiTest):
         self.assertIn("/static/vendor/inter/InterVariable.woff2", urls)
         self.assertIn("/static/vendor/inter/InterVariable-Italic.woff2", urls)
         html = (STATIC / "index.html").read_text(encoding="utf-8")
-        app_stamp = re.search(r"const _v = '(\d+)'", html)
+        app_stamp = re.search(r'<script type="module" src="/static/js/app\.js\?v=(\d+)"', html)
         self.assertIsNotNone(app_stamp)
         self.assertIn(f"/static/style.css?v={app_stamp.group(1)}", urls)
         self.assertIn(f"/static/js/app.js?v={app_stamp.group(1)}", urls)
@@ -138,11 +138,11 @@ class ManifestTests(ApiTest):
         self.assertIsNotNone(kokuen_url)
         self.assertIn(kokuen_url.group(1), urls)
         for module in (
-            "models.js?v=213",
-            "dropdown.js?v=212",
-            "specialist_groups.js?v=9",
-            "kokuen.js?v=2",
-            "andromeda.js?v=250",
+            "models.js?v=214",
+            "dropdown.js?v=213",
+            "specialist_groups.js?v=10",
+            "kokuen.js?v=4",
+            "andromeda.js?v=251",
             "route_history.js",
         ):
             self.assertIn(f"/static/js/{module}", urls)

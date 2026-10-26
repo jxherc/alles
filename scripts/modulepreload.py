@@ -27,8 +27,10 @@ IMPORT = re.compile(
 
 def entry() -> str:
     """the app.js url index.html imports, with its ?v= stamp."""
-    stamp = re.search(r"const _v = '([^']+)'", INDEX.read_text()).group(1)
-    return f"/static/js/app.js?v={stamp}"
+    found = re.search(
+        r'<script type="module" src="/static/js/app\.js\?v=([^"]+)"', INDEX.read_text()
+    )
+    return f"/static/js/app.js?v={found.group(1)}"
 
 
 def graph(start: str) -> list[str]:

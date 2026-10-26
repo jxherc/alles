@@ -15,7 +15,9 @@ class StaticCacheTests(ApiTest):
         static = Path(__file__).resolve().parents[1] / "static"
         shell = (static / "index.html").read_text()
         worker = (static / "sw.js").read_text()
-        shell_revision = re.search(r"const _v = '([^']+)'", shell).group(1)
+        shell_revision = re.search(
+            r'<script type="module" src="/static/js/app\.js\?v=([^"]+)"', shell
+        ).group(1)
         style_revision = re.search(r"/static/style\.css\?v=([^\"]+)", shell).group(1)
         cache_revision = re.search(r"const STAMP = '([^']+)'", worker).group(1)
         self.assertEqual(shell_revision, style_revision)
