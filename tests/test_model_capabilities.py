@@ -259,6 +259,169 @@ class RequestPayloadTest(unittest.TestCase):
         self.assertFalse(llm.reasoning_control_supported("https://api.openai.com", "o3"))
 
 
+URL = "https://api.anthropic.com"
+BUDGET_MODELS = (
+    "claude-3-7-sonnet-20250219",
+    "claude-opus-4-1",
+    "claude-opus-4-5-20251101",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+)
+ADAPTIVE_MODELS = ("claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-4-7", "claude-opus-4-8")
+NO_SWITCH_MODELS = (
+    "claude-fable-5",
+    "claude-fable-5-1",
+    "claude-mythos-5",
+    "claude-mythos-preview",
+    "claude-opus-5-5",
+    "claude-sonnet-5-5",
+)
+
+
+def thinking_of(model, **kw):
+    return llm._build_anthropic_payload(MSGS, model, **kw).get("thinking")
+
+
+class ClaudeThinkingFamiliesTest(unittest.TestCase):
+    def test_budget_models_use_budgets_and_off_just_omits(self):
+        for model in BUDGET_MODELS:
+            with self.subTest(model):
+                found = caps.anthropic_thinking(model)
+                self.assertEqual((found["on"], found["off"]), ("budget", "omit"))
+                self.assertTrue(llm.reasoning_control_supported(URL, model))
+                self.assertEqual(
+                    thinking_of(model, thinking=True),
+                    {"type": "enabled", "budget_tokens": 8000},
+                )
+                self.assertIsNone(thinking_of(model, thinking=False))
+
+    def test_46_and_later_opus_and_sonnet_use_adaptive_and_disabled(self):
+        for model in (*ADAPTIVE_MODELS, "claude-sonnet-5"):
+            with self.subTest(model):
+                found = caps.anthropic_thinking(model)
+                self.assertEqual((found["on"], found["off"]), ("adaptive", "disabled"))
+                self.assertTrue(llm.reasoning_control_supported(URL, model))
+                self.assertEqual(thinking_of(model, thinking=True), {"type": "adaptive"})
+                self.assertEqual(thinking_of(model, thinking=False), {"type": "disabled"})
+
+    def test_no_budget_tokens_where_budgets_are_removed(self):
+        removed = (
+            "claude-opus-4-7",
+            "claude-opus-4-8",
+            "claude-opus-5",
+            "claude-sonnet-5",
+            *NO_SWITCH_MODELS,
+        )
+        for model in removed:
+            for thinking in (None, True, False):
+                for effort in ("", "high", "xhigh", "max"):
+                    with self.subTest(model=model, thinking=thinking, effort=effort):
+                        payload = llm._build_anthropic_payload(
+                            MSGS, model, thinking=thinking, effort=effort
+                        )
+                        self.assertNotIn("budget_tokens", json.dumps(payload))
+                        self.assertNotEqual((payload.get("thinking") or {}).get("type"), "enabled")
+
+    def test_no_implicit_thinking_without_an_explicit_on(self):
+        for model in (*ADAPTIVE_MODELS, "claude-opus-5", "claude-sonnet-5"):
+            with self.subTest(model):
+                self.assertIsNone(thinking_of(model, effort="high"))
+
+    def test_adaptive_drops_temperature_like_budget_thinking(self):
+        payload = llm._build_anthropic_payload(
+            MSGS, "claude-opus-4-7", thinking=True, temperature=0.2
+        )
+        self.assertNotIn("temperature", payload)
+
+    def test_opus_5_off_at_xhigh_or_max_is_lowered_to_high(self):
+        for level in ("xhigh", "max"):
+            payload = llm._build_anthropic_payload(
+                MSGS, "claude-opus-5", thinking=False, effort=level
+            )
+            self.assertEqual(payload["thinking"], {"type": "disabled"})
+            self.assertEqual(payload["output_config"], {"effort": "high"})
+        payload = llm._build_anthropic_payload(
+            MSGS, "claude-opus-5", thinking=False, effort="medium"
+        )
+        self.assertEqual(payload["output_config"], {"effort": "medium"})
+        # on keeps the chosen level, and so does a model with no such limit
+        payload = llm._build_anthropic_payload(MSGS, "claude-opus-5", thinking=True, effort="max")
+        self.assertEqual(payload["output_config"], {"effort": "max"})
+        self.assertEqual(payload["thinking"], {"type": "adaptive"})
+        payload = llm._build_anthropic_payload(
+            MSGS, "claude-opus-4-7", thinking=False, effort="xhigh"
+        )
+        self.assertEqual(payload["output_config"], {"effort": "xhigh"})
+        payload = llm._build_anthropic_payload(
+            MSGS, "claude-haiku-5-5", thinking=False, effort="max"
+        )
+        self.assertEqual(payload["output_config"], {"effort": "high"})
+
+    def test_fable_mythos_and_55_models_have_no_switch_and_send_no_thinking(self):
+        for model in NO_SWITCH_MODELS:
+            with self.subTest(model):
+                self.assertFalse(llm.reasoning_control_supported(URL, model))
+                self.assertIsNone(thinking_of(model, thinking=True))
+                self.assertIsNone(thinking_of(model, thinking=False))
+        # effort still works on them
+        payload = llm._build_anthropic_payload(MSGS, "claude-fable-5-1", effort="max")
+        self.assertEqual(payload["output_config"], {"effort": "max"})
+
+    def test_catalog_thinking_types_override_names(self):
+        def types(**flags):
+            return {
+                "capabilities": {
+                    "thinking": {
+                        "supported": True,
+                        "types": {k: {"supported": v} for k, v in flags.items()},
+                    }
+                }
+            }
+
+        adaptive_only = types(adaptive=True, enabled=False, disabled=False)
+        self.assertFalse(llm.reasoning_control_supported(URL, "claude-new", adaptive_only))
+        self.assertIsNone(thinking_of("claude-new", thinking=False, model_metadata=adaptive_only))
+        both = types(adaptive=True, enabled=False, disabled=True)
+        self.assertTrue(llm.reasoning_control_supported(URL, "claude-new", both))
+        self.assertEqual(
+            thinking_of("claude-new", thinking=True, model_metadata=both), {"type": "adaptive"}
+        )
+        self.assertEqual(
+            thinking_of("claude-new", thinking=False, model_metadata=both), {"type": "disabled"}
+        )
+        # a catalog saying disabled is refused beats a name that would allow it
+        refused = types(adaptive=True, enabled=False, disabled=False)
+        self.assertFalse(llm.reasoning_control_supported(URL, "claude-opus-4-7", refused))
+        budget = types(adaptive=False, enabled=True, disabled=True)
+        self.assertEqual(
+            thinking_of("claude-new", thinking=True, model_metadata=budget),
+            {"type": "enabled", "budget_tokens": 8000},
+        )
+        self.assertIsNone(thinking_of("claude-new", thinking=False, model_metadata=budget))
+
+    def test_switch_agrees_with_what_the_builder_sends(self):
+        every = (
+            *BUDGET_MODELS,
+            *ADAPTIVE_MODELS,
+            *NO_SWITCH_MODELS,
+            "claude-opus-5",
+            "claude-sonnet-5",
+            "claude-haiku-5-5",
+            "claude-3-5-sonnet",
+        )
+        for model in every:
+            with self.subTest(model):
+                offered = llm.reasoning_control_supported(URL, model)
+                on = thinking_of(model, thinking=True)
+                off = thinking_of(model, thinking=False)
+                if offered:
+                    self.assertIn((on or {}).get("type"), {"adaptive", "enabled"})
+                    self.assertIn((off or {}).get("type"), {None, "disabled"})
+                else:
+                    self.assertIsNone(on)
+                    self.assertIsNone(off)
+
+
 class RunControlTest(unittest.TestCase):
     def body(self, **values):
         return ChatRequest(session_id="s", message="hello", **values)

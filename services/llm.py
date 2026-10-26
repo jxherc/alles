@@ -13,8 +13,9 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 from services.model_capabilities import (
-    anthropic_budget_thinking,
     anthropic_effort_api,
+    anthropic_reasoning_switch,
+    anthropic_thinking,
     effort_levels,
 )
 
@@ -187,7 +188,7 @@ def reasoning_control_supported(base_url: str, model: str, metadata: dict | None
         # capability probe is part of the endpoint metadata.
         return False
     if provider == "anthropic":
-        return anthropic_budget_thinking(model, metadata)
+        return anthropic_reasoning_switch(model, metadata)
     if provider == "openai":
         # Chat Completions exposes effort for reasoning models, but not a portable
         # explicit on/off field. Keep the separate effort control honest.
@@ -312,13 +313,22 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
     if eff not in effort_levels("anthropic", model, meta):
         eff = None
     api = anthropic_effort_api(model, meta)
+    switch = anthropic_thinking(model, meta)
+    thinking = kw.get("thinking")
+    if thinking is False and switch["off"] == "disabled":
+        p["thinking"] = {"type": "disabled"}
+        # some models refuse disabled thinking above high effort, so honor off and lower it
+        if switch["off_effort_cap"] == "high" and eff in {"xhigh", "max"}:
+            eff = "high"
     if eff and api == "effort":
         p["output_config"] = {"effort": eff}
-    thinking = kw.get("thinking")
-    should_think = thinking is True or (
-        thinking is None and api == "budget" and eff in _THINK_BUDGET
-    )
-    if should_think and anthropic_budget_thinking(model, meta):
+    # explicit on: adaptive where budgets are removed, else a budget. no explicit choice keeps
+    # the older budget behavior for models that only think through one
+    budget_by_effort = thinking is None and api == "budget" and eff in _THINK_BUDGET
+    if switch["on"] == "adaptive" and thinking is True:
+        p["thinking"] = {"type": "adaptive"}
+        p.pop("temperature", None)
+    elif switch["on"] == "budget" and (thinking is True or budget_by_effort):
         budget = _THINK_BUDGET.get(eff, 8000)
         p["max_tokens"] = max(p.get("max_tokens", 8192), budget + 2048)
         p["thinking"] = {"type": "enabled", "budget_tokens": budget}

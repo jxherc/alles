@@ -89,15 +89,62 @@ def anthropic_effort_api(model: str, metadata: dict | None = None) -> str:
     return _anthropic(model, metadata if isinstance(metadata, dict) else {})[1]
 
 
-def anthropic_budget_thinking(model: str, metadata: dict | None = None) -> bool:
-    """Whether a request may ask for extended thinking with a token budget."""
+_NO_THINKING_SWITCH = (None, None, None)
+
+
+def _thinking_by_name(name: str) -> tuple[str | None, str | None, str | None]:
+    """(on, off, off_effort_cap) for a claude model name.
+
+    on: "adaptive" (thinking {type: adaptive}) or "budget" (thinking enabled with budget_tokens;
+    removed from 4.7 on). off: "disabled" (thinking {type: disabled}) or "omit" (leave thinking
+    out). off_effort_cap: the highest effort a disabled request accepts, when it has one.
+    Anything not listed gets no switch; leaving thinking out is always legal.
+    """
+    if re.search(r"(fable|mythos)-?5", name):
+        # any explicit thinking config except adaptive is refused, so there is no off switch
+        return _NO_THINKING_SWITCH
+    m = re.search(r"(opus|sonnet|haiku)-(\d)(?!\d)(?:-(\d{1,2})(?!\d))?", name)
+    if m:
+        family, major, minor = m.group(1), int(m.group(2)), int(m.group(3) or 0)
+        if major >= 6:
+            return _NO_THINKING_SWITCH
+        if major == 5:
+            if family == "haiku" or (family == "opus" and minor == 0):
+                return "adaptive", "disabled", "high"
+            if family == "sonnet" and minor == 0:
+                return "adaptive", "disabled", None
+            # opus 5.5 refuses disabled at every effort, sonnet 5.5 uses between_tools instead
+            return _NO_THINKING_SWITCH
+        if major == 4 and minor >= 6:
+            return "adaptive", "disabled", None
+    if any(part in name for part in _BUDGET_NAMES):
+        return "budget", "omit", None
+    return _NO_THINKING_SWITCH
+
+
+def anthropic_thinking(model: str, metadata: dict | None = None) -> dict:
+    """What an explicit reasoning on/off request may send to this claude model.
+
+    The catalog's thinking types win over the name table. {"on", "off", "off_effort_cap"} as
+    described in _thinking_by_name; both on and off must be set for the switch to be offered.
+    """
     metadata = metadata if isinstance(metadata, dict) else {}
+    on, off, cap = _thinking_by_name(_name(model))
     caps = metadata.get("capabilities")
-    known = _flag(caps, "thinking", "types", "enabled", "supported")
-    if known is not None:
-        return known
-    name = _name(model)
-    return any(part in name for part in _BUDGET_NAMES)
+    types = caps.get("thinking") if isinstance(caps, dict) else None
+    types = types.get("types") if isinstance(types, dict) else None
+    adaptive, enabled, disabled = (
+        _flag(types, key, "supported") for key in ("adaptive", "enabled", "disabled")
+    )
+    if isinstance(types, dict) and (adaptive, enabled, disabled) != (None, None, None):
+        on = "adaptive" if adaptive else "budget" if enabled else None
+        off = "omit" if on == "budget" else "disabled" if disabled else None
+    return {"on": on, "off": off, "off_effort_cap": cap if off == "disabled" else None}
+
+
+def anthropic_reasoning_switch(model: str, metadata: dict | None = None) -> bool:
+    found = anthropic_thinking(model, metadata)
+    return bool(found["on"] and found["off"])
 
 
 def _openai_levels(name: str) -> list[str]:
