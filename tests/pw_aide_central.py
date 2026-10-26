@@ -1166,8 +1166,11 @@ def run_profile(pw, browser, ids, width, theme, zoom=False):
         expect(branch_menu).not_to_be_visible()
         expect(page.locator("#aide-branch-context")).to_be_focused()
         page.locator("#effort-btn").click()
-        page.locator('#perm-menu [data-kind="effort"][data-v="high"]').click()
-        expect(page.locator("#effort-btn .effort-label")).to_have_text("high")
+        # the fixture model takes no provider effort levels, so its menu offers the local
+        # profiles every model has (automatic, deep work, custom)
+        expect(page.locator('#perm-menu [data-kind="effort"][data-v="high"]')).to_have_count(0)
+        page.locator('#perm-menu [data-kind="effort"][data-v="deep_work"]').click()
+        expect(page.locator("#effort-btn .effort-label")).to_have_text("deep work")
         geometry(
             page,
             ["#aide-project-context", "#aide-branch-context", "#effort-btn", "#aide-options-close"],
