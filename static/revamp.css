@@ -1640,6 +1640,16 @@ html:not(#_) #settings-modal .s-heading {
   gap: var(--k-space-2);
 }
 
+/* a long pane name ends in dots; "alles settings" never breaks onto a second line */
+html:not(#_) #settings-modal .s-title { flex-shrink: 0; white-space: nowrap; }
+
+html:not(#_) #settings-modal .s-context {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 html:not(#_) #settings-modal .s-context::before {
   /* a divider you see, not one a screen reader reads out as "slash" */
   content: "/" / "";
@@ -3627,7 +3637,8 @@ html:not(#_):not(#_) #server-workbench-view .server-workbench-fact {
   padding-block: var(--k-space-2);
 }
 
-html:not(#_):not(#_) #server-workbench-view .server-workbench-fact > strong { flex: 0 1 auto; }
+/* a short value still sits on the right (its auto margin); a long one that wrapped reads from the left */
+html:not(#_):not(#_) #server-workbench-view .server-workbench-fact > strong { flex: 0 1 auto; text-align: start; }
 
 /* vault list: a long title and its username wrap to read in full (the end of the name and the
    username were cut to three dots); a phone gives them the full line and puts the type under */
