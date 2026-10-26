@@ -1293,7 +1293,7 @@ function renderMonth() {
     // view shows all of it (tasks and birthdays too), so nothing is cut off without a word
     const items = [
       ...evts.map(o =>
-        `<button type="button" class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(chipText(o))}</button>`),
+        `<button type="button" class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}<span class="cal-ev-title">${esc(chipText(o))}</span></button>`),
       ...(tasksByDay[key] || []).map(_taskChip),
       ...(bmap[_bdayKey(cell)] || []).map(n => `<div class="cal-bday" title="${esc(tr('calendar.birthday_of', { name: n }))}">${_si('cake')} ${esc(n)}</div>`),
     ];
@@ -1375,7 +1375,7 @@ function renderTimeGrid(el, days, occ) {
   for (const d of days) {
     // a real button like the tasks under it: 44px, and tab plus enter opens it
     const items = occ.filter(o => o.all_day && _spanKeys(o).includes(ymd(d)))
-      .map(o => `<button type="button" class="cal-allday-ev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}</button>`).join('');
+      .map(o => `<button type="button" class="cal-allday-ev${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}<span class="cal-ev-title">${esc(o.title)}</span></button>`).join('');
     // the day's tasks live here too, so a "+N more" from the month always lands on them
     const tasks = (tasksByDay[ymd(d)] || []).map(_taskToggle).join('');
     allday += `<div class="cal-tg-allday" data-date="${ymd(d)}">${items}${tasks}${_bdayChips(bmap, d)}</div>`;

@@ -2983,10 +2983,11 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
 :where(#today-view) .today-row em { max-width: none; overflow: visible; color: color-mix(in srgb, var(--muted) 72%, transparent); font-size: 0.8125rem; text-overflow: clip; }
 :where(#today-view) .today-row.urgent b, :where(#today-view) .today-row.urgent em { color: var(--signal); }
 :where(#today-view) .today-schedule .today-list { gap: 10px; }
-:where(#today-view) .today-schedule .today-row { grid-template-columns: 64px minmax(0, 1fr); gap: 18px; }
+:where(#today-view) .today-schedule .today-row { grid-template-columns: 5rem minmax(0, 1fr); gap: 18px; }
 :where(#today-view) .today-schedule .today-row > span { grid-column: 2; }
 :where(#today-view) .today-schedule .today-row > em { grid-column: 1; grid-row: 1; color: color-mix(in srgb, var(--text) 72%, var(--muted)); font-size: 0.875rem; }
 :where(#today-view) .today-schedule .today-row b { color: var(--text); font-size: 0.9375rem; font-weight: 530; }
+:where(#today-view) .today-schedule .today-row b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
 :where(#today-view) .today-lower { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(230px, 0.9fr); gap: clamp(44px, 8vw, 80px); }
 :where(#today-view) .today-focus .today-row { grid-template-columns: minmax(0, 1fr) auto; padding-left: 28px; position: relative; }
 :where(#today-view) .today-focus .today-row::before { content: ''; position: absolute; left: 1px; width: 13px; height: 13px; border: 1px solid var(--muted); border-radius: 50%; }
@@ -4605,7 +4606,7 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .task-p2 { color: var(--signal); }
 .task-p3 { color: var(--error); }
 .task-editor-ov { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
-.task-editor { background: var(--panel); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 16px; width: 380px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.task-editor { background: var(--panel); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 16px; width: 32rem; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .task-editor .te-notes { min-height: 60px; resize: vertical; }
 .task-recovery { padding: 8px 0; border-block: 1px solid var(--faint); }
 .task-recovery[hidden], .task-recovery [hidden] { display: none; }
@@ -4615,8 +4616,9 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .task-conflict-values p { margin: 4px 0 8px; white-space: pre-wrap; }
 
 .te-row { display: flex; align-items: center; gap: 0.5rem; }
-.te-row label { font-size: 0.8125rem; color: var(--muted); width: 60px; flex-shrink: 0; }
-.te-resched { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.te-row label { font-size: 0.8125rem; color: var(--muted); width: 5rem; flex-shrink: 0; }
+/* four quick dates in one row, or two by two on a narrow screen: never three and one left over */
+.te-resched { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.3rem; }
 .te-rs { font-size: 0.8125rem; }
 .te-actions { display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.3rem; }
 .task-progress { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-small); padding: 0 0.25rem; }
@@ -5467,7 +5469,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 
 .days-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
   gap: 0.65rem;
   padding: 0.2rem 0;
 }
@@ -5504,10 +5506,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .day-unit { font-size: 0.8125rem; color: var(--muted); letter-spacing: 0.04em; }
 .day-name { font-size: 0.8125rem; color: var(--text); margin-top: 0.3rem; word-break: break-word; }
 .day-meta { font-size: 0.8125rem; color: var(--muted); }
+.day-meta { margin-bottom: 0.45rem; }
+/* auto top margin: the bar sits above the actions on every card of a row, whatever the name's length */
 .day-bar {
   height: 3px; border-radius: var(--k-radius-control); background: var(--faint);
-  margin-top: 0.45rem; overflow: hidden;
+  margin-top: auto; overflow: hidden;
 }
+.day-bar + .day-actions { margin-top: 0; }
 .day-bar i { display: block; height: 100%; background: var(--cat-blue); border-radius: var(--k-radius-control); }
 /* the actions sit on the card's bottom edge, so a row of cards lines them up with or without a bar */
 .day-actions { display: flex; gap: 0.3rem; margin-top: auto; padding-top: 0.5rem; }
@@ -6566,6 +6571,15 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 button.cal-task { width: 100%; margin: 0; border: 0; border-left: 2px solid var(--green); background: none; font: inherit; font-size: 0.8125rem; text-align: left; }
 .cal-tg-allday .cal-task { min-height: 44px; }
 .cal-task-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* a chip or all-day row is a 44px touch target: two lines of title fit it, so the title wraps
+   once before it is cut (month chips, the week/day all-day rows and their tasks) */
+.cal-ev-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (hover: none), (pointer: coarse) {
+  :is(.cal-chip, button.cal-allday-ev) { display: flex; align-items: center; gap: 2px; line-height: 1.2; }
+  :is(.cal-ev-title, .cal-task-title) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
+  .cal-chip { padding-inline: 9px 4px; }
+  button.cal-allday-ev { padding-inline: 9px 6px; }
+}
 .cal-task-chk { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; border: 1px solid currentColor; border-radius: var(--k-radius-small); box-sizing: border-box; opacity: 0.6; }
 .cal-task-chk.on { opacity: 1; border-color: transparent; }
 .cal-task-chk .ic { width: 12px; height: 12px; }
@@ -6631,7 +6645,8 @@ button.cal-task { width: 100%; margin: 0; border: 0; border-left: 2px solid var(
 .cal-timegrid { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; margin: 0 auto; }
 /* a week uses the width; one day column alone reads better in a measure */
 .cal-timegrid.one-day { max-width: 920px; }
-.cal-tg-headrow, .cal-tg-alldayrow, .cal-tg-body { display: grid; grid-template-columns: 48px repeat(var(--cols), minmax(0, 1fr)); }
+/* the hour gutter is rem so "all-day" and "12p" fit it at every text size */
+.cal-tg-headrow, .cal-tg-alldayrow, .cal-tg-body { display: grid; grid-template-columns: 3.75rem repeat(var(--cols), minmax(0, 1fr)); }
 .cal-tg-headrow { border-bottom: 1px solid var(--faint); flex-shrink: 0; }
 .cal-tg-dayhead { text-align: center; padding: 0.35rem 0; font-size: 0.8125rem; color: var(--muted); border-left: 1px solid var(--faint); }
 .cal-tg-dayhead .cal-tg-dn { color: var(--text); font-weight: 500; margin-left: 0.2rem; }
@@ -6659,7 +6674,8 @@ button.cal-allday-ev { display: block; box-sizing: border-box; width: 100%; min-
 /* phone: every day head stacks the weekday over the date the same way (they wrapped one by one),
    and the gutter is wide enough for "all-day" on one line */
 @media (max-width: 600px) {
-  .cal-tg-headrow, .cal-tg-alldayrow, .cal-tg-body { grid-template-columns: 52px repeat(var(--cols), minmax(0, 1fr)); }
+  /* 3.25rem keeps "all-day" on one line and leaves a seven-day week 44px of room a day */
+  .cal-tg-headrow, .cal-tg-alldayrow, .cal-tg-body { grid-template-columns: 3.25rem repeat(var(--cols), minmax(0, 1fr)); }
   .cal-tg-dayhead > span { display: block; }
   .cal-tg-dayhead .cal-tg-dn { margin-left: 0; }
 }
@@ -6679,7 +6695,7 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
 .cal-agenda-task .cal-agenda-dot { border: 1px solid currentColor; border-radius: 2px; box-sizing: border-box; color: var(--muted); }
 .cal-agenda-task.overdue :is(.cal-agenda-dot, .cal-agenda-time) { color: var(--signal); }
 .specialist-record-row.overdue .specialist-record-time { color: var(--signal); }
-.cal-agenda-time { color: var(--muted); font-size: 0.8125rem; width: 64px; flex-shrink: 0; }
+.cal-agenda-time { color: var(--muted); font-size: 0.8125rem; width: 5rem; flex-shrink: 0; white-space: nowrap; }
 .cal-agenda-title { font-size: 0.8125rem; color: var(--text); }
 .cal-agenda-recur { color: var(--muted); font-size: 0.8125rem; }
 /* 8a year view */
@@ -6731,6 +6747,7 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
 .cal-slot-chip:hover { border-color: var(--line-strong); color: var(--text); }
 /* a timed event: the outer box is the button, as tall as the event lasts; the inner box draws it */
 .cal-tev { position: absolute; left: 2px; right: 2px; border-radius: var(--k-radius-control); cursor: pointer; }
+.cal-tev-box b { white-space: nowrap; }
 .cal-tev-box {
   position: absolute; inset: 0; z-index: 2;
   font-size: 0.8125rem; padding: 1px 4px; border-radius: var(--k-radius-control); overflow: hidden;
@@ -6761,6 +6778,13 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
   .cal-side-search { margin-bottom: 0; }
   .cal-cell { padding-inline: 0; }
   .cal-cell-num { margin-inline: 0.2rem; }
+}
+/* a phone's month squeezes into what is left under the toolbar: a cell can be as short as its 44px
+   date strip, so the last week is never cut off, and "+12" stays clear of the today dot */
+@media (max-width: 600px) {
+  .cal-cell { min-height: 44px; }
+  .cal-cell.today .cal-cell-num { min-width: 20px; height: 20px; padding: 0 3px; border-radius: 10px; }
+  .cal-cell .cal-more { padding-inline-end: 3px !important; }
 }
 
 .cal-side-search { width: 100%; background: var(--panel); border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--text); font-size: 0.8125rem; padding: 0.35rem 0.5rem; margin-bottom: 0.7rem; font-family: inherit; }

@@ -1058,9 +1058,12 @@ html:not(#_) #today-view .today-head {
     column-gap: calc(var(--k-gutter) * 2);
   }
 
+  /* the gap is padding, not margin: webkit keeps a margin at the top of the second column, which
+     pushed its first heading 32px under the first column's */
   html:not(#_) #today-view .today-sections > * {
     break-inside: avoid;
-    margin: 0 0 32px;
+    margin: 0;
+    padding-bottom: 32px;
   }
 }
 
@@ -1984,6 +1987,32 @@ html:not(#_):not(#_) .task-item {
   padding-inline: var(--k-space-3);
 }
 
+/* a subtask steps in under its parent. the pull-back above beat .task-child's own margin, so the
+   row sat flush and its curved left border read as a stray bracket: the guide is a straight
+   line drawn beside the row instead */
+html:not(#_):not(#_) .task-item.task-child {
+  position: relative;
+  margin-inline-start: calc(1.5rem - var(--k-space-3));
+  border-left: 0;
+}
+
+html:not(#_):not(#_) .task-item.task-child::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 1px;
+  background: var(--k-line);
+}
+
+/* on a phone the search takes the full row, like the add field under the list */
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #tasks-view .tasks-search { flex: 1 1 100%; width: 100%; }
+}
+
+/* the add row's long hint ends in an ellipsis on a narrow screen instead of being cut mid-letter */
+html:not(#_):not(#_) #task-add-input { text-overflow: ellipsis; }
+
 html:not(#_):not(#_) :is(.task-item, .specialist-record-row, .activity-row) + :is(.task-item, .specialist-record-row, .activity-row) {
   margin-top: 2px;
 }
@@ -2430,6 +2459,38 @@ html:not(#_):not(#_) .specialist-record-day {
 }
 
 html:not(#_):not(#_) .specialist-record-day:first-child { margin-top: 0; }
+
+/* agenda rows: the time column is one width for every row, so titles line up whether the label is
+   "overdue", "10:00 AM" or a date (each row is its own grid, so an auto column drifted per row) */
+html:not(#_):not(#_) #plan-view .specialist-record-row {
+  grid-template-columns: 6.5rem minmax(0, 1fr) minmax(7rem, auto);
+}
+
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #plan-view .specialist-record-row { grid-template-columns: 6.5rem minmax(0, 1fr); row-gap: var(--k-space-1); }
+
+  /* the three agenda windows stay on one swipeable row, so "unscheduled" is not orphaned on a
+     line of its own */
+  html:not(#_):not(#_) .specialist-workbench-plan .specialist-choice-group {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin-inline: calc(-1 * var(--k-gutter));
+    padding-inline: var(--k-gutter);
+  }
+  html:not(#_):not(#_) .specialist-workbench-plan .specialist-choice-group::-webkit-scrollbar { display: none; }
+  html:not(#_):not(#_) .specialist-workbench-plan .specialist-choice-group button {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+/* Inter's tabular figures also widen the hyphens, so an iso date ("2026-10-26") read letter-spaced.
+   dates are left proportional; times keep their tabular digits */
+html:not(#_):not(#_) :is(.jrnl-recent-date, #plan-view .specialist-record-time) {
+  font-variant-numeric: normal;
+}
 
 /* the board keeps the app's gutter: its toolbar starts on 24 and a column's cards (12px column
    padding) do too */

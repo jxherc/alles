@@ -41,7 +41,7 @@ test('Plan board uses custom accessible controls and atomic stage ordering', () 
   assert.match(css, /\.plan-board-root\[data-mobile-stage="doing"\][^]*?data-stage="doing"/);
   assert.match(css, /\.plan-board-toolbar\s*\{[^]*?gap:\s*var\(--k-space-3/);
   assert.match(css, /\.plan-board-columns\s*\{[^]*?gap:\s*var\(--k-space-4/);
-  assert.match(css, /\.plan-board-columns\s*\{[^]*?grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.plan-board-columns\s*\{[^]*?grid-template-columns:\s*repeat\(4, minmax\(15rem, 1fr\)\)/);
   assert.match(css, /\.plan-board-list\s*\{[^]*?gap:\s*var\(--k-space-3/);
   assert.match(css, /\.plan-board-card\s*\{[^]*?padding:\s*var\(--k-space-3/);
   assert.match(css, /\.plan-board-inline-add\s*\{[^]*?min-width:\s*0/);
