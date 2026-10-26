@@ -5379,6 +5379,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   :where(#money-view) .txn .tx-tags { grid-column: 1 / -1; grid-row: 4; max-width: 100%; }
   :where(#money-view) .txn .tx-tags:empty { display: none; }
   :where(#money-view) .txn .tx-actions { grid-column: 1; grid-row: 5; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
+  /* the receipt action keeps its paperclip and drops its words on a phone, so the row's actions
+     stay on one line at the touch type size (0044); its aria-label still names it */
+  @media (max-width: 720px) { #money-view .txn .tx-receipt-label { display: none; } }
   :where(#money-view) .txn .tx-del { grid-column: 2; grid-row: 5; justify-self: end; }
 
 #money-view .money-entry-action { min-height: 44px; }
@@ -6614,10 +6617,10 @@ button.cal-task { width: 100%; margin: 0; border: 0; border-left: 2px solid var(
 /* 5c — calendar view switcher is the shared segmented control, sized a touch larger than seg-sm */
 .seg.seg-cal { display: inline-flex; flex-shrink: 0; }
 .seg.seg-cal .seg-opt { flex: 0 0 auto; padding: 0 12px; font-size: 0.8125rem; letter-spacing: 0; white-space: nowrap; }
-/* a 320px phone is 12px short of the five views on one line; 2px less padding a side fits them
-   and "day" still keeps a 44px target */
+/* a 320px phone is about 15px short of the five views on one line at the touch type size (0044);
+   7px a side fits them, and the 44px floor keeps "day" a full target */
 @media (max-width: 360px) {
-  .seg.seg-cal .seg-opt { padding-inline: 10px; }
+  .seg.seg-cal .seg-opt { padding-inline: 7px; min-width: 44px; }
 }
 .cal-flabel { font-size: 0.8125rem; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 0.25rem; }
 

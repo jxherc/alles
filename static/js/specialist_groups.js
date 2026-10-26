@@ -1664,7 +1664,8 @@ async function _renderImports(target, request) {
   historySection.append(_el('h2', '', t('finance.recent_receipts')));
   historyTarget = _el('div', 'finance-import-history-list');
   historySection.append(historyTarget);
-  panel.append(boundary, choices, formatHelp, fileRow, receiptTarget, historySection);
+  // the file button comes before the format details, so at 200% zoom it is still on the first screen
+  panel.append(boundary, choices, fileRow, formatHelp, receiptTarget, historySection);
   target.append(panel);
   _renderImportReceipt(receiptTarget, receipts[0] || null, request, showReceipt);
   if (historyUnavailable) {

@@ -1492,8 +1492,8 @@ function _renderTxnMain(txn, an) {
     <button class="tx-clear ${txn.cleared ? 'on' : ''}" data-clear-txn="${txn.id}" aria-label="${t('money.cleared_named', { label })}" aria-pressed="${!!txn.cleared}"><span aria-hidden="true">${_si(txn.cleared ? 'check-circle' : 'circle')}</span> ${t('money.cleared')}</button>
     ${canSplit ? `<button class="tx-split-btn ${txn.split ? 'on' : ''}" data-split-txn="${txn.id}" aria-label="${t('money.split_named', { label })}" aria-expanded="${_splitTxn === txn.id}" title="${t('money.split_title')}">${t('money.split')}</button>` : ''}
     ${txn.receipt_id
-      ? `<a class="tx-receipt" href="/api/uploads/${esc(txn.receipt_id)}" target="_blank" rel="noopener" aria-label="${t('money.view_receipt_for', { label })}" title="${t('money.view_receipt')}">${t('money.view_receipt')}</a>`
-      : `<button class="tx-receipt-btn" data-receipt-txn="${txn.id}" aria-label="${t('money.attach_receipt_to', { label })}" title="${t('money.attach_receipt')}">${t('money.attach_receipt')}</button>`}
+      ? `<a class="tx-receipt" href="/api/uploads/${esc(txn.receipt_id)}" target="_blank" rel="noopener" aria-label="${t('money.view_receipt_for', { label })}" title="${t('money.view_receipt')}"><span aria-hidden="true">${_si('paperclip')}</span><span class="tx-receipt-label">${t('money.view_receipt')}</span></a>`
+      : `<button class="tx-receipt-btn" data-receipt-txn="${txn.id}" aria-label="${t('money.attach_receipt_to', { label })}" title="${t('money.attach_receipt')}"><span aria-hidden="true">${_si('paperclip')}</span><span class="tx-receipt-label">${t('money.attach_receipt')}</span></button>`}
   </span>`;
   return `
     <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${txn.id}">

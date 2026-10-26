@@ -2170,6 +2170,9 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
     grid-column: 3;
     grid-row: 1;
     width: auto;
+    /* each action is already a 44px target with its own room; the larger type (0044) needs the
+       gap's 4px for the title, which must keep 200px on a 390px phone */
+    gap: 0;
   }
 }
 
@@ -2779,6 +2782,13 @@ html:not(#_):not(#_) .money-summary .ms-card .ms-val:has(> .ms-currency) > .ms-n
   letter-spacing: -0.01em;
 }
 
+/* a summary narrower than 15rem (a phone at 200% zoom) steps its figures down one role, so a long
+   amount like CAD 12,345,678.90 still fits its card at the larger type (0044) */
+@container money-summary (max-width: 15rem) {
+  html:not(#_):not(#_) .money-summary .ms-card .ms-val,
+  html:not(#_):not(#_) .money-summary .ms-card .ms-val:has(> .ms-currency) > .ms-number { font-size: 1.125rem; }
+}
+
 html:not(#_):not(#_) .money-summary .ms-card .ms-val > .ms-label {
   color: var(--k-muted);
   font-weight: 400;
@@ -3015,10 +3025,13 @@ html:not(#_)[data-kokuen-version="5"] #contacts-view:has(#cd-save) #contact-add-
 }
 
 /* a transaction's text actions share one rhythm: the same 10px each side (so the gaps between
-   words are even) inside their 44px targets, and the row moves back by that 10px so "edit" starts
-   on the row's edge */
+   words are even) inside their 44px targets, and the whole group moves back by that 10px so every
+   line of actions starts its words on the row's edge, a wrapped one too. the group runs the row's
+   full width and leaves the end free for delete, which keeps its own cell: sharing the first
+   column with the amount's width pushed the receipt action onto a second line */
 html:not(#_) #money-view :is(.tx-edit, .tx-clear, .tx-split-btn, .tx-receipt-btn) { min-width: 44px; padding-inline: 10px; text-align: center; }
-html:not(#_) #money-view .txn .tx-edit { margin-inline-start: -10px; }
+html:not(#_) #money-view .txn:not(.txn-edit) .tx-actions { grid-column: 1 / -1; margin-inline-start: -10px; padding-inline-end: calc(44px + var(--k-space-2, 8px)); }
+html:not(#_) #money-view .txn:not(.txn-edit) .tx-del { position: relative; z-index: 1; }
 
 /* settings: "saving… / saved" sits in the pane's top corner. as a line above the content it pushed
    every switch 31px down the moment you clicked one */
