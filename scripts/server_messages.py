@@ -13,6 +13,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -30,11 +31,21 @@ SHOWN_FIELDS = {"detail", "error", "message", "reason"}
 
 
 def _files():
-    for source in SOURCES:
-        path = ROOT / source
-        for file in [path] if path.is_file() else sorted(path.rglob("*.py")):
-            if not file.relative_to(ROOT).as_posix().startswith(SKIP_DIRS):
-                yield file
+    # only what ships: a local, git-ignored module must not add messages a checkout never has
+    listed = subprocess.run(
+        ["git", "ls-files", "--", *SOURCES], cwd=ROOT, capture_output=True, text=True
+    )
+    if listed.returncode == 0 and listed.stdout.strip():
+        names = sorted(n for n in listed.stdout.split() if n.endswith(".py"))
+        files = [ROOT / n for n in names]
+    else:
+        files = []
+        for source in SOURCES:
+            path = ROOT / source
+            files += [path] if path.is_file() else sorted(path.rglob("*.py"))
+    for file in files:
+        if file.is_file() and not file.relative_to(ROOT).as_posix().startswith(SKIP_DIRS):
+            yield file
 
 
 def _slot(node: ast.AST) -> str:
