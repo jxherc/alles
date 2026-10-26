@@ -1267,7 +1267,7 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 /* permission mode menu (.perm-btn styled with the composer bar below) */
 .perm-menu {
   position: fixed; z-index: 300;
-  min-width: 200px;
+  min-width: 12.5rem;
   background: var(--panel); border: 1px solid var(--faint); border-radius: var(--k-radius-control);
   padding: 0.25rem; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
 }
@@ -1292,7 +1292,7 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 .perm-menu-item.warn .perm-menu-desc { color: var(--muted); }
 
 .effort-menu {
-  width: min(17.5rem, calc(100vw - 1.5rem));
+  width: min(21rem, calc(100vw - 1.5rem));
   max-height: calc(100dvh - 1.5rem);
   overflow-y: auto;
   padding: 0.4rem;
@@ -1804,7 +1804,7 @@ body.is-aide.is-incognito .incognito-bar {
   display: flex; flex-direction: column;
   animation: rise 0.2s cubic-bezier(0.2,0.7,0.2,1) forwards;
 }
-.model-modal-card { width: 520px; max-height: 70vh; }
+.model-modal-card { width: min(34rem, 94vw); max-height: 70vh; }
 .modal-head {
   padding: 0.55rem 1rem;
   border-bottom: 1px solid var(--faint);
@@ -1875,6 +1875,26 @@ body.is-aide.is-incognito .incognito-bar {
   transition: border-color 0.2s ease;
 }
 .mm-add-form input::placeholder { color: var(--muted); }
+/* the larger type (0044) outgrew the px-sized rows: counts keep one line, long names wrap beside
+   them, the actions drop under on a phone, and the add form is a grid instead of loose fields */
+#model-modal .modal-search input { min-width: 8rem; }
+#model-modal .mm-ep-card-head { flex-wrap: wrap; row-gap: var(--k-space-1, 4px); }
+#model-modal .mm-ep-name { flex: 1 1 8rem; min-width: 0; overflow-wrap: anywhere; }
+#model-modal .mm-ep-count { white-space: nowrap; }
+#model-modal .mm-ep-actions { flex: 0 0 auto; }
+/* the list and the add form scroll as one, so a second endpoint is never hidden under the form */
+#model-modal #mm-panel-endpoints { overflow-y: auto; }
+#model-modal .mm-ep-list { flex: none; overflow: visible; padding-bottom: 0; }
+#model-modal .mm-ep-card:last-child { border-bottom: 0; }
+#model-modal .mm-add-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: var(--k-space-2, 8px); }
+#model-modal .mm-add-form > input { width: 100%; min-width: 0; box-sizing: border-box; }
+#model-modal .mm-add-form > button { justify-self: start; }
+@media (max-width: 620px) {
+  #model-modal .modal-search { flex-wrap: wrap; row-gap: var(--k-space-1, 4px); }
+  #model-modal .modal-search input { flex: 1 1 100%; }
+  #model-modal .modal-search .mm-refresh-all { margin-left: auto; }
+  #model-modal .mm-add-form { grid-template-columns: minmax(0, 1fr); }
+}
 
 .provider-label {
   font-size: 0.8125rem; color: var(--muted); letter-spacing: 0.04em; font-weight: 500;
@@ -9973,7 +9993,7 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
 /* justified rows (google images): one height per row, each image as wide as its shape asks
    (--ar from the result), the row stretched to the edge; the last row keeps its natural widths */
 .andromeda-image-grid {
-  --row-h: 180px;
+  --row-h: 10.5rem;
   display: flex; flex-wrap: wrap; gap: var(--k-space-4) var(--k-space-2);
 }
 .andromeda-image-grid::after { content: ''; flex: 100000 1 0; }
@@ -9992,9 +10012,9 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
 .andromeda-image-card .andromeda-media-meta > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .andromeda-image-card .andromeda-source-mark { flex: none; width: 18px; height: 18px; }
 .andromeda-image-card .andromeda-source-mark img { width: 14px; height: 14px; }
-.andromeda-image-card .andromeda-media-title { margin-top: 2px; font-size: 0.875rem; font-weight: 450; }
-@media (pointer: coarse) { .andromeda-image-grid { --row-h: 160px; } }
-@media (max-width: 560px) { .andromeda-image-grid { --row-h: 124px; } }
+.andromeda-image-card .andromeda-media-title { margin-top: 2px; font-size: 0.875rem; font-weight: 450; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; line-height: 1.3; white-space: normal; text-overflow: clip; }
+@media (pointer: coarse) { .andromeda-image-grid { --row-h: 9.5rem; } }
+@media (max-width: 560px) { .andromeda-image-grid { --row-h: 7.5rem; } }
 .andromeda-media-frame {
   position: relative; width: 100%; height: auto; aspect-ratio: 4 / 3; display: grid; place-items: center; overflow: hidden;
   border: 1px solid var(--andromeda-line); border-radius: var(--k-radius-surface); background: var(--panel); color: var(--muted); font-size: 0.8125rem;
@@ -10154,6 +10174,8 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
 }
 .andromeda-model { padding: 10px 16px; color: var(--muted); font-size: 0.8125rem; overflow-wrap: anywhere; }
 .andromeda-model:empty { display: none; }
+/* the model line sits on the result column edges, not 16px inside them */
+#andromeda-view .andromeda-model { padding-inline: 0; }
 .andromeda-saved { padding: 14px 16px 16px; border-top: 1px solid var(--andromeda-line); }
 .andromeda-saved h3 { margin: 0 0 8px; color: var(--muted); font-size: 0.8125rem; font-weight: 520; }
 .andromeda-saved-list { display: grid; gap: 2px; color: var(--muted); font-size: 0.8125rem; }
@@ -10161,9 +10183,9 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
 .andromeda-saved-row:hover { background: var(--panel); color: var(--text); }
 .andromeda-idle-footer { display: none; }
 
-.andromeda-view[data-state="idle"] { overflow: hidden; }
-.andromeda-view[data-state="idle"] .andromeda-page { display: block; padding-top: clamp(140px, 28vh, 260px); padding-bottom: 56px; }
-.andromeda-view[data-state="idle"] .andromeda-app-head { width: min(540px, 100%); min-height: auto; display: block; margin-inline: auto; border: 0; transform: none; }
+.andromeda-view[data-state="idle"] { overflow-x: hidden; overflow-y: auto; }
+.andromeda-view[data-state="idle"] .andromeda-page { display: block; padding-top: clamp(140px, 28vh, 260px); padding-bottom: 72px; }
+.andromeda-view[data-state="idle"] .andromeda-app-head { width: min(34rem, 100%); min-height: auto; display: block; margin-inline: auto; border: 0; transform: none; }
 .andromeda-view[data-state="idle"] .andromeda-head-actions { display: none; }
 .andromeda-view[data-state="idle"] .andromeda-search { min-height: 44px; grid-template-columns: 40px minmax(0, 1fr) 40px; }
 .andromeda-view[data-state="idle"] .andromeda-search input { height: 42px; font-size: 1rem; --field-size: 1rem; }

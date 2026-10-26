@@ -499,7 +499,7 @@ export function renderEndpointList() {
       <div class="mm-ep-card-head">
         <span class="provider-dot" style="background:${color}"></span>
         <span class="mm-ep-name" style="font-weight:500">${escHtml(ep.name)}</span>
-        <span style="font-size:0.8125rem;color:var(--muted)">${escHtml(tp('models.models_count', ep.models.length))}</span>
+        <span class="mm-ep-count" style="font-size:0.8125rem;color:var(--muted)">${escHtml(tp('models.models_count', ep.models.length))}</span>
         <div class="mm-ep-actions" style="margin-left:auto;display:flex;gap:0.25rem">
           <button class="btn mm-test-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.test_completion'))}" ${!ep.models.length ? 'disabled' : ''}>${escHtml(t('models.test'))}</button>
           <button class="btn mm-probe-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.probe_models'))}">${escHtml(t('models.probe'))}</button>
@@ -507,9 +507,9 @@ export function renderEndpointList() {
         </div>
       </div>
       <div class="mm-ep-edit" id="mm-ep-edit-${ep.id}" style="display:none">
-        <input class="settings-input mm-edit-name" placeholder="${escAttr(t('models.placeholder_name'))}" value="${escAttr(ep.name)}" style="width:120px">
+        <input class="settings-input mm-edit-name" placeholder="${escAttr(t('models.placeholder_name'))}" value="${escAttr(ep.name)}" style="width:8rem">
         <input class="settings-input mm-edit-url" placeholder="${escAttr(t('models.placeholder_base_url'))}" value="${escAttr(ep.base_url || '')}" style="flex:1">
-        <input class="settings-input mm-edit-key" type="password" placeholder="${escAttr(t('models.placeholder_api_key'))}" value="" style="width:140px">
+        <input class="settings-input mm-edit-key" type="password" placeholder="${escAttr(t('models.placeholder_api_key'))}" value="" style="width:9rem">
         <button class="btn primary mm-save-btn" type="button" data-id="${ep.id}">${escHtml(t('common.save'))}</button>
         <button class="btn mm-cancel-btn" type="button" data-id="${ep.id}">${escHtml(t('common.cancel'))}</button>
       </div>
