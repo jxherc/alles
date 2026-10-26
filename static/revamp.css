@@ -2570,6 +2570,17 @@ html:not(#_):not(#_) #plan-view .specialist-record-row {
   }
 }
 
+/* on a phone a row stacks: its time or date sits small above the title, so a long title keeps the
+   whole width instead of wrapping into a 180px column beside a date */
+@media (max-width: 480px) {
+  html:not(#_):not(#_) :is(#plan-view .specialist-record-row, .specialist-record-row, .specialist-message-row, .specialist-library-row) {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+  }
+  html:not(#_):not(#_) :is(.specialist-record-row, .specialist-message-row, .specialist-library-row) > :first-child { font-size: 0.8125rem; }
+  html:not(#_):not(#_) :is(.specialist-record-row, .specialist-message-row, .specialist-library-row) .specialist-record-meta { grid-column: 1; }
+}
+
 /* Inter's tabular figures also widen the hyphens, so an iso date ("2026-10-26") read letter-spaced.
    dates are left proportional; times keep their tabular digits */
 html:not(#_):not(#_) :is(.jrnl-recent-date, #plan-view .specialist-record-time) {

@@ -2059,9 +2059,11 @@ body:is(
   .specialist-workbench { grid-template-columns: minmax(0, 1fr); }
   .specialist-workbench { gap: var(--k-space-6, 32px); }
   .specialist-workbench > :where(.specialist-workbench-rail, .specialist-workbench-main, .specialist-workbench-detail) { padding: 0; }
+  /* one fixed first column, so every row's text starts on the same line (auto sized each row
+     on its own); 6.75rem holds a time or a date, a longer name ends in an ellipsis */
   .specialist-record-row,
   .specialist-message-row,
-  .specialist-library-row { grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr); }
+  .specialist-library-row { grid-template-columns: 6.75rem minmax(0, 1fr); }
   .specialist-record-meta { grid-column: 2; text-align: left; }
   :where(#finance-view) .finance-import-choices { grid-template-columns: minmax(0, 1fr); }
   :where(#finance-view) .finance-import-choice button,
