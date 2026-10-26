@@ -1,6 +1,6 @@
 import { getProjects, loadProjects } from './projects.js';
 import { createSession, getActiveId, markActive } from './sessions.js';
-import { getCurrentEndpoint, getSelected } from './models.js?v=214';
+import { getCurrentEndpoint, getSelected } from './models.js?v=215';
 import { prompt as dlgPrompt } from './dialog.js';
 import { toast, plainError } from './util.js';
 import { t, tp } from './i18n.js';

@@ -1,5 +1,5 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, selectSessionFromRoute, focusSessionMessage } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=214';
+import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=215';
 import { icon, iconEl, ICON_NAMES, appGlyph } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
@@ -35,7 +35,7 @@ import { closeAideRun } from './aiderun.js';
 import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=10';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=293';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=294';
 import {
   setIncognitoMode,
   isIncognitoMode,
@@ -50,14 +50,14 @@ import {
   permLabel,
   effortLabel,
   modelSupport,
-} from './modes.js?v=257';
+} from './modes.js?v=258';
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
 import { wireAutosizeTextarea } from './text_entry.js?v=1';
-import { initAideWorkspace } from './aideworkspace.js?v=280';
+import { initAideWorkspace } from './aideworkspace.js?v=281';
 import { initAideCentral } from './aidecentral.js?v=2';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=4';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=252';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=253';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
 import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=245';
@@ -983,7 +983,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=252');
+      const module = await import('./andromeda.js?v=253');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1064,7 +1064,7 @@ const showRemindersView  = () => {
 };
 const showSubsView       = () => showView('subs-view',      'subs',      (track, request) => trackedImport(track, request, () => import('./subs.js'), module => module.initSubsPanel(request)));
 const showMoneyView      = () => showView('money-view',     'money',     (track, request) => trackedImport(track, request, () => import('./money.js'), module => module.initMoneyPanel(request)));
-const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=4'), module => module.initDaysPanel(request)));
+const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=5'), module => module.initDaysPanel(request)));
 const showJournalView    = () => showWikiView('journal');
 const showActivityView   = () => showView('activity-view',  'activity',  (track, request) => trackedImport(track, request, () => import('./activity.js'), module => module.initActivity(request)));
 const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=266'), module => module.initSystem(request)));
@@ -1085,7 +1085,7 @@ const showTodayView      = () => {
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=252'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=253'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
@@ -1097,7 +1097,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'calendar') return loadCalendar(request);
   if (section === 'tasks') return loadTasks(request, readRecordTarget(location.href));
   if (section === 'reminders') return initReminderPanel(request, () => showSpecialistGroup(group, section));
-  if (section === 'days') return import('./days.js?v=4').then(module => module.initDaysPanel(request));
+  if (section === 'days') return import('./days.js?v=5').then(module => module.initDaysPanel(request));
   if (section === 'mail') return loadMail(request);
   if (section === 'contacts') return loadContacts('', request);
   if (section === 'books') return import('./books.js').then(module => module.initBooks(request));

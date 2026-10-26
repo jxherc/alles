@@ -162,7 +162,7 @@ function _showHelp() {
   overlay.querySelectorAll('[data-help-settings]').forEach(button => { button.onclick = async () => {
     const pane = button.dataset.helpSettings;
     close();
-    const { openSettings } = await import('./settings.js?v=293');
+    const { openSettings } = await import('./settings.js?v=294');
     if (source?.isConnected && document.activeElement === source) {
       openSettings(pane);
       if (pane === 'developer') requestAnimationFrame(() => {
@@ -417,7 +417,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'memories': {
-      (await import('./settings.js?v=293')).openSettings('memory');
+      (await import('./settings.js?v=294')).openSettings('memory');
       return true;
     }
 
@@ -454,7 +454,7 @@ export async function tryExecuteSlashCommand(text) {
 
     case 'incognito': {
       const { createSession } = await import('./sessions.js');
-      const { getCurrentEndpoint, getSelected } = await import('./models.js?v=214');
+      const { getCurrentEndpoint, getSelected } = await import('./models.js?v=215');
       const ep = getCurrentEndpoint();
       if (!ep) { toast(t('aide.slash_no_endpoint'), 'error'); return true; }
       const model = getSelected()?.model || ep.models?.[0] || '';

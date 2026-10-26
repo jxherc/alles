@@ -1,5 +1,5 @@
 import { toast } from './util.js';
-import { isIncognitoMode } from './modes.js?v=257';
+import { isIncognitoMode } from './modes.js?v=258';
 import { t } from './i18n.js';
 
 let _attachments = [];   // [{id, name, type, size, status?, progress?, previewUrl?, file?}]

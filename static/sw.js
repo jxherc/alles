@@ -1,8 +1,8 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v435';   // reviewed translations, server messages in every language, errors read plainly.
+const VERSION = 'v436';   // readable type scale, touch scrolling, google-style image rows, one settings page for andromeda.
 const BUILD = '__ALLES_BUILD__';   // the server swaps in a hash of static/, so any change is a new worker
 const CACHE = `alles-${VERSION}-${BUILD}`;
-const STAMP = '588';   // keep in sync with index.html ?v=
+const STAMP = '589';   // keep in sync with index.html ?v=
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
 // page -> whether its html came from this same build. a same-build page reads its code straight
 // from the cache: nothing there can be from another build. a restarted worker forgets and asks the network

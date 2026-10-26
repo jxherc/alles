@@ -1,7 +1,7 @@
 // server-owned first-run setup: resumable across browsers and safe to dismiss.
 import { toast, plainError } from './util.js';
 import { requestWithRecentOwner } from './recent_owner.js';
-import { addEndpoint } from './models.js?v=214';
+import { addEndpoint } from './models.js?v=215';
 import { resolvedTimeZone, t } from './i18n.js';
 import { wireChoiceGroup } from './kokuen.js?v=4';
 import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';

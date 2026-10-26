@@ -3,13 +3,13 @@ import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
-import { isIncognitoMode } from './modes.js?v=257';
+import { isIncognitoMode } from './modes.js?v=258';
 import { scrollToLatest } from './scrollfollow.js';
 import {
   modelOverrideForNewSession,
   restoreSessionModel,
   selectAideDefault,
-} from './models.js?v=214';
+} from './models.js?v=215';
 import { t, tp } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { loadAnswerNoteRecovery, reconcileAnswerNote } from './answer_note.js';

@@ -138,11 +138,11 @@ class ManifestTests(ApiTest):
         self.assertIsNotNone(kokuen_url)
         self.assertIn(kokuen_url.group(1), urls)
         for module in (
-            "models.js?v=214",
+            "models.js?v=215",
             "dropdown.js?v=213",
             "specialist_groups.js?v=10",
             "kokuen.js?v=4",
-            "andromeda.js?v=252",
+            "andromeda.js?v=253",
             "route_history.js",
         ):
             self.assertIn(f"/static/js/{module}", urls)
