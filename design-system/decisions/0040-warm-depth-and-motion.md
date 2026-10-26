@@ -76,7 +76,9 @@ app family had its own centred column (880, 928, 1040, 1080px) or padding.
   dialogs and toasts float with one shadow. The primary is a flat accent fill.
 - **picked things are neutral.** Chips take the same neutral pill as tabs (`--k-pill`), not the
   accent tint. Underline tabs get one 2px underline that slides.
-- **switches.** A switch that is on is ink with a page-coloured knob, not the accent.
+- **switches.** ~~A switch that is on is ink with a page-coloured knob.~~ Reverted 2026-10-26: the owner's
+  standing rule is a soft alles-purple track with a text-coloured knob, and the ink version left
+  andromeda's switches with a knob the colour of its track. Every switch uses the kokuen on state.
 - **no entrance.** Screens no longer fade in; a total counts only when its value changes.
 - **a title.** The app name in the header row is each screen's h1 (home's greeting and
   andromeda's own heading keep that role there).

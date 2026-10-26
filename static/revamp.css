@@ -67,13 +67,6 @@ html[data-theme="light"] {
   --k-pill: color-mix(in srgb, var(--k-hover) 82%, var(--k-text) 7%);
 }
 
-/* a switch that is on is ink (tasteskill v2: toggles are near-black or white, not the brand
-   accent), so on and off read at a glance without spending the accent on chrome */
-:where(:root, [data-kokuen-surface]) {
-  --k-switch-on-line: var(--k-text);
-  --k-switch-on-track: var(--k-text);
-}
-
 /* airy type in the specialist apps: controls read at 14px (was a 13px floor). a phone keeps
    13px so toolbars still fit their rows */
 @media (min-width: 421px) {
@@ -446,12 +439,6 @@ html:not(#_) .task-addsub:hover {
 
 
 /* ── switches: the knob springs across ─────────────────────────────────────── */
-
-/* the knob of a switch that's on takes the page colour, so it reads on the ink track */
-html:not(#_):not(#_) :is(.home-settings-switch, .news-switch)[aria-checked="true"]::after,
-html:not(#_):not(#_) .s-switch.on::after {
-  background: var(--k-page);
-}
 
 @media (prefers-reduced-motion: no-preference) {
   html:not(#_) :is(.s-switch, .home-settings-switch, .news-switch)::after {

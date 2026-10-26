@@ -247,9 +247,9 @@ def run() -> None:
                 if "on" not in (switch.get_attribute("class") or "").split():
                     switch.click()
                 expect(switch).to_have_attribute("aria-checked", "true")
-                # an on switch is an ink track with a page-coloured knob (decision 0040)
+                # an on switch is a soft purple track with a text-coloured knob (owner rule, 0040)
                 track = _token(page, "--k-switch-on-track")
-                knob = _token(page, "--k-page")
+                knob = _token(page, "--k-text")
                 assert _colors(switch, "::before")["background"] == track
                 assert _colors(switch, "::after")["background"] == knob
                 box = switch.bounding_box()
