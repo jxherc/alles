@@ -290,7 +290,7 @@ body.aide-central .context-provenance.is-tucked { order: 9; margin-inline-start:
    when there's something to send */
 body.aide-central[data-space="aide"] .ai-body { font-size: 0.9375rem; line-height: 1.7; }
 body.aide-central[data-space="aide"] .user-bubble { padding: 10px 14px; background: var(--k-raised, var(--panel)); font-size: 0.9375rem; line-height: 1.6; }
-body.aide-central[data-space="aide"] .composer-ta { font-size: 0.9375rem; }
+body.aide-central[data-space="aide"] .composer-ta { font-size: 0.9375rem; --field-size: 0.9375rem; }
 body.aide-central[data-space="aide"] .composer-box {
   border: 0; background: var(--k-raised, var(--panel));
   box-shadow: inset 0 0 0 1px var(--k-line, var(--faint));

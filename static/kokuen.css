@@ -2325,6 +2325,7 @@ html[data-theme="light"] :where(
   min-height: var(--k-control);
   color: var(--k-text);
   font-size: 0.9375rem;
+  --field-size: 0.9375rem;
 }
 
 /* The capture form owns the focus boundary, not the field inside it. */
@@ -3568,9 +3569,11 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 /* Shared Settings: one readable control room for every finished surface. */
+/* sized in rem so the modal and its nav grow with the type (0044); at 204px the nav broke
+   "search personal records" and four other labels onto two lines */
 #settings-modal[data-kokuen-surface="settings"] .s-modal {
-  width: min(900px, 96vw);
-  height: min(680px, 90dvh);
+  width: min(58rem, 96vw);
+  height: min(44rem, 90dvh);
   max-height: 100%;
   border-color: var(--k-line-strong);
   border-radius: var(--k-radius-surface);
@@ -3636,7 +3639,7 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-nav {
-  width: 204px;
+  width: 14.5rem;
   padding: var(--k-space-2);
   border-color: var(--k-line);
   background: var(--k-panel);

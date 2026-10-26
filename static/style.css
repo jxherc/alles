@@ -2175,7 +2175,10 @@ body.is-aide.is-incognito .incognito-bar {
   border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 .chk-static { cursor: default; }
-.settings-input[type="number"] { -moz-appearance: textfield; }
+/* the browser's number spinners are a native control (not product ui); a number field is typed */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .custom-select.settings-input {
   cursor: pointer;
   min-width: 0;
@@ -3627,7 +3630,7 @@ body.afterlife-aide-projects[data-space="aide"] .attach-retry {
 body.afterlife-aide-projects[data-space="aide"] .attach-remove { width: 20px; height: 20px; }
 body.afterlife-aide-projects[data-space="aide"] .composer-box.agent-mode { border-color: var(--faint); box-shadow: none; }
 body.afterlife-aide-projects[data-space="aide"] .composer-box:focus-within { border-color: var(--muted); box-shadow: none; }
-body.afterlife-aide-projects[data-space="aide"] .composer-ta { min-height: 58px; padding: 13px 14px 5px; font-size: 1rem; }
+body.afterlife-aide-projects[data-space="aide"] .composer-ta { min-height: 58px; padding: 13px 14px 5px; font-size: 1rem; --field-size: 1rem; }
 body:not([data-space="aide"]) .jump-latest { display: none; }
 body.afterlife-aide-projects[data-space="aide"] .composer-bar { min-height: 44px; padding: 4px 8px 7px; flex-wrap: wrap; }
 body.afterlife-aide-projects[data-space="aide"] .aide-direct-attach { display: none; }
@@ -8736,7 +8739,10 @@ html[data-font-size="lg"] { font-size: 118.75%; }
   html[data-font-size="sm"] { font-size: 106.25%; }
   html[data-font-size="lg"] { font-size: 125%; }
   /* a field under 16px makes a phone zoom in on focus */
-  :is(input:not([type="range"], [type="color"], [type="checkbox"], [type="radio"]), textarea) { font-size: max(16px, 1em) !important; }
+  /* a field under 16px makes a phone zoom in on focus. the floor is 16px or the field's own size
+     (--field-size, set where a field is meant to be larger); 1em here took the parent's size and
+     made every field bigger than the text around it */
+  :is(input:not([type="range"], [type="color"], [type="checkbox"], [type="radio"]), textarea) { font-size: max(16px, var(--field-size, 0.875rem)) !important; }
 }
 
 @media (max-width: 720px) {
@@ -9661,7 +9667,7 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
 /* calculator */
 .andromeda-view .andromeda-calc { display: grid; gap: 12px; max-width: 360px; }
 .andromeda-view .andromeda-calc-screen { display: grid; gap: 4px; }
-.andromeda-view .andromeda-calc-input input { font-size: 1.375rem; text-align: end; }
+.andromeda-view .andromeda-calc-input input { font-size: 1.375rem; --field-size: 1.375rem; text-align: end; }
 .andromeda-view .andromeda-calc-result { min-height: 32px; margin: 0; color: var(--text); font-size: 1.75rem; font-weight: 500; text-align: end; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .andromeda-view .andromeda-calc-result[data-state="error"] { color: var(--muted); font-size: 0.875rem; font-weight: 400; }
 .andromeda-view .andromeda-calc-keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
@@ -9675,7 +9681,7 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
 /* converters */
 .andromeda-view .andromeda-convert { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; }
 .andromeda-view .andromeda-convert-side { display: grid; gap: 8px; min-width: 0; }
-.andromeda-view .andromeda-convert-side .andromeda-tool-field input { font-size: 1.375rem; }
+.andromeda-view .andromeda-convert-side .andromeda-tool-field input { font-size: 1.375rem; --field-size: 1.375rem; }
 .andromeda-view .andromeda-convert-equals { color: var(--muted); font-size: 1rem; text-align: center; }
 .andromeda-view .andromeda-answer > .andromeda-tool-picker { justify-self: start; min-width: 160px; }
 
@@ -9729,7 +9735,7 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
 .andromeda-view .andromeda-color-top { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: start; }
 .andromeda-view .andromeda-swatch { width: 120px; height: 120px; border: 1px solid var(--andromeda-line); border-radius: var(--k-radius-surface); }
 .andromeda-view .andromeda-color-side { display: grid; gap: 8px; min-width: 0; }
-.andromeda-view .andromeda-color-hex input { font-size: 1.25rem; text-transform: lowercase; }
+.andromeda-view .andromeda-color-hex input { font-size: 1.25rem; --field-size: 1.25rem; text-transform: lowercase; }
 .andromeda-view .andromeda-color-sliders { display: grid; gap: 0; }
 .andromeda-view .andromeda-color-slider { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 12px; }
 .andromeda-view .andromeda-slider { min-height: 44px; display: flex; align-items: center; padding: 0 9px; border-radius: var(--k-radius-control); cursor: pointer; touch-action: none; }
@@ -10136,7 +10142,7 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
 .andromeda-view[data-state="idle"] .andromeda-app-head { width: min(540px, 100%); min-height: auto; display: block; margin-inline: auto; border: 0; transform: none; }
 .andromeda-view[data-state="idle"] .andromeda-head-actions { display: none; }
 .andromeda-view[data-state="idle"] .andromeda-search { min-height: 44px; grid-template-columns: 40px minmax(0, 1fr) 40px; }
-.andromeda-view[data-state="idle"] .andromeda-search input { height: 42px; font-size: 1rem; }
+.andromeda-view[data-state="idle"] .andromeda-search input { height: 42px; font-size: 1rem; --field-size: 1rem; }
 .andromeda-view[data-state="idle"] .andromeda-result-column { display: none; }
 .andromeda-view[data-state="idle"] .andromeda-idle-footer { position: fixed; right: 14px; bottom: 8px; left: 14px; display: flex; align-items: center; color: var(--muted); font-size: 0.8125rem; pointer-events: none; }
 .andromeda-idle-footer button { min-height: 44px; padding: 0 8px; border: 0; background: transparent; color: var(--muted); font-size: 0.8125rem; cursor: pointer; pointer-events: auto; }
@@ -11447,7 +11453,7 @@ body.aide-working .composer-box::after {
 .dialog-card.dialog-form { box-sizing: border-box; width: min(440px, calc(100vw - 2 * var(--k-space-4, 16px))); max-width: none; gap: var(--k-space-2, 8px); padding: var(--k-space-5, 24px); border-radius: var(--k-radius-surface, 6px); }
 .dialog-form .dialog-title { margin: 0 0 var(--k-space-2, 8px); color: var(--k-text, var(--text)); font-size: 1rem; font-weight: 600; }
 .dialog-form .dialog-label { color: var(--k-soft, var(--muted)); font-size: 0.8125rem; }
-.dialog-form .dialog-input { min-height: 44px; font-size: 0.9375rem; }
+.dialog-form .dialog-input { min-height: 44px; font-size: 0.9375rem; --field-size: 0.9375rem; }
 .dialog-form .dialog-hint { margin: 0; color: var(--k-muted, var(--muted)); font-size: 0.8125rem; }
 .dialog-form .dialog-btns { margin-top: var(--k-space-3, 12px); }
 .dialog-form .dialog-btns .btn { min-height: 40px; padding-inline: var(--k-space-4, 16px); }
