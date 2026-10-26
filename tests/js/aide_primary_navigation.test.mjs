@@ -6,7 +6,7 @@ import { t, tp } from '../../static/js/i18n.js';
 
 const read = name => readFileSync(new URL(`../../static/js/${name}.js`, import.meta.url), 'utf8');
 const strip = source => source.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '').replace(/^export /gm, '');
-const sessionsSource = strip(read('sessions')).replace("import('./aidebackground.js?v=246')", 'Promise.resolve({ reattachBackgroundWork() {} })');
+const sessionsSource = strip(read('sessions')).replace("import('./aidebackground.js?v=247')", 'Promise.resolve({ reattachBackgroundWork() {} })');
 const centralSource = strip(read('aidecentral'));
 const app = read('app');
 const chat = read('chat');

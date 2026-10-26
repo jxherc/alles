@@ -530,7 +530,7 @@ export async function selectSession(id, messageId = '', options = {}) {
       window._refreshPersonaBtn?.();
     } catch (e) {}
     // Reattach durable Aide work to this same task after a reload or tab switch.
-    import('./aidebackground.js?v=246').then(m => m.reattachBackgroundWork(id)).catch(() => {});
+    import('./aidebackground.js?v=247').then(m => m.reattachBackgroundWork(id)).catch(() => {});
     if (messageId && !focusSessionMessage(messageId)) {
       toast(t('aide.original_reply_gone'), 'error'); return false;
     }

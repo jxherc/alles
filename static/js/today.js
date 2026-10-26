@@ -287,7 +287,7 @@ function render() {
     }
     await navigate(button.dataset.view);
     if (button.dataset.aideSection) {
-      const module = await import('./aidescheduled.js?v=247');
+      const module = await import('./aidescheduled.js?v=248');
       await module.activateAideScheduledTab(button.dataset.aideSection);
     }
   }));

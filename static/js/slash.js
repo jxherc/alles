@@ -162,7 +162,7 @@ function _showHelp() {
   overlay.querySelectorAll('[data-help-settings]').forEach(button => { button.onclick = async () => {
     const pane = button.dataset.helpSettings;
     close();
-    const { openSettings } = await import('./settings.js?v=292');
+    const { openSettings } = await import('./settings.js?v=293');
     if (source?.isConnected && document.activeElement === source) {
       openSettings(pane);
       if (pane === 'developer') requestAnimationFrame(() => {
@@ -417,7 +417,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'memories': {
-      (await import('./settings.js?v=292')).openSettings('memory');
+      (await import('./settings.js?v=293')).openSettings('memory');
       return true;
     }
 
