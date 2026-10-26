@@ -1332,11 +1332,10 @@ html:not(#_):not(#_) .totals-currency-note {
   color: var(--k-soft);
 }
 
-/* the note's buttons wrap as one group, so "show totals in USD" never sits alone on a line */
-html:not(#_):not(#_) .totals-currency-actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--k-space-2);
+/* beside a wide note the two buttons would split across lines ("show totals in USD" alone below
+   "add USD rate"); on a tablet the note takes its own line so the buttons stay together under it */
+@media (min-width: 561px) {
+  html:not(#_):not(#_) .totals-currency-note > span:first-child { flex: 1 1 100%; }
 }
 
 /* the spending caps' own note sits above the caps it explains */

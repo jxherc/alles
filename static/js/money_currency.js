@@ -40,7 +40,7 @@ export function excludedNotes(summary, what, { base = summary?.base_currency?.co
       ? `<button type="button" class="btn" data-totals-rate="${esc(row.currency)}:${esc(base)}">${t('money.add_rate', { code: esc(row.currency) })}</button>`
         + (onlyOne ? `<button type="button" class="btn" data-totals-use="${esc(row.currency)}">${t('money.show_totals_in_code', { code: esc(row.currency) })}</button>` : '')
       : extra(row);
-    return `<p class="totals-currency-note" role="status"><span>${esc(what(row))}</span>${actions ? `<span class="totals-currency-actions">${actions}</span>` : ''}</p>`;
+    return `<p class="totals-currency-note" role="status"><span>${esc(what(row))}</span>${actions}</p>`;
   }).join('');
 }
 
