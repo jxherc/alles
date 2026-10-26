@@ -767,10 +767,16 @@ def _mobile(browser: Browser, errors: list[str]) -> None:
     shell_box = page.locator("#app-drawer-btn").bounding_box()
     settings_box = page.locator("#files-settings-btn").bounding_box()
     up_box = page.locator("#files-up-btn").bounding_box()
-    # the header is the folder toolbar now: where you are + settings, then search and the actions
-    assert header_box and header_box["height"] <= 140
+    # the header is the folder toolbar now: where you are, then search, then the actions and
+    # settings, each on its own 44px line so the folder name is never squeezed
+    assert header_box and header_box["height"] <= 180
     assert shell_box
-    assert settings_box and up_box and abs(settings_box["y"] - up_box["y"]) < 1
+    assert settings_box and up_box
+    for box in (settings_box, up_box):
+        assert (
+            header_box["y"] <= box["y"]
+            and box["y"] + box["height"] <= header_box["y"] + header_box["height"]
+        )
     for selector in ("#app-drawer-btn", "#files-settings-btn", "#files-up-btn"):
         box = page.locator(selector).bounding_box()
         assert box and box["height"] >= 44

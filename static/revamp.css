@@ -1407,6 +1407,7 @@ html:not(#_):not(#_) #mail-view .mail-scheduled > .mail-sched-cancel {
    the providers as buttons */
 html:not(#_):not(#_) #mail-view .mail-accounts {
   box-sizing: border-box;
+  width: auto;
   max-width: 760px;
   margin: var(--k-rhythm) var(--k-gutter) 0;
   padding: var(--k-space-5);
@@ -1852,6 +1853,28 @@ html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row, .files
   }
 }
 
+/* a phone: the folder path gets a full line (it was squeezed to "Proj" beside the settings button),
+   search a line of its own, and the three text buttons sit under it at their own width */
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #files-view .files-phase7-app-head {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas: none;
+    grid-template-rows: none;
+  }
+
+  html:not(#_):not(#_) #files-view .files-phase7-actions { display: contents; }
+
+  html:not(#_):not(#_) #files-view .files-phase7-app-context { grid-area: auto; grid-column: 1 / -1; grid-row: 1; }
+  html:not(#_):not(#_) #files-view #files-search { grid-column: 1 / -1; grid-row: 2; width: auto; }
+  html:not(#_):not(#_) #files-view #files-mkdir-btn { grid-column: 1; grid-row: 3; }
+  html:not(#_):not(#_) #files-view #files-upload-btn { grid-column: 2; grid-row: 3; }
+  html:not(#_):not(#_) #files-view .files-phase7-app-actions { grid-area: auto; grid-column: 3; grid-row: 3; justify-self: end; }
+
+  html:not(#_):not(#_) #files-view .files-phase7-app-head .files-text-button { flex-shrink: 0; width: auto; min-width: max-content; }
+
+  html:not(#_):not(#_) #files-view .files-breadcrumb { flex: 1 1 auto; min-width: 0; }
+}
+
 /* gallery: same frame without touching its markup. the layout box steps aside so the sidebar can
    span every row, and the toolbar, bars and timeline stack in the second column */
 @media (min-width: 761px) {
@@ -1932,7 +1955,10 @@ html:not(#_):not(#_) #photos-view #photos-head-title {
 
 html:not(#_):not(#_) #photos-view .photos-head .photos-search {
   margin-left: 0;
-  width: 220px;
+  width: auto;
+  flex: 1 1 7rem;
+  min-width: 7rem;
+  max-width: 14rem;
 }
 
 html:not(#_):not(#_) #photos-view .photos-head :is(.btn, .photos-search) {
@@ -1940,6 +1966,28 @@ html:not(#_):not(#_) #photos-view .photos-head :is(.btn, .photos-search) {
 }
 
 @media (max-width: 760px) {
+  /* the filters stack on a phone: type, camera, then from and to side by side (the "to" used to
+     start a line on its own) and clear */
+  html:not(#_):not(#_) #photos-view .photos-filterbar:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--k-space-2);
+  }
+
+  html:not(#_):not(#_) #photos-view .photos-filterbar > .photos-filt-seg { grid-column: 1 / -1; grid-row: 1; justify-self: start; }
+  html:not(#_):not(#_) #photos-view .photos-filterbar > .photos-filt-cam { grid-column: 1; grid-row: 2; }
+  html:not(#_):not(#_) #photos-view .photos-filterbar > .photos-filt-clear { grid-column: 2; grid-row: 2; justify-self: end; }
+  html:not(#_):not(#_) #photos-view .photos-filterbar > .photos-filt-date { grid-row: 3; }
+
+  html:not(#_):not(#_) #photos-view .photos-filterbar > .photos-filt-date {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--k-space-2);
+  }
+
+  html:not(#_):not(#_) #photos-view .photos-filt-date > .date-input { flex: 1 1 auto; min-width: 0; }
+
   html:not(#_):not(#_) #photos-view .photos-head #photos-filter-btn { margin-inline-start: 0; }
   html:not(#_):not(#_) #photos-view .photos-scroll { padding-inline: var(--k-gutter); }
 }
@@ -3060,7 +3108,142 @@ html:not(#_):not(#_) #finance-view .finance-import-row { row-gap: var(--k-space-
     max-width: 100%;
   }
 
-  html:not(#_):not(#_) #settings-modal .s-pane .s-card-body > .btn + .btn { margin-top: var(--k-space-2); }
+  html:not(#_):not(#_) #settings-modal .s-pane .s-card-body > .btn:has(+ .btn) {
+    margin-inline-end: var(--k-space-2);
+  }
+}
+
+/* two buttons in a row: the gap sits on the first button's end and bottom, so both tops line up
+   when they share a line and a wrapped or full-width one still gets its gap above */
+html:not(#_):not(#_) #settings-modal .s-pane .s-card-body > .btn { vertical-align: top; }
+
+html:not(#_):not(#_) #settings-modal .s-pane .s-card-body > .btn:has(+ .btn) {
+  margin-block-end: var(--k-space-2);
+}
+
+html:not(#_):not(#_) #settings-modal .s-pane .s-card-body > .btn + .btn { margin-top: 0; }
+
+/* settings panes at the larger type: side panels and list rows were sized in px around the old
+   text, so a label wrapped by the letter or a name was cut to three dots */
+html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .home-settings-workbench { grid-template-columns: minmax(0, 1fr) 14rem; }
+
+html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .home-settings-preview summary { flex-wrap: wrap; }
+
+html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] :is(#home-settings-preview-title, #home-settings-preview-count) { white-space: nowrap; }
+
+html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-settings-workbench { grid-template-columns: minmax(0, 1fr) 15rem; }
+
+html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dl div { flex-wrap: wrap; }
+
+html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dd { flex: 1 1 auto; overflow-wrap: break-word; }
+
+html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-settings-workbench { grid-template-columns: minmax(0, 1fr) 16rem; }
+
+@media (max-width: 860px) {
+  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] :is(.home-settings-workbench, .locale-settings-workbench, .credits-settings-workbench) { grid-template-columns: minmax(0, 1fr); }
+}
+
+html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-row { grid-template-columns: minmax(0, 1fr) minmax(0, max-content); }
+
+html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-row em { max-width: 12rem; }
+
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-row { grid-template-columns: minmax(0, 1fr); }
+  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-row em { max-width: none; }
+}
+
+/* a phone keeps the review status beside the name, as wide screens do, instead of a third line */
+@media (max-width: 540px) {
+  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-language-choice {
+    grid-template-columns: minmax(0, 1fr) auto 10px;
+    min-height: 58px;
+  }
+
+  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-language-choice em { grid-column: 2; grid-row: 1; }
+
+  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-language-choice::after { grid-column: 3; grid-row: 1; }
+}
+
+/* a touch screen has no hover to reveal a memory's edit, pin and remove */
+@media (hover: none) {
+  html:not(#_):not(#_) #settings-modal .mem-item .mem-actions { opacity: 1; }
+}
+
+html:not(#_):not(#_) #settings-modal .mem-item .mem-actions { gap: var(--k-space-1); }
+
+html:not(#_):not(#_) #settings-modal #s-pane-memory .s-card-hint + .mem-policy { margin-top: var(--k-space-3); }
+
+html:not(#_):not(#_) #settings-modal #s-custom-search-add { background: transparent; }
+
+html:not(#_):not(#_) #settings-modal #s-andromeda-searxng-actions { margin-top: var(--k-space-3); }
+
+/* settings lists answer to their own width: a phone, and an iPad pane narrowed by the nav, stack a
+   row's text over its buttons instead of squeezing a name down to three dots */
+html:not(#_):not(#_) #settings-modal :is(#token-list, #persona-list, #rules-list, #webhook-list) { container-type: inline-size; }
+
+/* the rule's trigger and action read in full; they wrap instead of ending in three dots */
+html:not(#_):not(#_) #settings-modal .rule-row-desc { overflow-wrap: anywhere; white-space: normal; }
+
+html:not(#_):not(#_) #settings-modal .persona-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 0 var(--k-space-2);
+  align-items: center;
+}
+
+html:not(#_):not(#_) #settings-modal .persona-row > .row-name { grid-column: 1; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
+
+html:not(#_):not(#_) #settings-modal .persona-row > .row-meta { grid-column: 1; grid-row: 2; min-width: 0; }
+
+html:not(#_):not(#_) #settings-modal .persona-row > .act-btn { grid-row: 1 / span 2; }
+
+html:not(#_):not(#_) #settings-modal #token-list .settings-list-row { flex-wrap: wrap; row-gap: 0; }
+
+html:not(#_):not(#_) #settings-modal #token-list .row-meta { flex: 0 0 auto; }
+
+html:not(#_):not(#_) #settings-modal #token-list .row-name + .row-meta {
+  flex: 1 1 8rem;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@container (max-width: 32rem) {
+  html:not(#_):not(#_) #settings-modal .rule-row { flex-wrap: wrap; row-gap: var(--k-space-2); }
+  html:not(#_):not(#_) #settings-modal .rule-row-main { flex: 1 1 100%; }
+
+  html:not(#_):not(#_) #settings-modal .persona-row { display: flex; flex-wrap: wrap; gap: 0 var(--k-space-2); }
+  html:not(#_):not(#_) #settings-modal .persona-row > :is(.row-name, .row-meta) { flex: 1 1 100%; }
+
+  html:not(#_):not(#_) #settings-modal #token-list .settings-list-row { padding-block: var(--k-space-2); }
+  html:not(#_):not(#_) #settings-modal #token-list .row-name { order: 0; flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+  html:not(#_):not(#_) #settings-modal #token-list .act-btn { order: 0; }
+  html:not(#_):not(#_) #settings-modal #token-list .row-meta { order: 1; }
+  html:not(#_):not(#_) #settings-modal #token-list .row-name + .row-meta { flex-basis: 100%; }
+}
+
+/* agent stack tiles: wide enough for their own label, and the value wraps instead of ending in
+   "github, ..." */
+html:not(#_):not(#_) #settings-modal .agent-status-grid { grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); margin-top: var(--k-space-2); }
+
+html:not(#_):not(#_) #settings-modal .agent-status-grid span { overflow-wrap: anywhere; }
+
+html:not(#_):not(#_) #settings-modal .agent-status-grid strong { white-space: normal; overflow-wrap: anywhere; }
+
+/* webhook rows: the name, its events and the key wrap onto lines, the buttons keep their own width */
+html:not(#_):not(#_) #settings-modal #webhook-list .settings-list-row { flex-wrap: wrap; row-gap: var(--k-space-1); }
+
+html:not(#_):not(#_) #settings-modal #webhook-list .row-name { flex: 1 1 8rem; min-width: 0; overflow-wrap: anywhere; }
+
+html:not(#_):not(#_) #settings-modal #webhook-list .row-meta { flex: 1 1 100%; order: 3; white-space: normal; overflow-wrap: anywhere; }
+
+html:not(#_):not(#_) #settings-modal #webhook-list .row-meta:empty { display: none; }
+
+html:not(#_):not(#_) #settings-modal #webhook-list .wh-secret { max-width: 7rem !important; }
+
+/* a phone fits three buttons only if they share the line */
+@container (max-width: 25rem) {
+  html:not(#_):not(#_) #settings-modal .persona-row > .act-btn { flex: 1 1 0; min-width: 0; padding-inline: var(--k-space-1); }
 }
 
 /* sign in: a solid page (the app behind showed through a veil), one left edge, a filled field and
@@ -3435,3 +3618,106 @@ html:not(#_)[dir="rtl"] :is([data-kokuen-icon="chevron-left"], [data-kokuen-icon
 html:not(#_)[dir="rtl"] :is(.bx-meta, .bx-rate, .bx-tag, .p-name, .p-mem, .nf-val) {
   unicode-bidi: plaintext;
 }
+
+/* server facts: a value too long for the line (the policy file path) drops under its label
+   instead of leaving the label centred beside four lines of path */
+html:not(#_):not(#_) #server-workbench-view .server-workbench-fact {
+  flex-wrap: wrap;
+  row-gap: 0;
+  padding-block: var(--k-space-2);
+}
+
+html:not(#_):not(#_) #server-workbench-view .server-workbench-fact > strong { flex: 0 1 auto; }
+
+/* vault list: a long title and its username wrap to read in full (the end of the name and the
+   username were cut to three dots); a phone gives them the full line and puts the type under */
+html:not(#_):not(#_) #vault-workbench-view .vault-entry-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+html:not(#_):not(#_) #vault-workbench-view .vault-entry-user { overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #vault-workbench-view .vault-entry-main { flex-wrap: wrap; row-gap: var(--k-space-1); }
+  html:not(#_):not(#_) #vault-workbench-view .vault-entry-name { flex: 1 1 100%; }
+  html:not(#_):not(#_) #vault-workbench-view .vault-entry-grow { display: none; }
+}
+
+/* vault list: the username is a quiet line of its own under a wrapped title on a phone */
+@media (max-width: 760px) {
+  html:not(#_):not(#_) #vault-workbench-view .vault-entry-user {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  html:not(#_):not(#_) #vault-workbench-view .vault-entry-user::before { content: none; }
+}
+
+/* secret dialog: its fields keep the form's 12px gap (notes ran into the note label), and on a
+   narrow screen cancel and save share the last row instead of save landing alone */
+html:not(#_):not(#_) .vault-modal #vf-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (max-width: 1023px) {
+  html:not(#_):not(#_) .vault-modal .vault-form-actions:has(#vf-del) :is(#vf-cancel, #vf-save) { flex: 1 1 calc(50% - 0.25rem); }
+}
+
+/* mail on a touch screen: when the list is wide enough, the badge shares the line with the row's
+   actions (it sat on a fourth line under them). 360px is what the badge, five 44px actions and the
+   row padding need; an iPad portrait list is narrower and keeps them on separate lines */
+#mail-view #mail-list { container-type: inline-size; }
+
+@media (hover: none), (pointer: coarse) {
+  @container (min-width: 361px) {
+    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) {
+      display: grid;
+      grid-template-columns: minmax(5.5rem, 1fr) auto;
+      align-items: center;
+    }
+
+    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) .mail-row-acts { gap: 0; }
+
+    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) > :is(.mail-row-top, .mail-subject) { grid-column: 1 / -1; }
+    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) > .mail-row-acts { grid-column: 2; grid-row: 3; }
+
+    html:not(#_):not(#_) #mail-view .mail-row:has(> .mail-row-acts) > .mail-account-badge {
+      grid-column: 1;
+      grid-row: 3;
+      justify-self: start;
+      margin-top: 0;
+    }
+  }
+}
+
+/* a badge reads on one line with a normal line height (a long account name collapsed into two
+   overlapping lines) */
+html:not(#_):not(#_) #mail-view .mail-account-badge {
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the retry button sits under the message instead of inside its last line, and the strip keeps
+   a gutter from the list edge */
+html:not(#_):not(#_) #mail-view .mail-error-strip {
+  margin-inline: var(--k-space-2);
+  padding: var(--k-space-3);
+}
+
+html:not(#_):not(#_) #mail-view .mail-error-strip > .btn {
+  display: flex;
+  width: fit-content;
+  margin-top: var(--k-space-2);
+}
+
+/* an empty signature list still took a flex slot and its gap, pushing "+ sig" in from the edge when
+   the compose toolbar wraps */
+html:not(#_):not(#_) #mail-view .mail-richbar :is(.mail-sig-wrap, .mail-status):empty { display: none; }
