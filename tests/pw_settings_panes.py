@@ -1672,7 +1672,7 @@ def local_preset_cases(page, reopen, destination):
 
     def locked(action):
         row = page.locator(f'#s-local-presets [data-local-model="{state["model"]}"]')
-        expected = {"serve": "serving...", "remove": "removing..."}[action]
+        expected = {"serve": "serving…", "remove": "removing…"}[action]
         expect(button(action)).to_be_disabled()
         expect(button(action)).to_have_text(expected)
         expect(row.locator("[data-local-state]")).to_have_text(expected)

@@ -7,7 +7,7 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=587">
+<link rel="stylesheet" href="/static/style.css?v=588">
   <link rel="stylesheet" href="/static/kokuen.css?v=82">
 <link rel="stylesheet" href="/static/aidecentral.css?v=14">
 <link rel="stylesheet" href="/static/aidecoding.css?v=22">
@@ -23,7 +23,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=587">
+<link rel="modulepreload" href="/static/js/app.js?v=588">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=214">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -44,7 +44,7 @@
 <link rel="modulepreload" href="/static/js/vault.js?v=285">
 <link rel="modulepreload" href="/static/js/contacts.js">
 <link rel="modulepreload" href="/static/js/liveformat.js">
-<link rel="modulepreload" href="/static/js/filesphase7.js?v=487">
+<link rel="modulepreload" href="/static/js/filesphase7.js?v=488">
 <link rel="modulepreload" href="/static/js/mail.js">
 <link rel="modulepreload" href="/static/js/appsettings.js">
 <link rel="modulepreload" href="/static/js/photos.js">
@@ -56,15 +56,15 @@
 <link rel="modulepreload" href="/static/js/specialist_groups.js?v=10">
 <link rel="modulepreload" href="/static/js/sso-state.js">
 <link rel="modulepreload" href="/static/js/brain.js?v=242">
-<link rel="modulepreload" href="/static/js/settings.js?v=292">
+<link rel="modulepreload" href="/static/js/settings.js?v=293">
 <link rel="modulepreload" href="/static/js/modes.js?v=257">
 <link rel="modulepreload" href="/static/js/privacy.js">
 <link rel="modulepreload" href="/static/js/scrollfollow.js">
 <link rel="modulepreload" href="/static/js/text_entry.js?v=1">
-<link rel="modulepreload" href="/static/js/aideworkspace.js?v=279">
+<link rel="modulepreload" href="/static/js/aideworkspace.js?v=280">
 <link rel="modulepreload" href="/static/js/aidecentral.js?v=2">
 <link rel="modulepreload" href="/static/js/kokuen.js?v=4">
-<link rel="modulepreload" href="/static/js/andromeda.js?v=251">
+<link rel="modulepreload" href="/static/js/andromeda.js?v=252">
 <link rel="modulepreload" href="/static/js/shortcuts.js">
 <link rel="modulepreload" href="/static/js/ask_panel.js">
 <link rel="modulepreload" href="/static/js/reminders.js?v=245">
@@ -740,7 +740,7 @@
         <div id="reminder-list" style="margin-bottom:0.75rem"></div>
         <div id="reminder-undo-list" aria-label="reminder cancellation recovery" hidden data-i18n-aria-label="shell.reminders.reminder_cancellation_recovery"></div>
         <div class="reminder-add-form">
-          <input type="text" id="reminder-text" aria-label="reminder text" aria-required="true" class="settings-input" placeholder="what to remind / message to send..." style="flex:1" data-i18n-aria-label="shell.reminders.reminder_text" data-i18n-placeholder="shell.reminders.what_to_remind_message_to_send">
+          <input type="text" id="reminder-text" aria-label="reminder text" aria-required="true" class="settings-input" placeholder="what to remind / message to send…" style="flex:1" data-i18n-aria-label="shell.reminders.reminder_text" data-i18n-placeholder="shell.reminders.what_to_remind_message_to_send">
           <div class="date-input" id="reminder-time" data-type="datetime" data-ph="date and time" data-ph-key="aide.sched_date_time" aria-label="reminder date and time (required)" style="width:200px" data-i18n-aria-label="shell.reminders.reminder_date_and_time_required"></div>
           <div id="reminder-type-select" aria-label="reminder type" class="settings-input custom-select" data-value="reminder" data-options="reminder|reminder;message|send message to AI" data-i18n-options="plan.reminders_reminder;settings.opt_send_message_to_ai" style="width:auto;min-width:150px" data-i18n-aria-label="shell.reminders.reminder_type"></div>
           <button type="button" class="btn primary" id="reminder-add-btn" data-i18n="shell.reminders.set">set</button>
@@ -1168,7 +1168,7 @@
         </div>
         <div class="compare-prompt-region">
           <label for="compare-input" data-i18n="shell.compare.prompt">prompt</label>
-          <textarea id="compare-input" class="settings-input" placeholder="enter prompt..." rows="3" style="width:100%;resize:vertical;margin-bottom:0.4rem" data-i18n-placeholder="shell.compare.enter_prompt"></textarea>
+          <textarea id="compare-input" class="settings-input" placeholder="enter prompt…" rows="3" style="width:100%;resize:vertical;margin-bottom:0.4rem" data-i18n-placeholder="shell.compare.enter_prompt"></textarea>
           <button type="button" class="btn primary" id="compare-send-btn" style="width:100%" data-i18n="shell.compare.compare">compare</button>
         </div>
       </div>
@@ -1514,14 +1514,14 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <textarea class="shell-input" id="shell-input" rows="3" spellcheck="false" placeholder="enter shell command..." data-i18n-placeholder="aide.shell_placeholder"></textarea>
+          <textarea class="shell-input" id="shell-input" rows="3" spellcheck="false" placeholder="enter shell command…" data-i18n-placeholder="aide.shell_placeholder"></textarea>
           <div class="shell-panel-foot">
             <span data-i18n="aide.shell_shortcut">Ctrl+Enter sends</span>
             <button type="button" class="btn primary" id="shell-send-btn" data-i18n="aide.send_shell">send shell</button>
           </div>
         </div>
         <div id="attachment-chips" class="attachment-chips" style="display:none"></div>
-        <textarea class="composer-ta" id="composer-ta" placeholder="message..." rows="1" aria-label="message Aide" data-i18n-placeholder="aide.message_placeholder" data-i18n-aria-label="aide.message_label"></textarea>
+        <textarea class="composer-ta" id="composer-ta" placeholder="message…" rows="1" aria-label="message Aide" data-i18n-placeholder="aide.message_placeholder" data-i18n-aria-label="aide.message_label"></textarea>
         <canvas id="mic-wave" class="mic-wave" aria-hidden="true"></canvas>
         <div class="composer-bar">
           <div class="c-tools">
@@ -1745,7 +1745,7 @@
     <!-- models tab -->
     <div class="mm-panel" id="mm-panel-models" role="tabpanel">
       <div class="modal-search">
-        <input type="text" id="model-search-input" placeholder="search models..." aria-label="search models" data-i18n-aria-label="shell.model.search_models_2" data-i18n-placeholder="shell.model.search_models">
+        <input type="text" id="model-search-input" placeholder="search models…" aria-label="search models" data-i18n-aria-label="shell.model.search_models_2" data-i18n-placeholder="shell.model.search_models">
         <span class="newest-only-label" data-i18n="common.newest_only">newest only</span>
         <div class="s-switch newest-only-switch" id="mm-newest-switch" role="switch" tabindex="0" aria-checked="false" aria-label="show only newest model of each family" title="show only the newest model of each family" data-i18n-title="common.show_only_the_newest_model_of" data-i18n-aria-label="shell.model.show_only_newest_model_of_each"></div>
         <button class="btn mm-refresh-all" id="mm-refresh-all" type="button" title="re-probe every endpoint for new models" data-i18n="common.refresh" data-i18n-title="shell.model.re_probe_every_endpoint_for_new">refresh</button>
@@ -1993,7 +1993,7 @@
               <span data-i18n="shell.settings_models.local_serving">local serving</span>
             </div>
             <div class="s-card-body">
-              <div id="s-local-ollama" style="font-size:0.75rem;color:var(--muted);margin-bottom:0.45rem">checking Ollama...</div>
+              <div id="s-local-ollama" style="font-size:0.75rem;color:var(--muted);margin-bottom:0.45rem">checking Ollama…</div>
               <div id="s-local-hw" style="font-size:0.75rem;color:var(--muted);margin-bottom:0.65rem"></div>
               <div id="s-local-presets" class="settings-list"></div>
               <div class="s-field" style="margin-top:0.65rem"><label for="s-local-custom" data-i18n="shell.settings_models.pull_any_model">pull any model</label>
@@ -2102,11 +2102,11 @@
                 <div><div class="s-toggle-label" data-i18n="shell.settings_memory.use_relevant_memory_in_chats">use relevant memory in chats</div><div class="s-toggle-desc" data-i18n="shell.settings_memory.available_only_while_memory_is_set">available only while memory is set to ask or auto</div></div>
                 <div class="s-switch" id="s-memory-inject-toggle" role="switch" aria-checked="false"></div>
               </div>
-              <input type="text" id="mem-search" aria-label="search memories" class="settings-input" placeholder="search memories..." style="width:100%;margin-bottom:0.55rem" data-i18n-aria-label="shell.settings_memory.search_memories_2" data-i18n-placeholder="shell.settings_memory.search_memories">
+              <input type="text" id="mem-search" aria-label="search memories" class="settings-input" placeholder="search memories…" style="width:100%;margin-bottom:0.55rem" data-i18n-aria-label="shell.settings_memory.search_memories_2" data-i18n-placeholder="shell.settings_memory.search_memories">
               <div id="mem-category-filter" class="mem-cat-filter"></div>
               <div class="mem-view-list" id="memory-list"></div>
               <div style="display:flex;gap:0.4rem;margin-top:0.6rem">
-                <input type="text" id="mem-add-input" aria-label="add a memory" class="settings-input" placeholder="add a memory..." style="flex:1" data-i18n-aria-label="shell.settings_memory.add_a_memory_2" data-i18n-placeholder="shell.settings_memory.add_a_memory">
+                <input type="text" id="mem-add-input" aria-label="add a memory" class="settings-input" placeholder="add a memory…" style="flex:1" data-i18n-aria-label="shell.settings_memory.add_a_memory_2" data-i18n-placeholder="shell.settings_memory.add_a_memory">
                 <button type="button" class="btn mem-cat-cycle" id="mem-cat-cycle-btn" data-val="general" data-i18n="common.general">general</button>
                 <button type="button" class="btn primary" id="mem-add-btn" data-i18n="shell.settings_memory.remember">remember</button>
               </div>
@@ -2408,7 +2408,7 @@
             </div>
             <div class="s-card-body">
               <div class="s-field">
-                <label for="settings-openai-key" data-i18n="shell.settings_voice.openai_api_key_required_for_whisper">openai api key — required for whisper api and openai tts</label>
+                <label for="settings-openai-key" data-i18n="shell.settings_voice.openai_api_key_required_for_whisper">openai api key (required for whisper api and openai tts)</label>
                 <input type="password" class="settings-input" id="settings-openai-key" placeholder="sk-..." style="width:100%">
               </div>
               <button type="button" class="btn primary" id="s-voice-save-btn" style="width:100%;margin-top:0.2rem" data-i18n="shell.settings_voice.save_voice_settings">save voice settings</button>
@@ -2427,7 +2427,7 @@
               <div id="persona-list" style="margin-bottom:0.75rem"></div>
               <div id="persona-form-title" class="s-form-title" hidden></div>
               <div class="s-field"><label for="persona-name" data-i18n="common.name">name</label><input type="text" class="settings-input" id="persona-name" placeholder="name" style="width:100%" data-i18n-placeholder="common.name"></div>
-              <div class="s-field"><label for="persona-prompt" data-i18n="shell.settings_personas.system_prompt">system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="6" placeholder="You are..." style="width:100%;resize:vertical" data-i18n-placeholder="shell.settings_personas.you_are"></textarea></div>
+              <div class="s-field"><label for="persona-prompt" data-i18n="shell.settings_personas.system_prompt">system prompt</label><textarea class="settings-textarea" id="persona-prompt" rows="6" placeholder="You are…" style="width:100%;resize:vertical" data-i18n-placeholder="shell.settings_personas.you_are"></textarea></div>
               <div class="s-field"><label for="persona-initial"><span data-i18n="shell.settings_personas.starter_message">starter message</span> <span style="color:var(--muted);font-weight:400" data-i18n="shell.settings_personas.prefilled_into_the_composer_when_you">: prefilled into the composer when you pick this persona (optional)</span></label><textarea class="settings-textarea" id="persona-initial" rows="2" placeholder="e.g. Please review this code:" style="width:100%;resize:vertical" data-i18n-placeholder="shell.settings_personas.e_g_please_review_this_code"></textarea></div>
               <div class="s-field"><label data-i18n="shell.settings_personas.pinned_model">pinned model</label><div class="settings-input custom-select" id="persona-model" style="width:100%"></div></div>
               <div class="s-field persona-temp-field">
@@ -3162,6 +3162,6 @@
   </div><!-- /s-modal -->
 </div>
 
-<script type="module" src="/static/js/app.js?v=587"></script>
+<script type="module" src="/static/js/app.js?v=588"></script>
 </body>
 </html>
