@@ -135,7 +135,9 @@ def run(context_factory=None):
                 assert any(f"owned managed service {width}" in q for q in state["queries"])
                 api("POST", "/api/test-fixture/managed-search", {"malformed": True})
                 page.locator("#andromeda-settings-button").click()
-                button = page.locator(".andromeda-searxng-settings").get_by_role(
+                # the managed searxng controls live in settings, in the andromeda section
+                expect(page.locator("#s-pane-andromeda.active")).to_be_visible()
+                button = page.locator("#s-andromeda-searxng-actions").get_by_role(
                     "button", name="test search", exact=True
                 )
                 with page.expect_response(
@@ -143,7 +145,7 @@ def run(context_factory=None):
                 ):
                     button.click()
                 expect(button).to_be_enabled()
-                status = page.locator("#andromeda-searxng-status")
+                status = page.locator("#s-andromeda-searxng-status")
                 record["malformed_status"] = status.inner_text()
                 if "passed" in status.inner_text():
                     gaps.append("malformed search response reports success")

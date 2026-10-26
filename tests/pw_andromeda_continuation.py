@@ -408,12 +408,11 @@ def run(context_factory=None):
                                 record["status"] = "passed"
                                 continue
                             if case == "origin-deleted":
-                                page.locator("#andromeda-settings-button").click()
+                                # the saved list is on the page itself
                                 page.locator("#andromeda-saved-list").get_by_role(
                                     "button", name=query, exact=True
                                 ).click()
                                 assert len(held) == 1
-                                page.locator("#andromeda-settings-close").click()
                             ask.focus()
                             ask.press("Enter")
                             if case.startswith("empty-"):

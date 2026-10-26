@@ -118,7 +118,8 @@ with sync_playwright() as pw:
                 ), bounds
                 expect(page.locator("#s-model-defaults-card")).to_be_hidden()
                 page.screenshot(path=str(out / f"{label}-first-connection.png"))
-                for _ in range(16):
+                # the settings nav is one tab stop per section, so the budget follows the section count
+                for _ in range(24):
                     if control.evaluate("node => node === document.activeElement"):
                         break
                     page.keyboard.press("Tab")

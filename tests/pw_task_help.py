@@ -333,7 +333,7 @@ def run():
                     page.locator("#settings-modal-close").press("Enter")
                     expect(help_button).to_be_focused()
                     expect(field).to_have_value("owned unsent question 中文")
-                    # The actual Settings picker keeps all19 panes and each stored owner.
+                    # The actual Settings picker keeps all 20 panes and each stored owner.
                     open_context_help()
                     dialog.locator('[data-help-settings="models"]').press("Enter")
                     expect(page.locator("#s-pane-models")).to_be_visible()
@@ -343,8 +343,9 @@ def run():
                         "recall": "search personal records",
                         "intelligence": "patterns & suggestions",
                         "rules": "automation & delivery",
+                        "andromeda": "andromeda",
                     }
-                    expect(page.locator(".s-nav-item")).to_have_count(19)
+                    expect(page.locator(".s-nav-item")).to_have_count(20)
                     for pane, name in names.items():
                         choose_settings_section(page, pane, touch=width <= 390)
                         expect(page.locator("#settings-pane-title")).to_have_text(name)
@@ -394,7 +395,7 @@ def run():
                     ), console
                     row.update(
                         status="passed",
-                        checks="five concrete guides, search/case/commands/no-match/reset, keyboard/Escape/focus, model settings destination, composer draft,19panes/labels, original context/settings values, instruction draft across panes and save/reload, native200 fullCDP, themes/reduced motion, console/overflow",
+                        checks="five concrete guides, search/case/commands/no-match/reset, keyboard/Escape/focus, model settings destination, composer draft,20 panes/labels, original context/settings values, instruction draft across panes and save/reload, native200 fullCDP, themes/reduced motion, console/overflow",
                     )
                 except Exception:
                     row["error"] = traceback.format_exc()

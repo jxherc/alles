@@ -55,7 +55,8 @@ def run():
     require_server_ownership(base, run_id)
     out = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     fields = registry()
-    assert len(fields) == 95
+    # 95 before the andromeda section: four search fields moved out, seven provider key fields in
+    assert len(fields) == 98
     profiles = [(w, t, False) for w in (1440, 768, 390) for t in ("light", "dark")]
     profiles += [(1440, t, True) for t in ("light", "dark")]
     rows = []
@@ -178,7 +179,7 @@ def run():
                 panes = page.locator(".s-nav-item[data-pane]").evaluate_all(
                     "nodes=>nodes.map(n=>n.dataset.pane)"
                 )
-                assert len(panes) == 19
+                assert len(panes) == 20
                 for pane in panes:
                     choose_settings_section(page, pane, touch=width == 390)
                     expect(page.locator("#s-pane-" + pane)).to_be_visible()
