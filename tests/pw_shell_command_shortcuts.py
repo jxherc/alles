@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
@@ -134,7 +135,8 @@ def run() -> None:
             expect(
                 page.locator('#server-workbench-view [data-group-section="activity"]')
             ).to_have_attribute("aria-selected", "true")
-            expect(page.locator("#activity-summary")).to_contain_text("events")
+            # one event or many: the count reads right either way
+            expect(page.locator("#activity-summary")).to_contain_text(re.compile(r"\d+ events?"))
             assert page.url.startswith(f"http://server.localhost:{port}/")
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
@@ -251,7 +253,8 @@ def run() -> None:
             expect(
                 page.locator('#server-workbench-view [data-group-section="activity"]')
             ).to_have_attribute("aria-selected", "true")
-            expect(page.locator("#activity-summary")).to_contain_text("events")
+            # one event or many: the count reads right either way
+            expect(page.locator("#activity-summary")).to_contain_text(re.compile(r"\d+ events?"))
             assert page.url.startswith(base + "/")
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"

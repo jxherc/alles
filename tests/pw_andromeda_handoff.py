@@ -54,10 +54,16 @@ def run(context_factory=None):
                     "/api/read/save-news" if case == "news-open" else "/api/read/save-result"
                 )
 
+                # a case's temporary answers for one url. they live in this one handler: a
+                # second page-level route raced it under load and answered a request twice
+                overrides = {}
+
                 def routes(route):
                     parsed = urlparse(route.request.url)
                     if parsed.netloc != urlparse(base).netloc:
                         route.abort()
+                    elif route.request.url in overrides:
+                        overrides[route.request.url](route)
                     elif parsed.path.startswith("/owned/") or parsed.path.endswith("/fetch-text"):
                         fetches.append(route.request.url)
                         route.abort()
@@ -157,16 +163,13 @@ def run(context_factory=None):
                     if case == "open-retry":
                         identity = copies()[0]["id"]
                         failed_url = base + "/api/read/" + identity
-                        page.route(
-                            failed_url,
-                            lambda r: r.fulfill(
-                                status=503, json={"detail": "synthetic read outage"}
-                            ),
+                        overrides[failed_url] = lambda r: r.fulfill(
+                            status=503, json={"detail": "synthetic read outage"}
                         )
                         button.click()
                         expect(page.locator("#read-q")).to_be_visible()
                         assert parse_qs(urlparse(page.url).query)["record"] == [identity]
-                        page.unroute(failed_url)
+                        overrides.pop(failed_url)
                         page.reload(wait_until="networkidle")
                     else:
                         button.focus()
@@ -197,12 +200,12 @@ def run(context_factory=None):
                             else:
                                 route.fulfill(json={"item": {"id": "wrong", "url": url + "/wrong"}})
 
-                        page.route(endpoint, uncertain)
+                        overrides[endpoint] = uncertain
                         save.focus()
                         page.keyboard.press("Enter")
                         expect(library_status()).to_contain_text("retry")
                         assert len(copies()) == 1
-                        page.unroute(endpoint)
+                        overrides.pop(endpoint)
                         save = library_button("save to Library: " + title)
                     if case == "newer-search":
                         page.evaluate(

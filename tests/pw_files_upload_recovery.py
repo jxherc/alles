@@ -327,7 +327,10 @@ def run_profile(browser, profile):
         page.route("**/api/files/upload", lose_ack, times=1)
         expected_faults.append(("failed", "/api/files/upload", "net::ERR_FAILED"))
         activate(page.locator("[data-upload-submit]"))
-        expect(page.locator("#files-upload-review-message")).to_contain_text("Failed to fetch")
+        # the browser's raw "Failed to fetch" reads as plain words now
+        expect(page.locator("#files-upload-review-message")).to_contain_text(
+            "can't reach alles right now"
+        )
         assert len(intercepted) == 1
         bytes_are(names["ack"], replacement)
         assert len(versions(names["ack"])) == 1
