@@ -579,7 +579,7 @@ def rsvp_page(token: str, db: DbSession = Depends(get_db)):
 
 def _rsvp_html(token, title, when, status):
     btn = lambda s, label: (  # noqa: E731
-        f'<button class="rb{" sel" if status == s else ""}" onclick="rs(\'{s}\')">{label}</button>'
+        f'<button class="rb{" sel" if status == s else ""}" data-status="{s}">{label}</button>'
     )
     return f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -592,19 +592,13 @@ def _rsvp_html(token, title, when, status):
   .rb{{background:#161616;color:#e8e6e3;border:1px solid #2a2a2a;border-radius:3px;padding:.5rem .9rem;margin:.2rem;cursor:pointer;font-size:.8rem}}
   .rb.sel{{border-color:#818cf8;color:#818cf8}} .rb:hover{{background:#222}}
   #msg{{margin-top:1rem;color:#4ade80;font-size:.8rem;min-height:1.2em}}
-</style></head><body>
+</style></head><body data-token="{_esc(token)}">
 <div class="card">
   <h1>{_esc(title)}</h1><div class="when">{_esc(when)}</div>
   <div>{btn("accepted", "Yes")}{btn("tentative", "Maybe")}{btn("declined", "No")}</div>
   <div id="msg"></div>
 </div>
-<script>
-async function rs(s){{
-  const r = await fetch('/rsvp/{token}', {{method:'POST',headers:{{'content-type':'application/json'}},body:JSON.stringify({{status:s}})}});
-  if(r.ok){{ document.querySelectorAll('.rb').forEach(b=>b.classList.remove('sel'));
-    event.target.classList.add('sel'); document.getElementById('msg').textContent='response saved — thanks!'; }}
-}}
-</script></body></html>"""
+<script src="/static/shared/rsvp.js"></script></body></html>"""
 
 
 @router.get("/book/{token}/slots")
@@ -719,55 +713,18 @@ def _book_html(token, title, today, last, zone):
   input:focus-visible,button:focus-visible{{outline:2px solid #e8e6e3;outline-offset:2px}}
   button.go{{min-height:44px;margin-top:1rem;background:#818cf8;color:#0a0a0a;border:none;border-radius:3px;padding:.5rem 1rem;cursor:pointer;font-size:.82rem}}
   #msg{{margin-top:1rem;color:#4ade80;font-size:.82rem;min-height:1.2em}}
-</style></head><body>
+</style></head><body data-token="{_esc(token)}">
 <div class="wrap">
   <h1>{_esc(title)}</h1>
-  <label for="date">date</label><input type="date" id="date">
+  <label for="date">date</label><input type="date" id="date" value="{today}" min="{today}" max="{last}">
   <p class="tz" id="tz">times in {_esc(zone)}</p>
   <div id="slots" role="group" aria-label="available times"></div>
   <label for="name">your name</label><input id="name">
   <label for="email">your email</label><input id="email" type="email">
-  <button class="go" type="button" onclick="submit()">book</button>
+  <button class="go" id="book-go" type="button">book</button>
   <div id="msg" role="status"></div>
 </div>
-<script>
-const token = '{token}';
-let picked = null;
-const dEl = document.getElementById('date');
-dEl.value = dEl.min = '{today}';
-dEl.max = '{last}';
-dEl.addEventListener('change', loadSlots);
-async function loadSlots(){{
-  picked = null;
-  const r = await fetch(`/book/${{token}}/slots?date=${{dEl.value}}`).then(r=>r.json()).catch(()=>({{slots:[]}}));
-  const box = document.getElementById('slots');
-  box.innerHTML = r.slots.length ? '' : '<span class="slots-empty">no free times that day</span>';
-  for (const s of r.slots){{
-    const b = document.createElement('button'); b.type = 'button'; b.className='slot'; b.textContent = s.start.slice(11,16);
-    b.setAttribute('aria-pressed', 'false');
-    // a visitor in another zone also sees the time on their own clock
-    if (s.at) {{
-      const at = new Date(s.at), hm = at.toLocaleTimeString([], {{hour: '2-digit', minute: '2-digit', hour12: false}});
-      const otherDay = at.toLocaleDateString('sv') !== s.start.slice(0,10);
-      if (hm !== s.start.slice(11,16) || otherDay) {{
-        const mine = document.createElement('small');
-        mine.textContent = (otherDay ? at.toLocaleDateString([], {{weekday: 'short'}}) + ' ' : '') + hm + ' your time';
-        b.appendChild(mine);
-      }}
-    }}
-    b.onclick = () => {{ box.querySelectorAll('.slot').forEach(x => {{ x.classList.remove('sel'); x.setAttribute('aria-pressed', 'false'); }}); b.classList.add('sel'); b.setAttribute('aria-pressed', 'true'); picked = s.start.slice(11,16); }};
-    box.appendChild(b);
-  }}
-}}
-async function submit(){{
-  if(!picked){{ document.getElementById('msg').style.color='#f87171'; document.getElementById('msg').textContent='pick a time first'; return; }}
-  const r = await fetch(`/book/${{token}}`, {{method:'POST',headers:{{'content-type':'application/json'}},body:JSON.stringify({{date:dEl.value,time:picked,name:document.getElementById('name').value,email:document.getElementById('email').value}})}});
-  const m = document.getElementById('msg');
-  if(r.ok){{ m.style.color='#4ade80'; m.textContent='booked! see you then.'; loadSlots(); }}
-  else {{ const why = await r.json().catch(() => ({{}})); m.style.color='#f87171'; m.textContent=(typeof why.detail === 'string' ? why.detail : "that time couldn't be booked") + ' — pick another'; loadSlots(); }}
-}}
-loadSlots();
-</script></body></html>"""
+<script src="/static/shared/book.js"></script></body></html>"""
 
 
 _NOSTORE = {"Cache-Control": "no-store, max-age=0"}
@@ -804,32 +761,12 @@ def _vshare_html(token):
   .k{{color:#6e6e6e}} .v{{font-family:monospace;word-break:break-all;text-align:right}}
   .badge{{font-size:.62rem;color:#818cf8;border:1px solid #818cf8;border-radius:2px;padding:.1rem .35rem}}
   .err{{color:#f87171;font-size:.85rem}}
-</style></head><body>
+</style></head><body data-token="{_esc(token)}">
 <div class="card">
   <h1 id="title">shared item <span class="badge">read-only</span></h1>
-  <div id="body"><div class="err" id="err" style="display:none">could not decrypt — the link may be incomplete</div></div>
+  <div id="body"><div class="err" id="err" hidden>could not decrypt — the link may be incomplete</div></div>
 </div>
-<script>
-const token = '{token}';
-function b64ToBytes(b64){{ const s = atob(b64.replace(/-/g,'+').replace(/_/g,'/')); const a = new Uint8Array(s.length); for(let i=0;i<s.length;i++) a[i]=s.charCodeAt(i); return a; }}
-async function go(){{
-  const keyB64 = location.hash.slice(1);
-  if(!keyB64){{ document.getElementById('err').style.display='block'; return; }}
-  try{{
-    const d = await fetch(`/sv/${{token}}/data`).then(r=>r.json());
-    const blob = b64ToBytes(d.blob);
-    const iv = blob.slice(0,12), ct = blob.slice(12);
-    const key = await crypto.subtle.importKey('raw', b64ToBytes(keyB64), 'AES-GCM', false, ['decrypt']);
-    const pt = await crypto.subtle.decrypt({{name:'AES-GCM', iv}}, key, ct);
-    const obj = JSON.parse(new TextDecoder().decode(pt));
-    document.getElementById('title').firstChild.textContent = (obj.name || 'shared item') + ' ';
-    const rows = Object.entries(obj.fields||{{}}).filter(([k,v])=>v).map(([k,v])=>
-      `<div class="row"><span class="k">${{k}}</span><span class="v">${{String(v).replace(/</g,'&lt;')}}</span></div>`).join('');
-    document.getElementById('body').innerHTML = rows || '<div class="k">(empty)</div>';
-  }} catch(e) {{ document.getElementById('err').style.display='block'; }}
-}}
-go();
-</script></body></html>"""
+<script src="/static/shared/vault.js"></script></body></html>"""
 
 
 def _fmt_sz(n):
@@ -995,9 +932,10 @@ def _session_html(s):
   <span class="brand">aide</span>
   <span class="title">{_esc(s.name or "untitled")}</span>
   <span class="badge">read-only</span>
-  <button onclick="window.print()" style="margin-left:auto;background:none;border:1px solid #2e2e2e;color:#e8e6e3;padding:0.25rem 0.75rem;cursor:pointer;font-size:0.72rem;border-radius:2px">print</button>
+  <button type="button" data-print style="margin-left:auto;background:none;border:1px solid #2e2e2e;color:#e8e6e3;padding:0.25rem 0.75rem;cursor:pointer;font-size:0.72rem;border-radius:2px">print</button>
 </div>
 <div>{rows if rows else '<div style="padding:2rem;color:#6e6e6e">no messages</div>'}</div>
+<script src="/static/shared/print.js"></script>
 </body></html>"""
 
 

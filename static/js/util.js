@@ -1,4 +1,5 @@
 import { leave } from './motion.js';
+import { t } from './i18n.js';
 // shared helpers
 
 // browser window when present, a throwaway object under node (so this module imports in tests)
@@ -213,12 +214,12 @@ export function mdToHtml(text, { remoteImages = false } = {}) {
       return `<div class="md-mermaid" data-src="${escaped}">${escaped}</div>`;
     const runnable = ['js', 'javascript', 'html', 'python', 'py'].includes(lang.toLowerCase());
     const runBtn = runnable
-      ? `<button class="code-run" onclick="runCode(this)">run</button>`
+      ? `<button class="code-run" type="button">${t('shell.run')}</button>`
       : '';
     return `<div class="code-block" data-lang="${lang}">
 <div class="code-block-header">
   <span class="code-lang">${lang}</span>
-  <button class="code-copy" onclick="copyCode(this)">copy</button>
+  <button class="code-copy" type="button">${t('shell.copy')}</button>
   ${runBtn}
 </div>
 <pre data-lang="${lang}"><code class="${lang ? 'language-' + lang : ''}">${escaped}</code></pre>
@@ -252,6 +253,32 @@ _g.enhanceMarkdown = enhanceMarkdown;
 // thin fetch wrapper — json in/out by default, throws on !ok with the server's
 // detail message. plain objects get JSON-encoded; FormData/strings pass through.
 // adopt incrementally; raw fetch is still fine where this doesn't fit.
+// app names are plain english ids in the data; they turn into the reader's language when drawn
+const APP_NAME_KEYS = {
+  home: 'common.home', aide: 'shell.app_aide', andromeda: 'shell.app_andromeda', plan: 'shell.app_plan',
+  inbox: 'common.inbox', docs: 'common.docs', files: 'common.files', library: 'common.library',
+  health: 'common.health', finance: 'common.finance', vault: 'common.vault', server: 'common.server',
+  gallery: 'shell.app_gallery', secrets: 'common.secrets', days: 'common.days', journal: 'common.journal',
+  passwords: 'common.vault', activity: 'common.activity', system: 'shell.app_system', watch: 'common.watch', page: 'shell.app_page',
+};
+export const appLabel = name => APP_NAME_KEYS[name] ? t(APP_NAME_KEYS[name]) : name;
+
+const APP_DESC_KEYS = {
+  'current work and quick capture': 'shell.desc_home',
+  'chat and run tasks': 'shell.desc_aide',
+  'search and answers with sources': 'shell.desc_andromeda',
+  'calendar, tasks, and reminders': 'shell.desc_plan',
+  'mail and contacts': 'shell.desc_inbox',
+  'notes and journal': 'shell.desc_docs',
+  'storage and gallery': 'shell.desc_files',
+  'books and saved reading': 'shell.desc_library',
+  'history and habits': 'shell.desc_health',
+  'accounts and subscriptions': 'shell.desc_finance',
+  'passwords and passkeys': 'shell.desc_vault',
+  'services, backups, and updates': 'shell.desc_server',
+};
+export const appDesc = desc => APP_DESC_KEYS[desc] ? t(APP_DESC_KEYS[desc]) : desc;
+
 export async function api(path, opts = {}, fetcher = fetch) {
   const o = { ...opts };
   const body = o.body;
@@ -263,7 +290,7 @@ export async function api(path, opts = {}, fetcher = fetch) {
   const ct = r.headers.get('content-type') || '';
   const data = ct.includes('application/json') ? await r.json().catch(() => null) : await r.text();
   if (!r.ok) {
-    const msg = (data && data.detail) || (typeof data === 'string' && data) || `request failed (${r.status})`;
+    const msg = (data && data.detail) || (typeof data === 'string' && data) || t('shell.request_failed', { status: r.status });
     throw Object.assign(new Error(msg), { status: r.status, data });
   }
   return data;
@@ -287,29 +314,29 @@ export function toast(msg, type = '', duration = 3000) {
 // messages pass through untouched, and a plain prefix like "upload failed: " is kept
 const RAW_ERRORS = [
   [/failed to fetch|\bload failed|networkerror|network error|err_network|err_internet|err_connection/i,
-    "can't reach alles right now. check the connection and try again"],
-  [/push service/i, "this browser can't get push notifications. try safari, chrome or firefox"],
+    'shell.error_unreachable'],
+  [/push service/i, 'shell.error_push'],
   [/unexpected token|json\.parse|not valid json|unexpected end of (json|input)/i,
-    "alles sent back something it couldn't read. try again"],
+    'shell.error_unreadable'],
   [/notallowederror|not allowed by the user agent|permission denied/i,
-    "the browser blocked this. allow it in the site's settings and try again"],
-  [/quotaexceeded|exceeded the quota/i, 'this browser is out of space for alles'],
-  [/the (user|operation) (was )?aborted|signal is aborted/i, 'stopped before it finished. try again'],
-  [/path escapes vault/i, 'that name points outside your documents folder'],
+    'shell.error_blocked'],
+  [/quotaexceeded|exceeded the quota/i, 'shell.error_quota'],
+  [/the (user|operation) (was )?aborted|signal is aborted/i, 'shell.error_aborted'],
+  [/path escapes vault/i, 'shell.error_path'],
   [/^(\w*Error|DOMException)\b|\b(undefined|NaN)\b|\[object \w+\]|^null$/,
-    'something went wrong. try again'],
+    'shell.error_generic'],
 ];
 
 export function plainError(msg) {
   const text = String(msg ?? '').trim();
-  if (!text) return 'something went wrong. try again';
-  for (const [raw, plain] of RAW_ERRORS) {
+  if (!text) return t('shell.error_generic');
+  for (const [raw, plainKey] of RAW_ERRORS) {
     const hit = text.match(raw);
     if (!hit) continue;
     // keep a short plain lead-in ("upload failed: Failed to fetch" -> "upload failed: can't reach...")
     const cut = text.lastIndexOf(': ', hit.index);
     const lead = cut > 0 ? text.slice(0, cut) : '';
-    return lead && !RAW_ERRORS.some(([r]) => r.test(lead)) ? `${lead}: ${plain}` : plain;
+    return lead && !RAW_ERRORS.some(([r]) => r.test(lead)) ? `${lead}: ${t(plainKey)}` : t(plainKey);
   }
   return text;
 }
@@ -322,10 +349,10 @@ export async function shareResource(kind, ref, level = 'view') {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ kind, ref, level }),
   });
-  if (!r.ok) { toast('share failed', 'error'); return null; }
+  if (!r.ok) { toast(t('shell.share_failed'), 'error'); return null; }
   const j = await r.json();
   const url = location.origin + j.url;
-  try { await navigator.clipboard.writeText(url); toast('public link copied', ''); }
+  try { await navigator.clipboard.writeText(url); toast(t('shell.public_link_copied'), ''); }
   catch { toast(url, ''); }   // clipboard blocked (insecure ctx) — at least show it
   return j;
 }
@@ -336,16 +363,87 @@ export function closeAllModals() {
 }
 
 
-// copy code button — global so inline onclick works
+// html the owner runs (an artifact, run on a code block) loads into /static/sandbox.html, which
+// the server sends with its own csp and an opaque origin. a srcdoc, blob: or data: frame would
+// take the app's csp, and that blocks inline scripts. the frame says when it's ready and gets the
+// html, again after each reload (a game's "play again"), for as long as it's on the page
+const _sandboxes = new Map();   // frame -> html
+const _sandboxReady = new WeakSet();
+let _sandboxListening = false;
+
+function _sandboxMessage(e) {
+  if (e.data?.sandbox !== 'ready') return;
+  for (const [frame, html] of _sandboxes) {
+    if (!frame.isConnected) { _sandboxes.delete(frame); continue; }
+    if (e.source !== frame.contentWindow) continue;
+    _sandboxReady.add(frame);
+    frame.contentWindow.postMessage({ sandbox: 'html', html }, '*');
+  }
+}
+
+// an opaque-origin frame never goes through the service worker, so offline (or when the page
+// never answers) its spot says so, with a retry, instead of staying blank
+function _sandboxNote(html, className, opts) {
+  const note = document.createElement('div');
+  note.className = opts.noteClass || '';
+  note.setAttribute('role', 'status');
+  const text = document.createElement('span');
+  text.textContent = opts.offline || t('shell.needs_connection_to_run');
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'btn';
+  retry.textContent = t('common.retry');
+  retry.style.cssText = 'min-height:44px;min-width:44px;margin-left:0.75rem';
+  retry.addEventListener('click', () => {
+    const next = sandboxFrame(html, className, opts);
+    note.replaceWith(next);
+    (next.tagName === 'IFRAME' ? next : next.querySelector('button'))?.focus();
+  });
+  note.append(text, retry);
+  return note;
+}
+
+export function sandboxFrame(html, className, opts = {}) {
+  html = String(html ?? '');
+  if (navigator.onLine === false) return _sandboxNote(html, className, opts);
+  if (!_sandboxListening) { window.addEventListener('message', _sandboxMessage); _sandboxListening = true; }
+  for (const old of _sandboxes.keys()) if (!old.isConnected) _sandboxes.delete(old);
+  const frame = document.createElement('iframe');
+  frame.className = className;
+  frame.sandbox = 'allow-scripts';
+  frame.referrerPolicy = 'no-referrer';
+  _sandboxes.set(frame, html);
+  setTimeout(() => {
+    if (!frame.isConnected) { _sandboxes.delete(frame); return; }
+    if (_sandboxReady.has(frame)) return;
+    _sandboxes.delete(frame);
+    const note = _sandboxNote(html, className, opts);
+    const focused = document.activeElement === frame;
+    frame.replaceWith(note);
+    if (focused) note.querySelector('button')?.focus();
+  }, 3000);
+  frame.src = '/static/sandbox.html';
+  return frame;
+}
+
+// code block buttons arrive inside markdown html, so one listener runs them (no inline onclick)
+if (typeof document !== 'undefined') document.addEventListener?.('click', e => {
+  const btn = e.target.closest?.('.code-block .code-copy, .code-block .code-run');
+  if (!btn) return;
+  if (btn.classList.contains('code-copy')) _g.copyCode(btn);
+  else _g.runCode(btn);
+});
+
 _g.copyCode = function(btn) {
   const pre = btn.closest('.code-block').querySelector('pre');
   navigator.clipboard.writeText(pre.innerText).then(() => {
-    btn.textContent = 'copied';
-    setTimeout(() => btn.textContent = 'copy', 1500);
+    btn.textContent = t('shell.copied');
+    setTimeout(() => btn.textContent = t('shell.copy'), 1500);
   });
 };
 
 // run code button
+const runNote = () => ({ noteClass: 'code-output', offline: t('shell.running_needs_connection') });
 _g.runCode = async function(btn) {
   const block = btn.closest('.code-block');
   const lang  = (block.dataset.lang || '').toLowerCase();
@@ -359,25 +457,17 @@ _g.runCode = async function(btn) {
   out.className = 'code-output';
 
   if (lang === 'html') {
-    const iframe = document.createElement('iframe');
-    iframe.className = 'code-iframe';
-    iframe.sandbox = 'allow-scripts';
-    iframe.srcdoc = code;
-    block.appendChild(iframe);
+    block.appendChild(sandboxFrame(code, 'code-iframe', runNote()));
     return;
   }
 
   if (lang === 'js' || lang === 'javascript') {
-    const iframe = document.createElement('iframe');
-    iframe.className = 'code-iframe';
-    iframe.sandbox = 'allow-scripts';
-    iframe.srcdoc = `<script>${code}<\/script>`;
-    block.appendChild(iframe);
+    block.appendChild(sandboxFrame(`<script>${code}<\/script>`, 'code-iframe', runNote()));
     return;
   }
 
   if (lang === 'python' || lang === 'py') {
-    out.textContent = 'running…';
+    out.textContent = t('shell.running');
     block.appendChild(out);
     try {
       const r = await fetch('/api/execute/python', {
@@ -389,7 +479,7 @@ _g.runCode = async function(btn) {
       out.textContent = (stdout || '') + (stderr ? '\n' + stderr : '');
       if (exit_code !== 0) out.classList.add('error');
     } catch (e) {
-      out.textContent = 'run failed: ' + e.message;
+      out.textContent = t('shell.run_failed', { message: e.message });
       out.classList.add('error');
     }
   }

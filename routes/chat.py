@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import re
+import signal
 import threading
 import time
 import uuid
@@ -52,6 +53,9 @@ _EARLY_STOP_SECONDS = 60.0
 # asking the edited question again, which would sit in the history twice
 _retired_edits: dict[str, float] = {}
 _RETIRED_EDIT_SECONDS = 60.0
+# the server is going down: every turn stops, and one claimed from here on stops at once
+_exiting = False
+_watching_exit = False
 
 
 def _remember(registry: dict[str, float], key: str, seconds: float) -> None:
@@ -91,7 +95,56 @@ def claim_turn(session_id: str, stop_event: asyncio.Event) -> bool:
         if session_id in _streams or _writing.get(session_id):
             return False
         _streams[session_id] = stop_event
-        return True
+    if _exiting:
+        stop_event.set()
+    return True
+
+
+def stop_open_turns() -> int:
+    """Shutdown: every open turn stops now, as if its stop button was pressed.
+
+    A held reply ends at once and is saved as interrupted, a wait on the owner (an approval, a
+    question) ends unanswered, sub-agents stop with their parent, a running shell command is
+    ended, and each turn lets go of its claim and runs the writes held for its end. Runs on the
+    event loop.
+    """
+    global _exiting
+    _exiting = True
+    with _claims:
+        events = list(_streams.values())
+    for event in events:
+        event.set()
+    from services.agent_tools import stop_commands
+
+    stop_commands()
+    return len(events)
+
+
+def stop_turns_on_exit() -> None:
+    """Call once from the app's startup (the server's own signal handlers are in place by then).
+
+    The server waits for every open response before it shuts down, so a reply held open by a
+    slow model kept it up until the model gave up. This chains onto SIGINT/SIGTERM: the open
+    turns stop first, then the server's handler runs as before.
+    """
+    global _watching_exit
+    if _watching_exit or threading.current_thread() is not threading.main_thread():
+        return
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        before = signal.getsignal(sig)
+        if not callable(before):
+            continue  # nobody handles it gracefully: the process just ends
+
+        def on_exit(signum, frame, before=before):
+            try:
+                loop.call_soon_threadsafe(stop_open_turns)
+            except RuntimeError:
+                pass  # the loop already closed: nothing is open any more
+            before(signum, frame)
+
+        signal.signal(sig, on_exit)
+    _watching_exit = True
 
 
 def _run_held(write) -> None:

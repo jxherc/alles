@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>sandbox</title>
+<script>
+  // the alles page that opened this frame sends the html to run; nothing else may write here.
+  // the server gives this page its own csp (sandbox allow-scripts), so it runs in an opaque
+  // origin. location.origin is still this url's origin, the one the opener must have.
+  // a reload (a game's "play again") loads this page again, says ready again, gets the html again
+  addEventListener('message', function take(e) {
+    if (parent === window || e.source !== parent || e.origin !== location.origin) return;
+    if (!e.data || e.data.sandbox !== 'html') return;
+    removeEventListener('message', take);
+    document.open();
+    document.write(String(e.data.html));
+    document.close();
+  });
+  if (parent !== window) parent.postMessage({ sandbox: 'ready' }, '*');
+</script>
+</html>

@@ -1,22 +1,19 @@
-import { mdToHtml, escapeHtml } from './util.js';
+import { mdToHtml, escapeHtml, sandboxFrame } from './util.js';
+import { t } from './i18n.js';
 
 let _returnFocus = null;
 
 export function openArtifact(content, type, title, lang = '') {
   const panel = document.getElementById('artifact-panel');
   if (!panel.classList.contains('open')) _returnFocus = document.activeElement;
-  panel.querySelector('.artifact-title').textContent = title || 'artifact';
+  panel.querySelector('.artifact-title').textContent = title || t('aide.artifact');
   panel.querySelector('.artifact-type-badge').textContent = type;
 
   const body = panel.querySelector('.artifact-body');
   body.innerHTML = '';
 
   if (type === 'html' || type === 'svg') {
-    const iframe = document.createElement('iframe');
-    iframe.className = 'artifact-iframe';
-    iframe.sandbox = 'allow-scripts';
-    iframe.srcdoc = content;
-    body.appendChild(iframe);
+    body.appendChild(sandboxFrame(content, 'artifact-iframe', { noteClass: 'artifact-content', offline: t('aide.artifact_offline') }));
   } else {
     const div = document.createElement('div');
     div.className = 'artifact-content';

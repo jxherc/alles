@@ -132,6 +132,12 @@ _PI_BRIDGE_TOOL_ADDITIONS = {"POST /pi-bridge/tool"}
 # an image pasted or dropped into a doc is saved under the vault's _assets/
 _DOC_ASSET_ADDITIONS = {"POST /api/vault-md/asset"}
 
+# money and subscription totals: the base currency and the saved rates into it
+_TOTALS_CURRENCY_ADDITIONS = {"PATCH /api/money/totals-currency"}
+
+# the api docs pages, now our own owner-only routes behind ALLES_API_DOCS (404 when it's off)
+_API_DOCS_ADDITIONS = {"GET /docs", "GET /docs/oauth2-redirect", "GET /openapi.json", "GET /redoc"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -146,6 +152,8 @@ def _route_rows():
         | _CODE_EFFORT_ADDITIONS
         | _PI_BRIDGE_TOOL_ADDITIONS
         | _DOC_ASSET_ADDITIONS
+        | _TOTALS_CURRENCY_ADDITIONS
+        | _API_DOCS_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -275,6 +283,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _CODE_EFFORT_ADDITIONS
                 - _PI_BRIDGE_TOOL_ADDITIONS
                 - _DOC_ASSET_ADDITIONS
+                - _TOTALS_CURRENCY_ADDITIONS
+                - _API_DOCS_ADDITIONS
             ),
             960,
         )
@@ -313,6 +323,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _CODE_EFFORT_ADDITIONS
                 - _PI_BRIDGE_TOOL_ADDITIONS
                 - _DOC_ASSET_ADDITIONS
+                - _TOTALS_CURRENCY_ADDITIONS
+                - _API_DOCS_ADDITIONS
             ),
             974,
         )
@@ -329,11 +341,17 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_doc_asset_route_is_additive(self):
         self.assertTrue(_DOC_ASSET_ADDITIONS <= set(_current_rows()))
 
+    def test_totals_currency_route_is_additive(self):
+        self.assertTrue(_TOTALS_CURRENCY_ADDITIONS <= set(_current_rows()))
+
+    def test_api_docs_routes_are_additive(self):
+        self.assertTrue(_API_DOCS_ADDITIONS <= set(_current_rows()))
+
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 991)
-        self.assertEqual(digest, "871e5f1d8f58104f80897c1a18f7ed099330dea7be7943ec4ff7d41fc03300da")
+        self.assertEqual(len(rows), 996)
+        self.assertEqual(digest, "bb1a4406ea6a1c73d170be84c0f5cd0a9da77db232e3fa12ff559167cc94893b")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -342,7 +360,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 969, "v1": 2, "public": 20})
+        self.assertEqual(groups, {"api": 970, "v1": 2, "public": 24})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 
