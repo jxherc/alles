@@ -11,6 +11,10 @@ def _rule(selector):
     return m.group(1) if m else ""
 
 
+def _all_rules(selector):
+    return " ".join(re.findall(re.escape(selector) + r"\s*\{([^}]*)\}", CSS))
+
+
 class StyleTokenTests(unittest.TestCase):
     def test_signal_token_is_real(self):
         self.assertRegex(CSS, r"--signal:\s*#[0-9a-fA-F]{6};")
@@ -40,7 +44,7 @@ class StyleTokenTests(unittest.TestCase):
     def test_week_all_day_band_is_buttons_and_scrolls(self):
         # a phone's week grid lost half its height to six all-day rows; events there were 20px divs
         self.assertRegex(CSS, r"\.cal-tg-alldayrow \{ max-height: [^;]+; overflow-y: auto;")
-        self.assertIn("min-height: 44px", _rule("button.cal-allday-ev"))
+        self.assertIn("min-height: 44px", _all_rules("button.cal-allday-ev"))
         self.assertIn("text-overflow: ellipsis", _rule(".cal-task-title"))
         js = (ROOT / "static" / "js" / "calendar.js").read_text(encoding="utf-8")
         self.assertIn('<button type="button" class="cal-allday-ev', js)
