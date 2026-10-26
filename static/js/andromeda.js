@@ -3,7 +3,7 @@ import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropd
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
-import { createMenuController, setControlState, wireChoiceGroup } from './kokuen.js?v=4';
+import { createMenuController, wireChoiceGroup } from './kokuen.js?v=4';
 import { replaceRouteUrl } from './route_history.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -14,10 +14,8 @@ let _verificationJobId = '';
 let _verificationPollTimer = 0;
 let _searchGeneration = 0;
 let _modelChoices = new Map();
-let _settingsState = {};
-let _settingsTrigger = null;
-let _searchConfigurationWrite = Promise.resolve();
-let _searchConfigurationGeneration = 0;
+// what settings say about answers; the settings screen owns them, this page only reads them
+let _prefs = { resultCount: 8, normalResults: true, overview: true, band: 'standard' };
 let _state = freshState();
 let _saveScopes = [];
 let _pendingSave = null;
@@ -88,20 +86,6 @@ async function jsonRequest(url, options = {}) {
   return body;
 }
 
-function pressed(id) {
-  const node = el(id);
-  return node?.getAttribute('aria-checked') === 'true' || node?.getAttribute('aria-pressed') === 'true';
-}
-
-function setPressed(id, value) {
-  const node = el(id);
-  if (!node) return;
-  const on = !!value;
-  node.setAttribute('aria-pressed', String(on));
-  if (node.getAttribute('role') === 'switch') node.setAttribute('aria-checked', String(on));
-  node.classList.toggle('active', on);
-}
-
 function status(message) { text('andromeda-status', message); }
 
 function setPageState(state) {
@@ -116,7 +100,7 @@ function category() {
 
 function pageSize(currentCategory) {
   if (currentCategory !== 'all') return PAGE_SIZES[currentCategory];
-  const configured = Number.parseInt(_settingsState.search_result_count, 10);
+  const configured = Number.parseInt(_prefs.resultCount, 10);
   return NORMAL_RESULT_COUNTS.has(configured) ? configured : 8;
 }
 
@@ -661,7 +645,7 @@ async function startResultSummary(result, refs) {
       method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal,
       body: JSON.stringify({
         query: _state.query || result.title || 'summarize this page', results: [result],
-        band: providerValue('andromeda-band', 'standard'), endpoint_id: exact.endpoint_id || '',
+        band: _prefs.band, endpoint_id: exact.endpoint_id || '',
         model: exact.model || '', ...confirmation,
       }),
     });
@@ -1764,7 +1748,7 @@ function selectedExactModel() {
 }
 
 async function previewOverview(signal) {
-  const params = new URLSearchParams({ band: providerValue('andromeda-band', 'standard') });
+  const params = new URLSearchParams({ band: _prefs.band });
   const exact = selectedExactModel();
   if (exact.endpoint_id) {
     params.set('endpoint_id', exact.endpoint_id);
@@ -1838,7 +1822,7 @@ async function startOverview(query, results, searchGeneration, options = {}) {
       headers: { 'content-type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-        query, results, band: providerValue('andromeda-band', 'standard'),
+        query, results, band: _prefs.band,
         endpoint_id: exact.endpoint_id || '', model: exact.model || '', ...confirmation,
         context: _state.context || [], depth: options.deep ? 'deep' : 'standard',
         allow_skip: options.allowSkip !== false,
@@ -2033,7 +2017,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   // calculator, converter, weather, dictionary... runs beside the search, never in front of it
   const answerReady = currentCategory === 'all' ? loadAnswer(query, searchGeneration) : Promise.resolve(null);
   const wantsOverview = currentCategory === 'all'
-    && pressed('andromeda-overview-toggle')
+    && _prefs.overview
     && !/(^|\s)!ai(?=\s|$)/i.test(query);
   // the overview is there from the first moment, with its loading lines; it steps aside only
   // when the results say a card already answers or the search is a site name or link
@@ -2048,12 +2032,12 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     query,
     category: currentCategory,
     provider: providerValue('andromeda-provider'),
-    normal_results: pressed('andromeda-results-toggle'),
+    normal_results: _prefs.normalResults,
     overview: wantsOverview,
     max_results: pageSize(currentCategory),
     follow_up_of: _state.followUpOf,
   };
-  _state.request = { ...request, band: providerValue('andromeda-band', 'standard') };
+  _state.request = { ...request, band: _prefs.band };
   try {
     const result = await jsonRequest('/api/andromeda/search', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -2326,7 +2310,6 @@ async function discardPendingSave() {
 }
 
 function reopen(saved) {
-  const overviewPreference = pressed('andromeda-overview-toggle');
   _searchAbort?.abort();
   _overviewAbort?.abort();
   void cancelVerification();
@@ -2354,15 +2337,7 @@ function reopen(saved) {
     el('andromeda-query').value = _state.query;
   }
   setCategory(savedCategory, { search: false });
-  setPressed('andromeda-results-toggle', saved.request?.normal_results !== false);
-  setPressed(
-    'andromeda-overview-toggle',
-    savedCategory === 'all' && !_state.usedNoAi
-      ? saved.request?.overview !== false
-      : overviewPreference,
-  );
   setDropdownValue(el('andromeda-provider'), saved.request?.provider || '');
-  setDropdownValue(el('andromeda-band'), saved.request?.band || 'standard');
   renderAndromedaResults(_state.results, _state.results.length ? 'ready' : 'empty', savedCategory, true);
   updateMoreResults();
   renderEvidence(_state.evidence);
@@ -2383,7 +2358,6 @@ function reopen(saved) {
   }
   const savedUrl = savedSearchUrl(saved.id, location.href);
   if (savedUrl) replaceRouteUrl(savedUrl);
-  closeSettings();
   el('andromeda-query')?.focus();
 }
 
@@ -2476,7 +2450,7 @@ async function loadModelChoices() {
   populateDropdown(control, options, '');
 }
 
-async function loadProviderChoices(requestedConfigurationGeneration = null) {
+async function loadProviderChoices() {
   const control = el('andromeda-provider');
   if (!control) return;
   const selectedProvider = providerValue('andromeda-provider');
@@ -2487,13 +2461,9 @@ async function loadProviderChoices(requestedConfigurationGeneration = null) {
       if (provider.available) options.push({ value: provider.value, label: provider.label });
     }
   } catch (error) {
-    if (requestedConfigurationGeneration !== null
-      && requestedConfigurationGeneration !== _searchConfigurationGeneration) return;
-    setSearchSettingsStatus(error.message || tr('andromeda.x_providers_unavailable'), true);
+    status(error.message || tr('andromeda.x_providers_unavailable'));
     return;
   }
-  if (requestedConfigurationGeneration !== null
-    && requestedConfigurationGeneration !== _searchConfigurationGeneration) return;
   const preservedProvider = options.some(option => option.value === selectedProvider)
     ? selectedProvider
     : '';
@@ -2648,430 +2618,28 @@ function bindRecovery() {
   });
 }
 
-function settingsOpen() { return !el('andromeda-settings-panel')?.hidden; }
-
-// filled from /api/search/engines; these are the names shown before it answers
-const SEARCH_PROVIDER_LABELS = {
-  tavily: 'tavily', brave: 'brave', searxng: 'searxng',
-  google_pse: 'google pse', serper: 'serper', exa: 'exa',
-};
-const providerLabel = value => SEARCH_PROVIDER_LABELS[value]
-  ?? ({ duckduckgo: tr('andromeda.x_free_search'), disabled: tr('andromeda.x_disabled'), none: tr('andromeda.x_stop') }[value] ?? value);
-
-const SEARCH_SECRET_SETTINGS = new Set([
-  'tavily_api_key', 'brave_api_key', 'google_pse_api_key', 'serper_api_key', 'exa_api_key',
-]);
-
-export function sanitizeSearchSettings(settings = {}) {
-  return Object.fromEntries(
-    Object.entries(settings).filter(([key]) => !SEARCH_SECRET_SETTINGS.has(key)),
-  );
-}
-
 function providerValue(id, fallback = '') {
   return el(id)?.value || el(id)?.dataset?.value || fallback;
 }
 
-function setSearchSettingsStatus(message = '', error = false) {
-  const node = el('andromeda-search-settings-status');
-  if (!node) return;
-  node.textContent = message;
-  node.dataset.error = error ? 'true' : 'false';
+// settings live in the one settings screen, in its andromeda section
+function openSettings() {
+  window._openSettings?.('andromeda');
 }
 
-async function patchSearchSettings(patch, message = tr('models.saved')) {
-  try {
-    const settings = await jsonRequest('/api/settings', {
-      method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch),
-    });
-    _settingsState = {
-      ...sanitizeSearchSettings(_settingsState),
-      ...sanitizeSearchSettings(patch),
-      ...sanitizeSearchSettings(settings),
-    };
-    setSearchSettingsStatus(message);
-    return sanitizeSearchSettings(settings);
-  } catch (error) {
-    setSearchSettingsStatus(tr('andromeda.x_settings_save_failed', { message: error.message || tr('andromeda.x_settings_unsaved') }), true);
-    throw error;
-  }
-}
-
-function updateProviderSettingsSummary() {
-  const primary = providerValue('andromeda-primary-provider', 'duckduckgo');
-  const fallback = providerValue('andromeda-fallback-provider', 'none');
-  const primaryLabel = providerLabel(primary);
-  const hasFallback = fallback && !['none', 'disabled', primary].includes(fallback);
-  const fallbackLabel = providerLabel(fallback);
-  text('andromeda-provider-order', hasFallback ? `${primaryLabel} → ${fallbackLabel}` : primaryLabel);
-  const selected = [...new Set([primary, fallback].filter(value => value && !['none', 'disabled'].includes(value)))];
-  const fields = [...document.querySelectorAll('[data-andromeda-provider-field]')];
-  let visibleFields = 0;
-  fields.forEach(row => {
-    row.hidden = !selected.includes(row.dataset.andromedaProviderField);
-    if (!row.hidden) visibleFields += 1;
-  });
-  const container = el('andromeda-provider-fields');
-  if (container) container.hidden = visibleFields === 0;
-}
-
-function configuredPlaceholder(id, configured, emptyText = tr('andromeda.x_not_configured')) {
-  const input = el(id);
-  if (input) input.placeholder = configured ? tr('andromeda.x_saved_replace') : emptyText;
-}
-
-function setCredentialClearState(inputId, configured) {
-  const button = document.querySelector(`[data-andromeda-clear-setting="${inputId}"]`);
-  if (button) button.disabled = !configured;
-}
-
-let _searchEngines = [];
-
-function wireCredentialInput(input) {
-  input.addEventListener('blur', event => saveSearchCredential(event.currentTarget));
-}
-
-function wireCredentialClear(button) {
-  button.addEventListener('pointerdown', () => {
-    const input = el(button.dataset.andromedaClearSetting);
-    if (input) {
-      _credentialClearPending.add(input.id);
-      // A cancelled pointer gesture has no click to perform the clear.
-      setTimeout(() => {
-        if (!button.disabled) _credentialClearPending.delete(input.id);
-      }, 0);
-    }
-  });
-  button.addEventListener('click', () => clearSearchCredential(button));
-}
-
-// engines added after this panel was written get the same key field as the first ones
-function ensureEngineFields(engines) {
-  const container = el('andromeda-provider-fields');
-  if (!container) return;
-  for (const engine of engines) {
-    if (engine.custom || !engine.key_setting || engine.extra?.length) continue;
-    const inputId = `andromeda-${engine.id}-key`;
-    if (el(inputId)) continue;
-    const field = document.createElement('div');
-    field.className = 'andromeda-setting-field';
-    field.dataset.andromedaProviderField = engine.id;
-    const name = tr('andromeda.x_api_key_named', { name: engine.label.toLowerCase() });
-    field.innerHTML = `<label for="${inputId}"></label><div class="andromeda-setting-input"><input id="${inputId}" type="password" autocomplete="new-password"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="${inputId}"></button></div>`;
-    field.querySelector('input').placeholder = tr('andromeda.x_not_configured');
-    field.querySelector('button').textContent = tr('common.clear');
-    field.querySelector('label').textContent = name;
-    field.querySelector('button').setAttribute('aria-label', tr('andromeda.x_clear_named', { name }));
-    container.append(field);
-    SEARCH_CREDENTIAL_FIELDS[inputId] = engine.key_setting;
-    SEARCH_SECRET_SETTINGS.add(engine.key_setting);
-    wireCredentialInput(field.querySelector('input'));
-    wireCredentialClear(field.querySelector('button'));
-  }
-}
-
-async function loadSearchEngines() {
-  try {
-    _searchEngines = (await jsonRequest('/api/search/engines')).engines || [];
-  } catch {
-    return;
-  }
-  for (const engine of _searchEngines) SEARCH_PROVIDER_LABELS[engine.id] = engine.id === 'duckduckgo' ? tr('andromeda.x_free_search') : engine.label.toLowerCase();
-  const rows = _searchEngines.map(engine => ({ value: engine.id, label: providerLabel(engine.id) }));
-  populateDropdown(el('andromeda-primary-provider'), [...rows, { value: 'disabled', label: tr('andromeda.x_disabled') }],
-    providerValue('andromeda-primary-provider', 'duckduckgo'));
-  populateDropdown(el('andromeda-fallback-provider'), [{ value: 'none', label: tr('andromeda.x_none') }, ...rows],
-    providerValue('andromeda-fallback-provider', 'none'));
-  ensureEngineFields(_searchEngines);
-}
-
-async function loadSearchConfiguration() {
-  const requestedGeneration = _searchConfigurationGeneration;
-  try {
-    await _searchConfigurationWrite.catch(() => {});
-    if (requestedGeneration !== _searchConfigurationGeneration) return null;
-    await loadSearchEngines();
-    if (requestedGeneration !== _searchConfigurationGeneration) return null;
-    const current = await jsonRequest('/api/settings');
-    if (requestedGeneration !== _searchConfigurationGeneration) return null;
-    _settingsState = current;
-    const primary = current.search_provider || 'duckduckgo';
-    const fallback = [current.search_fallback, ...(current.search_fallback_chain || [])]
-      .find(value => value && value !== 'none' && value !== primary) || 'none';
-    setDropdownValue(el('andromeda-primary-provider'), primary);
-    setDropdownValue(el('andromeda-fallback-provider'), fallback);
-    setDropdownValue(el('andromeda-result-count'), String(current.search_result_count || 8));
-    setPressed('andromeda-verification-toggle', current.andromeda_verification_enabled !== false);
-    setDropdownValue(el('andromeda-verifier-mode'), current.andromeda_verifier_mode || 'freshness-sensitive');
-    configuredPlaceholder('andromeda-tavily-key', current.tavily_api_key_configured);
-    configuredPlaceholder('andromeda-brave-key', current.brave_api_key_configured);
-    configuredPlaceholder('andromeda-google-key', current.google_pse_api_key_configured);
-    configuredPlaceholder('andromeda-serper-key', current.serper_api_key_configured);
-    configuredPlaceholder('andromeda-exa-key', current.exa_api_key_configured);
-    setCredentialClearState('andromeda-tavily-key', current.tavily_api_key_configured);
-    setCredentialClearState('andromeda-brave-key', current.brave_api_key_configured);
-    setCredentialClearState('andromeda-google-key', current.google_pse_api_key_configured);
-    setCredentialClearState('andromeda-serper-key', current.serper_api_key_configured);
-    setCredentialClearState('andromeda-exa-key', current.exa_api_key_configured);
-    for (const [inputId, setting] of Object.entries(SEARCH_CREDENTIAL_FIELDS)) {
-      if (!inputId.endsWith('-key') || !(`${setting}_configured` in current)) continue;
-      configuredPlaceholder(inputId, current[`${setting}_configured`]);
-      setCredentialClearState(inputId, current[`${setting}_configured`]);
-    }
-    const searxng = el('andromeda-searxng-url');
-    if (searxng) searxng.placeholder = current.searxng_url || 'https://search.example.com';
-    setCredentialClearState('andromeda-searxng-url', !!current.searxng_url);
-    const googleCx = el('andromeda-google-cx');
-    if (googleCx) googleCx.value = current.google_pse_cx || '';
-    setCredentialClearState('andromeda-google-cx', !!current.google_pse_cx);
-    updateProviderSettingsSummary();
-    return current;
-  } catch (error) {
-    setSearchSettingsStatus(error.message || tr('andromeda.x_settings_unavailable'), true);
-    return null;
-  }
-}
-
-export function configuredFallbackChain(primary, fallback) {
-  if (!fallback || fallback === 'none' || fallback === 'disabled' || fallback === primary) {
-    return [];
-  }
-  return [fallback];
-}
-
-export function queueSearchConfigurationWrite(operation) {
-  const next = _searchConfigurationWrite.catch(() => {}).then(operation);
-  _searchConfigurationWrite = next;
-  return next;
-}
-
-async function persistAndromedaSwitch(id, setting) {
-  const button = el(id);
-  if (!button || button.getAttribute('aria-busy') === 'true') return false;
-  const previous = pressed(id);
-  const next = !previous;
-  // Keep keyboard focus while the busy guard rejects repeated activation.
-  button.setAttribute('aria-disabled', 'true');
-  setControlState(button, 'busy', { message: tr('andromeda.x_saving_setting') });
-  setPressed(id, next);
-  let outcome = next ? 'selected' : 'resting';
-  try {
-    await queueSearchConfigurationWrite(
-      () => patchSearchSettings({ [setting]: next }),
-    );
-    return true;
-  } catch {
-    setPressed(id, previous);
-    outcome = 'error';
-    return false;
-  } finally {
-    button.removeAttribute('aria-disabled');
-    button.removeAttribute('aria-busy');
-    setControlState(button, outcome, {
-      message: outcome === 'error' ? tr('andromeda.x_setting_unsaved') : '',
-    });
-  }
-}
-
-async function saveSearchConfiguration() {
-  const primary = providerValue('andromeda-primary-provider', 'duckduckgo');
-  const selectedFallback = providerValue('andromeda-fallback-provider', 'none');
-  const fallback = selectedFallback === primary ? 'none' : selectedFallback;
-  const count = Number.parseInt(providerValue('andromeda-result-count', '8'), 10) || 8;
-  if (fallback !== selectedFallback) {
-    setDropdownValue(el('andromeda-fallback-provider'), fallback);
-  }
-  const fallbackChain = configuredFallbackChain(
-    primary,
-    fallback,
-  );
-  const primaryChanged = primary !== (_settingsState.search_provider || 'duckduckgo');
-  const fallbackChanged = fallback !== (_settingsState.search_fallback || 'none');
-  updateProviderSettingsSummary();
-  const patch = {
-    search_provider: primary,
-    search_fallback: fallback,
-    search_result_count: count,
+function applyPrefs(settings) {
+  _prefs = {
+    resultCount: settings.search_result_count || 8,
+    normalResults: settings.andromeda_normal_results !== false,
+    overview: settings.andromeda_overview !== false,
+    band: settings.andromeda_model_band || 'standard',
   };
-  if (primaryChanged || fallbackChanged) patch.search_fallback_chain = fallbackChain;
-  const writeGeneration = ++_searchConfigurationGeneration;
-  return queueSearchConfigurationWrite(async () => {
-    await patchSearchSettings(patch);
-    if (writeGeneration !== _searchConfigurationGeneration) return;
-    await loadProviderChoices(writeGeneration);
-  });
 }
 
-const SEARCH_CREDENTIAL_FIELDS = {
-  'andromeda-tavily-key': 'tavily_api_key',
-  'andromeda-brave-key': 'brave_api_key',
-  'andromeda-searxng-url': 'searxng_url',
-  'andromeda-google-key': 'google_pse_api_key',
-  'andromeda-google-cx': 'google_pse_cx',
-  'andromeda-serper-key': 'serper_api_key',
-  'andromeda-exa-key': 'exa_api_key',
-};
-
-const _credentialWrites = new Map();
-const _credentialClearPending = new Set();
-
-export async function queueSearchCredentialWrite(setting, operation) {
-  const previous = _credentialWrites.get(setting) || Promise.resolve();
-  const next = previous.catch(() => {}).then(operation);
-  _credentialWrites.set(setting, next);
+async function loadPrefs() {
   try {
-    return await next;
-  } finally {
-    if (_credentialWrites.get(setting) === next) _credentialWrites.delete(setting);
-  }
-}
-
-async function saveSearchCredential(input) {
-  const setting = SEARCH_CREDENTIAL_FIELDS[input.id];
-  const value = input.value.trim();
-  if (!setting || !value || _credentialClearPending.has(input.id)) return;
-  input.disabled = true;
-  try {
-    const label = input.closest('.andromeda-setting-field')?.querySelector('label')?.textContent
-      || tr('andromeda.x_provider_setting');
-    await queueSearchCredentialWrite(
-      setting,
-      () => patchSearchSettings({ [setting]: value }, tr('andromeda.x_label_saved', { label })),
-    );
-    setCredentialClearState(input.id, true);
-    if (input.type === 'password') {
-      input.value = '';
-      input.placeholder = tr('andromeda.x_saved_replace');
-    }
-    await loadProviderChoices();
-  } catch {} finally {
-    input.disabled = false;
-  }
-}
-
-async function clearSearchCredential(button) {
-  const input = el(button.dataset.andromedaClearSetting);
-  const setting = SEARCH_CREDENTIAL_FIELDS[input?.id];
-  if (!input || !setting) return;
-  _credentialClearPending.add(input.id);
-  let cleared = false;
-  button.disabled = true;
-  input.disabled = true;
-  try {
-    const label = input.closest('.andromeda-setting-field')?.querySelector('label')?.textContent
-      || tr('andromeda.x_provider_setting');
-    await queueSearchCredentialWrite(
-      setting,
-      () => patchSearchSettings({ [setting]: '' }, tr('andromeda.x_label_cleared', { label })),
-    );
-    input.value = '';
-    configuredPlaceholder(input.id, false, input.id === 'andromeda-searxng-url'
-      ? 'https://search.example.com' : input.id === 'andromeda-google-cx'
-        ? tr('andromeda.x_search_engine_id') : tr('andromeda.x_not_configured'));
-    cleared = true;
-    await loadProviderChoices();
-  } catch {} finally {
-    _credentialClearPending.delete(input.id);
-    input.disabled = false;
-    button.disabled = cleared;
-  }
-}
-
-function managedSearxngState(service) {
-  if (!service.support_verified && !service.installed) return tr('andromeda.x_sx_unavailable');
-  if (!service.installed) return service.available ? tr('andromeda.x_sx_ready') : tr('andromeda.x_sx_needs_docker');
-  if (!service.owned) return tr('andromeda.x_sx_ownership');
-  if (service.healthy) return tr('andromeda.x_sx_healthy');
-  if (service.running) return tr('andromeda.x_sx_unhealthy');
-  return tr('andromeda.x_sx_stopped');
-}
-
-function addManagedSearxngAction(host, action, label, disabled = false) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.dataset.searxngAction = action;
-  button.textContent = label;
-  button.disabled = disabled;
-  host.appendChild(button);
-}
-
-async function loadManagedSearxng() {
-  const statusNode = el('andromeda-searxng-status');
-  const meta = el('andromeda-searxng-meta');
-  const actions = el('andromeda-searxng-actions');
-  if (!statusNode || !meta || !actions) return;
-  actions.replaceChildren();
-  statusNode.dataset.state = '';
-  try {
-    const service = await jsonRequest('/api/system/searxng');
-    statusNode.textContent = managedSearxngState(service);
-    meta.textContent = `${service.bind} · ${service.version} · ${service.license}${service.data_kept ? tr('andromeda.x_sx_data_kept') : ''}`;
-    if (!service.installed) {
-      if (service.support_verified) addManagedSearxngAction(actions, 'install', tr('andromeda.x_act_install'), !service.available);
-      return;
-    }
-    if (!service.owned) return;
-    addManagedSearxngAction(actions, service.running ? 'stop' : 'start', service.running ? tr('common.stop') : tr('andromeda.x_act_start'), !service.available);
-    addManagedSearxngAction(actions, 'restart', tr('andromeda.x_act_restart'), !service.available);
-    addManagedSearxngAction(actions, 'test', tr('andromeda.x_act_test'), !service.available || !service.running);
-    addManagedSearxngAction(actions, 'update', tr('andromeda.x_act_update'), !service.available);
-    addManagedSearxngAction(actions, 'rollback', tr('andromeda.x_act_rollback'), !service.available);
-    addManagedSearxngAction(actions, 'uninstall', tr('andromeda.x_act_uninstall'));
-  } catch (error) {
-    statusNode.textContent = plainError(error.message || tr('andromeda.x_sx_status_unavailable'));
-    statusNode.dataset.state = 'error';
-    meta.textContent = tr('andromeda.x_external_remain');
-  }
-}
-
-const sxActionLabel = action => ({ install: tr('andromeda.x_act_install'), start: tr('andromeda.x_act_start'), stop: tr('common.stop'), restart: tr('andromeda.x_act_restart'), test: tr('andromeda.x_act_test'), update: tr('andromeda.x_act_update'), rollback: tr('andromeda.x_act_rollback'), uninstall: tr('andromeda.x_act_uninstall_short') }[action] ?? action);
-
-async function manageSearxng(action, button) {
-  if (action === 'uninstall'
-    && !await confirmDialog(tr('andromeda.x_uninstall_confirm'))) return;
-  button.disabled = true;
-  const statusNode = el('andromeda-searxng-status');
-  if (statusNode) statusNode.textContent = tr('andromeda.x_in_progress', { action: sxActionLabel(action) });
-  const endpoint = `/api/system/searxng/${action}`;
-  let actionMessage = '';
-  let actionState = '';
-  try {
-    const result = await jsonRequest(endpoint, { method: 'POST' });
-    if (action === 'test') {
-      if (result?.ok !== true || !Number.isInteger(result.results) || result.results < 0) throw new Error(tr('andromeda.x_invalid_test'));
-      actionMessage = tr('andromeda.x_search_passed', { count: result.results });
-    }
-    await loadSearchConfiguration();
-  } catch (error) {
-    actionMessage = error.message || tr('andromeda.x_action_failed', { action: sxActionLabel(action) });
-    actionState = 'error';
-  } finally {
-    await loadManagedSearxng();
-    await loadProviderChoices();
-    if (statusNode && actionMessage) {
-      statusNode.textContent = actionMessage;
-      statusNode.dataset.state = actionState;
-    }
-  }
-}
-
-function openSettings(event) {
-  const panel = el('andromeda-settings-panel');
-  if (!panel) return;
-  _settingsTrigger = event?.currentTarget || el('andromeda-settings-button');
-  panel.hidden = false;
-  el('andromeda-settings-button')?.setAttribute('aria-expanded', 'true');
-  loadSearchConfiguration();
-  loadManagedSearxng();
-  panel.querySelector('.custom-select, button')?.focus();
-}
-
-function closeSettings({ restoreFocus = false } = {}) {
-  const panel = el('andromeda-settings-panel');
-  if (!panel || panel.hidden) return;
-  panel.hidden = true;
-  el('andromeda-settings-button')?.setAttribute('aria-expanded', 'false');
-  if (restoreFocus) (_settingsTrigger?.getClientRects().length ? _settingsTrigger : el('andromeda-settings-button'))?.focus();
+    applyPrefs(await jsonRequest('/api/settings'));
+  } catch {}
 }
 
 export function andromedaLandingUrl(value) {
@@ -3094,7 +2662,6 @@ function resetToLanding() {
   setCategory('all', { search: false });
   if (el('andromeda-query')) el('andromeda-query').value = '';
   replaceRouteUrl(andromedaLandingUrl(window.location.href));
-  closeSettings();
   requestAnimationFrame(() => el('andromeda-query')?.focus());
 }
 
@@ -3192,45 +2759,6 @@ function bindOnce() {
   document.querySelectorAll('[data-andromeda-category]').forEach(button => {
     button.addEventListener('click', () => setCategory(button.dataset.andromedaCategory));
   });
-  for (const id of ['andromeda-results-toggle', 'andromeda-overview-toggle']) {
-    el(id)?.addEventListener('click', () => {
-      const setting = id === 'andromeda-results-toggle'
-        ? 'andromeda_normal_results' : 'andromeda_overview';
-      void persistAndromedaSwitch(id, setting);
-    });
-  }
-  el('andromeda-verification-toggle')?.addEventListener('click', () => {
-    void persistAndromedaSwitch(
-      'andromeda-verification-toggle',
-      'andromeda_verification_enabled',
-    );
-  });
-  el('andromeda-verifier-mode')?.addEventListener('change', () => {
-    queueSearchConfigurationWrite(
-      () => patchSearchSettings({
-        andromeda_verifier_mode: providerValue('andromeda-verifier-mode', 'freshness-sensitive'),
-      }),
-    ).catch(() => {});
-  });
-  for (const id of ['andromeda-primary-provider', 'andromeda-fallback-provider', 'andromeda-result-count']) {
-    el(id)?.addEventListener('change', () => saveSearchConfiguration().catch(() => {}));
-  }
-  el('andromeda-band')?.addEventListener('change', () => {
-    const band = providerValue('andromeda-band', 'standard');
-    queueSearchConfigurationWrite(
-      () => patchSearchSettings({ andromeda_model_band: band }),
-    ).catch(() => {});
-  });
-  for (const id of Object.keys(SEARCH_CREDENTIAL_FIELDS)) {
-    const input = el(id);
-    if (input) wireCredentialInput(input);
-  }
-  document.querySelectorAll('[data-andromeda-clear-setting]').forEach(wireCredentialClear);
-  el('andromeda-searxng-refresh')?.addEventListener('click', loadManagedSearxng);
-  el('andromeda-searxng-actions')?.addEventListener('click', event => {
-    const button = event.target.closest('[data-searxng-action]');
-    if (button) manageSearxng(button.dataset.searxngAction, button);
-  });
   el('andromeda-cancel-overview')?.addEventListener('click', stopOverview);
   el('andromeda-verification-retry')?.addEventListener('click', () => {
     if (!_state.query || !_state.overview?.status) return;
@@ -3280,9 +2808,8 @@ function bindOnce() {
   for (const id of ['andromeda-go-home', 'andromeda-idle-home']) {
     el(id)?.addEventListener('click', () => window._navigateHome?.());
   }
-  el('andromeda-settings-button')?.addEventListener('click', () => settingsOpen() ? closeSettings() : openSettings());
+  el('andromeda-settings-button')?.addEventListener('click', openSettings);
   el('andromeda-idle-settings')?.addEventListener('click', openSettings);
-  el('andromeda-settings-close')?.addEventListener('click', () => closeSettings({ restoreFocus: true }));
   el('andromeda-evidence-toggle')?.addEventListener('click', event => {
     const evidence = el('andromeda-evidence');
     if (!evidence) return;
@@ -3291,20 +2818,12 @@ function bindOnce() {
     event.currentTarget.textContent = evidence.hidden ? tr('andromeda.show_sources') : tr('andromeda.hide_sources');
   });
   bindRecovery();
-  document.addEventListener('click', event => {
-    const panel = el('andromeda-settings-panel');
-    if (!panel || panel.hidden) return;
-    if (panel.contains(event.target) || el('andromeda-settings-button')?.contains(event.target) || el('andromeda-idle-settings')?.contains(event.target) || event.target.closest('.andromeda-disabled-settings')) return;
-    if (event.target.closest('.custom-dropdown-panel')) return;
-    closeSettings();
-  });
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && settingsOpen()) {
-      event.preventDefault();
-      closeSettings({ restoreFocus: true });
-    }
-  });
   document.addEventListener('keydown', handleResultShortcut);
+  // the settings screen changed something: follow it now, and refresh the engines that can run
+  window.addEventListener('alles:andromeda-settings', event => {
+    if (event.detail) applyPrefs(event.detail);
+    void loadProviderChoices();
+  });
   window.addEventListener('alles:localization-change', () => {
     renderAndromedaResults(_state.results, _state.resultStatus, category());
     updateMoreResults();
@@ -3313,20 +2832,8 @@ function bindOnce() {
 
 export async function initAndromeda() {
   bindOnce();
-  // one round trip instead of five: on a relayed phone or tablet each one is felt.
-  // local search only matters inside settings, so it never holds the page up
-  void loadManagedSearxng();
-  await Promise.allSettled([
-    loadProviderChoices(),
-    // the band picker needs its models before the saved band can be shown in it
-    loadModelChoices().then(() => loadSearchConfiguration()).then(settings => {
-      if (!settings) return;
-      setPressed('andromeda-results-toggle', settings.andromeda_normal_results !== false);
-      setPressed('andromeda-overview-toggle', settings.andromeda_overview !== false);
-      setDropdownValue(el('andromeda-band'), settings.andromeda_model_band || 'standard');
-    }),
-    loadSaved(),
-  ]);
+  // one round trip instead of four: on a relayed phone or tablet each one is felt
+  await Promise.allSettled([loadProviderChoices(), loadModelChoices(), loadPrefs(), loadSaved()]);
   const params = new URLSearchParams(location.search);
   const saved = params.get('saved');
   if (saved && (saved !== _openedSaved?.id || _openedSaved.payload !== JSON.stringify(searchSnapshot()))) {

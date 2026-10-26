@@ -7,6 +7,7 @@ import { _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 import { API_TYPES, authFor, mountProviderPicker } from '../model_providers.js';
 import { wireChoiceGroup } from '../kokuen.js?v=4';
 import { t, tp } from '../i18n.js';
+import { roleOptions as _roleOptionData, setModelRole, announceModelRoles, onModelRoles } from './model_roles.js';
 
 let _providersActive = false;
 let _providersCurrent = () => false;
@@ -333,6 +334,9 @@ function _authTypeWord(value) {
   return value.replaceAll('_', ' ');
 }
 let _modelRoleSettings = {};
+let _roleEndpoints = [];
+// shared with the andromeda section of settings: changing it in either place saves at once
+const SHARED_ROLE = 'andromeda_answer';
 
 // the provider picked in "add connection", and the api type a custom endpoint speaks
 let _pickedProvider = null;
@@ -479,38 +483,13 @@ function _safeDropdownLabel(value = '') {
   return String(value).replace(/[;|]/g, ' ');
 }
 
-function _roleOptionData(eps, configured) {
-  const options = [{ value: '', label: t('common.automatic') }];
-  const choices = { '': null };
-  let index = 0;
-  for (const ep of eps) {
-    for (const model of (ep.models || [])) {
-      const token = `choice-${index++}`;
-      options.push({ value: token, label: `${_safeDropdownLabel(ep.name)} · ${_safeDropdownLabel(model)}` });
-      choices[token] = { endpoint_id: ep.id, model };
-    }
-  }
-  let selected = '';
-  if (configured?.endpoint_id && configured?.model) {
-    selected = Object.keys(choices).find(token => {
-      const choice = choices[token];
-      return choice?.endpoint_id === configured.endpoint_id && choice?.model === configured.model;
-    }) || '';
-    if (!selected) {
-      selected = `unavailable-${index}`;
-      options.push({ value: selected, label: t('providers.model_unavailable', { model: _safeDropdownLabel(configured.model) }) });
-      choices[selected] = { endpoint_id: configured.endpoint_id, model: configured.model };
-    }
-  }
-  return { options, choices, selected };
-}
-
 function _renderModelRoles(eps, settings, states) {
   const root = document.getElementById('s-model-roles');
   if (!root) return;
   const saveState = document.getElementById('s-role-save-state');
   if (saveState) saveState.textContent = '';
   _modelRoleSettings = settings.model_roles || {};
+  _roleEndpoints = eps;
   const defaults = document.getElementById('s-model-defaults-card');
   // Keep saved defaults visible even when their connection is no longer available.
   if (defaults) defaults.hidden = !eps.length && !Object.values(_modelRoleSettings)
@@ -546,6 +525,7 @@ function _renderModelRoles(eps, settings, states) {
     populateDropdown(select, data.options, data.selected);
     select.setAttribute('aria-invalid', String(data.selected.startsWith('unavailable-')));
     select.addEventListener('change', () => {
+      if (role === SHARED_ROLE) { _saveSharedRole(select); return; }
       _modelRolesDirty = true;
       _modelRolesRevision += 1;
       select.setAttribute('aria-invalid', String(getDropdownValue(select).startsWith('unavailable-')));
@@ -557,6 +537,33 @@ function _renderModelRoles(eps, settings, states) {
       if (saveState) saveState.textContent = t('providers.changes_not_saved');
     });
   });
+}
+
+function _showSharedRole(configured) {
+  const select = document.querySelector(`[data-role-select="${SHARED_ROLE}"]`);
+  if (!select) return;
+  const data = _roleOptionData(_roleEndpoints, configured || {});
+  select._modelChoices = data.choices;
+  populateDropdown(select, data.options, data.selected);
+  select.setAttribute('aria-invalid', String(data.selected.startsWith('unavailable-')));
+  select.closest('.s-role-row')?.classList.remove('broken');
+  const status = select.closest('.s-role-row')?.querySelector('.s-role-status');
+  if (status) status.textContent = configured?.model ? _safeDropdownLabel(configured.model) : t('common.automatic');
+}
+
+async function _saveSharedRole(select) {
+  const choice = select._modelChoices?.[getDropdownValue(select)] || null;
+  const status = select.closest('.s-role-row')?.querySelector('.s-role-status');
+  if (status) status.textContent = t('common.saving');
+  try {
+    const roles = await setModelRole(SHARED_ROLE, choice, { source: 'models' });
+    _modelRoleSettings = { ..._modelRoleSettings, [SHARED_ROLE]: roles[SHARED_ROLE] || {} };
+    _showSharedRole(_modelRoleSettings[SHARED_ROLE]);
+    toast(t('providers.defaults_saved'), 'success');
+  } catch (error) {
+    _showSharedRole(_modelRoleSettings[SHARED_ROLE]);
+    toast(error.message || t('providers.defaults_not_saved'), 'error');
+  }
 }
 
 async function saveModelRoles() {
@@ -594,6 +601,7 @@ async function saveModelRoles() {
     });
     if (!response.ok) throw new Error(t('providers.defaults_not_saved'));
     if (revision === _modelRolesRevision) _modelRolesDirty = false;
+    announceModelRoles(modelRoles, 'models');
     await window._refreshAideModelDefault?.();
     toast(t('providers.defaults_saved'), 'success');
     await loadEpList();
@@ -839,6 +847,12 @@ async function loadEpList() {
 
 
 function _wireProvidersPane() {
+  // the andromeda section can change this role while this pane keeps unsaved edits to the others
+  onModelRoles(({ roles, source }) => {
+    if (source === 'models' || !roles) return;
+    _modelRoleSettings = { ..._modelRoleSettings, [SHARED_ROLE]: roles[SHARED_ROLE] || {} };
+    _showSharedRole(_modelRoleSettings[SHARED_ROLE]);
+  });
   for (const id of ['s-ep-name', 's-ep-url', 's-ep-key', 's-ep-vision', 's-ep-manual']) {
     for (const type of ['input', 'change']) {
       document.getElementById(id)?.addEventListener(type, () => {

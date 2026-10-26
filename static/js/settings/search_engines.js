@@ -1,26 +1,18 @@
-// Settings → search: engine pickers, the key for the chosen engine, and custom engines.
-// Every list comes from /api/search/engines, so a new engine needs no change here.
-import { _patchSettings, _esc } from './shared.js';
+// Settings → search: custom engines. Which engine answers, and its key, live in the andromeda section.
+// The list comes from /api/search/engines, so a new engine needs no change here.
+import { _esc } from './shared.js';
 import { toast, plainError } from '../util.js';
 import { t } from '../i18n.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
-import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=213';
 import { wireChoiceGroup } from '../kokuen.js?v=4';
 
 let _engines = [];
-let _settings = {};
 let _editing = null; // custom engine id being edited, '' for a new one
 
 const $ = id => document.getElementById(id);
 const engineById = id => _engines.find(engine => engine.id === id);
 // the server calls its keyless engine "free search" in english
 const engineName = engine => engine.id === 'duckduckgo' ? t('andromeda.x_free_search') : engine.label;
-const engineNote = engine => {
-  const key = `settings.search_note_${engine.id}`;
-  const text = t(key);
-  return text === key ? engine.note || '' : text;
-};
-const labelOf = id => id === 'disabled' ? t('settings.search_disabled') : id === 'none' ? t('common.none') : (engineById(id) ? engineName(engineById(id)) : id);
 
 async function _json(url, options = {}) {
   const response = await fetch(url, options);
@@ -29,136 +21,9 @@ async function _json(url, options = {}) {
   return data;
 }
 
-function _options(withNone) {
-  const rows = _engines.map(engine => ({
-    value: engine.id,
-    label: engine.configured || engine.custom ? engineName(engine) : t('settings.search_needs_key', { engine: engineName(engine) }),
-  }));
-  return withNone ? [{ value: 'none', label: t('common.none') }, ...rows] : [...rows, { value: 'disabled', label: t('settings.search_disabled') }];
-}
-
-// ── hidden sites ──
-function renderHiddenSites() {
-  const list = $('s-hidden-sites-list');
-  if (!list) return;
-  const sites = Array.isArray(_settings.andromeda_blocked_sites) ? _settings.andromeda_blocked_sites : [];
-  list.innerHTML = sites.length ? sites.map(site => `
-    <div class="settings-list-row">
-      <div class="row-name" style="flex:1;min-width:0">${_esc(site)}</div>
-      <button type="button" class="btn" data-hidden-site="${_esc(site)}" aria-label="${_esc(t('settings.search_show_site_again', { site }))}">${_esc(t('settings.search_show_again'))}</button>
-    </div>`).join('') : `<div class="s-card-hint">${_esc(t('settings.search_no_hidden'))}</div>`;
-}
-
-async function saveHiddenSites(sites, message) {
-  const status = $('s-hidden-sites-status');
-  const saved = await _patchSettings({ andromeda_blocked_sites: sites });
-  if (!saved) {
-    if (status) { status.textContent = t('settings.search_site_not_saved'); status.dataset.state = 'error'; }
-    return false;
-  }
-  _settings = { ..._settings, andromeda_blocked_sites: saved.andromeda_blocked_sites || [] };
-  renderHiddenSites();
-  if (status) { status.textContent = message; status.dataset.state = ''; }
-  return true;
-}
-
-export async function loadSearchEngines(settings) {
-  _settings = settings || {};
+export async function loadSearchEngines() {
   _engines = (await _json('/api/search/engines')).engines || [];
-  populateDropdown($('s-search-provider'), _options(false), _settings.search_provider || 'duckduckgo');
-  setDropdownValue($('s-search-provider'), _settings.search_provider || 'duckduckgo');
-  populateDropdown($('s-search-fallback'), _options(true), _settings.search_fallback || 'duckduckgo');
-  setDropdownValue($('s-search-fallback'), _settings.search_fallback || 'duckduckgo');
-  setDropdownValue($('s-search-count'), String(_settings.search_result_count || 8));
-  updateEngineFields();
-  updateSearchStatus();
   renderCustomList();
-  renderHiddenSites();
-}
-
-export function updateEngineFields() {
-  const id = getDropdownValue($('s-search-provider'));
-  const engine = engineById(id);
-  const note = $('s-search-engine-note');
-  if (note) note.textContent = engine ? engineNote(engine) : '';
-  const keyRow = $('s-engine-key-row');
-  const keyed = !!engine?.key_setting && !engine.custom && id !== 'google_pse';
-  if (keyRow) keyRow.hidden = !keyed;
-  if (keyed) {
-    $('s-engine-key-label').textContent = t('settings.search_api_key', { engine: engine.label });
-    const input = $('s-engine-key');
-    input.value = '';
-    input.placeholder = engine.configured ? t('settings.key_configured_placeholder') : '';
-    const signup = $('s-engine-signup');
-    signup.hidden = !engine.signup;
-    if (engine.signup) signup.href = engine.signup;
-  }
-  if ($('s-searxng-row')) $('s-searxng-row').hidden = id !== 'searxng';
-  if ($('s-google-pse-rows')) $('s-google-pse-rows').hidden = id !== 'google_pse';
-}
-
-function updateSearchStatus(message = '', error = false) {
-  const el = $('s-search-status');
-  if (!el) return;
-  if (message) {
-    el.textContent = message;
-    el.dataset.state = error ? 'error' : '';
-    return;
-  }
-  const id = getDropdownValue($('s-search-provider'));
-  const engine = engineById(id);
-  const count = getDropdownValue($('s-search-count')) || _settings.search_result_count || 8;
-  const missing = engine && !engine.configured;
-  el.textContent = missing ? t('settings.search_active_needs_key', { engine: labelOf(id), count }) : t('settings.search_active', { engine: labelOf(id), count });
-  el.dataset.state = missing ? 'error' : '';
-}
-
-export async function saveSearchSettings() {
-  const provider = getDropdownValue($('s-search-provider'));
-  const fallback = getDropdownValue($('s-search-fallback')) || 'duckduckgo';
-  const count = parseInt(getDropdownValue($('s-search-count')), 10) || 8;
-  const patch = {
-    search_provider: provider,
-    search_result_count: count,
-    search_fallback: fallback,
-    search_fallback_chain: fallback === 'none' ? [] : [fallback],
-  };
-  const engine = engineById(provider);
-  const key = $('s-engine-key')?.value.trim();
-  if (key && engine?.key_setting && !$('s-engine-key-row').hidden) patch.search_keys = { [provider]: key };
-  for (const [id, setting] of [['s-searxng-url', 'searxng_url'], ['s-gpse-key', 'google_pse_api_key'], ['s-gpse-cx', 'google_pse_cx']]) {
-    const value = $(id)?.value.trim();
-    if (value) patch[setting] = value;
-  }
-  const saved = await _patchSettings(patch);
-  if (!saved) return;
-  _settings = { ..._settings, ...patch };
-  if (patch.search_keys || patch.google_pse_api_key || patch.searxng_url) {
-    _engines = (await _json('/api/search/engines').catch(() => ({ engines: _engines }))).engines || _engines;
-    updateEngineFields();
-  }
-  updateSearchStatus();
-}
-
-async function testSearch() {
-  const button = $('s-search-test-btn');
-  const engine = getDropdownValue($('s-search-provider'));
-  if (engine === 'disabled') { updateSearchStatus(t('settings.search_is_disabled')); return; }
-  button.disabled = true;
-  updateSearchStatus(t('settings.search_testing', { engine: labelOf(engine) }));
-  try {
-    const result = await _json('/api/search/test', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ engine }),
-    });
-    updateSearchStatus(result.ok
-      ? t('settings.search_works', { engine: labelOf(engine), count: result.count, ms: result.ms })
-      : t('settings.search_no_results', { engine: labelOf(engine), reason: result.failure || t('settings.search_empty'), ms: result.ms }), !result.ok);
-  } catch (error) {
-    // say it failed, then why; the bare server detail read like a status, not an error
-    updateSearchStatus(error.message ? t('settings.search_test_failed_why', { message: error.message }) : t('connections.test_failed'), true);
-  } finally {
-    button.disabled = false;
-  }
 }
 
 // ── custom engines ──
@@ -234,7 +99,7 @@ async function saveCustom(event) {
     const saved = await _json(url, {
       method: _editing ? 'PUT' : 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     });
-    await loadSearchEngines(_settings);
+    await loadSearchEngines();
     toast(t('settings.search_engine_saved', { name: saved.label }), 'success');
     closeForm();
   } catch (error) {
@@ -250,8 +115,7 @@ async function removeCustom(id) {
   if (!engine || !await _dlgConfirm(t('settings.search_remove_confirm', { name: engine.label }), { confirmLabel: t('settings.search_remove_engine') })) return;
   try {
     await _json(`/api/search/custom/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    const settings = await _json('/api/settings').catch(() => _settings);
-    await loadSearchEngines(settings);
+    await loadSearchEngines();
     toast(t('settings.search_engine_removed', { name: engine.label }), 'success');
   } catch (error) {
     toast(error.message || t('settings.search_engine_remove_failed'), 'error');
@@ -259,11 +123,6 @@ async function removeCustom(id) {
 }
 
 export function wireSearchEngines() {
-  $('s-search-provider')?.addEventListener('change', () => { updateEngineFields(); saveSearchSettings(); });
-  $('s-search-fallback')?.addEventListener('change', saveSearchSettings);
-  $('s-search-count')?.addEventListener('change', saveSearchSettings);
-  ['s-engine-key', 's-searxng-url', 's-gpse-key', 's-gpse-cx'].forEach(id => $(id)?.addEventListener('blur', saveSearchSettings));
-  $('s-search-test-btn')?.addEventListener('click', testSearch);
   $('s-custom-search-add')?.addEventListener('click', () => openForm());
   $('s-cse-cancel')?.addEventListener('click', closeForm);
   $('s-custom-search-form')?.addEventListener('submit', saveCustom);
@@ -278,21 +137,6 @@ export function wireSearchEngines() {
     });
     wireChoiceGroup(method);
   }
-  $('s-hidden-sites-form')?.addEventListener('submit', async event => {
-    event.preventDefault();
-    const input = $('s-hidden-site');
-    const site = input.value.trim();
-    if (!site) { input.focus(); return; }
-    const current = _settings.andromeda_blocked_sites || [];
-    if (await saveHiddenSites([...current, site], t('settings.search_site_hidden', { site }))) input.value = '';
-  });
-  $('s-hidden-sites-list')?.addEventListener('click', async event => {
-    const button = event.target.closest('[data-hidden-site]');
-    if (!button) return;
-    const site = button.dataset.hiddenSite;
-    const sites = (_settings.andromeda_blocked_sites || []).filter(value => value !== site);
-    if (await saveHiddenSites(sites, t('settings.search_site_shown', { site }))) $('s-hidden-site')?.focus();
-  });
   $('s-custom-search-list')?.addEventListener('click', event => {
     const edit = event.target.closest('[data-custom-edit]');
     const remove = event.target.closest('[data-custom-remove]');

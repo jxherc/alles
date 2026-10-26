@@ -56,7 +56,7 @@ function harness() {
     fetch: async (url, options = {}) => { const method = options.method || 'GET'; requests.push({ url, ...options }); return (routes.get(`${method} ${url}`) || (() => response(saved)))(options); },
     toast: (message, kind) => toasts.push({ message, kind }),
     _endpointJson: async res => { const data = await res.json(); if (!res.ok) throw new Error(data?.detail || 'request failed'); return data; },
-    homePane: {}, languagePane: {}, creditsPane: {}, providersPane: {}, connectionsPane: {}, createBackupPane: () => ({}),
+    homePane: {}, languagePane: {}, creditsPane: {}, providersPane: {}, andromedaPane: {}, connectionsPane: {}, createBackupPane: () => ({}),
     setDropdownValue: (el, value) => { if (el) { el.dataset.value = String(value); el.value = String(value); } },
     getDropdownValue: el => el?.dataset.value || '',
     populateDropdown: (el, options, value) => { el.options = options; el.dataset.value = value; },

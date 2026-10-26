@@ -4,12 +4,13 @@ import { languagePane } from './settings/language.js';
 import { creditsPane } from './settings/credits.js';
 import { createBackupPane } from './settings/backups.js';
 import { providersPane, _endpointJson } from './settings/providers.js';
+import { andromedaPane } from './settings/andromeda.js';
 import { loadSearchEngines, wireSearchEngines } from './settings/search_engines.js';
 import { connectionsPane } from './settings/connections.js';
 export { _mergeHomeShortcutOrder } from './settings/home.js';
 export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFromResponse, normalizeS3BackupConfig, s3BackupConfigPayload, s3BackupsFromResponse } from './settings/backups.js';
 export { loadMcpServers, loadConnections, loadDiscordConnection } from './settings/connections.js';
-import { toast, plainError } from './util.js';
+import { toast } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
 import { initCustomDropdowns, closeCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=213';
 import { initMemoryPanel } from './memory.js';
@@ -61,6 +62,7 @@ const _ownedPanes = {
   notifications: languagePane,
   credits: creditsPane,
   models: providersPane,
+  andromeda: andromedaPane,
   tools: connectionsPane,
   backup: createBackupPane(closeSettings),
 };
@@ -280,16 +282,6 @@ function _initSettings() {
 
   // ── search pane ──
   wireSearchEngines();
-  document.getElementById('s-andromeda-verifier-mode')?.addEventListener('change', event => {
-    _patchSetting('andromeda_verifier_mode', getDropdownValue(event.currentTarget));
-  });
-  document.getElementById('s-andromeda-band')?.addEventListener('change', event => {
-    _patchSetting('andromeda_model_band', event.currentTarget.value);
-  });
-  document.querySelectorAll('.s-andromeda-model').forEach(select => {
-    select.addEventListener('change', saveAndromedaModelBands);
-  });
-  document.getElementById('s-andromeda-qualify')?.addEventListener('click', qualifyAndromedaAutoModel);
 
   // ── voice pane ──
   document.getElementById('s-voice-save-btn')?.addEventListener('click', saveVoiceSettings);
@@ -475,83 +467,8 @@ async function saveOwnerInstructions() {
 // ── search pane ───────────────────────────────────────────────────────────────
 async function loadSearchPane() {
   try {
-    const s = await _loadPaneSettings(t('common.search'));
-    if (!s) return;
-    if (s.searxng_url)     document.getElementById('s-searxng-url').placeholder = s.searxng_url;
-    if (s.google_pse_cx)   document.getElementById('s-gpse-cx').value = s.google_pse_cx;
-    if (s.google_pse_api_key_configured) document.getElementById('s-gpse-key').placeholder = t('settings.key_configured_placeholder');
-    await loadSearchEngines(s);
-    await loadAndromedaSearchSettings(s);
+    await loadSearchEngines();
   } catch { toast(t('settings.search_load_failed'), 'error'); }
-}
-
-let _andromedaModelChoices = new Map();
-let _andromedaModelBands = {};
-
-async function loadAndromedaSearchSettings(settings) {
-  for (const [id, key] of [['s-andromeda-results', 'andromeda_normal_results'],
-    ['s-andromeda-overview', 'andromeda_overview'], ['s-andromeda-verification', 'andromeda_verification_enabled']]) {
-    _bindSwitch(document.getElementById(id), () => settings[key] !== false, value => _patchSetting(key, value));
-  }
-  // off unless the owner turns it on
-  _bindSwitch(document.getElementById('s-andromeda-confirm-remote'), () => settings.andromeda_confirm_remote === true,
-    value => _patchSetting('andromeda_confirm_remote', value));
-  const verifierMode = document.getElementById('s-andromeda-verifier-mode');
-  if (verifierMode) setDropdownValue(verifierMode, settings.andromeda_verifier_mode || 'freshness-sensitive');
-  const band = document.getElementById('s-andromeda-band');
-  if (band) setDropdownValue(band, settings.andromeda_model_band || 'standard');
-  _andromedaModelBands = settings.andromeda_model_bands || {};
-  let endpoints = [];
-  try { endpoints = await _endpointJson(await fetch('/api/models')); } catch {}
-  _andromedaModelChoices = new Map();
-  let index = 0;
-  document.querySelectorAll('.s-andromeda-model').forEach(select => {
-    const options = [{ value: '', label: select.dataset.band === 'standard' ? t('settings.andromeda_use_answer_role') : t('settings.not_configured') }];
-    let selected = '';
-    for (const endpoint of endpoints) {
-      for (const model of endpoint.models || []) {
-        const key = String(++index);
-        _andromedaModelChoices.set(`${select.dataset.band}:${key}`, { endpoint_id: endpoint.id, model });
-        options.push({ value: key, label: `${model} · ${endpoint.name}` });
-        const current = _andromedaModelBands[select.dataset.band] || {};
-        if (current.endpoint_id === endpoint.id && current.model === model) selected = key;
-      }
-    }
-    populateDropdown(select, options, selected);
-  });
-}
-
-async function saveAndromedaModelBands() {
-  const choices = {};
-  document.querySelectorAll('.s-andromeda-model').forEach(select => {
-    const choice = _andromedaModelChoices.get(`${select.dataset.band}:${getDropdownValue(select)}`);
-    if (choice) choices[select.dataset.band] = choice;
-  });
-  _andromedaModelBands = choices;
-  try {
-    if (!await _patchSettings({ andromeda_model_bands: choices })) return;
-    const status = document.getElementById('s-andromeda-model-status');
-    if (status) status.textContent = t('settings.andromeda_choices_saved');
-  } catch (error) { toast(error.message || t('settings.andromeda_choices_save_failed'), 'error'); }
-}
-
-async function qualifyAndromedaAutoModel() {
-  const select = document.getElementById('s-andromeda-model-auto');
-  const choice = _andromedaModelChoices.get(`auto:${getDropdownValue(select)}`);
-  const status = document.getElementById('s-andromeda-model-status');
-  if (!choice) { if (status) status.textContent = t('settings.andromeda_choose_auto'); return; }
-  const button = document.getElementById('s-andromeda-qualify');
-  if (button) button.disabled = true;
-  if (status) status.textContent = t('settings.andromeda_qualifying');
-  try {
-    const result = await _endpointJson(await fetch('/api/andromeda/models/qualify', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(choice),
-    }));
-    if (status) status.textContent = result.passed
-      ? tp('settings.andromeda_qualified', result.required_claims, { supported: result.supported_claims })
-      : tp('settings.andromeda_not_qualified', result.required_claims, { supported: result.supported_claims });
-  } catch (error) { if (status) status.textContent = plainError(error.message || t('settings.andromeda_fixture_failed')); }
-  if (button) button.disabled = false;
 }
 
 // ── appearance pane ───────────────────────────────────────────────────────────

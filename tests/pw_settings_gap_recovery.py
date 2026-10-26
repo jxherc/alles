@@ -198,7 +198,7 @@ async def main():
                 ("proactive", "#s-prox-enabled", "pidx_proactive_enabled"),
                 ("intelligence", "#s-intel-insights", "insights_enabled"),
                 ("recall", "#s-pidx-enabled", "pidx_enabled"),
-                ("search", "#s-andromeda-results", "andromeda_normal_results"),
+                ("andromeda", "#s-andromeda-results", "andromeda_normal_results"),
             ]:
                 await fresh(pane)
                 sw = page.locator(selector)
@@ -356,19 +356,20 @@ async def main():
                         pane, "clear-valid-retry", await count("/api/recall/clear") == baseline + 2
                     )
                     overrides.pop(("/api/recall/clear", "POST"))
-                elif pane == "search":
-                    provider = page.locator("#s-search-provider")
+                elif pane == "andromeda":
+                    provider = page.locator("#s-andromeda-primary")
                     await provider.focus()
                     await page.keyboard.press("Enter")
                     await page.keyboard.press("End")
                     await page.keyboard.press("Enter")
                     await page.wait_for_timeout(250)
-                    await page.locator("#s-search-test-btn").click()
+                    await page.locator("#s-andromeda-test").click()
                     await record(
                         pane,
                         "disabled-provider-keyboard",
                         await provider.get_attribute("data-value") == "disabled"
-                        and "disabled" in await page.locator("#s-search-status").inner_text(),
+                        and "disabled"
+                        in await page.locator("#s-andromeda-search-status").inner_text(),
                     )
                     await provider.focus()
                     await page.keyboard.press("Enter")
@@ -377,10 +378,10 @@ async def main():
                     await page.wait_for_timeout(250)
                     await run_button(
                         pane,
-                        "#s-search-test-btn",
+                        "#s-andromeda-test",
                         # the engine check moved from research to its own endpoint
                         "/api/search/test",
-                        "#s-search-status",
+                        "#s-andromeda-search-status",
                         {"ok": True, "count": 5, "ms": 12},
                     )
 
@@ -551,7 +552,7 @@ async def main():
             await record("rules", "delete-retry", True)
 
             # First-read failures must be visible and recover by reopening.
-            for pane in ["ai", "proactive", "intelligence", "recall", "search", "rules"]:
+            for pane in ["ai", "proactive", "intelligence", "recall", "andromeda", "rules"]:
                 overrides[("/api/settings", "GET")] = {
                     "status": 503,
                     "body": {"detail": "synthetic settings load refusal"},

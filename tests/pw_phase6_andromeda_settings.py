@@ -1,4 +1,4 @@
-"""Rendered Phase 6 gate for Andromeda's complete settings surface."""
+"""Rendered Phase 6 gate for Andromeda's section of the one settings screen."""
 
 import json
 import os
@@ -58,6 +58,8 @@ def run() -> None:
             "andromeda_normal_results": True,
             "andromeda_overview": True,
             "andromeda_model_band": "standard",
+            "context_limit": 57,
+            "language": "en",
             **body,
         }
         route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
@@ -113,35 +115,40 @@ def run() -> None:
             page.evaluate("window._navigateTo('andromeda')")
             page.wait_for_selector("#andromeda-view:visible")
             page.locator("#andromeda-idle-settings").click()
-            panel = page.locator("#andromeda-settings-panel")
-            panel.wait_for(state="visible")
+            pane = page.locator("#s-pane-andromeda.active")
+            pane.wait_for(state="visible")
+            content = page.locator("#settings-modal .s-content")
+            assert page.locator("#andromeda-settings-panel").count() == 0
 
             required = (
+                "#s-andromeda-primary",
+                "#s-andromeda-fallback",
+                "#s-andromeda-count",
+                "#s-andromeda-searxng-status",
+                "#s-andromeda-results",
+                "#s-andromeda-overview",
+                "#s-andromeda-band",
+                "#s-andromeda-answer-model",
+                # per-search choices and the saved list stay on the page
                 "#andromeda-provider",
-                "#andromeda-primary-provider",
-                "#andromeda-fallback-provider",
-                "#andromeda-result-count",
-                "#andromeda-searxng-status",
-                "#andromeda-results-toggle",
-                "#andromeda-overview-toggle",
-                "#andromeda-band",
                 "#andromeda-exact-model",
                 "#andromeda-saved-list",
             )
             for selector in required:
                 assert page.locator(selector).count() == 1, f"{label}: missing {selector}"
-            switch_names = {
-                "#andromeda-results-toggle": "show normal results",
-                "#andromeda-overview-toggle": "show ai overview",
-                "#andromeda-verification-toggle": "independently fact-check answers",
-            }
-            for selector, name in switch_names.items():
-                switch = page.locator(selector)
-                assert switch.get_attribute("aria-label") == name
+            for name in (
+                "normal results",
+                "ai overview",
+                "ask before each remote search",
+                "independent fact-check",
+            ):
+                switch = pane.get_by_role("switch", name=name, exact=True)
+                assert switch.count() == 1, (label, name)
                 box = switch.bounding_box()
-                assert box and box["width"] >= 44 and box["height"] >= 44, (label, selector, box)
-            assert "searxng → brave" in page.locator("#andromeda-provider-order").inner_text()
-            guide = page.locator(".andromeda-strength-guide").inner_text().lower()
+                assert box and box["width"] >= 44 and box["height"] >= 44, (label, name, box)
+            assert page.locator("#s-andromeda-primary").get_attribute("data-value") == "searxng"
+            assert page.locator("#s-andromeda-fallback").get_attribute("data-value") == "brave"
+            guide = pane.inner_text().lower()
             for phrase in (
                 "fastest, shortest answer, least checking",
                 "balanced speed and checking",
@@ -149,29 +156,15 @@ def run() -> None:
                 "query and available model",
             ):
                 assert phrase in guide, (label, guide)
-            assert page.locator(".andromeda-strength-guide").evaluate(
-                "el => Number.parseFloat(getComputedStyle(el).paddingTop) >= 8"
-            ), f"{label}: overview guide needs breathing room above its first line"
-            assert page.locator("#andromeda-search-settings-status").is_hidden(), (
-                f"{label}: an empty save status must not reserve a blank row"
-            )
 
-            box = panel.bounding_box()
-            assert box is not None
-            assert box["x"] >= 0 and box["y"] >= 0, (label, box)
-            assert box["x"] + box["width"] <= width + 1, (label, box, width)
-            assert box["y"] + box["height"] <= height + 1, (label, box, height)
-            assert panel.evaluate("el => el.scrollHeight >= el.clientHeight")
-            assert page.locator("#andromeda-settings-panel select:visible").count() == 0
-            assert (
-                page.locator("#andromeda-settings-panel input[type=checkbox]:visible").count() == 0
-            )
+            assert page.locator("#s-pane-andromeda select:visible").count() == 0
+            assert page.locator("#s-pane-andromeda input[type=checkbox]:visible").count() == 0
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
             )
-            assert panel.evaluate("el => el.scrollWidth <= el.clientWidth"), (
+            assert content.evaluate("el => el.scrollWidth <= el.clientWidth"), (
                 label,
-                panel.evaluate(
+                content.evaluate(
                     """el => ({
                       scrollWidth: el.scrollWidth,
                       clientWidth: el.clientWidth,
@@ -192,16 +185,15 @@ def run() -> None:
                 )
 
             if label == "desktop":
-                results_switch = page.locator("#andromeda-results-toggle")
+                results_switch = pane.get_by_role("switch", name="normal results", exact=True)
                 assert results_switch.get_attribute("aria-checked") == "true"
                 fail_next_settings_patch = True
                 results_switch.click()
                 page.wait_for_function(
-                    "() => document.querySelector('#andromeda-search-settings-status')?.textContent.includes('try again')"
+                    "() => document.querySelector('#s-pane-andromeda .settings-save-state')?.textContent.includes('Try the control again')"
                 )
                 assert results_switch.get_attribute("aria-checked") == "true"
                 assert results_switch.get_attribute("aria-busy") is None
-                assert results_switch.get_attribute("data-kokuen-state") == "error"
                 assert results_switch.is_enabled()
                 browser_errors[:] = [
                     message
@@ -212,7 +204,7 @@ def run() -> None:
                 results_switch.press("Enter")
                 page.wait_for_function(
                     """() => {
-                      const node = document.querySelector('#andromeda-results-toggle');
+                      const node = document.querySelector('#s-andromeda-results');
                       return node?.getAttribute('aria-checked') === 'false'
                         && node.getAttribute('aria-busy') !== 'true'
                         && !node.disabled;
@@ -225,10 +217,10 @@ def run() -> None:
                 page.wait_for_selector('[data-searxng-action="install"]')
                 page.locator('[data-searxng-action="install"]').click()
                 page.wait_for_function(
-                    "() => document.querySelector('#andromeda-searxng-status')?.textContent === 'healthy'"
+                    "() => document.querySelector('#s-andromeda-searxng-status')?.textContent === 'healthy'"
                 )
                 assert managed_actions[-1] == "install"
-                labels = page.locator("#andromeda-searxng-actions button").all_inner_texts()
+                labels = page.locator("#s-andromeda-searxng-actions button").all_inner_texts()
                 assert labels == [
                     "stop",
                     "restart",
@@ -237,27 +229,33 @@ def run() -> None:
                     "rollback",
                     "uninstall · keep data",
                 ], labels
-                page.locator("#andromeda-primary-provider").click()
-                page.locator(".custom-dropdown-option", has_text="duckduckgo").last.click()
-                page.locator("#andromeda-fallback-provider").click()
-                page.locator(".custom-dropdown-option", has_text="duckduckgo").last.click()
+                page.locator("#s-andromeda-primary").click()
+                page.locator(".custom-dropdown-option", has_text="free search").last.click()
                 page.wait_for_function(
-                    "() => document.querySelector('#andromeda-provider-order')?.textContent === 'duckduckgo'"
+                    "() => document.querySelector('#s-andromeda-primary')?.dataset.value === 'duckduckgo'"
                 )
+                page.locator("#s-andromeda-fallback").click()
+                page.locator(".custom-dropdown-option", has_text="free search").last.click()
+                # a fallback equal to the primary engine is saved as none
+                page.wait_for_function(
+                    "() => document.querySelector('#s-andromeda-fallback')?.dataset.value === 'none'"
+                )
+                assert settings_patches[-1]["search_provider"] == "duckduckgo"
+                assert settings_patches[-1]["search_fallback"] == "none"
                 if screenshot_dir:
-                    panel.screenshot(
+                    pane.screenshot(
                         path=str(Path(screenshot_dir) / "andromeda-settings-single-provider.png")
                     )
-                page.locator("#andromeda-primary-provider").click()
-                page.locator(".custom-dropdown-option", has_text="brave").last.click()
+                page.locator("#s-andromeda-primary").click()
+                page.locator(".custom-dropdown-option", has_text="Brave").last.click()
                 page.wait_for_function(
-                    "() => document.querySelector('#andromeda-provider-order')?.textContent.startsWith('brave')"
+                    "() => document.querySelector('#s-andromeda-primary')?.dataset.value === 'brave'"
                 )
                 assert settings_patches[-1]["search_provider"] == "brave"
                 fail_status = True
-                page.locator("#andromeda-searxng-refresh").click()
+                page.locator("#s-andromeda-searxng-refresh").click()
                 page.wait_for_function(
-                    "() => document.querySelector('#andromeda-searxng-meta')?.textContent.includes('External search providers')"
+                    "() => document.querySelector('#s-andromeda-searxng-meta')?.textContent.includes('External search providers')"
                 )
                 browser_errors[:] = [
                     message
@@ -267,9 +265,9 @@ def run() -> None:
                 ]
                 fail_status = False
 
-            page.locator("#andromeda-settings-close").focus()
+            page.locator("#settings-modal-close").focus()
             page.keyboard.press("Escape")
-            assert panel.is_hidden()
+            assert page.locator("#settings-modal").is_hidden()
             context.close()
         browser.close()
 

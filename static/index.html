@@ -99,6 +99,7 @@
 <link rel="modulepreload" href="/static/js/settings/credits.js">
 <link rel="modulepreload" href="/static/js/settings/backups.js">
 <link rel="modulepreload" href="/static/js/settings/providers.js">
+<link rel="modulepreload" href="/static/js/settings/andromeda.js">
 <link rel="modulepreload" href="/static/js/settings/search_engines.js">
 <link rel="modulepreload" href="/static/js/settings/connections.js">
 <link rel="modulepreload" href="/static/js/memory.js">
@@ -108,6 +109,7 @@
 <link rel="modulepreload" href="/static/js/note_capture.js">
 <link rel="modulepreload" href="/static/js/settings/pane.js">
 <link rel="modulepreload" href="/static/js/model_providers.js">
+<link rel="modulepreload" href="/static/js/settings/model_roles.js">
 <link rel="modulepreload" href="/static/js/mcp-config.js">
 <link rel="modulepreload" href="/static/js/colorpicker.js">
 <link rel="modulepreload" href="/static/js/andromeda_tools.js">
@@ -320,7 +322,7 @@
             </button>
           </form>
           <div class="andromeda-head-actions">
-            <button class="andromeda-icon-button" id="andromeda-settings-button" type="button" aria-label="andromeda settings" data-i18n-aria-label="andromeda.settings" aria-expanded="false" aria-controls="andromeda-settings-panel">
+            <button class="andromeda-icon-button" id="andromeda-settings-button" type="button" aria-label="andromeda settings" data-i18n-aria-label="andromeda.settings">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 0 0-.08-1l2-1.55-2-3.46-2.45 1A7 7 0 0 0 14.75 6L14.4 3h-4.8l-.35 3a7 7 0 0 0-1.72.99l-2.45-1-2 3.46L5.08 11A7 7 0 0 0 5 12c0 .34.03.67.08 1l-2 1.55 2 3.46 2.45-1a7 7 0 0 0 1.72.99l.35 3h4.8l.35-3a7 7 0 0 0 1.72-.99l2.45 1 2 3.46-2-1.55c.05-.33.08-.66.08-1Z"></path></svg>
             </button>
           </div>
@@ -337,6 +339,11 @@
               <button class="andromeda-tab" type="button" data-andromeda-category="videos" data-i18n="andromeda.videos">videos</button>
             </nav>
             <span id="andromeda-result-meta" class="andromeda-result-meta"></span>
+          </div>
+          <div class="andromeda-search-options" id="andromeda-search-options" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+            <div id="andromeda-provider" class="settings-input custom-select" style="width:auto;min-width:160px" data-value="" data-options="|automatic;exa|exa;brave|brave;serper|serper · google;tavily|tavily;searxng|searxng;duckduckgo|duckduckgo" data-i18n-options="common.automatic;;;;;;" aria-label="search engine for this search" data-i18n-aria-label="shell.andromeda_settings.search_engine_for_this_search"></div>
+            <div id="andromeda-exact-model" class="settings-input custom-select" style="width:auto;min-width:160px" data-value="" data-options="|band default" data-i18n-options="andromeda.x_band_default" aria-label="exact overview model" data-i18n-aria-label="shell.andromeda_settings.exact_overview_model"></div>
+            <div class="andromeda-model" id="andromeda-model"></div>
           </div>
           <div id="andromeda-status" class="andromeda-status" role="status" aria-live="polite"></div>
           <section id="andromeda-save-recovery" class="andromeda-save-recovery" aria-label="search save" hidden data-i18n-aria-label="shell.andromeda.search_save">
@@ -437,93 +444,13 @@
             <button id="andromeda-save" type="button" data-i18n="andromeda.save_search">save search</button>
           </div>
         </main>
+        <section class="andromeda-saved" id="andromeda-saved" aria-labelledby="andromeda-saved-title" style="width:min(540px,100%);margin-inline:auto">
+          <h3 id="andromeda-saved-title" data-i18n="shell.andromeda_settings.saved_searches">saved searches</h3>
+          <div id="andromeda-saved-list" class="andromeda-saved-list"></div>
+        </section>
       </div>
 
       <div class="andromeda-idle-footer"><button id="andromeda-idle-settings" type="button" data-i18n="common.settings">settings</button></div>
-      <aside class="andromeda-settings-panel" id="andromeda-settings-panel" aria-label="andromeda settings" hidden data-i18n-aria-label="shell.andromeda_settings.andromeda_settings">
-        <div class="andromeda-settings-head"><h2 data-i18n="common.settings">settings</h2><button class="andromeda-icon-button" id="andromeda-settings-close" type="button" aria-label="close settings" data-i18n-aria-label="common.close_settings">×</button></div>
-        <section class="andromeda-settings-section" aria-labelledby="andromeda-search-settings-title">
-          <h3 id="andromeda-search-settings-title" data-i18n="shell.andromeda_settings.search_sources">search sources</h3>
-          <div class="andromeda-setting-row">
-            <span><strong data-i18n="shell.andromeda_settings.this_search">this search</strong><small data-i18n="shell.andromeda_settings.temporarily_override_the_saved_primary_provi">temporarily override the saved primary provider</small></span>
-            <div id="andromeda-provider" class="custom-select" data-value="" data-options="|automatic;exa|exa;brave|brave;serper|serper · google;tavily|tavily;searxng|searxng;duckduckgo|duckduckgo" data-i18n-options="common.automatic;;;;;;" aria-label="search engine for this search" data-i18n-aria-label="shell.andromeda_settings.search_engine_for_this_search"></div>
-          </div>
-          <div class="andromeda-setting-row">
-            <span><strong data-i18n="shell.andromeda_settings.primary_provider">primary provider</strong><small data-i18n="shell.andromeda_settings.used_first_for_normal_searches">used first for normal searches</small></span>
-            <div id="andromeda-primary-provider" class="custom-select" data-value="duckduckgo" data-options="duckduckgo|duckduckgo;exa|exa;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper;disabled|disabled" data-i18n-options=";;;;;;;andromeda.x_disabled" aria-label="primary search provider" data-i18n-aria-label="shell.andromeda_settings.primary_search_provider"></div>
-          </div>
-          <div class="andromeda-setting-row">
-            <span><strong data-i18n="shell.andromeda_settings.fallback_provider">fallback provider</strong><small data-i18n="shell.andromeda_settings.used_quietly_when_the_primary_provider">used quietly when the primary provider fails</small></span>
-            <div id="andromeda-fallback-provider" class="custom-select" data-value="duckduckgo" data-options="none|none;duckduckgo|duckduckgo;exa|exa;tavily|tavily;brave|brave;searxng|searxng;google_pse|google pse;serper|serper" data-i18n-options="common.none;;;;;;;" aria-label="fallback search provider" data-i18n-aria-label="shell.andromeda_settings.fallback_search_provider"></div>
-          </div>
-          <div class="andromeda-setting-row andromeda-setting-summary">
-            <span><strong data-i18n="shell.andromeda_settings.provider_order">provider order</strong><small id="andromeda-provider-order">duckduckgo</small></span>
-          </div>
-          <div class="andromeda-setting-row">
-            <span><strong data-i18n="shell.andromeda_settings.result_count">result count</strong><small data-i18n="shell.andromeda_settings.normal_links_returned_for_each_query">normal links returned for each query</small></span>
-            <div id="andromeda-result-count" class="custom-select" data-value="8" data-options="3|3 results;5|5 results;8|8 results;10|10 results;20|20 results" data-i18n-options="settings.opt_results@3;settings.opt_results@5;settings.opt_results@8;settings.opt_results@10;settings.opt_results@20" aria-label="normal results per query" data-i18n-aria-label="shell.andromeda_settings.normal_results_per_query"></div>
-          </div>
-          <div class="andromeda-provider-fields" id="andromeda-provider-fields">
-            <div class="andromeda-setting-field" data-andromeda-provider-field="tavily"><label for="andromeda-tavily-key" data-i18n="shell.andromeda_settings.tavily_api_key">tavily api key</label><div class="andromeda-setting-input"><input id="andromeda-tavily-key" type="password" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-tavily-key" aria-label="clear tavily api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_tavily_api_key">clear</button></div></div>
-            <div class="andromeda-setting-field" data-andromeda-provider-field="brave"><label for="andromeda-brave-key" data-i18n="shell.andromeda_settings.brave_api_key">brave api key</label><div class="andromeda-setting-input"><input id="andromeda-brave-key" type="password" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-brave-key" aria-label="clear brave api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_brave_api_key">clear</button></div></div>
-            <div class="andromeda-setting-field" data-andromeda-provider-field="searxng"><label for="andromeda-searxng-url" data-i18n="shell.andromeda_settings.external_searxng_url">external searxng url</label><div class="andromeda-setting-input"><input id="andromeda-searxng-url" type="url" inputmode="url" autocomplete="off" placeholder="https://search.example.com"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-searxng-url" aria-label="clear external searxng url" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_external_searxng_url">clear</button></div></div>
-            <div class="andromeda-setting-field" data-andromeda-provider-field="google_pse"><label for="andromeda-google-key" data-i18n="common.google_pse_api_key">google pse api key</label><div class="andromeda-setting-input"><input id="andromeda-google-key" type="password" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-google-key" aria-label="clear google pse api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_api_key">clear</button></div></div>
-            <div class="andromeda-setting-field" data-andromeda-provider-field="google_pse"><label for="andromeda-google-cx" data-i18n="shell.andromeda_settings.google_pse_cx">google pse cx</label><div class="andromeda-setting-input"><input id="andromeda-google-cx" type="text" autocomplete="off" placeholder="search engine id" data-i18n-placeholder="shell.andromeda_settings.search_engine_id"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-google-cx" aria-label="clear google pse cx" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_cx">clear</button></div></div>
-            <div class="andromeda-setting-field" data-andromeda-provider-field="serper"><label for="andromeda-serper-key" data-i18n="shell.andromeda_settings.serper_api_key">serper api key</label><div class="andromeda-setting-input"><input id="andromeda-serper-key" type="password" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-serper-key" aria-label="clear serper api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_serper_api_key">clear</button></div></div>
-            <div class="andromeda-setting-field" data-andromeda-provider-field="exa"><label for="andromeda-exa-key" data-i18n="shell.andromeda_settings.exa_api_key">exa api key</label><div class="andromeda-setting-input"><input id="andromeda-exa-key" type="password" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="andromeda-exa-key" aria-label="clear exa api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_exa_api_key">clear</button></div></div>
-          </div>
-          <div class="andromeda-settings-status" id="andromeda-search-settings-status" role="status" aria-live="polite"></div>
-        </section>
-
-        <section class="andromeda-settings-section andromeda-searxng-settings" aria-labelledby="andromeda-searxng-title">
-          <div class="andromeda-settings-section-head">
-            <div><h3 id="andromeda-searxng-title" data-i18n="shell.andromeda_settings.local_searxng">local searxng</h3><p data-i18n="shell.andromeda_settings.alles_managed_self_hosted_search_bound">Alles-managed, self-hosted search bound to this computer only.</p></div>
-            <button class="andromeda-text-action" id="andromeda-searxng-refresh" type="button" data-i18n="common.refresh">refresh</button>
-          </div>
-          <div class="andromeda-searxng-status" id="andromeda-searxng-status" role="status" aria-live="polite">checking local search…</div>
-          <div class="andromeda-searxng-meta" id="andromeda-searxng-meta"></div>
-          <div class="andromeda-searxng-actions" id="andromeda-searxng-actions" role="group" aria-label="managed searxng actions" data-i18n-aria-label="shell.andromeda_settings.managed_searxng_actions"></div>
-        </section>
-
-        <section class="andromeda-settings-section" aria-labelledby="andromeda-overview-settings-title">
-          <h3 id="andromeda-overview-settings-title" data-i18n="common.answer">answer</h3>
-        <div class="andromeda-setting-row">
-          <span><strong data-i18n="common.normal_results">normal results</strong><small data-i18n="shell.andromeda_settings.links_and_media_below_the_answer">links and media below the answer</small></span>
-          <button class="andromeda-switch" id="andromeda-results-toggle" type="button" role="switch" aria-label="show normal results" aria-checked="true" aria-pressed="true" data-i18n-aria-label="shell.andromeda_settings.show_normal_results"><span></span></button>
-        </div>
-        <div class="andromeda-setting-row">
-          <span><strong data-i18n="common.ai_overview">ai overview</strong><small data-i18n="shell.andromeda_settings.only_appears_in_all">only appears in all</small></span>
-          <button class="andromeda-switch" id="andromeda-overview-toggle" type="button" role="switch" aria-label="show ai overview" aria-checked="true" aria-pressed="true" data-i18n-aria-label="shell.andromeda_settings.show_ai_overview"><span></span></button>
-        </div>
-        <div class="andromeda-setting-row">
-          <span><strong data-i18n="common.independent_fact_check">independent fact-check</strong><small data-i18n="shell.andromeda_settings.runs_separately_after_freshness_sensitive_an">runs separately after freshness-sensitive answers</small></span>
-          <button class="andromeda-switch" id="andromeda-verification-toggle" type="button" role="switch" aria-label="independently fact-check answers" aria-checked="true" aria-pressed="true" data-i18n-aria-label="shell.andromeda_settings.independently_fact_check_answers"><span></span></button>
-        </div>
-        <div class="andromeda-setting-row">
-          <span><strong data-i18n="shell.andromeda_settings.when_to_check">when to check</strong><small data-i18n="shell.andromeda_settings.current_dates_and_versions_are_checked">current dates and versions are checked by default</small></span>
-          <div id="andromeda-verifier-mode" class="custom-select" data-value="freshness-sensitive" data-options="freshness-sensitive|current facts;always|every answer;manual|only when asked;off|off" data-i18n-options="settings.opt_current_facts;server.wb_sched_always;settings.opt_only_when_asked;common.off" aria-label="independent fact-check policy" data-i18n-aria-label="shell.andromeda_settings.independent_fact_check_policy"></div>
-        </div>
-        <div class="andromeda-setting-row">
-          <span><strong data-i18n="shell.andromeda_settings.overview_strength">overview strength</strong><small data-i18n="shell.andromeda_settings.speed_and_checking_change_together">speed and checking change together</small></span>
-          <div id="andromeda-band" class="custom-select" data-value="standard" data-options="light|light;standard|standard;strong|strong;auto|automatic" data-i18n-options="common.light;shell.settings_search.standard;shell.settings_search.strong;common.automatic" aria-label="overview model strength" data-i18n-aria-label="shell.andromeda_settings.overview_model_strength"></div>
-        </div>
-        <div class="andromeda-strength-guide" aria-label="overview strength guide" data-i18n-aria-label="shell.andromeda_settings.overview_strength_guide">
-          <p data-i18n="shell.andromeda_settings.light_fastest_shortest_answer_least_checking">light: fastest, shortest answer, least checking</p>
-          <p data-i18n="shell.andromeda_settings.standard_balanced_speed_and_checking">standard: balanced speed and checking</p>
-          <p data-i18n="shell.andromeda_settings.strong_slower_longer_answer_more_checking">strong: slower, longer answer, more checking</p>
-          <p data-i18n="shell.andromeda_settings.automatic_chooses_from_the_query_and">automatic: chooses from the query and available model</p>
-        </div>
-        <div class="andromeda-setting-row">
-          <span><strong data-i18n="shell.andromeda_settings.exact_model">exact model</strong><small data-i18n="shell.andromeda_settings.optional_for_this_search">optional for this search</small></span>
-          <div id="andromeda-exact-model" class="custom-select" data-value="" data-options="|band default" data-i18n-options="andromeda.x_band_default" aria-label="exact overview model" data-i18n-aria-label="shell.andromeda_settings.exact_overview_model"></div>
-        </div>
-        <div class="andromeda-model" id="andromeda-model"></div>
-        </section>
-        <div class="andromeda-saved">
-          <h3 id="andromeda-saved-title" data-i18n="shell.andromeda_settings.saved_searches">saved searches</h3>
-          <div id="andromeda-saved-list" class="andromeda-saved-list"></div>
-        </div>
-      </aside>
     </section>
 
     <!-- ── chat view (default) ── -->
@@ -1804,6 +1731,9 @@
         <button class="s-nav-item" type="button" data-pane="proactive" data-i18n="common.background_checks">background checks</button>
         <button class="s-nav-item" type="button" data-pane="intelligence" data-i18n="settings.patterns">patterns & suggestions</button>
 
+        <div class="s-nav-group" data-i18n="common.apps">apps</div>
+        <button class="s-nav-item" type="button" data-pane="andromeda" data-i18n="common.andromeda">Andromeda</button>
+
         <div class="s-nav-group" data-i18n="common.connections">connections</div>
         <button class="s-nav-item" type="button" data-pane="tools" data-i18n="shell.settings.connections_tools">connections &amp; tools</button>
         <button class="s-nav-item" type="button" data-pane="developer" data-i18n="shell.settings.api_shortcuts">api &amp; shortcuts</button>
@@ -2122,44 +2052,6 @@
 
         <!-- ── search pane ── -->
         <div class="s-pane" id="s-pane-search">
-          <div class="s-card">
-            <div class="s-card-head">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <span data-i18n="shell.settings_search.web_search">web search</span>
-            </div>
-            <div class="s-card-body">
-              <div class="s-field">
-                <label id="s-search-provider-label" data-i18n="shell.settings_search.search_engine">search engine</label>
-                <div style="display:flex;gap:0.4rem;align-items:center">
-                  <div class="settings-input custom-select" id="s-search-provider" style="flex:1" data-value="duckduckgo" data-options="duckduckgo|free search;disabled|disabled" data-i18n-options="andromeda.x_free_search;andromeda.x_disabled" aria-labelledby="s-search-provider-label"></div>
-                  <button type="button" class="btn" id="s-search-test-btn" style="flex-shrink:0" data-i18n="shell.settings_search.test">test</button>
-                </div>
-                <div class="s-card-hint" id="s-search-engine-note"></div>
-              </div>
-              <div class="s-field" id="s-engine-key-row" hidden>
-                <label for="s-engine-key" id="s-engine-key-label" data-i18n="common.api_key">api key</label>
-                <input type="password" class="settings-input" id="s-engine-key" autocomplete="new-password" style="width:100%">
-                <a class="s-engine-signup" id="s-engine-signup" href="#" target="_blank" rel="noopener noreferrer" hidden data-i18n="shell.settings_search.get_a_key">get a key</a>
-              </div>
-              <div class="s-field" id="s-searxng-row" hidden>
-                <label for="s-searxng-url" data-i18n="shell.settings_search.searxng_base_url">searxng base url</label>
-                <input type="text" class="settings-input" id="s-searxng-url" placeholder="https://search.example.com" style="width:100%">
-              </div>
-              <div id="s-google-pse-rows" hidden>
-                <div class="s-field"><label for="s-gpse-key" data-i18n="common.google_pse_api_key">google pse api key</label><input type="password" class="settings-input" id="s-gpse-key" autocomplete="new-password" style="width:100%"></div>
-                <div class="s-field"><label for="s-gpse-cx" data-i18n="shell.settings_search.search_engine_cx_id">search engine cx id</label><input type="text" class="settings-input" id="s-gpse-cx" style="width:100%"></div>
-              </div>
-              <div class="s-field">
-                <label id="s-search-fallback-label" data-i18n="shell.settings_search.backup_engine">backup engine</label>
-                <div class="settings-input custom-select" id="s-search-fallback" style="width:100%" data-value="duckduckgo" data-options="none|none;duckduckgo|free search" data-i18n-options="common.none;andromeda.x_free_search" aria-labelledby="s-search-fallback-label"></div>
-              </div>
-              <div class="s-field">
-                <label id="s-search-count-label" data-i18n="shell.settings_search.results_per_query">results per query</label>
-                <div class="settings-input custom-select" id="s-search-count" style="width:100px" data-value="8" data-options="3|3;5|5;8|8;10|10;20|20" aria-labelledby="s-search-count-label"></div>
-              </div>
-              <div id="s-search-status" class="s-search-status" role="status" aria-live="polite"></div>
-            </div>
-          </div>
           <div class="s-card" role="region" aria-labelledby="s-custom-search-head">
             <div class="s-card-head" id="s-custom-search-head" data-i18n="shell.settings_search.custom_engines">custom engines</div>
             <div class="s-card-body">
@@ -2196,46 +2088,84 @@
               </form>
             </div>
           </div>
-          <div class="s-card" role="region" aria-labelledby="s-hidden-sites-head">
-            <div class="s-card-head" id="s-hidden-sites-head" data-i18n="shell.settings_search.hidden_sites">hidden sites</div>
+        </div>
+
+        <div class="s-pane" id="s-pane-andromeda">
+          <div class="s-card" role="region" aria-labelledby="s-andromeda-sources-head">
+            <div class="s-card-head" id="s-andromeda-sources-head" data-i18n="shell.andromeda_settings.search_sources">search sources</div>
             <div class="s-card-body">
-              <div class="s-card-hint" data-i18n="shell.settings_search.andromeda_leaves_these_sites_and_their">andromeda leaves these sites, and their subdomains, out of every result list.</div>
-              <div class="settings-list" id="s-hidden-sites-list"></div>
-              <label class="s-field-label s-hidden-site-label" for="s-hidden-site" data-i18n="shell.settings_search.site_to_hide">site to hide</label>
-              <form class="s-hidden-sites-form" id="s-hidden-sites-form" novalidate>
-                <input type="text" class="settings-input" id="s-hidden-site" maxlength="253" autocomplete="off" spellcheck="false" aria-describedby="s-hidden-sites-status">
-                <button type="submit" class="btn" id="s-hidden-site-add" data-i18n="shell.settings_search.hide_site">hide site</button>
-              </form>
-              <div class="s-search-status" id="s-hidden-sites-status" role="status" aria-live="polite"></div>
+              <div class="s-field">
+                <label id="s-andromeda-primary-label" data-i18n="shell.andromeda_settings.primary_provider">primary provider</label>
+                <div style="display:flex;gap:0.4rem;align-items:center">
+                  <div class="settings-input custom-select" id="s-andromeda-primary" style="flex:1" data-value="duckduckgo" data-options="duckduckgo|free search;disabled|disabled" data-i18n-options="andromeda.x_free_search;andromeda.x_disabled" aria-labelledby="s-andromeda-primary-label"></div>
+                  <button type="button" class="btn" id="s-andromeda-test" style="flex-shrink:0" data-i18n="shell.settings_search.test">test</button>
+                </div>
+              </div>
+              <div class="s-field">
+                <label id="s-andromeda-fallback-label" data-i18n="shell.andromeda_settings.fallback_provider">fallback provider</label>
+                <div class="settings-input custom-select" id="s-andromeda-fallback" style="width:100%" data-value="none" data-options="none|none;duckduckgo|free search" data-i18n-options="common.none;andromeda.x_free_search" aria-labelledby="s-andromeda-fallback-label"></div>
+              </div>
+              <div class="s-field">
+                <label id="s-andromeda-count-label" data-i18n="shell.andromeda_settings.result_count">result count</label>
+                <div class="settings-input custom-select" id="s-andromeda-count" style="width:100px" data-value="8" data-options="3|3;5|5;8|8;10|10;20|20" aria-labelledby="s-andromeda-count-label"></div>
+              </div>
+              <div id="s-andromeda-provider-fields">
+                <div class="s-field" data-andromeda-provider-field="tavily"><label for="s-andromeda-tavily-key" data-i18n="shell.andromeda_settings.tavily_api_key">tavily api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-tavily-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-tavily-key" aria-label="clear tavily api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_tavily_api_key">clear</button></div></div>
+                <div class="s-field" data-andromeda-provider-field="brave"><label for="s-andromeda-brave-key" data-i18n="shell.andromeda_settings.brave_api_key">brave api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-brave-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-brave-key" aria-label="clear brave api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_brave_api_key">clear</button></div></div>
+                <div class="s-field" data-andromeda-provider-field="searxng"><label for="s-andromeda-searxng-url" data-i18n="shell.andromeda_settings.external_searxng_url">external searxng url</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-searxng-url" type="url" class="settings-input" style="flex:1" inputmode="url" autocomplete="off" placeholder="https://search.example.com"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-searxng-url" aria-label="clear external searxng url" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_external_searxng_url">clear</button></div></div>
+                <div class="s-field" data-andromeda-provider-field="google_pse"><label for="s-andromeda-google-key" data-i18n="common.google_pse_api_key">google pse api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-google-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-google-key" aria-label="clear google pse api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_api_key">clear</button></div></div>
+                <div class="s-field" data-andromeda-provider-field="google_pse"><label for="s-andromeda-google-cx" data-i18n="shell.andromeda_settings.google_pse_cx">google pse cx</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-google-cx" type="text" class="settings-input" style="flex:1" autocomplete="off" placeholder="search engine id" data-i18n-placeholder="shell.andromeda_settings.search_engine_id"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-google-cx" aria-label="clear google pse cx" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_cx">clear</button></div></div>
+                <div class="s-field" data-andromeda-provider-field="serper"><label for="s-andromeda-serper-key" data-i18n="shell.andromeda_settings.serper_api_key">serper api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-serper-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-serper-key" aria-label="clear serper api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_serper_api_key">clear</button></div></div>
+                <div class="s-field" data-andromeda-provider-field="exa"><label for="s-andromeda-exa-key" data-i18n="shell.andromeda_settings.exa_api_key">exa api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-exa-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-exa-key" aria-label="clear exa api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_exa_api_key">clear</button></div></div>
+              </div>
+              <div id="s-andromeda-search-status" class="s-search-status" role="status" aria-live="polite"></div>
             </div>
           </div>
-          <div class="s-card">
-            <div class="s-card-head">andromeda</div>
+          <div class="s-card" role="region" aria-labelledby="s-andromeda-searxng-head">
+            <div class="s-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+              <span id="s-andromeda-searxng-head" data-i18n="shell.andromeda_settings.local_searxng">local searxng</span>
+              <button type="button" class="btn" id="s-andromeda-searxng-refresh" data-i18n="common.refresh">refresh</button>
+            </div>
             <div class="s-card-body">
-              <p class="s-card-hint" data-i18n="shell.settings_search.normal_links_and_the_cited_overview">normal links and the cited overview are independent. the overview uses the model you chose in models; its name shows above each answer.</p>
-              <div class="s-toggle-row">
-                <div><div class="s-toggle-label" data-i18n="common.normal_results">normal results</div><div class="s-toggle-desc" data-i18n="shell.settings_search.show_web_results_below_the_overview">show web results below the overview</div></div>
-                <div class="s-switch" id="s-andromeda-results" role="switch" aria-checked="true"></div>
+              <div class="s-search-status" id="s-andromeda-searxng-status" role="status" aria-live="polite">checking local search…</div>
+              <div class="s-card-hint" id="s-andromeda-searxng-meta"></div>
+              <div id="s-andromeda-searxng-actions" style="display:flex;flex-wrap:wrap;gap:0.4rem" role="group" aria-label="managed searxng actions" data-i18n-aria-label="shell.andromeda_settings.managed_searxng_actions"></div>
+            </div>
+          </div>
+          <div class="s-card" role="region" aria-labelledby="s-andromeda-answer-head">
+            <div class="s-card-head" id="s-andromeda-answer-head" data-i18n="common.answer">answer</div>
+            <div class="s-card-body">
+              <div class="s-field">
+                <label id="s-andromeda-answer-model-label" data-i18n="server.wb_answer_model">answer model</label>
+                <div class="settings-input custom-select" id="s-andromeda-answer-model" style="width:100%" data-value="" data-options="|automatic" data-i18n-options="common.automatic" aria-labelledby="s-andromeda-answer-model-label"></div>
               </div>
               <div class="s-toggle-row">
-                <div><div class="s-toggle-label" data-i18n="common.ai_overview">ai overview</div><div class="s-toggle-desc" data-i18n="shell.settings_search.build_a_claim_by_claim_answer">build a claim-by-claim answer from fetched evidence</div></div>
-                <div class="s-switch" id="s-andromeda-overview" role="switch" aria-checked="true"></div>
+                <div><div class="s-toggle-label" id="s-andromeda-results-label" data-i18n="common.normal_results">normal results</div></div>
+                <button class="s-switch" id="s-andromeda-results" type="button" role="switch" aria-checked="true" aria-labelledby="s-andromeda-results-label"></button>
               </div>
               <div class="s-toggle-row">
-                <div><div class="s-toggle-label" data-i18n="shell.settings_search.ask_before_each_remote_search">ask before each remote search</div><div class="s-toggle-desc" data-i18n="shell.settings_search.confirm_before_the_query_and_sources">confirm before the query and sources go to a model outside this machine</div></div>
-                <button class="s-switch" id="s-andromeda-confirm-remote" type="button" role="switch" aria-checked="false"></button>
+                <div><div class="s-toggle-label" id="s-andromeda-overview-label" data-i18n="common.ai_overview">ai overview</div></div>
+                <button class="s-switch" id="s-andromeda-overview" type="button" role="switch" aria-checked="true" aria-labelledby="s-andromeda-overview-label"></button>
               </div>
               <div class="s-toggle-row">
-                <div><div class="s-toggle-label" data-i18n="common.independent_fact_check">independent fact-check</div><div class="s-toggle-desc" data-i18n="shell.settings_search.use_the_separate_verifier_after_freshness">use the separate verifier after freshness-sensitive answers</div></div>
-                <button class="s-switch" id="s-andromeda-verification" type="button" role="switch" aria-checked="true"></button>
+                <div><div class="s-toggle-label" id="s-andromeda-confirm-remote-label" data-i18n="shell.settings_search.ask_before_each_remote_search">ask before each remote search</div><div class="s-toggle-desc" data-i18n="shell.settings_search.confirm_before_the_query_and_sources">confirm before the query and sources go to a model outside this machine</div></div>
+                <button class="s-switch" id="s-andromeda-confirm-remote" type="button" role="switch" aria-checked="false" aria-labelledby="s-andromeda-confirm-remote-label"></button>
+              </div>
+              <div class="s-toggle-row">
+                <div><div class="s-toggle-label" id="s-andromeda-verification-label" data-i18n="common.independent_fact_check">independent fact-check</div></div>
+                <button class="s-switch" id="s-andromeda-verification" type="button" role="switch" aria-checked="true" aria-labelledby="s-andromeda-verification-label"></button>
               </div>
               <div class="s-field">
-                <label data-i18n="shell.settings_search.fact_check_policy">fact-check policy</label>
-                <div class="settings-input custom-select" id="s-andromeda-verifier-mode" data-value="freshness-sensitive" data-options="freshness-sensitive|current facts;always|every answer;manual|only when asked;off|off" data-i18n-options="settings.opt_current_facts;server.wb_sched_always;settings.opt_only_when_asked;common.off" aria-label="andromeda fact-check policy" data-i18n-aria-label="shell.settings_search.andromeda_fact_check_policy"></div>
+                <label id="s-andromeda-verifier-mode-label" data-i18n="shell.andromeda_settings.when_to_check">when to check</label>
+                <div class="settings-input custom-select" id="s-andromeda-verifier-mode" data-value="freshness-sensitive" data-options="freshness-sensitive|current facts;always|every answer;manual|only when asked;off|off" data-i18n-options="settings.opt_current_facts;server.wb_sched_always;settings.opt_only_when_asked;common.off" aria-labelledby="s-andromeda-verifier-mode-label"></div>
               </div>
               <div class="s-field">
-                <label data-i18n="shell.settings_search.default_model_band">default model band</label>
-                <div class="settings-input custom-select" id="s-andromeda-band" data-value="standard" data-options="light|light;standard|standard;strong|strong;auto|automatic" data-i18n-options="common.light;shell.settings_search.standard;shell.settings_search.strong;common.automatic" aria-label="default andromeda model band" data-i18n-aria-label="shell.settings_search.default_andromeda_model_band"></div>
+                <label id="s-andromeda-band-label" data-i18n="shell.andromeda_settings.overview_strength">overview strength</label>
+                <div class="settings-input custom-select" id="s-andromeda-band" data-value="standard" data-options="light|light;standard|standard;strong|strong;auto|automatic" data-i18n-options="common.light;shell.settings_search.standard;shell.settings_search.strong;common.automatic" aria-labelledby="s-andromeda-band-label"></div>
+                <div class="s-card-hint" data-i18n="shell.andromeda_settings.light_fastest_shortest_answer_least_checking">light: fastest, shortest answer, least checking</div>
+                <div class="s-card-hint" data-i18n="shell.andromeda_settings.standard_balanced_speed_and_checking">standard: balanced speed and checking</div>
+                <div class="s-card-hint" data-i18n="shell.andromeda_settings.strong_slower_longer_answer_more_checking">strong: slower, longer answer, more checking</div>
+                <div class="s-card-hint" data-i18n="shell.andromeda_settings.automatic_chooses_from_the_query_and">automatic: chooses from the query and available model</div>
               </div>
               <div class="andromeda-band-settings">
                 <label><span data-i18n="common.light">light</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-light" data-band="light" data-value="" data-options="|not configured" data-i18n-options="andromeda.x_not_configured"></div></label>
@@ -2247,6 +2177,19 @@
                 <button class="btn" id="s-andromeda-qualify" type="button" data-i18n="shell.settings_search.test_auto_model">test auto model</button>
                 <span id="s-andromeda-model-status" class="s-card-hint" role="status" aria-live="polite"></span>
               </div>
+            </div>
+          </div>
+          <div class="s-card" role="region" aria-labelledby="s-hidden-sites-head">
+            <div class="s-card-head" id="s-hidden-sites-head" data-i18n="shell.settings_search.hidden_sites">hidden sites</div>
+            <div class="s-card-body">
+              <div class="s-card-hint" data-i18n="shell.settings_search.andromeda_leaves_these_sites_and_their">andromeda leaves these sites, and their subdomains, out of every result list.</div>
+              <div class="settings-list" id="s-hidden-sites-list"></div>
+              <label class="s-field-label s-hidden-site-label" for="s-hidden-site" data-i18n="shell.settings_search.site_to_hide">site to hide</label>
+              <form class="s-hidden-sites-form" id="s-hidden-sites-form" novalidate>
+                <input type="text" class="settings-input" id="s-hidden-site" maxlength="253" autocomplete="off" spellcheck="false" aria-describedby="s-hidden-sites-status">
+                <button type="submit" class="btn" id="s-hidden-site-add" data-i18n="shell.settings_search.hide_site">hide site</button>
+              </form>
+              <div class="s-search-status" id="s-hidden-sites-status" role="status" aria-live="polite"></div>
             </div>
           </div>
         </div>

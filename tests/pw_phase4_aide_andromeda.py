@@ -495,6 +495,20 @@ def check_aide(browser, viewport: dict, mobile: bool, results: dict) -> None:
     context.close()
 
 
+def flip_andromeda_setting(page: Page, switch: str) -> None:
+    """Flip one switch in the andromeda section of the one settings screen, then close it."""
+    page.evaluate("window._openSettings('andromeda')")
+    page.wait_for_selector("#s-pane-andromeda.active", timeout=5_000)
+    with page.expect_response(
+        lambda response: (
+            response.url.endswith("/api/settings") and response.request.method == "PATCH"
+        )
+    ):
+        page.locator(switch).click()
+    page.locator("#settings-modal-close").click()
+    page.wait_for_selector("#settings-modal", state="hidden", timeout=5_000)
+
+
 def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> None:
     label = "mobile" if mobile else "desktop"
     context = new_context(
@@ -610,7 +624,7 @@ def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> Non
         and page.locator(".andromeda-result").count() == 2
     )
 
-    page.locator("#andromeda-results-toggle").click()
+    flip_andromeda_setting(page, "#s-andromeda-results")
     page.locator("#andromeda-query").fill("overview without visible links")
     page.locator("#andromeda-query").press("Enter")
     page.wait_for_selector(".andromeda-claim", timeout=10_000)
@@ -619,8 +633,8 @@ def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> Non
         and "normal results are off" in page.locator(".andromeda-empty").inner_text().lower()
     )
 
-    page.locator("#andromeda-results-toggle").click()
-    page.locator("#andromeda-overview-toggle").click()
+    flip_andromeda_setting(page, "#s-andromeda-results")
+    flip_andromeda_setting(page, "#s-andromeda-overview")
     page.locator("#andromeda-query").fill("links without overview")
     page.locator("#andromeda-query").press("Enter")
     page.wait_for_selector(".andromeda-result", timeout=10_000)
@@ -632,7 +646,7 @@ def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> Non
         and page.locator("#andromeda-overview").is_hidden()
     )
 
-    page.locator("#andromeda-results-toggle").click()
+    flip_andromeda_setting(page, "#s-andromeda-results")
     page.locator("#andromeda-query").fill("everything disabled")
     page.locator("#andromeda-query").press("Enter")
     page.wait_for_selector(".andromeda-empty", timeout=10_000)
@@ -643,8 +657,8 @@ def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> Non
         "normal results are off" in page.locator(".andromeda-empty").inner_text().lower()
         and page.locator("#andromeda-overview").is_hidden()
     )
-    page.locator("#andromeda-results-toggle").click()
-    page.locator("#andromeda-overview-toggle").click()
+    flip_andromeda_setting(page, "#s-andromeda-results")
+    flip_andromeda_setting(page, "#s-andromeda-overview")
 
     page.locator("#andromeda-query").fill("find a website !ai")
     page.locator("#andromeda-query").press("Enter")
@@ -681,7 +695,8 @@ def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> Non
     results[f"{label}_labels"] = (
         page.locator("#andromeda-query").get_attribute("aria-label") is None
         and page.locator('label[for="andromeda-query"]').count() == 1
-        and page.locator("#andromeda-band").get_attribute("aria-label") == "overview model band"
+        and page.locator("#andromeda-exact-model").get_attribute("aria-label")
+        == "exact overview model"
     )
     results[f"{label}_reduced_motion"] = page.evaluate(
         "matchMedia('(prefers-reduced-motion: reduce)').matches"

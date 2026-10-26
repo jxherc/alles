@@ -310,13 +310,15 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     assert page.locator('#andromeda-view input[type="checkbox"]:visible').count() == 0
     assert page.locator('#andromeda-view input[type="radio"]:visible').count() == 0
 
+    # settings are the one settings screen, opened on its andromeda section
     page.locator("#andromeda-idle-settings").click()
-    assert page.locator("#andromeda-settings-panel").is_visible()
-    page.locator("#andromeda-provider").click()
-    page.locator(".custom-dropdown-option", has_text="searxng").click()
-    assert page.locator("#andromeda-provider").get_attribute("data-value") == "searxng"
+    page.wait_for_selector("#settings-modal #s-pane-andromeda.active", state="visible")
+    assert page.locator("#andromeda-settings-panel").count() == 0
     page.keyboard.press("Escape")
-    assert page.locator("#andromeda-settings-panel").is_hidden()
+    assert page.locator("#settings-modal").is_hidden()
+    # the per-search engine sits beside the results, so the first search sets it directly
+    page.evaluate("document.getElementById('andromeda-provider').value = 'searxng'")
+    assert page.locator("#andromeda-provider").get_attribute("data-value") == "searxng"
 
     page.locator("#andromeda-query").fill("current search release")
     page.locator("#andromeda-form").press("Enter")

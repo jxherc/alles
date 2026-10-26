@@ -7,6 +7,7 @@ import { appLabel } from '../../static/js/util.js';
 
 const vault = readFileSync(new URL('../../static/js/vault.js', import.meta.url), 'utf8');
 const settings = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
+const andromedaSettings = readFileSync(new URL('../../static/js/settings/andromeda.js', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
 
 function lockScreen({ state = 'setup', biometric = 'failed', supported = true, setupOk = true } = {}) {
@@ -103,9 +104,9 @@ test('vault entry type reads the KOKUEN dropdown state', () => {
 });
 
 test('Andromeda exact model bands read the KOKUEN dropdown state', () => {
-  const source = settings.slice(
-    settings.indexOf('async function saveAndromedaModelBands'),
-    settings.indexOf('function renderShortcutList'),
+  const source = andromedaSettings.slice(
+    andromedaSettings.indexOf('async function saveBandModels'),
+    andromedaSettings.indexOf('async function qualifyAutoModel'),
   );
   assert.match(source, /getDropdownValue\(select\)/);
   assert.doesNotMatch(source, /select\?\.value|select\.value/);

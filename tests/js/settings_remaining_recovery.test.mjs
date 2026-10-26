@@ -71,7 +71,7 @@ function harness(kind = 'settings') {
     _patchSettings: value => { patches.push(value); return Promise.resolve(value); },
     _fetchWithRecentOwner: fetch, _getAppearance: () => ({}),
     _esc: value => String(value), _escAttr: value => String(value),
-    homePane: {}, languagePane: {}, creditsPane: {}, providersPane: {}, connectionsPane: {}, createBackupPane: () => ({}),
+    homePane: {}, languagePane: {}, creditsPane: {}, providersPane: {}, andromedaPane: {}, connectionsPane: {}, createBackupPane: () => ({}),
     createSettingsPane: config => config, CSS: { escape: value => value }, loadModels() {},
     setTimeout(fn) { const id = ++timerId; timers.set(id, fn); return id; }, clearTimeout: id => timers.delete(id),
   });

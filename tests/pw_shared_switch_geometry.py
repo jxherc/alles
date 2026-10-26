@@ -82,7 +82,7 @@ def run() -> None:
             page.locator(
                 "#andromeda-idle-settings:visible, #andromeda-settings-button:visible"
             ).click()
-            exercise(page.locator("#andromeda-overview-toggle"))
+            exercise(page.locator("#s-andromeda-overview"))
             page.screenshot(path=str(output / f"andromeda-{width}.png"))
             context.close()
         browser.close()

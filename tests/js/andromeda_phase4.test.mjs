@@ -13,7 +13,6 @@ const {
   andromedaLandingUrl,
   canReplacePageResults,
   canLoadMoreResults,
-  configuredFallbackChain,
   continuationQuery,
   contextClaimsForOverview,
   failureSummary,
@@ -22,10 +21,7 @@ const {
   mergePageResults,
   parseSseFrames,
   queryWithNoAi,
-  queueSearchCredentialWrite,
-  queueSearchConfigurationWrite,
   resultSnippetFocus,
-  sanitizeSearchSettings,
   validatedProjectId,
   withProjectContext,
 } = await import('../../static/js/andromeda.js');
@@ -85,27 +81,6 @@ test('normal results emphasize a decisive version, date, price, or percentage', 
   assert.equal(resultSnippetFocus('price of the test plan', 'It costs $19.50 per month.'), '$19.50');
   assert.equal(resultSnippetFocus('current approval rate', 'The approval rate is 63.4%.'), '63.4%');
   assert.equal(resultSnippetFocus('Python 3.14 documentation', 'Python 3.14 documentation.'), '');
-});
-
-test('plaintext provider credentials are removed from long-lived settings state', () => {
-  assert.deepEqual(
-    sanitizeSearchSettings({
-      tavily_api_key: 'redacted',
-      brave_api_key: 'redacted',
-      google_pse_api_key: 'redacted',
-      serper_api_key: 'redacted',
-      tavily_api_key_configured: true,
-      search_result_count: 10,
-    }),
-    { tavily_api_key_configured: true, search_result_count: 10 },
-  );
-  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  const patch = source.slice(
-    source.indexOf('async function patchSearchSettings'),
-    source.indexOf('function updateProviderSettingsSummary'),
-  );
-  assert.equal((patch.match(/sanitizeSearchSettings\(/g) || []).length, 4);
-  assert.doesNotMatch(patch, /\.\.\.patch/);
 });
 
 test('overview removes only the explicitly identified key-answer source claim', () => {
@@ -231,16 +206,6 @@ test('failure details name the type and bounded attempted sources', () => {
   assert.equal(failureSummary({}), '');
 });
 
-test('saving the one visible fallback removes hidden providers from the chain', () => {
-  assert.deepEqual(configuredFallbackChain('duckduckgo', 'brave'), ['brave']);
-  assert.deepEqual(configuredFallbackChain('tavily', 'brave'), ['brave']);
-  assert.deepEqual(configuredFallbackChain('duckduckgo', 'none'), []);
-  assert.deepEqual(
-    configuredFallbackChain('tavily', 'brave', ['brave', 'serper', 'tavily', 'duckduckgo']),
-    ['brave'],
-  );
-});
-
 test('Project context accepts only UUIDs and survives an Andromeda URL', () => {
   const id = '123e4567-e89b-42d3-a456-426614174000';
   assert.equal(validatedProjectId(id.toUpperCase()), id);
@@ -325,104 +290,6 @@ test('news results require an explicit save action before entering Library', () 
   assert.doesNotMatch(source, /renderAndromedaResults[\s\S]{0,500}\/api\/read\/save-news/);
 });
 
-test('Andromeda owns the complete search and managed SearXNG settings', () => {
-  const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
-  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  for (const id of [
-    'andromeda-provider-order',
-    'andromeda-primary-provider',
-    'andromeda-fallback-provider',
-    'andromeda-result-count',
-    'andromeda-searxng-status',
-    'andromeda-searxng-actions',
-  ]) assert.match(html, new RegExp(`id="${id}"`));
-  assert.match(source, /jsonRequest\('\/api\/system\/searxng'\)/);
-  assert.match(source, /\/api\/system\/searxng\/\$\{action\}/);
-  assert.doesNotMatch(source, /andromeda-manage-engines[\s\S]{0,180}_openSettings\?\.\('search'\)/);
-});
-
-test('stored search credentials have an explicit accessible clear action', () => {
-  const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
-  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  const styles = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
-  assert.equal((html.match(/data-andromeda-clear-setting=/g) || []).length, 7);
-  assert.equal((html.match(/aria-label="clear [^"]+"/g) || []).length, 7);
-  assert.match(source, /queueSearchCredentialWrite/);
-  assert.match(source, /_credentialClearPending\.has\(input\.id\)/);
-  assert.match(source, /addEventListener\('pointerdown'/);
-  assert.match(styles, /\.andromeda-setting-clear[\s\S]{0,180}min-height: 44px/);
-});
-
-test('credential writes are serialized so a later clear wins', async () => {
-  const events = [];
-  let started;
-  let release;
-  const firstStarted = new Promise(resolve => { started = resolve; });
-  const holdFirst = new Promise(resolve => { release = resolve; });
-  const first = queueSearchCredentialWrite('test-setting', async () => {
-    started();
-    await holdFirst;
-    events.push('save');
-  });
-  await firstStarted;
-  const second = queueSearchCredentialWrite('test-setting', async () => {
-    events.push('clear');
-  });
-  release();
-  await Promise.all([first, second]);
-  assert.deepEqual(events, ['save', 'clear']);
-});
-
-test('credential inputs are locked while a save or clear is pending', () => {
-  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  const save = source.slice(
-    source.indexOf('async function saveSearchCredential(input)'),
-    source.indexOf('async function clearSearchCredential(button)'),
-  );
-  const clear = source.slice(
-    source.indexOf('async function clearSearchCredential(button)'),
-    source.indexOf('function managedSearxngState(service)'),
-  );
-  assert.match(save, /input\.disabled = true;[\s\S]*finally \{[\s\S]*input\.disabled = false;/);
-  assert.match(clear, /input\.disabled = true;[\s\S]*finally \{[\s\S]*input\.disabled = false;/);
-});
-
-test('search configuration writes are serialized so the newest complete tuple wins', async () => {
-  const events = [];
-  let started;
-  let release;
-  const firstStarted = new Promise(resolve => { started = resolve; });
-  const holdFirst = new Promise(resolve => { release = resolve; });
-  const first = queueSearchConfigurationWrite(async () => {
-    started();
-    await holdFirst;
-    events.push('older tuple');
-  });
-  await firstStarted;
-  const second = queueSearchConfigurationWrite(async () => {
-    events.push('newest tuple');
-  });
-  release();
-  await Promise.all([first, second]);
-  assert.deepEqual(events, ['older tuple', 'newest tuple']);
-});
-
-test('only the newest queued search configuration write may refresh provider choices', () => {
-  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  const save = source.slice(
-    source.indexOf('async function saveSearchConfiguration()'),
-    source.indexOf('const SEARCH_CREDENTIAL_FIELDS'),
-  );
-  const loader = source.slice(
-    source.indexOf('async function loadProviderChoices('),
-    source.indexOf('async function explainResults()'),
-  );
-  assert.match(save, /const writeGeneration = \+\+_searchConfigurationGeneration/);
-  assert.match(save, /writeGeneration !== _searchConfigurationGeneration\) return/);
-  assert.match(save, /loadProviderChoices\(writeGeneration\)/);
-  assert.match(loader, /requestedConfigurationGeneration !== _searchConfigurationGeneration\) return/);
-});
-
 test('automatic search keeps the configured provider fallback chain active', () => {
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   const loader = source.slice(source.indexOf('async function loadProviderChoices('), source.indexOf('async function explainResults()'));
@@ -430,22 +297,8 @@ test('automatic search keeps the configured provider fallback chain active', () 
   assert.match(loader, /providerValue\('andromeda-provider'\)/);
   assert.match(loader, /options\.some\(option => option\.value === selectedProvider\)/);
   assert.match(loader, /populateDropdown\(control, options, preservedProvider\)/);
-  assert.match(loader, /catch \(error\)[\s\S]*setSearchSettingsStatus[\s\S]*return;/);
+  assert.match(loader, /catch \(error\)[\s\S]*status\(error\.message[\s\S]*return;/);
   assert.doesNotMatch(source, /selected\s*=\s*response\.selected/);
-});
-
-test('unrelated search settings keep the loaded fallback-chain tail', () => {
-  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  const save = source.slice(
-    source.indexOf('async function saveSearchConfiguration()'),
-    source.indexOf('const SEARCH_CREDENTIAL_FIELDS'),
-  );
-  assert.match(save, /primaryChanged[\s\S]*fallbackChanged/);
-  assert.match(
-    save,
-    /if \(primaryChanged \|\| fallbackChanged\) patch\.search_fallback_chain = fallbackChain/,
-  );
-  assert.doesNotMatch(save, /search_fallback_chain:\s*fallbackChain/);
 });
 
 test('result explanation uses the opaque Aide handoff instead of a query payload', () => {
@@ -460,93 +313,34 @@ test('result explanation uses the opaque Aide handoff instead of a query payload
   assert.match(app, /if \(projectId && window\._currentSession\?\.project_id !== projectId\) \{\s*if \(newChat\(\{ projectId \}\) === false\) return false;\s*\}/);
 });
 
-test('provider choices refresh after credentials and managed SearXNG lifecycle changes', () => {
-  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  const save = source.slice(source.indexOf('async function saveSearchCredential'), source.indexOf('async function clearSearchCredential'));
-  const managed = source.slice(source.indexOf('async function manageSearxng'), source.indexOf('function openSettings()'));
-  assert.match(save, /await loadProviderChoices\(\)/);
-  assert.match(managed, /finally \{[\s\S]*await loadManagedSearxng\(\)[\s\S]*await loadProviderChoices\(\)/);
-  assert.match(managed, /let actionMessage = ''/);
-  assert.match(
-    managed,
-    /await loadProviderChoices\(\)[\s\S]*statusNode\.textContent = actionMessage/,
-  );
-  assert.match(managed, /actionState = 'error'/);
-});
-
-test('search and overview requests read the custom dropdown state', () => {
+test('search and overview requests read the custom dropdown state and the saved preferences', () => {
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   assert.match(source, /provider: providerValue\('andromeda-provider'\)/);
-  assert.match(source, /band: providerValue\('andromeda-band', 'standard'\)/);
-  assert.match(source, /selectedFallback === primary \? 'none' : selectedFallback/);
-  assert.match(
-    source,
-    /if \(primaryChanged \|\| fallbackChanged\) patch\.search_fallback_chain = fallbackChain/,
-  );
-  const saveConfiguration = source.slice(
-    source.indexOf('async function saveSearchConfiguration'),
-    source.indexOf('const SEARCH_CREDENTIAL_FIELDS'),
-  );
-  assert.doesNotMatch(saveConfiguration, /_settingsState\.search_fallback_chain/);
+  assert.match(source, /normal_results: _prefs\.normalResults/);
+  assert.match(source, /&& _prefs\.overview/);
+  assert.match(source, /band: _prefs\.band/);
   assert.match(source, /_modelChoices\.get\(providerValue\('andromeda-exact-model'\)\)/);
   assert.doesNotMatch(source, /el\('andromeda-(?:provider|band|exact-model)'\)\?\.value/);
 });
 
-test('persisted Andromeda toggles and model band share the ordered settings queue', () => {
-  const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  const bindings = source.slice(source.indexOf('function bindOnce()'), source.indexOf('export async function initAndromeda'));
-  const toggles = bindings.slice(
-    bindings.indexOf("for (const id of ['andromeda-results-toggle'"),
-    bindings.indexOf("for (const id of ['andromeda-primary-provider'"),
-  );
-  const band = bindings.slice(
-    bindings.indexOf("el('andromeda-band')"),
-    bindings.indexOf('for (const id of Object.keys(SEARCH_CREDENTIAL_FIELDS))'),
-  );
-  for (const handler of [band]) {
-    assert.match(handler, /queueSearchConfigurationWrite\(/);
-    assert.match(handler, /\(\) => patchSearchSettings\(/);
-  }
-  assert.match(
-    toggles,
-    /persistAndromedaSwitch\(id, setting\)/,
-  );
-  const persist = source.slice(
-    source.indexOf('async function persistAndromedaSwitch'),
-    source.indexOf('async function saveSearchConfiguration'),
-  );
-  assert.match(persist, /queueSearchConfigurationWrite\(/);
-  assert.match(persist, /\(\) => patchSearchSettings\(\{ \[setting\]: next \}\)/);
-  assert.match(
-    band,
-    /const band = providerValue\('andromeda-band', 'standard'\)[\s\S]*andromeda_model_band: band/,
-  );
-});
-
-test('Andromeda switches expose names and roll failed writes back from a busy state', () => {
+test('the page keeps only per-search choices; every saved setting lives in the settings screen', () => {
   const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
-  for (const [id, label] of [
-    ['andromeda-results-toggle', 'show normal results'],
-    ['andromeda-overview-toggle', 'show ai overview'],
-    ['andromeda-verification-toggle', 'independently fact-check answers'],
-  ]) {
-    assert.match(html, new RegExp(`id="${id}"[^>]+aria-label="${label}"`));
-  }
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  const helper = source.slice(
-    source.indexOf('async function persistAndromedaSwitch'),
-    source.indexOf('async function saveSearchConfiguration'),
-  );
-  assert.match(helper, /aria-busy[^\n]+true/);
-  assert.match(helper, /button\.setAttribute\('aria-disabled', 'true'\)/);
-  assert.doesNotMatch(helper, /button\.disabled = true/);
-  assert.match(
-    helper,
-    /if \(!button \|\| button\.getAttribute\('aria-busy'\) === 'true'\) return false/,
-  );
-  assert.match(helper, /setPressed\(id, previous\)/);
-  assert.match(helper, /outcome = 'error'/);
-  assert.match(helper, /tr\('andromeda\.x_setting_unsaved'\)/);
+  assert.doesNotMatch(html, /andromeda-settings-panel/);
+  for (const id of [
+    'andromeda-results-toggle', 'andromeda-overview-toggle', 'andromeda-verification-toggle',
+    'andromeda-primary-provider', 'andromeda-fallback-provider', 'andromeda-result-count',
+    'andromeda-verifier-mode', 'andromeda-band', 'andromeda-searxng-status', 'andromeda-provider-order',
+  ]) assert.doesNotMatch(html, new RegExp(`id="${id}"`), id);
+  for (const id of ['andromeda-provider', 'andromeda-exact-model', 'andromeda-saved-list']) {
+    assert.match(html, new RegExp(`id="${id}"`), id);
+  }
+  assert.doesNotMatch(html, /id="andromeda-settings-button"[^>]*aria-controls/);
+  assert.match(source, /window\._openSettings\?\.\('andromeda'\)/);
+  assert.match(source, /el\('andromeda-settings-button'\)\?\.addEventListener\('click', openSettings\)/);
+  assert.match(source, /el\('andromeda-idle-settings'\)\?\.addEventListener\('click', openSettings\)/);
+  assert.match(source, /window\.addEventListener\('alles:andromeda-settings', event => \{\s*if \(event\.detail\) applyPrefs\(event\.detail\);/);
+  assert.doesNotMatch(source, /andromeda-settings-panel|\/api\/system\/searxng|search_primary|search_provider/);
 });
 
 test('overview strength explains both speed and answer quality', () => {
@@ -596,7 +390,7 @@ test('independent verification is separately confirmed, cancellable, and persist
   assert.match(source, /applyVerifiedCorrections\(job\.result \|\| \{\}\)/);
   assert.match(html, /id="andromeda-verification-state"/);
   assert.match(html, /id="andromeda-verification-details-toggle"/);
-  assert.match(html, /id="andromeda-verification-toggle"[^>]+role="switch"/);
+  assert.match(html, /id="s-andromeda-verification"[^>]+role="switch"/);
 });
 
 test('search requests use configured result counts and discard stale generations', () => {
@@ -624,9 +418,7 @@ test('reopening a saved search invalidates live work and restores only persisted
   assert.match(reopen, /_searchGeneration \+= 1/);
   assert.match(reopen, /hasMore: saved\.request\?\.has_more === true/);
   assert.match(reopen, /saved\.request\?\.query \|\| saved\.query \|\| ''/);
-  assert.match(reopen, /const overviewPreference = pressed\('andromeda-overview-toggle'\)/);
-  assert.match(reopen, /savedCategory === 'all' && !_state\.usedNoAi/);
-  assert.match(reopen, /: overviewPreference/);
+  assert.doesNotMatch(reopen, /setPressed|overviewPreference|andromeda-band/);
   assert.match(reopen, /updateMoreResults\(\)/);
   assert.doesNotMatch(reopen, /updateMoreResults\(saved\.request\?\.max_results/);
   assert.match(

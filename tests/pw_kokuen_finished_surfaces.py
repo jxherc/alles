@@ -749,31 +749,25 @@ def _andromeda(browser: Browser, errors: list[str]) -> None:
         assert root.get_attribute("data-kokuen-surface") == "andromeda"
         assert page.locator(".andromeda-brand").count() == 0
         page.locator("#andromeda-idle-settings:visible, #andromeda-settings-button:visible").click()
-        panel = page.locator("#andromeda-settings-panel")
+        # andromeda settings are a section of the one settings screen
+        assert page.locator("#andromeda-settings-panel").count() == 0
+        panel = page.locator("#s-pane-andromeda.active")
         panel.wait_for(state="visible")
         page.wait_for_function(
-            "document.getElementById('andromeda-searxng-status')?.textContent.trim() !== 'checking local search…'"
+            "() => document.getElementById('s-andromeda-searxng-status')?.textContent.trim() !== 'checking local search…'"
         )
-        provider_order_row = page.locator("#andromeda-provider-order").locator("..").locator("..")
-        assert provider_order_row.locator(".custom-select").count() == 0
-        result_count_row = page.locator("#andromeda-result-count").locator("..")
-        assert result_count_row.locator("strong").inner_text().strip() == "result count"
-        assert page.locator("#andromeda-provider-summary").count() == 0
-        panel_box = panel.bounding_box()
-        assert panel_box and panel_box["x"] >= 52
-        assert panel_box["x"] + panel_box["width"] <= width + 0.5
-        assert panel.evaluate("el => getComputedStyle(el).boxShadow === 'none'")
+        result_count_row = page.locator("#s-andromeda-count").locator("..")
+        assert result_count_row.locator("label").inner_text().strip() == "result count"
         assert panel.locator("select:visible").count() == 0
         choice = panel.locator(".custom-select:visible").first
         choice.click()
         menu = page.locator(".custom-dropdown-panel:visible")
         menu.wait_for(state="visible")
-        assert menu.get_attribute("data-kokuen-surface") == "andromeda"
+        assert menu.get_attribute("data-kokuen-surface") == "settings"
         page.keyboard.press("Escape")
-        panel.evaluate("el => { el.scrollTop = 0; }")
+        page.locator("#settings-modal .s-content").evaluate("el => { el.scrollTop = 0; }")
         page.wait_for_timeout(50)
-        assert page.locator(".andromeda-settings-head").is_visible()
-        assert page.locator("#andromeda-search-settings-title").is_visible()
+        assert page.locator("#s-andromeda-sources-head").is_visible()
         _assert_no_overflow(page)
         page.screenshot(path=str(OUTPUT / f"andromeda-{label}.png"))
         context.close()

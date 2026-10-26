@@ -212,12 +212,12 @@ with sync_playwright() as pw:
                 else:
                     action.focus()
                     action.press("Enter")
-                expect(page.locator("#andromeda-settings-panel")).to_be_visible()
-                expect(page.locator("#andromeda-primary-provider")).to_have_attribute(
+                expect(page.locator("#s-pane-andromeda.active")).to_be_visible()
+                expect(page.locator("#s-andromeda-primary")).to_have_attribute(
                     "data-value", "disabled"
                 )
                 page.keyboard.press("Escape")
-                expect(page.locator("#andromeda-settings-panel")).to_be_hidden()
+                expect(page.locator("#settings-modal")).to_be_hidden()
                 expect(action).to_be_focused()
                 ring = action.evaluate(
                     "e=>({style:getComputedStyle(e).outlineStyle,width:getComputedStyle(e).outlineWidth})"
@@ -253,7 +253,7 @@ with sync_playwright() as pw:
                         expect(local_action).to_be_visible()
                         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                         local_action.tap()
-                        expect(page.locator("#andromeda-settings-panel")).to_be_visible()
+                        expect(page.locator("#s-pane-andromeda.active")).to_be_visible()
                         page.keyboard.press("Escape")
                         expect(local_action).to_be_focused()
                         capture(language)
@@ -282,14 +282,14 @@ with sync_playwright() as pw:
                 expect(action).to_be_visible()
                 action.focus()
                 action.press("Enter")
-                expect(page.locator("#andromeda-settings-panel")).to_be_visible()
+                expect(page.locator("#s-pane-andromeda.active")).to_be_visible()
                 with page.expect_response(
                     lambda response: (
                         response.url == base + "/api/settings"
                         and response.request.method == "PATCH"
                     )
                 ):
-                    page.locator("#andromeda-results-toggle").click()
+                    page.locator("#s-andromeda-results").click()
                 page.keyboard.press("Escape")
                 result = search("owned hidden results !ai")
                 assert not result["normal_results_enabled"]

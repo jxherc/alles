@@ -112,14 +112,16 @@ tasks use owner-scoped tab drafts. docs also have server-managed recovery drafts
 | foundations | theme variables in `style.css`; semantic `--k-*` / `--ui-*` aliases at the start of `kokuen.css` | palette, type, spacing, motion and geometry |
 | shared controls | `.btn`, `.settings-input`, `.custom-select`, `.chk`, `.seg`, `.s-switch`; v5 primitive geometry and state rules in `kokuen.css` | reusable interaction states and hit areas |
 | shared form composition | `.s-card` and `.s-field` in `style.css` | cards used by Settings and Projects, fields used by Settings and the Skills editor |
-| settings shell and panes | `#settings-modal`, with pane-local roots for Home, language, credits, providers and connections | modal layout and pane composition |
+| settings shell and panes | `#settings-modal`, with pane-local roots for Home, language, credits, providers, Andromeda and connections | modal layout and pane composition |
 | Home | `#today-view` and its `.today-*` descendants | the daily ledger and capture layout |
 | Finance | `#money-view` for ledger/card rules; `#finance-view` for Actual and import panels | amounts, forecasts, transactions, authority and import state |
 | other workspaces | explicit screen roots, `body[data-app]`, `body[data-space]` and existing feature namespaces | the corresponding feature layout; keep shared controls outside these rules |
 
 Finance's short private classes such as `.ms-card`, `.cat-row` and `.env-row` cannot style elements outside Money. summary cards fit as many readable tracks as the available width allows. large grouped numbers and cents stay intact; a currency prefix can occupy another line in a narrow card. dialog and dropdown roots retain their own styles because they can live outside a screen's DOM tree.
 
-[static/js/settings.js](static/js/settings.js) owns modal navigation, the focus trap, close/reopen focus return and remaining small panes. [static/js/settings/](static/js/settings) owns independent Home, language, credits, backup, provider and connection panes. each initializes once, loads for its current opening and disposes transient reads/menu state when left. disposal retains draft fields and pending saves. a late read cannot overwrite a newer opening or edited form; saves retain their own status and error handling. `shared.js` keeps the existing ordered settings write queue, switch behavior, escaping and recent-owner authorization. backup staging and provider writes keep their different protocols rather than sharing a generic form framework.
+[static/js/settings.js](static/js/settings.js) owns modal navigation, the focus trap, close/reopen focus return and remaining small panes. [static/js/settings/](static/js/settings) owns independent Home, language, credits, backup, provider, Andromeda and connection panes. each initializes once, loads for its current opening and disposes transient reads/menu state when left. disposal retains draft fields and pending saves. a late read cannot overwrite a newer opening or edited form; saves retain their own status and error handling. `shared.js` keeps the existing ordered settings write queue, switch behavior, escaping and recent-owner authorization. backup staging and provider writes keep their different protocols rather than sharing a generic form framework.
+
+the **andromeda** section (apps group) is where all of Andromeda's saved settings live: search sources (primary and fallback engine, result count, engine keys, a test button), the managed local searxng, the answer (answer model, normal results, ai overview, ask before each remote search, independent fact-check, when to check, overview strength and the exact model per strength) and hidden sites. the search section keeps custom engines. the answer model is the `andromeda_answer` model role, one stored value: the andromeda section and the models section both write it through `setModelRole` in [static/js/settings/model_roles.js](static/js/settings/model_roles.js) (it re-reads the stored roles, changes one, saves, then fires `alles:model-roles`) and each section listens for the other's event, so the two pickers always show the same model. Andromeda's own settings buttons open this section; the page keeps only per-search choices and the saved-search list, and follows setting changes through `alles:andromeda-settings`.
 
 the PWA precache walks nested modules and their exact import URLs, so a cold offline shell can load the same settings module graph. this caches the interface; it does not turn provider, backup or credential operations into offline writes.
 
@@ -1050,7 +1052,9 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **three regions.** the tool card is plain, the ai overview sits on its own tinted surface, and the
   web results start under a small "web results" label, so each part reads apart at a glance. "/"
   outside a text field jumps to the search box. opening andromeda asks its settings, engines, models
-  and saved searches in one round, not one after another.
+  and saved searches in one round, not one after another. its settings buttons open the andromeda
+  section of settings; the page itself keeps only the per-search engine and exact model beside the
+  results, and the saved searches.
 - **result rows.** each row shows the site's icon, its name and a "host › path" trail above a larger
   title, then the page date before the snippet when the engine gives one. a row without an icon from the
   engine uses duckduckgo's icon service, and every icon and image loads through the media proxy.
