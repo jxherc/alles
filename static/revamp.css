@@ -3295,6 +3295,45 @@ html:not(#_):not(#_) .read-card-actions { flex-direction: row; align-self: flex-
   html:not(#_):not(#_) .read-toolbar > .read-search { flex: 1 1 100%; }
 }
 
+/* the library overview's reading queue: a long book title took the whole row, so the title column
+   shrank to one letter wide beside it. the kind and the status keep a share, and the status wraps
+   under its own column instead of pushing the title out */
+@media (min-width: 601px) {
+  html:not(#_):not(#_) .specialist-workbench-library .specialist-library-row {
+    grid-template-columns: minmax(5.5rem, 8rem) minmax(0, 1fr) fit-content(14rem);
+  }
+}
+html:not(#_):not(#_) .specialist-workbench-library .specialist-library-row .specialist-record-meta {
+  overflow-wrap: anywhere;
+}
+/* a phone stacks a row's kind, title and status, so the title uses the whole line instead of the
+   190px left beside "saved reading"; the three filters share one row */
+@media (max-width: 600px) {
+  html:not(#_):not(#_) .specialist-workbench-library .specialist-library-row { grid-template-columns: minmax(0, 1fr); row-gap: var(--k-space-1); }
+  html:not(#_):not(#_) .specialist-workbench-library .specialist-library-row .specialist-record-meta { grid-column: 1; }
+  html:not(#_):not(#_) .specialist-workbench-library .specialist-choice-group button { padding-inline: var(--k-space-2); }
+}
+
+/* the health overview's habit names wrap beside "done today" instead of ending in an ellipsis that
+   hides which habit it is */
+html:not(#_):not(#_) .specialist-workbench-health .specialist-habit-row strong {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+html:not(#_):not(#_) .specialist-workbench-health .specialist-habit-row span { white-space: nowrap; }
+
+/* books: the summary and the goal share the first row on a phone, import and add share the second */
+@media (max-width: 600px) {
+  html:not(#_):not(#_) #books-body .books-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--k-space-2) var(--k-space-3);
+  }
+  html:not(#_):not(#_) #books-body .books-bar :is(.books-goal, .books-goal-set) { margin-inline-start: 0; justify-self: end; }
+}
+
 /* receipts with an undo (a task done, a quick-added event, a note saved from home) float near the
    bottom instead of being inserted above the list: inserted, they pushed the list 60px down the
    moment you acted, right under your finger. toasts step up while one is showing. only on a wide

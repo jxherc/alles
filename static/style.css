@@ -5154,11 +5154,11 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .money-add-acct { font-size: 0.8125rem; padding: 0.25rem 0.6rem; }
 
 :where(#money-view) .cat-chart { display: flex; flex-direction: column; gap: 0.4rem; }
-:where(#money-view) .cat-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
-:where(#money-view) .cat-name { width: 80px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-:where(#money-view) .cat-bar-wrap { flex: 1; height: 8px; background: var(--bg); border-radius: var(--k-radius-control); overflow: hidden; }
+:where(#money-view) .cat-row { display: grid; grid-template-columns: minmax(4.5rem, 8rem) minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
+:where(#money-view) .cat-name { min-width: 0; color: var(--text); overflow-wrap: anywhere; }
+:where(#money-view) .cat-bar-wrap { height: 8px; background: var(--bg); border-radius: var(--k-radius-control); overflow: hidden; }
 :where(#money-view) .cat-bar { height: 100%; background: var(--cat, var(--muted)); border-radius: var(--k-radius-control); }
-:where(#money-view) .cat-amt { width: 72px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+:where(#money-view) .cat-amt { text-align: right; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 :where(#money-view) .trend-svg { width: 100%; height: 110px; display: block; }
 :where(#money-view) .trend-svg .tr-inc { fill: var(--green); } :where(#money-view) .trend-svg .tr-exp { fill: var(--cat-amber); }
@@ -5325,14 +5325,12 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   :where(#money-view) .env-input-label { display: block; }
   :where(#money-view) .env-spent { text-align: left; }
   :where(#money-view) .env-spent { white-space: nowrap; }
-  /* a schedule is its payee and amount, then its date and buttons under them */
-  #money-view .recur { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; column-gap: var(--k-space-2, 8px); row-gap: 0; }
-  #money-view .rc-payee { grid-column: 1; min-width: 0; flex: none; white-space: normal; overflow-wrap: anywhere; }
-  #money-view .rc-amt { grid-column: 2 / -1; justify-self: end; }
-  #money-view .rc-next { grid-column: 1; min-width: 0; text-align: left; }
-  #money-view .rc-toggle { grid-column: 2; }
-  #money-view :is(.rc-edit, .rc-delete) { grid-column: 3; }
-  #money-view :is(.rc-delete, .tx-del) { grid-column: 4; }
+  /* a schedule is its payee and amount, then its date and buttons under them. the payee's basis leaves
+     room for the amount, so the pair always fills the first line and the date starts the second; the date
+     takes the room, so the buttons end on the right edge in every row (and wrap under at a large zoom) */
+  #money-view .rc-payee { flex: 1 1 calc(100% - 9rem); min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+  #money-view .rc-amt { flex: 0 0 auto; max-width: 9rem; }
+  #money-view .rc-next { flex: 1 1 4rem; min-width: 0; text-align: left; }
 }
 :where(#money-view) .ma-rc { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.875rem; }
 :where(#money-view) .ma-rc:hover { color: var(--text); }
@@ -9056,7 +9054,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .habit-add { border-left: 2px solid var(--line-strong); margin-bottom: 1rem; }
 .habit-top { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
 .habit-icon { font-size: 1rem; }
-.habit-name { font-size: 0.875rem; font-weight: 600; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.habit-name { font-size: 0.875rem; font-weight: 600; color: var(--text); flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .habit-streak { font-size: 0.8125rem; color: var(--muted); display: inline-flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
 .habit-streak svg { width: 12px; height: 12px; }
 .habit-streak.on { color: var(--cat-amber); }
@@ -9210,8 +9208,8 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-cover { width: 52px; height: 76px; object-fit: cover; border-radius: var(--k-radius-control); flex-shrink: 0; background: var(--bg); }
 .book-cover-ph { display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 600; color: var(--muted); border: 1px solid var(--faint); }
 .book-info { flex: 1; min-width: 0; }
-.book-title { padding-right: 48px; font-size: 0.8125rem; font-weight: 600; color: var(--text); line-height: 1.25; }
-.book-author { padding-right: 48px; font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.35rem; }
+.book-title { font-size: 0.8125rem; font-weight: 600; color: var(--text); line-height: 1.25; }
+.book-author { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.35rem; }
 /* no author still keeps its line, or the stars ride up under remove and the 5th star's target hides */
 .book-author:empty { min-height: 1lh; }
 .book-stars { display: inline-flex; gap: 1px; margin-bottom: 0.4rem; }
@@ -9229,7 +9227,9 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-notes-edit textarea { width: 100%; resize: vertical; }
 .book-notes-actions { display: flex; gap: 0.3rem; margin-top: 0.3rem; }
 .book-undo-actions { flex-wrap: wrap; }
-.book-del { position: absolute; top: 0.5rem; right: 0.5rem; }
+/* the remove button sits at the foot of the card, so titles and authors use its full width */
+.book-del { position: absolute; bottom: 0.25rem; right: 0.25rem; }
+.book-info > :last-child { padding-inline-end: 2.75rem; }
 .book-del svg { width: 14px; height: 14px; }
 .book-del:hover { color: var(--error); }
 .book-add { border: 1px solid var(--faint); border-left: 2px solid var(--line-strong); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.8rem; margin-bottom: 1.2rem; max-width: 560px; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -9266,7 +9266,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .health-anom.high { color: var(--signal); border: 1px solid var(--signal); }
 .health-anom.low { color: var(--error); border: 1px solid var(--error); }
 .health-baseline { font-size: 0.8125rem; color: var(--muted); margin: -0.2rem 0 0.45rem; }
-.health-baseline span { font-size: 0.8125rem; color: var(--muted); margin-left: 0.1rem; }
+.health-baseline span { font-size: 0.8125rem; color: var(--muted); margin-left: 0.25rem; }
 .health-baseline .health-pm { color: var(--muted); }
 .health-chart { width: 100%; height: 70px; display: block; }
 .health-chart polyline { fill: none; stroke: var(--cat-blue); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
@@ -9289,15 +9289,23 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 #health-write-error p + p { margin-top: var(--k-space-2, 8px); }
 .health-recent { max-width: 880px; }
 .health-recent-h { font-size: 0.8125rem; color: var(--muted); margin-bottom: var(--k-space-2, 8px); }
-.health-row { display: grid; grid-template-columns: 100px minmax(64px, 1fr) minmax(80px, 1fr) minmax(0, 2fr) auto; gap: var(--k-space-2, 8px); align-items: center; padding: var(--k-space-2, 8px) 0; border-bottom: 1px solid var(--faint); font-size: 0.875rem; }
+.health-row { display: grid; grid-template-columns: 7rem minmax(8rem, 1.3fr) minmax(5rem, 0.8fr) minmax(0, 1.6fr) auto; gap: var(--k-space-2, 8px); align-items: center; padding: var(--k-space-2, 8px) 0; border-bottom: 1px solid var(--faint); font-size: 0.875rem; }
 .health-row-date { color: var(--muted); }
 .health-row-kind { color: var(--text); overflow-wrap: anywhere; }
 .health-row-val { color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .health-row-note { color: var(--muted); overflow-wrap: anywhere; }
+/* a tablet in portrait: the note drops under the kind and value, so a long kind ("Upper body strength and
+   conditioning session") gets the room instead of wrapping in 130px beside a note */
+@media (min-width: 681px) and (max-width: 1100px) {
+  .health-row { grid-template-columns: 7rem minmax(0, 1fr) minmax(5rem, auto) auto; }
+  .health-row-note { grid-column: 2 / 4; grid-row: 2; }
+  .health-row-note:empty { display: none; }
+  .health-row-actions { grid-column: 4; grid-row: 1 / span 2; }
+}
 .health-row .icon-btn svg { width: 16px; height: 16px; }
 .health-row .icon-btn.danger:hover { color: var(--error); }
 @media (max-width: 680px) {
-  .health-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .health-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; }
   .health-row-date { grid-column: 1 / 3; }
   .health-row-actions { grid-column: 3; grid-row: 1 / 3; }
   .health-row-kind { grid-column: 1; grid-row: 2; }
