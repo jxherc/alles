@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 import { openPlaidLink, plaidReturnBinding, cancelPlaidReturn } from './finance_plaid.js';
 import { applyAppearance } from './theme.js';
 import { cachedLocalizationSettings, prepareLocalization, t } from './i18n.js';
@@ -25,7 +26,7 @@ async function resume() {
       ? t('finance.plaid_closed_saved')
       : t('finance.plaid_connected');
   } catch (error) {
-    status.textContent = error.message;
+    status.textContent = plainError(error.message);
     status.dataset.error = 'true';
     try { plaidReturnBinding(); retry.hidden = false; } catch {}
   }

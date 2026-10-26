@@ -1,6 +1,7 @@
 // Answer cards and tools above Andromeda's results. The server picks the card and its data;
 // this draws it and runs it in place. Every value is set as text, never as markup.
 // A tool asked for by name opens empty; a query that carries its input answers right away.
+import { plainError } from './util.js';
 import { formatCalendarDate, formatDate, formatNumber, formatTime, t, tp } from './i18n.js';
 import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import {
@@ -138,7 +139,7 @@ function translateTool(data, ctx) {
       syncSwap();
     } catch (error) {
       if (mine !== seq) return;
-      status.textContent = error.message || t('andromeda.ans_translation_failed');
+      status.textContent = plainError(error.message || t('andromeda.ans_translation_failed'));
     } finally {
       if (mine === seq) out.removeAttribute('aria-busy');
     }

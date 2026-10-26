@@ -102,7 +102,7 @@ test('webdav local validation keeps the password for a corrected-only retry and 
   const requests = [];
   const notices = [];
   let release;
-  const context = { t: i18nT, tp: i18nTp,
+  const context = { t: i18nT, tp: i18nTp, plainError: value => value,
     document: { getElementById: id => nodes.get(id) },
     URL,
     toast: (message, kind) => notices.push({ message, kind }),
@@ -164,7 +164,7 @@ test('webdav mutations reconcile reopening during the write or its list read', a
         let firstListStarted;
         const firstList = new Promise(resolve => { firstListStarted = resolve; });
         const response = data => ({ ok: true, json: async () => data });
-        const context = { t: i18nT, tp: i18nTp,
+        const context = { t: i18nT, tp: i18nTp, plainError: value => value,
           document: { getElementById: id => nodes.get(id) }, URL, createSettingsPane,
           toast() {}, formatDateTime: () => 'synthetic time',
           populateDropdown: (node, _options, value) => { node.value = value; },
@@ -239,7 +239,7 @@ test('webdav restores require a staged receipt and derive its command from the v
   const requests = [];
   const notices = [];
   let response;
-  const context = { t: i18nT, tp: i18nTp,
+  const context = { t: i18nT, tp: i18nTp, plainError: value => value,
     document: { getElementById: id => nodes.get(id) },
     FormData: class {
       fields = [];

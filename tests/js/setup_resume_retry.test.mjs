@@ -19,7 +19,7 @@ function harness({ resume, completed = false }) {
   }
   let dismissed = resume, failed = false;
   const calls = [], rendered = [];
-  const context = vm.createContext({ t: i18nT, tp: i18nTp,
+  const context = vm.createContext({ t: i18nT, tp: i18nTp, plainError: value => value,
     document: { getElementById: id => nodes.get(id), querySelector: () => null, activeElement: null }, HTMLElement: class {},
     fetch: async (path, options = {}) => {
       calls.push([path, options.method || 'GET']);

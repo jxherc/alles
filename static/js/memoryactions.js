@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 import { t, tp } from './i18n.js';
 
 function safe(value = '') {
@@ -106,7 +107,7 @@ export async function rememberUserMessage(button) {
   const memory = await response?.json().catch(() => ({}));
   if (!response?.ok) {
     button.disabled = false;
-    button.textContent = memory?.detail || t('aide.remember_failed');
+    button.textContent = plainError(memory?.detail || t('aide.remember_failed'));
     if (lost()) button.focus();
     return;
   }

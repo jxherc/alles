@@ -9,7 +9,7 @@ import { connectionsPane } from './settings/connections.js';
 export { _mergeHomeShortcutOrder } from './settings/home.js';
 export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFromResponse, normalizeS3BackupConfig, s3BackupConfigPayload, s3BackupsFromResponse } from './settings/backups.js';
 export { loadMcpServers, loadConnections, loadDiscordConnection } from './settings/connections.js';
-import { toast } from './util.js';
+import { toast, plainError } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
 import { initCustomDropdowns, closeCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=213';
 import { initMemoryPanel } from './memory.js';
@@ -550,7 +550,7 @@ async function qualifyAndromedaAutoModel() {
     if (status) status.textContent = result.passed
       ? tp('settings.andromeda_qualified', result.required_claims, { supported: result.supported_claims })
       : tp('settings.andromeda_not_qualified', result.required_claims, { supported: result.supported_claims });
-  } catch (error) { if (status) status.textContent = error.message || t('settings.andromeda_fixture_failed'); }
+  } catch (error) { if (status) status.textContent = plainError(error.message || t('settings.andromeda_fixture_failed')); }
   if (button) button.disabled = false;
 }
 

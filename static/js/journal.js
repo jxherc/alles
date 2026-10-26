@@ -1,5 +1,5 @@
 // journal — one entry per day. mood + tags + prompt + streak + on-this-day + AI reflect.
-import { toast, mdToHtml } from './util.js';
+import { toast, mdToHtml, plainError } from './util.js';
 import { formatCalendarDate, formatTime, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=4';
 import { replaceRouteUrl } from './route_history.js';
@@ -960,7 +960,7 @@ async function reflect() {
     if (typeof d.reflection !== 'string' || !d.reflection.trim()) throw new Error(t('journal.no_reflection'));
     box.innerHTML = mdToHtml(d.reflection);
   } catch (e) {
-    if (current()) box.textContent = t('journal.reflect_error', { error: e.message || t('common.request_failed') });
+    if (current()) box.textContent = t('journal.reflect_error', { error: plainError(e.message || t('common.request_failed')) });
   } finally {
     if (current()) {
       btn.removeAttribute('aria-disabled');

@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 import { openCaptureReview, showPendingCapture } from './capture.js';
 import { reconcileSourceReply } from './answer_note.js';
 import { t } from './i18n.js';
@@ -77,7 +78,7 @@ export async function saveAnswerTask(button) {
     const host = document.getElementById('aide-task-recovery');
     if (host) {
       const status = document.createElement('p'); status.setAttribute('role', 'status');
-      status.textContent = error.message || t('aide.task_prepare_failed');
+      status.textContent = plainError(error.message || t('aide.task_prepare_failed'));
       host.replaceChildren(status);
       await loadAnswerTaskRecovery();
     }

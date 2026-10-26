@@ -1,6 +1,6 @@
 // standing goals: things Aide keeps working on and only speaks up about when there's news.
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { toast } from './util.js';
+import { toast, plainError } from './util.js';
 import { formatDateTime, t, tp } from './i18n.js';
 
 const $ = id => document.getElementById(id);
@@ -194,7 +194,7 @@ function openForm(goal = null) {
       if (saved.hook_token) showHook(saved.id, saved.hook_token);
       else $('aide-goal-list').querySelector('.aide-goal-row strong')?.focus();
     } catch (error) {
-      status.textContent = error.message;
+      status.textContent = plainError(error.message);
       status.dataset.error = 'true';
       save.disabled = false;
     }

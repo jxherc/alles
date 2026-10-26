@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 import { requestId } from './request_id.js';
 import { confirm } from './dialog.js';
 import { t } from './i18n.js';
@@ -80,7 +81,7 @@ export async function showNoteRecovery(host, onSaved, onOpen, focusTarget = () =
     if (!host.querySelector('.note-saved-open')) host.replaceChildren();
     host.querySelector('.note-recovery-error')?.remove();
     const notice = document.createElement('div'); notice.className = 'note-recovery-error';
-    const status = document.createElement('p'); status.textContent = error.message;
+    const status = document.createElement('p'); status.textContent = plainError(error.message);
     status.setAttribute('role', 'status');
     const retry = document.createElement('button'); retry.className = 'btn'; retry.type = 'button'; retry.textContent = t('note.retry_recovery');
     retry.onclick = () => showNoteRecovery(host, onSaved, onOpen, focusTarget);
@@ -142,7 +143,7 @@ export async function showNoteRecovery(host, onSaved, onOpen, focusTarget = () =
       notice.remove();
       onSaved(saved, pending.text, restore, pending.body, pending.sourceKey);
     } catch (error) {
-      status.textContent = t('note.error_kept', { message: error.message });
+      status.textContent = t('note.error_kept', { message: plainError(error.message) });
       open.hidden = !error.path || error.status === 410;
       if (error.path) open.onclick = async () => {
         try { await onOpen(error.path); }
@@ -159,7 +160,7 @@ export async function showNoteRecovery(host, onSaved, onOpen, focusTarget = () =
     try {
       store.clear(); ++generation; notice.remove();
       focusTarget()?.focus();
-    } catch (error) { status.textContent = t('note.discard_failed', { message: error.message }); }
+    } catch (error) { status.textContent = t('note.discard_failed', { message: plainError(error.message) }); }
   };
   host.replaceChildren(notice);
   if (restoreFocus && host.getClientRects().length) retry.focus();

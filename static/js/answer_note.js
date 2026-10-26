@@ -1,6 +1,6 @@
 import { requestId } from './request_id.js';
 import { saveNote, showNoteRecovery } from './note_capture.js';
-import { mdToHtml } from './util.js';
+import { mdToHtml, plainError } from './util.js';
 import { stripArtifacts } from './artifacts.js';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { sourceCitationStatus } from './memoryactions.js';
@@ -73,7 +73,7 @@ function noteSaved(saved, text, focus = false, _body = null, sourceKey = '') {
   const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = t('aide.note_open');
   open.onclick = async () => {
     try { await openAnswerNote(saved.path); }
-    catch (error) { status.textContent = error.message; }
+    catch (error) { status.textContent = plainError(error.message); }
   };
   host.replaceChildren(status, open);
   if (focus && host.getClientRects().length) open.focus();
@@ -106,7 +106,7 @@ export async function saveAnswerNote(button) {
   } catch (error) {
     const host = document.getElementById('aide-note-recovery');
     if (host) {
-      const status = document.createElement('p'); status.setAttribute('role', 'status'); status.textContent = error.message;
+      const status = document.createElement('p'); status.setAttribute('role', 'status'); status.textContent = plainError(error.message);
       host.replaceChildren(status);
       await loadAnswerNoteRecovery();
       // Checking a stopped reply may fail before a note receipt exists.

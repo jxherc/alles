@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 import { saveNote, showNoteRecovery } from './note_capture.js';
 import { t } from './i18n.js';
 
@@ -41,7 +42,7 @@ function saved(result, text, restoreFocus = true, pendingBody = null) {
   const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = t('docs.import_open_saved');
   open.onclick = async () => {
     try { await openSaved(result.path); }
-    catch (error) { message.textContent = error.message; }
+    catch (error) { message.textContent = plainError(error.message); }
   };
   host.append(message, open);
   if (preview?.content === text && pendingBody?.content === preview.content && pendingBody?.path === $('docs-import-name').value.trim()) {

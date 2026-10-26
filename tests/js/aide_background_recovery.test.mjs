@@ -18,7 +18,7 @@ function draftFixture({ activeId = 'archive', privateMode = false, original = { 
   const field = { value: 'archive draft', style: {}, dispatchEvent() {}, focus() { this.focused = true; } };
   const notices = [];
   let fail = false;
-  const context = vm.createContext({ t, tp, tr: t, trp: tp,
+  const context = vm.createContext({ t, tp, tr: t, trp: tp, plainError: value => value,
     document: { getElementById: () => field }, Event: class {},
     getActiveId: () => activeId, isIncognitoMode: () => privateMode,
     toast: value => notices.push(value),
@@ -81,7 +81,7 @@ function pollingFixture() {
   const card = { isConnected: true, dataset: { runId: 'original', runState: 'running' },
     querySelector: selector => selector === '[data-background-action]' ? button : notes };
   let timer = 0;
-  const context = vm.createContext({ t, tp, tr: t, trp: tp,
+  const context = vm.createContext({ t, tp, tr: t, trp: tp, plainError: value => value,
     fetch: (url, options) => new Promise((resolve, reject) => requests.push({ url, options, resolve, reject })),
     setTimeout: callback => { timeouts.set(++timer, callback); return timer; },
     clearTimeout: id => timeouts.delete(id),

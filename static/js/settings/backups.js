@@ -1,5 +1,5 @@
 import { createSettingsPane } from './pane.js';
-import { toast } from '../util.js';
+import { toast, plainError } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { populateDropdown } from '../dropdown.js?v=213';
 import { formatDateTime, formatNumber, t } from '../i18n.js';
@@ -301,7 +301,7 @@ async function loadWebdavBackups(announce = false, isCurrent = () => true) {
   } catch (error) {
     if (generation !== _webdavListGeneration || !isCurrent()) return;
     renderWebdavBackups([]);
-    if (selection) selection.textContent = error.message || t('backups.load_remote_failed');
+    if (selection) selection.textContent = plainError(error.message || t('backups.load_remote_failed'));
     if (announce) toast(error.message || t('backups.load_remote_failed'), 'error');
   } finally {
     if (generation === _webdavListGeneration && refresh) { refresh.disabled = _webdavMutationPending || !_webdavConfigured; refresh.textContent = t('backups.refresh'); }
@@ -367,7 +367,7 @@ async function restoreWebdavBackup() {
     if (status) status.textContent = t('backups.staged_run', { command });
     toast(t('backups.remote_staged'), 'success');
   } catch (error) {
-    if (status) status.textContent = error.message || t('backups.remote_stage_failed');
+    if (status) status.textContent = plainError(error.message || t('backups.remote_stage_failed'));
     toast(error.message || t('backups.remote_stage_failed'), 'error');
   } finally {
     _setWebdavMutationPending(false);
@@ -732,7 +732,7 @@ async function loadS3Backups(announce = false, isCurrent = () => true) {
   } catch (error) {
     if (generation !== _s3ListGeneration || !isCurrent()) return;
     renderS3Backups([]);
-    if (selection) selection.textContent = error.message || t('backups.load_remote_failed');
+    if (selection) selection.textContent = plainError(error.message || t('backups.load_remote_failed'));
     if (announce) toast(error.message || t('backups.load_remote_failed'), 'error');
   } finally {
     if (generation === _s3ListGeneration && refresh) { refresh.disabled = _s3MutationPending || !_s3Configured; refresh.textContent = t('backups.refresh'); }
@@ -798,7 +798,7 @@ async function restoreS3Backup() {
     if (status) status.textContent = t('backups.staged_run', { command });
     toast(t('backups.remote_staged'), 'success');
   } catch (error) {
-    if (status) status.textContent = error.message || t('backups.remote_stage_failed');
+    if (status) status.textContent = plainError(error.message || t('backups.remote_stage_failed'));
     toast(error.message || t('backups.remote_stage_failed'), 'error');
   } finally {
     _setS3MutationPending(false);

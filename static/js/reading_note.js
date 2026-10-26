@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 import { fields } from './dialog.js';
 import { saveNote, showNoteRecovery } from './note_capture.js';
 import { recordTarget, withRecordTarget } from './recordlinks.js';
@@ -35,7 +36,7 @@ function noteSaved(result, _text, focus = false) {
   const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = t('read.open_note');
   open.onclick = async () => {
     try { await openNote(result.path); }
-    catch (error) { status.textContent = error.message; }
+    catch (error) { status.textContent = plainError(error.message); }
   };
   target.replaceChildren(status, open);
   if (focus && target.getClientRects().length) open.focus();

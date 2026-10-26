@@ -1,5 +1,6 @@
 // Offline changes stay in this browser until the server accepts them or the owner
 // explicitly discards a reviewed failure.
+import { plainError } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { t, tp } from './i18n.js';
 
@@ -156,7 +157,7 @@ async function reviewOutbox() {
       await refresh();
       if (overlay.isConnected) status.focus();
     } catch (error) {
-      status.textContent = error.message;
+      status.textContent = plainError(error.message);
       if (overlay.isConnected) status.focus();
     } finally {
       busy = false;
@@ -233,7 +234,7 @@ async function reviewOutbox() {
   }
 
   try { await refresh(); }
-  catch (error) { status.textContent = error.message; }
+  catch (error) { status.textContent = plainError(error.message); }
 }
 
 function updateBadge(n, blocked = 0, auth = 0) {

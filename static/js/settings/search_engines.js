@@ -1,7 +1,7 @@
 // Settings → search: engine pickers, the key for the chosen engine, and custom engines.
 // Every list comes from /api/search/engines, so a new engine needs no change here.
 import { _patchSettings, _esc } from './shared.js';
-import { toast } from '../util.js';
+import { toast, plainError } from '../util.js';
 import { t } from '../i18n.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=213';
@@ -238,7 +238,7 @@ async function saveCustom(event) {
     toast(t('settings.search_engine_saved', { name: saved.label }), 'success');
     closeForm();
   } catch (error) {
-    status.textContent = error.message || t('settings.search_engine_save_failed');
+    status.textContent = plainError(error.message || t('settings.search_engine_save_failed'));
     status.dataset.state = 'error';
   } finally {
     button.disabled = false;

@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { toast, plainError } from './util.js';
 import { formatDateTime, resolvedTimeZone, t } from './i18n.js';
 import { initAideNews } from './aidenews.js';
 
@@ -24,7 +24,7 @@ function el(tag, className = '', text = '') {
 }
 
 function safeMessage(value) {
-  return String(value || t('aide.sched_went_wrong')).replace(/jarvis/gi, 'Aide');
+  return (value ? plainError(value) : t('aide.sched_went_wrong')).replace(/jarvis/gi, 'Aide');
 }
 
 async function requestJson(url, options = {}, fetcher = fetch) {

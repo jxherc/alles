@@ -1610,7 +1610,7 @@ export async function openMailSource(id, isCurrent = () => true) {
   } catch (error) {
     if (!current()) return false;
     const source = data?.detail?.source;
-    main.innerHTML = `<div class="mail-source-error"><p role="status" tabindex="-1">${esc(error.message)}</p>${source ? `<details open><summary>${esc(t('mail.saved_excerpt', { label: source.label }))}</summary><pre>${esc(source.excerpt)}</pre></details>` : ''}<button class="btn" type="button">${t('mail.retry_original')}</button></div>`;
+    main.innerHTML = `<div class="mail-source-error"><p role="status" tabindex="-1">${esc(plainError(error.message))}</p>${source ? `<details open><summary>${esc(t('mail.saved_excerpt', { label: source.label }))}</summary><pre>${esc(source.excerpt)}</pre></details>` : ''}<button class="btn" type="button">${t('mail.retry_original')}</button></div>`;
     main.querySelector('button').onclick = () => openMailSource(id, isCurrent);
     main.querySelector('[role="status"]').focus();
     return true;
@@ -2142,7 +2142,7 @@ async function _wireRichCompose(defaultAid, root, current) {
       retry.style.display = pendingRemoval ? '' : 'none';
     } catch (error) {
       if (!current() || generation !== readGeneration) return;
-      status.textContent = t('mail.sigs_load_failed', { reason: error.message || t('mail.check_connection_short') }); retry.style.display = '';
+      status.textContent = t('mail.sigs_load_failed', { reason: plainError(error.message || t('mail.check_connection_short')) }); retry.style.display = '';
     } finally {
       if (generation === readGeneration) {
         retry.disabled = false;
@@ -2769,7 +2769,7 @@ async function rulesPanel() {
     rules = data.rules; vac = vacation; scopes = data.recovery_scopes;
   } catch (error) {
     if (generation !== _messageGeneration) return;
-    main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || t('mail.rules_load_failed'))} <button type="button" class="btn">${t('common.retry')}</button></div>`;
+    main.innerHTML = `<div class="mail-empty" role="alert">${esc(plainError(error.message || t('mail.rules_load_failed')))} <button type="button" class="btn">${t('common.retry')}</button></div>`;
     mountMailSettings(main.firstElementChild, rulesPanel);
     main.querySelector('button').addEventListener('click', () => rulesPanel());
     return;
@@ -2843,7 +2843,7 @@ async function rulesPanel() {
         ? t('mail.vacation_saved') : t('mail.vacation_earlier');
     } catch (error) {
       if (vacationRoot.isConnected && generation === _messageGeneration) {
-        vacationStatus.textContent = t('mail.vacation_failed', { reason: error.message || t('mail.check_connection_retry') });
+        vacationStatus.textContent = t('mail.vacation_failed', { reason: plainError(error.message || t('mail.check_connection_retry')) });
       }
     } finally {
       if (_vacationWrite === writing) _vacationWrite = null;
@@ -3060,7 +3060,7 @@ async function accountsPanel(firstRun = false) {
     _accounts = data.accounts; syncAccountSelect(); readAccountRecovery(data.recovery_scopes);
   } catch (error) {
     if (!current()) return;
-    main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || t('mail.accounts_load_failed'))} <button type="button" class="btn">${t('common.retry')}</button></div>`;
+    main.innerHTML = `<div class="mail-empty" role="alert">${esc(plainError(error.message || t('mail.accounts_load_failed')))} <button type="button" class="btn">${t('common.retry')}</button></div>`;
     mountMailSettings(main.firstElementChild, () => accountsPanel(firstRun));
     main.querySelector('button').addEventListener('click', () => accountsPanel(firstRun)); return;
   }
@@ -3244,7 +3244,7 @@ function acctForm(acct) {
       if (!result.ok) throw new Error(friendlyMailError(result.error));
       if (current()) el('ma-status').textContent = t('mail.account_connected') + (dirty() ? t('mail.newer_unsaved') : '');
     } catch (error) {
-      if (current()) el('ma-status').textContent = t('mail.account_connection_unconfirmed', { reason: error.message || t('mail.check_connection_retry') }) + (dirty() ? ' ' + t('mail.newer_unsaved2') : '');
+      if (current()) el('ma-status').textContent = t('mail.account_connection_unconfirmed', { reason: plainError(error.message || t('mail.check_connection_retry')) }) + (dirty() ? ' ' + t('mail.newer_unsaved2') : '');
     } finally { testing = false; paintForm(); }
   }
   function noteAccountChanges() {

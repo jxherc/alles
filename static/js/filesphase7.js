@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { toast, plainError } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { formatDate, t, tp } from './i18n.js';
 import { pushRouteUrl, replaceRouteUrl } from './route_history.js';
@@ -415,7 +415,7 @@ function renderFilesError(host, error, retry = null) {
   filesRetry = typeof retry === 'function' ? retry : null;
   host.setAttribute('aria-busy', 'false');
   host.innerHTML = `<div class="files-error" role="alert">
-    <span>${esc(error.message)}</span>
+    <span>${esc(plainError(error.message))}</span>
     <button class="files-text-button" type="button" data-files-retry>${t('common.retry')}</button>
   </div>`;
 }
@@ -828,7 +828,7 @@ async function loadVersions(path, locationId, detailRequest) {
         }
       } catch (error) {
         if (current()) {
-          feedback.textContent = error.message;
+          feedback.textContent = plainError(error.message);
           feedback.setAttribute('role', 'alert');
           feedback.focus();
         }
@@ -919,7 +919,7 @@ async function openPreview(item) {
       : `<div class="files-empty">${t('files.download_to_open')}</div>`;
   } catch (error) {
     if (sequence !== previewSequence || path !== state.previewPath) return;
-    body.innerHTML = `<div class="files-error">${esc(error.message)}</div>`;
+    body.innerHTML = `<div class="files-error">${esc(plainError(error.message))}</div>`;
   }
 }
 
@@ -1128,7 +1128,7 @@ async function sendToPhotos(item) {
     }
     toast(summary, result.failed?.length ? 'error' : 'success');
   } catch (error) {
-    if (panel.dataset.photoImportKey === importKey && !panel.hidden) feedback.textContent = error.message;
+    if (panel.dataset.photoImportKey === importKey && !panel.hidden) feedback.textContent = plainError(error.message);
     toast(error.message, 'error');
   } finally {
     if (panel.dataset.photoImportKey === importKey && !panel.hidden) {
@@ -1432,7 +1432,7 @@ async function createLocation() {
         $('files-location-submit').disabled = !preview.can_import;
         if (!preview.can_import) $('files-location-error').textContent = conflict;
       } catch (error) {
-        $('files-location-error').textContent = error.message;
+        $('files-location-error').textContent = plainError(error.message);
       }
       return;
     }
@@ -1443,7 +1443,7 @@ async function createLocation() {
       kind = 'local';
       access = workflow === 'keep' ? 'read_only' : 'managed';
     } catch (error) {
-      $('files-location-error').textContent = error.message;
+      $('files-location-error').textContent = plainError(error.message);
       return;
     }
   }
@@ -1744,7 +1744,7 @@ function reviewUpload(file, locationId, cwd, initialError) {
       const collision = error.detail?.code === 'file_conflict';
       const replace = sameName && collision && error.detail.can_replace;
       const valid = Boolean(input.value.trim()) && !input.value.includes('/') && !input.value.includes('\\') && !/^\.+$/.test(input.value.trim());
-      message.textContent = replace ? t('files.upload_replace_note', { error: error.message }) : error.message;
+      message.textContent = replace ? t('files.upload_replace_note', { error: plainError(error.message) }) : plainError(error.message);
       submit.textContent = replace ? t('files.replace_file') : sameName ? t('files.retry_upload') : t('files.upload_new_name');
       submit.disabled = busy || !valid || (sameName && collision && !error.detail.can_replace);
       input.disabled = cancel.disabled = busy;
@@ -2060,7 +2060,7 @@ function bindEvents() {
   });
   $('files-transfer-form')?.addEventListener('submit', event => {
     event.preventDefault();
-    submitTransfer().catch(error => { $('files-transfer-error').textContent = error.message; });
+    submitTransfer().catch(error => { $('files-transfer-error').textContent = plainError(error.message); });
   });
   wireChoiceGroup($('files-location-kind'), renderLocationFields);
   wireChoiceGroup($('files-location-access'), resetVaultReview);

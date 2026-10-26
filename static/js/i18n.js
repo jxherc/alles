@@ -492,7 +492,7 @@ const BUILTIN_ENGLISH = {
     "aide.brain_pinned": "pinned",
     "aide.brain_refresh": "refresh",
     "aide.brain_task": "task",
-    "aide.brain_thinking": "thinking...",
+    "aide.brain_thinking": "thinking…",
     "aide.brain_token_count": "{count} tokens",
     "aide.brain_tokens": "tokens",
     "aide.brain_turn_counts": "{user} user / {ai} ai",
@@ -822,7 +822,7 @@ const BUILTIN_ENGLISH = {
     "aide.mem_extract_failed": "extraction failed",
     "aide.mem_extract_from_chat": "extract from chat",
     "aide.mem_extracted": "{count} memories ready to review",
-    "aide.mem_extracting": "extracting...",
+    "aide.mem_extracting": "extracting…",
     "aide.mem_forget": "forget",
     "aide.mem_invalid_response": "invalid memory response",
     "aide.mem_invalid_search": "invalid memory search response",
@@ -3681,10 +3681,10 @@ const BUILTIN_ENGLISH = {
     "mail.link_invalid": "use a web or email address for a link",
     "mail.link_url": "link url",
     "mail.loading_accounts": "loading accounts…",
-    "mail.loading_dots": "loading {name}...",
+    "mail.loading_dots": "loading {name}…",
     "mail.loading_drafts": "loading drafts…",
     "mail.loading_google": "loading Google setup…",
-    "mail.loading_message": "loading message...",
+    "mail.loading_message": "loading message…",
     "mail.loading_named": "loading {name}…",
     "mail.loading_original": "loading original message…",
     "mail.loading_rules": "loading rules…",
@@ -3949,7 +3949,7 @@ const BUILTIN_ENGLISH = {
     "mail.summarize": "summarize",
     "mail.summarize_failed": "summarize failed",
     "mail.summarize_title": "AI summary + action items",
-    "mail.summarizing": "summarizing...",
+    "mail.summarizing": "summarizing…",
     "mail.task_title": "mail from {name}",
     "mail.test_imap": "test saved IMAP connection",
     "mail.test_unconfirmed": "could not confirm the connection test",
@@ -4496,7 +4496,7 @@ const BUILTIN_ENGLISH = {
     "notes.saved_newer_unsaved": "saved; newer edits are still unsaved",
     "notes.saved_title": "saved {title}",
     "notes.tags_placeholder": "tags, comma separated…",
-    "notes.title_placeholder": "title...",
+    "notes.title_placeholder": "title…",
     "notes.unpin": "unpin",
     "notes.untitled": "untitled",
     "photos.add_name": "add name",
@@ -4795,7 +4795,7 @@ const BUILTIN_ENGLISH = {
     "providers.auth_none": "none",
     "providers.catalog_refresh_failed": "catalog refresh failed",
     "providers.changes_not_saved": "changes not saved",
-    "providers.checking_ollama": "checking Ollama...",
+    "providers.checking_ollama": "checking Ollama…",
     "providers.comma_separated": "comma-separated",
     "providers.connected_account": "Connected project/account: {account}.",
     "providers.connection_added": "connection added",
@@ -4834,10 +4834,10 @@ const BUILTIN_ENGLISH = {
     "providers.installed": "installed",
     "providers.key_optional_local": "optional for an address on this machine",
     "providers.load_error": "model settings could not be loaded.",
-    "providers.local_pulling": "pulling...",
-    "providers.local_removing": "removing...",
-    "providers.local_serving": "serving...",
-    "providers.local_starting": "starting...",
+    "providers.local_pulling": "pulling…",
+    "providers.local_removing": "removing…",
+    "providers.local_serving": "serving…",
+    "providers.local_starting": "starting…",
     "providers.local_status_failed": "local model status failed",
     "providers.manual_model_required": "add at least one manual model",
     "providers.model_downloaded": "{model} downloaded",
@@ -5726,7 +5726,7 @@ const BUILTIN_ENGLISH = {
     "settings.theme_saving": "saving theme…",
     "settings.theme_starting_color": "starting color",
     "settings.theme_unconfirmed": "theme has unconfirmed changes kept on this browser. Retry to save them.",
-    "settings.thinking": "thinking...",
+    "settings.thinking": "thinking…",
     "settings.title": "alles settings",
     "settings.token_copied": "token",
     "settings.token_create_failed": "token could not be created",
@@ -5996,7 +5996,7 @@ const BUILTIN_ENGLISH = {
     "shell.code": "code",
     "shell.compare.compare": "compare",
     "shell.compare.comparison_responses": "comparison responses",
-    "shell.compare.enter_prompt": "enter prompt...",
+    "shell.compare.enter_prompt": "enter prompt…",
     "shell.compare.prompt": "prompt",
     "shell.compare.refresh_models": "refresh models",
     "shell.compare.set_up_models": "set up models",
@@ -6194,7 +6194,7 @@ const BUILTIN_ENGLISH = {
     "shell.model.models_and_endpoints": "models and endpoints",
     "shell.model.quick_add": "quick add:",
     "shell.model.re_probe_every_endpoint_for_new": "re-probe every endpoint for new models",
-    "shell.model.search_models": "search models...",
+    "shell.model.search_models": "search models…",
     "shell.model.search_models_2": "search models",
     "shell.model.show_only_newest_model_of_each": "show only newest model of each family",
     "shell.models.filter_models": "filter models…",
@@ -6288,7 +6288,7 @@ const BUILTIN_ENGLISH = {
     "shell.reminders.reminder_type": "reminder type",
     "shell.reminders.reminders": "reminders",
     "shell.reminders.set": "set",
-    "shell.reminders.what_to_remind_message_to_send": "what to remind / message to send...",
+    "shell.reminders.what_to_remind_message_to_send": "what to remind / message to send…",
     "shell.remove_selected_image_model": "remove selected image model",
     "shell.request_failed": "request failed ({status})",
     "shell.retry_schedule": "retry schedule",
@@ -6498,7 +6498,7 @@ const BUILTIN_ENGLISH = {
     "shell.settings_intelligence.distill_durable_facts_from_your_behavior": "distill durable facts from your behavior (spends tokens)",
     "shell.settings_intelligence.keep_aide_aware_of_the_current": "keep aide aware of the current topic across turns",
     "shell.settings_intelligence.predicted_next_step_chips_above_the": "predicted next-step chips above the message box",
-    "shell.settings_memory.add_a_memory": "add a memory...",
+    "shell.settings_memory.add_a_memory": "add a memory…",
     "shell.settings_memory.add_a_memory_2": "add a memory",
     "shell.settings_memory.ask_before_saving_suggested_memories": "ask before saving suggested memories",
     "shell.settings_memory.available_only_while_memory_is_set": "available only while memory is set to ask or auto",
@@ -6513,7 +6513,7 @@ const BUILTIN_ENGLISH = {
     "shell.settings_memory.remember": "remember",
     "shell.settings_memory.save_instructions": "save instructions",
     "shell.settings_memory.saved_to_memory": "saved to memory",
-    "shell.settings_memory.search_memories": "search memories...",
+    "shell.settings_memory.search_memories": "search memories…",
     "shell.settings_memory.search_memories_2": "search memories",
     "shell.settings_memory.use_relevant_memory_in_chats": "use relevant memory in chats",
     "shell.settings_models.add_connection": "+ add connection",
@@ -6576,7 +6576,7 @@ const BUILTIN_ENGLISH = {
     "shell.settings_personas.temperature": "temperature",
     "shell.settings_personas.this_assistant_answers_from_these": ": this assistant answers from these",
     "shell.settings_personas.title": "title",
-    "shell.settings_personas.you_are": "You are...",
+    "shell.settings_personas.you_are": "You are…",
     "shell.settings_proactive.aide_checks_your_day_on_a": "aide checks your day on a schedule and drops short advisory cards into the home today strip - overdue tasks, renewals, habits and the like. it never acts on its own; you click through. off by default since it runs the model on a timer (it spends tokens). hit \"run now\" to try it.",
     "shell.settings_proactive.background_check_interval_in_hours": "background check interval in hours",
     "shell.settings_proactive.calendar_day_events": "calendar & day-events",
@@ -6761,7 +6761,7 @@ const BUILTIN_ENGLISH = {
     "shell.settings_voice.auto_play_tts": "auto-play TTS",
     "shell.settings_voice.language": "language",
     "shell.settings_voice.openai_api_key": "openai api key",
-    "shell.settings_voice.openai_api_key_required_for_whisper": "openai api key — required for whisper api and openai tts",
+    "shell.settings_voice.openai_api_key_required_for_whisper": "openai api key (required for whisper api and openai tts)",
     "shell.settings_voice.optional": "(optional)",
     "shell.settings_voice.save_voice_settings": "save voice settings",
     "shell.settings_voice.speak_ai_replies_automatically": "speak AI replies automatically",
@@ -7404,10 +7404,10 @@ const BUILTIN_ENGLISH = {
     "compare.fail_other": "this model could not finish its response. retry it, or check its connection in model settings.",
     "compare.http_error": "HTTP {status}: {body}",
     "compare.loading_models": "loading models…",
-    "compare.models_failed": "could not load models — refresh to try again",
+    "compare.models_failed": "could not load models. refresh to try again",
     "compare.models_not_accepted": "comparison models were not accepted",
     "compare.no_answer": "the model finished without returning an answer",
-    "compare.no_models": "no models available — set up a connection, then refresh this list",
+    "compare.no_models": "no models available. set up a connection, then refresh this list",
     "compare.no_stream": "the model returned no response stream",
     "compare.not_accepted": "HTTP {status}: comparison was not accepted",
     "compare.pick_winner": "pick winner",
@@ -7419,7 +7419,7 @@ const BUILTIN_ENGLISH = {
     "compare.retrying_partial": "retrying… previous partial answer remains until this model responds.",
     "compare.select_first": "select a model first, or choose “set up models”",
     "compare.select_models": "select models to answer the same prompt",
-    "compare.start_failed": "could not start comparison — check the selected models and try again",
+    "compare.start_failed": "could not start comparison. check the selected models and try again",
     "compare.starting": "starting…",
     "compare.status_finish_two": "{ready} of {total} responses ready. finish at least two responses to choose a winner.",
     "compare.status_need_two": "select at least two models and compare again to choose a winner.",
@@ -7714,15 +7714,15 @@ const BUILTIN_ENGLISH = {
     "settings.rule_trigger_agent_tool": "agent uses a tool…",
     "settings.rule_trigger_agent_tool_arg": "tool name or glob (e.g. write_* or *)",
     "settings.rule_action_create_task": "create a task",
-    "settings.rule_action_create_task_arg": "task title — {from} {subject} {name} {date}",
+    "settings.rule_action_create_task_arg": "task title: {from} {subject} {name} {date}",
     "settings.rule_action_push": "push a notification",
-    "settings.rule_action_push_arg": "notification text — {from} {subject} {name} {date}",
+    "settings.rule_action_push_arg": "notification text: {from} {subject} {name} {date}",
     "settings.rule_action_create_note": "create a note",
-    "settings.rule_action_create_note_arg": "note content — {from} {subject} {name} {date} {path}",
+    "settings.rule_action_create_note_arg": "note content: {from} {subject} {name} {date} {path}",
     "settings.rule_action_push_digest": "push my day digest",
     "settings.rule_action_push_digest_arg": "(no template needed)",
     "settings.rule_action_notify": "send to discord / telegram",
-    "settings.rule_action_notify_arg": "message text — {from} {subject} {name} {date}",
+    "settings.rule_action_notify_arg": "message text: {from} {subject} {name} {date}",
     "settings.rule_action_notify_digest": "send my day digest to discord / telegram",
     "settings.rule_action_notify_digest_arg": "(no template needed)",
     "settings.mcp_preset_filesystem": "Read/write files under a folder (set {root}).",
@@ -7814,7 +7814,7 @@ const BUILTIN_ENGLISH = {
       "other": "used in {count} chats"
     },
     "aide.messages_from_you": {
-      "one": "{count} messages from you",
+      "one": "{count} message from you",
       "other": "{count} messages from you"
     },
     "aide.news_clusters": {
@@ -7986,7 +7986,7 @@ const BUILTIN_ENGLISH = {
       "other": "{count} signed in"
     },
     "connections.tool_count": {
-      "one": "{count} tools",
+      "one": "{count} tool",
       "other": "{count} tools"
     },
     "contacts.in_days": {
@@ -7998,7 +7998,7 @@ const BUILTIN_ENGLISH = {
       "other": "{count} members"
     },
     "docs.stats": {
-      "one": "{count} words · {minutes} min",
+      "one": "{count} word · {minutes} min",
       "other": "{count} words · {minutes} min"
     },
     "files.cached_results": {
@@ -8022,11 +8022,11 @@ const BUILTIN_ENGLISH = {
       "other": "move {count} items to recently deleted? you can restore them there."
     },
     "files.files_indexed": {
-      "one": "{count} files indexed",
+      "one": "{count} file indexed",
       "other": "{count} files indexed"
     },
     "files.indexing_count": {
-      "one": "indexing · {count} files",
+      "one": "indexing · {count} file",
       "other": "indexing · {count} files"
     },
     "files.photos_already_there": {
@@ -8070,7 +8070,7 @@ const BUILTIN_ENGLISH = {
       "other": "{count} destination conflict - choose a different name"
     },
     "files.vault_source_summary": {
-      "one": "{count} files · {size}",
+      "one": "{count} file · {size}",
       "other": "{count} files · {size}"
     },
     "finance.apply_ready": {
@@ -8106,7 +8106,7 @@ const BUILTIN_ENGLISH = {
       "other": "{count} habits"
     },
     "health.already_imported": {
-      "one": "this batch was already imported ({count} entries).",
+      "one": "this batch was already imported ({count} entry).",
       "other": "this batch was already imported ({count} entries)."
     },
     "health.imported": {
@@ -8130,11 +8130,11 @@ const BUILTIN_ENGLISH = {
       "other": "{count} journal dates need repair before copying."
     },
     "journal.corr_days": {
-      "one": "{count} days with both logged",
+      "one": "{count} day with both logged",
       "other": "{count} days with both logged"
     },
     "journal.entry_total": {
-      "one": "{count} entries",
+      "one": "{count} entry",
       "other": "{count} entries"
     },
     "journal.file_count": {
@@ -8150,7 +8150,7 @@ const BUILTIN_ENGLISH = {
       "other": "{count} files prepared privately. no Markdown file has changed yet."
     },
     "journal.heat_day": {
-      "one": "{date} · {count} words {mood}",
+      "one": "{date} · {count} word {mood}",
       "other": "{date} · {count} words {mood}"
     },
     "journal.heat_month_entries": {
@@ -8178,7 +8178,7 @@ const BUILTIN_ENGLISH = {
       "other": "fix these addresses first: {list}"
     },
     "models.models_count": {
-      "one": "{count} models",
+      "one": "{count} model",
       "other": "{count} models"
     },
     "money.categorized": {
@@ -8202,7 +8202,7 @@ const BUILTIN_ENGLISH = {
       "other": "added {count} images"
     },
     "photos.copies": {
-      "one": "{count} copies",
+      "one": "{count} copy",
       "other": "{count} copies"
     },
     "photos.delete_confirm": {
@@ -8282,11 +8282,11 @@ const BUILTIN_ENGLISH = {
       "other": "days since"
     },
     "providers.endpoints_refreshed": {
-      "one": "{count} endpoints refreshed",
+      "one": "{count} endpoint refreshed",
       "other": "{count} endpoints refreshed"
     },
     "providers.models_ready": {
-      "one": "{count} models ready",
+      "one": "{count} model ready",
       "other": "{count} models ready"
     },
     "providers.ready_count": {
@@ -8334,19 +8334,19 @@ const BUILTIN_ENGLISH = {
       "other": "{count} available events"
     },
     "server.activity_events": {
-      "one": "{count} events",
+      "one": "{count} event",
       "other": "{count} events"
     },
     "server.system_json_passed": {
-      "one": "json search passed · {count} results",
+      "one": "json search passed · {count} result",
       "other": "json search passed · {count} results"
     },
     "server.system_live_procs": {
-      "one": "live · {count} processes",
+      "one": "live · {count} process",
       "other": "live · {count} processes"
     },
     "server.watch_cert_days": {
-      "one": "{count} days until certificate expiry",
+      "one": "{count} day until certificate expiry",
       "other": "{count} days until certificate expiry"
     },
     "settings.andromeda_not_qualified": {
@@ -8382,7 +8382,7 @@ const BUILTIN_ENGLISH = {
       "other": "{count} signals"
     },
     "settings.recall_chunks_indexed": {
-      "one": "{count} chunks indexed",
+      "one": "{count} chunk indexed",
       "other": "{count} chunks indexed"
     },
     "settings.recall_mail_pending": {
@@ -8390,7 +8390,7 @@ const BUILTIN_ENGLISH = {
       "other": "{count} mail bodies pending"
     },
     "settings.theme_count": {
-      "one": "{count} themes",
+      "one": "{count} theme",
       "other": "{count} themes"
     },
     "shell.contacts_imported": {
@@ -8434,11 +8434,11 @@ const BUILTIN_ENGLISH = {
       "other": "{count} items"
     },
     "compare.leaderboard": {
-      "one": "leaderboard · {count} votes",
+      "one": "leaderboard · {count} vote",
       "other": "leaderboard · {count} votes"
     },
     "compare.status_ready": {
-      "one": "{count} responses ready. choose the answer you prefer.",
+      "one": "{count} response ready. choose the answer you prefer.",
       "other": "{count} responses ready. choose the answer you prefer."
     }
   }
@@ -8560,6 +8560,8 @@ export async function prepareLocalization(settings = {}, fetcher = globalThis.fe
     configureLocalization({ ...settings, language: requested });
     _cacheLocalizationSettings({ ...settings, language: requested });
     translateDocument();
+    // server text is a nicety: until it arrives, or if it can't, errors show as the server wrote them
+    loadServerMessages(requested, fetcher).catch(() => {});
     return { language: requested, fallback: false };
   } catch (error) {
     configureLocalization({ ...settings, language: 'en' });
@@ -8667,6 +8669,68 @@ export function tp(key, count, values = {}) {
     ?? CATALOGS.get('en')?.plurals?.[key];
   if (!forms) return key;
   return _replace(forms[category] ?? forms.other, { ...values, count });
+}
+
+// the server writes its refusals and errors in english. each language has a file that maps that
+// english (f-string messages as "{name}" templates) to its own, built by scripts/server_messages.py
+const SERVER_TEXT = { language: 'en', exact: new Map(), templates: [] };
+const SLOT = /\{([a-z][a-z0-9_]*)\}/i;
+
+export function installServerMessages(language, messages = {}) {
+  const exact = new Map();
+  const templates = [];
+  for (const [english, own] of Object.entries(messages)) {
+    if (!SLOT.test(english)) {
+      exact.set(english, own);
+      continue;
+    }
+    const names = [];
+    const pattern = english.split(/(\{[a-z][a-z0-9_]*\})/i).map(part => {
+      const slot = part.match(/^\{([a-z][a-z0-9_]*)\}$/i);
+      if (!slot) return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      names.push(slot[1]);
+      return '([\\s\\S]+?)';
+    }).join('');
+    // the template with the most fixed words wins when two could match
+    templates.push({ re: new RegExp(`^${pattern}$`), names, own, weight: english.replace(/\{[^}]+\}/g, '').length });
+  }
+  templates.sort((a, b) => b.weight - a.weight);
+  Object.assign(SERVER_TEXT, { language: _canonicalLanguage(language) || 'en', exact, templates });
+}
+
+function _serverMatch(text) {
+  if (SERVER_TEXT.exact.has(text)) return SERVER_TEXT.exact.get(text);
+  for (const { re, names, own } of SERVER_TEXT.templates) {
+    const hit = text.match(re);
+    if (hit) return _replace(own, Object.fromEntries(names.map((name, i) => [name, hit[i + 1]])));
+  }
+  return null;
+}
+
+// server text in the reader's language; anything unknown stays as the server wrote it
+export function serverText(text) {
+  const value = String(text ?? '');
+  if (SERVER_TEXT.language !== _language || !value) return value;
+  const whole = _serverMatch(value.trim());
+  if (whole != null) return whole;
+  // "upload failed: <server detail>": the lead is ours already, the rest came from the server
+  const cut = value.indexOf(': ');
+  const tail = cut > 0 ? _serverMatch(value.slice(cut + 2).trim()) : null;
+  return tail != null ? `${value.slice(0, cut)}: ${tail}` : value;
+}
+
+export async function loadServerMessages(language, fetcher = globalThis.fetch) {
+  const canonical = _canonicalLanguage(language);
+  if (!canonical || canonical === 'en' || typeof fetcher !== 'function') {
+    installServerMessages('en');
+    return;
+  }
+  const response = await fetcher(`/static/locales/server/${encodeURIComponent(canonical)}.json`, {
+    cache: 'no-cache',
+    credentials: 'same-origin',
+  });
+  if (!response?.ok) throw new Error(`could not load ${canonical} server messages`);
+  installServerMessages(canonical, (await response.json()).messages);
 }
 
 // 'one', 'two', 'few' or 'other' for 1st, 2nd, 3rd, 4th in the interface language

@@ -1,3 +1,4 @@
+import { plainError } from '../util.js';
 import { createSettingsPane } from './pane.js';
 import { t, tp } from '../i18n.js';
 import { _esc } from './shared.js';
@@ -101,7 +102,7 @@ async function _loadCreditDetail(entry) {
   } catch (error) {
     if (generation !== _creditDetailGeneration || _creditsSelectedId !== entry.id) return;
     detail.innerHTML = `
-      <p>${_esc(error.message || t('credits.detail_error'))}</p>
+      <p>${_esc(plainError(error.message || t('credits.detail_error')))}</p>
       <button type="button" data-credit-detail-retry="${_esc(entry.id)}">${_esc(t('common.retry'))}</button>
     `;
   }
@@ -166,7 +167,7 @@ async function loadCreditsPane(isCurrent = () => true) {
   } catch (error) {
     if (generation !== _creditsLoadGeneration || !isCurrent()) return;
     loadState.textContent = t('credits.unavailable');
-    if (coverage) coverage.innerHTML = `${_esc(error.message || t('credits.load_error'))} <button type="button" data-credits-retry>${_esc(t('common.retry'))}</button>`;
+    if (coverage) coverage.innerHTML = `${_esc(plainError(error.message || t('credits.load_error')))} <button type="button" data-credits-retry>${_esc(t('common.retry'))}</button>`;
   } finally {
     if (generation === _creditsLoadGeneration) _setCreditsBusy(false);
   }

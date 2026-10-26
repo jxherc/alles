@@ -1,7 +1,7 @@
 import { initDocumentImport } from './docs_import.js';
 // Docs is a viewer first. Obsidian is the primary editor; Alles exposes the same
 // Markdown file through a local CodeMirror 6 editor only after the owner chooses Edit.
-import { mdToHtml, enhanceMarkdown, toast } from './util.js';
+import { mdToHtml, enhanceMarkdown, toast, plainError } from './util.js';
 import { loadNotes } from './notes.js';
 import { replaceRouteUrl } from './route_history.js';
 import { clearLinkedRecord, readRecordTarget, replaceLinkedRecord } from './recordlinks.js';
@@ -436,7 +436,7 @@ export function showSection(section) {
     setHidden($('docs-context-panel'), true);
     setHidden($('wiki-ask'), true);
     $('wiki-view')?.classList.remove('no-note', 'docs-nav-open');
-    return import('./journal.js?v=255').then(module => module.initJournal());
+    return import('./journal.js?v=256').then(module => module.initJournal());
   }
 
   if (_section === 'notes') {
@@ -569,7 +569,7 @@ export async function loadTree() {
     paintRecent(_tree.items || []);
   } catch (error) {
     const tree = $('wiki-tree');
-    if (tree && run === _treeLoadGeneration && viewGeneration === _treeViewGeneration && _treeView === 'all') tree.innerHTML = `<div class="docs-nav-empty">${esc(error.message)}</div>`;
+    if (tree && run === _treeLoadGeneration && viewGeneration === _treeViewGeneration && _treeView === 'all') tree.innerHTML = `<div class="docs-nav-empty">${esc(plainError(error.message))}</div>`;
   }
 }
 
@@ -1454,7 +1454,7 @@ async function doSearch(query) {
         </button>`).join('')
       : `<div class="docs-nav-empty">${t('docs.no_matches')}</div>`;
     wireTree(box);
-  } catch (error) { if (run === _treeViewGeneration) box.innerHTML = `<div class="docs-nav-empty">${esc(error.message)}</div>`; }
+  } catch (error) { if (run === _treeViewGeneration) box.innerHTML = `<div class="docs-nav-empty">${esc(plainError(error.message))}</div>`; }
 }
 
 async function loadTags() {
@@ -1539,7 +1539,7 @@ async function searchAskSources() {
             if (returnFocus) $('wiki-ask-search').focus();
           }
         } catch (error) {
-          if (panelCurrent()) $('wiki-ask-results').textContent = error.message;
+          if (panelCurrent()) $('wiki-ask-results').textContent = plainError(error.message);
           if (current()) button.disabled = false;
         } finally {
           _askReads.delete(pending);
@@ -1549,7 +1549,7 @@ async function searchAskSources() {
       host.append(button);
     }
     if (!matches.length) host.textContent = t('docs.no_other_matches');
-  } catch (error) { if (current()) $('wiki-ask-results').textContent = error.message; }
+  } catch (error) { if (current()) $('wiki-ask-results').textContent = plainError(error.message); }
 }
 
 async function askAideAboutCurrent() {
@@ -1577,7 +1577,7 @@ async function askAideAboutCurrent() {
     if (!(await window._askInChat?.(question, false, { kind: 'vault_documents', documents: sources }))) throw new Error(t('docs.aide_open_failed'));
     setHidden($('wiki-ask'), true);
   } catch (error) {
-    if (_cur === path && run === _askGeneration) $('wiki-ask-results').textContent = error.message;
+    if (_cur === path && run === _askGeneration) $('wiki-ask-results').textContent = plainError(error.message);
   } finally {
     _askBusy = false; renderAskSources();
     if (_cur === path && run === _askGeneration && !$('wiki-ask').hidden) searchAskSources();

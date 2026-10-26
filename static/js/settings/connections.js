@@ -1,6 +1,6 @@
 import { createSettingsPane } from './pane.js';
 import { getDropdownValue } from '../dropdown.js?v=213';
-import { toast } from '../util.js';
+import { toast, plainError } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { parsePrivateLines } from '../mcp-config.js';
 import { formatPhone } from '../liveformat.js';
@@ -256,7 +256,7 @@ async function _searchMcpRegistry() {
       </div>`).join('');
     box.querySelectorAll('[data-mcp-use]').forEach(b => b.onclick = () => _useMcpRegistry(_mcpRegistryItems[Number(b.dataset.mcpUse)]));
   } catch (error) {
-    box.innerHTML = `<div class="settings-row-empty">${_esc(error.message || t('connections.registry_search_failed'))}</div>`;
+    box.innerHTML = `<div class="settings-row-empty">${_esc(plainError(error.message || t('connections.registry_search_failed')))}</div>`;
   } finally { button.disabled = false; }
 }
 

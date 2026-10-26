@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 import { createFocusBoundary } from './kokuen.js?v=4';
 import { renderAideQuestion } from './aidequestions.js?v=2';
 import { requestWithRecentOwner } from './recent_owner.js';
@@ -161,7 +162,7 @@ export async function openAideRun(id, isCurrent = () => true) {
     const hadFocus = panel.contains(previousFocus);
     lock(true);
     try { await callback(); }
-    catch (error) { if (live()) status.textContent = error.message || t('aide.run_action_unconfirmed'); }
+    catch (error) { if (live()) status.textContent = plainError(error.message || t('aide.run_action_unconfirmed')); }
     finally {
       owner.busy = false;
       if (live()) {
@@ -277,7 +278,7 @@ export async function openAideRun(id, isCurrent = () => true) {
       if (!quiet) status.textContent = '';
       poll();
     } catch (error) {
-      if (live() && generation === owner.generation) status.textContent = error.status === 404 ? t('aide.run_job_gone') : error.message || t('aide.run_job_load_retry');
+      if (live() && generation === owner.generation) status.textContent = error.status === 404 ? t('aide.run_job_gone') : plainError(error.message || t('aide.run_job_load_retry'));
     }
   }
   await load();

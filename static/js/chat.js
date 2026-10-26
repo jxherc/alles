@@ -367,7 +367,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
     scrollDown();
     let run = null;
     try {
-      const { startBackgroundWork } = await import('./aidebackground.js?v=246');
+      const { startBackgroundWork } = await import('./aidebackground.js?v=247');
       run = await startBackgroundWork({
         sessionId,
         request: text,
@@ -1475,7 +1475,7 @@ async function _sendImage(prompt, sessionId, fresh, target) {
         retry.addEventListener('click', () => { if (!_streaming) void send(true); });
       }
       error.setAttribute('role', 'alert');
-      error.textContent = t('aide.image_unconfirmed', { error: e.message || t('aide.image_request_failed') });
+      error.textContent = t('aide.image_unconfirmed', { error: plainError(e.message || t('aide.image_request_failed')) });
       retry.removeAttribute('aria-disabled');
       retry.textContent = t('aide.image_retry');
       if (!again) body.replaceChildren(error, retry);

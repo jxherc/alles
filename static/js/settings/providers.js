@@ -1,5 +1,5 @@
 import { createSettingsPane } from './pane.js';
-import { toast } from '../util.js';
+import { toast, plainError } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { loadModels, addEndpoint, renderModelList } from '../models.js?v=214';
 import { initCustomDropdowns, getDropdownValue, populateDropdown } from '../dropdown.js?v=213';
@@ -101,7 +101,7 @@ async function loadLocalModels() {
     renderLocalPresets(data.presets || []);
   } catch (e) {
     if (!_providersActive || generation !== _localLoadGeneration) return;
-    ollamaEl.textContent = e.message || t('providers.local_status_failed');
+    ollamaEl.textContent = plainError(e.message || t('providers.local_status_failed'));
     hwEl.textContent = '';
     if (!_localPresetPending.size) listEl.innerHTML = '';
   }

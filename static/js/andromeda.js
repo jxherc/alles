@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=213';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
@@ -395,7 +396,7 @@ async function changeWatch(every) {
   } catch (error) {
     setWatchChoice(previous);
     const state = el('andromeda-watch-state');
-    if (state) { state.textContent = tr('andromeda.x_settings_save_failed', { message: error.message || tr('andromeda.x_watch_unsaved') }); state.dataset.state = 'error'; }
+    if (state) { state.textContent = tr('andromeda.x_settings_save_failed', { message: plainError(error.message || tr('andromeda.x_watch_unsaved')) }); state.dataset.state = 'error'; }
   }
 }
 
@@ -705,7 +706,7 @@ async function startResultSummary(result, refs) {
     summaryStatus.textContent = tr('andromeda.x_summary_ready', { model: preview.model });
   } catch (error) {
     if (!current()) return;
-    summaryStatus.textContent = tr('andromeda.x_summary_error', { message: error.message || tr('andromeda.x_summarize_failed') });
+    summaryStatus.textContent = tr('andromeda.x_summary_error', { message: plainError(error.message || tr('andromeda.x_summarize_failed')) });
     retry.hidden = false;
   } finally {
     if (_resultSummaryAbort?.controller === controller) {
@@ -928,7 +929,7 @@ function libraryControl(result, news = false, savedItems = null, existingMessage
       label();
       message.textContent = saved.duplicate ? tr('andromeda.x_already_library') : tr('aide.news_saved_library');
     } catch (error) {
-      message.textContent = tr('andromeda.x_save_retry', { message: error.message || tr('andromeda.x_save_unconfirmed') });
+      message.textContent = tr('andromeda.x_save_retry', { message: plainError(error.message || tr('andromeda.x_save_unconfirmed')) });
     } finally {
       busy = false;
       button.setAttribute('aria-disabled', 'false');
@@ -3001,7 +3002,7 @@ async function loadManagedSearxng() {
     addManagedSearxngAction(actions, 'rollback', tr('andromeda.x_act_rollback'), !service.available);
     addManagedSearxngAction(actions, 'uninstall', tr('andromeda.x_act_uninstall'));
   } catch (error) {
-    statusNode.textContent = error.message || tr('andromeda.x_sx_status_unavailable');
+    statusNode.textContent = plainError(error.message || tr('andromeda.x_sx_status_unavailable'));
     statusNode.dataset.state = 'error';
     meta.textContent = tr('andromeda.x_external_remain');
   }

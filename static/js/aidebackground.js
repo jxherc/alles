@@ -1,3 +1,4 @@
+import { plainError } from './util.js';
 import { createStreamingAiRow, scrollDown } from './sessions.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { t as tr } from './i18n.js';
@@ -20,7 +21,7 @@ const STATE_LABELS = {
 };
 
 function safeMessage(value, fallback = tr('aide.bg_unavailable')) {
-  return String(value || fallback).replace(/jarvis/gi, 'Aide');
+  return (value ? plainError(value) : fallback).replace(/jarvis/gi, 'Aide');
 }
 
 async function readJson(response, fallback) {

@@ -2,6 +2,7 @@
 // a block-char cpu history graph, a per-core grid,
 // memory/swap breakdown, up/down network graphs, a disk panel, and a top-process
 // table. all monospace + hand-rendered, polled live. no chart library.
+import { plainError } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { resolvedTimeZone, t, tp } from './i18n.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
@@ -311,7 +312,7 @@ async function loadManagedSearxng(fetcher = fetch) {
     }
     actions.innerHTML = buttons.map(([action, label]) => `<button class="btn" type="button" data-searxng-action="${action}"${!service.available && action !== 'uninstall' ? ' disabled' : ''}>${label}</button>`).join('');
   } catch (error) {
-    statusEl.textContent = t('server.system_external_remain', { reason: error.message });
+    statusEl.textContent = t('server.system_external_remain', { reason: plainError(error.message) });
     actions.replaceChildren();
   }
 }
@@ -329,7 +330,7 @@ async function manageSearxng(action, button) {
     if (statusEl && action === 'test') statusEl.textContent = tp('server.system_json_passed', body.results);
     else await loadManagedSearxng();
   } catch (error) {
-    if (statusEl) statusEl.textContent = error.message;
+    if (statusEl) statusEl.textContent = plainError(error.message);
   } finally { button.disabled = false; }
 }
 

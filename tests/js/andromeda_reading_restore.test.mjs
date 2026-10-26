@@ -46,7 +46,7 @@ function harness() {
   };
   const requests = [], opens = [];
   let intercept = () => response({ items: [] });
-  const context = vm.createContext({ t, tp, tr: t, trp: tp,
+  const context = vm.createContext({ t, tp, tr: t, trp: tp, plainError: value => value,
     URL, console,
     document: { getElementById: get, querySelectorAll: () => [], createElement: tag => new Element(tag),
       createTextNode: text => Object.assign(new Element('text'), { textContent: text }) },

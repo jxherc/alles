@@ -2,7 +2,7 @@ import { getProjects, loadProjects } from './projects.js';
 import { createSession, getActiveId, markActive } from './sessions.js';
 import { getCurrentEndpoint, getSelected } from './models.js?v=214';
 import { prompt as dlgPrompt } from './dialog.js';
-import { toast } from './util.js';
+import { toast, plainError } from './util.js';
 import { t, tp } from './i18n.js';
 import { initAideCoding, openAideCoding } from './aidecoding.js';
 
@@ -364,7 +364,7 @@ async function openFolderBrowser(path = '') {
     menu.replaceChildren();
     const message = document.createElement('div');
     message.className = 'aide-folder-error';
-    message.textContent = data.detail || t('aide.folder_open_failed');
+    message.textContent = plainError(data.detail || t('aide.folder_open_failed'));
     const back = document.createElement('button');
     back.type = 'button';
     back.textContent = t('aide.back');

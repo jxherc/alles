@@ -1,5 +1,5 @@
 import { leave } from './motion.js';
-import { t } from './i18n.js';
+import { serverText, t } from './i18n.js';
 // shared helpers
 
 // browser window when present, a throwaway object under node (so this module imports in tests)
@@ -316,7 +316,8 @@ const RAW_ERRORS = [
   [/failed to fetch|\bload failed|networkerror|network error|err_network|err_internet|err_connection/i,
     'shell.error_unreachable'],
   [/push service/i, 'shell.error_push'],
-  [/unexpected token|json\.parse|not valid json|unexpected end of (json|input)/i,
+  // the browser's own parse errors only: the server's "policy is not valid JSON at line 1" says more
+  [/unexpected token|json\.parse|^"[^"]*"\s+is not valid json|unexpected end of (json|input)/i,
     'shell.error_unreadable'],
   [/notallowederror|not allowed by the user agent|permission denied/i,
     'shell.error_blocked'],
@@ -336,9 +337,10 @@ export function plainError(msg) {
     // keep a short plain lead-in ("upload failed: Failed to fetch" -> "upload failed: can't reach...")
     const cut = text.lastIndexOf(': ', hit.index);
     const lead = cut > 0 ? text.slice(0, cut) : '';
-    return lead && !RAW_ERRORS.some(([r]) => r.test(lead)) ? `${lead}: ${t(plainKey)}` : t(plainKey);
+    return lead && !RAW_ERRORS.some(([r]) => r.test(lead)) ? `${serverText(lead)}: ${t(plainKey)}` : t(plainKey);
   }
-  return text;
+  // the server's own english ("unknown account") reads in the chosen language
+  return serverText(text);
 }
 
 

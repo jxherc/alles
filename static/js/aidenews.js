@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { toast, plainError } from './util.js';
 import { formatDateTime, resolvedTimeZone, t, tp } from './i18n.js';
 
 let initialized = false;
@@ -13,7 +13,7 @@ const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
 }[character]));
 
 function safeMessage(value) {
-  return String(value || t('aide.news_unavailable')).replace(/jarvis/gi, 'Aide');
+  return (value ? plainError(value) : t('aide.news_unavailable')).replace(/jarvis/gi, 'Aide');
 }
 
 export function safeNewsUrl(value) {

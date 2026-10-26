@@ -2,6 +2,7 @@
 // information, logs, and the explicit host-control policy. Every mutation uses
 // an existing typed API; this UI never accepts shell commands or arbitrary paths.
 
+import { plainError } from './util.js';
 import { formatNumber, t, tp } from './i18n.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { requestWithRecentOwner } from './recent_owner.js';
@@ -72,7 +73,7 @@ function action(label, run, className = '') {
       const parent = button.closest('.server-workbench-card');
       let region = parent?.querySelector('.server-workbench-status');
       if (!region && parent) { region = statusLine(); parent.append(region); }
-      if (region) { region.textContent = error.message || t('server.wb_action_failed'); region.classList.add('is-error'); }
+      if (region) { region.textContent = plainError(error.message || t('server.wb_action_failed')); region.classList.add('is-error'); }
     } finally {
       button.disabled = false;
       button.removeAttribute('aria-busy');
@@ -132,7 +133,7 @@ function choice(label, options, selected, onChange) {
     const owner = field.closest('.server-workbench-card');
     let region = owner?.querySelector('.server-workbench-status');
     if (!region && owner) { region = statusLine(); owner.append(region); }
-    if (region) { region.textContent = error.message || t('server.wb_setting_failed'); region.classList.add('is-error'); }
+    if (region) { region.textContent = plainError(error.message || t('server.wb_setting_failed')); region.classList.add('is-error'); }
   };
   const buttons = options.map(option => {
     const button = el('button', '', option.label);
@@ -203,7 +204,7 @@ function switchButton(label, pressed, onChange) {
       const owner = button.closest('.server-workbench-card');
       let region = owner?.querySelector('.server-workbench-status');
       if (!region && owner) { region = statusLine(); owner.append(region); }
-      if (region) { region.textContent = error.message || t('server.wb_setting_failed'); region.classList.add('is-error'); }
+      if (region) { region.textContent = plainError(error.message || t('server.wb_setting_failed')); region.classList.add('is-error'); }
     } finally {
       button.removeAttribute('aria-disabled');
       button.removeAttribute('aria-busy');
@@ -297,7 +298,7 @@ function adguardSurface(service, request, rerender) {
       });
       host.replaceChildren(summary, controls, rewrites, querylog);
     } catch (error) {
-      state.textContent = error.message;
+      state.textContent = plainError(error.message);
       state.classList.add('is-error');
     }
   })();
@@ -333,7 +334,7 @@ function npmSurface(service, request, rerender) {
     let dashboard;
     try { dashboard = await json(request, '/api/system/companions/nginx-proxy-manager/dashboard'); }
     catch (error) {
-      state.textContent = error.message;
+      state.textContent = plainError(error.message);
       host.append(npmConnectSurface(request, rerender, state));
       return;
     }
@@ -678,7 +679,7 @@ async function renderSearch(target, request) {
       message.textContent = t('common.saved');
       return settings;
     } catch (error) {
-      message.textContent = error.message;
+      message.textContent = plainError(error.message);
       message.classList.add('is-error');
       throw error;
     }
@@ -918,7 +919,7 @@ async function renderPolicy(target, request) {
   };
   actions.append(
     action(t('server.wb_validate'), async () => {
-      try { await inspect(); } catch (error) { message.textContent = error.message; message.classList.add('is-error'); }
+      try { await inspect(); } catch (error) { message.textContent = plainError(error.message); message.classList.add('is-error'); }
     }),
     action(t('server.wb_save_policy'), async () => {
       try {
@@ -940,7 +941,7 @@ async function renderPolicy(target, request) {
         message.textContent = t('server.wb_policy_saved');
         confirmation.hidden = saved.policy.control_mode !== 'allowlisted_host';
       } catch (error) {
-        message.textContent = error.message;
+        message.textContent = plainError(error.message);
         message.classList.add('is-error');
       }
     }, 'is-primary'),

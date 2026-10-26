@@ -3,7 +3,7 @@ import { createFocusBoundary } from './kokuen.js?v=4';
 import { initDatePickers } from './datepick.js';
 import { populateDropdown, getDropdownValue } from './dropdown.js?v=213';
 import { chosenTimeZone, resolvedTimeZone, t } from './i18n.js';
-import { toast } from './util.js';
+import { toast, plainError } from './util.js';
 import { recordTarget } from './recordlinks.js';
 import { editorDates, eventTimeValues, storedWallTime } from './calendar.js';
 
@@ -211,7 +211,7 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
       status.textContent = t(data.done ? 'home.capture_saved_completed' : 'home.capture_saved_in_plan', { title: data.title });
       try { store.clear(); }
       catch { status.textContent += t('home.capture_copy_not_cleared'); }
-    } catch (error) { status.textContent = frozen && error.status !== 410 ? t(`home.capture_save_unconfirmed_${kind}`) : error.message; }
+    } catch (error) { status.textContent = frozen && error.status !== 410 ? t(`home.capture_save_unconfirmed_${kind}`) : plainError(error.message); }
     finally { busy = false; lock(); if (attemptedSave && (focusLost() || dialog.contains(document.activeElement))) (saved ? open : accept).focus(); }
     if (saved) savedFocus = onSaved?.(saved, kind);
   };

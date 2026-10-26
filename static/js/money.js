@@ -1,6 +1,6 @@
 // money: accounts, transactions, budgets, and a couple of charts. plain SVG for
 // the charts (no chart lib), api() helper for the fetches.
-import { api, toast } from './util.js';
+import { api, toast, plainError } from './util.js';
 import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=213';
 import { initDatePicker, calendarDateParts } from './datepick.js';
@@ -2415,7 +2415,7 @@ async function editAccountCurrency(id) {
     if (focused === button && focusVersion === _moneyFocusChange && document.activeElement === document.body) {
       document.querySelector(`[data-currency-acct="${CSS.escape(id)}"]`)?.focus();
     }
-  } catch (error) { status.textContent = error.message || t('money.currency_save_failed'); }
+  } catch (error) { status.textContent = plainError(error.message || t('money.currency_save_failed')); }
   finally { button.disabled = false; }
 }
 async function addGoal() {

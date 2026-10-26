@@ -1,5 +1,5 @@
 // server-owned first-run setup: resumable across browsers and safe to dismiss.
-import { toast } from './util.js';
+import { toast, plainError } from './util.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { addEndpoint } from './models.js?v=214';
 import { resolvedTimeZone, t } from './i18n.js';
@@ -96,7 +96,7 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
     if (!stillOpen()) return;
     modal.dataset.loadFailed = '1';
     $('setup-wizard-body').innerHTML = `<div class="setup-error" role="alert">
-      <p>${esc(error.message || t('setup.load_failed'))}</p>
+      <p>${esc(plainError(error.message || t('setup.load_failed')))}</p>
       <div class="setup-actions">
         <button class="btn" type="button" id="sw-load-close">${esc(t('common.close'))}</button>
         <button class="btn primary" type="button" id="sw-load-retry">${esc(t('common.retry'))}</button>
