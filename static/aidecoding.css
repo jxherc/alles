@@ -256,10 +256,16 @@
 
 /* jump to the latest: appears when something new lands below where you're reading */
 .acw-chat-view { position: relative; }
+/* a 36px circle in a 44px target, floating just above the message box whatever its height.
+   centred with `translate`: the arrive animation and the press runtime both write transform */
 #aide-coding-workspace .acw-jump {
-  position: absolute; left: 50%; bottom: 120px; z-index: 6; display: inline-grid; place-items: center; width: 36px; min-height: 36px; padding: 0;
-  transform: translateX(-50%); border: 1px solid var(--k-line-strong); border-radius: 50%; background: var(--k-panel); color: var(--k-text);
+  position: absolute; left: 50%; bottom: 100%; z-index: 6; display: inline-grid; place-items: center; width: 44px; min-height: 44px; padding: 0;
+  translate: -50% 0; border: 0; border-radius: 50%; background: transparent; color: var(--k-text);
   animation: acw-arrive 200ms ease-out;
+}
+#aide-coding-workspace .acw-jump::before {
+  content: ""; position: absolute; inset: 4px; z-index: -1;
+  border: 1px solid var(--k-line-strong); border-radius: 50%; background: var(--k-panel);
 }
 
 @keyframes acw-arrive { from { transform: translateY(6px); } to { transform: none; } }

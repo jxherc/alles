@@ -1332,8 +1332,8 @@ function markup() {
             </div>
             <div id="aide-code-log" class="acw-log" role="log" aria-label="${t('aide.code_chat_with_pi')}"></div>
           </div>
-          <button type="button" id="aide-code-jump" class="acw-jump" aria-label="${t('aide.code_jump_latest')}" hidden>${icon('down')}</button>
           <form id="aide-code-form" class="acw-composer">
+            <button type="button" id="aide-code-jump" class="acw-jump" aria-label="${t('aide.code_jump_latest')}" hidden>${icon('down')}</button>
             <div id="aide-code-question" class="acw-question" role="group" aria-label="${t('aide.code_pi_asking')}" hidden></div>
             <p id="aide-code-hint" class="acw-muted" hidden></p>
             <div id="aide-code-goal" class="acw-goal" hidden><span class="acw-goal-label">${t('aide.code_goal')}</span><span id="aide-code-goal-text"></span><button type="button" id="aide-code-goal-clear" class="acw-action">${t('aide.code_clear')}</button></div>
