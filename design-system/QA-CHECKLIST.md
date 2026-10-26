@@ -48,6 +48,10 @@ Do not mark a design or implementation complete until every applicable item pass
 - [ ] no horizontal page overflow, clipped text, overlap, or cut-off control exists
 - [ ] parallel rows and columns align across variable content
 - [ ] the hierarchy reads at a glance and secondary information stays readable
+- [ ] no visible text, inline styles included, sits under role 13 (0044); checked in webkit at ipad
+      landscape and portrait as well as phone and desktop, by looking at the screenshots
+- [ ] every scroll area moves with a finger in webkit: a swipe scrolls the pane, not the page, and a
+      growing reply never pulls the view while a finger is down
 - [ ] resting, hover, pressed, selected, disabled, busy, invalid, loading, empty, permission, offline,
       stale, partial, and error states do not shift layout
 - [ ] light and dark themes preserve hierarchy and contrast

@@ -51,14 +51,16 @@ colors may remain categorical, but numeric labels must remain readable in both t
 ## typography
 
 - family: locally bundled Inter, with the system UI stack as fallback; explicit appearance font choices flow through the same shared token;
-- body: 15px / 1.45 / regular; controls and buttons in specialist apps 14px (0040);
-- conversation: 16px minimum;
-- app name: 15px / medium;
-- page or section title: 16px / semibold;
-- row title: 14px or 15px / medium;
-- action and label: 13px or 14px;
-- helper and metadata: 12px or 13px, never lower;
-- display data: 22px to 30px with tabular figures;
+- sizes are rem roles on one scale (13, 14, 15, 16, 18, 20, 22, 24, 28, 32, in base-16 px); the root makes a role 1.09x on a computer and 1.15x on a touch screen (0044), so role 15 reads 16.4px and 17.25px;
+- body: role 15 / 1.45 / regular; controls and buttons in specialist apps role 14 (0040);
+- conversation: role 16 minimum;
+- app name: role 15 / medium;
+- page or section title: role 16 / semibold;
+- row title: role 14 or 15 / medium;
+- action and label: role 13 or 14;
+- helper and metadata: role 13, never lower;
+- a touch text field is never under 16px;
+- display data: role 22 to 28 with tabular figures;
 - greeting and specialist empty-state voice type may exceed this cap only as bounded in `decisions/0011-display-type-voice.md`;
 - code and terminal: local monospace stack only.
 

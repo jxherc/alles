@@ -1186,7 +1186,7 @@ const _dayLabel = day => formatCalendarDate(calendarPlacementDate(day), { month:
 const _dayBtn = (day, n) => n > 0
   ? `<button type="button" class="cal-more" data-day="${day}" aria-label="${esc(trp('calendar.more_on_day', n, { day: _dayLabel(day) }))}" style="${DAY_BTN_STYLE}">${esc(trp('calendar.plus_more', n))}</button>`
   : `<button type="button" class="cal-day-open" data-day="${day}" tabindex="-1" aria-label="${esc(tr('calendar.open_day', { day: _dayLabel(day) }))}" style="${DAY_BTN_STYLE}"></button>`;
-const DAY_BTN_STYLE = 'position:absolute;inset:0;margin:0;width:100%;display:flex;align-items:flex-start;justify-content:flex-end;padding:2px 6px 0;background:none;border:0;color:var(--muted);font:inherit;font-size:0.75rem;cursor:pointer';
+const DAY_BTN_STYLE = 'position:absolute;inset:0;margin:0;width:100%;display:flex;align-items:flex-start;justify-content:flex-end;padding:2px 6px 0;background:none;border:0;color:var(--muted);font:inherit;font-size:0.8125rem;cursor:pointer';
 function _setMore(cell, n) {
   const head = cell.querySelector('.cal-cell-head');
   if (!head) return null;
@@ -1751,7 +1751,7 @@ async function findTime() {
   const fmt = iso => iso.slice(11);
   ov.innerHTML = `<div class="cal-scope"><div class="cal-scope-h">${esc(tr('calendar.free_on', { date: dstr, minutes: mins }))}</div>${
     slots.length ? slots.map(s => `<button class="btn" data-s="${s.start}" data-e="${s.end}">${fmt(s.start)} – ${fmt(s.end)}</button>`).join('')
-                 : `<div style="color:var(--muted);font-size:0.78rem;padding:0.4rem">${esc(tr('calendar.no_free_slots'))}</div>`
+                 : `<div style="color:var(--muted);font-size:0.8125rem;padding:0.4rem">${esc(tr('calendar.no_free_slots'))}</div>`
   }<button class="btn cal-scope-cancel">${esc(tr('common.cancel'))}</button></div>`;
   document.body.appendChild(ov);
   ov.addEventListener('click', e => { if (e.target === ov || e.target.classList.contains('cal-scope-cancel')) ov.remove(); });
@@ -2220,8 +2220,8 @@ async function openCaldavPanel() {
   let cfg = {};
   try { cfg = await fetch('/api/caldav/status').then(r => r.json()); } catch {}
   list.innerHTML = `<div class="cal-editor" style="max-width:520px">
-    <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem">${esc(tr('calendar.sync_help'))}</div>
-    <div style="font-size:0.75rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem">
+    <div style="font-size:0.875rem;color:var(--text);margin-bottom:0.2rem">${esc(tr('calendar.sync_help'))}</div>
+    <div style="font-size:0.8125rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem">
       ${esc(tr('calendar.caldav_intro'))}
       ${cfg.available ? '' : `<br><b style="color:var(--warn)">${esc(tr('calendar.caldav_missing'))}</b>`}
       ${cfg.connected ? `<br>${_fill(tr('calendar.caldav_connected', { name: '{name}' }), { name: `<b>${esc(cfg.username || '')}</b>` })}` : ''}
@@ -2237,7 +2237,7 @@ async function openCaldavPanel() {
       <button class="btn" id="cd-save">${esc(tr('common.save'))}</button>
       <button class="btn primary" id="cd-sync">${esc(tr('calendar.sync_now'))}</button>
     </div>
-    <div id="cd-status" style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem"></div>
+    <div id="cd-status" style="font-size:0.8125rem;color:var(--muted);margin-top:0.5rem"></div>
   </div>`;
   document.getElementById('cd-back').addEventListener('click', () => loadCalendar());
   const save = async () => {

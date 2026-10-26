@@ -83,7 +83,7 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-previe
   background: var(--k-btn-fill);
   color: var(--k-text);
   box-shadow: none;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
@@ -98,7 +98,7 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #
   background: var(--k-accent);
   color: var(--k-on-accent);
   box-shadow: none;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 560;
 }
 
@@ -474,7 +474,7 @@ html:not(#_) .toast {
   background: var(--k-raised);
   box-shadow: var(--k-float);
   padding: 10px 16px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 html:not(#_) .toast:is(.success, .error, .info) {
@@ -539,7 +539,7 @@ html:not(#_) .toast:is(.success, .error, .info) {
   position: absolute;
   top: 8px;
   right: var(--app-inline, 1.6rem);
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--k-muted);
 }
 
@@ -570,7 +570,7 @@ html:not(#_) .toast:is(.success, .error, .info) {
   padding: var(--k-space-2) var(--k-space-2) var(--k-space-2) var(--k-space-4);
   border-radius: var(--k-radius-surface);
   background: color-mix(in srgb, currentColor 9%, var(--k-panel));
-  font-size: 14px;
+  font-size: 0.875rem;
   text-align: left;
 }
 
@@ -834,7 +834,7 @@ html:not(#_) .specialist-workbench > .specialist-workbench-detail:empty {
 }
 
 html:not(#_) .specialist-workbench .specialist-detail-title {
-  font-size: 28px;
+  font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
@@ -1086,7 +1086,7 @@ html:not(#_) .empty-state-icon svg {
 html:not(#_) .empty-state-desc {
   max-width: 44ch;
   color: var(--k-muted);
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 20px;
 }
 
@@ -1184,7 +1184,7 @@ html:not(#_) #messages .agent-step-args-wrap > .custom-summary {
   align-items: center;
   min-height: 44px;
   color: var(--k-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 /* the folded run: one plain line with a hairline under it, like the code view's fold */
@@ -1207,7 +1207,7 @@ html:not(#_):not(#_) :is(.msg-actions, .msg-actions-menu) :is(.act-btn, .btn) {
   background: transparent;
   color: var(--k-muted);
   box-shadow: none;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 400;
 }
 
@@ -1269,7 +1269,7 @@ html:not(#_):not(#_) #sub-add-toggle {
 
 /* an open payment history says what just happened in its own line, where the finger is */
 html:not(#_):not(#_) .sub-hist-status {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--success);
 }
 
@@ -1282,7 +1282,7 @@ html:not(#_):not(#_) .totals-currency-wrap {
   align-items: center;
   gap: var(--k-space-2) var(--k-space-6);
   margin: 0 0 var(--k-space-3);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 html:not(#_):not(#_) .totals-currency {
@@ -1307,7 +1307,7 @@ html:not(#_):not(#_) .totals-currency-note {
   align-items: center;
   gap: var(--k-space-2) var(--k-space-3);
   margin: 0;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--k-soft);
 }
 
@@ -1480,7 +1480,7 @@ html:not(#_) #today-view[data-kokuen-surface="home"] :is(.today-capture-mode, .t
   border: 6px solid transparent;
   border-radius: var(--k-radius-large);
   background-clip: padding-box;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 560;
 }
 
@@ -1499,7 +1499,7 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture-send {
   padding: 0;
   background-color: var(--k-raised);
   color: var(--k-muted);
-  font-size: 16px;
+  font-size: 1rem;
   transition: background-color 180ms var(--k-ease-out), color 180ms var(--k-ease-out);
 }
 
@@ -1617,14 +1617,14 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-shortcut:hover {
 }
 
 #today-view[data-kokuen-surface="home"] .today-shortcut b {
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 560;
   color: var(--k-text);
 }
 
 #today-view[data-kokuen-surface="home"] .today-shortcut small {
   color: var(--k-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
@@ -1704,7 +1704,7 @@ html:not(#_):not(#_) #files-view .files-breadcrumb .crumb:last-child,
 html:not(#_):not(#_) #files-view .files-breadcrumb .crumb:only-child {
   color: var(--k-text);
   /* beats the specialist-wide 13px control floor, which is !important */
-  font-size: 17px !important;
+  font-size: 1.125rem !important;
   font-weight: 600;
 }
 
@@ -1808,7 +1808,7 @@ html:not(#_):not(#_) #photos-view #photos-head-title {
   clip-path: none;
   margin: 0 auto 0 0;
   color: var(--k-text);
-  font-size: 17px;
+  font-size: 1.125rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -1819,7 +1819,7 @@ html:not(#_):not(#_) #photos-view .photos-head .photos-search {
 }
 
 html:not(#_):not(#_) #photos-view .photos-head :is(.btn, .photos-search) {
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 @media (max-width: 760px) {
@@ -1844,7 +1844,7 @@ html:not(#_):not(#_) #files-view .files-detail-actions > :is(button, a) {
   border-radius: var(--k-radius-control);
   background: var(--k-btn-fill);
   color: var(--k-text);
-  font-size: 14px;
+  font-size: 0.875rem;
   text-decoration: none;
 }
 
@@ -1905,7 +1905,7 @@ html:not(#_):not(#_) #vault-view .vault-lock-screen > :is(label, .vault-lock-fie
   gap: var(--k-space-2);
   margin-top: var(--k-space-3);
   color: var(--k-soft);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 html:not(#_):not(#_) #vault-view .vault-lock-screen > label + input {
@@ -1920,7 +1920,7 @@ html:not(#_):not(#_) #vault-view .vault-lock-screen input {
 html:not(#_):not(#_) #vault-view .vault-lock-screen > .vault-lock-help {
   margin-top: var(--k-space-4);
   color: var(--k-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 
@@ -2003,7 +2003,7 @@ html:not(#_):not(#_) .activity-day {
    read at nearly one size */
 html:not(#_):not(#_) :is([data-specialist-app], .specialist-group) h2:not(.sr-only),
 html:not(#_):not(#_) :is(.empty-state-title, .jrnl-side-title) {
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 24px;
   font-weight: 600;
   letter-spacing: -0.005em;
@@ -2011,20 +2011,20 @@ html:not(#_):not(#_) :is(.empty-state-title, .jrnl-side-title) {
 
 html:not(#_):not(#_) :is(#today-greeting, #wiki-empty-state h2, .page-view-head > .page-view-title, #photos-head-title),
 html:not(#_):not(#_) #files-view .files-breadcrumb .crumb:last-child {
-  font-size: 20px !important;
+  font-size: 1.25rem !important;
   line-height: 28px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 html:not(#_):not(#_) :is(.specialist-record-title, .specialist-library-row strong) {
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 20px;
   font-weight: 500;
 }
 
 html:not(#_):not(#_) :is(.money-field-label, .docs-nav-label, .ms-label) {
-  font-size: 12px;
+  font-size: 0.8125rem;
   line-height: 16px;
   font-weight: 500;
 }
@@ -2042,7 +2042,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   max-width: 44ch;
   margin: clamp(48px, 14vh, 120px) auto 0;
   color: var(--k-muted);
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 20px;
   text-align: center;
 }
@@ -2132,7 +2132,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
     background: transparent;
     box-shadow: none;
     color: var(--k-muted);
-    font-size: 15px;
+    font-size: 0.9375rem;
     text-align: start;
   }
 
@@ -2267,7 +2267,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
 #ask-panel .ask-panel-head h2 {
   flex: 1;
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 24px;
   font-weight: 600;
 }
@@ -2283,7 +2283,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   background: transparent;
   color: var(--k-soft);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   cursor: pointer;
 }
 
@@ -2302,7 +2302,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   padding: var(--k-space-2) var(--k-space-5) var(--k-space-4);
 }
 
-#ask-panel .ask-panel-msg { font-size: 14px; line-height: 22px; overflow-wrap: anywhere; }
+#ask-panel .ask-panel-msg { font-size: 0.875rem; line-height: 22px; overflow-wrap: anywhere; }
 #ask-panel .ask-panel-msg > :first-child { margin-top: 0; }
 #ask-panel .ask-panel-msg > :last-child { margin-bottom: 0; }
 
@@ -2318,7 +2318,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
 #ask-panel .ask-panel-error { color: var(--k-danger); }
 
 #ask-panel .ask-panel-empty { display: grid; gap: var(--k-space-4); margin-top: var(--k-space-2); }
-#ask-panel .ask-panel-empty p { margin: 0; color: var(--k-muted); font-size: 14px; line-height: 20px; }
+#ask-panel .ask-panel-empty p { margin: 0; color: var(--k-muted); font-size: 0.875rem; line-height: 20px; }
 #ask-panel .ask-panel-starts { display: grid; gap: var(--k-space-2); justify-items: start; }
 
 #ask-panel .ask-panel-start {
@@ -2329,7 +2329,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   background: var(--k-btn-fill);
   color: var(--k-text);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   text-align: start;
   cursor: pointer;
 }
@@ -2345,10 +2345,10 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   gap: var(--k-space-2);
   padding-inline: var(--k-space-2) 0;
   color: var(--k-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
-#ask-panel #ask-panel-share { font-size: 13px; color: var(--k-muted); white-space: nowrap; }
+#ask-panel #ask-panel-share { font-size: 0.8125rem; color: var(--k-muted); white-space: nowrap; }
 
 #ask-panel .ask-panel-entry {
   display: flex;
@@ -2372,7 +2372,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   background: transparent;
   color: var(--k-text);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 20px;
   resize: none;
 }
@@ -2427,7 +2427,7 @@ html:not(#_):not(#_) #today-view .today-kicker { margin-bottom: var(--k-space-2)
 html:not(#_):not(#_) .specialist-record-day {
   margin: var(--k-space-4) 0 var(--k-space-1);
   color: var(--k-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 20px;
   font-weight: 500;
 }
@@ -2669,7 +2669,7 @@ html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before 
   display: block;
   margin-top: clamp(48px, 14vh, 120px);
   color: var(--k-muted);
-  font-size: 14px;
+  font-size: 0.875rem;
   text-align: center;
 }
 
@@ -2689,7 +2689,7 @@ html:not(#_):not(#_) .specialist-group-overview .specialist-workbench h2:not(.sr
 
 /* a card's lead figure or subject reads at the page-title size, not 28px */
 html:not(#_):not(#_) .specialist-detail-title {
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 28px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -2704,7 +2704,7 @@ html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action {
   border-radius: var(--k-radius-control);
   background: var(--k-btn-fill);
   color: var(--k-text);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
@@ -2725,7 +2725,7 @@ html:not(#_)[data-kokuen-version="5"] #docs-import-btn.docs-import-trigger:not(.
 
 /* the open document's name is the column's title */
 html:not(#_):not(#_) #wiki-current {
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 24px;
   font-weight: 600;
 }
@@ -2774,13 +2774,13 @@ html:not(#_):not(#_) .money-summary .ms-card .ms-val:has(> .ms-currency) {
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 18px;
   font-weight: 500;
 }
 
 html:not(#_):not(#_) .money-summary .ms-card .ms-val:has(> .ms-currency) > .ms-number {
-  font-size: 24px;
+  font-size: 1.5rem;
   line-height: 32px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -2806,7 +2806,7 @@ html:not(#_):not(#_) .finance-import-choice > legend {
   margin: 0 0 var(--k-space-1);
   padding: 0;
   color: var(--k-muted);
-  font-size: 12px;
+  font-size: 0.8125rem;
   line-height: 16px;
   font-weight: 500;
 }
@@ -2849,7 +2849,7 @@ html:not(#_):not(#_) #login-screen .login-inner {
 html:not(#_):not(#_) #login-screen .login-brand {
   margin-bottom: var(--k-space-2);
   color: var(--k-text);
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 28px;
   font-weight: 600;
 }
@@ -2867,7 +2867,7 @@ html:not(#_):not(#_) #login-screen .login-input {
   box-shadow: inset 0 0 0 1px var(--k-field-ring);
   color: var(--k-text);
   font: inherit;
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 html:not(#_):not(#_) #login-screen .login-btn {
@@ -2879,14 +2879,14 @@ html:not(#_):not(#_) #login-screen .login-btn {
   background: var(--k-accent);
   color: var(--k-on-accent);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 560;
   cursor: pointer;
 }
 
 html:not(#_):not(#_) #login-screen .login-btn:hover { background: color-mix(in srgb, var(--k-accent) 86%, var(--k-text)); }
 html:not(#_):not(#_) #login-screen .login-error:empty { display: none; }
-html:not(#_):not(#_) #login-screen .login-error { color: var(--k-danger); font-size: 13px; }
+html:not(#_):not(#_) #login-screen .login-error { color: var(--k-danger); font-size: 0.8125rem; }
 
 /* a new message gets room to write */
 html:not(#_):not(#_) #mail-view .mail-compose-body {
@@ -2925,7 +2925,7 @@ html:not(#_):not(#_) .code-block > .code-block-header {
 }
 
 html:not(#_):not(#_) .code-block > .code-block-header .code-lang:empty { display: none; }
-html:not(#_):not(#_) .code-block > .code-block-header .code-lang { max-width: 6rem; overflow: hidden; color: var(--k-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+html:not(#_):not(#_) .code-block > .code-block-header .code-lang { max-width: 6rem; overflow: hidden; color: var(--k-muted); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
 html:not(#_):not(#_) .code-block > .code-block-header .code-copy { min-height: 44px; padding: 0 var(--k-space-3); }
 /* the header hides what runs under it, so a long line needs a gutter as wide as the header (label
    capped above, plus run when there is one) to scroll fully clear of it. code doesn't wrap, so the
@@ -3065,7 +3065,7 @@ html:not(#_) .read-card :is(.read-card-actions, .read-tag, .read-card-meta butto
     border-radius: var(--k-radius-surface, 8px);
     background: var(--k-raised, var(--panel));
     box-shadow: 0 6px 18px color-mix(in srgb, var(--k-text, #000) 14%, transparent);
-    font-size: 13px;
+    font-size: 0.8125rem;
   }
   body:has(:is(#task-completion-receipt:not([hidden]), #cal-quick-feedback:not([hidden]), #today-note-recovery > .note-saved-open)) .toast-container { bottom: 5rem; }
 }

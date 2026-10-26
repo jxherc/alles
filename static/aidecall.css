@@ -34,7 +34,7 @@
   border-radius: var(--k-radius-control);
   background: transparent;
   color: var(--k-soft);
-  font: 400 14px/1.45 var(--k-font);
+  font: 400 0.875rem/1.45 var(--k-font);
   cursor: pointer;
   box-shadow: none;
   transition: color var(--k-motion-fast) var(--k-ease);
@@ -87,20 +87,20 @@
 #aide-call-workspace .aide-call-state h2 {
   margin: 0;
   color: var(--k-text);
-  font: 560 16px/1.45 var(--k-font);
+  font: 560 1rem/1.45 var(--k-font);
 }
 
 #aide-call-workspace .aide-call-state p {
   max-width: 38ch;
   margin: var(--k-space-2) 0 0;
   color: var(--k-muted);
-  font: 400 14px/1.5 var(--k-font);
+  font: 400 0.875rem/1.5 var(--k-font);
   overflow-wrap: anywhere;
 }
 
 #aide-call-workspace .aide-call-time {
   color: var(--k-muted);
-  font: 400 13px/1.45 var(--k-mono);
+  font: 400 0.8125rem/1.45 var(--k-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -120,14 +120,14 @@
   overflow: auto;
 }
 
-#aide-call-workspace .aide-call-transcript p { margin: 0; font: 400 16px/1.5 var(--k-font); overflow-wrap: anywhere; }
-#aide-call-workspace .aide-call-transcript p > span { display: block; margin-bottom: var(--k-space-1); color: var(--k-muted); font-size: 12px; }
+#aide-call-workspace .aide-call-transcript p { margin: 0; font: 400 1rem/1.5 var(--k-font); overflow-wrap: anywhere; }
+#aide-call-workspace .aide-call-transcript p > span { display: block; margin-bottom: var(--k-space-1); color: var(--k-muted); font-size: 0.8125rem; }
 
 #aide-call-workspace .aide-call-details {
   border-top: 1px solid var(--k-line);
   padding-top: var(--k-space-4);
   flex: 0 0 auto;
-  font: 400 13px/1.5 var(--k-font);
+  font: 400 0.8125rem/1.5 var(--k-font);
   color: var(--k-muted);
 }
 
@@ -178,7 +178,7 @@ body[data-space="aide"] #aide-call-ongoing { display: none !important; }
   border-radius: var(--k-radius-control);
   background: transparent;
   color: var(--k-text);
-  font: 400 13px/1.45 var(--k-font);
+  font: 400 0.8125rem/1.45 var(--k-font);
   cursor: pointer;
   box-shadow: none;
 }

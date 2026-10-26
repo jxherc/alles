@@ -340,8 +340,8 @@ export function renderModelList(filter = '') {
     const logoFor = m => providerLogo(providerKey(epCtx + ' ' + m), { size: 14 });
     html += `<div class="provider-label" style="color:${color}">${escapeHtml(String(ep.name || ''))}</div>`;
     if (!models.length && !imgs.length) {
-      html += `<div style="padding:0.3rem 1rem;font-size:0.75rem;color:var(--muted)">
-        ${escHtml(t('models.no_models'))} <button type="button" class="model-probe" data-ep="${String(ep.id || '').replace(/[^\w-]/g, '')}" style="background:none;border:none;cursor:pointer;color:var(--text);font:inherit;font-size:0.75rem">${escHtml(t('models.probe'))}</button>
+      html += `<div style="padding:0.3rem 1rem;font-size:0.8125rem;color:var(--muted)">
+        ${escHtml(t('models.no_models'))} <button type="button" class="model-probe" data-ep="${String(ep.id || '').replace(/[^\w-]/g, '')}" style="background:none;border:none;cursor:pointer;color:var(--text);font:inherit;font-size:0.8125rem">${escHtml(t('models.probe'))}</button>
       </div>`;
       continue;
     }
@@ -363,7 +363,7 @@ export function renderModelList(filter = '') {
       </button>`;
     }
   }
-  if (!html) html = `<div style="padding:1rem;font-size:0.75rem;color:var(--muted)">${escHtml(t('models.no_endpoints_add'))}</div>`;
+  if (!html) html = `<div style="padding:1rem;font-size:0.8125rem;color:var(--muted)">${escHtml(t('models.no_endpoints_add'))}</div>`;
   list.innerHTML = html;
   const rows = [...list.querySelectorAll('.model-row')];
   if (rows.length && !rows.some(row => row.tabIndex === 0)) rows[0].tabIndex = 0;
@@ -489,7 +489,7 @@ export function renderEndpointList() {
   const el = document.getElementById('mm-ep-list');
   if (!el) return;
   if (!_endpoints.length) {
-    el.innerHTML = `<div style="padding:0.65rem 0.75rem;font-size:0.75rem;color:var(--muted)">${escHtml(t('models.no_endpoints_presets'))}</div>`;
+    el.innerHTML = `<div style="padding:0.65rem 0.75rem;font-size:0.8125rem;color:var(--muted)">${escHtml(t('models.no_endpoints_presets'))}</div>`;
     return;
   }
   el.innerHTML = _endpoints.map(ep => {
@@ -499,7 +499,7 @@ export function renderEndpointList() {
       <div class="mm-ep-card-head">
         <span class="provider-dot" style="background:${color}"></span>
         <span class="mm-ep-name" style="font-weight:500">${escHtml(ep.name)}</span>
-        <span style="font-size:0.75rem;color:var(--muted)">${escHtml(tp('models.models_count', ep.models.length))}</span>
+        <span style="font-size:0.8125rem;color:var(--muted)">${escHtml(tp('models.models_count', ep.models.length))}</span>
         <div class="mm-ep-actions" style="margin-left:auto;display:flex;gap:0.25rem">
           <button class="btn mm-test-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.test_completion'))}" ${!ep.models.length ? 'disabled' : ''}>${escHtml(t('models.test'))}</button>
           <button class="btn mm-probe-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.probe_models'))}">${escHtml(t('models.probe'))}</button>
@@ -514,8 +514,8 @@ export function renderEndpointList() {
         <button class="btn mm-cancel-btn" type="button" data-id="${ep.id}">${escHtml(t('common.cancel'))}</button>
       </div>
       <div class="mm-ep-info">
-        <span style="font-size:0.75rem;color:var(--muted)">${escHtml(ep.base_url || '')}</span>
-        <button class="mm-edit-toggle" type="button" data-id="${ep.id}" aria-expanded="false" aria-controls="mm-ep-edit-${ep.id}" style="font-size:0.75rem;color:var(--muted);background:none;border:none;cursor:pointer;padding:0 0.25rem">${escHtml(t('common.edit'))}</button>
+        <span style="font-size:0.8125rem;color:var(--muted)">${escHtml(ep.base_url || '')}</span>
+        <button class="mm-edit-toggle" type="button" data-id="${ep.id}" aria-expanded="false" aria-controls="mm-ep-edit-${ep.id}" style="font-size:0.8125rem;color:var(--muted);background:none;border:none;cursor:pointer;padding:0 0.25rem">${escHtml(t('common.edit'))}</button>
       </div>
     </div>`;
   }).join('');
@@ -598,7 +598,7 @@ export function renderEndpointList() {
 function _renderPresets() {
   const el = document.getElementById('mm-presets');
   if (!el) return;
-  el.innerHTML = `<span style="font-size:0.75rem;color:var(--muted);flex-shrink:0">${escHtml(t('models.quick_add'))}</span>`;
+  el.innerHTML = `<span style="font-size:0.8125rem;color:var(--muted);flex-shrink:0">${escHtml(t('models.quick_add'))}</span>`;
   for (const p of PRESETS) {
     const btn = document.createElement('button');
     btn.type = 'button';

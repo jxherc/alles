@@ -156,7 +156,7 @@ function openEditor(note) {
       <div class="note-checklist" id="note-checklist"></div>
       <button class="act-btn" id="note-add-item" style="align-self:flex-start">${_si('plus')} ${t('notes.checklist_item')}</button>
       <div class="note-editor-fields">
-        <input class="note-editor-title" id="note-edit-tags" value="${esc((note.tags || []).join(', '))}" placeholder="${t('notes.tags_placeholder')}" style="font-size:0.78rem;flex:1">
+        <input class="note-editor-title" id="note-edit-tags" value="${esc((note.tags || []).join(', '))}" placeholder="${t('notes.tags_placeholder')}" style="font-size:0.8125rem;flex:1">
         <span id="note-due-label" hidden>${t('notes.due_date')}</span>
         <div class="date-input note-edit-due" id="note-edit-due" data-type="date" data-ph="${t('notes.due_date')}" data-value="${esc(note.due || '')}" aria-labelledby="note-due-label"></div>
       </div>

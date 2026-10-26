@@ -1501,7 +1501,7 @@ async function loadTokens() {
   const usedOn = when => t('settings.token_used', { date: formatDate(when) });
   el.innerHTML = tokens.map(t => `
     <div class="settings-list-row">
-      <span class="row-name" style="font-family:monospace;font-size:0.75rem">${t.prefix}…</span>
+      <span class="row-name" style="font-family:monospace;font-size:0.8125rem">${t.prefix}…</span>
       <span class="row-meta">${_esc(t.name)}</span>
       <span class="row-meta">${(t.scopes || []).map(_esc).join(', ') || noAccess}</span>
       <span class="row-meta">${t.last_used_at ? usedOn(t.last_used_at) : neverUsed}</span>
@@ -1638,7 +1638,7 @@ async function loadWebhooks() {
       <span class="status-dot" style="background:${h.enabled ? 'var(--green)' : 'var(--faint)'}"></span>
       <span class="row-name">${_esc(h.name)}</span>
       <span class="row-meta">${h.events.join(', ')}${st}</span>
-      ${h.secret ? `<button type="button" class="wh-secret act-btn" aria-label="${t('settings.webhook_copy_key')}" title="${t('settings.webhook_key_title')}" style="font-family:monospace;font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;text-transform:none;letter-spacing:normal">${_esc(h.secret)}</button>` : ''}
+      ${h.secret ? `<button type="button" class="wh-secret act-btn" aria-label="${t('settings.webhook_copy_key')}" title="${t('settings.webhook_key_title')}" style="font-family:monospace;font-size:0.8125rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;text-transform:none;letter-spacing:normal">${_esc(h.secret)}</button>` : ''}
       <button class="act-btn" data-id="${h.id}" data-webhook-test ${pending ? 'disabled' : ''}>${_webhookTests.has(h.id) ? '…' : t('settings.test')}</button>
       <button class="act-btn" data-id="${h.id}" data-webhook-remove ${pending ? 'disabled' : ''}>${t('common.remove')}</button>
     </div>`;

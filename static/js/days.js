@@ -176,7 +176,7 @@ function _render() {
   }
 
   if (!derived.length) {
-    grid.innerHTML = failure || `<div class="days-empty" style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">${esc(t('plan.days_empty'))}</div>`;
+    grid.innerHTML = failure || `<div class="days-empty" style="padding:1rem 0;font-size:0.8125rem;color:var(--muted)">${esc(t('plan.days_empty'))}</div>`;
     _wire(grid);
     return;
   }

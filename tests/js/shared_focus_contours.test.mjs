@@ -84,7 +84,7 @@ test('Call text has intrinsic room without shrinking its target or hiding the la
 });
 
 test('the narrow header wraps groups in DOM order instead of shrinking text into adjacent controls', () => {
-  const narrow = aide.slice(aide.indexOf('@media (max-width: 359px)'), aide.indexOf('@media (prefers-reduced-motion: reduce)'));
+  const narrow = aide.slice(aide.indexOf('@media (max-width: 429px)'), aide.indexOf('@media (prefers-reduced-motion: reduce)'));
   const header = rule(narrow, 'body.aide-central[data-space="aide"] .main > .topbar');
   assert.match(header, /height:\s*auto/);
   assert.match(header, /flex-wrap:\s*wrap/);

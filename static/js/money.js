@@ -1125,11 +1125,11 @@ function goalsCard() {
   }).join('');
   return `<div class="goals">${rows || `<div class="money-empty-sm">${t('money.no_goals')}</div>`}</div>
     <div class="goal-form">
-      ${moneyField(t('money.goal_name'), `<input type="text" id="gl-name" class="settings-input" placeholder="${t('money.goal_name')}" style="flex:1;min-width:100px">`)}
-      ${moneyField(t('money.goal_type'), `<div class="settings-input custom-select" id="gl-kind" data-value="savings" data-options="savings|${t('money.goal_savings')};debt|${t('money.goal_debt')}" style="width:120px"></div>`)}
-      ${moneyField(savedLabel(t('money.target_amount')), `<input type="text" id="gl-target" class="settings-input" placeholder="${t('money.target')}" inputmode="decimal" style="width:80px">`)}
-      ${moneyField(savedLabel(t('money.current_amount')), `<input type="text" id="gl-current" class="settings-input" placeholder="${t('money.current')}" inputmode="decimal" style="width:80px">`)}
-      ${moneyField(savedLabel(t('money.monthly_amount')), `<input type="text" id="gl-monthly" class="settings-input" placeholder="${t('money.monthly')}" inputmode="decimal" style="width:80px">`)}
+      ${moneyField(t('money.goal_name'), `<input type="text" id="gl-name" class="settings-input" placeholder="${t('money.goal_name')}" style="flex:1;min-width:6.25rem">`)}
+      ${moneyField(t('money.goal_type'), `<div class="settings-input custom-select" id="gl-kind" data-value="savings" data-options="savings|${t('money.goal_savings')};debt|${t('money.goal_debt')}" style="width:7.5rem"></div>`)}
+      ${moneyField(savedLabel(t('money.target_amount')), `<input type="text" id="gl-target" class="settings-input" placeholder="${t('money.target')}" inputmode="decimal" style="width:5rem">`)}
+      ${moneyField(savedLabel(t('money.current_amount')), `<input type="text" id="gl-current" class="settings-input" placeholder="${t('money.current')}" inputmode="decimal" style="width:5rem">`)}
+      ${moneyField(savedLabel(t('money.monthly_amount')), `<input type="text" id="gl-monthly" class="settings-input" placeholder="${t('money.monthly')}" inputmode="decimal" style="width:5rem">`)}
       <button class="btn" id="gl-add">${t('common.add')}</button>
     </div>`;
 }
@@ -1164,10 +1164,10 @@ function holdingsCard() {
     : `<div class="money-empty-sm">${t('money.no_holdings')}</div>`;
   return `<div class="holds">${rows}</div>${totRow}
     <div class="hold-form">
-      ${moneyField(t('money.symbol'), `<input type="text" id="hd-sym" class="settings-input" placeholder="${t('money.symbol')}" style="width:80px">`)}
-      ${moneyField(t('money.quantity'), `<input type="text" id="hd-qty" class="settings-input" placeholder="${t('money.qty')}" inputmode="decimal" style="width:64px">`)}
-      ${moneyField(t('money.cost_per_share'), `<input type="text" id="hd-cost" class="settings-input" placeholder="${t('money.cost_sh')}" inputmode="decimal" style="width:74px">`)}
-      ${moneyField(t('money.price_per_share'), `<input type="text" id="hd-price" class="settings-input" placeholder="${t('money.price')}" inputmode="decimal" style="width:64px">`)}
+      ${moneyField(t('money.symbol'), `<input type="text" id="hd-sym" class="settings-input" placeholder="${t('money.symbol')}" style="width:5rem">`)}
+      ${moneyField(t('money.quantity'), `<input type="text" id="hd-qty" class="settings-input" placeholder="${t('money.qty')}" inputmode="decimal" style="width:4rem">`)}
+      ${moneyField(t('money.cost_per_share'), `<input type="text" id="hd-cost" class="settings-input" placeholder="${t('money.cost_sh')}" inputmode="decimal" style="width:4.625rem">`)}
+      ${moneyField(t('money.price_per_share'), `<input type="text" id="hd-price" class="settings-input" placeholder="${t('money.price')}" inputmode="decimal" style="width:4rem">`)}
       <button class="btn" id="hd-add">${t('common.add')}</button>
     </div>`;
 }
@@ -1274,7 +1274,7 @@ function envelopeCard() {
   return banner + (rows
     ? `<div class="env-rows">${rows}</div>`
     : `<div class="money-empty-sm">${t('money.assign_to_start')}</div>`) +
-    `<div class="env-add">${moneyField(t('money.category'), `<input type="text" id="env-new-cat" class="settings-input" placeholder="${t('money.category')}" style="flex:1">`)}${moneyField(savedLabel(t('money.assignment_amount')), `<input type="text" id="env-new-amt" class="settings-input" placeholder="${t('money.assign')}" inputmode="decimal" style="width:90px">`)}<button class="btn" id="env-assign-btn">${t('money.assign')}</button></div>`;
+    `<div class="env-add">${moneyField(t('money.category'), `<input type="text" id="env-new-cat" class="settings-input" placeholder="${t('money.category')}" style="flex:1">`)}${moneyField(savedLabel(t('money.assignment_amount')), `<input type="text" id="env-new-amt" class="settings-input" placeholder="${t('money.assign')}" inputmode="decimal" style="width:5.625rem">`)}<button class="btn" id="env-assign-btn">${t('money.assign')}</button></div>`;
 }
 
 function budgetsList() {
@@ -1309,9 +1309,9 @@ function rulesList() {
 
 function _ruleForm() {
   return `<div class="rule-form">
-    ${moneyField(t('money.payee_contains'), `<input type="text" id="rl-match" class="settings-input" placeholder="${t('money.if_payee_contains')}" style="flex:1.2;min-width:120px">`)}
+    ${moneyField(t('money.payee_contains'), `<input type="text" id="rl-match" class="settings-input" placeholder="${t('money.if_payee_contains')}" style="flex:1.2;min-width:7.5rem">`)}
     <span class="rl-arrow" aria-hidden="true">${_si('arrow-right')}</span>
-    ${moneyField(t('money.category'), `<input type="text" id="rl-cat" class="settings-input" placeholder="${t('money.category')}" style="flex:1;min-width:90px">`)}
+    ${moneyField(t('money.category'), `<input type="text" id="rl-cat" class="settings-input" placeholder="${t('money.category')}" style="flex:1;min-width:5.625rem">`)}
     <button class="btn" id="rl-add">${t('common.add')}</button>
   </div>`;
 }
@@ -1398,13 +1398,13 @@ function _recurringFields() {
     <button type="button" class="btn primary" id="rc-add">${t('money.add_schedule')}</button>
   </div><p class="money-recurring-note">${t('money.new_schedules_note')}</p>`;
   return `<div class="recur-form">
-    ${moneyField(t('money.payee'), `<input type="text" id="rc-payee" class="settings-input" placeholder="${t('money.payee_eg_rent')}" style="flex:1.3;min-width:100px">`)}
-    ${moneyField(t('money.category'), `<input type="text" id="rc-cat" class="settings-input" placeholder="${t('money.category')}" style="flex:1;min-width:80px">`)}
-    ${moneyField(t('money.type'), `<div class="settings-input custom-select" id="rc-sign" data-value="-" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:104px"></div>`)}
-    ${moneyField(t('money.amount'), `<input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:84px">`)}
-    ${moneyField(t('money.repeat'), `<div class="settings-input custom-select" id="rc-cycle" data-value="monthly" data-options="weekly|${t('subs.cycle_weekly')};monthly|${t('subs.cycle_monthly')};quarterly|${t('subs.cycle_quarterly')};yearly|${t('subs.cycle_yearly')}" style="width:120px"></div>`)}
-    ${moneyField(t('money.next_date'), `<div class="date-input" id="rc-next" data-type="date" data-value="${_today()}" data-ph="${t('money.next_date')}" style="width:128px"></div>`)}
-    ${moneyField(t('money.account'), `<div class="settings-input custom-select" id="rc-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>`)}
+    ${moneyField(t('money.payee'), `<input type="text" id="rc-payee" class="settings-input" placeholder="${t('money.payee_eg_rent')}" style="flex:1.3;min-width:6.25rem">`)}
+    ${moneyField(t('money.category'), `<input type="text" id="rc-cat" class="settings-input" placeholder="${t('money.category')}" style="flex:1;min-width:5rem">`)}
+    ${moneyField(t('money.type'), `<div class="settings-input custom-select" id="rc-sign" data-value="-" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:6.5rem"></div>`)}
+    ${moneyField(t('money.amount'), `<input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:5.25rem">`)}
+    ${moneyField(t('money.repeat'), `<div class="settings-input custom-select" id="rc-cycle" data-value="monthly" data-options="weekly|${t('subs.cycle_weekly')};monthly|${t('subs.cycle_monthly')};quarterly|${t('subs.cycle_quarterly')};yearly|${t('subs.cycle_yearly')}" style="width:7.5rem"></div>`)}
+    ${moneyField(t('money.next_date'), `<div class="date-input" id="rc-next" data-type="date" data-value="${_today()}" data-ph="${t('money.next_date')}" style="width:8rem"></div>`)}
+    ${moneyField(t('money.account'), `<div class="settings-input custom-select" id="rc-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:8rem"></div>`)}
     <button class="btn primary" id="rc-add">${t('common.add')}</button>
   </div>`;
 }
@@ -1415,9 +1415,9 @@ function addTxnRow() {
   return `<div class="txn-add">
     ${moneyField(t('money.date'), `<div class="date-input" id="tx-date" data-type="date" data-value="${_today()}" data-ph="${t('money.date')}" style="flex:1 1 9.5rem"></div>`)}
     ${moneyField(t('money.account'), `<div class="settings-input custom-select" id="tx-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="flex:1 1 11rem"></div>`)}
-    ${moneyField(t('money.type'), `<div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:106px"></div>`)}
-    ${moneyField(t('money.amount'), `<input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
-    ${moneyField(t('money.payee'), `<input type="text" id="tx-payee" class="settings-input" placeholder="${t('money.payee_what')}" style="flex:1.4;min-width:120px;grid-column:1 / -1">`)}
+    ${moneyField(t('money.type'), `<div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:6.625rem"></div>`)}
+    ${moneyField(t('money.amount'), `<input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:6rem">`)}
+    ${moneyField(t('money.payee'), `<input type="text" id="tx-payee" class="settings-input" placeholder="${t('money.payee_what')}" style="flex:1.4;min-width:7.5rem;grid-column:1 / -1">`)}
   </div><p id="tx-amt-error" class="money-field-error" role="status"></p>
   <button type="button" class="money-section-toggle money-entry-details-toggle" id="tx-details-toggle" aria-expanded="${_moneyEntryDetailsOpen}" aria-controls="tx-details">${t('money.category_and_tags')}</button>
   <div class="money-entry-details" id="tx-details"${_moneyEntryDetailsOpen ? '' : ' hidden'}>
@@ -1514,7 +1514,7 @@ function splitEditorRow(txn) {
   const rows = (_splitRows.length ? _splitRows : [{ category: '', amount: '' }]).map((s, i) => `
     <div class="split-row" data-i="${i}">
       ${moneyField(t('money.category'), `<input type="text" class="settings-input split-cat" value="${esc(s.category || '')}" placeholder="${t('money.category')}" style="flex:1">`)}
-      ${moneyField(t('money.amount'), `<input type="text" class="settings-input split-amt" value="${esc(String(s.amount || ''))}" placeholder="${t('money.amount')}" inputmode="decimal" style="width:90px">`)}
+      ${moneyField(t('money.amount'), `<input type="text" class="settings-input split-amt" value="${esc(String(s.amount || ''))}" placeholder="${t('money.amount')}" inputmode="decimal" style="width:5.625rem">`)}
       <button class="btn split-row-del" data-i="${i}" aria-label="${t('money.remove_split_row', { n: i + 1 })}" title="${t('common.remove')}">×</button>
     </div>`).join('');
   return `<div class="txn-split-editor" data-id="${txn.id}">
@@ -1536,9 +1536,9 @@ function editTxnRow(txn) {
     ${moneyField(t('money.date'), `<div class="date-input" data-f="date" data-type="date" data-value="${esc(txn.date || _today())}" data-ph="${t('money.date')}" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
     ${moneyField(t('money.account'), `<div class="settings-input custom-select" data-f="account_id" data-value="${esc(txn.account_id)}" data-options="${esc(acctOpts)}" style="flex:1 1 11rem;min-width:11rem"></div>`)}
     ${moneyField(t('money.payee'), `<input type="text" class="settings-input" data-f="payee" value="${esc(txn.payee || '')}" placeholder="${t('money.payee')}" style="flex:1.4 1 9.5rem;min-width:9.5rem">`)}
-    ${moneyField(t('money.category'), `<input type="text" class="settings-input" data-f="category" value="${esc(txn.category || '')}" placeholder="${t('money.category')}" style="flex:1;min-width:80px">`)}
-    ${moneyField(t('money.type'), `<div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:100px"></div>`)}
-    ${moneyField(t('money.amount'), `<input type="text" class="settings-input" data-f="amount" value="${Math.abs(txn.amount || 0)}" inputmode="decimal" style="width:84px">`)}
+    ${moneyField(t('money.category'), `<input type="text" class="settings-input" data-f="category" value="${esc(txn.category || '')}" placeholder="${t('money.category')}" style="flex:1;min-width:5rem">`)}
+    ${moneyField(t('money.type'), `<div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:6.25rem"></div>`)}
+    ${moneyField(t('money.amount'), `<input type="text" class="settings-input" data-f="amount" value="${Math.abs(txn.amount || 0)}" inputmode="decimal" style="width:5.25rem">`)}
     <button class="btn primary" data-save-txn="${txn.id}">${t('money.save_changes')}</button>
     <button class="btn" data-cancel-txn="${txn.id}" aria-label="${t('money.cancel_editing', { name: esc(txn.payee || t('money.kind_transaction')) })}">${t('common.cancel')}</button>
   </div>`;
@@ -1547,18 +1547,18 @@ function editTxnRow(txn) {
 // ── inline forms ──────────────────────────────────────────────────────────────
 function _accountForm() {
   return `<div class="acct-form" id="acct-form">
-    ${moneyField(t('money.account_name'), `<input type="text" id="af-name" class="settings-input" placeholder="${t('money.account_name_eg')}" style="flex:1;min-width:150px">`)}
-    ${moneyField(t('money.account_type'), `<div class="settings-input custom-select" id="af-kind" data-value="checking" data-options="checking|${t('money.kind_checking')};savings|${t('money.kind_savings')};cash|${t('money.kind_cash')};credit|${t('money.kind_credit')};investment|${t('money.kind_investment')}" style="width:150px"></div>`)}
-    ${moneyField(t('money.currency'), `<div class="settings-input custom-select" id="af-currency" data-value="" data-options="|${t('money.choose_currency')};${_currencyCodes.map(code => `${code}|${code}`).join(';')}" aria-describedby="af-currency-error" style="width:150px"></div>`)}
-    ${moneyField(t('money.opening_balance'), `<input type="text" id="af-open" class="settings-input" placeholder="${t('money.opening_balance')}" inputmode="decimal" style="width:140px">`)}
-    ${moneyField(t('money.low_balance_alert'), `<input type="text" id="af-low" class="settings-input" placeholder="${t('money.low_bal_alert')}" inputmode="decimal" style="width:110px" title="${t('money.low_balance_title')}">`)}
+    ${moneyField(t('money.account_name'), `<input type="text" id="af-name" class="settings-input" placeholder="${t('money.account_name_eg')}" style="flex:1;min-width:13rem">`)}
+    ${moneyField(t('money.account_type'), `<div class="settings-input custom-select" id="af-kind" data-value="checking" data-options="checking|${t('money.kind_checking')};savings|${t('money.kind_savings')};cash|${t('money.kind_cash')};credit|${t('money.kind_credit')};investment|${t('money.kind_investment')}" style="width:9.375rem"></div>`)}
+    ${moneyField(t('money.currency'), `<div class="settings-input custom-select" id="af-currency" data-value="" data-options="|${t('money.choose_currency')};${_currencyCodes.map(code => `${code}|${code}`).join(';')}" aria-describedby="af-currency-error" style="width:10.5rem"></div>`)}
+    ${moneyField(t('money.opening_balance'), `<input type="text" id="af-open" class="settings-input" placeholder="${t('money.opening_balance')}" inputmode="decimal" style="width:8.75rem">`)}
+    ${moneyField(t('money.low_balance_alert'), `<input type="text" id="af-low" class="settings-input" placeholder="${t('money.low_bal_alert')}" inputmode="decimal" style="width:9rem" title="${t('money.low_balance_title')}">`)}
     <button class="btn primary" id="af-add">${t('money.add_account_btn')}</button>
   </div><p id="af-currency-error" class="money-field-error" role="status">${_currencyCodes.length ? '' : t('money.currency_choices_unloaded')}</p>${_currencyCodes.length ? '' : `<button type="button" class="btn" id="af-currency-retry">${t('money.retry_currency_choices')}</button>`}`;
 }
 function _budgetForm() {
   return `<div class="budget-form">
-    ${moneyField(t('money.category'), `<input type="text" id="bf-cat" class="settings-input" placeholder="${_canonicalLedger ? t('money.actual_category') : t('money.category')}" style="flex:1;min-width:110px">`)}
-    ${moneyField(_canonicalLedger ? t('money.monthly_cap') : savedLabel(t('money.monthly_cap')), `<input type="text" id="bf-amt" class="settings-input" placeholder="${t('money.monthly_cap')}" inputmode="decimal" style="width:120px">`)}
+    ${moneyField(t('money.category'), `<input type="text" id="bf-cat" class="settings-input" placeholder="${_canonicalLedger ? t('money.actual_category') : t('money.category')}" style="flex:1;min-width:6.875rem">`)}
+    ${moneyField(_canonicalLedger ? t('money.monthly_cap') : savedLabel(t('money.monthly_cap')), `<input type="text" id="bf-amt" class="settings-input" placeholder="${t('money.monthly_cap')}" inputmode="decimal" style="width:7.5rem">`)}
     <button class="btn" id="bf-add">${t('money.set')}</button>
   </div>`;
 }

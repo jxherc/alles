@@ -141,7 +141,7 @@ function stripAutomaticMailNavigation(html = '') {
   return template.innerHTML;
 }
 export function mailBodySrcdoc(html = '') {
-  return `<meta http-equiv="Content-Security-Policy" content="${MAIL_BODY_CSP}"><style>body{font-family:system-ui,sans-serif;color:#111;background:#fff;font-size:14px;padding:8px;margin:0}a{color:#1a0dab}a:visited{color:#681da8}</style>${stripAutomaticMailNavigation(html)}`;
+  return `<meta http-equiv="Content-Security-Policy" content="${MAIL_BODY_CSP}"><style>body{font-family:system-ui,sans-serif;color:#111;background:#fff;font-size:16px;padding:8px;margin:0}a{color:#1a0dab}a:visited{color:#681da8}</style>${stripAutomaticMailNavigation(html)}`;
 }
 const catchErr = msg => e => { console.error(msg || 'Error:', e); if (msg) toast(msg, 'error'); };
 const fromName = f => {

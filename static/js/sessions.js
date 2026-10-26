@@ -1048,8 +1048,6 @@ function _openEdit(btn, { text = null, focus = true } = {}) {
   ta.rows = 1;
   ta.value = text ?? original;
   ta.setAttribute('aria-label', t('aide.edit_message'));
-  // 16px on touch, or ios safari zooms the page in on focus
-  if (globalThis.matchMedia?.('(pointer: coarse)')?.matches) ta.style.fontSize = '16px';
   // leaving the box never sends: a dismissed phone keyboard or a stray click would cut every
   // later turn. only send (or enter) does; cancel (or escape) puts the words back
   const actions = wrap.querySelector('.user-actions');
@@ -1413,7 +1411,7 @@ function startRename(el, id) {
   const current = nameEl.textContent;
   const inp = document.createElement('input');
   inp.value = current;
-  inp.style.cssText = 'background:none;border:none;border-bottom:1px solid var(--muted);color:var(--text);font:inherit;font-size:0.8rem;min-width:0;flex:1;outline:none;padding:0';
+  inp.style.cssText = 'background:none;border:none;border-bottom:1px solid var(--muted);color:var(--text);font:inherit;font-size:0.8125rem;min-width:0;flex:1;outline:none;padding:0';
   openButton.hidden = true;
   openButton.insertAdjacentElement('afterend', inp);
   inp.focus(); inp.select();

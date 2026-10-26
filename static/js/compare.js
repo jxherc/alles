@@ -359,7 +359,7 @@ export async function loadCompareModels() {
   let html = '';
   for (const ep of eps) {
     if (ep.enabled === false || !ep.models.length) continue;
-    html += `<div style="font-size:0.75rem;color:var(--muted);margin:0.5rem 0 0.2rem;text-transform:lowercase">${_esc(ep.name)}</div>`;
+    html += `<div style="font-size:0.8125rem;color:var(--muted);margin:0.5rem 0 0.2rem;text-transform:lowercase">${_esc(ep.name)}</div>`;
     for (const m of ep.models) {
       if (ep.unavailable_models?.includes(m)) continue;
       const checked = selected.has(JSON.stringify([ep.id, m]));
