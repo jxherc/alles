@@ -103,6 +103,8 @@ tasks use owner-scoped tab drafts. docs also have server-managed recovery drafts
 
 [design-system/](design-system) defines semantic tokens, components, custom controls, accessibility, responsive behavior, and motion rules. the current styles also contain legacy feature code. a control inventory is a source map, not proof that every screen already passes rendered qa.
 
+text sizes are rem roles on one scale (13 to 32, in base-16 px), inline styles included. the root sets the scale: 109.375% on a fine pointer and 115% on a coarse one, so body text reads about 16.4px on a computer and 17.25px on a touch screen, and the font size setting and density modes scale from there (decision 0044). a touch text field never drops under 16px.
+
 ### frontend ownership
 
 `style.css` remains the baseline and legacy composition; `kokuen.css` follows it as the final product layer. keeping this order avoids changing the cascade while giving each rule a named owner. screen scopes use `:where(...)`, which adds no selector specificity.
@@ -121,7 +123,7 @@ Finance's short private classes such as `.ms-card`, `.cat-row` and `.env-row` ca
 
 [static/js/settings.js](static/js/settings.js) owns modal navigation, the focus trap, close/reopen focus return and remaining small panes. [static/js/settings/](static/js/settings) owns independent Home, language, credits, backup, provider, Andromeda and connection panes. each initializes once, loads for its current opening and disposes transient reads/menu state when left. disposal retains draft fields and pending saves. a late read cannot overwrite a newer opening or edited form; saves retain their own status and error handling. `shared.js` keeps the existing ordered settings write queue, switch behavior, escaping and recent-owner authorization. backup staging and provider writes keep their different protocols rather than sharing a generic form framework.
 
-the **andromeda** section (apps group) is where all of Andromeda's saved settings live: search sources (primary and fallback engine, result count, engine keys, a test button), the managed local searxng, the answer (answer model, normal results, ai overview, ask before each remote search, independent fact-check, when to check, overview strength and the exact model per strength) and hidden sites. the search section keeps custom engines. the answer model is the `andromeda_answer` model role, one stored value: the andromeda section and the models section both write it through `setModelRole` in [static/js/settings/model_roles.js](static/js/settings/model_roles.js) (it re-reads the stored roles, changes one, saves, then fires `alles:model-roles`) and each section listens for the other's event, so the two pickers always show the same model. Andromeda's own settings buttons open this section; the page keeps only per-search choices and the saved-search list, and follows setting changes through `alles:andromeda-settings`.
+the **andromeda** section (apps group) is where all of Andromeda's saved settings live: search sources (primary and fallback engine, result count, engine keys, a test button), the managed local searxng, the answer (answer model, normal results, ai overview, ask before each remote search, independent fact-check, when to check, overview strength and the exact model per strength) and hidden sites. the search section keeps custom engines. the answer model is the `andromeda_answer` model role, one stored value: the andromeda section and the models section both write it through `setModelRole` in [static/js/settings/model_roles.js](static/js/settings/model_roles.js) (it re-reads the stored roles, changes one, saves, then fires `alles:model-roles`) and each section listens for the other's event, so the two pickers always show the same model. the server app's search workbench saves through its own owner-checked request, but it also re-reads the roles first, fires the same event and redraws when another screen changes a role. Andromeda's own settings buttons open this section; the page keeps only per-search choices and the saved-search list, and follows setting changes through `alles:andromeda-settings`.
 
 the PWA precache walks nested modules and their exact import URLs, so a cold offline shell can load the same settings module graph. this caches the interface; it does not turn provider, backup or credential operations into offline writes.
 
@@ -1058,6 +1060,10 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **result rows.** each row shows the site's icon, its name and a "host › path" trail above a larger
   title, then the page date before the snippet when the engine gives one. a row without an icon from the
   engine uses duckduckgo's icon service, and every icon and image loads through the media proxy.
+- **image results.** images sit in justified rows like google images: one height per row (180px, 160px
+  on touch, 124px on a phone), each picture as wide as its shape (clamped to 0.55 to 2.4), the row
+  stretched to the edge and the last row left at natural width. under each picture sit the site's mark
+  and name, then one line of title.
 - **sources in place.** each claim lists its sources by site name on its own row under the claim.
   choosing one opens a card in place with the exact supporting quote, the page title as a link, the
   page date when the evidence has one, and the source type for docs, release notes, repositories and

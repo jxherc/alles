@@ -1,6 +1,32 @@
 {
   "releases": [
     {
+      "id": "2026-10-26",
+      "date": "october 26, 2026",
+      "items": [
+        {
+          "title": "easier to read",
+          "body": "text is bigger everywhere, and bigger again on an ipad or a phone. font size in settings → general still works on top of it."
+        },
+        {
+          "title": "touch scrolling that stays put",
+          "body": "a swipe scrolls the part of the screen you touch, not the whole page, and scrolling back while Aide is still replying holds still until you return to the end."
+        },
+        {
+          "title": "image results in even rows",
+          "body": "andromeda's images keep their shape and line up in rows like google images, with the site and title under each one."
+        },
+        {
+          "title": "andromeda in settings",
+          "body": "andromeda's search and answer settings moved into the one settings page, under apps. its answer model is the same one models shows, so changing either changes both."
+        },
+        {
+          "title": "effort that fits the model",
+          "body": "Aide's effort menu shows only the levels your model takes. automatic lets the model decide."
+        }
+      ]
+    },
+    {
       "id": "2026-10-25",
       "date": "october 25, 2026",
       "items": [
