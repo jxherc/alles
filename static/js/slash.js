@@ -454,7 +454,7 @@ export async function tryExecuteSlashCommand(text) {
 
     case 'incognito': {
       const { createSession } = await import('./sessions.js');
-      const { getCurrentEndpoint, getSelected } = await import('./models.js?v=215');
+      const { getCurrentEndpoint, getSelected } = await import('./models.js?v=216');
       const ep = getCurrentEndpoint();
       if (!ep) { toast(t('aide.slash_no_endpoint'), 'error'); return true; }
       const model = getSelected()?.model || ep.models?.[0] || '';

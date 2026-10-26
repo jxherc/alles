@@ -4,7 +4,7 @@ import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown, wireMessageActions, rereadActiveSession,
   showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
 } from './sessions.js';
-import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=215';
+import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=216';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js?v=254';
 import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort, modelSupport } from './modes.js?v=258';

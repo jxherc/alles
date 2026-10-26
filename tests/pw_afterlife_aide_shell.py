@@ -851,7 +851,7 @@ def run() -> None:
             # switch it can really take. the saved "high" does not leak onto it, and comes back
             # with the model that supports it
             switch = """async model => {
-              const models = await import('/static/js/models.js?v=215');
+              const models = await import('/static/js/models.js?v=216');
               await models.selectModel(model[0], model[1]);
             }"""
             page.evaluate(switch, ["deepseek-local", "deepseek-v4-pro"])
