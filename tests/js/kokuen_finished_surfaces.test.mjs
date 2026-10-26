@@ -120,7 +120,7 @@ test('the finished surfaces share the documented rhythm and safe motion', () => 
   assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*min-height:\s*var\(--k-control\)/);
   assert.match(css, /\.file-name\s*\{[\s\S]*min-width:\s*60px/);
   assert.match(css, /\.file-name-button\s*\{[^}]*min-width:\s*0[^}]*text-overflow:\s*ellipsis/);
-  assert.match(css, /#settings-modal\[data-kokuen-surface="settings"\][\s\S]*\.s-nav[\s\S]*width:\s*204px/);
+  assert.match(css, /#settings-modal\[data-kokuen-surface="settings"\][\s\S]*\.s-nav[\s\S]*width:\s*14\.5rem/);
   assert.match(css, /#wiki-view\[data-kokuen-surface="docs"\][\s\S]*width:\s*244px/);
   assert.match(css, /#andromeda-view\[data-kokuen-surface="andromeda"\][\s\S]*box-shadow:\s*none/);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);

@@ -379,7 +379,7 @@ test('a changed draft comes back after leaving the task; the box grows and is 16
   assert.equal(box.style.fontSize, undefined);
   const css = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
   const touch = css.slice(css.indexOf('@media (pointer: coarse) {\n  html[data-font-size="sm"]'));
-  assert.match(touch, /textarea\) \{ font-size: max\(16px, 1em\) !important; \}/);
+  assert.match(touch, /textarea\) \{ font-size: max\(16px, var\(--field-size, 0\.875rem\)\) !important; \}/);
   assert.equal(box.style.height, '40px');
   assert.equal(box.style.overflowY, 'hidden');
   box.scrollHeight = 2000;
