@@ -3732,3 +3732,9 @@ html:not(#_):not(#_) #mail-view .mail-error-strip > .btn {
 /* an empty signature list still took a flex slot and its gap, pushing "+ sig" in from the edge when
    the compose toolbar wraps */
 html:not(#_):not(#_) #mail-view .mail-richbar :is(.mail-sig-wrap, .mail-status):empty { display: none; }
+
+/* a section's inline action ("open mail") keeps one line; the title beside it wraps instead */
+html:not(#_) .specialist-inline-action {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

@@ -5783,10 +5783,16 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--faint);
+  /* a narrow phone scrolls the tabs sideways instead of breaking "recent runs" onto two lines */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
 /* 12px each side keeps the old 24px between labels, and the focus ring off the words */
 .aide-scheduled-tabs button {
   position: relative;
+  flex: none;
+  white-space: nowrap;
   padding: 0 12px;
   border-radius: 0;
   font-size: 0.8125rem;
