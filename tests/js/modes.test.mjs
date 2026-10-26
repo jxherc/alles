@@ -23,6 +23,9 @@ const {
   EFFORTS,
   getEffort,
   setEffort,
+  usableEffort,
+  modelSupport,
+  effortLabel,
   REASONING_MODES,
   getReasoningMode,
   setReasoningMode,
@@ -85,9 +88,9 @@ test('custom effort is bounded and remembered per model', () => {
   assert.equal(getCustomEffort('model-b').maxTurns, 24);
 });
 
-test('getEffort defaults to medium when nothing is stored', () => {
-  assert.equal(getEffort(), 'medium');
-  assert.equal(getEffort('some-model'), 'medium');
+test('getEffort is automatic when nothing is stored', () => {
+  assert.equal(getEffort(), '');
+  assert.equal(getEffort('some-model'), '');
 });
 
 test('setEffort without a model sets the global last-used', () => {
@@ -110,8 +113,72 @@ test('any setEffort also updates the global last-used (drives the unseen-model f
   assert.equal(getEffort(), 'max');
 });
 
-test('invalid effort values reset to medium instead of reaching the runtime', () => {
+test('invalid effort values reset to automatic instead of reaching the runtime', () => {
   setEffort('turbo', 'gpt-5');
-  assert.equal(getEffort('gpt-5'), 'medium');
-  assert.equal(getEffort(), 'medium');
+  assert.equal(getEffort('gpt-5'), '');
+  assert.equal(getEffort(), '');
 });
+
+test('automatic is a real saved choice and does not inherit the last-used level', () => {
+  setEffort('max', 'gpt-5');
+  setEffort('', 'claude');
+  assert.equal(getEffort('claude'), '');
+  assert.equal(getEffort('gpt-5'), 'max');
+});
+
+test('a saved provider level the model does not take falls back to automatic', () => {
+  setEffort('xhigh', 'model-a');
+  assert.equal(getEffort('model-a', ['low', 'medium', 'high', 'xhigh']), 'xhigh');
+  assert.equal(getEffort('model-a', ['low', 'medium', 'high']), '');
+  assert.equal(getEffort('model-a', []), '');
+  assert.equal(getEffort('model-a'), 'xhigh');   // levels unknown: nothing is filtered
+  assert.equal(usableEffort('max', ['low']), '');
+});
+
+test('deep work and custom survive on a model with no levels', () => {
+  for (const local of ['deep_work', 'custom']) {
+    setEffort(local, 'plain-model');
+    assert.equal(getEffort('plain-model', []), local);
+  }
+});
+
+test('effort chip label for automatic', () => {
+  assert.equal(effortLabel(''), 'automatic');
+});
+
+test('reasoning on/off only counts on a model that can be switched', () => {
+  setReasoningMode('on', 'm');
+  assert.equal(getReasoningMode('m', true), 'on');
+  assert.equal(getReasoningMode('m', false), 'automatic');
+  assert.equal(getReasoningMode('m'), 'on');
+});
+
+test('modelSupport reads the selected model from the catalog', () => {
+  globalThis.window = {
+    _endpoints: [
+      {
+        id: 'e1',
+        effort_levels: { 'o3-mini': ['low', 'medium', 'high'] },
+        reasoning_control: ['deepseek-v4'],
+      },
+    ],
+  };
+  try {
+    assert.deepEqual(modelSupport({ endpointId: 'e1', model: 'o3-mini' }), {
+      effortLevels: ['low', 'medium', 'high'],
+      reasoningControl: false,
+    });
+    assert.deepEqual(modelSupport({ endpointId: 'e1', model: 'deepseek-v4' }), {
+      effortLevels: [],
+      reasoningControl: true,
+    });
+    assert.deepEqual(modelSupport({ endpointId: 'gone', model: 'x' }), {
+      effortLevels: [],
+      reasoningControl: false,
+    });
+    assert.deepEqual(modelSupport(null), { effortLevels: [], reasoningControl: false });
+  } finally {
+    delete globalThis.window;
+  }
+});
+

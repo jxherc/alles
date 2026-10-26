@@ -14,7 +14,8 @@ from core.database import ModelEndpoint, SessionLocal, get_db
 from core.settings import load_settings
 from services import model_auth, model_catalog
 from services.imagegen import is_image_model
-from services.llm import detect_provider, simple_complete
+from services.llm import detect_provider, reasoning_control_supported, simple_complete
+from services.model_capabilities import effort_levels
 from services.model_resolver import MODEL_ROLES, ModelResolutionError, resolve_model
 from services.redaction import redact_url
 
@@ -43,6 +44,23 @@ def _is_chat_model(model_id: str) -> bool:
     )
 
 
+def _reasoning_support(endpoint: ModelEndpoint, provider: str, models: list) -> tuple[dict, list]:
+    """Per model: the provider effort levels it takes and whether reasoning can be forced on/off."""
+    metadata = endpoint.model_metadata_dict()
+    levels = {}
+    switchable = []
+    for model in models:
+        if not isinstance(model, str):
+            continue
+        meta = metadata.get(model)
+        found = effort_levels(provider, model, meta)
+        if found:
+            levels[model] = found
+        if reasoning_control_supported(endpoint.base_url or "", model, meta):
+            switchable.append(model)
+    return levels, switchable
+
+
 def _fmt_endpoint(endpoint: ModelEndpoint) -> dict:
     try:
         vision = json.loads(endpoint.vision_models or "[]")
@@ -50,14 +68,19 @@ def _fmt_endpoint(endpoint: ModelEndpoint) -> dict:
             vision = []
     except (TypeError, ValueError):
         vision = []
+    provider = detect_provider(endpoint.base_url)
+    models = endpoint.models_list()
+    effort_by_model, reasoning_switch = _reasoning_support(endpoint, provider, models)
     return {
         "id": endpoint.id,
         "name": endpoint.name,
         "base_url": redact_url(endpoint.base_url),
         "enabled": endpoint.enabled,
-        "provider": detect_provider(endpoint.base_url),
+        "provider": provider,
         "provider_adapter": endpoint.provider_adapter or "auto",
-        "models": endpoint.models_list(),
+        "models": models,
+        "effort_levels": effort_by_model,
+        "reasoning_control": reasoning_switch,
         "vision_models": vision,
         "image_models": endpoint.image_models_list(),
         "unavailable_models": endpoint.unavailable_models_list(),

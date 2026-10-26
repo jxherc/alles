@@ -28,8 +28,9 @@ from services.chat_turn import (
     _stream_and_save,
 )
 from services.document_context import VaultDocumentsScope, read_sources
-from services.llm import reasoning_control_supported, simple_complete
+from services.llm import detect_provider, reasoning_control_supported, simple_complete
 from services.memory_store import apply_memory_tool_policy, inject_memories
+from services.model_capabilities import effort_levels, metadata_for
 from services.model_resolver import ModelResolutionError, resolve_session_model
 
 router = APIRouter(prefix="/api")
@@ -593,14 +594,21 @@ def _apply_run_controls(
     body: ChatRequest,
     endpoint_url: str,
     model: str,
+    metadata: dict | None = None,
 ) -> None:
     if body.permission_mode:
         settings["agent_permission_mode"] = body.permission_mode
     if body.effort:
-        settings["agent_effort"] = body.effort
+        # a provider level the model doesn't take is dropped (automatic), not an error.
+        # deep_work and custom are local profiles and work on every model.
+        local = body.effort in {"deep_work", "custom"}
+        supported = effort_levels(detect_provider(endpoint_url), model, metadata)
+        settings["agent_effort"] = body.effort if local or body.effort in supported else ""
 
     reasoning = body.reasoning_mode or "automatic"
-    if reasoning in {"on", "off"} and not reasoning_control_supported(endpoint_url, model):
+    if reasoning in {"on", "off"} and not reasoning_control_supported(
+        endpoint_url, model, metadata
+    ):
         provider = endpoint_url.split("//", 1)[-1].split("/", 1)[0]
         raise ApiError(
             409,
@@ -774,7 +782,7 @@ async def create_chat_response(body: ChatRequest, request: Request, db, *, voice
     _p = _resolve_persona(s, db)
     if _p and _p.temperature is not None:
         settings["temperature"] = _p.temperature
-    _apply_run_controls(settings, body, ep.base_url, model)
+    _apply_run_controls(settings, body, ep.base_url, model, metadata_for(ep, model))
     _require_turn_authority(request, settings)
     # @path mentions → inline file contents for the model (saved msg stays clean)
     aug_text = (
@@ -971,7 +979,7 @@ async def chat_background(body: ChatRequest, request: Request, db: DbSession = D
     settings["agent_cwd"] = environment["cwd"]
     settings["agent_environment"] = environment["kind"]
     settings["agent_project_id"] = environment["project_id"] or ""
-    _apply_run_controls(settings, body, ep.base_url, model)
+    _apply_run_controls(settings, body, ep.base_url, model, metadata_for(ep, model))
     # Detached work has no client available to answer approval prompts.
     settings["agent_permission_mode"] = "full_auto"
     _require_turn_authority(request, settings)

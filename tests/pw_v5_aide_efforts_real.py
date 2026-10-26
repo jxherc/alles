@@ -11,6 +11,7 @@ import json
 import os
 import tempfile
 import threading
+import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -159,8 +160,16 @@ def api(method: str, path: str, body=None):
         return json.load(response)
 
 
-def _choose_effort(page, effort: str, *, keyboard: bool) -> None:
+def _open_effort(page) -> None:
+    """Effort lives in conversation settings (more menu) in the central Aide layout."""
+    if not page.locator("#effort-btn").is_visible():
+        page.locator("#aide-more-btn").click()
+        page.locator('[data-aide-central-action="options"]').click()
     page.locator("#effort-btn").click()
+
+
+def _choose_effort(page, effort: str, *, keyboard: bool) -> None:
+    _open_effort(page)
     choice = page.locator(f'#perm-menu [data-kind="effort"][data-v="{effort}"]')
     choice.scroll_into_view_if_needed()
     if keyboard:
@@ -168,7 +177,9 @@ def _choose_effort(page, effort: str, *, keyboard: bool) -> None:
         page.keyboard.press("Enter")
     else:
         choice.click()
-    expect(page.locator("#effort-btn .effort-label")).to_have_text(effort.replace("_", " "))
+    expect(page.locator("#effort-btn .effort-label")).to_have_text(
+        effort.replace("_", " ") or "automatic"
+    )
 
 
 def _send_and_wait(page, text: str, expected_count: int) -> None:
@@ -269,16 +280,25 @@ def run() -> None:
             endpoints = api("GET", "/api/models")
             endpoint_id = next(item["id"] for item in endpoints if item["name"] == ENDPOINT_NAME)
 
-            # Every effort profile reaches the real provider boundary. Low, max,
-            # and custom repeat to prove the state is reusable rather than one-shot.
+            # This model takes low, medium and high only. xhigh, max and the reasoning
+            # switch are not offered, while automatic, deep work and custom stay.
+            _open_effort(page)
+            menu_values = page.locator("#perm-menu.effort-menu [data-kind='effort']").evaluate_all(
+                "items => items.map(item => item.dataset.v)"
+            )
+            assert menu_values == ["", "low", "medium", "high", "deep_work", "custom"], menu_values
+            assert page.locator("#perm-menu [data-kind='reasoning']").count() == 0
+            expect(page.locator("#effort-btn .effort-label")).to_have_text("automatic")
+            page.keyboard.press("Escape")
+            expect(page.locator("#perm-menu")).to_be_hidden()
+
+            # Every offered effort reaches the real provider boundary. Low and custom
+            # repeat to prove the state is reusable rather than one-shot.
             sequence = [
                 ("low", False),
                 ("low", True),
                 ("medium", True),
                 ("high", False),
-                ("xhigh", True),
-                ("max", False),
-                ("max", True),
                 ("deep_work", False),
                 ("custom", True),
                 ("custom", False),
@@ -288,7 +308,7 @@ def run() -> None:
                 if effort == "custom":
                     menu = page.locator("#perm-menu.effort-menu")
                     expect(menu).to_be_visible()
-                    if index == 9:
+                    if index == 6:
                         menu.locator('[data-turn-delta="1"]').click()
                         menu.locator('[data-custom-key="verification"]').click()
                         # Exercise both switches twice so the safe final value remains off.
@@ -302,55 +322,22 @@ def run() -> None:
                     session_id = page.evaluate("location.hash.slice(1)")
                     assert session_id
 
-            expected = [
-                "low",
-                "low",
-                "medium",
-                "high",
-                "high",
-                "high",
-                "high",
-                "high",
-                "high",
-                "high",
-            ]
+            expected = ["low", "low", "medium", "high", "high", "high", "high"]
             effort_requests = state.streaming_requests_for_user_prefix("effort ")
             recorded = [item.get("reasoning_effort") for item in effort_requests]
             assert recorded == expected, recorded
 
-            # An unsupported explicit reasoning switch fails visibly before any
-            # provider request. Automatic mode then recovers through the same UI.
-            page.locator("#effort-btn").click()
-            reasoning_off = page.locator('#perm-menu [data-kind="reasoning"][data-v="off"]')
-            reasoning_off.scroll_into_view_if_needed()
-            reasoning_off.click()
-            before_provider = len(state.streaming_requests())
-            before_rows = page.locator("#messages .ai-wrap").count()
-            page.locator("#composer-ta").fill("explicit reasoning compatibility check")
-            page.locator("#send-btn").click()
-            page.wait_for_function(
-                """([before]) => {
-                  const rows = [...document.querySelectorAll('#messages .ai-wrap')];
-                  return rows.length > before && rows.at(-1)?.querySelector('.error-msg');
-                }""",
-                arg=[before_rows],
-            )
-            expect(page.locator("#messages .error-msg").last).to_contain_text(
-                "reasoning_control_unsupported"
-            )
-            assert len(state.streaming_requests()) == before_provider
-            page.locator("#effort-btn").click()
-            automatic = page.locator('#perm-menu [data-kind="reasoning"][data-v="automatic"]')
-            automatic.scroll_into_view_if_needed()
-            automatic.focus()
-            page.keyboard.press("Enter")
-            _send_and_wait(page, "automatic reasoning recovery", 11)
+            # Automatic sends no level at all, even after a level was saved.
+            _choose_effort(page, "", keyboard=False)
+            _send_and_wait(page, "automatic pass", 8)
+            automatic = state.streaming_requests_for_user_prefix("automatic pass")
+            assert [item.get("reasoning_effort") for item in automatic] == [None]
 
             # One transient provider failure is recovered automatically by the
             # agent runtime, with the retry reaching the real provider boundary.
             before_provider = len(state.streaming_requests())
             state.set_failures(1)
-            _send_and_wait(page, "transient provider retry", 12)
+            _send_and_wait(page, "transient provider retry", 9)
             assert len(state.streaming_requests()) >= before_provider + 2
 
             # Exhausted automatic retries render the provider error, release the
@@ -368,7 +355,7 @@ def run() -> None:
                 arg=[before_rows],
             )
             expect(page.locator("#send-btn")).to_be_enabled()
-            _send_and_wait(page, "provider manual retry", 13)
+            _send_and_wait(page, "provider manual retry", 10)
 
             # Persisted session history survives a true reload.
             page.reload(wait_until="networkidle")
@@ -376,14 +363,11 @@ def run() -> None:
             expect(
                 page.locator("#messages .ai-content", has_text="fixture reply").last
             ).to_be_visible()
-            assert page.locator("#effort-btn .effort-label").inner_text().strip() == "custom"
+            assert page.locator("#effort-btn .effort-label").inner_text().strip() == "automatic"
             assert not page.locator(
                 "select:visible, input[type=checkbox]:visible, input[type=radio]:visible"
             ).count()
-            expected_conflicts = [error for error in errors if "status of 409 (Conflict)" in error]
-            unexpected_errors = [error for error in errors if error not in expected_conflicts]
-            assert len(expected_conflicts) == 1, errors
-            assert not unexpected_errors, unexpected_errors
+            assert not errors, errors
             page.screenshot(path="/tmp/alles-v5-aide-efforts.png", full_page=True)
             context.close()
             browser.close()
@@ -392,6 +376,10 @@ def run() -> None:
         if session_id:
             try:
                 api("DELETE", f"/api/sessions/{session_id}")
+            except urllib.error.HTTPError as exc:
+                # the primary Aide conversation is protected and stays
+                if exc.code != 409:
+                    cleanup_error = exc
             except Exception as exc:
                 cleanup_error = exc
         try:
@@ -410,7 +398,8 @@ def run() -> None:
             raise cleanup_error
     print(
         "Aide real model/effort gate passed: dialog focus, endpoint probe/test, "
-        "all 7 efforts, repeated low/max/custom, reasoning recovery, automatic and manual 503 retry, reload"
+        "per-model effort menu (xhigh, max and reasoning switch hidden), offered efforts reach the "
+        "provider, automatic sends no level, automatic and manual 503 retry, reload"
     )
 
 

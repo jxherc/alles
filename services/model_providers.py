@@ -81,6 +81,59 @@ def _safe_metadata(item: dict, keys: tuple[str, ...]) -> dict:
     return result
 
 
+def _support(value) -> dict | None:
+    if isinstance(value, dict) and isinstance(value.get("supported"), bool):
+        return {"supported": value["supported"]}
+    return None
+
+
+def _strings(value, limit: int, size: int) -> list[str]:
+    return [item[:size] for item in value if isinstance(item, str)][:limit]
+
+
+def _capability_metadata(item: dict) -> dict:
+    """Reasoning facts a provider reports (anthropic capabilities, openrouter reasoning,
+    gemini thinking). Only known shapes are kept; anything else is dropped."""
+    result = {}
+    if isinstance(item.get("supported_parameters"), list):
+        result["supported_parameters"] = _strings(item["supported_parameters"], 100, 64)
+    reasoning = item.get("reasoning")
+    if isinstance(reasoning, dict) and isinstance(reasoning.get("supported_efforts"), list):
+        result["reasoning"] = {
+            "supported_efforts": _strings(reasoning["supported_efforts"], 10, 16)
+        }
+    if isinstance(item.get("thinking"), bool):
+        result["thinking"] = item["thinking"]
+    caps = item.get("capabilities")
+    if isinstance(caps, dict):
+        kept = {}
+        effort = caps.get("effort")
+        if isinstance(effort, dict):
+            kept_effort = _support(effort) or {}
+            for level in ("low", "medium", "high", "xhigh", "max"):
+                if support := _support(effort.get(level)):
+                    kept_effort[level] = support
+            kept["effort"] = kept_effort
+        thinking = caps.get("thinking")
+        if isinstance(thinking, dict):
+            kept_thinking = _support(thinking) or {}
+            types = thinking.get("types")
+            if isinstance(types, dict):
+                kept_thinking["types"] = {
+                    name: support
+                    for name in ("adaptive", "between_tools", "disabled", "enabled")
+                    if (support := _support(types.get(name)))
+                }
+            kept["thinking"] = kept_thinking
+        if kept:
+            result["capabilities"] = kept
+    return result
+
+
+def _metadata(item: dict, keys: tuple[str, ...]) -> dict:
+    return {**_safe_metadata(item, keys), **_capability_metadata(item)}
+
+
 async def _request_json(client, url: str, headers: dict) -> dict:
     try:
         response = await client.get(url, headers=headers)
@@ -131,7 +184,7 @@ async def fetch_catalog(endpoint, *, client=None) -> CatalogResult:
                 raise CatalogFetchError("invalid_response")
             ids = _clean_ids(item.get("id") for item in items if isinstance(item, dict))
             metadata = {
-                item["id"]: _safe_metadata(item, ("display_name", "created_at", "type"))
+                item["id"]: _metadata(item, ("display_name", "created_at", "type"))
                 for item in items
                 if isinstance(item, dict) and item.get("id") in ids
             }
@@ -178,7 +231,7 @@ async def fetch_catalog(endpoint, *, client=None) -> CatalogResult:
                 str(item.get("name") or "").removeprefix("models/") for item in supported
             )
             metadata = {
-                str(item["name"]).removeprefix("models/"): _safe_metadata(
+                str(item["name"]).removeprefix("models/"): _metadata(
                     item, ("displayName", "version", "description")
                 )
                 for item in supported
@@ -202,7 +255,7 @@ async def fetch_catalog(endpoint, *, client=None) -> CatalogResult:
                 raise CatalogFetchError("invalid_response")
             ids = _clean_ids(item.get("id") for item in items if isinstance(item, dict))
             metadata = {
-                item["id"]: _safe_metadata(item, ("created", "owned_by", "object"))
+                item["id"]: _metadata(item, ("created", "owned_by", "object"))
                 for item in items
                 if isinstance(item, dict) and item.get("id") in ids
             }

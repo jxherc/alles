@@ -7,7 +7,7 @@ import {
 import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=214';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js?v=254';
-import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort } from './modes.js?v=257';
+import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort, modelSupport } from './modes.js?v=257';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { shouldRunInBackground } from './aidebackgroundpolicy.js';
 import { formatNumber, t, tp, t as tr } from './i18n.js';
@@ -375,8 +375,8 @@ export async function sendMessage(text, onAccepted = () => {}) {
         selection: sel,
         selectionSource: getSelectionSource(),
         permissionMode: getPermMode(),
-        effort: getEffort(sel?.model),
-        reasoningMode: getReasoningMode(sel?.model),
+        effort: getEffort(sel?.model, modelSupport(sel).effortLevels),
+        reasoningMode: getReasoningMode(sel?.model, modelSupport(sel).reasoningControl),
         customEffort: getCustomEffort(sel?.model),
       });
     } catch (error) {
@@ -409,8 +409,8 @@ export async function sendMessage(text, onAccepted = () => {}) {
     file_ids: [...attachmentIds],
     incognito: privateReply,
     permission_mode: getPermMode(),
-    effort: getEffort(sel.model),
-    reasoning_mode: getReasoningMode(sel.model),
+    effort: getEffort(sel.model, modelSupport(sel).effortLevels),
+    reasoning_mode: getReasoningMode(sel.model, modelSupport(sel).reasoningControl),
     custom_effort: getCustomEffort(sel.model),
     context_scope: documentScope || undefined,
   }, { freshSession, pendingDraft, userRow });
@@ -436,8 +436,8 @@ export function resendMessage(userRow, text, { edit = false, newestId = '', onAc
       file_ids: [],
       incognito: isIncognitoMode(),
       permission_mode: getPermMode(),
-      effort: getEffort(sel.model),
-      reasoning_mode: getReasoningMode(sel.model),
+      effort: getEffort(sel.model, modelSupport(sel).effortLevels),
+      reasoning_mode: getReasoningMode(sel.model, modelSupport(sel).reasoningControl),
       custom_effort: getCustomEffort(sel.model),
       [edit ? 'edit_message_id' : 'regenerate_message_id']: messageId,
       newest_id: newestId,

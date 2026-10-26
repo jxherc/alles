@@ -19,6 +19,7 @@ export function permLabel(m = _perm) {
 }
 
 const EFFORT_LABELS = {
+  '': () => t('common.automatic'),
   low: () => t('aide.effort_low'),
   medium: () => t('aide.effort_medium'),
   high: () => t('aide.effort_high'),
@@ -49,15 +50,18 @@ export function setPermMode(m) {
 }
 
 // ── reasoning effort (PER MODEL) ────────────────────────────────────────────
-// low | medium | high | xhigh | max. each model remembers its own effort; pass the
-// model id to read/write its setting. drives agent turns + the model's reasoning.
-export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'deep_work', 'custom'];
+// '' (automatic) | low | medium | high | xhigh | max | deep_work | custom. each model remembers
+// its own effort; pass the model id to read/write its setting. low..max are provider levels and
+// only count on a model that takes them (see usableEffort); deep_work and custom are local
+// profiles that work on every model.
+export const PROVIDER_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+export const EFFORTS = [...PROVIDER_EFFORTS, 'deep_work', 'custom'];
 export const REASONING_MODES = ['automatic', 'on', 'off'];
 const EFFORT_MAP_KEY = 'aide-effort-by-model';
 const EFFORT_LAST_KEY = 'aide-effort';        // global fallback / last used
 const REASONING_MAP_KEY = 'aide-reasoning-by-model';
 const CUSTOM_MAP_KEY = 'aide-custom-effort-by-model';
-const DEFAULT_EFFORT = 'medium';
+const DEFAULT_EFFORT = '';
 const DEFAULT_CUSTOM = Object.freeze({
   maxTurns: 24,
   verification: 'standard',
@@ -80,10 +84,29 @@ function normalizeCustom(value = {}) {
   };
 }
 
-export function getEffort(modelKey) {
+// a saved provider level the model doesn't take falls back to automatic. levels undefined =
+// not known, so nothing is filtered.
+export function usableEffort(value, levels) {
+  const effort = normalizeEffort(value);
+  if (!PROVIDER_EFFORTS.includes(effort) || !Array.isArray(levels)) return effort;
+  return levels.includes(effort) ? effort : DEFAULT_EFFORT;
+}
+
+export function getEffort(modelKey, levels) {
   const m = _effMap();
-  if (modelKey && m[modelKey]) return normalizeEffort(m[modelKey]);
-  return normalizeEffort(localStorage.getItem(EFFORT_LAST_KEY));
+  const saved = modelKey && Object.hasOwn(m, modelKey) ? m[modelKey] : localStorage.getItem(EFFORT_LAST_KEY);
+  return usableEffort(saved, levels);
+}
+
+// what the selected model supports, from the catalog the server sent (window._endpoints)
+export function modelSupport(selection) {
+  const endpoints = (typeof window !== 'undefined' && window._endpoints) || [];
+  const endpoint = endpoints.find(ep => ep.id === selection?.endpointId);
+  const model = selection?.model;
+  return {
+    effortLevels: (endpoint?.effort_levels && model && endpoint.effort_levels[model]) || [],
+    reasoningControl: !!(model && endpoint?.reasoning_control?.includes(model)),
+  };
 }
 
 export function setEffort(val, modelKey) {
@@ -94,7 +117,9 @@ export function setEffort(val, modelKey) {
   if (el) el.textContent = effortLabel(effort);
 }
 
-export function getReasoningMode(modelKey = '') {
+// reasoning on/off only counts where the model can be switched; else it stays automatic
+export function getReasoningMode(modelKey = '', switchable) {
+  if (switchable === false) return 'automatic';
   const map = _jsonMap(REASONING_MAP_KEY);
   return normalizeReasoning(map[modelKey || '_default']);
 }
@@ -119,8 +144,11 @@ export function setCustomEffort(modelKey = '', value = {}) {
 if (typeof window !== 'undefined') {
   window.addEventListener('alles:localization-change', () => {
     setPermMode(_perm);
-    const effort = document.querySelector('#effort-btn .effort-label');
-    if (effort) effort.textContent = effortLabel(getEffort());
+    if (window._refreshEffortLabel) window._refreshEffortLabel();
+    else {
+      const effort = document.querySelector('#effort-btn .effort-label');
+      if (effort) effort.textContent = effortLabel(getEffort());
+    }
   });
 }
 

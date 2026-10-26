@@ -221,6 +221,8 @@ def run() -> None:
                                 "base_url": "http://127.0.0.1:11434",
                                 "provider": "ollama",
                                 "models": ["context-model"],
+                                "effort_levels": {"context-model": ["low", "medium", "high"]},
+                                "reasoning_control": [],
                                 "image_models": [],
                                 "unavailable_models": [],
                             },
@@ -230,6 +232,8 @@ def run() -> None:
                                 "base_url": "http://127.0.0.1:11434",
                                 "provider": "ollama",
                                 "models": ["deepseek-v4-pro"],
+                                "effort_levels": {},
+                                "reasoning_control": ["deepseek-v4-pro"],
                                 "image_models": [],
                                 "unavailable_models": [],
                             },
@@ -792,19 +796,18 @@ def run() -> None:
             effort_menu = page.locator("#perm-menu.effort-menu")
             assert effort_menu.get_attribute("role") == "menu"
             effort_items = effort_menu.locator('button[role="menuitemradio"]')
-            assert effort_items.count() == 10
+            # context-model takes low, medium and high only; deep work and custom stay, and the
+            # reasoning switch is hidden because this model has none
+            assert effort_items.count() == 6
             assert effort_items.all_inner_texts() == [
+                "automatic\nthe model decides, no level sent",
                 "low\nquick & minimal: fewest turns",
-                "medium\nbalanced (default)",
+                "medium\nbalanced",
                 "high\nthorough: more turns",
-                "xhigh\nvery thorough",
-                "max\nmaximum turns",
                 "deep work\n48 turns · thorough checks · bounded helpers",
                 "custom\n1–64 turns · your verification and helper rules",
-                "automatic\nuse the model and effort default",
-                "on\nask the model to reason",
-                "off\nkeep model reasoning disabled",
             ]
+            assert effort_menu.locator('[data-kind="reasoning"]').count() == 0
             effort_metrics = effort_menu.evaluate(
                 """el => {
                   const box = el.getBoundingClientRect();
@@ -835,11 +838,36 @@ def run() -> None:
                 and effort_metrics["headGap"] >= 4
                 and effort_metrics["itemGap"] >= 2
             ), effort_metrics
-            assert effort_items.nth(1).get_attribute("aria-checked") == "true"
+            assert effort_items.nth(0).get_attribute("aria-checked") == "true"
+            assert page.locator("#effort-btn").inner_text().strip() == "automatic"
             page.screenshot(path=f"/tmp/alles-aide-effort-{label}.png", full_page=True)
-            page.keyboard.press("ArrowDown")
-            assert effort_items.nth(2).evaluate("el => el === document.activeElement")
+            for _ in range(3):
+                page.keyboard.press("ArrowDown")
+            assert effort_items.nth(3).evaluate("el => el === document.activeElement")
             page.keyboard.press("Enter")
+            assert page.locator("#effort-btn").inner_text().strip() == "high"
+
+            # a model with no levels: only automatic, deep work and custom, plus the reasoning
+            # switch it can really take. the saved "high" does not leak onto it, and comes back
+            # with the model that supports it
+            switch = """async model => {
+              const models = await import('/static/js/models.js?v=214');
+              await models.selectModel(model[0], model[1]);
+            }"""
+            page.evaluate(switch, ["deepseek-local", "deepseek-v4-pro"])
+            assert page.locator("#effort-btn").inner_text().strip() == "automatic"
+            page.locator("#effort-btn").click()
+            plain_items = page.locator('#perm-menu.effort-menu button[role="menuitemradio"]')
+            assert plain_items.all_inner_texts() == [
+                "automatic\nthe model decides, no level sent",
+                "deep work\n48 turns · thorough checks · bounded helpers",
+                "custom\n1–64 turns · your verification and helper rules",
+                "automatic\nuse the model and effort default",
+                "on\nask the model to reason",
+                "off\nkeep model reasoning disabled",
+            ]
+            page.keyboard.press("Escape")
+            page.evaluate(switch, ["context-endpoint", "context-model"])
             assert page.locator("#effort-btn").inner_text().strip() == "high"
 
             page.locator("#composer-ta").fill("confirm the selected project")

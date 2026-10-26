@@ -470,6 +470,7 @@ test('resendMessage asks once with the stored question\'s id and the newest id, 
     getActiveId: () => 's1', canSendMessage: () => true, getSelected: () => ({ model: 'm' }),
     showSendIssue() {}, showMessages() {}, getMode: () => 'agent', isIncognitoMode: () => false,
     getPermMode: () => 'approve', getEffort: () => '', getReasoningMode: () => '', getCustomEffort: () => null,
+    modelSupport: () => ({ effortLevels: [], reasoningControl: false }),
     appendUserMsg() { throw new Error('no second bubble'); },
     streamReply: (request, options) => { streamed.push([request, options]); return Promise.resolve(); },
   });

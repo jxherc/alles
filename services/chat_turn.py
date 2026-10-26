@@ -17,6 +17,7 @@ from services.agent_runtime import merge_usage, provider_effort, run_agent
 from services.document_context import render_citations
 from services.llm import stream_chat, until_stopped
 from services.memory_store import inject_memories
+from services.model_capabilities import metadata_for
 
 _ART_RE = re.compile(r"<aide-artifact([^>]*)>([\s\S]*?)</aide-artifact>")
 
@@ -355,7 +356,7 @@ async def _stream_and_save(
                         completed = True
                     yield chunk
         else:
-            chat_kw = {}
+            chat_kw = {"model_metadata": metadata_for(ep, model)}
             if settings and settings.get("temperature") is not None:
                 chat_kw["temperature"] = settings["temperature"]
             if settings and settings.get("agent_effort"):

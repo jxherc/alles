@@ -49,6 +49,7 @@ import {
   setCustomEffort,
   permLabel,
   effortLabel,
+  modelSupport,
 } from './modes.js?v=257';
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
@@ -2497,11 +2498,12 @@ function _openPermMenu(anchor) {
 // the effort applies to the CURRENT model and is remembered per model
 const _curModelKey = () => getSelected()?.model || '';
 function refreshEffortLabel() {
+  const support = modelSupport(getSelected());
   const el = document.querySelector('#effort-btn .effort-label');
-  if (el) el.textContent = effortLabel(getEffort(_curModelKey()));
+  if (el) el.textContent = effortLabel(getEffort(_curModelKey(), support.effortLevels));
   const btn = document.getElementById('effort-btn');
   if (btn) {
-    const reasoning = getReasoningMode(_curModelKey());
+    const reasoning = getReasoningMode(_curModelKey(), support.reasoningControl);
     btn.title = t('shell.effort_title', { model: _curModelKey() || t('shell.this_model'), reasoning: reasoningName(reasoning) });
   }
 }
@@ -2511,15 +2513,18 @@ function _openEffortMenu(anchor) {
   closePermMenu();
   _permAnchor = anchor;
   const mk = _curModelKey();
-  const cur = getEffort(mk);
-  const reasoning = getReasoningMode(mk);
+  const support = modelSupport(getSelected());
+  const cur = getEffort(mk, support.effortLevels);
+  const reasoning = getReasoningMode(mk, support.reasoningControl);
   const custom = getCustomEffort(mk);
+  // provider levels come from what this model really takes; deep work and custom are local
+  // profiles, so every model keeps them
+  const provider = ['low', 'medium', 'high', 'xhigh', 'max']
+    .filter(level => support.effortLevels.includes(level))
+    .map(level => [level, effortLabel(level), t(`shell.effort_${level}_desc`)]);
   const opts = [
-    ['low', effortLabel('low'), t('shell.effort_low_desc')],
-    ['medium', effortLabel('medium'), t('shell.effort_medium_desc')],
-    ['high', effortLabel('high'), t('shell.effort_high_desc')],
-    ['xhigh', effortLabel('xhigh'), t('shell.effort_xhigh_desc')],
-    ['max', effortLabel('max'), t('shell.effort_max_desc')],
+    ['', effortLabel(''), t('shell.effort_automatic_desc')],
+    ...provider,
     ['deep_work', effortLabel('deep_work'), t('shell.effort_deep_work_desc')],
     ['custom', effortLabel('custom'), t('shell.effort_custom_desc')],
   ];
@@ -2551,12 +2556,12 @@ function _openEffortMenu(anchor) {
       <button class="effort-custom-row effort-cycle" type="button" data-custom-key="delegation"><span>${t('shell.helpers')}</span><strong>${cycleName(custom.delegation)}</strong></button>
       <button class="effort-custom-row effort-cycle" type="button" data-custom-key="workflows"><span>${t('shell.workflows')}</span><strong>${cycleName(custom.workflows)}</strong></button>
     </div>
-    <div class="perm-menu-section">${t('shell.reasoning')}</div>
+    ${support.reasoningControl ? `<div class="perm-menu-section">${t('shell.reasoning')}</div>
     ${reasoningOpts.map(([v, label, desc]) => `
       <button class="perm-menu-item${v === reasoning ? ' active' : ''}" data-kind="reasoning" data-v="${v}" type="button" role="menuitemradio" aria-checked="${v === reasoning}">
         <div class="perm-menu-label">${label}</div>
         <div class="perm-menu-desc">${desc}</div>
-      </button>`).join('')}`;
+      </button>`).join('')}` : ''}`;
   menu.querySelector('.perm-menu-head').textContent = t('shell.effort_head', { model: mk || t('shell.model') });
   document.body.appendChild(menu);
   const r = anchor.getBoundingClientRect();

@@ -409,6 +409,12 @@ class EffortTurnsTests(unittest.TestCase):
             "high",
         )
 
+    def test_automatic_effort_sends_no_provider_level(self):
+        self.assertEqual(ar.provider_effort({}), "")
+        self.assertEqual(ar.provider_effort({"agent_effort": ""}), "")
+        self.assertEqual(ar.provider_effort({"agent_effort": "turbo"}), "")
+        self.assertEqual(ar.provider_effort({"agent_effort": "xhigh"}), "xhigh")
+
     def test_system_note_mentions_effort(self):
         note_low = ar.agent_system_note({"agent_effort": "low"})
         note_high = ar.agent_system_note({"agent_effort": "high"})

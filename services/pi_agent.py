@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from core.settings import data_dir
+from services.model_capabilities import thinks
 
 PI_PACKAGE = "@earendil-works/pi-coding-agent"
 PI_VERSION = "1.3.0"
@@ -73,12 +74,6 @@ def sessions_dir(project_id: str, harness: str = "pi") -> Path:
 
 EXTENSION = Path(__file__).parent / "pi_ext" / "alles.ts"
 THINKING_LEVELS = ("off", "minimal", "low", "medium", "high", "xhigh", "max")
-# pi only offers effort levels for a model models.json marks as reasoning, so mark the ones that
-# think. a guess from the name; pi clamps a level the model doesn't take
-_THINKS = re.compile(
-    r"(^|[^a-z0-9])(o1|o3|o4)([^a-z0-9]|$)|gpt-5|gpt5|gemini-(2\.5|[3-9])|deepseek-(r1|reasoner|v3\.[1-9]|v[4-9])"
-    r"|qwen3|qwq|thinking|reason|kimi-k2|glm-(4\.[5-9]|[5-9])|grok-(3-mini|[4-9])|minimax-m|magistral"
-)
 
 
 # alles's own tools pi can use through the bridge: docs, tasks, calendar, memory and the rest.
@@ -132,13 +127,6 @@ def private_paths() -> list[str]:
         home / ".gnupg",
     ]
     return sorted({str(Path(p).expanduser().resolve()) for p in paths})
-
-
-def thinks(model: str) -> bool:
-    name = (model or "").lower().split("/")[-1]
-    if "claude" in name:
-        return not re.search(r"claude-(instant|2|3-5|3\.5|3-(opus|sonnet|haiku))", name)
-    return bool(_THINKS.search(name))
 
 
 # replaces pi's default prompt. kept short on purpose: every token here is paid on every request

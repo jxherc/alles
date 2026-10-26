@@ -12,6 +12,12 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
+from services.model_capabilities import (
+    anthropic_budget_thinking,
+    anthropic_effort_api,
+    effort_levels,
+)
+
 _client: httpx.AsyncClient | None = None
 
 
@@ -161,31 +167,12 @@ def _normalize_openai_messages(messages: list[dict]) -> list[dict]:
 # error on the field, so keep them off it.
 _USAGE_OK = {"openai", "deepseek", "openrouter", "groq", "together", "fireworks", "moonshot", "xai"}
 
-# reasoning effort → API params, per model. only sent where the model/provider accepts
-# it (else it'd 400), so non-reasoning models just ignore effort (it still drives agent turns).
-_OAI_EFFORT = {"low": "low", "medium": "medium", "high": "high", "xhigh": "high", "max": "high"}
+# thinking budgets for claude models that think only through an explicit budget. which levels a
+# model takes, and through which field, comes from services.model_capabilities.
 _THINK_BUDGET = {"high": 8000, "xhigh": 16000, "max": 24000}
 
 
-def _is_oai_reasoning(model: str) -> bool:
-    m = (model or "").lower().split("/")[-1]
-    return m.startswith(("o1", "o3", "o4")) or "gpt-5" in m or "gpt5" in m
-
-
-def _anthropic_thinks(model: str) -> bool:
-    m = (model or "").lower()
-    return (
-        "3-7" in m
-        or "3.7" in m
-        or "opus-4" in m
-        or "sonnet-4" in m
-        or "haiku-4" in m
-        or "opus4" in m
-        or "sonnet4" in m
-    )
-
-
-def reasoning_control_supported(base_url: str, model: str) -> bool:
+def reasoning_control_supported(base_url: str, model: str, metadata: dict | None = None) -> bool:
     """Whether Alles can honestly force reasoning on or off for this endpoint.
 
     Automatic mode remains available for every provider. Explicit controls are
@@ -200,7 +187,7 @@ def reasoning_control_supported(base_url: str, model: str) -> bool:
         # capability probe is part of the endpoint metadata.
         return False
     if provider == "anthropic":
-        return _anthropic_thinks(model)
+        return anthropic_budget_thinking(model, metadata)
     if provider == "openai":
         # Chat Completions exposes effort for reasoning models, but not a portable
         # explicit on/off field. Keep the separate effort control honest.
@@ -219,8 +206,11 @@ def _build_openai_payload(messages, model, stream=True, provider="openai", **kw)
     if provider == "deepseek" and isinstance(kw.get("thinking"), bool):
         p["thinking"] = {"type": "enabled" if kw["thinking"] else "disabled"}
     eff = kw.get("effort")
-    if eff and provider == "openai" and _is_oai_reasoning(model):
-        p["reasoning_effort"] = _OAI_EFFORT.get(eff, "medium")
+    if eff and eff in effort_levels(provider, model, kw.get("model_metadata")):
+        if provider == "openrouter":
+            p["reasoning"] = {"effort": eff}
+        elif provider in {"openai", "gemini"}:
+            p["reasoning_effort"] = eff
     if "tools" in kw and kw["tools"]:
         p["tools"] = kw["tools"]
         p["tool_choice"] = "auto"
@@ -315,12 +305,20 @@ def _build_anthropic_payload(messages, model, stream=True, **kw) -> dict:
         p["system"] = "\n\n".join(m["content"] for m in sys_msgs)
     if "temperature" in kw:
         p["temperature"] = kw["temperature"]
-    # Explicit reasoning wins over the effort default. Automatic keeps the
-    # older high-effort behavior.
+    # only an effort the model takes is sent: through output_config where the model has that
+    # field, else as a thinking budget. explicit reasoning wins over the effort default.
+    meta = kw.get("model_metadata")
     eff = kw.get("effort")
+    if eff not in effort_levels("anthropic", model, meta):
+        eff = None
+    api = anthropic_effort_api(model, meta)
+    if eff and api == "effort":
+        p["output_config"] = {"effort": eff}
     thinking = kw.get("thinking")
-    should_think = thinking is True or (thinking is None and eff in _THINK_BUDGET)
-    if should_think and _anthropic_thinks(model):
+    should_think = thinking is True or (
+        thinking is None and api == "budget" and eff in _THINK_BUDGET
+    )
+    if should_think and anthropic_budget_thinking(model, meta):
         budget = _THINK_BUDGET.get(eff, 8000)
         p["max_tokens"] = max(p.get("max_tokens", 8192), budget + 2048)
         p["thinking"] = {"type": "enabled", "budget_tokens": budget}

@@ -33,6 +33,7 @@ from services.agent_tools import (
 )
 from services.aide_questions import normalize_answer, normalize_request
 from services.llm import clear_cooldown, stream_chat, until_stopped
+from services.model_capabilities import metadata_for
 
 # a single flaky model/network call shouldn't kill a whole agent run. retry
 # transient errors a couple times before giving up; tests patch the base to 0.
@@ -76,7 +77,7 @@ def _agent_max_turns(settings: dict) -> int:
 def provider_effort(settings: dict | None) -> str:
     """Map local orchestration profiles onto provider-supported effort values."""
     settings = settings or {}
-    effort = str(settings.get("agent_effort") or "medium").lower()
+    effort = str(settings.get("agent_effort") or "").lower()
     if effort == "deep_work":
         return "high"
     if effort == "custom":
@@ -84,7 +85,8 @@ def provider_effort(settings: dict | None) -> str:
             (settings.get("agent_custom_effort") or {}).get("verification") or "standard"
         ).lower()
         return {"quick": "low", "thorough": "high"}.get(verification, "medium")
-    return effort if effort in {"low", "medium", "high", "xhigh", "max"} else "medium"
+    # automatic sends no level; llm.py also drops a level the model doesn't take
+    return effort if effort in {"low", "medium", "high", "xhigh", "max"} else ""
 
 
 def _outside_words(name: str, outside: list[str]) -> str:
@@ -684,7 +686,11 @@ async def run_agent(
 
             turn_text = []
             tool_calls = []
-            llm_kwargs = {"tools": build_tool_defs(settings), "effort": model_effort}
+            llm_kwargs = {
+                "tools": build_tool_defs(settings),
+                "effort": model_effort,
+                "model_metadata": metadata_for(ep, model),
+            }
             reasoning = settings.get("agent_reasoning_mode")
             if reasoning in {"on", "off"}:
                 llm_kwargs["thinking"] = reasoning == "on"

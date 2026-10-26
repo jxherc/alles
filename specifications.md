@@ -177,7 +177,7 @@ http audit metadata in [services/audit.py](services/audit.py) is separate from d
 
 provider detection formats requests; catalog adapters fetch model ids. memory keeps reviewed facts and local embeddings with keyword fallback. personal indexes remain derived state owned by their source records.
 
-[services/agent_runtime.py](services/agent_runtime.py) owns the multi-turn loop; [services/agent_tools.py](services/agent_tools.py) supplies schemas, dispatch, checkpoints, file roots, and untrusted-result handling. orchestration turn limits and provider reasoning effort are separate settings.
+[services/agent_runtime.py](services/agent_runtime.py) owns the multi-turn loop; [services/agent_tools.py](services/agent_tools.py) supplies schemas, dispatch, checkpoints, file roots, and untrusted-result handling. orchestration turn limits and provider reasoning effort are separate settings. the effort menu lists only the provider levels the chosen model takes ([services/model_capabilities.py](services/model_capabilities.py): the provider's own catalog first, then one small table of known models; a model with no levels gets none). automatic sends no level, deep work and custom stay on every model, the reasoning on/off switch shows only where the request can carry it, and a level the model does not take is dropped before the request, not refused.
 
 [services/delegated_actions.py](services/delegated_actions.py) stores permission decisions with general/project/workflow scope, exact argument hashes, prompts, expiry, and revocation. a registered tool name does not give every run authority to execute it.
 
