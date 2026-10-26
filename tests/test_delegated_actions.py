@@ -26,7 +26,15 @@ from core.migrations import (
     m0027_jarvis_scheduler,
     m0028_delegated_actions,
 )
-from services import agent_runtime, agent_state, agent_tools, capabilities, mcp_server, policy
+from services import (
+    agent_runtime,
+    agent_state,
+    agent_tools,
+    capabilities,
+    mcp_server,
+    policy,
+    shell_sandbox,
+)
 from services.delegated_actions import (
     ActionRequest,
     begin_action,
@@ -687,7 +695,7 @@ class DelegationApiAndMcpTest(ApiTest):
             "plan": set(),
         }
 
-        async def run_case(mode, tool, session_id, executed):
+        async def run_case(mode, tool, session_id, executed, sandbox="sandbox-exec"):
             model_turn = 0
 
             async def fake_chat(*_args, **_kwargs):
@@ -715,6 +723,8 @@ class DelegationApiAndMcpTest(ApiTest):
                 mock.patch.object(agent_runtime, "stream_chat", fake_chat),
                 mock.patch.object(agent_runtime, "stream_execute", fake_stream_execute),
                 mock.patch.object(agent_runtime, "_await_permission", reject_permission),
+                # the matrix is about modes, so it can't hang on whether this host has a sandbox
+                mock.patch.object(shell_sandbox, "kind", return_value=sandbox),
             ):
                 async for chunk in agent_runtime.run_agent(
                     [{"role": "user", "content": f"test {tool}"}],
@@ -760,6 +770,33 @@ class DelegationApiAndMcpTest(ApiTest):
                                     if "tool_result" in chunk
                                 ]
                                 self.assertTrue(any("plan mode" in output for output in denied))
+
+                # no sandbox on the host: the unattended modes refuse command tools outright,
+                # and approve still asks (the owner sees the step is unconfined)
+                for mode in ("full_access", "full_auto", "approve"):
+                    for tool in ("shell", "opencode_run"):
+                        with self.subTest(mode=mode, tool=tool, sandbox=""):
+                            db = self.db()
+                            session = Session(name=f"unconfined-{mode}-{tool}")
+                            db.add(session)
+                            db.commit()
+                            session_id = session.id
+                            db.close()
+
+                            executed = []
+                            chunks = asyncio.run(
+                                run_case(mode, tool, session_id, executed, sandbox="")
+                            )
+                            self.assertEqual(executed, [])
+                            prompted = any("tool_permission" in chunk for chunk in chunks)
+                            self.assertEqual(prompted, mode == "approve")
+                            if mode != "approve":
+                                outputs = [
+                                    chunk["tool_result"]["output"]
+                                    for chunk in chunks
+                                    if "tool_result" in chunk
+                                ]
+                                self.assertIn(shell_sandbox.missing_hint(), outputs)
 
 
 class DelegatedActionMigrationTest(unittest.TestCase):
