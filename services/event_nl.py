@@ -120,6 +120,18 @@ def _extract_time_range(t: str):
     return st, en, t[: m.start()] + " " + t[m.end() :]
 
 
+def still_ahead(clock, today: date, now) -> bool:
+    """is `clock` on `today` still to come? only the owner's own today has a now"""
+    if clock is None or now is None or now.date() != today:
+        return False
+    return datetime.combine(today, clock) >= now.replace(second=0, microsecond=0)
+
+
+def time_still_ahead(t: str, today: date, now) -> bool:
+    """a time in the text that hasn't gone by yet today. task quick add keeps it in the title"""
+    return still_ahead(_extract_time_range(t)[0] or _extract_time(t)[0], today, now)
+
+
 def _extract_until(t: str, today: date):
     """pull a trailing 'until/till <date>' clause → (recur_until_iso, remaining)."""
     m = re.search(r"\b(?:until|till|til)\b", t, re.I)
@@ -149,10 +161,14 @@ def _extract_recurrence(t: str):
     return "", t
 
 
-def parse_event(text: str, today: date | None = None, language: str = "en") -> dict:
+def parse_event(
+    text: str, today: date | None = None, language: str = "en", now: datetime | None = None
+) -> dict:
+    """now is the owner's clock: "friday 1pm" typed on a friday morning is today, and next
+    week once 1pm has gone by. without it today's own weekday is always next week"""
     from services.localized_input import normalize_quick_add
 
-    today = today or date.today()
+    today = today or (now.date() if now else date.today())
     out = {
         "title": "",
         "start_dt": None,
@@ -175,7 +191,8 @@ def parse_event(text: str, today: date | None = None, language: str = "en") -> d
 
     dur_min, t = _extract_duration(t)
     rng_start, rng_end, t = _extract_time_range(t)
-    due, t = _extract_date(t, today)
+    ahead = still_ahead(rng_start or _extract_time(t)[0], today, now)
+    due, t = _extract_date(t, today, same_day=ahead)
     d = date.fromisoformat(due) if due else today
 
     tm = rng_start

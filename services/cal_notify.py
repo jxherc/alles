@@ -57,6 +57,7 @@ def _ev_dict(e):
         "recur_until": e.recur_until,
         "recur_except": e.recur_except or "[]",
         "all_day": e.all_day,
+        "source_zone": e.source_zone or "",
     }
 
 

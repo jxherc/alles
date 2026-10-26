@@ -1,9 +1,9 @@
 import { plainError, toast } from './util.js';
 import { replaceLinkedRecord } from './recordlinks.js';
-import { initCustomDropdown } from './dropdown.js?v=212';
+import { initCustomDropdown } from './dropdown.js?v=213';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
-import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=2';
+import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=4';
 import { openAppSettings } from './appsettings.js';
 import { wireGridNav, WEEK_ROWS } from './grid_nav.js';
 import { chosenTimeZone, formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
@@ -14,13 +14,13 @@ const _browserTimeZone = () => {
   catch { return 'UTC'; }
 };
 
-function _instantAsCalendarWallDate(value) {
+function _instantAsCalendarWallDate(value, zone = resolvedTimeZone()) {
   const instant = new Date(value);
   if (Number.isNaN(instant.getTime())) return instant;
   const parts = formatDateParts(instant, {
     calendar: 'gregory',
     numberingSystem: 'latn',
-    timeZone: resolvedTimeZone(),
+    timeZone: zone,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
     hourCycle: 'h23',
@@ -132,7 +132,7 @@ const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() ==
 // Editor dates are wall-clock values; untouched values retain their original precision/offset.
 function occurrenceDates(event, occ) {
   // a kept offset: the occurrence at its own moment, the same one the grid shows on that day
-  if (event.recurrence && !event.all_day && keptFrame(event.start_dt)) {
+  if (event.recurrence && !event.all_day && keptFrame(event.start_dt, event.source_zone)) {
     const day = calendarPlacementDate(String(occ).slice(0, 10));
     const next = _cloneCalendarDate(day); next.setDate(next.getDate() + 1);
     const hit = expand(day, next, [{ ...event, recur_except: [] }])[0];
@@ -192,7 +192,7 @@ export function wallTimeForStorage(value, original) {
   const matches = [...offsets].map(offset => wall - offset)
     .filter(instant => _instantAsCalendarWallDate(new Date(instant)).getTime() === wall)
     .sort((a, b) => a - b);
-  if (!matches.length) throw new Error("that time doesn't exist in this time zone. choose another time");
+  if (!matches.length) throw new Error(tr('calendar.time_not_in_zone'));
   const previous = new Date(original).getTime();
   const previousOffset = _instantAsCalendarWallDate(new Date(previous)).getTime() - previous;
   return new Date(matches.find(instant => wall - instant === previousOffset) ?? matches[0]).toISOString();
@@ -232,8 +232,8 @@ export function eventTimeValues(event, initial, values, scope = 'all') {
 
 async function readCalendarResponse(response) {
   let data;
-  try { data = await response.json(); } catch { throw Object.assign(new Error('the calendar sent back something unreadable. retry'), { status: response.status }); }
-  if (!response.ok) throw Object.assign(new Error(typeof data?.detail === 'string' ? data.detail : 'the calendar request failed. retry'), { status: response.status });
+  try { data = await response.json(); } catch { throw Object.assign(new Error(tr('calendar.unreadable_reply')), { status: response.status }); }
+  if (!response.ok) throw Object.assign(new Error(typeof data?.detail === 'string' ? data.detail : tr('calendar.request_failed')), { status: response.status });
   return data;
 }
 // every calendar request says the browser's zone: the server reads an offset a row kept in
@@ -253,7 +253,7 @@ async function saveCalendarRequest(url, method, body, expectedId = null) {
       || !sameStoredTime(data.start_dt, body.start_dt) || !Object.prototype.hasOwnProperty.call(data, 'end_dt')
       || (body.end_dt && !sameStoredTime(data.end_dt, body.end_dt)) || data.description !== body.description
       || (expectedId && data.id !== expectedId)) {
-    throw new Error("the calendar didn't confirm the save. your draft is still here");
+    throw new Error(tr('calendar.save_unconfirmed'));
   }
   return data;
 }
@@ -267,14 +267,18 @@ function editorBusy(busy) {
   const editor = document.querySelector('.cal-editor');
   if (editor) { editor.inert = busy; editor.setAttribute('aria-busy', String(busy)); }
   const save = document.getElementById('cal-save');
-  if (save) { save.disabled = busy; save.textContent = busy ? 'saving…' : (_editing ? 'save' : 'create'); }
+  if (save) { save.disabled = busy; save.textContent = busy ? tr('common.saving') : (_editing ? tr('common.save') : tr('common.create')); }
 }
-// the editor is replaced by the grid, so focus goes to the event's chip, else the day's
-// "+N more", else "+ event"; never the page body
+// the editor is replaced by the grid, so focus goes to the event's chip (or agenda row), else
+// the day's "+N more", else "+ event"; never the page body
 function focusAfterEditor(id = '', day = '') {
+  // the grid loads after the editor closes: someone who already moved on (a tab, a menu) keeps
+  // the focus they chose
+  const held = document.activeElement;
+  if (held && held !== document.body && held !== document.documentElement && held.isConnected) return;
   const list = document.getElementById('calendar-list');
   const shown = node => node?.isConnected && node.getClientRects().length ? node : null;
-  const own = id ? `:is(button.cal-chip, button.cal-allday-ev, .cal-tev)[data-id="${CSS.escape(id)}"]` : '';
+  const own = id ? `:is(button.cal-chip, button.cal-allday-ev, .cal-tev, button.cal-agenda-ev)[data-id="${CSS.escape(id)}"]` : '';
   const target = (own && (shown(list?.querySelector(`${own}[data-occ="${CSS.escape(day)}"]`)) || shown(list?.querySelector(own))))
     || (day && shown(list?.querySelector(`.cal-more[data-day="${CSS.escape(day)}"]`)))
     || shown(document.getElementById('cal-new-btn'));
@@ -307,7 +311,7 @@ async function leaveEditor() {
   if (_saving || _leaving) return;
   _leaving = true;   // one question at a time, however many escapes or clicks arrive meanwhile
   try {
-    if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm('discard your unsaved event changes?'))) {
+    if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm(tr('calendar.discard_changes')))) {
       // kept: the question handed focus back to the page it came from, so put it in the editor
       if (document.activeElement === document.body) focusEditor(Boolean(_editing));
       return;
@@ -322,8 +326,8 @@ function calendarLoadError(message) {
   document.getElementById('cal-load-error')?.remove();
   const notice = document.createElement('div');
   notice.id = 'cal-load-error'; notice.className = 'cal-load-error'; notice.setAttribute('role', 'alert');
-  const text = document.createElement('span'); text.textContent = `could not load the calendar. ${plainError(message)}`;
-  const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'retry';
+  const text = document.createElement('span'); text.textContent = tr('calendar.load_failed', { reason: plainError(message) });
+  const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = tr('common.retry');
   retry.addEventListener('click', retryCalendarView);
   notice.append(text, retry); host.prepend(notice);
 }
@@ -339,7 +343,7 @@ function refreshCalendarPicker() {
   if (!picker) return;
   const value = _calendarMetadataError && _editing ? (_editing.calendar_id || '') : picker.value;
   picker.dataset.options = _calendars.map(c => `${c.id}|${c.name}`).join(';');
-  picker.dataset.placeholder = _calendarMetadataError ? 'calendar unavailable' : 'select';
+  picker.dataset.placeholder = _calendarMetadataError ? tr('calendar.calendar_unavailable') : tr('calendar.select');
   picker.disabled = Boolean(_calendarMetadataError);
   picker.value = value;
 }
@@ -351,8 +355,8 @@ function calendarMetadataNotice() {
   const notice = document.createElement('div');
   notice.id = 'cal-metadata-error'; notice.className = 'cal-load-error'; notice.setAttribute('role', 'alert');
   const text = document.createElement('span');
-  text.textContent = `calendar names didn't load, so picking a calendar is paused. events still work. ${plainError(_calendarMetadataError)}`;
-  const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'retry';
+  text.textContent = tr('calendar.names_failed', { reason: plainError(_calendarMetadataError) });
+  const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = tr('common.retry');
   retry.addEventListener('click', retryCalendarView);
   notice.append(text, retry); layout.before(notice);
 }
@@ -390,6 +394,12 @@ const PALETTE = {
   green: '#5ec88a', warn: '#fbbf24', error: '#f87171', red: '#f87171', blue: '#5b8def',
 };
 const COLOR_NAMES = ['accent', 'tomato', 'tangerine', 'banana', 'sage', 'basil', 'peacock', 'blueberry', 'lavender', 'grape', 'graphite'];
+const colorLabel = name => ({
+  accent: tr('calendar.color_accent'), tomato: tr('calendar.color_tomato'), tangerine: tr('calendar.color_tangerine'),
+  banana: tr('calendar.color_banana'), sage: tr('calendar.color_sage'), basil: tr('calendar.color_basil'),
+  peacock: tr('calendar.color_peacock'), blueberry: tr('calendar.color_blueberry'), lavender: tr('calendar.color_lavender'),
+  grape: tr('calendar.color_grape'), graphite: tr('calendar.color_graphite'),
+})[name] || name;
 const calById = id => _calendars.find(c => c.id === id);
 // a custom colour must be a real hex: it lands inside style="…", where anything after a quote
 // would be markup (an event colour can come from aide, steered by a mail or a page)
@@ -416,9 +426,9 @@ export async function loadCalendar(fetcher = fetch, canReplaceEditor = () => tru
   const sequence = ++_loadSequence;
   const preserveEditor = _preserveEditorOnRetry && Boolean(document.querySelector('.cal-editor'));
   try {
-  const requiredList = async (url, init) => { const data = await readCalendarResponse(await (init ? fetcher(url, init) : fetcher(url))); if (!Array.isArray(data)) throw new Error('the calendar sent back something unreadable. retry'); return data; };
+  const requiredList = async (url, init) => { const data = await readCalendarResponse(await (init ? fetcher(url, init) : fetcher(url))); if (!Array.isArray(data)) throw new Error(tr('calendar.unreadable_reply')); return data; };
   const [cals, evs, s, tasks, subs, bdays] = await Promise.all([
-    requiredList('/api/calendars').then(items => ({ items, error: '' })).catch(error => ({ error: error.message || 'check your connection and retry' })),
+    requiredList('/api/calendars').then(items => ({ items, error: '' })).catch(error => ({ error: error.message || tr('calendar.check_connection') })),
     // the browser's zone: the server reads kept offsets in it and remembers it for reminders
     requiredList('/api/calendar', { headers: zoneHeader() }),
     fetcher('/api/settings').then(r => r.json()).catch(() => ({})),
@@ -452,11 +462,12 @@ export async function loadCalendar(fetcher = fetch, canReplaceEditor = () => tru
   _eventsReady = true;
   renderSidebar();
   if (preserveEditor || !canReplaceEditor()) refreshCalendarPicker();
-  else { _editing = null; _readDraft = null; render(); }
+  // the agenda draws after a fetch: wait for it, so focus can go back to the row that was open
+  else { _editing = null; _readDraft = null; await render(); }
   calendarMetadataNotice();
   return true;
   } catch (error) {
-    if (sequence === _loadSequence) calendarLoadError(error.message || 'check your connection and retry');
+    if (sequence === _loadSequence) calendarLoadError(error.message || tr('calendar.check_connection'));
     return false;
   }
 }
@@ -539,7 +550,7 @@ function _bindNav() {
     quickUndo.setAttribute('aria-busy', String(busy));
   };
   const canReplaceDraft = async () => !_readDraft || _readDraft() === _draftSnapshot
-    || await dlgConfirm('discard your unsaved event changes?');
+    || await dlgConfirm(tr('calendar.discard_changes'));
   quick?.addEventListener('keydown', async e => {
     if (e.key !== 'Enter' || e.isComposing || quickBusy || _saving) return;
     e.preventDefault();
@@ -595,9 +606,9 @@ function _bindNav() {
     const status = document.createElement('span');
     status.id = 'cal-import-status'; status.setAttribute('role', 'alert');
     const retry = document.createElement('button');
-    retry.id = 'cal-import-retry'; retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'retry import';
+    retry.id = 'cal-import-retry'; retry.type = 'button'; retry.className = 'btn'; retry.textContent = tr('calendar.retry_import');
     const choose = document.createElement('button');
-    choose.id = 'cal-import-choose'; choose.type = 'button'; choose.className = 'btn'; choose.textContent = 'choose another file';
+    choose.id = 'cal-import-choose'; choose.type = 'button'; choose.className = 'btn'; choose.textContent = tr('calendar.choose_another_file');
     feedback.append(status, retry, choose);
     document.getElementById('cal-quick-feedback')?.after(feedback);
     let importing = false, retainedFile = null;
@@ -612,22 +623,25 @@ function _bindNav() {
       try {
         const r = await fetch('/api/calendar/import', { method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() }, body: JSON.stringify({ ics: await f.text() }) });
         const d = await readCalendarResponse(r);
-        if (!Number.isInteger(d?.imported) || d.imported < 0) throw new Error('the calendar did not confirm the import. check the calendar before importing again.');
+        if (!Number.isInteger(d?.imported) || d.imported < 0) throw new Error(tr('calendar.import_unconfirmed'));
         if (document.getElementById('cal-import-file') !== fileInp) return;
         if (fileInp.files[0] === f) fileInp.value = '';
         retainedFile = null; feedback.hidden = true;
-        toast(trp('calendar.imported_count', d.imported), 'success');
+        // a repeat alles can't show (a monthly "2nd tuesday", extra RDATE days) came in as its first
+        // time only; the receipt says so and stays up long enough to read
+        const cut = Number.isInteger(d.first_only) && d.first_only > 0 ? importFirstOnly(d.first_only) : '';
+        toast(cut ? tr('calendar.imported_with_note', { imported: trp('calendar.imported_count', d.imported), note: cut }) : trp('calendar.imported_count', d.imported), 'success', cut ? 9000 : 3000);
         await loadCalendar(fetch, () => !document.querySelector('.cal-editor'));
       } catch (error) {
         if (document.getElementById('cal-import-file') === fileInp) {
           // a 400 means the file was read and refused; only a lost reply is unknown. a real .ics
           // with one bad event is refused too, so pass the server's reason through
-          const name = f.name || 'selected file';
+          const name = f.name || tr('calendar.selected_file');
           status.textContent = error?.status !== 400
-            ? `the import of “${name}” wasn't confirmed. check the calendar before retrying, or choose another file.`
+            ? tr('calendar.import_not_confirmed', { name })
             : /complete \.ics calendar file/i.test(error.message || '')
-              ? `“${name}” isn't a calendar file alles can read. choose an .ics file.`
-              : `couldn't import “${name}”. ${plainError(error.message)}`;
+              ? tr('calendar.import_not_ics', { name })
+              : tr('calendar.import_failed_named', { name, reason: plainError(error.message) });
           feedback.hidden = false;
         }
       } finally {
@@ -703,18 +717,18 @@ async function renderBookingPages() {
   const el = document.getElementById('cal-book-list');
   if (!el) return;
   _bookingPages = await fetch('/api/calendar/booking-pages', withZone()).then(r => r.json()).catch(() => []);
-  if (!_bookingPages.length) { el.innerHTML = '<div class="cal-feed-empty">none yet</div>'; return; }
+  if (!_bookingPages.length) { el.innerHTML = `<div class="cal-feed-empty">${esc(tr('calendar.none_yet'))}</div>`; return; }
   el.innerHTML = _bookingPages.map(b => `
     <div class="cal-feed-row" data-id="${b.id}">
-      <span class="cal-feed-name" title="${b.duration_min}-min slots">${esc(b.title)}</span>
-      <button class="cal-feed-x" data-act="copy" title="copy public link">${_si('link')}</button>
-      <button class="cal-feed-x" data-act="del" title="delete">×</button>
+      <span class="cal-feed-name" title="${esc(tr('calendar.slot_length', { minutes: b.duration_min }))}">${esc(b.title)}</span>
+      <button class="cal-feed-x" data-act="copy" title="${esc(tr('calendar.copy_public_link'))}">${_si('link')}</button>
+      <button class="cal-feed-x" data-act="del" title="${esc(tr('common.delete'))}">×</button>
     </div>`).join('');
   el.querySelectorAll('.cal-feed-row').forEach(row => {
     const b = _bookingPages.find(x => x.id === row.dataset.id);
     row.querySelector('[data-act="copy"]').addEventListener('click', async () => {
       const url = location.origin + b.url;
-      try { await navigator.clipboard.writeText(url); toast('booking link copied', 'success'); }
+      try { await navigator.clipboard.writeText(url); toast(tr('calendar.booking_link_copied'), 'success'); }
       catch { toast(url, ''); }
     });
     row.querySelector('[data-act="del"]').addEventListener('click', async () => {
@@ -725,17 +739,17 @@ async function renderBookingPages() {
 }
 
 async function addBookingPage() {
-  const title = await dlgPrompt('', 'Book a time', { title: 'new booking page', label: 'page title', confirmLabel: 'next' });
+  const title = await dlgPrompt('', tr('calendar.booking_default_title'), { title: tr('calendar.new_booking_page'), label: tr('calendar.page_title'), confirmLabel: tr('common.next') });
   if (title === null) return;
-  const dur = await dlgPrompt('', '30', { title: 'new booking page', label: 'slot length, in minutes', confirmLabel: 'create page' });
+  const dur = await dlgPrompt('', '30', { title: tr('calendar.new_booking_page'), label: tr('calendar.slot_minutes'), confirmLabel: tr('calendar.create_page') });
   try {
     await fetch('/api/calendar/booking-pages', {
       method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() },
-      body: JSON.stringify({ title: title?.trim() || 'Book a time', duration_min: parseInt(dur) || 30 }),
+      body: JSON.stringify({ title: title?.trim() || tr('calendar.booking_default_title'), duration_min: parseInt(dur) || 30 }),
     });
-    toast('booking page created', 'success');
+    toast(tr('calendar.booking_page_created'), 'success');
     renderBookingPages();
-  } catch { toast('failed', 'error'); }
+  } catch { toast(tr('calendar.failed'), 'error'); }
 }
 
 // 8a — secondary timezone world clock
@@ -752,11 +766,11 @@ function _clockHtml() {
 function renderFeeds() {
   const el = document.getElementById('cal-feeds-list');
   if (!el) return;
-  if (!_subs.length) { el.innerHTML = '<div class="cal-feed-empty">no feeds yet</div>'; return; }
+  if (!_subs.length) { el.innerHTML = `<div class="cal-feed-empty">${esc(tr('calendar.no_feeds'))}</div>`; return; }
   el.innerHTML = _subs.map(s => `
     <div class="cal-feed-row" data-id="${s.id}">
       <span class="cal-feed-name" title="${esc(s.url)} · ${esc(s.last_status || '')}">${esc(s.name)} <span class="cal-feed-n">${s.event_count}</span></span>
-      <button class="cal-feed-x" data-act="del" title="remove">×</button>
+      <button class="cal-feed-x" data-act="del" title="${esc(tr('common.remove'))}">×</button>
     </div>`).join('');
   el.querySelectorAll('.cal-feed-row').forEach(row => {
     row.querySelector('[data-act="del"]').addEventListener('click', async () => {
@@ -767,19 +781,19 @@ function renderFeeds() {
 }
 
 async function addFeed() {
-  const url = await dlgPrompt('', '', { title: 'subscribe to a calendar', label: 'calendar feed url', hint: 'a public .ics link, like holidays or a shared calendar', confirmLabel: 'next' });
+  const url = await dlgPrompt('', '', { title: tr('calendar.subscribe_title'), label: tr('calendar.feed_url'), hint: tr('calendar.feed_hint'), confirmLabel: tr('common.next') });
   if (!url?.trim()) return;
-  const name = await dlgPrompt('', 'Subscription', { title: 'subscribe to a calendar', label: 'name', confirmLabel: 'subscribe' });
-  toast('subscribing…');
+  const name = await dlgPrompt('', tr('calendar.subscription_default_name'), { title: tr('calendar.subscribe_title'), label: tr('calendar.name_label'), confirmLabel: tr('calendar.subscribe') });
+  toast(tr('calendar.subscribing'));
   try {
     const r = await fetch('/api/calendar/subscriptions', {
       method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() },
-      body: JSON.stringify({ name: name?.trim() || 'Subscription', url: url.trim() }),
+      body: JSON.stringify({ name: name?.trim() || tr('calendar.subscription_default_name'), url: url.trim() }),
     });
     if (!r.ok) throw 0;
-    toast('subscribed', 'success');
+    toast(tr('calendar.subscribed'), 'success');
     loadCalendar();
-  } catch { toast('subscription failed', 'error'); }
+  } catch { toast(tr('calendar.subscription_failed'), 'error'); }
 }
 
 function renderMini() {
@@ -790,9 +804,9 @@ function renderMini() {
   const startDay = _lead(y, m);
   const dim = new Date(y, m + 1, 0).getDate();
   const miniWd = _weekdayLabels('narrow');
-  let html = `<div class="cal-mini-head"><button type="button" class="cal-mini-nav" data-d="-1" aria-label="previous month">‹</button>
+  let html = `<div class="cal-mini-head"><button type="button" class="cal-mini-nav" data-d="-1" aria-label="${esc(tr('calendar.previous_month'))}">‹</button>
     <span>${formatCalendarDate(_miniCursor, { month: 'long', year: 'numeric' })}</span>
-    <button type="button" class="cal-mini-nav" data-d="1" aria-label="next month">›</button></div><div class="cal-mini-grid">`;
+    <button type="button" class="cal-mini-nav" data-d="1" aria-label="${esc(tr('calendar.next_month'))}">›</button></div><div class="cal-mini-grid">`;
   html += '<div class="cal-row" role="row">';
   for (const w of miniWd) html += `<div class="cal-mini-wd" role="columnheader">${w}</div>`;
   html += '</div><div class="cal-row" role="row">';
@@ -824,8 +838,8 @@ function renderCalList() {
   if (!el) return;
   el.innerHTML = _calendars.map(c => `
     <div class="cal-cal-row" data-id="${c.id}">
-      <button type="button" class="cal-cal-vis" data-act="vis" role="switch" aria-checked="${!!c.visible}" aria-label="show ${esc(c.name)}" style="--cc:${hexOf(c.color)}"><span class="cal-cal-chk ${c.visible ? 'on' : ''}" aria-hidden="true"></span></button>
-      <button type="button" class="cal-cal-name" data-act="edit" aria-label="edit ${esc(c.name)}">${esc(c.name)}</button>
+      <button type="button" class="cal-cal-vis" data-act="vis" role="switch" aria-checked="${!!c.visible}" aria-label="${esc(tr('calendar.show_named', { name: c.name }))}" style="--cc:${hexOf(c.color)}"><span class="cal-cal-chk ${c.visible ? 'on' : ''}" aria-hidden="true"></span></button>
+      <button type="button" class="cal-cal-name" data-act="edit" aria-label="${esc(tr('calendar.edit_named', { name: c.name }))}">${esc(c.name)}</button>
     </div>`).join('');
   el.querySelectorAll('.cal-cal-row').forEach(row => {
     const c = calById(row.dataset.id);
@@ -844,12 +858,12 @@ function calForm(cal) {
   const form = document.createElement('div');
   form.className = 'cal-cal-form';
   form.innerHTML = `
-    <input class="settings-input" id="cc-name" placeholder="calendar name" value="${esc(cal?.name || '')}" style="width:100%">
-    <div class="cal-swatches" id="cc-colors" role="radiogroup" aria-label="calendar color">${COLOR_NAMES.map(c => `<button type="button" class="cal-sw ${c === sel ? 'sel' : ''}" data-c="${c}" role="radio" aria-checked="${c === sel}" aria-label="${c}" style="--cal-swatch:${hexOf(c)}"></button>`).join('')}</div>
+    <input class="settings-input" id="cc-name" placeholder="${esc(tr('calendar.calendar_name'))}" value="${esc(cal?.name || '')}" style="width:100%">
+    <div class="cal-swatches" id="cc-colors" role="radiogroup" aria-label="${esc(tr('calendar.calendar_color'))}">${COLOR_NAMES.map(c => `<button type="button" class="cal-sw ${c === sel ? 'sel' : ''}" data-c="${c}" role="radio" aria-checked="${c === sel}" aria-label="${esc(colorLabel(c))}" style="--cal-swatch:${hexOf(c)}"></button>`).join('')}</div>
     <div class="cal-cal-form-btns">
-      ${isNew || cal.is_default ? '' : '<button class="btn" id="cc-del" style="color:var(--error);border-color:var(--error);margin-right:auto">delete</button>'}
-      <button class="btn" id="cc-cancel">cancel</button>
-      <button class="btn primary" id="cc-save">${isNew ? 'add' : 'save'}</button>
+      ${isNew || cal.is_default ? '' : `<button class="btn" id="cc-del" style="color:var(--error);border-color:var(--error);margin-right:auto">${esc(tr('common.delete'))}</button>`}
+      <button class="btn" id="cc-cancel">${esc(tr('common.cancel'))}</button>
+      <button class="btn primary" id="cc-save">${esc(isNew ? tr('common.add') : tr('common.save'))}</button>
     </div>`;
   wrap.prepend(form);
   let color = sel;
@@ -863,7 +877,7 @@ function calForm(cal) {
   });
   form.querySelector('#cc-save').addEventListener('click', async () => {
     const name = form.querySelector('#cc-name').value.trim();
-    if (!name) { toast('name it', 'error'); return; }
+    if (!name) { toast(tr('calendar.name_it'), 'error'); return; }
     const body = { name, color };
     if (isNew) await fetch('/api/calendars', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     else await fetch(`/api/calendars/${cal.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -967,9 +981,9 @@ export function expand(rs, re, events = visibleEvents()) {
     }
     // a repeat that kept its offset repeats in that offset's own frame - its weekdays, weeks,
     // month days, last day and skipped days - and each start is then read here, like the server
-    const kept = e.all_day ? null : keptFrame(e.start_dt);
+    const kept = e.all_day ? null : keptFrame(e.start_dt, e.source_zone);
     const first = kept ? kept.wall : start;
-    const seen = kept ? cand => _instantAsCalendarWallDate(new Date(cand.getTime() - kept.offset)) : cand => cand;
+    const seen = kept ? cand => _instantAsCalendarWallDate(new Date(kept.at(cand))) : cand => cand;
     const interval = Math.max(1, e.recur_interval || 1);
     const until = e.recur_until ? calendarPlacementDate(e.recur_until + 'T23:59:59') : null;
     const count = e.recur_count || null;
@@ -986,22 +1000,40 @@ export function expand(rs, re, events = visibleEvents()) {
       if (excepts.has(ymd(cand))) continue;
       const at = seen(cand);
       if (at >= re) break;
-      if (at >= rs) out.push({ ...e, _date: _cloneCalendarDate(at), _recur: true, ...(kept ? { _at: cand.getTime() - kept.offset } : {}) });
+      if (at >= rs) out.push({ ...e, _date: _cloneCalendarDate(at), _recur: true, ...(kept ? { _at: kept.at(cand) } : {}) });
       if (out.length > 3000) break;
     }
   }
   return out;
 }
 
-// a stored time that kept its offset: its wall time in that offset's frame, and the offset. null
-// for wall time
-export function keptFrame(value) {
+// a wall time in an IANA zone as an instant, the way python reads it: an hour the clocks repeat
+// is its first, an hour they skip is read with the offset from before
+function _zonedInstant(zone, wall) {
+  const w = wall.getTime();
+  const offsetAt = t => _instantAsCalendarWallDate(new Date(t), zone).getTime() - t;
+  const before = w - offsetAt(w - 86400000), after = w - offsetAt(w + 86400000);
+  const fits = [before, after].filter(t => _instantAsCalendarWallDate(new Date(t), zone).getTime() === w);
+  return fits.length ? Math.min(...fits) : before;
+}
+
+// a stored time that kept its offset: its wall time in that frame, and at(wall) for the instant a
+// wall time of that frame is. the frame is the source zone when the series has one (the server
+// ignores a name it can't read), else the fixed offset. null for wall time
+export function keptFrame(value, sourceZone) {
   const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?)(Z|[+-]\d{2}:?\d{2})$/i.exec(String(value || '').trim());
   if (!match) return null;
   const digits = match[2].replace(/\D/g, '');
   const sign = match[2][0] === '-' ? -1 : 1;
   const offset = /z/i.test(match[2]) ? 0 : sign * (Number(digits.slice(0, 2)) * 60 + Number(digits.slice(2, 4) || 0)) * 60000;
-  return { wall: calendarPlacementDate(match[1]), offset };
+  const zone = String(sourceZone || '').trim();
+  try {
+    if (zone) {
+      const instant = calendarPlacementDate(match[1]).getTime() - offset;
+      return { wall: _instantAsCalendarWallDate(new Date(instant), zone), zone, at: cand => _zonedInstant(zone, cand) };
+    }
+  } catch { /* not a zone name: the offset it kept */ }
+  return { wall: calendarPlacementDate(match[1]), offset, at: cand => cand.getTime() - offset };
 }
 
 // ── rendering ────────────────────────────────────────────────────────────────
@@ -1009,9 +1041,30 @@ function render() {
   const lbl = document.getElementById('cal-month-label');
   if (_view === 'month') { if (lbl) lbl.textContent = formatCalendarDate(_cursor, { month: 'long', year: 'numeric' }); renderMonth(); }
   else if (_view === 'week') renderWeek(lbl);
-  else if (_view === 'agenda') renderAgenda(lbl);
+  else if (_view === 'agenda') return renderAgenda(lbl);   // fetches its days; callers may wait
   else if (_view === 'year') renderYear(lbl);
   else renderDay(lbl);
+}
+
+// an open task in the agenda reads like home and plan: an overdue one leads today, the rest sit
+// on their due day. every agenda row is a 44px button, so the keyboard opens it too
+const _agendaTask = (task, overdue) => {
+  const label = overdue ? tr('home.overdue') : tr('tasks.due');
+  return `<button type="button" class="cal-agenda-ev cal-agenda-task${overdue ? ' overdue' : ''}" data-task="${esc(task.id)}" aria-label="${esc(overdue ? tr('calendar.open_task_overdue', { title: task.title, due: task.due }) : tr('calendar.open_task_due', { title: task.title }))}" title="${esc(tr('calendar.task_title', { title: task.title }))}"><span class="cal-agenda-dot" aria-hidden="true"></span><span class="cal-agenda-time">${esc(label)}</span><span class="cal-agenda-title">${esc(task.title)}</span></button>`;
+};
+export const agendaDays = d => {
+  const days = Array.isArray(d?.days) ? d.days : [];
+  const overdue = Array.isArray(d?.overdue) ? d.overdue : [];
+  if (!overdue.length || !d.today) return days;
+  return days[0]?.date === d.today ? days : [{ date: d.today, events: [], tasks: [] }, ...days];
+};
+
+export function importFirstOnly(count) {
+  const text = trp('calendar.import_first_only', count);
+  if (text !== 'calendar.import_first_only') return text;
+  return count === 1
+    ? "1 event repeats in a way alles can't show yet; only its first time was imported"
+    : `${count} events repeat in a way alles can't show yet; only their first time was imported`;
 }
 
 // agenda (8a) — flat upcoming list grouped by day, from /calendar/agenda
@@ -1020,21 +1073,25 @@ async function renderAgenda(lbl) {
   const el = document.getElementById('calendar-list');
   if (!el) return;
   const d = await fetch('/api/calendar/agenda?days=60', withZone()).then(r => r.json()).catch(() => ({ days: [] }));
-  if (!d.days?.length) { el.innerHTML = `<div class="cal-agenda-empty">${esc(tr('calendar.nothing_upcoming'))}</div>`; return; }
+  const days = agendaDays(d);
+  if (!days.length) { el.innerHTML = `<div class="cal-agenda-empty">${esc(tr('calendar.nothing_upcoming'))}</div>`; return; }
   let html = '<div class="cal-agenda">';
-  for (const g of d.days) {
+  for (const g of days) {
     const dd = new Date(g.date + 'T00:00:00');
     html += `<div class="cal-agenda-day"><div class="cal-agenda-date">${formatCalendarDate(dd, { weekday: 'short', month: 'short', day: 'numeric' })}</div><div class="cal-agenda-evs">`;
-    for (const o of g.events) {
+    if (g.date === d.today) for (const task of d.overdue || []) html += _agendaTask(task, true);
+    for (const task of g.tasks || []) html += _agendaTask(task, false);
+    for (const o of g.events || []) {
       // a later day of a multi-day event reads as all day there, like plan does, not a fresh start time
-      const t = o.all_day || o.continued ? 'all day' : timeShort(calendarPlacementDate(o.start_dt));
-      html += `<div class="cal-agenda-ev" data-id="${o.id}" data-occ="${o.recurring ? o.start_dt.slice(0, 10) : ''}"><span class="cal-agenda-dot" style="background:${evHex(o)}"></span><span class="cal-agenda-time">${esc(t)}</span><span class="cal-agenda-title">${esc(o.title)}${o.recurring ? ' <span class="cal-agenda-recur">(repeats)</span>' : ''}</span></div>`;
+      const t = o.all_day || o.continued ? tr('home.all_day') : timeShort(calendarPlacementDate(o.start_dt));
+      html += `<button type="button" class="cal-agenda-ev" data-id="${o.id}" data-occ="${o.recurring ? o.start_dt.slice(0, 10) : ''}"><span class="cal-agenda-dot" style="background:${evHex(o)}"></span><span class="cal-agenda-time">${esc(t)}</span><span class="cal-agenda-title">${esc(o.title)}${o.recurring ? ` <span class="cal-agenda-recur">${esc(tr('calendar.repeats_paren'))}</span>` : ''}</span></button>`;
     }
     html += '</div></div>';
   }
   html += '</div>';
   el.innerHTML = html;
-  el.querySelectorAll('.cal-agenda-ev').forEach(r => r.addEventListener('click', () => openEvent(r.dataset.id, r.dataset.occ || null)));
+  el.querySelectorAll('.cal-agenda-ev:not(.cal-agenda-task)').forEach(r => r.addEventListener('click', () => openEvent(r.dataset.id, r.dataset.occ || null)));
+  el.querySelectorAll('.cal-agenda-task').forEach(r => r.addEventListener('click', () => window._openRecord?.('tasks', r.dataset.task)));
 }
 
 // year (8a) — 12 mini-months; click a day jumps to the day view
@@ -1076,7 +1133,7 @@ function renderYear(lbl) {
 
 // a tint of the calendar's color with a bar of it at the start, like the week view's blocks
 const chipStyle = o => `background:color-mix(in srgb, ${evHex(o)} 22%, transparent);color:var(--text);box-shadow:inset 3px 0 0 ${evHex(o)}`;
-const chipTitle = o => `${esc(o.title)}${o.location ? ' · ' + esc(o.location) : ''}${o._recur ? ' (repeats)' : ''}`;
+const chipTitle = o => `${esc(o.title)}${o.location ? ' · ' + esc(o.location) : ''}${o._recur ? ` ${esc(tr('calendar.repeats_paren'))}` : ''}`;
 
 // 4a — birthdays keyed by "MM-DD" (year-agnostic), and a lookup for a given Date
 function _bdayMap() {
@@ -1089,12 +1146,12 @@ function _bdayMap() {
 }
 const _bdayKey = d => String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const _bdayChips = (map, d) => (map[_bdayKey(d)] || [])
-  .map(n => `<div class="cal-bday" title="${esc(n)}'s birthday">${_si('cake')} ${esc(n)}</div>`).join('');
+  .map(n => `<div class="cal-bday" title="${esc(tr('calendar.birthday_of', { name: n }))}">${_si('cake')} ${esc(n)}</div>`).join('');
 // the title gets its own span: the chip is a flex row, so an ellipsis on it never shows.
 // in a month cell a task line opens its day instead of completing it: the lines are packed
 // tight there and a stray tap shouldn't tick a task off. the day's 44px toggle completes it
 const _taskChip = t =>
-  `<button type="button" class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" aria-label="${esc(t.done ? `${t.title}, done` : t.title)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span><span class="cal-task-title">${esc(t.title)}</span></button>`;
+  `<button type="button" class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" aria-label="${esc(t.done ? tr('calendar.task_done', { title: t.title }) : t.title)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span><span class="cal-task-title">${esc(t.title)}</span></button>`;
 // the day/week all-day row has room for a real control: a 44px button you can tab to and toggle
 // with enter or space. month cells keep the compact chip
 const _taskToggle = t =>
@@ -1110,7 +1167,7 @@ async function _toggleCalTask(id, refocus = false) {
   t.done = !t.done;
   const ok = await fetch(`/api/tasks/${t.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ done: t.done }) })
     .then(r => r.ok, () => false);
-  if (!ok) { t.done = !t.done; toast("couldn't update the task. retry", 'error'); }
+  if (!ok) { t.done = !t.done; toast(tr('calendar.task_update_failed'), 'error'); }
   render();
   // the row is redrawn, so put focus back on the same task's new toggle
   if (refocus) document.querySelector(`.cal-tg-allday .cal-task[data-task="${CSS.escape(id)}"]`)?.focus();
@@ -1127,8 +1184,8 @@ const HEAD_STYLE = 'position:relative;display:flex;align-items:flex-start;min-he
 const NUM_STYLE = 'position:relative;z-index:1;pointer-events:none;margin:2px 0 0 6px';
 const _dayLabel = day => formatCalendarDate(calendarPlacementDate(day), { month: 'short', day: 'numeric' }).toLowerCase();
 const _dayBtn = (day, n) => n > 0
-  ? `<button type="button" class="cal-more" data-day="${day}" aria-label="${n} more on ${esc(_dayLabel(day))}" style="${DAY_BTN_STYLE}">+${n} more</button>`
-  : `<button type="button" class="cal-day-open" data-day="${day}" tabindex="-1" aria-label="open ${esc(_dayLabel(day))}" style="${DAY_BTN_STYLE}"></button>`;
+  ? `<button type="button" class="cal-more" data-day="${day}" aria-label="${esc(trp('calendar.more_on_day', n, { day: _dayLabel(day) }))}" style="${DAY_BTN_STYLE}">${esc(trp('calendar.plus_more', n))}</button>`
+  : `<button type="button" class="cal-day-open" data-day="${day}" tabindex="-1" aria-label="${esc(tr('calendar.open_day', { day: _dayLabel(day) }))}" style="${DAY_BTN_STYLE}"></button>`;
 const DAY_BTN_STYLE = 'position:absolute;inset:0;margin:0;width:100%;display:flex;align-items:flex-start;justify-content:flex-end;padding:2px 6px 0;background:none;border:0;color:var(--muted);font:inherit;font-size:0.75rem;cursor:pointer';
 function _setMore(cell, n) {
   const head = cell.querySelector('.cal-cell-head');
@@ -1144,9 +1201,9 @@ function _setMore(cell, n) {
     if (focused) btn.focus();
   }
   if (n <= 0) return null;
-  btn.setAttribute('aria-label', `${n} more on ${_dayLabel(cell.dataset.date)}`);
+  btn.setAttribute('aria-label', trp('calendar.more_on_day', n, { day: _dayLabel(cell.dataset.date) }));
   // a phone cell is about 50px wide: just "+N" there
-  btn.textContent = head.clientWidth && head.clientWidth < 100 ? `+${n}` : `+${n} more`;
+  btn.textContent = head.clientWidth && head.clientWidth < 100 ? `+${n}` : trp('calendar.plus_more', n);
   return btn;
 }
 // a phone squeezes the month into the screen, so a cell can be shorter than its lines. drop lines
@@ -1238,7 +1295,7 @@ function renderMonth() {
       ...evts.map(o =>
         `<button type="button" class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(chipText(o))}</button>`),
       ...(tasksByDay[key] || []).map(_taskChip),
-      ...(bmap[_bdayKey(cell)] || []).map(n => `<div class="cal-bday" title="${esc(n)}'s birthday">${_si('cake')} ${esc(n)}</div>`),
+      ...(bmap[_bdayKey(cell)] || []).map(n => `<div class="cal-bday" title="${esc(tr('calendar.birthday_of', { name: n }))}">${_si('cake')} ${esc(n)}</div>`),
     ];
     counts[key] = items.length;
     lines[key] = items;
@@ -1312,7 +1369,7 @@ function renderTimeGrid(el, days, occ) {
   const today = _calendarNow();
   let head = '<div class="cal-tg-gutter-head"></div>';
   for (const d of days) head += `<div class="cal-tg-dayhead${sameDay(d, today) ? ' today' : ''}" data-date="${ymd(d)}"><span class="cal-tg-wd">${esc(formatCalendarDate(d, { weekday: 'short' }))}</span> <span class="cal-tg-dn">${d.getDate()}</span></div>`;
-  let allday = '<div class="cal-tg-gutter">all-day</div>';
+  let allday = `<div class="cal-tg-gutter">${esc(tr('calendar.all_day_row'))}</div>`;
   const bmap = _bdayMap();
   const tasksByDay = _tasksByDay();
   for (const d of days) {
@@ -1374,7 +1431,7 @@ function renderTimeGrid(el, days, occ) {
       const w = `calc((100% - 4px) / ${it.ncols})`;
       const left = `calc(2px + ${it.col} * (100% - 4px) / ${it.ncols})`;
       // dom order is time order, so tab walks the day in time order
-      const name = `${o.title}, ${timeShort(o._date)} – ${timeShort(it.end)}`;
+      const name = tr('calendar.event_span', { title: o.title, start: timeShort(o._date), end: timeShort(it.end) });
       evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" role="button" tabindex="0" aria-label="${esc(name)}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - 2}px;left:${left};width:${w};right:auto" title="${chipTitle(o)}"><div class="cal-tev-box" style="background:color-mix(in srgb, ${hx} 24%, transparent);color:var(--text);border-left:3px solid ${hx}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}${esc(o.title)}${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div></div>`;
     }
     for (const hidden of folded.values()) {
@@ -1495,10 +1552,10 @@ function checkConflict() {
     if (_editing && o.id === _editing.id) continue;   // an event never conflicts with itself
     const bs = new Date(o.start_dt), be = o.end_dt ? new Date(o.end_dt) : new Date(bs.getTime() + 3600000);
     const os = o._date, oe = new Date(os.getTime() + (be - bs));
-    if (a < oe && os < b) hits.push(o.title || '(untitled)');
+    if (a < oe && os < b) hits.push(o.title || tr('calendar.untitled_paren'));
     if (hits.length >= 3) break;
   }
-  warn.textContent = hits.length ? `overlaps ${hits.join(', ')}` : '';
+  warn.textContent = hits.length ? tr('calendar.overlaps', { titles: hits.join(', ') }) : '';
 }
 
 function _addMin(hhmm, min) {
@@ -1512,12 +1569,12 @@ async function findFreeSlots() {
   const box = document.getElementById('cal-slots');
   if (!box) return;
   const day = (document.getElementById('cal-start')?.value || '').slice(0, 10);
-  if (!day) { toast('set a start date first', ''); return; }
+  if (!day) { toast(tr('calendar.set_start_first'), ''); return; }
   const span = _proposedSpan();
   const dur = span ? Math.max(15, Math.round((span[1] - span[0]) / 60000)) : 30;
   const slots = await fetch(`/api/calendar/free-slots?day=${day}&duration_min=${dur}`, withZone())
     .then(r => r.ok ? r.json() : { slots: [] }).then(j => j.slots || []).catch(() => []);
-  if (!slots.length) { box.innerHTML = '<div class="cal-slots-empty">no free slots in your 9-5 that day</div>'; return; }
+  if (!slots.length) { box.innerHTML = `<div class="cal-slots-empty">${esc(tr('calendar.no_free_slots_workday'))}</div>`; return; }
   box.innerHTML = slots.map(s =>
     `<button class="cal-slot-chip" type="button" data-start="${s.start}">${s.start} - ${s.end}</button>`).join('');
   box.querySelectorAll('.cal-slot-chip').forEach(b => b.addEventListener('click', () => {
@@ -1664,37 +1721,38 @@ async function applyTimeChange(id, occ, newStart, newEnd) {
     const times = eventTimeValues(ev, editorDates(ev, occ), { start: newStart, end: newEnd || '' }, scope);
     const body = buildCopy(ev, times);
     await saveCalendarRequest(`/api/calendar/${id}?${new URLSearchParams({ scope, occ, time_zone: chosenTimeZone() })}`, 'PATCH', body, scope === 'all' ? id : null);
-  } catch (error) { toast(plainError(error.message || "couldn't move the event. retry"), 'error'); }
+  } catch (error) { toast(plainError(error.message || tr('calendar.move_failed')), 'error'); }
   finally { _saving = false; await loadCalendar(); }
 }
 
 // ── scope chooser (this / following / all) ───────────────────────────────────
 function chooseScope(verb, hasSelectedOccurrence = true) {
-  return dlgChoose(`${verb} recurring event`, [
+  const title = { move: tr('calendar.scope_move'), delete: tr('calendar.scope_delete') }[verb] || tr('calendar.scope_edit');
+  return dlgChoose(title, [
     ...(hasSelectedOccurrence ? [
-      { value: 'this', label: 'this event' },
-      { value: 'following', label: 'this and following' },
+      { value: 'this', label: tr('calendar.scope_this') },
+      { value: 'following', label: tr('calendar.scope_following') },
     ] : []),
-    { value: 'all', label: 'all events' },
+    { value: 'all', label: tr('calendar.scope_all') },
   ]);
 }
 
 // ── find a time: show open slots on the focused day, click to book ───────────
 async function findTime() {
-  const answer = await dlgPrompt('', '', { title: 'find a free time', label: 'how long, in minutes', confirmLabel: 'find times' });
+  const answer = await dlgPrompt('', '', { title: tr('calendar.find_free_title'), label: tr('calendar.how_long'), confirmLabel: tr('calendar.find_times') });
   if (answer === null) return;
   const mins = parseInt(answer) || 60;
   const dstr = ymd(_cursor);
   let slots = [];
   try { slots = (await fetch(`/api/calendar/free?date=${dstr}&minutes=${mins}`, { headers: zoneHeader() }).then(r => r.json())).slots || []; }
-  catch { toast('could not load free slots', 'error'); return; }
+  catch { toast(tr('calendar.free_slots_failed'), 'error'); return; }
   const ov = document.createElement('div');
   ov.className = 'cal-scope-ov';
   const fmt = iso => iso.slice(11);
-  ov.innerHTML = `<div class="cal-scope"><div class="cal-scope-h">free on ${dstr} (${mins} min)</div>${
+  ov.innerHTML = `<div class="cal-scope"><div class="cal-scope-h">${esc(tr('calendar.free_on', { date: dstr, minutes: mins }))}</div>${
     slots.length ? slots.map(s => `<button class="btn" data-s="${s.start}" data-e="${s.end}">${fmt(s.start)} – ${fmt(s.end)}</button>`).join('')
-                 : '<div style="color:var(--muted);font-size:0.78rem;padding:0.4rem">no free slots that day</div>'
-  }<button class="btn cal-scope-cancel">cancel</button></div>`;
+                 : `<div style="color:var(--muted);font-size:0.78rem;padding:0.4rem">${esc(tr('calendar.no_free_slots'))}</div>`
+  }<button class="btn cal-scope-cancel">${esc(tr('common.cancel'))}</button></div>`;
   document.body.appendChild(ov);
   ov.addEventListener('click', e => { if (e.target === ov || e.target.classList.contains('cal-scope-cancel')) ov.remove(); });
   const errorBox = document.createElement('div');
@@ -1708,7 +1766,7 @@ async function findTime() {
       booking = true;
       ov.querySelectorAll('[data-s]').forEach(button => { button.disabled = true; });
       try {
-        const title = await dlgPrompt('', titleDraft, { title: 'new event', label: 'title', confirmLabel: 'create' });
+        const title = await dlgPrompt('', titleDraft, { title: tr('calendar.editor_new'), label: tr('calendar.title_label'), confirmLabel: tr('common.create') });
         if (!title?.trim() || !ov.isConnected) return;
         titleDraft = title;
         errorBox.hidden = true;
@@ -1716,11 +1774,11 @@ async function findTime() {
         const end = new Date(new Date(start).getTime() + mins * 60000);
         await saveCalendarRequest('/api/calendar', 'POST', { title: title.trim(), start_dt: start, end_dt: localISO(end), description: '' });
         if (!ov.isConnected) return;
-        ov.remove(); toast('booked', 'success');
+        ov.remove(); toast(tr('calendar.booked'), 'success');
         await loadCalendar(fetch, () => !document.querySelector('.cal-editor'));
       } catch {
         if (ov.isConnected) {
-          errorBox.textContent = `“${titleDraft}” wasn't confirmed. check the calendar before trying again`;
+          errorBox.textContent = tr('calendar.booking_unconfirmed', { title: titleDraft });
           errorBox.hidden = false;
         }
       } finally {
@@ -1732,10 +1790,20 @@ async function findTime() {
 }
 
 // ── the event editor ─────────────────────────────────────────────────────────
-const REMIND_PRESETS = [[0, 'at time'], [5, '5m'], [10, '10m'], [30, '30m'], [60, '1h'], [1440, '1d']];
-const FREQS = [['', 'does not repeat'], ['daily', 'daily'], ['weekly', 'weekly'], ['monthly', 'monthly'], ['yearly', 'yearly']];
-const UNIT = { daily: 'days', weekly: 'weeks', monthly: 'months', yearly: 'years' };
-const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+// labels are read at render time, so a language switch shows on the next editor
+const remindPresets = () => [
+  [0, tr('calendar.remind_at_time')], [5, tr('calendar.minutes_short', { count: 5 })], [10, tr('calendar.minutes_short', { count: 10 })],
+  [30, tr('calendar.minutes_short', { count: 30 })], [60, tr('calendar.hours_short', { count: 1 })], [1440, tr('calendar.days_short', { count: 1 })],
+];
+const freqs = () => [['', tr('calendar.no_repeat')], ['daily', tr('tasks.repeat.daily')], ['weekly', tr('tasks.repeat.weekly')], ['monthly', tr('tasks.repeat.monthly')], ['yearly', tr('tasks.repeat.yearly')]];
+// "every 1 days" reads as "every 1 day"
+const unitLabel = (rec, n) => ({
+  daily: trp('calendar.unit_days', n), monthly: trp('calendar.unit_months', n), yearly: trp('calendar.unit_years', n),
+})[rec] || trp('calendar.unit_weeks', n);
+// sunday first, the way the editor's day buttons are numbered
+const _weekdayNames = width => Array.from({ length: 7 }, (_, index) => formatCalendarDate(new Date(2026, 6, 19 + index, 12), { weekday: width }));
+// a template with an inline control: the words are translated, the markup goes where its placeholder is
+const _fill = (text, html) => esc(text).replace(/\{(\w+)\}/g, (match, name) => html[name] ?? match);
 const DOW_LETTER = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
 function openEditor(event, defaultDate, hour, allDay, occ) {
@@ -1768,76 +1836,79 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
   el.innerHTML = `<div class="cal-editor" role="form" aria-labelledby="cal-ed-head">
     <h2 class="cal-ed-head" id="cal-ed-head" tabindex="-1">${esc(tr(isNew ? 'calendar.editor_new' : 'calendar.editor_edit'))}</h2>
-    <input class="note-editor-title" id="cal-title" aria-label="event title" value="${esc(event?.title || '')}" placeholder="event title…">
+    <input class="note-editor-title" id="cal-title" aria-label="${esc(tr('calendar.event_title'))}" value="${esc(event?.title || '')}" placeholder="${esc(tr('calendar.event_title_placeholder'))}">
     <div class="cal-ed-grid">
-      <div><div class="cal-flabel">start</div><div class="date-input" id="cal-start" aria-label="start" data-type="datetime" data-value="${start}" data-ph="start" style="width:100%"></div></div>
-      <div><div class="cal-flabel">end</div><div class="date-input" id="cal-end" aria-label="end" data-type="datetime" data-value="${endVal}" data-ph="end (optional)" style="width:100%"></div></div>
+      <div><div class="cal-flabel">${esc(tr('calendar.start'))}</div><div class="date-input" id="cal-start" aria-label="${esc(tr('calendar.start'))}" data-type="datetime" data-value="${start}" data-ph="${esc(tr('calendar.start'))}" style="width:100%"></div></div>
+      <div><div class="cal-flabel">${esc(tr('calendar.end'))}</div><div class="date-input" id="cal-end" aria-label="${esc(tr('calendar.end'))}" data-type="datetime" data-value="${endVal}" data-ph="${esc(tr('calendar.end_optional'))}" style="width:100%"></div></div>
     </div>
     <div class="cal-sched">
-      <button class="btn cal-sched-btn" id="cal-freeslot" type="button">find free time</button>
+      <button class="btn cal-sched-btn" id="cal-freeslot" type="button">${esc(tr('calendar.find_free_time'))}</button>
       <span class="cal-conflict" id="cal-conflict"></span>
     </div>
     <div class="cal-slots" id="cal-slots"></div>
     <div class="cal-ed-row">
-      <div id="cal-allday-row"><button type="button" class="cal-flabel cal-chk-row" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"><span class="chk" aria-hidden="true"></span>all day</button></div>
-      <div class="cal-cal-pick"><span class="cal-flabel">calendar</span>
-        <div class="settings-input custom-select" id="cal-calendar" aria-label="calendar" aria-disabled="${Boolean(_calendarMetadataError)}" data-placeholder="${_calendarMetadataError ? 'calendar unavailable' : 'select'}" data-value="${defaultCal}" data-options="${_calendars.map(c => `${c.id}|${esc(c.name)}`).join(';')}" style="min-width:130px"></div></div>
+      <div id="cal-allday-row"><button type="button" class="cal-flabel cal-chk-row" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"><span class="chk" aria-hidden="true"></span>${esc(tr('home.all_day'))}</button></div>
+      <div class="cal-cal-pick"><span class="cal-flabel">${esc(tr('calendar.title'))}</span>
+        <div class="settings-input custom-select" id="cal-calendar" aria-label="${esc(tr('calendar.title'))}" aria-disabled="${Boolean(_calendarMetadataError)}" data-placeholder="${esc(_calendarMetadataError ? tr('calendar.calendar_unavailable') : tr('calendar.select'))}" data-value="${defaultCal}" data-options="${_calendars.map(c => `${c.id}|${esc(c.name)}`).join(';')}" style="min-width:130px"></div></div>
     </div>
 
-    <div class="cal-flabel">repeat</div>
-    <div class="settings-input custom-select" id="cal-recur" aria-label="repeat" data-value="${rec}" data-options="${FREQS.map(([v, l]) => `${v}|${l}`).join(';')}" style="width:100%"></div>
+    <div class="cal-flabel">${esc(tr('tasks.repeat.label'))}</div>
+    <div class="settings-input custom-select" id="cal-recur" aria-label="${esc(tr('tasks.repeat.label'))}" data-value="${rec}" data-options="${freqs().map(([v, l]) => `${v}|${esc(l)}`).join(';')}" style="width:100%"></div>
     <div id="cal-recur-adv" style="display:${rec ? 'block' : 'none'}">
-      <div class="cal-recur-line">every <input class="settings-input cal-int" id="cal-interval" aria-label="repeat interval" type="text" inputmode="numeric" value="${event?.recur_interval || 1}"> <span id="cal-unit">${UNIT[rec] || 'weeks'}</span></div>
-      <div class="cal-dow" id="cal-dow" style="display:${rec === 'weekly' ? 'flex' : 'none'}">${DOW.map((d, i) => `<button type="button" class="cal-dow-b ${byday.has(i) ? 'on' : ''}" data-i="${i}" aria-label="${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]}" aria-pressed="${byday.has(i)}">${d}</button>`).join('')}</div>
-      <div class="cal-ends" role="radiogroup" aria-label="recurrence ends">
-        <span class="cal-flabel">ends</span>
+      <div class="cal-recur-line">${_fill(tr('calendar.repeat_every', { interval: '{interval}', unit: '{unit}' }), {
+        interval: `<input class="settings-input cal-int" id="cal-interval" aria-label="${esc(tr('calendar.repeat_interval'))}" type="text" inputmode="numeric" value="${event?.recur_interval || 1}">`,
+        unit: `<span id="cal-unit">${esc(unitLabel(rec, event?.recur_interval || 1))}</span>`,
+      })}</div>
+      <div class="cal-dow" id="cal-dow" style="display:${rec === 'weekly' ? 'flex' : 'none'}">${_weekdayNames('narrow').map((d, i) => `<button type="button" class="cal-dow-b ${byday.has(i) ? 'on' : ''}" data-i="${i}" aria-label="${esc(_weekdayNames('long')[i])}" aria-pressed="${byday.has(i)}">${esc(d)}</button>`).join('')}</div>
+      <div class="cal-ends" role="radiogroup" aria-label="${esc(tr('calendar.recurrence_ends'))}">
+        <span class="cal-flabel">${esc(tr('calendar.ends'))}</span>
         <div class="cal-ends-choices">
-        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="never" aria-checked="${endsMode === 'never'}" tabindex="${endsMode === 'never' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>never</button></div>
-        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="on" aria-checked="${endsMode === 'on'}" tabindex="${endsMode === 'on' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>on</button><div class="date-input cal-ends-date" id="cal-until" aria-label="repeat until" data-type="date" data-value="${untilShown || ''}" data-ph="date" style="width:130px"></div></div>
-        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="after" aria-checked="${endsMode === 'after'}" tabindex="${endsMode === 'after' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>after</button><input class="settings-input cal-int" id="cal-count" aria-label="number of occurrences" type="text" inputmode="numeric" value="${event?.recur_count || 10}"> times</div>
+        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="never" aria-checked="${endsMode === 'never'}" tabindex="${endsMode === 'never' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>${esc(tr('calendar.ends_never'))}</button></div>
+        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="on" aria-checked="${endsMode === 'on'}" tabindex="${endsMode === 'on' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>${esc(tr('calendar.ends_on'))}</button><div class="date-input cal-ends-date" id="cal-until" aria-label="${esc(tr('calendar.repeat_until'))}" data-type="date" data-value="${untilShown || ''}" data-ph="${esc(tr('calendar.date'))}" style="width:130px"></div></div>
+        <div class="cal-radio"><button type="button" class="cal-radio-choice" role="radio" data-value="after" aria-checked="${endsMode === 'after'}" tabindex="${endsMode === 'after' ? '0' : '-1'}"><span class="radio-mark" aria-hidden="true"></span>${esc(tr('calendar.ends_after'))}</button><input class="settings-input cal-int" id="cal-count" aria-label="${esc(tr('calendar.occurrence_count'))}" type="text" inputmode="numeric" value="${event?.recur_count || 10}"> ${esc(tr('calendar.times_suffix'))}</div>
         </div>
       </div>
     </div>
 
-    <div class="cal-flabel">reminders</div>
-    <div class="cal-reminders" id="cal-reminders">${REMIND_PRESETS.map(([m, l]) => `<button type="button" class="cal-rem ${reminders.has(m) ? 'on' : ''}" data-m="${m}" aria-pressed="${reminders.has(m)}" aria-label="${m === 0 ? 'remind at event time' : `remind ${m} minutes before`}">${l}</button>`).join('')}</div>
+    <div class="cal-flabel">${esc(tr('calendar.reminders'))}</div>
+    <div class="cal-reminders" id="cal-reminders">${remindPresets().map(([m, l]) => `<button type="button" class="cal-rem ${reminders.has(m) ? 'on' : ''}" data-m="${m}" aria-pressed="${reminders.has(m)}" aria-label="${esc(m === 0 ? tr('calendar.remind_at_event_time') : trp('calendar.remind_minutes_before', m))}">${esc(l)}</button>`).join('')}</div>
 
     <div class="cal-ed-grid">
-      <div><div class="cal-flabel">location</div><input class="settings-input" id="cal-loc" value="${esc(event?.location || '')}" placeholder="add location" style="width:100%"></div>
-      <div><div class="cal-flabel">guests</div><input class="settings-input" id="cal-guests" value="${esc(event?.guests || '')}" placeholder="comma-separated" style="width:100%"></div>
+      <div><div class="cal-flabel">${esc(tr('calendar.location'))}</div><input class="settings-input" id="cal-loc" value="${esc(event?.location || '')}" placeholder="${esc(tr('calendar.add_location'))}" style="width:100%"></div>
+      <div><div class="cal-flabel">${esc(tr('calendar.guests'))}</div><input class="settings-input" id="cal-guests" value="${esc(event?.guests || '')}" placeholder="${esc(tr('calendar.comma_separated'))}" style="width:100%"></div>
     </div>
 
-    <div class="cal-flabel">video call</div>
+    <div class="cal-flabel">${esc(tr('calendar.video_call'))}</div>
     <div class="cal-meet-row">
-      <input class="settings-input" id="cal-meeting" value="${esc(event?.meeting_url || '')}" placeholder="paste a link or generate one" style="flex:1">
-      <button class="btn" id="cal-meet-gen" type="button" title="generate a Jitsi room">${_si('video')} add</button>
-      ${event?.meeting_url ? `<a class="btn" id="cal-meet-open" href="${esc(event.meeting_url)}" target="_blank" rel="noopener">join</a>` : ''}
+      <input class="settings-input" id="cal-meeting" value="${esc(event?.meeting_url || '')}" placeholder="${esc(tr('calendar.meeting_placeholder'))}" style="flex:1">
+      <button class="btn" id="cal-meet-gen" type="button" title="${esc(tr('calendar.generate_jitsi'))}">${_si('video')} ${esc(tr('common.add'))}</button>
+      ${event?.meeting_url ? `<a class="btn" id="cal-meet-open" href="${esc(event.meeting_url)}" target="_blank" rel="noopener">${esc(tr('calendar.join'))}</a>` : ''}
     </div>
 
-    ${isNew ? '' : `<div class="cal-flabel">invites &amp; rsvp</div>
+    ${isNew ? '' : `<div class="cal-flabel">${esc(tr('calendar.invites_rsvp'))}</div>
     <div class="cal-invites" id="cal-invites"></div>
     <div class="cal-inv-suggest" id="cal-inv-suggest"></div>
     <div class="cal-invite-add">
-      <input class="settings-input" id="cal-inv-name" placeholder="name" style="flex:1">
-      <input class="settings-input" id="cal-inv-email" placeholder="email" style="flex:1.4">
-      <button class="btn" id="cal-inv-btn" type="button">invite</button>
+      <input class="settings-input" id="cal-inv-name" placeholder="${esc(tr('calendar.name_label'))}" style="flex:1">
+      <input class="settings-input" id="cal-inv-email" placeholder="${esc(tr('calendar.email'))}" style="flex:1.4">
+      <button class="btn" id="cal-inv-btn" type="button">${esc(tr('calendar.invite'))}</button>
     </div>`}
 
-    <div class="cal-flabel">color</div>
+    <div class="cal-flabel">${esc(tr('calendar.color'))}</div>
     <div class="cal-swatches" id="cal-colors">
-      <button type="button" class="cal-sw cal-sw-def ${color === '' ? 'sel' : ''}" data-c="" aria-label="calendar default color" aria-pressed="${color === ''}">${_si('none')}</button>
-      ${COLOR_NAMES.map(c => `<button type="button" class="cal-sw ${color === c ? 'sel' : ''}" data-c="${c}" style="--cal-swatch:${hexOf(c)}" aria-label="${c} color" aria-pressed="${color === c}"></button>`).join('')}
+      <button type="button" class="cal-sw cal-sw-def ${color === '' ? 'sel' : ''}" data-c="" aria-label="${esc(tr('calendar.default_color'))}" aria-pressed="${color === ''}">${_si('none')}</button>
+      ${COLOR_NAMES.map(c => `<button type="button" class="cal-sw ${color === c ? 'sel' : ''}" data-c="${c}" style="--cal-swatch:${hexOf(c)}" aria-label="${esc(tr('calendar.color_swatch', { color: colorLabel(c) }))}" aria-pressed="${color === c}"></button>`).join('')}
     </div>
 
-    <textarea class="note-editor-body" id="cal-desc" rows="3" placeholder="description…">${esc(event?.description || '')}</textarea>
-    ${event?.source?.kind === 'mail' ? '<button type="button" class="btn" id="cal-source">open original message</button>' : ''}
-    ${event?.source?.kind === 'capture' ? `<details class="capture-source"><summary>original capture</summary><pre>${esc(event.source.excerpt)}</pre></details>` : ''}
+    <textarea class="note-editor-body" id="cal-desc" rows="3" placeholder="${esc(tr('calendar.description_placeholder'))}">${esc(event?.description || '')}</textarea>
+    ${event?.source?.kind === 'mail' ? `<button type="button" class="btn" id="cal-source">${esc(tr('calendar.open_original_message'))}</button>` : ''}
+    ${event?.source?.kind === 'capture' ? `<details class="capture-source"><summary>${esc(tr('calendar.original_capture'))}</summary><pre>${esc(event.source.excerpt)}</pre></details>` : ''}
     <div id="cal-save-error" class="cal-save-error" role="alert" hidden></div>
     <div class="cal-ed-actions">
-      ${isNew ? '' : '<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">delete</button>'}
-      ${isNew ? '' : '<button class="btn" id="cal-dup" title="duplicate this event">duplicate</button>'}
+      ${isNew ? '' : `<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">${esc(tr('common.delete'))}</button>`}
+      ${isNew ? '' : `<button class="btn" id="cal-dup" title="${esc(tr('calendar.duplicate_help'))}">${esc(tr('calendar.duplicate'))}</button>`}
       <button class="btn ic-btn-lbl" id="cal-back">${_si('chevron-left')} back</button>
-      <button class="btn primary" id="cal-save">${isNew ? 'create' : 'save'}</button>
+      <button class="btn primary" id="cal-save">${esc(isNew ? tr('common.create') : tr('common.save'))}</button>
     </div>
   </div>`;
 
@@ -1906,10 +1977,8 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   countInput?.addEventListener('input', () => selectEndsMode('after'));
   countInput?.addEventListener('focus', () => selectEndsMode('after'));
   const recSel = document.getElementById('cal-recur');
-  // "every 1 days" reads as "every 1 day"
   const syncUnit = () => {
-    const unit = UNIT[recSel.value] || 'weeks';
-    document.getElementById('cal-unit').textContent = parseInt(document.getElementById('cal-interval')?.value, 10) === 1 ? unit.replace(/s$/, '') : unit;
+    document.getElementById('cal-unit').textContent = unitLabel(recSel.value, parseInt(document.getElementById('cal-interval')?.value, 10));
   };
   document.getElementById('cal-interval')?.addEventListener('input', syncUnit);
   syncUnit();
@@ -1937,7 +2006,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   watchPageEscape(editor);
   document.getElementById('cal-source')?.addEventListener('click', async () => {
     if (_saving) return;
-    if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm('discard unsaved event changes?'))) return;
+    if (_readDraft && _readDraft() !== _draftSnapshot && !(await dlgConfirm(tr('calendar.discard_changes_short')))) return;
     await window._openRecord?.('mail', `event-${event.id}`);
   });
   document.getElementById('cal-del')?.addEventListener('click', () => deleteEvent());
@@ -1945,9 +2014,9 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     if (!_editing?.id) return;
     try {
       await fetch(`/api/calendar/${_editing.id}/duplicate`, withZone({ method: 'POST' }));
-      toast('event duplicated', 'success');
+      toast(tr('calendar.event_duplicated'), 'success');
       loadCalendar();
-    } catch { toast('duplicate failed', 'error'); }
+    } catch { toast(tr('calendar.duplicate_failed'), 'error'); }
   });
   document.getElementById('cal-save').addEventListener('click', () => saveEvent(byday));
 
@@ -1957,8 +2026,8 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     if (event?.id) {
       try {
         const d = await fetch(`/api/calendar/${event.id}/meeting-link`, withZone({ method: 'POST' })).then(r => r.json());
-        inp.value = d.meeting_url; toast('video room added', 'success');
-      } catch { toast('failed', 'error'); }
+        inp.value = d.meeting_url; toast(tr('calendar.video_room_added'), 'success');
+      } catch { toast(tr('calendar.failed'), 'error'); }
     } else {
       // new event: mint a room name client-side; saved with the event
       const slug = (document.getElementById('cal-title').value || 'Meet').replace(/[^a-zA-Z0-9]+/g, '').slice(0, 24) || 'Meet';
@@ -1976,26 +2045,29 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     if (!ownsInvite() || inviteButton.disabled) return;
     const originalName = inviteName.value, originalEmail = inviteEmail.value;
     const name = originalName.trim(), email = originalEmail.trim();
-    if (!name && !email) { toast('name or email needed', ''); return; }
+    if (!name && !email) { toast(tr('calendar.name_or_email'), ''); return; }
     inviteButton.disabled = true;
     try {
       const attendee = await readCalendarResponse(await fetch(`/api/calendar/${event.id}/invite`, {
         method: 'POST', headers: { 'content-type': 'application/json', ...zoneHeader() }, body: JSON.stringify({ name, email }),
       }));
       if (typeof attendee?.id !== 'string' || !attendee.id || attendee.event_id !== event.id
-          || attendee.name !== name || attendee.email !== email) throw new Error("the invite wasn't confirmed. check the guest list before trying again");
+          || attendee.name !== name || attendee.email !== email) throw new Error(tr('calendar.invite_unconfirmed'));
       if (!ownsInvite()) return;
       if (inviteName.value === originalName && inviteEmail.value === originalEmail) {
         inviteName.value = ''; inviteEmail.value = '';
       }
       await renderAttendees(event.id);
     } catch (error) { if (ownsInvite()) toast(error.message === 'Failed to fetch'
-      ? "the invite wasn't confirmed. check the guest list before trying again" : (error.message || 'invite failed'), 'error'); }
+      ? tr('calendar.invite_unconfirmed') : (error.message || tr('calendar.invite_failed')), 'error'); }
     finally { inviteButton.disabled = false; }
   });
 }
 
 const RSVP_LABEL = { invited: 'invited', accepted: 'yes', declined: 'no', tentative: 'maybe' };
+const rsvpLabel = status => ({
+  invited: tr('calendar.rsvp_invited'), yes: tr('calendar.rsvp_yes'), no: tr('calendar.rsvp_no'), maybe: tr('calendar.rsvp_maybe'),
+})[RSVP_LABEL[status]] || status;
 
 async function renderAttendees(eid) {
   const box = document.getElementById('cal-invites');
@@ -2004,13 +2076,13 @@ async function renderAttendees(eid) {
   const list = await fetch(`/api/calendar/${eid}/attendees`, withZone()).then(r => r.json()).catch(() => []);
   if (!ownsBox()) return;
   if (!list.length) {
-    box.innerHTML = '<div class="cal-inv-empty">no invites yet</div>';
+    box.innerHTML = `<div class="cal-inv-empty">${esc(tr('calendar.no_invites'))}</div>`;
   } else {
     box.innerHTML = list.map(a => `
       <div class="cal-inv-row" data-id="${a.id}">
         <span class="cal-inv-who">${esc(a.name || a.email)}</span>
-        <span class="cal-inv-status s-${a.status}">${RSVP_LABEL[a.status] || a.status}</span>
-        <button class="cal-inv-x" data-act="del" title="remove">×</button>
+        <span class="cal-inv-status s-${a.status}">${esc(rsvpLabel(a.status))}</span>
+        <button class="cal-inv-x" data-act="del" title="${esc(tr('common.remove'))}">×</button>
       </div>`).join('');
     box.querySelectorAll('.cal-inv-row').forEach(row => {
       row.querySelector('[data-act="del"]').addEventListener('click', async () => {
@@ -2032,9 +2104,9 @@ async function renderInviteSuggestions(eid) {
     .then(r => r.ok ? r.json() : { suggestions: [] }).then(j => j.suggestions || []).catch(() => []);
   if (!ownsBox()) return;
   if (!sugg.length) { box.innerHTML = ''; return; }
-  box.innerHTML = '<div class="cal-inv-suggest-lbl">suggested from your contacts</div>'
+  box.innerHTML = `<div class="cal-inv-suggest-lbl">${esc(tr('calendar.suggested_contacts'))}</div>`
     + sugg.map(s => `
-      <button class="cal-inv-chip" type="button" data-name="${esc(s.name)}" data-email="${esc(s.email)}" title="${esc(s.kind || 'linked')} of an invitee">
+      <button class="cal-inv-chip" type="button" data-name="${esc(s.name)}" data-email="${esc(s.email)}" title="${esc(tr('calendar.kind_of_invitee', { kind: s.kind || tr('calendar.linked') }))}">
         + ${esc(s.name)}${s.kind ? ` <span class="cal-inv-chip-kind">${esc(s.kind)}</span>` : ''}
       </button>`).join('');
   box.querySelectorAll('.cal-inv-chip').forEach(b => b.addEventListener('click', async () => {
@@ -2055,7 +2127,7 @@ const dowLetters = days => [...days].sort((a, b) => a - b).map(i => DOW_LETTER[i
 // days between a kept-offset start's own date and the date it lands on here (sunday 09:00 in
 // tokyo is saturday here in toronto: -1). 0 for wall time
 function frameShift(event) {
-  const kept = event && event.recurrence && !event.all_day ? keptFrame(event.start_dt) : null;
+  const kept = event && event.recurrence && !event.all_day ? keptFrame(event.start_dt, event.source_zone) : null;
   if (!kept) return 0;
   const here = calendarPlacementDate(ymd(calendarPlacementDate(event.start_dt)));
   return Math.round((here - calendarPlacementDate(ymd(kept.wall))) / 86400000);
@@ -2104,7 +2176,7 @@ async function saveEvent(byday) {
   _saving = true;
   try {
     const body = collectBody(byday);
-    if (!body.title || !body.start_dt) throw new Error('an event needs a title and a start');
+    if (!body.title || !body.start_dt) throw new Error(tr('calendar.needs_title_start'));
     const occ = _editOcc || _editDates?.start?.slice(0, 10) || '';
     const scope = _editing?.recurrence ? await chooseScope('edit', hasOccurrence(_editing, occ)) : 'all';
     if (!scope) return;
@@ -2116,13 +2188,13 @@ async function saveEvent(byday) {
     const saved = await saveCalendarRequest(id ? `/api/calendar/${id}?${query}` : '/api/calendar', id ? 'PATCH' : 'POST', body, id && scope === 'all' ? id : null);
     if (id) replaceLinkedRecord('calendar', id, saved.id,
       saved.recurrence && saved.id === id && hasOccurrence(saved, selectedDay) ? selectedDay : '');
-    toast(id ? 'saved' : 'created', 'success');
+    toast(id ? tr('common.saved') : tr('calendar.created'), 'success');
     if (!(await loadCalendar())) {
       openEditor(saved);
-      editorError("saved, but the calendar couldn't reload. your saved event is shown here");
+      editorError(tr('calendar.saved_reload_failed'));
     } else focusAfterEditor(saved.id, selectedDay);
   } catch (error) {
-    editorError(error.message === 'Failed to fetch' ? "couldn't save. check your connection and retry; your draft is still here" : (error.message || "couldn't save. retry; your draft is still here"));
+    editorError(error.message === 'Failed to fetch' ? tr('calendar.save_offline') : (error.message || tr('calendar.save_failed')));
   } finally { _saving = false; editorBusy(false); }
 }
 
@@ -2135,10 +2207,10 @@ async function deleteEvent() {
     if (!scope) return;
     editorBusy(true);
     const response = await readCalendarResponse(await fetch(`/api/calendar/${_editing.id}?${new URLSearchParams({ scope, occ })}`, withZone({ method: 'DELETE' })));
-    if (response?.ok !== true) throw new Error("the calendar didn't confirm the delete. retry");
-    if (!(await loadCalendar())) { document.querySelector('.cal-editor')?.remove(); calendarLoadError('event deleted. retry to refresh the list'); }
+    if (response?.ok !== true) throw new Error(tr('calendar.delete_unconfirmed'));
+    if (!(await loadCalendar())) { document.querySelector('.cal-editor')?.remove(); calendarLoadError(tr('calendar.deleted_refresh')); }
     else focusAfterEditor('', occ);
-  } catch (error) { editorError(error.message || "couldn't delete. check your connection and retry"); }
+  } catch (error) { editorError(error.message || tr('calendar.delete_failed')); }
   finally { _saving = false; editorBusy(false); }
 }
 
@@ -2148,22 +2220,22 @@ async function openCaldavPanel() {
   let cfg = {};
   try { cfg = await fetch('/api/caldav/status').then(r => r.json()); } catch {}
   list.innerHTML = `<div class="cal-editor" style="max-width:520px">
-    <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem">CalDAV sync</div>
+    <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem">${esc(tr('calendar.sync_help'))}</div>
     <div style="font-size:0.75rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem">
-      two-way sync with iCloud / Google / any CalDAV server. credentials are stored locally.
-      ${cfg.available ? '' : '<br><b style="color:var(--warn)">sync is not installed on this alles yet (it needs the caldav package)</b>'}
-      ${cfg.connected ? `<br>connected as <b>${esc(cfg.username || '')}</b>` : ''}
+      ${esc(tr('calendar.caldav_intro'))}
+      ${cfg.available ? '' : `<br><b style="color:var(--warn)">${esc(tr('calendar.caldav_missing'))}</b>`}
+      ${cfg.connected ? `<br>${_fill(tr('calendar.caldav_connected', { name: '{name}' }), { name: `<b>${esc(cfg.username || '')}</b>` })}` : ''}
     </div>
-    <div class="cal-flabel">server url</div>
+    <div class="cal-flabel">${esc(tr('calendar.server_url'))}</div>
     <input class="settings-input" id="cd-url" placeholder="https://caldav.icloud.com/" value="${esc(cfg.url || '')}" style="width:100%">
-    <div class="cal-flabel" style="margin-top:0.4rem">username</div>
+    <div class="cal-flabel" style="margin-top:0.4rem">${esc(tr('calendar.username'))}</div>
     <input class="settings-input" id="cd-user" placeholder="you@icloud.com" value="${esc(cfg.username || '')}" style="width:100%">
-    <div class="cal-flabel" style="margin-top:0.4rem">app password</div>
-    <input class="settings-input" id="cd-pass" type="password" placeholder="app-specific password" style="width:100%">
+    <div class="cal-flabel" style="margin-top:0.4rem">${esc(tr('calendar.app_password'))}</div>
+    <input class="settings-input" id="cd-pass" type="password" placeholder="${esc(tr('calendar.app_password_placeholder'))}" style="width:100%">
     <div class="cal-ed-actions">
       <button class="btn ic-btn-lbl" id="cd-back">${_si('chevron-left')} back</button>
-      <button class="btn" id="cd-save">save</button>
-      <button class="btn primary" id="cd-sync">sync now</button>
+      <button class="btn" id="cd-save">${esc(tr('common.save'))}</button>
+      <button class="btn primary" id="cd-sync">${esc(tr('calendar.sync_now'))}</button>
     </div>
     <div id="cd-status" style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem"></div>
   </div>`;
@@ -2172,16 +2244,16 @@ async function openCaldavPanel() {
     const body = { url: document.getElementById('cd-url').value.trim(), username: document.getElementById('cd-user').value.trim(), password: document.getElementById('cd-pass').value };
     await fetch('/api/caldav/connect', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   };
-  document.getElementById('cd-save').addEventListener('click', async () => { await save(); toast('saved', 'success'); });
+  document.getElementById('cd-save').addEventListener('click', async () => { await save(); toast(tr('common.saved'), 'success'); });
   document.getElementById('cd-sync').addEventListener('click', async () => {
     const st = document.getElementById('cd-status');
-    st.textContent = 'syncing…'; await save();
+    st.textContent = tr('calendar.syncing'); await save();
     try {
       const r = await fetch('/api/caldav/sync', { method: 'POST' }).then(x => x.json());
-      if (r.error) { st.textContent = 'error: ' + r.error; return; }
-      st.textContent = `synced: pulled ${r.pulled || 0}, pushed ${r.pushed || 0}`;
+      if (r.error) { st.textContent = tr('calendar.sync_error', { error: r.error }); return; }
+      st.textContent = tr('calendar.synced_counts', { pulled: r.pulled || 0, pushed: r.pushed || 0 });
       await loadCalendar();
-    } catch (e) { st.textContent = 'sync failed'; }
+    } catch (e) { st.textContent = tr('calendar.sync_failed'); }
   });
 }
 

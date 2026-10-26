@@ -1676,9 +1676,13 @@ def make_task(body: MakeTaskBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "empty title")
     if body.preview:
         from core.settings import load_settings
+        from services.calendar_events import owner_now
         from services.task_nl import parse_task
 
-        candidate = parse_task(title, language=load_settings().get("language", "en"))
+        # the owner's day, not the server's (a utc container is a day ahead every evening)
+        candidate = parse_task(
+            title, language=load_settings().get("language", "en"), now=owner_now()
+        )
         return {
             "preview": True,
             "kind": "task",

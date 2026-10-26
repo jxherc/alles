@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from pathlib import Path
 from unittest import mock
 
 from core.database import CalendarEvent, EventAttendee
@@ -35,9 +36,12 @@ class BookingTests(ApiTest):
         token = self._page()["token"]
         page = self.client.get(f"/book/{token}")
         self.assertEqual(page.status_code, 200)
-        self.assertIn("document.createElement('button')", page.text)
-        self.assertIn("b.type = 'button'", page.text)
-        self.assertIn("b.setAttribute('aria-pressed', 'false')", page.text)
+        # the slots are drawn by a script file, the page's csp allows no inline code
+        self.assertIn('<script src="/static/shared/book.js">', page.text)
+        script = (Path(__file__).resolve().parents[1] / "static/shared/book.js").read_text("utf-8")
+        self.assertIn("document.createElement('button')", script)
+        self.assertIn("b.type = 'button'", script)
+        self.assertIn("b.setAttribute('aria-pressed', 'false')", script)
         self.assertIn("button:focus-visible", page.text)
         self.assertIn("min-height:44px", page.text)
         self.assertIn('for="date"', page.text)

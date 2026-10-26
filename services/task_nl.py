@@ -10,7 +10,7 @@ no external deps — deterministic, covers the common cases people actually type
 """
 
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 _WD = {w: i for i, w in enumerate(WEEKDAYS)}
@@ -46,17 +46,33 @@ def reschedule_date(when: str, today: date | None = None) -> str:
     raise ValueError("unknown reschedule target")
 
 
+def _owner_clock(today: date):
+    """the owner's clock while `today` is the owner's today. a day picked by hand has no now"""
+    from services.calendar_events import owner_now
+
+    now = owner_now()
+    return now if now.date() == today else None
+
+
 def parse_task(
-    text: str, today: date | None = None, language: str = "en", strict: bool = False
+    text: str,
+    today: date | None = None,
+    language: str = "en",
+    strict: bool = False,
+    now: datetime | None = None,
 ) -> dict:
-    """strict refuses a date that can't exist ("feb 30") instead of moving it to a real one."""
+    """strict refuses a date that can't exist ("feb 30") instead of moving it to a real one.
+    now is the owner's clock; without it the owner's own is used when today is their today"""
+    from services.event_nl import time_still_ahead
     from services.localized_input import normalize_quick_add
 
-    today = today or date.today()
+    today = today or (now.date() if now else date.today())
     out = {"title": "", "due_date": None, "repeat": "", "priority": 0, "tags": ""}
     t = f" {normalize_quick_add(text, language)} "
     if strict:
         check_dates(t, today)
+    # "call mom friday 3pm" typed on a friday morning is due today. the time stays in the title
+    ahead = time_still_ahead(t, today, now if now is not None else _owner_clock(today))
 
     # priority — a standalone ! (high-ish) or !! (high), on the app's 0=none..3=high scale
     m = re.search(r"\s(!{1,2})(?=\s)", t)
@@ -101,12 +117,13 @@ def parse_task(
             out["due_date"] = (cand if cand >= today else _add_month(cand)).isoformat()
         else:  # weekday → weekly, anchor to next one
             out["repeat"] = "weekly"
-            out["due_date"] = out["due_date"] or _next_weekday(today, _WD[word[:3]]).isoformat()
+            first = _next_weekday(today, _WD[word[:3]], allow_today=ahead)
+            out["due_date"] = out["due_date"] or first.isoformat()
         t = t[: m.start()] + " " + t[m.end() :]
 
     # one-off due date phrases (only if recurrence didn't already set one)
     if not out["due_date"]:
-        out["due_date"], t = _extract_date(t, today)
+        out["due_date"], t = _extract_date(t, today, same_day=ahead)
 
     # "On Monday: standup" leaves a stray colon once the day is taken out
     out["title"] = re.sub(r"\s+", " ", t).strip(" -,:;") or text.strip()
@@ -220,7 +237,7 @@ def _bare_weekday(t: str):
     return None
 
 
-def _extract_date(t: str, today: date):
+def _extract_date(t: str, today: date, same_day: bool = False):
     def strip(span):
         # A possessive date is part of the title even when it also suggests a due date.
         if re.match(r"['’]s\b", t[span[1] :], re.I):
@@ -292,10 +309,12 @@ def _extract_date(t: str, today: date):
         return _next_weekday(today, _WD[w[:3]]).isoformat(), strip(m.span())
 
     # bare weekday → next occurrence. it runs before the past days, so "send yesterday
-    # photos friday" is still due friday; "on monday" takes its "on" with it
+    # photos friday" is still due friday; "on monday" takes its "on" with it. same_day lets
+    # today's own weekday be today (the caller checks the time hasn't gone by)
     m = _bare_weekday(t)
     if m:
-        return _next_weekday(today, _WD[m.group(2).lower()[:3]]).isoformat(), strip(m.span())
+        wd = _WD[m.group(2).lower()[:3]]
+        return _next_weekday(today, wd, allow_today=same_day).isoformat(), strip(m.span())
 
     # past days come after every forward date. "yesterday's" / "last thursday's" name a
     # thing, not when it's due

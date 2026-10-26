@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { plainError } from '../../static/js/util.js';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/calendar.js', import.meta.url), 'utf8');
 const actual = name => source.match(new RegExp(`^(?:async )?function ${name}\\([^]*?^}`, 'm'))[0];
@@ -45,7 +46,7 @@ function harness() {
     fetch: async (url, options = {}) => { requests.push({ url, ...options }); return state.handler(url, options); },
     toast: (message, type) => toasts.push({ message, type }), plainError, zoneHeader: () => ({ 'x-alles-time-zone': 'UTC' }),
     withZone: (init = {}) => ({ ...init, headers: { ...(init.headers || {}), 'x-alles-time-zone': 'UTC' } }),
-    tr: key => key, trp: (key, count) => `${key}:${count}`, esc: value => String(value),
+    tr: t, trp: tp, esc: value => String(value),
     dlgPrompt: async (_message, initial) => state.prompts.length ? state.prompts.shift() : initial,
     ymd: () => '2026-10-16', localISO: date => `2026-10-16T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
     loadCalendar: async (_fetcher, canReplace = () => true) => {
@@ -53,7 +54,7 @@ function harness() {
     },
   });
   vm.runInContext(`let _editing = null, _cursor = new Date();
-    const RSVP_LABEL = { invited: 'invited' };
+    ${source.match(/^const RSVP_LABEL[^]*?\|\| status;$/m)[0]}
     ${['readCalendarResponse', 'sameStoredTime', 'saveCalendarRequest', 'renderAttendees', 'renderInviteSuggestions', 'findTime'].map(actual).join('\n')}
     globalThis.findTime = findTime; globalThis.renderAttendees = renderAttendees;
   `, context);

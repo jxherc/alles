@@ -1,5 +1,6 @@
 import unittest
-from datetime import date
+from datetime import date, datetime
+from unittest.mock import patch
 
 from services.task_nl import advance, parse_task
 from tests._client import ApiTest
@@ -253,6 +254,34 @@ class WeekdayPlacementTests(unittest.TestCase):
             self.assertEqual(str(caught.exception), reason)
         # without strict (mail capture, the nl create path) it still clamps quietly
         self.assertEqual(parse_task("pay rent feb 30", today=self.friday)["due_date"], "2027-02-28")
+
+
+class SameDayWeekdayTests(unittest.TestCase):
+    friday = date(2026, 10, 23)
+
+    def test_a_time_still_ahead_keeps_todays_weekday_today(self):
+        morning, evening = datetime(2026, 10, 23, 9, 30), datetime(2026, 10, 23, 16, 0)
+        for text, now, due, title in (
+            ("call mom friday 3pm", morning, "2026-10-23", "call mom 3pm"),
+            ("call mom friday 3pm", evening, "2026-10-30", "call mom 3pm"),
+            ("standup every friday 3pm", morning, "2026-10-23", "standup 3pm"),
+            ("standup every friday 3pm", evening, "2026-10-30", "standup 3pm"),
+            ("call next friday 3pm", morning, "2026-10-30", "call 3pm"),
+            # no time: still next friday
+            ("call mom friday", morning, "2026-10-30", "call mom"),
+        ):
+            with self.subTest(text=text, now=now):
+                p = parse_task(text, self.friday, now=now)
+                self.assertEqual((p["due_date"], p["title"]), (due, title))
+
+    def test_without_a_clock_it_reads_the_owners_on_their_today(self):
+        from services import calendar_events
+
+        with patch.object(calendar_events, "owner_now", return_value=datetime(2026, 10, 23, 9, 0)):
+            self.assertEqual(parse_task("call friday 3pm", self.friday)["due_date"], "2026-10-23")
+            # a day picked by hand has no "now": next friday as before
+            other = date(2026, 10, 16)
+            self.assertEqual(parse_task("call friday 3pm", other)["due_date"], "2026-10-23")
 
 
 class QuickAddRefusalApiTest(ApiTest):

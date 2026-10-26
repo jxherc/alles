@@ -287,7 +287,10 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
             done=stage == "done",
         )
         if body.nl:
-            p = parse_task(title, language=load_settings().get("language", "en"))
+            from services.calendar_events import owner_now
+
+            # the owner's day and clock, not the server's (a utc container is a day ahead)
+            p = parse_task(title, language=load_settings().get("language", "en"), now=owner_now())
             fields["title"] = p["title"]
             fields["priority"] = max(body.priority, p["priority"])
             fields["due_date"] = body.due_date or p["due_date"]

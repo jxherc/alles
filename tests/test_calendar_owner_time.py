@@ -129,7 +129,7 @@ class OwnerTimeOnUtcServerTest(UtcServer):
         row = next(ev for ev in r.json()["events"] if ev["title"] == "kept offset")
         self.assertEqual(row["subtitle"], when.astimezone(TOR).strftime("%H:%M"))
 
-    def test_export_sends_wall_time_as_utc(self):
+    def test_export_sends_wall_time_in_the_owners_zone(self):
         self.client.post(
             "/api/calendar",
             json={"title": "local", "start_dt": "2026-11-10T10:00", "end_dt": "2026-11-10T11:00"},
@@ -143,23 +143,30 @@ class OwnerTimeOnUtcServerTest(UtcServer):
         self.assertIn("DTSTART:20261110T200000Z\r\n", floating)
         self.client.get("/api/calendar", headers=TORONTO)
         sent = self.client.get("/api/calendar/export.ics").text
-        # 10:00 in toronto in november is 15:00 utc. utc needs no VTIMEZONE, which a TZID does
-        self.assertIn("DTSTART:20261110T150000Z\r\n", sent)
-        self.assertIn("DTEND:20261110T160000Z\r\n", sent)
+        # wall time goes out with the owner's zone, which the file describes in a VTIMEZONE; a
+        # kept offset goes out in utc
+        self.assertIn("DTSTART;TZID=America/Toronto:20261110T100000\r\n", sent)
+        self.assertIn("DTEND;TZID=America/Toronto:20261110T110000\r\n", sent)
+        self.assertIn("BEGIN:VTIMEZONE\r\nTZID:America/Toronto\r\n", sent)
+        self.assertIn("TZOFFSETTO:-0500\r\n", sent)
         self.assertIn("DTSTART:20261110T200000Z\r\n", sent)
-        self.assertNotIn("TZID", sent)
-        # a summer day keeps its own offset
+        # a summer day reads the summer offset from the same block
         self.client.post(
             "/api/calendar",
             json={"title": "summer", "start_dt": "2026-07-01T10:00", "end_dt": None},
         )
-        self.assertIn(
-            "DTSTART:20260701T140000Z\r\n", self.client.get("/api/calendar/export.ics").text
-        )
+        summer = self.client.get("/api/calendar/export.ics").text
+        self.assertIn("DTSTART;TZID=America/Toronto:20260701T100000\r\n", summer)
+        self.assertIn("TZOFFSETTO:-0400\r\n", summer)
         from services.ics import parse_ics
 
         back = parse_ics(sent, zone=TOR)
         self.assertIn(("local", "2026-11-10T10:00:00"), [(e["title"], e["start_dt"]) for e in back])
+        # another owner reads the same moment on their own clock
+        tokyo = parse_ics(summer, zone=ZoneInfo("Asia/Tokyo"))
+        self.assertIn(
+            ("summer", "2026-07-01T23:00:00"), [(e["title"], e["start_dt"]) for e in tokyo]
+        )
 
 
 def _zone_off_the_utc_date():
@@ -335,8 +342,8 @@ class BookingWindowTest(UtcServer):
             )
             self.assertEqual(r.status_code, 409)
         page = self.client.get("/book/t1").text
-        self.assertIn(f"dEl.value = dEl.min = '{today.isoformat()}'", page)
-        self.assertIn(f"dEl.max = '{(today + timedelta(days=7)).isoformat()}'", page)
+        self.assertIn(f'value="{today.isoformat()}" min="{today.isoformat()}"', page)
+        self.assertIn(f'max="{(today + timedelta(days=7)).isoformat()}"', page)
 
     def test_working_hours_run_to_24(self):
         made = self.client.post(
@@ -489,7 +496,10 @@ class WritesKeepTheirMeaningTest(UtcServer):
         d.close()
         page = self.client.get("/book/tz").text
         self.assertIn("times in Asia/Tokyo", page)
-        self.assertIn("your time", page)  # a visitor elsewhere also sees their own clock
+        # a visitor elsewhere also sees their own clock
+        self.assertIn('<script src="/static/shared/book.js">', page)
+        book = Path(__file__).resolve().parents[1] / "static" / "shared" / "book.js"
+        self.assertIn("your time", book.read_text(encoding="utf-8"))
         day = (datetime.now(ZoneInfo("Asia/Tokyo")).date() + timedelta(days=1)).isoformat()
         slot = self.client.get("/book/tz/slots", params={"date": day}).json()["slots"][0]
         self.assertEqual(slot["at"], f"{day}T09:00:00+09:00")
@@ -556,12 +566,18 @@ class QuickAddWeekdaysTest(UtcServer):
     def test_a_short_weekday_first_lands_on_that_day(self):
         from services.task_nl import _next_weekday
 
-        today = datetime.now(TOR).date()  # calendar quick add reads the owner's today
-        fri, sat = _next_weekday(today, 4), _next_weekday(today, 5)
+        now = datetime.now(TOR)  # calendar quick add reads the owner's today and clock
+        today = now.date()
+
+        def first(wd, hour):  # today's own weekday is today while its time is still ahead
+            ahead = today.weekday() == wd and (now.hour, now.minute) <= (hour, 0)
+            return today if ahead else _next_weekday(today, wd)
+
+        fri, sat = first(4, 19), first(5, 11)
         for text, start, title in (
             ("fri dinner 7pm", f"{fri}T19:00", "dinner"),
             ("sat brunch 11am", f"{sat}T11:00", "brunch"),
-            ("dinner fri with sam", f"{fri}", "dinner with sam"),
+            ("dinner fri with sam", f"{_next_weekday(today, 4)}", "dinner with sam"),
         ):
             with self.subTest(text=text):
                 made = self.client.post(
@@ -575,3 +591,19 @@ class QuickAddWeekdaysTest(UtcServer):
             "/api/tasks/quick", json={"text": "buy sun screen", "today": friday}
         )
         self.assertEqual((task.json()["due_date"], task.json()["title"]), (None, "buy sun screen"))
+
+
+class TaskWordsOnTheOwnersDayTest(UtcServer):
+    """a typed task ("pay rent tomorrow") counts from the owner's day, not the server's"""
+
+    def test_new_task_and_mail_task_preview(self):
+        evening = datetime(2026, 3, 1, 23, 30)  # toronto's sunday night is monday on utc
+        with mock.patch("services.calendar_events.owner_now", return_value=evening):
+            task = self.client.post(
+                "/api/tasks", json={"title": "pay rent tomorrow", "nl": True}
+            ).json()
+            mail = self.client.post(
+                "/api/mail/make-task", json={"title": "pay rent tomorrow", "preview": True}
+            ).json()
+        self.assertEqual(task["due_date"][:10], "2026-03-02")
+        self.assertEqual(mail["candidate"]["due_date"][:10], "2026-03-02")

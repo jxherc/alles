@@ -22,8 +22,8 @@ class CalendarImportValidationTests(ApiTest):
     def test_empty_calendar_is_valid_and_a_repaired_file_can_be_retried(self):
         empty = "BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR"
         response = self.client.post("/api/calendar/import", json={"ics": empty})
-        self.assertEqual(response.json(), {"imported": 0})
+        self.assertEqual(response.json(), {"imported": 0, "first_only": 0})
         repaired = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:repaired\nDTSTART:20261016T090000\nDTEND:20261016T100000\nEND:VEVENT\nEND:VCALENDAR"
         response = self.client.post("/api/calendar/import", json={"ics": repaired})
-        self.assertEqual(response.json(), {"imported": 1})
+        self.assertEqual(response.json(), {"imported": 1, "first_only": 0})
         self.assertEqual(self.client.get("/api/calendar").json()[0]["title"], "repaired")

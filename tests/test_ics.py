@@ -138,15 +138,18 @@ class IcsZoneTest(ApiTest):  # pure too
             "DTEND:20261029T200000Z\nEND:VEVENT\nBEGIN:VEVENT\nSUMMARY:la\n"
             "DTSTART;TZID=America/Los_Angeles:20261029T090000\nEND:VEVENT\n"
             "BEGIN:VEVENT\nSUMMARY:outlook\nDTSTART;TZID=Pacific Standard Time:20261029T090000\n"
+            "END:VEVENT\nBEGIN:VEVENT\nSUMMARY:unknown\nDTSTART;TZID=Made Up Time:20261029T090000\n"
             "END:VEVENT\nEND:VCALENDAR"
         )
         with patch("services.calendar_events.load_settings", return_value=_NY):
-            utc, la, outlook = ics.parse_ics(text)
+            utc, la, outlook, unknown = ics.parse_ics(text)
         # stored naive, in the owner's zone, like events made in the app
         self.assertEqual(utc["start_dt"], "2026-10-29T15:00:00")
         self.assertEqual(utc["end_dt"], "2026-10-29T16:00:00")
         self.assertEqual(la["start_dt"], "2026-10-29T12:00:00")
-        self.assertEqual(outlook["start_dt"], "2026-10-29T09:00:00")
+        # outlook's windows zone names map to their IANA zone; a name nothing knows keeps its time
+        self.assertEqual(outlook["start_dt"], "2026-10-29T12:00:00")
+        self.assertEqual(unknown["start_dt"], "2026-10-29T09:00:00")
 
     def test_no_owner_zone_keeps_the_offset_instead_of_guessing(self):
         # a container's server zone is usually utc; converting there would move the event for

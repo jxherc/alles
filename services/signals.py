@@ -88,6 +88,7 @@ def _event_occurs_on(e: CalendarEvent, day: date, zone=None) -> bool:
         "recur_except": getattr(e, "recur_except", "[]"),
         # an all-day date isn't a kept offset: "2026-10-30T00:00:00Z" is the 30th everywhere
         "all_day": getattr(e, "all_day", False),
+        "source_zone": getattr(e, "source_zone", ""),
     }
     rs = datetime.combine(day, datetime.min.time())
     # a row that kept its offset repeats in its own frame and lands on the owner's day

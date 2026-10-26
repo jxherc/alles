@@ -1,5 +1,6 @@
 import unittest
-from datetime import date
+from datetime import date, datetime
+from unittest.mock import patch
 
 from services.event_nl import NotADate, _extract_time, parse_event
 from tests._client import ApiTest
@@ -141,6 +142,44 @@ class EventTests(unittest.TestCase):
                 self.assertFalse(parse_event(text, friday)["no_date"])
 
 
+class SameDayWeekdayTests(unittest.TestCase):
+    """friday 2026-10-23: today's own weekday is today while the time is still ahead"""
+
+    morning, afternoon = datetime(2026, 10, 23, 9, 30), datetime(2026, 10, 23, 14, 0)
+
+    def test_today_while_the_time_is_ahead(self):
+        for text, start in (
+            ("lunch with sam friday 1pm", "2026-10-23T13:00"),
+            ("fri dinner 7pm", "2026-10-23T19:00"),
+            ("sync friday 1-2pm", "2026-10-23T13:00"),
+            ("this friday 1pm review", "2026-10-23T13:00"),
+            ("drinks every fri 5pm", "2026-10-23T17:00"),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(parse_event(text, now=self.morning)["start_dt"], start)
+
+    def test_next_week_once_it_has_gone_by_or_when_asked(self):
+        for text, now, start in (
+            ("lunch with sam friday 1pm", self.afternoon, "2026-10-30T13:00"),
+            ("sync friday 1-2pm", self.afternoon, "2026-10-30T13:00"),
+            ("next friday 1pm lunch", self.morning, "2026-10-30T13:00"),
+            ("next week friday 1pm lunch", self.morning, "2026-10-30T13:00"),
+            # no time: a weekday is still the next one to come
+            ("friday lunch", self.morning, "2026-10-30"),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(parse_event(text, now=now)["start_dt"], start)
+        # the time itself counts as still ahead
+        self.assertEqual(
+            parse_event("call friday 1pm", now=datetime(2026, 10, 23, 13, 0, 40))["start_dt"],
+            "2026-10-23T13:00",
+        )
+        # without a clock nothing changes
+        self.assertEqual(
+            parse_event("fri dinner 7pm", date(2026, 10, 23))["start_dt"], "2026-10-30T19:00"
+        )
+
+
 class RecurrenceTests(unittest.TestCase):
     def test_daily(self):
         p = parse_event("standup daily 9am", T)
@@ -242,3 +281,17 @@ class QuickAddApiTest(ApiTest):
         self.assertNotIn("no_date", r.json())
         r = self.client.post("/api/calendar/quick", json={"text": "lunch tomorrow 1pm"})
         self.assertIsNone(r.headers.get("x-alles-no-date"))
+
+    def test_quick_add_reads_the_owners_clock_for_today(self):
+        from services import calendar_events
+
+        for now, start in (
+            (datetime(2026, 10, 23, 9, 30), "2026-10-23T13:00"),
+            (datetime(2026, 10, 23, 14, 0), "2026-10-30T13:00"),
+        ):
+            with (
+                self.subTest(now=now),
+                patch.object(calendar_events, "owner_now", return_value=now),
+            ):
+                r = self.client.post("/api/calendar/quick", json={"text": "lunch friday 1pm"})
+            self.assertEqual(r.json()["start_dt"], start)

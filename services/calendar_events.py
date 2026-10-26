@@ -46,6 +46,7 @@ def event_dict(event: CalendarEvent) -> dict:
         "recur_until": event.recur_until,
         "recur_except": json_list(event.recur_except),
         "meeting_url": event.meeting_url or "",
+        "source_zone": event.source_zone or "",
         "created_at": event.created_at.isoformat(),
     }
 
@@ -275,7 +276,7 @@ def to_wall_series(data: dict, zone, before, picked=frozenset()) -> dict:
     just picked here move with the start's date. a monthly repeat whose date would move stays in
     its own frame: "the 1st" in tokyo is the last day of a month in toronto, which no monthly
     rule says, so a time picked here is written in that frame instead"""
-    frame = None if data.get("all_day") else frame_of(before)
+    frame = series_frame(data, before)
     if frame is None:
         return wall_times(data, zone)
     shift = date_shift(before, wall_time(before, zone))
@@ -288,6 +289,8 @@ def to_wall_series(data: dict, zone, before, picked=frozenset()) -> dict:
                 data[key] = when.astimezone(frame).isoformat()
         return follow_date(data, -shift, keys=tuple(k for k in ("recur_until",) if k in picked))
     wall_times(data, zone)
+    if data.get("source_zone"):
+        data["source_zone"] = ""  # wall time now: it repeats in the owner's zone
     kept = tuple(k for k in ("recur_byday", "recur_until", "recur_except") if k not in picked)
     return follow_date(data, shift, keys=kept)
 
@@ -298,6 +301,18 @@ def frame_of(value):
         return datetime.fromisoformat(str(value)).tzinfo
     except ValueError:
         return None
+
+
+def series_frame(row: dict, start=None):
+    """the frame a stored event repeats in: the IANA zone an imported series came from (its
+    source_zone), else the fixed offset its start kept, else None for wall time. a source zone
+    only counts while the start still holds an offset; an edit that made it wall time wins"""
+    if row.get("all_day"):
+        return None
+    fixed = frame_of(row.get("start_dt") if start is None else start)
+    if fixed is None:
+        return None
+    return _zone(row.get("source_zone")) or fixed
 
 
 def _seen(when, frame, zone):
@@ -326,7 +341,10 @@ def _frame_occurrences(row, frame, rs, re, zone, cap=1500):
 
     local = {
         **row,
-        "start_dt": datetime.fromisoformat(row["start_dt"]).replace(tzinfo=None).isoformat(),
+        "start_dt": datetime.fromisoformat(row["start_dt"])
+        .astimezone(frame)
+        .replace(tzinfo=None)
+        .isoformat(),
     }
     lo, hi = (
         _framed(rs, frame, zone) - timedelta(days=1),
@@ -346,7 +364,7 @@ def occurrence_starts(row: dict, rs: datetime, re: datetime, zone, cap: int = 15
     sees the same moments, across daylight saving too"""
     from services.recur import expand
 
-    frame = None if row.get("all_day") else frame_of(row.get("start_dt"))
+    frame = series_frame(row)
     if frame is None:
         return expand(row, rs, re, cap=cap)
     return [seen for _, seen in _frame_occurrences(row, frame, rs, re, zone, cap)]
@@ -355,7 +373,7 @@ def occurrence_starts(row: dict, rs: datetime, re: datetime, zone, cap: int = 15
 def frame_day(row: dict, day, zone) -> str:
     """the date, in a kept offset's own frame, of the occurrence a viewer in zone picked on `day`:
     that frame's days are the ones a skip or a last day names. wall time: the same date"""
-    frame = None if row.get("all_day") else frame_of(row.get("start_dt"))
+    frame = series_frame(row)
     if frame is None:
         return str(day)[:10]
     when = datetime.fromisoformat(str(day)[:10])
@@ -369,7 +387,7 @@ def frame_day(row: dict, day, zone) -> str:
 def frame_occurrence(row: dict, day, zone):
     """the occurrence a viewer in zone sees on `day`, as moments in the kept offset's frame:
     (start, end) aware, or None. a scoped edit copies that occurrence at the same moments"""
-    frame = None if row.get("all_day") else frame_of(row.get("start_dt"))
+    frame = series_frame(row)
     if frame is None:
         return None
     when = datetime.fromisoformat(str(day)[:10])
@@ -402,6 +420,12 @@ def validate_event(data):
             raise HTTPException(400, "the end must be after the start")
     except (ValueError, TypeError):
         raise HTTPException(400, "use a real start and end date") from None
+    # far-off years break calendar files and every clock sum near the ends of time
+    if any(not _YEARS[0] <= when.year <= _YEARS[1] for when in (start, end) if when):
+        raise HTTPException(400, f"pick a year from {_YEARS[0]} to {_YEARS[1]}")
+
+
+_YEARS = (1900, 2200)
 
 
 def event_columns(data):

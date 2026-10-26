@@ -4,6 +4,7 @@ day, last day and skipped days) and every reader shows the same moments in every
 import os
 import time
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from unittest import mock
 from zoneinfo import ZoneInfo
 
@@ -141,7 +142,7 @@ class FrameExpansionTest(ApiTest):
                     datetime.fromisoformat(e["start_dt"])
                     for d in days["days"]
                     for e in d["events"]
-                    if e["id"] == row["id"]
+                    if e["id"] == row["id"] and not e.get("continued")
                 ]
                 want = [m for m in truth(SERIES[name]) if m.astimezone(tor).date() >= today.date()]
                 self.assertEqual(moments(walls, tor), want)
@@ -376,7 +377,10 @@ class BookingTimesTest(ApiTest):
         r = self.client.post("/book/b", json={"date": far, "time": "10:00", "name": "b"})
         self.assertEqual(r.json()["detail"], "that date is outside the booking window")
         page = self.client.get("/book/b").text
-        self.assertIn("why.detail", page)  # the visitor reads the reason, not always "taken"
+        # the visitor reads the reason, not always "taken"
+        self.assertIn('<script src="/static/shared/book.js">', page)
+        book = Path(__file__).resolve().parents[1] / "static" / "shared" / "book.js"
+        self.assertIn("why.detail", book.read_text(encoding="utf-8"))
 
 
 class AllDayDatesTest(ApiTest):

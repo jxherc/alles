@@ -406,6 +406,9 @@ class CalendarEvent(Base):
     caldav_uid = Column(String, nullable=True)  # set when synced from/to CalDAV
     subscription_id = Column(String, nullable=True)  # 8a: set when pulled from an ICS-URL feed
     meeting_url = Column(String, default="")  # 8b: video-meeting link (paste or generated)
+    source_zone = Column(String, nullable=True)  # an .ics series repeats in this IANA zone
+    ics_uid = Column(String, nullable=True)  # the .ics UID, so a re-import replaces
+    ics_rid = Column(String, nullable=True)  # and its RECURRENCE-ID, for a moved time
     created_at = Column(DateTime, default=_now)
 
 

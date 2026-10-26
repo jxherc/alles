@@ -1,3 +1,4 @@
+import asyncio
 from unittest import mock
 
 from core.database import CalendarEvent, CalendarSubscription
@@ -173,3 +174,83 @@ class CalendarSubscriptionTests(ApiTest):
         db = self.db()
         self.assertTrue(db.get(CalendarSubscription, sid).last_status.startswith("error"))
         db.close()
+
+
+BERLIN = """BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:b1
+SUMMARY:berlin standup
+DTSTART;TZID=Europe/Berlin:20261026T090000
+DTEND;TZID=Europe/Berlin:20261026T091500
+RRULE:FREQ=WEEKLY;BYDAY=MO,WE
+END:VEVENT
+BEGIN:VEVENT
+UID:b2
+SUMMARY:berlin one-off
+DTSTART;TZID=Europe/Berlin:20261104T150000
+DTEND;TZID=Europe/Berlin:20261104T160000
+END:VEVENT
+END:VCALENDAR
+"""
+
+
+class FeedZoneTests(ApiTest):
+    """a feed's times land in the owner's zone, and with none known they keep their own"""
+
+    def setUp(self):
+        super().setUp()
+        from core.settings import save_settings
+
+        save_settings({"timezone": "", "detected_timezone": ""})
+        self.addCleanup(save_settings, {"timezone": "", "detected_timezone": ""})
+
+    def _rows(self):
+        db = self.db()
+        out = {e.title: (e.start_dt, e.source_zone or "") for e in db.query(CalendarEvent).all()}
+        db.close()
+        return out
+
+    def test_the_browsers_zone_is_used_on_create_and_refresh(self):
+        tor = {"x-alles-time-zone": "America/Toronto"}
+        with mock.patch("routes.calendar.fetch_ics", return_value=BERLIN):
+            sid = self.client.post(
+                "/api/calendar/subscriptions",
+                json={"name": "f", "url": "https://x.test/a.ics"},
+                headers=tor,
+            ).json()["id"]
+        self.assertEqual(self._rows()["berlin one-off"][0], "2026-11-04T09:00:00")
+        with mock.patch("routes.calendar.fetch_ics", return_value=BERLIN):
+            self.client.post(f"/api/calendar/subscriptions/{sid}/refresh", headers=tor)
+        rows = self._rows()
+        self.assertEqual(rows["berlin one-off"][0], "2026-11-04T09:00:00")
+        # berlin changes its clocks a week before toronto: the series repeats in berlin
+        self.assertEqual(rows["berlin standup"], ("2026-10-26T09:00:00+01:00", "Europe/Berlin"))
+
+    def test_with_no_zone_known_nothing_keeps_the_sources_wall_time(self):
+        with mock.patch("routes.calendar.fetch_ics", return_value=BERLIN):
+            self.client.post(
+                "/api/calendar/subscriptions", json={"name": "f", "url": "https://x.test/a.ics"}
+            )
+        rows = self._rows()
+        self.assertEqual(rows["berlin one-off"][0], "2026-11-04T15:00:00+01:00")
+        self.assertEqual(rows["berlin standup"], ("2026-10-26T09:00:00+01:00", "Europe/Berlin"))
+        # the hourly job reads in the owner's zone: the last browser zone seen
+        from core.settings import save_settings
+        from routes.calendar import refresh_all_subscriptions
+
+        save_settings({"detected_timezone": "America/Toronto"})
+        with mock.patch("routes.calendar.fetch_ics", return_value=BERLIN):
+            asyncio.run(refresh_all_subscriptions())
+        self.assertEqual(self._rows()["berlin one-off"][0], "2026-11-04T09:00:00")
+
+    def test_an_error_page_keeps_the_feeds_events(self):
+        with mock.patch("routes.calendar.fetch_ics", return_value=BERLIN):
+            sid = self.client.post(
+                "/api/calendar/subscriptions", json={"name": "f", "url": "https://x.test/a.ics"}
+            ).json()["id"]
+        page = "<!doctype html><html><body>sign in to see this calendar</body></html>"
+        with mock.patch("routes.calendar.fetch_ics", return_value=page):
+            out = self.client.post(f"/api/calendar/subscriptions/{sid}/refresh").json()
+        self.assertEqual(out["event_count"], 2)
+        self.assertEqual(out["last_status"], "error: choose a complete .ics calendar file")

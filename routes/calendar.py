@@ -165,6 +165,8 @@ def duplicate_event(eid: str, db: DbSession = Depends(get_db), name=Depends(_zon
         "created_at",
         "caldav_uid",
         "subscription_id",
+        "ics_uid",
+        "ics_rid",
     }
     # an exact copy: a kept offset stays kept, so the copy repeats at the same moments
     data = {c: getattr(e, c) for c in cols}
@@ -247,13 +249,23 @@ def agenda(days: int = 30, db: DbSession = Depends(get_db), zone=Depends(_read_z
                 dur = (datetime.fromisoformat(end_dt) - start0) if end_dt else timedelta(hours=1)
             except (ValueError, TypeError):
                 continue
+            # from far enough back that a long one that began before today still covers it
             for occ in calendar_events.occurrence_starts(
-                calendar_events.event_dict(e), rs, re_, zone
+                calendar_events.event_dict(e), rs - timedelta(days=dur.days + 1), re_, zone
             ):
                 ev = dict(
                     base, start_dt=occ.isoformat(), end_dt=(occ + dur).isoformat(), recurring=True
                 )
-                groups.setdefault(occ.date().isoformat(), []).append(ev)
+                # every day each time covers, like a one-off below
+                last = (occ + dur).date()
+                if not e.all_day and (occ + dur).time() == datetime.min.time() and dur:
+                    last -= timedelta(days=1)
+                day = max(occ.date(), today)
+                while day <= min(max(last, occ.date()), until):
+                    groups.setdefault(day.isoformat(), []).append(
+                        dict(ev, continued=True) if day > occ.date() else ev
+                    )
+                    day += timedelta(days=1)
         else:
             # a multi-day event (a camping trip, a conference) shows on every day it covers,
             # not just the first; a timed one ending at midnight doesn't spill into the next day
@@ -272,7 +284,36 @@ def agenda(days: int = 30, db: DbSession = Depends(get_db), zone=Depends(_read_z
                 day += timedelta(days=1)
     for evs in groups.values():
         evs.sort(key=lambda x: x["start_dt"])
-    return _ready({"days": [{"date": d, "events": groups[d]} for d in sorted(groups)]})
+    # open tasks sit on their due day, and any overdue one leads today, the way home lists them:
+    # due before today, oldest first
+    from core.database import Task
+
+    tasks: dict[str, list] = {}
+    overdue = []
+    rows = (
+        db.query(Task)
+        .filter(Task.done == False, Task.due_date != None, Task.due_date != "")  # noqa: E711, E712
+        .filter(Task.due_date < (until + timedelta(days=1)).isoformat())
+        .order_by(Task.due_date.asc())
+    )
+    for t in rows:
+        item = {"id": t.id, "title": t.title, "due": str(t.due_date)[:10], "priority": t.priority}
+        if item["due"] < today.isoformat():
+            overdue.append(item)
+        else:
+            tasks.setdefault(item["due"], []).append(item)
+    if overdue:
+        groups.setdefault(today.isoformat(), [])
+    return _ready(
+        {
+            "today": today.isoformat(),
+            "overdue": overdue,
+            "days": [
+                {"date": d, "events": groups.get(d, []), "tasks": tasks.get(d, [])}
+                for d in sorted({*groups, *tasks})
+            ],
+        }
+    )
 
 
 class QuickEvent(BaseModel):
@@ -294,7 +335,7 @@ def quick_event(
     try:
         p = parse_event(
             body.text,
-            today=calendar_events.owner_now(zone).date(),
+            now=calendar_events.owner_now(zone),
             language=load_settings().get("language", "en"),
         )
     except NotADate as error:
@@ -593,46 +634,73 @@ class IcsImport(BaseModel):
     ics: str
 
 
-@router.post("/calendar/import")
-def import_ics(body: IcsImport, db: DbSession = Depends(get_db), name=Depends(_zone_name)):
-    """import events from a pasted/uploaded .ics."""
-    from services.ics import parse_ics
+def _ics_event(ev: dict, **extra) -> CalendarEvent:
+    """a row from services.ics: a one-off, or a series with its repeat and skipped days"""
+    fields = (
+        *("start_dt", "end_dt", "all_day", "description", "location", *_RULES, "recur_except"),
+        *("source_zone", "ics_uid", "ics_rid"),
+    )
+    data = {key: ev[key] for key in fields if key in ev}
+    return CalendarEvent(
+        **calendar_events.event_columns({**data, "title": ev.get("title") or "(untitled)"}),
+        **extra,
+    )
 
-    content = body.ics.lstrip("\ufeff").strip()
+
+def _read_calendar(text: str, zone, each=True) -> dict:
+    """a whole .ics file read and checked, or ValueError with what's wrong. nothing is stored
+    from a file that isn't a calendar (a feed's html error page) or has a broken event. each
+    also checks every event's fields, as the editor would"""
+    from services.ics import read_ics
+
+    content = (text or "").lstrip("\ufeff").strip()
     lines = content.splitlines()
     if not lines or lines[0] != "BEGIN:VCALENDAR" or lines[-1] != "END:VCALENDAR":
-        raise HTTPException(400, "choose a complete .ics calendar file")
-    events = parse_ics(content, zone=calendar_events.write_zone(name))
-    end_fields = sum(line.split(":", 1)[0].split(";")[0].upper() == "DTEND" for line in lines)
+        raise ValueError("choose a complete .ics calendar file")
+    read = read_ics(content, zone=zone)
     if (
-        lines.count("BEGIN:VEVENT") != len(events)
-        or lines.count("END:VEVENT") != len(events)
-        or end_fields != sum(bool(event.get("end_dt")) for event in events)
+        read["broken"]
+        or lines.count("BEGIN:VEVENT") != read["blocks"]
+        or lines.count("END:VEVENT") != read["blocks"]
     ):
-        raise HTTPException(
-            400,
-            "an event in this file is incomplete or has a date that doesn't exist. nothing was imported",
+        raise ValueError(
+            "an event in this file is incomplete or has a date that doesn't exist. nothing was imported"
         )
-    # Validate the entire file before adding any rows; retries must not duplicate a partial import.
-    for ev in events:
+    # check every event before any row is added; a retry must not duplicate a partial import
+    for ev in read["events"] if each else ():
         ev["title"] = ev["title"] or "(untitled)"
-        calendar_events.validate_event(ev)
-    n = 0
+        try:
+            calendar_events.validate_event(ev)
+        except HTTPException as error:
+            raise ValueError(error.detail) from None
+    return read
+
+
+@router.post("/calendar/import")
+def import_ics(body: IcsImport, db: DbSession = Depends(get_db), name=Depends(_zone_name)):
+    """import events from a pasted/uploaded .ics. a repeating series comes in as one series;
+    first_only counts the ones that repeat in a way alles can't show, kept at their first time.
+    importing the same file again replaces its events (by UID) instead of adding them twice"""
+    try:
+        read = _read_calendar(body.ics, calendar_events.write_zone(name))
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from None
     cid = calendar_events.default_calendar_id(db)
-    for ev in events:
-        db.add(
-            CalendarEvent(
-                title=ev["title"] or "(untitled)",
-                start_dt=ev["start_dt"],
-                end_dt=ev.get("end_dt"),
-                all_day=ev.get("all_day", False),
-                description=ev.get("description", ""),
-                calendar_id=cid,
-            )
+    mine = db.query(CalendarEvent).filter(
+        CalendarEvent.calendar_id == cid, CalendarEvent.subscription_id.is_(None)
+    )
+    if read["uids"]:
+        mine.filter(CalendarEvent.ics_uid.in_(sorted(read["uids"]))).delete(
+            synchronize_session=False
         )
-        n += 1
+    for uid, rid in read["rids"]:
+        mine.filter(CalendarEvent.ics_uid == uid, CalendarEvent.ics_rid == rid).delete(
+            synchronize_session=False
+        )
+    for ev in read["events"]:
+        db.add(_ics_event(ev, calendar_id=cid))
     db.commit()
-    return {"imported": n}
+    return {"imported": len(read["events"]), "first_only": read["first_only"]}
 
 
 # ── ICS URL subscriptions (8a) ────────────────────────────────────────────────
@@ -650,26 +718,19 @@ def fetch_ics(url: str) -> str:
     return r.text
 
 
-def refresh_subscription(db, sub: CalendarSubscription, ics_text: str) -> int:
-    """full-replace this subscription's events from the given ICS text."""
+def refresh_subscription(db, sub: CalendarSubscription, ics_text: str, zone=None) -> int:
+    """full-replace this subscription's events from the given ICS text. the same reader and
+    checks as an import, so a feed's repeating series shows every time and a feed that sends an
+    error page instead (status 200 and all) raises and keeps its events. zone is the owner's:
+    with none known, zoned times keep their offset or their own zone, never a wall time read as
+    if it were the owner's"""
     from datetime import datetime
 
-    from services.ics import parse_ics
-
+    read = _read_calendar(ics_text, zone, each=False)
     db.query(CalendarEvent).filter(CalendarEvent.subscription_id == sub.id).delete()
     n = 0
-    for ev in parse_ics(ics_text or ""):
-        db.add(
-            CalendarEvent(
-                title=ev["title"] or "(untitled)",
-                start_dt=ev["start_dt"],
-                end_dt=ev.get("end_dt"),
-                all_day=ev.get("all_day", False),
-                description=ev.get("description", ""),
-                calendar_id=sub.calendar_id,
-                subscription_id=sub.id,
-            )
-        )
+    for ev in read["events"]:
+        db.add(_ics_event(ev, calendar_id=sub.calendar_id, subscription_id=sub.id))
         n += 1
     sub.last_synced = datetime.now(UTC).replace(tzinfo=None).isoformat()
     sub.last_status = "ok"
@@ -713,7 +774,7 @@ def list_subscriptions(db: DbSession = Depends(get_db)):
 
 
 @router.post("/calendar/subscriptions")
-def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
+def create_subscription(body: SubBody, db: DbSession = Depends(get_db), name=Depends(_zone_name)):
     if not body.url.strip():
         raise HTTPException(400, "url required")
     cid = body.calendar_id or ""
@@ -731,7 +792,7 @@ def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
     db.refresh(sub)
     # best-effort initial sync (never fail the create on a bad feed)
     try:
-        refresh_subscription(db, sub, fetch_ics(sub.url))
+        refresh_subscription(db, sub, fetch_ics(sub.url), calendar_events.write_zone(name))
     except Exception as e:
         sub.last_status = f"error: {e}"
         db.commit()
@@ -739,12 +800,14 @@ def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
 
 
 @router.post("/calendar/subscriptions/{sid}/refresh")
-def refresh_subscription_endpoint(sid: str, db: DbSession = Depends(get_db)):
+def refresh_subscription_endpoint(
+    sid: str, db: DbSession = Depends(get_db), name=Depends(_zone_name)
+):
     sub = db.get(CalendarSubscription, sid)
     if not sub:
         raise HTTPException(404)
     try:
-        refresh_subscription(db, sub, fetch_ics(sub.url))
+        refresh_subscription(db, sub, fetch_ics(sub.url), calendar_events.write_zone(name))
     except Exception as e:
         from datetime import datetime
 
@@ -785,10 +848,12 @@ async def refresh_all_subscriptions():
     from core.database import SessionLocal
 
     db = SessionLocal()
+    # no browser here: the timezone setting, else the last browser zone seen
+    zone = calendar_events.owner_zone()
     try:
         for sub in db.query(CalendarSubscription).all():
             try:
-                refresh_subscription(db, sub, fetch_ics(sub.url))
+                refresh_subscription(db, sub, fetch_ics(sub.url), zone)
             except Exception as e:
                 from datetime import datetime
 
