@@ -739,7 +739,9 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
 .icon-btn svg { width: 14px; height: 14px; }
 
 /* ── chat area ── */
-.chat { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+/* a control focused at the edge of the chat stops 8px clear of the composer, not flush against it
+   (rem sizes put it on a fraction of a pixel, and the composer took its last row) */
+.chat { flex: 1; overflow-y: auto; display: flex; flex-direction: column; scroll-padding-block: var(--k-space-2, 8px); }
 
 /* welcome — Claude-style: a time-aware greeting, vertically centered above the composer */
 .welcome {
