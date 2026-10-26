@@ -214,6 +214,11 @@ def run():
                     draft = "owned unsent question — café 中文 " + language
                     field = page.locator("#composer-ta")
                     field.fill(draft)
+                    # help sits with the conversation settings, which open from the "more" menu
+                    page.locator("#aide-more-btn").press("Enter")
+                    page.locator('#aide-more-menu [data-aide-central-action="options"]').press(
+                        "Enter"
+                    )
                     help_button = page.locator("#aide-help")
                     help_button.press("Enter")
                     dialog = page.locator("#aide-help-dialog")
@@ -259,6 +264,9 @@ def run():
                     dialog.locator("[data-help-close]").press("Enter")
                     expect(help_button).to_be_focused()
                     expect(field).to_have_value(draft)
+                    page.locator("#aide-options-close").press("Enter")
+                    expect(page.locator("#aide-more-btn")).to_be_focused()
+                    expect(field).to_have_value(draft)
                     assert page.evaluate("document.documentElement.scrollWidth<=innerWidth+1")
                     row["rendered_language"] = page.locator("html").get_attribute("lang")
                     assert row["rendered_language"] == language + "-US"
@@ -286,9 +294,12 @@ def run():
                             "button", name="validate and show diff", exact=True
                         )
                         validate.press("Enter")
-                        expect(card.locator(".server-workbench-status").first).to_have_text(
-                            "policy is valid"
-                        )
+                        # a missing policy file keeps its own error line above the check result
+                        expect(
+                            card.locator(".server-workbench-status").filter(
+                                has_text="policy is valid"
+                            )
+                        ).to_have_text("policy is valid")
                         expect(validate).to_be_focused()
                         expect(editor).to_have_value(original)
                         assert api("GET", "/api/system/policy").json() == before

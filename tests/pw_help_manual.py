@@ -159,7 +159,7 @@ def run():
             destinations = []
             if name == "desktop":
                 topics = page.evaluate(
-                    "async()=> (await import('/static/js/help_content.js?v=1')).HELP_TOPICS.map(t=>({id:t.id,actions:t.actions||[]}))"
+                    "async()=> (await import('/static/js/help_content.js?v=2')).helpTopics().map(t=>({id:t.id,actions:t.actions||[]}))"
                 )
                 for topic in topics:
                     for action in topic["actions"]:

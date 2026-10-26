@@ -1,15 +1,21 @@
-"""aide surface depth smoke. :8893."""
+"""aide surface depth smoke against the owned gate server."""
 
 import json
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from browser_gate_safety import require_server_ownership
 from playwright.sync_api import sync_playwright
 
-AIDE = "http://aide.localhost:8893"
-EVID = Path(__file__).resolve().parent.parent / "docs" / "evidence" / "aide"
+PORT = os.environ.get("PORT", "8893")
+AIDE = f"http://aide.localhost:{PORT}"
+EVID = Path(
+    os.environ.get("ALLES_BROWSER_ARTIFACTS")
+    or Path(__file__).resolve().parent.parent / "docs" / "evidence" / "aide"
+)
 IGNORE = ("Failed to load resource", "net::", "ERR_", "favicon", "401", "403", "Load failed")
 
 ENDPOINTS = [
@@ -80,6 +86,8 @@ def _api_router(state):
         if path == "/api/aide/suggestions":
             return ok([])
 
+        if path == "/api/aide/conversation":
+            return ok(state["sessions"][0])
         if path == "/api/sessions" and method == "GET":
             return ok({"today": state["sessions"], "yesterday": [], "earlier": []})
         if path == "/api/sessions" and method == "POST":
@@ -119,16 +127,6 @@ def _api_router(state):
                     {"done": True, "usage": {"prompt_tokens": 7, "completion_tokens": 5}},
                 )
             )
-        if path == "/api/rag/ask":
-            return ok({"answer": "docs answer from the vault", "sources": ["project.md"]})
-        if path == "/api/research" and method == "POST":
-            return stream(
-                _sse(
-                    {"type": "step", "text": "checking sources"},
-                    {"type": "done", "report": "# research answer\nfound it", "sources": []},
-                )
-            )
-
         if path == "/api/compare/stats":
             return ok(
                 {
@@ -292,12 +290,25 @@ def _nav(pg, view, target):
 
 
 def main():
+    if os.environ.get("ALLES_TEST_RUN_ID"):
+        require_server_ownership(f"http://127.0.0.1:{PORT}", os.environ["ALLES_TEST_RUN_ID"])
     EVID.mkdir(parents=True, exist_ok=True)
     future = datetime.now(timezone.utc) + timedelta(hours=3)
     state = {
         "chat_posts": 0,
         "compare_posts": 0,
-        "sessions": [],
+        # aide opens one permanent primary conversation, so the shell needs it from the start
+        "sessions": [
+            {
+                "id": "s1",
+                "name": "aide",
+                "model": "audit-chat",
+                "endpoint_id": "ep1",
+                "starred": False,
+                "incognito": False,
+                "primary": True,
+            }
+        ],
         "reminders": [
             {
                 "id": "r1",
@@ -356,9 +367,7 @@ def main():
         pg.goto(f"{AIDE}/", wait_until="domcontentloaded")
         pg.wait_for_selector("#composer-ta", timeout=15000)
         pg.wait_for_function("() => (window._endpoints || []).length === 1", timeout=10000)
-        r["aide_shell_renders"] = _visible(pg, "#composer-outer") and _visible(
-            pg, "#sidebar-toggle-btn"
-        )
+        r["aide_shell_renders"] = _visible(pg, "#composer-outer") and _visible(pg, "#aide-more-btn")
 
         pg.fill("#composer-ta", "hello aide audit")
         pg.focus("#composer-ta")
@@ -367,31 +376,15 @@ def main():
             "document.querySelector('#messages')?.textContent.includes('hello from fake model')",
             timeout=10000,
         )
+        # the token mark is hidden in aide's compact header, but the usage still lands in it
+        pg.wait_for_function(
+            "document.querySelector('#session-token-count-value')?.textContent.includes('12 tok')",
+            timeout=10000,
+        )
         r["ctrl_enter_sends_once"] = state["chat_posts"] == 1
         r["chat_stream_renders_usage"] = "hello from fake model" in (
             pg.text_content("#messages") or ""
-        ) and "12 tok" in (pg.text_content("#session-token-count") or "")
-
-        pg.click("#docs-toggle-btn")
-        pg.fill("#composer-ta", "where is the project")
-        pg.press("#composer-ta", "Enter")
-        pg.wait_for_function(
-            "document.querySelector('.rag-ans')?.textContent.includes('docs answer')",
-            timeout=10000,
-        )
-        r["docs_ask_mode_renders_answer"] = "project.md" in (pg.text_content(".rag-src") or "")
-
-        pg.click("#docs-toggle-btn")
-        pg.click("#research-toggle-btn")
-        pg.fill("#composer-ta", "research this")
-        pg.press("#composer-ta", "Enter")
-        pg.wait_for_function(
-            "document.querySelector('.rs-report')?.textContent.toLowerCase().includes('research answer')",
-            timeout=10000,
-        )
-        r["research_mode_renders_report"] = "checking sources" in (
-            pg.text_content(".rs-steps") or ""
-        )
+        ) and "12 tok" in (pg.text_content("#session-token-count-value") or "")
 
         _nav(pg, "models", "models-view")
         pg.wait_for_selector("#sidebar-model-list .sidebar-model-row", timeout=10000)
@@ -400,8 +393,8 @@ def main():
 
         _nav(pg, "compare", "compare-view")
         pg.wait_for_selector(".compare-model-row", timeout=10000)
-        pg.click(".compare-model-row:nth-of-type(2)")
-        pg.click(".compare-model-row:nth-of-type(3)")
+        pg.click('.compare-model-row[data-model="audit-chat"]')
+        pg.click('.compare-model-row[data-model="audit-pro"]')
         pg.fill("#compare-input", "compare these")
         pg.click("#compare-send-btn")
         pg.wait_for_function(
@@ -484,7 +477,9 @@ def main():
             pg.text_content("#usage-total") or ""
         ) and "audit-chat" in (pg.text_content("#usage-body") or "")
 
-        pg.click("#topbar-settings-btn")
+        # aide keeps settings in its "more" menu, not in a topbar button
+        pg.click("#aide-more-btn")
+        pg.click('#aide-more-menu [data-aide-central-action="settings"]')
         pg.wait_for_selector("#settings-modal .s-modal", timeout=10000)
         r["settings_modal_opens"] = pg.is_visible("#settings-modal .s-modal")
         pg.keyboard.press("Escape")

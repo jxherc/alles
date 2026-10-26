@@ -1,107 +1,143 @@
-"""4d UI verification — goals (progress/ETA), reports, base-currency net worth. :8835."""
+"""goals (progress/ETA), reports, and net worth in one totals currency on a USD + EUR ledger."""
 
-import sys
+import json
+import os
 from pathlib import Path
+from urllib.parse import urlparse
 
-from playwright.sync_api import sync_playwright
+from browser_gate_safety import require_server_ownership
+from playwright.sync_api import expect, sync_playwright
 
-MONEY = "http://money.localhost:8835"
-EVID = Path(__file__).resolve().parent.parent / "docs" / "evidence" / "4d"
-IGNORE = ("Failed to load resource", "net::", "ERR_", "favicon", "401", "Load failed")
-
-
-def main():
-    r = {}
-    errs = []
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        pg = b.new_context().new_page()
-        pg.on(
-            "console",
-            lambda m: (
-                errs.append(m.text)
-                if m.type == "error" and not any(x in m.text for x in IGNORE)
-                else None
-            ),
+base = f"http://127.0.0.1:{os.environ['PORT']}"
+require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
+out = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
+results = []
+with sync_playwright() as pw:
+    browser = pw.chromium.launch()
+    for width in (1440, 390):
+        record = {
+            "scenario_id": "finance.goals-reports-totals",
+            "profile": str(width),
+            "status": "failed",
+        }
+        results.append(record)
+        context = browser.new_context(
+            viewport={"width": width, "height": 900},
+            has_touch=width == 390,
+            service_workers="block",
+            reduced_motion="reduce",
         )
-        pg.on(
-            "pageerror",
-            lambda e: errs.append(str(e)) if not any(x in str(e) for x in IGNORE) else None,
-        )
+        blocked, errors = [], []
 
-        # ---- reset + seed: two accounts (USD/EUR), a couple txns, clear goals ----
-        pg.goto(f"{MONEY}/", wait_until="domcontentloaded")
-        pg.wait_for_timeout(800)
-        pg.evaluate(
-            """async () => {
-                const J = o => ({method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(o)});
-                for (const a of await fetch('/api/money/accounts').then(r=>r.json())) await fetch('/api/money/accounts/'+a.id,{method:'DELETE'});
-                for (const g of (await fetch('/api/money/goals').then(r=>r.json())).goals) await fetch('/api/money/goals/'+g.id,{method:'DELETE'});
-                const a = await fetch('/api/money/accounts', J({name:'US',kind:'checking',currency:'USD',opening:100})).then(r=>r.json());
-                await fetch('/api/money/accounts', J({name:'EU',kind:'savings',currency:'EUR',opening:100}));
-                await fetch('/api/money/transactions', J({account_id:a.id,date:'2026-06-05',amount:1000,category:'salary'}));
-                await fetch('/api/money/transactions', J({account_id:a.id,date:'2026-06-12',amount:-200,category:'food',payee:'Cafe'}));
-            }"""
-        )
-        pg.goto(f"{MONEY}/?m=2026-06", wait_until="domcontentloaded")
-        pg.wait_for_selector('[data-card="goals"]', timeout=15000)
+        def guard(route):
+            if urlparse(route.request.url).netloc != urlparse(base).netloc:
+                blocked.append(route.request.url)
+                route.abort()
+            else:
+                route.continue_()
 
-        # ---- add a goal ----
-        pg.fill("#gl-name", "Emergency Fund")
-        pg.fill("#gl-target", "1000")
-        pg.fill("#gl-current", "250")
-        pg.fill("#gl-monthly", "150")
-        pg.click("#gl-add")
-        pg.wait_for_selector(".goal-row", timeout=6000)
-        r["goals_add_shows_progress"] = pg.query_selector(
-            ".goal-row .goal-bar"
-        ) is not None and "25%" in (pg.text_content(".goal-row .goal-eta") or "")
-        r["goal_eta_shows"] = "5mo" in (pg.text_content(".goal-row .goal-eta") or "")
-        pg.screenshot(path=str(EVID / "goals.png"))
-
-        # ---- reports ----
-        pg.eval_on_selector("#rp-start", "el => el.dataset.value = '2026-06-01'")
-        pg.eval_on_selector("#rp-end", "el => el.dataset.value = '2026-06-30'")
-        pg.click("#rp-run")
-        pg.wait_for_selector("#rp-out .rp-tot", timeout=6000)
-        rep = pg.text_content("#rp-out") or ""
-        r["report_runs_totals"] = "1,000" in rep and "200" in rep
-        r["report_export_link"] = pg.is_visible("#rp-export") and "/report/export.csv" in (
-            pg.get_attribute("#rp-export", "href") or ""
-        )
-
-        # ---- base-currency net worth: US 900 (100 + 1000 − 200) + EU 100 EUR→USD 108.70 ----
-        pg.fill("#nw-base-cur", "USD")
-        pg.click("#nw-base-go")
-        pg.wait_for_timeout(800)
-        base_out = pg.text_content("#nw-base-out") or ""
-        r["base_currency_rollup"] = "1,008" in base_out and "USD" in base_out
-
-        # ---- goals persist on reload ----
-        pg.reload(wait_until="domcontentloaded")
-        pg.wait_for_selector('[data-card="goals"]', timeout=10000)
-        r["goals_persist_reload"] = "Emergency Fund" in (
-            pg.text_content('[data-card="goals"]') or ""
-        )
-
-        # remove the goal (idempotency)
-        pg.click(".goal-row [data-del-goal]")
-        pg.wait_for_timeout(700)
-        r["goal_remove"] = pg.query_selector(".goal-row") is None
-
-        r["zero_console_errors"] = len(errs) == 0
-        b.close()
-
-    ok = all(r.values())
-    lines = [f"{'PASS' if v else 'FAIL'}  {k}" for k, v in r.items()]
-    if errs:
-        lines.append(f"console_errors: {errs[:8]}")
-    out = "\n".join(lines)
-    (EVID / "pw_goals_4d.txt").write_text(out, encoding="utf-8")
-    print(out)
-    print(f"\n{sum(bool(v) for v in r.values())}/{len(r)} assertions passed")
-    return 0 if ok else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+        context.route("**/*", guard)
+        api = context.request
+        page = context.new_page()
+        page.set_default_timeout(8000)
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+        try:
+            assert api.post(base + "/api/setup/dismiss").ok
+            for old in api.get(base + "/api/money/accounts").json():
+                assert api.delete(base + "/api/money/accounts/" + old["id"]).ok
+            for old in api.get(base + "/api/money/goals").json()["goals"]:
+                assert api.delete(base + "/api/money/goals/" + old["id"]).ok
+            assert api.patch(base + "/api/money/totals-currency", data={"base": "CAD"}).ok
+            assert api.patch(
+                base + "/api/money/totals-currency",
+                data={"rate": {"from": "EUR", "to": "USD", "rate": ""}},
+            ).ok
+            us = api.post(
+                base + "/api/money/accounts",
+                data={"name": "US", "kind": "checking", "currency": "USD", "opening": 100},
+            ).json()
+            api.post(
+                base + "/api/money/accounts",
+                data={"name": "EU", "kind": "savings", "currency": "EUR", "opening": 100},
+            )
+            for amount, category in ((1000, "salary"), (-200, "food")):
+                assert api.post(
+                    base + "/api/money/transactions",
+                    data={
+                        "account_id": us["id"],
+                        "date": "2026-06-10",
+                        "amount": amount,
+                        "category": category,
+                        "payee": "Cafe" if amount < 0 else "work",
+                    },
+                ).ok
+            page.goto(base + "/?view=money&m=2026-06", wait_until="networkidle")
+            # neither account is in the ledger's CAD: the note offers the rate, not a guess
+            expect(page.locator(".totals-currency-wrap")).to_contain_text(
+                "1 account in EUR isn't in these totals"
+            )
+            # totals in USD, picked from the bar
+            page.locator("[data-totals-base]").click()
+            page.get_by_role("dialog").locator('[data-value="USD"]').click()
+            expect(page.locator("[data-totals-base]")).to_contain_text("USD")
+            expect(page.locator(".money-summary .ms-card").first).to_contain_text("USD")
+            # then the EUR rate from its note
+            page.locator('.totals-currency-note [data-totals-rate="EUR:USD"]').click()
+            dialog = page.get_by_role("dialog")
+            dialog.locator("input").fill("1,087")
+            expect(dialog.locator("input")).to_have_value("1.087")
+            dialog.get_by_role("button", name="save rate").click()
+            expect(page.locator(".totals-rate")).to_have_text("1 EUR = 1.087 USD")
+            # US 900 (100 + 1000 - 200) + EU 100 at 1.087 = 1,008.70
+            expect(page.locator(".money-summary .ms-card").first).to_contain_text("1,008.70")
+            page.screenshot(path=str(out / f"{width}-totals.png"))
+            plans = page.locator('[data-money-section="plans"]')
+            if plans.get_attribute("aria-expanded") != "true":
+                plans.click()
+            page.locator('[data-money-task="goals"]').click()
+            goals = page.locator('[data-card="goals"]')
+            goals.locator("#gl-name").fill("Emergency Fund")
+            goals.locator("#gl-target").fill("1000")
+            goals.locator("#gl-current").fill("250")
+            goals.locator("#gl-monthly").fill("150")
+            goals.locator("#gl-add").click()
+            expect(goals.locator(".goal-row .goal-eta")).to_contain_text("25%")
+            expect(goals.locator(".goal-row .goal-eta")).to_contain_text("5mo")
+            # saved in the ledger's CAD with no CAD rate: shown as saved, not relabelled USD
+            expect(goals.locator(".goal-row .goal-nums")).to_contain_text("CAD")
+            page.screenshot(path=str(out / f"{width}-goals.png"))
+            analytics = page.locator('[data-money-section="analytics"]')
+            if analytics.get_attribute("aria-expanded") != "true":
+                analytics.click()
+            page.locator("#rp-start").evaluate("el => { el.dataset.value = '2026-06-01'; }")
+            page.locator("#rp-end").evaluate("el => { el.dataset.value = '2026-06-30'; }")
+            page.locator("#rp-run").click()
+            report = page.locator("#rp-out .rp-tot")
+            expect(report).to_contain_text("USD 1,000.00")
+            expect(report).to_contain_text("USD 200.00")
+            expect(page.locator("#rp-export")).to_have_attribute(
+                "href", "/api/money/report/export.csv?start=2026-06-01&end=2026-06-30"
+            )
+            page.reload(wait_until="networkidle")
+            plans = page.locator('[data-money-section="plans"]')
+            if plans.get_attribute("aria-expanded") != "true":
+                plans.click()
+            page.locator('[data-money-task="goals"]').click()
+            expect(page.locator('[data-card="goals"]')).to_contain_text("Emergency Fund")
+            page.locator(".goal-row [data-del-goal]").click()
+            page.get_by_role("alertdialog").locator("[data-dialog-confirm]").click()
+            expect(page.locator(".goal-row")).to_have_count(0)
+            assert page.evaluate("() => document.documentElement.scrollWidth <= innerWidth + 1")
+            assert not errors and not blocked, (errors, blocked)
+            record["status"] = "passed"
+        except Exception as error:
+            record["error"] = str(error)
+            page.screenshot(path=str(out / f"{width}-failed.png"))
+        finally:
+            record.update(page_errors=errors, blocked_external_requests=blocked)
+            context.close()
+            (out / "scenarios.json").write_text(json.dumps({"scenarios": results}, indent=2))
+    browser.close()
+print({r["profile"]: r["status"] for r in results})
+raise SystemExit(any(r["status"] != "passed" for r in results))

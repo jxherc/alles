@@ -405,7 +405,10 @@ class AgendaCase:
         await expect(self.page.locator("#te-title" if task else "#cal-title")).to_have_value(
             record["title"]
         )
-        await expect(self.page.locator("#te-title" if task else "#cal-title")).to_be_focused()
+        # a touch screen keeps the keyboard down: the event editor's heading takes focus there
+        coarse = await self.page.evaluate("matchMedia('(pointer: coarse)').matches")
+        focus_owner = "#te-title" if task else "#cal-ed-head" if coarse else "#cal-title"
+        await expect(self.page.locator(focus_owner)).to_be_focused()
         target = parse_qs(urlsplit(self.page.url).query)
         assert target["record"] == [record["id"]] and target["record_view"] == [
             "tasks" if task else "calendar"

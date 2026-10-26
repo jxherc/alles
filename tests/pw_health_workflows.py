@@ -10,13 +10,17 @@ import json
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 from pw_settings_helpers import choose_settings_section
+
+# inside the default 30d range whatever day the gate runs
+FIRST_DAY = (date.today() - timedelta(days=1)).isoformat()
+CORRECTED_DAY = (date.today() - timedelta(days=2)).isoformat()
 
 
 def run():
@@ -142,13 +146,13 @@ def run():
                 page.get_by_role("button", name="add", exact=True).click()
                 expect(page.locator("#health-entry-error")).to_contain_text("valid date")
                 assert not saved(note)
-                page.get_by_label("date", exact=True).fill("2026-09-25")
+                page.get_by_label("date", exact=True).fill(FIRST_DAY)
                 passed()
                 begin("health.entry-draft-retention")
                 page.get_by_role("radio", name="7d", exact=True).click()
                 expect(page.locator("#health-value")).to_have_value("74.25")
                 expect(page.locator("#health-note")).to_have_value(note)
-                expect(page.locator("#health-date")).to_have_value("2026-09-25")
+                expect(page.locator("#health-date")).to_have_value(FIRST_DAY)
                 page.get_by_role("radio", name="30d", exact=True).click()
                 expect(page.locator("#health-note")).to_have_value(note)
                 passed()
@@ -180,15 +184,15 @@ def run():
                 expect(page.locator("#health-value")).to_have_value("74.25")
                 page.get_by_label("value", exact=True).fill("72.125")
                 page.get_by_label("note (optional)", exact=True).fill(note + " corrected")
-                page.get_by_label("date", exact=True).fill("2026-09-24")
+                page.get_by_label("date", exact=True).fill(CORRECTED_DAY)
                 page.get_by_role("button", name="save", exact=True).click()
                 expect(page.locator("#health-entry-form")).to_have_count(0)
                 expect(row.get_by_role("button", name="edit", exact=False)).to_be_focused()
                 page.reload(wait_until="networkidle")
                 expect(row.locator(".health-row-val")).to_have_text("72.125 kg")
-                expect(row).to_contain_text("2026-09-24")
+                expect(row).to_contain_text(CORRECTED_DAY)
                 entry = saved(note + " corrected")[0]
-                assert entry["value"] == 72.125 and entry["date"] == "2026-09-24"
+                assert entry["value"] == 72.125 and entry["date"] == CORRECTED_DAY
                 assert not saved(note)
                 passed()
                 begin("health.failed-edit-retry")

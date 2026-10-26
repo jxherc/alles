@@ -17,6 +17,32 @@ from playwright.sync_api import expect, sync_playwright
 from services.appearance import from_legacy
 
 
+class PlanAction:
+    """The reply's "+plan task" lives in its "more reply actions" menu."""
+
+    def __init__(self, page):
+        self.page = page
+
+    def more(self):
+        return self.page.locator(".ai-wrap .msg-more-trigger")
+
+    def item(self):
+        return self.page.locator(".ai-wrap .msg-actions-menu button").filter(has_text="+plan task")
+
+    def press(self):
+        # closing a panel above can still scroll the chat, and a scroll dismisses an open menu
+        self.page.evaluate(
+            """() => new Promise(resolve => {
+                let timer = setTimeout(done, 150);
+                function done() { removeEventListener('scroll', bump, true); resolve(); }
+                function bump() { clearTimeout(timer); timer = setTimeout(done, 150); }
+                addEventListener('scroll', bump, true);
+            })"""
+        )
+        self.more().press("Enter")
+        self.item().press("Enter")
+
+
 def run():
     base = "http://127.0.0.1:" + os.environ["PORT"]
     run_id = os.environ["ALLES_TEST_RUN_ID"]
@@ -160,16 +186,17 @@ def run():
             def open_source():
                 page.goto(base + "/?app=aide#" + sid, wait_until="networkidle")
                 expect(page.locator("#aide-conversation-name")).to_have_text("new task")
-                expect(page.locator("#aide-sidebar-toggle-label")).to_have_text("aide tasks")
+                expect(page.locator("#aide-history-name")).to_have_text("new task")
+                expect(page.locator("#aide-sidebar-toggle-label")).to_have_text("archive")
                 expect(page.locator("#new-chat-btn")).to_have_text("new aide task")
                 expect(page.locator("#session-search")).to_have_attribute(
-                    "aria-label", "search aide tasks…"
+                    "aria-label", "search conversations"
                 )
-                return page.locator(".ai-wrap").get_by_role("button", name="+plan task", exact=True)
+                return PlanAction(page)
 
             try:
                 before = {t["id"] for t in tasks()}
-                button = open_source()
+                plan = open_source()
                 if zoom:
                     worker = (
                         context.service_workers[0]
@@ -185,7 +212,10 @@ def run():
                     )
                     page.wait_for_function("innerWidth===720 && devicePixelRatio===2")
                     row["native_zoom"] = dict(factor=2, css_width=720, dpr=2)
-                expect(button).to_have_attribute("title", "review this reply as a plan task")
+                expect(plan.item()).to_have_attribute("title", "review this reply as a plan task")
+                # help sits with the conversation settings, which open from the "more" menu
+                page.locator("#aide-more-btn").press("Enter")
+                page.locator('#aide-more-menu [data-aide-central-action="options"]').press("Enter")
                 help_button = page.locator("#aide-help")
                 help_button.press("Enter")
                 help_dialog = page.locator("#aide-help-dialog")
@@ -198,6 +228,8 @@ def run():
                 capture("help")
                 page.keyboard.press("Escape")
                 expect(help_button).to_be_focused()
+                page.locator("#aide-options-close").press("Enter")
+                expect(page.locator("#aide-more-btn")).to_be_focused()
                 # Explicit pending-source UI fixture; history/recovery and Plan writes are real local paths.
                 page.locator(".ai-wrap").evaluate(
                     "(wrap,id)=>{wrap.pendingSourceReply=true;wrap.sourceReplyId=id}",
@@ -210,21 +242,21 @@ def run():
                     ),
                     times=1,
                 )
-                button.press("Enter")
+                plan.press()
                 expect(page.locator("#aide-task-recovery")).to_contain_text("try +plan task again")
-                expect(button).to_have_text("+plan task")
+                expect(plan.item()).to_have_text("+plan task")
                 assert not writes and {t["id"] for t in tasks()} == before
                 capture("source-retry")
-                button.press("Enter")
+                plan.press()
                 dialog = page.get_by_role("dialog", name="review task for plan", exact=True)
                 expect(dialog).to_be_visible()
                 expect(page.locator("#capture-notes")).to_have_value(answer)
                 capture("review")
                 page.keyboard.press("Escape")
                 expect(dialog).to_be_hidden()
-                expect(button).to_be_focused()
+                expect(plan.more()).to_be_focused()
                 assert not writes and {t["id"] for t in tasks()} == before
-                button.press("Enter")
+                plan.press()
                 title = "reviewed Plan result " + profile
                 notes = answer + "\nreviewed details"
                 page.locator("#capture-title").fill(title)
@@ -259,12 +291,10 @@ def run():
                     api.get(base + "/api/sessions/" + sid + "/history").json()["session"]["name"]
                     == "new task"
                 )
-                button = page.locator(".ai-wrap").get_by_role(
-                    "button", name="+plan task", exact=True
-                )
+                plan = PlanAction(page)
                 # A new, explicit acceptance whose actual reply is lost still cannot duplicate on retry.
                 before_lost = {t["id"] for t in tasks()}
-                button.press("Enter")
+                plan.press()
                 page.locator("#capture-title").fill("interrupted Plan result " + profile)
                 mode = "lost"
                 page.locator("#capture-accept").press("Enter")
@@ -292,28 +322,33 @@ def run():
                             messages["aide.new_task"]
                         )
                         expect(page.locator("#aide-sidebar-toggle-label")).to_have_text(
-                            messages["aide.tasks"]
+                            messages["common.archive"]
                         )
                         expect(page.locator("#aide-conversation-name")).to_have_text("new task")
+                        expect(page.locator("#aide-history-name")).to_have_text("new task")
                         expect(
-                            page.locator(".ai-wrap").get_by_role(
-                                "button", name=messages["aide.add_plan_task"], exact=True
+                            page.locator(".ai-wrap .msg-actions-menu button").filter(
+                                has_text=messages["aide.add_plan_task"]
                             )
                         ).to_be_attached()
                         assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
                         if width == 390:
-                            bounds = page.locator("#aide-sidebar-toggle-label").bounding_box()
-                            button_bounds = page.locator("#sidebar-toggle-btn").bounding_box()
-                            assert bounds["height"] <= 14 and button_bounds["height"] >= 44
-                            assert (
-                                bounds["x"] >= button_bounds["x"]
-                                and bounds["x"] + bounds["width"]
-                                <= button_bounds["x"] + button_bounds["width"] + 1
+                            # the archive now opens from the "more" menu: every label must fit
+                            # its 44px row and the menu must stay on the phone
+                            page.locator("#aide-more-btn").press("Enter")
+                            menu = page.locator("#aide-more-menu")
+                            expect(menu).to_be_visible()
+                            fits = page.evaluate(
+                                """() => [...document.querySelectorAll('#aide-more-menu [role=menuitem]')]
+                                    .every(item => item.scrollWidth <= item.clientWidth + 1
+                                        && item.getBoundingClientRect().height >= 44)
+                                    && document.getElementById('aide-more-menu').getBoundingClientRect().right
+                                        <= document.documentElement.clientWidth + 1"""
                             )
-                            assert (
-                                page.locator("#aide-conversation-name").bounding_box()["height"]
-                                <= 21
-                            )
+                            assert fits, lang
+                            page.keyboard.press("Escape")
+                            expect(menu).to_be_hidden()
+                            assert page.locator("#aide-history-name").bounding_box()["height"] <= 21
                         languages.append(lang)
                         if lang in ("ar", "zh-Hant"):
                             capture("locale-" + lang)

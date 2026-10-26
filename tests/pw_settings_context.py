@@ -172,8 +172,9 @@ def navigation(page, api, dest, profile, records):
         expect(title).to_have_text(current.inner_text())
         expect(title).to_be_in_viewport(ratio=1)
         expect(page.locator("#settings-modal-close")).to_be_in_viewport(ratio=1)
+        # named by its own title and the open pane, in whatever language the page is in
         expect(page.locator("#settings-modal")).to_have_accessible_name(
-            "alles settings " + current.inner_text()
+            page.locator("#settings-modal-title").inner_text() + " " + current.inner_text()
         )
         actual = page.evaluate("""() => {
           const rect = e => { const r=e.getBoundingClientRect(); return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}; };

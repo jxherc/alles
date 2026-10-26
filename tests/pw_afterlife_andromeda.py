@@ -232,7 +232,11 @@ def mock_api(route: Route, requests: list[dict], overview_requests: list[dict]) 
         route.fulfill(status=200, content_type="application/json", body=json.dumps(verification))
         return
     if path == "/saved" and request.method == "GET":
-        route.fulfill(status=200, content_type="application/json", body='{"searches": []}')
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"searches": [], "recovery_scopes": ["a" * 64]}),
+        )
         return
     if path == "/saved" and request.method == "POST":
         route.fulfill(status=200, content_type="application/json", body='{"id": "saved-fixture"}')
@@ -338,12 +342,16 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     overview_box = page.locator("#andromeda-overview").bounding_box()
     web_results_box = page.locator("#andromeda-all-results").bounding_box()
     assert overview_box and web_results_box
-    assert web_results_box["y"] - (overview_box["y"] + overview_box["height"]) >= 39
-    assert (
-        page.locator("#andromeda-all-results").evaluate(
-            "element => getComputedStyle(element).borderTopStyle"
-        )
-        == "solid"
+    # one section gap (2rem) under the overview rule
+    assert web_results_box["y"] - (overview_box["y"] + overview_box["height"]) >= 31
+    # the overview reads apart from the web results as its own tinted surface, not a ruled block
+    assert page.locator("#andromeda-overview").evaluate(
+        """element => {
+            const style = getComputedStyle(element);
+            return style.borderBottomWidth === '0px'
+                && style.backgroundColor !== 'rgba(0, 0, 0, 0)'
+                && style.backgroundColor !== 'transparent';
+        }"""
     )
     assert (
         page.locator("#andromeda-key-answer-text")
@@ -427,8 +435,9 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
             assert (
                 page.locator(".andromeda-image-card img").first.get_attribute("loading") == "lazy"
             )
-            assert page.locator(".andromeda-image-card img").first.evaluate(
-                "img => img.complete && img.naturalWidth > 0"
+            # lazy thumbnails finish decoding a moment after the grid renders
+            page.wait_for_function(
+                "() => { const img = document.querySelector('.andromeda-image-card img'); return !!img && img.complete && img.naturalWidth > 0; }"
             )
             page.locator("#andromeda-more-results").click()
             page.wait_for_function(
@@ -437,8 +446,8 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
             assert requests[-1]["max_results"] == 60
         elif category == "videos":
             assert page.locator(".andromeda-video-card").count() == 20
-            assert page.locator(".andromeda-video-card img").first.evaluate(
-                "img => img.complete && img.naturalWidth > 0"
+            page.wait_for_function(
+                "() => { const img = document.querySelector('.andromeda-video-card img'); return !!img && img.complete && img.naturalWidth > 0; }"
             )
             assert (
                 page.locator(".andromeda-video-card")

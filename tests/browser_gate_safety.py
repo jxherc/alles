@@ -345,6 +345,29 @@ class BrowserNetworkGuard:
             return await proceed(*bound.args, **bound.kwargs)
 
         self._replace(Route, "continue_", guarded_continue)
+        self._install_csp_safe_waits()
+
+    def _install_csp_safe_waits(self) -> None:
+        # the app's csp has no 'unsafe-eval'. playwright evals a bare wait_for_function
+        # expression again on every poll (only the first check is exempt), so a wait that isn't
+        # true at once died with an EvalError. as a function it's evaled once, then just called
+        from playwright._impl._frame import Frame
+
+        poll = Frame.wait_for_function
+
+        @functools.wraps(poll)
+        async def csp_safe_wait(instance, *args, **kwargs):
+            bound = self._arguments(poll, instance, args, kwargs)
+            expression = bound.arguments.get("expression")
+            if isinstance(expression, str):
+                body = expression.strip().rstrip(";")
+                bound.arguments["expression"] = (
+                    f"arg => {{ const value = (\n{body}\n);\n"
+                    "return typeof value === 'function' ? value(arg) : value; }"
+                )
+            return await poll(*bound.args, **bound.kwargs)
+
+        self._replace(Frame, "wait_for_function", csp_safe_wait)
 
 
 _network_guard = None

@@ -728,7 +728,7 @@ def run() -> None:
             assert page.evaluate("window._pendingWorkingDir") == "/workspace/alles"
             page.evaluate(
                 """async () => {
-                  const sessions = await import('/static/js/sessions.js?v=241');
+                  const sessions = await import('/static/js/sessions.js');
                   await sessions.createSession('context-model', 'context-endpoint');
                 }"""
             )
@@ -952,7 +952,7 @@ def run() -> None:
             page.evaluate(
                 """
                 async () => {
-                  const {appendAiMsg} = await import('/static/js/sessions.js?v=235');
+                  const {appendAiMsg} = await import('/static/js/sessions.js');
                   appendAiMsg('answer', 'thinking first', [{type:'tool', name:'check'}]);
                 }
                 """

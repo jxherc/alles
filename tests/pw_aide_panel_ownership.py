@@ -82,7 +82,7 @@ rows = []
 
 def geometry(page):
     return page.evaluate(
-        "() => {\n      const rect = id => document.getElementById(id).getBoundingClientRect().toJSON();\n      return {title:rect('aide-conversation-name'),header:document.querySelector('.main > .topbar').getBoundingClientRect().toJSON(),composer:rect('composer-ta'),panel:rect('aide-work-panel'),sidebar:rect('aide-sidebar'),sidebarHidden:document.body.classList.contains('sidebar-hidden'),cssWidth:innerWidth};\n    }"
+        "() => {\n      const rect = id => document.getElementById(id).getBoundingClientRect().toJSON();\n      return {title:rect('aide-history-name'),context:rect('aide-history-context'),button:rect('aide-history-return'),composer:rect('composer-ta'),panel:rect('aide-work-panel'),sidebar:rect('aide-sidebar'),sidebarHidden:document.body.classList.contains('sidebar-hidden'),cssWidth:innerWidth};\n    }"
     )
 
 
@@ -127,75 +127,77 @@ with sync_playwright() as pw:
                 draft = "keep this exact newer question — café 中文"
                 page.locator("#composer-ta").fill(draft)
                 small = page.evaluate("innerWidth<=700")
-                if not small and page.locator("body.sidebar-hidden").count():
-                    page.locator("#sidebar-toggle-btn").click()
-                if small and (not page.locator("body.sidebar-hidden").count()):
-                    page.locator("#aide-sidebar-close").click()
-                page.locator("#aide-work-panel-toggle").press("Enter")
+
+                def open_from_more(action):
+                    page.locator("#aide-more-btn").press("Enter")
+                    page.locator(f'#aide-more-menu [data-aide-central-action="{action}"]').press(
+                        "Enter"
+                    )
+
+                def title_in_context(box):
+                    # the saved name sits in the strip under the header, clear of its button
+                    assert (
+                        box["title"]["left"] >= box["context"]["left"]
+                        and box["title"]["right"] <= box["context"]["right"]
+                        and box["title"]["top"] >= box["context"]["top"]
+                        and box["title"]["bottom"] <= box["context"]["bottom"]
+                        and box["title"]["right"] <= box["button"]["left"]
+                        and box["context"]["right"] <= box["cssWidth"] + 1
+                    ), box
+
+                expect(page.locator("#aide-history-name")).to_have_text(name)
+                expect(page.locator("#aide-conversation-name")).to_have_attribute("title", name)
+                # the archive and the task tools open from "more", one at a time, over the chat
+                open_from_more("tools")
                 expect(page.locator("#aide-work-panel")).to_be_visible()
                 expect(page.locator("#aide-work-panel-close")).to_be_focused()
                 opened = geometry(page)
                 row["opened"] = opened
                 capture(ctx, page, out / f"{label}-panel-open.png", width)
                 assert opened["composer"]["width"] >= 300, opened
-                assert (
-                    opened["title"]["top"] >= opened["header"]["top"]
-                    and opened["title"]["bottom"] <= opened["header"]["bottom"]
-                ), opened
-                assert (
-                    opened["title"]["left"] >= opened["header"]["left"]
-                    and opened["title"]["right"] <= opened["header"]["right"]
-                ), opened
-                expect(page.locator("#aide-conversation-name")).to_have_attribute("title", name)
-                if page.evaluate("innerWidth<=1100"):
-                    assert opened["sidebarHidden"], opened
-                else:
-                    assert not opened["sidebarHidden"], opened
+                title_in_context(opened)
+                assert opened["sidebarHidden"], opened
                 page.keyboard.press("Escape")
                 expect(page.locator("#aide-work-panel")).to_be_hidden()
-                expect(page.locator("#aide-work-panel-toggle")).to_be_focused()
+                expect(page.locator("#aide-more-btn")).to_be_focused()
                 expect(page.locator("#composer-ta")).to_have_value(draft)
-                page.locator("#aide-work-panel-toggle").press("Enter")
-                if small:
-                    page.keyboard.press("Escape")
-                if page.locator("body.sidebar-hidden").count():
-                    page.locator("#sidebar-toggle-btn").press("Enter")
+                open_from_more("tools")
+                expect(page.locator("#aide-work-panel")).to_be_visible()
+                expect(page.locator("#aide-work-panel-close")).to_be_focused()
+                open_from_more("archive")
                 expect(page.locator("#aide-sidebar")).to_be_visible()
-                if page.evaluate("innerWidth<=1100"):
-                    expect(page.locator("#aide-work-panel")).to_be_hidden()
+                expect(page.locator("#aide-work-panel")).to_be_hidden()
+                if small:
+                    # on a phone focus starts on the open conversation in the archive
+                    assert page.evaluate("!!document.activeElement.closest('#aide-sidebar')")
+                else:
+                    expect(page.locator("#aide-sidebar-close")).to_be_focused()
                 expect(page.locator("#sidebar-toggle-btn")).to_have_attribute(
                     "aria-expanded", "true"
                 )
                 expect(page.locator("#composer-ta")).to_have_value(draft)
-                if small:
-                    page.locator("#aide-sidebar-close").click()
+                page.keyboard.press("Escape")
+                expect(page.locator("#aide-sidebar")).to_be_hidden()
+                expect(page.locator("#aide-more-btn")).to_be_focused()
+                expect(page.locator("#composer-ta")).to_have_value(draft)
                 if width == 1440 and (not zoom):
+                    open_from_more("tools")
                     expect(page.locator("#aide-work-panel")).to_be_visible()
-                    assert not page.locator("body.sidebar-hidden").count()
+                    expect(page.locator("#aide-work-panel-close")).to_be_focused()
+                    assert page.locator("body.sidebar-hidden").count() == 1
                     page.set_viewport_size({"width": 820, "height": 900})
                     page.wait_for_function(
-                        "document.body.classList.contains('sidebar-hidden') && document.getElementById('composer-ta').getBoundingClientRect().width >= 300"
+                        "document.getElementById('composer-ta').getBoundingClientRect().width >= 300"
                     )
                     narrowed = geometry(page)
                     row["narrowed"] = narrowed
-                    assert (
-                        narrowed["title"]["left"] >= narrowed["header"]["left"]
-                        and narrowed["title"]["right"] <= narrowed["header"]["right"]
-                    ), narrowed
-                    assert (
-                        narrowed["title"]["top"] >= narrowed["header"]["top"]
-                        and narrowed["title"]["bottom"] <= narrowed["header"]["bottom"]
-                    ), narrowed
+                    title_in_context(narrowed)
                     expect(page.locator("#aide-work-panel")).to_be_visible()
                     capture(ctx, page, out / f"{label}-resize-tools.png", 820)
-                    page.locator("#sidebar-toggle-btn").press("Enter")
+                    page.locator("#aide-work-panel-close").press("Enter")
                     expect(page.locator("#aide-work-panel")).to_be_hidden()
-                    expect(page.locator("#aide-sidebar")).to_be_visible()
-                    expect(page.locator("#sidebar-toggle-btn")).to_have_attribute(
-                        "aria-expanded", "true"
-                    )
                     expect(page.locator("#composer-ta")).to_have_value(draft)
-                    capture(ctx, page, out / f"{label}-resize-conversations.png", 820)
+                    capture(ctx, page, out / f"{label}-resize-closed.png", 820)
                     page.set_viewport_size({"width": 1440, "height": 900})
                 page.reload(wait_until="networkidle")
                 expect(page.locator("#aide-conversation-name")).to_have_text(name)

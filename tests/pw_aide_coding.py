@@ -157,6 +157,20 @@ try:
             expect(page.locator("#aide-code-model-label")).to_have_text("fixture-fast")
             expect(page.locator("#aide-code-model")).to_be_focused()
 
+            # escape closes the topmost open thing and gives focus back to what opened it; with
+            # nothing open it leaves focus where it is
+            page.locator("#aide-code-input").focus()
+            page.keyboard.press("Escape")
+            expect(page.locator("#aide-code-input")).to_be_focused()
+            page.locator("#aide-code-model").press("Enter")
+            expect(page.locator("#aide-code-model-menu")).to_be_visible()
+            page.keyboard.press("Tab")  # focus leaves the menu, which stays open
+            page.keyboard.press("Escape")
+            expect(page.locator("#aide-code-model-menu")).to_be_hidden()
+            expect(page.locator("#aide-code-model")).to_be_focused()
+            page.keyboard.press("Escape")
+            expect(page.locator("#aide-code-model")).to_be_focused()
+
             # pi asks: the question shows above the composer and the answer goes back
             page.locator("#aide-code-input").fill("ask before you start")
             page.locator("#aide-code-input").press("Enter")
@@ -193,6 +207,8 @@ try:
                         "keyboard folder picker with up and open",
                         "live tool row, streamed answer, tok/s and cache line",
                         "model menu by keyboard",
+                        "escape closes the open menu, keeps focus when nothing is open",
+                        "a cancelled delete gives focus back to the chat menu button",
                         "question answered from the chat",
                         "stop ends a long run",
                         "saved chat reopens after reload",
@@ -215,6 +231,12 @@ try:
             )
             assert "abc123xyz9" not in page.content()
             # delete lives in the chat's "···" menu, not on the header
+            page.locator("#aide-code-chat-more").click()
+            page.locator("#aide-code-delete").click()
+            expect(page.locator(".dialog-overlay")).to_be_visible()
+            page.keyboard.press("Escape")  # cancelled: focus goes back to the menu's button
+            expect(page.locator(".dialog-overlay")).to_have_count(0)
+            expect(page.locator("#aide-code-chat-more")).to_be_focused()
             page.locator("#aide-code-chat-more").click()
             page.locator("#aide-code-delete").click()
             page.locator(".dialog-overlay [data-dialog-confirm]").click()
@@ -251,6 +273,12 @@ try:
             expect(page.locator(".acw-rail")).to_be_visible()
             expect(page.locator(".acw-main")).to_be_hidden()
             page.screenshot(path=str(out / "aide-coding-phone-rail-light.png"))
+            # escape closes the projects pane and goes back to the button that opened it
+            page.keyboard.press("Escape")
+            expect(page.locator(".acw-main")).to_be_visible()
+            expect(page.locator("#aide-code-rail-back")).to_be_focused()
+            page.locator("#aide-code-rail-back").tap()
+            expect(page.locator(".acw-rail")).to_be_visible()
             page.locator(".acw-chat-title").first.tap()
             expect(page.locator(".acw-main")).to_be_visible()
             assert not small_targets(page), small_targets(page)
@@ -261,6 +289,7 @@ try:
                     "checks": [
                         "390px light theme",
                         "rail and chat as separate panes",
+                        "escape closes the projects pane",
                         "no page overflow",
                     ],
                 }

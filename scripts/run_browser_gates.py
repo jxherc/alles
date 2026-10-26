@@ -35,8 +35,9 @@ from stabilization_report import (  # noqa: E402
 # Explicitly maintained, inspected entries; the reporter shares this exact contract.
 SUITES = BROWSER_SUITES
 # gates that outgrew the default budget: settings-panes walks 80 settings scenarios and takes
-# about 340s, so 180s killed it mid-run every time
-GATE_TIMEOUTS = {"settings-panes": 600}
+# about 340s, so 180s killed it mid-run every time. plan-agenda-navigation runs 16 profiles
+# (about 210s) and aide-context-help 64 (about 140s, longer under load)
+GATE_TIMEOUTS = {"settings-panes": 600, "plan-agenda-navigation": 600, "aide-context-help": 600}
 COMMANDS = {
     "style-ownership": ("tests/pw_style_ownership.py",),
     "smoke-desktop": ("tests/pw_stability_smoke.py", "desktop"),
@@ -249,6 +250,14 @@ COMMANDS = {
     "aide-session-list": ("tests/pw_aide_session_list.py",),
     "aide-source-outcomes": ("tests/pw_aide_source_outcomes.py",),
     "ask-panel": ("tests/pw_ask_panel.py",),
+    "plan-agenda-navigation": ("tests/pw_plan_agenda_navigation.py",),
+    "specialist-real": ("tests/pw_phase8_specialist_real.py",),
+    "aide-panel-ownership": ("tests/pw_aide_panel_ownership.py",),
+    "aide-draft-storage-failure": ("tests/pw_aide_draft_storage_failure.py",),
+    "aide-depth": ("tests/pw_aide_depth.py",),
+    "aide-plan-wording": ("tests/pw_aide_plan_wording.py",),
+    "aide-context-help": ("tests/pw_aide_context_help.py",),
+    "afterlife-andromeda": ("tests/pw_afterlife_andromeda.py",),
     **{
         f"surfaces-{device}-{theme}": ("tests/pw_stability_surfaces.py", device, theme)
         for device in ("desktop", "phone")

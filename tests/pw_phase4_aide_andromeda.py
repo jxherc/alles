@@ -415,7 +415,7 @@ def check_aide(browser, viewport: dict, mobile: bool, results: dict) -> None:
         """async () => {
           const endpoints = await fetch('/api/models').then(response => response.json());
           const endpoint = endpoints.find(value => (value.models || []).includes('phase4-local'));
-          if (endpoint) (await import('/static/js/models.js?v=210')).selectModel(endpoint.id, 'phase4-local');
+          if (endpoint) (await import('/static/js/models.js?v=214')).selectModel(endpoint.id, 'phase4-local');
         }"""
     )
     page.locator("#composer-ta").fill("check this in the background")

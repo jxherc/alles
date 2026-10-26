@@ -185,6 +185,12 @@ def run():
                     name_field = page.locator("#sub-name")
                     due = page.locator("#sub-due")
                     add_sub = page.locator("#sub-add-btn")
+                    # a phone keeps the add form folded behind one "+ subscription" row
+                    fold = page.locator("#sub-add-toggle")
+                    if fold.is_visible():
+                        expect(name_field).to_be_hidden()
+                        fold.press("Enter")
+                        expect(name_field).to_be_focused()
                     expect(page.locator("#sub-required")).to_be_visible()
                     expect(due).to_have_attribute("aria-describedby", "sub-required")
                     capture("subscription-empty")

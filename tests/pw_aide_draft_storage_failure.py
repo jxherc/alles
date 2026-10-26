@@ -79,15 +79,21 @@ def capture(ctx, page, path, width, height):
     return {"path": str(path), "sha256": hashlib.sha256(png).hexdigest(), "pixels": dimensions}
 
 
+def more_action(page, action):
+    page.locator("#aide-more-btn").click()
+    page.locator(f'#aide-more-menu [data-aide-central-action="{action}"]').click()
+
+
 def close_sidebar(page):
-    if page.evaluate("innerWidth <= 700") and page.locator("#aide-sidebar").is_visible():
+    # the archive is a dialog over the conversation at every width
+    if page.locator("#aide-sidebar").is_visible():
         page.keyboard.press("Escape")
         expect(page.locator("#aide-sidebar")).to_be_hidden()
 
 
 def sidebar(page):
     if not page.locator("#aide-sidebar").is_visible():
-        page.locator("#sidebar-toggle-btn").click()
+        more_action(page, "archive")
     expect(page.locator("#aide-sidebar")).to_be_visible()
 
 
@@ -204,9 +210,9 @@ def run():
                         assert api.get(base + "/api/models").json() == [], (
                             "requires an empty owned model fixture"
                         )
-                        outgoing = api.post(
-                            base + "/api/sessions", data={"name": "outgoing " + label}
-                        ).json()["id"]
+                        # aide has one permanent conversation: the draft lives there and every
+                        # ask from another app lands in it
+                        outgoing = api.get(base + "/api/aide/conversation").json()["id"]
                         other = api.post(
                             base + "/api/sessions", data={"name": "destination " + label}
                         ).json()["id"]
@@ -315,14 +321,14 @@ def run():
                         ).to_be_visible()
 
                         def target():
-                            if case in ("new-task", "switch"):
+                            if case == "new-task":
+                                # no visible control starts a new task: Alt+N does
+                                return "shortcut"
+                            if case == "switch":
                                 sidebar(page)
-                                selector = (
-                                    "#new-chat-btn"
-                                    if case == "new-task"
-                                    else f'.session-item[data-id="{other}"] .session-open'
+                                keyboard_target(
+                                    page, f'.session-item[data-id="{other}"] .session-open'
                                 )
-                                keyboard_target(page, selector)
                                 return "keyboard"
                             if case == "project":
                                 app_view(page, "andromeda")
@@ -334,7 +340,17 @@ def run():
                                     >= 0
                                 )
                                 return "#andromeda-explain"
-                            return "#incognito-btn"
+                            return "private"
+
+                        def fire(action):
+                            if action == "keyboard":
+                                page.keyboard.press("Enter")
+                            elif action == "shortcut":
+                                page.keyboard.press("Alt+N")
+                            elif action == "private":
+                                more_action(page, "private")
+                            else:
+                                page.locator(action).click()
 
                         action = target()
                         before = page.evaluate(STATE)
@@ -344,10 +360,7 @@ def run():
                         row["captures"].append(
                             capture(ctx, page, out / f"{label}-before.png", width, height)
                         )
-                        if action == "keyboard":
-                            page.keyboard.press("Enter")
-                        else:
-                            page.locator(action).click()
+                        fire(action)
                         page.wait_for_function(
                             "n => __ownedDraftFailure.attempts().length > n", arg=attempts
                         )
@@ -382,10 +395,7 @@ def run():
                         )
                         page.evaluate("__ownedDraftFailure.set(null)")
                         action = target()
-                        if action == "keyboard":
-                            page.keyboard.press("Enter")
-                        else:
-                            page.locator(action).click()
+                        fire(action)
                         if case == "switch":
                             page.wait_for_function(
                                 "id => window._currentSession?.id === id", arg=other
@@ -407,7 +417,7 @@ def run():
                             expect(page.locator("#incognito-exit")).to_be_visible()
                             expect(page.locator("#attachment-chips")).to_be_hidden()
                             row["private_active_attachments"] = page.evaluate(
-                                "async () => (await import('/static/js/uploads.js?v=253')).getAttachments()"
+                                "async () => (await import('/static/js/uploads.js?v=254')).getAttachments()"
                             )
                             assert row["private_active_attachments"] == []
                             assert api.get(base + "/api/uploads/" + upload).status == 404
@@ -426,7 +436,10 @@ def run():
                         if case == "incognito":
                             page.locator("#incognito-exit").click()
                         sidebar(page)
-                        page.locator(f'.session-item[data-id="{outgoing}"] .session-open').click()
+                        page.locator("#aide-return-primary").click()
+                        page.wait_for_function(
+                            "id => window._currentSession?.id === id", arg=outgoing
+                        )
                         expect(field).to_have_value(text)
                         close_sidebar(page)
                         expect(page.locator("#aide-document-scope")).to_be_visible()
