@@ -4883,11 +4883,12 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-search-result { width: 100%; min-height: var(--ui-control-height, 44px); background: none; font: inherit; text-align: left; overflow-wrap: anywhere; }
 .jrnl-heat-label { flex: 1; }
 .jrnl-main { width: 100%; }
-.jrnl-extras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; align-items: start; }
+.jrnl-extras { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 1.4rem; align-items: start; }
 /* minmax(0,1fr) not 1fr — a plain 1fr track won't shrink below a wide child's min-content
    (the mood-corr matrix), so it overflowed the column on mobile. matches the desktop rule. */
-@media (max-width: 760px) { .jrnl-extras { grid-template-columns: minmax(0, 1fr); } }
 .jrnl-datebar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2); margin-bottom: var(--k-space-3); }
+/* phone: the date gets its own line, between two arrows it wrapped into three */
+@media (max-width: 560px) { .jrnl-datebar .jrnl-date { flex: 1 0 100%; order: -1; } }
 .jrnl-date { flex: 1; min-width: 0; font-size: 1rem; font-weight: 500; color: var(--text); }
 .jrnl-words { margin-left: auto; font-size: 0.8125rem; color: var(--muted); }
 .jrnl-prompt { font-size: 0.8125rem; color: var(--muted); font-style: italic; margin-bottom: 0.7rem; }
@@ -4980,7 +4981,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-recent-row { display: flex; gap: 0.45rem; align-items: baseline; }
 .jrnl-recent-row.active { border-color: var(--faint); background: var(--panel); color: var(--text); }
 .jrnl-recent-mood { width: 1.1em; text-align: center; flex-shrink: 0; }
-.jrnl-recent-date { color: var(--muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.jrnl-recent-date { color: var(--muted); flex-shrink: 0; min-width: 5.9em; font-variant-numeric: tabular-nums; }
 .jrnl-recent-snip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* text starts on its heading's edge (usage, journal sections) */
 .jrnl-empty { font-size: 0.8125rem; color: var(--muted); padding: 0.3rem 0; }
@@ -6355,7 +6356,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 .cal-cell-events { display: flex; flex-direction: column; gap: 2px; }
 .cal-chip {
-  font-size: 0.8125rem; line-height: 1.3; padding: 1px 4px; border-radius: var(--k-radius-control);
+  font-size: 0.8125rem; line-height: 1.3; padding: 1px 4px 1px 8px; border-radius: var(--k-radius-control);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   color: var(--bg); cursor: pointer;
 }
@@ -6588,7 +6589,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-task:hover { background: var(--panel); color: var(--text); }
 /* a task toggle that's a real button keeps the chip look; in the week/day all-day row it gets the
    full 44px target (month cells keep their compact chips) */
-button.cal-task { width: 100%; margin: 0; border: 0; border-left: 2px solid var(--green); background: none; font: inherit; font-size: 0.8125rem; text-align: left; }
+button.cal-task { width: 100%; margin: 0; padding-inline-start: 6px; border: 0; border-left: 2px solid var(--green); background: none; font: inherit; font-size: 0.8125rem; text-align: left; }
 .cal-tg-allday .cal-task { min-height: 44px; }
 .cal-task-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* a chip or all-day row is a 44px touch target: two lines of title fit it, so the title wraps
@@ -10963,6 +10964,10 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-journal-head { max-width: none; margin: 0; min-height: 54px; padding: 0 1rem; border-bottom: 1px solid var(--faint); }
 .docs-journal-stats { margin-left: auto; color: var(--muted); font-size: 0.8125rem; }
 .docs-journal-copy { min-height: 44px; margin: 0; padding: 0 0.5rem; font-size: 0.875rem; }
+.docs-journal-head { container-type: inline-size; flex-wrap: nowrap; }
+.docs-journal-copy { margin-inline-start: var(--k-space-2); }
+/* stats + copy + cog need ~45rem of head; under that the cog wrapped onto its own row */
+@container (max-width: 45rem) { .docs-journal-stats { display: none; } .docs-journal-copy { margin-inline-start: auto; } }
 .docs-journal-copy:focus-visible { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
 .docs-journal-main #journal-body {
   flex: 1;
@@ -11521,3 +11526,53 @@ body.aide-working .composer-box::after {
 
 /* mail before the first account: only the account setup and compose */
 #mail-view[data-no-account] :is(#mail-sidebar-toggle, #mail-account, #mail-search, #mail-refresh-btn, #mail-sidebar, #mail-list) { display: none; }
+
+/* paragraphs and lists in a rendered document had no margin at all, so two paragraphs, or a list and
+   the paragraph under it, read as one block */
+#wiki-preview > :is(p, ul, ol) { margin-block-end: var(--k-space-4); }
+/* the editor bar's "local draft" note was cut to "the fil..." on a tablet; when the bar is narrow it
+   takes its own row under the view switch and actions instead */
+.docs-editor { container-type: inline-size; }
+@container (max-width: 52rem) {
+  .docs-editor-bar { flex-wrap: wrap; row-gap: 0; }
+  .docs-editor-bar .docs-editor-hint { order: 3; flex: 1 0 100%; margin: 0 0 var(--k-space-1); white-space: normal; }
+}
+/* live editor: a heading is not underlined (the highlighter's default), and a wrapped bullet line
+   hangs under its text instead of running back under the bullet */
+.wiki-live .cm-h, .wiki-live .cm-h * { text-decoration: none; }
+.wiki-live .cm-line:has(.cm-bullet) { padding-left: 1.09em; text-indent: -1.09em; }
+/* a state note ("a private local draft is waiting") keeps its action labels on one line; the actions
+   drop under the message when they do not both fit */
+.docs-inline-state { flex-wrap: wrap; row-gap: 0; }
+.docs-inline-state .docs-inline-actions { flex-wrap: wrap; }
+.docs-inline-state .docs-inline-actions button { white-space: nowrap; }
+/* the phone drawer is pinned top to bottom, but an old stacked-layout cap (42vh) kept it to a third of
+   the screen with the page showing under it */
+@media (max-width: 760px) { #wiki-view .docs-nav-panel { max-height: none; } }
+/* a long folder name wrapped to three lines where a long file name is cut to one */
+.wiki-dir-head > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the countdown form's long placeholder was cut mid-letter */
+#day-name { text-overflow: ellipsis; }
+/* "press Esc, then Tab" means nothing with a finger, and cost a row of a phone's editor */
+@media (hover: none) and (pointer: coarse) { #wiki-view .docs-editor-keyboard-hint { display: none; } }
+/* the code block's run action drew a box that copy did not; both are bare text actions */
+#wiki-preview .code-block .code-run { border-color: transparent; min-height: 44px; padding: 0 var(--k-space-3); }
+
+/* open document head: row 1 is browse, the title (takes the room) and import; row 2 is the stats, the
+   save state and the actions, pushed right. before, the pieces wrapped wherever they ran out of room:
+   actions on the left, the title cut to a few letters, "saved" alone on a row */
+#wiki-view .docs-reader-head { flex-wrap: wrap; row-gap: 0; padding-block: var(--k-space-1); }
+#wiki-view .docs-reader-head::after { content: ""; flex: 0 0 100%; order: 1; }
+#wiki-view .docs-reader-head :is(.wiki-stats, .docs-save-state, .docs-reader-actions) { order: 2; }
+#wiki-view .docs-reader-head .docs-title-block { flex: 1 1 0; min-width: 0; }
+#wiki-view .docs-reader-head .wiki-current { max-width: none; margin-left: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#wiki-view .docs-reader-head .docs-current-path { max-width: none; }
+#wiki-view .docs-reader-head .wiki-stats { margin-left: 0; padding-left: var(--k-space-2); }
+#wiki-view .docs-reader-head .docs-save-state { margin-right: auto; }
+#wiki-view .docs-reader-head .docs-reader-actions { margin-left: auto; }
+@media (max-width: 760px) {
+  /* no path line on a phone, so the name gets two lines before it is cut */
+  #wiki-view .docs-reader-head .wiki-current { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
+  #wiki-view .docs-reader-head .docs-reader-actions { margin-left: 0; }
+  #wiki-view .docs-reader-head .docs-save-state:not(:empty) { order: 3; padding: 0 var(--k-space-2) var(--k-space-1); }
+}
