@@ -26,7 +26,7 @@
 #aide-coding-workspace .acw-path { color: var(--k-muted); font: 400 0.8125rem/1.5 var(--k-mono); overflow-wrap: anywhere; }
 .acw-path:empty { display: none; }
 
-.acw-body { display: grid; grid-template-columns: var(--acw-rail-w, 240px) minmax(0, 1fr); flex: 1; min-height: 0; }
+.acw-body { display: grid; grid-template-columns: var(--acw-rail-w, 17rem) minmax(0, 1fr); flex: 1; min-height: 0; }
 #aide-coding-workspace[data-rail="hidden"] .acw-body { grid-template-columns: 0 minmax(0, 1fr); }
 #aide-coding-workspace[data-rail="hidden"] .acw-rail { visibility: hidden; overflow: hidden; }
 @media (prefers-reduced-motion: no-preference) {
@@ -296,9 +296,9 @@
 #aide-coding-workspace .acw-entry textarea::placeholder { color: var(--k-muted); opacity: 1; }
 .acw-entry-foot { display: flex; align-items: center; gap: var(--k-space-2); padding: 0 6px 6px 0; }
 .acw-model { position: relative; min-width: 0; }
-#aide-code-model { max-width: 260px; }
+#aide-code-model { max-width: 16rem; }
 #aide-code-model-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.acw-menu-up { bottom: 100%; left: 0; max-height: 320px; overflow-y: auto; min-width: 260px; }
+.acw-menu-up { bottom: 100%; left: 0; max-height: 320px; overflow-y: auto; min-width: 16rem; }
 .acw-stats { color: var(--k-muted); font-size: 0.8125rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #aide-code-status { flex: 1; min-width: 0; font-size: 0.8125rem; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #aide-code-stop svg path { fill: currentColor; }
@@ -319,7 +319,7 @@
 #aide-coding-workspace .acw-slash-item .slash-args { margin-left: var(--k-space-2); color: var(--k-muted); font: 400 0.8125rem/1.4 var(--k-mono); }
 #aide-coding-workspace .acw-slash-item .slash-desc { color: var(--k-soft); font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acw-slash-source { color: var(--k-muted); font-size: 0.8125rem; }
-#aide-code-effort { max-width: 140px; }
+#aide-code-effort { max-width: 9rem; }
 
 /* /goal: pinned over the box while it holds */
 .acw-goal {
@@ -361,11 +361,11 @@
 .acw-harness-actions { display: flex; align-items: flex-start; gap: var(--k-space-2); }
 .acw-harness-approval { display: flex; flex-wrap: wrap; gap: var(--k-space-1); margin-left: calc(-1 * var(--k-space-3)); }
 #aide-coding-workspace .acw-harness-approval [aria-checked="true"] { color: var(--k-text); background: var(--k-raised); }
-#aide-code-harness { max-width: 160px; }
+#aide-code-harness { max-width: 10rem; }
 #aide-code-harness-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 820px) {
-  .acw-body { grid-template-columns: min(var(--acw-rail-w, 240px), 204px) minmax(0, 1fr); }
+  .acw-body { grid-template-columns: min(var(--acw-rail-w, 17rem), 40vw) minmax(0, 1fr); }
 }
 @media (max-width: 620px) {
   .acw-body { display: flex; flex-direction: column; }
@@ -384,7 +384,13 @@
   .acw-entry-foot { flex-wrap: wrap; }
   /* the free room goes to the model name; three equal slots cut it to "fake-…" next to an empty one */
   .acw-model { flex: 0 1 auto; }
-  .acw-model:has(#aide-code-model) { flex: 1 1 auto; }
+  .acw-model:has(#aide-code-model) { flex: 1 1 0; }
+  /* pi, model, effort and send share one row: the model name gives way, send sits at the right end */
+  #aide-code-model-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acw-entry-foot > :is(#aide-code-send, #aide-code-stop, #aide-code-context) { order: 1; }
+  .acw-entry-foot > #aide-code-send, .acw-entry-foot > #aide-code-stop { margin-left: auto; }
+  .acw-entry-foot { gap: 0; }
+  .acw-entry-foot .acw-action { padding-inline: var(--k-space-2); }
   .acw-stats { order: 9; flex-basis: 100%; padding: 0 var(--k-space-3) var(--k-space-2); }
   .acw-stats:empty { display: none; }
   #aide-code-model { max-width: 100%; }
@@ -433,6 +439,9 @@
 .acw-chat-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .acw-chat-meta { color: var(--k-muted); font-size: 0.8125rem; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acw-chat-meta:empty { display: none; }
+/* a long project or chat name takes a second line before it is cut, so the part that tells two
+   of them apart stays readable at the larger type (0044) */
+.acw-project-name, .acw-chat-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
 .acw-chat-live { flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--k-active, #aaa6ff); animation: acw-breathe 1s ease-in-out infinite; }
 #aide-coding-workspace .acw-chat-new { min-height: var(--k-control); }
 
@@ -444,7 +453,7 @@
 .acw-head-meta #aide-code-path { min-width: 0; }
 #aide-coding-workspace .acw-head-new { color: var(--k-soft); }
 #aide-coding-workspace .acw-head-new svg { width: 14px; height: 14px; flex-basis: 14px; }
-.acw-menu-down { top: 100%; right: 0; min-width: 180px; }
+.acw-menu-down { top: 100%; right: 0; min-width: 11rem; }
 #aide-code-chat-menu #aide-code-delete { color: var(--k-danger); }
 
 /* a task Aide handed over says so above the bubble */

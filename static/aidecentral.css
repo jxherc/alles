@@ -51,7 +51,7 @@ body.aide-central[data-space="aide"] .aide-mode-nav button { background: none; }
 #aide-jobs-count { font-size: 0.8125rem; font-variant-numeric: tabular-nums; color: var(--soft); }
 .aide-more-anchor { position: relative; }
 .aide-central-menu {
-  position: absolute; right: 0; top: 100%; z-index: 180; width: 208px;
+  position: absolute; right: 0; top: 100%; z-index: 180; width: 14rem;
   padding: var(--k-space-1, 4px); background: var(--panel); border: 1px solid var(--faint);
   border-radius: var(--k-radius-surface, 4px);
 }
@@ -75,7 +75,8 @@ body.aide-central[data-space="aide"] .user-bubble {
   padding: var(--k-space-3, 12px) var(--k-space-4, 16px); background: var(--panel);
   font-size: 1rem; line-height: 1.55; color: var(--text);
 }
-body.aide-central[data-space="aide"] .ai-wrap { padding: var(--k-space-3, 12px) 0 var(--k-space-5, 24px); }
+/* the 44px action row under a reply is the air below it; the next turn adds its own 32px above */
+body.aide-central[data-space="aide"] .ai-wrap { padding: var(--k-space-3, 12px) 0 0; }
 body.aide-central[data-space="aide"] .ai-body { padding-left: 0; font-size: 1rem; line-height: 1.65; }
 body.aide-central[data-space="aide"] .ai-body > :where(p, ul, ol, blockquote, h1, h2, h3, h4, h5, h6),
 body.aide-central[data-space="aide"] .ai-content > :where(p, ul, ol, blockquote, h1, h2, h3, h4, h5, h6) { max-width: 68ch; }
@@ -119,7 +120,7 @@ body.aide-central[data-space="aide"][data-aide-mode="call"] :is(#chat, #composer
 
 /* The existing conversation list is retained as a deliberate archive drawer. */
 body.aide-central[data-space="aide"] .sidebar {
-  position: fixed; z-index: 211; inset: 0 auto 0 0; width: min(360px, 100vw); max-width: 100%;
+  position: fixed; z-index: 211; inset: 0 auto 0 0; width: min(22rem, calc(100vw - 2.5rem)); max-width: 100%;
   flex: none; padding: 0 var(--k-space-4, 16px); transform: none; background: var(--panel);
   border-right: 1px solid var(--faint); visibility: visible; box-shadow: none;
 }
@@ -137,7 +138,7 @@ body.aide-central[data-space="aide"] .session-item .star { display: none; }
 
 /* Context reads as a small list, with the existing inspector handling actions. */
 .aide-context-overlay { position: fixed; inset: 0; z-index: 220; display: flex; justify-content: flex-end; background: color-mix(in srgb, var(--bg) 60%, transparent); }
-.aide-context-panel { width: min(440px, 100%); height: 100%; display: flex; flex-direction: column; min-width: 0; background: var(--panel); border-left: 1px solid var(--faint); color: var(--text); }
+.aide-context-panel { width: min(27rem, 100%); height: 100%; display: flex; flex-direction: column; min-width: 0; background: var(--panel); border-left: 1px solid var(--faint); color: var(--text); }
 .aide-context-panel > header { display: flex; align-items: center; justify-content: space-between; min-height: var(--k-header, 52px); padding-inline: var(--k-space-5, 24px) var(--k-space-3, 12px); }
 .aide-context-panel h2 { font-size: 1rem; font-weight: 550; }
 .aide-context-content { overflow: auto; padding: var(--k-space-4, 16px) var(--k-space-5, 24px); }
@@ -176,12 +177,18 @@ body.aide-central[data-space="aide"] .aide-background-details { font-size: 0.812
   .aide-history-context { padding-inline: var(--k-space-4, 16px); }
   .aide-context-panel { border-left: 0; }
 }
-/* with the larger type (0044) the header's words no longer fit one row under 430px, so it wraps there */
+/* with the larger type (0044) the drawer name, tabs and three actions need about 380px: one row from
+   a phone's 390px up, tighter edges under 430px */
 @media (max-width: 429px) {
   .aide-mode-nav { flex-shrink: 0; }
   .aide-mode-nav button { flex-shrink: 0; white-space: nowrap; font-size: 0.8125rem; padding-inline: var(--k-space-1, 4px); }
-  body.aide-central[data-space="aide"] .topbar-left { flex: 0 0 100%; gap: var(--k-space-1, 4px); }
-  body.aide-central[data-space="aide"] .main > .topbar { height: auto; flex-wrap: wrap; padding-inline: var(--k-space-2, 8px); }
+  body.aide-central[data-space="aide"] .topbar-left { gap: var(--k-space-1, 4px); }
+  body.aide-central[data-space="aide"] .main > .topbar { padding-inline: var(--k-space-2, 8px); }
+}
+/* smaller phones wrap the actions to a second row instead of shrinking words */
+@media (max-width: 389px) {
+  body.aide-central[data-space="aide"] .topbar-left { flex: 0 0 100%; }
+  body.aide-central[data-space="aide"] .main > .topbar { height: auto; flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .aide-context-overlay, .aide-central-menu { animation: none; transition: none; } }
 

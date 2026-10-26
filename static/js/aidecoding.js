@@ -1226,13 +1226,15 @@ async function loadStatus() {
 
 // the projects rail: drag its edge (or use the arrow keys on it) to resize, and the header button
 // hides it. both are remembered in this browser
-const RAIL_KEY = 'alles-code-rail', RAIL_MIN = 180, RAIL_MAX = 420, RAIL_DEFAULT = 240;
+// the width is in rem, so the rail grows with the type; the older px key is left behind on purpose
+const RAIL_KEY = 'alles-code-rail-rem', RAIL_MIN = 11, RAIL_MAX = 28, RAIL_DEFAULT = 17;
+const remPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 let rail = { width: RAIL_DEFAULT, hidden: false };
 const narrowRail = typeof matchMedia === 'function' ? matchMedia('(max-width: 620px)') : { matches: false, addEventListener() {} };
 
 function applyRail(save = true) {
-  rail.width = Math.round(Math.min(RAIL_MAX, Math.max(RAIL_MIN, rail.width)));
-  host.style.setProperty('--acw-rail-w', `${rail.width}px`);
+  rail.width = Math.round(Math.min(RAIL_MAX, Math.max(RAIL_MIN, rail.width)) * 4) / 4;
+  host.style.setProperty('--acw-rail-w', `${rail.width}rem`);
   host.dataset.rail = rail.hidden ? 'hidden' : 'shown';
   $('aide-code-rail').inert = rail.hidden && !narrowRail.matches;
   $('aide-code-rail-resize').setAttribute('aria-valuenow', String(rail.width));
@@ -1256,7 +1258,7 @@ function wireRail() {
     handle.setPointerCapture(event.pointerId);
     host.dataset.resizing = 'true';
     const left = $('aide-code-rail').getBoundingClientRect().left;
-    const move = e => { rail.width = e.clientX - left; applyRail(false); };
+    const move = e => { rail.width = (e.clientX - left) / remPx(); applyRail(false); };
     const done = () => {
       handle.removeEventListener('pointermove', move);
       delete host.dataset.resizing;
@@ -1268,7 +1270,7 @@ function wireRail() {
   });
   handle.addEventListener('dblclick', () => { rail.width = RAIL_DEFAULT; applyRail(); });
   handle.addEventListener('keydown', event => {
-    const step = event.shiftKey ? 48 : 16;
+    const step = event.shiftKey ? 3 : 1;
     const next = { ArrowLeft: rail.width - step, ArrowRight: rail.width + step, Home: RAIL_MIN, End: RAIL_MAX }[event.key];
     if (next === undefined) return;
     event.preventDefault();

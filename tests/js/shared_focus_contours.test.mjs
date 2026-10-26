@@ -83,14 +83,15 @@ test('Call text has intrinsic room without shrinking its target or hiding the la
   assert.doesNotMatch(aide, /\.aide-call-label[^{}]*\{[^}]*display:\s*none/);
 });
 
-test('the narrow header wraps groups in DOM order instead of shrinking text into adjacent controls', () => {
-  const narrow = aide.slice(aide.indexOf('@media (max-width: 429px)'), aide.indexOf('@media (prefers-reduced-motion: reduce)'));
+test('the header stays on one row from 390px and wraps groups below that instead of shrinking text', () => {
+  const narrow = aide.slice(aide.indexOf('@media (max-width: 389px)'), aide.indexOf('@media (prefers-reduced-motion: reduce)'));
   const header = rule(narrow, 'body.aide-central[data-space="aide"] .main > .topbar');
   assert.match(header, /height:\s*auto/);
   assert.match(header, /flex-wrap:\s*wrap/);
   assert.match(rule(narrow, 'body.aide-central[data-space="aide"] .topbar-left'), /flex:\s*0 0 100%/);
-  assert.match(rule(narrow, '.aide-mode-nav'), /flex-shrink:\s*0/);
-  const modes = rule(narrow, '.aide-mode-nav button');
+  const wide = aide.slice(aide.indexOf('@media (max-width: 429px)'), aide.indexOf('@media (max-width: 389px)'));
+  assert.match(rule(wide, '.aide-mode-nav'), /flex-shrink:\s*0/);
+  const modes = rule(wide, '.aide-mode-nav button');
   assert.match(modes, /flex-shrink:\s*0/);
   assert.match(modes, /white-space:\s*nowrap/);
   assert.doesNotMatch(narrow, /\border\s*:/);
