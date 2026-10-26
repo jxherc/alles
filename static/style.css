@@ -1007,8 +1007,8 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 .runs-empty { color: var(--muted); font-size: 0.75rem; padding: 1rem 0.5rem; }
 .run-row { padding: 0.5rem 0.45rem; border-bottom: 1px solid var(--faint); cursor: pointer; }
 .run-row:hover { background: var(--panel); }
-.run-row-head { display: flex; align-items: center; gap: 0.45rem; font-size: 0.75rem; }
-.run-status { font-size: 0.78rem; }
+.run-row-head { display: flex; align-items: center; gap: 0.45rem; font-size: 0.8125rem; }
+.run-status { font-size: 0.8125rem; }
 .run-status.run-done { color: var(--green); }
 .run-status.run-running { color: var(--ai); }
 .run-status.run-error, .run-status.run-turn_limit { color: var(--error); }
@@ -9916,20 +9916,38 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
 .andromeda-source-chip { margin-inline-start: 8px; color: var(--muted); font-size: 0.75rem; }
 .andromeda-empty { padding: 12px 0; border: 0; color: var(--muted); font-size: 14px; }
 
-.andromeda-image-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px 11px; }
-.andromeda-image-card { grid-column: span 4; min-width: 0; color: var(--text); text-decoration: none; }
-.andromeda-image-card:nth-child(3n + 1) { grid-column: span 5; }
-.andromeda-image-card:nth-child(3n + 2) { grid-column: span 3; }
+/* justified rows (google images): one height per row, each image as wide as its shape asks
+   (--ar from the result), the row stretched to the edge; the last row keeps its natural widths */
+.andromeda-image-grid {
+  --row-h: 180px;
+  display: flex; flex-wrap: wrap; gap: var(--k-space-4) var(--k-space-2);
+}
+.andromeda-image-grid::after { content: ''; flex: 100000 1 0; }
+/* grow scaled up: a line whose grow factors sum under 1 leaves space empty, so a lone tall picture never filled its row */
+.andromeda-image-card,
 .andromeda-image-skeleton {
-  grid-column: span 4; min-width: 0; aspect-ratio: 4 / 3; border-radius: var(--k-radius-surface);
+  flex: calc(var(--ar, 1.333) * 100) 1 calc(var(--ar, 1.333) * var(--row-h)); min-width: 0; max-width: 100%;
+}
+.andromeda-image-card { display: flex; flex-direction: column; color: var(--text); text-decoration: none; }
+.andromeda-image-card .andromeda-media-frame { height: var(--row-h); aspect-ratio: auto; border-radius: var(--k-radius-control); }
+.andromeda-image-skeleton {
+  height: var(--row-h); border-radius: var(--k-radius-control);
   background: color-mix(in srgb, var(--panel) 88%, var(--faint));
 }
-.andromeda-image-skeleton:nth-child(3n + 1) { grid-column: span 5; aspect-ratio: 5 / 3; }
-.andromeda-image-skeleton:nth-child(3n + 2) { grid-column: span 3; aspect-ratio: 1; }
+.andromeda-image-card .andromeda-media-meta { display: flex; align-items: center; gap: var(--k-space-2); min-width: 0; margin-top: var(--k-space-2); }
+.andromeda-image-card .andromeda-media-meta > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.andromeda-image-card .andromeda-source-mark { flex: none; width: 18px; height: 18px; }
+.andromeda-image-card .andromeda-source-mark img { width: 14px; height: 14px; }
+.andromeda-image-card .andromeda-media-title { margin-top: 2px; font-size: 0.875rem; font-weight: 450; }
+@media (pointer: coarse) { .andromeda-image-grid { --row-h: 160px; } }
+@media (max-width: 560px) { .andromeda-image-grid { --row-h: 124px; } }
 .andromeda-media-frame {
   position: relative; width: 100%; height: auto; aspect-ratio: 4 / 3; display: grid; place-items: center; overflow: hidden;
   border: 1px solid var(--andromeda-line); border-radius: var(--k-radius-surface); background: var(--panel); color: var(--muted); font-size: 0.78rem;
 }
+/* the picture and its fallback share one cell, so a loading image never splits the frame */
+.andromeda-media-frame > * { grid-area: 1 / 1; }
+.andromeda-media-frame > span:not([class]) { padding: var(--k-space-2); text-align: center; }
 .andromeda-media-frame img { width: 100%; height: 100%; display: block; opacity: 0; object-fit: cover; transition: opacity 120ms ease, transform 160ms ease; }
 .andromeda-media-frame img.loaded { opacity: 1; }
 .andromeda-image-card:hover .andromeda-media-frame,
@@ -10113,15 +10131,10 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
   .andromeda-overview { padding: 16px 0 18px; }
   .andromeda-section-head { align-items: flex-start; flex-wrap: wrap; }
   .andromeda-overview-state { width: 100%; margin-inline-start: 0; }
-  .andromeda-view .andromeda-result .andromeda-result-title { font-size: 17px; }
-  .andromeda-result p { font-size: 14px; }
-  .andromeda-image-card,
-  .andromeda-image-card:nth-child(3n + 1),
-  .andromeda-image-card:nth-child(3n + 2),
-  .andromeda-image-skeleton,
-  .andromeda-image-skeleton:nth-child(3n + 1),
-  .andromeda-image-skeleton:nth-child(3n + 2) { grid-column: span 6; }
+  .andromeda-view .andromeda-result .andromeda-result-title { font-size: 1.125rem; }
+  .andromeda-result p { font-size: 0.875rem; }
   .andromeda-media-frame { height: 140px; }
+  .andromeda-image-card .andromeda-media-frame { height: var(--row-h); }
   .andromeda-news-card { grid-template-columns: minmax(0, 1fr) 108px; gap: 12px; }
   .andromeda-news-card p { display: none; }
   .andromeda-news-save { min-height: 44px; }

@@ -948,17 +948,31 @@ function libraryAction(result, news = false, savedItems = null) {
   return action;
 }
 
+// justified rows, as google images does: every image in a row is the same height and keeps its
+// shape, so its width follows its proportion (--ar); the row fills the width. under it, the
+// source (mark and site) then one line of title
+function imageAspect(result) {
+  const width = Number(result.width), height = Number(result.height);
+  const ratio = width > 0 && height > 0 ? width / height : 4 / 3;
+  return Math.min(2.4, Math.max(0.55, ratio)).toFixed(3);
+}
+
 function imageNode(result) {
   const card = makeExternalLink(result, 'andromeda-image-card');
   card.textContent = '';
-  card.appendChild(mediaFrame(result));
+  card.style.setProperty('--ar', imageAspect(result));
+  const frame = mediaFrame(result);
+  frame.style.aspectRatio = '';
+  card.appendChild(frame);
+  const source = document.createElement('span');
+  source.className = 'andromeda-media-meta';
+  const site = document.createElement('span');
+  site.textContent = (result.publisher || safeUrl(result.url)?.hostname || '').replace(/^www\./, '');
+  source.append(mediaFrame(result, { favicon: true }), site);
   const title = document.createElement('span');
   title.className = 'andromeda-media-title';
   title.textContent = result.title || tr('andromeda.image_result');
-  const meta = document.createElement('span');
-  meta.className = 'andromeda-media-meta';
-  meta.textContent = result.publisher || safeUrl(result.url)?.hostname || '';
-  card.append(title, meta);
+  card.append(source, title);
   return card;
 }
 
@@ -1103,9 +1117,11 @@ function updateMoreResults(hasMore = _state.hasMore) {
 function appendImageSkeletons(count = 6) {
   const list = el('andromeda-images');
   if (!list || category() !== 'images') return;
+  const shapes = [1.5, 0.8, 1.33, 1.78, 1, 0.75];
   for (let index = 0; index < count; index += 1) {
     const skeleton = document.createElement('span');
     skeleton.className = 'andromeda-image-skeleton page-skeleton';
+    skeleton.style.setProperty('--ar', String(shapes[index % shapes.length]));
     skeleton.setAttribute('aria-hidden', 'true');
     list.appendChild(skeleton);
   }
