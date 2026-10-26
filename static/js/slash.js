@@ -3,47 +3,61 @@ import { exportActiveSessionMarkdown, getActiveId } from './sessions.js';
 import { formatTime, t } from './i18n.js';
 import { confirm } from './dialog.js';
 import { loadShortcuts } from './shortcuts.js';
-import { createFocusBoundary } from './kokuen.js';
+import { createFocusBoundary } from './kokuen.js?v=4';
 
 let _reminderPending = null;
 let _reminderBusy = false;
 
 // ── built-in command registry ────────────────────────────────────────
-const BUILTINS = [
+const BUILTINS = () => [
   // Aide tasks
-  { name: 'new',       cat: 'aide',     help: 'start a new aide task' },
-  { name: 'clear',     cat: 'aide',     help: 'clear this aide task’s message display' },
-  { name: 'rename',    cat: 'aide',     help: 'rename this aide task: or auto-name if blank', args: '[name]' },
-  { name: 'archive',   cat: 'aide',     help: 'archive this aide task' },
-  { name: 'export',    cat: 'aide',     help: 'export this aide task as markdown' },
-  { name: 'incognito', cat: 'aide',     help: 'start a new private aide task' },
+  { name: 'new',       cat: 'aide',     help: t('aide.slash_new') },
+  { name: 'clear',     cat: 'aide',     help: t('aide.slash_clear') },
+  { name: 'rename',    cat: 'aide',     help: t('aide.slash_rename'), args: '[name]' },
+  { name: 'archive',   cat: 'aide',     help: t('aide.slash_archive') },
+  { name: 'export',    cat: 'aide',     help: t('aide.slash_export') },
+  { name: 'incognito', cat: 'aide',     help: t('aide.slash_incognito') },
   // model & persona
-  { name: 'model',     cat: 'model',    help: 'open model picker' },
-  { name: 'persona',   cat: 'model',    help: 'switch persona',          args: '[name]' },
-  { name: 'andromeda', cat: 'search',   help: 'search the web', args: '[query]' },
+  { name: 'model',     cat: 'model',    help: t('aide.slash_model') },
+  { name: 'persona',   cat: 'model',    help: t('aide.slash_persona'),          args: '[name]' },
+  { name: 'andromeda', cat: 'search',   help: t('aide.slash_andromeda'), args: '[query]' },
   // memory
-  { name: 'remember',  cat: 'memory',   help: 'save a memory',           args: '<text>' },
-  { name: 'memories',  cat: 'memory',   help: 'open memory panel' },
-  { name: 'forget',    cat: 'memory',   help: 'delete memory by id',     args: '<id>' },
+  { name: 'remember',  cat: 'memory',   help: t('aide.slash_remember'),           args: '<text>' },
+  { name: 'memories',  cat: 'memory',   help: t('aide.slash_memories') },
+  { name: 'forget',    cat: 'memory',   help: t('aide.slash_forget'),     args: '<id>' },
   // productivity
-  { name: 'todo',      cat: 'plan',     help: 'add a task to Plan',       args: '<task>' },
-  { name: 'doc',       cat: 'docs',     help: 'create a doc',            args: '<text>' },
+  { name: 'todo',      cat: 'plan',     help: t('aide.slash_todo'),       args: '<task>' },
+  { name: 'doc',       cat: 'docs',     help: t('aide.slash_doc'),            args: '<text>' },
   // navigate (aide-only)
-  { name: 'secrets',   cat: 'navigate', help: 'open secrets' },
-  { name: 'compare',   cat: 'navigate', help: 'open model compare' },
-  { name: 'docs',      cat: 'navigate', help: 'open docs' },
-  { name: 'contacts',  cat: 'navigate', help: 'open contacts' },
-  { name: 'search',    cat: 'navigate', help: 'open search',             args: '[query]' },
+  { name: 'secrets',   cat: 'navigate', help: t('aide.slash_secrets') },
+  { name: 'compare',   cat: 'navigate', help: t('aide.slash_compare') },
+  { name: 'docs',      cat: 'navigate', help: t('aide.slash_docs') },
+  { name: 'contacts',  cat: 'navigate', help: t('aide.slash_contacts') },
+  { name: 'search',    cat: 'navigate', help: t('aide.slash_search'),             args: '[query]' },
   // system
-  { name: 'system',    cat: 'system',   help: 'set session system prompt', args: '<prompt>' },
-  { name: 'backup',    cat: 'system',   help: 'download encrypted .alles-backup; get its recovery key from settings → backup & restore' },
-  { name: 'compact',   cat: 'system',   help: 'compact context now' },
-  { name: 'help',      cat: 'system',   help: 'list all slash commands' },
+  { name: 'system',    cat: 'system',   help: t('aide.slash_system'), args: '<prompt>' },
+  { name: 'backup',    cat: 'system',   help: t('aide.slash_backup') },
+  { name: 'compact',   cat: 'system',   help: t('aide.slash_compact') },
+  { name: 'help',      cat: 'system',   help: t('aide.slash_help') },
   // scheduling
-  { name: 'remind',    cat: 'schedule', help: 'set a reminder', args: '<in 2h|at 3pm> <text>' },
-  { name: 'send',      cat: 'schedule', help: 'schedule a message to AI', args: '<in 2h|at 3pm> <text>' },
-  { name: 'reminders', cat: 'schedule', help: 'view scheduled reminders & messages' },
+  { name: 'remind',    cat: 'schedule', help: t('aide.slash_remind'), args: '<in 2h|at 3pm> <text>' },
+  { name: 'send',      cat: 'schedule', help: t('aide.slash_send'), args: '<in 2h|at 3pm> <text>' },
+  { name: 'reminders', cat: 'schedule', help: t('aide.slash_reminders') },
 ];
+
+const CAT_LABELS = () => ({
+  aide: t('aide.slash_cat_aide'),
+  model: t('aide.slash_cat_model'),
+  search: t('aide.slash_cat_search'),
+  memory: t('aide.slash_cat_memory'),
+  plan: t('aide.slash_cat_plan'),
+  docs: t('aide.slash_cat_docs'),
+  navigate: t('aide.slash_cat_navigate'),
+  system: t('aide.slash_cat_system'),
+  schedule: t('aide.slash_cat_schedule'),
+  cookbook: t('aide.slash_cat_cookbook'),
+});
+const catLabel = cat => CAT_LABELS()[cat] ?? cat;
 
 // cookbook entries from API
 let _cookbook = [];
@@ -56,7 +70,7 @@ async function _fetchCookbook() {
 }
 
 function _allEntries() {
-  const builtins = BUILTINS.map(b => ({
+  const builtins = BUILTINS().map(b => ({
     name: b.name, description: b.help,
     prompt: null,   // null = action command
     cat: b.cat, args: b.args || '',
@@ -148,7 +162,7 @@ function _showHelp() {
   overlay.querySelectorAll('[data-help-settings]').forEach(button => { button.onclick = async () => {
     const pane = button.dataset.helpSettings;
     close();
-    const { openSettings } = await import('./settings.js?v=291');
+    const { openSettings } = await import('./settings.js?v=292');
     if (source?.isConnected && document.activeElement === source) {
       openSettings(pane);
       if (pane === 'developer') requestAnimationFrame(() => {
@@ -197,12 +211,12 @@ function _show(matches, ta, lineStart, cursor, grouped = false) {
     let flatIdx = 0;
     let html = '';
     for (const [cat, entries] of Object.entries(cats)) {
-      html += `<div class="slash-cat-label">${cat}</div>`;
+      html += `<div class="slash-cat-label">${escapeHtml(catLabel(cat))}</div>`;
       for (const e of entries) {
         // escape — args like <task>/<text> are otherwise parsed as html tags and vanish,
         // and cookbook name/desc are user-authored (self-xss)
         const argsHtml = e.args ? `<span class="slash-args">${escapeHtml(e.args)}</span>` : '';
-        const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
+        const tag = e.cat === 'cookbook' ? `<span class="slash-tag">${escapeHtml(t('aide.slash_saved'))}</span>` : '';
         html += `<div class="slash-item${flatIdx === 0 ? ' selected' : ''}" data-idx="${flatIdx}">
           <span class="slash-cmd"><span class="slash-name">/${escapeHtml(e.name)}</span>${argsHtml}</span>
           <span class="slash-desc">${escapeHtml(e.description || '')}</span>${tag}
@@ -215,7 +229,7 @@ function _show(matches, ta, lineStart, cursor, grouped = false) {
     // filtered mode — flat list, prefix-sorted
     _popup.innerHTML = matches.map((e, i) => {
       const argsHtml = e.args ? `<span class="slash-args">${escapeHtml(e.args)}</span>` : '';
-      const tag = e.cat === 'cookbook' ? '<span class="slash-tag">saved</span>' : '';
+      const tag = e.cat === 'cookbook' ? `<span class="slash-tag">${escapeHtml(t('aide.slash_saved'))}</span>` : '';
       return `<div class="slash-item${i === 0 ? ' selected' : ''}" data-idx="${i}">
         <span class="slash-cmd"><span class="slash-name">/${escapeHtml(e.name)}</span>${argsHtml}</span>
         <span class="slash-desc">${escapeHtml(e.description || '')}</span>${tag}
@@ -312,7 +326,7 @@ export async function tryExecuteSlashCommand(text) {
     if (!expanded.trim()) {
       // an args-only template invoked with no args expands to nothing — say so instead of
       // silently swallowing the send (doSend bails on an empty composer).
-      toast(`/${cmd} needs an argument`, 'error');
+      toast(t('aide.slash_needs_argument', { cmd }), 'error');
       return true;   // handled (suppress the empty send)
     }
     const ta = document.getElementById('composer-ta');
@@ -348,17 +362,17 @@ export async function tryExecuteSlashCommand(text) {
           body: JSON.stringify({ name: args }),
         });
         updateSessionName(sid, args);
-        toast(`renamed to "${args}"`, 'success');
+        toast(t('aide.slash_renamed', { name: args }), 'success');
       } else {
         // no args — let the LLM auto-name from history
-        toast('auto-naming…');
+        toast(t('aide.slash_auto_naming'));
         const r = await fetch(`/api/sessions/${sid}/auto-name`, { method: 'POST' });
         if (r.ok) {
           const { name } = await r.json();
           updateSessionName(sid, name);
-          toast(`renamed to "${name}"`, 'success');
+          toast(t('aide.slash_renamed', { name }), 'success');
         } else {
-          toast('auto-name failed: add some messages first', 'error');
+          toast(t('aide.slash_auto_name_failed'), 'error');
         }
       }
       return true;
@@ -370,7 +384,7 @@ export async function tryExecuteSlashCommand(text) {
       if (!sid) return true;
       await fetch(`/api/sessions/${sid}/archive`, { method: 'POST' });
       await loadSessions();
-      toast('archived', 'success');
+      toast(t('aide.slash_archived'), 'success');
       return true;
     }
 
@@ -392,57 +406,57 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'remember': {
-      if (!args) { toast('/remember requires text', 'error'); return true; }
+      if (!args) { toast(t('aide.slash_remember_needs_text'), 'error'); return true; }
       const r = await fetch('/api/memories', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ text: args }),
       });
-      if (r.ok) toast('memory saved', 'success');
+      if (r.ok) toast(t('aide.slash_memory_saved'), 'success');
       return true;
     }
 
     case 'memories': {
-      (await import('./settings.js?v=291')).openSettings('memory');
+      (await import('./settings.js?v=292')).openSettings('memory');
       return true;
     }
 
     case 'forget': {
-      if (!args) { toast('/forget requires a memory id', 'error'); return true; }
+      if (!args) { toast(t('aide.slash_forget_needs_id'), 'error'); return true; }
       const r = await fetch(`/api/memories/${args}`, { method: 'DELETE' });
-      if (r.ok) toast('memory deleted', 'success');
-      else toast('memory not found', 'error');
+      if (r.ok) toast(t('aide.slash_memory_deleted'), 'success');
+      else toast(t('aide.slash_memory_not_found'), 'error');
       return true;
     }
 
     case 'todo': {
-      if (!args) { toast('/todo requires a task', 'error'); return true; }
+      if (!args) { toast(t('aide.slash_todo_needs_task'), 'error'); return true; }
       const r = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ title: args }),
       });
-      if (r.ok) toast('task added', 'success');
+      if (r.ok) toast(t('aide.slash_task_added'), 'success');
       return true;
     }
 
     case 'doc':
     case 'note': {
-      if (!args) { toast(`/${cmd} requires text`, 'error'); return true; }
+      if (!args) { toast(t('aide.slash_needs_text', { cmd }), 'error'); return true; }
       const r = await fetch('/api/notes', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ title: args.slice(0, 60), content: args }),
       });
-      if (r.ok) toast('doc created', 'success');
+      if (r.ok) toast(t('aide.slash_doc_created'), 'success');
       return true;
     }
 
     case 'incognito': {
       const { createSession } = await import('./sessions.js');
-      const { getCurrentEndpoint, getSelected } = await import('./models.js');
+      const { getCurrentEndpoint, getSelected } = await import('./models.js?v=214');
       const ep = getCurrentEndpoint();
-      if (!ep) { toast('no endpoint configured', 'error'); return true; }
+      if (!ep) { toast(t('aide.slash_no_endpoint'), 'error'); return true; }
       const model = getSelected()?.model || ep.models?.[0] || '';
       const r = await fetch('/api/sessions', {
         method: 'POST',
@@ -454,7 +468,7 @@ export async function tryExecuteSlashCommand(text) {
         const { loadSessions, selectSession } = await import('./sessions.js');
         await loadSessions();
         await selectSession(s.id);
-        toast('incognito session: nothing will be saved');
+        toast(t('aide.slash_incognito_started'));
       }
       return true;
     }
@@ -477,10 +491,10 @@ export async function tryExecuteSlashCommand(text) {
               });
               if (window._currentSession) window._currentSession.persona_id = match.id;
               window._refreshPersonaBtn?.();   // updates the label + applies the persona's accent
-              toast(`persona: ${match.name}`, 'success');
+              toast(t('aide.prov_persona', { name: match.name }), 'success');
             }
           } else {
-            toast(`no persona matching "${args}"`, 'error');
+            toast(t('aide.slash_no_persona', { query: args }), 'error');
           }
         }
       } else {
@@ -519,7 +533,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'system': {
-      if (!args) { toast('/system requires a prompt', 'error'); return true; }
+      if (!args) { toast(t('aide.slash_system_needs_prompt'), 'error'); return true; }
       const { getActiveId } = await import('./sessions.js');
       const sid = getActiveId();
       // store as session-level override in a meta patch
@@ -529,7 +543,7 @@ export async function tryExecuteSlashCommand(text) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ system_prompt: args }),
       });
-      if (r.ok) toast('system prompt updated', 'success');
+      if (r.ok) toast(t('aide.slash_system_updated'), 'success');
       return true;
     }
 
@@ -538,7 +552,7 @@ export async function tryExecuteSlashCommand(text) {
       return true;
 
     case 'compact':
-      toast('context compaction is automatic: happens when context exceeds threshold');
+      toast(t('aide.slash_compact_auto'));
       return true;
 
     case 'remind':
@@ -546,12 +560,12 @@ export async function tryExecuteSlashCommand(text) {
       if (_reminderBusy) return 'keep-draft';
       _reminderBusy = true;
       try {
-        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=244');
+        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=245');
         const type = cmd === 'send' ? 'message' : 'reminder';
         const sessionId = getActiveId();
         const command = `/${cmd} ${args}`;
         if (_reminderPending && (_reminderPending.command !== command || _reminderPending.sessionId !== sessionId)) {
-          if (!await confirm('the previous reminder may already be saved. discard its retry and create this one?')) return 'keep-draft';
+          if (!await confirm(t('aide.slash_reminder_discard'))) return 'keep-draft';
           _reminderPending = null;
         }
         if (!_reminderPending) {
@@ -562,7 +576,7 @@ export async function tryExecuteSlashCommand(text) {
           const match = patterns.map(pattern => args.match(pattern)).find(Boolean);
           const triggerAt = match && parseReminderTime(match[1]);
           if (!triggerAt) {
-            toast(`use /${cmd} in 2h <text> or /${cmd} at 3pm <text> with a valid time`, 'error');
+            toast(t('aide.slash_remind_usage', { cmd }), 'error');
             return 'keep-draft';
           }
           _reminderPending = { command, sessionId, request: reminderRequest(match[2], triggerAt, type, type === 'message' ? sessionId : null), uncertain: false };
@@ -571,12 +585,12 @@ export async function tryExecuteSlashCommand(text) {
           const result = await createReminder(_reminderPending.request);
           const when = formatTime(new Date(_reminderPending.request.trigger_at), { hour: '2-digit', minute: '2-digit' });
           _reminderPending = null;
-          toast(result.fired ? 'reminder already delivered' : type === 'message' ? `scheduled for ${when}` : `reminder set for ${when}`, 'success');
+          toast(result.fired ? t('aide.slash_reminder_delivered') : type === 'message' ? t('aide.slash_scheduled_for', { when }) : t('aide.slash_reminder_set', { when }), 'success');
           return true;
         } catch (error) {
           _reminderPending.uncertain ||= reminderMayHaveSaved(error);
           if (!_reminderPending.uncertain) _reminderPending = null;
-          toast(`${error.message || 'could not save reminder'}${_reminderPending ? '. send this command again to confirm the same reminder.' : ''}`, 'error');
+          toast(`${error.message || t('aide.slash_reminder_save_failed')}${_reminderPending ? t('aide.slash_reminder_send_again') : ''}`, 'error');
           return 'keep-draft';
         }
       } finally { _reminderBusy = false; }
@@ -595,9 +609,9 @@ export async function tryExecuteSlashCommand(text) {
       for (const e of _allEntries()) {
         (cats[e.cat] = cats[e.cat] || []).push(e);
       }
-      let md = '**slash commands**\n\n';
+      let md = `**${t('aide.slash_commands_title')}**\n\n`;
       for (const [cat, entries] of Object.entries(cats)) {
-        md += `*${cat}*\n`;
+        md += `*${catLabel(cat)}*\n`;
         md += entries.map(e => `- \`/${e.name}${e.args ? ' ' + e.args : ''}\`: ${e.description}`).join('\n');
         md += '\n\n';
       }

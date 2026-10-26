@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { lum, mix, mutedFor, generateHarmony } from '../../static/js/color.js';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 const themeSource = readFileSync(new URL('../../static/js/theme.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export \{.*\};\r?\n/gm, '').replace(/^export /gm, '');
@@ -54,7 +55,7 @@ function harness() {
   };
   let commits = 0;
   let onChange = () => {};
-  const context = vm.createContext({
+  const context = vm.createContext({ t: i18nT, tp: i18nTp,
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     document, window: {}, setTimeout: () => 1, clearTimeout() {},
     _lum: lum, _mix: mix, _mutedFor: mutedFor, generateHarmony,

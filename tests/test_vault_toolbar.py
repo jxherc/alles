@@ -27,11 +27,13 @@ class VaultToolbar(unittest.TestCase):
             self.assertNotIn(g, head)
 
     def test_buttons_decorated_with_icons(self):
-        self.assertIn("dec('vault-manage-btn', 'gear', 'settings')", JS)
-        self.assertIn("dec('vault-watchtower-btn', 'shield', 'watchtower')", JS)
-        self.assertIn("dec('vault-bio-add-btn', 'fingerprint', 'biometric')", JS)
+        self.assertIn("dec('vault-manage-btn', 'gear', t('common.settings'))", JS)
+        self.assertIn("dec('vault-watchtower-btn', 'shield', t('vault.watchtower'))", JS)
+        self.assertIn("dec('vault-bio-add-btn', 'fingerprint', t('vault.biometric'))", JS)
         # travel button keeps its toggle text but with a plane icon
-        self.assertIn("_si('plane')} travel", JS)
+        self.assertIn(
+            "_si('plane')} ${_esc(_travel ? t('vault.travel_on') : t('vault.travel'))}", JS
+        )
 
     def test_switcher_is_a_chip_with_icon_map(self):
         self.assertIn('class="custom-select vault-switcher"', INDEX)
@@ -43,8 +45,8 @@ class VaultToolbar(unittest.TestCase):
     def test_manage_panel_and_gen_de_iconed(self):
         self.assertNotIn("✈ safe", JS)
         self.assertNotIn("⚙ gen", JS)
-        self.assertIn("_si('plane')} safe", JS)
-        self.assertIn("_si('refresh')} gen", JS)
+        self.assertIn("_si('plane')} ${_esc(t('vault.travel_safe'))}", JS)
+        self.assertIn("_si('refresh')} ${_esc(t('vault.gen'))}", JS)
 
     def test_uses_central_icon_helper(self):
         self.assertIn("window.icon", JS)

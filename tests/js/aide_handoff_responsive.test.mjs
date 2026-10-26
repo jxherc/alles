@@ -27,7 +27,7 @@ test('context handoff scrubs ctx before attempting redemption', () => {
   const retry = app.match(/function _showContextHandoffRetry\([^]*?\n}/)?.[0] || '';
   assert.match(retry, /const payload = await _redeemPendingContextHandoff\(\)/);
   assert.match(retry, /if \(!\(await _deliverContextHandoff\(payload, projectId, true\)\)\)/);
-  assert.match(retry, /_isTerminalContextHandoffError\(error\)[^]*?_discardContextHandoff\(\)[^]*?retry\.textContent = 'dismiss'/);
+  assert.match(retry, /_isTerminalContextHandoffError\(error\)[^]*?_discardContextHandoff\(\)[^]*?retry\.textContent = t\('common\.dismiss'\)/);
   assert.ok(
     retry.indexOf('await _deliverContextHandoff') < retry.indexOf('_discardContextHandoff()'),
     'private context must remain recoverable until chat delivery succeeds',

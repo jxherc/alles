@@ -1,4 +1,5 @@
 import { requestWithRecentOwner } from './recent_owner.js';
+import { t } from './i18n.js';
 
 const RETURN_PATH = '/api/finance/connections/plaid/return';
 const SESSION_KEY = 'alles:finance-plaid-link';
@@ -12,9 +13,9 @@ export async function bankRequest(path, options = {}) {
   }
   const response = await requestWithRecentOwner(fetch, path, init);
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(payload?.detail?.message || payload?.detail || `request failed (${response.status})`);
+  if (!response.ok) throw new Error(payload?.detail?.message || payload?.detail || t('finance.request_failed_status', { status: response.status }));
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new Error('the bank response was not confirmed. refresh connections before trying again.');
+    throw new Error(t('finance.bank_response_unconfirmed'));
   }
   return payload;
 }
@@ -33,9 +34,9 @@ export function plaidSdk() {
       if (error) { script.remove(); reject(error); }
       else resolve(window.Plaid);
     };
-    const timer = setTimeout(() => finish(new Error('Plaid Link did not load. try again.')), 20000);
-    script.onload = () => finish(window.Plaid?.create ? null : new Error('Plaid Link did not load. try again.'));
-    script.onerror = () => finish(new Error('Plaid Link did not load. check your connection and try again.'));
+    const timer = setTimeout(() => finish(new Error(t('finance.plaid_not_loaded'))), 20000);
+    script.onload = () => finish(window.Plaid?.create ? null : new Error(t('finance.plaid_not_loaded')));
+    script.onerror = () => finish(new Error(t('finance.plaid_not_loaded_connection')));
     document.head.append(script);
   }).finally(() => { sdkPending = null; });
   return sdkPending;
@@ -51,7 +52,7 @@ function clearBinding(binding) {
 function returnUrl(value) {
   const url = new URL(value);
   if (url.origin !== location.origin || url.pathname !== RETURN_PATH || url.hash || url.username || url.password) {
-    throw new Error('Plaid return address does not match this Alles address. reopen Finance using the registered address.');
+    throw new Error(t('finance.plaid_return_mismatch'));
   }
   return url;
 }
@@ -70,7 +71,7 @@ export function plaidReturnBinding(href = location.href) {
     return binding;
   } catch {
     clearBinding();
-    throw new Error('this Plaid session is missing or expired. return to Finance and open Link again.');
+    throw new Error(t('finance.plaid_session_expired'));
   }
 }
 
@@ -84,11 +85,11 @@ export async function openPlaidLink(connection, { request = bankRequest, signal,
     const redirect = returnUrl(token.redirect_uri);
     const expiration = Date.parse(token.expiration);
     if (!token.link_token || typeof token.link_token !== 'string' || redirect.search
-      || !Number.isFinite(expiration) || expiration <= Date.now()) throw new Error('Plaid returned an invalid Link session. try again.');
+      || !Number.isFinite(expiration) || expiration <= Date.now()) throw new Error(t('finance.plaid_invalid_session'));
     binding = { connection_id: connection.id, link_token: token.link_token,
       expires_at: expiration, redirect_uri: redirect.href, update_mode: token.update_mode === true };
     try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(binding)); }
-    catch { throw new Error('allow session storage in this browser before opening Plaid Link.'); }
+    catch { throw new Error(t('finance.plaid_storage_blocked')); }
   }
   let Plaid;
   try {
@@ -108,7 +109,7 @@ export async function openPlaidLink(connection, { request = bankRequest, signal,
       handler?.destroy();
       if (error) reject(error); else resolve(result);
     };
-    const abort = () => finish(new DOMException('bank dialog closed', 'AbortError'));
+    const abort = () => finish(new DOMException(t('finance.bank_dialog_closed'), 'AbortError'));
     signal?.addEventListener('abort', abort, { once: true });
     try {
       handler = Plaid.create({
@@ -120,20 +121,20 @@ export async function openPlaidLink(connection, { request = bankRequest, signal,
           try {
             const path = binding.update_mode ? 'update-complete' : 'exchange';
             if (!binding.update_mode && (typeof publicToken !== 'string' || !publicToken)) {
-              throw new Error('Plaid did not return a public token. open Link again.');
+              throw new Error(t('finance.plaid_no_token'));
             }
             const result = await request(`/api/finance/connections/${encodeURIComponent(binding.connection_id)}/plaid/${path}`, {
               method: 'POST', ...(binding.update_mode ? {} : { body: { public_token: publicToken } }),
             });
             if (result?.id !== binding.connection_id || result.status !== 'connected') {
-              throw new Error('the Plaid connection was not confirmed. refresh connections before trying again.');
+              throw new Error(t('finance.plaid_unconfirmed'));
             }
             finish(null, { connection: result });
           } catch (error) { finish(error); }
         },
         onExit: error => {
           if (completing) return;
-          finish(error ? new Error(error.display_message || error.error_message || 'Plaid Link closed with an error') : null, { cancelled: true });
+          finish(error ? new Error(error.display_message || error.error_message || t('finance.plaid_closed_error')) : null, { cancelled: true });
         },
       });
       handler.open();

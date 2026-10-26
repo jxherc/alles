@@ -11,15 +11,15 @@ const css = source('../../static/kokuen.css');
 
 test('Library and Health choices use the shared KOKUEN radio model', () => {
   for (const module of [books, read, health]) {
-    assert.match(module, /import \{ wireChoiceGroup \} from '\.\/kokuen\.js';/);
+    assert.match(module, /import \{ wireChoiceGroup \} from '\.\/kokuen\.js(\?v=\d+)?';/);
   }
-  assert.match(books, /id="book-status" role="radiogroup" aria-label="book shelf"/);
+  assert.match(books, /id="book-status" role="radiogroup" aria-label="\$\{esc\(t\('books\.shelf_label'\)\)\}"/);
   assert.match(books, /class="book-stars"[^>]*role="radiogroup"/);
   assert.match(books, /role="radio" aria-checked="\$\{i === b\.rating\}"/);
-  assert.match(read, /class="read-filter-choices" role="radiogroup" aria-label="saved reading filter"/);
+  assert.match(read, /class="read-filter-choices" role="radiogroup" aria-label="\$\{esc\(t\('read\.filter_label'\)\)\}"/);
   assert.match(read, /role="radio" aria-checked="\$\{_filter === k\}"/);
   assert.match(read, /id="read-feeds-btn" aria-pressed="\$\{_showFeeds\}"/);
-  assert.match(health, /class="health-ranges" role="radiogroup" aria-label="health history range"/);
+  assert.match(health, /class="health-ranges" role="radiogroup" aria-label="\$\{esc\(t\('health\.history_range'\)\)\}"/);
   assert.match(health, /role="radio" aria-checked="\$\{_days === d\}"/);
   assert.match(books, /querySelectorAll\('\.book-stars, #book-status'\)\.forEach\(group => wireChoiceGroup\(group\)\)/);
   assert.match(read, /wireChoiceGroup\(body\.querySelector\('\.read-filter-choices'\)\)/);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/mail.js', import.meta.url), 'utf8')
   .match(/function updateMailRows\(matches, changes, remove = false\) \{[\s\S]*?\r?\n}/)?.[0];
@@ -9,7 +10,7 @@ assert.ok(source);
 
 function update(filter, view, remove = false) {
   let cache = [{ id: 'one', seen: false, flagged: true }, { id: 'two', seen: false, flagged: true }];
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp,
     _lastMsgs: cache, _filter: filter,
     _searchView: view === 'search' ? 'project' : '',
     _labelFilter: view === 'label' ? 'project' : '',

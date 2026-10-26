@@ -1,11 +1,12 @@
 // journal — one entry per day. mood + tags + prompt + streak + on-this-day + AI reflect.
 import { toast, mdToHtml } from './util.js';
-import { formatCalendarDate, formatTime } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=2';
+import { formatCalendarDate, formatTime, t, tp } from './i18n.js';
+import { createFocusBoundary } from './kokuen.js?v=4';
 import { replaceRouteUrl } from './route_history.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
-const MOODS = [['😄', 'happy'], ['🙂', 'content'], ['😐', 'neutral'], ['😕', 'uneasy'], ['😢', 'sad'], ['😠', 'angry'], ['😴', 'tired'], ['🤔', 'thoughtful'], ['🥳', 'celebrating'], ['😍', 'in love']];
+// labels resolve at render so a language switch shows on the next build
+const moods = () => [['😄', t('journal.mood_happy')], ['🙂', t('journal.mood_content')], ['😐', t('journal.mood_neutral')], ['😕', t('journal.mood_uneasy')], ['😢', t('journal.mood_sad')], ['😠', t('journal.mood_angry')], ['😴', t('journal.mood_tired')], ['🤔', t('journal.mood_thoughtful')], ['🥳', t('journal.mood_celebrating')], ['😍', t('journal.mood_in_love')]];
 function _dayFromUrl() { const d = new URLSearchParams(location.search).get('d'); return (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : ''; }
 let _day = _dayFromUrl() || todayISO();
 let _heatYear = null;
@@ -33,7 +34,7 @@ export function localISODate(date = new Date()) {
 function todayISO() { return localISODate(); }
 function _setDayUrl() { try { const u = new URL(location.href); u.searchParams.set('d', _day); replaceRouteUrl(u); } catch {} }
 function esc(s = '') { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-function _setToken(t) { _token = t || ''; if (_token) sessionStorage.setItem('journal_token', _token); else sessionStorage.removeItem('journal_token'); }
+function _setToken(token) { _token = token || ''; if (_token) sessionStorage.setItem('journal_token', _token); else sessionStorage.removeItem('journal_token'); }
 function _authHeaders(extra = {}) { return _token ? { ...extra, 'X-Journal-Token': _token } : extra; }
 export function shiftLocalISO(iso, n) {
   const [year, month, day] = iso.split('-').map(Number);
@@ -47,14 +48,14 @@ export function formatJournalDay(iso) {
 
 async function jget(url) {
   const r = await fetch(url, { headers: _authHeaders() });
-  if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error('locked'); }
+  if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error(t('journal.locked')); }
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status);
   return r.json();
 }
 async function jput(url, body) {
   const r = await fetch(url, { method: 'PUT', headers: _authHeaders({ 'content-type': 'application/json' }), body: JSON.stringify(body) });
-  if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error('locked'); }
-  if (!r.ok) throw new Error('save failed');
+  if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error(t('journal.locked')); }
+  if (!r.ok) throw new Error(t('journal.save_failed'));
   return r.json();
 }
 
@@ -101,7 +102,7 @@ async function migrationRequest(url, options = {}) {
   const response = await fetch(url, { ...options, headers });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.detail || 'the journal copy could not continue');
+    const error = new Error(data.detail || t('journal.copy_could_not_continue'));
     error.status = response.status;
     error.code = data.code || '';
     throw error;
@@ -117,7 +118,7 @@ async function openMarkdownCopy() {
     clearTimeout(_saveTimer);
     _saveTimer = null;
     if (!await save(false)) {
-      toast('save the current journal entry before copying it to Markdown', 'error');
+      toast(t('journal.copy_save_first'), 'error');
       _copyDialogOpen = false;
       return;
     }
@@ -128,7 +129,7 @@ async function openMarkdownCopy() {
     plan = await migrationRequest('/api/journal-migration/plan');
   }
   catch (error) {
-    toast(error.status === 403 ? 'unlock the journal and confirm your owner session first' : error.message, 'error');
+    toast(error.status === 403 ? t('journal.copy_unlock_first') : error.message, 'error');
     _copyDialogOpen = false;
     return;
   }
@@ -138,37 +139,37 @@ async function openMarkdownCopy() {
   layer.setAttribute('aria-modal', 'true');
   layer.setAttribute('aria-labelledby', 'jrnl-migration-title');
   const copyDescription = current => current.count
-    ? `this makes ${current.count} daily Markdown file${current.count === 1 ? '' : 's'} in <b>Journal/</b> so Obsidian and docs can read them.`
-    : 'no journal entries to copy yet.';
+    ? tp('journal.copy_description', current.count)
+    : t('journal.copy_nothing');
   function copyControls(current) {
-    if (!current.count) return '<div class="jrnl-migration-actions"><button type="button" data-close>done</button></div>';
+    if (!current.count) return `<div class="jrnl-migration-actions"><button type="button" data-close>${t('common.done')}</button></div>`;
     const conflicts = current.conflicts?.length
-      ? `<div class="jrnl-migration-error">${current.conflicts.length} existing Markdown file${current.conflicts.length === 1 ? '' : 's'} would conflict. nothing can be copied until those files are moved or renamed.</div>`
+      ? `<div class="jrnl-migration-error">${tp('journal.copy_conflicts', current.conflicts.length)}</div>`
       : '';
     const invalid = current.invalid_dates?.length
-      ? `<div class="jrnl-migration-error">${current.invalid_dates.length} journal date${current.invalid_dates.length === 1 ? '' : 's'} need repair before copying.</div>`
+      ? `<div class="jrnl-migration-error">${tp('journal.copy_invalid_dates', current.invalid_dates.length)}</div>`
       : '';
     const disabled = current.conflicts?.length || current.invalid_dates?.length;
     return `${conflicts}${invalid}
       <label class="jrnl-migration-confirm">
-        type this exact line to prepare the copy
+        ${t('journal.copy_confirm_label')}
         <code>${esc(current.confirmation)}</code>
         <input type="text" autocomplete="off" spellcheck="false" ${disabled ? 'disabled' : ''}>
       </label>
       <div class="jrnl-migration-actions">
-        <button type="button" data-close>cancel</button>
-        <button type="button" data-prepare ${disabled ? 'disabled' : ''}>prepare private copy</button>
+        <button type="button" data-close>${t('common.cancel')}</button>
+        <button type="button" data-prepare ${disabled ? 'disabled' : ''}>${t('journal.copy_prepare')}</button>
       </div>`;
   }
   layer.innerHTML = `
     <div class="jrnl-migration-card">
       <div class="jrnl-migration-head">
-        <h2 id="jrnl-migration-title">copy journal to Markdown</h2>
-        <button type="button" data-close aria-label="close">close</button>
+        <h2 id="jrnl-migration-title">${t('journal.copy_title')}</h2>
+        <button type="button" data-close aria-label="${t('common.close')}">${t('common.close')}</button>
       </div>
       <p data-copy-description>${copyDescription(plan)}</p>
       <p class="jrnl-migration-warning">${esc(plan.privacy_warning)}</p>
-      <p class="jrnl-migration-note">journal stays the source of truth. the database is not deleted, and you can roll back files that alles created unchanged.</p>
+      <p class="jrnl-migration-note">${t('journal.copy_note')}</p>
       <div class="jrnl-migration-operations" data-operations hidden></div>
       <div data-new-copy>
         ${copyControls(plan)}
@@ -201,14 +202,16 @@ async function openMarkdownCopy() {
     operations.hidden = !pending;
     const rows = data.operations.map(item => {
       const id = esc(item.operation_id);
-      const label = item.state === 'prepared' ? 'prepared' : item.state === 'applied' ? 'copied' : 'rollback needs attention';
+      const label = item.state === 'prepared'
+        ? t('journal.operation_prepared', { id: id.slice(0, 8) })
+        : item.state === 'applied' ? t('journal.operation_copied', { id: id.slice(0, 8) }) : t('journal.operation_attention', { id: id.slice(0, 8) });
       const action = item.state === 'prepared'
-        ? `<button type="button" data-operation="${id}" data-action="apply" data-apply>copy into vault</button><button type="button" data-operation="${id}" data-action="rollback" data-rollback>discard prepared copy</button>`
-        : `<button type="button" data-operation="${id}" data-action="rollback" data-rollback>${item.state === 'applied' ? 'roll back copied files' : 'retry rollback'}</button>`;
-      return `<div class="jrnl-migration-operation"><p>${label} copy ${id.slice(0, 8)} · ${esc(item.count)} file${item.count === 1 ? '' : 's'}${item.rollback_conflicts ? ` · ${esc(item.rollback_conflicts)} conflict${item.rollback_conflicts === 1 ? '' : 's'}` : ''}</p><div class="jrnl-migration-actions">${action}</div></div>`;
+        ? `<button type="button" data-operation="${id}" data-action="apply" data-apply>${t('journal.copy_apply')}</button><button type="button" data-operation="${id}" data-action="rollback" data-rollback>${t('journal.copy_discard_prepared')}</button>`
+        : `<button type="button" data-operation="${id}" data-action="rollback" data-rollback>${item.state === 'applied' ? t('journal.copy_roll_back') : t('journal.copy_retry_rollback')}</button>`;
+      return `<div class="jrnl-migration-operation"><p>${label} · ${esc(tp('journal.file_count', item.count))}${item.rollback_conflicts ? ` · ${esc(tp('journal.conflict_count', item.rollback_conflicts))}` : ''}</p><div class="jrnl-migration-actions">${action}</div></div>`;
     });
-    const unavailable = data.unavailable.map(id => `<p class="jrnl-migration-error">copy ${esc(id.slice(0, 8))} cannot be opened. its private recovery record needs inspection; no files were removed.</p>`);
-    operations.innerHTML = pending ? `<h3>existing copy work</h3>${rows.join('')}${unavailable.join('')}` : '';
+    const unavailable = data.unavailable.map(id => `<p class="jrnl-migration-error">${t('journal.copy_unavailable', { id: esc(id.slice(0, 8)) })}</p>`);
+    operations.innerHTML = pending ? `<h3>${t('journal.copy_existing_work')}</h3>${rows.join('')}${unavailable.join('')}` : '';
   }
   renderOperations(existing);
   layer.addEventListener('click', async event => {
@@ -218,7 +221,7 @@ async function openMarkdownCopy() {
     const operationId = button.dataset.operation;
     if (operationId) {
       button.disabled = true;
-      report(button.dataset.action === 'apply' ? 'copying verified Markdown…' : 'checking copied files…');
+      report(button.dataset.action === 'apply' ? t('journal.copy_applying') : t('journal.copy_checking'));
       try {
         const result = await migrationRequest(`/api/journal-migration/${encodeURIComponent(operationId)}/${button.dataset.action}`, { method: 'POST' });
         const latest = await migrationRequest('/api/journal-migration/operations');
@@ -231,22 +234,22 @@ async function openMarkdownCopy() {
             layer.querySelector('.jrnl-migration-warning').textContent = plan.privacy_warning;
           } catch {
             newCopy.hidden = true;
-            report('copy work changed, but its new plan could not be loaded. close and reopen to check before another copy.', true);
+            report(t('journal.copy_plan_reload_failed'), true);
             layer.querySelector('[data-close]')?.focus();
             return;
           }
         }
         report(result.state === 'applied'
-          ? `${result.installed} Markdown file${result.installed === 1 ? '' : 's'} copied. the journal is still intact.`
+          ? tp('journal.files_copied', result.installed)
           : result.rollback_conflicts?.length
-            ? 'some copied files changed later, so alles left them in place.'
-            : 'copied Markdown files rolled back. the journal was never removed.');
+            ? t('journal.rollback_left_changed')
+            : t('journal.rolled_back'));
         (operations.querySelector('[data-operation]') || newCopy.querySelector('input') || layer.querySelector('[data-close]'))?.focus();
       } catch (error) {
         try { renderOperations(await migrationRequest('/api/journal-migration/operations')); }
         catch { /* preserve the last visible recovery choice until the dialog is reopened */ }
         if (!newCopy.hidden) newCopy.hidden = true;
-        report(error.status === 403 ? 'unlock the journal and confirm your owner session first.' : `${error.message} close and reopen to check copy work before retrying.`, true);
+        report(error.status === 403 ? t('journal.copy_unlock_first_sentence') : t('journal.copy_failed_reopen', { error: error.message }), true);
         if (button.isConnected) button.disabled = false;
       }
       return;
@@ -254,12 +257,12 @@ async function openMarkdownCopy() {
     if (!button.hasAttribute('data-prepare')) return;
     const input = newCopy.querySelector('input');
     if (input.value !== plan.confirmation) {
-      report('the confirmation line does not match.', true);
+      report(t('journal.copy_confirmation_mismatch'), true);
       input.focus();
       return;
     }
     button.disabled = true;
-    report('checking every entry and target…');
+    report(t('journal.copy_preparing'));
     try {
       const prepared = await migrationRequest('/api/journal-migration/prepare', {
         method: 'POST',
@@ -269,13 +272,13 @@ async function openMarkdownCopy() {
       renderOperations({ operations: [{ ...prepared, rollback_conflicts: prepared.rollback_conflicts?.length || 0 }], unavailable: [] });
       const latest = await migrationRequest('/api/journal-migration/operations');
       renderOperations(latest);
-      report(`${prepared.count} file${prepared.count === 1 ? '' : 's'} prepared privately. no Markdown file has changed yet.`);
+      report(tp('journal.files_prepared', prepared.count));
       operations.querySelector('[data-apply]')?.focus();
     } catch (error) {
       try { renderOperations(await migrationRequest('/api/journal-migration/operations')); }
       catch { newCopy.hidden = true; }
-      const message = error.status === 403 ? 'unlock the journal and confirm your owner session first.' : error.message;
-      report(`${message} close and reopen to check copy work before retrying.`, true);
+      const message = error.status === 403 ? t('journal.copy_unlock_first_sentence') : error.message;
+      report(t('journal.copy_failed_reopen', { error: message }), true);
     }
   });
   boundary.activate({ focus: newCopy.hidden ? operations.querySelector('button') || layer.querySelector('[data-close]') : newCopy.querySelector('input') });
@@ -292,63 +295,63 @@ async function buildJournal() {
       <div class="jrnl-wrap">
         <div class="jrnl-main">
           <div class="jrnl-datebar">
-            <button class="btn" id="jrnl-prev" title="previous day" aria-label="previous day">${_si('chevron-left')}</button>
+            <button class="btn" id="jrnl-prev" title="${t('journal.previous_day')}" aria-label="${t('journal.previous_day')}">${_si('chevron-left')}</button>
             <div class="jrnl-date" id="jrnl-date"></div>
-            <button class="btn" id="jrnl-next" title="next day" aria-label="next day">${_si('chevron-right')}</button>
-            <button class="btn" id="jrnl-today">today</button>
+            <button class="btn" id="jrnl-next" title="${t('journal.next_day')}" aria-label="${t('journal.next_day')}">${_si('chevron-right')}</button>
+            <button class="btn" id="jrnl-today">${t('common.today')}</button>
             <span class="jrnl-words" id="jrnl-words"></span>
           </div>
           <div class="jrnl-load-error" id="jrnl-load-error" hidden>
             <span id="jrnl-load-message" role="alert"></span>
-            <button class="btn" id="jrnl-load-retry" type="button">retry loading day</button>
+            <button class="btn" id="jrnl-load-retry" type="button">${t('journal.retry_load_day')}</button>
           </div>
           <div class="jrnl-prompt" id="jrnl-prompt"></div>
-          <textarea id="jrnl-text" class="jrnl-text" rows="7" aria-label="journal entry" aria-describedby="jrnl-prompt" placeholder="how was your day?"></textarea>
-          <div class="jrnl-mood-label" id="jrnl-mood-label">mood</div>
-          <div class="jrnl-moods" id="jrnl-moods" role="group" aria-labelledby="jrnl-mood-label">${MOODS.map(([m, label]) => `<button type="button" class="jrnl-mood" data-m="${m}" aria-label="${label}" aria-pressed="false">${label}</button>`).join('')}</div>
-          <input id="jrnl-tags" class="jrnl-tags" aria-label="tags, comma separated" placeholder="tags, comma separated">
+          <textarea id="jrnl-text" class="jrnl-text" rows="7" aria-label="${t('journal.entry_label')}" aria-describedby="jrnl-prompt" placeholder="${t('journal.entry_placeholder')}"></textarea>
+          <div class="jrnl-mood-label" id="jrnl-mood-label">${t('journal.mood')}</div>
+          <div class="jrnl-moods" id="jrnl-moods" role="group" aria-labelledby="jrnl-mood-label">${moods().map(([m, label]) => `<button type="button" class="jrnl-mood" data-m="${m}" aria-label="${label}" aria-pressed="false">${label}</button>`).join('')}</div>
+          <input id="jrnl-tags" class="jrnl-tags" aria-label="${t('journal.tags_label')}" placeholder="${t('journal.tags_label')}">
           <div class="jrnl-actions">
-            <button class="btn primary" id="jrnl-save">save</button>
-            <button class="btn" id="jrnl-reflect">${_si('sparkles')} reflect</button>
+            <button class="btn primary" id="jrnl-save">${t('common.save')}</button>
+            <button class="btn" id="jrnl-reflect">${_si('sparkles')} ${t('journal.reflect')}</button>
             <span class="jrnl-saved" id="jrnl-saved" role="status"></span>
           </div>
           <div class="jrnl-reflection" id="jrnl-reflection" role="status" style="display:none"></div>
         </div>
         <div class="jrnl-top">
           <div class="jrnl-toolbar">
-            <input id="jrnl-search" class="jrnl-tags jrnl-search" aria-label="search entries" placeholder="search entries…">
-            <button class="btn" id="jrnl-export">export</button>
-            <button class="btn jrnl-lock-btn" id="jrnl-lock" title="lock"></button>
+            <input id="jrnl-search" class="jrnl-tags jrnl-search" aria-label="${t('journal.search_label')}" placeholder="${t('journal.search_placeholder')}">
+            <button class="btn" id="jrnl-export">${t('journal.export')}</button>
+            <button class="btn jrnl-lock-btn" id="jrnl-lock" title="${t('journal.lock')}"></button>
           </div>
           <div id="jrnl-export-status" class="jrnl-empty" role="status" hidden></div>
           <div id="jrnl-results" class="jrnl-results"></div>
           <div class="jrnl-side-title jrnl-heat-head">
-            <span class="jrnl-heat-label">activity</span>
-            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="previous year" aria-label="previous year">${_si('chevron-left')}</button>
+            <span class="jrnl-heat-label">${t('journal.activity')}</span>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-prev" title="${t('journal.previous_year')}" aria-label="${t('journal.previous_year')}">${_si('chevron-left')}</button>
             <span id="jrnl-heat-year"></span>
-            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="next year" aria-label="next year">${_si('chevron-right')}</button>
+            <button class="btn jrnl-heat-nav" id="jrnl-heat-next" title="${t('journal.next_year')}" aria-label="${t('journal.next_year')}">${_si('chevron-right')}</button>
           </div>
           <div id="jrnl-heatmap" class="jrnl-heatmap"></div>
         </div>
         <div class="jrnl-extras">
           <div class="jrnl-col">
-            <div class="jrnl-side-title">mood · last 30 days</div>
+            <div class="jrnl-side-title">${t('journal.mood_last_30')}</div>
             <div id="jrnl-moodtrend" class="jrnl-moodtrend"></div>
           </div>
           <div class="jrnl-col">
-            <div class="jrnl-side-title">what moves your mood</div>
+            <div class="jrnl-side-title">${t('journal.mood_links')}</div>
             <div id="jrnl-moodcorr" class="jrnl-moodcorr"></div>
           </div>
           <div class="jrnl-col">
-            <div class="jrnl-side-title">topics</div>
+            <div class="jrnl-side-title">${t('journal.topics')}</div>
             <div id="jrnl-topics" class="jrnl-topics"></div>
           </div>
           <div class="jrnl-col">
-            <div class="jrnl-side-title">on this day</div>
-            <div id="jrnl-otd" class="jrnl-otd"><div class="jrnl-empty">nothing from past years yet</div></div>
+            <div class="jrnl-side-title">${t('journal.on_this_day')}</div>
+            <div id="jrnl-otd" class="jrnl-otd"><div class="jrnl-empty">${t('journal.on_this_day_empty')}</div></div>
           </div>
           <div class="jrnl-col">
-            <div class="jrnl-side-title">recent</div>
+            <div class="jrnl-side-title">${t('journal.recent')}</div>
             <div id="jrnl-recent" class="jrnl-recent"></div>
           </div>
         </div>
@@ -365,9 +368,9 @@ async function buildJournal() {
     };
     document.getElementById('jrnl-reflect').onclick = reflect;
     const scheduleAutosave = () => {
-      invalidateReflection('entry changed. choose reflect again.');
+      invalidateReflection(t('journal.reflect_stale'));
       _dirty = true;
-      document.getElementById('jrnl-saved').textContent = 'unsaved changes';
+      document.getElementById('jrnl-saved').textContent = t('journal.unsaved_changes');
       updateWords();
       clearTimeout(_saveTimer);
       _saveTimer = setTimeout(() => { _saveTimer = null; save(false); }, 1200);   // gentle autosave
@@ -376,7 +379,7 @@ async function buildJournal() {
     document.getElementById('jrnl-tags').addEventListener('input', scheduleAutosave);
     document.getElementById('jrnl-moods').addEventListener('click', e => {
       const b = e.target.closest('.jrnl-mood'); if (!b) return;
-      invalidateReflection('entry changed. choose reflect again.');
+      invalidateReflection(t('journal.reflect_stale'));
       const on = b.classList.contains('active');
       document.querySelectorAll('.jrnl-mood').forEach(x => {
         const selected = x === b && !on;
@@ -397,7 +400,7 @@ async function buildJournal() {
         const restoreFocus = retry && document.activeElement === retry;
         box.innerHTML = d.results.map(r =>
           `<button type="button" class="jrnl-otd-row jrnl-search-result" data-d="${esc(r.date)}"><b>${esc(r.date)}</b> ${esc(r.mood || '')} ${esc(r.snippet)}</button>`).join('')
-          || '<div class="jrnl-empty" role="status">no matches</div>';
+          || `<div class="jrnl-empty" role="status">${t('journal.no_matches')}</div>`;
         box.querySelectorAll('[data-d]').forEach(button => button.onclick = async () => {
           await navigateDay(button.dataset.d);
           if (_loadedDay === button.dataset.d && !_loading && document.activeElement === button) {
@@ -408,12 +411,12 @@ async function buildJournal() {
       } catch {
         if (generation !== searchGeneration || !box.isConnected) return;
         const restoreFocus = retry && document.activeElement === retry;
-        box.innerHTML = '<div class="jrnl-empty" role="alert">could not search journal. try again.</div><button type="button" class="btn" data-search-retry>retry search</button>';
+        box.innerHTML = `<div class="jrnl-empty" role="alert">${t('journal.search_failed')}</div><button type="button" class="btn" data-search-retry>${t('journal.retry_search')}</button>`;
         const retryButton = box.querySelector('[data-search-retry]');
         retryButton.onclick = () => {
           if (retryButton.getAttribute('aria-disabled') === 'true') return;
           retryButton.setAttribute('aria-disabled', 'true');
-          box.querySelector('[role="alert"]').textContent = 'searching…';
+          box.querySelector('[role="alert"]').textContent = t('journal.searching');
           runSearch(q, generation, retryButton);
         };
         if (restoreFocus) retryButton.focus();
@@ -423,7 +426,7 @@ async function buildJournal() {
       clearTimeout(searchTimer);
       const generation = ++searchGeneration;
       const q = search.value.trim();
-      box.innerHTML = q ? '<div class="jrnl-empty" role="status">searching…</div>' : '';
+      box.innerHTML = q ? `<div class="jrnl-empty" role="status">${t('journal.searching')}</div>` : '';
       if (q) searchTimer = setTimeout(() => runSearch(q, generation), 250);
     });
     const exportButton = document.getElementById('jrnl-export');
@@ -432,12 +435,12 @@ async function buildJournal() {
       if (exportButton.getAttribute('aria-disabled') === 'true') return;
       exportButton.setAttribute('aria-disabled', 'true');
       exportStatus.hidden = false;
-      exportStatus.textContent = 'preparing export…';
+      exportStatus.textContent = t('journal.export_preparing');
       try {
         while (_dirty || _saveTimer !== null || _saveInFlight !== null) {
           clearTimeout(_saveTimer);
           _saveTimer = null;
-          if (!await save(false)) throw new Error('save failed');
+          if (!await save(false)) throw new Error(t('journal.save_failed'));
           if (!exportButton.isConnected) return;
         }
         const d = await jget('/api/journal/export');
@@ -447,9 +450,9 @@ async function buildJournal() {
         a.href = URL.createObjectURL(new Blob([d.markdown], { type: 'text/markdown' }));
         try { a.download = 'journal.md'; a.click(); }
         finally { URL.revokeObjectURL(a.href); }
-        exportStatus.textContent = 'journal export downloaded';
+        exportStatus.textContent = t('journal.export_done');
       } catch {
-        if (exportButton.isConnected) exportStatus.textContent = 'could not export. your draft is kept. choose export to retry.';
+        if (exportButton.isConnected) exportStatus.textContent = t('journal.export_failed');
       } finally {
         exportButton.removeAttribute('aria-disabled');
       }
@@ -468,7 +471,7 @@ async function buildJournal() {
   } catch (error) {
     _lastHydratedAt = 0;
     const status = document.getElementById('jrnl-saved');
-    if (status) status.textContent = 'journal could not refresh. try again.';
+    if (status) status.textContent = t('journal.refresh_failed');
     return [];
   }
 }
@@ -508,14 +511,14 @@ async function loadHeatmap() {
         if (iso === today) cls.push('today');
         if (iso === _day) cls.push('sel');
         // a picture: a pointer still gets the day on hover, nothing here takes a click or a tab stop
-        const title = inYear ? ` title="${esc(info ? `${iso} · ${info.words} words ${info.mood || ''}` : iso)}"` : '';
+        const title = inYear ? ` title="${esc(info ? tp('journal.heat_day', info.words, { date: iso, mood: info.mood || '' }) : iso)}"` : '';
         cells += `<span class="${cls.join(' ')}" data-d="${inYear ? iso : ''}"${title} aria-hidden="true"></span>`;
       }
       weeks++;
     }
     // month labels sit above the column where each month's 1st falls. they're the way in: a month
     // opens on its 1st (the picker can't open on a chosen month)
-    const M = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const M = Array.from({ length: 12 }, (_, m) => formatCalendarDate(`${d.year}-${String(m + 1).padStart(2, '0')}-01`, { month: 'short' }).toLowerCase());
     const written = Object.keys(d.days).filter(iso => iso.startsWith(`${d.year}-`));
     const perMonth = M.map((_, m) => written.filter(iso => Number(iso.slice(5, 7)) === m + 1).length);
     let months = '';
@@ -524,12 +527,12 @@ async function loadHeatmap() {
       const column = m === 11 ? `${wk + 1} / -1` : wk + 1;
       const first = `${d.year}-${String(m + 1).padStart(2, '0')}-01`;
       const ahead = first > today;
-      months += `<button type="button" class="jrnl-hm jrnl-heat-month" style="grid-column:${column}" data-month="${first}" aria-label="${M[m]} ${d.year}${perMonth[m] ? `, ${perMonth[m]} entr${perMonth[m] === 1 ? 'y' : 'ies'}` : ''}"${ahead ? ' aria-disabled="true"' : ''}>${M[m]}</button>`;
+      months += `<button type="button" class="jrnl-hm jrnl-heat-month" style="grid-column:${column}" data-month="${first}" aria-label="${esc(perMonth[m] ? tp('journal.heat_month_entries', perMonth[m], { month: M[m], year: d.year }) : t('journal.heat_month', { month: M[m], year: d.year }))}"${ahead ? ' aria-disabled="true"' : ''}>${M[m]}</button>`;
     }
     const busiest = perMonth.indexOf(Math.max(...perMonth));
     const summary = written.length
-      ? `journal ${d.year}: entries on ${written.length} day${written.length === 1 ? '' : 's'}, most in ${formatCalendarDate(`${d.year}-${String(busiest + 1).padStart(2, '0')}-01`, { month: 'long' })}`
-      : `journal ${d.year}: no entries yet`;
+      ? tp('journal.heat_summary', written.length, { year: d.year, month: formatCalendarDate(`${d.year}-${String(busiest + 1).padStart(2, '0')}-01`, { month: 'long' }) })
+      : t('journal.heat_summary_empty', { year: d.year });
     // the strip redraws after every day change: a focused month stays focused
     const focused = el.contains(document.activeElement) ? document.activeElement.dataset.month : '';
     el.innerHTML =
@@ -547,7 +550,7 @@ async function loadMoodTrend() {
   if (!el) return;
   try {
     const d = await jget('/api/journal/moods?days=30');
-    if (!d.distribution.length) { el.innerHTML = '<div class="jrnl-empty">no moods logged yet</div>'; return; }
+    if (!d.distribution.length) { el.innerHTML = `<div class="jrnl-empty">${t('journal.no_moods')}</div>`; return; }
     const max = Math.max(...d.distribution.map(x => x.count));
     el.innerHTML = d.distribution.map(x => `
       <div class="jrnl-mt-row">
@@ -565,14 +568,16 @@ async function loadMoodCorr() {
   try {
     const d = await jget('/api/journal/mood-correlations');
     if (!d.ok || !d.correlations.length) {
-      el.innerHTML = `<div class="jrnl-empty">${esc(d.reason || 'log mood + habits/health for a couple weeks to see links')}</div>`;
+      const needed = /^need (\d+)\+ days with a mood logged/.exec(d.reason || '');
+      const reason = needed ? t('journal.mood_need_days', { min: needed[1], have: d.mood_days ?? 0 }) : d.reason;
+      el.innerHTML = `<div class="jrnl-empty">${esc(reason || t('journal.mood_links_empty'))}</div>`;
       return;
     }
     el.innerHTML = d.correlations.slice(0, 6).map(c => `
       <div class="jrnl-corr-row">
         <span class="jrnl-corr-dot ${c.rho >= 0 ? 'pos' : 'neg'}"></span>
         <span class="jrnl-corr-text">${esc(c.explain)}</span>
-        <span class="jrnl-corr-n" title="${c.n} days with both logged">${c.rho >= 0 ? '+' : ''}${c.rho.toFixed(2)}</span>
+        <span class="jrnl-corr-n" title="${esc(tp('journal.corr_days', c.n))}">${c.rho >= 0 ? '+' : ''}${c.rho.toFixed(2)}</span>
       </div>`).join('');
   } catch { el.innerHTML = ''; }
 }
@@ -583,9 +588,9 @@ async function loadTopics() {
   if (!el) return;
   try {
     const d = await jget('/api/journal/tags');
-    if (!d.tags || !d.tags.length) { el.innerHTML = '<div class="jrnl-empty">tag entries to see your topics</div>'; return; }
-    el.innerHTML = d.tags.map(t =>
-      `<button class="jrnl-topic" data-tag="${esc(t.tag)}">#${esc(t.tag)} <span>${t.count}</span></button>`).join('');
+    if (!d.tags || !d.tags.length) { el.innerHTML = `<div class="jrnl-empty">${t('journal.topics_empty')}</div>`; return; }
+    el.innerHTML = d.tags.map(tag =>
+      `<button class="jrnl-topic" data-tag="${esc(tag.tag)}">#${esc(tag.tag)} <span>${tag.count}</span></button>`).join('');
     el.querySelectorAll('.jrnl-topic').forEach(b => b.onclick = () => {
       const inp = document.getElementById('jrnl-search');
       if (!inp) return;
@@ -601,7 +606,7 @@ async function refreshLockBtn() {
   if (!btn) return;
   try {
     const s = await jget('/api/journal/lock/status');
-    btn.innerHTML = s.enabled ? `${_si('lock')} lock options` : `${_si('unlock')} add passcode`;
+    btn.innerHTML = s.enabled ? `${_si('lock')} ${t('journal.lock_options')}` : `${_si('unlock')} ${t('journal.add_passcode')}`;
     btn.dataset.enabled = s.enabled ? '1' : '';
   } catch {}
 }
@@ -627,9 +632,9 @@ function pickLockAction() {
     const menu = document.createElement('div');
     menu.className = 'jrnl-lockmenu';
     menu.innerHTML = `
-      <button class="btn" data-a="lock">lock now</button>
-      <button class="btn" data-a="change">change passcode</button>
-      <button class="btn danger" data-a="disable">disable lock</button>`;
+      <button class="btn" data-a="lock">${t('journal.lock_now')}</button>
+      <button class="btn" data-a="change">${t('journal.change_passcode')}</button>
+      <button class="btn danger" data-a="disable">${t('journal.disable_lock')}</button>`;
     document.body.appendChild(menu);
     const r = btn.getBoundingClientRect();
     menu.style.top = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)) + 'px';
@@ -662,26 +667,26 @@ function showLock(mode) {
       <div class="jrnl-lock">
         <div class="jrnl-lock-card" role="status">
           <div class="jrnl-lock-icon">${_si('lock')}</div>
-          <div class="jrnl-lock-title">journal unavailable</div>
-          <p class="jrnl-lock-err">alles could not verify the journal lock. reload when the server is reachable.</p>
+          <div class="jrnl-lock-title">${t('journal.unavailable_title')}</div>
+          <p class="jrnl-lock-err">${t('journal.unavailable_body')}</p>
         </div>
       </div>`;
     return;
   }
-  const titles = { unlock: 'journal is locked', set: 'set a passcode', change: 'change passcode', disable: 'disable lock' };
+  const titles = { unlock: t('journal.locked_title'), set: t('journal.set_passcode'), change: t('journal.change_passcode'), disable: t('journal.disable_lock') };
   const needsOld = mode === 'change' || mode === 'disable' || mode === 'unlock';
   const needsNew = mode === 'set' || mode === 'change';
   body.innerHTML = `
     <div class="jrnl-lock">
       <div class="jrnl-lock-card">
         <div class="jrnl-lock-icon">${_si('lock')}</div>
-        <div class="jrnl-lock-title">${titles[mode] || 'journal'}</div>
-        ${needsOld ? `<input type="password" id="jl-old" class="jrnl-tags" placeholder="${mode === 'unlock' ? 'passcode' : 'current passcode'}" autocomplete="off">` : ''}
-        ${needsNew ? `<input type="password" id="jl-new" class="jrnl-tags" placeholder="new passcode (12+ characters)" minlength="12" autocomplete="new-password">` : ''}
-        ${needsNew ? `<input type="password" id="jl-new2" class="jrnl-tags" placeholder="confirm passcode" minlength="12" autocomplete="new-password">` : ''}
+        <div class="jrnl-lock-title">${titles[mode] || t('journal.title')}</div>
+        ${needsOld ? `<input type="password" id="jl-old" class="jrnl-tags" placeholder="${mode === 'unlock' ? t('journal.passcode') : t('journal.current_passcode')}" autocomplete="off">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new" class="jrnl-tags" placeholder="${t('journal.new_passcode')}" minlength="12" autocomplete="new-password">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new2" class="jrnl-tags" placeholder="${t('journal.confirm_passcode')}" minlength="12" autocomplete="new-password">` : ''}
         <div class="jrnl-lock-actions">
-          <button class="btn primary" id="jl-go">${mode === 'unlock' ? 'unlock' : mode === 'disable' ? 'disable' : 'save'}</button>
-          ${mode !== 'unlock' ? '<button class="btn" id="jl-cancel">cancel</button>' : ''}
+          <button class="btn primary" id="jl-go">${mode === 'unlock' ? t('journal.unlock') : mode === 'disable' ? t('journal.disable') : t('common.save')}</button>
+          ${mode !== 'unlock' ? `<button class="btn" id="jl-cancel">${t('common.cancel')}</button>` : ''}
         </div>
         <div class="jrnl-lock-err" id="jl-err"></div>
       </div>
@@ -696,21 +701,21 @@ function showLock(mode) {
     try {
       if (mode === 'unlock') {
         const r = await fetch('/api/journal/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: old }) });
-        if (!r.ok) return err('wrong passcode');
+        if (!r.ok) return err(t('journal.wrong_passcode'));
         _setToken((await r.json()).token); _built = false; buildJournal();
       } else if (mode === 'disable') {
         const r = await fetch('/api/journal/lock/disable', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: old }) });
-        if (!r.ok) return err('wrong passcode'); _setToken(''); _built = false; buildJournal();
+        if (!r.ok) return err(t('journal.wrong_passcode')); _setToken(''); _built = false; buildJournal();
       } else { // set | change
-        if (nw.length < 12) return err('use at least 12 characters');
-        if (nw !== nw2) return err('passcodes don\'t match');
+        if (nw.length < 12) return err(t('journal.passcode_too_short'));
+        if (nw !== nw2) return err(t('journal.passcode_mismatch'));
         const r = await fetch('/api/journal/lock/set', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: nw, old }) });
-        if (!r.ok) return err((await r.json().catch(() => ({}))).detail || 'failed');
+        if (!r.ok) return err((await r.json().catch(() => ({}))).detail || t('journal.failed'));
         const u = await fetch('/api/journal/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: nw }) });
         _setToken((await u.json()).token); _built = false; buildJournal();
-        toast('passcode set', 'success');
+        toast(t('journal.passcode_set'), 'success');
       }
-    } catch { err('something went wrong'); }
+    } catch { err(t('journal.something_wrong')); }
   };
   document.getElementById('jl-go').addEventListener('click', submit);
   body.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
@@ -731,7 +736,7 @@ async function navigateDay(nextDay) {
     clearTimeout(_saveTimer);
     _saveTimer = null;
     if (!await save(false)) {
-      toast('save failed; staying on this day', 'error');
+      toast(t('journal.save_failed_staying'), 'error');
       return;
     }
   }
@@ -764,7 +769,7 @@ async function load() {
   clearTimeout(_saveTimer);
   _saveTimer = null;
   renderDay();
-  document.getElementById('jrnl-saved').textContent = 'loading entry…';
+  document.getElementById('jrnl-saved').textContent = t('journal.loading_entry');
   try {
     const e = await jget('/api/journal/' + requestedDay);
     if (generation !== _loadGeneration || requestedDay !== _day) return;
@@ -781,7 +786,7 @@ async function load() {
       x.setAttribute('aria-pressed', String(selected));
     });
     document.getElementById('jrnl-reflection').style.display = 'none';
-    document.getElementById('jrnl-saved').textContent = draft ? 'unsaved draft restored' : '';
+    document.getElementById('jrnl-saved').textContent = draft ? t('journal.draft_restored') : '';
     _dirty = Boolean(draft);
     updateWords();
     if (restoreFocus && document.getElementById('journal-body')?.getClientRects().length) {
@@ -793,7 +798,9 @@ async function load() {
     if (generation !== _loadGeneration || requestedDay !== _day) return;
     _failedDay = requestedDay;
     if (_loadedDay) { _day = _loadedDay; renderDay(); }
-    document.getElementById('jrnl-load-message').textContent = `could not load ${formatJournalDay(requestedDay)}. ${_loadedDay ? 'your previous entry is still open.' : 'retry before writing an entry.'}`;
+    document.getElementById('jrnl-load-message').textContent = _loadedDay
+      ? t('journal.load_failed_previous_open', { day: formatJournalDay(requestedDay) })
+      : t('journal.load_failed_retry', { day: formatJournalDay(requestedDay) });
     document.getElementById('jrnl-load-error').hidden = false;
     document.getElementById('jrnl-saved').textContent = '';
     return false;
@@ -816,7 +823,7 @@ function updateWords() {
   const main = document.querySelector('.jrnl-main');
   const using = document.activeElement?.matches?.('.jrnl-tags, .jrnl-mood');
   if (main && !using) main.dataset.blank = String(!text && !document.getElementById('jrnl-tags')?.value.trim() && !document.querySelector('.jrnl-mood.active'));
-  document.getElementById('jrnl-words').textContent = n ? `${n} word${n === 1 ? '' : 's'}` : '';
+  document.getElementById('jrnl-words').textContent = n ? tp('journal.word_count', n) : '';
 }
 
 async function save(explicit) {
@@ -829,7 +836,7 @@ async function save(explicit) {
   const draft = snapshotEditor();
   if (!draft) return false;
   const { content, tags, mood } = draft;
-  document.getElementById('jrnl-saved').textContent = 'saving…';
+  document.getElementById('jrnl-saved').textContent = t('common.saving');
   const request = (async () => {
     try {
       await jput('/api/journal/' + savedDay, { content, mood, tags });
@@ -844,14 +851,14 @@ async function save(explicit) {
         if (locked) _lockedDraft = null;
       }
       const saved = document.getElementById('jrnl-saved');
-      if (saved) saved.textContent = unchanged ? 'saved ' + formatTime(new Date()) : 'unsaved changes';
-      if (explicit && unchanged) toast('entry saved', 'success');
+      if (saved) saved.textContent = unchanged ? t('journal.saved_at', { time: formatTime(new Date()) }) : t('journal.unsaved_changes');
+      if (explicit && unchanged) toast(t('journal.entry_saved'), 'success');
       loadStats(); loadRecent(); loadMoodTrend(); loadMoodCorr(); loadTopics();
       return true;
     } catch (e) {
       const status = document.getElementById('jrnl-saved');
-      if (status && savedDay === _day) status.textContent = 'could not save; your draft is kept. choose save to retry.';
-      if (explicit) toast(e.message || 'save failed', 'error');
+      if (status && savedDay === _day) status.textContent = t('journal.save_failed_kept');
+      if (explicit) toast(e.message || t('journal.save_failed'), 'error');
       return false;
     }
   })();
@@ -868,7 +875,7 @@ async function loadStats() {
     const d = await jget('/api/journal');
     const s = d.stats || {};
     const el = document.getElementById('journal-stats');
-    if (el) el.innerHTML = `${_si('fire')} ${s.streak || 0} day streak · ${s.total || 0} entries · ${s.this_month || 0} this month`;
+    if (el) el.innerHTML = `${_si('fire')} ${tp('journal.streak_days', s.streak || 0)} · ${tp('journal.entry_total', s.total || 0)} · ${tp('journal.this_month_count', s.this_month || 0)}`;
   } catch {}
 }
 
@@ -876,7 +883,7 @@ async function loadPrompt() {
   try {
     const d = await jget('/api/journal/prompt');
     const el = document.getElementById('jrnl-prompt');
-    if (el) el.textContent = '“' + d.prompt + '”';
+    if (el) el.textContent = t('journal.prompt_quote', { prompt: d.prompt });
   } catch {}
 }
 
@@ -885,7 +892,7 @@ async function loadOnThisDay() {
     const d = await jget('/api/journal/on-this-day');
     const el = document.getElementById('jrnl-otd');
     if (!el) return;
-    if (!d.entries.length) { el.innerHTML = '<div class="jrnl-empty">nothing from past years yet</div>'; return; }
+    if (!d.entries.length) { el.innerHTML = `<div class="jrnl-empty">${t('journal.on_this_day_empty')}</div>`; return; }
     el.innerHTML = d.entries.map(e => {
       const c = e.content || '';
       return `<div class="jrnl-otd-row" data-d="${e.date}"><b>${esc(e.date.slice(0, 4))}</b> ${esc(e.mood || '')} ${esc(c.slice(0, 90))}${c.length > 90 ? '…' : ''}</div>`;
@@ -905,7 +912,7 @@ async function loadRecent() {
         <span class="jrnl-recent-date">${e.date}</span>
         <span class="jrnl-recent-snip">${esc((e.content || '').slice(0, 60))}</span>
       </div>`
-    ).join('') || '<div class="jrnl-empty">no entries yet: write one</div>';
+    ).join('') || `<div class="jrnl-empty">${t('journal.recent_empty')}</div>`;
     el.querySelectorAll('.jrnl-recent-row').forEach(r => r.onclick = () => navigateDay(r.dataset.d));
   } catch {}
 }
@@ -916,7 +923,7 @@ function invalidateReflection(message = '') {
   const box = document.getElementById('jrnl-reflection');
   if (btn) {
     btn.removeAttribute('aria-disabled');
-    btn.innerHTML = `${_si('sparkles')} reflect`;
+    btn.innerHTML = `${_si('sparkles')} ${t('journal.reflect')}`;
   }
   if (box) {
     const visible = box.style.display !== 'none';
@@ -929,35 +936,35 @@ async function reflect() {
   const btn = document.getElementById('jrnl-reflect');
   const box = document.getElementById('jrnl-reflection');
   if (_loading || _loadedDay !== _day || btn.getAttribute('aria-disabled') === 'true') return;
-  if (!document.getElementById('jrnl-text').value.trim()) { toast('write something first', 'error'); return; }
+  if (!document.getElementById('jrnl-text').value.trim()) { toast(t('journal.write_first'), 'error'); return; }
   const generation = ++_reflectionGeneration;
   const day = _day;
   const current = () => generation === _reflectionGeneration && day === _day && btn.isConnected;
   btn.setAttribute('aria-disabled', 'true');
-  btn.textContent = 'reflecting…';
-  box.textContent = 'preparing reflection…';
+  btn.textContent = t('journal.reflecting');
+  box.textContent = t('journal.reflection_preparing');
   box.style.display = 'block';
   try {
     while (_dirty || _saveTimer !== null || _saveInFlight !== null) {
       clearTimeout(_saveTimer);
       _saveTimer = null;
-      if (!await save(false)) throw new Error('save failed');
+      if (!await save(false)) throw new Error(t('journal.save_failed'));
       if (!current()) return;
     }
     const r = await fetch('/api/journal/' + day + '/reflect', { method: 'POST', headers: _authHeaders() });
     if (!current()) return;
-    if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error('locked'); }
+    if (r.status === 403) { _setToken(''); showLock('unlock'); throw new Error(t('journal.locked')); }
     const d = await r.json();
     if (!current()) return;
-    if (!r.ok) throw new Error(d.detail || 'reflect failed');
-    if (typeof d.reflection !== 'string' || !d.reflection.trim()) throw new Error('no reflection returned');
+    if (!r.ok) throw new Error(d.detail || t('journal.reflect_failed'));
+    if (typeof d.reflection !== 'string' || !d.reflection.trim()) throw new Error(t('journal.no_reflection'));
     box.innerHTML = mdToHtml(d.reflection);
   } catch (e) {
-    if (current()) box.textContent = `could not reflect: ${e.message || 'request failed'}. choose reflect to retry.`;
+    if (current()) box.textContent = t('journal.reflect_error', { error: e.message || t('common.request_failed') });
   } finally {
     if (current()) {
       btn.removeAttribute('aria-disabled');
-      btn.innerHTML = `${_si('sparkles')} reflect`;
+      btn.innerHTML = `${_si('sparkles')} ${t('journal.reflect')}`;
     }
   }
 }

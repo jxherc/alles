@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const read = name => readFileSync(new URL(`../../static/js/${name}.js`, import.meta.url), 'utf8');
 const sessions = read('sessions').replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
-  .replace(/^export /gm, '').replace("import('./aidebackground.js?v=245')", 'Promise.resolve({ reattachBackgroundWork() {} })');
+  .replace(/^export /gm, '').replace("import('./aidebackground.js?v=246')", 'Promise.resolve({ reattachBackgroundWork() {} })');
 const app = read('app');
 const noticeStart = app.indexOf("  const sourceMessage = new URLSearchParams(location.search).get('message');");
 const noticeEnd = app.indexOf('\n\n', noticeStart);
@@ -25,7 +26,7 @@ function fixture({ hash = 'deleted-owner', message = 'deleted-reply', historical
     querySelectorAll: () => [], dispatchEvent() {},
   };
   const window = { addEventListener() {}, _enterChatView() {}, _setMode() {}, _currentSession: null };
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     window, document, location, URL, URLSearchParams,
     console: { error() {} }, CustomEvent: class {},
     fetch: async url => {

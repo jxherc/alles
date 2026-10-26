@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const read = name => readFileSync(new URL(`../../static/js/${name}.js`, import.meta.url), 'utf8');
 const chat = read('chat'), sessions = read('sessions'), background = read('aidebackground');
@@ -17,7 +18,7 @@ function draftFixture({ activeId = 'archive', privateMode = false, original = { 
   const field = { value: 'archive draft', style: {}, dispatchEvent() {}, focus() { this.focused = true; } };
   const notices = [];
   let fail = false;
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     document: { getElementById: () => field }, Event: class {},
     getActiveId: () => activeId, isIncognitoMode: () => privateMode,
     toast: value => notices.push(value),
@@ -80,7 +81,7 @@ function pollingFixture() {
   const card = { isConnected: true, dataset: { runId: 'original', runState: 'running' },
     querySelector: selector => selector === '[data-background-action]' ? button : notes };
   let timer = 0;
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     fetch: (url, options) => new Promise((resolve, reject) => requests.push({ url, options, resolve, reject })),
     setTimeout: callback => { timeouts.set(++timer, callback); return timer; },
     clearTimeout: id => timeouts.delete(id),

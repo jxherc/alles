@@ -96,7 +96,7 @@ test('voice cancellation isolates recorder data and aborts active transcription'
   assert.match(voice, /setTimeout\(\(\) => \{\s*timedOut = true;\s*controller\.abort\(\);\s*}, 60_000\)/);
   assert.match(voice, /clearTimeout\(timeout\)/);
   assert.match(voice, /const msg = await r\.text\(\)\.catch\(\(\) => ''\);\s*if \(take !== _take\) return;/);
-  assert.match(voice, /toast\('transcription timed out', 'error'\)/);
+  assert.match(voice, /toast\(t\('voice\.transcription_timeout'\), 'error'\)/);
 });
 
 test('voice cancellation stops before requesting the fallback microphone', () => {
@@ -121,7 +121,7 @@ test('voice setup failure releases the microphone and resets recording state', (
   assert.match(start, /_recording = false;/);
   assert.match(start, /_stream\?\.getTracks\(\)\.forEach\(track => track\.stop\(\)\)/);
   assert.match(start, /_stream = null;/);
-  assert.match(start, /voice recording could not start/);
+  assert.match(start, /voice\.start_failed_reason/);
 });
 
 test('specialist request accounting is explicitly scoped without a global fetch override', () => {
@@ -158,7 +158,7 @@ test('single-host chat transitions always restore Aide chrome', () => {
 });
 
 test('slash memories reuses the exact Settings module instance loaded by the app', () => {
-  assert.match(app, /from '\.\/slash\.js\?v=398'/);
+  assert.match(app, /from '\.\/slash\.js\?v=399'/);
   const owner = app.match(/from '(\.\/settings\.js[^']*)'/)?.[1];
   const consumers = [...slash.matchAll(/import\('(\.\/settings\.js[^']*)'\)/g)].map(match => match[1]);
   assert.ok(owner && consumers.length);

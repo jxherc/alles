@@ -1,12 +1,14 @@
 """ui-7c — journal 'lock now' frontend fix: the action menu is an anchored dropdown (not buried in
 the reflection panel) and the lock chrome uses the central icon set. Backend gating: test_journal_lock."""
 
+import json
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 JS = (ROOT / "static" / "js" / "journal.js").read_text(encoding="utf-8")
 CSS = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
+EN = json.loads((ROOT / "static" / "locales" / "en.json").read_text(encoding="utf-8"))["messages"]
 
 
 class JournalLockUi(unittest.TestCase):
@@ -37,7 +39,8 @@ class JournalLockUi(unittest.TestCase):
     def test_new_passcode_ui_matches_server_minimum(self):
         self.assertIn('minlength="12"', JS)
         self.assertIn("nw.length < 12", JS)
-        self.assertIn("use at least 12 characters", JS)
+        self.assertIn("return err(t('journal.passcode_too_short'))", JS)
+        self.assertEqual(EN["journal.passcode_too_short"], "use at least 12 characters")
 
     def test_menu_css_is_fixed_dropdown(self):
         self.assertRegex(CSS, r"\.jrnl-lockmenu\s*\{[^}]*position:\s*fixed")

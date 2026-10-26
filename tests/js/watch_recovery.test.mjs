@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/watch.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -30,7 +31,7 @@ function harness(fetcher = async () => response({})) {
   const context = vm.createContext({
     fetch: (...args) => fetcher(...args),
     document: { getElementById: node, activeElement: null },
-    window: {}, CSS: { escape: String }, initCustomDropdown() {}, formatNumber: String,
+    window: {}, CSS: { escape: String }, initCustomDropdown() {}, formatNumber: String, t, tp,
     toast: (...args) => toasts.push(args), dlgConfirm: async () => true,
     setInterval() {}, clearInterval() {},
   });

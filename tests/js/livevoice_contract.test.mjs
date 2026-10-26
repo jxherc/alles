@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/livevoice.js', import.meta.url), 'utf8');
 const style = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
@@ -19,7 +20,7 @@ test('live voice uses the Alles call boundary and browser WebRTC', () => {
 test('the browser never receives provider credentials or cancels work on hangup', () => {
   assert.doesNotMatch(source, /api\.openai\.com|Authorization|api[_-]?key/i);
   assert.doesNotMatch(source, /\/api\/chat\/stop|\/runs\/[^'"`]+\/cancel/);
-  assert.match(source, /background work keeps running/);
+  assert.match(source, /call\.desc_ended/);
 });
 
 function fixture({ available = true, browserReady = true, microphone, fetchOverride, prompt = async () => null, sessionId = 'primary' } = {}) {
@@ -76,6 +77,7 @@ function fixture({ available = true, browserReady = true, microphone, fetchOverr
   }
   const response = (payload, ok = true, status = ok ? 200 : 400) => ({ ok, status, clone: () => response(payload, ok, status), json: async () => payload, text: async () => 'v=0\nmock answer' });
   const context = vm.createContext({
+    t: i18nT,
     document,
     window: {
       _currentSession: { id: sessionId },

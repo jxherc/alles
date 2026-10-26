@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 import { addSsoAuthCode } from '../../static/js/sso-state.js';
 
 const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
@@ -31,6 +32,7 @@ function harness(request, pending = target) {
     return elements.get(id);
   };
   const context = vm.createContext({
+    t, tp,
     document: { getElementById: element, body: { classList: { add() {}, remove() {} } } },
     fetch: async (url, options) => { requests.push({ url, options }); return request(url, options); },
     location: { replace: url => navigations.push(url) }, addSsoAuthCode,

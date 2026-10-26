@@ -1,4 +1,5 @@
 import { saveNote, showNoteRecovery } from './note_capture.js';
+import { t } from './i18n.js';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const $ = id => document.getElementById(id);
@@ -21,13 +22,13 @@ function lock(value) {
 function clearPreview() {
   ++generation; controller?.abort(); preview = null;
   $('docs-import-preview').textContent = ''; $('docs-import-name').value = '';
-  status('nothing is saved until you choose import');
+  status(t('docs.import_nothing_saved'));
   $('docs-import-panel').hidden = true;
   lock(false);
 }
 
 async function openSaved(path) {
-  if (!(await hooks.open(path))) throw new Error('could not open the saved document; try again');
+  if (!(await hooks.open(path))) throw new Error(t('docs.import_open_failed'));
 }
 
 function saved(result, text, restoreFocus = true, pendingBody = null) {
@@ -36,8 +37,8 @@ function saved(result, text, restoreFocus = true, pendingBody = null) {
   host.replaceChildren();
   host.dataset.savedNoteRequest = result.request_id;
   const message = document.createElement('p'); message.setAttribute('role', 'status');
-  message.textContent = `saved ${result.path}`;
-  const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = 'open saved document';
+  message.textContent = t('docs.import_saved', { path: result.path });
+  const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = t('docs.import_open_saved');
   open.onclick = async () => {
     try { await openSaved(result.path); }
     catch (error) { message.textContent = error.message; }
@@ -64,37 +65,37 @@ async function chooseFile(file) {
   preview = null; lock(false);
   $('docs-import-preview').textContent = '';
   $('docs-import-name').value = '';
-  if (file.size > MAX_BYTES) { status('choose a file smaller than 8 MiB'); return; }
-  status(`reading ${file.name}…`);
+  if (file.size > MAX_BYTES) { status(t('docs.import_too_large')); return; }
+  status(t('docs.import_reading', { name: file.name }));
   const form = new FormData(); form.append('file', file);
   try {
     const response = await fetch('/api/vault-md/import-preview', { method: 'POST', body: form, signal: controller.signal });
     const data = await response.json();
     if (run !== generation) return;
-    if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'could not read this file; try again');
-    if (typeof data.content !== 'string' || !data.content.trim() || typeof data.name !== 'string') throw new Error('no readable text found; nothing was saved');
+    if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : t('docs.import_read_failed'));
+    if (typeof data.content !== 'string' || !data.content.trim() || typeof data.name !== 'string') throw new Error(t('docs.import_no_text'));
     preview = data;
     $('docs-import-name').value = data.name + '.md';
     $('docs-import-preview').textContent = data.content;
-    status(data.warning || 'review the text and name, then import. nothing has been saved yet.');
+    status(data.warning || t('docs.import_review'));
     lock(false);
     if ((document.activeElement === focusBefore || document.activeElement === document.body) && $('docs-import-panel').getClientRects().length) $('docs-import-name').focus();
   } catch (error) {
     if (run !== generation) return;
-    status(error.name === 'AbortError' ? 'reading cancelled; nothing was saved' : error.message);
+    status(error.name === 'AbortError' ? t('docs.import_cancelled') : error.message);
   }
 }
 
 async function accept() {
   if (!preview || saving) return;
   const path = $('docs-import-name').value.trim();
-  if (!path || !/\.md$/i.test(path)) { status('enter a document name ending in .md'); $('docs-import-name').focus(); return; }
+  if (!path || !/\.md$/i.test(path)) { status(t('docs.import_name_md')); $('docs-import-name').focus(); return; }
   const focusBefore = document.activeElement;
-  saving = true; lock(true); status('saving document…');
+  saving = true; lock(true); status(t('docs.import_saving'));
   try {
     const result = await saveNote(preview.content, path, { preserveContent: true });
     saved(result, preview.content, document.activeElement === focusBefore || document.activeElement === document.body, { path, content: preview.content });
-  } catch (error) { status(`${error.message}; your preview is kept`); }
+  } catch (error) { status(t('docs.import_failed_kept', { error: error.message })); }
   finally { saving = false; lock(false); await recovery(); }
 }
 

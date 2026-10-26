@@ -1,5 +1,5 @@
 import { toast } from './util.js';
-import { formatDateTime, resolvedTimeZone } from './i18n.js';
+import { formatDateTime, resolvedTimeZone, t } from './i18n.js';
 import { initAideNews } from './aidenews.js';
 
 let initialized = false;
@@ -24,7 +24,7 @@ function el(tag, className = '', text = '') {
 }
 
 function safeMessage(value) {
-  return String(value || 'something went wrong').replace(/jarvis/gi, 'Aide');
+  return String(value || t('aide.sched_went_wrong')).replace(/jarvis/gi, 'Aide');
 }
 
 async function requestJson(url, options = {}, fetcher = fetch) {
@@ -68,21 +68,35 @@ function formatWallTime(value) {
   });
 }
 
+const RUN_STATES = {
+  queued: () => t('aide.bg_state_queued'),
+  running: () => t('aide.bg_state_running'),
+  succeeded: () => t('aide.bg_state_succeeded'),
+  failed: () => t('uploads.failed'),
+  cancelled: () => t('aide.bg_state_cancelled'),
+  interrupted: () => t('aide.bg_state_interrupted'),
+  uncertain: () => t('aide.bg_state_uncertain'),
+  waiting_input: () => t('aide.bg_state_waiting_input'),
+  waiting_approval: () => t('aide.bg_state_waiting_approval'),
+  paused: () => t('aide.sched_state_paused'),
+};
+const runStateText = state => RUN_STATES[state]?.() ?? String(state ?? '');
+
 function projectName(id) {
-  return projects.find(project => project.id === id)?.name || 'tasks';
+  return projects.find(project => project.id === id)?.name || t('aide.sched_project_tasks');
 }
 
 function triggerSummary(trigger) {
-  if (!trigger) return 'manual';
+  if (!trigger) return t('aide.sched_manual');
   const config = trigger.config || {};
-  if (trigger.kind === 'schedule') return `daily at ${config.time || '—'}`;
-  if (trigger.kind === 'once') return `once · ${formatWallTime(config.at) || config.at || '—'}`;
+  if (trigger.kind === 'schedule') return t('aide.sched_daily_at', { time: config.time || '—' });
+  if (trigger.kind === 'once') return t('aide.sched_once', { when: formatWallTime(config.at) || config.at || '—' });
   if (trigger.kind === 'interval' || trigger.kind === 'heartbeat') {
     const seconds = Number(config.every_seconds || 0);
-    const amount = seconds % 86400 === 0 ? `${seconds / 86400}d`
-      : seconds % 3600 === 0 ? `${seconds / 3600}h`
-        : `${Math.max(1, seconds / 60)}m`;
-    return `${trigger.kind} · every ${amount}`;
+    const amount = seconds % 86400 === 0 ? t('aide.sched_amount_days', { count: seconds / 86400 })
+      : seconds % 3600 === 0 ? t('aide.sched_amount_hours', { count: seconds / 3600 })
+        : t('aide.sched_amount_minutes', { count: Math.max(1, seconds / 60) });
+    return t(trigger.kind === 'heartbeat' ? 'aide.sched_every_heartbeat' : 'aide.sched_every_interval', { amount });
   }
   return trigger.kind;
 }
@@ -99,7 +113,7 @@ function renderTiming() {
   if (!host) return;
   host.replaceChildren();
   const label = el('label');
-  const name = el('span', '', scheduleKind === 'once' ? 'date and time' : 'timing');
+  const name = el('span', '', scheduleKind === 'once' ? t('aide.sched_date_time') : t('aide.sched_timing'));
   label.append(name);
 
   if (scheduleKind === 'schedule') {
@@ -108,14 +122,14 @@ function renderTiming() {
     input.type = 'text';
     input.inputMode = 'numeric';
     input.placeholder = '09:00';
-    input.setAttribute('aria-label', 'daily time in 24 hour format');
+    input.setAttribute('aria-label', t('aide.sched_daily_time_label'));
     label.append(input);
   } else if (scheduleKind === 'once') {
     const input = el('input');
     input.id = 'aide-schedule-value';
     input.type = 'text';
     input.placeholder = '2026-07-15 09:00';
-    input.setAttribute('aria-label', 'date and time');
+    input.setAttribute('aria-label', t('aide.sched_date_time'));
     label.append(input);
   } else {
     const row = el('div', 'aide-schedule-interval');
@@ -124,11 +138,11 @@ function renderTiming() {
     input.type = 'text';
     input.inputMode = 'numeric';
     input.placeholder = scheduleKind === 'heartbeat' ? '30' : '60';
-    input.setAttribute('aria-label', 'repeat amount');
+    input.setAttribute('aria-label', t('aide.sched_repeat_amount'));
     const choices = el('div', 'aide-schedule-unit-choices');
     choices.setAttribute('role', 'radiogroup');
-    choices.setAttribute('aria-label', 'repeat unit');
-    for (const [value, text] of [['minutes', 'min'], ['hours', 'hours'], ['days', 'days']]) {
+    choices.setAttribute('aria-label', t('aide.sched_repeat_unit'));
+    for (const [value, text] of [['minutes', t('aide.sched_unit_min')], ['hours', t('aide.sched_unit_hours')], ['days', t('aide.sched_unit_days')]]) {
       const button = el('button', '', text);
       button.type = 'button';
       button.dataset.scheduleUnit = value;
@@ -179,7 +193,7 @@ function renderProjectMenu() {
   const menu = byId('aide-schedule-project-menu');
   if (!menu) return;
   menu.replaceChildren();
-  const entries = [{ id: '', name: 'tasks' }, ...projects];
+  const entries = [{ id: '', name: t('aide.sched_project_tasks') }, ...projects];
   for (const project of entries) {
     const button = el('button', '', project.name);
     button.type = 'button';
@@ -244,8 +258,8 @@ function openForm(workflow = null) {
   intervalUnit = timing.unit;
   form.hidden = false;
   setStatus();
-  byId('aide-schedule-form-title').textContent = workflow ? 'edit schedule' : 'new schedule';
-  byId('aide-schedule-submit').textContent = workflow ? 'save changes' : 'save schedule';
+  byId('aide-schedule-form-title').textContent = workflow ? t('aide.sched_edit') : t('aide.sched_new');
+  byId('aide-schedule-submit').textContent = workflow ? t('aide.sched_save_changes') : t('aide.sched_save');
   if (workflow) {
     byId('aide-schedule-name').value = workflow.name || '';
     byId('aide-schedule-prompt').value = workflow.prompt || workflow.purpose || '';
@@ -267,8 +281,8 @@ function closeForm() {
   form.reset();
   byId('aide-schedule-submit').disabled = false;
   editingWorkflowId = '';
-  byId('aide-schedule-form-title').textContent = 'new schedule';
-  byId('aide-schedule-submit').textContent = 'save schedule';
+  byId('aide-schedule-form-title').textContent = t('aide.sched_new');
+  byId('aide-schedule-submit').textContent = t('aide.sched_save');
   selectProject('');
   setStatus();
 }
@@ -276,18 +290,18 @@ function closeForm() {
 function makeConfig() {
   const raw = byId('aide-schedule-value')?.value.trim() || '';
   if (scheduleKind === 'schedule') {
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(raw)) throw new Error('use a 24-hour time like 09:00');
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(raw)) throw new Error(t('aide.sched_err_time'));
     return { time: raw, weekdays: [0, 1, 2, 3, 4, 5, 6] };
   }
   if (scheduleKind === 'once') {
     const value = raw.replace(' ', 'T');
     if (!/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
-      throw new Error('use a date and time like 2026-07-15 09:00');
+      throw new Error(t('aide.sched_err_datetime'));
     }
     return { at: value };
   }
   const amount = Number(raw);
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error('enter a repeat amount');
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error(t('aide.sched_err_amount'));
   const multiplier = intervalUnit === 'days' ? 86400 : intervalUnit === 'hours' ? 3600 : 60;
   return { every_seconds: amount * multiplier };
 }
@@ -296,7 +310,7 @@ async function saveSchedule(event) {
   event.preventDefault();
   const name = byId('aide-schedule-name')?.value.trim() || '';
   const prompt = byId('aide-schedule-prompt')?.value.trim() || '';
-  if (!name || !prompt) { setStatus('add a name and what Aide should do', true); return; }
+  if (!name || !prompt) { setStatus(t('aide.sched_err_name_prompt'), true); return; }
   let config;
   try { config = makeConfig(); }
   catch (error) { setStatus(error.message, true); return; }
@@ -305,7 +319,7 @@ async function saveSchedule(event) {
   if (submit.disabled) return;
   const sequence = formSequence;
   submit.disabled = true;
-  setStatus('saving…');
+  setStatus(t('common.saving'));
   try {
     const url = editingWorkflowId
       ? `/api/jarvis/aide-schedules/${editingWorkflowId}`
@@ -334,22 +348,22 @@ function scheduleRow(workflow) {
     el('span', '', projectName(workflow.project_id)),
   );
   if (trigger?.next_run_at && workflow.enabled && trigger.enabled) {
-    meta.append(el('span', '', `next ${formatDate(trigger.next_run_at)}`));
+    meta.append(el('span', '', t('aide.sched_next', { when: formatDate(trigger.next_run_at) })));
   }
   main.append(meta);
 
   const state = el('span', `aide-schedule-state ${workflow.enabled && trigger?.enabled ? 'on' : ''}`,
-    workflow.enabled && trigger?.enabled ? 'active' : 'paused');
+    workflow.enabled && trigger?.enabled ? t('aide.sched_state_active') : t('aide.sched_state_paused'));
   const actions = el('div', 'aide-schedule-actions');
-  const edit = el('button', '', 'edit');
+  const edit = el('button', '', t('common.edit'));
   edit.type = 'button';
   edit.dataset.scheduleAction = 'edit';
   edit.dataset.workflowId = workflow.id;
-  const toggle = el('button', '', workflow.enabled && trigger?.enabled ? 'pause' : 'resume');
+  const toggle = el('button', '', workflow.enabled && trigger?.enabled ? t('common.pause') : t('common.resume'));
   toggle.type = 'button';
   toggle.dataset.scheduleAction = 'toggle';
   toggle.dataset.workflowId = workflow.id;
-  const run = el('button', '', 'run now');
+  const run = el('button', '', t('aide.sched_run_now'));
   run.type = 'button';
   run.dataset.scheduleAction = 'run';
   run.dataset.workflowId = workflow.id;
@@ -365,7 +379,7 @@ function renderSchedules() {
   host.replaceChildren();
   if (!workflows.length) {
     const empty = el('div', 'aide-scheduled-empty');
-    empty.append(el('strong', '', 'nothing scheduled'), el('p', '', 'Add work Aide should start later or check on a rhythm.'));
+    empty.append(el('strong', '', t('aide.sched_empty_title')), el('p', '', t('aide.sched_empty_body')));
     host.append(empty);
     return;
   }
@@ -377,17 +391,17 @@ function renderRuns(runs, partial = false) {
   if (!host) return;
   host.replaceChildren();
   if (partial) {
-    const notice = el('p', 'aide-schedule-meta', 'some recent runs could not be loaded');
+    const notice = el('p', 'aide-schedule-meta', t('aide.sched_runs_partial'));
     notice.setAttribute('role', 'status');
     host.append(notice);
   }
   if (!runs.length) {
     const empty = el('div', 'aide-scheduled-empty');
     empty.append(
-      el('strong', '', partial ? 'recent runs unavailable' : 'no runs yet'),
+      el('strong', '', partial ? t('aide.sched_runs_unavailable') : t('aide.sched_no_runs')),
       el('p', '', partial
-        ? 'Schedules are still available. Try the run history again shortly.'
-        : 'Finished and active background work will appear here.'),
+        ? t('aide.sched_runs_unavailable_body')
+        : t('aide.sched_no_runs_body')),
     );
     host.append(empty);
     return;
@@ -396,19 +410,19 @@ function renderRuns(runs, partial = false) {
     const workflow = workflows.find(item => item.id === run.workflow_id);
     const row = el('article', 'aide-run-row');
     const main = el('div', 'aide-schedule-row-main');
-    main.append(el('strong', '', workflow?.name || 'Aide work'));
+    main.append(el('strong', '', workflow?.name || t('aide.sched_aide_work')));
     const summary = run.result_summary || run.safe_error || formatDate(run.created_at);
     main.append(el('div', 'aide-schedule-meta', summary));
-    const state = el('span', `aide-run-state state-${run.state}`, run.state);
+    const state = el('span', `aide-run-state state-${run.state}`, runStateText(run.state));
     const actions = el('div', 'aide-schedule-actions');
     if (['queued', 'running'].includes(run.state)) {
-      const cancel = el('button', '', 'cancel');
+      const cancel = el('button', '', t('common.cancel'));
       cancel.type = 'button';
       cancel.dataset.runAction = 'cancel';
       cancel.dataset.runId = run.id;
       actions.append(cancel);
     } else if (['failed', 'cancelled', 'interrupted'].includes(run.state)) {
-      const retry = el('button', '', 'retry');
+      const retry = el('button', '', t('common.retry'));
       retry.type = 'button';
       retry.dataset.runAction = 'retry';
       retry.dataset.runId = run.id;
@@ -422,7 +436,7 @@ function renderRuns(runs, partial = false) {
 async function loadScheduled(fetcher = fetch) {
   const sequence = ++loadSequence;
   const scheduleHost = byId('aide-schedule-list');
-  if (scheduleHost) scheduleHost.textContent = 'loading…';
+  if (scheduleHost) scheduleHost.textContent = t('aide.loading');
   try {
     const [loadedWorkflows, loadedProjects] = await Promise.all([
       requestJson('/api/jarvis/workflows', {}, fetcher),
@@ -519,7 +533,7 @@ async function selectTab(button) {
   byId('aide-run-list').hidden = section !== 'runs';
   const create = byId('aide-scheduled-new');
   create.hidden = !schedules && section !== 'goals';
-  create.textContent = section === 'goals' ? 'new goal' : 'new schedule';
+  create.textContent = section === 'goals' ? t('aide.goal_new') : t('aide.sched_new');
   if (!schedules) closeForm();
   const goalsModule = await import('./aidegoals.js');
   if (section === 'goals') await goalsModule.initAideGoals();

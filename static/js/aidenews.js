@@ -1,5 +1,5 @@
 import { toast } from './util.js';
-import { formatDateTime, resolvedTimeZone } from './i18n.js';
+import { formatDateTime, resolvedTimeZone, t, tp } from './i18n.js';
 
 let initialized = false;
 let state = null;
@@ -13,7 +13,7 @@ const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
 }[character]));
 
 function safeMessage(value) {
-  return String(value || 'News is unavailable').replace(/jarvis/gi, 'Aide');
+  return String(value || t('aide.news_unavailable')).replace(/jarvis/gi, 'Aide');
 }
 
 export function safeNewsUrl(value) {
@@ -46,9 +46,9 @@ export function normalizeNewsTimestamp(value) {
 }
 
 function formatWhen(value) {
-  if (!value) return 'not yet checked';
+  if (!value) return t('aide.news_not_checked');
   const parsed = new Date(normalizeNewsTimestamp(value));
-  if (Number.isNaN(parsed.getTime())) return 'not yet checked';
+  if (Number.isNaN(parsed.getTime())) return t('aide.news_not_checked');
   return formatDateTime(parsed, {
     month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
   });
@@ -63,19 +63,19 @@ function radio(value, selected, label, group) {
 }
 
 function sourceRow(source) {
-  const healthLabel = source.health === 'retry' ? 'retry scheduled' : source.health;
+  const healthLabel = source.health === 'retry' ? t('aide.news_retry_scheduled') : source.health;
   const healthCopy = source.last_safe_error || (source.last_success_at
-    ? `checked ${formatWhen(source.last_success_at)}` : 'nothing fetched yet');
-  const priority = source.priority >= 2 ? 'high priority' : source.priority === 0 ? 'low priority' : 'normal priority';
+    ? t('aide.news_checked', { when: formatWhen(source.last_success_at) }) : t('aide.news_nothing_fetched'));
+  const priority = source.priority >= 2 ? t('aide.news_priority_high') : source.priority === 0 ? t('aide.news_priority_low') : t('aide.news_priority_normal');
   return `<li class="news-source-row">
     <div class="news-source-name"><strong>${esc(source.name)}</strong><span>${esc(source.category)} · ${esc(source.language)} · ${priority}</span></div>
     <div class="news-source-health" data-health="${esc(source.health)}"><strong>${esc(healthLabel)}</strong><span>${esc(healthCopy)}</span></div>
-    <div class="news-source-actions"><button type="button" data-news-edit="${esc(source.id)}">edit</button>${switchButton({ checked: source.enabled, label: `${source.enabled ? 'disable' : 'enable'} ${source.name}`, action: `toggle-source:${source.id}` })}</div>
+    <div class="news-source-actions"><button type="button" data-news-edit="${esc(source.id)}">${esc(t('common.edit'))}</button>${switchButton({ checked: source.enabled, label: source.enabled ? t('aide.news_disable_source', { name: source.name }) : t('aide.news_enable_source', { name: source.name }), action: `toggle-source:${source.id}` })}</div>
   </li>`;
 }
 
 function briefMarkup(brief) {
-  if (!brief) return `<div class="news-preview-empty"><strong>no brief yet</strong><p>Enable News, then run one when you want to check the complete path.</p></div>`;
+  if (!brief) return `<div class="news-preview-empty"><strong>${esc(t('aide.news_no_brief'))}</strong><p>${esc(t('aide.news_no_brief_body'))}</p></div>`;
   const clusters = brief.clusters || [];
   const sourceCount = new Set(clusters.flatMap(cluster => (cluster.links || []).map(link => link.source))).size;
   const cards = clusters.map((cluster, index) => {
@@ -92,14 +92,14 @@ function briefMarkup(brief) {
           ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(link.source)}</a>`
           : `<span>${esc(link.source)}</span>`;
       }).join('')}</div>
-      ${firstUrl ? `<button type="button" data-news-save="${index}" aria-pressed="${saved}"${saved ? ' disabled' : ''}>${saved ? 'saved to Library' : 'save to Library'}</button>` : ''}
+      ${firstUrl ? `<button type="button" data-news-save="${index}" aria-pressed="${saved}"${saved ? ' disabled' : ''}>${esc(saved ? t('aide.news_saved_library') : t('aide.news_save_library'))}</button>` : ''}
     </article>`;
   }).join('');
   const failures = brief.source_failures || [];
-  return `<header class="news-preview-head"><h2>latest brief</h2><span>${clusters.length} cluster${clusters.length === 1 ? '' : 's'} · ${sourceCount} source${sourceCount === 1 ? '' : 's'}</span></header>
-    <p class="news-preview-note">${brief.status === 'summary_pending' ? 'Link digest ready. Model summary is pending, so source excerpts remain visible.' : 'Every topic keeps its source links. Nothing enters Library unless you save it.'}</p>
-    ${cards || '<div class="news-preview-empty"><strong>no recent stories</strong></div>'}
-    ${failures.length ? `<div class="news-digest-warning"><strong>link digest remains available.</strong> ${failures.length} source${failures.length === 1 ? '' : 's'} will retry independently.</div>` : ''}`;
+  return `<header class="news-preview-head"><h2>${esc(t('aide.news_latest_brief'))}</h2><span>${esc(tp('aide.news_clusters', clusters.length))} · ${esc(tp('aide.news_sources_count', sourceCount))}</span></header>
+    <p class="news-preview-note">${esc(brief.status === 'summary_pending' ? t('aide.news_summary_pending') : t('aide.news_every_topic'))}</p>
+    ${cards || `<div class="news-preview-empty"><strong>${esc(t('aide.news_no_stories'))}</strong></div>`}
+    ${failures.length ? `<div class="news-digest-warning"><strong>${esc(t('aide.news_digest_available'))}</strong> ${esc(tp('aide.news_failures_retry', failures.length))}</div>` : ''}`;
 }
 
 function editorMarkup() {
@@ -107,27 +107,27 @@ function editorMarkup() {
   const item = editor.source || {};
   return `<div class="news-editor-backdrop" data-news-editor-backdrop>
     <section class="news-editor" role="dialog" aria-modal="true" aria-labelledby="news-editor-title">
-      <header><h2 id="news-editor-title">${item.id ? 'edit source' : 'add an RSS or Atom source'}</h2><button type="button" data-news-action="close-editor">close</button></header>
+      <header><h2 id="news-editor-title">${esc(item.id ? t('aide.news_edit_source') : t('aide.news_add_feed'))}</h2><button type="button" data-news-action="close-editor">${esc(t('common.close'))}</button></header>
       <div class="news-editor-grid">
-        <label class="wide"><span>feed URL</span><input id="news-source-url" type="url" value="${esc(item.url || '')}" autocomplete="off" placeholder="https://publisher.example/feed.xml"></label>
-        <label><span>name</span><input id="news-source-name" type="text" value="${esc(item.name || '')}" maxlength="200" autocomplete="off"></label>
-        <div><span>category</span><div class="news-choice-group" role="radiogroup" aria-label="source category">${[
-          ['technology', 'technology'], ['taiwan', 'Taiwan'], ['world', 'world'], ['general', 'general'],
+        <label class="wide"><span>${esc(t('aide.news_feed_url'))}</span><input id="news-source-url" type="url" value="${esc(item.url || '')}" autocomplete="off" placeholder="https://publisher.example/feed.xml"></label>
+        <label><span>${esc(t('aide.news_name'))}</span><input id="news-source-name" type="text" value="${esc(item.name || '')}" maxlength="200" autocomplete="off"></label>
+        <div><span>${esc(t('aide.news_category'))}</span><div class="news-choice-group" role="radiogroup" aria-label="${esc(t('aide.news_source_category'))}">${[
+          ['technology', t('aide.news_cat_technology')], ['taiwan', t('aide.news_cat_taiwan')], ['world', t('aide.news_cat_world')], ['general', t('aide.news_cat_general')],
         ].map(([value, label]) => radio(value, item.category || 'general', label, 'editor-category')).join('')}</div></div>
-        <div><span>language</span><div class="news-choice-group" role="radiogroup" aria-label="source language">${[
-          ['en', 'English'], ['fr', 'French'], ['es', 'Spanish'], ['zh-Hans', 'Simplified Chinese'],
-          ['zh-Hant', 'Traditional Chinese'], ['ja', 'Japanese'], ['ko', 'Korean'], ['ar', 'Arabic'],
-          ['other', 'other'],
+        <div><span>${esc(t('aide.news_language'))}</span><div class="news-choice-group" role="radiogroup" aria-label="${esc(t('aide.news_source_language'))}">${[
+          ['en', t('aide.news_lang_en')], ['fr', t('aide.news_lang_fr')], ['es', t('aide.news_lang_es')], ['zh-Hans', t('aide.news_lang_zh_hans')],
+          ['zh-Hant', t('aide.news_lang_zh_hant')], ['ja', t('aide.news_lang_ja')], ['ko', t('aide.news_lang_ko')], ['ar', t('aide.news_lang_ar')],
+          ['other', t('aide.news_lang_other')],
         ].map(([value, label]) => radio(value, item.language || 'en', label, 'editor-language')).join('')}</div></div>
-        <div><span>priority</span><div class="news-choice-group" role="radiogroup" aria-label="source priority">${[
-          ['0', 'low'], ['1', 'normal'], ['2', 'high'],
+        <div><span>${esc(t('aide.news_priority'))}</span><div class="news-choice-group" role="radiogroup" aria-label="${esc(t('aide.news_source_priority'))}">${[
+          ['0', t('aide.news_pri_low')], ['1', t('aide.news_pri_normal')], ['2', t('aide.news_pri_high')],
         ].map(([value, label]) => radio(value, String(item.priority ?? 1), label, 'editor-priority')).join('')}</div></div>
-        <div><span>polling</span><div class="news-choice-group" role="radiogroup" aria-label="source polling schedule">${[
-          ['inherit', 'with brief'], ['six_hours', 'every 6 hours'], ['daily', 'daily'],
+        <div><span>${esc(t('aide.news_polling'))}</span><div class="news-choice-group" role="radiogroup" aria-label="${esc(t('aide.news_source_polling'))}">${[
+          ['inherit', t('aide.news_poll_inherit')], ['six_hours', t('aide.sched_every_six_hours')], ['daily', t('aide.news_poll_daily')],
         ].map(([value, label]) => radio(value, item.schedule || 'inherit', label, 'editor-schedule')).join('')}</div></div>
       </div>
-      <p class="news-source-test" id="news-source-test" role="status" aria-live="polite">${item.id ? 'Existing URL is accepted. Test again if you change it.' : 'Test the source before saving. Nothing is stored by the test.'}</p>
-      <footer>${item.id ? `<button type="button" class="news-delete" data-news-action="delete-source">delete source</button>` : '<span></span>'}<button type="button" data-news-action="test-source">test source</button><button type="button" class="news-primary" data-news-action="save-source"${editor.testedUrl ? '' : ' disabled'}>save source</button></footer>
+      <p class="news-source-test" id="news-source-test" role="status" aria-live="polite">${esc(item.id ? t('aide.news_url_accepted') : t('aide.news_test_first'))}</p>
+      <footer>${item.id ? `<button type="button" class="news-delete" data-news-action="delete-source">${esc(t('aide.news_delete_source'))}</button>` : '<span></span>'}<button type="button" data-news-action="test-source">${esc(t('aide.news_test_source'))}</button><button type="button" class="news-primary" data-news-action="save-source"${editor.testedUrl ? '' : ' disabled'}>${esc(t('aide.news_save_source'))}</button></footer>
     </section>
   </div>`;
 }
@@ -140,15 +140,15 @@ function render() {
   const jarvis = config.jarvis || {};
   host.innerHTML = `<div class="news-real-layout">
     <section class="news-real-main" aria-labelledby="news-real-title">
-      <header class="news-real-head"><div><h2 id="news-real-title">news brief</h2><p>reviewed feeds, summarized by Aide, delivered to Home</p></div><div><span data-enabled="${config.enabled}">${config.enabled ? 'news is on' : 'news is off'}</span><button class="news-primary" type="button" data-news-action="toggle-news">${config.enabled ? 'turn off' : 'enable news'}</button></div></header>
-      <p class="news-live-status" role="status" aria-live="polite">${config.last_safe_error ? esc(config.last_safe_error) : config.next_run_at ? `next brief ${esc(formatWhen(config.next_run_at))}` : 'nothing fetched until enabled'}</p>
-      <section class="news-real-section" aria-labelledby="news-sources-title"><header><h3 id="news-sources-title">sources</h3><p>${sources.length} saved · each failure retries independently</p><button type="button" data-news-action="add-source">add source</button></header><ul class="news-source-list">${sources.map(sourceRow).join('') || '<li class="news-preview-empty">no sources yet</li>'}</ul></section>
-      <section class="news-real-section" aria-labelledby="news-delivery-title"><header><h3 id="news-delivery-title">cadence and delivery</h3><p>automatic timezone · ${esc(localZone())}</p><button type="button" data-news-action="run-now"${config.enabled ? '' : ' disabled'}>run brief now</button></header>
-        <div class="news-settings-grid"><div><h4>digest schedule</h4><div class="news-choice-group" role="radiogroup" aria-label="digest schedule">${radio('morning', config.cadence, 'every morning · 08:00', 'cadence')}${radio('evening', config.cadence, 'every evening · 18:00', 'cadence')}${radio('custom', config.cadence, 'custom time', 'cadence')}</div>${config.cadence === 'custom' ? `<label class="news-custom-time"><span>time in ${esc(localZone())}</span><input id="news-custom-time" type="text" inputmode="numeric" value="${esc(config.time_of_day)}" placeholder="07:30" aria-label="custom digest time"></label>` : ''}</div>
-        <div><h4>delivery</h4><div class="news-delivery-row"><div><strong>home brief</strong><span>default destination</span></div>${switchButton({ checked: config.deliver_home, label: 'deliver News to Home', action: 'toggle-home' })}</div><div class="news-delivery-row"><div><strong>Discord direct message</strong><span>${esc(jarvis.available ? 'paired and ready' : jarvis.reason || 'pair Discord before enabling')}</span></div>${switchButton({ checked: config.deliver_jarvis, label: jarvis.available ? 'deliver News to Discord' : 'Discord delivery unavailable', action: 'toggle-jarvis', disabled: !jarvis.available })}</div></div></div>
+      <header class="news-real-head"><div><h2 id="news-real-title">${esc(t('aide.news_brief'))}</h2><p>${esc(t('aide.news_brief_sub'))}</p></div><div><span data-enabled="${config.enabled}">${esc(config.enabled ? t('aide.news_is_on') : t('aide.news_is_off'))}</span><button class="news-primary" type="button" data-news-action="toggle-news">${esc(config.enabled ? t('aide.news_turn_off') : t('aide.news_enable'))}</button></div></header>
+      <p class="news-live-status" role="status" aria-live="polite">${config.last_safe_error ? esc(config.last_safe_error) : config.next_run_at ? esc(t('aide.news_next_brief', { when: formatWhen(config.next_run_at) })) : esc(t('aide.news_nothing_until_enabled'))}</p>
+      <section class="news-real-section" aria-labelledby="news-sources-title"><header><h3 id="news-sources-title">${esc(t('aide.step_sources'))}</h3><p>${esc(t('aide.news_sources_saved', { count: sources.length }))}</p><button type="button" data-news-action="add-source">${esc(t('aide.news_add_source'))}</button></header><ul class="news-source-list">${sources.map(sourceRow).join('') || `<li class="news-preview-empty">${esc(t('aide.news_no_sources'))}</li>`}</ul></section>
+      <section class="news-real-section" aria-labelledby="news-delivery-title"><header><h3 id="news-delivery-title">${esc(t('aide.news_cadence_delivery'))}</h3><p>${esc(t('aide.news_auto_timezone', { zone: localZone() }))}</p><button type="button" data-news-action="run-now"${config.enabled ? '' : ' disabled'}>${esc(t('aide.news_run_now'))}</button></header>
+        <div class="news-settings-grid"><div><h4>${esc(t('aide.news_digest_schedule'))}</h4><div class="news-choice-group" role="radiogroup" aria-label="${esc(t('aide.news_digest_schedule'))}">${radio('morning', config.cadence, t('aide.news_every_morning'), 'cadence')}${radio('evening', config.cadence, t('aide.news_every_evening'), 'cadence')}${radio('custom', config.cadence, t('aide.news_custom_time'), 'cadence')}</div>${config.cadence === 'custom' ? `<label class="news-custom-time"><span>${esc(t('aide.news_time_in', { zone: localZone() }))}</span><input id="news-custom-time" type="text" inputmode="numeric" value="${esc(config.time_of_day)}" placeholder="07:30" aria-label="${esc(t('aide.news_custom_digest_time'))}"></label>` : ''}</div>
+        <div><h4>${esc(t('aide.news_delivery'))}</h4><div class="news-delivery-row"><div><strong>${esc(t('aide.news_home_brief'))}</strong><span>${esc(t('aide.news_default_destination'))}</span></div>${switchButton({ checked: config.deliver_home, label: t('aide.news_deliver_home'), action: 'toggle-home' })}</div><div class="news-delivery-row"><div><strong>${esc(t('aide.news_discord_dm'))}</strong><span>${esc(jarvis.available ? t('aide.news_paired_ready') : jarvis.reason || t('aide.news_pair_discord'))}</span></div>${switchButton({ checked: config.deliver_jarvis, label: jarvis.available ? t('aide.news_deliver_discord') : t('aide.news_discord_unavailable'), action: 'toggle-jarvis', disabled: !jarvis.available })}</div></div></div>
       </section>
     </section>
-    <aside class="news-real-preview" aria-label="latest News brief">${briefMarkup(state.latest_brief)}</aside>
+    <aside class="news-real-preview" aria-label="${esc(t('aide.news_latest_aria'))}">${briefMarkup(state.latest_brief)}</aside>
   </div>${editorMarkup()}`;
 }
 
@@ -235,7 +235,7 @@ async function handleAction(button) {
       await requestJson(`/api/news/sources/${encodeURIComponent(id)}`, jsonOptions('PATCH', { enabled: !source.enabled }));
       await loadNews();
     } else if (action === 'run-now') {
-      button.textContent = 'running…';
+      button.textContent = t('aide.news_running');
       await requestJson('/api/news/run', { method: 'POST' });
       await loadNews();
     } else if (action === 'test-source') {
@@ -244,7 +244,7 @@ async function handleAction(button) {
       if (!actionEditor) { button.disabled = false; return; }
       actionEditor.testRequest = requestId;
       const status = document.getElementById('news-source-test');
-      status.textContent = 'checking the source safely…';
+      status.textContent = t('aide.news_checking_source');
       const tested = await requestJson('/api/news/sources/test', jsonOptions('POST', { url: value }));
       const currentUrl = document.getElementById('news-source-url')?.value.trim() || '';
       if (editor !== actionEditor || actionEditor.testRequest !== requestId || currentUrl !== value) {
@@ -255,12 +255,12 @@ async function handleAction(button) {
       document.getElementById('news-source-url').value = tested.url;
       const name = document.getElementById('news-source-name');
       if (name && !name.value.trim()) name.value = tested.title || '';
-      status.textContent = `${tested.items.length} recent item${tested.items.length === 1 ? '' : 's'} found. Nothing was saved.`;
+      status.textContent = tp('aide.news_items_found', tested.items.length);
       root()?.querySelector('[data-news-action="save-source"]')?.removeAttribute('disabled');
       button.disabled = false;
     } else if (action === 'save-source') {
       const body = sourceBody();
-      if (body.url !== editor.testedUrl) throw new Error('test this URL before saving');
+      if (body.url !== editor.testedUrl) throw new Error(t('aide.news_test_before_save'));
       const id = editor.source?.id;
       await requestJson(id ? `/api/news/sources/${encodeURIComponent(id)}` : '/api/news/sources', jsonOptions(id ? 'PATCH' : 'POST', body));
       editor = null;
@@ -269,7 +269,7 @@ async function handleAction(button) {
       if (!editor.deleteArmed) {
         editor.deleteArmed = true;
         button.disabled = false;
-        button.textContent = 'confirm delete';
+        button.textContent = t('aide.news_confirm_delete');
         return;
       }
       await requestJson(`/api/news/sources/${encodeURIComponent(editor.source.id)}`, { method: 'DELETE' });
@@ -295,7 +295,7 @@ async function saveCluster(button) {
       url, title: cluster.title, excerpt: cluster.summary, publisher: link.source,
     }));
     savedUrls.add(url);
-    button.textContent = 'saved to Library';
+    button.textContent = t('aide.news_saved_library');
     button.setAttribute('aria-pressed', 'true');
   } catch (error) {
     button.disabled = false;
@@ -346,8 +346,8 @@ function wireOnce() {
     const save = root()?.querySelector('[data-news-action="save-source"]');
     if (save) save.disabled = changed;
     document.getElementById('news-source-test').textContent = changed
-      ? 'URL changed. Test this source before saving.'
-      : 'Source tested. You can save it now.';
+      ? t('aide.news_url_changed')
+      : t('aide.news_source_tested');
   });
   host.addEventListener('keydown', event => {
     const choice = event.target.closest('[data-news-radio]');
@@ -362,7 +362,7 @@ function wireOnce() {
     if (event.target.id !== 'news-custom-time') return;
     const value = event.target.value.trim();
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
-      toast('Use a 24-hour time like 07:30', 'error');
+      toast(t('aide.news_err_time'), 'error');
       return;
     }
     patchConfig({ time_of_day: value, timezone: localZone() }).catch(error => toast(safeMessage(error.message), 'error'));

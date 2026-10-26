@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { sourcesHtml } from '../../static/js/runs.js';
 import { readRecordTarget } from '../../static/js/recordlinks.js';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = name => readFileSync(new URL(`../../static/js/${name}.js`, import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -37,7 +38,7 @@ function harness() {
     return nodes.get(id);
   };
   context = vm.createContext({
-    URL, URLSearchParams, console,
+    URL, URLSearchParams, console, t, tp,
     document: { getElementById: node, createElement: () => node('bar'), body: node('document-body'),
       addEventListener() {}, removeEventListener() {} },
     window: { addEventListener() {}, removeEventListener() {} },

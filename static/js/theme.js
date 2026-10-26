@@ -4,8 +4,9 @@
 // patterns are ported from odysseus; the editor UI + apply engine are alles-native.
 import { initColorPickers } from './colorpicker.js';
 import { generateHarmony, lum as _lum, mix as _mix, mutedFor as _mutedFor } from './color.js';
-import { wireChoiceGroup } from './kokuen.js';
+import { wireChoiceGroup } from './kokuen.js?v=4';
 import { toast } from './util.js';
+import { t, tp } from './i18n.js';
 export { generateHarmony };
 
 const LS_KEY = 'alles-appearance';
@@ -174,7 +175,7 @@ function _showAppearanceSaveState(state, message) {
       const retry = document.createElement('button');
       retry.type = 'button';
       retry.className = 'btn';
-      retry.textContent = 'retry theme save';
+      retry.textContent = t('settings.theme_retry_save');
       retry.addEventListener('click', () => { clearTimeout(_saveTimer); _drainAppearanceSave(); });
       row.append(status, retry);
       host.prepend(row);
@@ -196,7 +197,7 @@ async function _drainAppearanceSave() {
   try {
     while (_pendingAppearance) {
       const attempt = _pendingAppearance;
-      _showAppearanceSaveState('saving', 'saving theme…');
+      _showAppearanceSaveState('saving', t('settings.theme_saving'));
       try {
         const response = await fetch('/api/appearance', {
           method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(attempt),
@@ -213,10 +214,10 @@ async function _drainAppearanceSave() {
         try { localStorage.removeItem(PENDING_KEY); } catch { /* storage unavailable */ }
         saveLocal(saved);
         applyAppearance(saved);
-        _showAppearanceSaveState('saved', 'theme saved');
+        _showAppearanceSaveState('saved', t('settings.theme_saved'));
       } catch {
         if (_pendingAppearance !== attempt) continue;
-        const message = 'theme not saved to the server. Retry to save this preview.';
+        const message = t('settings.theme_save_failed');
         _showAppearanceSaveState('error', message);
         toast(message, 'error');
         break;
@@ -233,7 +234,7 @@ function save(a) {
   _pendingAppearance = JSON.parse(JSON.stringify(a));
   try { localStorage.setItem(PENDING_KEY, JSON.stringify(_pendingAppearance)); } catch { /* storage unavailable */ }
   saveLocal(a);
-  _showAppearanceSaveState('saving', 'saving theme…');
+  _showAppearanceSaveState('saving', t('settings.theme_saving'));
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(_drainAppearanceSave, 350);
 }
@@ -251,7 +252,7 @@ export async function initAppearance() {
   if (_pendingAppearance) {
     saveLocal(_pendingAppearance);
     applyAppearance(_pendingAppearance);
-    _showAppearanceSaveState('error', 'theme has unconfirmed changes kept on this browser. Retry to save them.');
+    _showAppearanceSaveState('error', t('settings.theme_unconfirmed'));
     return;
   }
   applyAppearance(loadLocal());
@@ -608,12 +609,14 @@ const PATTERNS = ['none', 'dots', 'grid', 'crosshatch', 'scanlines', 'synapse', 
   'fireflies', 'bubbles', 'starfield', 'constellations', 'sparkles', 'petals', 'matrix', 'aurora', 'waves'];
 // patterns with no tunable color/intensity (pure CSS) — hide the effect controls for these
 const NO_FX = new Set(['none', 'dots', 'grid', 'crosshatch', 'scanlines']);
-const BASE_LABELS = [['bg', 'background'], ['text', 'text'], ['panel', 'panel'], ['faint', 'border'], ['accent', 'accent']];
+const _baseLabels = () => [['bg', t('settings.theme_color_background')], ['text', t('settings.theme_color_text')], ['panel', t('settings.theme_color_panel')], ['faint', t('settings.theme_color_border')], ['accent', t('common.accent')]];
 
 // the two base presets ARE the "default theme" (its dark + light modes); the editor's
 // preset grid treats everything else as a real preset.
 export const BASE_PRESETS = ['dark', 'light'];
 export const isBasePreset = n => BASE_PRESETS.includes(n);
+
+const _frostedText = () => (_draft.frosted ? t('settings.theme_frosted_on') : t('settings.theme_frosted_off'));
 
 function _commit() { applyAppearance(_draft); save(_draft); _onEditorChange && _onEditorChange(_draft); }
 
@@ -691,18 +694,29 @@ function _swatch(name, c) {
     <span class="te-preset-name">${name}</span></button>`;
 }
 
+// option words as people read them; the stored value (data-val) stays the plain id
+const _optionWords = () => ({
+  sans: t('settings.theme_font_sans'), mono: t('settings.theme_font_mono'), serif: t('settings.theme_font_serif'),
+  comfortable: t('settings.theme_density_comfortable'), compact: t('settings.theme_density_compact'), spacious: t('settings.theme_density_spacious'),
+  complementary: t('settings.theme_harmony_complementary'), analogous: t('settings.theme_harmony_analogous'),
+  triadic: t('settings.theme_harmony_triadic'), monochromatic: t('settings.theme_harmony_monochromatic'),
+  dark: t('settings.theme_mode_dark'), light: t('common.light'),
+  none: t('settings.theme_pattern_none'), dots: t('settings.theme_pattern_dots'), grid: t('settings.theme_pattern_grid'), crosshatch: t('settings.theme_pattern_crosshatch'), scanlines: t('settings.theme_pattern_scanlines'), synapse: t('settings.theme_pattern_synapse'), rain: t('settings.theme_pattern_rain'), snow: t('settings.theme_pattern_snow'), embers: t('settings.theme_pattern_embers'), fireflies: t('settings.theme_pattern_fireflies'), bubbles: t('settings.theme_pattern_bubbles'), starfield: t('settings.theme_pattern_starfield'), constellations: t('settings.theme_pattern_constellations'), sparkles: t('settings.theme_pattern_sparkles'), petals: t('settings.theme_pattern_petals'), matrix: t('settings.theme_pattern_matrix'), aurora: t('settings.theme_pattern_aurora'), waves: t('settings.theme_pattern_waves')
+});
+const _optionWord = o => _optionWords()[o] || o;
+
 function _seg(field, opts) {
-  const label = field === 'bgPattern' ? 'background pattern' : field;
-  return `<div class="te-seg" data-seg="${field}" role="radiogroup" aria-label="${label}">${opts.map(o => `<button type="button" role="radio" aria-checked="${_draft[field] === o}" tabindex="-1" class="te-seg-opt${_draft[field] === o ? ' active' : ''}" data-val="${o}">${o}</button>`).join('')}</div>`;
+  const label = field === 'bgPattern' ? t('settings.theme_background_pattern') : field === 'font' ? t('settings.theme_font') : t('settings.theme_density');
+  return `<div class="te-seg" data-seg="${field}" role="radiogroup" aria-label="${esc(label)}">${opts.map(o => `<button type="button" role="radio" aria-checked="${_draft[field] === o}" tabindex="-1" class="te-seg-opt${_draft[field] === o ? ' active' : ''}" data-val="${o}">${esc(_optionWord(o))}</button>`).join('')}</div>`;
 }
 
 // the inline preset grid hides dark/light (they're the "default theme") and leads with a
 // single "default" tile that drops you back onto the base theme.
 function _defaultTile() {
   const active = isBasePreset(_draft.preset);
-  return `<button type="button" role="radio" aria-checked="${active}" tabindex="-1" class="te-preset${active ? ' active' : ''}" data-preset="default" title="default">
+  return `<button type="button" role="radio" aria-checked="${active}" tabindex="-1" class="te-preset${active ? ' active' : ''}" data-preset="default" title="${esc(t('settings.default_tag'))}">
     <span class="te-preset-quad"><i style="background:#0a0a0a"></i><i style="background:#0e0e0e"></i><i style="background:#818cf8"></i><i style="background:#e8e6e3"></i></span>
-    <span class="te-preset-name">default</span></button>`;
+    <span class="te-preset-name">${esc(t('settings.default_tag'))}</span></button>`;
 }
 function _presetGridHtml() {
   if (_editorInline) {
@@ -718,59 +732,59 @@ function _renderEditor() {
   const ct = _draft.customThemes || {};
   const openSections = new Set([...m.querySelectorAll('details[open]')].map(section => section.dataset.themeSection));
   const filter = m.querySelector('#te-preset-filter')?.value || '';
-  const head = _editorInline ? '' : `<div class="te-head"><span class="te-title">theme editor</span><button class="icon-btn" id="te-close" title="close">${window.icon ? window.icon('close') : '×'}</button></div>`;
+  const head = _editorInline ? '' : `<div class="te-head"><span class="te-title">${esc(t('settings.theme_editor'))}</span><button class="icon-btn" id="te-close" title="${esc(t('common.close'))}">${window.icon ? window.icon('close') : '×'}</button></div>`;
   const bodyOpen = _editorInline ? '<div class="te-body te-body-inline">' : '<div class="te-body">';
   m.innerHTML = `
     ${head}
     ${bodyOpen}
       <details class="te-disclosure te-sec" data-theme-section="presets"${openSections.has('presets') ? ' open' : ''}>
-        <summary tabindex="0">browse themes · ${esc(isBasePreset(_draft.preset) ? 'default' : _draft.preset)}</summary>
-        <label class="te-preset-filter" for="te-preset-filter">find a theme</label>
+        <summary tabindex="0">${esc(t('settings.theme_browse', { name: isBasePreset(_draft.preset) ? t('settings.default_tag') : _draft.preset }))}</summary>
+        <label class="te-preset-filter" for="te-preset-filter">${esc(t('settings.theme_find'))}</label>
         <input id="te-preset-filter" class="settings-input" type="search" value="${esc(filter)}" autocomplete="off">
-        <div class="te-presets" role="radiogroup" aria-label="theme presets">${_presetGridHtml()}</div>
+        <div class="te-presets" role="radiogroup" aria-label="${esc(t('settings.theme_presets'))}">${_presetGridHtml()}</div>
         <span id="te-preset-results" role="status"></span>
       </details>
 
       <details class="te-disclosure" data-theme-section="advanced"${openSections.has('advanced') ? ' open' : ''}>
-        <summary tabindex="0">advanced appearance</summary>
+        <summary tabindex="0">${esc(t('settings.theme_advanced'))}</summary>
 
-      <div class="te-sec"><div class="te-sec-h">colors</div><div class="te-colors">
-        ${BASE_LABELS.map(([k, label]) => `<label class="te-color"><input type="color" data-color="${k}" value="${esc(c[k])}"><span>${label}</span></label>`).join('')}
+      <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_colors'))}</div><div class="te-colors">
+        ${_baseLabels().map(([k, label]) => `<label class="te-color"><input type="color" data-color="${k}" value="${esc(c[k])}"><span>${label}</span></label>`).join('')}
       </div></div>
 
-      <div class="te-sec"><div class="te-sec-h">harmony: generate a palette from one color</div><div class="te-harmony">
-        <label class="te-color"><input type="color" id="te-harmony-accent" value="${esc(c.accent)}"><span>starting color</span></label>
-        <div class="te-seg" data-seg="harmony-type" role="radiogroup" aria-label="harmony type">${['complementary', 'analogous', 'triadic', 'monochromatic'].map((o, i) => `<button type="button" role="radio" aria-label="${o}" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o.slice(0, 4)}</button>`).join('')}</div>
-        <div class="te-seg" data-seg="harmony-mode" role="radiogroup" aria-label="harmony mode">${['dark', 'light'].map((o, i) => `<button type="button" role="radio" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${o}</button>`).join('')}</div>
-        <button class="btn" id="te-harmony-gen">generate</button>
+      <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_harmony'))}</div><div class="te-harmony">
+        <label class="te-color"><input type="color" id="te-harmony-accent" value="${esc(c.accent)}"><span>${esc(t('settings.theme_starting_color'))}</span></label>
+        <div class="te-seg" data-seg="harmony-type" role="radiogroup" aria-label="${esc(t('settings.theme_harmony_type'))}">${['complementary', 'analogous', 'triadic', 'monochromatic'].map((o, i) => `<button type="button" role="radio" aria-label="${esc(_optionWord(o))}" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${esc(Array.from(_optionWord(o)).slice(0, 4).join(''))}</button>`).join('')}</div>
+        <div class="te-seg" data-seg="harmony-mode" role="radiogroup" aria-label="${esc(t('settings.theme_harmony_mode'))}">${['dark', 'light'].map((o, i) => `<button type="button" role="radio" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${esc(_optionWord(o))}</button>`).join('')}</div>
+        <button class="btn" id="te-harmony-gen">${esc(t('common.generate'))}</button>
       </div></div>
 
       <div class="te-row2">
-        <div class="te-sec"><div class="te-sec-h">font</div>${_seg('font', ['sans', 'mono', 'serif'])}</div>
-        <div class="te-sec"><div class="te-sec-h">density</div>${_seg('density', ['comfortable', 'compact', 'spacious'])}</div>
+        <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_font'))}</div>${_seg('font', ['sans', 'mono', 'serif'])}</div>
+        <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_density'))}</div>${_seg('density', ['comfortable', 'compact', 'spacious'])}</div>
       </div>
 
-      <div class="te-sec"><div class="te-sec-h">background</div>
+      <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_color_background'))}</div>
         ${_seg('bgPattern', PATTERNS)}
         <div class="te-bg-extra" style="${NO_FX.has(_draft.bgPattern) ? 'display:none' : ''}">
-          <label class="te-color te-inline"><input type="color" id="te-effect-color" value="${esc(c.text)}"><span>effect color</span></label>
-          <label class="te-slider"><span>intensity</span><input type="range" id="te-intensity" min="0" max="1" step="0.05" value="${esc(_draft.effect?.intensity ?? 1)}"></label>
+          <label class="te-color te-inline"><input type="color" id="te-effect-color" value="${esc(c.text)}"><span>${esc(t('settings.theme_effect_color'))}</span></label>
+          <label class="te-slider"><span>${esc(t('settings.theme_intensity'))}</span><input type="range" id="te-intensity" min="0" max="1" step="0.05" value="${esc(_draft.effect?.intensity ?? 1)}"></label>
         </div>
-        <button type="button" class="btn te-toggle-btn" id="te-frosted" aria-pressed="${!!_draft.frosted}">frosted glass: ${_draft.frosted ? 'on' : 'off'}</button>
+        <button type="button" class="btn te-toggle-btn" id="te-frosted" aria-pressed="${!!_draft.frosted}">${esc(_frostedText())}</button>
       </div>
 
-      <div class="te-sec"><div class="te-sec-h">custom themes</div>
-        <label for="te-custom-name">theme name</label>
-        <div class="te-custom-row"><input type="text" id="te-custom-name" class="settings-input" placeholder="e.g. evening" maxlength="24"><button class="btn primary" id="te-save-custom">save current</button></div>
-        <div class="te-custom-list">${Object.keys(ct).length ? Object.keys(ct).map(n => `<span class="te-custom-chip" data-ct="${esc(n)}"><button type="button" data-apply="${esc(n)}" aria-label="apply theme ${esc(n)}" data-kokuen-primitive="action">${esc(n)}</button><button data-del="${esc(n)}" title="delete">${window.icon ? window.icon('close') : '×'}</button></span>`).join('') : '<span class="te-empty">none saved yet</span>'}</div>
+      <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_custom'))}</div>
+        <label for="te-custom-name">${esc(t('settings.theme_name'))}</label>
+        <div class="te-custom-row"><input type="text" id="te-custom-name" class="settings-input" placeholder="${esc(t('settings.theme_name_example'))}" maxlength="24"><button class="btn primary" id="te-save-custom">${esc(t('settings.theme_save_current'))}</button></div>
+        <div class="te-custom-list">${Object.keys(ct).length ? Object.keys(ct).map(n => `<span class="te-custom-chip" data-ct="${esc(n)}"><button type="button" data-apply="${esc(n)}" aria-label="${esc(t('settings.theme_apply', { name: n }))}" data-kokuen-primitive="action">${esc(n)}</button><button data-del="${esc(n)}" title="${esc(t('common.delete'))}">${window.icon ? window.icon('close') : '×'}</button></span>`).join('') : `<span class="te-empty">${esc(t('settings.theme_none_saved'))}</span>`}</div>
       </div>
       </details>
 
       <div class="te-foot">
-        <button class="btn" id="te-export">export</button>
-        <button class="btn" id="te-import">import</button>
-        <button class="btn" id="te-reset">reset to default</button>
-        ${_editorInline ? '' : '<button class="btn primary" id="te-done">done</button>'}
+        <button class="btn" id="te-export">${esc(t('common.export'))}</button>
+        <button class="btn" id="te-import">${esc(t('common.import'))}</button>
+        <button class="btn" id="te-reset">${esc(t('settings.theme_reset'))}</button>
+        ${_editorInline ? '' : `<button class="btn primary" id="te-done">${esc(t('common.done'))}</button>`}
       </div>
     </div>`;
   _wireEditor(m);
@@ -788,7 +802,7 @@ function _filterPresets(m) {
   const shown = tiles.filter(tile => !tile.hidden);
   const entry = shown.find(tile => tile.getAttribute('aria-checked') === 'true') || shown[0];
   if (entry) entry.tabIndex = 0;
-  m.querySelector('#te-preset-results').textContent = shown.length ? `${shown.length} themes` : 'no matching themes';
+  m.querySelector('#te-preset-results').textContent = shown.length ? tp('settings.theme_count', shown.length) : t('settings.theme_no_match');
 }
 
 function _wireEditor(m) {
@@ -854,7 +868,7 @@ function _wireEditor(m) {
   if (fr) fr.addEventListener('click', () => {
     _draft.frosted = !_draft.frosted;
     fr.setAttribute('aria-pressed', String(!!_draft.frosted));
-    fr.textContent = 'frosted glass: ' + (_draft.frosted ? 'on' : 'off');
+    fr.textContent = _frostedText();
     _commit();
   });
 
@@ -874,9 +888,9 @@ function _wireEditor(m) {
 
   m.querySelector('#te-save-custom').onclick = () => {
     const name = m.querySelector('#te-custom-name').value.trim();
-    if (!name) { toast('name it first', 'error'); return; }
+    if (!name) { toast(t('settings.theme_name_first'), 'error'); return; }
     if (!_draft.customThemes) _draft.customThemes = {};
-    if (Object.keys(_draft.customThemes).length >= 12 && !_draft.customThemes[name]) { toast('12 custom themes max: delete one', 'error'); return; }
+    if (Object.keys(_draft.customThemes).length >= 12 && !_draft.customThemes[name]) { toast(t('settings.theme_max_custom'), 'error'); return; }
     _draft.customThemes[name] = { colors: { ..._draft.colors }, font: _draft.font, density: _draft.density, bgPattern: _draft.bgPattern, frosted: _draft.frosted, effect: { ..._draft.effect } };
     save(_draft); _renderEditor();
   };
@@ -903,7 +917,7 @@ function _wireEditor(m) {
     inp.onchange = () => {
       const f = inp.files[0]; if (!f) return;
       const r = new FileReader();
-      r.onload = () => { try { const o = JSON.parse(r.result); if (o && o.colors) { _draft = { ...DEFAULT(), ...o }; _commit(); _renderEditor(); toast('imported', 'success'); } else toast('not a theme file', 'error'); } catch { toast('bad json', 'error'); } };
+      r.onload = () => { try { const o = JSON.parse(r.result); if (o && o.colors) { _draft = { ...DEFAULT(), ...o }; _commit(); _renderEditor(); toast(t('settings.theme_imported'), 'success'); } else toast(t('settings.theme_not_file'), 'error'); } catch { toast(t('settings.theme_bad_json'), 'error'); } };
       r.readAsText(f);
     };
     inp.click();

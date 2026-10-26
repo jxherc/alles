@@ -4,18 +4,18 @@ import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown, wireMessageActions, rereadActiveSession,
   showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
 } from './sessions.js';
-import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=213';
+import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=214';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
-import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js?v=253';
-import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort } from './modes.js?v=256';
+import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js?v=254';
+import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort } from './modes.js?v=257';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { shouldRunInBackground } from './aidebackgroundpolicy.js';
-import { formatNumber, t } from './i18n.js';
+import { formatNumber, t, tp, t as tr } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { saveAnswerNote } from './answer_note.js';
 import { saveAnswerTask } from './answer_task.js';
-import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=1';
-import { compactResponseActions } from './response_actions.js?v=2';
+import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=2';
+import { compactResponseActions } from './response_actions.js?v=3';
 
 // tools that change state / reach out — flagged in the agent panel + permission cards
 const DESTRUCTIVE_TOOLS = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
@@ -28,25 +28,25 @@ function toolSummary(name, args = {}) {
   const a = args || {};
   const cut = (s, n = 70) => String(s || '').replace(/\s+/g, ' ').slice(0, n);
   switch (name) {
-    case 'read_file': return `read ${a.path || ''}`;
-    case 'write_file': return `write ${a.path || ''}`;
-    case 'edit_file': return `edit ${a.path || ''}`;
-    case 'apply_patch': return 'apply a patch';
-    case 'shell': case 'bash': return `run: ${cut(a.command, 90)}`;
-    case 'grep_files': return `grep "${cut(a.pattern, 40)}"`;
-    case 'glob_files': return `glob ${a.pattern || ''}`;
-    case 'list_files': return `list ${a.path || '.'}`;
-    case 'web_search': return `search: ${cut(a.query, 50)}`;
-    case 'web_fetch': return `fetch ${cut(a.url, 60)}`;
-    case 'pi_run': return `hand to pi: ${cut(a.task, 110)}`;
-    case 'git_commit': return 'git commit';
-    case 'git_status': return 'git status';
-    case 'git_diff': return 'git diff';
-    case 'todo_update': return 'update the checklist';
-    case 'memory_search': return `recall: ${cut(a.query, 40)}`;
-    case 'memory_add': return 'remember a fact';
-    case 'diagnostics': return 'run diagnostics';
-    case 'mail_send': return `send mail to ${cut(a.to, 40)}`;
+    case 'read_file': return t('aide.step_read', { path: a.path || '' });
+    case 'write_file': return t('aide.step_write', { path: a.path || '' });
+    case 'edit_file': return t('aide.step_edit', { path: a.path || '' });
+    case 'apply_patch': return t('aide.step_apply_patch');
+    case 'shell': case 'bash': return t('aide.step_run', { command: cut(a.command, 90) });
+    case 'grep_files': return t('aide.step_grep', { pattern: cut(a.pattern, 40) });
+    case 'glob_files': return t('aide.step_glob', { pattern: a.pattern || '' });
+    case 'list_files': return t('aide.step_list', { path: a.path || '.' });
+    case 'web_search': return t('aide.step_search', { query: cut(a.query, 50) });
+    case 'web_fetch': return t('aide.step_fetch', { url: cut(a.url, 60) });
+    case 'pi_run': return t('aide.step_hand_to_pi', { task: cut(a.task, 110) });
+    case 'git_commit': return t('aide.step_git_commit');
+    case 'git_status': return t('aide.step_git_status');
+    case 'git_diff': return t('aide.step_git_diff');
+    case 'todo_update': return t('aide.step_todo_update');
+    case 'memory_search': return t('aide.step_recall', { query: cut(a.query, 40) });
+    case 'memory_add': return t('aide.step_remember');
+    case 'diagnostics': return t('aide.step_diagnostics');
+    case 'mail_send': return t('aide.step_send_mail', { to: cut(a.to, 40) });
     default: {
       const v = Object.values(a).find(x => typeof x === 'string' && x.length < 80);
       return v ? `${name}: ${cut(v)}` : name;
@@ -61,8 +61,8 @@ window._mdToHtml = mdToHtml;
 window.copyMsg = function(btn) {
   const body = btn.closest('.ai-wrap').querySelector('.ai-content');
   navigator.clipboard.writeText(body?.innerText || '').then(() => {
-    btn.textContent = 'copied';
-    setTimeout(() => btn.textContent = 'copy', 1500);
+    btn.textContent = t('common.copied');
+    setTimeout(() => btn.textContent = t('common.copy'), 1500);
   });
 };
 
@@ -80,6 +80,20 @@ window.openArtifactFromMsg = function(btn) {
   const [a] = JSON.parse(raw);
   if (a) openArtifact(a.content, a.type, a.title, a.lang);
 };
+
+// message actions and step toggles are drawn as html here and in sessions.js. the csp blocks
+// inline onclick, so one listener runs them all
+if (typeof document !== 'undefined') document.addEventListener?.('click', e => {
+  const toggle = e.target.closest?.('[data-toggle-open]');
+  if (toggle) { toggle.parentElement.classList.toggle('open'); return; }
+  const btn = e.target.closest?.('[data-msg-act]');
+  if (!btn || btn.disabled) return;
+  const act = btn.dataset.msgAct;
+  if (act === 'copy') window.copyMsg(btn);
+  else if (act === 'note' || act === 'task') window.saveMsgAs(btn, act);
+  else if (act === 'artifact') window.openArtifactFromMsg(btn);
+  else if (act === 'remember') window.rememberUserMessage?.(btn);
+});
 
 let _streaming = false;
 let _backgroundLaunching = false;
@@ -123,7 +137,7 @@ function renderDocumentScope(scope) {
   chip.hidden = !scope;
   const name = document.getElementById('aide-document-scope-name');
   if (name) name.tabIndex = scope ? 0 : -1;
-  if (name) name.textContent = scope?.kind === 'vault_documents' ? `${scope.documents.length} note${scope.documents.length === 1 ? '' : 's'} only · ${scope.documents.map(item => item.path).join(', ')}` : scope ? scope.path.split('/').pop().replace(/\.(md|markdown)$/i, '') : '';
+  if (name) name.textContent = scope?.kind === 'vault_documents' ? tp('aide.scope_notes', scope.documents.length, { paths: scope.documents.map(item => item.path).join(', ') }) : scope ? scope.path.split('/').pop().replace(/\.(md|markdown)$/i, '') : '';
 }
 
 window._setAideDocumentScope = scope => {
@@ -191,13 +205,13 @@ function restoreBackgroundInput(sessionId, text) {
   }
   const draft = getDraftSnapshot(sessionId);
   if (!draft || typeof draft.text !== 'string') {
-    toast('background work did not start. could not restore its original draft.', 'error');
+    toast(t('aide.background_restore_failed'), 'error');
     return;
   }
   const restored = draft.text.trim() && draft.text.trim() !== text.trim()
     ? `${text}\n\n${draft.text}` : text;
   if (!consumeDraft(sessionId, draft, restored, draft.document_scope || null)) {
-    toast('background work did not start. could not restore its original draft.', 'error');
+    toast(t('aide.background_restore_failed'), 'error');
   }
 }
 
@@ -254,11 +268,11 @@ function holdDocumentDraft(sessionId, draft, attachmentIds, privateReply, { owns
 export async function sendMessage(text, onAccepted = () => {}) {
   if (!text?.trim() || _streaming || _backgroundLaunching) return;
   if (window._aidePrimaryUnavailable) {
-    showSendIssue('reopen your main conversation before sending.');
+    showSendIssue(t('aide.send_reopen_main'));
     return;
   }
   if (hasPendingAttachments()) {
-    showSendIssue('wait for attachments to finish uploading.');
+    showSendIssue(t('aide.send_wait_attachments'));
     return;
   }
 
@@ -274,7 +288,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
   if (!sessionId) {
     const composerGeneration = getComposerGeneration();
     const ep = getCurrentEndpoint();
-    if (!ep) { showSendIssue('choose a model before sending.', true); return; }
+    if (!ep) { showSendIssue(t('aide.send_choose_model'), true); return; }
     const model = getSelected()?.model || ep.models[0] || '';
     let s;
     try {
@@ -285,7 +299,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
       });
     } catch { /* The composer still owns the unsent text. */ }
     if (!s) {
-      if (getComposerGeneration() === composerGeneration) showSendIssue('could not start this task. try sending again.');
+      if (getComposerGeneration() === composerGeneration) showSendIssue(t('aide.send_task_failed'));
       return;
     }
     if (getComposerGeneration() !== composerGeneration) return;
@@ -308,7 +322,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
   }
 
   const sel = getSelected();
-  if (!sel) { showSendIssue('choose a model before sending.', true); return; }
+  if (!sel) { showSendIssue(t('aide.send_choose_model'), true); return; }
   if (!documentScope) {
     // Ordinary sends keep input added during creation, including a first source choice.
     attachmentIds = getAttachments();
@@ -319,7 +333,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
     }
   }
   if (documentScope?.kind === 'vault_documents' && attachmentIds.length) {
-    showSendIssue('remove attachments to answer from selected notes only.');
+    showSendIssue(t('aide.send_remove_attachments'));
     return;
   }
 
@@ -353,7 +367,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
     scrollDown();
     let run = null;
     try {
-      const { startBackgroundWork } = await import('./aidebackground.js?v=245');
+      const { startBackgroundWork } = await import('./aidebackground.js?v=246');
       run = await startBackgroundWork({
         sessionId,
         request: text,
@@ -366,7 +380,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
         customEffort: getCustomEffort(sel?.model),
       });
     } catch (error) {
-      toast(error?.message || 'could not start background work', 'error');
+      toast(error?.message || t('aide.bg_start_failed'), 'error');
     } finally {
       _backgroundLaunching = false;
     }
@@ -411,7 +425,7 @@ export function resendMessage(userRow, text, { edit = false, newestId = '', onAc
   const messageId = userRow?.dataset.msgId;
   if (!sessionId || !messageId || !text?.trim() || !canSendMessage()) return Promise.resolve('refused');
   const sel = getSelected();
-  if (!sel) { showSendIssue('choose a model before sending.', true); return Promise.resolve('refused'); }
+  if (!sel) { showSendIssue(t('aide.send_choose_model'), true); return Promise.resolve('refused'); }
   showMessages();
   return new Promise(resolve => {
     void streamReply({
@@ -448,7 +462,7 @@ function resendRefusal(status, error) {
   if (error.code === 'turn_stopped') return { reason: 'stopped' };
   if (status === 404) return { reason: 'gone' };
   const detail = typeof error.detail === 'string' ? error.detail : error.detail?.message;
-  return { reason: 'refused', words: plainError(detail || 'couldn\'t answer this again') };
+  return { reason: 'refused', words: plainError(detail || t('aide.resend_failed')) };
 }
 
 export function retrySavedResponse(request, previousRow) {
@@ -527,14 +541,14 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   progressEl.className = 'aide-run-progress';
   progressEl.setAttribute('role', 'status');
   progressEl.setAttribute('aria-live', 'polite');
-  progressEl.textContent = 'typing';
+  progressEl.textContent = t('aide.progress_typing');
   body.appendChild(progressEl);
   const setProgress = text => {
     if (progressEl.isConnected) progressEl.textContent = text;
   };
   // the reply's status line says it's stopping until the stream ends (it may have gone already)
   _chatStopping = () => {
-    progressEl.textContent = 'stopping…';
+    progressEl.textContent = t('aide.stopping');
     if (!progressEl.isConnected) body.appendChild(progressEl);
   };
   const clearProgress = () => progressEl.remove();
@@ -547,7 +561,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     const secs = Math.max(1, Math.round((Date.now() - thinkStart) / 1000));
     const label = thinkingEl.querySelector('.think-label');
     const timer = thinkingEl.querySelector('.think-timer');
-    if (label) label.textContent = `thought for ${secs}s`;
+    if (label) label.textContent = t('aide.thought_for', { secs });
     if (timer) timer.textContent = '';
     thinkingEl.classList.remove('thinking-live');
     thinkingEl.classList.remove('open');
@@ -617,7 +631,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       // never stored: an edit sends its words as a new message instead of cutting after it
       if (userRow && !userRow.dataset.msgId) userRow.dataset.unsaved = '1';
       row.dataset.unsaved = '1';
-      const message = typeof error.detail === 'string' ? error.detail : error.detail?.message || 'could not start this answer';
+      const message = typeof error.detail === 'string' ? error.detail : error.detail?.message || t('aide.answer_start_failed');
       const chat = document.getElementById('chat');
       const followedReply = chat && chat.scrollHeight - chat.scrollTop - chat.clientHeight < 96;
       body.innerHTML = rejectedBeforeStart
@@ -706,8 +720,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
             const value = document.getElementById('session-token-count-value');
             if (el && value) {
               const formatted = formatNumber(total);
-              value.textContent = `${formatted} tok`;
-              el.setAttribute('aria-label', `${formatted} tokens used in the latest response`);
+              value.textContent = t('aide.tokens_short', { count: formatted });
+              el.setAttribute('aria-label', t('aide.tokens_used', { count: formatted }));
               el.hidden = false;
             }
           }
@@ -771,7 +785,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
 
         if (chunk.tool_start) {
           const t = chunk.tool_start;
-          setProgress(`${String(t.name || 'tool').replaceAll('_', ' ')}…`);
+          setProgress(`${String(t.name || tr('aide.run_tool')).replaceAll('_', ' ')}…`);
           const panel = ensureAgentPanel();
           const step = document.createElement('div');
           step.className = 'agent-step running' + (DESTRUCTIVE_TOOLS.has(t.name) ? ' destructive' : '');
@@ -783,13 +797,13 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
           step.innerHTML = `
             <div class="agent-step-head">
               <span class="agent-step-dot"></span>${stepMark(t.name)}
-              <span class="agent-step-name">${escHtml(t.name || 'tool')}</span>
+              <span class="agent-step-name">${escHtml(t.name || tr('aide.run_tool'))}</span>
               <span class="agent-step-summary">${escHtml(toolSummary(t.name, t.args))}</span>
-              <span class="agent-step-status">running</span>
+              <span class="agent-step-status">${escHtml(tr('aide.bg_state_running'))}</span>
               <span class="agent-step-time">0.0s</span>
             </div>
             <div class="agent-step-args-wrap custom-disclosure">
-              <div class="custom-summary" onclick="this.parentElement.classList.toggle('open')">args</div>
+              <div class="custom-summary" data-toggle-open>${escHtml(tr('aide.step_args'))}</div>
               <pre class="agent-step-args custom-details">${escHtml(JSON.stringify(t.args || {}, null, 2))}</pre>
             </div>
             <pre class="agent-step-output"></pre>
@@ -854,12 +868,12 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
             card.className = 'agent-perm';
             card.dataset.req = t.request_id;
             card.innerHTML = `
-              <div class="agent-perm-msg">approve: <b>${escHtml(toolSummary(t.name, t.args))}</b>?${t.outside
+              <div class="agent-perm-msg">${escHtml(tr('aide.perm_approve_prompt', { summary: '\u0001' })).replace('\u0001', `<b>${escHtml(toolSummary(t.name, t.args))}</b>`)}${t.outside
                 ? `<span class="agent-perm-outside">${escHtml(t.outside)}</span>`
                 : ''}</div>
               <div class="agent-perm-actions">
-                <button class="agent-perm-allow">approve</button>
-                <button class="agent-perm-deny">deny</button>
+                <button class="agent-perm-allow">${escHtml(tr('aide.perm_allow'))}</button>
+                <button class="agent-perm-deny">${escHtml(tr('aide.perm_deny'))}</button>
               </div>`;
             step.appendChild(card);
             const decide = async (allow) => {
@@ -870,11 +884,11 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
                 body: JSON.stringify({ allow }),
               }).catch(() => {});
               card.classList.add(allow ? 'approved' : 'denied');
-              card.querySelector('.agent-perm-msg').textContent = allow ? 'approved' : 'denied';
+              card.querySelector('.agent-perm-msg').textContent = allow ? tr('aide.perm_approved') : tr('aide.perm_denied');
             };
             // waiting on the owner, not working: the timer stops and the line says so
             step.classList.add('waiting');
-            step.querySelector('.agent-step-time').textContent = 'waiting for you';
+            step.querySelector('.agent-step-time').textContent = tr('aide.step_waiting_you');
             card.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
               step.classList.remove('waiting');
               step.dataset.start = String(Date.now());
@@ -893,7 +907,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
             // resolved elsewhere / timed out
             card.querySelectorAll('button').forEach(b => b.disabled = true);
             card.classList.add(t.allow ? 'approved' : 'denied');
-            card.querySelector('.agent-perm-msg').textContent = t.allow ? 'approved' : 'denied';
+            card.querySelector('.agent-perm-msg').textContent = t.allow ? tr('aide.perm_approved') : tr('aide.perm_denied');
           }
         }
 
@@ -923,23 +937,23 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
               : docReceipt(step.dataset.toolName, step._args, !!t.error);
             if (receipt && agentEl) agentEl.insertAdjacentHTML('afterend', receipt);
             const status = step.querySelector('.agent-step-status');
-            if (status) status.textContent = t.completed === false ? 'no final result' : t.error ? 'error' : 'done';
+            if (status) status.textContent = t.completed === false ? tr('aide.step_no_final_result') : t.error ? tr('aide.run_status_error') : tr('aide.run_status_done');
             const out = step.querySelector('.agent-step-output');
-            if (out && !out.textContent) out.textContent = t.output || '(no output)';
+            if (out && !out.textContent) out.textContent = t.output || tr('aide.step_no_output');
           }
           scrollDown();
         }
 
         if (chunk.thinking) {
-          setProgress('thinking…');
+          setProgress(t('aide.thinking_progress'));
           accThink += chunk.thinking;
           if (!thinkingEl) {
             thinkStart = Date.now();
             thinkingEl = document.createElement('div');
             thinkingEl.className = 'thinking-block thinking-live custom-disclosure open';
             thinkingEl.innerHTML = `
-              <div class="custom-summary" onclick="this.parentElement.classList.toggle('open')">
-                <span class="think-label">thinking</span><span class="think-timer"></span>
+              <div class="custom-summary" data-toggle-open>
+                <span class="think-label">${escHtml(t('aide.thinking'))}</span><span class="think-timer"></span>
               </div>
               <div class="thinking-content custom-details"></div>`;
             body.insertBefore(thinkingEl, contentEl);
@@ -973,7 +987,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       const k = 'stream-buffer-warned';
       if (Date.now() - (+localStorage.getItem(k) || 0) > 86400000) {
         localStorage.setItem(k, Date.now());
-        toast('reply arrived all at once: a proxy is buffering the stream. using clash? add *.localhost to its system-proxy bypass list', 'error');
+        toast(t('aide.stream_buffered'), 'error');
       }
     }
 
@@ -994,7 +1008,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       }
     }
     if (e.name !== 'AbortError') {
-      appendError(body, `stream error: ${e.message}`);
+      appendError(body, t('aide.stream_error', { message: e.message }));
       if (isConnError(e.message)) showConnBanner();
     }
   } finally {
@@ -1018,7 +1032,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     }
     if (userStopped()) appendInterruptionNotice(body);
     else if (streamEnded && !receivedDone && !providerError) {
-      appendInterruptionNotice(body, 'response ended before completion was confirmed. review any partial answer and task activity before sending again.');
+      appendInterruptionNotice(body, t('aide.response_unconfirmed'));
     }
 
     // a cancelled or answered question folds away with the steps: don't leave focus inside it
@@ -1032,7 +1046,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       const summary = agentEl.querySelector('.custom-summary');
       if (summary) {
         countSteps();
-        if (hasAttention) summary.insertAdjacentHTML('afterbegin', '<span class="agent-steps-attention">needs you · </span>');
+        if (hasAttention) summary.insertAdjacentHTML('afterbegin', `<span class="agent-steps-attention">${escHtml(t('aide.needs_you_dot'))}</span>`);
         summary.setAttribute('aria-expanded', String(hasAttention));
       }
     } else if (agentEl) {
@@ -1047,8 +1061,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       if (sum && !sum.querySelector('.agent-sources-btn')) {
         const sb = document.createElement('button');
         sb.className = 'agent-sources-btn';
-        sb.textContent = 'sources';
-        sb.title = 'files, urls, searches and commands this run touched';
+        sb.textContent = t('aide.step_sources');
+        sb.title = t('aide.step_sources_touched_title');
         let panel = null;
         sb.addEventListener('click', async (e) => {
           e.preventDefault(); e.stopPropagation();
@@ -1061,7 +1075,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
             panel.className = 'agent-sources';
             panel.innerHTML = sourcesHtml(src);
             agentEl.appendChild(panel);
-          } catch { toast('couldn’t load sources', 'error'); }
+          } catch { toast(t('aide.sources_load_failed'), 'error'); }
           sb.disabled = false;
         });
         sum.appendChild(sb);
@@ -1074,16 +1088,16 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       if (sum && !sum.querySelector('.agent-revert-btn')) {
         const rb = document.createElement('button');
         rb.className = 'agent-revert-btn';
-        rb.textContent = 'revert edits';
-        rb.title = 'restore every file this run changed';
+        rb.textContent = t('aide.step_revert');
+        rb.title = t('aide.step_revert_title');
         rb.addEventListener('click', async (e) => {
           e.preventDefault(); e.stopPropagation();
-          rb.disabled = true; rb.textContent = 'reverting…';
+          rb.disabled = true; rb.textContent = t('aide.run_reverting');
           try {
             const r = await fetch(`/api/agent/runs/${runId}/revert`, { method: 'POST' }).then(x => x.json());
-            rb.textContent = `reverted ${r.restored || 0}`;
-            toast(`reverted ${r.restored || 0} file(s)`, 'success');
-          } catch { rb.textContent = 'revert failed'; toast('revert failed', 'error'); }
+            rb.textContent = tp('aide.run_reverted', r.restored || 0);
+            toast(tp('aide.run_reverted_files', r.restored || 0), 'success');
+          } catch { rb.textContent = t('aide.run_revert_failed'); toast(t('aide.run_revert_failed'), 'error'); }
         });
         sum.appendChild(rb);
       }
@@ -1107,7 +1121,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     // Unknown transport outcomes must not replay work that might already have happened.
     if (rejectedBeforeStart || (sourceUserId && providerError && receivedDone && streamEnded && !userStopped() && !accText && !toolActivity && !(privateReply && request.file_ids.length))) {
       const retry = document.createElement('button');
-      retry.type = 'button'; retry.className = 'btn aide-retry-response'; retry.textContent = 'retry response';
+      retry.type = 'button'; retry.className = 'btn aide-retry-response'; retry.textContent = t('aide.retry_response');
       retry.addEventListener('click', () => {
         if (!canSendMessage() || getActiveId() !== sessionId || _streamToken !== streamToken || !row.isConnected) return;
         // safari doesn't focus a clicked button, so nothing focused counts as the button too
@@ -1122,11 +1136,11 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       if (rejectedBeforeStart) {
         // retry can't win while that work waits on you, so offer the way out too
         const stop = document.createElement('button');
-        stop.type = 'button'; stop.className = 'btn aide-retry-response'; stop.textContent = 'stop that work';
+        stop.type = 'button'; stop.className = 'btn aide-retry-response'; stop.textContent = t('aide.stop_that_work');
         stop.addEventListener('click', async () => {
           stop.disabled = true;
           await fetch(`/api/chat/stop/${encodeURIComponent(sessionId)}`, { method: 'POST' }).catch(() => {});
-          stop.textContent = 'stopped';
+          stop.textContent = t('aide.stopped');
           retry.focus();
         });
         body.querySelector('.error-msg')?.appendChild(stop);
@@ -1152,19 +1166,19 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       actions.className = 'msg-actions';
       let html = '';
       if (cleanText) {
-        html += `<button class="act-btn" onclick="copyMsg(this)">copy</button>`;
-        html += `<button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>`;
-        html += `<button class="act-btn" onclick="saveMsgAs(this,'task')" title="${t('aide.review_plan_task')}">${t('aide.add_plan_task')}</button>`;
-        html += `<button class="msg-regen-btn act-btn" title="regenerate">regen</button>`;
-        html += `<button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>`;
-        html += `<button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
+        html += `<button class="act-btn" data-msg-act="copy">${t('common.copy')}</button>`;
+        html += `<button class="act-btn" data-msg-act="note" title="${t('aide.note_title')}">${t('aide.note_button')}</button>`;
+        html += `<button class="act-btn" data-msg-act="task" title="${t('aide.review_plan_task')}">${t('aide.add_plan_task')}</button>`;
+        html += `<button class="msg-regen-btn act-btn" title="${t('aide.regenerate')}">${t('aide.regen')}</button>`;
+        html += `<button class="msg-rewrite-btn act-btn" data-style="shorter" title="${t('aide.rewrite_shorter_title')}">${t('aide.shorter')}</button>`;
+        html += `<button class="msg-rewrite-btn act-btn" data-style="simpler" title="${t('aide.rewrite_simpler_title')}">${t('aide.simpler')}</button>`;
       }
       if (artifacts.length) {
         wrap.dataset.artifacts = JSON.stringify(artifacts);
-        html += `<button class="act-btn" onclick="openArtifactFromMsg(this)">open artifact</button>`;
+        html += `<button class="act-btn" data-msg-act="artifact">${t('aide.open_artifact')}</button>`;
       }
       // the same buttons a reload draws, so regenerate and branch work right away
-      if (!privateReply) html += `<button class="act-btn msg-branch-btn" title="branch a new aide task from here (keeps this one)">branch</button>`;
+      if (!privateReply) html += `<button class="act-btn msg-branch-btn" title="${t('aide.branch_title')}">${t('aide.branch_button')}</button>`;
       actions.innerHTML = html;
       wrap.appendChild(actions);
       compactResponseActions(actions);
@@ -1192,7 +1206,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
           replaced[0].tabIndex = -1;
           replaced[0].focus({ preventScroll: true });
         }
-        if (!userStopped()) toast('couldn\'t get a new answer, so the old one stays.', 'error');
+        if (!userStopped()) toast(t('aide.regen_kept_old'), 'error');
       }
     }
     // the stream ended before the server said what it kept (stopped, or the connection broke
@@ -1220,7 +1234,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     const failed = steps.filter(step => step.classList.contains('error')).length;
     const running = steps.some(step => step.classList.contains('running'));
     const label = agentEl.querySelector('.custom-summary');
-    label.innerHTML = `${steps.length} step${steps.length === 1 ? '' : 's'}${failed ? ` · ${failed} failed` : ''}${running ? ' · working' : ''}<span class="agent-steps-dots" aria-hidden="true">${steps.slice(-24).map(step => `<span class="${step.classList.contains('running') ? 'running' : step.classList.contains('error') ? 'failed' : 'done'}"></span>`).join('')}</span>`;
+    label.innerHTML = `${tp('aide.run_steps', steps.length)}${failed ? ` · ${tp('aide.step_failed', failed)}` : ''}${running ? t('aide.step_working_suffix') : ''}<span class="agent-steps-dots" aria-hidden="true">${steps.slice(-24).map(step => `<span class="${step.classList.contains('running') ? 'running' : step.classList.contains('error') ? 'failed' : 'done'}"></span>`).join('')}</span>`;
   }
 
   function ensureAgentPanel() {
@@ -1228,7 +1242,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     agentEl = document.createElement('div');
     agentEl.className = 'agent-steps custom-disclosure open';
     agentEl.innerHTML = `
-      <div class="custom-summary" role="button" tabindex="0" aria-expanded="true">working</div>
+      <div class="custom-summary" role="button" tabindex="0" aria-expanded="true">${t('aide.working')}</div>
       <div class="agent-step-list custom-details"></div>`;
     body.appendChild(agentEl);
     const disclosure = agentEl.querySelector('.custom-summary');
@@ -1272,7 +1286,7 @@ function escHtml(s = '') {
 function appendError(body, msg) {
   const el = document.createElement('div');
   el.className = 'error-msg';
-  const detail = String(msg || 'the model returned an error');
+  const detail = String(msg || t('aide.model_error_default'));
   const status = Number(detail.match(/HTTP\s+(\d{3})/i)?.[1]);
   const connectionFailure = isConnError(detail);
   if (status || connectionFailure) {
@@ -1280,21 +1294,21 @@ function appendError(body, msg) {
     const explanation = document.createElement('p');
     explanation.setAttribute('role', 'status');
     explanation.textContent = connectionFailure
-      ? 'the model could not be reached. check its connection in model settings, then try again.'
+      ? t('aide.model_unreachable')
       : status === 404
-      ? 'the model could not be found. check the selected model and connection in model settings, then try again.'
+      ? t('aide.model_not_found')
       : [401, 403].includes(status)
-      ? 'the model did not authorize this request. check its credentials in model settings, then try again.'
+      ? t('aide.model_unauthorized')
       : status === 429
-      ? 'the model is busy or has reached its limit. wait a moment, then try again.'
+      ? t('aide.model_busy')
       : status >= 500
-      ? 'the model service is temporarily unavailable. try again later, or check its connection in model settings.'
-      : 'the model could not answer this request. check the model and connection in model settings, then try again.';
+      ? t('aide.model_unavailable')
+      : t('aide.model_cannot_answer');
     const settings = document.createElement('button');
-    settings.type = 'button'; settings.className = 'btn'; settings.textContent = 'model settings';
+    settings.type = 'button'; settings.className = 'btn'; settings.textContent = t('aide.model_settings');
     settings.addEventListener('click', () => window._openSettings?.('models'));
     const details = document.createElement('details');
-    const summary = document.createElement('summary'); summary.textContent = 'error details';
+    const summary = document.createElement('summary'); summary.textContent = t('aide.error_details');
     const raw = document.createElement('pre'); raw.textContent = detail;
     details.append(summary, raw);
     el.append(explanation, settings, details);
@@ -1311,7 +1325,7 @@ function showConnBanner() {
   const b = document.getElementById('conn-banner');
   const m = document.getElementById('conn-banner-msg');
   if (!b || !m) return;
-  m.textContent = 'the model connection is unavailable. check the failed response for details and recovery options.';
+  m.textContent = t('aide.conn_unavailable');
   b.style.display = 'flex';
 }
 
@@ -1356,8 +1370,8 @@ export function stopStream() {
   // stay in the box, and the stop control says it's stopping
   const stop = document.getElementById('stop-btn');
   stop.setAttribute('aria-disabled', 'true');
-  stop.setAttribute('aria-label', 'stopping…');
-  stop.title = 'stopping…';
+  stop.setAttribute('aria-label', t('aide.stopping'));
+  stop.title = t('aide.stopping');
   _chatStopping?.();
   if (unfocused) focusAfterReply();
   if (!sid) { ctrl.abort(); return; }
@@ -1413,14 +1427,14 @@ async function _sendImage(prompt, sessionId, fresh, target) {
     setStreaming(true, false);
     if (again) {
       retry.setAttribute('aria-disabled', 'true');
-      retry.textContent = 'retrying…';
+      retry.textContent = t('aide.image_retrying');
       error.setAttribute('role', 'status');
-      error.textContent = 'checking saved image…';
+      error.textContent = t('aide.image_checking');
     } else {
       const status = document.createElement('div');
       status.className = 'ai-content img-gen-status';
       status.setAttribute('role', 'status');
-      status.textContent = 'generating image…';
+      status.textContent = t('aide.image_generating');
       body.replaceChildren(status);
     }
     scrollDown();
@@ -1430,7 +1444,7 @@ async function _sendImage(prompt, sessionId, fresh, target) {
         body: JSON.stringify(request),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || 'generation failed');
+      if (!r.ok) throw new Error(d.detail || t('aide.image_failed'));
       // the stored rows' ids, so an edit or regenerate after this isn't taken for another tab's
       // turn; a private image is never stored
       if (d.user_message_id && d.message_id) {
@@ -1450,22 +1464,22 @@ async function _sendImage(prompt, sessionId, fresh, target) {
         content.focus({ preventScroll: true });
       }
       if (fresh && d.doc_id && d.doc_title) updateSessionName(sessionId, d.doc_title);
-      toast(d.doc_id ? 'saved to notes' : 'image generated', 'success');
+      toast(d.doc_id ? t('aide.image_saved_notes') : t('aide.image_generated'), 'success');
     } catch (e) {
       if (!error) {
         error = document.createElement('div');
         error.className = 'ai-content';
         const template = document.createElement('template');
-        template.innerHTML = '<button type="button" class="act-btn img-gen-retry">retry image</button>';
+        template.innerHTML = '<button type="button" class="act-btn img-gen-retry"></button>';
         retry = template.content.firstElementChild;
         retry.addEventListener('click', () => { if (!_streaming) void send(true); });
       }
       error.setAttribute('role', 'alert');
-      error.textContent = 'could not confirm image: ' + (e.message || 'request failed');
+      error.textContent = t('aide.image_unconfirmed', { error: e.message || t('aide.image_request_failed') });
       retry.removeAttribute('aria-disabled');
-      retry.textContent = 'retry image';
+      retry.textContent = t('aide.image_retry');
       if (!again) body.replaceChildren(error, retry);
-      toast(e.message || 'generation failed', 'error');
+      toast(e.message || t('aide.image_failed'), 'error');
     } finally {
       setStreaming(false);
       scrollDown();

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { harness, tick, deferred, proposal, functionSource, captureSource } from './helpers/mail_workflows_recovery.mjs';
+import { t } from '../../static/js/i18n.js';
 
 globalThis.document = { addEventListener() {}, removeEventListener() {}, querySelector: () => null, getElementById: () => null,
   documentElement: { style: { setProperty() {} } } };
@@ -157,8 +158,8 @@ test('the browser zone is only sent when the browser really reports one', async 
 
 test('the date strip opens the day in every cell and "+N more" names its day', () => {
   const source = readFileSync(new URL('../../static/js/calendar.js', import.meta.url), 'utf8');
-  assert.match(source, /class="cal-more" data-day="\$\{day\}" aria-label="\$\{n\} more on \$\{esc\(_dayLabel\(day\)\)\}"/);
-  assert.match(source, /class="cal-day-open" data-day="\$\{day\}" tabindex="-1" aria-label="open \$\{esc\(_dayLabel\(day\)\)\}"/);
+  assert.match(source, /class="cal-more" data-day="\$\{day\}" aria-label="\$\{esc\(trp\('calendar\.more_on_day', n, \{ day: _dayLabel\(day\) \}\)\)\}"/);
+  assert.match(source, /class="cal-day-open" data-day="\$\{day\}" tabindex="-1" aria-label="\$\{esc\(tr\('calendar\.open_day', \{ day: _dayLabel\(day\) \}\)\)\}"/);
   assert.match(source, /ev\.target\.closest\('\.cal-more, \.cal-day-open'\)/);
   // narrow cells lead with the title so it stays readable
   assert.match(source, /titleFirst \? `\$\{o\.title\} \$\{timeShort\(o\._date\)\}`/);
@@ -167,7 +168,7 @@ test('the date strip opens the day in every cell and "+N more" names its day', (
 test('a timed event in the day or week grid is a button the keyboard can open', () => {
   const source = readFileSync(new URL('../../static/js/calendar.js', import.meta.url), 'utf8');
   assert.match(source, /class="cal-tev\$\{o\._recur \? ' recurring' : ''\}" role="button" tabindex="0" aria-label="\$\{esc\(name\)\}"/);
-  assert.match(source, /const name = `\$\{o\.title\}, \$\{timeShort\(o\._date\)\} – \$\{timeShort\(it\.end\)\}`;/);
+  assert.match(source, /const name = tr\('calendar\.event_span', \{ title: o\.title, start: timeShort\(o\._date\), end: timeShort\(it\.end\) \}\);/);
   const handlers = {};
   const body = { addEventListener: (type, fn) => { handlers[type] = fn; } };
   const el = { querySelector: s => (s === '.cal-tg-body' ? body : null), querySelectorAll: () => [{}] };
@@ -195,7 +196,7 @@ test('focus comes back to the occurrence that was open, then any copy, then the 
   const source = readFileSync(new URL('../../static/js/calendar.js', import.meta.url), 'utf8');
   let focused = '';
   const node = name => ({ isConnected: true, getClientRects: () => [{}], focus() { focused = name; } });
-  const own = ':is(button.cal-chip, button.cal-allday-ev, .cal-tev)[data-id="e1"]';
+  const own = ':is(button.cal-chip, button.cal-allday-ev, .cal-tev, button.cal-agenda-ev)[data-id="e1"]';
   const items = { [`${own}[data-occ="2026-10-24"]`]: node('saturday copy'), [own]: node('first copy'),
     '.cal-more[data-day="2026-10-24"]': node('more') };
   const list = { querySelector: selector => items[selector] || null };
@@ -309,7 +310,7 @@ ${functionSource('resizedTimes', source)}`, context);
   assert.match(source, /const lowest = Math\.max\(st\.top0, DAY_H - st\.tev\.offsetHeight - 2\);\n\s*st\.tev\.style\.top = Math\.min\(snap\(st\.top0 \+ \(e\.clientY - st\.y0\)\), lowest\)/);
 
   let asked = 0, answer;
-  const ctx = vm.createContext({ _saving: false, _readDraft: () => 'changed', _draftSnapshot: 'saved', _editing: null, _editOcc: null,
+  const ctx = vm.createContext({ _saving: false, _readDraft: () => 'changed', _draftSnapshot: 'saved', _editing: null, _editOcc: null, tr: t,
     dlgConfirm: () => { asked++; return new Promise(resolve => { answer = resolve; }); },
     loadCalendar: async () => false, focusAfterEditor() {},
     document: { body: 'page', activeElement: 'page' }, focusEditor: () => { refocused++; } });

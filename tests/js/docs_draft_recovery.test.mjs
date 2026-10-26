@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/docs.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -85,7 +86,7 @@ function harness(server) {
     return elements.get(id);
   };
   const document = { getElementById: get, querySelectorAll: () => [], createElement: () => get(Symbol()), body: {}, activeElement: null };
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp,
     document, fetch: server.fetch, URL, URLSearchParams, TextEncoder,
     setTimeout: () => 1, clearTimeout() {}, window: {}, location: new URL('http://fixture/'),
     matchMedia: () => ({ matches: false }), mdToHtml: value => value, enhanceMarkdown() {},

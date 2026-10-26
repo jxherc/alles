@@ -12,12 +12,12 @@ function taskSaved(saved, kind, focus = false) {
   document.getElementById('aide-task-recovery')
     ?.querySelectorAll(':scope > [role="status"]').forEach(node => node.remove());
   const status = document.createElement('p'); status.setAttribute('role', 'status');
-  status.textContent = `saved in plan: ${saved.title}`;
+  status.textContent = t('aide.task_saved_in_plan', { title: saved.title });
   const open = document.createElement('button');
-  open.type = 'button'; open.className = 'btn'; open.textContent = 'open in plan';
+  open.type = 'button'; open.className = 'btn'; open.textContent = t('aide.task_open_in_plan');
   open.onclick = async () => {
     if (!(await window._openRecord?.(kind === 'event' ? 'calendar' : 'tasks', saved.id))) {
-      status.textContent = 'could not open the saved item; try again';
+      status.textContent = t('aide.task_open_failed');
     }
   };
   host.replaceChildren(status, open);
@@ -45,7 +45,7 @@ export async function saveAnswerTask(button) {
     && trigger.isConnected && trigger.getClientRects().length;
   if (wrap.savedTask) { taskSaved(wrap.savedTask, 'task', true); return; }
   button.setAttribute('aria-disabled', 'true');
-  button.textContent = 'preparing…';
+  button.textContent = t('aide.task_preparing');
   try {
     await reconcileSourceReply(wrap, 'task');
     if (!current()) return;
@@ -54,15 +54,15 @@ export async function saveAnswerTask(button) {
     const sessionId = privateReply ? '' : wrap.dataset.sessionId;
     const messageId = privateReply ? '' : wrap.closest('.msg-row')?.dataset.msgId;
     if (!privateReply && (!identity.test(sessionId || '') || !identity.test(messageId || ''))) {
-      throw new Error('this reply has not been confirmed. reopen this chat and try again.');
+      throw new Error(t('aide.task_reply_unconfirmed'));
     }
     const excerpt = Array.from(raw).slice(0, 6000).join('');
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(excerpt));
     if (!current()) return;
     const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-    const source = { kind: 'aide', label: 'original Aide reply', excerpt, fingerprint,
+    const source = { kind: 'aide', label: t('aide.task_source_label'), excerpt, fingerprint,
       private: privateReply, session_id: sessionId, message_id: messageId };
-    const title = raw.split('\n')[0].replace(/[#*`\[\]]/g, '').trim().slice(0, 200) || 'task from Aide';
+    const title = raw.split('\n')[0].replace(/[#*`\[\]]/g, '').trim().slice(0, 200) || t('aide.task_default_title');
     await openCaptureReview({ kind: 'task', candidate: { title, notes: raw }, source }, trigger, (saved, kind) => {
       const origin = saved.source;
       if (kind === 'task' && origin?.kind === 'aide' && origin.fingerprint === fingerprint
@@ -77,7 +77,7 @@ export async function saveAnswerTask(button) {
     const host = document.getElementById('aide-task-recovery');
     if (host) {
       const status = document.createElement('p'); status.setAttribute('role', 'status');
-      status.textContent = error.message || 'could not prepare this task; try again';
+      status.textContent = error.message || t('aide.task_prepare_failed');
       host.replaceChildren(status);
       await loadAnswerTaskRecovery();
     }

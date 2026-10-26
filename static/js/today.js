@@ -1,6 +1,6 @@
 import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDate, formatDateParts, formatDateTime, t, tp } from './i18n.js';
 import { autosizeTextarea, wireAutosizeTextarea } from './text_entry.js?v=1';
-import { toast } from './util.js';
+import { appDesc, appLabel, toast } from './util.js';
 import { appGlyph } from './icons.js';
 
 const SECTION_LABELS = {
@@ -165,14 +165,14 @@ function section(key, title, meta, body, className = '') {
 function briefRow(item) {
   const text = homeAidePreview(item?.summary || item?.title || t('home.brief_ready'));
   const isNews = item?.kind === 'news';
-  return `<button class="today-brief" type="button" data-view="${isNews ? 'scheduled' : 'chat'}"${isNews ? ' data-aide-section="news"' : ''}><span>${isNews ? 'news' : 'aide'}</span><p>${esc(text)}</p></button>`;
+  return `<button class="today-brief" type="button" data-view="${isNews ? 'scheduled' : 'chat'}"${isNews ? ' data-aide-section="news"' : ''}><span>${isNews ? t('home.news') : t('home.brief_aide')}</span><p>${esc(text)}</p></button>`;
 }
 
 function shortcutRows() {
   const byView = new Map(apps.map(item => [item.view, item]));
   const selected = (preferences?.shortcuts || []).map(view => byView.get(view)).filter(Boolean);
   if (!selected.length) return `<p class="today-empty">${esc(t('home.no_pinned_apps'))}</p>`;
-  return `<div class="today-shortcuts">${selected.map(item => `<button class="today-shortcut" type="button" data-view="${esc(item.view)}"><span class="today-shortcut-glyph">${appGlyph(item.view)}</span><b>${esc(item.name)}</b><small>${esc(item.desc)}</small></button>`).join('')}</div>`;
+  return `<div class="today-shortcuts">${selected.map(item => `<button class="today-shortcut" type="button" data-view="${esc(item.view)}"><span class="today-shortcut-glyph">${appGlyph(item.view)}</span><b>${esc(appLabel(item.name))}</b><small>${esc(appDesc(item.desc))}</small></button>`).join('')}</div>`;
 }
 
 function pinnedAppsSection() {
@@ -189,15 +189,15 @@ function suggestionSection() {
     const body = item.body ? `<small>${esc(item.body)}</small>` : '';
     const content = `<b>${title}</b>${body}`;
     const open = SUGGESTION_LINKS.has(item.link)
-      ? `<button class="today-suggestion-open" type="button" data-suggestion-act="${esc(item.id)}" aria-label="${esc(`open ${item.title}`)}">${content}</button>`
+      ? `<button class="today-suggestion-open" type="button" data-suggestion-act="${esc(item.id)}" aria-label="${esc(t('home.open_named', { title: item.title }))}">${content}</button>`
       : `<div class="today-suggestion-text">${content}</div>`;
     return `<div class="today-suggestion">${open}
-      <button class="today-suggestion-dismiss" type="button" data-suggestion-dismiss="${esc(item.id)}" aria-label="${esc(`dismiss ${item.title}`)}">dismiss</button>
+      <button class="today-suggestion-dismiss" type="button" data-suggestion-dismiss="${esc(item.id)}" aria-label="${esc(t('home.dismiss_named', { title: item.title }))}">${esc(t('common.dismiss'))}</button>
       <small class="today-suggestion-status" role="status" hidden></small>
     </div>`;
   }).join('');
-  return `<section class="today-section today-suggestions" aria-label="suggestions">
-    <header><h2>suggestions</h2></header><div class="today-list">${rows}</div>
+  return `<section class="today-section today-suggestions" aria-label="${esc(t('home.suggestions'))}">
+    <header><h2>${esc(t('home.suggestions'))}</h2></header><div class="today-list">${rows}</div>
   </section>`;
 }
 
@@ -215,7 +215,7 @@ async function useSuggestion(button, action) {
   } catch {
     const status = row.querySelector('.today-suggestion-status');
     if (status) {
-      status.textContent = 'could not confirm; check again when online';
+      status.textContent = t('home.suggestion_unconfirmed');
       status.hidden = false;
     }
     controls.forEach(control => { control.disabled = false; });
@@ -226,7 +226,7 @@ async function useSuggestion(button, action) {
   if (document.getElementById('today-view')?.style.display === 'none') return;
   if (action === 'act') {
     try { await navigate(item.link); }
-    catch { showStatus('suggestion handled, but could not open its app'); }
+    catch { showStatus(t('home.suggestion_open_failed')); }
   } else {
     const remaining = document.querySelectorAll('.today-suggestion-dismiss');
     (remaining[Math.min(index, remaining.length - 1)] || document.getElementById('today-settings'))?.focus();
@@ -287,7 +287,7 @@ function render() {
     }
     await navigate(button.dataset.view);
     if (button.dataset.aideSection) {
-      const module = await import('./aidescheduled.js?v=246');
+      const module = await import('./aidescheduled.js?v=247');
       await module.activateAideScheduledTab(button.dataset.aideSection);
     }
   }));
@@ -333,7 +333,7 @@ async function load() {
   const generation = ++loadGeneration;
   const recovery = document.getElementById('today-capture-recovery');
   if (recovery) import('./capture.js').then(({ showPendingCapture }) => showPendingCapture(recovery, homeCaptureSaved)).catch(() => {
-    recovery.textContent = 'capture recovery could not load; reload to retry';
+    recovery.textContent = t('home.capture_recovery_failed');
   });
   void loadNoteRecovery();
   showStatus(t('home.loading'));
@@ -387,7 +387,7 @@ async function load() {
     }
     if (generation !== loadGeneration) return false;
     render();
-    const partial = [...(today.partial_sources || []), ...(preferencesPartial ? ['customization'] : []), ...(suggestionsPartial ? ['suggestions'] : [])];
+    const partial = [...(today.partial_sources || []), ...(preferencesPartial ? [t('home.source_customization')] : []), ...(suggestionsPartial ? [t('home.suggestions')] : [])];
     if (partial.length) {
       showStatus(t('home.partial_sources', { sources: partial.join(', ').replaceAll('_', ' ') }));
       return false;
@@ -423,7 +423,7 @@ async function json(url, options = {}) {
   if (!response.ok) {
     // a 400 says why ("feb 30 isn't a date"); anything else stays generic
     const detail = response.status === 400 ? (await response.json().catch(() => ({})))?.detail : '';
-    throw new Error(typeof detail === 'string' && detail ? detail : 'request failed');
+    throw new Error(typeof detail === 'string' && detail ? detail : t('common.request_failed'));
   }
   return response.json();
 }
@@ -438,7 +438,7 @@ async function loadNoteRecovery() {
   try {
     const { showNoteRecovery } = await import('./note_capture.js');
     await showNoteRecovery(host, homeNoteSaved, openCapturedNote);
-  } catch { host.textContent = 'note recovery could not load; reload to retry'; }
+  } catch { host.textContent = t('home.note_recovery_failed'); }
 }
 
 function homeNoteSaved(saved, text, focus = false) {
@@ -452,8 +452,8 @@ function homeNoteSaved(saved, text, focus = false) {
   if (host) {
     host.dataset.savedNoteRequest = saved.request_id;
     const status = document.createElement('p'); status.textContent = t('home.note_saved'); status.setAttribute('role', 'status');
-    const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = 'open note';
-    open.onclick = () => openCapturedNote(saved.path).catch(() => toast('could not open the saved note', 'error'));
+    const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = t('home.open_note');
+    open.onclick = () => openCapturedNote(saved.path).catch(() => toast(t('home.open_note_failed'), 'error'));
     host.replaceChildren(status, open);
     if (focus && input?.getClientRects().length) open.focus();
     // on wide screens "note saved · open note" floats, so it goes after a while unless you're
@@ -510,9 +510,9 @@ function wireCapture() {
     if (submit) submit.disabled = true;
     try {
       if (asTask) {
-        if ([...value].length > 6000) throw new Error('capture must be at most 6000 characters');
+        if ([...value].length > 6000) throw new Error(t('home.capture_too_long'));
         const proposal = await json('/api/tasks/quick', { method: 'POST', body: { text: value, preview: true, today: calendarDateKey() } });
-        if (proposal?.preview !== true || proposal.kind !== 'task' || !proposal.candidate?.title || proposal.source?.excerpt !== value) throw new Error('task preview was not confirmed');
+        if (proposal?.preview !== true || proposal.kind !== 'task' || !proposal.candidate?.title || proposal.source?.excerpt !== value) throw new Error(t('home.task_preview_unconfirmed'));
         const { openCaptureReview } = await import('./capture.js');
         reviewed = await openCaptureReview(proposal, submit, homeCaptureSaved);
       } else {
@@ -521,7 +521,7 @@ function wireCapture() {
         homeNoteSaved(result, value);
       }
     } catch (error) {
-      showStatus(asTask ? `could not prepare task: ${error.message}; your text is still here` : `could not confirm note: ${error.message}; your text is still here`);
+      showStatus(asTask ? t('home.prepare_task_failed', { reason: error.message }) : t('home.note_unconfirmed', { reason: error.message }));
       if (!asTask) await loadNoteRecovery();
     }
     finally {

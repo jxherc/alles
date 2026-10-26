@@ -31,10 +31,25 @@ class LocalizationSourceContractTests(unittest.TestCase):
                 )
         self.assertEqual(sorted(referenced - keys), [])
 
+    def test_every_interface_source_references_real_catalog_keys(self):
+        # the whole interface is translated now, not just the core flows above
+        catalog = json.loads((ROOT / "static" / "locales" / "en.json").read_text("utf-8"))
+        keys = set(catalog["messages"]) | set(catalog["plurals"])
+        literal_key = re.compile(r"\b(?:t|tr|tp|trp)\(\s*['\"]([a-z0-9_.-]+)['\"]")
+        html_key = re.compile(r'data-i18n(?:-placeholder|-aria-label|-title)?="([a-z0-9_.-]+)"')
+        missing = []
+        for path in [ROOT / "static" / "index.html", *sorted(JS_ROOT.rglob("*.js"))]:
+            text = path.read_text("utf-8")
+            for key in set(literal_key.findall(text)) | set(html_key.findall(text)):
+                # a key ending in "_" or "." is a prefix the code finishes at runtime
+                if key not in keys and not key.endswith(("_", ".")):
+                    missing.append(f"{path.relative_to(ROOT)}: {key}")
+        self.assertEqual(sorted(missing), [])
+
     def test_coverage_contract_records_non_interface_language_boundaries(self):
         boundaries = validate_catalogs()["coverage_contract"]["source_language_boundaries"]
         combined = " ".join(boundaries)
-        for required in ("owner", "third-party", "paths", "legacy specialist"):
+        for required in ("owner", "third-party", "paths", "outgoing mail", "prompts"):
             self.assertIn(required, combined)
 
     def test_product_modules_do_not_force_en_us_or_format_around_shared_helpers(self):

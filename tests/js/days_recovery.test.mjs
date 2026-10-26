@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/days.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -32,7 +33,7 @@ function harness(fetcher = async () => response({ events: [event] })) {
     fetch: (...args) => fetcher(...args), window: {}, CSS: { escape: String },
     document: { getElementById: node, activeElement: null },
     toast: (...args) => toasts.push(args), plainError: message => String(message), dlgConfirm: (...args) => seen.confirm(...args),
-    initCustomDropdown() {}, initDatePicker() {}, formatDate() {}, formatNumber: String,
+    initCustomDropdown() {}, initDatePicker() {}, formatDate() {}, formatNumber: String, t, tp,
   });
   vm.runInContext(source + `
     _render = () => {};

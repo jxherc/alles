@@ -12,11 +12,11 @@ CSS = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
 class VaultMainUi(unittest.TestCase):
     def test_main_badge_rendered(self):
         self.assertIn("mv-badge", JS)
-        self.assertIn("v.main ? 'main' : 'own password'", JS)
+        self.assertIn("v.main ? t('vault.main') : t('vault.own_password')", JS)
 
     def test_help_text_explains_model(self):
         self.assertIn("mv-help", JS)
-        self.assertIn("opens with your master password", JS)
+        self.assertIn("t('vault.opens_with_master')", JS)
 
     def test_inline_rename(self):
         self.assertIn("function _inlineRename", JS)
@@ -28,7 +28,7 @@ class VaultMainUi(unittest.TestCase):
         self.assertIn("function _promptNewPw", JS)
         self.assertIn("/api/vault/vaults/password", JS)
         # the current vault's button reads change-master vs change-password
-        self.assertIn("change master password", JS)
+        self.assertIn("t('vault.change_master_password')", JS)
         self.assertIn("data-chpw", JS)
 
     def test_token_rebinds_after_change(self):

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 const readModule = path => readFileSync(new URL(path, import.meta.url), 'utf8')
   .replace(/^import [\s\S]*? from '[^']+';\n/gm, '')
@@ -58,7 +59,7 @@ function harness(kind = 'settings') {
     if (!route) throw new Error(`unexpected ${method} ${url}`);
     return route(options);
   };
-  context = vm.createContext({
+  context = vm.createContext({ t: i18nT, tp: i18nTp,
     document: { getElementById: get, querySelector: () => null,
       querySelectorAll: selector => selector === '[data-token-scope].active' ? [{ dataset: { tokenScope: 'read' } }] : [],
       body: element('body'), documentElement: element('html'), activeElement: null,
@@ -264,7 +265,7 @@ test('Persona renders a separate native Edit button without nesting duplicate or
   await h.personas();
   const button = list.innerHTML.match(/<button\b[^>]*data-persona-edit[^>]*>edit<\/button>/)?.[0] || '';
   assert.match(button, /type="button"/); assert.match(button, /aria-label="edit Persona A"/);
-  assert.match(button, /event\.stopPropagation\(\);window\._editPersona\('persona-A'\)/);
+  assert.doesNotMatch(list.innerHTML, /\son[a-z]+=/, 'the csp blocks inline handlers');
   assert.match(list.innerHTML, /<button[^>]*data-persona-duplicate/);
   assert.match(list.innerHTML, /<button[^>]*data-persona-remove/);
 });

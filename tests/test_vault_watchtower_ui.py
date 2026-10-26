@@ -23,12 +23,12 @@ class WatchtowerUi(unittest.TestCase):
 
     def test_has_an_explainer(self):
         self.assertIn("wt-intro", JS)
-        self.assertIn("scans your saved passwords", JS)
+        self.assertIn("t('vault.watchtower_scans_your_saved')", JS)
 
     def test_sections_have_descriptions(self):
         self.assertIn("wt-desc", JS)
-        self.assertIn("known data breaches", JS)
-        self.assertIn("more than one login", JS)
+        self.assertIn("t('vault.wt_breached_desc')", JS)
+        self.assertIn("t('vault.wt_reused_desc')", JS)
 
     def test_lock_resets_state(self):
         # locking clears the open flag so reopening the vault doesn't think it's still showing

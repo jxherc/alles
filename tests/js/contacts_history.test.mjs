@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/contacts.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -33,7 +34,7 @@ function harness() {
   const list = () => nodes.get('contacts-list');
   list().querySelector = selector => list().opens?.find(button => selector === `[data-open="${button.dataset.open}"]`) || null;
   const response = data => ({ ok: true, json: async () => data });
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp,
     document, window: {}, CSS: { escape: String }, URLSearchParams, Promise, toast() {},
     location: { pathname: '/', search: '?view=contacts', hash: '' },
     pushRouteUrl: url => { pushes.push(url); position++; },
@@ -82,6 +83,6 @@ test('an opened contact puts focus on back, not <body>', async () => {
 
 test('contact icons are svg with names', () => {
   assert.doesNotMatch(source, />\+ group</);
-  assert.match(source, /data-del="\$\{f\.id\}" aria-label="remove \$\{_esc\(f\.kind\)\} field">\$\{_si\('close'\)\}/);
-  assert.match(source, /aria-label="remove link to \$\{_esc\(r\.name\)\}">\$\{_si\('close'\)\}/);
+  assert.match(source, /data-del="\$\{f\.id\}" aria-label="\$\{_esc\(t\('contacts\.remove_field', \{ kind: f\.kind \}\)\)\}">\$\{_si\('close'\)\}/);
+  assert.match(source, /aria-label="\$\{_esc\(t\('contacts\.remove_link', \{ name: r\.name \}\)\)\}">\$\{_si\('close'\)\}/);
 });

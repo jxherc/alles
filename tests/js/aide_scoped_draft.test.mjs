@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const sessions = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8');
 const chat = readFileSync(new URL('../../static/js/chat.js', import.meta.url), 'utf8');
@@ -16,7 +17,7 @@ function harness(storage = new Map()) {
   const field = { value: '', style: {}, dispatchEvent() { context.saveDraft(); } };
   const remove = { addEventListener(_name, callback) { this.click = callback; } };
   const chip = { hidden: true }, label = {};
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     window: {}, Event: class {},
     document: { getElementById: id => ({ 'composer-ta': field, 'aide-document-scope': chip,
       'aide-document-scope-name': label, 'aide-document-scope-remove': remove })[id] },

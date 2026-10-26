@@ -4,6 +4,7 @@
 // an option may also carry a leading icon (raw svg html) — stored off-band in
 // el._iconHtml keyed by value so it can't clash with the |/; serialization.
 import { providerLogo } from './brandlogo.js';
+import { t } from './i18n.js';
 let _open = null;
 let _sequence = 0;
 
@@ -100,6 +101,7 @@ export function setDropdownValue(el, value) {
 export function populateDropdown(el, options, value) {
   if (!el) return;
   el.dataset.options = options.map(o => `${o.value}|${o.label ?? o.value}`).join(';');
+  delete el.dataset.i18nOptions;
   // off-band icon map: o.icon = 'provider' → a glowing brand logo; o.iconHtml = raw svg
   el._iconHtml = {};
   for (const o of options) {
@@ -110,15 +112,22 @@ export function populateDropdown(el, options, value) {
   el.value = value != null ? String(value) : (options[0]?.value || '');
 }
 
+// data-i18n-options lists one catalog key per option, in order ("key@3" passes {count: 3}); empty keeps the label
+function _optionLabel(spec) {
+  const [key, count] = spec.split('@');
+  return count ? t(key, { count }) : t(key);
+}
+
 function _readOptions(el) {
+  const keys = (el.dataset.i18nOptions || '').split(';');
   return (el.dataset.options || '')
     .split(';')
-    .map(part => part.trim())
-    .filter(Boolean)
-    .map(part => {
+    .map((part, index) => ({ part: part.trim(), key: keys[index] }))
+    .filter(item => item.part)
+    .map(({ part, key }) => {
       const [value, ...labelParts] = part.split('|');
       const label = labelParts.join('|') || value;
-      return { value, label };
+      return { value, label: key ? _optionLabel(key) : label };
     });
 }
 
@@ -129,7 +138,7 @@ function _activeIndex(el) {
 
 function _renderTrigger(el) {
   const opts = _readOptions(el);
-  const label = opts.find(o => o.value === el.dataset.value)?.label || el.dataset.placeholder || 'select';
+  const label = opts.find(o => o.value === el.dataset.value)?.label || el.dataset.placeholder || t('calendar.select');
   el.innerHTML = `
     <span class="custom-select-label">${_iconFor(el, el.dataset.value)}${_esc(label)}</span>
     <svg class="custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -149,7 +158,7 @@ function _openDropdown(el) {
   const surface = el.closest('[data-kokuen-surface]')?.dataset.kokuenSurface;
   if (surface) panel.dataset.kokuenSurface = surface;
   panel.setAttribute('role', 'listbox');
-  panel.setAttribute('aria-label', el.getAttribute('aria-label') || 'choices');
+  panel.setAttribute('aria-label', el.getAttribute('aria-label') || t('shell.choices'));
   document.body.appendChild(panel);
   _open = { el, panel, activeIndex: _activeIndex(el) };
   el.classList.add('open');

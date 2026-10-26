@@ -20,7 +20,7 @@ export async function createProject(name, color = '') {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name, color }),
   });
-  if (!r.ok) { toast('failed to create project', 'error'); return null; }
+  if (!r.ok) { toast(t('aide.project_create_failed'), 'error'); return null; }
   const p = await r.json();
   _projects.push(p);
   return p;
@@ -53,25 +53,25 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
   if (afterlife) {
     const taskSessions = sessions.filter(session => !session.project_id);
     html += `<section class="aide-session-section" data-session-drop="unassigned"><span class="section-label">${t('aide.tasks')}</span>${taskSessions.map(s => `<div class="session-item" data-id="${s.id}">
-      <button type="button" class="session-open" aria-haspopup="menu" aria-current="false" aria-label="open session ${_esc(s.name)}"><span class="session-name">${_esc(s.name)}</span></button>
-    </div>`).join('') || `<span class="aide-session-empty">${t('aide.no_tasks')}</span>`}</section><span class="section-label aide-projects-label">projects</span>`;
+      <button type="button" class="session-open" aria-haspopup="menu" aria-current="false" aria-label="${_esc(t('aide.open_session', { name: s.name }))}"><span class="session-name">${_esc(s.name)}</span></button>
+    </div>`).join('') || `<span class="aide-session-empty">${t('aide.no_tasks')}</span>`}</section><span class="section-label aide-projects-label">${t('aide.projects')}</span>`;
   }
   const groups = _projects;
   for (const p of groups) {
     const pSessions = sessions.filter(s => s.project_id === p.id);
     html += `<div class="project-folder${afterlife ? ' open' : ''}" data-id="${p.id}">
   <div class="project-folder-head">
-    <button type="button" class="project-folder-toggle" aria-expanded="${String(afterlife)}" aria-label="toggle project ${_esc(p.name)}">
+    <button type="button" class="project-folder-toggle" aria-expanded="${String(afterlife)}" aria-label="${_esc(t('aide.project_toggle', { name: p.name }))}">
       <svg class="project-folder-icon project-folder-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg>
       <svg class="project-folder-icon project-folder-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8V6.5h6l2-2h5l2 3H21"/><path d="M3 9h18l-2 10H5Z"/></svg>
       <span class="project-name">${_esc(p.name)}</span>
       <span class="project-count">${pSessions.length}</span>
     </button>
-    <button type="button" class="project-del" data-id="${p.id}" aria-label="delete project ${_esc(p.name)}" title="delete project (chats are kept)">×</button>
+    <button type="button" class="project-del" data-id="${p.id}" aria-label="${_esc(t('aide.project_delete', { name: p.name }))}" title="${_esc(t('aide.project_delete_title'))}">×</button>
   </div>
   <div class="project-sessions" id="proj-sessions-${p.id}" style="display:${afterlife ? 'flex' : 'none'}">
     ${pSessions.map(s => `<div class="session-item" data-id="${s.id}" data-project="${p.id}">
-      <button type="button" class="session-open" aria-haspopup="menu" aria-current="false" aria-label="open session ${_esc(s.name)}"><span class="session-name">${_esc(s.name)}</span></button>
+      <button type="button" class="session-open" aria-haspopup="menu" aria-current="false" aria-label="${_esc(t('aide.open_session', { name: s.name }))}"><span class="session-name">${_esc(s.name)}</span></button>
     </div>`).join('')}
   </div>
 </div>`;
@@ -102,10 +102,10 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
       if (!sid) return;
       try {
         await assignSession(folder.dataset.id, sid);
-        toast('moved to project', 'success');
+        toast(t('aide.moved_to_project'), 'success');
         onChange?.();
       } catch {
-        toast('could not move to project', 'error');
+        toast(t('aide.move_to_project_failed'), 'error');
       }
     });
   });
@@ -125,10 +125,10 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
       if (!session?.project_id) return;
       try {
         await unassignSession(session.project_id, sessionId);
-        toast('moved to tasks', 'success');
+        toast(t('aide.moved_to_tasks'), 'success');
         onChange?.();
       } catch {
-        toast('could not move to tasks', 'error');
+        toast(t('aide.move_to_tasks_failed'), 'error');
       }
     });
   }
@@ -137,9 +137,9 @@ export function renderProjectFolders(sessions, onSelect, onChange) {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
       const p = _projects.find(x => x.id === btn.dataset.id);
-      if (!await dlgConfirm(`delete project "${p?.name || ''}"? the chats inside are kept.`)) return;
+      if (!await dlgConfirm(t('aide.project_delete_confirm', { name: p?.name || '' }))) return;
       await deleteProject(btn.dataset.id);
-      toast('project deleted', 'success');
+      toast(t('aide.project_deleted'), 'success');
       onChange?.();
     });
   });

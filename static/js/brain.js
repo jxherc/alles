@@ -1,4 +1,4 @@
-import { formatNumber } from './i18n.js';
+import { formatNumber, t } from './i18n.js';
 let loadSequence = 0;
 
 export async function loadBrainPanel(fetcher = fetch) {
@@ -28,26 +28,27 @@ export async function loadBrainPanel(fetcher = fetch) {
   const pinned = memories?.filter(m => m.pinned).length;
 
   statsEl.innerHTML = [
-    _stat('memories', memories?.length ?? 'unavailable'),
-    _stat('pinned', pinned ?? 'unavailable'),
-    _stat('messages', messages.length),
-    _stat('tokens', formatNumber(approxTokens)),
+    _stat(t('aide.brain_memories'), memories?.length ?? t('common.unavailable')),
+    _stat(t('aide.brain_pinned'), pinned ?? t('common.unavailable')),
+    _stat(t('aide.brain_messages'), messages.length),
+    _stat(t('aide.brain_tokens'), formatNumber(approxTokens)),
   ].join('');
 
+  // opened straight from a link there's no task yet: the line goes rather than saying "none"
   contextEl.innerHTML = `
-    <div><span>session</span><strong>${_esc(session?.name || 'none')}</strong></div>
-    <div><span>model</span><strong>${_esc(session?.model || document.getElementById('model-label')?.textContent || 'no model')}</strong></div>
-    <div><span>turns</span><strong>${userCount} user / ${aiCount} ai</strong></div>
-    <div><span>context estimate</span><strong>${formatNumber(approxTokens)} tokens</strong></div>
+    ${session ? `<div><span>${t('aide.brain_task')}</span><strong>${_esc(session.name || t('aide.brain_new_task'))}</strong></div>` : ''}
+    <div><span>${t('aide.brain_model')}</span><strong>${_esc(session?.model || document.getElementById('model-label')?.textContent || t('aide.brain_no_model'))}</strong></div>
+    <div><span>${t('aide.brain_turns')}</span><strong>${t('aide.brain_turn_counts', { user: userCount, ai: aiCount })}</strong></div>
+    <div><span>${t('aide.brain_context_estimate')}</span><strong>${t('aide.brain_token_count', { count: formatNumber(approxTokens) })}</strong></div>
   `;
 
   const recent = memories?.slice(0, 6);
-  memoriesEl.innerHTML = !recent ? _loadError('memories') : recent.length
+  memoriesEl.innerHTML = !recent ? _loadError('aide.brain_load_memories') : recent.length
     ? recent.map(m => `<div class="brain-memory">
-        <span>${_esc(m.category || 'memory')}</span>
+        <span>${_esc(m.category || t('aide.brain_memory'))}</span>
         <div>${_esc(m.text || '')}</div>
       </div>`).join('')
-    : '<div class="sidebar-model-empty">no memories yet</div>';
+    : `<div class="sidebar-model-empty">${t('aide.brain_no_memories')}</div>`;
 
   _renderInsights(insights, settings);
   _renderUserModel(distilled, settings);
@@ -63,19 +64,19 @@ async function _loadList(fetcher, url) {
   } catch { return null; }
 }
 
-function _loadError(label) {
-  return `<div class="brain-empty" role="status">could not load ${label}. use refresh to try again.</div>`;
+function _loadError(key) {
+  return `<div class="brain-empty" role="status">${t(key)}</div>`;
 }
 
 function _renderInsights(items, settings) {
   const el = document.getElementById('brain-insights');
   if (!el) return;
-  if (!items) { el.innerHTML = _loadError('insights'); return; }
-  if (!items.length && !settings) { el.innerHTML = _loadError('insight settings'); return; }
+  if (!items) { el.innerHTML = _loadError('aide.brain_load_insights'); return; }
+  if (!items.length && !settings) { el.innerHTML = _loadError('aide.brain_load_insight_settings'); return; }
   if (!items.length) {
     el.innerHTML = settings.insights_enabled
-      ? '<div class="brain-empty">nothing yet - hit generate to look for cross-domain patterns.</div>'
-      : _disabledHint('insights are off', 'intelligence');
+      ? `<div class="brain-empty">${t('aide.brain_insights_empty')}</div>`
+      : _disabledHint(t('aide.brain_insights_off'), 'intelligence');
     return;
   }
   el.innerHTML = items.map(i => {
@@ -87,8 +88,8 @@ function _renderInsights(items, settings) {
         ${ev ? `<div class="brain-insight-ev">${ev}</div>` : ''}
       </div>
       <div class="brain-insight-acts">
-        <button class="act-btn" data-ins-pin="${i.id}">${i.pinned ? 'unpin' : 'pin'}</button>
-        <button class="act-btn" data-ins-dismiss="${i.id}">dismiss</button>
+        <button class="act-btn" data-ins-pin="${i.id}">${i.pinned ? t('aide.brain_unpin') : t('aide.brain_pin')}</button>
+        <button class="act-btn" data-ins-dismiss="${i.id}">${t('common.dismiss')}</button>
       </div>
     </div>`;
   }).join('');
@@ -105,13 +106,13 @@ function _renderInsights(items, settings) {
 function _renderUserModel(facts, settings) {
   const el = document.getElementById('brain-usermodel');
   if (!el) return;
-  if (!facts) { el.innerHTML = _loadError('learned facts'); return; }
+  if (!facts) { el.innerHTML = _loadError('aide.brain_load_facts'); return; }
   const live = (facts || []).filter(f => !f.vetoed);
   if (!live.length) {
-    if (!settings) { el.innerHTML = _loadError('learning settings'); return; }
+    if (!settings) { el.innerHTML = _loadError('aide.brain_load_learning_settings'); return; }
     el.innerHTML = settings.user_model_distill
-      ? '<div class="brain-empty">nothing distilled yet - hit refresh once you have some chat history.</div>'
-      : _disabledHint('learning about you is off', 'intelligence');
+      ? `<div class="brain-empty">${t('aide.brain_facts_empty')}</div>`
+      : _disabledHint(t('aide.brain_learning_off'), 'intelligence');
     return;
   }
   el.innerHTML = live.map(f => {
@@ -125,8 +126,8 @@ function _renderUserModel(facts, settings) {
         </div>
       </div>
       <div class="um-fact-acts">
-        <button class="act-btn" data-um-pin="${f.id}">${f.pinned ? 'unpin' : 'pin'}</button>
-        <button class="act-btn" data-um-veto="${f.id}">veto</button>
+        <button class="act-btn" data-um-pin="${f.id}">${f.pinned ? t('aide.brain_unpin') : t('aide.brain_pin')}</button>
+        <button class="act-btn" data-um-veto="${f.id}">${t('aide.brain_veto')}</button>
       </div>
     </div>`;
   }).join('');
@@ -146,7 +147,7 @@ function _renderUserModel(facts, settings) {
 
 function _disabledHint(label, pane) {
   return `<div class="brain-empty">${_esc(label)}.
-    <button class="act-btn brain-enable" data-open-pane="${pane}">turn it on</button></div>`;
+    <button class="act-btn brain-enable" data-open-pane="${pane}">${t('aide.brain_turn_on')}</button></div>`;
 }
 
 let _bound = false;
@@ -161,16 +162,16 @@ function _bindButtons() {
   _bound = true;
   const gen = document.getElementById('brain-insights-run');
   if (gen) gen.addEventListener('click', async () => {
-    gen.disabled = true; gen.textContent = 'thinking...';
+    gen.disabled = true; gen.textContent = t('aide.brain_thinking');
     try { await fetch('/api/insights/run', { method: 'POST' }); } catch {}
-    gen.disabled = false; gen.textContent = 'generate';
+    gen.disabled = false; gen.textContent = t('aide.brain_generate');
     loadBrainPanel();
   });
   const ref = document.getElementById('brain-usermodel-run');
   if (ref) ref.addEventListener('click', async () => {
-    ref.disabled = true; ref.textContent = 'thinking...';
+    ref.disabled = true; ref.textContent = t('aide.brain_thinking');
     try { await fetch('/api/memory/distill/run', { method: 'POST' }); } catch {}
-    ref.disabled = false; ref.textContent = 'refresh';
+    ref.disabled = false; ref.textContent = t('aide.brain_refresh');
     loadBrainPanel();
   });
 }

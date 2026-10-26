@@ -1,73 +1,80 @@
 // Bundled instructions; actions use the existing guarded app routes.
-export const HELP_TOPICS = Object.freeze([
-  { id: 'start', title: 'getting started', sections: [
-    { text: ['start with a task, note or manual Finance account. these local records do not need an AI model or bank connection.', 'choose the app name at the top of any screen to switch apps. settings and help & manual are in the same menu. this guide keeps your current screen behind it; its buttons use the app’s unsaved-work checks.'] },
-    { title: 'connect only what you need', text: ['for Aide replies, add a model connection in settings → models, then choose an available model in conversation. use your existing provider endpoint and its supported authentication. a text model does not automatically support voice calls.', 'coding runs pi on the machine running Alles; it installs itself the first time you open code. to text Aide from your phone, settings → connections & tools → text Aide over iMessage needs a Photon project id and secret. mail, bank connections, remote backups and other services each need their own setup. the related topic explains what is required.'] },
-    { title: 'when something does not finish', text: ['Read the status beside the action. A draft, queued request or connection check is not a confirmed save. Keep your input and use the offered retry or recovery action; do not repeat an uncertain import or upload blindly.', 'A cached page does not mean every connected service works offline. Check the relevant app or Server before retrying.'] },
-  ], actions: [{ label: 'open home', view: 'today' }, { label: 'open settings', pane: 'general' }] },
-  { id: 'home', title: 'home', sections: [
-    { text: ['Start with needs you and today’s schedule. Quick capture can create a task or a note: choose the type, enter the text, then submit.', 'Tasks go through a review before adding to Plan. Notes open in Docs. Use Settings → home to choose pinned apps.'] },
-  ], actions: [{ label: 'open home', view: 'today' }, { label: 'customize home', pane: 'home' }] },
-  { id: 'aide', title: 'aide', sections: [
-    { title: 'conversation and work', text: ['Write your request in conversation. Check the selected model and permission mode before sending. Background work shows progress and requests for input; archive opens earlier conversations.', 'Code opens the coding workspace. Choose its workspace and controls there; switching modes is not the same as starting a job. More contains memory, conversation settings and other tools. Type /help in the composer for slash commands and your current shortcuts.'] },
-    { title: 'goals', text: ['Goals are things Aide keeps working on: open scheduled → goals and choose new goal, or just say \u201ckeep an eye on\u2026\u201d in conversation. Pick how often it checks and whether it may change things on its own. Instead of a clock, a goal can wake on new mail (optionally only mail from a sender or with a word in the subject) or on its own private webhook link, shown once after you save.', 'Each check remembers what the last one found, so it builds on it. Aide only pings you when there is news, when the goal is reached, or when it needs an answer or approval. Open what it remembers to see its notes and the last check.'] },
-    { title: 'call', text: ['Choose call in the Aide header, from conversation or Code. Opening the call view checks availability; your microphone turns on only after you choose start call and grant permission.', 'If calling is unavailable, read the reason and check the realtime model in Settings. During a call, mute controls your microphone. Back closes the view without ending an active call; use end call to hang up.'] },
-  ], actions: [{ label: 'open aide', view: 'chat' }, { label: 'model settings', pane: 'models' }] },
-  { id: 'coding', title: 'coding', sections: [
-    { title: 'start', steps: ['open Aide and choose code. the first time, alles installs pi on the machine that runs it; that needs node 22.19 or newer there.', 'add a project: pick a folder on that machine. alles refuses its own data folder.', 'write what pi should do and send it. pi reads, edits and runs commands in that folder without asking first, so use a folder you are happy for it to change.'] },
-    { title: 'chats', text: ['each project keeps its chats in the rail. pi\u2019s steps show as one line each; open a line to see its output. send another message while pi works to steer it, or stop it.', 'the line under the message box shows speed in tokens per second, how much of the prompt the provider served from its cache, and how full the model\u2019s context is.', 'pick the model under the message box. set the default one for new chats in settings \u2192 models \u2192 coding.'] },
-    { title: 'from conversation', text: ['in a normal Aide conversation, ask for a code change in one of your projects and Aide can hand it to pi. it answers with what pi did, and the chat appears under that project in code.'] },
-  ], actions: [{ label: 'open aide, then code', view: 'chat' }] },
-  { id: 'voice', title: 'voice', sections: [
-    { title: 'set up calls', text: ['Call uses OpenAI Realtime through WebRTC. add an enabled first-party OpenAI connection in settings → models with an API key and an available realtime model. provider usage can incur charges. a Gemini text route or a generic compatible endpoint does not enable this call provider.', 'use a browser with microphone and WebRTC support. microphone access requires HTTPS or localhost on the device running the browser; an ordinary HTTP address on another machine does not qualify.'] },
-    { title: 'start and end', steps: ['open call from conversation or code. check its connection status.', 'choose start call, then allow microphone access when the browser asks. opening the view or Voice Settings alone does not start recording.', 'speak normally. you can interrupt the reply, mute your microphone, or choose end call to hang up.'], text: ['Back returns to your workspace without ending an active call. use end call before leaving if you want the microphone and call to stop.'] },
-    { title: 'dictation and read-aloud', text: ['the composer microphone turns speech into text. settings → voice chooses browser speech recognition, local faster-whisper, or the OpenAI Whisper API. the local option needs its speech model/runtime; the API option needs its provider key.', 'read-aloud uses browser speech synthesis or OpenAI text-to-speech. its voice and speed settings are separate from Realtime calls. choosing these settings does not configure a call provider.'] },
-    { title: 'when calling is unavailable', text: ['read the displayed reason and check the configured realtime model. if microphone permission was denied, change the site permission in your browser, then deliberately start again. changing providers or granting permission is your choice.', 'if the connection drops, wait for its status to settle. end the call if it does not recover, then start a new call. a saved transcript or successful text reply does not prove that audio was heard.'] },
-  ], actions: [{ label: 'open aide', view: 'chat' }, { label: 'voice settings', pane: 'voice' }, { label: 'model settings', pane: 'models' }] },
-  { id: 'andromeda', title: 'andromeda', sections: [
-    { text: ['Enter a web search, then open the linked results and sources. An answer overview depends on the configured search and model services; it is not a replacement for checking the source.', 'Use the result categories to narrow the search. Add !ai to skip the overview for one search.'] },
-  ], actions: [{ label: 'open andromeda', view: 'andromeda' }] },
-  { id: 'plan', title: 'plan', sections: [
-    { text: ['Use agenda or week to see your schedule. Calendar holds events; tasks and task board hold work to complete. Reminders and countdowns have their own sections.', 'Open an item to inspect or edit it. Review dates and times before saving, especially when your location or time zone changes.'] },
-  ], actions: [{ label: 'open plan', view: 'plan' }, { label: 'open tasks', view: 'tasks' }, { label: 'open calendar', view: 'calendar' }] },
-  { id: 'docs', title: 'docs', sections: [
-    { text: ['Open a document to read it, then choose edit when you want to write. Save writes the Markdown file. Done can leave a local draft to resume; it is not the same as Save.', 'If a file changes outside Alles, compare the copies before choosing which to keep. Use resume draft when offered. Journal is a separate section in Docs.'] },
-  ], actions: [{ label: 'open documents', view: 'wiki' }, { label: 'open journal', view: 'journal' }] },
-  { id: 'files', title: 'files', sections: [
-    { text: ['Choose a storage location before uploading or organizing files. Review the destination and any replacement warning before confirming an operation.', 'Filename search works without a content index. Index readable text when you need content search; indexing does not rewrite the source files. Gallery is the photo view.'] },
-  ], actions: [{ label: 'open files', view: 'files' }, { label: 'open gallery', view: 'files-gallery' }] },
-  { id: 'inbox', title: 'inbox', sections: [
-    { text: ['Inbox groups mail and contacts. Add a mail account before fetching or sending messages.', 'Before Send, check the sending account, recipients and attachments. Keep a draft if sending fails and read the status before trying again.'] },
-  ], actions: [{ label: 'open mail', view: 'mail' }, { label: 'open contacts', view: 'contacts' }] },
-  { id: 'library', title: 'library', sections: [
-    { text: ['Books tracks titles and reading status. Saved holds links you want to read later.', 'Saving a URL and fetching its article text are separate actions. If article fetching fails, the saved link can still open the original page.'] },
-  ], actions: [{ label: 'open books', view: 'books' }, { label: 'open saved reading', view: 'read' }] },
-  { id: 'health', title: 'health', sections: [
-    { text: ['Use logs for entries such as weight, sleep or workouts. Check the metric, value, unit and date before saving.', 'Habits tracks repeated check-ins. These are personal records, not a diagnosis or medical advice.'] },
-  ], actions: [{ label: 'open health', view: 'health-overview' }, { label: 'open habits', view: 'habits' }] },
-  { id: 'finance', title: 'finance', sections: [
-    { text: ['Finance works as a local ledger without a bank connection or Actual. Enter transactions yourself, import a statement, or configure a supported read-only bank provider. Overview shows which ledger currently stores your transactions.'] },
-    { title: 'add an account, then a transaction', steps: ['Open Money. Expand accounts, budgets, schedules & goals, choose accounts, then + account.', 'Enter a name, type, currency and opening balance, then add account. This creates a ledger record; it does not connect to your bank.', 'In new transaction, choose the date, account, expense or income, and payee. Enter a positive amount such as 8.25, then add transaction. Category and tags are optional.'], text: ['Use a decimal point without currency symbols or thousands separators. Choose the account’s currency explicitly; do not treat different currencies as the same money. Search transactions or use edit on a row to correct one.'] },
-    { title: 'import a statement', text: ['Create the destination account, then open Imports (or Money → manage → import). Choose the account, format and file, then preview import. Review rows and duplicate or conflict warnings before apply … ready rows. Preview creates a receipt but does not add transactions until you apply it.', 'Generic CSV amounts are negative for spending and positive for income. Use date, payee and amount columns; currency, category, notes and tags are optional. Without currency, the selected account supplies it. Use one currency per file with a matching account.'], code: 'date,payee,amount,currency\n2026-01-01,Example groceries,-8.25,CAD\n2026-01-02,Example income,100.00,CAD', after: ['The picker accepts CSV or text up to 5 MiB. Named formats cover several Canadian and Chinese bank exports; these are file formats, not direct connections. This screen does not accept OFX, QIF or PDF.', 'Local Alles imports can offer undo this import for records still owned by that receipt. Editing an imported record can prevent undo. Actual imports do not offer this undo action.'] },
-    { title: 'connect a bank', text: ['Open Money → manage → banks. Alles supports SimpleFIN and Plaid for read-only aggregation configured for Canada and the US. Coverage depends on the provider and institution; this is not a universal bank-login screen.', 'SimpleFIN needs a one-time setup token. Plaid needs your application client ID and secret, a selected environment, and completion of the official Plaid Link flow. Sandbox is the default and does not connect a real bank account.', 'Never paste your bank password into Alles. Connection changes and sync require recent owner confirmation. After connecting, choose sync and check its result and last-sync time. A connection alone does not prove a sync finished; this UI exposes manual sync, not a background-refresh schedule.', 'Disconnect keeps imported transactions. Plaid disconnect also requests removal of its provider item; SimpleFIN disconnect removes the locally stored access details.'] },
-    { title: 'if connecting fails', text: ['read the error in Banks and check the provider, country and environment. Plaid production requires production access and Transactions permissions; sandbox credentials cannot create a real connection. institutions using a redirect need the exact HTTPS return URL registered in your Plaid dashboard. keep the same tab open through the return flow.', 'a cancelled Link flow can leave a saved provider configuration without a connected institution. use connect in that row to try again. after an uncertain result, check its status before repeating the action. do not share tokens or secrets when asking for help.', 'if you are using an isolated review preview, its network restrictions can block connections and installation. that restriction is not a requirement of a normal installation. a preview cannot verify a live bank sync.'] },
-    { title: 'Actual is optional', text: ['Actual is a separate ledger service, not a bank connector. You do not need it for manual entries, statement imports or opening Banks. Overview → show ledger setup explains its status and setup requirements.', 'When available, the sequence is install/start Actual, copy and check records, review ledger switch, then use Actual ledger. Switching sends new transactions to Actual and leaves the earlier Alles ledger read-only.', 'Review return to Alles returns to the earlier ledger. It does not copy back transactions created only in Actual after the switch.'] },
-    { title: 'everyday limits', text: ['Use accounts, budgets, schedules & goals for planning and Subscriptions for recurring costs and renewal dates. Money → manage → export downloads transaction CSV.', 'Recording a transfer, marking a subscription paid or setting a budget changes ledger records. It does not move money, pay a bill or cancel a service.'] },
-  ], actions: [{ label: 'open money', view: 'money' }, { label: 'open imports', view: 'imports' }, { label: 'open subscriptions', view: 'subs' }, { label: 'open finance overview', view: 'finance-overview' }] },
-  { id: 'vault', title: 'vault', sections: [
-    { text: ['Create or unlock the vault with its master password, then add or open an item. Lock the vault when finished.', 'Keep the master password safe. Review a copy, reveal, export or deletion before using it; those actions can expose or remove sensitive information.', 'Watchtower checks weak and reused passwords locally. breach checks need the password-range service; an unavailable or partial check is not an all-clear result.'] },
-  ], actions: [{ label: 'open vault', view: 'vault' }] },
-  { id: 'server', title: 'server', sections: [
-    { text: ['Inspect status before changing services. The sections cover services, search and models, backups, updates, logs, activity, watch and access policy.', 'Service changes may need owner approval. Read the requested operation and its final result; queued or uncertain work is not confirmed completion.'] },
-  ], actions: [{ label: 'open server', view: 'server' }, { label: 'open backups and storage', view: 'server-backups' }] },
-  { id: 'settings', title: 'settings & recovery', sections: [
-    { text: ['Open Settings from the app menu. Use models for model providers, privacy & password for account security, and api & shortcuts for your current key bindings.', 'Follow the control’s own save status: some settings apply immediately and others have an explicit action. If saving fails, keep the value you entered and use the offered retry.', 'Backup & restore contains backup controls and recovery information. Keep the recovery key separately from its encrypted backup. Check what a restore replaces before confirming it.'] },
-  ], actions: [{ label: 'open settings', pane: 'general' }, { label: 'api & shortcuts', pane: 'developer' }, { label: 'backup & restore', pane: 'backup' }] },
-]);
+// Built on each call, so every string follows the current interface language.
+import { t } from './i18n.js';
 
-export function findManualTopics(query = '') {
+const TOPIC_IDS = Object.freeze(['start', 'home', 'aide', 'coding', 'voice', 'andromeda', 'plan', 'docs', 'files', 'inbox', 'library', 'health', 'finance', 'vault', 'server', 'settings']);
+
+export function helpTopics() {
+  return [
+    { id: 'start', title: t('help.start.title'), sections: [
+      { text: [t('help.start.s1.text1'), t('help.start.s1.text2')] },
+      { title: t('help.start.s2.title'), text: [t('help.start.s2.text1'), t('help.start.s2.text2')] },
+      { title: t('help.start.s3.title'), text: [t('help.start.s3.text1'), t('help.start.s3.text2')] },
+    ], actions: [{ label: t('help.start.action1'), view: 'today' }, { label: t('help.start.action2'), pane: 'general' }] },
+    { id: 'home', title: t('help.home.title'), sections: [
+      { text: [t('help.home.s1.text1'), t('help.home.s1.text2')] },
+    ], actions: [{ label: t('help.home.action1'), view: 'today' }, { label: t('help.home.action2'), pane: 'home' }] },
+    { id: 'aide', title: t('help.aide.title'), sections: [
+      { title: t('help.aide.s1.title'), text: [t('help.aide.s1.text1'), t('help.aide.s1.text2')] },
+      { title: t('help.aide.s2.title'), text: [t('help.aide.s2.text1'), t('help.aide.s2.text2')] },
+      { title: t('help.aide.s3.title'), text: [t('help.aide.s3.text1'), t('help.aide.s3.text2')] },
+    ], actions: [{ label: t('help.aide.action1'), view: 'chat' }, { label: t('help.aide.action2'), pane: 'models' }] },
+    { id: 'coding', title: t('help.coding.title'), sections: [
+      { title: t('help.coding.s1.title'), steps: [t('help.coding.s1.step1'), t('help.coding.s1.step2'), t('help.coding.s1.step3')] },
+      { title: t('help.coding.s2.title'), text: [t('help.coding.s2.text1'), t('help.coding.s2.text2'), t('help.coding.s2.text3')] },
+      { title: t('help.coding.s3.title'), text: [t('help.coding.s3.text1')] },
+    ], actions: [{ label: t('help.coding.action1'), view: 'chat' }] },
+    { id: 'voice', title: t('help.voice.title'), sections: [
+      { title: t('help.voice.s1.title'), text: [t('help.voice.s1.text1'), t('help.voice.s1.text2')] },
+      { title: t('help.voice.s2.title'), steps: [t('help.voice.s2.step1'), t('help.voice.s2.step2'), t('help.voice.s2.step3')], text: [t('help.voice.s2.text1')] },
+      { title: t('help.voice.s3.title'), text: [t('help.voice.s3.text1'), t('help.voice.s3.text2')] },
+      { title: t('help.voice.s4.title'), text: [t('help.voice.s4.text1'), t('help.voice.s4.text2')] },
+    ], actions: [{ label: t('help.voice.action1'), view: 'chat' }, { label: t('help.voice.action2'), pane: 'voice' }, { label: t('help.voice.action3'), pane: 'models' }] },
+    { id: 'andromeda', title: t('help.andromeda.title'), sections: [
+      { text: [t('help.andromeda.s1.text1'), t('help.andromeda.s1.text2')] },
+    ], actions: [{ label: t('help.andromeda.action1'), view: 'andromeda' }] },
+    { id: 'plan', title: t('help.plan.title'), sections: [
+      { text: [t('help.plan.s1.text1'), t('help.plan.s1.text2')] },
+    ], actions: [{ label: t('help.plan.action1'), view: 'plan' }, { label: t('help.plan.action2'), view: 'tasks' }, { label: t('help.plan.action3'), view: 'calendar' }] },
+    { id: 'docs', title: t('help.docs.title'), sections: [
+      { text: [t('help.docs.s1.text1'), t('help.docs.s1.text2')] },
+    ], actions: [{ label: t('help.docs.action1'), view: 'wiki' }, { label: t('help.docs.action2'), view: 'journal' }] },
+    { id: 'files', title: t('help.files.title'), sections: [
+      { text: [t('help.files.s1.text1'), t('help.files.s1.text2')] },
+    ], actions: [{ label: t('help.files.action1'), view: 'files' }, { label: t('help.files.action2'), view: 'files-gallery' }] },
+    { id: 'inbox', title: t('help.inbox.title'), sections: [
+      { text: [t('help.inbox.s1.text1'), t('help.inbox.s1.text2')] },
+    ], actions: [{ label: t('help.inbox.action1'), view: 'mail' }, { label: t('help.inbox.action2'), view: 'contacts' }] },
+    { id: 'library', title: t('help.library.title'), sections: [
+      { text: [t('help.library.s1.text1'), t('help.library.s1.text2')] },
+    ], actions: [{ label: t('help.library.action1'), view: 'books' }, { label: t('help.library.action2'), view: 'read' }] },
+    { id: 'health', title: t('help.health.title'), sections: [
+      { text: [t('help.health.s1.text1'), t('help.health.s1.text2')] },
+    ], actions: [{ label: t('help.health.action1'), view: 'health-overview' }, { label: t('help.health.action2'), view: 'habits' }] },
+    { id: 'finance', title: t('help.finance.title'), sections: [
+      { text: [t('help.finance.s1.text1')] },
+      { title: t('help.finance.s2.title'), steps: [t('help.finance.s2.step1'), t('help.finance.s2.step2'), t('help.finance.s2.step3')], text: [t('help.finance.s2.text1')] },
+      { title: t('help.finance.s3.title'), text: [t('help.finance.s3.text1'), t('help.finance.s3.text2')], code: "date,payee,amount,currency\n2026-01-01,Example groceries,-8.25,CAD\n2026-01-02,Example income,100.00,CAD", after: [t('help.finance.s3.after1'), t('help.finance.s3.after2')] },
+      { title: t('help.finance.s4.title'), text: [t('help.finance.s4.text1'), t('help.finance.s4.text2'), t('help.finance.s4.text3'), t('help.finance.s4.text4')] },
+      { title: t('help.finance.s5.title'), text: [t('help.finance.s5.text1'), t('help.finance.s5.text2'), t('help.finance.s5.text3')] },
+      { title: t('help.finance.s6.title'), text: [t('help.finance.s6.text1'), t('help.finance.s6.text2'), t('help.finance.s6.text3')] },
+      { title: t('help.finance.s7.title'), text: [t('help.finance.s7.text1'), t('help.finance.s7.text2')] },
+    ], actions: [{ label: t('help.finance.action1'), view: 'money' }, { label: t('help.finance.action2'), view: 'imports' }, { label: t('help.finance.action3'), view: 'subs' }, { label: t('help.finance.action4'), view: 'finance-overview' }] },
+    { id: 'vault', title: t('help.vault.title'), sections: [
+      { text: [t('help.vault.s1.text1'), t('help.vault.s1.text2'), t('help.vault.s1.text3')] },
+    ], actions: [{ label: t('help.vault.action1'), view: 'vault' }] },
+    { id: 'server', title: t('help.server.title'), sections: [
+      { text: [t('help.server.s1.text1'), t('help.server.s1.text2')] },
+    ], actions: [{ label: t('help.server.action1'), view: 'server' }, { label: t('help.server.action2'), view: 'server-backups' }] },
+    { id: 'settings', title: t('help.settings.title'), sections: [
+      { text: [t('help.settings.s1.text1'), t('help.settings.s1.text2'), t('help.settings.s1.text3')] },
+    ], actions: [{ label: t('help.settings.action1'), pane: 'general' }, { label: t('help.settings.action2'), pane: 'developer' }, { label: t('help.settings.action3'), pane: 'backup' }] },
+  ];
+}
+
+export function findManualTopics(query = '', topics = helpTopics()) {
   const words = String(query).trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  return HELP_TOPICS.filter(topic => words.every(word => JSON.stringify(topic).toLocaleLowerCase().includes(word)));
+  return topics.filter(topic => words.every(word => JSON.stringify(topic).toLocaleLowerCase().includes(word)));
 }
 
 export function manualTopicForApp({ space = '', app = '' } = {}) {
@@ -75,5 +82,5 @@ export function manualTopicForApp({ space = '', app = '' } = {}) {
   if (space === 'aide' || space === 'andromeda') return space;
   const aliases = { alles: 'home', today: 'home', chat: 'aide', wiki: 'docs', journal: 'docs', money: 'finance', subs: 'finance', imports: 'finance', passwords: 'vault', system: 'server', mail: 'inbox', contacts: 'inbox', books: 'library', read: 'library', habits: 'health' };
   const id = aliases[app] || app;
-  return HELP_TOPICS.some(topic => topic.id === id) ? id : 'start';
+  return TOPIC_IDS.includes(id) ? id : 'start';
 }

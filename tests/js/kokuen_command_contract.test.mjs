@@ -8,7 +8,7 @@ const search = readFileSync(new URL('../../static/js/search.js', import.meta.url
 
 test('universal command uses one labelled dialog, input, and listbox', () => {
   const modal = html.match(/<div class="modal-overlay" id="search-modal"[^>]*>/)?.[0] || '';
-  const input = html.match(/<input type="text" id="search-input"[\s\S]*?aria-expanded="false">/)?.[0] || '';
+  const input = html.match(/<input type="text" id="search-input"[\s\S]*?aria-expanded="false"[^>]*>/)?.[0] || '';
   const results = html.match(/<div class="modal-body" id="search-results"[^>]*>/)?.[0] || '';
   assert.match(modal, /data-kokuen-surface="command"/);
   assert.match(modal, /role="dialog"/);

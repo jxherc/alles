@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 import { harness, tick, deferred, scope, account, functionSource, mailSource, reader } from './helpers/mail_workflows_recovery.mjs';
 import { plainError } from '../../static/js/util.js';
 
@@ -80,7 +81,7 @@ function restore(listContext, message, last = []) {
   const source = ['restoreMailRow', 'focusMailRow'].map(name => functionSource(name)).join('\n');
   let cache = [{ account_id: 'a', uid: '1', folder: 'INBOX', date_ts: 30 }];
   const rendered = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp,
     _listContext: listContext, _lastMsgs: last, _mailErrors: [],
     readCache: () => cache, writeCache: value => { cache = value; },
     _msgTime: row => row.date_ts, renderInbox: rows => rendered.push(Array.from(rows, row => row.uid)),
@@ -107,9 +108,9 @@ test('a row put back into the snoozed view stays out of the inbox cache, and ano
 
 test('archive and snooze offer undo; archive undo moves the archived copy back by Message-ID', () => {
   const rows = functionSource('_wireRows');
-  assert.match(rows, /showTriageUndo\('archived', undo\(result\.message_id\)\)/);
+  assert.match(rows, /showTriageUndo\(t\('mail\.archived'\), undo\(result\.message_id\)\)/);
   assert.match(rows, /mailPost\(`\/api\/mail\/move\/\$\{aid\}`, \{ message_id: messageId, folder: 'Archive', dest: folder \}\)/);
-  assert.match(rows, /showTriageUndo\(until \? 'snoozed until tomorrow' : 'snooze ended', undo\)/);
+  assert.match(rows, /showTriageUndo\(until \? t\('mail\.snoozed_tomorrow'\) : t\('mail\.snooze_ended'\), undo\)/);
   assert.match(rows, /snooze\(previous\)/);
 });
 
@@ -156,7 +157,7 @@ test('a reader beside the list (desktop) adds no history entry', async () => {
 
 test('mail source has no glyph bullet and names a missing sending account plainly', () => {
   assert.doesNotMatch(mailSource, /title="bullet list">•</);
-  assert.match(mailSource, /'no sending account yet'/);
+  assert.match(mailSource, /t\('mail\.no_sending_account'\)/);
   assert.equal(readFileSync(new URL('../../static/js/mail.js', import.meta.url), 'utf8').includes('＋ sig'), false);
 });
 
@@ -194,7 +195,7 @@ test('search opens a message in mail, and a record link when mail lives on anoth
 test('a failed mail read says what happened, not the server\'s words', () => {
   const lines = mailSource.split('\n');
   const one = lines.find(line => line.startsWith('function mailProblem('));
-  const context = vm.createContext({ plainError: text => text });
+  const context = vm.createContext({ t, tp, plainError: text => text });
   vm.runInContext(`${one}\n${functionSource('friendlyMailError')}`, context);
   assert.equal(context.mailProblem('[Errno 61] Connection refused'), 'the server refused the connection - check the host and port.');
   assert.equal(context.mailProblem('[Errno 8] something odd'), 'something odd');
@@ -248,7 +249,7 @@ test('a message opened from a record link returns to its own row, not the first'
 });
 
 test('in the list, an app password problem points at mail settings, not a button that isn\'t there', () => {
-  const context = vm.createContext({});
+  const context = vm.createContext({ t, tp,});
   vm.runInContext(functionSource('friendlyMailError'), context);
   const list = context.friendlyMailError('[AUTHENTICATIONFAILED] Application-specific password required', true);
   assert.doesNotMatch(list, /get app password|above/);
@@ -258,8 +259,8 @@ test('in the list, an app password problem points at mail settings, not a button
 
 test('the VIP and rule summary marks are svg icons', () => {
   assert.doesNotMatch(mailSource, />\+ VIP</);
-  assert.match(mailSource, /\$\{_si\('plus'\)\} VIP<\/button>/);
-  assert.match(mailSource, /\$\{_si\('arrow-right'\)\}<span class="sr-only">then<\/span>/);
+  assert.match(mailSource, /\$\{_si\('plus'\)\} \$\{t\('mail\.vip'\)\}<\/button>/);
+  assert.match(mailSource, /\$\{_si\('arrow-right'\)\}<span class="sr-only">\$\{t\('mail\.rule_then'\)\}<\/span>/);
 });
 
 const outRow = (n, status = 'uncertain', day = 10 + n) => ({ id: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`, account_id: account.id, to: 'a@example.invalid', cc: '', bcc: '', subject: `m${n}`, body: '', html: '', in_reply_to: '', references: '', send_at: `2026-10-${day}T09:00:00`, status, request_kind: 'send', request_delay: 8 });
@@ -285,7 +286,7 @@ test('an uncertain row offers check again and dismiss; a scheduled one only canc
   const [scheduled, uncertain] = h.$('mail-scheduled').querySelectorAll('.mail-sched-chip');
   assert.deepEqual(scheduled.querySelectorAll('button').map(b => b.textContent.trim()), ['cancel']);
   assert.deepEqual(uncertain.querySelectorAll('button').map(b => b.getAttribute('aria-label')), ['check again: m1', 'dismiss m1']);
-  assert.match(mailSource, /\$\{_si\('close'\)\} dismiss<\/button>/);
+  assert.match(mailSource, /\$\{_si\('close'\)\} \$\{t\('mail\.dismiss'\)\}<\/button>/);
 });
 
 test('dismiss asks first, takes only uncertain rows off the list, and moves focus on', async () => {
@@ -375,7 +376,7 @@ test('the accounts panel opened from a menu that has gone starts on add, not <bo
 
 test('a mail change that fails still says which change it was, offline included', async () => {
   const toasts = [];
-  const context = vm.createContext({ plainError, toast: (...args) => toasts.push(args), _mailChanges: new Map(), paintMailChanges() {}, Error, TypeError });
+  const context = vm.createContext({ t, tp, plainError, toast: (...args) => toasts.push(args), _mailChanges: new Map(), paintMailChanges() {}, Error, TypeError });
   vm.runInContext(`${functionSource('failedBecause')}\n${functionSource('changeMail')}`, context);
   const fails = error => () => Promise.reject(error);
   const change = request => context.changeMail(null, 'k', request, () => true, () => {}, 'thread unmuted', 'could not confirm unmute');
@@ -422,5 +423,5 @@ test('the VIP button is a toggle: aria-pressed carries on and off, the name and 
   assert.equal(vip.getAttribute('aria-pressed'), null);
   assert.equal(vip.getAttribute('aria-label'), null);
   assert.equal(vip.textContent, 'retry VIP status');
-  assert.match(mailSource, /\$\{_si\(on \? 'star-fill' : 'plus'\)\} VIP/);
+  assert.match(mailSource, /\$\{_si\(on \? 'star-fill' : 'plus'\)\} \$\{t\('mail\.vip'\)\}/);
 });

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -45,7 +46,7 @@ function harness() {
   };
   const requests = [], opens = [];
   let intercept = () => response({ items: [] });
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     URL, console,
     document: { getElementById: get, querySelectorAll: () => [], createElement: tag => new Element(tag),
       createTextNode: text => Object.assign(new Element('text'), { textContent: text }) },
@@ -55,7 +56,6 @@ function harness() {
       open() { menu.hidden = false; },
       close() { menu.hidden = true; onClose?.(); },
     }),
-    tr: key => key === 'andromeda.save_library' ? 'save to Library' : key,
     formatDate: String, formatDateTime: String,
     fetch: async (path, options = {}) => { requests.push({ path, options }); return intercept(path, options); },
   });

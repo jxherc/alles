@@ -1,12 +1,14 @@
 """Stage 4 (mail) UI contracts — source-level checks for the mail toolbar/chrome.
 Behavioral flows live in docs/evidence/ui-4*/verify.py."""
 
+import json
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 INDEX = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
 MAIL = (ROOT / "static" / "js" / "mail.js").read_text(encoding="utf-8")
+EN = json.loads((ROOT / "static" / "locales" / "en.json").read_text(encoding="utf-8"))["messages"]
 APPSET = (ROOT / "static" / "js" / "appsettings.js").read_text(encoding="utf-8")
 
 
@@ -35,7 +37,8 @@ class ToolbarCleanup4a(unittest.TestCase):
     def test_grouping_moved_to_settings(self):
         # the threads toggle now lives in mail settings + is read from the setting
         self.assertIn("mail_threads", APPSET)
-        self.assertIn("group by conversation", APPSET)
+        self.assertIn("['group', t('settings.app_opt_grouped')]", APPSET)
+        self.assertEqual(EN["settings.app_opt_grouped"], "group by conversation")
         self.assertIn("mail_threads === 'group'", MAIL)
 
     def test_reload_hook_for_settings(self):
@@ -90,7 +93,8 @@ class SearchAndAccounts4c(unittest.TestCase):
 
     def test_all_inboxes_option_for_multiple_accounts(self):
         self.assertIn("_accounts.length > 1", MAIL)
-        self.assertIn("label: 'all inboxes'", MAIL)
+        self.assertIn("label: t('mail.all_inboxes')", MAIL)
+        self.assertEqual(EN["mail.all_inboxes"], "all inboxes")
         self.assertIn("value: 'all'", MAIL)
 
     def test_refocus_refresh_preserves_current_view(self):

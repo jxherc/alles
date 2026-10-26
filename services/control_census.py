@@ -22,6 +22,7 @@ INDEX_PATH = ROOT / "static" / "index.html"
 JS_DIR = ROOT / "static" / "js"
 TESTS_DIR = ROOT / "tests"
 OVERRIDES_PATH = ROOT / "features" / "control-census-overrides.json"
+EN_CATALOG_PATH = ROOT / "static" / "locales" / "en.json"
 CONTRACTS_PATH = ROOT / "design-system" / "components" / "contracts.json"
 
 VISUAL_STATES = (
@@ -69,6 +70,11 @@ FUNCTION_RE = re.compile(
     r"(?m)^(?:export\s+)?(?:async\s+)?function\s+(?P<name>[A-Za-z_$][\w$]*)\s*\(|^(?:export\s+)?(?:const|let|var)\s+(?P<assigned>[A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:\([^\n]*?\)|[A-Za-z_$][\w$]*)\s*=>"
 )
 FETCH_RE = re.compile(r"fetch\(\s*(?:`|['\"])(?P<path>/api/[^`'\"?${]+)")
+# screens draw their words through the catalog: t('key'), tr('key'), tp('key', n), trp(...)
+I18N_CALL = r"\b(?:t|tr|tp|trp)\(\s*['\"](?P<key>[\w.-]+)['\"]"
+I18N_TEMPLATE_RE = re.compile(
+    r"\$\{(?:[^{}]|\{[^{}]*\})*?" + I18N_CALL + r"(?:[^{}]|\{[^{}]*\})*\}"
+)
 ID_LISTENER_RE = re.compile(
     r"(?:document\.)?getElementById\(\s*['\"](?P<id>[^'\"]+)['\"]\s*\)\?*\.addEventListener\(\s*['\"](?P<event>[A-Za-z]+)['\"]"
     r"|\$\(\s*['\"](?P<dollar_id>[^'\"]+)['\"]\s*\)\?*\.addEventListener\(\s*['\"](?P<dollar_event>[A-Za-z]+)['\"]"
@@ -390,11 +396,25 @@ def _inline_handler(attrs: dict[str, str]) -> str | None:
     return "; ".join(values) or None
 
 
+@lru_cache(maxsize=1)
+def _english() -> dict[str, str]:
+    catalog = json.loads(EN_CATALOG_PATH.read_text(encoding="utf-8"))
+    words = dict(catalog["messages"])
+    words.update({key: forms.get("other", "") for key, forms in catalog["plurals"].items()})
+    return words
+
+
+def _english_text(text: str) -> str:
+    """a catalog label reads as its english words, the way a literal label used to."""
+    words = _english()
+    return I18N_TEMPLATE_RE.sub(lambda match: words.get(match.group("key"), match.group(0)), text)
+
+
 def _label(attrs: dict[str, str], text: str) -> tuple[str | None, str]:
     for key in ("aria-label", "title", "value", "placeholder", "name", "id"):
         if attrs.get(key):
-            return attrs[key].strip(), key
-    compact = " ".join(text.split())
+            return _english_text(attrs[key].strip()), key
+    compact = " ".join(_english_text(text).split())
     return (compact, "text") if compact else (None, "unknown")
 
 
@@ -631,14 +651,20 @@ def _dynamic_templates(overrides: dict[str, Any]) -> list[dict[str, Any]]:
         # Inspect their literal call sites rather than dropping those actions from scope.
         for factory, tag in overrides.get("factory_calls", {}).get(relative, {}).items():
             argument = (
-                r"(?P<tag>button|a|input|textarea|select)"
+                r"['\"](?P<tag>button|a|input|textarea|select)['\"]"
                 if tag == "element"
-                else r"(?P<label>[^'\"\n]+)"
+                else rf"(?:['\"](?P<label>[^'\"\n]+)['\"]|{I18N_CALL})"
             )
-            pattern = re.compile(rf"\b{re.escape(factory)}\(\s*['\"]{argument}['\"]")
+            pattern = re.compile(rf"\b{re.escape(factory)}\(\s*{argument}")
             for match in pattern.finditer(text):
                 actual_tag = match.group("tag") if tag == "element" else tag
-                attrs = {} if tag == "element" else {"_factory_label": match.group("label")}
+                if tag == "element":
+                    attrs = {}
+                else:
+                    label = match.group("label")
+                    if label is None:
+                        label = _english().get(match.group("key"), match.group("key"))
+                    attrs = {"_factory_label": label}
                 matches.append((match.start(), actual_tag, attrs, "declared-factory-call"))
         seen: set[tuple[int, str]] = set()
         anchor_occurrences: Counter[str] = Counter()
@@ -798,11 +824,13 @@ def _created_text(source: str, offset: int) -> str:
     name = re.escape(declaration.group(1))
     assignment = re.compile(
         rf"\s*;\s*{name}\.([A-Za-z_$][\w$]*)\s*=\s*"
-        r"(?P<quote>['\"])(?P<value>[^'\"\\\r\n]*)(?P=quote)(?=\s*;)"
+        r"(?:(?P<quote>['\"])(?P<value>[^'\"\\\r\n]*)(?P=quote)|" + I18N_CALL + r"[^;\n]*)(?=\s*;)"
     )
     cursor = created.end()
     while match := assignment.match(source, cursor):
         if match.group(1) == "textContent":
+            if match.group("key"):
+                return _english().get(match.group("key"), "")
             return match.group("value")
         cursor = match.end()
     return ""

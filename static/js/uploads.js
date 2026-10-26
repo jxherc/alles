@@ -1,5 +1,6 @@
 import { toast } from './util.js';
-import { isIncognitoMode } from './modes.js?v=256';
+import { isIncognitoMode } from './modes.js?v=257';
+import { t } from './i18n.js';
 
 let _attachments = [];   // [{id, name, type, size, status?, progress?, previewUrl?, file?}]
 const _requests = new Map();
@@ -132,7 +133,7 @@ export async function attachFile(file) {
     id: localId,
     serverId: uploadId,
     incognito,
-    name: file.name || 'clipboard image',
+    name: file.name || t('uploads.clipboard_image'),
     type: file.type || '',
     size: file.size || 0,
     status: 'uploading',
@@ -175,7 +176,7 @@ export async function attachFile(file) {
     }
     if (!data?.id) {
       _markFailed(localId);
-      toast('upload failed', 'error');
+      toast(t('uploads.upload_failed'), 'error');
       return null;
     }
     _attachments = _attachments.map(item => item.id === localId
@@ -188,7 +189,7 @@ export async function attachFile(file) {
     const discarded = _discardedUploads.delete(localId);
     if (discarded) return null;
     _markFailed(localId);
-    toast('upload failed', 'error');
+    toast(t('uploads.upload_failed'), 'error');
     return null;
   }
 }
@@ -202,12 +203,12 @@ async function removeAttachment(id) {
     if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
     _attachments = _attachments.filter(a => a.id !== id);
     _render();
-    if (!await _cancelUpload(item)) toast('upload cancellation will retry', 'error');
+    if (!await _cancelUpload(item)) toast(t('uploads.cancel_will_retry'), 'error');
     return;
   }
   _release(item);
   if (item?.serverId || !String(id).startsWith('pending-')) {
-    if (!await _cancelUpload(item || { id })) toast('attachment cleanup will retry', 'error');
+    if (!await _cancelUpload(item || { id })) toast(t('uploads.cleanup_will_retry'), 'error');
   }
   _attachments = _attachments.filter(a => a.id !== id);
   _render();
@@ -243,8 +244,8 @@ function _render() {
           : _escHtml(_fileMark(a.name))}</span>
         <span class="attach-copy"><span class="attach-name">${_escHtml(a.name)}</span><span class="attach-size">${_statusText(a)}</span></span>
       </div>
-      ${a.status === 'failed' ? `<button class="attach-retry" type="button" aria-label="retry ${_escHtml(a.name)}">retry</button>` : ''}
-      <button class="attach-remove" type="button" aria-label="remove ${_escHtml(a.name)}">×</button>
+      ${a.status === 'failed' ? `<button class="attach-retry" type="button" aria-label="${_escHtml(t('uploads.retry_named', { name: a.name }))}">${_escHtml(t('common.retry'))}</button>` : ''}
+      <button class="attach-remove" type="button" aria-label="${_escHtml(t('uploads.remove_named', { name: a.name }))}">×</button>
     </div>`).join('');
   container.querySelectorAll('.attach-chip').forEach(chip => {
     chip.querySelector('.attach-retry')?.addEventListener('click', event => {
@@ -260,7 +261,7 @@ function _render() {
 
 function _fileMark(name = '') {
   const match = String(name).toLowerCase().match(/\.([a-z0-9]{1,5})$/);
-  return match ? match[1].slice(0, 3) : 'file';
+  return match ? match[1].slice(0, 3) : t('uploads.file_mark');
 }
 
 function _isImg(a) {
@@ -269,13 +270,13 @@ function _isImg(a) {
 
 function _thumbMarkup(a) {
   if (a.previewUrl) return `<img class="attach-chip-thumb" src="${_escHtml(a.previewUrl)}" alt="">`;
-  if (a.status) return 'img';
+  if (a.status) return _escHtml(t('uploads.image_mark'));
   return `<img class="attach-chip-thumb" src="/api/uploads/${encodeURIComponent(a.id)}" alt="">`;
 }
 
 function _statusText(a) {
-  if (a.status === 'uploading') return `uploading ${a.progress || 0}%`;
-  if (a.status === 'failed') return 'failed';
+  if (a.status === 'uploading') return _escHtml(t('uploads.uploading_progress', { progress: a.progress || 0 }));
+  if (a.status === 'failed') return _escHtml(t('uploads.failed'));
   return _fmtSize(a.size);
 }
 

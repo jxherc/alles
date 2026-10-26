@@ -2,9 +2,10 @@
 // (unless you turn it off) the words on that screen, and streams aide's answer. "continue in aide"
 // opens the same session in the full app. the vault never shares its screen.
 import { icon } from './icons.js';
-import { mdToHtml } from './util.js';
+import { mdToHtml, appLabel } from './util.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
-import { singleHost, urlForApp } from './subdomain.js';
+import { singleHost, urlForApp } from './subdomain.js?v=237';
+import { t } from './i18n.js';
 
 const SESSION_KEY = 'alles-ask-session';
 const SCREEN_LIMIT = 3000;
@@ -25,7 +26,7 @@ function blocked() {
 }
 
 function appName() {
-  return ($('app-drawer-label')?.textContent || document.body.dataset.app || 'alles').trim();
+  return ($('app-drawer-label')?.dataset.app || document.body.dataset.app || 'alles').trim();
 }
 
 function visibleRoot() {
@@ -50,7 +51,7 @@ function screenText(root) {
 function where() {
   const root = visibleRoot();
   const view = viewName(root);
-  const app = appName();
+  const app = appLabel(appName());
   return { root, label: view && view !== app ? `${app} · ${view}` : app };
 }
 
@@ -64,10 +65,10 @@ function build() {
   panel.setAttribute('aria-labelledby', 'ask-panel-title');
   panel.innerHTML = `
     <header class="ask-panel-head">
-      <h2 id="ask-panel-title">ask aide</h2>
-      <button type="button" class="ask-panel-action" id="ask-panel-new" hidden>new</button>
-      <button type="button" class="ask-panel-action" id="ask-panel-open" hidden>continue in aide</button>
-      <button type="button" class="ask-panel-close" id="ask-panel-close" aria-label="close ask aide">${icon('close')}</button>
+      <h2 id="ask-panel-title">${t('shell.ask_aide')}</h2>
+      <button type="button" class="ask-panel-action" id="ask-panel-new" hidden>${t('common.new')}</button>
+      <button type="button" class="ask-panel-action" id="ask-panel-open" hidden>${t('shell.continue_in_aide')}</button>
+      <button type="button" class="ask-panel-close" id="ask-panel-close" aria-label="${t('shell.close_ask_aide')}">${icon('close')}</button>
     </header>
     <div class="ask-panel-log" id="ask-panel-log" aria-live="polite"></div>
     <form class="ask-panel-composer" id="ask-panel-form">
@@ -76,8 +77,8 @@ function build() {
         <button type="button" id="ask-panel-share" aria-pressed="true"></button>
       </div>
       <div class="ask-panel-entry">
-        <textarea id="ask-panel-input" rows="1" aria-label="ask aide" placeholder="ask about this screen…"></textarea>
-        <button type="submit" class="ask-panel-send" id="ask-panel-send" aria-label="send">${icon('send')}</button>
+        <textarea id="ask-panel-input" rows="1" aria-label="${t('shell.ask_aide')}" placeholder="${t('shell.ask_about_screen')}"></textarea>
+        <button type="submit" class="ask-panel-send" id="ask-panel-send" aria-label="${t('common.send')}">${icon('send')}</button>
       </div>
     </form>`;
   document.body.append(panel);
@@ -109,17 +110,17 @@ function paintContext() {
   const { label } = where();
   const share = $('ask-panel-share');
   const locked = blocked();
-  $('ask-panel-where').textContent = locked || !shareScreen ? `on ${label}` : `sees ${label}`;
+  $('ask-panel-where').textContent = locked || !shareScreen ? t('shell.ask_on', { label }) : t('shell.ask_sees', { label });
   share.hidden = locked;
-  share.textContent = shareScreen ? "don't share screen" : 'share screen';
+  share.textContent = shareScreen ? t('shell.dont_share_screen') : t('shell.share_screen');
   share.setAttribute('aria-pressed', String(shareScreen));
 }
 
 function paintEmpty() {
   const log = $('ask-panel-log');
   if (log.childElementCount) return;
-  const starts = ['summarize what’s here', 'what should i do next?', 'does anything look off?'];
-  log.innerHTML = `<div class="ask-panel-empty"><p>ask about what you’re looking at. aide sees the app, the view and the words on screen.</p>
+  const starts = [t('shell.ask_start_summarize'), t('shell.ask_start_next'), t('shell.ask_start_off')];
+  log.innerHTML = `<div class="ask-panel-empty"><p>${t('shell.ask_empty')}</p>
     <div class="ask-panel-starts">${starts.map(s => `<button type="button" class="ask-panel-start">${s}</button>`).join('')}</div></div>`;
   log.querySelectorAll('.ask-panel-start').forEach(b => b.addEventListener('click', () => { $('ask-panel-input').value = b.textContent; send(); }));
 }
@@ -172,7 +173,7 @@ function setBusy(controller) {
   busy = controller;
   const sendBtn = $('ask-panel-send');
   sendBtn.innerHTML = icon(controller ? 'stop' : 'send');
-  sendBtn.setAttribute('aria-label', controller ? 'stop' : 'send');
+  sendBtn.setAttribute('aria-label', controller ? t('common.stop') : t('common.send'));
   panel.classList.toggle('is-busy', !!controller);
 }
 
@@ -192,7 +193,7 @@ async function ensureSession(question) {
 async function failure(res) {
   let body = {};
   try { body = await res.json(); } catch { /* not json */ }
-  const err = new Error(body.detail || `aide answered ${res.status}`);
+  const err = new Error(body.detail || t('shell.aide_answered', { status: res.status }));
   err.code = body.code || '';
   return err;
 }
@@ -211,7 +212,7 @@ async function send() {
   input.value = '';
   grow(input);
   row('you', `<p>${question.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</p>`);
-  const answer = row('aide', '<p class="ask-panel-wait">thinking…</p>');
+  const answer = row('aide', `<p class="ask-panel-wait">${t('shell.thinking')}</p>`);
   const controller = new AbortController();
   setBusy(controller);
   turnToken = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -250,17 +251,17 @@ async function send() {
         }
       }
     }
-    if (!text) answer.innerHTML = '<p class="ask-panel-note">aide sent no text back.</p>';
+    if (!text) answer.innerHTML = `<p class="ask-panel-note">${t('shell.aide_sent_no_text')}</p>`;
     $('ask-panel-new').hidden = false;
     $('ask-panel-open').hidden = false;
   } catch (err) {
     // a stop that got there before the answer began is still just a stop
     if (err.name === 'AbortError' || err.code === 'turn_stopped') {
-      if (!text) answer.innerHTML = '<p class="ask-panel-note">stopped.</p>';
+      if (!text) answer.innerHTML = `<p class="ask-panel-note">${t('shell.stopped')}</p>`;
     } else {
       const needsModel = /^model_/.test(err.code || '') || /model/i.test(err.message);
       answer.innerHTML = `<p class="ask-panel-error">${err.message.replace(/[&<>]/g, '')}</p>`
-        + (needsModel ? '<button type="button" class="ask-panel-action" data-ask-model>choose a model</button>' : '');
+        + (needsModel ? `<button type="button" class="ask-panel-action" data-ask-model>${t('shell.choose_a_model')}</button>` : '');
       answer.querySelector('[data-ask-model]')?.addEventListener('click', () => window._openModelModal?.());
     }
   } finally {

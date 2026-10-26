@@ -1,9 +1,9 @@
 import { getProjects, loadProjects } from './projects.js';
 import { createSession, getActiveId, markActive } from './sessions.js';
-import { getCurrentEndpoint, getSelected } from './models.js?v=213';
+import { getCurrentEndpoint, getSelected } from './models.js?v=214';
 import { prompt as dlgPrompt } from './dialog.js';
 import { toast } from './util.js';
-import { t } from './i18n.js';
+import { t, tp } from './i18n.js';
 import { initAideCoding, openAideCoding } from './aidecoding.js';
 
 const $ = id => document.getElementById(id);
@@ -56,7 +56,7 @@ function restorePendingTaskContext(context) {
 }
 
 function folderName(path = '') {
-  return String(path).split('/').filter(Boolean).at(-1) || 'folder';
+  return String(path).split('/').filter(Boolean).at(-1) || t('aide.folder');
 }
 
 function closeProjectMenu({ restoreFocus = false } = {}) {
@@ -90,7 +90,7 @@ async function patchSessionContext(values) {
     body: JSON.stringify(values),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || 'task context could not be changed');
+  if (!response.ok) throw new Error(data.detail || t('aide.task_context_failed'));
   window._currentSession = data;
   return data;
 }
@@ -134,7 +134,7 @@ function renderProjectMenu() {
   addFolder.type = 'button';
   addFolder.role = 'menuitem';
   addFolder.className = 'aide-project-add-folder';
-  addFolder.textContent = 'choose folder…';
+  addFolder.textContent = t('aide.choose_folder');
   addFolder.addEventListener('click', event => {
     event.stopPropagation();
     openFolderBrowser();
@@ -153,12 +153,12 @@ function openProjectMenu() {
   menu.querySelector('[aria-checked="true"]')?.focus();
 }
 
-async function fetchWithRecentOwner(input, init, reason = 'choose a Project folder') {
+async function fetchWithRecentOwner(input, init, reason = t('aide.reauth_reason_folder')) {
   let response = await fetch(input, init);
   if (response.status !== 403) return response;
   const me = await fetch('/api/auth/me').then(result => result.json()).catch(() => null);
   if (me?.enabled === false) return response;
-  const password = await dlgPrompt(`enter your Alles password to ${reason}`, '', { secret: true });
+  const password = await dlgPrompt(t('aide.reauth_prompt', { reason }), '', { secret: true });
   if (password == null) return response;
   const confirmed = await fetch('/api/auth/reauth', {
     method: 'POST',
@@ -166,7 +166,7 @@ async function fetchWithRecentOwner(input, init, reason = 'choose a Project fold
     body: JSON.stringify({ password }),
   });
   if (!confirmed.ok) {
-    toast('password confirmation failed', 'error');
+    toast(t('aide.password_failed'), 'error');
     return response;
   }
   return fetch(input, init);
@@ -178,9 +178,9 @@ function syncBranchButton() {
   if (!button || !label) return;
   const available = !!branchContext?.repository && !!branchContext.current;
   button.hidden = !available;
-  label.textContent = available ? branchContext.current : 'branch';
+  label.textContent = available ? branchContext.current : t('aide.branch');
   button.title = available
-    ? `${branchContext.current}${branchContext.dirty ? ' · uncommitted changes' : ''}`
+    ? (branchContext.dirty ? t('aide.branch_dirty', { branch: branchContext.current }) : branchContext.current)
     : '';
 }
 
@@ -262,14 +262,14 @@ async function chooseBranch(branch) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ branch }),
       },
-      'switch this working branch',
+      t('aide.reauth_reason_branch'),
     );
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       closeBranchMenu({ restoreFocus: true });
       const message = ['project_git_switch_failed', 'session_git_switch_failed'].includes(data.code)
-        ? 'this branch would overwrite your changes. commit or stash them first.'
-        : (data.detail || 'Git could not switch branches');
+        ? t('aide.branch_overwrite')
+        : (data.detail || t('aide.git_switch_failed'));
       toast(message, 'error');
       return;
     }
@@ -277,7 +277,7 @@ async function chooseBranch(branch) {
     syncBranchButton();
     closeBranchMenu({ restoreFocus: true });
   } catch {
-    toast('Git branch state is unavailable', 'error');
+    toast(t('aide.git_state_unavailable'), 'error');
   } finally {
     menu.removeAttribute('aria-busy');
   }
@@ -304,7 +304,7 @@ async function createProjectFromFolder(path) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    toast(data.detail || 'Project folder could not be added', 'error');
+    toast(data.detail || t('aide.project_folder_add_failed'), 'error');
     return;
   }
   await loadProjects();
@@ -321,7 +321,7 @@ async function createProjectFromFolder(path) {
   await window._reloadAideSessions?.();
   syncNewTaskContext();
   closeProjectMenu({ restoreFocus: true });
-  toast(`Project “${data.name}” added`, 'success');
+  toast(t('aide.project_added', { name: data.name }), 'success');
 }
 
 async function useTemporaryFolder(path) {
@@ -343,11 +343,11 @@ async function openFolderBrowser(path = '') {
   if (!menu) return;
   menu.classList.add('folder-mode');
   menu.setAttribute('role', 'dialog');
-  menu.setAttribute('aria-label', 'choose a project folder');
+  menu.setAttribute('aria-label', t('aide.choose_project_folder'));
   menu.setAttribute('aria-busy', 'true');
   menu.replaceChildren(Object.assign(document.createElement('div'), {
     className: 'aide-folder-loading',
-    textContent: 'opening folders…',
+    textContent: t('aide.opening_folders'),
   }));
   const query = path ? `?path=${encodeURIComponent(path)}` : '';
   let response;
@@ -357,17 +357,17 @@ async function openFolderBrowser(path = '') {
     data = await response.json().catch(() => ({}));
   } catch {
     response = { ok: false };
-    data = { detail: 'Alles could not reach the local server.' };
+    data = { detail: t('aide.folder_server_unreachable') };
   }
   menu.setAttribute('aria-busy', 'false');
   if (!response.ok) {
     menu.replaceChildren();
     const message = document.createElement('div');
     message.className = 'aide-folder-error';
-    message.textContent = data.detail || 'That folder could not be opened.';
+    message.textContent = data.detail || t('aide.folder_open_failed');
     const back = document.createElement('button');
     back.type = 'button';
-    back.textContent = 'back';
+    back.textContent = t('aide.back');
     back.addEventListener('click', renderProjectMenu);
     menu.append(message, back);
     return;
@@ -378,10 +378,10 @@ async function openFolderBrowser(path = '') {
   const back = document.createElement('button');
   back.type = 'button';
   back.textContent = '‹';
-  back.setAttribute('aria-label', 'back to projects');
+  back.setAttribute('aria-label', t('aide.back_to_projects'));
   back.addEventListener('click', renderProjectMenu);
   const title = document.createElement('span');
-  title.textContent = 'project folder';
+  title.textContent = t('aide.project_folder');
   header.append(back, title);
 
   const pathForm = document.createElement('form');
@@ -389,11 +389,11 @@ async function openFolderBrowser(path = '') {
   const pathInput = document.createElement('input');
   pathInput.type = 'text';
   pathInput.value = data.path;
-  pathInput.setAttribute('aria-label', 'server folder path');
+  pathInput.setAttribute('aria-label', t('aide.server_folder_path'));
   pathInput.autocomplete = 'off';
   const go = document.createElement('button');
   go.type = 'submit';
-  go.textContent = 'go';
+  go.textContent = t('aide.go');
   pathForm.append(pathInput, go);
   pathForm.addEventListener('submit', event => {
     event.preventDefault();
@@ -409,7 +409,7 @@ async function openFolderBrowser(path = '') {
   if (!data.parent && !(data.folders || []).length) {
     list.append(Object.assign(document.createElement('div'), {
       className: 'aide-folder-empty',
-      textContent: 'no folders here',
+      textContent: t('aide.no_folders'),
     }));
   }
 
@@ -417,16 +417,16 @@ async function openFolderBrowser(path = '') {
   footer.className = 'aide-folder-actions';
   const cancel = document.createElement('button');
   cancel.type = 'button';
-  cancel.textContent = 'cancel';
+  cancel.textContent = t('common.cancel');
   cancel.addEventListener('click', () => closeProjectMenu({ restoreFocus: true }));
   const use = document.createElement('button');
   use.type = 'button';
   use.className = 'aide-folder-use';
-  use.textContent = 'use for this task';
+  use.textContent = t('aide.use_for_task');
   use.addEventListener('click', () => useTemporaryFolder(data.path));
   const save = document.createElement('button');
   save.type = 'button';
-  save.textContent = 'save as project';
+  save.textContent = t('aide.save_as_project');
   save.addEventListener('click', () => createProjectFromFolder(data.path));
   footer.append(cancel, save, use);
   menu.replaceChildren(header, pathForm, list, footer);
@@ -452,7 +452,7 @@ function syncNewTaskContext(session = window._currentSession) {
   }
   const project = selectedProject(session);
   const workingDir = selectedWorkingDir(session);
-  label.textContent = project?.name || (workingDir ? folderName(workingDir) : document.body.classList.contains('aide-central') ? 'context' : t('aide.tasks'));
+  label.textContent = project?.name || (workingDir ? folderName(workingDir) : document.body.classList.contains('aide-central') ? t('aide.context') : t('aide.tasks'));
   closeProjectMenu();
   if (!row.hidden) loadBranchContext(project, session);
   else {
@@ -474,7 +474,7 @@ function setPanelOpen(open, focusInside = true) {
   panel.inert = !open;
   panel.setAttribute('aria-hidden', String(!open));
   toggle.setAttribute('aria-expanded', String(open));
-  toggle.setAttribute('aria-label', open ? 'close task tools' : 'open task tools');
+  toggle.setAttribute('aria-label', open ? t('aide.close_task_tools') : t('aide.open_task_tools'));
   document.body.classList.toggle('aide-work-panel-open', open);
   if (open && focusInside) requestAnimationFrame(() => panel.querySelector('button:not([hidden])')?.focus());
   if (!open && focusInside && panelReturnFocus instanceof HTMLElement) panelReturnFocus.focus();
@@ -618,11 +618,11 @@ async function connectTerminal() {
       if (socket !== terminalSocket) return;
       terminalSocket = null;
       if (event.code !== 1000) {
-        instance.writeln(`\r\n\x1b[31m${event.reason || 'terminal disconnected'}\x1b[0m`);
+        instance.writeln(`\r\n\x1b[31m${event.reason || t('aide.terminal_disconnected')}\x1b[0m`);
       }
     });
     socket.addEventListener('error', () => {
-      if (socket === terminalSocket) instance.writeln('\r\n\x1b[31mterminal unavailable\x1b[0m');
+      if (socket === terminalSocket) instance.writeln(`\r\n\x1b[31m${t('aide.terminal_unavailable')}\x1b[0m`);
     });
   } catch (error) {
     toast(String(error.message || error), 'error');
@@ -643,7 +643,7 @@ function setWorkView(view = '') {
   panel.classList.toggle('terminal-open', view === 'terminal');
   panel.classList.toggle('coding-open', view === 'coding');
   back.hidden = !view;
-  title.textContent = view || 'task tools';
+  title.textContent = view === 'terminal' ? t('aide.view_terminal') : view === 'coding' ? t('aide.view_coding') : view || t('aide.task_tools');
   if (view === 'terminal') {
     connectTerminal();
   } else disconnectTerminal();
@@ -720,7 +720,7 @@ function rebuildRail() {
   if (!rail || !track) return;
   const rows = userRows();
   rail.hidden = !isAide() || rows.length < 3;
-  rail.setAttribute('aria-label', `${rows.length} messages from you`);
+  rail.setAttribute('aria-label', tp('aide.messages_from_you', rows.length));
   if (rail.hidden) {
     track.replaceChildren();
     return;
@@ -740,7 +740,7 @@ function rebuildRail() {
       tick.type = 'button';
       tick._aideMessageRow = row;
       tick.dataset.messageKey = key;
-      tick.setAttribute('aria-label', `jump to message ${index + 1}`);
+      tick.setAttribute('aria-label', t('aide.jump_to_message', { number: index + 1 }));
       if (!tick.dataset.wired) {
         tick.dataset.wired = '1';
         tick.addEventListener('click', () => tick._aideMessageRow?.scrollIntoView({

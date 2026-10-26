@@ -11,7 +11,7 @@ CSS = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
 
 class VaultTotpUi(unittest.TestCase):
     def test_panel_has_both_methods(self):
-        self.assertIn("passkey / security key", JS)
+        self.assertIn("t('vault.passkey_security_key')", JS)
         self.assertIn("authenticator app (TOTP)", JS)
 
     def test_setup_posts_to_setup_endpoint(self):
@@ -27,9 +27,9 @@ class VaultTotpUi(unittest.TestCase):
 
     def test_biometric_vs_passkey_explainer(self):
         self.assertIn("mv-2fa-note", JS)
-        self.assertIn("biometric unlock", JS)
+        self.assertIn("t('vault.biometric_note'", JS)
         # explains biometric replaces the password vs passkey being a second factor
-        self.assertIn("it replaces the password", JS)
+        self.assertIn("t('vault.note_without_typing')", JS)
         self.assertIn("second factor", JS)
 
     def test_disable_path(self):

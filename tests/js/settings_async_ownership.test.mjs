@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { eventToShortcut, isReservedShortcut } from '../../static/js/shortcuts.js';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8')
   .replace(/^import [\s\S]*? from '[^']+';\n/gm, '')
@@ -49,7 +50,7 @@ function harness() {
     if (url === '/api/recall/stats' || url === '/api/proactive/stats') return response({});
     throw new Error(`unexpected ${method} ${url}`);
   };
-  const context = vm.createContext({
+  const context = vm.createContext({ t: i18nT, tp: i18nTp,
     document: { getElementById: get,
       querySelectorAll: selector => selector === '.shortcut-input' ? [...elements.values()].filter(el => el.dataset.shortcut) : [],
       querySelector: () => null, addEventListener() {}, body: element('body'), documentElement: element('html') },

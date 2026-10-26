@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const centralSource = readFileSync(new URL('../../static/js/aidecentral.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
 const boundarySource = readFileSync(new URL('../../static/js/kokuen.js', import.meta.url), 'utf8')
-  .replace(/^export /gm, '');
+  .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
 
 function harness({ withSession = true } = {}) {
   const document = { activeElement: null };
@@ -59,7 +60,7 @@ function harness({ withSession = true } = {}) {
   };
   const session = withSession ? addSession() : null;
   document.getElementById = id => id === 'aide-sidebar' ? archive : null;
-  const boundaryContext = vm.createContext({ document });
+  const boundaryContext = vm.createContext({ document, t, tp });
   vm.runInContext(boundarySource + '\nglobalThis.factory = createFocusBoundary;', boundaryContext);
   const context = vm.createContext({
     document,

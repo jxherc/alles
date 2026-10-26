@@ -2,9 +2,9 @@
 // day to mark it done; each habit shows its streak, this-week progress, and a
 // GitHub-style contribution heatmap. mirrors the days/watch panel conventions.
 import { api, toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js?v=212';
+import { initCustomDropdown } from './dropdown.js?v=213';
 import { confirm as dlgConfirm } from './dialog.js';
-import { calendarDateKey, formatCalendarDate } from './i18n.js';
+import { calendarDateKey, formatCalendarDate, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
@@ -59,7 +59,7 @@ export async function loadHabits(fetcher = fetch) {
     _habits = data.habits; _hasLoaded = true; _day = day;
   } catch {
     if (generation !== _generation) return false;
-    _loadError = 'could not load habits. ' + (_hasLoaded ? 'the last loaded habits are still shown.' : 'retry to see your habits.');
+    _loadError = t(_hasLoaded ? 'habits.load_failed_shown' : 'habits.load_failed_retry');
   } finally {
     if (generation === _generation) { _loading = false; _render(); }
   }
@@ -87,9 +87,9 @@ async function writeHabit(change) {
   let resultFocus;
   try { resultFocus = await change(); }
   catch (error) {
-    toast(error.message === 'Failed to fetch' ? 'could not save. your input is kept; retry when connected.' : (error.message || 'could not save. try again.'), 'error');
+    toast(error.message === 'Failed to fetch' ? t('habits.save_offline') : (error.message || t('habits.save_failed')), 'error');
     if (interruptedLoad && generation === _generation) {
-      _loadError = 'habits were not refreshed. retry to load them; your input is kept.';
+      _loadError = t('habits.not_refreshed');
       _render();
     }
   }
@@ -113,7 +113,7 @@ function readForm(card) {
 
 function formPayload(card) {
   const values = readForm(card), target = parseInt(values.target, 10);
-  if (!values.name.trim()) throw new Error('name the habit');
+  if (!values.name.trim()) throw new Error(t('habits.name_it'));
   // one whole emoji: a 2-character cap cut flags and family emoji in half
   const icon = typeof Intl.Segmenter === 'function'
     ? ([...new Intl.Segmenter().segment(values.icon.trim())][0]?.segment || '') : values.icon.trim();
@@ -131,7 +131,7 @@ function upsertHabit(saved) {
 async function closeAdd() {
   if (_saving) return false;
   const navigation = _navigation;
-  if (_creation?.uncertain && !await dlgConfirm('this habit may already be saved. close the draft and refresh the list?')) return false;
+  if (_creation?.uncertain && !await dlgConfirm(t('habits.close_draft_confirm'))) return false;
   if (navigation !== _navigation) return false;
   const refresh = _creation?.uncertain;
   _adding = false; _creation = null; _draft = null;
@@ -152,7 +152,6 @@ function _localDays(n) {
   return out;
 }
 const _iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const _DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 function _render() {
   const body = $('habits-body');
@@ -165,16 +164,16 @@ function _render() {
   const cards = _habits.map(h => h.id === _editing ? _editCard(h) : _card(h)).join('');
   body.innerHTML = `
     <div class="habits-bar">
-      <div class="habits-summary">${_habits.length ? `${_habits.length} ${_showArchived ? 'archived ' : ''}habit${_habits.length !== 1 ? 's' : ''}` : ''}</div>
+      <div class="habits-summary">${_habits.length ? esc(tp(_showArchived ? 'habits.archived_count' : 'habits.count', _habits.length)) : ''}</div>
       <div class="habit-actions">
-        <button class="btn" data-act="archive-view" aria-pressed="${_showArchived}">${_showArchived ? 'active habits' : 'archived habits'}</button>
-        ${_showArchived ? '' : `<button class="btn primary" id="habits-add-toggle">${_si('plus')} habit</button>`}
+        <button class="btn" data-act="archive-view" aria-pressed="${_showArchived}">${esc(_showArchived ? t('habits.active_habits') : t('habits.archived_habits'))}</button>
+        ${_showArchived ? '' : `<button class="btn primary" id="habits-add-toggle">${_si('plus')} ${esc(t('habits.habit'))}</button>`}
       </div>
     </div>
-    ${_loading ? '<div class="specialist-group-note" role="status">loading habits…</div>' : ''}
-    ${_loadError ? `<div class="specialist-group-note legacy-load-note habit-load-error" role="alert"><span>${esc(_loadError)}</span><button type="button" class="btn" data-act="retry-load">retry</button></div>` : ''}
+    ${_loading ? `<div class="specialist-group-note" role="status">${esc(t('habits.loading'))}</div>` : ''}
+    ${_loadError ? `<div class="specialist-group-note legacy-load-note habit-load-error" role="alert"><span>${esc(_loadError)}</span><button type="button" class="btn" data-act="retry-load">${esc(t('common.retry'))}</button></div>` : ''}
     ${_adding ? _addForm() : ''}
-    ${_habits.length ? `<div class="habits-list">${cards}</div>` : (_adding || !_hasLoaded || _loading ? '' : `<div class="habits-empty">${_showArchived ? 'no archived habits. archived habits keep their history and can be restored here.' : 'no habits yet: track something daily (read, water, walk) or a few times a week. add one above.'}</div>`)}`;
+    ${_habits.length ? `<div class="habits-list">${cards}</div>` : (_adding || !_hasLoaded || _loading ? '' : `<div class="habits-empty">${esc(_showArchived ? t('habits.empty_archived') : t('habits.empty'))}</div>`)}`;
   _wire(body);
   setBusy();
   if (field) {
@@ -204,7 +203,8 @@ function _weekStrip(h) {
     const iso = _iso(d);
     const completed = done.has(iso);
     const date = formatCalendarDate(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    return `<button type="button" class="habit-day${completed ? ' done' : ''}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}" aria-label="${esc(h.name + ', ' + date + ', ' + (completed ? 'completed' : 'not completed'))}"><span>${_DOW[d.getDay()]}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
+    const letter = formatCalendarDate(iso, { weekday: 'narrow' });
+    return `<button type="button" class="habit-day${completed ? ' done' : ''}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}" aria-label="${esc(t(completed ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date }))}"><span>${esc(letter)}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
   }).join('')}</div>`;
 }
 
@@ -213,48 +213,48 @@ function _card(h) {
   // only a real hex goes into style="…"; anything else falls back to the name's colour
   const accent = /^#[0-9a-f]{3,8}$/i.test(String(h.color || '')) ? h.color : `var(--cat-${categoryHue(h.name)})`;
   const slip = !h.archived && h.risk && h.risk.slipping
-    ? `<span class="habit-slip" title="${esc(h.risk.reason)}">slipping</span>` : '';
+    ? `<span class="habit-slip" title="${esc(h.risk.reason)}">${esc(t('habits.slipping'))}</span>` : '';
   return `
     <div class="habit-card${slip ? ' at-risk' : ''}" data-id="${h.id}" style="--habit-accent:${esc(accent)}">
       <div class="habit-top">
         ${h.icon ? `<span class="habit-icon">${esc(h.icon)}</span>` : ''}
         <div class="habit-name">${esc(h.name)}</div>
         ${slip}
-        <span class="habit-streak${h.streak > 0 ? ' on' : ''}" title="current streak">${h.streak}${_si('fire')}</span>
+        <span class="habit-streak${h.streak > 0 ? ' on' : ''}" title="${esc(t('habits.current_streak'))}">${h.streak}${_si('fire')}</span>
         <div class="habit-actions">
-          ${h.archived ? '<button class="btn" data-act="restore">restore</button>' : `<button class="icon-btn" data-act="edit" title="edit">${_si('edit')}</button>`}
-          <button class="icon-btn danger" data-act="del" title="delete">${_si('trash')}</button>
+          ${h.archived ? `<button class="btn" data-act="restore">${esc(t('habits.restore'))}</button>` : `<button class="icon-btn" data-act="edit" title="${esc(t('common.edit'))}">${_si('edit')}</button>`}
+          <button class="icon-btn danger" data-act="del" title="${esc(t('common.delete'))}">${_si('trash')}</button>
         </div>
       </div>
-      ${h.archived ? '<div class="habit-meta">archived · history kept</div>' : _weekStrip(h)}
+      ${h.archived ? `<div class="habit-meta">${esc(t('habits.archived_kept'))}</div>` : _weekStrip(h)}
       ${_heat(h.grid)}
-      <div class="habit-meta">${h.cadence === 'weekly' ? `${h.week_done}/${h.target} this week` : `${h.week_done}/7 days`} · ${h.pct}%</div>
+      <div class="habit-meta">${esc(h.cadence === 'weekly' ? t('habits.week_progress', { done: h.week_done, target: h.target }) : t('habits.days_progress', { done: h.week_done }))} · ${h.pct}%</div>
     </div>`;
 }
 
 function _cadenceSelect(v, id) {
   return `<div class="habit-field">
-    <span id="${id}-frequency-label">frequency</span>
-    <div class="settings-input custom-select" data-f="cadence" data-value="${esc(v || 'daily')}" data-options="daily|every day;weekly|weekly" aria-labelledby="${id}-frequency-label" aria-describedby="${id}-frequency-help"></div>
+    <span id="${id}-frequency-label">${esc(t('habits.frequency'))}</span>
+    <div class="settings-input custom-select" data-f="cadence" data-value="${esc(v || 'daily')}" data-options="${esc(`daily|${t('habits.every_day')};weekly|${t('habits.weekly')}`)}" aria-labelledby="${id}-frequency-label" aria-describedby="${id}-frequency-help"></div>
   </div>`;
 }
 
 function _cadenceHelp(cadence) {
-  return cadence === 'weekly' ? 'track the chosen number of days each week.' : 'check in once each day.';
+  return t(cadence === 'weekly' ? 'habits.help_weekly' : 'habits.help_daily');
 }
 
 function _formFields(h, scope) {
   const id = esc(scope);
-  return `<label class="habit-field">habit name
-      <input type="text" class="settings-input" data-f="name" value="${esc(h.name)}" placeholder="e.g. read, water, walk">
+  return `<label class="habit-field">${esc(t('habits.habit_name'))}
+      <input type="text" class="settings-input" data-f="name" value="${esc(h.name)}" placeholder="${esc(t('habits.name_placeholder'))}">
     </label>
     <div class="habit-edit-row">
-      <label class="habit-field habit-icon-field">icon
-        <input type="text" class="settings-input habit-icon-in" data-f="icon" value="${esc(h.icon)}" placeholder="emoji">
+      <label class="habit-field habit-icon-field">${esc(t('habits.icon'))}
+        <input type="text" class="settings-input habit-icon-in" data-f="icon" value="${esc(h.icon)}" placeholder="${esc(t('habits.emoji'))}">
       </label>
       ${_cadenceSelect(h.cadence, id)}
-      <label class="habit-field habit-target-field"${h.cadence === 'weekly' ? '' : ' hidden'}>days per week
-        <input type="text" class="settings-input" data-f="target" value="${esc(h.target)}" inputmode="numeric" placeholder="e.g. 3" aria-describedby="${id}-frequency-help">
+      <label class="habit-field habit-target-field"${h.cadence === 'weekly' ? '' : ' hidden'}>${esc(t('habits.days_per_week'))}
+        <input type="text" class="settings-input" data-f="target" value="${esc(h.target)}" inputmode="numeric" placeholder="${esc(t('habits.target_placeholder'))}" aria-describedby="${id}-frequency-help">
       </label>
     </div>
     <p class="habit-cadence-help specialist-group-note" id="${id}-frequency-help">${_cadenceHelp(h.cadence)}</p>`;
@@ -262,10 +262,11 @@ function _formFields(h, scope) {
 
 const HABIT_COLORS = ['', '#818cf8', '#34d399', '#f472b6', '#fbbf24', '#60a5fa', '#f87171', '#a78bfa'];
 const HABIT_COLOR_NAMES = { '#818cf8': 'indigo', '#34d399': 'green', '#f472b6': 'pink', '#fbbf24': 'amber', '#60a5fa': 'blue', '#f87171': 'red', '#a78bfa': 'violet' };
+const colorName = c => t(`habits.color_${HABIT_COLOR_NAMES[c]}`);
 
 function _colorPicker(sel) {
   return `<div class="habit-colors" data-f="color" data-value="${esc(sel || '')}">
-    ${HABIT_COLORS.map(c => `<button type="button" class="habit-sw${(sel || '') === c ? ' sel' : ''}" data-c="${c}" style="${c ? `--sw:${c}` : ''}" aria-pressed="${(sel || '') === c}" aria-label="${c ? `colour ${HABIT_COLOR_NAMES[c]}` : 'default colour'}">${c ? '' : _si('none')}</button>`).join('')}
+    ${HABIT_COLORS.map(c => `<button type="button" class="habit-sw${(sel || '') === c ? ' sel' : ''}" data-c="${c}" style="${c ? `--sw:${c}` : ''}" aria-pressed="${(sel || '') === c}" aria-label="${c ? t('habits.colour_named', { name: colorName(c) }) : t('habits.colour_default')}">${c ? '' : _si('none')}</button>`).join('')}
   </div>`;
 }
 
@@ -276,9 +277,9 @@ function _editCard(h) {
       ${_formFields(h, `habit-${h.id}`)}
       ${_colorPicker(h.color)}
       <div class="habit-actions">
-        <button class="btn primary" data-act="save">save</button>
-        <button class="btn" data-act="cancel">cancel</button>
-        <button class="btn" data-act="archive">archive</button>
+        <button class="btn primary" data-act="save">${esc(t('common.save'))}</button>
+        <button class="btn" data-act="cancel">${esc(t('common.cancel'))}</button>
+        <button class="btn" data-act="archive">${esc(t('habits.archive'))}</button>
       </div>
     </div>`;
 }
@@ -291,9 +292,9 @@ function _addForm() {
       ${_colorPicker(draft.color)}
       ${_creation?.error ? `<div class="habit-create-error specialist-group-note" role="alert">${esc(_creation.error)}</div>` : ''}
       <div class="habit-actions">
-        <button class="btn primary" data-act="create">${_creation?.uncertain ? 'retry save' : 'add habit'}</button>
-        ${_creation?.canOpen ? '<button class="btn" data-act="open-saved">open saved habit</button>' : ''}
-        <button class="btn" data-act="cancel-add">cancel</button>
+        <button class="btn primary" data-act="create">${esc(_creation?.uncertain ? t('habits.retry_save') : t('habits.add_habit'))}</button>
+        ${_creation?.canOpen ? `<button class="btn" data-act="open-saved">${esc(t('habits.open_saved'))}</button>` : ''}
+        <button class="btn" data-act="cancel-add">${esc(t('common.cancel'))}</button>
       </div>
     </div>`;
 }
@@ -343,28 +344,28 @@ function _wire(body) {
         _creation.uncertain ||= !error.status || error.status >= 500 || error.status === 409;
         _creation.canOpen = _creation.uncertain && error.status !== 410;
         _creation.deleted = error.status === 410;
-        _creation.error = error.status === 409 ? 'this request already saved a habit. open it to review your changes before correcting it.'
-          : error.status === 410 ? 'the saved habit was deleted. close this draft to start another.'
-          : _creation.uncertain ? 'could not confirm the save. your input is kept; retry safely or open the saved habit.'
-          : (error.message || 'could not save. your input is kept.');
+        _creation.error = error.status === 409 ? t('habits.err_already_saved')
+          : error.status === 410 ? t('habits.err_deleted')
+          : _creation.uncertain ? t('habits.err_unconfirmed')
+          : (error.message || t('habits.err_save_kept'));
         _render(); throw error;
       }
       upsertHabit(saved); _adding = false; _draft = null; _creation = null;
-      toast(`tracking ${saved.name}`, 'success'); await loadHabits();
+      toast(t('habits.tracking', { name: saved.name }), 'success'); await loadHabits();
     }));
     add.querySelector('[data-act="cancel-add"]')?.addEventListener('click', async () => { if (await closeAdd()) _render(); });
     add.querySelector('[data-act="open-saved"]')?.addEventListener('click', async () => {
       const navigation = _navigation;
-      if (_saving || !await dlgConfirm('open the saved habit and discard this unsaved draft?')) return;
+      if (_saving || !await dlgConfirm(t('habits.open_saved_confirm'))) return;
       if (navigation !== _navigation) return;
       await writeHabit(async () => {
         let saved;
         try { saved = await api(`/api/habits/requests/${_creation.requestId}`); }
         catch (error) {
           if (navigation !== _navigation) return;
-          _creation.error = error.status === 404 ? 'no saved habit was found yet. your draft is kept; retry the save.'
-            : error.status === 410 ? 'the saved habit was deleted. close this draft to start another.'
-            : 'could not open the saved habit. your draft is kept; try again.';
+          _creation.error = error.status === 404 ? t('habits.err_not_found')
+            : error.status === 410 ? t('habits.err_deleted')
+            : t('habits.err_open_failed');
           if (error.status === 410) { _creation.deleted = true; _creation.canOpen = false; }
           _render(); throw error;
         }
@@ -373,7 +374,7 @@ function _wire(body) {
         _adding = false; _creation = null; _draft = null; _editing = saved.archived ? null : saved.id;
         await loadHabits();
         if (navigation !== _navigation) return;
-        toast(saved.archived ? 'this habit is archived. restore it to continue tracking.' : 'saved habit opened; review before saving changes.', 'success');
+        toast(saved.archived ? t('habits.opened_archived') : t('habits.opened_review'), 'success');
         return $('habits-body').querySelector(`[data-id="${CSS.escape(saved.id)}"] ${saved.archived ? '[data-act="restore"]' : '[data-f="name"]'}`);
       });
     });
@@ -405,17 +406,17 @@ function _wire(body) {
       if (act === 'cancel') { _editing = null; _draft = null; _render(); inCard('[data-act="edit"]')?.focus(); return; }
       if (act === 'del') {
         const h = _habits.find(x => x.id === id);
-        if (!await dlgConfirm(`delete "${h?.name || 'this habit'}" and its history?`)) return;
+        if (!await dlgConfirm(h?.name ? t('habits.delete_confirm', { name: h.name }) : t('habits.delete_confirm_this'))) return;
       }
       await writeHabit(async () => {
         if (act === 'del') {
           await api(`/api/habits/${id}`, { method: 'DELETE' });
           _habits = _habits.filter(h => h.id !== id);
-          toast('deleted', 'success');
+          toast(t('habits.deleted'), 'success');
         } else if (act === 'archive' || act === 'restore' || act === 'save') {
           const saved = await api(`/api/habits/${id}`, { method: 'PATCH', body: act === 'save' ? formPayload(card) : { archived: act === 'archive' } });
           upsertHabit(saved);
-          toast(act === 'archive' ? 'archived' : act === 'restore' ? 'restored to active habits' : 'saved', 'success');
+          toast(act === 'archive' ? t('habits.archived') : act === 'restore' ? t('habits.restored') : t('common.saved'), 'success');
         } else return;
         if (_editing === id) { _editing = null; _draft = null; }
         await loadHabits();

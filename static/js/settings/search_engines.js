@@ -2,9 +2,10 @@
 // Every list comes from /api/search/engines, so a new engine needs no change here.
 import { _patchSettings, _esc } from './shared.js';
 import { toast } from '../util.js';
+import { t } from '../i18n.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
-import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=212';
-import { wireChoiceGroup } from '../kokuen.js?v=2';
+import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=213';
+import { wireChoiceGroup } from '../kokuen.js?v=4';
 
 let _engines = [];
 let _settings = {};
@@ -12,21 +13,28 @@ let _editing = null; // custom engine id being edited, '' for a new one
 
 const $ = id => document.getElementById(id);
 const engineById = id => _engines.find(engine => engine.id === id);
-const labelOf = id => id === 'disabled' ? 'disabled' : id === 'none' ? 'none' : engineById(id)?.label || id;
+// the server calls its keyless engine "free search" in english
+const engineName = engine => engine.id === 'duckduckgo' ? t('andromeda.x_free_search') : engine.label;
+const engineNote = engine => {
+  const key = `settings.search_note_${engine.id}`;
+  const text = t(key);
+  return text === key ? engine.note || '' : text;
+};
+const labelOf = id => id === 'disabled' ? t('settings.search_disabled') : id === 'none' ? t('common.none') : (engineById(id) ? engineName(engineById(id)) : id);
 
 async function _json(url, options = {}) {
   const response = await fetch(url, options);
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error?.message || data?.detail || `request failed (${response.status})`);
+  if (!response.ok) throw new Error(data?.error?.message || data?.detail || t('settings.search_request_failed', { status: response.status }));
   return data;
 }
 
 function _options(withNone) {
   const rows = _engines.map(engine => ({
     value: engine.id,
-    label: engine.configured || engine.custom ? engine.label : `${engine.label} · needs a key`,
+    label: engine.configured || engine.custom ? engineName(engine) : t('settings.search_needs_key', { engine: engineName(engine) }),
   }));
-  return withNone ? [{ value: 'none', label: 'none' }, ...rows] : [...rows, { value: 'disabled', label: 'disabled' }];
+  return withNone ? [{ value: 'none', label: t('common.none') }, ...rows] : [...rows, { value: 'disabled', label: t('settings.search_disabled') }];
 }
 
 // ── hidden sites ──
@@ -37,15 +45,15 @@ function renderHiddenSites() {
   list.innerHTML = sites.length ? sites.map(site => `
     <div class="settings-list-row">
       <div class="row-name" style="flex:1;min-width:0">${_esc(site)}</div>
-      <button type="button" class="btn" data-hidden-site="${_esc(site)}" aria-label="show ${_esc(site)} again">show again</button>
-    </div>`).join('') : '<div class="s-card-hint">no hidden sites</div>';
+      <button type="button" class="btn" data-hidden-site="${_esc(site)}" aria-label="${_esc(t('settings.search_show_site_again', { site }))}">${_esc(t('settings.search_show_again'))}</button>
+    </div>`).join('') : `<div class="s-card-hint">${_esc(t('settings.search_no_hidden'))}</div>`;
 }
 
 async function saveHiddenSites(sites, message) {
   const status = $('s-hidden-sites-status');
   const saved = await _patchSettings({ andromeda_blocked_sites: sites });
   if (!saved) {
-    if (status) { status.textContent = 'not saved; use a site name like example.com'; status.dataset.state = 'error'; }
+    if (status) { status.textContent = t('settings.search_site_not_saved'); status.dataset.state = 'error'; }
     return false;
   }
   _settings = { ..._settings, andromeda_blocked_sites: saved.andromeda_blocked_sites || [] };
@@ -72,15 +80,15 @@ export function updateEngineFields() {
   const id = getDropdownValue($('s-search-provider'));
   const engine = engineById(id);
   const note = $('s-search-engine-note');
-  if (note) note.textContent = engine?.note || '';
+  if (note) note.textContent = engine ? engineNote(engine) : '';
   const keyRow = $('s-engine-key-row');
   const keyed = !!engine?.key_setting && !engine.custom && id !== 'google_pse';
   if (keyRow) keyRow.hidden = !keyed;
   if (keyed) {
-    $('s-engine-key-label').textContent = `${engine.label} api key`;
+    $('s-engine-key-label').textContent = t('settings.search_api_key', { engine: engine.label });
     const input = $('s-engine-key');
     input.value = '';
-    input.placeholder = engine.configured ? 'configured: enter a replacement' : '';
+    input.placeholder = engine.configured ? t('settings.key_configured_placeholder') : '';
     const signup = $('s-engine-signup');
     signup.hidden = !engine.signup;
     if (engine.signup) signup.href = engine.signup;
@@ -101,7 +109,7 @@ function updateSearchStatus(message = '', error = false) {
   const engine = engineById(id);
   const count = getDropdownValue($('s-search-count')) || _settings.search_result_count || 8;
   const missing = engine && !engine.configured;
-  el.textContent = `active: ${labelOf(id)} · ${count} results${missing ? ' · needs a key first' : ''}`;
+  el.textContent = missing ? t('settings.search_active_needs_key', { engine: labelOf(id), count }) : t('settings.search_active', { engine: labelOf(id), count });
   el.dataset.state = missing ? 'error' : '';
 }
 
@@ -135,19 +143,19 @@ export async function saveSearchSettings() {
 async function testSearch() {
   const button = $('s-search-test-btn');
   const engine = getDropdownValue($('s-search-provider'));
-  if (engine === 'disabled') { updateSearchStatus('search is disabled'); return; }
+  if (engine === 'disabled') { updateSearchStatus(t('settings.search_is_disabled')); return; }
   button.disabled = true;
-  updateSearchStatus(`testing ${labelOf(engine)}…`);
+  updateSearchStatus(t('settings.search_testing', { engine: labelOf(engine) }));
   try {
     const result = await _json('/api/search/test', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ engine }),
     });
     updateSearchStatus(result.ok
-      ? `${labelOf(engine)} works · ${result.count} results in ${result.ms} ms`
-      : `${labelOf(engine)} gave no results (${result.failure || 'empty'}) after ${result.ms} ms`, !result.ok);
+      ? t('settings.search_works', { engine: labelOf(engine), count: result.count, ms: result.ms })
+      : t('settings.search_no_results', { engine: labelOf(engine), reason: result.failure || t('settings.search_empty'), ms: result.ms }), !result.ok);
   } catch (error) {
     // say it failed, then why; the bare server detail read like a status, not an error
-    updateSearchStatus(error.message ? `test failed: ${error.message}` : 'test failed', true);
+    updateSearchStatus(error.message ? t('settings.search_test_failed_why', { message: error.message }) : t('connections.test_failed'), true);
   } finally {
     button.disabled = false;
   }
@@ -161,12 +169,12 @@ function renderCustomList() {
   list.innerHTML = rows.length ? rows.map(engine => `
     <div class="settings-list-row" data-custom-engine="${_esc(engine.id)}">
       <div style="min-width:0;flex:1">
-        <div class="row-name">${_esc(engine.label)}</div>
-        <div class="row-meta">${_esc(engine.url)}${engine.key_configured ? ' · key saved' : ''}</div>
+        <div class="row-name">${_esc(engineName(engine))}</div>
+        <div class="row-meta">${_esc(engine.url)}${engine.key_configured ? ` · ${_esc(t('settings.search_key_saved'))}` : ''}</div>
       </div>
-      <button type="button" class="btn" data-custom-edit="${_esc(engine.id)}">edit</button>
-      <button type="button" class="btn" data-custom-remove="${_esc(engine.id)}">remove</button>
-    </div>`).join('') : '<div class="s-card-hint">no custom engines yet</div>';
+      <button type="button" class="btn" data-custom-edit="${_esc(engine.id)}">${_esc(t('common.edit'))}</button>
+      <button type="button" class="btn" data-custom-remove="${_esc(engine.id)}">${_esc(t('common.remove'))}</button>
+    </div>`).join('') : `<div class="s-card-hint">${_esc(t('settings.search_no_custom'))}</div>`;
 }
 
 const FORM_FIELDS = {
@@ -194,10 +202,10 @@ function openForm(engine = null) {
     $(id).value = engine ? saved || '' : { url_field: 'url', title_field: 'title', snippet_field: 'snippet' }[field] || '';
   }
   $('s-cse-key').value = '';
-  $('s-cse-key').placeholder = engine?.key_configured ? 'saved: enter a replacement' : '';
+  $('s-cse-key').placeholder = engine?.key_configured ? t('settings.search_key_saved_placeholder') : '';
   setMethod(engine?.method || 'GET');
   $('s-cse-status').textContent = '';
-  $('s-cse-save').textContent = engine ? 'save changes' : 'save engine';
+  $('s-cse-save').textContent = engine ? t('settings.save_changes') : t('settings.search_save_engine');
   form.hidden = false;
   $('s-custom-search-add').hidden = true;
   $('s-cse-name').focus();
@@ -220,17 +228,17 @@ async function saveCustom(event) {
   body.key = key || (_editing ? null : '');
   button.disabled = true;
   status.dataset.state = '';
-  status.textContent = 'saving…';
+  status.textContent = t('common.saving');
   try {
     const url = _editing ? `/api/search/custom/${encodeURIComponent(_editing)}` : '/api/search/custom';
     const saved = await _json(url, {
       method: _editing ? 'PUT' : 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     });
     await loadSearchEngines(_settings);
-    toast(`${saved.label} saved`, 'success');
+    toast(t('settings.search_engine_saved', { name: saved.label }), 'success');
     closeForm();
   } catch (error) {
-    status.textContent = error.message || 'could not save this engine';
+    status.textContent = error.message || t('settings.search_engine_save_failed');
     status.dataset.state = 'error';
   } finally {
     button.disabled = false;
@@ -239,14 +247,14 @@ async function saveCustom(event) {
 
 async function removeCustom(id) {
   const engine = engineById(id);
-  if (!engine || !await _dlgConfirm(`remove ${engine.label}? its saved key goes too.`, { confirmLabel: 'remove engine' })) return;
+  if (!engine || !await _dlgConfirm(t('settings.search_remove_confirm', { name: engine.label }), { confirmLabel: t('settings.search_remove_engine') })) return;
   try {
     await _json(`/api/search/custom/${encodeURIComponent(id)}`, { method: 'DELETE' });
     const settings = await _json('/api/settings').catch(() => _settings);
     await loadSearchEngines(settings);
-    toast(`${engine.label} removed`, 'success');
+    toast(t('settings.search_engine_removed', { name: engine.label }), 'success');
   } catch (error) {
-    toast(error.message || 'could not remove this engine', 'error');
+    toast(error.message || t('settings.search_engine_remove_failed'), 'error');
   }
 }
 
@@ -276,14 +284,14 @@ export function wireSearchEngines() {
     const site = input.value.trim();
     if (!site) { input.focus(); return; }
     const current = _settings.andromeda_blocked_sites || [];
-    if (await saveHiddenSites([...current, site], `${site} is hidden`)) input.value = '';
+    if (await saveHiddenSites([...current, site], t('settings.search_site_hidden', { site }))) input.value = '';
   });
   $('s-hidden-sites-list')?.addEventListener('click', async event => {
     const button = event.target.closest('[data-hidden-site]');
     if (!button) return;
     const site = button.dataset.hiddenSite;
     const sites = (_settings.andromeda_blocked_sites || []).filter(value => value !== site);
-    if (await saveHiddenSites(sites, `${site} shows in results again`)) $('s-hidden-site')?.focus();
+    if (await saveHiddenSites(sites, t('settings.search_site_shown', { site }))) $('s-hidden-site')?.focus();
   });
   $('s-custom-search-list')?.addEventListener('click', event => {
     const edit = event.target.closest('[data-custom-edit]');

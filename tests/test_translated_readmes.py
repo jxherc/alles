@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TRANSLATIONS = ("fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar")
-SOURCE_REVISION = "phase10-canonical-2026-07-21"
+SOURCE_REVISION = "davinci-canonical-2026-10-25"
 
 
 class TranslatedReadmeTests(unittest.TestCase):

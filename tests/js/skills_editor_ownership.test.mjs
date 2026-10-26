@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/skills.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -32,7 +33,7 @@ function harness() {
     const slug = options.method === 'POST' ? `skill-${++created}` : url.split('/').at(-1);
     const result = { ...body, slug }; disk.set(slug, result); return { ok: true, json: async () => result };
   };
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     document, fetch: fetcher, toast: (message, kind) => toasts.push({ message, kind }),
     setTimeout: callback => timers.push(callback), clearTimeout() {},
     createFocusBoundary: () => ({ activate() {}, deactivate() {}, destroy() {} }),

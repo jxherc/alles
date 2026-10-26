@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8');
 const drafts = source.slice(source.indexOf('const _legacyDraftKey'), source.indexOf('export function newChat'));
@@ -51,7 +52,7 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     },
     removeItem(name) { storageCalls.push(['remove', name]); storage.delete(name); },
   };
-  const context = vm.createContext({ window, document, location, URL, URLSearchParams, Event: class {},
+  const context = vm.createContext({ t, tp, tr: t, trp: tp, window, document, location, URL, URLSearchParams, Event: class {},
     isIncognitoMode: () => privateMode, toast: text => notices.push(text),
     getProjects: () => [{ id: 'allowed-project' }], selectAideDefault: () => effects.push('default-model'),
     showWelcome: () => effects.push('welcome'),

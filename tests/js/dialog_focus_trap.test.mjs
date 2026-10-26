@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/dialog.js', import.meta.url), 'utf8')
-  .replace(/^export /gm, '');
+  .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
 
 // just enough of a dialog for _wireDialog: a field, cancel and confirm, plus the page behind it
 function dialog() {
@@ -29,7 +30,7 @@ function dialog() {
       return [field, cancel, confirm];
     },
   };
-  const context = vm.createContext({ document });
+  const context = vm.createContext({ document, t, tp });
   vm.runInContext(source, context);
   let result;
   context._wireDialog(overlay, value => { result = value; }, () => true);
@@ -101,7 +102,7 @@ test('a dialog opened by a click safari never focused hands focus back to that b
     querySelector: selector => (selector.includes('dialog') ? card : cancel),
     querySelectorAll: selector => (selector === '[data-dialog-confirm]' ? [confirm] : [cancel, confirm]),
   };
-  const context = vm.createContext({ document });
+  const context = vm.createContext({ document, t, tp });
   context.globalThis = context;
   vm.runInContext(source, context);
   // the press lands on the icon inside the button; <body> keeps focus, as in safari

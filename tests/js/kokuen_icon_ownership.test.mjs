@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const runtime = readFileSync(new URL('../../static/js/kokuen.js', import.meta.url), 'utf8');
 
@@ -37,6 +38,7 @@ class Element {
 function harness() {
   const icons = [];
   const context = vm.createContext({
+    t,
     iconEl(name) {
       const icon = new Element('svg', '', { class: 'ic' });
       icon.name = name;
@@ -44,7 +46,7 @@ function harness() {
       return icon;
     },
   });
-  vm.runInContext(runtime.replace(/^export /gm, ''), context);
+  vm.runInContext(runtime.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, ''), context);
   return { decorate: context.decorateIconControl, icons };
 }
 

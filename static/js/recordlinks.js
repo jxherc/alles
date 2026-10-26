@@ -48,7 +48,7 @@ export function clearLinkedRecord(view) {
 
 export async function revealRecord(target, isCurrent = () => true) {
   if (target.view === 'wiki') {
-    const module = await import('./docs.js?v=260');
+    const module = await import('./docs.js?v=261');
     return isCurrent() && module.openLinkedDocument(target.id, isCurrent);
   }
   if (target.view === 'read') {

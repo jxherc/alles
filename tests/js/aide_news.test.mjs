@@ -33,12 +33,12 @@ test('News uses custom accessible choices and automatic browser timezone', () =>
 
 test('News tests sources before save and keeps Library explicit', () => {
   assert.match(ui, /\/api\/news\/sources\/test/);
-  assert.match(ui, /test this URL before saving/);
-  assert.match(ui, /Nothing was saved/);
+  assert.match(ui, /t\('aide\.news_test_before_save'\)/);
+  assert.match(ui, /t\('aide\.news_items_found'|tp\('aide\.news_items_found'/);
   assert.match(ui, /\/api\/read\/save-news/);
-  assert.match(ui, /save to Library/);
+  assert.match(ui, /t\('aide\.news_save_library'\)/);
   assert.match(ui, /if \(save\) save\.disabled = changed/);
-  assert.match(ui, /Source tested\. You can save it now\./);
+  assert.match(ui, /t\('aide\.news_source_tested'\)/);
   assert.match(ui, /\['http:', 'https:'\]\.includes\(parsed\.protocol\)/);
   assert.match(ui, /const url = safeNewsUrl\(link\.url\)/);
   assert.match(ui, /: `<span>\$\{esc\(link\.source\)\}<\/span>`/);
@@ -51,7 +51,7 @@ test('News has bounded fallback, independent source health, and gated Jarvis del
   assert.match(service, /next_retry_at/);
   assert.match(service, /summary_pending/);
   assert.match(route, /readiness\["available"\]/);
-  assert.match(ui, /pair Discord before enabling/);
+  assert.match(ui, /t\('aide\.news_pair_discord'\)/);
 });
 
 test('Scheduled preserves timestamps that already include a numeric offset', () => {

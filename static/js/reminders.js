@@ -1,8 +1,8 @@
 import { toast } from './util.js';
 import { confirm } from './dialog.js';
-import { initCustomDropdown } from './dropdown.js?v=212';
+import { initCustomDropdown } from './dropdown.js?v=213';
 import { initDatePicker, dateTimeParts } from './datepick.js';
-import { calendarDateKey, formatDateParts, formatDateTime, resolvedTimeZone } from './i18n.js';
+import { calendarDateKey, formatDateParts, formatDateTime, resolvedTimeZone, t } from './i18n.js';
 
 let _reminders = [];
 let _pollTimer = null;
@@ -26,14 +26,14 @@ export async function loadReminders(fetcher = fetch) {
   _render();
   try {
     const r = await fetcher('/api/reminders');
-    if (!r.ok) throw new Error('could not load reminders');
+    if (!r.ok) throw new Error(t('plan.reminders_load_failed'));
     const rows = await r.json();
-    if (!Array.isArray(rows)) throw new Error('could not load reminders');
+    if (!Array.isArray(rows)) throw new Error(t('plan.reminders_load_failed'));
     if (revision !== _revision) return;
     _reminders = rows;
     _loaded = true;
   } catch (error) {
-    if (revision === _revision) _loadError = 'could not load reminders';
+    if (revision === _revision) _loadError = t('plan.reminders_load_failed');
     throw error;
   } finally {
     if (revision === _revision) {
@@ -64,17 +64,17 @@ function _render() {
   const focusedId = el.contains(document.activeElement) ? document.activeElement.dataset.reminderCancel : null;
   const focusedRetry = el.contains(document.activeElement) && document.activeElement.hasAttribute('data-reminder-retry');
   const status = _loadError
-    ? `<div role="alert">${_loadError} <button type="button" class="btn" data-reminder-retry>retry</button></div>`
-    : _loading ? '<div role="status" data-reminder-loading>loading reminders…</div>' : '';
+    ? `<div role="alert">${_loadError} <button type="button" class="btn" data-reminder-retry>${_esc(t('common.retry'))}</button></div>`
+    : _loading ? `<div role="status" data-reminder-loading>${_esc(t('plan.reminders_loading'))}</div>` : '';
   el.innerHTML = status + (!_reminders.length
-    ? (_loaded && !_loadError && !_loading ? '<div class="page-empty">no reminders</div>' : '')
+    ? (_loaded && !_loadError && !_loading ? `<div class="page-empty">${_esc(t('plan.reminders_none'))}</div>` : '')
     : _reminders.map(r => `
       <div class="settings-list-row" data-id="${_esc(r.id)}">
         <div style="flex:1;min-width:0">
           <div class="row-name">${_esc(r.text)}</div>
-          <div class="reminder-meta">${_esc(reminderTimeLabel(r.trigger_at))} · ${r.type === 'message' ? 'scheduled message' : 'reminder'}${r.delivery_started ? ' · delivery started; check the conversation for a reply' : ''}</div>
+          <div class="reminder-meta">${_esc(reminderTimeLabel(r.trigger_at))} · ${_esc(r.type === 'message' ? t('plan.reminders_scheduled_message') : t('plan.reminders_reminder'))}${r.delivery_started ? ` · ${_esc(t('plan.reminders_delivery_started'))}` : ''}</div>
         </div>
-        <button type="button" class="act-btn" data-reminder-cancel="${_esc(r.id)}"${_cancelling.has(r.id) ? ' disabled' : ''}>cancel</button>
+        <button type="button" class="act-btn" data-reminder-cancel="${_esc(r.id)}"${_cancelling.has(r.id) ? ' disabled' : ''}>${_esc(t('common.cancel'))}</button>
       </div>`).join(''));
   el.querySelector('[data-reminder-retry]')?.addEventListener('click', _retryLoad);
   el.querySelectorAll('[data-reminder-cancel]').forEach(button => {
@@ -97,16 +97,16 @@ function _renderCancelRecovery() {
   el.hidden = !_cancelRecovery.size;
   el.innerHTML = [..._cancelRecovery].map(([id, entry]) => {
     const busy = _cancelling.has(id) || entry.restoring;
-    const label = entry.restoring ? 'restoring…' : !entry.cancelled ? 'retry cancel' : entry.error ? 'retry undo' : 'undo';
-    const status = entry.error || (entry.cancelled ? 'cancelled; undo is available until this page reloads' : 'cancelling…');
+    const label = entry.restoring ? t('plan.reminders_restoring') : !entry.cancelled ? t('plan.reminders_retry_cancel') : entry.error ? t('plan.reminders_retry_undo') : t('common.undo');
+    const status = entry.error || (entry.cancelled ? t('plan.reminders_cancelled_undo') : t('plan.reminders_cancelling'));
     return `<div class="settings-list-row">
       <div style="flex:1;min-width:0">
         <div class="row-name">${_esc(entry.reminder.text)}</div>
-        <div class="reminder-meta">${_esc(reminderTimeLabel(entry.reminder.trigger_at))} · ${entry.reminder.type === 'message' ? 'scheduled message' : 'reminder'}</div>
+        <div class="reminder-meta">${_esc(reminderTimeLabel(entry.reminder.trigger_at))} · ${_esc(entry.reminder.type === 'message' ? t('plan.reminders_scheduled_message') : t('plan.reminders_reminder'))}</div>
         <div class="reminder-meta" role="status">${_esc(status)}</div>
       </div>
-      <button type="button" class="act-btn" data-reminder-recover="${_esc(id)}"${busy ? ' disabled' : ''}>${label}</button>
-      <button type="button" class="act-btn" data-reminder-dismiss="${_esc(id)}"${busy ? ' disabled' : ''}>dismiss</button>
+      <button type="button" class="act-btn" data-reminder-recover="${_esc(id)}"${busy ? ' disabled' : ''}>${_esc(label)}</button>
+      <button type="button" class="act-btn" data-reminder-dismiss="${_esc(id)}"${busy ? ' disabled' : ''}>${_esc(t('common.dismiss'))}</button>
     </div>`;
   }).join('');
   el.querySelectorAll('[data-reminder-recover]').forEach(button => {
@@ -121,7 +121,7 @@ function _renderCancelRecovery() {
       const id = button.dataset.reminderDismiss;
       const entry = _cancelRecovery.get(id);
       if (!entry || entry.restoring || _cancelling.has(id)) return;
-      if ((!entry.cancelled || entry.request) && !await confirm('this reminder may still be active. dismiss this retry? check the reminder list before creating another.')) return;
+      if ((!entry.cancelled || entry.request) && !await confirm(t('plan.reminders_dismiss_confirm'))) return;
       if (entry.restoring || _cancelling.has(id)) return;
       const hadFocus = document.activeElement === button;
       _cancelRecovery.delete(id);
@@ -145,7 +145,7 @@ async function _undoReminder(id, button) {
     const reminder = entry.reminder;
     const triggerAt = reminder.trigger_at + (/(Z|[+-]\d\d:\d\d)$/.test(reminder.trigger_at) ? '' : 'Z');
     if (reminder.type === 'message' && new Date(triggerAt) <= new Date() && !entry.immediateDeliveryConfirmed) {
-      if (!await confirm('the scheduled time has passed. restoring this message may send it now. restore it?')) return;
+      if (!await confirm(t('plan.reminders_restore_confirm'))) return;
       entry.immediateDeliveryConfirmed = true;
     }
     if (!entry.request) {
@@ -153,11 +153,11 @@ async function _undoReminder(id, button) {
     }
     restored = await createReminder(entry.request);
     _cancelRecovery.delete(id);
-    toast(restored.fired ? 'reminder already delivered' : 'reminder restored', 'success');
+    toast(restored.fired ? t('plan.reminders_already_delivered') : t('plan.reminders_restored'), 'success');
   } catch (error) {
     if (error.status === 410) _cancelRecovery.delete(id);
-    else entry.error = `${error.message || 'could not confirm restoration'}. retry undo to confirm the same reminder.`;
-    toast(error.status === 410 ? 'the restored reminder was cancelled' : entry.error, 'error');
+    else entry.error = t('plan.reminders_restore_error', { reason: error.message || t('plan.reminders_restore_unconfirmed') });
+    toast(error.status === 410 ? t('plan.reminders_restored_cancelled') : entry.error, 'error');
   } finally {
     entry.restoring = false;
     _renderCancelRecovery();
@@ -175,14 +175,14 @@ export function reminderTimeLabel(iso, now = Date.now()) {
   if (!iso) return '';
   const d = new Date(iso + (/(Z|[+-]\d\d:\d\d)$/.test(iso) ? '' : 'Z'));
   if (Number.isNaN(d.getTime())) return '';
-  if (d.getTime() < now) return 'due now';
+  if (d.getTime() < now) return t('plan.reminders_due_now');
   return formatDateTime(d, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 // The picker displays the configured timezone, which may differ from this browser's zone.
 export function reminderTimeFromWall(value) {
   const p = dateTimeParts(value);
-  if (!p) throw new Error('pick a valid date and time');
+  if (!p) throw new Error(t('plan.reminders_pick_valid'));
   const wall = Date.UTC(p.y, p.mo, p.d, p.h, p.mi);
   const options = {
     timeZone: resolvedTimeZone(), calendar: 'gregory', numberingSystem: 'latn',
@@ -198,7 +198,7 @@ export function reminderTimeFromWall(value) {
     offsets.add(asWall(instant) - instant);
   }
   const matches = [...offsets].map(offset => wall - offset).filter(instant => asWall(instant) === wall).sort((a, b) => a - b);
-  if (!matches.length) throw new Error('that time does not exist in this timezone; choose another time');
+  if (!matches.length) throw new Error(t('plan.reminders_time_missing'));
   // A repeated autumn clock time selects its first occurrence.
   return new Date(matches[0]);
 }
@@ -240,20 +240,20 @@ export async function createReminder(request) {
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      const error = new Error(typeof body.detail === 'string' ? body.detail : 'could not save reminder');
+      const error = new Error(typeof body.detail === 'string' ? body.detail : t('plan.reminders_save_failed'));
       error.status = response.status;
       if (response.status === 410) await loadReminders().catch(() => {});
       throw error;
     }
     data = await response.json();
     if (!data.id || data.text !== request.text || data.type !== request.type || data.session_id !== request.session_id || typeof data.fired !== 'boolean') {
-      throw new Error('could not confirm the saved reminder');
+      throw new Error(t('plan.reminders_save_unconfirmed'));
     }
     await Promise.all([..._pendingChanges]);
     if (revision === _revision) break;
     // A cancellation or acknowledgment may have overtaken this response. Replay the
     // same identity to confirm current server state before publishing success.
-    if (attempt === 2) throw new Error('reminders changed while saving; retry to confirm');
+    if (attempt === 2) throw new Error(t('plan.reminders_changed_saving'));
   }
   _revision++;
   _loading = false;
@@ -281,7 +281,7 @@ window._delReminder = async (id, button) => {
     const response = await fetch(`/api/reminders/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!response.ok && response.status !== 404) {
       const data = await response.json().catch(() => ({}));
-      const error = new Error(typeof data.detail === 'string' ? data.detail : 'could not cancel reminder; try again');
+      const error = new Error(typeof data.detail === 'string' ? data.detail : t('plan.reminders_cancel_failed'));
       error.status = response.status;
       throw error;
     }
@@ -294,9 +294,9 @@ window._delReminder = async (id, button) => {
     if ([400, 401, 403, 409, 422].includes(error.status) && !recovery?.uncertain) _cancelRecovery.delete(id);
     else if (recovery) {
       recovery.uncertain = true;
-      recovery.error = 'could not confirm cancellation. retry cancel to check.';
+      recovery.error = t('plan.reminders_cancel_unconfirmed');
     }
-    toast(error.message || 'could not cancel reminder; try again', 'error');
+    toast(error.message || t('plan.reminders_cancel_failed'), 'error');
     return false;
   } finally {
     settle();
@@ -328,11 +328,11 @@ async function _checkDue() {
     if (!Array.isArray(due)) return;
     for (const rem of due) {
       if (document.hidden) break;
-      toast(`reminder: ${rem.text}`, 'success');
+      toast(t('plan.reminders_toast', { text: rem.text }), 'success');
       const settle = _beginReminderChange();
       try {
         const ack = await fetch(`/api/reminders/${encodeURIComponent(rem.id)}/ack`, { method: 'POST' });
-        if (!ack.ok) throw new Error('could not confirm reminder delivery');
+        if (!ack.ok) throw new Error(t('plan.reminders_delivery_unconfirmed'));
         _reminders = _reminders.filter(x => x.id !== rem.id);
       } catch {
         // A failed reply can follow a committed acknowledgment. Refresh known state;
@@ -354,7 +354,7 @@ function _panelState(message = '') {
   if (text) text.disabled = locked;
   if (time) { time.setAttribute('aria-disabled', String(locked)); time.tabIndex = locked ? -1 : 0; }
   if (type) type.disabled = locked;
-  if (add) { add.disabled = _saving; add.textContent = _saving ? 'saving…' : _creation ? 'retry save' : 'set'; }
+  if (add) { add.disabled = _saving; add.textContent = _saving ? t('common.saving') : _creation ? t('plan.reminders_retry_save') : t('plan.reminders_set'); }
   if (discard) { discard.hidden = !_creation; discard.disabled = _saving; }
   const status = document.getElementById('reminder-status');
   if (status) status.textContent = message;
@@ -370,12 +370,12 @@ export function initReminderPanel(fetcher = fetch, reloadPanel = null) {
   const typeEl = document.getElementById('reminder-type-select');
   initCustomDropdown(typeEl);
   initDatePicker(timeEl);
-  document.getElementById('reminder-zone').textContent = `times use ${resolvedTimeZone()}`;
+  document.getElementById('reminder-zone').textContent = t('plan.reminders_times_use', { zone: resolvedTimeZone() });
   if (!addBtn || addBtn.dataset.wired === '1') return loading;
   addBtn.dataset.wired = '1';
   document.getElementById('reminder-discard').addEventListener('click', async () => {
     if (_saving || !_creation) return;
-    if (!await confirm('this reminder may already be saved. discard this retry? check the reminder list before creating another.')) return;
+    if (!await confirm(t('plan.reminders_discard_confirm'))) return;
     _creation = null;
     textEl.value = ''; timeEl.value = '';
     _panelState(); textEl.focus();
@@ -387,29 +387,29 @@ export function initReminderPanel(fetcher = fetch, reloadPanel = null) {
     try {
       if (!_creation) {
         const text = textEl.value.trim();
-        if (!text) { textEl.focus(); throw new Error('enter reminder text'); }
+        if (!text) { textEl.focus(); throw new Error(t('plan.reminders_enter_text')); }
         let triggerAt;
         try {
           triggerAt = reminderTimeFromWall(timeEl.value);
-          if (triggerAt <= new Date()) throw new Error('pick a future time');
+          if (triggerAt <= new Date()) throw new Error(t('plan.reminders_pick_future'));
         } catch (error) { timeEl.focus(); throw error; }
         const type = typeEl.value || 'reminder';
         _creation = { request: reminderRequest(text, triggerAt, type, type === 'message' ? window._currentSession?.id || null : null), uncertain: false };
       }
       _saving = true;
-      _panelState('saving…');
+      _panelState(t('common.saving'));
       const result = await createReminder(_creation.request);
       saved = true;
       _creation = null;
       textEl.value = ''; timeEl.value = '';
-      toast(result.fired ? 'reminder already delivered' : result.type === 'message' ? 'message scheduled' : 'reminder set', 'success');
+      toast(result.fired ? t('plan.reminders_already_delivered') : result.type === 'message' ? t('plan.reminders_message_scheduled') : t('plan.reminders_set_toast'), 'success');
       _panelState();
     } catch (error) {
       if (_creation) {
         _creation.uncertain ||= reminderMayHaveSaved(error);
         if (!_creation.uncertain) _creation = null;
       }
-      const message = `${error.message || 'could not save reminder'}${_creation ? '. retry to confirm the same reminder, or discard this retry.' : ''}`;
+      const message = _creation ? t('plan.reminders_save_error_retry', { reason: error.message || t('plan.reminders_save_failed') }) : (error.message || t('plan.reminders_save_failed'));
       _panelState(message);
       toast(message, 'error');
     } finally {

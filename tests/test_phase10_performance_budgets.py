@@ -6,6 +6,7 @@ wall-clock scheduling noise on shared runners is not an application correctness 
 
 from __future__ import annotations
 
+import gzip
 import math
 import os
 import time
@@ -63,7 +64,13 @@ class Phase10PerformanceBudgetTests(ApiTest):
         catalogs = sorted((ROOT / "static" / "locales").glob("*.json"))
         sizes = {path.name: path.stat().st_size for path in catalogs}
         self.assertTrue(sizes)
-        self.assertLess(max(sizes.values()), 40_000)
+        # a catalog covers every screen (about 7,700 messages) and only the chosen language's
+        # is fetched, gzipped like all of /static. english ships inside i18n.js on every load
+        wire = {path.name: len(gzip.compress(path.read_bytes())) for path in catalogs}
+        builtin = len(gzip.compress((ROOT / "static" / "js" / "i18n.js").read_bytes()))
+        self.assertLess(max(sizes.values()), 800_000)
+        self.assertLess(max(wire.values()), 180_000)
+        self.assertLess(builtin, 160_000)
         print(
             "phase10 payload bytes",
             {
@@ -71,6 +78,8 @@ class Phase10PerformanceBudgetTests(ApiTest):
                 "credits": len(credits.content),
                 "localization_options": len(localization.content),
                 "largest_catalog": max(sizes.values()),
+                "largest_catalog_gzip": max(wire.values()),
+                "i18n_js_gzip": builtin,
             },
         )
 

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { t, tp } from '../../../static/js/i18n.js';
 export const mailSource = readFileSync(new URL('../../../static/js/mail.js', import.meta.url), 'utf8');
 export const captureSource = readFileSync(new URL('../../../static/js/capture.js', import.meta.url), 'utf8');
 export const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -101,7 +102,7 @@ export function harness() {
   const notices = [], confirms = [], writes = [], timers = [];
   let confirmation = false, uuid = 0;
   const context = vm.createContext({
-    document, $, console, URL, Date, JSON, AbortSignal, CSS: { escape: String },
+    document, $, console, t, tp, URL, Date, JSON, AbortSignal, CSS: { escape: String },
     Event: class { constructor(type) { this.type = type; } },
     setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout() {},
     requestAnimationFrame() {}, window: { addEventListener() {} },

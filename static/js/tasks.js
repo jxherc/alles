@@ -1,7 +1,7 @@
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { getDropdownValue, populateDropdown } from './dropdown.js?v=212';
-import { calendarDateKey, t as tr } from './i18n.js';
-import { createFocusBoundary, setControlState } from './kokuen.js?v=2';
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=213';
+import { calendarDateKey, t as tr, tp as trp } from './i18n.js';
+import { createFocusBoundary, setControlState } from './kokuen.js?v=4';
 import { toast } from './util.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -162,7 +162,7 @@ export async function loadTasks(fetcher = fetch, target = null) {
   let data;
   try {
     const response = await fetcher(url);
-    if (!response.ok) throw new Error(`request failed (${response.status})`);
+    if (!response.ok) throw new Error(tr('tasks.request_failed_status', { status: response.status }));
     data = await response.json();
   } catch (error) {
     if (generation !== _loadGeneration) return;
@@ -172,7 +172,7 @@ export async function loadTasks(fetcher = fetch, target = null) {
   if (isTree) { _tree = data; renderTree(); } else { _tasks = data; renderTasks(); }
   if (target?.view === 'tasks' && isTree && !_findTask(target.id)) {
     const response = await fetcher('/api/tasks/done');
-    if (!response.ok) throw new Error(`request failed (${response.status})`);
+    if (!response.ok) throw new Error(tr('tasks.request_failed_status', { status: response.status }));
     const completed = await response.json();
     if (generation !== _loadGeneration || tab !== _tab || search !== _search) return;
     if (completed.some(task => task.id === target.id)) {
@@ -294,8 +294,9 @@ function _wireRows(list) {
     // phone, so it asks first, naming what goes
     const task = _findTask(btn.dataset.id);
     const subs = task?.subtasks?.length || 0;
-    const what = task ? `"${task.title}"${subs ? ` and its ${subs} subtask${subs === 1 ? '' : 's'}` : ''}` : 'this task';
-    if (!await dlgConfirm(`delete ${what}? this can't be undone.`)) { btn.focus(); return; }
+    const question = !task ? tr('tasks.delete_confirm_this')
+      : subs ? trp('tasks.delete_confirm_subtasks', subs, { task: task.title }) : tr('tasks.delete_confirm_named', { task: task.title });
+    if (!await dlgConfirm(question)) { btn.focus(); return; }
     const rows = [...list.querySelectorAll('.task-del')];
     const next = rows[rows.indexOf(btn) + 1]?.dataset.id || rows[rows.indexOf(btn) - 1]?.dataset.id;
     await _mutateTask(btn, async () => {
@@ -395,7 +396,7 @@ async function undoCompletion() {
 
 async function _requireOk(responsePromise) {
   const response = await responsePromise;
-  if (!response.ok) throw new Error(`request failed (${response.status})`);
+  if (!response.ok) throw new Error(tr('tasks.request_failed_status', { status: response.status }));
   return response;
 }
 
@@ -473,7 +474,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
     <label class="sr-only" for="te-notes">${esc(tr('tasks.notes'))}</label><textarea class="settings-input te-notes" id="te-notes" placeholder="${esc(tr('tasks.notes'))}">${esc(t.notes || '')}</textarea>
     <div class="te-row"><label id="te-prio-label">${esc(tr('tasks.priority.label'))}</label><div class="settings-input custom-select" id="te-prio" aria-labelledby="te-prio-label"></div></div>
     <div class="te-row"><label id="te-rep-label">${esc(tr('tasks.repeat.label'))}</label><div class="settings-input custom-select" id="te-rep" aria-labelledby="te-rep-label"></div></div>
-    <div class="te-row"><label for="te-due">${esc(tr('tasks.due'))}</label><input class="settings-input" id="te-due" value="${esc(t.due_date || '')}" placeholder="YYYY-MM-DD"></div>
+    <div class="te-row"><label for="te-due">${esc(tr('tasks.due'))}</label><input class="settings-input" id="te-due" value="${esc(t.due_date || '')}" placeholder="${esc(tr('tasks.date_placeholder'))}"></div>
     <div class="te-resched">${['today', 'tomorrow', 'next_week', 'weekend'].map(w => `<button class="btn te-rs" data-w="${w}">${esc(tr(`tasks.reschedule.${w}`))}</button>`).join('')}</div>
     <div class="te-row"><label for="te-tags">${esc(tr('tasks.tags'))}</label><input class="settings-input" id="te-tags" value="${esc((t.tags || []).join(', '))}" placeholder="${esc(tr('tasks.tags_placeholder'))}"></div>
     <div class="te-row"><label for="te-proj">${esc(tr('tasks.project'))}</label><input class="settings-input" id="te-proj" value="${esc(t.project || '')}"></div>
@@ -486,9 +487,9 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
         <button type="button" class="btn" data-task-recovery="mine" hidden>${esc(tr('tasks.keep_changes'))}</button>
       </div>
     </div>
-    ${savedTask?.source?.kind === 'mail' ? '<button type="button" class="btn" id="te-source">open original message</button>' : ''}
-    ${savedTask?.source?.kind === 'aide' ? `<details class="capture-source"><summary>${savedTask.source.private ? 'private Aide reply' : 'original Aide reply'}</summary><pre>${esc(savedTask.source.excerpt)}</pre></details>${savedTask.source.private ? '' : '<button type="button" class="btn" id="te-source">open original reply</button>'}` : ''}
-    ${savedTask?.source?.kind === 'capture' ? `<details class="capture-source"><summary>original capture</summary><pre>${esc(savedTask.source.excerpt)}</pre></details>` : ''}
+    ${savedTask?.source?.kind === 'mail' ? `<button type="button" class="btn" id="te-source">${esc(tr('calendar.open_original_message'))}</button>` : ''}
+    ${savedTask?.source?.kind === 'aide' ? `<details class="capture-source"><summary>${esc(savedTask.source.private ? tr('tasks.private_aide_reply') : tr('tasks.original_aide_reply'))}</summary><pre>${esc(savedTask.source.excerpt)}</pre></details>${savedTask.source.private ? '' : `<button type="button" class="btn" id="te-source">${esc(tr('tasks.open_original_reply'))}</button>`}` : ''}
+    ${savedTask?.source?.kind === 'capture' ? `<details class="capture-source"><summary>${esc(tr('calendar.original_capture'))}</summary><pre>${esc(savedTask.source.excerpt)}</pre></details>` : ''}
     <div class="te-actions"><button type="button" class="btn" id="te-cancel">${esc(tr('common.cancel'))}</button><button type="button" class="btn primary" id="te-save">${esc(tr('common.save'))}</button></div>
   </div>`;
   document.body.appendChild(ov);
@@ -583,7 +584,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
     if (!(await close({ restoreFocus: false }))) return;
     if (savedTask.source.kind === 'mail') await window._openRecord?.('mail', `task-${id}`);
     else if (!(await window._openSearchResult?.('chat', savedTask.source.session_id, savedTask.source.message_id))) {
-      toast('could not open the original reply', 'error');
+      toast(tr('tasks.open_reply_failed'), 'error');
     }
   });
   ov.querySelectorAll('.te-rs').forEach(b => b.addEventListener('click', () => {
@@ -624,7 +625,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
     const changes = taskChanges(base, values);
     if (!Object.keys(changes).length) { await close({ discard: true }); return; }
     if (values.due_date && !_isDay(values.due_date)) {
-      showRecovery('use a due date like 2026-10-20');
+      showRecovery(tr('tasks.due_date_example'));
       ov.querySelector('#te-due').focus();
       return;
     }
@@ -706,12 +707,12 @@ export async function addTask(title) {
       body: JSON.stringify({ text: title, today: _todayISO() }),
     });
   } catch {
-    toast("can't reach alles right now. the task is still in the box", 'error');
+    toast(tr('tasks.unreachable'), 'error');
     return false;
   }
   if (!r.ok) {
     const detail = (await r.json().catch(() => ({})))?.detail;
-    toast(typeof detail === 'string' ? detail : 'the task was not added. it is still in the box, try again', 'error');
+    toast(typeof detail === 'string' ? detail : tr('tasks.not_added'), 'error');
     return false;
   }
   if (_tab === 'done') {   // jump back to a visible list so the new task shows

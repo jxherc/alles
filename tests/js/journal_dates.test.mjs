@@ -76,11 +76,11 @@ test('failed or overlapping autosaves keep the entry dirty for navigation retry'
 
 test('journal hydration failures stay visible and immediately retryable', () => {
   assert.match(source, /catch \(error\) \{\s*_lastHydratedAt = 0/);
-  assert.match(source, /journal could not refresh\. try again\./);
+  assert.match(source, /t\('journal\.refresh_failed'\)/);
 });
 
 test('the year strip is a picture: no cell takes a click or a tab stop, the months are the way in', async () => {
-  const { formatCalendarDate } = await import('../../static/js/i18n.js');
+  const { formatCalendarDate, t, tp } = await import('../../static/js/i18n.js');
   const vm = await import('node:vm');
   const body = source.match(/function stopAt\([\s\S]*?\n}\n/)?.[0] + source.match(/async function loadHeatmap\(\) \{[\s\S]*?\n}\n/)?.[0];
   assert.ok(!body.includes('undefined'));
@@ -92,7 +92,7 @@ test('the year strip is a picture: no cell takes a click or a tab stop, the mont
     contains: () => false, querySelectorAll: () => [], querySelector: () => null,
   });
   const context = vm.createContext({
-    document: { getElementById: node, activeElement: null }, esc: s => String(s), formatCalendarDate,
+    document: { getElementById: node, activeElement: null }, esc: s => String(s), formatCalendarDate, t, tp,
     jget: async () => ({ year: 2026, days: { '2026-03-02': { level: 2, words: 120, mood: '' }, '2026-03-09': { level: 1, words: 20, mood: '' }, '2026-10-12': { level: 1, words: 30, mood: '' } } }),
     todayISO: () => '2026-10-23', _day: '2026-10-12', _heatYear: null, navigateDay: day => days.push(day),
   });

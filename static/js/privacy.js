@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 const SENSITIVE_KEY = 'aide-sensitive-blur';
 const TEXT_EMOJI_KEY = 'aide-text-only-emojis';
 const WELCOME_KEY = 'aide-show-welcome';
@@ -107,7 +108,7 @@ function _censorTextNode(textNode) {
     const span = document.createElement('span');
     span.className = 'censored-item';
     span.dataset.type = match.label;
-    span.title = `click to reveal ${match.label}`;
+    span.title = t('shell.click_to_reveal', { label: match.label });
     span.textContent = text.slice(match.start, match.end);
     frag.appendChild(span);
     pos = match.end;

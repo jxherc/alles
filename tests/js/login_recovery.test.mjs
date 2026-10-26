@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
 const source = app.slice(app.indexOf('function _showLoginScreen()'), app.indexOf('\ninit();'));
@@ -21,6 +22,7 @@ function harness(request) {
   };
   let boots = 0;
   const context = vm.createContext({
+    t, tp,
     document: {
       getElementById: element,
       body: { classList: { add() {}, remove() {} } },

@@ -2,9 +2,9 @@
 // unit converter, world clock, timer and stopwatch, coin, dice and random numbers, color picker.
 // Every value is set as text, never as markup. Each tool starts with what the owner asked for
 // and nothing more; "timer" opens a stopped timer, "5 minute timer" starts one.
-import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
-import { formatDate, formatDateParts, formatTime, resolvedTimeZone } from './i18n.js';
-import { wireChoiceGroup } from './kokuen.js?v=2';
+import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=213';
+import { formatDate, formatDateParts, formatTime, resolvedTimeZone, t, tp } from './i18n.js';
+import { wireChoiceGroup } from './kokuen.js?v=4';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 export const make = (tag, className = '', text = '') => {
@@ -131,9 +131,9 @@ export const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis'
 export async function copyText(text, statusNode) {
   try {
     await navigator.clipboard.writeText(text);
-    if (statusNode) statusNode.textContent = 'copied';
+    if (statusNode) statusNode.textContent = t('common.copied');
   } catch {
-    if (statusNode) statusNode.textContent = 'copy is blocked in this browser';
+    if (statusNode) statusNode.textContent = t('andromeda.tool_copy_blocked');
   }
 }
 
@@ -163,12 +163,12 @@ const CALC_KEYS = [
   ['1', '1'], ['2', '2'], ['3', '3'], ['=', 'equals'],
   ['0', '0'], ['.', '.'], ['π', 'pi'], ['⌫', 'back'],
 ];
-const KEY_NAMES = { ac: 'clear', '÷': 'divide', '×': 'times', '−': 'minus', '+': 'plus', '=': 'equals', '⌫': 'delete', '√': 'square root', '^': 'power', '%': 'percent', 'π': 'pi', '(': 'open bracket', ')': 'close bracket', '.': 'point' };
+const KEY_NAMES = () => ({ ac: t('andromeda.key_clear'), '÷': t('andromeda.key_divide'), '×': t('andromeda.key_times'), '−': t('andromeda.key_minus'), '+': t('andromeda.key_plus'), '=': t('andromeda.key_equals'), '⌫': t('andromeda.key_delete'), '√': t('andromeda.key_sqrt'), '^': t('andromeda.key_power'), '%': t('andromeda.key_percent'), 'π': t('andromeda.key_pi'), '(': t('andromeda.key_open_bracket'), ')': t('andromeda.key_close_bracket'), '.': t('andromeda.key_point') });
 
 export function calcTool(data, ctx) {
   const box = make('div', 'andromeda-calc');
   const screen = make('div', 'andromeda-calc-screen');
-  const { wrap, input } = field('expression', { value: data.expression || '', placeholder: '0', inputmode: 'decimal', className: 'andromeda-calc-input' });
+  const { wrap, input } = field(t('andromeda.tool_expression'), { value: data.expression || '', placeholder: '0', inputmode: 'decimal', className: 'andromeda-calc-input' });
   const result = make('p', 'andromeda-calc-result', data.result ? `= ${data.result}` : '');
   result.setAttribute('role', 'status');
   result.setAttribute('aria-live', 'polite');
@@ -182,10 +182,10 @@ export function calcTool(data, ctx) {
     try {
       const answer = await ctx.ask(expression, 'calc');
       if (mine !== seq) return;
-      result.textContent = answer?.result ? `= ${answer.result}` : 'that isn\'t a sum i can work out';
+      result.textContent = answer?.result ? `= ${answer.result}` : t('andromeda.tool_calc_unsolvable');
       result.dataset.state = answer?.result ? 'ok' : 'error';
     } catch {
-      if (mine === seq) { result.textContent = 'could not reach alles to work it out'; result.dataset.state = 'error'; }
+      if (mine === seq) { result.textContent = t('andromeda.tool_calc_unreachable'); result.dataset.state = 'error'; }
     }
   };
   input.addEventListener('keydown', event => {
@@ -194,11 +194,11 @@ export function calcTool(data, ctx) {
   });
   const keys = make('div', 'andromeda-calc-keys');
   keys.setAttribute('role', 'group');
-  keys.setAttribute('aria-label', 'calculator keys');
+  keys.setAttribute('aria-label', t('andromeda.tool_calc_keys'));
   for (const [label, action] of CALC_KEYS) {
     const key = make('button', `andromeda-calc-key${action === 'equals' ? ' is-equals' : ''}`, label);
     key.type = 'button';
-    key.setAttribute('aria-label', KEY_NAMES[label] || label);
+    key.setAttribute('aria-label', KEY_NAMES()[label] || label);
     if (label === '⌫') key.innerHTML = _si('backspace');
     key.addEventListener('click', () => {
       if (action === 'clear') { input.value = ''; result.textContent = ''; }
@@ -210,7 +210,7 @@ export function calcTool(data, ctx) {
     keys.append(key);
   }
   box.append(screen, keys);
-  return [heading('calculator'), box];
+  return [heading(t('andromeda.tool_calculator')), box];
 }
 
 // ── units ──
@@ -229,9 +229,9 @@ const TEMPERATURE_FORMULAS = {
 
 function formulaFor(from, to) {
   if (from.id === to.id) return '';
-  if (from.kind === 'temperature') return `formula: ${TEMPERATURE_FORMULAS[`${from.id}-${to.id}`]}`;
+  if (from.kind === 'temperature') return t('andromeda.tool_formula', { formula: TEMPERATURE_FORMULAS[`${from.id}-${to.id}`] });
   const ratio = from.factor / to.factor;
-  return ratio >= 1 ? `formula: multiply the ${from.label} by ${plain(ratio, 7)}` : `formula: divide the ${from.label} by ${plain(1 / ratio, 7)}`;
+  return ratio >= 1 ? t('andromeda.tool_formula_multiply', { unit: from.label, value: plain(ratio, 7) }) : t('andromeda.tool_formula_divide', { unit: from.label, value: plain(1 / ratio, 7) });
 }
 
 export function unitsTool(data) {
@@ -240,7 +240,7 @@ export function unitsTool(data) {
   let from = all.find(unit => unit.id === data.from_id);
   let to = all.find(unit => unit.id === data.to_id);
   const box = make('div', 'andromeda-convert');
-  const kindPicker = picker('what to convert', (data.kinds || []).map(value => ({ value, label: value })), kind, value => {
+  const kindPicker = picker(t('andromeda.tool_what_convert'), (data.kinds || []).map(value => ({ value, label: value })), kind, value => {
     kind = value;
     const options = all.filter(unit => unit.kind === kind);
     from = options[0];
@@ -256,9 +256,9 @@ export function unitsTool(data) {
   const formula = note('');
   function side(which) {
     const row = make('div', 'andromeda-convert-side');
-    const { wrap, input } = field(`amount in ${which} unit`, { inputmode: 'decimal' });
+    const { wrap, input } = field(which === 'from' ? t('andromeda.tool_amount_from') : t('andromeda.tool_amount_to'), { inputmode: 'decimal' });
     const unit = make('div', 'custom-select andromeda-tool-picker');
-    unit.setAttribute('aria-label', `${which} unit`);
+    unit.setAttribute('aria-label', which === 'from' ? t('andromeda.tool_from_unit') : t('andromeda.tool_to_unit'));
     row.append(wrap, unit);
     return { row, input, unit };
   }
@@ -284,7 +284,7 @@ export function unitsTool(data) {
   left.unit.addEventListener('change', () => { from = all.find(unit => unit.id === left.unit.value); update('left'); });
   right.unit.addEventListener('change', () => { to = all.find(unit => unit.id === right.unit.value); update('left'); });
   box.append(left.row, equals, right.row);
-  return [heading('unit converter'), kindPicker, box, formula];
+  return [heading(t('andromeda.tool_unit_converter')), kindPicker, box, formula];
 }
 
 // ── clocks ──
@@ -314,7 +314,7 @@ function offsetHours(zone) {
   return Math.round((wallClock(now, zone) - wallClock(now)) / 900000) / 4;
 }
 
-const relative = hours => (hours === 0 ? 'same time as you' : `${Math.abs(hours)} h ${hours > 0 ? 'ahead of' : 'behind'} you`);
+const relative = hours => (hours === 0 ? t('andromeda.tool_same_time') : hours > 0 ? t('andromeda.tool_hours_ahead', { hours: Math.abs(hours) }) : t('andromeda.tool_hours_behind', { hours: Math.abs(hours) }));
 
 const CLOCK_KEY = 'andromeda-clock-cities';
 const savedCities = () => { try { return JSON.parse(localStorage.getItem(CLOCK_KEY) || '[]').filter(row => row?.zone); } catch { return []; } };
@@ -327,7 +327,7 @@ export function clockTool(_data, ctx) {
   const status = statusLine();
   const draw = () => {
     list.replaceChildren();
-    const rows = [{ name: 'here', zone: here, fixed: true }, ...cities];
+    const rows = [{ name: t('andromeda.tool_here'), zone: here, fixed: true }, ...cities];
     rows.forEach((row, index) => {
       const item = make('li', 'andromeda-clock-row');
       const name = make('span', 'andromeda-clock-name', row.name);
@@ -337,42 +337,42 @@ export function clockTool(_data, ctx) {
       const label = make('span', 'andromeda-clock-label');
       label.append(name, meta);
       item.append(label, time);
-      if (!row.fixed) item.append(button('remove', { className: 'andromeda-clock-remove', onClick: () => {
+      if (!row.fixed) item.append(button(t('common.remove'), { className: 'andromeda-clock-remove', onClick: () => {
         cities = cities.filter((_city, at) => at !== index - 1);
         saveCities(cities);
         draw();
-        status.textContent = `removed ${row.name}`;
+        status.textContent = t('andromeda.tool_removed', { name: row.name });
         add.input.focus();
       } }));
       list.append(item);
     });
   };
-  const add = lookup('add a city', 'add', name => {
+  const add = lookup(t('andromeda.tool_add_city'), t('common.add'), name => {
     const zone = zoneFor(name);
-    if (!zone) { status.textContent = `no time zone found for "${name}"; try a bigger city nearby`; return; }
+    if (!zone) { status.textContent = t('andromeda.tool_no_zone', { name }); return; }
     if (!cities.some(row => row.zone === zone && row.name === name.toLowerCase())) cities.push({ name: name.toLowerCase(), zone });
     saveCities(cities);
     add.input.value = '';
     status.textContent = '';
     draw();
-  }, { placeholder: 'add a city, like tokyo' });
+  }, { placeholder: t('andromeda.tool_add_city_ph') });
   draw();
   const tick = setInterval(() => list.querySelectorAll('.andromeda-clock-time').forEach(node => { node.textContent = timeIn(node.dataset.zone); }), 1000);
   ctx.onStop(() => clearInterval(tick));
-  return [heading('world clock'), list, add.form, status];
+  return [heading(t('andromeda.tool_world_clock')), list, add.form, status];
 }
 
 export function timeTool(data, ctx) {
   const big = make('p', 'andromeda-answer-value', timeIn(data.zone));
-  const parts = [heading(`time in ${data.place}`), big];
+  const parts = [heading(t('andromeda.tool_time_in', { place: data.place })), big];
   const day = note(`${dayIn(data.zone)} · ${data.zone.replace(/_/g, ' ')} (UTC${data.offset.slice(0, 3)}:${data.offset.slice(3)}) · ${relative(offsetHours(data.zone))}`);
   parts.push(day);
   let other = null;
   if (data.other_zone) {
     other = make('p', 'andromeda-answer-detail');
     const hours = data.difference_hours;
-    const describe = hours === 0 ? `${data.other_place} has the same time as ${data.place}` : `${data.other_place} is ${Math.abs(hours)} hours ${hours > 0 ? 'ahead of' : 'behind'} ${data.place}`;
-    other.textContent = `${describe} · ${timeIn(data.other_zone)} there now`;
+    const describe = hours === 0 ? t('andromeda.tool_other_same', { other: data.other_place, place: data.place }) : hours > 0 ? t('andromeda.tool_other_ahead', { other: data.other_place, hours: Math.abs(hours), place: data.place }) : t('andromeda.tool_other_behind', { other: data.other_place, hours: Math.abs(hours), place: data.place });
+    other.textContent = t('andromeda.tool_other_there_now', { describe, time: timeIn(data.other_zone) });
     parts.push(other);
   }
   const tick = setInterval(() => { big.textContent = timeIn(data.zone); }, 1000);
@@ -434,7 +434,7 @@ export function timerTool(data, ctx) {
   let mode = data.mode === 'stopwatch' ? 'stopwatch' : 'timer';
   let stopTick = () => {};
   const body = make('div', 'andromeda-timer-body');
-  const switcher = choices('timer or stopwatch', [{ value: 'timer', label: 'timer' }, { value: 'stopwatch', label: 'stopwatch' }], mode, value => {
+  const switcher = choices(t('andromeda.tool_timer_or_stopwatch'), [{ value: 'timer', label: t('andromeda.tool_timer') }, { value: 'stopwatch', label: t('andromeda.tool_stopwatch') }], mode, value => {
     mode = value;
     draw(false);
   });
@@ -447,14 +447,14 @@ export function timerTool(data, ctx) {
     let left = length;
     let endsAt = 0;
     let tick = 0;
-    const display = field('timer length, like 5:00 or 90s', { value: clockText(left), inputmode: 'numeric', className: 'andromeda-timer-display' });
+    const display = field(t('andromeda.tool_timer_length'), { value: clockText(left), inputmode: 'numeric', className: 'andromeda-timer-display' });
     const status = statusLine();
-    const start = button('start', { primary: true });
-    const reset = button('reset');
-    const more = button('+1 min');
+    const start = button(t('andromeda.tool_start'), { primary: true });
+    const reset = button(t('andromeda.tool_reset'));
+    const more = button(t('andromeda.tool_plus_minute'));
     const render = () => {
       display.input.value = clockText(endsAt ? endsAt - Date.now() : left);
-      start.textContent = endsAt ? 'pause' : left < length && left > 0 ? 'resume' : 'start';
+      start.textContent = endsAt ? t('common.pause') : left < length && left > 0 ? t('common.resume') : t('andromeda.tool_start');
       display.input.readOnly = Boolean(endsAt);
     };
     const finish = () => {
@@ -462,17 +462,17 @@ export function timerTool(data, ctx) {
       endsAt = 0;
       left = 0;
       render();
-      status.textContent = 'time\'s up';
+      status.textContent = t('andromeda.tool_times_up');
       host.dataset.state = 'done';
       beep();
     };
     const run = () => {
-      if (endsAt) { left = endsAt - Date.now(); endsAt = 0; clearInterval(tick); status.textContent = 'paused'; render(); return; }
+      if (endsAt) { left = endsAt - Date.now(); endsAt = 0; clearInterval(tick); status.textContent = t('andromeda.tool_paused'); render(); return; }
       if (left <= 0 || !display.input.readOnly) {
         const typed = parseDuration(display.input.value);
         if (left <= 0 || (typed && typed !== left)) { length = typed || length; left = length; }
       }
-      if (left <= 0) { status.textContent = 'set a length first, like 5:00'; display.input.focus(); return; }
+      if (left <= 0) { status.textContent = t('andromeda.tool_set_length'); display.input.focus(); return; }
       host.dataset.state = 'running';
       status.textContent = '';
       endsAt = Date.now() + left;
@@ -489,7 +489,7 @@ export function timerTool(data, ctx) {
     display.input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); run(); } });
     display.input.addEventListener('change', () => {
       const typed = parseDuration(display.input.value);
-      if (typed) { length = typed; left = typed; status.textContent = ''; } else status.textContent = 'write a length like 5:00, 90s or 1h 30m';
+      if (typed) { length = typed; left = typed; status.textContent = ''; } else status.textContent = t('andromeda.tool_write_length');
       render();
     });
     stopTick = () => clearInterval(tick);
@@ -506,13 +506,13 @@ export function timerTool(data, ctx) {
     const laps = make('ol', 'andromeda-laps');
     const display = make('p', 'andromeda-timer-readout', clockText(0, true));
     display.setAttribute('aria-live', 'off');
-    const start = button('start', { primary: true });
-    const lap = button('lap');
-    const reset = button('reset');
+    const start = button(t('andromeda.tool_start'), { primary: true });
+    const lap = button(t('andromeda.tool_lap'));
+    const reset = button(t('andromeda.tool_reset'));
     const elapsed = () => held + (since ? Date.now() - since : 0);
     const render = () => {
       display.textContent = clockText(elapsed(), true);
-      start.textContent = since ? 'pause' : held ? 'resume' : 'start';
+      start.textContent = since ? t('common.pause') : held ? t('common.resume') : t('andromeda.tool_start');
       lap.disabled = !since;
     };
     start.addEventListener('click', () => {
@@ -545,13 +545,13 @@ export function randomTool(data) {
     face.setAttribute('role', 'status');
     face.setAttribute('aria-live', 'polite');
     let flips = 0;
-    const flip = () => { flips += 1; face.textContent = randomInt(0, 1) ? 'heads' : 'tails'; count.textContent = flips > 1 ? `flip ${flips}` : ''; };
+    const flip = () => { flips += 1; face.textContent = randomInt(0, 1) ? t('andromeda.tool_heads') : t('andromeda.tool_tails'); count.textContent = flips > 1 ? t('andromeda.tool_flip_n', { count: flips }) : ''; };
     const count = note('');
-    const again = button('flip again', { primary: true, onClick: flip });
+    const again = button(t('andromeda.tool_flip_again'), { primary: true, onClick: flip });
     const actions = make('div', 'andromeda-tool-actions');
     actions.append(again);
     flip();
-    return [heading('coin flip'), face, actions, count];
+    return [heading(t('andromeda.tool_coin_flip')), face, actions, count];
   }
   if (data.mode === 'dice') {
     let count = data.count || 1;
@@ -563,38 +563,38 @@ export function randomTool(data) {
     const roll = () => {
       const values = Array.from({ length: count }, () => randomInt(1, sides));
       faces.textContent = values.join('  ');
-      faces.setAttribute('aria-label', `rolled ${values.join(', ')}`);
-      total.textContent = count > 1 ? `total ${values.reduce((sum, value) => sum + value, 0)}` : `one d${sides}`;
+      faces.setAttribute('aria-label', t('andromeda.tool_rolled', { values: values.join(', ') }));
+      total.textContent = count > 1 ? t('andromeda.tool_total', { total: values.reduce((sum, value) => sum + value, 0) }) : t('andromeda.tool_one_die', { sides });
     };
     const countLine = make('div', 'andromeda-tool-stepper');
     countLine.setAttribute('role', 'group');
-    countLine.setAttribute('aria-label', 'how many dice');
-    const countText = make('span', 'andromeda-tool-stepper-value', `${count} ${count === 1 ? 'die' : 'dice'}`);
+    countLine.setAttribute('aria-label', t('andromeda.tool_how_many_dice'));
+    const countText = make('span', 'andromeda-tool-stepper-value', tp('andromeda.tool_dice_count', count));
     countText.setAttribute('aria-live', 'polite');
     const less = make('button', '', '−');
     less.type = 'button';
-    less.setAttribute('aria-label', 'one die fewer');
+    less.setAttribute('aria-label', t('andromeda.tool_die_fewer'));
     less.addEventListener('click', () => { count = Math.max(1, count - 1); sync(); });
     const moreDice = make('button', '', '+');
     moreDice.type = 'button';
-    moreDice.setAttribute('aria-label', 'one die more');
+    moreDice.setAttribute('aria-label', t('andromeda.tool_die_more'));
     moreDice.addEventListener('click', () => { count = Math.min(10, count + 1); sync(); });
-    const sync = () => { countText.textContent = `${count} ${count === 1 ? 'die' : 'dice'}`; less.disabled = count <= 1; moreDice.disabled = count >= 10; };
+    const sync = () => { countText.textContent = tp('andromeda.tool_dice_count', count); less.disabled = count <= 1; moreDice.disabled = count >= 10; };
     countLine.append(less, countText, moreDice);
-    const sideChoices = choices('sides on each die', [4, 6, 8, 10, 12, 20].map(value => ({ value, label: `d${value}` })), sides, value => { sides = Number(value); });
+    const sideChoices = choices(t('andromeda.tool_sides'), [4, 6, 8, 10, 12, 20].map(value => ({ value, label: `d${value}` })), sides, value => { sides = Number(value); });
     const actions = make('div', 'andromeda-tool-actions');
-    actions.append(button('roll', { primary: true, onClick: roll }));
+    actions.append(button(t('andromeda.tool_roll'), { primary: true, onClick: roll }));
     sync();
     if (data.roll) roll();
-    else { faces.textContent = '–'; faces.setAttribute('aria-label', 'not rolled yet'); total.textContent = 'pick the dice, then roll'; }
+    else { faces.textContent = '–'; faces.setAttribute('aria-label', t('andromeda.tool_not_rolled')); total.textContent = t('andromeda.tool_pick_dice'); }
     const setup = make('div', 'andromeda-tool-row');
     setup.append(sideChoices, countLine);
-    return [heading('dice'), faces, total, setup, actions];
+    return [heading(t('andromeda.tool_dice')), faces, total, setup, actions];
   }
-  const low = field('lowest number', { value: String(data.min ?? 1), inputmode: 'numeric', className: 'is-short' });
-  const high = field('highest number', { value: String(data.max ?? 10), inputmode: 'numeric', className: 'is-short' });
+  const low = field(t('andromeda.tool_lowest'), { value: String(data.min ?? 1), inputmode: 'numeric', className: 'is-short' });
+  const high = field(t('andromeda.tool_highest'), { value: String(data.max ?? 10), inputmode: 'numeric', className: 'is-short' });
   const range = make('div', 'andromeda-tool-row');
-  range.append(make('span', 'andromeda-tool-count', 'from'), low.wrap, make('span', 'andromeda-tool-count', 'to'), high.wrap);
+  range.append(make('span', 'andromeda-tool-count', t('andromeda.tool_from')), low.wrap, make('span', 'andromeda-tool-count', t('andromeda.tool_to')), high.wrap);
   const result = make('p', 'andromeda-answer-value');
   result.setAttribute('role', 'status');
   result.setAttribute('aria-live', 'polite');
@@ -602,16 +602,16 @@ export function randomTool(data) {
   const generate = () => {
     let a = Number(low.input.value);
     let b = Number(high.input.value);
-    if (!Number.isInteger(a) || !Number.isInteger(b)) { status.textContent = 'use whole numbers for both ends'; return; }
+    if (!Number.isInteger(a) || !Number.isInteger(b)) { status.textContent = t('andromeda.tool_whole_numbers'); return; }
     if (a > b) [a, b] = [b, a];
     status.textContent = '';
     result.textContent = String(randomInt(a, b));
   };
   for (const input of [low.input, high.input]) input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); generate(); } });
   const actions = make('div', 'andromeda-tool-actions');
-  actions.append(button('generate', { primary: true, onClick: generate }));
+  actions.append(button(t('andromeda.tool_generate'), { primary: true, onClick: generate }));
   if (data.roll) generate(); else result.textContent = '–';
-  return [heading('random number'), result, range, actions, status];
+  return [heading(t('andromeda.tool_random_number')), result, range, actions, status];
 }
 
 // ── color ──
@@ -705,15 +705,15 @@ export function colorTool(data) {
   let hsl = rgbToHsl(rgb);
   const swatch = make('div', 'andromeda-swatch');
   swatch.setAttribute('role', 'img');
-  const hexField = field('hex color', { className: 'andromeda-color-hex' });
+  const hexField = field(t('andromeda.tool_hex_color'), { className: 'andromeda-color-hex' });
   const status = statusLine();
   const values = make('dl', 'andromeda-color-values');
-  const hue = slider('hue', 360, hsl[0], value => { hsl = [value, hsl[1], hsl[2]]; rgb = hslToRgb(hsl); draw('hue'); });
-  const sat = slider('saturation', 100, hsl[1], value => { hsl = [hsl[0], value, hsl[2]]; rgb = hslToRgb(hsl); draw('sat'); });
-  const light = slider('lightness', 100, hsl[2], value => { hsl = [hsl[0], hsl[1], value]; rgb = hslToRgb(hsl); draw('light'); });
+  const hue = slider(t('andromeda.tool_hue'), 360, hsl[0], value => { hsl = [value, hsl[1], hsl[2]]; rgb = hslToRgb(hsl); draw('hue'); });
+  const sat = slider(t('andromeda.tool_saturation'), 100, hsl[1], value => { hsl = [hsl[0], value, hsl[2]]; rgb = hslToRgb(hsl); draw('sat'); });
+  const light = slider(t('andromeda.tool_lightness'), 100, hsl[2], value => { hsl = [hsl[0], hsl[1], value]; rgb = hslToRgb(hsl); draw('light'); });
   hue.rail.classList.add('is-hue');
   const sliders = make('div', 'andromeda-color-sliders');
-  for (const [name, part] of [['hue', hue], ['saturation', sat], ['lightness', light]]) {
+  for (const [name, part] of [[t('andromeda.tool_hue'), hue], [t('andromeda.tool_saturation'), sat], [t('andromeda.tool_lightness'), light]]) {
     const row = make('div', 'andromeda-color-slider');
     row.append(make('span', 'andromeda-tool-count', name), part.track);
     sliders.append(row);
@@ -721,7 +721,7 @@ export function colorTool(data) {
   const draw = from => {
     const hex = rgbToHex(rgb);
     swatch.style.background = hex;
-    swatch.setAttribute('aria-label', `color ${hex}`);
+    swatch.setAttribute('aria-label', t('andromeda.tool_color_hex', { hex }));
     if (from !== 'hex') hexField.input.value = hex;
     if (from !== 'hue') hue.set(hsl[0], false);
     if (from !== 'sat') sat.set(hsl[1], false);
@@ -735,13 +735,14 @@ export function colorTool(data) {
       ['hex', hex],
       ['rgb', `rgb(${rgb.join(', ')})`],
       ['hsl', `hsl(${hsl[0]}, ${hsl[1]}%, ${hsl[2]}%)`],
-      ['text on it', `${white >= black ? 'white' : 'black'} reads best (${Math.max(white, black).toFixed(1)}:1)`],
+      ['text', t(white >= black ? 'andromeda.tool_white_reads' : 'andromeda.tool_black_reads', { ratio: Math.max(white, black).toFixed(1) })],
     ]) {
-      const copy = term === 'text on it' ? null : button('copy', { className: 'andromeda-color-copy', onClick: () => copyText(value, status) });
-      if (copy) copy.setAttribute('aria-label', `copy ${term} ${value}`);
+      const termLabel = term === 'text' ? t('andromeda.tool_text_on_it') : term;
+      const copy = term === 'text' ? null : button(t('common.copy'), { className: 'andromeda-color-copy', onClick: () => copyText(value, status) });
+      if (copy) copy.setAttribute('aria-label', t('andromeda.tool_copy_value', { term: termLabel, value }));
       const dd = make('dd', '', value);
       if (copy) dd.append(copy);
-      values.append(make('dt', '', term), dd);
+      values.append(make('dt', '', termLabel), dd);
     }
   };
   hexField.input.addEventListener('input', () => {
@@ -753,12 +754,12 @@ export function colorTool(data) {
     draw('hex');
   });
   hexField.input.addEventListener('change', () => {
-    if (!hexToRgb(hexField.input.value)) { status.textContent = 'write a hex color like #3a7bd5'; hexField.input.value = rgbToHex(rgb); }
+    if (!hexToRgb(hexField.input.value)) { status.textContent = t('andromeda.tool_write_hex'); hexField.input.value = rgbToHex(rgb); }
   });
   draw();
   const top = make('div', 'andromeda-color-top');
   const side = make('div', 'andromeda-color-side');
   side.append(hexField.wrap, sliders);
   top.append(swatch, side);
-  return [heading('color picker'), top, values, status];
+  return [heading(t('andromeda.tool_color_picker')), top, values, status];
 }

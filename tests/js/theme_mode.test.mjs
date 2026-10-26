@@ -15,7 +15,7 @@ function harness(saved) {
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     document: { documentElement: { style: { setProperty: (key, value) => style.set(key, value) }, dataset: {}, classList: classes }, body: { classList: classes }, querySelector: () => null, querySelectorAll: () => [] },
     window: {}, setTimeout: () => 1, clearTimeout() {},
-    _lum: lum, _mix: mix, _mutedFor: mutedFor, generateHarmony,
+    _lum: lum, _mix: mix, _mutedFor: mutedFor, generateHarmony, t: key => key, tp: key => key,
   });
   vm.runInContext(source + '\napplyBgPattern = () => {}; globalThis.subject = { resetToDefault, setAccent, getAppearance, PRESETS };', context);
   return { ...context.subject, storage, style };

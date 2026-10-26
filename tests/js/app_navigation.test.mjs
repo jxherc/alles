@@ -206,7 +206,7 @@ test('back onto aide chat re-selects the conversation the hash names', () => {
 const sessionsSource = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8')
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
   .replace(/^export /gm, '')
-  .replace("import('./aidebackground.js?v=245')", 'Promise.resolve({ reattachBackgroundWork() {} })');
+  .replace("import('./aidebackground.js?v=246')", 'Promise.resolve({ reattachBackgroundWork() {} })');
 
 function aideHistory({ primary = 'P', sessions = ['P', 'A', 'B'], start = 'http://aide.localhost/#P', active = 'P' } = {}) {
   const location = new URL(start);

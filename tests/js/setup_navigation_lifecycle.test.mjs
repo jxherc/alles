@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/setupwizard.js', import.meta.url), 'utf8')
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
@@ -9,6 +10,7 @@ const source = readFileSync(new URL('../../static/js/setupwizard.js', import.met
 const choicesSource = readFileSync(new URL('../../static/js/kokuen.js', import.meta.url), 'utf8')
   .match(/^export function wireChoiceGroup\([^]*?^}/m)[0].replace(/^export /, '');
 const providersSource = readFileSync(new URL('../../static/js/model_providers.js', import.meta.url), 'utf8')
+  .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
   .replace(/^export /gm, '');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() {
@@ -100,7 +102,7 @@ function harness(code = source) {
   const $ = id => document.getElementById(id);
   $('setup-wizard').style.display = 'flex';
   const requests = [], notices = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ t: i18nT, tp: i18nTp,
     document, HTMLElement: Element, navigator: { language: 'en-US' }, Intl,
     resolvedTimeZone: () => 'UTC', visible: node => node.isConnected,
     setControlState() {}, toast: (...args) => notices.push(args),

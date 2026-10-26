@@ -3,10 +3,11 @@
 // list + reader views; mirrors the watch/habits panel conventions.
 import { toast, _safeUrl } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
-import { wireChoiceGroup } from './kokuen.js';
+import { wireChoiceGroup } from './kokuen.js?v=4';
 import { readingPlace } from './reading_place.js';
 import { loadReadingNoteRecovery, takeReadingNote } from './reading_note.js';
 import { clearLinkedRecord } from './recordlinks.js';
+import { formatList, t, tp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -62,7 +63,7 @@ async function loadFeeds() {
     if (!Array.isArray(result?.feeds) || result.feeds.some(feed => typeof feed.id !== 'string' || typeof feed.url !== 'string')) throw new Error('invalid feed list');
     if (generation === _feedLoadGeneration) { _feeds = result.feeds; _feedListError = ''; }
   } catch {
-    if (generation === _feedLoadGeneration) _feedListError = 'could not load feeds; showing the last loaded list. retry to check current feeds.';
+    if (generation === _feedLoadGeneration) _feedListError = t('read.feeds_load_failed');
   } finally {
     if (generation === _feedLoadGeneration) _feedListLoading = false;
   }
@@ -72,8 +73,8 @@ async function _feedRequest(url, options, valid) {
   const response = await _fetcher(url, options);
   const result = await response.json().catch(() => null);
   if (options.method === 'DELETE' && response.status === 404) return { ok: true };
-  if (!response.ok) throw Object.assign(new Error(typeof result?.detail === 'string' ? result.detail : 'could not confirm the feed change; retry'), { status: response.status });
-  if (!valid(result)) throw new Error('could not confirm the feed result; refresh to check again');
+  if (!response.ok) throw Object.assign(new Error(typeof result?.detail === 'string' ? result.detail : t('read.feed_change_unconfirmed')), { status: response.status });
+  if (!valid(result)) throw new Error(t('read.feed_result_unconfirmed'));
   return result;
 }
 
@@ -85,7 +86,7 @@ async function _changeFeeds(work, focusId) {
   try { await work(); }
   catch (error) {
     _feedFailed = true;
-    _feedMessage = error instanceof TypeError ? 'could not connect; check your connection and retry' : error.message;
+    _feedMessage = error instanceof TypeError ? t('read.connect_failed') : error.message;
   } finally {
     _feedBusy = false;
     _render();
@@ -102,7 +103,7 @@ async function _json(fetcher, url) {
 function _readSaveRecovery(scopes) {
   if (!Array.isArray(scopes) || !scopes.length || scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) {
     _saveReady = false;
-    throw new Error('URL save recovery could not load; retry recovery before saving');
+    throw new Error(t('read.save_recovery_failed'));
   }
   if (_saveScopes.length && !scopes.some(scope => _saveScopes.includes(scope))) {
     _pendingSave = null; _savedURL = null; _urlDraft = '';
@@ -124,7 +125,7 @@ function _readSaveRecovery(scopes) {
       break;
     } catch {
       _unreadableSave = scope;
-      throw new Error('could not read URL save recovery; retry recovery or discard the pending save');
+      throw new Error(t('read.save_recovery_unreadable'));
     }
   }
   _saveReady = true; _unreadableSave = ''; _saveRecoveryError = '';
@@ -141,7 +142,7 @@ function _urlRequestId() {
 function _keepUrlSave(pending) {
   const key = SAVE_PREFIX + pending.recovery_scope, raw = JSON.stringify(pending);
   sessionStorage.setItem(key, raw);
-  if (sessionStorage.getItem(key) !== raw) throw new Error('could not keep this URL for retry');
+  if (sessionStorage.getItem(key) !== raw) throw new Error(t('read.save_keep_failed'));
   if (!_pendingSave && _urlDraft.trim() === pending.url) _urlDraft = '';
   _pendingSave = pending;
 }
@@ -149,9 +150,9 @@ function _keepUrlSave(pending) {
 function _confirmUrlSave(result, pending) {
   if (!result || result.request_id !== pending.request_id || typeof result.id !== 'string' || !result.id.trim()
     || typeof result.url !== 'string' || !result.url.trim() || !Number.isInteger(result.read_minutes) || result.read_minutes < 1) {
-    throw new Error('Save was not confirmed. Retry safely or check the saved item.');
+    throw new Error(t('read.save_unconfirmed'));
   }
-  if (!_saveScopes.includes(pending.recovery_scope)) throw new Error('reading storage changed; reopen saved reading');
+  if (!_saveScopes.includes(pending.recovery_scope)) throw new Error(t('read.storage_changed'));
   _savedURL = result;
   const key = SAVE_PREFIX + pending.recovery_scope;
   try {
@@ -160,7 +161,7 @@ function _confirmUrlSave(result, pending) {
       if (sessionStorage.getItem(key) !== null) throw new Error('cleanup failed');
     }
   } catch {
-    _saveError = 'URL saved; its browser recovery copy could not be cleared. retry safely to confirm it again.';
+    _saveError = t('read.save_cleanup_failed');
     return;
   }
   if (_pendingSave?.request_id === pending.request_id) _pendingSave = null;
@@ -171,7 +172,7 @@ function _confirmUrlSave(result, pending) {
 async function _discardUrlSave() {
   const pending = _pendingSave, scope = pending?.recovery_scope || _unreadableSave;
   const navigation = _openGeneration;
-  if (_saving || !scope || !await dlgConfirm('discard this pending URL save? it may already be saved; check saved items before saving it again.')) return;
+  if (_saving || !scope || !await dlgConfirm(t('read.discard_pending_confirm'))) return;
   try {
     const key = SAVE_PREFIX + scope;
     if (pending && sessionStorage.getItem(key) !== JSON.stringify(pending)) throw new Error('recovery changed');
@@ -179,7 +180,7 @@ async function _discardUrlSave() {
     if (sessionStorage.getItem(key) !== null) throw new Error('cleanup failed');
     _pendingSave = null; _unreadableSave = ''; _saveError = ''; _saveRecoveryError = '';
     _readSaveRecovery(_saveScopes);
-  } catch { _saveRecoveryError = 'could not discard browser recovery; allow browser storage and retry'; }
+  } catch { _saveRecoveryError = t('read.discard_recovery_failed'); }
   _render();
   if (navigation === _openGeneration && $('read-body')?.getClientRects().length) {
     (_pendingSave ? $('read-save-check') : $('read-url'))?.focus();
@@ -189,16 +190,16 @@ async function _discardUrlSave() {
 function _loadFailure(failures, successes) {
   const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
   if (successes.length) {
-    const unavailable = failures.map(([name]) => name).join(' and ');
+    const unavailable = formatList(failures.map(([name]) => name));
     return {
       state: 'partial',
-      message: `partial reading data: ${unavailable} unavailable.`,
+      message: t('read.load_partial', { parts: unavailable }),
     };
   }
-  const retained = _hasItems || _hasStats ? ' Showing the last loaded reading data.' : '';
+  const retained = _hasItems || _hasStats;
   return {
     state: offline ? 'offline' : 'error',
-    message: `${offline ? 'You appear to be offline.' : 'Reading data could not be loaded.'}${retained}`,
+    message: t(offline ? (retained ? 'read.load_offline_kept' : 'read.load_offline') : (retained ? 'read.load_failed_kept' : 'read.load_failed')),
   };
 }
 
@@ -206,7 +207,7 @@ function _loadNotice() {
   if (_loadState.state === 'resting') return '';
   const loading = _loadState.state === 'loading';
   return `<div class="specialist-group-note legacy-load-note" role="${loading ? 'status' : 'alert'}" aria-live="${loading ? 'polite' : 'assertive'}" data-kokuen-state="${_loadState.state}">
-    <span>${esc(_loadState.message)}</span>${loading ? '' : '<button type="button" class="btn" data-act="retry-load">retry</button>'}
+    <span>${esc(_loadState.message)}</span>${loading ? '' : `<button type="button" class="btn" data-act="retry-load">${t('common.retry')}</button>`}
   </div>`;
 }
 
@@ -214,16 +215,16 @@ function _feedsPanel() {
   const disabled = _feedBusy || _feedListLoading ? 'disabled' : '';
   return `<div class="read-feeds" aria-busy="${_feedBusy || _feedListLoading}">
     <div class="read-feeds-add">
-      <input type="text" id="feed-url" class="settings-input" aria-label="RSS or Atom feed URL" placeholder="rss / atom feed url…" spellcheck="false" value="${esc(_feedDraft)}" ${disabled}>
-      <button class="btn" id="feed-add" ${disabled}>add feed</button>
-      <button class="btn" id="feed-refresh" title="poll all feeds now" ${disabled}>${_feedBusy ? 'working…' : 'refresh'}</button>
+      <input type="text" id="feed-url" class="settings-input" aria-label="${esc(t('read.feed_url_label'))}" placeholder="${esc(t('read.feed_url_placeholder'))}" spellcheck="false" value="${esc(_feedDraft)}" ${disabled}>
+      <button class="btn" id="feed-add" ${disabled}>${t('read.add_feed')}</button>
+      <button class="btn" id="feed-refresh" title="${esc(t('read.refresh_feeds_title'))}" ${disabled}>${_feedBusy ? t('read.working') : t('read.refresh')}</button>
     </div>
-    ${_feedListLoading ? '<p class="read-feed-notice" role="status">loading feeds…</p>' : ''}
-    ${_feedListError ? `<div class="read-feed-notice" role="alert"><span>${esc(_feedListError)}</span><button class="btn" id="feed-retry" ${disabled}>retry feed list</button></div>` : ''}
+    ${_feedListLoading ? `<p class="read-feed-notice" role="status">${t('read.feeds_loading')}</p>` : ''}
+    ${_feedListError ? `<div class="read-feed-notice" role="alert"><span>${esc(_feedListError)}</span><button class="btn" id="feed-retry" ${disabled}>${t('read.retry_feed_list')}</button></div>` : ''}
     ${_feedMessage ? `<p class="read-feed-notice" role="${_feedFailed ? 'alert' : 'status'}">${esc(_feedMessage)}</p>` : ''}
     ${_feeds.length ? `<div class="read-feeds-list">${_feeds.map(f => `
-      <div class="read-feed-row"><div class="read-feed-info"><span class="read-feed-title">${esc(f.title || f.url)}</span>${f.title ? `<span class="read-feed-url">${esc(f.url)}</span>` : ''}${_feedErrors.has(f.id) ? `<span class="read-feed-error">${esc(_feedErrors.get(f.id))}</span>` : ''}</div><button class="icon-btn danger" data-feed-del="${f.id}" title="remove feed" aria-label="remove feed ${esc(f.title || f.url)}" ${disabled}>${_si('trash')}</button></div>`).join('')}</div>`
-      : (!_feedListError && !_feedListLoading ? '<div class="read-feeds-empty">no feeds yet: add an rss/atom url and new posts auto-save into your list.</div>' : '')}
+      <div class="read-feed-row"><div class="read-feed-info"><span class="read-feed-title">${esc(f.title || f.url)}</span>${f.title ? `<span class="read-feed-url">${esc(f.url)}</span>` : ''}${_feedErrors.has(f.id) ? `<span class="read-feed-error">${esc(_feedErrors.get(f.id))}</span>` : ''}</div><button class="icon-btn danger" data-feed-del="${f.id}" title="${esc(t('read.remove_feed'))}" aria-label="${esc(t('read.remove_feed_named', { name: f.title || f.url }))}" ${disabled}>${_si('trash')}</button></div>`).join('')}</div>`
+      : (!_feedListError && !_feedListLoading ? `<div class="read-feeds-empty">${t('read.feeds_empty')}</div>` : '')}
   </div>`;
 }
 
@@ -233,7 +234,7 @@ export async function loadRead(fetcher = _fetcher) {
   if (_filter && _filter !== 'all') params.set('filter', _filter);
   if (_q) params.set('q', _q);
   if (_tag) params.set('tag', _tag);
-  _loadState = { state: 'loading', message: 'loading saved reading…' };
+  _loadState = { state: 'loading', message: t('read.loading') };
   _itemsCurrent = false;
   _render();
   const [itemsResult, statsResult] = await Promise.allSettled([
@@ -248,20 +249,21 @@ export async function loadRead(fetcher = _fetcher) {
     _items = itemsResult.value.items || [];
     _hasItems = true;
     _itemsCurrent = true;
-    successes.push('saved items');
-  } else failures.push(['saved items', itemsResult.reason]);
+    successes.push(t('read.part_items'));
+  } else failures.push([t('read.part_items'), itemsResult.reason]);
   if (statsResult.status === 'fulfilled') {
     _stats = statsResult.value;
     _hasStats = true;
-    successes.push('reading statistics');
-  } else failures.push(['reading statistics', statsResult.reason]);
+    successes.push(t('read.part_stats'));
+  } else failures.push([t('read.part_stats'), statsResult.reason]);
   _loadState = failures.length ? _loadFailure(failures, successes) : { state: 'resting', message: '' };
   _render();
 }
 
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-const FILTERS = [['all', 'all'], ['unread', 'unread'], ['fav', 'starred'], ['archived', 'archive']];
+// labels are catalog keys, translated at render
+const FILTERS = [['all', 'common.all'], ['unread', 'read.filter_unread'], ['fav', 'read.filter_starred'], ['archived', 'read.filter_archive']];
 
 function _render() {
   const body = $('read-body');
@@ -280,23 +282,23 @@ function _render() {
     ? (active.id ? `#${active.id}` : `.read-chip[data-filter="${active.dataset.filter}"]`) : null;
   body.innerHTML = `
     <div class="read-add">
-      <input type="text" id="read-url" class="settings-input" aria-label="URL to save for later" aria-describedby="read-save-error" placeholder="paste a URL to save for later…" spellcheck="false" value="${esc(_pendingSave?.url ?? _urlDraft)}" ${_saving || _pendingSave ? 'disabled' : ''}>
-      <button class="btn primary" id="read-save" ${_saving || !_saveReady ? 'disabled' : ''} ${_saving ? 'aria-busy="true"' : ''}>${_saving ? 'saving…' : _pendingSave ? 'retry save' : `${_si('plus')} save`}</button>
+      <input type="text" id="read-url" class="settings-input" aria-label="${esc(t('read.url_label'))}" aria-describedby="read-save-error" placeholder="${esc(t('read.url_placeholder'))}" spellcheck="false" value="${esc(_pendingSave?.url ?? _urlDraft)}" ${_saving || _pendingSave ? 'disabled' : ''}>
+      <button class="btn primary" id="read-save" ${_saving || !_saveReady ? 'disabled' : ''} ${_saving ? 'aria-busy="true"' : ''}>${_saving ? t('common.saving') : _pendingSave ? t('read.retry_save') : `${_si('plus')} ${t('common.save')}`}</button>
     </div>
     <p id="read-save-error" class="read-save-error" role="alert" ${_saveError || _saveRecoveryError ? '' : 'hidden'}>${esc(_saveRecoveryError || _saveError)}</p>
-    ${_saveRecoveryError ? '<button type="button" class="btn" id="read-save-recovery">retry save recovery</button>' : ''}
-    ${_pendingSave || _unreadableSave ? `<div class="read-save-recovery"><p role="status">a URL save still needs confirmation</p><div class="capture-actions">${_pendingSave ? `<button type="button" class="btn" id="read-save-check" ${_saving ? 'disabled' : ''}>check saved item</button>` : ''}<button type="button" class="btn" id="read-save-discard" ${_saving ? 'disabled' : ''}>discard pending save</button></div></div>` : ''}
-    ${_savedURL ? `<div class="read-save-result"><p role="status">saved ${esc(_savedURL.title || _savedURL.url)}</p><button type="button" class="btn" id="read-save-open">open saved item</button></div>` : ''}
+    ${_saveRecoveryError ? `<button type="button" class="btn" id="read-save-recovery">${t('read.retry_save_recovery')}</button>` : ''}
+    ${_pendingSave || _unreadableSave ? `<div class="read-save-recovery"><p role="status">${t('read.save_pending')}</p><div class="capture-actions">${_pendingSave ? `<button type="button" class="btn" id="read-save-check" ${_saving ? 'disabled' : ''}>${t('read.check_saved_item')}</button>` : ''}<button type="button" class="btn" id="read-save-discard" ${_saving ? 'disabled' : ''}>${t('read.discard_pending')}</button></div></div>` : ''}
+    ${_savedURL ? `<div class="read-save-result"><p role="status">${esc(t('read.saved_named', { name: _savedURL.title || _savedURL.url }))}</p><button type="button" class="btn" id="read-save-open">${t('read.open_saved_item')}</button></div>` : ''}
     <div class="read-toolbar">
-      <div class="read-filters"><span class="read-filter-choices" role="radiogroup" aria-label="saved reading filter">${FILTERS.map(([k, l]) => `<button type="button" role="radio" aria-checked="${_filter === k}" class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${l}</button>`).join('')}</span><button type="button" class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" aria-pressed="${_showFeeds}" title="rss feeds">feeds</button></div>
-      <div class="read-search"><input type="text" id="read-q" aria-label="search saved" class="settings-input" placeholder="search saved…" value="${esc(_q)}" spellcheck="false"></div>
+      <div class="read-filters"><span class="read-filter-choices" role="radiogroup" aria-label="${esc(t('read.filter_label'))}">${FILTERS.map(([k, l]) => `<button type="button" role="radio" aria-checked="${_filter === k}" class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${t(l)}</button>`).join('')}</span><button type="button" class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" aria-pressed="${_showFeeds}" title="${esc(t('read.feeds_title'))}">${t('read.feeds')}</button></div>
+      <div class="read-search"><input type="text" id="read-q" aria-label="${esc(t('read.search_label'))}" class="settings-input" placeholder="${esc(t('read.search_placeholder'))}" value="${esc(_q)}" spellcheck="false"></div>
     </div>
     ${_loadNotice()}
     ${_showFeeds ? _feedsPanel() : ''}
-    ${_tag ? `<div class="read-tagfilter">showing <span class="read-tag active">#${esc(_tag)}</span><button class="btn" id="read-tag-clear">clear</button></div>` : ''}
+    ${_tag ? `<div class="read-tagfilter">${t('read.tag_showing', { tag: `<span class="read-tag active">#${esc(_tag)}</span>` })}<button class="btn" id="read-tag-clear">${t('read.clear')}</button></div>` : ''}
     ${_statsBar()}
     ${_items.length ? `<div class="read-list">${_items.map(_card).join('')}</div>`
-      : (_itemsCurrent ? `<div class="read-empty">${_q ? 'nothing matches that search.' : 'nothing saved yet: paste a link above and alles will keep the article text here, searchable, forever.'}</div>` : '')}`;
+      : (_itemsCurrent ? `<div class="read-empty">${_q ? t('read.no_matches') : t('read.empty')}</div>` : '')}`;
   _wire(body);
   if (chip) body.querySelector(chip)?.focus();
   if (editing) {
@@ -308,18 +310,18 @@ function _render() {
 }
 
 function _fmtMin(m) {
-  if (m < 60) return `${m} min`;
+  if (m < 60) return tp('read.minutes', m);
   const h = Math.floor(m / 60), mm = m % 60;
-  return mm ? `${h}h ${mm}m` : `${h}h`;
+  return mm ? t('read.duration_hm', { hours: h, minutes: mm }) : t('read.duration_h', { hours: h });
 }
 
 // 4b - reading-queue capacity: how much is stacked up + roughly how long to clear it
 function _statsBar() {
   const s = _stats;
   if (!s || !s.unread) return '';
-  const days = s.days_to_clear
-    ? ` · about ${s.days_to_clear} day${s.days_to_clear === 1 ? '' : 's'} at ${s.pace_per_day} min/day` : '';
-  return `<div class="read-stats">${s.unread} unread · ${_fmtMin(s.minutes)} to read${days}</div>`;
+  const parts = [tp('read.stats_unread', s.unread), t('read.stats_to_read', { time: _fmtMin(s.minutes) })];
+  if (s.days_to_clear) parts.push(tp('read.stats_pace', s.days_to_clear, { pace: s.pace_per_day }));
+  return `<div class="read-stats">${parts.join(' · ')}</div>`;
 }
 
 function _card(it) {
@@ -327,17 +329,17 @@ function _card(it) {
   return `
     <div class="read-card${it.read ? ' is-read' : ''}" data-id="${it.id}">
       <div class="read-card-main">
-        <button type="button" class="read-card-open" data-open="${it.id}" aria-label="open ${esc(it.title)}">
+        <button type="button" class="read-card-open" data-open="${it.id}" aria-label="${esc(t('read.open_named', { title: it.title }))}">
         <span class="read-card-title">${it.fav ? `<span class="read-fav-dot">${_si('star')}</span>` : ''}${esc(it.title)}</span>
         <span class="read-card-excerpt">${esc(_plainExcerpt(it.excerpt))}</span>
         </button>
-        <div class="read-card-meta">${esc(it.site)} · ${it.read_minutes} min${it.read ? ' · read' : ''}${tags.length ? ' · ' + tags.map(t => `<button class="read-tag" data-tag="${esc(t)}">#${esc(t)}</button>`).join(' ') : ''}</div>
+        <div class="read-card-meta">${esc(it.site)} · ${tp('read.minutes', it.read_minutes)}${it.read ? ` · ${t('read.state_read')}` : ''}${tags.length ? ' · ' + tags.map(t => `<button class="read-tag" data-tag="${esc(t)}">#${esc(t)}</button>`).join(' ') : ''}</div>
       </div>
       <div class="read-card-actions">
-        <button class="icon-btn${it.fav ? ' on' : ''}" data-act="fav" title="${it.fav ? 'unstar' : 'star'}">${_si(it.fav ? 'star-fill' : 'star')}</button>
-        <button class="icon-btn" data-act="read" title="${it.read ? 'mark unread' : 'mark read'}">${_si('check')}</button>
-        <button class="icon-btn" data-act="archive" title="${it.archived ? 'unarchive' : 'archive'}">${_si('archive')}</button>
-        <button class="icon-btn danger" data-act="del" title="delete">${_si('trash')}</button>
+        <button class="icon-btn${it.fav ? ' on' : ''}" data-act="fav" title="${esc(t(it.fav ? 'read.unstar' : 'read.star'))}">${_si(it.fav ? 'star-fill' : 'star')}</button>
+        <button class="icon-btn" data-act="read" title="${esc(t(it.read ? 'read.mark_unread' : 'read.mark_read'))}">${_si('check')}</button>
+        <button class="icon-btn" data-act="archive" title="${esc(t(it.archived ? 'read.unarchive' : 'read.archive'))}">${_si('archive')}</button>
+        <button class="icon-btn danger" data-act="del" title="${esc(t('common.delete'))}">${_si('trash')}</button>
       </div>
     </div>`;
 }
@@ -348,8 +350,8 @@ async function _writeReadItem(id, patch, keepalive = false) {
   } : { method: 'DELETE' });
   if (!patch && response.status === 404) return null;
   const result = await response.json();
-  if (!response.ok) throw Object.assign(new Error(typeof result.detail === 'string' ? result.detail : 'could not confirm the change; try again'), { status: response.status });
-  if (patch ? result.id !== id || Object.entries(patch).some(([key, value]) => key !== 'position_base' && result[key] !== value) : result.ok !== true) throw new Error('could not confirm the change; try again');
+  if (!response.ok) throw Object.assign(new Error(typeof result.detail === 'string' ? result.detail : t('read.change_unconfirmed')), { status: response.status });
+  if (patch ? result.id !== id || Object.entries(patch).some(([key, value]) => key !== 'position_base' && result[key] !== value) : result.ok !== true) throw new Error(t('read.change_unconfirmed'));
   return result;
 }
 
@@ -362,25 +364,25 @@ function _textState(item) {
 function _updateTextControls(item) {
   if (_open !== item) return;
   const state = _textState(item);
-  const label = item.text_state === 'extracted' ? 'article text saved for offline reading'
-    : item.text_state === 'excerpt' ? 'saved excerpt; article text has not been fetched'
-    : !(item.text || '').trim() ? 'no article text saved'
-    : 'saved text; extraction status is unknown';
+  const label = item.text_state === 'extracted' ? t('read.text_saved')
+    : item.text_state === 'excerpt' ? t('read.text_excerpt')
+    : !(item.text || '').trim() ? t('read.text_none')
+    : t('read.text_unknown');
   const panel = $('read-text-tools');
   if (!panel) return;
   panel.setAttribute('aria-busy', String(state.busy));
-  $('read-text-status').textContent = state.busy ? 'checking and saving article text…' : state.message || label;
+  $('read-text-status').textContent = state.busy ? t('read.text_busy') : state.message || label;
   $('read-text-error').textContent = state.error;
   $('read-text-error').hidden = !state.error;
   const button = $('read-fetch-text');
   button.hidden = item.text_state === 'extracted';
   button.disabled = state.busy || !!state.savingRead;
-  button.textContent = state.error ? 'retry fetch' : 'fetch article text';
+  button.textContent = state.error ? t('read.retry_fetch') : t('read.fetch_text');
   $('read-check-text').hidden = !state.error;
   $('read-check-text').disabled = state.busy || !!state.savingRead;
   $('read-note').disabled = state.busy;
   $('read-complete').disabled = state.busy || !!state.savingRead;
-  if (state.savingRead) $('read-completion-status').textContent = 'saving reading status…';
+  if (state.savingRead) $('read-completion-status').textContent = t('read.status_saving');
 }
 
 async function _fetchArticleText(item, place, checkOnly = false) {
@@ -394,20 +396,20 @@ async function _fetchArticleText(item, place, checkOnly = false) {
   // Keep the initiating button enabled until the custom dialog restores its focus.
   try {
     const replace = item.text_state === 'unknown' && !!(item.text || '').trim();
-    if (!checkOnly && replace && !await dlgConfirm('replace this saved text with text fetched from the original page? your reading place restarts if the text changes. existing note links will identify the text change.')) return;
+    if (!checkOnly && replace && !await dlgConfirm(t('read.replace_text_confirm'))) return;
     if (!current()) return;
     _updateTextControls(item);
-    if (!(await place.drain()) && !checkOnly) throw new Error('save your reading place using retry above, or reopen the article before fetching');
+    if (!(await place.drain()) && !checkOnly) throw new Error(t('read.place_save_first'));
     if (!current()) return;
     const response = await _fetcher(`/api/read/${encodeURIComponent(item.id)}${checkOnly ? '' : '/fetch-text'}`, checkOnly
       ? { cache: 'no-store' }
       : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content_hash: item.content_hash, replace_saved_text: replace }) });
     const result = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : 'could not confirm article text; check saved text or retry');
-    if (result?.id !== item.id || typeof result.text !== 'string' || !/^[a-f0-9]{64}$/.test(result.content_hash || '') || (!checkOnly && result.text_state !== 'extracted')) throw new Error('could not confirm article text; check saved text or retry');
+    if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : t('read.text_unconfirmed'));
+    if (result?.id !== item.id || typeof result.text !== 'string' || !/^[a-f0-9]{64}$/.test(result.content_hash || '') || (!checkOnly && result.text_state !== 'extracted')) throw new Error(t('read.text_unconfirmed'));
     state.message = result.text_state === 'extracted'
-      ? `article text saved for offline reading${result.content_hash !== item.content_hash ? '; reading place restarted' : ''}`
-      : 'saved text checked; article text has not been fetched';
+      ? t(result.content_hash !== item.content_hash ? 'read.text_saved_restarted' : 'read.text_saved')
+      : t('read.text_checked');
     if (_open?.id !== item.id || _open.content_hash !== item.content_hash || !$('read-body')?.getClientRects().length) return;
     const focus = focusOwned();
     const active = document.activeElement;
@@ -423,7 +425,7 @@ async function _fetchArticleText(item, place, checkOnly = false) {
     if (focus) $('read-text-status')?.focus({ preventScroll: true });
     else if (hadReaderFocus) ($(focusId) || $('read-text-status'))?.focus({ preventScroll: true });
   } catch (error) {
-    state.error = error instanceof TypeError ? 'could not connect; check saved text or retry' : error.message;
+    state.error = error instanceof TypeError ? t('read.text_connect_failed') : error.message;
   } finally {
     state.busy = false;
     if (_open?.id === item.id) _updateTextControls(_open);
@@ -444,27 +446,27 @@ function _renderReader(body) {
   body.innerHTML = `
     <div class="read-reader">
       <div class="read-reader-bar">
-        <button class="btn" id="read-back">${_si('chevron-left')} back</button>
-        <button class="btn" type="button" id="read-note">take note</button>
-        <a class="btn" href="${esc(_safeUrl(it.url))}" target="_blank" rel="noopener">open original ${_si('link')}</a>
+        <button class="btn" id="read-back">${_si('chevron-left')} ${t('common.back')}</button>
+        <button class="btn" type="button" id="read-note">${t('read.take_note')}</button>
+        <a class="btn" href="${esc(_safeUrl(it.url))}" target="_blank" rel="noopener">${t('read.open_original')} ${_si('link')}</a>
       </div>
       <article class="read-article">
-        ${it.sourceChanged ? '<p class="read-source-notice" role="status">this article changed since the note was saved. the current text is shown below.</p>' : ''}
+        ${it.sourceChanged ? `<p class="read-source-notice" role="status">${t('read.source_changed')}</p>` : ''}
         <div class="read-toolbar">
-          <button type="button" class="btn" id="read-complete" aria-pressed="${!!it.read}">${it.read ? 'mark unread' : 'mark read'}</button>
+          <button type="button" class="btn" id="read-complete" aria-pressed="${!!it.read}">${it.read ? t('read.mark_unread') : t('read.mark_read')}</button>
           <p id="read-completion-status" role="status"></p>
         </div>
         <h1>${esc(it.title)}</h1>
-        <div class="read-article-meta">${esc(it.site)} · ${it.read_minutes} min read</div>
-        <section class="read-text-tools" id="read-text-tools" aria-label="saved article text">
+        <div class="read-article-meta">${esc(it.site)} · ${tp('read.minutes_read', it.read_minutes)}</div>
+        <section class="read-text-tools" id="read-text-tools" aria-label="${esc(t('read.text_tools_label'))}">
           <p id="read-text-status" role="status" tabindex="-1"></p>
           <p id="read-text-error" class="read-save-error" role="alert" hidden></p>
           <div class="capture-actions">
-            <button type="button" class="btn" id="read-fetch-text">fetch article text</button>
-            <button type="button" class="btn" id="read-check-text" hidden>check saved text</button>
+            <button type="button" class="btn" id="read-fetch-text">${t('read.fetch_text')}</button>
+            <button type="button" class="btn" id="read-check-text" hidden>${t('read.check_text')}</button>
           </div>
         </section>
-        ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">no readable text was extracted for this page. <a href="${esc(_safeUrl(it.url))}" target="_blank" rel="noopener">open the original</a>.</p>`}
+        ${paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('') : `<p class="read-empty">${t('read.no_text', { link: `<a href="${esc(_safeUrl(it.url))}" target="_blank" rel="noopener">${t('read.open_the_original')}</a>` })}</p>`}
       </article>
     </div>`;
   const place = _attachReadingPlace(body, it);
@@ -493,20 +495,20 @@ function _renderReader(body) {
     _updateTextControls(it);
     back.disabled = complete.disabled = true;
     notice.classList.remove('read-save-error');
-    notice.textContent = 'saving reading status…';
+    notice.textContent = t('read.status_saving');
     try {
       const result = await _writeReadItem(it.id, { read: desired });
       it.read = result.read; it.read_at = result.read_at;
       if (_open?.id === it.id) {
         _open.read = result.read; _open.read_at = result.read_at;
-        $('read-complete').textContent = result.read ? 'mark unread' : 'mark read';
+        $('read-complete').textContent = result.read ? t('read.mark_unread') : t('read.mark_read');
         $('read-complete').setAttribute('aria-pressed', String(result.read));
-        $('read-completion-status').textContent = result.read ? 'marked read' : 'marked unread';
+        $('read-completion-status').textContent = result.read ? t('read.marked_read') : t('read.marked_unread');
       }
     } catch {
       if (_open?.id === it.id) {
         $('read-completion-status').classList.add('read-save-error');
-        $('read-completion-status').textContent = 'could not confirm reading status; try again';
+        $('read-completion-status').textContent = t('read.status_unconfirmed');
       }
     } finally {
       _textState(it).savingRead = false;
@@ -525,21 +527,21 @@ function _attachReadingPlace(body, item) {
   const place = state.place;
   const bar = document.createElement('div');
   bar.id = 'read-position-bar';
-  bar.innerHTML = '<div class="read-toolbar"><p id="read-position-status" role="status" tabindex="-1"></p><button type="button" class="btn" id="read-position-retry" hidden>retry</button></div>';
+  bar.innerHTML = `<div class="read-toolbar"><p id="read-position-status" role="status" tabindex="-1"></p><button type="button" class="btn" id="read-position-retry" hidden>${t('common.retry')}</button></div>`;
   bar.prepend(body.querySelector('.read-reader-bar'));
   const sourceNotice = body.querySelector('.read-source-notice');
   if (sourceNotice) bar.append(sourceNotice);
   body.before(bar);
   const notice = bar.querySelector('#read-position-status');
   const retry = bar.querySelector('#read-position-retry');
-  body.tabIndex = 0; body.setAttribute('aria-label', 'saved article');
+  body.tabIndex = 0; body.setAttribute('aria-label', t('read.article_label'));
   place.listen(({ pending, error, blocked, unsaved }) => {
-    notice.textContent = error || (pending ? 'saving reading place…' : unsaved ? 'reading place not saved yet' : 'reading place saved');
+    notice.textContent = error || (pending ? t('read.place_saving') : unsaved ? t('read.place_unsaved') : t('read.place_saved'));
     notice.classList.toggle('read-save-error', !!error);
     const hadFocus = document.activeElement === retry;
     retry.hidden = !error;
     retry.disabled = pending;
-    retry.textContent = blocked ? 'reopen article' : 'retry';
+    retry.textContent = blocked ? t('read.reopen_article') : t('common.retry');
     retry.onclick = () => blocked ? openReadItem(item.id, undefined, item.sourceHash || '') : place.flush();
     if (hadFocus && retry.hidden) notice.focus({ preventScroll: true });
   });
@@ -621,10 +623,10 @@ function _wire(body) {
           if (error.status !== 400 || error.message !== 'feed already added') throw error;
           await loadFeeds();
           const normalized = url.startsWith('http') ? url : 'https://' + url;
-          if (_feedListError || _feedListLoading || !_feeds.some(feed => feed.url === normalized)) throw new Error('feed may already be added; retry the feed list to confirm');
+          if (_feedListError || _feedListLoading || !_feeds.some(feed => feed.url === normalized)) throw new Error(t('read.feed_maybe_added'));
         }
         if (_feedDraft.trim() === url) _feedDraft = '';
-        _feedMessage = 'feed added';
+        _feedMessage = t('read.feed_added');
         await loadFeeds();
       }, 'feed-url');
     };
@@ -634,19 +636,20 @@ function _wire(body) {
       const result = await _feedRequest('/api/read/feeds/refresh', { method: 'POST' }, value =>
         typeof value?.ok === 'boolean' && ['checked', 'failed', 'added', 'skipped'].every(key => Number.isInteger(value[key]) && value[key] >= 0) && Array.isArray(value.feeds));
       _feedErrors.clear();
-      result.feeds.forEach(feed => { if (!feed.ok) _feedErrors.set(feed.id, feed.error || 'could not refresh this feed'); });
+      result.feeds.forEach(feed => { if (!feed.ok) _feedErrors.set(feed.id, feed.error || t('read.feed_refresh_failed')); });
       _feedFailed = !result.ok;
-      _feedMessage = `${result.checked} feed${result.checked === 1 ? '' : 's'} checked; ${result.added} new item${result.added === 1 ? '' : 's'} saved`;
-      if (result.failed) _feedMessage += `; ${result.failed} feed${result.failed === 1 ? '' : 's'} failed. refresh to retry.`;
-      if (result.skipped) _feedMessage += `; ${result.skipped} removed or changed feed${result.skipped === 1 ? '' : 's'} skipped`;
-      if (!result.checked && !result.failed && !result.skipped) _feedMessage = 'no feeds to refresh; add a feed first';
+      const summary = [tp('read.feeds_checked', result.checked), tp('read.items_saved', result.added)];
+      if (result.failed) summary.push(tp('read.feeds_failed', result.failed));
+      if (result.skipped) summary.push(tp('read.feeds_skipped', result.skipped));
+      _feedMessage = summary.join('; ');
+      if (!result.checked && !result.failed && !result.skipped) _feedMessage = t('read.no_feeds_to_refresh');
       await loadFeeds(); await loadRead();
     }, 'feed-refresh'));
     body.querySelectorAll('[data-feed-del]').forEach(button => button.addEventListener('click', () => _changeFeeds(async () => {
       await _feedRequest(`/api/read/feeds/${encodeURIComponent(button.dataset.feedDel)}`, { method: 'DELETE' }, result => result?.ok === true);
       _feeds = _feeds.filter(feed => feed.id !== button.dataset.feedDel);
       _feedErrors.delete(button.dataset.feedDel);
-      _feedMessage = 'feed removed; saved articles kept';
+      _feedMessage = t('read.feed_removed');
       await loadFeeds();
     }, 'feed-refresh')));
   }
@@ -676,7 +679,7 @@ function _wire(body) {
       const act = btn.dataset.act;
       const it = _items.find(x => x.id === id);
       if (!it || card.dataset.saving === 'true') return;
-      if (act === 'del' && !await dlgConfirm('delete this saved item?')) return;
+      if (act === 'del' && !await dlgConfirm(t('read.delete_confirm'))) return;
       if (!card.isConnected || card.dataset.saving === 'true') return;
       const patch = act === 'fav' ? { fav: !it.fav } : act === 'archive' ? { archived: !it.archived } : act === 'read' ? { read: !it.read } : null;
       card.dataset.saving = 'true';
@@ -685,14 +688,14 @@ function _wire(body) {
       try {
         const result = await _writeReadItem(id, patch);
         if (_open?.id === id) _open = result ? { ..._open, ...result } : null;
-        if (act === 'del') toast('deleted', 'success');
-        if (act === 'archive') toast(it.archived ? 'unarchived' : 'archived', 'success');
+        if (act === 'del') toast(t('read.deleted'), 'success');
+        if (act === 'archive') toast(it.archived ? t('read.unarchived') : t('read.archived'), 'success');
         const restoreFocus = document.activeElement === btn || document.activeElement === document.body;
         await loadRead();
         if (restoreFocus && document.activeElement === document.body) {
           (body.querySelector(`.read-card[data-id="${id}"] [data-act="${act}"]`) || $('read-q'))?.focus();
         }
-      } catch (error) { toast(error.message || 'could not confirm the change; try again', 'error'); }
+      } catch (error) { toast(error.message || t('read.change_unconfirmed'), 'error'); }
       finally {
         delete card.dataset.saving;
         buttons.forEach(button => { button.disabled = false; });
@@ -705,7 +708,7 @@ async function _save(checkOnly = false) {
   if (_saving || !_saveReady) return;
   if (!_pendingSave) _urlDraft = $('read-url')?.value ?? _urlDraft;
   const url = (_pendingSave?.url ?? _urlDraft).trim();
-  if (!url) { _saveError = 'paste a web address first'; _render(); $('read-url')?.focus(); return; }
+  if (!url) { _saveError = t('read.url_required'); _render(); $('read-url')?.focus(); return; }
   const navigation = _openGeneration;
   const mayFocus = () => navigation === _openGeneration && $('read-body')?.getClientRects().length
     && (document.activeElement === document.body || ['read-save', 'read-save-check'].includes(document.activeElement?.id));
@@ -718,14 +721,14 @@ async function _save(checkOnly = false) {
     const response = checkOnly
       ? await _fetcher(`/api/read/requests/${encodeURIComponent(pending.request_id)}?recovery_scope=${encodeURIComponent(pending.recovery_scope)}`, { cache: 'no-store' })
       : await _fetcher('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending) });
-    const result = await response.json().catch(() => { throw new Error('Could not read the save response. Retry safely or check the saved item.'); });
-    if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : 'Could not confirm the URL save. Retry safely.');
+    const result = await response.json().catch(() => { throw new Error(t('read.save_response_unreadable')); });
+    if (!response.ok) throw new Error(typeof result?.detail === 'string' ? result.detail : t('read.save_not_confirmed'));
     _confirmUrlSave(result, pending);
-    toast('URL saved', 'success');
+    toast(t('read.url_saved'), 'success');
     restoreFocus = mayFocus();
     await loadRead();
   } catch (error) {
-    _saveError = error instanceof TypeError ? 'Could not connect. Your URL is kept; retry safely.' : (error.message || 'Could not save this URL. Try again.');
+    _saveError = error instanceof TypeError ? t('read.save_connect_failed') : (error.message || t('read.save_failed'));
     restoreFocus = mayFocus();
   } finally {
     _saving = false;
@@ -760,7 +763,7 @@ export async function openReadItem(id, isCurrent = () => Boolean($('read-body')?
     _open = null;
     _render();
     $('read-q')?.focus();
-    toast('could not open', 'error');
+    toast(t('read.open_failed'), 'error');
     return false;
   }
   return true;

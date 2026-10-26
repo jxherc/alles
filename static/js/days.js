@@ -3,11 +3,11 @@
 // count/mode are recomputed here against the *viewer's* local midnight, so the
 // numbers are never off by the server's timezone.
 import { plainError, toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js?v=212';
+import { initCustomDropdown } from './dropdown.js?v=213';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 import { initDatePicker } from './datepick.js';
 import { confirm as dlgConfirm } from './dialog.js';
-import { formatDate, formatNumber } from './i18n.js';
+import { formatDate, formatNumber, ordinalCategory, t, tp } from './i18n.js';
 
 const $ = id => document.getElementById(id);
 let _events = [];
@@ -32,7 +32,7 @@ export async function loadDays(fetcher = fetch) {
     _loadError = '';
   } catch (error) {
     if (sequence !== _loadSequence) return;
-    _loadError = plainError(error.message || 'try again');
+    _loadError = plainError(error.message || t('common.try_again'));
   }
   _render();
 }
@@ -40,8 +40,8 @@ export async function loadDays(fetcher = fetch) {
 async function dayJson(request, path, options, valid) {
   const response = await request(path, options);
   const value = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(typeof value?.detail === 'string' ? value.detail : 'alles could not do that just now; try again');
-  if (!valid(value)) throw new Error('the server response was not confirmed; try again');
+  if (!response.ok) throw new Error(typeof value?.detail === 'string' ? value.detail : t('common.action_failed_retry'));
+  if (!valid(value)) throw new Error(t('common.response_unconfirmed'));
   return value;
 }
 
@@ -67,8 +67,8 @@ async function _add() {
   const originalCategory = $('day-category')?.value;
   const name = $('day-name')?.value.trim();
   const dt = $('day-date')?.value;
-  if (!name) { toast('what are we counting?', 'error'); return; }
-  if (!dt) { toast('pick a date', 'error'); return; }
+  if (!name) { toast(t('plan.days_what_counting'), 'error'); return; }
+  if (!dt) { toast(t('plan.days_pick_date'), 'error'); return; }
   const button = $('day-add-btn');
   _adding = true; button.disabled = true; button.setAttribute('aria-busy', 'true');
   try {
@@ -80,9 +80,9 @@ async function _add() {
     for (const [id, original] of [['day-name', originalName], ['day-category', originalCategory]]) {
       if ($(id)?.value === original) $(id).value = '';
     }
-    toast(`counting ${name}`, 'success');
+    toast(t('plan.days_counting', { name }), 'success');
     await loadDays();
-  } catch (error) { toast(error.message || 'could not confirm this countdown; try again', 'error'); }
+  } catch (error) { toast(error.message || t('plan.days_unconfirmed'), 'error'); }
   finally { _adding = false; button.disabled = false; button.removeAttribute('aria-busy'); }
 }
 
@@ -100,9 +100,9 @@ function _breakdown(a, b) {
   if (d < 0) { m--; d += new Date(b.getFullYear(), b.getMonth(), 0).getDate(); }
   if (m < 0) { y--; m += 12; }
   const p = [];
-  if (y) p.push(`${y} year${y !== 1 ? 's' : ''}`);
-  if (m) p.push(`${m} month${m !== 1 ? 's' : ''}`);
-  if (d || !p.length) p.push(`${d} day${d !== 1 ? 's' : ''}`);
+  if (y) p.push(tp('plan.days_n_years', y));
+  if (m) p.push(tp('plan.days_n_months', m));
+  if (d || !p.length) p.push(tp('plan.days_n_days', d));
   return p.join(' ');
 }
 
@@ -128,16 +128,14 @@ function _armMidnightRefresh() {
 }
 
 // ── labels ──────────────────────────────────────────────────────────────────
-function _ord(n) {
-  const t = n % 100;
-  if (t >= 11 && t <= 13) return 'th';
-  return { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th';
+function _nth(n) {
+  return t(`plan.days_ordinal_${ordinalCategory(n)}`, { n });
 }
 
 function _unitLabel(e) {
-  if (e.mode === 'today') return e.repeat !== 'none' && e.nth > 1 ? `${e.nth}${_ord(e.nth)}: today!` : 'today!';
-  if (e.mode === 'since') return e.count === 1 ? 'day since' : 'days since';
-  return e.count === 1 ? 'day left' : 'days left';
+  if (e.mode === 'today') return e.repeat !== 'none' && e.nth > 1 ? t('plan.days_nth_today', { nth: _nth(e.nth) }) : t('plan.days_today_bang');
+  if (e.mode === 'since') return tp('plan.days_since', e.count);
+  return tp('plan.days_left', e.count);
 }
 
 function _fmtDate(e) {
@@ -150,8 +148,8 @@ function _fmtDate(e) {
 
 function _metaLine(e) {
   const bits = [_fmtDate(e)];
-  if (e.repeat === 'yearly') bits.push(`${_si('refresh')} yearly${e.nth > 0 ? ` · ${e.nth}${_ord(e.nth)}` : ''}`);
-  if (e.repeat === 'monthly') bits.push(`${_si('refresh')} monthly${e.nth > 0 ? ` · ${e.nth}${_ord(e.nth)}` : ''}`);
+  if (e.repeat === 'yearly') bits.push(`${_si('refresh')} ${t('plan.days_yearly')}${e.nth > 0 ? ` · ${_nth(e.nth)}` : ''}`);
+  if (e.repeat === 'monthly') bits.push(`${_si('refresh')} ${t('plan.days_monthly')}${e.nth > 0 ? ` · ${_nth(e.nth)}` : ''}`);
   if (e.category) bits.push(esc(e.category));
   return bits.join(' · ');
 }
@@ -164,21 +162,21 @@ function _render() {
   const editor = grid.querySelector('.day-card.editing');
   const draft = editor?.dataset.id === _editing
     ? Object.fromEntries(_editFields.map(field => [field, editor.querySelector(`[data-f="${field}"]`)?.value])) : null;
-  const failure = _loadError ? `<div class="page-empty" role="alert">could not load countdowns: ${esc(_loadError)} <button class="btn" id="days-retry">retry</button></div>` : '';
+  const failure = _loadError ? `<div class="page-empty" role="alert">${esc(t('plan.days_load_failed', { reason: _loadError }))} <button class="btn" id="days-retry">${esc(t('common.retry'))}</button></div>` : '';
 
   const derived = _events.map(e => _derive(e));  // not map(_derive) — that leaks the index in as `today`
   const sum = $('days-summary');
   if (sum) {
     const c = m => derived.filter(x => x.mode === m).length;
     const bits = [];
-    if (c('today')) bits.push(`${c('today')} today`);
-    if (c('countdown')) bits.push(`${c('countdown')} upcoming`);
-    if (c('since')) bits.push(`${c('since')} counting up`);
+    if (c('today')) bits.push(t('plan.days_n_today', { count: c('today') }));
+    if (c('countdown')) bits.push(t('plan.days_n_upcoming', { count: c('countdown') }));
+    if (c('since')) bits.push(t('plan.days_n_counting_up', { count: c('since') }));
     sum.textContent = bits.join(' · ');
   }
 
   if (!derived.length) {
-    grid.innerHTML = failure || '<div class="days-empty" style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">nothing counted yet: a trip, a birthday, a streak. add one below.</div>';
+    grid.innerHTML = failure || `<div class="days-empty" style="padding:1rem 0;font-size:0.75rem;color:var(--muted)">${esc(t('plan.days_empty'))}</div>`;
     _wire(grid);
     return;
   }
@@ -186,13 +184,13 @@ function _render() {
   // editing renders the card in place (its own section), not yanked to the top
   const cardOf = e => e.id === _editing ? _editCard(e) : _card(e);
   const sections = [
-    ['today',     derived.filter(x => x.mode === 'today').sort(_byPinThenName)],
-    ['upcoming',  derived.filter(x => x.mode === 'countdown').sort(_byPinThenSoonest)],
-    ['counting up', derived.filter(x => x.mode === 'since').sort((a, b) => a.count - b.count)],
+    ['today', t('common.today'),     derived.filter(x => x.mode === 'today').sort(_byPinThenName)],
+    ['upcoming', t('plan.days_upcoming'),  derived.filter(x => x.mode === 'countdown').sort(_byPinThenSoonest)],
+    ['counting up', t('plan.days_counting_up'), derived.filter(x => x.mode === 'since').sort((a, b) => a.count - b.count)],
   ];
   grid.innerHTML = failure + sections
-    .filter(([, list]) => list.length)
-    .map(([label, list]) => `<div class="day-section">${label}</div>` + list.map(cardOf).join(''))
+    .filter(([,, list]) => list.length)
+    .map(([, label, list]) => `<div class="day-section">${esc(label)}</div>` + list.map(cardOf).join(''))
     .join('');
   _wire(grid);
   if (draft) for (const [field, value] of Object.entries(draft)) {
@@ -212,40 +210,41 @@ function _card(e) {
   const tip = e.breakdown ? `${esc(e.breakdown)}${e.notes ? ': ' + esc(e.notes) : ''}` : esc(e.notes || '');
   return `
     <div class="day-card${e.mode === 'today' ? ' today' : ''}${e.mode === 'since' ? ' since' : ''}${e.days >= 1 && e.days <= 3 ? ' soon' : ''}" data-id="${e.id}"${tip ? ` title="${tip}"` : ''}>
-      <button class="day-pin${e.pinned ? ' on' : ''}" data-act="pin" title="${e.pinned ? 'unpin' : 'pin to top'}">${_si(e.pinned ? 'star-fill' : 'star')}</button>
+      <button class="day-pin${e.pinned ? ' on' : ''}" data-act="pin" title="${esc(e.pinned ? t('plan.days_unpin') : t('plan.days_pin'))}">${_si(e.pinned ? 'star-fill' : 'star')}</button>
       <div class="day-num">${e.mode === 'today' ? _si('party') : formatNumber(e.count)}</div>
       <div class="day-unit">${_unitLabel(e)}</div>
       <div class="day-name">${esc(e.name)}</div>
       <div class="day-meta">${_metaLine(e)}</div>
       ${e.progress != null && e.mode !== 'today' ? `<div class="day-bar"><i style="width:${Math.round(e.progress * 100)}%"></i></div>` : ''}
       <div class="day-actions">
-        <button class="btn" data-act="edit">edit</button>
-        <button class="btn danger" data-act="del" aria-label="delete" title="delete">×</button>
+        <button class="btn" data-act="edit">${esc(t('common.edit'))}</button>
+        <button class="btn danger" data-act="del" aria-label="${esc(t('common.delete'))}" title="${esc(t('common.delete'))}">×</button>
       </div>
     </div>`;
 }
 
 // the reminder as words: "-1 = off" lived only in a tooltip, and typing -1 came back as 1
-const REMIND = [[-1, 'no reminder'], [0, 'remind on the day'], [1, 'remind 1 day before'], [3, 'remind 3 days before'],
-  [7, 'remind a week before'], [14, 'remind 2 weeks before'], [30, 'remind a month before']];
+const _remind = () => [[-1, t('plan.days_no_reminder')], [0, t('plan.days_remind_day')], [1, tp('plan.days_remind_days', 1)], [3, tp('plan.days_remind_days', 3)],
+  [7, t('plan.days_remind_week')], [14, t('plan.days_remind_2weeks')], [30, t('plan.days_remind_month')]];
 function _remindOptions(current) {
+  const REMIND = _remind();
   const rows = REMIND.some(([days]) => days === current) || !Number.isInteger(current) ? REMIND
-    : [...REMIND, [current, `remind ${current} days before`]].sort((a, b) => a[0] - b[0]);
+    : [...REMIND, [current, tp('plan.days_remind_days', current)]].sort((a, b) => a[0] - b[0]);
   return rows.map(([days, label]) => `${days}|${label}`).join(';');
 }
 
 function _editCard(e) {
   return `
     <div class="day-card editing" data-id="${e.id}">
-      <input type="text" class="settings-input" data-f="name" value="${esc(e.name)}" placeholder="name">
-      <div class="date-input" data-f="date" data-type="date" data-value="${esc(e.date)}" data-ph="date"></div>
-      <div class="settings-input custom-select" data-f="repeat" data-value="${esc(e.repeat || 'none')}" data-options="none|one-time;yearly|every year;monthly|every month"></div>
-      <input type="text" class="settings-input" data-f="category" value="${esc(e.category)}" placeholder="category">
-      <div class="settings-input custom-select" data-f="notify_days" aria-label="reminder" data-value="${esc(String(e.notify_days ?? -1))}" data-options="${esc(_remindOptions(e.notify_days))}"></div>
-      <input type="text" class="settings-input" data-f="notes" value="${esc(e.notes)}" placeholder="notes">
+      <input type="text" class="settings-input" data-f="name" value="${esc(e.name)}" placeholder="${esc(t('plan.days_name'))}">
+      <div class="date-input" data-f="date" data-type="date" data-value="${esc(e.date)}" data-ph="${esc(t('plan.days_date'))}"></div>
+      <div class="settings-input custom-select" data-f="repeat" data-value="${esc(e.repeat || 'none')}" data-options="${esc(`none|${t('plan.days_one_time')};yearly|${t('plan.days_every_year')};monthly|${t('plan.days_every_month')}`)}"></div>
+      <input type="text" class="settings-input" data-f="category" value="${esc(e.category)}" placeholder="${esc(t('plan.days_category'))}">
+      <div class="settings-input custom-select" data-f="notify_days" aria-label="${esc(t('plan.days_reminder'))}" data-value="${esc(String(e.notify_days ?? -1))}" data-options="${esc(_remindOptions(e.notify_days))}"></div>
+      <input type="text" class="settings-input" data-f="notes" value="${esc(e.notes)}" placeholder="${esc(t('plan.days_notes'))}">
       <div class="day-actions">
-        <button class="btn primary" data-act="save">save</button>
-        <button class="btn" data-act="cancel">cancel</button>
+        <button class="btn primary" data-act="save">${esc(t('common.save'))}</button>
+        <button class="btn" data-act="cancel">${esc(t('common.cancel'))}</button>
       </div>
     </div>`;
 }
@@ -282,7 +281,7 @@ function _wire(grid) {
       const cards = [...grid.querySelectorAll('.day-card[data-id]')], at = cards.indexOf(card);
       const nextId = (cards[at + 1] || cards[at - 1])?.dataset.id || '';
       // ask before going busy: a disabled button can't take focus back when the dialog closes
-      if (act === 'del' && !await dlgConfirm(`stop counting ${_events.find(x => x.id === id)?.name || 'this'}?`)) {
+      if (act === 'del' && !await dlgConfirm((name => name ? t('plan.days_stop_counting', { name }) : t('plan.days_stop_counting_this'))(_events.find(x => x.id === id)?.name))) {
         if (btn.isConnected) btn.focus();
         return;
       }
@@ -320,11 +319,11 @@ function _wire(grid) {
           }, value => value?.id === id && value.name === submitted.name?.trim() && value.date === submitted.date);
           ++_loadSequence;
           if (_editing === id && card.isConnected && _editFields.every(field => v(field) === submitted[field])) _editing = null;
-          toast('saved', 'success');
+          toast(t('common.saved'), 'success');
           landed = 'edit';
           await loadDays(); return;
         }
-      } catch (error) { toast(error.message || 'could not confirm this change; try again', 'error'); }
+      } catch (error) { toast(error.message || t('plan.days_change_unconfirmed'), 'error'); }
       finally {
         _pending.delete(id); busy(false);
         const current = grid.querySelector(`.day-card[data-id="${CSS.escape(id)}"]`);

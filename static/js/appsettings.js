@@ -1,48 +1,50 @@
 // per-app settings — a gear in an app's header opens a small popover of just that
 // app's options, saved to settings.json. custom controls only (no native selects).
+import { t } from './i18n.js';
+
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const SPECS = {
-  notes: { title: 'notes & docs', apply: () => window._reloadNotes?.(), fields: [
-    { k: 'vault_dir', type: 'text', label: 'vault folder (Obsidian)', ph: 'data/vault' },
-    { type: 'note', text: 'your notes & docs live here as plain markdown. point this at an Obsidian vault folder, or copy the path and use "open folder as vault" in Obsidian.' },
-    { type: 'action', label: 'open in Obsidian', act: '_openInObsidian' },
-    { type: 'action', label: 'copy vault path', act: '_copyVaultPath' },
-    { type: 'note', text: 'to sync across devices, install Syncthing here and on your phone or laptop, add this vault folder on each, and link them. Obsidian then opens the same notes everywhere.' },
-    { type: 'action', label: 'download Obsidian plugin', act: '_downloadPlugin' },
+const appSpecs = () => ({
+  notes: { title: t('settings.app_notes_docs'), apply: () => window._reloadNotes?.(), fields: [
+    { k: 'vault_dir', type: 'text', label: t('settings.app_vault_folder'), ph: 'data/vault' },
+    { type: 'note', text: t('settings.app_notes_location_note') },
+    { type: 'action', label: t('settings.app_open_in_obsidian'), act: '_openInObsidian' },
+    { type: 'action', label: t('settings.app_copy_vault_path'), act: '_copyVaultPath' },
+    { type: 'note', text: t('settings.app_notes_sync_note') },
+    { type: 'action', label: t('settings.app_download_obsidian_plugin'), act: '_downloadPlugin' },
   ] },
-  files: { title: 'files', apply: () => window._reloadFiles?.(), fields: [
-    { k: 'files_dir', type: 'text', label: 'root directory', ph: 'data/files' },
+  files: { title: t('settings.app_files'), apply: () => window._reloadFiles?.(), fields: [
+    { k: 'files_dir', type: 'text', label: t('settings.app_root_directory'), ph: 'data/files' },
   ] },
-  photos: { title: 'gallery', apply: () => window._reloadPhotos?.(), fields: [
-    { k: 'photos_dir', type: 'text', label: 'library folder', ph: 'data/photos' },
-    { k: 'photos_watch_folder', type: 'text', label: 'phone-backup watch folder', ph: 'e.g. ~/iCloud/Camera' },
+  photos: { title: t('settings.app_gallery'), apply: () => window._reloadPhotos?.(), fields: [
+    { k: 'photos_dir', type: 'text', label: t('settings.app_library_folder'), ph: 'data/photos' },
+    { k: 'photos_watch_folder', type: 'text', label: t('settings.app_phone_backup_watch_folder'), ph: t('settings.app_watch_folder_example') },
   ] },
-  calendar: { title: 'calendar', apply: () => window._reloadCalendar?.(), fields: [
-    { k: 'cal_default_view', type: 'choice', label: 'default view', opts: [['month', 'month'], ['week', 'week']] },
-    { k: 'cal_default_duration_min', type: 'choice', num: true, label: 'default duration', opts: [['30', '30 min'], ['60', '1 hour'], ['90', '90 min'], ['120', '2 hours']] },
-    { k: 'cal_work_start', type: 'text', num: true, label: 'work hours start (0–23)', ph: '9' },
-    { k: 'cal_work_end', type: 'text', num: true, label: 'work hours end (0–23)', ph: '18' },
-    { k: 'cal_secondary_tz', type: 'text', label: 'second time zone', ph: 'e.g. Europe/London' },
+  calendar: { title: t('settings.app_calendar'), apply: () => window._reloadCalendar?.(), fields: [
+    { k: 'cal_default_view', type: 'choice', label: t('settings.app_default_view'), opts: [['month', t('settings.app_opt_month')], ['week', t('settings.app_opt_week')]] },
+    { k: 'cal_default_duration_min', type: 'choice', num: true, label: t('settings.app_default_duration'), opts: [['30', t('settings.app_opt_30_min')], ['60', t('settings.app_opt_1_hour')], ['90', t('settings.app_opt_90_min')], ['120', t('settings.app_opt_2_hours')]] },
+    { k: 'cal_work_start', type: 'text', num: true, label: t('settings.app_work_start'), ph: '9' },
+    { k: 'cal_work_end', type: 'text', num: true, label: t('settings.app_work_end'), ph: '18' },
+    { k: 'cal_secondary_tz', type: 'text', label: t('settings.app_second_time_zone'), ph: t('settings.app_time_zone_example') },
   ] },
-  system: { title: 'system monitor', apply: () => window._reloadSystem?.(), fields: [
-    { k: 'system_refresh', type: 'choice', num: true, label: 'refresh rate', opts: [['1000', '1s'], ['1500', '1.5s'], ['3000', '3s'], ['5000', '5s']] },
+  system: { title: t('settings.app_system_monitor'), apply: () => window._reloadSystem?.(), fields: [
+    { k: 'system_refresh', type: 'choice', num: true, label: t('settings.app_refresh_rate'), opts: [['1000', t('settings.app_opt_1s')], ['1500', t('settings.app_opt_1_5s')], ['3000', t('settings.app_opt_3s')], ['5000', t('settings.app_opt_5s')]] },
   ] },
-  mail: { title: 'mail', apply: () => window._reloadMail?.(), fields: [
-    { k: 'mail_poll_seconds', type: 'choice', num: true, label: 'check every', opts: [['30', '30s'], ['60', '1m'], ['300', '5m']] },
-    { k: 'mail_threads', type: 'choice', label: 'message grouping', opts: [['flat', 'flat list'], ['group', 'group by conversation']] },
-    { k: 'mail_signature', type: 'textarea', label: 'signature', ph: '-- sent from alles' },
-    { type: 'action', label: 'accounts', act: '_mailAccounts' },
-    { type: 'action', label: 'rules & vacation responder', act: '_mailRules' },
+  mail: { title: t('settings.app_mail'), apply: () => window._reloadMail?.(), fields: [
+    { k: 'mail_poll_seconds', type: 'choice', num: true, label: t('settings.app_check_every'), opts: [['30', t('settings.app_opt_30s')], ['60', t('settings.app_opt_1m')], ['300', t('settings.app_opt_5m')]] },
+    { k: 'mail_threads', type: 'choice', label: t('settings.app_message_grouping'), opts: [['flat', t('settings.app_opt_flat')], ['group', t('settings.app_opt_grouped')]] },
+    { k: 'mail_signature', type: 'textarea', label: t('settings.app_signature'), ph: '-- sent from alles' },
+    { type: 'action', label: t('settings.app_accounts'), act: '_mailAccounts' },
+    { type: 'action', label: t('settings.app_mail_rules'), act: '_mailRules' },
   ] },
-  contacts: { title: 'contacts', fields: [
-    { type: 'action', label: 'CardDAV sync', act: '_contactsCardDav' },
+  contacts: { title: t('settings.app_contacts'), fields: [
+    { type: 'action', label: t('settings.app_carddav_sync'), act: '_contactsCardDav' },
   ] },
-  journal: { title: 'journal', apply: () => window._reloadJournal?.(), fields: [
-    { k: 'journal_mirror_vault', type: 'toggle', label: 'mirror to Obsidian daily notes' },
-    { type: 'note', text: 'writes each entry to Journal/YYYY-MM-DD.md in your vault, editable in Obsidian and synced back. off by default. setting a journal passcode pauses this and removes the mirrored files.' },
+  journal: { title: t('settings.app_journal'), apply: () => window._reloadJournal?.(), fields: [
+    { k: 'journal_mirror_vault', type: 'toggle', label: t('settings.app_journal_mirror') },
+    { type: 'note', text: t('settings.app_journal_mirror_note') },
   ] },
-};
+});
 
 let _open = null;
 
@@ -86,7 +88,7 @@ async function _copyVaultPath() {
   const loc = await _vaultLoc();
   if (!loc?.path) return;
   try { await navigator.clipboard.writeText(loc.path); } catch {}
-  import('./util.js').then(m => m.toast?.('vault path copied', 'success')).catch(() => {});
+  import('./util.js').then(m => m.toast?.(t('settings.app_vault_path_copied'), 'success')).catch(() => {});
 }
 function _downloadPlugin() { location.href = '/api/download/obsidian-plugin'; }
 const ACTIONS = { _openInObsidian, _copyVaultPath, _downloadPlugin };
@@ -108,16 +110,16 @@ function _outside(e) {
 export async function openAppSettings(app, anchor) {
   if (_open?.app === app) { closeAppSettings(); return; }
   closeAppSettings();
-  const spec = SPECS[app];
+  const spec = appSpecs()[app];
   if (!spec) return;
   const s = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
   if (_open) return;   // a second open raced this one's settings read
   const pop = document.createElement('div');
   pop.className = 'app-settings-pop';
   pop.setAttribute('role', 'dialog');
-  pop.setAttribute('aria-label', `${spec.title} settings`);
+  pop.setAttribute('aria-label', t('settings.app_title_settings', { title: spec.title }));
   pop.tabIndex = -1;   // a tap on its text keeps focus in here, so escape still closes it
-  pop.innerHTML = `<div class="app-settings-title">${spec.title} settings</div>` + spec.fields.map(f => renderAppSettingField(f, s[f.k])).join('');
+  pop.innerHTML = `<div class="app-settings-title">${esc(t('settings.app_title_settings', { title: spec.title }))}</div>` + spec.fields.map(f => renderAppSettingField(f, s[f.k])).join('');
   document.body.appendChild(pop);
   // a phone can be shorter than the popover: it never grows past the screen and scrolls inside,
   // opens below the button, above it when it only fits there, else pinned inside the screen

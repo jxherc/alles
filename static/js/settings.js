@@ -11,16 +11,16 @@ export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFr
 export { loadMcpServers, loadConnections, loadDiscordConnection } from './settings/connections.js';
 import { toast } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
-import { initCustomDropdowns, closeCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=212';
+import { initCustomDropdowns, closeCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=213';
 import { initMemoryPanel } from './memory.js';
 import {
   sensitiveBlurEnabled, textOnlyEmojisEnabled, welcomeEnabled,
   setSensitiveBlur, setTextOnlyEmojis, setWelcomeEnabled,
 } from './privacy.js';
-import { loadShortcuts, saveShortcuts, eventToShortcut, isReservedShortcut } from './shortcuts.js';
+import { loadShortcuts, saveShortcuts, eventToShortcut, isReservedShortcut, shortcutActionLabel } from './shortcuts.js';
 import { setAccent as _themeSetAccent, resetToDefault as _resetToDefault, getAppearance as _getAppearance, renderThemeEditorInto, isBasePreset } from './theme.js';
 import {
-  formatDate,
+  formatDate, formatNumber, t, tp,
 } from './i18n.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -105,7 +105,7 @@ function _switchPane(name) {
   if (sectionTrigger) {
     const label = selected?.textContent.trim() || '';
     sectionTrigger.firstElementChild.textContent = label;
-    sectionTrigger.setAttribute('aria-label', `settings section: ${label}`);
+    sectionTrigger.setAttribute('aria-label', t('settings.section_picker_label', { section: label }));
   }
   document.querySelectorAll('.s-nav-item').forEach(n =>
     n.classList.toggle('active', n.dataset.pane === name));
@@ -151,7 +151,7 @@ export function openSettings(pane, _allesOnly = false) {
   // Phase 3 has one settings home. Keep the second argument only for old callers.
   modal.classList.remove('alles-scope');
   const title = document.querySelector('#settings-modal .s-title');
-  if (title) title.textContent = 'alles settings';
+  if (title) title.textContent = t('settings.title');
   if (!pane) pane = 'general';
   if (!_bound) { _initSettings(); _bound = true; }
   // update compat url labels
@@ -312,7 +312,7 @@ function _initSettings() {
     localStorage.removeItem(VIS_KEY);
     applyVis();
     loadAppearancePane();
-    toast('appearance reset', 'success');
+    toast(t('settings.appearance_reset'), 'success');
   });
 
   // ── personas / cookbook ──
@@ -353,27 +353,27 @@ function _initSettings() {
       // escape leaves the field as it was; backspace or delete clears the shortcut on purpose.
       // escape used to clear it, so say which key does now
       if (e.key === 'Escape') {
-        if (inp.value) toast('kept it · backspace clears a shortcut', '');
+        if (inp.value) toast(t('shortcuts.kept'), '');
         inp.blur();
         return;
       }
       if ((e.key === 'Backspace' || e.key === 'Delete') && !e.ctrlKey && !e.altKey && !e.metaKey) {
         inp.value = '';
         saveShortcuts({ [inp.dataset.shortcut]: '' });
-        toast('shortcut cleared', '');
+        toast(t('shortcuts.cleared'), '');
         return;
       }
       if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;   // still holding modifiers
       const combo = eventToShortcut(e);
       if (!combo) return;
       // a bare letter would fire while typing anywhere; function keys can stand alone
-      if (!e.ctrlKey && !e.altKey && !e.metaKey && !/^F\d{1,2}$/.test(e.key)) { toast('add ctrl or alt to the key', 'error'); return; }
-      if (isReservedShortcut(combo)) { toast(`${combo} is a system/browser shortcut: pick another`, 'error'); return; }
+      if (!e.ctrlKey && !e.altKey && !e.metaKey && !/^F\d{1,2}$/.test(e.key)) { toast(t('shortcuts.needs_modifier'), 'error'); return; }
+      if (isReservedShortcut(combo)) { toast(t('shortcuts.reserved', { combo }), 'error'); return; }
       const taken = Object.entries(loadShortcuts()).find(([action, value]) => action !== inp.dataset.shortcut && value && value.toLowerCase() === combo.toLowerCase());
-      if (taken) { toast(`${combo} is already used for ${taken[0].replace(/_/g, ' ')}`, 'error'); return; }
+      if (taken) { toast(t('shortcuts.taken', { combo, action: shortcutActionLabel(taken[0]) }), 'error'); return; }
       inp.value = combo;
       saveShortcuts({ [inp.dataset.shortcut]: combo });
-      toast('shortcut saved', 'success');
+      toast(t('shortcuts.saved'), 'success');
     });
   });
 }
@@ -382,7 +382,7 @@ function _initSettings() {
 async function loadAiPane() {
   try {
     const s = await _endpointJson(await fetch('/api/settings'));
-    if (!s || !Number.isFinite(s.context_limit)) throw new Error('settings response was incomplete');
+    if (!s || !Number.isFinite(s.context_limit)) throw new Error(t('settings.response_incomplete'));
     _renderChatBehavior(s.default_chat_behavior || 'automatic_tools');
     document.getElementById('settings-context-limit').value = s.context_limit ?? 40;
     _bindSwitch(document.getElementById('s-thinking-toggle'),
@@ -395,7 +395,7 @@ async function loadAiPane() {
       () => s.auto_compact !== false,
       v => _patchSetting('auto_compact', v));
   } catch (error) {
-    toast(`could not load chat settings: ${error.message || 'server unavailable'}. reopen this section to retry.`, 'error');
+    toast(t('settings.section_load_failed', { section: t('settings.section_chat'), message: error.message || t('settings.server_unavailable') }), 'error');
   }
 }
 
@@ -424,12 +424,12 @@ async function saveDefaultChatBehavior(value) {
       body: JSON.stringify({ default_chat_behavior: value }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || 'chat behavior could not be saved');
+    if (!response.ok) throw new Error(data.detail || t('settings.chat_behavior_save_failed'));
     _renderChatBehavior(data.default_chat_behavior || value);
-    toast('default chat behavior saved', 'success');
+    toast(t('settings.chat_behavior_saved'), 'success');
   } catch (error) {
     _renderChatBehavior(previous);
-    toast(error.message || 'chat behavior could not be saved', 'error');
+    toast(error.message || t('settings.chat_behavior_save_failed'), 'error');
   }
 }
 
@@ -440,10 +440,10 @@ async function loadOwnerInstructions() {
   const read = ++_ownerInstructionsRead;
   try {
     const settings = await _endpointJson(await fetch('/api/settings'));
-    if (typeof settings.owner_instructions !== 'string') throw new Error('could not load owner instructions; reopen this section to retry');
+    if (typeof settings.owner_instructions !== 'string') throw new Error(t('settings.owner_instructions_load_failed'));
     if (read === _ownerInstructionsRead && textarea.dataset.dirty !== '1') textarea.value = settings.owner_instructions;
   } catch (error) {
-    if (read === _ownerInstructionsRead) toast(error.message || 'could not load owner instructions; reopen this section to retry', 'error');
+    if (read === _ownerInstructionsRead) toast(error.message || t('settings.owner_instructions_load_failed'), 'error');
   }
 }
 
@@ -454,35 +454,35 @@ async function saveOwnerInstructions() {
   const value = textarea.value;
   ++_ownerInstructionsRead;
   button.disabled = true;
-  button.textContent = 'saving…';
+  button.textContent = t('common.saving');
   try {
     const settings = await _endpointJson(await fetch('/api/settings', {
       method: 'PATCH', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ owner_instructions: value }),
     }));
-    if (settings.owner_instructions !== value.trim()) throw new Error('save could not be verified; your instructions are still here. try saving again.');
+    if (settings.owner_instructions !== value.trim()) throw new Error(t('settings.owner_instructions_unverified'));
     if (textarea.value === value) textarea.dataset.dirty = '0';
-    toast(textarea.value === value ? 'owner instructions saved' : 'earlier instructions saved; your latest edits still need saving', 'success');
+    toast(textarea.value === value ? t('settings.owner_instructions_saved') : t('settings.owner_instructions_partial'), 'success');
   } catch (error) {
-    toast(error.message || 'owner instructions could not be saved', 'error');
+    toast(error.message || t('settings.owner_instructions_save_failed'), 'error');
   } finally {
     ++_ownerInstructionsRead;
     button.disabled = false;
-    button.textContent = 'save instructions';
+    button.textContent = t('settings.owner_instructions_save');
   }
 }
 
 // ── search pane ───────────────────────────────────────────────────────────────
 async function loadSearchPane() {
   try {
-    const s = await _loadPaneSettings('search');
+    const s = await _loadPaneSettings(t('common.search'));
     if (!s) return;
     if (s.searxng_url)     document.getElementById('s-searxng-url').placeholder = s.searxng_url;
     if (s.google_pse_cx)   document.getElementById('s-gpse-cx').value = s.google_pse_cx;
-    if (s.google_pse_api_key_configured) document.getElementById('s-gpse-key').placeholder = 'configured: enter a replacement';
+    if (s.google_pse_api_key_configured) document.getElementById('s-gpse-key').placeholder = t('settings.key_configured_placeholder');
     await loadSearchEngines(s);
     await loadAndromedaSearchSettings(s);
-  } catch { toast('could not load search settings; reopen this section to retry', 'error'); }
+  } catch { toast(t('settings.search_load_failed'), 'error'); }
 }
 
 let _andromedaModelChoices = new Map();
@@ -506,7 +506,7 @@ async function loadAndromedaSearchSettings(settings) {
   _andromedaModelChoices = new Map();
   let index = 0;
   document.querySelectorAll('.s-andromeda-model').forEach(select => {
-    const options = [{ value: '', label: select.dataset.band === 'standard' ? 'use answer role' : 'not configured' }];
+    const options = [{ value: '', label: select.dataset.band === 'standard' ? t('settings.andromeda_use_answer_role') : t('settings.not_configured') }];
     let selected = '';
     for (const endpoint of endpoints) {
       for (const model of endpoint.models || []) {
@@ -531,26 +531,26 @@ async function saveAndromedaModelBands() {
   try {
     if (!await _patchSettings({ andromeda_model_bands: choices })) return;
     const status = document.getElementById('s-andromeda-model-status');
-    if (status) status.textContent = 'exact choices saved';
-  } catch (error) { toast(error.message || 'model choices could not be saved', 'error'); }
+    if (status) status.textContent = t('settings.andromeda_choices_saved');
+  } catch (error) { toast(error.message || t('settings.andromeda_choices_save_failed'), 'error'); }
 }
 
 async function qualifyAndromedaAutoModel() {
   const select = document.getElementById('s-andromeda-model-auto');
   const choice = _andromedaModelChoices.get(`auto:${getDropdownValue(select)}`);
   const status = document.getElementById('s-andromeda-model-status');
-  if (!choice) { if (status) status.textContent = 'choose an exact local Auto model first'; return; }
+  if (!choice) { if (status) status.textContent = t('settings.andromeda_choose_auto'); return; }
   const button = document.getElementById('s-andromeda-qualify');
   if (button) button.disabled = true;
-  if (status) status.textContent = 'running the citation fixture locally…';
+  if (status) status.textContent = t('settings.andromeda_qualifying');
   try {
     const result = await _endpointJson(await fetch('/api/andromeda/models/qualify', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(choice),
     }));
     if (status) status.textContent = result.passed
-      ? `passed · ${result.supported_claims}/${result.required_claims} supported claims`
-      : `not qualified · ${result.supported_claims}/${result.required_claims} supported claims`;
-  } catch (error) { if (status) status.textContent = error.message || 'fixture failed'; }
+      ? tp('settings.andromeda_qualified', result.required_claims, { supported: result.supported_claims })
+      : tp('settings.andromeda_not_qualified', result.required_claims, { supported: result.supported_claims });
+  } catch (error) { if (status) status.textContent = error.message || t('settings.andromeda_fixture_failed'); }
   if (button) button.disabled = false;
 }
 
@@ -616,7 +616,7 @@ function _refreshThemeLock() {
   if (dt) dt.classList.toggle('locked', locked);
   if (note) {
     note.style.display = locked ? '' : 'none';
-    note.textContent = locked ? `mode + accent are set by the "${preset}" theme: pick "default" below to customize them` : '';
+    note.textContent = locked ? t('settings.theme_lock_note', { preset }) : '';
   }
   _markAccent();
   _markMode();
@@ -629,6 +629,15 @@ const ACCENT_PRESETS = [
   ['#f87171', 'red'], ['#f472b6', 'pink'], ['#e879f9', 'fuchsia'], ['#e8e6e3', 'mono'],
 ];
 const DEFAULT_ACCENT = '#aaa6ff';
+// colour names show as swatch tooltips, so they're read in the owner's language
+const _accentName = name => ({
+  indigo: t('settings.accent_indigo'), purple: t('settings.accent_purple'), blue: t('settings.accent_blue'),
+  cyan: t('settings.accent_cyan'), emerald: t('settings.accent_emerald'), green: t('settings.accent_green'),
+  yellow: t('settings.accent_yellow'), orange: t('settings.accent_orange'), red: t('settings.accent_red'),
+  pink: t('settings.accent_pink'), fuchsia: t('settings.accent_fuchsia'), mono: t('settings.accent_mono'),
+  violet: t('settings.accent_violet'), sky: t('settings.accent_sky'), amber: t('settings.accent_amber'),
+  slate: t('settings.accent_slate'),
+})[name] || name;
 // accent + mode now live in the unified appearance object (theme.js), so they survive reload
 // and stop fighting presets. these read/write through that, not the old aide-* localStorage.
 const _curAccent = () => {
@@ -678,7 +687,7 @@ function _loadThemeColorControls() {
   if (box && !box.dataset.built) {
     box.dataset.built = '1';
     box.innerHTML = ACCENT_PRESETS.map(([hex, name]) =>
-      `<button type="button" class="accent-swatch" data-hex="${hex}" title="${name}" aria-label="${name} accent" style="background:${hex}"></button>`).join('');
+      `<button type="button" class="accent-swatch" data-hex="${hex}" title="${_accentName(name)}" aria-label="${t('settings.accent_label', { name: _accentName(name) })}" style="background:${hex}"></button>`).join('');
     box.querySelectorAll('.accent-swatch').forEach(s => s.addEventListener('click', () => applyAccent(s.dataset.hex)));
   }
   const hexInp = document.getElementById('s-accent-hex');
@@ -687,7 +696,7 @@ function _loadThemeColorControls() {
     hexInp.addEventListener('keydown', e => {
       if (e.key !== 'Enter') return;
       let v = hexInp.value.trim(); if (v && v[0] !== '#') v = '#' + v;
-      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) applyAccent(v); else toast('not a valid hex color', 'error');
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) applyAccent(v); else toast(t('settings.invalid_hex'), 'error');
     });
   }
   const reset = document.getElementById('s-accent-reset');
@@ -706,11 +715,11 @@ function _loadThemeColorControls() {
       if (typeof m?.username !== 'string') throw new Error('invalid username response');
       if (!revision && uname.value === initialValue && document.activeElement !== uname) uname.value = m.username;
     }).catch(() => {});
-    let t; uname.addEventListener('input', () => {
+    let timer; uname.addEventListener('input', () => {
       ++revision;
       const username = uname.value.trim();
-      clearTimeout(t);
-      t = setTimeout(() => _patchSettings({ username }), 400);
+      clearTimeout(timer);
+      timer = setTimeout(() => _patchSettings({ username }), 400);
     });
   }
   // change password — bind once
@@ -724,18 +733,18 @@ function _loadThemeColorControls() {
       if (pwBtn.disabled) return;
       const submitted = fields.map(field => field?.value ?? '');
       const [oldp, newp, conf] = submitted;
-      if (newp.length < 12) { toast('new password must be at least 12 characters', 'error'); return; }
-      if (newp !== conf) { toast("passwords don't match", 'error'); return; }
+      if (newp.length < 12) { toast(t('settings.password_too_short'), 'error'); return; }
+      if (newp !== conf) { toast(t('settings.password_mismatch'), 'error'); return; }
       const savingRevision = revision;
       pwBtn.disabled = true;
       try {
         const result = await _endpointJson(await fetch('/api/auth/change-password', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ old_password: oldp, new_password: newp }) }));
-        if (result?.ok !== true) throw new Error('password change could not be confirmed');
-        toast('password changed', 'success');
+        if (result?.ok !== true) throw new Error(t('settings.password_unconfirmed'));
+        toast(t('settings.password_changed'), 'success');
         if (revision === savingRevision && fields.every((field, i) => (field?.value ?? '') === submitted[i])) {
           fields.forEach(field => { if (field) field.value = ''; });
         }
-      } catch (error) { toast(error.message || 'failed to change password', 'error'); }
+      } catch (error) { toast(error.message || t('settings.password_change_failed'), 'error'); }
       finally { pwBtn.disabled = false; }
     });
   }
@@ -752,10 +761,10 @@ function _loadThemeColorControls() {
       try {
         const r = await fetch('/api/auth/config', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: turnOn, password }) });
         const d = await r.json().catch(() => ({}));
-        if (!r.ok) { toast(d.detail || 'could not change the lock', 'error'); return; }
+        if (!r.ok) { toast(d.detail || t('settings.lock_change_failed'), 'error'); return; }
         _setSwitch(authSw, d.enabled);
-        toast(d.enabled ? 'password lock on' : 'password lock off', 'success');
-      } catch { toast('could not change the lock', 'error'); }
+        toast(d.enabled ? t('settings.lock_on') : t('settings.lock_off'), 'success');
+      } catch { toast(t('settings.lock_change_failed'), 'error'); }
     });
   }
 }
@@ -766,9 +775,9 @@ function loadShortcutSettings() {
   const shortcuts = loadShortcuts();
   document.querySelectorAll('.shortcut-input').forEach(inp => {
     inp.value = shortcuts[inp.dataset.shortcut] || '';
-    inp.placeholder = 'press keys';
+    inp.placeholder = t('shortcuts.placeholder');
     // a placeholder only shows on an empty field and this doesn't fit in it anyway
-    inp.title = 'press keys · backspace clears';
+    inp.title = t('shortcuts.title');
     inp.readOnly = true;   // it's a key-capture field, not free text
   });
 }
@@ -799,7 +808,7 @@ function _trackVoiceDrafts() {
       el.addEventListener(dropdown ? 'change' : 'input', () => {
         ++draft.revision;
         draft.dirty = true;
-        if (_voiceLoaded && !_voiceWrite) _showVoiceState('unsaved voice changes', 'dirty');
+        if (_voiceLoaded && !_voiceWrite) _showVoiceState(t('settings.voice_unsaved'), 'dirty');
       });
     }
     return [{ el, key, dropdown, draft }];
@@ -822,7 +831,7 @@ function _showVoiceState(message, state, retry = false) {
     button.id = 's-voice-retry-btn';
     button.type = 'button';
     button.className = 'btn';
-    button.textContent = 'retry voice settings';
+    button.textContent = t('settings.voice_retry');
     button.onclick = () => button.getAttribute('aria-disabled') !== 'true' && loadVoicePane();
     pane.prepend(button);
     pane.prepend(status);
@@ -856,7 +865,7 @@ async function loadVoicePane() {
   const pane = document.getElementById('s-pane-voice');
   // An earlier save receipt must not replace this opening's loading/error state.
   if (pane) pane.dataset.saveRevision = `voice-read-${read}`;
-  _showVoiceState('loading voice settings…', 'loading');
+  _showVoiceState(t('settings.voice_loading'), 'loading');
   _loadMicDevices(++_voiceMicReadGeneration);
   try {
     // Reopening during a write must not read its old server baseline.
@@ -882,10 +891,10 @@ async function loadVoicePane() {
     _voiceLoaded = true;
     _updateTtsVoiceRow();
     const dirty = fields.some(({ draft }) => draft.dirty);
-    _showVoiceState(dirty ? 'unsaved voice changes' : 'voice settings loaded', dirty ? 'dirty' : 'loaded');
+    _showVoiceState(dirty ? t('settings.voice_unsaved') : t('settings.voice_loaded'), dirty ? 'dirty' : 'loaded');
   } catch {
     if (read === _voiceReadGeneration) {
-      _showVoiceState('could not load voice settings. retry to load your saved choices.', 'error', true);
+      _showVoiceState(t('settings.voice_load_failed'), 'error', true);
     }
   } finally {
     if (read === _voiceReadGeneration) _refreshVoiceActions();
@@ -904,8 +913,8 @@ async function _loadMicDevices(read = _voiceMicReadGeneration) {
   const devices = await navigator.mediaDevices.enumerateDevices().catch(() => null);
   if (!devices || read !== _voiceMicReadGeneration) return;
   const mics = devices.filter(d => d.kind === 'audioinput');
-  const opts = [{ value: '', label: 'default microphone' },
-    ...mics.map((m, i) => ({ value: m.deviceId, label: m.label || `microphone ${i + 1}` }))];
+  const opts = [{ value: '', label: t('settings.voice_default_mic') },
+    ...mics.map((m, i) => ({ value: m.deviceId, label: m.label || t('settings.voice_mic_number', { number: i + 1 }) }))];
   const saved = localStorage.getItem('alles-mic-id') || '';
   populateDropdown(el, opts, opts.some(o => o.value === saved) ? saved : '');
 }
@@ -930,7 +939,7 @@ async function saveVoiceSettings() {
   if (key && submitted.some(field => field.key === 'openai_api_key' && field.draft.dirty)) patch.openai_api_key = key;
   if (await _writeVoiceSettings(patch, submitted)) {
     const dirty = submitted.some(({ draft }) => draft.dirty);
-    toast(dirty ? 'earlier voice settings saved; your latest edits still need saving' : 'voice settings saved', 'success');
+    toast(dirty ? t('settings.voice_partial') : t('settings.voice_saved'), 'success');
   }
 }
 
@@ -948,7 +957,7 @@ async function _writeVoiceSettings(patch, submitted = []) {
       }
       if (read === _voiceReadGeneration) {
         const dirty = _trackVoiceDrafts().some(({ draft }) => draft.dirty);
-        _showVoiceState(dirty ? 'earlier voice settings saved; your latest edits still need saving' : 'saved', dirty ? 'dirty' : 'saved');
+        _showVoiceState(dirty ? t('settings.voice_partial') : t('common.saved'), dirty ? 'dirty' : 'saved');
       }
     }
     return settings;
@@ -1029,7 +1038,7 @@ function _renderTempBar() {
   if (!bar) return;
   bar.classList.toggle('is-auto', !_tempOn);
   bar.setAttribute('aria-valuenow', _tempVal.toFixed(1));
-  bar.setAttribute('aria-valuetext', _tempOn ? _tempVal.toFixed(1) : 'auto');
+  bar.setAttribute('aria-valuetext', _tempOn ? _tempVal.toFixed(1) : t('settings.temperature_auto'));
   const lit = Math.round(_tempVal / TEMP_STEP);   // cells filled, 0..20
   let html = '';
   for (let i = 0; i < TEMP_CELLS; i++) {
@@ -1042,7 +1051,7 @@ function _renderTempBar() {
   }
   bar.innerHTML = html;
   if (lbl) {
-    lbl.textContent = _tempOn ? _tempVal.toFixed(1) : 'auto';
+    lbl.textContent = _tempOn ? _tempVal.toFixed(1) : t('settings.temperature_auto');
     lbl.classList.toggle('muted', !_tempOn);
     lbl.style.color = _tempOn ? _tempCellColor(Math.max(0, lit - 1)) : '';
   }
@@ -1106,9 +1115,9 @@ function _buildPersonaAccents() {
   if (!box || box.dataset.built) return;
   box.dataset.built = '1';
   box.innerHTML =
-    '<button type="button" class="pa-swatch pa-none" data-hex="" title="no override: use your theme accent">default</button>' +
+    `<button type="button" class="pa-swatch pa-none" data-hex="" title="${t('settings.persona_accent_default_title')}">${t('settings.default_tag')}</button>` +
     PERSONA_ACCENTS.map(([hex, name]) =>
-      `<button type="button" class="pa-swatch" data-hex="${hex}" title="${name}" style="background:${hex}"></button>`).join('');
+      `<button type="button" class="pa-swatch" data-hex="${hex}" title="${_accentName(name)}" style="background:${hex}"></button>`).join('');
   box.querySelectorAll('.pa-swatch').forEach(s => s.addEventListener('click', () => {
     _setPersonaAccent(s.dataset.hex);
     // live preview the re-theme as you pick (reset/save restores the real active accent)
@@ -1132,13 +1141,13 @@ function _fillPersonaModels(selected = '') {
   const sel = document.getElementById('persona-model');
   if (!sel) return;
   const eps = window._endpoints || [];
-  const opts = [{ value: '', label: "use chat's model (default)" }];
+  const opts = [{ value: '', label: t('settings.persona_model_default') }];
   for (const ep of eps) {
     for (const m of (ep.models || [])) opts.push({ value: m, label: m });
   }
   // keep a pinned model that isn't in any endpoint's list (e.g. a renamed/removed one)
   if (selected && !eps.some(ep => (ep.models || []).includes(selected)))
-    opts.push({ value: selected, label: `${selected} (not in any endpoint)` });
+    opts.push({ value: selected, label: t('settings.persona_model_missing', { model: selected }) });
   populateDropdown(sel, opts, selected || '');   // custom dropdown — no native <select>
 }
 
@@ -1156,23 +1165,34 @@ export async function loadPersonas() {
     if (!Array.isArray(personas)) throw new Error('invalid personas response');
   } catch {
     if (read === _personaReadGeneration && _isSettingsPaneOpen('personas'))
-      toast('personas could not be loaded', 'error');
+      toast(t('settings.personas_load_failed'), 'error');
     return;
   }
   if (read !== _personaReadGeneration || !_isSettingsPaneOpen('personas')) return;
   _personaCache = personas;
-  if (!_personaCache.length) { el.innerHTML = '<div class="settings-row-empty">no personas yet</div>'; return; }
+  if (!_personaCache.length) { el.innerHTML = `<div class="settings-row-empty">${t('settings.personas_empty')}</div>`; return; }
   el.innerHTML = _personaCache.map(p => {
     const prev = (p.system_prompt || '').replace(/\s+/g, ' ').trim();
     return `
-    <div class="settings-list-row persona-row${_editingPersona === p.id ? ' editing' : ''}" data-id="${p.id}" onclick="window._editPersona('${p.id}')">
-      <span class="row-name">${_esc(p.name)}${p.is_default ? ' <span class="row-tag">default</span>' : ''}</span>
+    <div class="settings-list-row persona-row${_editingPersona === p.id ? ' editing' : ''}" data-id="${p.id}">
+      <span class="row-name">${_esc(p.name)}${p.is_default ? ` <span class="row-tag">${t('settings.default_tag')}</span>` : ''}</span>
       <span class="row-meta">${_esc(prev.slice(0, 60))}${prev.length > 60 ? '…' : ''}</span>
-      <button type="button" class="act-btn" data-persona-edit aria-label="edit ${_escAttr(p.name)}" onclick="event.stopPropagation();window._editPersona('${p.id}')">edit</button>
-      <button class="act-btn" data-id="${p.id}" data-persona-duplicate ${_personaDuplicates.has(p.id) ? 'disabled' : ''} onclick="event.stopPropagation();window._dupPersona('${p.id}')">duplicate</button>
-      <button class="act-btn" data-id="${p.id}" data-persona-remove ${_personaRemovalPending(p.id) ? 'disabled' : ''} onclick="event.stopPropagation();window._rmPersona(this)">remove</button>
+      <button type="button" class="act-btn" data-persona-edit aria-label="${t('settings.edit_named', { name: _escAttr(p.name) })}">${t('common.edit')}</button>
+      <button class="act-btn" data-id="${p.id}" data-persona-duplicate ${_personaDuplicates.has(p.id) ? 'disabled' : ''}>${t('settings.duplicate')}</button>
+      <button class="act-btn" data-id="${p.id}" data-persona-remove ${_personaRemovalPending(p.id) ? 'disabled' : ''}>${t('common.remove')}</button>
     </div>`;
   }).join('');
+  // the whole row opens the editor; its buttons do their own thing only
+  el.querySelectorAll('.persona-row').forEach(row => {
+    const id = row.dataset.id;
+    row.addEventListener('click', event => {
+      const button = event.target.closest('button');
+      if (button?.disabled) return;
+      if (button?.matches('[data-persona-duplicate]')) window._dupPersona(id);
+      else if (button?.matches('[data-persona-remove]')) window._rmPersona(button);
+      else window._editPersona(id);
+    });
+  });
 }
 
 window._editPersona = id => {
@@ -1190,8 +1210,8 @@ window._editPersona = id => {
   _buildPersonaAccents(); _setPersonaAccent(p.accent || '');
   document.getElementById('persona-default')?.classList.toggle('on', !!p.is_default);
   const title = document.getElementById('persona-form-title');
-  if (title) { title.textContent = `editing "${p.name}"`; title.hidden = false; }
-  document.getElementById('persona-add-btn').textContent = 'save changes';
+  if (title) { title.textContent = t('settings.persona_editing', { name: p.name }); title.hidden = false; }
+  document.getElementById('persona-add-btn').textContent = t('settings.save_changes');
   document.getElementById('persona-cancel-btn').hidden = false;
   const extra = document.getElementById('persona-extra');
   if (extra) extra.hidden = false;   // 10d — knowledge files + share for a saved persona
@@ -1214,14 +1234,14 @@ async function _loadPersonaDocs(pid) {
     if (!Array.isArray(docs)) throw new Error('invalid knowledge files response');
   } catch {
     if (read === _personaDocsReadGeneration && _editingPersona === pid && _isSettingsPaneOpen('personas'))
-      toast('knowledge files could not be loaded', 'error');
+      toast(t('settings.persona_docs_load_failed'), 'error');
     return;
   }
   if (read !== _personaDocsReadGeneration || _editingPersona !== pid || !_isSettingsPaneOpen('personas')) return;
   box.innerHTML = docs.length
     ? docs.map(d => `<div class="persona-doc-row"><span>${_si('file')} ${_esc(d.title)}</span>` +
-        `<button class="act-btn" data-id="${_escAttr(d.id)}" data-persona-doc-remove ${_personaDocDeletes.has(`${pid}/${d.id}`) ? 'disabled' : ''}>remove</button></div>`).join('')
-    : '<div class="settings-row-empty">no knowledge files yet</div>';
+        `<button class="act-btn" data-id="${_escAttr(d.id)}" data-persona-doc-remove ${_personaDocDeletes.has(`${pid}/${d.id}`) ? 'disabled' : ''}>${t('common.remove')}</button></div>`).join('')
+    : `<div class="settings-row-empty">${t('settings.persona_docs_empty')}</div>`;
   box.querySelectorAll('.act-btn').forEach(b => b.onclick = async () => {
     const id = b.dataset.id;
     const key = `${pid}/${id}`;
@@ -1231,9 +1251,9 @@ async function _loadPersonaDocs(pid) {
     b.disabled = true;
     try {
       const response = await fetch(`/api/personas/${pid}/docs/${id}`, { method: 'DELETE' });
-      if (!response.ok) { toast('knowledge file could not be removed', 'error'); return; }
+      if (!response.ok) { toast(t('settings.persona_doc_remove_failed'), 'error'); return; }
       if (_editingPersona === pid) _loadPersonaDocs(pid);
-    } catch { toast('knowledge file could not be removed', 'error'); }
+    } catch { toast(t('settings.persona_doc_remove_failed'), 'error'); }
     finally {
       _personaDocDeletes.delete(key);
       b.disabled = false;
@@ -1250,23 +1270,23 @@ async function _addPersonaDoc() {
   const fields = ['persona-doc-title', 'persona-doc-content'];
   const submitted = fields.map(id => document.getElementById(id).value);
   const [title, content] = submitted.map(value => value.trim());
-  if (!content) { toast('paste some text first', 'error'); return; }
+  if (!content) { toast(t('settings.persona_doc_needs_text'), 'error'); return; }
   _personaDocSavingId = pid;
   ++_personaDocsReadGeneration;
   _refreshPersonaPendingControls();
   try {
     const response = await fetch(`/api/personas/${pid}/docs`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: title || 'untitled', content }),
+      body: JSON.stringify({ title: title || t('settings.persona_doc_untitled'), content }),
     });
-    if (!response.ok) { toast('knowledge file could not be added', 'error'); return; }
+    if (!response.ok) { toast(t('settings.persona_doc_add_failed'), 'error'); return; }
     if (_editingPersona === pid) {
       if (fields.every((id, index) => document.getElementById(id).value === submitted[index]))
         fields.forEach(id => { document.getElementById(id).value = ''; });
       _loadPersonaDocs(pid);
     }
-    toast('knowledge file added', 'success');
-  } catch { toast('knowledge file could not be added', 'error'); }
+    toast(t('settings.persona_doc_added'), 'success');
+  } catch { toast(t('settings.persona_doc_add_failed'), 'error'); }
   finally { _personaDocSavingId = null; _refreshPersonaPendingControls(); }
 }
 
@@ -1274,13 +1294,13 @@ async function _sharePersona() {
   if (!_editingPersona) return;
   try {
     const response = await fetch(`/api/personas/${_editingPersona}/share`, { method: 'POST' });
-    if (!response.ok) { toast('share failed', 'error'); return; }
+    if (!response.ok) { toast(t('settings.persona_share_failed'), 'error'); return; }
     const r = await response.json();
-    if (typeof r.url !== 'string' || !r.url) { toast('share failed', 'error'); return; }
+    if (typeof r.url !== 'string' || !r.url) { toast(t('settings.persona_share_failed'), 'error'); return; }
     const url = location.origin + r.url;
-    try { await navigator.clipboard.writeText(url); toast('share link copied', 'success'); }
+    try { await navigator.clipboard.writeText(url); toast(t('settings.persona_share_copied'), 'success'); }
     catch { toast(url, ''); }
-  } catch { toast('share failed', 'error'); }
+  } catch { toast(t('settings.persona_share_failed'), 'error'); }
 }
 
 function _resetPersonaForm() {
@@ -1294,7 +1314,7 @@ function _resetPersonaForm() {
   document.getElementById('persona-default')?.classList.remove('on');
   window._refreshPersonaBtn?.();   // restore the live accent to the active session's persona
   const title = document.getElementById('persona-form-title'); if (title) title.hidden = true;
-  document.getElementById('persona-add-btn').textContent = 'add persona';
+  document.getElementById('persona-add-btn').textContent = t('settings.persona_add');
   document.getElementById('persona-cancel-btn').hidden = true;
   const extra = document.getElementById('persona-extra'); if (extra) extra.hidden = true;
   _refreshPersonaPendingControls();
@@ -1310,11 +1330,11 @@ window._rmPersona = async btn => {
   _refreshPersonaPendingControls();
   try {
     const response = await fetch(`/api/personas/${id}`, { method: 'DELETE' });
-    if (!response.ok) { toast('persona could not be removed', 'error'); return; }
+    if (!response.ok) { toast(t('settings.persona_remove_failed'), 'error'); return; }
     if (_editingPersona === id) _resetPersonaForm();
     else loadPersonas();
     window._refreshPersonaBtn?.();
-  } catch { toast('persona could not be removed', 'error'); }
+  } catch { toast(t('settings.persona_remove_failed'), 'error'); }
   finally {
     _personaDeletes.delete(id);
     btn.disabled = false;
@@ -1329,9 +1349,9 @@ window._dupPersona = async id => {
   _refreshPersonaPendingControls();
   try {
     const response = await fetch(`/api/personas/${id}/duplicate`, { method: 'POST' });
-    if (!response.ok) { toast('persona could not be duplicated', 'error'); return; }
-    toast('duplicated', 'success'); loadPersonas(); window._refreshPersonaBtn?.();
-  } catch { toast('persona could not be duplicated', 'error'); }
+    if (!response.ok) { toast(t('settings.persona_duplicate_failed'), 'error'); return; }
+    toast(t('settings.persona_duplicated'), 'success'); loadPersonas(); window._refreshPersonaBtn?.();
+  } catch { toast(t('settings.persona_duplicate_failed'), 'error'); }
   finally { _personaDuplicates.delete(id); _refreshPersonaPendingControls(); }
 };
 
@@ -1359,7 +1379,7 @@ async function addPersona() {
   const payload = { ...submitted.fields, name: submitted.fields.name.trim(),
     system_prompt: submitted.fields.system_prompt.trim(),
     initial_message: submitted.fields.initial_message.trim() };
-  if (!payload.name) { toast('name required', 'error'); return; }
+  if (!payload.name) { toast(t('settings.name_required'), 'error'); return; }
   _personaSavePending = true;
   _personaSavingId = submitted.editing;
   ++_personaReadGeneration;
@@ -1369,12 +1389,12 @@ async function addPersona() {
       method: submitted.editing ? 'PATCH' : 'POST', headers: {'content-type':'application/json'},
       body: JSON.stringify(payload),
     });
-    if (!response.ok) { toast('persona could not be saved', 'error'); return; }
-    toast(submitted.editing ? 'persona updated' : 'persona added', 'success');
+    if (!response.ok) { toast(t('settings.persona_save_failed'), 'error'); return; }
+    toast(submitted.editing ? t('settings.persona_updated') : t('settings.persona_added'), 'success');
     if (JSON.stringify(_personaDraft()) === JSON.stringify(submitted)) _resetPersonaForm();
     else loadPersonas();
     window._refreshPersonaBtn?.();
-  } catch { toast('persona could not be saved', 'error'); }
+  } catch { toast(t('settings.persona_save_failed'), 'error'); }
   finally { _personaSavePending = false; _personaSavingId = null; _refreshPersonaPendingControls(); }
 }
 
@@ -1395,17 +1415,18 @@ export async function loadCookbook() {
     if (!Array.isArray(entries)) throw new Error('invalid commands response');
   } catch {
     if (read === _cookbookReadGeneration && _isSettingsPaneOpen('personas'))
-      toast('commands could not be loaded', 'error');
+      toast(t('settings.commands_load_failed'), 'error');
     return;
   }
   if (read !== _cookbookReadGeneration || !_isSettingsPaneOpen('personas')) return;
-  if (!entries.length) { el.innerHTML = '<div class="settings-row-empty">no commands: type / in chat to use</div>'; return; }
+  if (!entries.length) { el.innerHTML = `<div class="settings-row-empty">${t('settings.commands_empty')}</div>`; return; }
   el.innerHTML = entries.map(e => `
     <div class="settings-list-row">
       <span class="row-name">/${_esc(e.name)}</span>
       <span class="row-meta">${_esc(e.description || e.prompt.slice(0,40))}</span>
-      <button class="act-btn" data-id="${e.id}" data-cookbook-remove ${_cookbookDeletes.has(e.id) ? 'disabled' : ''} onclick="window._rmCookbook(this)">remove</button>
+      <button class="act-btn" data-id="${e.id}" data-cookbook-remove ${_cookbookDeletes.has(e.id) ? 'disabled' : ''}>${t('common.remove')}</button>
     </div>`).join('');
+  el.querySelectorAll('[data-cookbook-remove]').forEach(button => button.addEventListener('click', () => window._rmCookbook(button)));
 }
 
 window._rmCookbook = async btn => {
@@ -1416,9 +1437,9 @@ window._rmCookbook = async btn => {
   btn.disabled = true;
   try {
     const response = await fetch(`/api/cookbook/${id}`, { method: 'DELETE' });
-    if (!response.ok) { toast('command could not be removed', 'error'); return; }
+    if (!response.ok) { toast(t('settings.command_remove_failed'), 'error'); return; }
     loadCookbook();
-  } catch { toast('command could not be removed', 'error'); }
+  } catch { toast(t('settings.command_remove_failed'), 'error'); }
   finally {
     _cookbookDeletes.delete(id);
     btn.disabled = false;
@@ -1433,7 +1454,7 @@ async function addCookbookEntry() {
   const fields = ['cookbook-name','cookbook-desc','cookbook-prompt'];
   const submitted = fields.map(id => document.getElementById(id).value);
   const [name, description, prompt] = submitted.map(value => value.trim());
-  if (!name || !prompt) { toast('name + prompt required', 'error'); return; }
+  if (!name || !prompt) { toast(t('settings.command_fields_required'), 'error'); return; }
   const button = document.getElementById('cookbook-add-btn');
   _cookbookSavePending = true;
   ++_cookbookReadGeneration;
@@ -1441,12 +1462,12 @@ async function addCookbookEntry() {
   try {
     const response = await fetch('/api/cookbook', { method: 'POST', headers: {'content-type':'application/json'},
       body: JSON.stringify({ name, description, prompt }) });
-    if (!response.ok) { toast('command could not be saved', 'error'); return; }
+    if (!response.ok) { toast(t('settings.command_save_failed'), 'error'); return; }
     if (fields.every((id, index) => document.getElementById(id).value === submitted[index]))
       fields.forEach(id => document.getElementById(id).value = '');
-    toast('added', 'success');
+    toast(t('settings.command_added'), 'success');
     loadCookbook();
-  } catch { toast('command could not be saved', 'error'); }
+  } catch { toast(t('settings.command_save_failed'), 'error'); }
   finally { _cookbookSavePending = false; button.disabled = false; }
 }
 
@@ -1469,19 +1490,24 @@ async function loadTokens() {
     if (!Array.isArray(tokens)) throw new Error('invalid tokens response');
   } catch {
     if (read === _tokenReadGeneration && _isSettingsPaneOpen('developer'))
-      toast('tokens could not be loaded', 'error');
+      toast(t('settings.tokens_load_failed'), 'error');
     return;
   }
   if (read !== _tokenReadGeneration || !_isSettingsPaneOpen('developer')) return;
-  if (!tokens.length) { el.innerHTML = '<div class="settings-row-empty">no tokens</div>'; return; }
+  if (!tokens.length) { el.innerHTML = `<div class="settings-row-empty">${t('settings.tokens_empty')}</div>`; return; }
+  const noAccess = t('settings.token_no_access');
+  const neverUsed = t('settings.token_never_used');
+  const revoke = t('settings.token_revoke');
+  const usedOn = when => t('settings.token_used', { date: formatDate(when) });
   el.innerHTML = tokens.map(t => `
     <div class="settings-list-row">
       <span class="row-name" style="font-family:monospace;font-size:0.75rem">${t.prefix}…</span>
       <span class="row-meta">${_esc(t.name)}</span>
-      <span class="row-meta">${(t.scopes || []).map(_esc).join(', ') || 'no access'}</span>
-      <span class="row-meta">${t.last_used_at ? 'used ' + formatDate(t.last_used_at) : 'never used'}</span>
-      <button class="act-btn" data-id="${t.id}" data-token-revoke ${_tokenRevokes.has(t.id) ? 'disabled' : ''} onclick="window._rmToken(this)">revoke</button>
+      <span class="row-meta">${(t.scopes || []).map(_esc).join(', ') || noAccess}</span>
+      <span class="row-meta">${t.last_used_at ? usedOn(t.last_used_at) : neverUsed}</span>
+      <button class="act-btn" data-id="${t.id}" data-token-revoke ${_tokenRevokes.has(t.id) ? 'disabled' : ''}>${revoke}</button>
     </div>`).join('');
+  el.querySelectorAll('[data-token-revoke]').forEach(button => button.addEventListener('click', () => window._rmToken(button)));
 }
 
 window._rmToken = async btn => {
@@ -1494,9 +1520,9 @@ window._rmToken = async btn => {
   btn.disabled = true;
   try {
     const response = await _fetchWithRecentOwner(`/api/tokens/${id}`, { method: 'DELETE' });
-    if (!response.ok) { toast('token could not be revoked', 'error'); return; }
+    if (!response.ok) { toast(t('settings.token_revoke_failed'), 'error'); return; }
     loadTokens();
-  } catch { toast('token could not be revoked', 'error'); }
+  } catch { toast(t('settings.token_revoke_failed'), 'error'); }
   finally {
     _tokenRevokes.delete(id);
     btn.disabled = false;
@@ -1515,10 +1541,10 @@ async function generateToken() {
   const input = document.getElementById('token-name');
   const submittedName = input.value;
   const name = submittedName.trim();
-  if (!name) { toast('name required', 'error'); return; }
+  if (!name) { toast(t('settings.name_required'), 'error'); return; }
   const scopes = [...document.querySelectorAll('[data-token-scope].active')]
     .map(btn => btn.dataset.tokenScope);
-  if (!scopes.length) { toast('choose at least one permission', 'error'); return; }
+  if (!scopes.length) { toast(t('settings.token_needs_scope'), 'error'); return; }
   const button = document.getElementById('token-add-btn');
   const restoreFocus = document.activeElement === button;
   const opening = _developerOpening;
@@ -1531,7 +1557,7 @@ async function generateToken() {
       body: JSON.stringify({ name, scopes }),
     });
     const data = await r.json();
-    if (!r.ok) { toast(data?.detail || 'token could not be created', 'error'); return; }
+    if (!r.ok) { toast(data?.detail || t('settings.token_create_failed'), 'error'); return; }
     if (typeof data?.token !== 'string' || !data.token) throw new Error('invalid token receipt');
     const currentScopes = [...document.querySelectorAll('[data-token-scope].active')]
       .map(btn => btn.dataset.tokenScope);
@@ -1539,11 +1565,11 @@ async function generateToken() {
     const reveal = document.getElementById('token-reveal');
     reveal.style.display = 'block';
     reveal.textContent = data.token;
-    reveal.title = 'click to copy';
-    reveal.onclick = () => _copySettingsValue(reveal, 'token');
-    toast('token generated: copy it now, shown once', 'success');
+    reveal.title = t('settings.click_to_copy');
+    reveal.onclick = () => _copySettingsValue(reveal, t('settings.token_copied'));
+    toast(t('settings.token_generated'), 'success');
     loadTokens();
-  } catch { toast('token could not be created', 'error'); }
+  } catch { toast(t('settings.token_create_failed'), 'error'); }
   finally {
     _tokenCreatePending = false;
     button.disabled = false;
@@ -1555,7 +1581,7 @@ async function generateToken() {
 }
 
 const _settingsCopies = new WeakSet();
-async function _copySettingsValue(target, label) {
+async function _copySettingsValue(target, copiedMessage) {
   if (_settingsCopies.has(target)) return;
   const value = target.textContent;
   const opening = _developerOpening;
@@ -1565,9 +1591,9 @@ async function _copySettingsValue(target, label) {
   target.setAttribute('aria-busy', 'true');
   try {
     await navigator.clipboard.writeText(value);
-    if (isCurrent()) toast(`${label} copied`, 'success');
+    if (isCurrent()) toast(copiedMessage, 'success');
   } catch {
-    if (isCurrent()) toast('copy failed; select the shown value and copy manually, or try again', 'error');
+    if (isCurrent()) toast(t('settings.copy_failed'), 'error');
   } finally {
     _settingsCopies.delete(target);
     target.removeAttribute('aria-busy');
@@ -1583,7 +1609,7 @@ function _refreshWebhookPendingControls() {
   document.querySelectorAll('#webhook-list [data-webhook-test], #webhook-list [data-webhook-remove]').forEach(button => {
     const id = button.dataset.id;
     button.disabled = _webhookTests.has(id) || _webhookDeletes.has(id);
-    if (button.hasAttribute('data-webhook-test')) button.textContent = _webhookTests.has(id) ? '…' : 'test';
+    if (button.hasAttribute('data-webhook-test')) button.textContent = _webhookTests.has(id) ? '…' : t('settings.test');
   });
 }
 async function loadWebhooks() {
@@ -1598,28 +1624,30 @@ async function loadWebhooks() {
     if (!Array.isArray(hooks)) throw new Error('invalid webhooks response');
   } catch {
     if (read === _webhookReadGeneration && _isSettingsPaneOpen('developer'))
-      toast('webhooks could not be loaded', 'error');
+      toast(t('settings.webhooks_load_failed'), 'error');
     return;
   }
   if (read !== _webhookReadGeneration || !_isSettingsPaneOpen('developer')) return;
-  if (!hooks.length) { el.innerHTML = '<div class="settings-row-empty">no webhooks</div>'; return; }
+  if (!hooks.length) { el.innerHTML = `<div class="settings-row-empty">${t('settings.webhooks_empty')}</div>`; return; }
   el.innerHTML = hooks.map(h => {
     const pending = _webhookTests.has(h.id) || _webhookDeletes.has(h.id);
-    const st = h.last_status === 'ok' ? ' · ok'
-      : h.last_status ? ` · failed: ${_esc(h.last_error || h.last_status)}` : '';
+    const st = h.last_status === 'ok' ? ` · ${t('settings.webhook_status_ok')}`
+      : h.last_status ? ` · ${t('settings.webhook_status_failed', { error: _esc(h.last_error || h.last_status) })}` : '';
     return `
     <div class="settings-list-row">
       <span class="status-dot" style="background:${h.enabled ? 'var(--green)' : 'var(--faint)'}"></span>
       <span class="row-name">${_esc(h.name)}</span>
       <span class="row-meta">${h.events.join(', ')}${st}</span>
-      ${h.secret ? `<button type="button" class="wh-secret act-btn" aria-label="copy webhook signing key" title="HMAC-SHA256 signing key: verify the X-Alles-Signature header with this" style="font-family:monospace;font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;text-transform:none;letter-spacing:normal">${_esc(h.secret)}</button>` : ''}
-      <button class="act-btn" data-id="${h.id}" data-webhook-test ${pending ? 'disabled' : ''} onclick="window._testWebhook(this)">${_webhookTests.has(h.id) ? '…' : 'test'}</button>
-      <button class="act-btn" data-id="${h.id}" data-webhook-remove ${pending ? 'disabled' : ''} onclick="window._rmWebhook(this)">remove</button>
+      ${h.secret ? `<button type="button" class="wh-secret act-btn" aria-label="${t('settings.webhook_copy_key')}" title="${t('settings.webhook_key_title')}" style="font-family:monospace;font-size:0.75rem;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all;text-transform:none;letter-spacing:normal">${_esc(h.secret)}</button>` : ''}
+      <button class="act-btn" data-id="${h.id}" data-webhook-test ${pending ? 'disabled' : ''}>${_webhookTests.has(h.id) ? '…' : t('settings.test')}</button>
+      <button class="act-btn" data-id="${h.id}" data-webhook-remove ${pending ? 'disabled' : ''}>${t('common.remove')}</button>
     </div>`;
   }).join('');
   el.querySelectorAll('.wh-secret').forEach(button => {
-    button.addEventListener('click', () => _copySettingsValue(button, 'signing key'));
+    button.addEventListener('click', () => _copySettingsValue(button, t('settings.webhook_key_copied')));
   });
+  el.querySelectorAll('[data-webhook-test]').forEach(button => button.addEventListener('click', () => window._testWebhook(button)));
+  el.querySelectorAll('[data-webhook-remove]').forEach(button => button.addEventListener('click', () => window._rmWebhook(button)));
 }
 
 window._testWebhook = async btn => {
@@ -1633,8 +1661,8 @@ window._testWebhook = async btn => {
     const response = await fetch(`/api/webhooks/${id}/test`, { method: 'POST' });
     if (!response.ok) throw new Error('webhook test failed');
     const r = await response.json();
-    toast(r.status === 'ok' ? 'webhook delivered' : `failed: ${r.error || r.status}`, r.status === 'ok' ? 'success' : 'error');
-  } catch { toast('test failed', 'error'); }
+    toast(r.status === 'ok' ? t('settings.webhook_delivered') : t('settings.webhook_status_failed', { error: r.error || r.status }), r.status === 'ok' ? 'success' : 'error');
+  } catch { toast(t('settings.webhook_test_failed'), 'error'); }
   finally {
     _webhookTests.delete(id);
     btn.disabled = false; btn.textContent = old;
@@ -1651,10 +1679,17 @@ window._rmWebhook = async btn => {
   btn.disabled = true;
   _refreshWebhookPendingControls();
   try {
+    // the row goes away with the redraw, so focus moves to the row that takes its place
+    const rows = [...document.querySelectorAll('#webhook-list [data-webhook-remove]')];
+    const at = rows.indexOf(btn);
     const response = await fetch(`/api/webhooks/${id}`, { method: 'DELETE' });
-    if (!response.ok) { toast('webhook could not be removed', 'error'); return; }
-    loadWebhooks();
-  } catch { toast('webhook could not be removed', 'error'); }
+    if (!response.ok) { toast(t('settings.webhook_remove_failed'), 'error'); return; }
+    await loadWebhooks();
+    // only focus that went away with the removed row moves; someone typing elsewhere keeps their place
+    if (document.activeElement && document.activeElement !== document.body) return;
+    const left = [...document.querySelectorAll('#webhook-list [data-webhook-remove]')];
+    (left[Math.min(at, left.length - 1)] || document.getElementById('wh-add-btn'))?.focus();
+  } catch { toast(t('settings.webhook_remove_failed'), 'error'); }
   finally {
     _webhookDeletes.delete(id);
     btn.disabled = false;
@@ -1667,7 +1702,7 @@ async function addWebhook() {
   const fields = ['wh-name','wh-url'];
   const submitted = fields.map(id => document.getElementById(id).value);
   const [name, url] = submitted.map(value => value.trim());
-  if (!name || !url) { toast('name + url required', 'error'); return; }
+  if (!name || !url) { toast(t('settings.webhook_fields_required'), 'error'); return; }
   const button = document.getElementById('wh-add-btn');
   _webhookSavePending = true;
   ++_webhookReadGeneration;
@@ -1675,12 +1710,12 @@ async function addWebhook() {
   try {
     const response = await fetch('/api/webhooks', { method: 'POST', headers: {'content-type':'application/json'},
       body: JSON.stringify({ name, url, events: ['message'] }) });
-    if (!response.ok) { toast('webhook could not be saved', 'error'); return; }
+    if (!response.ok) { toast(t('settings.webhook_save_failed'), 'error'); return; }
     if (fields.every((id, index) => document.getElementById(id).value === submitted[index]))
       fields.forEach(id => document.getElementById(id).value = '');
-    toast('webhook added', 'success');
+    toast(t('settings.webhook_added'), 'success');
     loadWebhooks();
-  } catch { toast('webhook could not be saved', 'error'); }
+  } catch { toast(t('settings.webhook_save_failed'), 'error'); }
   finally { _webhookSavePending = false; button.disabled = false; }
 }
 
@@ -1688,16 +1723,16 @@ async function addWebhook() {
 async function _loadPaneSettings(name) {
   try {
     const settings = await _endpointJson(await fetch('/api/settings'));
-    if (!Number.isFinite(settings?.context_limit) || typeof settings.language !== 'string') throw new Error('incomplete settings');
+    if (!Number.isFinite(settings?.context_limit) || typeof settings.language !== 'string') throw new Error(t('settings.settings_incomplete'));
     return settings;
   } catch (error) {
-    toast(`could not load ${name} settings: ${error.message || 'server unavailable'}. reopen this section to retry.`, 'error');
+    toast(t('settings.section_load_failed', { section: name, message: error.message || t('settings.server_unavailable') }), 'error');
     return null;
   }
 }
 
 async function loadRecallPane() {
-  const s = await _loadPaneSettings('recall');
+  const s = await _loadPaneSettings(t('settings.section_recall'));
   if (!s) return;
   const keys = ['enabled', 'mail', 'note', 'journal', 'contact', 'read', 'book'];
   for (const k of keys) {
@@ -1708,7 +1743,10 @@ async function loadRecallPane() {
   const el = document.getElementById('s-pidx-stats');
   if (el && stats) {
     const total = Object.values(stats.by_kind || {}).reduce((a, b) => a + b, 0);
-    el.textContent = `${total} chunks indexed · ${stats.mail_pending || 0} mail bodies pending`;
+    el.textContent = t('settings.recall_stats', {
+      chunks: tp('settings.recall_chunks_indexed', total),
+      mail: tp('settings.recall_mail_pending', stats.mail_pending || 0),
+    });
   }
   const rb = document.getElementById('s-pidx-reindex');
   if (rb && !rb.dataset.bound) {
@@ -1719,7 +1757,7 @@ async function loadRecallPane() {
       try {
         await _endpointJson(await fetch('/api/recall/reindex', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }));
         await loadRecallPane();
-      } catch { toast('reindex failed; try again', 'error'); }
+      } catch { toast(t('settings.recall_reindex_failed'), 'error'); }
       finally { rb.disabled = false; }
     });
   }
@@ -1731,19 +1769,19 @@ async function loadRecallPane() {
       if (pending) return;
       pending = true;
       try {
-        if (!await _dlgConfirm('clear the recall index?')) return;
+        if (!await _dlgConfirm(t('settings.recall_clear_confirm'))) return;
         cb.disabled = true;
         const result = await _endpointJson(await fetch('/api/recall/clear', { method: 'POST' }));
         if (!Number.isInteger(result?.removed) || result.removed < 0) throw new Error('clear result could not be confirmed');
         await loadRecallPane();
-      } catch { toast('clear failed; try again', 'error'); }
+      } catch { toast(t('settings.recall_clear_failed'), 'error'); }
       finally { pending = false; cb.disabled = false; }
     });
   }
 }
 
 async function loadProactivePane() {
-  const s = await _loadPaneSettings('background checks');
+  const s = await _loadPaneSettings(t('settings.section_background_checks'));
   if (!s) return;
   const sw = (id, key, defOn) => {
     const el = document.getElementById(id);
@@ -1790,16 +1828,19 @@ async function loadProactivePane() {
     run.addEventListener('click', async () => {
       if (run.disabled) return;
       run.disabled = true;
-      if (status) status.textContent = 'thinking...';
+      if (status) status.textContent = t('settings.thinking');
       try {
         const r = await _endpointJson(await fetch('/api/proactive/run', { method: 'POST' }));
         if (!r || (r.ran !== true && r.ran !== false)
           || (r.ran && (!Number.isInteger(r.written) || r.written < 0 || !Number.isInteger(r.signals) || r.signals < 0))
           || (!r.ran && (typeof r.reason !== 'string' || !r.reason))) throw new Error('run result could not be confirmed');
         if (status) status.textContent = r.ran
-          ? `done - ${r.written} new card${r.written === 1 ? '' : 's'} from ${r.signals} signal${r.signals === 1 ? '' : 's'}`
-          : `not run (${r.reason.replaceAll('_', ' ')})`;
-      } catch { if (status) status.textContent = 'run failed; try again'; }
+          ? t('settings.proactive_done', {
+            cards: tp('settings.proactive_new_cards', r.written),
+            signals: tp('settings.proactive_signals', r.signals),
+          })
+          : t('settings.not_run', { reason: r.reason.replaceAll('_', ' ') });
+      } catch { if (status) status.textContent = t('settings.run_failed'); }
       finally { run.disabled = false; }
     });
   }
@@ -1810,15 +1851,15 @@ async function loadProactivePane() {
     const stats = await fetch('/api/proactive/stats').then(r => r.json()).catch(() => ({}));
     const cats = Object.entries(stats || {}).filter(([, c]) => (c.acted || 0) + (c.dismissed || 0) + (c.ignored || 0) > 0);
     learn.innerHTML = cats.length
-      ? '<div class="s-prox-learn-h">learned from your clicks</div>' + cats
+      ? `<div class="s-prox-learn-h">${t('settings.proactive_learned')}</div>` + cats
           .sort((a, b) => (b[1].act_rate || 0) - (a[1].act_rate || 0))
-          .map(([cat, c]) => `<div class="prox-stat-row"><span class="prox-stat-cat">${_esc(cat)}</span><span class="prox-stat-nums">${Math.round((c.act_rate || 0) * 100)}% acted</span><span class="prox-stat-weight">x${(c.weight == null ? 1 : c.weight).toFixed(2)}</span></div>`).join('')
+          .map(([cat, c]) => `<div class="prox-stat-row"><span class="prox-stat-cat">${_esc(cat)}</span><span class="prox-stat-nums">${t('settings.proactive_acted', { percent: formatNumber(c.act_rate || 0, { style: 'percent', maximumFractionDigits: 0 }) })}</span><span class="prox-stat-weight">x${formatNumber(c.weight == null ? 1 : c.weight, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>`).join('')
       : '';
   }
 }
 
 async function loadIntelligencePane() {
-  const s = await _loadPaneSettings('patterns & suggestions');
+  const s = await _loadPaneSettings(t('settings.patterns'));
   if (!s) return;
   const sw = (id, key, defOn) => {
     const el = document.getElementById(id);
@@ -1833,32 +1874,38 @@ async function loadIntelligencePane() {
   sw('s-intel-session', 'session_context_inject', true);
 
   const status = document.getElementById('s-intel-status');
-  const runBtn = (id, path, label) => {
+  const runBtn = (id, path, doneText) => {
     const b = document.getElementById(id);
     if (!b || b.dataset.bound) return;
     b.dataset.bound = '1';
     b.addEventListener('click', async () => {
       if (b.disabled) return;
       b.disabled = true;
-      if (status) status.textContent = 'thinking...';
+      if (status) status.textContent = t('settings.thinking');
       try {
         const r = await _endpointJson(await fetch(path, { method: 'POST' }));
         if (!r || (r.ran !== true && r.ran !== false)
           || (r.ran && (!Number.isInteger(r.count) || r.count < 0))
           || (!r.ran && (typeof r.reason !== 'string' || !r.reason))) throw new Error('run result could not be confirmed');
         if (status) status.textContent = r.ran
-          ? `done - ${r.count} new ${label}`
-          : `not run (${r.reason.replaceAll('_', ' ')})`;
-      } catch { if (status) status.textContent = 'run failed; try again'; }
+          ? doneText(r.count)
+          : t('settings.not_run', { reason: r.reason.replaceAll('_', ' ') });
+      } catch { if (status) status.textContent = t('settings.run_failed'); }
       finally { b.disabled = false; }
     });
   };
-  runBtn('s-intel-insights-run', '/api/insights/run', 'insight(s)');
-  runBtn('s-intel-distill-run', '/api/memory/distill/run', 'fact(s)');
+  runBtn('s-intel-insights-run', '/api/insights/run', count => tp('settings.intel_new_insights', count));
+  runBtn('s-intel-distill-run', '/api/memory/distill/run', count => tp('settings.intel_new_facts', count));
 }
 
 // ── rules pane: personal automations ──────────────────────────────────────────
 let _ruleOpts = null;
+// the server names triggers and actions in english; the catalog has them by id. the braces in the hints are template fields
+function _ruleText(kind, value, fallback, suffix = '') {
+  const key = `settings.rule_${kind}_${value}${suffix}`;
+  const text = t(key, { from: '{from}', subject: '{subject}', name: '{name}', date: '{date}', path: '{path}' });
+  return text === key ? (fallback || '…') : text;
+}
 let _rulesWired = false;
 let _editingRule = null;   // rule id being edited (null = adding a new one)
 let _ruleSavePending = false;
@@ -1867,13 +1914,14 @@ let _rulesRead = 0;
 let _rulesPaneRead = 0;
 const _ruleMutations = new Set();
 
-// one-click starting points — prefill the form with a sensible rule to tweak
-const _RULE_PRESETS = [
-  { label: 'morning digest', trigger: 'daily_at', trigger_arg: '08:00', action: 'push_digest', action_arg: '', name: 'morning digest' },
-  { label: 'briefing → discord/telegram', trigger: 'daily_at', trigger_arg: '08:00', action: 'notify_digest', action_arg: '', name: 'morning briefing' },
-  { label: 'important email → task', trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: '{subject}: from {from}', name: '' },
-  { label: 'renewal heads-up', trigger: 'sub_renewing', trigger_arg: '3', action: 'push', action_arg: '{name} renews in 3 days', name: 'renewal reminder' },
-  { label: 'upcoming day', trigger: 'day_event_near', trigger_arg: '7', action: 'push', action_arg: '{name} is in a week', name: '' },
+// one-click starting points — prefill the form with a sensible rule to tweak.
+// {subject}, {from} and {name} in action_arg are filled in by the server, so they pass through as-is
+const _rulePresets = () => [
+  { label: t('settings.rule_preset_digest'), trigger: 'daily_at', trigger_arg: '08:00', action: 'push_digest', action_arg: '', name: t('settings.rule_preset_digest_name') },
+  { label: t('settings.rule_preset_briefing'), trigger: 'daily_at', trigger_arg: '08:00', action: 'notify_digest', action_arg: '', name: t('settings.rule_preset_briefing_name') },
+  { label: t('settings.rule_preset_mail_task'), trigger: 'mail_from', trigger_arg: '', action: 'create_task', action_arg: t('settings.rule_preset_mail_task_text', { subject: '{subject}', from: '{from}' }), name: '' },
+  { label: t('settings.rule_preset_renewal'), trigger: 'sub_renewing', trigger_arg: '3', action: 'push', action_arg: t('settings.rule_preset_renewal_text', { name: '{name}' }), name: t('settings.rule_preset_renewal_name') },
+  { label: t('settings.rule_preset_upcoming'), trigger: 'day_event_near', trigger_arg: '7', action: 'push', action_arg: t('settings.rule_preset_upcoming_text', { name: '{name}' }), name: '' },
 ];
 
 async function loadRulesPane() {
@@ -1885,22 +1933,22 @@ async function loadRulesPane() {
       if (read !== _rulesPaneRead) return;
       _ruleOpts = options;
     } catch {
-      if (read === _rulesPaneRead) toast('could not load rule options; reopen this section to retry', 'error');
+      if (read === _rulesPaneRead) toast(t('settings.rule_options_load_failed'), 'error');
       return;
     }
   }
   const trigEl = document.getElementById('rule-trigger');
   const actEl = document.getElementById('rule-action');
   if (trigEl && !trigEl.dataset.populated) {
-    populateDropdown(trigEl, _ruleOpts.triggers.map(t => ({ value: t.value, label: t.label })));
-    populateDropdown(actEl, _ruleOpts.actions.map(a => ({ value: a.value, label: a.label })));
+    populateDropdown(trigEl, _ruleOpts.triggers.map(item => ({ value: item.value, label: _ruleText('trigger', item.value, item.label) })));
+    populateDropdown(actEl, _ruleOpts.actions.map(item => ({ value: item.value, label: _ruleText('action', item.value, item.label) })));
     trigEl.dataset.populated = '1';
     const syncPh = () => {
       const t = _ruleOpts.triggers.find(x => x.value === trigEl.dataset.value);
       const a = _ruleOpts.actions.find(x => x.value === actEl.dataset.value);
-      document.getElementById('rule-trigger-arg').placeholder = t?.arg || '…';
+      document.getElementById('rule-trigger-arg').placeholder = t ? _ruleText('trigger', t.value, t.arg, '_arg') : '…';
       const actArg = document.getElementById('rule-action-arg');
-      actArg.placeholder = a?.arg || '…';
+      actArg.placeholder = a ? _ruleText('action', a.value, a.arg, '_arg') : '…';
       actArg.style.display = ['push_digest', 'notify_digest'].includes(actEl.dataset.value) ? 'none' : '';
     };
     trigEl.addEventListener('change', syncPh);
@@ -1918,7 +1966,7 @@ async function loadRulesPane() {
     _renderRulePresets();
   }
   // delivery channels (discord / telegram) persist as settings; the notify actions use them
-  const s = await _loadPaneSettings('rules & delivery');
+  const s = await _loadPaneSettings(t('settings.section_rules_delivery'));
   if (!s || read !== _rulesPaneRead) return;
   for (const [id, key] of [['s-notify-discord', 'notify_discord_webhook'],
                            ['s-notify-tgtoken', 'notify_telegram_token'],
@@ -1928,8 +1976,8 @@ async function loadRulesPane() {
     if (s[key] !== undefined && document.activeElement !== el) el.value = s[key] || '';
     if (!el.dataset.bound) {
       el.dataset.bound = '1';
-      let t;
-      el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => _patchSetting(key, el.value.trim()), 500); });
+      let timer;
+      el.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => _patchSetting(key, el.value.trim()), 500); });
     }
   }
   _renderRules();
@@ -1938,10 +1986,10 @@ async function loadRulesPane() {
 function _renderRulePresets() {
   const box = document.getElementById('rule-presets');
   if (!box) return;
-  box.innerHTML = '<span class="rule-presets-label">quick start:</span>' +
-    _RULE_PRESETS.map((p, i) => `<button class="rule-preset" data-i="${i}">${p.label}</button>`).join('');
+  box.innerHTML = `<span class="rule-presets-label">${t('settings.rule_quick_start')}</span>` +
+    _rulePresets().map((p, i) => `<button class="rule-preset" data-i="${i}">${p.label}</button>`).join('');
   box.querySelectorAll('.rule-preset').forEach(b =>
-    b.addEventListener('click', () => _fillRuleForm(_RULE_PRESETS[+b.dataset.i], null)));
+    b.addEventListener('click', () => _fillRuleForm(_rulePresets()[+b.dataset.i], null)));
 }
 
 // load a rule (or preset) into the form. id=null → adding/preset; id set → editing
@@ -1955,7 +2003,7 @@ function _fillRuleForm(r, id) {
   document.getElementById('rule-name').value = r.name || '';
   document.getElementById('rule-trigger')?.dispatchEvent(new Event('change'));   // sync placeholders
   document.getElementById('rule-action')?.dispatchEvent(new Event('change'));
-  document.getElementById('rule-add-btn').textContent = id ? 'save changes' : 'add rule';
+  document.getElementById('rule-add-btn').textContent = id ? t('settings.save_changes') : t('settings.rule_add');
   document.getElementById('rule-cancel-btn').style.display = id ? '' : 'none';
 }
 
@@ -1963,7 +2011,7 @@ function _resetRuleForm() {
   ++_ruleFormRevision;
   _editingRule = null;
   ['rule-trigger-arg', 'rule-action-arg', 'rule-name'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-  document.getElementById('rule-add-btn').textContent = 'add rule';
+  document.getElementById('rule-add-btn').textContent = t('settings.rule_add');
   document.getElementById('rule-cancel-btn').style.display = 'none';
 }
 
@@ -1976,24 +2024,24 @@ async function _renderRules() {
     rules = await _endpointJson(await fetch('/api/automations'));
     if (!Array.isArray(rules)) throw new Error('incomplete rules list');
   } catch {
-    if (read === _rulesRead) toast('could not load rules; reopen this section to retry', 'error');
+    if (read === _rulesRead) toast(t('settings.rules_load_failed'), 'error');
     return;
   }
   if (read !== _rulesRead) return;
   if (!rules.length) {
-    el.innerHTML = '<div class="settings-row-empty">no rules yet: your first automation is one form away</div>';
+    el.innerHTML = `<div class="settings-row-empty">${t('settings.rules_empty')}</div>`;
     return;
   }
-  const label = (list, v) => list.find(x => x.value === v)?.label || v;
+  const label = (list, v) => _ruleText(list === _ruleOpts.triggers ? 'trigger' : 'action', v, list.find(x => x.value === v)?.label || v);
   el.innerHTML = rules.map(r => `
     <div class="rule-row${r.enabled ? '' : ' off'}" data-id="${r.id}">
-      <button type="button" class="rule-row-main" aria-label="edit rule ${_escAttr(r.name)}" style="background:none;border:0;color:inherit;font:inherit;text-align:left">
+      <button type="button" class="rule-row-main" aria-label="${t('settings.rule_edit_named', { name: _escAttr(r.name) })}" style="background:none;border:0;color:inherit;font:inherit;text-align:left">
         <span class="rule-row-name">${_esc(r.name)}</span>
         <span class="rule-row-desc">${_esc(label(_ruleOpts.triggers, r.trigger))} <b>${_esc(r.trigger_arg)}</b> → ${_esc(label(_ruleOpts.actions, r.action))}${r.action_arg ? `: <i>${_esc(r.action_arg.slice(0, 60))}</i>` : ''}</span>
-        ${r.last_attempt && r.last_attempt.status !== 'succeeded' ? `<span class="rule-row-desc" title="${_esc(r.last_attempt.error || '')}">last attempt: <b>${_esc(r.last_attempt.status)}</b></span>` : ''}
+        ${r.last_attempt && r.last_attempt.status !== 'succeeded' ? `<span class="rule-row-desc" title="${_esc(r.last_attempt.error || '')}">${t('settings.rule_last_attempt', { status: `<b>${_esc(r.last_attempt.status)}</b>` })}</span>` : ''}
       </button>
-      <button class="btn" data-act="test" title="run once with sample data">test</button>
-      <button class="btn" data-act="toggle">${r.enabled ? 'pause' : 'resume'}</button>
+      <button class="btn" data-act="test" title="${t('settings.rule_test_title')}">${t('settings.test')}</button>
+      <button class="btn" data-act="toggle">${r.enabled ? t('settings.rule_pause') : t('settings.rule_resume')}</button>
       <button class="btn danger" data-act="del">×</button>
     </div>`).join('');
   el.querySelectorAll('.rule-row').forEach(row => {
@@ -2017,7 +2065,7 @@ async function _renderRules() {
           }));
           if (deleting ? result?.ok !== true : result?.id !== id || result.enabled !== enabled) throw new Error('rule change could not be confirmed');
           await _renderRules();
-        } catch { toast(deleting ? 'rule could not be deleted; try again' : 'rule could not be updated; try again', 'error'); }
+        } catch { toast(deleting ? t('settings.rule_delete_failed') : t('settings.rule_update_failed'), 'error'); }
         finally {
           _ruleMutations.delete(id);
           el.querySelectorAll('.rule-row').forEach(current => {
@@ -2032,8 +2080,8 @@ async function _renderRules() {
         try {
           const result = await _endpointJson(await fetch(`/api/automations/${id}/test`, { method: 'POST' }));
           if (result?.ok !== true) throw new Error('test result could not be confirmed');
-          toast('rule fired with sample data: check the result', 'success');
-        } catch { toast('test failed; check the rule and try again', 'error'); }
+          toast(t('settings.rule_test_fired'), 'success');
+        } catch { toast(t('settings.rule_test_failed'), 'error'); }
         finally { b.disabled = false; }
       }
     }));
@@ -2061,13 +2109,13 @@ async function _addRule() {
       method: editing ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     }));
-    if (!result?.id || (editing && result.id !== editing)) throw new Error('rule save could not be confirmed');
+    if (!result?.id || (editing && result.id !== editing)) throw new Error(t('settings.rule_save_unconfirmed'));
     if (_editingRule === editing && _ruleFormRevision === revision
       && fields.every((field, i) => (field?.value || '') === submitted[i])
       && document.getElementById('rule-trigger')?.dataset.value === body.trigger
       && document.getElementById('rule-action')?.dataset.value === body.action) _resetRuleForm();
-    toast(editing ? 'rule updated' : 'rule added: it runs automatically from now on', 'success');
+    toast(editing ? t('settings.rule_updated') : t('settings.rule_added'), 'success');
     await _renderRules();
-  } catch (error) { toast(error.message || 'failed to save rule; try again', 'error'); }
+  } catch (error) { toast(error.message || t('settings.rule_save_failed'), 'error'); }
   finally { _ruleSavePending = false; if (button) button.disabled = false; }
 }

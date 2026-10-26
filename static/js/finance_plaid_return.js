@@ -1,5 +1,6 @@
 import { openPlaidLink, plaidReturnBinding, cancelPlaidReturn } from './finance_plaid.js';
 import { applyAppearance } from './theme.js';
+import { cachedLocalizationSettings, prepareLocalization, t } from './i18n.js';
 
 applyAppearance();
 
@@ -13,7 +14,7 @@ document.getElementById('plaid-return-finance').addEventListener('click', () => 
 
 async function resume() {
   retry.hidden = true;
-  status.textContent = 'resuming Plaid Link…';
+  status.textContent = t('finance.plaid_resuming');
   status.dataset.error = 'false';
   try {
     const binding = plaidReturnBinding();
@@ -21,8 +22,8 @@ async function resume() {
       binding, receivedRedirectUri: location.href, signal: controller.signal,
     });
     status.textContent = result.cancelled
-      ? 'Plaid Link closed. your saved connection is available in Finance.'
-      : 'Plaid connected. return to Finance and sync when you are ready.';
+      ? t('finance.plaid_closed_saved')
+      : t('finance.plaid_connected');
   } catch (error) {
     status.textContent = error.message;
     status.dataset.error = 'true';
@@ -31,4 +32,9 @@ async function resume() {
 }
 
 retry.addEventListener('click', resume);
-resume();
+prepareLocalization(cachedLocalizationSettings()).catch(() => {}).then(() => {
+  document.getElementById('plaid-return-title').textContent = t('finance.plaid_connection');
+  retry.textContent = t('finance.try_again');
+  document.getElementById('plaid-return-finance').textContent = t('finance.return_to_finance');
+  resume();
+});

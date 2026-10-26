@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 const moduleSource = path => readFileSync(new URL(path, import.meta.url), 'utf8')
   .replace(/^import [\s\S]*? from '[^']+';\n/gm, '')
@@ -47,7 +48,7 @@ function harness() {
   }
   element('s-tts-voice-row'); element('s-tts-enabled-toggle').setAttribute('role', 'switch'); element('s-voice-save-btn');
   let devices = async () => [];
-  context = vm.createContext({
+  context = vm.createContext({ t: i18nT, tp: i18nTp,
     document: { getElementById: get, createElement: () => element(), activeElement: null,
       querySelector: selector => selector === '#settings-modal .s-pane.active' ? pane : null, querySelectorAll: () => [] },
     window: {}, localStorage: { getItem: key => storage.get(key) || '', setItem: (key, value) => storage.set(key, value) },

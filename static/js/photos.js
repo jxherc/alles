@@ -1,9 +1,9 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
-import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
+import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=213';
 import { initDatePicker } from './datepick.js';
-import { formatDateTime } from './i18n.js';
-import { wireActionMenu } from './kokuen.js?v=2';
+import { formatDateTime, t, tp } from './i18n.js';
+import { wireActionMenu } from './kokuen.js?v=4';
 import { openAppSettings } from './appsettings.js';
 
 let _view = '';      // current view: '' | __fav__ | __archive__ | __hidden__ | __map__ | __memories__ | __trash__ | <albumId>
@@ -44,6 +44,13 @@ const _loadErrors = {};
 let _macSyncTimer = null;
 let _macPhotosStatus = null;
 const _MAC_IMPORT_BATCH = 500;
+// the server names the access state; its english reason is only for states this list lacks
+const _MAC_REASON_KEYS = {
+  not_determined: 'photos.mac_reason_not_determined', restricted: 'photos.mac_reason_restricted',
+  denied: 'photos.mac_reason_denied', authorized: 'photos.mac_reason_ready', limited: 'photos.mac_reason_limited',
+};
+const _macPhotosReason = status => (status.available && _MAC_REASON_KEYS[status.authorization]
+  ? t(_MAC_REASON_KEYS[status.authorization]) : status.reason);
 const _PAGE = 120;
 
 const $ = id => document.getElementById(id);
@@ -52,7 +59,7 @@ const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, loa
 const _setFavBtn = fav => {
   const b = $('photos-fav-btn');
   if (!b) return;
-  b.innerHTML = fav ? `${_si('heart-fill')} favorited` : `${_si('heart')} favorite`;
+  b.innerHTML = fav ? `${_si('heart-fill')} ${t('photos.favorited')}` : `${_si('heart')} ${t('photos.favorite')}`;
   const pending = _favoritePending.has(_cur?.id);
   b.setAttribute('aria-disabled', String(pending));
   b.setAttribute('aria-busy', String(pending));
@@ -100,6 +107,12 @@ function _justify(items, containerW, targetH, gap) {
   return rows;
 }
 
+// a thumb fades in once it has loaded. load doesn't bubble, so it's caught on the way down
+// (the csp blocks the inline onload this used to be)
+if (typeof document !== 'undefined') document.addEventListener?.('load', e => {
+  if (e.target?.classList?.contains('photos-thumb')) e.target.classList.add('loaded');
+}, true);
+
 // one grid cell — videos (7c) get a <video> poster + a play badge instead of an <img>.
 // the cell's background is a tiny base64 preview (phase 4) so it shows a blur-up while the thumb loads.
 function _cellHtml(p, w, h, extra = '', interactive = true) {
@@ -108,14 +121,14 @@ function _cellHtml(p, w, h, extra = '', interactive = true) {
   const dim = (w && h) ? ` style="width:${w}px;height:${h}px${bg}"` : (bg ? ` style="${bg.slice(1)}"` : '');
   const inner = p.is_video
     ? `<video class="photos-cellvid" src="${p.original}#t=0.1" preload="metadata" muted playsinline></video><span class="photos-vbadge">${_si('play')}</span>`
-    : `<img class="photos-thumb" loading="lazy" src="${p.thumb}" alt="" onload="this.classList.add('loaded')">`;
+    : `<img class="photos-thumb" loading="lazy" src="${p.thumb}" alt="">`;
   const favBadge = p.favorite ? `<span class="photos-fav-badge">${_si('heart-fill')}</span>` : '';
   const stackBadge = (p.stack_count > 1) ? `<span class="photos-stack-badge">${_si('copy')} ${p.stack_count}</span>` : '';
   const sel = _sel.has(p.id) ? ' sel' : '';
-  const name = esc(p.original_name || p.caption || 'photo');
-  const media = interactive ? `<button type="button" class="photos-open" aria-label="open ${name}">${inner}</button>` : inner;
+  const name = p.original_name || p.caption || t('photos.photo');
+  const media = interactive ? `<button type="button" class="photos-open" aria-label="${esc(t('photos.open_named', { name }))}">${inner}</button>` : inner;
   return `<div class="photos-cell${p.favorite ? ' fav' : ''}${p.is_video ? ' video' : ''}${sel}" data-id="${p.id}"${dim}>`
-    + (interactive ? `<button type="button" class="photos-check" data-id="${p.id}" aria-label="select ${name}" aria-pressed="${_sel.has(p.id)}">${_si('check')}</button>` : '')
+    + (interactive ? `<button type="button" class="photos-check" data-id="${p.id}" aria-label="${esc(t('photos.select_named', { name }))}" aria-pressed="${_sel.has(p.id)}">${_si('check')}</button>` : '')
     + `${media}${favBadge}${stackBadge}${extra}</div>`;
 }
 
@@ -178,14 +191,14 @@ function _syncSelUI() {
   });
   const n = _sel.size;
   $('photos-view')?.classList.toggle('selecting', n > 0);
-  const cnt = $('photos-sel-count'); if (cnt) cnt.textContent = `${n} selected`;
-  const ab = $('photos-sel-archive'); if (ab) ab.innerHTML = `${_si('archive')} ${_view === '__archive__' ? 'unarchive' : 'archive'}`;
+  const cnt = $('photos-sel-count'); if (cnt) cnt.textContent = tp('photos.selected', n);
+  const ab = $('photos-sel-archive'); if (ab) ab.innerHTML = `${_si('archive')} ${_view === '__archive__' ? t('photos.unarchive') : t('photos.archive')}`;
   const stk = $('photos-sel-stack');
   if (stk) {
     const one = n === 1 ? _photos.find(p => _sel.has(p.id)) : null;
     const isStack = !!(one && one.stack_count > 1);
     stk.style.display = (n >= 2 || isStack) ? '' : 'none';   // stacking one non-stack is a no-op
-    stk.innerHTML = `${_si('copy')} ${isStack ? 'unstack' : 'stack'}`;
+    stk.innerHTML = `${_si('copy')} ${isStack ? t('photos.unstack') : t('photos.stack')}`;
   }
 }
 
@@ -199,8 +212,8 @@ async function _batch(action, extra = {}, ids = [..._sel]) {
     });
     const d = await _response(r);
     if (d?.ok !== true || d.action !== action || !Number.isInteger(d.count) || d.count < 1) throw new Error('unconfirmed action');
-    toast(`${d.count} updated`, 'success');
-  } catch { toast('action failed; your selection is kept. retry when ready.', 'error'); return; }
+    toast(tp('photos.updated', d.count), 'success');
+  } catch { toast(t('photos.batch_failed'), 'error'); return; }
   finally { _batchBusy = false; }
   _clearSel();
   _reloadPhotos();
@@ -217,12 +230,12 @@ async function _openAlbumMenu() {
   _albumChoosing = true;
   const ids = [..._sel];
   const options = [];
-  if (_view && !_view.startsWith('__')) options.push({ value: '', label: 'remove from album' });
+  if (_view && !_view.startsWith('__')) options.push({ value: '', label: t('photos.remove_from_album') });
   options.push(..._albums.map(album => ({ value: album.id, label: album.name })));
-  options.push({ value: '__new__', label: 'new album…' });
+  options.push({ value: '__new__', label: t('photos.new_album_option') });
   document.body.classList.add('photos-album-dialog');
   try {
-    let aid = await dlgChoose('add to album', options);
+    let aid = await dlgChoose(t('photos.add_to_album'), options);
     if (aid === null) return;
     if (aid === '__new__') {
       const album = await _createAlbum();
@@ -248,12 +261,12 @@ function _renderSidebar() {
     `<button class="photos-nav-item${_view === view ? ' active' : ''}" data-view="${esc(view)}">`
     + `<span class="photos-nav-ic">${_si(ic)}</span><span class="photos-nav-label">${esc(label)}</span>`
     + (count != null ? `<span class="photos-nav-count">${count}</span>` : '') + '</button>';
-  const grp = t => `<div class="photos-nav-group">${t}</div>`;
-  let html = grp('browse') + item('', 'image', 'photos') + item('__people__', 'users', 'people') + item('__map__', 'map-pin', 'map') + item('__places__', 'globe', 'places') + item('__memories__', 'sparkles', 'memories');
-  html += grp('library');
+  const grp = label => `<div class="photos-nav-group">${label}</div>`;
+  let html = grp(t('photos.nav_browse')) + item('', 'image', t('photos.nav_photos')) + item('__people__', 'users', t('photos.people')) + item('__map__', 'map-pin', t('photos.map')) + item('__places__', 'globe', t('photos.places')) + item('__memories__', 'sparkles', t('photos.memories'));
+  html += grp(t('photos.nav_library'));
   for (const a of _albums) html += item(a.id, 'folder', a.name, a.count);
-  html += `<button class="photos-nav-item photos-nav-add" id="photos-newalbum-btn"><span class="photos-nav-ic">${_si('plus')}</span><span class="photos-nav-label">new album</span></button>`;
-  html += grp('utilities') + item('__fav__', 'heart', 'favorites') + item('__archive__', 'archive', 'archive') + item('__hidden__', 'lock', 'hidden') + item('__dupes__', 'copy', 'duplicates') + item('__trash__', 'trash', 'trash');
+  html += `<button class="photos-nav-item photos-nav-add" id="photos-newalbum-btn"><span class="photos-nav-ic">${_si('plus')}</span><span class="photos-nav-label">${t('photos.new_album')}</span></button>`;
+  html += grp(t('photos.nav_utilities')) + item('__fav__', 'heart', t('photos.favorites')) + item('__archive__', 'archive', t('photos.archive')) + item('__hidden__', 'lock', t('photos.hidden')) + item('__dupes__', 'copy', t('photos.duplicates')) + item('__trash__', 'trash', t('photos.trash'));
   el.innerHTML = html;
   el.querySelectorAll('.photos-nav-item[data-view]').forEach(b => b.addEventListener('click', () => _selectView(b.dataset.view)));
   $('photos-newalbum-btn')?.addEventListener('click', newAlbum);
@@ -273,10 +286,10 @@ function _selectView(v) {
 function _updateHeadTitle() {
   const el = $('photos-head-title');
   if (!el) return;
-  const names = { '': 'photos', '__people__': 'people', '__fav__': 'favorites', '__archive__': 'archive', '__hidden__': 'hidden', '__map__': 'map', '__places__': 'places', '__memories__': 'memories', '__dupes__': 'duplicates', '__trash__': 'trash' };
-  let t = names[_view];
-  if (t === undefined) { const a = _albums.find(x => x.id === _view); t = a ? a.name : 'photos'; }
-  el.textContent = t;
+  const names = { '': 'photos.nav_photos', '__people__': 'photos.people', '__fav__': 'photos.favorites', '__archive__': 'photos.archive', '__hidden__': 'photos.hidden', '__map__': 'photos.map', '__places__': 'photos.places', '__memories__': 'photos.memories', '__dupes__': 'photos.duplicates', '__trash__': 'photos.trash' };
+  let title = names[_view] === undefined ? undefined : t(names[_view]);
+  if (title === undefined) { const a = _albums.find(x => x.id === _view); title = a ? a.name : t('photos.nav_photos'); }
+  el.textContent = title;
 }
 
 async function _response(response) {
@@ -302,7 +315,7 @@ async function _loadAlbums(fetcher = fetch) {
     if (!Array.isArray(albums)) throw new Error('invalid albums');
     _albums = albums;
     _loadNotice('albums', '');
-  } catch { _loadNotice('albums', 'albums could not load.'); }
+  } catch { _loadNotice('albums', t('photos.albums_load_failed')); }
   _renderSidebar();
 }
 
@@ -342,8 +355,8 @@ function _listUrl() {
 }
 
 function _listEmpty() {
-  return _view === '__fav__' ? 'no favorites yet'
-    : (_filtersActive() ? 'no photos match these filters' : 'gallery empty: upload something');
+  return _view === '__fav__' ? t('photos.no_favorites')
+    : (_filtersActive() ? t('photos.no_filter_matches') : t('photos.empty'));
 }
 
 // append a page's date buckets, merging into the last group when the date matches
@@ -370,7 +383,7 @@ async function _loadListPage(fetcher = fetch, generation = _listGeneration) {
   } catch {
     if (generation !== _listGeneration) return;
     _nextOffset = null;
-    _loadNotice('photos', 'photos could not load. saved images have not been removed.');
+    _loadNotice('photos', t('photos.load_failed'));
   } finally { if (generation === _listGeneration) _loadingMore = false; }
 }
 
@@ -381,18 +394,18 @@ async function loadHidden() {
   let r = await fetch('/api/photos/hidden', { headers: _vaultTok ? { 'X-Vault-Token': _vaultTok } : {} });
   if (r.status === 403) {
     // nothing of the open library shows behind the lock while it asks
-    grid.innerHTML = `<div class="photos-empty">${_si('lock')} hidden album is locked</div>`;
+    grid.innerHTML = `<div class="photos-empty">${_si('lock')} ${t('photos.hidden_locked')}</div>`;
     // the album opens with the vault's password. with no vault yet, unlocking here would quietly
     // make the first password typed the vault's master password, with no second entry to catch a typo
     const setup = await fetch('/api/vault/setup').then(res => res.json()).catch(() => ({}));
     if (setup.state !== 'locked') {
-      grid.innerHTML = `<div class="photos-empty">${_si('lock')} the hidden album uses your vault's password. <button type="button" class="btn" id="photos-hidden-vault">set up the vault</button></div>`;
+      grid.innerHTML = `<div class="photos-empty">${_si('lock')} ${t('photos.hidden_needs_vault')} <button type="button" class="btn" id="photos-hidden-vault">${t('photos.setup_vault')}</button></div>`;
       $('photos-hidden-vault')?.addEventListener('click', () => window._navigateTo?.('vault'));
       return;
     }
-    const pw = await dlgPrompt('', '', { secret: true, title: 'hidden album', label: 'vault master password', confirmLabel: 'unlock' });
-    if (!pw) { grid.innerHTML = `<div class="photos-empty">${_si('lock')} hidden album is locked</div>`; return; }
-    let why = 'unlock failed';
+    const pw = await dlgPrompt('', '', { secret: true, title: t('photos.hidden_album'), label: t('photos.vault_password'), confirmLabel: t('photos.unlock') });
+    if (!pw) { grid.innerHTML = `<div class="photos-empty">${_si('lock')} ${t('photos.hidden_locked')}</div>`; return; }
+    let why = t('photos.unlock_failed');
     try {
       const u = await fetch('/api/vault/unlock', {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: pw }),
@@ -406,14 +419,14 @@ async function loadHidden() {
     } catch { toast(why, 'error'); grid.innerHTML = `<div class="photos-empty">${_si('lock')} ${esc(why)}</div>`; return; }
     r = await fetch('/api/photos/hidden', { headers: { 'X-Vault-Token': _vaultTok } });
   }
-  if (!r.ok) { grid.innerHTML = `<div class="photos-empty">${_si('lock')} hidden album is locked</div>`; return; }
-  _renderMoments(await r.json(), 'no hidden photos');
+  if (!r.ok) { grid.innerHTML = `<div class="photos-empty">${_si('lock')} ${t('photos.hidden_locked')}</div>`; return; }
+  _renderMoments(await r.json(), t('photos.no_hidden'));
 }
 
 // the archive — assets kept but pushed out of the main timeline
 async function loadArchive() {
   const d = await fetch('/api/photos/archive').then(r => r.json()).catch(() => ({ moments: [] }));
-  _renderMoments(d, 'nothing archived: select photos and hit archive to tuck them away');
+  _renderMoments(d, t('photos.archive_empty'));
 }
 
 // duplicate review — byte-identical sets; keep the oldest, trash the rest (phase 6)
@@ -423,20 +436,20 @@ async function loadDuplicates() {
   const grid = $('photos-grid');
   _photos = [];
   const d = await fetch('/api/photos/duplicates').then(r => r.json()).catch(() => ({ groups: [] }));
-  if (!d.groups?.length) { grid.innerHTML = '<div class="photos-empty">no duplicates: your library is clean</div>'; return; }
+  if (!d.groups?.length) { grid.innerHTML = `<div class="photos-empty">${t('photos.no_duplicates')}</div>`; return; }
   const total = d.groups.reduce((n, g) => n + g.items.length - 1, 0);
-  let html = `<div class="photos-dupbar"><span>${d.groups.length} duplicate set${d.groups.length > 1 ? 's' : ''} · ${total} extra cop${total === 1 ? 'y' : 'ies'}</span>`
-    + `<button class="btn primary" id="photos-dupes-all">resolve all: keep oldest</button></div>`;
+  let html = `<div class="photos-dupbar"><span>${tp('photos.duplicate_sets', d.groups.length)} · ${tp('photos.extra_copies', total)}</span>`
+    + `<button class="btn primary" id="photos-dupes-all">${t('photos.resolve_all')}</button></div>`;
   for (const g of d.groups) {
     const extras = g.items.slice(1).map(i => i.id).join(',');
-    html += `<div class="photos-moment"><div class="photos-moment-label">${g.items.length} copies`
-      + ` <button class="btn photos-dup-resolve" data-ids="${extras}" style="margin-left:8px">${_si('trash')} trash the other ${g.items.length - 1}</button></div>`
+    html += `<div class="photos-moment"><div class="photos-moment-label">${tp('photos.copies', g.items.length)}`
+      + ` <button class="btn photos-dup-resolve" data-ids="${extras}" style="margin-left:8px">${_si('trash')} ${tp('photos.trash_others', g.items.length - 1)}</button></div>`
       + '<div class="photos-rows"><div class="photos-row">';
     g.items.forEach((p, i) => {
       _photos.push(p);
       const bg = p.preview ? `;background-image:url(${p.preview})` : '';
-      const keep = i === 0 ? '<span class="photos-dup-keep">keep</span>' : '';
-      html += `<div class="photos-cell" data-id="${p.id}" style="width:150px;height:150px${bg}"><img class="photos-thumb" loading="lazy" src="${p.thumb}" alt="" onload="this.classList.add('loaded')">${keep}</div>`;
+      const keep = i === 0 ? `<span class="photos-dup-keep">${t('photos.keep')}</span>` : '';
+      html += `<div class="photos-cell" data-id="${p.id}" style="width:150px;height:150px${bg}"><img class="photos-thumb" loading="lazy" src="${p.thumb}" alt="">${keep}</div>`;
     });
     html += '</div></div></div>';
   }
@@ -446,13 +459,13 @@ async function loadDuplicates() {
     if (!ids.length) return;
     try {
       await fetch('/api/photos/batch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids, action: 'delete' }) });
-      toast('duplicates moved to trash', 'success');
-    } catch { toast('failed', 'error'); return; }
+      toast(t('photos.duplicates_trashed'), 'success');
+    } catch { toast(t('photos.failed'), 'error'); return; }
     loadDuplicates();
   };
   $('photos-dupes-all')?.addEventListener('click', async () => {
     const ids = d.groups.flatMap(g => g.items.slice(1).map(i => i.id));
-    if (ids.length && await dlgConfirm(`trash ${ids.length} duplicate${ids.length > 1 ? 's' : ''}?`)) _trash(ids);
+    if (ids.length && await dlgConfirm(tp('photos.trash_duplicates_confirm', ids.length))) _trash(ids);
   });
   grid.querySelectorAll('.photos-dup-resolve').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
@@ -487,7 +500,7 @@ async function loadPlaces() {
   const grid = $('photos-grid');
   _photos = [];
   const d = await fetch('/api/photos/places').then(r => r.json()).catch(() => ({ places: [] }));
-  if (!d.places?.length) { grid.innerHTML = '<div class="photos-empty">no places yet: geotagged photos group by city here</div>'; return; }
+  if (!d.places?.length) { grid.innerHTML = `<div class="photos-empty">${t('photos.no_places')}</div>`; return; }
   let html = '<div class="photos-places">';
   for (const pl of d.places) {
     html += `<button class="photos-place" data-cc="${esc(pl.cc)}" data-city="${esc(pl.city)}">`
@@ -502,10 +515,10 @@ async function loadPlaces() {
 async function loadPlace(cc, city) {
   const d = await fetch(`/api/photos/place?cc=${encodeURIComponent(cc)}&city=${encodeURIComponent(city)}`)
     .then(r => r.json()).catch(() => ({ moments: [] }));
-  _paintGroups((d.moments || []).map(m => ({ label: m.label, items: m.items })), 'no photos here');
+  _paintGroups((d.moments || []).map(m => ({ label: m.label, items: m.items })), t('photos.no_place_photos'));
   const back = document.createElement('div');
   back.className = 'photos-place-back';
-  back.innerHTML = `<a href="#" style="color:var(--text)">${_si('chevron-left')} places</a> · ${esc(city)}`;
+  back.innerHTML = `<a href="#" style="color:var(--text)">${_si('chevron-left')} ${t('photos.places')}</a> · ${esc(city)}`;
   back.querySelector('a').addEventListener('click', e => { e.preventDefault(); loadPlaces(); });
   $('photos-grid').prepend(back);
 }
@@ -518,15 +531,15 @@ async function loadPeople() {
   _photos = [];
   const d = await fetch('/api/photos/people').then(r => r.json()).catch(() => ({ people: [] }));
   if (!d.people?.length) {
-    grid.innerHTML = '<div class="photos-empty">no people yet: faces are still being scanned, check back in a bit</div>';
+    grid.innerHTML = `<div class="photos-empty">${t('photos.no_people')}</div>`;
     return;
   }
   let html = '<div class="photos-people">';
   for (const p of d.people) {
     html += `<button class="photos-person${p.name ? '' : ' unnamed'}" data-id="${esc(p.id)}">`
       + `<span class="photos-person-av">${p.cover ? `<img loading="lazy" src="${p.cover}" alt="">` : ''}</span>`
-      + `<span class="photos-person-name">${esc(p.name || 'add name')}</span>`
-      + `<span class="photos-person-sub">${p.count} photo${p.count !== 1 ? 's' : ''}</span></button>`;
+      + `<span class="photos-person-name">${esc(p.name || t('photos.add_name'))}</span>`
+      + `<span class="photos-person-sub">${tp('photos.photo_count', p.count)}</span></button>`;
   }
   grid.innerHTML = html + '</div>';
   grid.querySelectorAll('.photos-person').forEach(b => b.addEventListener('click', () => loadPerson(b.dataset.id)));
@@ -535,31 +548,31 @@ async function loadPeople() {
 async function loadPerson(pid) {
   _killMap(); _repaint = null;
   const d = await fetch('/api/photos/person/' + encodeURIComponent(pid)).then(r => r.json()).catch(() => ({ moments: [] }));
-  _paintGroups((d.moments || []).map(m => ({ label: m.label, items: m.items })), 'no photos for this person');
+  _paintGroups((d.moments || []).map(m => ({ label: m.label, items: m.items })), t('photos.no_person_photos'));
   const per = d.person || { id: pid, name: '' };
   const bar = document.createElement('div');
   bar.className = 'photos-person-bar';
-  bar.innerHTML = `<a href="#" class="photos-person-back" style="color:var(--text)">${_si('chevron-left')} people</a>`
-    + `<span class="photos-person-title">${esc(per.name || 'unnamed')}</span>`
+  bar.innerHTML = `<a href="#" class="photos-person-back" style="color:var(--text)">${_si('chevron-left')} ${t('photos.people')}</a>`
+    + `<span class="photos-person-title">${esc(per.name || t('photos.unnamed'))}</span>`
     + `<span class="photos-person-actions">`
-    + `<button class="btn" data-act="name">${_si('edit')} ${per.name ? 'rename' : 'add name'}</button>`
-    + `<button class="btn" data-act="merge">${_si('users')} merge…</button>`
-    + `<button class="btn" data-act="hide">${_si('eye-off')} not a person</button>`
+    + `<button class="btn" data-act="name">${_si('edit')} ${per.name ? t('common.rename') : t('photos.add_name')}</button>`
+    + `<button class="btn" data-act="merge">${_si('users')} ${t('photos.merge')}</button>`
+    + `<button class="btn" data-act="hide">${_si('eye-off')} ${t('photos.not_a_person')}</button>`
     + `</span>`;
   $('photos-grid').prepend(bar);
   bar.querySelector('.photos-person-back').addEventListener('click', e => { e.preventDefault(); _selectView('__people__'); });
   bar.querySelector('[data-act="name"]').addEventListener('click', async () => {
-    const name = await dlgPrompt('', per.name || '', { title: 'name this person', label: 'name', confirmLabel: 'save' });
+    const name = await dlgPrompt('', per.name || '', { title: t('photos.name_person'), label: t('photos.name_label'), confirmLabel: t('common.save') });
     if (name === null) return;
     try { await fetch(`/api/photos/person/${pid}/name`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }); }
-    catch { toast('failed', 'error'); return; }
-    toast('saved', 'success'); loadPerson(pid);
+    catch { toast(t('photos.failed'), 'error'); return; }
+    toast(t('common.saved'), 'success'); loadPerson(pid);
   });
   bar.querySelector('[data-act="hide"]').addEventListener('click', async () => {
-    if (!await dlgConfirm('hide this cluster from people? (the photos stay)')) return;
+    if (!await dlgConfirm(t('photos.hide_cluster_confirm'))) return;
     try { await fetch(`/api/photos/person/${pid}/hide`, { method: 'POST' }); }
-    catch { toast('failed', 'error'); return; }
-    toast('hidden', 'success'); _selectView('__people__');
+    catch { toast(t('photos.failed'), 'error'); return; }
+    toast(t('photos.cluster_hidden'), 'success'); _selectView('__people__');
   });
   bar.querySelector('[data-act="merge"]').addEventListener('click', e => _openMergeMenu(e.currentTarget, pid));
 }
@@ -569,13 +582,13 @@ async function _openMergeMenu(anchor, pid) {
   _closeAlbumMenu();
   const d = await fetch('/api/photos/people').then(r => r.json()).catch(() => ({ people: [] }));
   const others = (d.people || []).filter(p => p.id !== pid);
-  if (!others.length) { toast('no other people to merge', ''); return; }
+  if (!others.length) { toast(t('photos.no_merge_people'), ''); return; }
   const menu = document.createElement('div');
   menu.className = 'photos-albmenu';
   menu.innerHTML = others.map(p =>
     `<button class="photos-albmenu-item" data-id="${esc(p.id)}">`
     + `${p.cover ? `<img class="photos-merge-av" src="${p.cover}" alt="">` : ''}`
-    + `${esc(p.name || 'unnamed')} · ${p.count}</button>`).join('');
+    + `${esc(p.name || t('photos.unnamed'))} · ${p.count}</button>`).join('');
   document.body.appendChild(menu);
   _albMenuEl = menu;
   const r = anchor.getBoundingClientRect();
@@ -586,8 +599,8 @@ async function _openMergeMenu(anchor, pid) {
     const other = b.dataset.id;
     _closeAlbumMenu();
     try { await fetch('/api/photos/people/merge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: [pid, other] }) }); }
-    catch { toast('failed', 'error'); return; }
-    toast('merged', 'success'); loadPerson(pid);
+    catch { toast(t('photos.failed'), 'error'); return; }
+    toast(t('photos.merged'), 'success'); loadPerson(pid);
   });
   _albMenuClose = ev => { if (_albMenuEl && !_albMenuEl.contains(ev.target) && ev.target !== anchor) _closeAlbumMenu(); };
   setTimeout(() => document.addEventListener('click', _albMenuClose, true), 0);
@@ -615,10 +628,10 @@ function _loadFaceChips(p) {
     if (!_cur || _cur.id !== p.id) return;   // stepped to another photo before this landed
     if (!d.faces?.length) return;
     box.style.display = '';
-    box.innerHTML = `<div class="photos-faces-h">people</div><div class="photos-faces-row">`
+    box.innerHTML = `<div class="photos-faces-h">${t('photos.people')}</div><div class="photos-faces-row">`
       + d.faces.map(f =>
-        `<button class="photos-face-chip${f.person_id ? '' : ' nolink'}" data-pid="${esc(f.person_id || '')}" title="${esc(f.name || 'unnamed')}">`
-        + `<img src="${f.thumb}" alt=""><span>${esc(f.name || 'unnamed')}</span></button>`).join('')
+        `<button class="photos-face-chip${f.person_id ? '' : ' nolink'}" data-pid="${esc(f.person_id || '')}" title="${esc(f.name || t('photos.unnamed'))}">`
+        + `<img src="${f.thumb}" alt=""><span>${esc(f.name || t('photos.unnamed'))}</span></button>`).join('')
       + `</div>`;
     box.querySelectorAll('.photos-face-chip').forEach(c => c.addEventListener('click', () => {
       if (c.dataset.pid) _goPerson(c.dataset.pid);
@@ -641,7 +654,7 @@ async function loadMap() {
   grid.innerHTML = '<div id="photos-mapview" class="photos-mapview"></div>';
   let L;
   try { L = await ensureLeaflet(); }
-  catch { grid.innerHTML = '<div class="photos-empty">map failed to load</div>'; return; }
+  catch { grid.innerHTML = `<div class="photos-empty">${t('photos.map_failed')}</div>`; return; }
   const d = await fetch('/api/photos/map').then(r => r.json()).catch(() => ({ points: [] }));
   _photos = d.points || [];
   const map = L.map('photos-mapview', { attributionControl: true });
@@ -670,21 +683,21 @@ async function loadMemories() {
   _killMap(); _repaint = null;
   const d = await fetch('/api/photos/memories').then(r => r.json()).catch(() => ({ groups: [] }));
   if (!d.groups?.length) {
-    $('photos-grid').innerHTML = '<div class="photos-empty">no memories for today: check back another day</div>';
+    $('photos-grid').innerHTML = `<div class="photos-empty">${t('photos.no_memories_today')}</div>`;
     _photos = []; return;
   }
   const groups = d.groups.map(g => ({
-    label: `${g.years_ago === 1 ? '1 year ago' : g.years_ago + ' years ago'} · ${g.date}`,
+    label: `${tp('photos.years_ago', g.years_ago)} · ${g.date}`,
     items: g.items,
   }));
-  _paintGroups(groups, 'no memories yet');
+  _paintGroups(groups, t('photos.no_memories'));
 }
 
 async function searchPhotos(q) {
   _nextOffset = null;   // search is its own (unpaged) result set
   const d = await fetch('/api/photos/search?q=' + encodeURIComponent(q))
     .then(r => r.json()).catch(() => ({ moments: [] }));
-  _renderMoments(d, 'no photos match');
+  _renderMoments(d, t('photos.no_matches'));
 }
 
 // smart (CLIP) search — results come back in relevance order (phase 7b)
@@ -692,7 +705,7 @@ async function semanticSearch(q) {
   _nextOffset = null;
   const d = await fetch('/api/photos/semantic?q=' + encodeURIComponent(q))
     .then(r => r.json()).catch(() => ({ moments: [] }));
-  _renderMoments(d, d.unavailable ? 'smart search isn’t set up yet' : 'nothing matches');
+  _renderMoments(d, d.unavailable ? t('photos.smart_unavailable') : t('photos.nothing_matches'));
 }
 
 async function _initClip() {
@@ -702,7 +715,7 @@ async function _initClip() {
     const b = $('photos-smart-btn');
     if (b) {
       b.hidden = !_clipAvail;
-      b.title = _clipAvail ? `smart search: ${d.indexed}/${d.total} indexed` : 'smart search';
+      b.title = _clipAvail ? t('photos.smart_indexed', { indexed: d.indexed, total: d.total }) : t('photos.smart_search');
     }
   } catch { /* feature just stays hidden */ }
 }
@@ -715,16 +728,16 @@ function _setMacPhotosButton(status = _macPhotosStatus) {
   if (!onMac) return;
   const job = status.job;
   if (job && (job.state === 'queued' || job.state === 'running')) {
-    const progress = job.total ? ` ${job.processed || 0}/${job.total}` : '';
-    btn.innerHTML = `${_si('image')} importing${progress}`;
+    const progress = job.total ? t('photos.importing_progress', { done: job.processed || 0, total: job.total }) : t('photos.importing');
+    btn.innerHTML = `${_si('image')} ${progress}`;
     btn.disabled = true;
     btn.setAttribute('aria-disabled', 'true');
     return;
   }
-  btn.innerHTML = `${_si('image')} ${status.available ? 'apple photos' : 'photos setup'}`;
+  btn.innerHTML = `${_si('image')} ${status.available ? t('shell.photos_more.apple_photos') : t('photos.photos_setup')}`;
   btn.disabled = !status.available;
   btn.setAttribute('aria-disabled', String(btn.disabled));
-  btn.title = status.reason || 'import from Apple Photos';
+  btn.title = _macPhotosReason(status) || t('photos.import_from_apple');
 }
 
 async function _loadMacPhotosStatus() {
@@ -743,34 +756,31 @@ async function _loadMacPhotosStatus() {
 
 async function _startMacPhotosSync() {
   if (['denied', 'restricted'].includes(_macPhotosStatus?.authorization)) {
-    toast(_macPhotosStatus.reason || 'allow Apple Photos access in System Settings', 'error');
+    toast(_macPhotosReason(_macPhotosStatus) || t('photos.allow_access'), 'error');
     return;
   }
-  const confirmed = await dlgConfirm(
-    `import up to ${_MAC_IMPORT_BATCH} visible Apple Photos items? `
-    + 'originals are copied into this gallery and may download from iCloud; hidden items stay excluded.',
-  );
+  const confirmed = await dlgConfirm(tp('photos.import_confirm', _MAC_IMPORT_BATCH));
   if (!confirmed) return;
   const btn = $('photos-macos-btn');
   if (btn) {
     btn.disabled = true;
     btn.setAttribute('aria-disabled', 'true');
-    btn.innerHTML = `${_si('image')} requesting access…`;
+    btn.innerHTML = `${_si('image')} ${t('photos.requesting_access')}`;
   }
   try {
     const response = await fetch(`/api/photos/sync/macos?limit=${_MAC_IMPORT_BATCH}`, { method: 'POST' });
     const data = await response.json().catch(() => ({}));
     if (data.queued || data.offline) {
-      throw new Error('Apple Photos import needs a live connection');
+      throw new Error(t('photos.import_needs_connection'));
     }
     if (!response.ok || !data.id) {
-      throw new Error(data.detail || 'could not start Apple Photos import');
+      throw new Error(data.detail || t('photos.import_start_failed'));
     }
     _macPhotosStatus = { ...(_macPhotosStatus || {}), job: data };
     _setMacPhotosButton();
     _pollMacPhotosJob(data.id);
   } catch (error) {
-    toast(error.message || 'Apple Photos import failed', 'error');
+    toast(error.message || t('photos.import_failed'), 'error');
     await _loadMacPhotosStatus();
   }
 }
@@ -780,7 +790,7 @@ async function _pollMacPhotosJob(jobId) {
   try {
     const response = await fetch('/api/photos/sync/macos/jobs/' + encodeURIComponent(jobId));
     const job = await response.json();
-    if (!response.ok) throw new Error(job.detail || 'import status unavailable');
+    if (!response.ok) throw new Error(job.detail || t('photos.import_status_unavailable'));
     _macPhotosStatus = { ...(_macPhotosStatus || {}), job };
     _setMacPhotosButton();
     if (job.state === 'queued' || job.state === 'running') {
@@ -788,20 +798,22 @@ async function _pollMacPhotosJob(jobId) {
       return;
     }
     if (job.state === 'complete') {
-      const more = job.remaining ? ` · ${job.remaining} remain` : '';
-      const adopted = job.adopted ? `, ${job.adopted} linked` : '';
-      const failures = job.failed ? ` · ${job.failed} failed` : '';
+      const parts = [job.adopted
+        ? t('photos.import_done_linked', { imported: job.imported || 0, linked: job.adopted, updated: job.updated || 0 })
+        : t('photos.import_done', { imported: job.imported || 0, updated: job.updated || 0 })];
+      if (job.failed) parts.push(tp('photos.import_failed_count', job.failed));
+      if (job.remaining) parts.push(tp('photos.import_remaining', job.remaining));
       toast(
-        `Apple Photos: ${job.imported || 0} imported${adopted}, ${job.updated || 0} updated${failures}${more}`,
+        parts.join(' · '),
         job.failed ? 'error' : 'success',
       );
       await _reloadPhotos();
     } else {
-      toast(job.message || 'Apple Photos import failed', 'error');
+      toast(job.message || t('photos.import_failed'), 'error');
     }
     await _loadMacPhotosStatus();
   } catch (error) {
-    toast(error.message || 'Apple Photos import status unavailable', 'error');
+    toast(error.message || t('photos.import_status_failed'), 'error');
     _macSyncTimer = setTimeout(_loadMacPhotosStatus, 2000);
   }
 }
@@ -835,7 +847,7 @@ function _showCurrent() {
   if (!p) return;
   ++_viewerGeneration;
   _cur = p;
-  $('photos-lightbox').setAttribute('aria-label', p.original_name || 'photo viewer');
+  $('photos-lightbox').setAttribute('aria-label', p.original_name || t('photos.viewer'));
   $('photos-lb-drawer').inert = !_drawerOpen;
   $('photos-lb-drawer').setAttribute('aria-hidden', String(!_drawerOpen));
   $('photos-meta-status').textContent = '';
@@ -845,33 +857,33 @@ function _showCurrent() {
     if (vidEl) { vidEl.style.display = ''; vidEl.src = p.original; }
   } else {
     if (vidEl) { vidEl.pause?.(); vidEl.src = ''; vidEl.style.display = 'none'; }
-    imgEl.style.display = ''; imgEl.src = p.original; imgEl.alt = p.caption || p.original_name || 'photo';
+    imgEl.style.display = ''; imgEl.src = p.original; imgEl.alt = p.caption || p.original_name || t('photos.photo');
   }
   if ($('photos-edit-btn')) {
     $('photos-edit-btn').style.display = p.is_video ? 'none' : '';
-    $('photos-edit-btn').innerHTML = `${_si('edit')} edit`;
+    $('photos-edit-btn').innerHTML = `${_si('edit')} ${t('common.edit')}`;
   }
   $('photos-dl-btn').href = p.original + '?download=1';
-  $('photos-dl-btn').innerHTML = `${_si('download')} download`;
-  if ($('photos-del-btn')) $('photos-del-btn').innerHTML = `${_si('trash')} delete`;
-  if ($('photos-close-btn')) $('photos-close-btn').innerHTML = `${_si('close')} close`;
-  if ($('photos-info-btn')) $('photos-info-btn').innerHTML = `${_si('info')} info`;
+  $('photos-dl-btn').innerHTML = `${_si('download')} ${t('common.download')}`;
+  if ($('photos-del-btn')) $('photos-del-btn').innerHTML = `${_si('trash')} ${t('common.delete')}`;
+  if ($('photos-close-btn')) $('photos-close-btn').innerHTML = `${_si('close')} ${t('common.close')}`;
+  if ($('photos-info-btn')) $('photos-info-btn').innerHTML = `${_si('info')} ${t('photos.info')}`;
   _setFavBtn(p.favorite);
   const ab = $('photos-archive-btn');
-  if (ab) ab.innerHTML = p.archived ? `${_si('archive')} unarchive` : `${_si('archive')} archive`;
+  if (ab) ab.innerHTML = p.archived ? `${_si('archive')} ${t('photos.unarchive')}` : `${_si('archive')} ${t('photos.archive')}`;
   if ($('photos-caption')) $('photos-caption').value = p.caption || '';
   if ($('photos-keywords')) $('photos-keywords').value = (p.keywords || []).join(', ');
   const hb = $('photos-hide-btn');
-  if (hb) hb.innerHTML = p.hidden ? `${_si('eye')} unhide` : `${_si('eye-off')} hide`;
+  if (hb) hb.innerHTML = p.hidden ? `${_si('eye')} ${t('photos.unhide')}` : `${_si('eye-off')} ${t('photos.hide')}`;
   const ex = { ...(p.exif || {}) };
   const lat = ex.lat, lon = ex.lon;
   delete ex.lat; delete ex.lon;   // shown as a map link, not raw rows
   const dims = (p.width && p.height) ? `${p.width} × ${p.height}` : '';
-  const rows = [['file', p.original_name || 'photo'], ['taken', p.taken_at ? formatDateTime(p.taken_at) : ''], ['size', dims], ...Object.entries(ex)];
+  const rows = [[t('photos.exif_file'), p.original_name || t('photos.photo')], [t('photos.exif_taken'), p.taken_at ? formatDateTime(p.taken_at) : ''], [t('photos.exif_size'), dims], ...Object.entries(ex)];
   let html = rows.filter(r => r[1]).map(([k, v]) =>
     `<div class="photos-exif-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
   if (lat != null && lon != null) {
-    html += `<div class="photos-exif-row"><span>location</span><span><a class="photos-map-link" href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=15/${lat}/${lon}" target="_blank" rel="noopener">${_si('map-pin')} ${lat.toFixed ? lat.toFixed(4) : lat}, ${lon.toFixed ? lon.toFixed(4) : lon}</a></span></div>`;
+    html += `<div class="photos-exif-row"><span>${t('photos.exif_location')}</span><span><a class="photos-map-link" href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=15/${lat}/${lon}" target="_blank" rel="noopener">${_si('map-pin')} ${lat.toFixed ? lat.toFixed(4) : lat}, ${lon.toFixed ? lon.toFixed(4) : lon}</a></span></div>`;
   }
   $('photos-exif').innerHTML = html;
   const prevB = $('photos-prev-btn'), nextB = $('photos-next-btn');
@@ -911,7 +923,7 @@ async function _discardCaption() {
   if (!_captionDirty()) return true;
   _viewerClosing = true;
   try {
-    const discard = await dlgConfirm('discard unsaved caption and keywords?');
+    const discard = await dlgConfirm(t('photos.discard_caption_confirm'));
     if (discard) { $('photos-caption').value = _cur.caption || ''; $('photos-keywords').value = (_cur.keywords || []).join(', '); }
     return discard;
   }
@@ -953,7 +965,7 @@ async function _loadFacets() {
     const d = await fetch('/api/photos/facets').then(r => r.json());
     const sel = $('photos-filt-camera');
     populateDropdown(sel, [
-      { value: '', label: 'any camera' },
+      { value: '', label: t('photos.any_camera') },
       ...(d.cameras || []).map(camera => ({ value: camera, label: camera })),
     ], _filters.camera);
   } catch { _facetsLoaded = false; }
@@ -1051,7 +1063,7 @@ export function initPhotos() {
     _pt = setTimeout(() => (_smart ? semanticSearch(q) : searchPhotos(q)), _smart ? 450 : 300);
   });
   // smart (CLIP) search toggle
-  if ($('photos-smart-btn')) $('photos-smart-btn').innerHTML = `${_si('sparkles')} smart`;
+  if ($('photos-smart-btn')) $('photos-smart-btn').innerHTML = `${_si('sparkles')} ${t('photos.smart')}`;
   $('photos-smart-btn')?.addEventListener('click', () => {
     _smart = !_smart;
     $('photos-smart-btn').classList.toggle('on', _smart);
@@ -1069,10 +1081,10 @@ export function initPhotos() {
       const r = await fetch('/api/photos/rescan', { method: 'POST' });
       if (!r.ok) throw new Error(await r.text());
       const d = await r.json();
-      toast(`scan added ${d.added || 0}`, 'success');
+      toast(tp('photos.scan_added', d.added || 0), 'success');
       await _reloadPhotos();
     } catch (e) {
-      toast('scan failed: ' + e.message, 'error');
+      toast(t('photos.scan_failed', { error: e.message }), 'error');
     }
   });
   $('photos-load-retry')?.addEventListener('click', _reloadPhotos);
@@ -1085,25 +1097,25 @@ export function initPhotos() {
   $('photos-sel-archive')?.addEventListener('click', () => _batch(_view === '__archive__' ? 'unarchive' : 'archive'));
   $('photos-sel-album')?.addEventListener('click', e => _openAlbumMenu(e.currentTarget));
   $('photos-sel-del')?.addEventListener('click', async () => {
-    if (await dlgConfirm(`delete ${_sel.size} photo${_sel.size > 1 ? 's' : ''}?`)) _batch('delete');
+    if (await dlgConfirm(tp('photos.delete_confirm', _sel.size))) _batch('delete');
   });
   $('photos-sel-stack')?.addEventListener('click', async () => {
     const ids = [..._sel];
     try {
       if (ids.length === 1) {
         await fetch('/api/photos/unstack', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: ids[0] }) });
-        toast('unstacked', '');
+        toast(t('photos.unstacked'), '');
       } else if (ids.length >= 2) {
         const r = await fetch('/api/photos/stack', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids }) });
         if (!r.ok) throw 0;
-        toast('stacked', 'success');
+        toast(t('photos.stacked'), 'success');
       } else return;
-    } catch { toast('failed', 'error'); return; }
+    } catch { toast(t('photos.failed'), 'error'); return; }
     _clearSel(); _reloadPhotos();
   });
-  if ($('photos-sel-fav')) $('photos-sel-fav').innerHTML = `${_si('heart')} favorite`;
-  if ($('photos-sel-album')) $('photos-sel-album').innerHTML = `${_si('folder')} add to album`;
-  if ($('photos-sel-del')) $('photos-sel-del').innerHTML = `${_si('trash')} delete`;
+  if ($('photos-sel-fav')) $('photos-sel-fav').innerHTML = `${_si('heart')} ${t('photos.favorite')}`;
+  if ($('photos-sel-album')) $('photos-sel-album').innerHTML = `${_si('folder')} ${t('photos.add_to_album')}`;
+  if ($('photos-sel-del')) $('photos-sel-del').innerHTML = `${_si('trash')} ${t('common.delete')}`;
   $('photos-close-btn')?.addEventListener('click', closeLightbox);
   $('photos-edit-btn')?.addEventListener('click', async () => {
     if (!_cur || !await _discardCaption()) return;
@@ -1143,10 +1155,10 @@ export function initPhotos() {
     try {
       const saved = await _response(await fetch('/api/photos/' + photo.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ archived: arch }) }));
       if (saved?.id !== photo.id || saved.archived !== arch) throw new Error('unconfirmed archive');
-    } catch { toast('archive state could not be saved', 'error'); return; }
+    } catch { toast(t('photos.archive_failed'), 'error'); return; }
     rememberPhotoChange(photo, 'archived', arch);
-    if (_cur?.id === photo.id) $('photos-archive-btn').innerHTML = arch ? `${_si('archive')} unarchive` : `${_si('archive')} archive`;
-    toast(arch ? 'archived' : 'unarchived', '');
+    if (_cur?.id === photo.id) $('photos-archive-btn').innerHTML = arch ? `${_si('archive')} ${t('photos.unarchive')}` : `${_si('archive')} ${t('photos.archive')}`;
+    toast(arch ? t('photos.archived') : t('photos.unarchived'), '');
     if (generation === _viewerGeneration) await closeLightbox();
     _reloadPhotos();
   });
@@ -1188,7 +1200,7 @@ export function initPhotos() {
         cell.querySelector('.photos-fav-badge')?.remove();
         if (fav) cell.insertAdjacentHTML('beforeend', `<span class="photos-fav-badge">${_si('heart-fill')}</span>`);
       }
-    } catch { toast('favorite could not be saved', 'error'); }
+    } catch { toast(t('photos.favorite_failed'), 'error'); }
     finally {
       _favoritePending.delete(photo.id);
       if (_cur?.id === photo.id) _setFavBtn(_cur.favorite);
@@ -1196,9 +1208,9 @@ export function initPhotos() {
   });
   $('photos-del-btn')?.addEventListener('click', async () => {
     const photo = _cur, generation = _viewerGeneration;
-    if (!photo || !await _discardCaption() || !await dlgConfirm('delete this image?') || generation !== _viewerGeneration) return;
+    if (!photo || !await _discardCaption() || !await dlgConfirm(t('photos.delete_image_confirm')) || generation !== _viewerGeneration) return;
     try { await _response(await fetch('/api/photos/' + photo.id, { method: 'DELETE' })); }
-    catch { toast('delete failed', 'error'); return; }
+    catch { toast(t('photos.delete_failed'), 'error'); return; }
     if (generation === _viewerGeneration) await closeLightbox();
     _reloadPhotos();
   });
@@ -1211,7 +1223,7 @@ export function initPhotos() {
     const keywords = $('photos-keywords').value.split(',').map(s => s.trim()).filter(Boolean);
     _metaBusy = true;
     ['photos-meta-save', 'photos-caption', 'photos-keywords'].forEach(id => { $(id).disabled = true; });
-    $('photos-meta-status').textContent = 'saving…';
+    $('photos-meta-status').textContent = t('common.saving');
     try {
       const d = await _response(await fetch('/api/photos/' + photo.id, {
         method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ caption, keywords }),
@@ -1220,8 +1232,8 @@ export function initPhotos() {
       photo.caption = d.caption; photo.keywords = d.keywords;
       const p = _photos.find(x => x.id === photo.id); if (p) { p.caption = d.caption; p.keywords = d.keywords; }
       $('photos-caption').value = d.caption; $('photos-keywords').value = d.keywords.join(', ');
-      $('photos-meta-status').textContent = 'saved';
-    } catch { $('photos-meta-status').textContent = 'save failed. your changes are kept; retry save.'; }
+      $('photos-meta-status').textContent = t('common.saved');
+    } catch { $('photos-meta-status').textContent = t('photos.meta_failed'); }
     finally {
       _metaBusy = false;
       ['photos-meta-save', 'photos-caption', 'photos-keywords'].forEach(id => { $(id).disabled = false; });
@@ -1238,14 +1250,14 @@ export function initPhotos() {
         method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hidden: hide }),
       }));
       if (saved?.id !== photo.id || saved.hidden !== hide) throw new Error('unconfirmed hidden state');
-    } catch { toast('hidden state could not be saved', 'error'); return; }
+    } catch { toast(t('photos.hidden_failed'), 'error'); return; }
     rememberPhotoChange(photo, 'hidden', hide);
-    if (_cur?.id === photo.id) $('photos-hide-btn').innerHTML = hide ? `${_si('eye')} unhide` : `${_si('eye-off')} hide`;
+    if (_cur?.id === photo.id) $('photos-hide-btn').innerHTML = hide ? `${_si('eye')} ${t('photos.unhide')}` : `${_si('eye-off')} ${t('photos.hide')}`;
     if (generation === _viewerGeneration) await closeLightbox();
     _reloadPhotos();
   });
   // filters
-  if ($('photos-filter-btn')) $('photos-filter-btn').innerHTML = `${_si('filter')} filter`;
+  if ($('photos-filter-btn')) $('photos-filter-btn').innerHTML = `${_si('filter')} ${t('photos.filter')}`;
   $('photos-filter-btn')?.addEventListener('click', () => {
     const bar = $('photos-filterbar');
     if (bar) { bar.hidden = !bar.hidden; if (!bar.hidden) _loadFacets(); }
@@ -1278,15 +1290,15 @@ async function openPhotoTrash() {
   const sb = $('photos-scrubber'); if (sb) sb.style.display = 'none';
   let items;
   try { items = await fetch('/api/photos/trash').then(r => r.json()); }
-  catch { toast('failed to load', 'error'); return; }
+  catch { toast(t('photos.load_failed_short'), 'error'); return; }
   const grid = $('photos-grid');
   _photos = [];
   let html = '<div class="photos-moment"><div class="photos-moment-label">'
-    + `<a href="#" id="photos-trash-back" class="photos-trash-back" style="color:var(--text)">${_si('chevron-left')} gallery</a> · recently deleted</div>`
+    + `<a href="#" id="photos-trash-back" class="photos-trash-back" style="color:var(--text)">${_si('chevron-left')} ${t('photos.gallery')}</a> · ${t('photos.recently_deleted')}</div>`
     + '<div class="photos-moment-grid">';
-  if (!items.length) html += '<div class="photos-empty" style="grid-column:1/-1">trash is empty</div>';
+  if (!items.length) html += `<div class="photos-empty" style="grid-column:1/-1">${t('photos.trash_empty')}</div>`;
   for (const p of items) {
-    const restore = `<button class="btn photos-restore" data-id="${p.id}" style="position:absolute;bottom:4px;left:4px">${_si('undo')} restore</button>`;
+    const restore = `<button class="btn photos-restore" data-id="${p.id}" style="position:absolute;bottom:4px;left:4px">${_si('undo')} ${t('photos.restore')}</button>`;
     html += _cellHtml(p, null, null, restore, false);
   }
   html += '</div></div>';
@@ -1299,9 +1311,9 @@ async function openPhotoTrash() {
     try {
       const d = await _response(await fetch('/api/photos/' + b.dataset.id + '/restore', { method: 'POST' }));
       if (d?.ok !== true || d.restored !== b.dataset.id) throw new Error('unconfirmed restore');
-      toast('restored', 'success');
+      toast(t('photos.restored'), 'success');
       await openPhotoTrash();
-    } catch { toast('restore failed; retry or reload to check the image.', 'error'); }
+    } catch { toast(t('photos.restore_failed'), 'error'); }
     finally { b.disabled = false; }
   }));
 }
@@ -1309,7 +1321,7 @@ async function openPhotoTrash() {
 function _uploadStatus() {
   const status = $('photos-upload-status');
   status.hidden = !_uploadBusy && !_uploadFailures.length;
-  status.querySelector('span').textContent = _uploadBusy ? 'uploading…' : `upload failed: ${_uploadFailures.map(item => item.file.name).join(', ')}. your files are kept for retry.`;
+  status.querySelector('span').textContent = _uploadBusy ? t('photos.uploading') : t('photos.upload_failed', { files: _uploadFailures.map(item => item.file.name).join(', ') });
   $('photos-upload-btn').disabled = _uploadBusy;
   $('photos-upload-retry').disabled = _uploadBusy;
   $('photos-upload-dismiss').disabled = _uploadBusy;
@@ -1335,12 +1347,12 @@ async function uploadPhotos(files, retry = null) {
       } catch { _uploadFailures.push(item); }
     }
   } finally { _uploadBusy = false; _uploadStatus(); }
-  if (n) { toast(`added ${n} image${n > 1 ? 's' : ''}`, 'success'); await _reloadPhotos(); }
+  if (n) { toast(tp('photos.added_images', n), 'success'); await _reloadPhotos(); }
 }
 
 // share the currently-selected album as a read-only /s/{token} link (7c)
 async function shareAlbum() {
-  if (!_view || _view.startsWith('__')) { toast('open an album to share it', ''); return; }
+  if (!_view || _view.startsWith('__')) { toast(t('photos.share_needs_album'), ''); return; }
   try {
     const r = await fetch('/api/share', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -1349,9 +1361,9 @@ async function shareAlbum() {
     const d = await r.json();
     if (!r.ok || !d.url) throw 0;
     const url = location.origin + d.url;
-    try { await navigator.clipboard.writeText(url); toast('album link copied', 'success'); }
+    try { await navigator.clipboard.writeText(url); toast(t('photos.album_link_copied'), 'success'); }
     catch { toast(url, ''); }
-  } catch { toast('share failed', 'error'); }
+  } catch { toast(t('photos.share_failed'), 'error'); }
 }
 
 async function _createAlbum() {
@@ -1359,11 +1371,11 @@ async function _createAlbum() {
   _albumCreating = true;
   try {
     while (true) {
-      const name = await dlgPrompt('', _albumDraft, { title: 'new album', label: 'album name', confirmLabel: 'create' });
+      const name = await dlgPrompt('', _albumDraft, { title: t('photos.new_album'), label: t('photos.album_name'), confirmLabel: t('photos.create') });
       if (name === null) return null;
       _albumDraft = name;
       const requestedName = name.trim();
-      if (!requestedName) { toast('enter an album name', 'error'); continue; }
+      if (!requestedName) { toast(t('photos.album_name_required'), 'error'); continue; }
       try {
         const album = await _response(await fetch('/api/photos/albums', {
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: requestedName }),
@@ -1371,7 +1383,7 @@ async function _createAlbum() {
         if (!album || typeof album.id !== 'string' || !album.id || album.name !== requestedName) throw new Error('unconfirmed album');
         _albumDraft = '';
         return album;
-      } catch { toast('album could not be created. your name is kept; retry or cancel.', 'error'); }
+      } catch { toast(t('photos.album_create_failed'), 'error'); }
     }
   } finally { _albumCreating = false; }
 }

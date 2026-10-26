@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 const KEY = 'aide-shortcuts';
 
 export const DEFAULT_SHORTCUTS = {
@@ -10,6 +12,21 @@ export const DEFAULT_SHORTCUTS = {
   stop: 'Escape',           // stop an in-flight generation (also closes overlays)
   ask_aide: 'Ctrl+.',       // the ask-aide panel on any app
 };
+
+// the action name as people read it, e.g. in "Ctrl+K is already used for search"
+export function shortcutActionLabel(action) {
+  const labels = {
+    search: t('common.search'),
+    sidebar: t('shortcuts.action_sidebar'),
+    settings: t('common.settings'),
+    new_chat: t('shortcuts.action_new_chat'),
+    send: t('common.send'),
+    focus_input: t('shortcuts.action_focus_input'),
+    stop: t('common.stop'),
+    ask_aide: t('shortcuts.action_ask_aide'),
+  };
+  return labels[action] || String(action || '').replace(/_/g, ' ');
+}
 
 // combos the OS/browser already own — binding these would either never fire or
 // fight the browser, so we refuse them when rebinding. lowercased for compare.

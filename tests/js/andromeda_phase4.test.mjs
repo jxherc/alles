@@ -426,7 +426,7 @@ test('only the newest queued search configuration write may refresh provider cho
 test('automatic search keeps the configured provider fallback chain active', () => {
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   const loader = source.slice(source.indexOf('async function loadProviderChoices('), source.indexOf('async function explainResults()'));
-  assert.match(loader, /\{ value: '', label: 'automatic' \}/);
+  assert.match(loader, /\{ value: '', label: tr\('andromeda\.x_automatic'\) \}/);
   assert.match(loader, /providerValue\('andromeda-provider'\)/);
   assert.match(loader, /options\.some\(option => option\.value === selectedProvider\)/);
   assert.match(loader, /populateDropdown\(control, options, preservedProvider\)/);
@@ -546,7 +546,7 @@ test('Andromeda switches expose names and roll failed writes back from a busy st
   );
   assert.match(helper, /setPressed\(id, previous\)/);
   assert.match(helper, /outcome = 'error'/);
-  assert.match(helper, /setting was not saved; try again/);
+  assert.match(helper, /tr\('andromeda\.x_setting_unsaved'\)/);
 });
 
 test('overview strength explains both speed and answer quality', () => {
@@ -579,7 +579,7 @@ test('remote overviews require an exact per-search owner confirmation', () => {
   // the owner's chosen remote model is used without a prompt unless they ask for one
   assert.match(source, /preview\.privacy_class === 'remote' && !preview\.confirm_each_search\) \{\n\s+\/\/[^\n]*\n\s+confirmation\.confirmed_endpoint_id = preview\.endpoint_id;/);
   // sending is a consent, not a delete: the confirm is neutral, never the danger red
-  assert.match(source, /remote_confirm'[^\n]*\{ danger: false, confirmLabel: 'send' \}\)/);
+  assert.match(source, /remote_confirm'[^\n]*\{ danger: false, confirmLabel: tr\('common\.send'\) \}\)/);
   const dialog = readFileSync(new URL('../../static/js/dialog.js', import.meta.url), 'utf8');
   assert.match(dialog, /options\.danger === false \? 'primary' : 'danger'/);
 });
@@ -657,7 +657,7 @@ test('the service worker cannot mix old and new JavaScript modules', () => {
   const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
   const compatibility = readFileSync(new URL('../../static/js/routecompat.js', import.meta.url), 'utf8');
-  const pageStamp = html.match(/const _v = '(\d+)'/)?.[1];
+  const pageStamp = html.match(/<script type="module" src="\/static\/js\/app\.js\?v=(\d+)"/)?.[1];
   assert.ok(pageStamp);
   assert.equal(worker.match(/const STAMP = '(\d+)'/)?.[1], pageStamp);
   assert.match(worker, /NETWORK_FIRST_STATIC = \['\.js', '\.mjs', '\.css', '\.json'\]/);

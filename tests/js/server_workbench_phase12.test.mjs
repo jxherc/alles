@@ -19,7 +19,7 @@ test('Server workbench exposes the approved management sections without native c
 test('Server policy editor is schema-bound to the one policy API', () => {
   assert.match(source, /json\(request, '\/api\/system\/policy'/);
   assert.match(source, /json\(request, '\/api\/system\/policy\/diff'/);
-  assert.match(source, /type “\$\{current\.confirmation_phrase\}”/);
+  assert.match(source, /t\('server\.wb_type_allow', \{ phrase: current\.confirmation_phrase \}\)/);
   assert.doesNotMatch(source, /showOpenFilePicker|webkitdirectory|type\s*=\s*['"]file['"]/);
   assert.doesNotMatch(source, /\/api\/(?:shell|exec|command)/);
 });
@@ -42,10 +42,9 @@ test('managed companions expose native service APIs without storing the Nginx pa
     '/api/system/companions/nginx-proxy-manager/connect',
     '/api/system/companions/nginx-proxy-manager/proxy-hosts',
   ]) assert.match(source, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(source, /The password is exchanged locally and never stored/);
-  assert.match(source, /only the encrypted API token is retained/);
-  assert.match(source, /DNS filtering/);
-  assert.match(source, /DNS rewrites/);
+  assert.match(source, /t\('server\.wb_npm_connect_copy'\)/);
+  assert.match(source, /t\('server\.wb_dns_filtering'\)/);
+  assert.match(source, /t\('server\.wb_dns_rewrites'\)/);
   assert.match(source, /certificates/);
 });
 
@@ -65,8 +64,8 @@ test('Server choices roll back failed persistence and disruptive controls confir
   assert.match(source, /list\.setAttribute\('aria-busy', 'true'\)/);
   assert.match(source, /function destructiveAction/);
   assert.match(source, /function serviceAction/);
-  assert.match(source, /remove Alles ownership of/);
-  assert.match(source, /roll back .* activation\?/);
+  assert.match(source, /t\('server\.wb_remove_ownership_confirm'/);
+  assert.match(source, /t\('server\.wb_rollback_confirm'/);
 });
 
 test('legacy Docs, Files, Vault, System, Activity, and Watch render inside workbench shells', () => {

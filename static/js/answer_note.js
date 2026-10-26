@@ -28,21 +28,21 @@ export function reconcileAnswerNote(wrap) {
   const entry = savedAnswers.get(noteSourceKey(wrap));
   if (!entry || !wrap.answerText?.trim() || entry.text !== answerNoteText(wrap)) return;
   wrap.savedNote = entry.saved;
-  const button = wrap.querySelector('button[title="save this reply as a note"]');
-  if (button) button.textContent = 'saved note';
+  const button = wrap.querySelector('button[data-msg-act="note"]');
+  if (button) button.textContent = t('aide.saved_note');
 }
 
 export async function reconcileSourceReply(wrap, kind = 'note') {
   if (!wrap.pendingSourceReply) return;
-  const action = kind === 'task' ? t('aide.add_plan_task') : '+note';
-  if (!wrap.sourceReplyId) throw new Error(`saved source references are unavailable; reopen this chat before saving a ${kind}`);
+  const action = kind === 'task' ? t('aide.add_plan_task') : t('aide.note_button');
+  if (!wrap.sourceReplyId) throw new Error(t(kind === 'task' ? 'aide.source_refs_unavailable_task' : 'aide.source_refs_unavailable_note'));
   const response = await fetch(`/api/sessions/${encodeURIComponent(wrap.dataset.sessionId)}/history`, { signal: AbortSignal.timeout(15000) });
-  if (!response.ok) throw new Error(`could not check saved source references; try ${action} again`);
+  if (!response.ok) throw new Error(t('aide.source_refs_check_failed', { action }));
   const history = await response.json();
   const reply = history.messages?.find(message => message.role === 'assistant'
     && message.meta?.context_provenance?.reply_id === wrap.sourceReplyId);
   if (!reply?.meta?.source_citations || typeof reply.content !== 'string') {
-    throw new Error(`source references are still being saved; try ${action} again`);
+    throw new Error(t('aide.source_refs_pending', { action }));
   }
   const row = wrap.closest('.msg-row');
   if (row && typeof reply.id === 'string') row.dataset.msgId = reply.id;
@@ -57,7 +57,7 @@ export async function reconcileSourceReply(wrap, kind = 'note') {
 }
 
 async function openAnswerNote(path) {
-  if (!(await window._openSearchResult?.('note', path))) throw new Error('could not open the saved note');
+  if (!(await window._openSearchResult?.('note', path))) throw new Error(t('aide.note_open_failed'));
 }
 
 function noteSaved(saved, text, focus = false, _body = null, sourceKey = '') {
@@ -69,8 +69,8 @@ function noteSaved(saved, text, focus = false, _body = null, sourceKey = '') {
   if (!host) return;
   host.dataset.savedNoteRequest = saved.request_id;
   const status = document.createElement('p'); status.setAttribute('role', 'status');
-  status.textContent = `saved to ${saved.path}`;
-  const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = 'open note';
+  status.textContent = t('aide.note_saved_to', { path: saved.path });
+  const open = document.createElement('button'); open.type = 'button'; open.className = 'btn note-saved-open'; open.textContent = t('aide.note_open');
   open.onclick = async () => {
     try { await openAnswerNote(saved.path); }
     catch (error) { status.textContent = error.message; }
@@ -92,7 +92,7 @@ export async function saveAnswerNote(button) {
   if (wrap.savedNote) { noteSaved(wrap.savedNote, '', true); return; }
   const focusBefore = document.activeElement;
   const restoreFocus = () => document.activeElement === focusBefore || document.activeElement === document.body;
-  button.disabled = true; button.textContent = 'saving…';
+  button.disabled = true; button.textContent = t('common.saving');
   try {
     await reconcileSourceReply(wrap);
     const raw = wrap.answerText.trim();
@@ -114,6 +114,6 @@ export async function saveAnswerNote(button) {
       if (restoreFocus()) host.querySelector('.note-retry, .note-recovery-error button')?.focus();
     }
   } finally {
-    button.disabled = false; button.textContent = wrap.savedNote ? 'saved note' : '+note';
+    button.disabled = false; button.textContent = wrap.savedNote ? t('aide.saved_note') : t('aide.note_button');
   }
 }

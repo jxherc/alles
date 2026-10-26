@@ -1,11 +1,18 @@
 import { getActiveId, selectSession, setPrimaryConversationUnavailable } from './sessions.js';
-import { createFocusBoundary, createMenuController } from './kokuen.js';
+import { createFocusBoundary, createMenuController } from './kokuen.js?v=4';
 import { openAideRun } from './aiderun.js';
 import { initAideCodingWorkspace, openAideCodingWorkspace, closeAideCodingWorkspace } from './aidecoding.js';
+import { t } from './i18n.js';
 
 const $ = id => document.getElementById(id);
 const ACTIVE = new Set(['queued', 'running', 'waiting_input', 'waiting_approval', 'paused']);
-const stateLabel = state => ({ succeeded: 'completed', cancelled: 'stopped', waiting_input: 'needs your input', waiting_approval: 'needs approval' }[state] || String(state || 'unknown').replaceAll('_', ' '));
+const JOB_STATES = {
+  succeeded: () => t('aide.job_state_completed'),
+  cancelled: () => t('aide.job_state_stopped'),
+  waiting_input: () => t('aide.job_state_needs_input'),
+  waiting_approval: () => t('aide.job_state_needs_approval'),
+};
+const stateLabel = state => JOB_STATES[state]?.() ?? String(state || t('common.unknown')).replaceAll('_', ' ');
 let initialized = false;
 let primaryId = '';
 let panelKind = '';
@@ -55,7 +62,7 @@ function syncHistory() {
   if (session?.primary) primaryId = session.id;
   const history = !!session?.id && !(session.primary || session.id === primaryId) && !session.incognito;
   $('aide-history-context').hidden = !history;
-  $('aide-history-name').textContent = history ? session.name || 'earlier conversation' : '';
+  $('aide-history-name').textContent = history ? session.name || t('aide.earlier_conversation') : '';
 }
 
 export async function openPrimaryConversation({ focus = true, isCurrent = () => true } = {}) {
@@ -93,7 +100,7 @@ async function setMode(mode, { focus = false, restore = false } = {}) {
   closeContext({ restoreFocus: false });
   menu?.close({ restoreFocus: false });
   if (mode !== 'call' && !$('aide-call-workspace').hidden) {
-    const voice = await import('./livevoice.js?v=2');
+    const voice = await import('./livevoice.js?v=3');
     voice.closeLiveVoiceSurface();
   }
   if (mode === 'coding') {
@@ -119,14 +126,14 @@ function renderFailure(message, retry) {
   const content = $('aide-context-content');
   const status = node('p', message, 'aide-context-empty');
   status.setAttribute('role', 'status');
-  content.replaceChildren(status, action('retry', retry));
+  content.replaceChildren(status, action(t('common.retry'), retry));
 }
 
 async function showPrimaryFailure() {
   if (!window._aidePrimaryUnavailable || document.body.dataset.space !== 'aide') return;
   await openContext('conversation');
   if (window._aidePrimaryUnavailable && panelKind === 'conversation') {
-    renderFailure('could not open your conversation. retry to continue; your draft is unchanged.', openPrimaryConversation);
+    renderFailure(t('aide.conversation_open_failed'), openPrimaryConversation);
   }
 }
 
@@ -136,7 +143,7 @@ function renderJobs() {
   const focusedAction = content.contains(document.activeElement) ? document.activeElement?.dataset.contextAction : '';
   const rows = [...jobs].sort((a, b) => Number(ACTIVE.has(b.state)) - Number(ACTIVE.has(a.state)));
   content.replaceChildren();
-  if (!rows.length) content.append(node('p', 'no background work yet', 'aide-context-empty'));
+  if (!rows.length) content.append(node('p', t('aide.no_background_work'), 'aide-context-empty'));
   for (const run of rows) {
     const button = action('', () => {
       closeContext({ restoreFocus: false });
@@ -145,7 +152,7 @@ function renderJobs() {
     button.className = 'aide-job-row';
     button.dataset.runId = run.id;
     const text = node('span', undefined, 'aide-job-copy');
-    text.append(node('span', run.title || 'background work', 'aide-job-title'));
+    text.append(node('span', run.title || t('aide.bg_title_done'), 'aide-job-title'));
     const detail = run.result_summary || run.safe_error;
     if (detail) text.append(node('span', detail, 'aide-job-summary'));
     const state = node('span', stateLabel(run.state), 'aide-job-state');
@@ -154,7 +161,7 @@ function renderJobs() {
     content.append(button);
   }
   const footer = node('div', undefined, 'aide-context-footer');
-  const scheduled = action('scheduled work', () => {
+  const scheduled = action(t('aide.scheduled_work'), () => {
     closeContext({ restoreFocus: false });
     $('aide-scheduled-link')?.click();
   });
@@ -177,7 +184,7 @@ async function refreshJobs({ visible = false } = {}) {
     const count = jobs.filter(run => ACTIVE.has(run.state)).length;
     $('aide-jobs-count').hidden = !count;
     $('aide-jobs-count').textContent = String(count);
-    $('aide-jobs-open').setAttribute('aria-label', count ? `background work, ${count} active` : 'background work');
+    $('aide-jobs-open').setAttribute('aria-label', count ? t('aide.background_work_active', { count }) : t('aide.bg_title_done'));
     if (visible && panelKind === 'jobs') renderJobs();
     const sessionId = getActiveId();
     if (pendingReceipts.has(sessionId)) {
@@ -185,7 +192,7 @@ async function refreshJobs({ visible = false } = {}) {
       void window._refreshAideSessionQuietly?.(sessionId);
     }
   } catch {
-    if (visible && panelKind === 'jobs') renderFailure('background work is unavailable', () => refreshJobs({ visible: true }));
+    if (visible && panelKind === 'jobs') renderFailure(t('aide.bg_unavailable'), () => refreshJobs({ visible: true }));
   } finally {
     clearTimeout(refreshTimer);
     if (document.body.dataset.space === 'aide' && !document.hidden) {
@@ -197,8 +204,8 @@ async function refreshJobs({ visible = false } = {}) {
 function provenance(memory) {
   let kind;
   try { kind = JSON.parse(memory.provenance || '{}').kind; } catch {}
-  return ({ owner_request: 'you asked to remember', direct_owner_statement: 'your preference', model_suggestion: 'suggested from conversation' }[kind]
-    || memory.source || 'saved memory');
+  return ({ owner_request: t('aide.memory_owner_request'), direct_owner_statement: t('aide.memory_owner_statement'), model_suggestion: t('aide.memory_suggested') }[kind]
+    || memory.source || t('aide.memory_saved'));
 }
 
 async function renderMemory(generation) {
@@ -208,24 +215,24 @@ async function renderMemory(generation) {
     if (!Array.isArray(items)) throw new Error('invalid memories');
     const content = $('aide-context-content');
     content.replaceChildren();
-    if (!items.length) content.append(node('p', 'no saved memories yet', 'aide-context-empty'));
+    if (!items.length) content.append(node('p', t('aide.no_saved_memories'), 'aide-context-empty'));
     for (const memory of items) {
       const item = node('article', undefined, 'aide-memory-row');
       item.append(node('p', memory.text || ''));
-      const metadata = [provenance(memory), memory.scope === 'project' ? 'project' : 'global'];
-      if (memory.status === 'suggested') metadata.push('needs review');
-      if (memory.pinned) metadata.push('pinned');
+      const metadata = [provenance(memory), memory.scope === 'project' ? t('aide.memory_project') : t('aide.memory_global')];
+      if (memory.status === 'suggested') metadata.push(t('aide.memory_needs_review'));
+      if (memory.pinned) metadata.push(t('aide.memory_pinned'));
       item.append(node('span', metadata.join(' · '), 'aide-memory-source'));
       content.append(item);
     }
     const footer = node('div', undefined, 'aide-context-footer');
-    footer.append(action('manage memory', () => {
+    footer.append(action(t('aide.manage_memory'), () => {
       closeContext({ restoreFocus: false });
       window._navigateTo?.('memory');
     }));
     content.append(footer);
   } catch {
-    if (generation === panelGeneration) renderFailure('memory is unavailable', () => renderMemory(generation));
+    if (generation === panelGeneration) renderFailure(t('aide.memory_unavailable'), () => renderMemory(generation));
   }
 }
 
@@ -235,8 +242,8 @@ async function openContext(kind) {
   closeContext({ restoreFocus: false });
   panelKind = kind;
   const generation = ++panelGeneration;
-  $('aide-context-title').textContent = { jobs: 'background work', memory: 'memory', conversation: 'conversation' }[kind];
-  $('aide-context-content').replaceChildren(node('p', 'loading…', 'aide-context-empty'));
+  $('aide-context-title').textContent = { jobs: t('aide.bg_title_done'), memory: t('aide.memory_title'), conversation: t('aide.conversation_title') }[kind];
+  $('aide-context-content').replaceChildren(node('p', t('aide.loading'), 'aide-context-empty'));
   $('aide-context-overlay').hidden = false;
   $('aide-jobs-open').setAttribute('aria-expanded', String(kind === 'jobs'));
   panelInert = suspend([document.querySelector('.app')]);
@@ -281,12 +288,12 @@ export function initAideCentral() {
   initAideCodingWorkspace();
   const options = $('aide-new-context');
   for (const id of ['effort-btn', 'aide-help']) if ($(id)) options.append($(id));
-  const closeOptions = action('close conversation settings', () => {
+  const closeOptions = action(t('aide.close_conversation_settings'), () => {
     options.classList.remove('aide-context-requested');
     $('aide-more-btn').focus();
   });
   closeOptions.id = 'aide-options-close';
-  closeOptions.setAttribute('aria-label', 'close conversation settings');
+  closeOptions.setAttribute('aria-label', t('aide.close_conversation_settings'));
   closeOptions.dataset.kokuenIcon = 'close';
   options.append(closeOptions);
   menu = createMenuController($('aide-more-menu'), { onClose: () => $('aide-more-btn').setAttribute('aria-expanded', 'false') });

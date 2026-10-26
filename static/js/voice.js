@@ -1,4 +1,5 @@
 import { toast } from './util.js';
+import { t } from './i18n.js';
 
 let _recorder = null;
 let _chunks = [];
@@ -47,13 +48,13 @@ export async function startRecording() {
       ].includes(error?.name));
       if (!retryDefault) {
         const denied = ['NotAllowedError', 'SecurityError'].includes(error?.name);
-        toast(denied ? 'mic access denied' : 'voice recording could not start', 'error');
+        toast(denied ? t('voice.mic_denied') : t('voice.start_failed'), 'error');
         return;
       }
       try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
       catch (fallbackError) {
         const denied = ['NotAllowedError', 'SecurityError'].includes(fallbackError?.name);
-        toast(denied ? 'mic access denied' : 'voice recording could not start', 'error');
+        toast(denied ? t('voice.mic_denied') : t('voice.start_failed'), 'error');
         return;
       }
     }
@@ -88,7 +89,7 @@ export async function startRecording() {
       _setMicRecording(false);
       _stream?.getTracks().forEach(track => track.stop());
       _stream = null;
-      toast(`voice recording could not start: ${error?.message || 'unavailable'}`, 'error');
+      toast(t('voice.start_failed_reason', { reason: error?.message || t('voice.unavailable') }), 'error');
     }
   } finally {
     if (take === _take) _starting = false;
@@ -99,7 +100,7 @@ export async function startRecording() {
 function _startBrowserSR(s, take) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    toast('speech recognition needs Chrome/Edge. or switch STT to Whisper in settings', 'error');
+    toast(t('voice.needs_chrome'), 'error');
     _recording = false; _setMicRecording(false);
     _stream?.getTracks().forEach(t => t.stop());
     return;
@@ -123,9 +124,9 @@ function _startBrowserSR(s, take) {
     if (take !== _take) return;
     if (e.error === 'no-speech' || e.error === 'aborted') return;   // benign
     _srFatal = true;   // real error — do NOT restart (avoids toast storm)
-    if (e.error === 'network') toast('speech recognition needs internet', 'error');
-    else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('mic blocked', 'error');
-    else toast('speech error: ' + e.error, 'error');
+    if (e.error === 'network') toast(t('voice.needs_internet'), 'error');
+    else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast(t('voice.mic_blocked'), 'error');
+    else toast(t('voice.speech_error', { error: e.error }), 'error');
     stopRecording();
   };
   _sr.onend = () => {
@@ -136,7 +137,7 @@ function _startBrowserSR(s, take) {
     _sr = null;
     _settling = false;
     if (text) _inject(text);
-    else if (!_srFatal) toast('no speech detected', 'error');   // stay quiet after a real error
+    else if (!_srFatal) toast(t('voice.no_speech'), 'error');   // stay quiet after a real error
   };
   try { _sr.start(); } catch {
     _sr = null;
@@ -145,7 +146,7 @@ function _startBrowserSR(s, take) {
     _setMicRecording(false);
     _stream?.getTracks().forEach(track => track.stop());
     _stream = null;
-    toast('speech recognition could not start', 'error');
+    toast(t('voice.sr_start_failed'), 'error');
   }
 }
 
@@ -186,7 +187,7 @@ export function cancelRecording() {
   _chunks = [];
   _recorder = null;
   _sr = null;
-  toast('recording cancelled');
+  toast(t('voice.cancelled'));
 }
 
 function _setMicRecording(on) {
@@ -198,7 +199,7 @@ function _setMicRecording(on) {
   if (!_micIdleHtml) _micIdleHtml = btn.innerHTML;
   btn.classList.toggle('recording', on);
   btn.setAttribute('aria-pressed', String(on));
-  btn.title = on ? 'stop recording · esc cancels' : 'voice input';
+  btn.title = on ? t('voice.stop_title') : t('aide.voice_input');
   btn.innerHTML = on
     ? '<svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></svg>'
     : _micIdleHtml;
@@ -319,17 +320,17 @@ async function _whisperDone(take, chunks) {
     if (!r.ok) {
       const msg = await r.text().catch(() => '');
       if (take !== _take) return;
-      try { toast(JSON.parse(msg).detail || 'transcription failed', 'error'); }
-      catch { toast('transcription failed', 'error'); }
+      try { toast(JSON.parse(msg).detail || t('voice.transcription_failed'), 'error'); }
+      catch { toast(t('voice.transcription_failed'), 'error'); }
       return;
     }
     const { text } = await r.json();
     if (take !== _take) return;
     if (text && text.trim()) _inject(text.trim());
-    else toast('no speech detected', 'error');
+    else toast(t('voice.no_speech'), 'error');
   } catch (e) {
-    if (timedOut && take === _take) toast('transcription timed out', 'error');
-    else if (e?.name !== 'AbortError' && take === _take) toast('transcription failed', 'error');
+    if (timedOut && take === _take) toast(t('voice.transcription_timeout'), 'error');
+    else if (e?.name !== 'AbortError' && take === _take) toast(t('voice.transcription_failed'), 'error');
   } finally {
     clearTimeout(timeout);
     if (_transcriptionAbort === controller) _transcriptionAbort = null;
@@ -399,7 +400,7 @@ export async function speak(text, voiceOverride) {
         });
       });
     } catch (e) {
-      toast('TTS failed: falling back to browser', 'error');
+      toast(t('voice.tts_failed'), 'error');
       await _browserSpeak(text);
     }
   } else {

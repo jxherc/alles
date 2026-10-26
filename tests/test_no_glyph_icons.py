@@ -13,20 +13,21 @@ ROOT = Path(__file__).resolve().parent.parent
 GLYPHS = re.compile("[\U0001f300-\U0001faff☀-➿⌀-⏿■-◿✓✕↻↺⇄⇆⇅↳⟰-⟿⊕‹›⤺•]")
 # file -> substrings on a line where the glyph is text, not an icon
 ALLOWED = {
-    "journal.js": ["MOODS"],  # mood faces are emoji content
+    "journal.js": ["MOODS", "const moods = () =>"],  # mood faces are emoji content
     "andromeda_tools.js": [
         "['⌫', 'back']",
         "'⌫': 'delete'",
         "label === '⌫'",
+        "const KEY_NAMES = () =>",
     ],  # calculator key label
-    "aidegoals.js": ["press ⌘C"],  # keyboard notation
+    "aidegoals.js": ["press ⌘C", "aide.goal_press_shortcut"],  # keyboard notation
     "kokuen.js": [
         "ICON_GLYPHS",
         "'✕': 'close'",
         "glyph === '×' || glyph === '✕'",
         "'‹': 'chevron-left'",
         "'›': 'chevron-right'",
-        "{ '‹': 'previous', '›': 'next' }",
+        "{ '‹': t('common.previous'), '›': t('common.next') }",
     ],  # glyph -> svg map
     # ‹ › pager buttons, replaced by kokuen's chevron svg at render
     "datepick.js": ['class="dp-step"', 'class="dp-nav"'],

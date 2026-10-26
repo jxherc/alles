@@ -1,8 +1,12 @@
 // what's new: shows once on the first visit and once after each release, then stays shut until
 // the next one. releases live in /static/whats-new.json, newest first.
-import { createFocusBoundary } from './kokuen.js';
+import { createFocusBoundary } from './kokuen.js?v=4';
 import { escapeHtml } from './util.js';
-import { parseHost, singleHost } from './subdomain.js';
+import { parseHost, singleHost } from './subdomain.js?v=237';
+import { t } from './i18n.js';
+
+// a note without a catalog entry (a release added before its translations) shows its own text
+const tr = (key, fallback) => { const text = t(key); return text === key ? fallback : text; };
 
 const SEEN = 'alles.whatsNewSeen';
 
@@ -69,14 +73,14 @@ function open(show, { first, latest }) {
   let index = 0;
   overlay.innerHTML = `<section class="dialog-card whats-new-card" id="whats-new-dialog" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
     <header class="whats-new-head">
-      <div><h2 id="whats-new-title">${first ? 'welcome to alles' : 'what’s new'}</h2><p class="whats-new-date"></p></div>
-      <button type="button" class="icon-btn" data-whats-new-close aria-label="close">×</button>
+      <div><h2 id="whats-new-title">${escapeHtml(first ? t('common.whatsnew_welcome') : t('common.whatsnew_title'))}</h2><p class="whats-new-date"></p></div>
+      <button type="button" class="icon-btn" data-whats-new-close aria-label="${escapeHtml(t('common.close'))}">×</button>
     </header>
     <ol class="whats-new-list"></ol>
     <footer class="whats-new-foot">
       <span class="whats-new-pages" aria-live="polite"></span>
-      <button type="button" class="btn" data-whats-new-older hidden>older</button>
-      <button type="button" class="btn primary" data-whats-new-done>got it</button>
+      <button type="button" class="btn" data-whats-new-older hidden>${escapeHtml(t('common.whatsnew_older'))}</button>
+      <button type="button" class="btn primary" data-whats-new-done>${escapeHtml(t('common.whatsnew_got_it'))}</button>
     </footer>
   </section>`;
   document.body.appendChild(overlay);
@@ -86,16 +90,17 @@ function open(show, { first, latest }) {
 
   const render = () => {
     const release = show[index];
-    overlay.querySelector('.whats-new-date').textContent = release.date || '';
+    const slug = String(release.id).replace(/-/g, '_');
+    overlay.querySelector('.whats-new-date').textContent = release.date ? tr(`whatsnew.${slug}.date`, release.date) : '';
     list.innerHTML = (release.items || []).map((item, n) => `
       <li class="whats-new-item" style="--n:${n}">
-        <h3>${escapeHtml(item.title || '')}</h3>
-        <p>${escapeHtml(item.body || '')}</p>
-        ${item.try ? `<p class="whats-new-try">try <kbd>${escapeHtml(item.try)}</kbd></p>` : ''}
+        <h3>${escapeHtml(tr(`whatsnew.${slug}.item${n + 1}.title`, item.title || ''))}</h3>
+        <p>${escapeHtml(tr(`whatsnew.${slug}.item${n + 1}.body`, item.body || ''))}</p>
+        ${item.try ? `<p class="whats-new-try">${escapeHtml(t('common.whatsnew_try'))} <kbd>${escapeHtml(item.try)}</kbd></p>` : ''}
       </li>`).join('');
     list.classList.remove('is-in'); void list.offsetWidth; list.classList.add('is-in');
     older.hidden = index >= show.length - 1;
-    overlay.querySelector('.whats-new-pages').textContent = show.length > 1 ? `${index + 1} of ${show.length}` : '';
+    overlay.querySelector('.whats-new-pages').textContent = show.length > 1 ? t('common.whatsnew_page', { index: index + 1, total: show.length }) : '';
   };
   const close = () => {
     mark(latest);

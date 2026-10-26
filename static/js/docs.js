@@ -5,6 +5,7 @@ import { mdToHtml, enhanceMarkdown, toast } from './util.js';
 import { loadNotes } from './notes.js';
 import { replaceRouteUrl } from './route_history.js';
 import { clearLinkedRecord, readRecordTarget, replaceLinkedRecord } from './recordlinks.js';
+import { t, tp } from './i18n.js';
 
 let _section = 'docs';
 let _cur = null;
@@ -141,13 +142,13 @@ async function api(url, options = {}) {
   let response;
   try { response = await _fetcher(url, options); }
   catch {
-    const error = new Error('Alles could not reach the local server');
+    const error = new Error(t('docs.server_unreachable'));
     error.code = 'server_unreachable';
     throw error;
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.detail || data.message || 'request failed');
+    const error = new Error(data.detail || data.message || t('common.request_failed'));
     error.status = response.status;
     error.data = data;
     throw error;
@@ -157,7 +158,7 @@ async function api(url, options = {}) {
 
 function writeErrorMessage(error, fallback) {
   if (error.code === 'server_unreachable') {
-    return 'Alles could not reach the local server. your edits are still here. reconnect, then choose save to retry.';
+    return t('docs.server_unreachable_edits_kept');
   }
   return error.message || fallback;
 }
@@ -435,7 +436,7 @@ export function showSection(section) {
     setHidden($('docs-context-panel'), true);
     setHidden($('wiki-ask'), true);
     $('wiki-view')?.classList.remove('no-note', 'docs-nav-open');
-    return import('./journal.js?v=254').then(module => module.initJournal());
+    return import('./journal.js?v=255').then(module => module.initJournal());
   }
 
   if (_section === 'notes') {
@@ -445,8 +446,8 @@ export function showSection(section) {
     setHidden($('docs-context-panel'), true);
     setHidden($('wiki-ask'), true);
     $('wiki-view')?.classList.remove('no-note');
-    if ($('wiki-current')) $('wiki-current').textContent = 'notes';
-    if ($('wiki-path')) $('wiki-path').textContent = 'quick notes stored locally';
+    if ($('wiki-current')) $('wiki-current').textContent = t('docs.notes_title');
+    if ($('wiki-path')) $('wiki-path').textContent = t('docs.notes_path');
     return loadNotes(_fetcher);
   }
   setHidden($('wiki-notes'), true);
@@ -460,8 +461,8 @@ function renderShell() {
   setHidden($('wiki-document'), !hasDoc);
   setHidden($('docs-context-panel'), !hasDoc);
   if (!hasDoc) {
-    if ($('wiki-current')) $('wiki-current').textContent = 'your documents';
-    if ($('wiki-path')) $('wiki-path').textContent = 'local Markdown';
+    if ($('wiki-current')) $('wiki-current').textContent = t('docs.your_documents');
+    if ($('wiki-path')) $('wiki-path').textContent = t('docs.local_markdown');
     if ($('wiki-stats')) $('wiki-stats').textContent = '';
     if ($('wiki-save-state')) $('wiki-save-state').textContent = '';
     setHidden($('wiki-ask'), true);
@@ -471,16 +472,16 @@ function renderShell() {
   setHidden($('wiki-editor'), _mode !== 'edit');
   if ($('wiki-current')) $('wiki-current').textContent = stem(_cur);
   if ($('wiki-path')) $('wiki-path').textContent = _cur;
-  $('wiki-edit-btn').textContent = _mode === 'edit' ? 'editing' : 'edit';
+  $('wiki-edit-btn').textContent = _mode === 'edit' ? t('docs.editing') : t('common.edit');
   $('wiki-edit-btn').disabled = _mode === 'edit' || !_doc.editable;
   updateStats(currentContent());
   updateSaveState();
 }
 
 function showDocumentChanged() {
-  showInlineState('This file changed on disk while a local draft was open.', [
-    { label: 'compare copies', action: compareExternal },
-    { label: 'use file from disk', action: useExternalCopy },
+  showInlineState(t('docs.changed_with_draft'), [
+    { label: t('docs.compare_copies'), action: compareExternal },
+    { label: t('docs.use_disk_copy'), action: useExternalCopy },
   ]);
 }
 
@@ -506,8 +507,8 @@ async function reconcileWatchedDocument(path, observed, generation, watchGenerat
     if (disk.exists && disk.hash === acknowledgedHash) return;
     if (!disk.exists) {
       showInlineState(
-        'This file was removed.' + ((_dirty || _draft) ? ' Your local draft is still safe.' : ''),
-        [{ label: 'back to documents', action: openDocsHome }],
+        (_dirty || _draft) ? t('docs.file_removed_draft_safe') : t('docs.file_removed'),
+        [{ label: t('docs.back_to_documents'), action: openDocsHome }],
       );
       return;
     }
@@ -517,10 +518,10 @@ async function reconcileWatchedDocument(path, observed, generation, watchGenerat
       && _editRevision === revision && _doc?.hash === acknowledgedHash;
     const opened = await openNote(path, { quiet: true, canRefresh });
     if (!sameDocument()) return;
-    if (opened && !_dirty && !_draft) setSaveState('updated from disk');
+    if (opened && !_dirty && !_draft) setSaveState(t('docs.updated_from_disk'));
     else if ((_dirty || _draft) && _doc?.hash === acknowledgedHash) showDocumentChanged();
   } catch (error) {
-    if (stillCurrent()) setSaveState(error.message || 'could not check file changes', true);
+    if (stillCurrent()) setSaveState(error.message || t('docs.check_changes_failed'), true);
   }
 }
 
@@ -580,7 +581,7 @@ function renderTree(items, select = true) {
   if (box.dataset.renderKey === renderKey) return;
   const html = items.length
     ? items.map(rowHtml).join('')
-    : '<div class="docs-nav-empty">no Markdown files yet</div>';
+    : `<div class="docs-nav-empty">${t('docs.no_files')}</div>`;
   box.innerHTML = html;
   box.dataset.renderKey = renderKey;
   wireTree(box);
@@ -636,7 +637,7 @@ function paintRecent(items) {
     const railHtml = recent.slice(0, 4).map(file => `
       <button class="docs-recent-item" type="button" data-file="${esc(file.path)}">
         ${navIcon('document')}<span>${esc(file.name)}</span>
-      </button>`).join('') || '<div class="docs-nav-empty">nothing opened yet</div>';
+      </button>`).join('') || `<div class="docs-nav-empty">${t('docs.nothing_opened')}</div>`;
     if (rail.dataset.renderKey !== recentKey) {
       rail.innerHTML = railHtml;
       rail.dataset.renderKey = recentKey;
@@ -648,7 +649,7 @@ function paintRecent(items) {
     const gridHtml = recent.map(file => `
       <button class="docs-home-card" type="button" data-file="${esc(file.path)}">
         ${navIcon('document')}<span class="docs-home-card-copy"><span class="dhc-title">${esc(file.name)}</span><small>${esc(file.path)}</small></span>
-      </button>`).join('') || '<div class="docs-home-empty">new documents will show up here</div>';
+      </button>`).join('') || `<div class="docs-home-empty">${t('docs.recent_empty')}</div>`;
     if (grid.dataset.renderKey !== recentKey) {
       grid.innerHTML = gridHtml;
       grid.dataset.renderKey = recentKey;
@@ -707,10 +708,10 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     const requestedPath = String(path);
     const openedDoc = await api('/api/vault-md/file?path=' + encodeURIComponent(requestedPath));
     if (requestGeneration !== _openGeneration || (canRefresh && !canRefresh())) return false;
-    if (!openedDoc.exists) throw new Error('it was moved or deleted');
+    if (!openedDoc.exists) throw new Error(t('docs.moved_or_deleted'));
     if (expectedHash && openedDoc.hash !== expectedHash) {
-      showInlineState(`${requestedPath} changed after this answer. The quoted version is kept with the answer.`, [
-        { label: 'open current version', action: () => openNote(requestedPath) },
+      showInlineState(t('docs.answer_version_changed', { path: requestedPath }), [
+        { label: t('docs.open_current_version'), action: () => openNote(requestedPath) },
       ]);
       return false;
     }
@@ -783,14 +784,14 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     updateActiveRows();
     renderFileDetail();
     if (!_doc.editable) {
-      showInlineState('This file is not UTF-8, so Alles keeps it read-only. Open it in Obsidian or another editor.', []);
+      showInlineState(t('docs.not_utf8'), []);
     } else if (_draft && alternateServerDraft) {
       showInlineState(
-        'A browser recovery copy and a server draft both exist. Choose which one to continue.',
+        t('docs.two_drafts'),
         [
-          { label: 'resume browser copy', action: () => enterEdit(_draft.content) },
+          { label: t('docs.resume_browser_copy'), action: () => enterEdit(_draft.content) },
           {
-            label: 'use server draft',
+            label: t('docs.use_server_draft'),
             action: () => {
               if (_cur !== openedPath) return;
               clearEmergencyDraft(openedPath);
@@ -804,11 +805,11 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     } else if (_draft) {
       const changedOutside = _draft.base_hash !== _doc.hash;
       showInlineState(
-        changedOutside ? 'a local draft and the file on disk both changed.' : 'a private local draft is waiting.',
+        changedOutside ? t('docs.draft_and_disk_changed') : t('docs.draft_waiting'),
         [
-          { label: 'resume draft', action: () => enterEdit(_draft.content) },
-          ...(changedOutside ? [{ label: 'compare copies', action: compareExternal }] : []),
-          { label: 'discard draft', action: discardDraft },
+          { label: t('docs.resume_draft'), action: () => enterEdit(_draft.content) },
+          ...(changedOutside ? [{ label: t('docs.compare_copies'), action: compareExternal }] : []),
+          { label: t('docs.discard_draft'), action: discardDraft },
         ],
       );
     } else {
@@ -825,7 +826,7 @@ export async function openNote(path, { quiet = false, draftFlushed = false, canR
     return true;
   } catch (error) {
     if (requestGeneration !== _openGeneration) return false;
-    toast(`could not open ${path}: ${error.message || 'document unavailable'}`, 'error');
+    toast(t('docs.open_failed', { path, error: error.message || t('docs.document_unavailable') }), 'error');
     return false;
   }
 }
@@ -853,7 +854,7 @@ async function openByName(name) {
     const result = await api('/api/vault-md/search?q=' + encodeURIComponent(name));
     const hit = linkedDoc(result.results || [], name);
     if (hit) { await openNote(hit.path); return; }
-    const choice = await openDialog({ title: `"${name}" doesn't exist yet`, actions: [{ id: 'cancel', label: 'cancel' }, { id: 'confirm', label: 'create it' }] });
+    const choice = await openDialog({ title: t('docs.missing_link_title', { name }), actions: [{ id: 'cancel', label: t('common.cancel') }, { id: 'confirm', label: t('docs.create_it') }] });
     if (choice?.action !== 'confirm') return;
     if (_dirty && !(await flushDraft())) return;
     const created = await api('/api/vault-md/file', jsonOptions('POST', { path: name, content: '', unique: true }));
@@ -875,12 +876,12 @@ function renderBacklinks({ available, backlinks }) {
   const box = $('wiki-backlinks');
   if (!box) return;
   if (!available) {
-    box.innerHTML = '<div class="docs-context-empty">backlinks unavailable</div>';
+    box.innerHTML = `<div class="docs-context-empty">${t('docs.backlinks_unavailable')}</div>`;
     return;
   }
   box.innerHTML = backlinks.length
     ? backlinks.map(item => `<button type="button" data-file="${esc(item.path)}">${navIcon('document')}<span>${esc(item.name)}</span></button>`).join('')
-    : '<div class="docs-context-empty">no links point here yet</div>';
+    : `<div class="docs-context-empty">${t('docs.no_backlinks')}</div>`;
   box.querySelectorAll('[data-file]').forEach(row => row.addEventListener('click', () => openNote(row.dataset.file)));
 }
 
@@ -888,9 +889,9 @@ function renderFileDetail() {
   const box = $('docs-file-detail');
   if (!box || !_doc) return;
   box.innerHTML = `
-    <div><span>path</span><strong>${esc(_cur)}</strong></div>
-    <div><span>format</span><strong>Markdown</strong></div>
-    <div><span>encoding</span><strong>${esc(_doc.encoding || 'UTF-8')}</strong></div>`;
+    <div><span>${t('docs.detail_path')}</span><strong>${esc(_cur)}</strong></div>
+    <div><span>${t('docs.detail_format')}</span><strong>Markdown</strong></div>
+    <div><span>${t('docs.detail_encoding')}</span><strong>${esc(_doc.encoding || 'UTF-8')}</strong></div>`;
 }
 
 function currentContent() {
@@ -922,7 +923,7 @@ function setEditorLoadState(message = '') {
 }
 
 async function enterEdit(content = null) {
-  if (!_doc?.editable) { toast('This file is read-only in Alles', 'error'); return; }
+  if (!_doc?.editable) { toast(t('docs.read_only_toast'), 'error'); return; }
   const guard = { path: _cur, generation: _openGeneration, entry: ++_editEntry };
   const value = content ?? _draft?.content ?? _doc.content ?? '';
   _editBaseHash = _draft?.base_hash || _doc.hash || '';
@@ -935,7 +936,7 @@ async function enterEdit(content = null) {
   _dirty = value !== (_doc.content || '') || !!_draft;
   renderShell();
   setEditView(_editView, { focus: false });
-  setEditorLoadState(_editorFactory ? '' : 'loading visual editor…');
+  setEditorLoadState(_editorFactory ? '' : t('docs.loading_editor'));
   const entryFocus = document.activeElement;
   try {
     const ready = await ensureEditor(guard);
@@ -949,7 +950,7 @@ async function enterEdit(content = null) {
     _editorLoadFailed = true;
     if ($('wiki-visual-btn')) $('wiki-visual-btn').disabled = true;
     setEditView('source', { focus: false });
-    setEditorLoadState('visual editor could not load · continue editing in source');
+    setEditorLoadState(t('docs.editor_load_failed'));
     if (document.activeElement === entryFocus) $('wiki-source')?.focus();
   }
 }
@@ -983,7 +984,7 @@ async function ensureEditor(guard) {
       form.append('file', file, file.name || 'pasted.png');
       const response = await fetch('/api/vault-md/asset', { method: 'POST', body: form });
       const saved = await response.json().catch(() => ({}));
-      if (!response.ok || !saved.path) { toast(typeof saved.detail === 'string' ? saved.detail : 'the image could not be saved', 'error'); return null; }
+      if (!response.ok || !saved.path) { toast(typeof saved.detail === 'string' ? saved.detail : t('docs.image_save_failed'), 'error'); return null; }
       return saved.path;
     },
     wikiComplete: async query => {
@@ -1076,7 +1077,7 @@ function scheduleDraft() {
   const recoveredLocally = persistEmergencyDraft(body);
   if (new TextEncoder().encode(JSON.stringify(body)).byteLength > DRAFT_KEEPALIVE_BYTES) {
     startLargeDraftFlush();
-    if (!recoveredLocally) setSaveState('large draft is still being secured locally', true);
+    if (!recoveredLocally) setSaveState(t('docs.large_draft_securing'), true);
     return;
   }
   _draftTimer = setTimeout(flushDraft, 450);
@@ -1145,12 +1146,12 @@ function queueRevertedDraftDeletion(path, revision, expectedHash) {
       _persistedDraftRevision = -1;
       _persistedDraftHash = '';
     }
-    if (_cur === path && _editRevision === revision && !_dirty) setSaveState('saved');
+    if (_cur === path && _editRevision === revision && !_dirty) setSaveState(t('common.saved'));
     return true;
   }).catch(error => {
     if (_revertedDraftDeletion === marker) marker.promise = null;
     if (_cur === path && _editRevision === revision && !_dirty) {
-      setSaveState(error.message || 'stale draft could not be cleared', true);
+      setSaveState(error.message || t('docs.stale_draft_clear_failed'), true);
     }
     return false;
   });
@@ -1217,13 +1218,13 @@ async function flushDraft() {
       _persistedDraftRevision = revision;
       _persistedDraftHash = savedDraft.draft_hash || '';
       clearEmergencyDraft(path, DRAFT_WRITE_SESSION, revision);
-      setSaveState('draft kept locally');
+      setSaveState(t('docs.draft_kept'));
     }
     if (_cur === path && _editRevision !== revision && _dirty) return await flushDraft();
     return true;
   } catch (error) {
     if (_cur === path && _editRevision === revision) {
-      setSaveState(writeErrorMessage(error, 'draft could not be saved'), true);
+      setSaveState(writeErrorMessage(error, t('docs.draft_save_failed')), true);
     }
     return false;
   }
@@ -1240,7 +1241,7 @@ async function saveCurrent() {
   const saveButton = $('wiki-save-btn');
   const saveState = $('wiki-save-state');
   const restoreSaveFocus = document.activeElement === saveButton;
-  setSaveState('saving…');
+  setSaveState(t('common.saving'));
   if (restoreSaveFocus) saveState?.focus();
   saveButton.disabled = true;
   try {
@@ -1257,11 +1258,11 @@ async function saveCurrent() {
       clearEmergencyDraft(path, DRAFT_WRITE_SESSION, revision);
       renderPreview(content);
       hideInlineState();
-      setSaveState('saved');
+      setSaveState(t('common.saved'));
     } else {
       _dirty = true;
       if (_draft) _draft.base_hash = result.hash || expectedHash;
-      setSaveState('new changes not saved');
+      setSaveState(t('docs.new_changes_unsaved'));
     }
     await loadTree();
     renderFileDetail();
@@ -1269,13 +1270,13 @@ async function saveCurrent() {
     return true;
   } catch (error) {
     if (error.status === 409 && error.data?.code === 'document_conflict') {
-      showInlineState('The file changed on disk. Alles preserved both copies.', [
-        { label: 'compare copies', action: compareExternal },
-        { label: 'use file from disk', action: useExternalCopy },
+      showInlineState(t('docs.conflict_both_kept'), [
+        { label: t('docs.compare_copies'), action: compareExternal },
+        { label: t('docs.use_disk_copy'), action: useExternalCopy },
       ]);
-      setSaveState('save paused · conflict', true);
+      setSaveState(t('docs.save_paused_conflict'), true);
     } else {
-      const message = writeErrorMessage(error, 'save failed');
+      const message = writeErrorMessage(error, t('docs.save_failed'));
       setSaveState(message, true);
     }
     return false;
@@ -1290,11 +1291,11 @@ async function discardDraft() {
   const path = _cur;
   const returnFocus = document.activeElement;
   const choice = await openDialog({
-    title: 'discard local draft?',
-    body: '<p>The Markdown file on disk will stay unchanged.</p>',
+    title: t('docs.discard_title'),
+    body: `<p>${t('docs.discard_body')}</p>`,
     actions: [
-      { id: 'cancel', label: 'keep draft' },
-      { id: 'discard', label: 'discard draft', danger: true },
+      { id: 'cancel', label: t('docs.keep_draft') },
+      { id: 'discard', label: t('docs.discard_draft'), danger: true },
     ],
   });
   if (choice.action !== 'discard') return;
@@ -1321,21 +1322,21 @@ async function compareExternal() {
       content: local,
       expected_hash: _editBaseHash || _doc.hash,
     }));
-    const diff = comparison.diff || 'The two copies are currently identical.';
+    const diff = comparison.diff || t('docs.copies_identical');
     const choice = await openDialog({
-      title: 'compare Markdown copies',
-      body: `<p><b>file from disk</b> is shown with minus lines. <b>local draft</b> is shown with plus lines.</p><pre class="docs-diff">${esc(diff)}</pre>`,
+      title: t('docs.compare_title'),
+      body: `<p>${t('docs.compare_legend')}</p><pre class="docs-diff">${esc(diff)}</pre>`,
       actions: [
-        { id: 'keep', label: 'keep my draft' },
-        { id: 'external', label: 'use file from disk' },
-        { id: 'replace', label: 'replace file with my draft', danger: true },
+        { id: 'keep', label: t('docs.keep_my_draft') },
+        { id: 'external', label: t('docs.use_disk_copy') },
+        { id: 'replace', label: t('docs.replace_with_draft'), danger: true },
       ],
     });
     if (choice.action === 'external') await useExternalCopy();
     if (choice.action === 'replace') {
       await replaceExternalWithDraft(local, comparison.current_hash);
     }
-  } catch (error) { toast(error.message || 'comparison failed', 'error'); }
+  } catch (error) { toast(error.message || t('docs.compare_failed'), 'error'); }
 }
 
 async function useExternalCopy() {
@@ -1376,23 +1377,23 @@ async function replaceExternalWithDraft(content, reviewedHash) {
       renderPreview(content);
       hideInlineState();
       renderShell();
-      setSaveState('saved · previous file kept in revisions');
+      setSaveState(t('docs.saved_previous_kept'));
     } else {
       _dirty = true;
       if (_draft) _draft.base_hash = result.hash || reviewedHash;
-      setSaveState('new changes not saved');
+      setSaveState(t('docs.new_changes_unsaved'));
       scheduleDraft();
     }
   } catch (error) {
     if (error.status === 409 && error.data?.code === 'document_conflict') {
-      showInlineState('The file changed again. Review the newest copy before replacing it.', [
-        { label: 'compare again', action: compareExternal },
-        { label: 'use file from disk', action: useExternalCopy },
+      showInlineState(t('docs.changed_again'), [
+        { label: t('docs.compare_again'), action: compareExternal },
+        { label: t('docs.use_disk_copy'), action: useExternalCopy },
       ]);
-      setSaveState('save paused · file changed again', true);
+      setSaveState(t('docs.save_paused_changed_again'), true);
       return;
     }
-    toast(error.message || 'replace failed', 'error');
+    toast(error.message || t('docs.replace_failed'), 'error');
   }
 }
 
@@ -1400,7 +1401,7 @@ function updateStats(content) {
   const text = String(content || '');
   const words = (text.trim().match(/\S+/g) || []).length;
   const minutes = words ? Math.max(1, Math.ceil(words / 220)) : 0;
-  if ($('wiki-stats')) $('wiki-stats').textContent = words ? `${words} words · ${minutes} min` : 'empty document';
+  if ($('wiki-stats')) $('wiki-stats').textContent = words ? tp('docs.stats', words, { minutes }) : t('docs.empty_document');
 }
 
 function setSaveState(message, error = false) {
@@ -1411,9 +1412,9 @@ function setSaveState(message, error = false) {
 }
 
 function updateSaveState() {
-  if (!_doc?.editable) setSaveState('read only');
-  else if (_dirty) setSaveState('local draft · not saved');
-  else setSaveState('saved');
+  if (!_doc?.editable) setSaveState(t('docs.read_only'));
+  else if (_dirty) setSaveState(t('docs.draft_not_saved'));
+  else setSaveState(t('common.saved'));
   if ($('wiki-save-btn')) $('wiki-save-btn').disabled = !_dirty;
 }
 
@@ -1451,7 +1452,7 @@ async function doSearch(query) {
       ? hits.map(hit => `<button class="wiki-file docs-search-hit" type="button" data-file="${esc(hit.path)}">
           ${navIcon('document')}<span class="wiki-row-label"><b>${esc(hit.name)}</b>${hit.context ? `<small>${esc(hit.context)}</small>` : ''}</span>
         </button>`).join('')
-      : '<div class="docs-nav-empty">no matches</div>';
+      : `<div class="docs-nav-empty">${t('docs.no_matches')}</div>`;
     wireTree(box);
   } catch (error) { if (run === _treeViewGeneration) box.innerHTML = `<div class="docs-nav-empty">${esc(error.message)}</div>`; }
 }
@@ -1476,7 +1477,7 @@ async function filterByTag(tag) {
   try {
     const result = await api('/api/vault-md/tag?tag=' + encodeURIComponent(tag));
     if (run !== _treeViewGeneration) return;
-    box.innerHTML = `<button class="docs-tag-clear" type="button">#${esc(tag)} · clear</button>` +
+    box.innerHTML = `<button class="docs-tag-clear" type="button">${t('docs.tag_clear', { tag: esc(tag) })}</button>` +
       (result.notes || []).map(note => `<button class="wiki-file" type="button" data-file="${esc(note.path)}">${navIcon('document')}<span>${esc(note.name)}</span></button>`).join('');
     box.querySelector('.docs-tag-clear')?.addEventListener('click', () => renderTree(_tree?.items || []));
     wireTree(box);
@@ -1489,9 +1490,9 @@ function renderAskSources() {
   for (const source of _askSources) {
     const row = document.createElement('div');
     const name = document.createElement('span'); name.textContent = source.path;
-    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'remove';
+    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = t('common.remove');
     remove.disabled = _askBusy;
-    remove.setAttribute('aria-label', `remove source ${source.path}`);
+    remove.setAttribute('aria-label', t('docs.remove_source', { path: source.path }));
     remove.onclick = () => {
       _askSources = _askSources.filter(item => item !== source);
       renderAskSources(); $('wiki-ask-search')?.focus();
@@ -1499,7 +1500,7 @@ function renderAskSources() {
     row.append(name, remove); host.append(row);
   }
   for (const pending of _askReads) {
-    const row = document.createElement('p'); row.textContent = `reading ${pending.path}…`;
+    const row = document.createElement('p'); row.textContent = t('docs.reading_source', { path: pending.path });
     row.setAttribute('role', 'status'); host.append(row);
   }
   $('wiki-ask-go').disabled = _askBusy || _askReads.size > 0 || !_askSources.length;
@@ -1523,13 +1524,13 @@ async function searchAskSources() {
       const button = document.createElement('button'); button.type = 'button'; button.textContent = item.path;
       button.onclick = async () => {
         if (!current() || _askBusy || [..._askReads].some(read => read.path === item.path)) return;
-        if (_askSources.length + _askReads.size >= 8) { $('wiki-ask-results').textContent = 'choose up to 8 notes'; return; }
+        if (_askSources.length + _askReads.size >= 8) { $('wiki-ask-results').textContent = t('docs.ask_limit'); return; }
         const pending = { path: item.path };
         _askReads.add(pending); button.disabled = true; renderAskSources();
         try {
           const note = await api('/api/vault-md/file?path=' + encodeURIComponent(item.path), { signal: AbortSignal.timeout(15000) });
           if (!panelCurrent()) return;
-          if (!note.exists || !note.editable || !note.hash) throw new Error('this note is unavailable');
+          if (!note.exists || !note.editable || !note.hash) throw new Error(t('docs.note_unavailable'));
           if (!_askSources.some(source => source.path === note.path)) _askSources.push({ path: note.path, expected_hash: note.hash });
           if (current()) {
             const returnFocus = document.activeElement === button || document.activeElement === document.body;
@@ -1547,7 +1548,7 @@ async function searchAskSources() {
       };
       host.append(button);
     }
-    if (!matches.length) host.textContent = 'no other matching notes';
+    if (!matches.length) host.textContent = t('docs.no_other_matches');
   } catch (error) { if (current()) $('wiki-ask-results').textContent = error.message; }
 }
 
@@ -1557,7 +1558,7 @@ async function askAideAboutCurrent() {
   const path = _cur;
   const run = ++_askGeneration;
   _askBusy = true; renderAskSources();
-  $('wiki-ask-results').textContent = 'checking selected notes…';
+  $('wiki-ask-results').textContent = t('docs.checking_sources');
   try {
     const current = _askSources.find(source => source.path === path);
     if (current && _dirty) {
@@ -1569,11 +1570,11 @@ async function askAideAboutCurrent() {
     const sources = _askSources.map(source => ({ ...source }));
     for (const source of sources) {
       const note = await api('/api/vault-md/file?path=' + encodeURIComponent(source.path), { signal: AbortSignal.timeout(15000) });
-      if (!note.exists || note.hash !== source.expected_hash) throw new Error(`${source.path} changed or is missing. Remove it and add it again to use its current version.`);
+      if (!note.exists || note.hash !== source.expected_hash) throw new Error(t('docs.source_changed', { path: source.path }));
     }
     if (_cur !== path || run !== _askGeneration || $('wiki-ask').hidden) return;
-    if (current && (_dirty || _editRevision !== editorRevision || _doc.hash !== current.expected_hash)) throw new Error('the note changed while checking sources; ask again to save and use your latest edits');
-    if (!(await window._askInChat?.(question, false, { kind: 'vault_documents', documents: sources }))) throw new Error('could not open Aide; your question and selection are kept');
+    if (current && (_dirty || _editRevision !== editorRevision || _doc.hash !== current.expected_hash)) throw new Error(t('docs.changed_while_checking'));
+    if (!(await window._askInChat?.(question, false, { kind: 'vault_documents', documents: sources }))) throw new Error(t('docs.aide_open_failed'));
     setHidden($('wiki-ask'), true);
   } catch (error) {
     if (_cur === path && run === _askGeneration) $('wiki-ask-results').textContent = error.message;
@@ -1588,15 +1589,15 @@ async function openInObsidian(path) {
     const suffix = path ? '?path=' + encodeURIComponent(path) : '';
     const result = await api('/api/vault-location' + suffix);
     if (result.obsidian) location.href = result.obsidian;
-    else toast('Set an Obsidian vault in Docs settings first', 'error');
+    else toast(t('docs.set_obsidian_vault'), 'error');
   } catch (error) { toast(error.message, 'error'); }
 }
 
 async function newDoc() {
-  const answer = await promptText('new Markdown document', 'document name', '');
+  const answer = await promptText(t('docs.new_document_title'), t('docs.document_name'), '');
   if (answer.action !== 'confirm') return;
   const name = answer.value.trim();
-  if (!name) { toast('enter a document name', 'error'); return; }
+  if (!name) { toast(t('docs.enter_document_name'), 'error'); return; }
   try {
     if (_dirty && !(await flushDraft())) return;
     // a new document never takes an existing one's name: that opened the old doc empty, and saving
@@ -1605,13 +1606,13 @@ async function newDoc() {
     await loadTree();
     const opened = await openNote(result.path);
     if (!opened) return;
-    if (stem(result.path) !== stem(name.replace(/\.md$/i, ''))) toast(`"${stem(name)}" already exists, so this one is "${stem(result.path)}"`, 'success');
+    if (stem(result.path) !== stem(name.replace(/\.md$/i, ''))) toast(t('docs.name_taken', { name: stem(name), actual: stem(result.path) }), 'success');
     await enterEdit('');
   } catch (error) { toast(error.message, 'error'); }
 }
 
 async function newFolder() {
-  const answer = await promptText('new folder', 'folder name', '');
+  const answer = await promptText(t('docs.new_folder_title'), t('docs.folder_name'), '');
   if (answer.action !== 'confirm' || !answer.value.trim()) return;
   try {
     await api('/api/vault-md/folder', jsonOptions('POST', { path: answer.value.trim() }));
@@ -1622,12 +1623,12 @@ async function newFolder() {
 async function renameCurrent() {
   closeMoreMenu();
   if (!_cur) return;
-  const answer = await promptText('rename document', 'new name', stem(_cur));
+  const answer = await promptText(t('docs.rename_title'), t('docs.new_name'), stem(_cur));
   if (answer.action !== 'confirm' || !answer.value.trim()) return;
   const directory = _cur.includes('/') ? _cur.slice(0, _cur.lastIndexOf('/') + 1) : '';
   try {
     if (_draft && !_dirty) {
-      toast('resume or discard the saved draft before renaming', 'error');
+      toast(t('docs.draft_blocks_rename'), 'error');
       return;
     }
     if (_dirty && !(await saveCurrent())) return;
@@ -1646,17 +1647,17 @@ async function deleteCurrent() {
   closeMoreMenu();
   if (!_cur) return;
   const answer = await openDialog({
-    title: `move "${esc(stem(_cur))}" to trash?`,
-    body: '<p>you can restore it from recently deleted.</p>',
+    title: t('docs.trash_title', { name: esc(stem(_cur)) }),
+    body: `<p>${t('docs.trash_body')}</p>`,
     actions: [
-      { id: 'cancel', label: 'cancel' },
-      { id: 'delete', label: 'move to trash', danger: true },
+      { id: 'cancel', label: t('common.cancel') },
+      { id: 'delete', label: t('docs.move_to_trash'), danger: true },
     ],
   });
   if (answer.action !== 'delete') return;
   try {
     if (_draft && !_dirty) {
-      toast('resume or discard the saved draft before deleting', 'error');
+      toast(t('docs.draft_blocks_delete'), 'error');
       return;
     }
     if (_dirty && !(await saveCurrent())) return;
@@ -1665,7 +1666,7 @@ async function deleteCurrent() {
     await openDocsHome();
     if (selectedView === _treeViewGeneration) { $('wiki-search').value = ''; renderTree(_tree?.items || []); }
     await loadTree();
-    toast('moved to trash', 'success');
+    toast(t('docs.moved_to_trash'), 'success');
   } catch (error) { toast(error.message, 'error'); }
 }
 
@@ -1681,9 +1682,9 @@ async function openTrash() {
     box.innerHTML = items.length
       ? items.map(item => `<div class="docs-trash-row" data-trash-id="${esc(item.id)}">
           ${navIcon('document')}<span>${esc(item.path)}</span>
-          <button type="button" data-restore aria-label="restore ${esc(item.path)}">${navIcon('restore')}restore</button>
+          <button type="button" data-restore aria-label="${t('docs.restore_item', { path: esc(item.path) })}">${navIcon('restore')}${t('docs.restore')}</button>
         </div>`).join('')
-      : '<div class="docs-nav-empty">trash is empty</div>';
+      : `<div class="docs-nav-empty">${t('docs.trash_empty')}</div>`;
     box.querySelectorAll('[data-restore]').forEach(button => button.addEventListener('click', async () => {
       const row = button.closest('[data-trash-id]');
       const selectedView = _treeViewGeneration;
@@ -1707,14 +1708,14 @@ async function showRevisions() {
     const result = await api('/api/vault-md/safety/revisions?path=' + encodeURIComponent(_cur));
     const revisions = result.revisions || [];
     const promise = openDialog({
-      title: 'document revisions',
+      title: t('docs.revisions_title'),
       body: revisions.length
         ? `<div class="docs-revision-list">${revisions.map(revision => `
             <button type="button" data-revision="${esc(revision.id)}">
-              <span>${esc(revision.reason || 'before save')}</span><small>${esc(revision.created_at || revision.id)}</small>
+              <span>${esc(revision.reason || t('docs.before_save'))}</span><small>${esc(revision.created_at || revision.id)}</small>
             </button>`).join('')}</div>`
-        : '<p>No earlier revisions yet. Alles creates one before every save.</p>',
-      actions: [{ id: 'cancel', label: 'close' }],
+        : `<p>${t('docs.no_revisions')}</p>`,
+      actions: [{ id: 'cancel', label: t('common.close') }],
     });
     $('docs-dialog-body')?.querySelectorAll('[data-revision]').forEach(button => {
       button.addEventListener('click', () => closeDialog({ action: 'restore', value: button.dataset.revision }));
@@ -1722,9 +1723,9 @@ async function showRevisions() {
     const answer = await promise;
     if (answer.action !== 'restore') return;
     const confirm = await openDialog({
-      title: 'restore this revision?',
-      body: '<p>Alles will keep the current file as another revision first.</p>',
-      actions: [{ id: 'cancel', label: 'cancel' }, { id: 'restore', label: 'restore revision' }],
+      title: t('docs.restore_revision_title'),
+      body: `<p>${t('docs.restore_revision_body')}</p>`,
+      actions: [{ id: 'cancel', label: t('common.cancel') }, { id: 'restore', label: t('docs.restore_revision') }],
     });
     if (confirm.action !== 'restore') return;
     await api('/api/vault-md/safety/revisions/restore', jsonOptions('POST', {
@@ -1733,7 +1734,7 @@ async function showRevisions() {
       expected_hash: _doc.hash,
     }));
     await openNote(_cur, { quiet: true });
-    toast('revision restored', 'success');
+    toast(t('docs.revision_restored'), 'success');
   } catch (error) { toast(error.message, 'error'); }
 }
 
@@ -1757,7 +1758,7 @@ function promptText(title, label, value) {
   return openDialog({
     title,
     body: `<label class="docs-dialog-field">${esc(label)}<input id="docs-dialog-input" value="${esc(value)}" autocomplete="off"></label>`,
-    actions: [{ id: 'cancel', label: 'cancel' }, { id: 'confirm', label: 'continue' }],
+    actions: [{ id: 'cancel', label: t('common.cancel') }, { id: 'confirm', label: t('common.continue') }],
     input: true,
   });
 }

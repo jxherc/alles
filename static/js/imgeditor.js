@@ -2,6 +2,7 @@
 // pure browser Canvas API, no deps. opens as a full-screen modal over an image url.
 import { toast } from './util.js';
 import { prompt as dlgPrompt } from './dialog.js';
+import { t } from './i18n.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let S = null;   // editor state
@@ -28,23 +29,23 @@ export function openEditor(url, opts = {}) {
     <div class="ie-shell">
       <div class="ie-bar">
         <div class="ie-tools">
-          <button class="ie-tool active" data-tool="adjust" title="adjust">adjust</button>
-          <button class="ie-tool" data-tool="crop" title="crop">crop</button>
-          <button class="ie-tool" data-tool="brush" title="draw">draw</button>
-          <button class="ie-tool" data-tool="text" title="text">text</button>
+          <button class="ie-tool active" data-tool="adjust" title="${t('photos.editor_adjust')}">${t('photos.editor_adjust')}</button>
+          <button class="ie-tool" data-tool="crop" title="${t('photos.editor_crop')}">${t('photos.editor_crop')}</button>
+          <button class="ie-tool" data-tool="brush" title="${t('photos.editor_draw')}">${t('photos.editor_draw')}</button>
+          <button class="ie-tool" data-tool="text" title="${t('photos.editor_text')}">${t('photos.editor_text')}</button>
           <span class="ie-sep"></span>
-          <button class="ie-btn" data-act="rotl" title="rotate left" aria-label="rotate left">${_si('undo')}</button>
-          <button class="ie-btn" data-act="rotr" title="rotate right" aria-label="rotate right">${_si('redo')}</button>
-          <button class="ie-btn" data-act="fliph" title="flip horizontal" aria-label="flip horizontal">${_si('swap')}</button>
-          <button class="ie-btn" data-act="flipv" title="flip vertical" aria-label="flip vertical">${_si('swap-v')}</button>
+          <button class="ie-btn" data-act="rotl" title="${t('photos.editor_rotate_left')}" aria-label="${t('photos.editor_rotate_left')}">${_si('undo')}</button>
+          <button class="ie-btn" data-act="rotr" title="${t('photos.editor_rotate_right')}" aria-label="${t('photos.editor_rotate_right')}">${_si('redo')}</button>
+          <button class="ie-btn" data-act="fliph" title="${t('photos.editor_flip_horizontal')}" aria-label="${t('photos.editor_flip_horizontal')}">${_si('swap')}</button>
+          <button class="ie-btn" data-act="flipv" title="${t('photos.editor_flip_vertical')}" aria-label="${t('photos.editor_flip_vertical')}">${_si('swap-v')}</button>
           <span class="ie-sep"></span>
-          <button class="ie-btn" data-act="undo" title="undo">undo</button>
-          <button class="ie-btn" data-act="reset" title="reset adjustments">reset</button>
+          <button class="ie-btn" data-act="undo" title="${t('common.undo')}">${t('common.undo')}</button>
+          <button class="ie-btn" data-act="reset" title="${t('photos.editor_reset_adjustments')}">${t('photos.editor_reset')}</button>
         </div>
         <div class="ie-right">
-          <button class="ie-btn" data-act="download">download</button>
-          <button class="ie-btn primary" data-act="save">save to gallery</button>
-          <button class="ie-btn" data-act="close" aria-label="close">${_si('close')}</button>
+          <button class="ie-btn" data-act="download">${t('common.download')}</button>
+          <button class="ie-btn primary" data-act="save">${t('photos.editor_save_to_gallery')}</button>
+          <button class="ie-btn" data-act="close" aria-label="${t('common.close')}">${_si('close')}</button>
         </div>
       </div>
       <div class="ie-body">
@@ -78,12 +79,12 @@ export function openEditor(url, opts = {}) {
     applyFilter();
     renderPanel();
   };
-  img.onerror = () => { if (S === st) toast('couldn’t load the image', 'error'); };
+  img.onerror = () => { if (S === st) toast(t('photos.editor_load_failed'), 'error'); };
   img.src = url;
 
   modal.querySelector('.ie-tools').addEventListener('click', e => {
-    const t = e.target.closest('.ie-tool');
-    if (t) { setTool(t.dataset.tool); return; }
+    const tool = e.target.closest('.ie-tool');
+    if (tool) { setTool(tool.dataset.tool); return; }
     const b = e.target.closest('.ie-btn');
     if (b) act(b.dataset.act);
   });
@@ -115,11 +116,11 @@ function renderPanel() {
   if (S.tool === 'adjust') {
     const a = S.adjust;
     p.innerHTML = `
-      ${slider('brightness', 'b', a.b)}
-      ${slider('contrast', 'c', a.c)}
-      ${slider('saturation', 's', a.s)}
-      <button type="button" class="ie-chk" id="ie-gray" role="switch" aria-checked="${a.gray}"><span class="chk" aria-hidden="true"></span> grayscale</button>
-      <button type="button" class="ie-chk" id="ie-sepia" role="switch" aria-checked="${a.sepia}"><span class="chk" aria-hidden="true"></span> sepia</button>`;
+      ${slider(t('photos.editor_brightness'), 'b', a.b)}
+      ${slider(t('photos.editor_contrast'), 'c', a.c)}
+      ${slider(t('photos.editor_saturation'), 's', a.s)}
+      <button type="button" class="ie-chk" id="ie-gray" role="switch" aria-checked="${a.gray}"><span class="chk" aria-hidden="true"></span> ${t('photos.editor_grayscale')}</button>
+      <button type="button" class="ie-chk" id="ie-sepia" role="switch" aria-checked="${a.sepia}"><span class="chk" aria-hidden="true"></span> ${t('photos.editor_sepia')}</button>`;
     p.querySelectorAll('input[type=range]').forEach(r => r.addEventListener('input', () => {
       S.adjust[r.dataset.k] = +r.value;
       r.nextElementSibling.textContent = r.value;
@@ -133,18 +134,18 @@ function renderPanel() {
     }));
   } else if (S.tool === 'brush') {
     p.innerHTML = `
-      ${slider('brush size', 'size', S.brush.size, 1, 80)}
-      <label class="ie-field">color <input type="color" id="ie-color" value="${S.brush.color}"></label>`;
+      ${slider(t('photos.editor_brush_size'), 'size', S.brush.size, 1, 80)}
+      <label class="ie-field">${t('photos.editor_color')} <input type="color" id="ie-color" value="${S.brush.color}"></label>`;
     p.querySelector('input[type=range]').addEventListener('input', e => {
       S.brush.size = +e.target.value; e.target.nextElementSibling.textContent = e.target.value;
     });
     p.querySelector('#ie-color').onchange = e => { S.brush.color = e.target.value; };
   } else if (S.tool === 'crop') {
-    p.innerHTML = `<div class="ie-hint">drag a box on the image, then</div>
-      <button class="ie-btn primary" id="ie-apply-crop">apply crop</button>`;
+    p.innerHTML = `<div class="ie-hint">${t('photos.editor_crop_hint')}</div>
+      <button class="ie-btn primary" id="ie-apply-crop">${t('photos.editor_apply_crop')}</button>`;
     p.querySelector('#ie-apply-crop').onclick = applyCrop;
   } else {
-    p.innerHTML = `<div class="ie-hint">click on the image to drop text</div>`;
+    p.innerHTML = `<div class="ie-hint">${t('photos.editor_text_hint')}</div>`;
   }
 }
 
@@ -168,7 +169,7 @@ function restore(c) {
 
 function act(a) {
   if (a === 'close') { closeEditor(); return; }
-  if (a === 'undo') { const c = S.history.pop(); if (c) restore(c); else toast('nothing to undo'); return; }
+  if (a === 'undo') { const c = S.history.pop(); if (c) restore(c); else toast(t('photos.editor_nothing_to_undo')); return; }
   if (a === 'reset') { S.adjust = { b: 100, c: 100, s: 100, gray: false, sepia: false }; applyFilter(); renderPanel(); return; }
   if (a === 'rotl') return rotate(-90);
   if (a === 'rotr') return rotate(90);
@@ -218,7 +219,7 @@ function wireCanvas() {
     if (S.tool === 'brush') {
       snapshot(); S.drawing = true; [S.lastX, S.lastY] = [x, y];
     } else if (S.tool === 'text') {
-      const txt = await dlgPrompt('', '', { title: 'add text', label: 'text', confirmLabel: 'add' }); if (!txt) return;
+      const txt = await dlgPrompt('', '', { title: t('photos.editor_add_text'), label: t('photos.editor_text'), confirmLabel: t('common.add') }); if (!txt) return;
       snapshot();
       const size = Math.max(16, Math.round(S.canvas.height / 18));
       S.ctx.fillStyle = S.brush.color; S.ctx.font = `bold ${size}px Inter, sans-serif`;
@@ -269,7 +270,7 @@ function wireCanvas() {
 }
 
 function applyCrop() {
-  if (!S.crop || S.crop.w < 4 || S.crop.h < 4) { toast('drag a box first'); return; }
+  if (!S.crop || S.crop.w < 4 || S.crop.h < 4) { toast(t('photos.editor_drag_first')); return; }
   snapshot();
   const { x, y, w, h } = S.crop;
   const c = document.createElement('canvas');
@@ -302,12 +303,12 @@ async function exportImage(download) {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ data_url: dataUrl, name: S.name, source_photo_id: S.sourcePhotoId }),
     });
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'save failed');
-    toast('saved', 'success');
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || t('photos.editor_save_failed'));
+    toast(t('common.saved'), 'success');
     const cb = S.onSaved;
     closeEditor();
     if (cb) cb();
   } catch (e) {
-    toast(e.message || 'save failed', 'error');
+    toast(e.message || t('photos.editor_save_failed'), 'error');
   }
 }

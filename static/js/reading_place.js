@@ -1,4 +1,5 @@
 import { requestId } from './request_id.js';
+import { t } from './i18n.js';
 
 // Ordinary saves are serialized; page exit can supersede an unconfirmed write.
 export function readingPlace(item, write) {
@@ -40,7 +41,7 @@ export function readingPlace(item, write) {
       } catch (failure) {
         if (request === patch) {
           blocked = failure.status === 409 || failure.status === 404;
-          error = blocked ? 'saved text changed, reading place changed or article was removed; reopen the article' : 'could not confirm reading place; retry';
+          error = blocked ? t('read.place_blocked') : t('read.place_unconfirmed');
         }
         return false;
       } finally {

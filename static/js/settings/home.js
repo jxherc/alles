@@ -1,11 +1,16 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
+import { t, tp } from '../i18n.js';
 
 // ── Home customization ───────────────────────────────────────────────────────
 const HOME_SECTION_KEYS = ['needs_you', 'today', 'in_progress', 'briefs', 'shortcuts'];
 const HOME_SHORTCUT_KEYS = ['plan', 'inbox', 'wiki', 'files', 'library', 'health', 'finance', 'vault', 'system'];
 const HOME_DEFAULT_SHORTCUTS = ['plan', 'wiki', 'files'];
-const HOME_SHORTCUT_LABELS = { plan: 'plan', inbox: 'inbox', wiki: 'docs', files: 'files', library: 'library', health: 'health', finance: 'finance', vault: 'vault', system: 'server' };
+const HOME_SHORTCUT_LABELS = () => ({
+  plan: t('settings.home_app_plan'), inbox: t('settings.home_app_inbox'), wiki: t('settings.home_app_docs'),
+  files: t('settings.home_app_files'), library: t('settings.home_app_library'), health: t('settings.home_app_health'),
+  finance: t('settings.home_app_finance'), vault: t('settings.home_app_vault'), system: t('settings.home_app_server'),
+});
 const HOME_SHORTCUT_ALIASES = { calendar: 'plan', tasks: 'plan', days: 'plan', reminders: 'plan', mail: 'inbox', contacts: 'inbox', notes: 'wiki', journal: 'wiki', photos: 'files', gallery: 'files', books: 'library', read: 'library', habits: 'health', money: 'finance', subs: 'finance', secrets: 'vault', server: 'system', watch: 'system', activity: 'system' };
 let _homeSettingsState = null;
 let _homeSettingsChanges = 0;
@@ -80,7 +85,7 @@ function _setHomeSettingsBusy(busy) {
 
 function _markHomeSettingsChanged(message) {
   _homeSettingsChanges += 1;
-  _setHomeSettingsStatus(`${_homeSettingsChanges} unsaved ${_homeSettingsChanges === 1 ? 'change' : 'changes'} · ${message}`);
+  _setHomeSettingsStatus(tp('settings.home_unsaved_changes', _homeSettingsChanges, { detail: message }));
 }
 
 function _updateHomeMoveButtons(list) {
@@ -103,15 +108,16 @@ function _updateHomeSettingsPreview() {
     if (!item.hidden) visibleCount += 1;
   }
   const count = document.getElementById('home-settings-preview-count');
-  if (count) count.textContent = `${visibleCount} ${visibleCount === 1 ? 'section' : 'sections'}`;
+  if (count) count.textContent = tp('settings.home_section_count', visibleCount);
 
   const enabledShortcuts = _homeRows('home-settings-shortcuts')
     .filter(row => row.dataset.enabled === 'true')
     .map(row => row.dataset.homeShortcut);
+  const shortcutLabels = HOME_SHORTCUT_LABELS();
   const labels = _mergeHomeShortcutOrder(enabledShortcuts)
-    .map(key => HOME_SHORTCUT_LABELS[key] || key);
+    .map(key => shortcutLabels[key] || key);
   const shortcutPreview = document.getElementById('home-settings-preview-shortcuts');
-  if (shortcutPreview) shortcutPreview.textContent = labels.length ? labels.join(' · ') : 'no pinned apps selected';
+  if (shortcutPreview) shortcutPreview.textContent = labels.length ? labels.join(' · ') : t('home.no_pinned_apps');
 
   const sections = document.getElementById('home-settings-sections');
   const shortcuts = document.getElementById('home-settings-shortcuts');
@@ -126,7 +132,8 @@ function _chooseHomeDensity(button, announce = true) {
     choice.tabIndex = active ? 0 : -1;
   });
   if (_homeSettingsState) _homeSettingsState.density = button.dataset.homeDensity;
-  if (announce) _markHomeSettingsChanged(`${button.dataset.homeDensity} density`);
+  if (announce) _markHomeSettingsChanged(button.dataset.homeDensity === 'compact'
+    ? t('settings.home_density_compact') : t('settings.home_density_comfortable'));
 }
 
 function _renderHomeSettingsPreferences(value) {
@@ -161,7 +168,7 @@ function _renderHomeSettingsPreferences(value) {
   };
   _chooseHomeDensity(document.querySelector(`[data-home-density="${normalized.density}"]`), false);
   _homeSettingsChanges = 0;
-  _setHomeSettingsStatus('no unsaved changes');
+  _setHomeSettingsStatus(t('locale.no_unsaved'));
   _updateHomeSettingsPreview();
 }
 
@@ -189,23 +196,23 @@ async function loadHomeSettingsPane(isCurrent) {
   if (!workbench || !loadState || !save) return;
   if (_homeSettingsBusy) return;
   if (_homeSettingsChanges > 0) {
-    loadState.textContent = 'unsaved changes kept here';
+    loadState.textContent = t('locale.unsaved_kept');
     return;
   }
   const generation = ++_homeSettingsLoadGeneration;
   _setHomeSettingsBusy(true);
-  loadState.textContent = 'loading preferences…';
+  loadState.textContent = t('settings.home_loading');
   try {
     const response = await fetch('/api/today/preferences');
     if (!response.ok) throw new Error('preferences unavailable');
     const value = await response.json();
     if (generation !== _homeSettingsLoadGeneration || !isCurrent()) return;
     _renderHomeSettingsPreferences(value);
-    loadState.textContent = 'saved on this Alles server';
+    loadState.textContent = t('locale.saved_server');
   } catch {
     if (generation !== _homeSettingsLoadGeneration || !isCurrent()) return;
-    loadState.textContent = 'preferences could not load';
-    _setHomeSettingsStatus('Home settings are unavailable. Close Settings and try again.');
+    loadState.textContent = t('settings.home_load_failed');
+    _setHomeSettingsStatus(t('settings.home_unavailable'));
   } finally {
     if (generation === _homeSettingsLoadGeneration) _setHomeSettingsBusy(false);
   }
@@ -218,7 +225,7 @@ async function _saveHomeSettings() {
   const focusTarget = document.activeElement;
   _homeSettingsSaving = true;
   _setHomeSettingsBusy(true);
-  _setHomeSettingsStatus('saving Home…');
+  _setHomeSettingsStatus(t('settings.home_saving'));
   try {
     const response = await fetch('/api/today/preferences', {
       method: 'PUT',
@@ -226,14 +233,14 @@ async function _saveHomeSettings() {
       body: JSON.stringify(_homeSettingsPayload()),
     });
     const value = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(value.detail || 'Home settings could not save');
+    if (!response.ok) throw new Error(value.detail || t('settings.home_save_failed'));
     _renderHomeSettingsPreferences(value);
-    _setHomeSettingsStatus('saved just now');
-    if (loadState) loadState.textContent = 'saved on this Alles server';
+    _setHomeSettingsStatus(t('locale.saved_now'));
+    if (loadState) loadState.textContent = t('locale.saved_server');
     window.dispatchEvent(new CustomEvent('alles:home-preferences-changed', { detail: value }));
   } catch (error) {
-    _setHomeSettingsStatus(error.message || 'Home settings could not save');
-    toast(error.message || 'Home settings could not save', 'error');
+    _setHomeSettingsStatus(error.message || t('settings.home_save_failed'));
+    toast(error.message || t('settings.home_save_failed'), 'error');
   } finally {
     _homeSettingsSaving = false;
     _setHomeSettingsBusy(false);
@@ -253,7 +260,7 @@ function _resetHomeSettings() {
     shortcuts: HOME_DEFAULT_SHORTCUTS,
   });
   _homeSettingsChanges = 1;
-  _setHomeSettingsStatus('1 unsaved change · defaults restored');
+  _setHomeSettingsStatus(tp('settings.home_unsaved_changes', 1, { detail: t('settings.home_defaults_restored') }));
 }
 
 function _wireHomeSettingsPane() {
@@ -265,7 +272,7 @@ function _wireHomeSettingsPane() {
     if (toggle) {
       const next = toggle.getAttribute('aria-checked') !== 'true';
       _setHomeSettingsSwitch(toggle, next);
-      _markHomeSettingsChanged(next ? 'item shown' : 'item hidden');
+      _markHomeSettingsChanged(next ? t('settings.home_item_shown') : t('settings.home_item_hidden'));
       _updateHomeSettingsPreview();
       return;
     }
@@ -276,7 +283,7 @@ function _wireHomeSettingsPane() {
       const target = move.dataset.homeMove === 'up' ? row.previousElementSibling : row.nextElementSibling;
       if (move.dataset.homeMove === 'up') row.parentElement.insertBefore(row, target);
       else row.parentElement.insertBefore(target, row);
-      _markHomeSettingsChanged('order updated');
+      _markHomeSettingsChanged(t('settings.home_order_updated'));
       _updateHomeSettingsPreview();
       const focusTarget = move.disabled
         ? row.querySelector('[data-home-move]:not(:disabled)') || row.querySelector('[role="switch"]')

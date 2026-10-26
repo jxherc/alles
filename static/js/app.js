@@ -1,5 +1,5 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, selectSessionFromRoute, focusSessionMessage } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=213';
+import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=214';
 import { icon, iconEl, ICON_NAMES, appGlyph } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
@@ -9,21 +9,21 @@ import { chooseBootState } from './bootstate.js';
 import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
 import { canSendMessage, getSendBlockReason, sendMessage, stopStream, hideConnBanner } from './chat.js';
 window._canRefreshAideMessages = canSendMessage;
-import { toast, closeAllModals, mdToHtml, api } from './util.js';
+import { toast, closeAllModals, mdToHtml, api, appLabel, appDesc } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
-import { initSlash, tryExecuteSlashCommand } from './slash.js?v=398';
-import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=253';
+import { initSlash, tryExecuteSlashCommand } from './slash.js?v=399';
+import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=254';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
-import { openManual } from './help.js?v=1';
+import { openManual } from './help.js?v=2';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
-import { loadVaultView, initVault } from './vault.js?v=284';
+import { loadVaultView, initVault } from './vault.js?v=285';
 import { loadContacts, addContact } from './contacts.js';
 import { initLiveFormat } from './liveformat.js';
-import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=486';
+import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=487';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos, closeLightbox } from './photos.js';
@@ -32,10 +32,10 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=9';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=10';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
-import { loadBrainPanel } from './brain.js?v=241';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=291';
+import { loadBrainPanel } from './brain.js?v=242';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=292';
 import {
   setIncognitoMode,
   isIncognitoMode,
@@ -49,20 +49,20 @@ import {
   setCustomEffort,
   permLabel,
   effortLabel,
-} from './modes.js?v=256';
+} from './modes.js?v=257';
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
-import { wireAutosizeTextarea } from './text_entry.js';
-import { initAideWorkspace } from './aideworkspace.js?v=278';
-import { initAideCentral } from './aidecentral.js?v=1';
-import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=3';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=250';
+import { wireAutosizeTextarea } from './text_entry.js?v=1';
+import { initAideWorkspace } from './aideworkspace.js?v=279';
+import { initAideCentral } from './aidecentral.js?v=2';
+import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=4';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=251';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
-import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=244';
+import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=245';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
-import { cachedLocalizationSettings, configureLocalization, formatDateTime, prepareLocalization, t } from './i18n.js';
+import { cachedLocalizationSettings, configureLocalization, formatDateTime, prepareLocalization, t, tp } from './i18n.js';
 import { cancelRecording as cancelVoiceRecording, isRecording as isVoiceRecording } from './voice.js';
 
 window._mdToHtml = mdToHtml;
@@ -167,7 +167,7 @@ async function _ssoRedirect(target) {
     _pendingSso = target;
     _showLoginScreen();
     const error = document.getElementById('login-error');
-    if (error) error.textContent = 'signed in, but could not open the app. try again.';
+    if (error) error.textContent = t('shell.signin_handoff_failed');
   }
 }
 
@@ -245,14 +245,14 @@ function _showContextHandoffRetry(projectId = '') {
   notice.className = 'toast error context-handoff-error';
   notice.setAttribute('role', 'alert');
   const message = document.createElement('span');
-  message.textContent = 'private context could not be opened';
+  message.textContent = t('shell.private_context_failed');
   const retry = document.createElement('button');
   retry.type = 'button';
-  retry.textContent = 'retry';
+  retry.textContent = t('common.retry');
   retry.addEventListener('click', async () => {
     if (!_pendingContextHandoffCode && !_pendingContextHandoffPayload) { notice.remove(); return; }
     retry.disabled = true;
-    message.textContent = 'retrying private context';
+    message.textContent = t('shell.private_context_retrying');
     try {
       const payload = await _redeemPendingContextHandoff();
       if (!(await _deliverContextHandoff(payload, projectId, true))) {
@@ -263,10 +263,10 @@ function _showContextHandoffRetry(projectId = '') {
     } catch (error) {
       if (_isTerminalContextHandoffError(error)) {
         _discardContextHandoff();
-        message.textContent = 'private context expired';
-        retry.textContent = 'dismiss';
+        message.textContent = t('shell.private_context_expired');
+        retry.textContent = t('common.dismiss');
       } else {
-        message.textContent = 'private context is still unavailable';
+        message.textContent = t('shell.private_context_unavailable');
       }
       retry.disabled = false;
       retry.focus();
@@ -378,8 +378,7 @@ async function _boot({ reachable = true } = {}) {
     }
   }
 
-  applyVis();
-  initAfterlifeShell(afterlifeFlags);
+  // the language loads first: the shells below build their markup with t() as they start
   let bootSettings = {};
   try {
     bootSettings = await fetch('/api/settings').then(r => r.json());
@@ -389,6 +388,8 @@ async function _boot({ reachable = true } = {}) {
     if (cachedSettings.language) await prepareLocalization(cachedSettings);
     else configureLocalization();
   }
+  applyVis();
+  initAfterlifeShell(afterlifeFlags);
   initScrollFollow();
   // the message box grows with its text up to its cap; only past that does it scroll
   wireAutosizeTextarea(document.getElementById('composer-ta'));
@@ -421,18 +422,18 @@ async function _boot({ reachable = true } = {}) {
   initSync();
   bindEvents();
   initAskPanel();
-  import('./livevoice.js?v=2').then(module => module.initLiveVoice()).catch(() => {});
+  import('./livevoice.js?v=3').then(module => module.initLiveVoice()).catch(() => {});
   // per-app settings gears (header cogs) + the reload hooks they call after saving
   initAppCogs();
   window._reloadFiles = () => loadFiles('');   // jump to the (possibly new) root
   window._reloadPhotos = loadPhotos;
   window._reloadCalendar = () => loadCalendar();
   window._reloadMail = startMailPoll;
-  window._reloadSystem = () => import('./system.js?v=264').then(m => m.initSystem());
+  window._reloadSystem = () => import('./system.js?v=265').then(m => m.initSystem());
   applySubdomainScope(initialRoute);
   const sourceMessage = new URLSearchParams(location.search).get('message');
   if (sourceMessage && document.body.classList.contains('is-aide') && !focusSessionMessage(sourceMessage)) {
-    toast('the original conversation or reply is unavailable', 'error', 8000);
+    toast(t('shell.original_unavailable'), 'error', 8000);
   }
 
   // arrived from another subapp's palette "ask aide / research" → run it once
@@ -466,10 +467,10 @@ async function _boot({ reachable = true } = {}) {
   if (_mo) {
     _consumeParams(['mailoauth']);
     const msg = {
-      ok: 'gmail connected', denied: 'google sign-in cancelled',
-      badstate: 'sign-in expired, try again', failed: "couldn't reach google, try again",
-      noemail: "couldn't read your email from google",
-    }[_mo] || 'google sign-in finished';
+      ok: t('shell.mail_oauth_ok'), denied: t('shell.mail_oauth_denied'),
+      badstate: t('shell.mail_oauth_badstate'), failed: t('shell.mail_oauth_failed'),
+      noemail: t('shell.mail_oauth_noemail'),
+    }[_mo] || t('shell.mail_oauth_finished');
     setTimeout(() => { toast(msg, _mo === 'ok' ? 'success' : 'error'); navigateTo('mail'); }, 300);
   }
 
@@ -525,7 +526,7 @@ function applySubdomainScope(initialRoute = null) {
   document.body.classList.toggle('is-subapp', onSubApp);
   document.body.dataset.app = app.app;
   _setAfterlifeSpace(onAide ? 'aide' : '');
-  document.title = onHub ? 'alles' : `${app.app} / alles`;
+  document.title = onHub ? 'alles' : `${appLabel(app.app)} / alles`;
   renderAppCrumb(app.app, sub);
 
   _scopeAideChrome(onAide);
@@ -562,7 +563,7 @@ function renderAppCrumb(appName, sub) {
   if (!crumb) return;
   if (appName === 'alles') {                 // on the hub: just the wordmark, nowhere to go
     crumb.replaceChildren(document.createTextNode('alles'));
-    crumb.title = 'home';
+    crumb.title = t('common.home');
     return;
   }
   _buildCrumb(crumb, appName, sub || appName);
@@ -572,8 +573,8 @@ function renderAppCrumb(appName, sub) {
 // shell control, so the old "app / alles" breadcrumb is intentionally gone.
 function _buildCrumb(el, appName, appSub) {
   const appA = document.createElement('a');
-  appA.className = 'crumb-app'; appA.textContent = appName;
-  appA.href = urlForApp(appSub); appA.title = `open ${appName}`;
+  appA.className = 'crumb-app'; appA.textContent = appLabel(appName);
+  appA.href = urlForApp(appSub); appA.title = t('shell.open_app', { name: appLabel(appName) });
   el.replaceChildren(appA);
 }
 
@@ -597,7 +598,7 @@ function _shChrome(v, { onAide = false } = {}) {
   document.body.classList.toggle('is-subapp', !onHome && !onAide);
   document.body.classList.toggle('is-aide', onAide);
   document.body.dataset.app = onAide ? 'aide' : app.app;
-  document.title = onHome ? 'alles' : onAide ? 'aide' : `${app.app} / alles`;
+  document.title = onHome ? 'alles' : onAide ? 'aide' : `${appLabel(app.app)} / alles`;
   _scopeAideChrome(onAide);
   _show('app-crumb', !onHome && !onAide);
   const crumb = document.getElementById('app-crumb');
@@ -656,10 +657,10 @@ function _showLoginScreen() {
       });
       if (!response.ok) {
         if (error) error.textContent = response.status === 401
-          ? 'wrong password. try again.'
+          ? t('shell.login_wrong_password')
           : response.status === 429
-            ? 'too many attempts. wait a few minutes and try again.'
-            : 'sign-in is temporarily unavailable. try again.';
+            ? t('shell.login_too_many')
+            : t('shell.login_unavailable');
         if (response.status === 401) password?.setAttribute('aria-invalid', 'true');
         return;
       }
@@ -668,7 +669,7 @@ function _showLoginScreen() {
       if (_pendingSso) { await _ssoRedirect(_pendingSso); return; }
       _boot();
     } catch {
-      if (error) error.textContent = 'could not reach Alles. check the connection and try again.';
+      if (error) error.textContent = t('shell.login_unreachable');
     } finally {
       submit.disabled = false;
       submit.removeAttribute('aria-busy');
@@ -739,20 +740,20 @@ function _paintSpecialistState(root, state, retry, details = null) {
     return;
   }
   line.hidden = false;
-  const label = root.dataset.stateLabel || root.dataset.specialistApp || 'page';
+  const label = appLabel(root.dataset.stateLabel || root.dataset.specialistApp || 'page');
   const partialMessage = typeof details?.partialMessage === 'string' ? details.partialMessage : '';
   const copy = document.createElement('span');
   copy.textContent = state === 'loading'
-    ? `loading ${label}…`
+    ? t('shell.state_loading', { label })
     : state === 'partial'
-      ? partialMessage || `some ${label} data is unavailable`
-      : `couldn’t load ${label}`;
+      ? partialMessage || t('shell.state_partial', { label })
+      : t('shell.state_failed', { label });
   line.replaceChildren(copy);
   if (state !== 'loading' && retry) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'specialist-state-retry';
-    button.textContent = state === 'partial' && partialMessage ? details.retryLabel || 'retry' : 'retry';
+    button.textContent = state === 'partial' && partialMessage ? details.retryLabel || t('common.retry') : t('common.retry');
     button.addEventListener('click', retry, { once: true });
     line.append(button);
   }
@@ -858,7 +859,7 @@ window._openSearchResult = async (type, value, messageId = '') => {
   }
   if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat', { preserveSession: true }))) return false;
   if (type === 'chat') return selectSession(value, messageId);
-  const { openNote } = await import('./docs.js?v=260');
+  const { openNote } = await import('./docs.js?v=261');
   return openNote(value);
 };
 
@@ -879,7 +880,7 @@ async function revealLinkedRecord() {
     if (await revealRecord(target, isCurrent)) return true;
   } catch { /* Keep the source app's retry and saved state available. */ }
   const shown = document.querySelector('#toast-container .toast.error');
-  if (isCurrent() && (!shown || shown === earlier)) toast('could not open this item; refresh to check whether it is still available', 'error');
+  if (isCurrent() && (!shown || shown === earlier)) toast(t('shell.open_item_refresh'), 'error');
   return false;
 }
 
@@ -895,7 +896,7 @@ async function openHomeRecord(view, id, occurrence) {
     }
     return await navigateTo(view, { record: target });
   } catch {
-    toast('could not open this item; try again', 'error');
+    toast(t('shell.open_item_retry'), 'error');
     return false;
   }
 }
@@ -918,7 +919,7 @@ async function prepareHomeDayDraft(prompt) {
   if (!prompt) return false;
   if (singleHost() || appForSub(currentSub()).app === 'aide') {
     try { return await showPrivateDayDraft(prompt); }
-    catch { toast('could not prepare private day question', 'error'); return false; }
+    catch { toast(t('shell.day_question_failed'), 'error'); return false; }
   }
   try {
     const response = await fetch('/api/auth/context-handoff', {
@@ -933,7 +934,7 @@ async function prepareHomeDayDraft(prompt) {
     target.searchParams.set('ctx', code);
     return await _navigateWithHandoff(target.toString());
   } catch {
-    toast('could not prepare private day question', 'error');
+    toast(t('shell.day_question_failed'), 'error');
     return false;
   }
 }
@@ -965,7 +966,7 @@ window._askInChat = async (
         projectId || window._currentSession?.project_id,
       ));
     } catch {
-      toast('could not open this in andromeda', 'error');
+      toast(t('shell.open_in_andromeda_failed'), 'error');
       return false;
     }
   }
@@ -981,7 +982,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=250');
+      const module = await import('./andromeda.js?v=251');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1005,9 +1006,9 @@ window._askInChat = async (
         // owner or replacing the draft with a request that cannot be sent.
         if (await navigateTo('chat', { preserveSession: true }) && getSendBlockReason() === reason) {
           document.dispatchEvent(new CustomEvent('alles:aide-primary-unavailable'));
-          toast('could not load your main conversation. choose retry, then ask again.', 'error');
+          toast(t('shell.main_conversation_failed'), 'error');
         }
-      } else toast('wait for the current answer or stop it first', 'error');
+      } else toast(t('shell.wait_for_answer'), 'error');
       return true;
     };
     if (await refuseBlockedHandoff()) return false;
@@ -1037,7 +1038,7 @@ window._askInChat = async (
         projectId || window._currentSession?.project_id,
       ));
     } catch {
-      toast('could not open this in aide', 'error');
+      toast(t('shell.open_in_aide_failed'), 'error');
       return false;
     }
   }
@@ -1051,7 +1052,7 @@ const showCompareView  = () => showView('compare-view',  'compare',  () => { ini
 const showWikiView     = (section = 'docs') => showView(
   'wiki-view',
   section === 'journal' ? 'journal' : 'wiki',
-  (track, request) => trackedImport(track, request, () => import('./docs.js?v=260'), module => module.initDocs(section, request)),
+  (track, request) => trackedImport(track, request, () => import('./docs.js?v=261'), module => module.initDocs(section, request)),
   section === 'journal' ? 'docs-journal-section' : '',
 );
 const showVaultView      = () => showView('vault-view',      'vault',     (_track, request) => loadVaultView(request));
@@ -1062,10 +1063,10 @@ const showRemindersView  = () => {
 };
 const showSubsView       = () => showView('subs-view',      'subs',      (track, request) => trackedImport(track, request, () => import('./subs.js'), module => module.initSubsPanel(request)));
 const showMoneyView      = () => showView('money-view',     'money',     (track, request) => trackedImport(track, request, () => import('./money.js'), module => module.initMoneyPanel(request)));
-const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=3'), module => module.initDaysPanel(request)));
+const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=4'), module => module.initDaysPanel(request)));
 const showJournalView    = () => showWikiView('journal');
 const showActivityView   = () => showView('activity-view',  'activity',  (track, request) => trackedImport(track, request, () => import('./activity.js'), module => module.initActivity(request)));
-const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=264'), module => module.initSystem(request)));
+const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=265'), module => module.initSystem(request)));
 const showWatchView      = () => showView('watch-view',     'watch',     (track, request) => trackedImport(track, request, () => import('./watch.js'), module => module.initWatch(request)));
 const showHabitsView     = () => showView('habits-view',    'habits',    (track, request) => trackedImport(track, request, () => import('./habits.js'), module => module.initHabits(request)));
 const showReadView       = () => showView('read-view',      'read',      (track, request) => trackedImport(track, request, () => import('./read.js'), module => module.initRead(request)));
@@ -1079,15 +1080,15 @@ const showMailView       = () => showView('mail-view',      'mail',      (_track
 const showPhotosView     = () => showView('photos-view',    'photos',    (_track, request) => { initPhotos(); return loadPhotos(request); });
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=309'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=310'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=250'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=251'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
-  () => import('./aidescheduled.js?v=246'),
+  () => import('./aidescheduled.js?v=247'),
   module => module.initAideScheduled(request),
 ));
 
@@ -1095,7 +1096,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'calendar') return loadCalendar(request);
   if (section === 'tasks') return loadTasks(request, readRecordTarget(location.href));
   if (section === 'reminders') return initReminderPanel(request, () => showSpecialistGroup(group, section));
-  if (section === 'days') return import('./days.js?v=3').then(module => module.initDaysPanel(request));
+  if (section === 'days') return import('./days.js?v=4').then(module => module.initDaysPanel(request));
   if (section === 'mail') return loadMail(request);
   if (section === 'contacts') return loadContacts('', request);
   if (section === 'books') return import('./books.js').then(module => module.initBooks(request));
@@ -1104,11 +1105,11 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'habits') return import('./habits.js').then(module => module.initHabits(request));
   if (section === 'money') return import('./money.js').then(module => module.initMoneyPanel(request));
   if (section === 'subs') return import('./subs.js').then(module => module.initSubsPanel(request));
-  if (group === 'docs') return import('./docs.js?v=260').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
+  if (group === 'docs') return import('./docs.js?v=261').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
-  if (group === 'server' && section === 'overview') return import('./system.js?v=264').then(module => module.initSystem(request));
+  if (group === 'server' && section === 'overview') return import('./system.js?v=265').then(module => module.initSystem(request));
   if (group === 'server' && section === 'activity') return import('./activity.js').then(module => module.initActivity(request));
   if (group === 'server' && section === 'watch') return import('./watch.js').then(module => module.initWatch(request));
 }
@@ -1379,6 +1380,15 @@ const _ICON = {
 };
 const _svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${_ICON[k] || ''}</svg>`;
 
+// app names, blurbs and group labels are plain english ids in the data above; they turn into
+// the reader's language here, when they are drawn
+const GROUP_KEYS = { 'primary spaces': 'shell.main_spaces', everyday: 'shell.group_everyday', personal: 'shell.group_personal', manage: 'shell.group_manage' };
+const groupLabel = label => GROUP_KEYS[label] ? t(GROUP_KEYS[label]) : label;
+const REASONING_KEYS = { automatic: 'common.automatic', on: 'common.on', off: 'common.off' };
+const reasoningName = value => REASONING_KEYS[value] ? t(REASONING_KEYS[value]) : value;
+const CYCLE_KEYS = { quick: 'shell.cycle_quick', standard: 'shell.cycle_standard', thorough: 'shell.cycle_thorough', off: 'common.off', auto: 'common.auto' };
+const cycleName = value => CYCLE_KEYS[value] ? t(CYCLE_KEYS[value]) : value;
+
 const HOME_TILES = [
   { view: 'chat', name: 'aide' },
   { view: 'plan', name: 'plan' },
@@ -1500,9 +1510,11 @@ function _syncShellTrigger(root = null) {
   title.parentElement?.classList.remove('shell-trigger-host');
   target.prepend(title);
   target.classList.add('shell-trigger-host');
-  document.getElementById('app-drawer-label').textContent = label;
+  const drawerLabel = document.getElementById('app-drawer-label');
+  drawerLabel.textContent = appLabel(label);
+  drawerLabel.dataset.app = label;
   syncAskPanel();
-  trigger.setAttribute('aria-label', `switch app from ${label}`);
+  trigger.setAttribute('aria-label', t('shell.switch_app_from', { label: appLabel(label) }));
   trigger.hidden = false;
 }
 
@@ -1513,8 +1525,8 @@ function _renderAppDrawer() {
     const section = document.createElement('section');
     section.className = 'app-drawer-group';
     const heading = document.createElement('h3');
-    heading.textContent = label === 'primary spaces' ? t('shell.main_spaces') : label;
-    if (label === 'primary spaces') heading.dataset.i18n = 'shell.main_spaces';
+    heading.textContent = groupLabel(label);
+    if (GROUP_KEYS[label]) heading.dataset.i18n = GROUP_KEYS[label];
     section.appendChild(heading);
     const list = document.createElement('div');
     list.className = 'app-drawer-list';
@@ -1523,7 +1535,7 @@ function _renderAppDrawer() {
       button.type = 'button';
       button.className = 'app-drawer-item';
       button.dataset.view = destination.view;
-      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${appGlyph(destination.view)}</span><span><b>${destination.name}</b><small>${destination.desc}</small></span>`;
+      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${appGlyph(destination.view)}</span><span><b>${appLabel(destination.name)}</b><small>${appDesc(destination.desc)}</small></span>`;
       button.addEventListener('click', async () => {
         const staysOnPage = singleHost() || viewToSub(destination.view) === currentSub();
         const navigated = await navigateTo(destination.view);
@@ -1570,7 +1582,7 @@ function closeAppDrawer() {
 
 // command-palette nav source (the ⌘K search renders a "go to" group from this)
 window._navCommands = SHELL_GROUPS.flatMap(([, destinations]) => destinations)
-  .map(destination => ({ view: destination.view, label: destination.name, hint: destination.desc }));
+  .map(destination => ({ view: destination.view, get label() { return appLabel(destination.name); }, get hint() { return appDesc(destination.desc); } }));
 
 // Keep the old browser keys only to import a user's tile choices once.
 const HOME_ORDER_KEY = 'alles-home-order';
@@ -1602,10 +1614,10 @@ async function _renderFirstRun() {
   catch { return; }   // never let this block Home
   if (st.setup?.completed || st.setup?.dismissed) return;
   if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
-  (await import('./setupwizard.js?v=445')).openSetupWizard({ status: st });
+  (await import('./setupwizard.js?v=446')).openSetupWizard({ status: st });
 }
 // let anything (a settings link, the command palette) re-run the wizard on demand
-window._openSetupWizard = async () => (await import('./setupwizard.js?v=445')).openSetupWizard({ resume: true });
+window._openSetupWizard = async () => (await import('./setupwizard.js?v=446')).openSetupWizard({ resume: true });
 
 // aide's tools live in the collapsible "tools" group
 const _moreViews = new Set(['gallery','brain','models','aide-reminders','subs','days']);
@@ -1660,7 +1672,7 @@ function closeCompactAideSidebar({ restoreFocus = false, maxWidth = 700 } = {}) 
   return true;
 }
 window._closeCompactAideSidebar = closeCompactAideSidebar;
-window._setAideArchiveOpen = open => setAideSidebarHidden(!open, { restoreFocus: !open });
+window._setAideArchiveOpen = open => setAideSidebarHidden(!open, { restoreFocus: !open && !document.body.classList.contains('sidebar-hidden') });
 
 function bindEvents() {
   if (_eventsBound) return;
@@ -1708,7 +1720,7 @@ function bindEvents() {
   // later. All three paths open the same custom KOKUEN dialog.
   const openSendSchedule = () => {
     const text = ta.value.trim();
-    if (!text) { toast('type a message first: then open send later', ''); return; }
+    if (!text) { toast(t('shell.type_message_first'), ''); return; }
     _openSchedulePop(text, ta);
   };
   _sendBtn.addEventListener('contextmenu', e => {
@@ -1868,19 +1880,19 @@ function bindEvents() {
     menu.id = '_export_menu';
     menu.className = 'ctx-menu';
     menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', 'conversation actions');
+    menu.setAttribute('aria-label', t('shell.conversation_actions'));
     menu.style.cssText = `display:block;right:${window.innerWidth - rect.right}px;top:${rect.bottom + 4}px;left:auto`;
     menu.innerHTML = `
-      <button type="button" role="menuitem" class="ctx-item" data-a="export-md">export markdown</button>
-      <button type="button" role="menuitem" class="ctx-item" data-a="export-html">export html</button>
-      <button type="button" role="menuitem" class="ctx-item" data-a="export-json">export json</button>
-      <button type="button" role="menuitem" class="ctx-item" data-a="export-txt">export text</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="export-md">${t('shell.export_markdown')}</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="export-html">${t('shell.export_html')}</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="export-json">${t('shell.export_json')}</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="export-txt">${t('shell.export_text')}</button>
       <div class="ctx-sep" role="separator"></div>
-      <button type="button" role="menuitem" class="ctx-item" data-a="share">copy share link</button>
-      <button type="button" role="menuitem" class="ctx-item" data-a="print">print / save pdf</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="share">${t('shell.copy_share_link')}</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="print">${t('shell.print_save_pdf')}</button>
       <div class="ctx-sep" role="separator"></div>
-      <button type="button" role="menuitem" class="ctx-item" data-a="audio-summary">audio overview</button>
-      <button type="button" role="menuitem" class="ctx-item" data-a="audio-podcast">podcast overview</button>`;
+      <button type="button" role="menuitem" class="ctx-item" data-a="audio-summary">${t('shell.audio_overview')}</button>
+      <button type="button" role="menuitem" class="ctx-item" data-a="audio-podcast">${t('shell.podcast_overview')}</button>`;
     menu.addEventListener('click', e => {
       const a = e.target.closest('.ctx-item')?.dataset.a;
       if (!a) return;
@@ -1982,10 +1994,10 @@ function bindEvents() {
     const vcard = await f.text();
     const r = await fetch('/api/contacts/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ vcard }) }).catch(() => null);
     const d = await r?.json().catch(() => ({}));
-    if (!r?.ok) { toast('could not import that file', 'error'); return; }
+    if (!r?.ok) { toast(t('shell.import_failed'), 'error'); return; }
     // a file with no cards in it imported nothing; that's not a success
-    if (!d?.imported) { toast('no contacts found in that file', 'error'); return; }
-    toast(`imported ${d.imported} contact${d.imported === 1 ? '' : 's'}`, 'success');
+    if (!d?.imported) { toast(t('shell.no_contacts_in_file'), 'error'); return; }
+    toast(tp('shell.contacts_imported', d.imported), 'success');
     loadContacts();
   });
 
@@ -2067,42 +2079,42 @@ function bindEvents() {
 let _aoPlaying = false;
 async function _playAudioOverview(style) {
   const sid = window._currentSession?.id || getActiveId();
-  if (!sid) { toast('open a chat first', 'error'); return; }
-  if (_aoPlaying) { toast('already generating an overview', 'error'); return; }
+  if (!sid) { toast(t('shell.open_chat_first'), 'error'); return; }
+  if (_aoPlaying) { toast(t('shell.overview_in_progress'), 'error'); return; }
   _aoPlaying = true;
-  toast(style === 'podcast' ? 'writing a podcast…' : 'writing an overview…', 'info');
+  toast(style === 'podcast' ? t('shell.writing_podcast') : t('shell.writing_overview'), 'info');
   try {
     const r = await fetch('/api/audio-overview', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ session_id: sid, style }),
     });
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'failed');
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || t('shell.failed'));
     const { segments } = await r.json();
-    if (!segments?.length) { toast('nothing to narrate', 'error'); _aoPlaying = false; return; }
+    if (!segments?.length) { toast(t('shell.nothing_to_narrate'), 'error'); _aoPlaying = false; return; }
     const { speak } = await import('./voice.js');
     // map the two podcast hosts to distinct TTS voices for a bit of contrast
     const voiceFor = spk => spk === 'Sam' ? 'onyx' : (spk === 'Alex' ? 'nova' : 'alloy');
-    toast(`playing ${segments.length} segment${segments.length === 1 ? '' : 's'}`, 'success');
+    toast(tp('shell.segments_playing', segments.length), 'success');
     for (const seg of segments) {
       if (!_aoPlaying) break;   // a second invocation / page change cancels
       try { await speak(seg.text, voiceFor(seg.speaker)); } catch { /* keep going */ }
     }
   } catch (e) {
-    toast(e.message || 'audio overview failed', 'error');
+    toast(e.message || t('shell.audio_overview_failed'), 'error');
   }
   _aoPlaying = false;
 }
 
 async function _shareSession() {
   const sid = window._currentSession?.id;
-  if (!sid) { toast('open a chat first', 'error'); return; }
+  if (!sid) { toast(t('shell.open_chat_first'), 'error'); return; }
   try {
     const r = await fetch(`/api/sessions/${sid}/share`, { method: 'POST' });
     const { url } = await r.json();
     const full = location.origin + url;
     await navigator.clipboard.writeText(full);
-    toast('share link copied to clipboard', 'success');
-  } catch { toast('share failed', 'error'); }
+    toast(t('shell.share_link_copied'), 'success');
+  } catch { toast(t('shell.share_failed'), 'error'); }
 }
 
 function _printSession() {
@@ -2163,10 +2175,10 @@ function positionMoreTools() {
 }
 
 function renderMoreTools(menu) {
-  menu.setAttribute('aria-label', 'add a file or app context');
+  menu.setAttribute('aria-label', t('shell.add_context'));
   menu.innerHTML = `
-    <button class="ctx-item" data-tool="upload" type="button" role="menuitem">upload file</button>
-    <button class="ctx-item" data-tool="app" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false">link an app</button>
+    <button class="ctx-item" data-tool="upload" type="button" role="menuitem">${t('shell.upload_file')}</button>
+    <button class="ctx-item" data-tool="app" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false">${t('shell.link_an_app')}</button>
   `;
   positionMoreTools();
 }
@@ -2237,8 +2249,8 @@ function insertComposerText(text) {
 }
 
 function openAppLinkMenu(parent) {
-  parent.setAttribute('aria-label', 'link an app');
-  parent.innerHTML = '<button class="ctx-item" data-tool="back" type="button" role="menuitem" aria-label="back to add context">back</button>';
+  parent.setAttribute('aria-label', t('shell.link_an_app'));
+  parent.innerHTML = `<button class="ctx-item" data-tool="back" type="button" role="menuitem" aria-label="${t('shell.back_to_add_context')}">${t('common.back')}</button>`;
   const submenu = document.createElement('div');
   submenu.className = 'app-link-menu';
   const apps = HOME_TILES
@@ -2247,8 +2259,8 @@ function openAppLinkMenu(parent) {
     .map(app => ({ ...app, owner: HOME_PINNABLE_APPS.find(owner => groupRouteFor(owner.view)?.group === groupRouteFor(app.view)?.group) }));
   submenu.innerHTML = SHELL_GROUPS.slice(1).map(([label, destinations]) => {
     const choices = apps.filter(app => destinations.some(destination => destination.view === app.owner?.view));
-    return `<div role="group" aria-label="${label}"><div class="ctx-label" aria-hidden="true">${label}</div>${choices.map(app =>
-      `<button class="ctx-item" data-app-link="${app.view}" type="button" role="menuitem">${app.owner.name}${app.view === 'wiki' ? ' · @wiki' : app.view === app.owner.view ? '' : ` · ${app.name}`}</button>`,
+    return `<div role="group" aria-label="${groupLabel(label)}"><div class="ctx-label" aria-hidden="true">${groupLabel(label)}</div>${choices.map(app =>
+      `<button class="ctx-item" data-app-link="${app.view}" type="button" role="menuitem">${appLabel(app.owner.name)}${app.view === 'wiki' ? ' · @wiki' : app.view === app.owner.view ? '' : ` · ${appLabel(app.name)}`}</button>`,
     ).join('')}</div>`;
   }).join('');
   submenu.addEventListener('click', event => {
@@ -2257,7 +2269,7 @@ function openAppLinkMenu(parent) {
     if (!view) return;
     insertComposerText(`@${view} `);
     closeMoreTools();
-    if (view === 'wiki') toast('docs context added as @wiki');
+    if (view === 'wiki') toast(t('shell.wiki_context_added'));
   });
   parent.appendChild(submenu);
   positionMoreTools();
@@ -2322,12 +2334,12 @@ async function _openSchedulePop(text, ta) {
   pop.setAttribute('role', 'dialog');
   pop.setAttribute('aria-labelledby', 'schedule-pop-title');
   pop.innerHTML = `
-    <div class="schedule-pop-title" id="schedule-pop-title">send later</div>
-    <div class="date-input" id="schedule-when" data-type="datetime" data-ph="when to send"></div>
+    <div class="schedule-pop-title" id="schedule-pop-title">${t('shell.send_later')}</div>
+    <div class="date-input" id="schedule-when" data-type="datetime" data-ph="${t('shell.when_to_send')}"></div>
     <div id="schedule-status" role="status" aria-live="polite"></div>
     <div class="schedule-pop-actions">
-      <button class="btn primary" id="schedule-go" type="button">schedule</button>
-      <button class="btn" id="schedule-cancel" type="button">cancel</button>
+      <button class="btn primary" id="schedule-go" type="button">${t('shell.schedule')}</button>
+      <button class="btn" id="schedule-cancel" type="button">${t('common.cancel')}</button>
     </div>`;
   document.body.appendChild(pop);
   const trigger = document.getElementById('send-btn');
@@ -2345,7 +2357,7 @@ async function _openSchedulePop(text, ta) {
   const close = async ({ restoreFocus = true } = {}) => {
     if (busy || closing) return;
     closing = true;
-    if (uncertain && !await confirmDialog('this message may already be scheduled. discard this retry? check reminders before scheduling it again.')) {
+    if (uncertain && !await confirmDialog(t('shell.schedule_maybe_saved'))) {
       closing = false;
       return;
     }
@@ -2364,48 +2376,48 @@ async function _openSchedulePop(text, ta) {
   cancelButton.addEventListener('click', close);
   scheduleButton.addEventListener('click', async () => {
     if (busy || closing) return;
-    const finishBusy = beginBusy(scheduleButton, 'scheduling');
+    const finishBusy = beginBusy(scheduleButton, t('shell.scheduling'));
     if (!finishBusy) return;
     busy = true;
     cancelButton.disabled = true;
     try {
       if (!request) {
         const at = reminderTimeFromWall(when.value);
-        if (at <= new Date()) throw new Error('pick a future time');
+        if (at <= new Date()) throw new Error(t('shell.pick_future_time'));
         let sid = sourceSession;
         if (!sid) {
           const selected = getSelected();
-          if (!selected?.model || !selected?.endpointId) throw new Error('choose a model before scheduling a message');
+          if (!selected?.model || !selected?.endpointId) throw new Error(t('shell.choose_model_before_scheduling'));
           const session = await createSession(selected.model, selected.endpointId);
           sid = session?.id;
         }
-        if (!sid) throw new Error('could not create a conversation');
+        if (!sid) throw new Error(t('shell.could_not_create_conversation'));
         request = reminderRequest(text, at, 'message', sid);
       }
       when.setAttribute('aria-disabled', 'true'); when.tabIndex = -1;
-      status.textContent = 'scheduling…';
+      status.textContent = t('shell.scheduling_status');
       const result = await createReminder(request);
       uncertain = false;
-      finishBusy({ state: 'resting', text: 'schedule' });
+      finishBusy({ state: 'resting', text: t('shell.schedule') });
       if (getActiveId() === sourceSession && ta.value.trim() === text) {
         ta.value = ''; ta.style.height = 'auto'; clearDraft(); ta.dispatchEvent(new Event('input'));
       }
       const whenText = formatDateTime(request.trigger_at, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toLowerCase();
-      toast(result.fired ? 'message already delivered' : t('schedule.confirmed', { when: whenText }), 'success');
+      toast(result.fired ? t('shell.message_already_delivered') : t('schedule.confirmed', { when: whenText }), 'success');
       busy = false;
       close();
     } catch (error) {
       if (request) uncertain ||= reminderMayHaveSaved(error);
       if (!uncertain) request = null;
       when.setAttribute('aria-disabled', String(!!request)); when.tabIndex = request ? -1 : 0;
-      const message = `${error.message || 'could not schedule message'}${uncertain ? '. retry to confirm the same message.' : ''}`;
-      finishBusy({ state: 'error', text: 'retry schedule' });
+      const message = `${error.message || t('shell.could_not_schedule')}${uncertain ? t('shell.schedule_retry_suffix') : ''}`;
+      finishBusy({ state: 'error', text: t('shell.retry_schedule') });
       setControlState(scheduleButton, 'error', { message });
       status.textContent = message;
       toast(message, 'error');
     } finally {
       busy = false; cancelButton.disabled = false;
-      cancelButton.textContent = uncertain ? 'discard retry' : 'cancel';
+      cancelButton.textContent = uncertain ? t('shell.discard_retry') : t('common.cancel');
     }
   });
 }
@@ -2436,10 +2448,10 @@ function _openPermMenu(anchor) {
   _permAnchor = anchor;
   const cur = getPermMode();
   const opts = [
-    ['full_access', permLabel('full_access'), 'no approval; host shell is unrestricted unless sandboxed'],
-    ['full_auto', permLabel('full_auto'), 'handle safe work; ask at real risk'],
-    ['approve', permLabel('approve'), 'ask before each change'],
-    ['plan', permLabel('plan'), 'read-only: just make a plan, change nothing'],
+    ['full_access', permLabel('full_access'), t('shell.perm_full_access_desc')],
+    ['full_auto', permLabel('full_auto'), t('shell.perm_full_auto_desc')],
+    ['approve', permLabel('approve'), t('shell.perm_approve_desc')],
+    ['plan', permLabel('plan'), t('shell.perm_plan_desc')],
   ];
   const menu = document.createElement('div');
   menu.id = 'perm-menu';
@@ -2490,7 +2502,7 @@ function refreshEffortLabel() {
   const btn = document.getElementById('effort-btn');
   if (btn) {
     const reasoning = getReasoningMode(_curModelKey());
-    btn.title = `effort and reasoning for ${_curModelKey() || 'this model'} · reasoning ${reasoning}`;
+    btn.title = t('shell.effort_title', { model: _curModelKey() || t('shell.this_model'), reasoning: reasoningName(reasoning) });
   }
 }
 window._refreshEffortLabel = refreshEffortLabel;
@@ -2503,24 +2515,24 @@ function _openEffortMenu(anchor) {
   const reasoning = getReasoningMode(mk);
   const custom = getCustomEffort(mk);
   const opts = [
-    ['low', effortLabel('low'), 'quick & minimal: fewest turns'],
-    ['medium', effortLabel('medium'), 'balanced (default)'],
-    ['high', effortLabel('high'), 'thorough: more turns'],
-    ['xhigh', effortLabel('xhigh'), 'very thorough'],
-    ['max', effortLabel('max'), 'maximum turns'],
-    ['deep_work', effortLabel('deep_work'), '48 turns · thorough checks · bounded helpers'],
-    ['custom', effortLabel('custom'), '1–64 turns · your verification and helper rules'],
+    ['low', effortLabel('low'), t('shell.effort_low_desc')],
+    ['medium', effortLabel('medium'), t('shell.effort_medium_desc')],
+    ['high', effortLabel('high'), t('shell.effort_high_desc')],
+    ['xhigh', effortLabel('xhigh'), t('shell.effort_xhigh_desc')],
+    ['max', effortLabel('max'), t('shell.effort_max_desc')],
+    ['deep_work', effortLabel('deep_work'), t('shell.effort_deep_work_desc')],
+    ['custom', effortLabel('custom'), t('shell.effort_custom_desc')],
   ];
   const reasoningOpts = [
-    ['automatic', 'automatic', 'use the model and effort default'],
-    ['on', 'on', 'ask the model to reason'],
-    ['off', 'off', 'keep model reasoning disabled'],
+    ['automatic', t('common.automatic'), t('shell.reasoning_automatic_desc')],
+    ['on', t('common.on'), t('shell.reasoning_on_desc')],
+    ['off', t('common.off'), t('shell.reasoning_off_desc')],
   ];
   const menu = document.createElement('div');
   menu.id = 'perm-menu';
   menu.className = 'perm-menu effort-menu';
   menu.setAttribute('role', 'menu');
-  menu.setAttribute('aria-label', 'effort and reasoning');
+  menu.setAttribute('aria-label', t('shell.effort_and_reasoning'));
   menu.innerHTML = '<div class="perm-menu-head"></div>' + opts.map(([v, label, desc]) =>
     `<button class="perm-menu-item${v === cur ? ' active' : ''}" data-kind="effort" data-v="${v}" type="button" role="menuitemradio" aria-checked="${v === cur}">
        <div class="perm-menu-label">${label}</div>
@@ -2528,24 +2540,24 @@ function _openEffortMenu(anchor) {
      </button>`).join('') + `
     <div class="effort-custom" ${cur === 'custom' ? '' : 'hidden'}>
       <div class="effort-custom-row">
-        <span>turns</span>
-        <div class="effort-stepper" role="group" aria-label="custom turn limit">
-          <button type="button" data-turn-delta="-1" aria-label="fewer turns">−</button>
+        <span>${t('shell.turns')}</span>
+        <div class="effort-stepper" role="group" aria-label="${t('shell.custom_turn_limit')}">
+          <button type="button" data-turn-delta="-1" aria-label="${t('shell.fewer_turns')}">−</button>
           <output>${custom.maxTurns}</output>
-          <button type="button" data-turn-delta="1" aria-label="more turns">+</button>
+          <button type="button" data-turn-delta="1" aria-label="${t('shell.more_turns')}">+</button>
         </div>
       </div>
-      <button class="effort-custom-row effort-cycle" type="button" data-custom-key="verification"><span>verification</span><strong>${custom.verification}</strong></button>
-      <button class="effort-custom-row effort-cycle" type="button" data-custom-key="delegation"><span>helpers</span><strong>${custom.delegation}</strong></button>
-      <button class="effort-custom-row effort-cycle" type="button" data-custom-key="workflows"><span>workflows</span><strong>${custom.workflows}</strong></button>
+      <button class="effort-custom-row effort-cycle" type="button" data-custom-key="verification"><span>${t('shell.verification')}</span><strong>${cycleName(custom.verification)}</strong></button>
+      <button class="effort-custom-row effort-cycle" type="button" data-custom-key="delegation"><span>${t('shell.helpers')}</span><strong>${cycleName(custom.delegation)}</strong></button>
+      <button class="effort-custom-row effort-cycle" type="button" data-custom-key="workflows"><span>${t('shell.workflows')}</span><strong>${cycleName(custom.workflows)}</strong></button>
     </div>
-    <div class="perm-menu-section">reasoning</div>
+    <div class="perm-menu-section">${t('shell.reasoning')}</div>
     ${reasoningOpts.map(([v, label, desc]) => `
       <button class="perm-menu-item${v === reasoning ? ' active' : ''}" data-kind="reasoning" data-v="${v}" type="button" role="menuitemradio" aria-checked="${v === reasoning}">
         <div class="perm-menu-label">${label}</div>
         <div class="perm-menu-desc">${desc}</div>
       </button>`).join('')}`;
-  menu.querySelector('.perm-menu-head').textContent = `effort · ${mk || 'model'}`;
+  menu.querySelector('.perm-menu-head').textContent = t('shell.effort_head', { model: mk || t('shell.model') });
   document.body.appendChild(menu);
   const r = anchor.getBoundingClientRect();
   const edge = 12;
@@ -2612,7 +2624,7 @@ function _openEffortMenu(anchor) {
     const values = cycles[key];
     next[key] = values[(values.indexOf(next[key]) + 1) % values.length];
     setCustomEffort(mk, next);
-    button.querySelector('strong').textContent = getCustomEffort(mk)[key];
+    button.querySelector('strong').textContent = cycleName(getCustomEffort(mk)[key]);
   }));
   menu.addEventListener('keydown', event => {
     const index = items.indexOf(document.activeElement);
@@ -2730,7 +2742,7 @@ export async function refreshPersonaBtn() {
   const active = _personas.find(p => p.id === pid);
   window._activePersonaModel = active?.model || '';
   btn.style.display = 'flex';
-  label.textContent = active ? active.name : 'none';
+  label.textContent = active ? active.name : t('common.none');
   applyPersonaAccent(active?.accent || null);
   if (session?.model) restoreSessionModel(session);
   else if (active?.model) selectPersonaModel(active.model);
@@ -2764,7 +2776,7 @@ async function openPersonaPicker() {
   const rect = btn.getBoundingClientRect();
   picker.style.cssText = `display:block;left:${rect.left}px;top:${rect.bottom + 4}px;min-width:160px`;
   const none = document.createElement('div');
-  none.className = 'ctx-item'; none.textContent = 'none';
+  none.className = 'ctx-item'; none.textContent = t('common.none');
   none.addEventListener('click', async () => { await setPersona(''); picker.remove(); });
   picker.appendChild(none);
   for (const p of _personas) {
@@ -2777,7 +2789,7 @@ async function openPersonaPicker() {
       if (p.initial_message && ta && !ta.value.trim()) {
         ta.value = p.initial_message; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus();
       }
-      toast(`persona set: ${p.name}`, 'success'); picker.remove();
+      toast(t('shell.persona_set', { name: p.name }), 'success'); picker.remove();
     });
     picker.appendChild(item);
   }
@@ -2805,7 +2817,7 @@ function closeShellPanel() {
 function submitShellPanel() {
   const input = document.getElementById('shell-input');
   const command = input?.value.trim();
-  if (!command) { toast('shell command required', 'error'); return; }
+  if (!command) { toast(t('shell.shell_command_required'), 'error'); return; }
   input.value = '';
   closeShellPanel();
   const message = `\`\`\`sh\n${command}\n\`\`\``;

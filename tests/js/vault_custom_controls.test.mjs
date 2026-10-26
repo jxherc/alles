@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
+import { appLabel } from '../../static/js/util.js';
 
 const vault = readFileSync(new URL('../../static/js/vault.js', import.meta.url), 'utf8');
 const settings = readFileSync(new URL('../../static/js/settings.js', import.meta.url), 'utf8');
@@ -22,7 +24,7 @@ function lockScreen({ state = 'setup', biometric = 'failed', supported = true, s
     if (biometric === 'enrolled') payload.credentials.push('example');
     return { ok: biometric !== 'failed', json: async () => payload };
   };
-  const context = vm.createContext({
+  const context = vm.createContext({ t: i18nT, tp: i18nTp,
     window: supported ? { PublicKeyCredential: class {} } : {},
     document: { getElementById: get }, fetch: request,
   });
@@ -77,7 +79,7 @@ test('specialist partial status uses the module detail and retry label without c
   });
   const root = node(); root.dataset.specialistApp = 'vault';
   root.querySelector = () => root.children[0]; root.prepend = child => root.children.unshift(child);
-  const context = vm.createContext({ document: { createElement: node } });
+  const context = vm.createContext({ t: i18nT, tp: i18nTp, appLabel, document: { createElement: node } });
   vm.runInContext(app.match(/function _paintSpecialistState\([^]*?\n}/)[0], context);
   let retries = 0;
   const details = { partialMessage: 'biometric unlock could not be checked', retryLabel: 'retry vault checks' };
@@ -116,7 +118,7 @@ test('recent-owner retries are limited to bodyless browser-access requests', () 
 });
 
 test('Vault dialogs use the shared focus boundary and return to their invoking control', () => {
-  assert.match(vault, /import \{ createFocusBoundary \} from '\.\/kokuen\.js\?v=2'/);
+  assert.match(vault, /import \{ createFocusBoundary \} from '\.\/kokuen\.js\?v=4'/);
   assert.match(vault, /function _activateManagedModal/);
   assert.match(vault, /function _activateTemporaryModal/);
   assert.match(vault, /_modalFocusBoundary\?\.deactivate\(\)/);
@@ -130,7 +132,7 @@ test('Vault rows use separate semantic keyboard actions and retain persistent lo
   assert.match(vault, /data-vault-delete=/);
   assert.doesNotMatch(vault, /class="vault-entry"[^>]+onclick=/);
   assert.match(vault, /className = 'vault-load-error'/);
-  assert.match(vault, /Your unlocked session is unchanged/);
+  assert.match(vault, /vault\.entries_offline/);
   assert.doesNotMatch(vault, /load failed — vault may be locked[\s\S]{0,100}_unlocked = false/);
 });
 
@@ -174,7 +176,7 @@ test('closing the entry form gives focus back to its opener, delete moves to the
   assert.equal(_entryAfter('c'), 'b');
 
   const save = vault.slice(vault.indexOf('async function _saveForm'), vault.indexOf('async function _delFromForm'));
-  assert.match(save, /toast\('passkey created', 'success'\);\n\s+_closeModal\(\);\n\s+await _loadEntries\(\);\n\s+_settleFocus\(\$\('vault-new-btn'\)\);/);
+  assert.match(save, /toast\(t\('vault\.passkey_created'\), 'success'\);\n\s+_closeModal\(\);\n\s+await _loadEntries\(\);\n\s+_settleFocus\(\$\('vault-new-btn'\)\);/);
   assert.match(save, /_settleFocus\(editing \? _entryButton\(id\) : \$\('vault-new-btn'\)\);/);
   assert.match(vault, /const next = _entryAfter\(id\);\n\s+_closeModal\(\); await _loadEntries\(\);\n\s+_settleFocus\(_entryButton\(next\)\);/);
 });

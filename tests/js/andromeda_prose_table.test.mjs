@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
 const prose = source.slice(source.indexOf('const CITE_GROUP'), source.indexOf('function renderCompleteOverview'))
@@ -36,7 +37,7 @@ function find(root, test) {
 
 test('a claim inside a table cell opens its sources under the table, not as a column', () => {
   const holder = node('DIV');
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     document: {
       createElement: tag => node(tag.toUpperCase()),
       createTextNode: text => ({ ...node('#text'), textContent: text }),

@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const read = name => readFileSync(new URL(`../../static/js/${name}.js`, import.meta.url), 'utf8');
 const helper = read('response_actions').replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
-const menus = read('kokuen').replace(/^export /gm, '');
+const menus = read('kokuen').replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
 const rewrite = read('sessions').match(/^export function wireRewriteButtons\([^]*?^}/m)[0].replace(/^export /, '');
 
 function harness({ central = true } = {}) {
@@ -87,7 +88,7 @@ function harness({ central = true } = {}) {
   if (central) document.body.className = 'aide-central';
   document.documentElement = { clientWidth: 360 };
   document.createElement = tag => new Node(tag);
-  const context = vm.createContext({ document, window,
+  const context = vm.createContext({ t, tp, document, window,
     icon: name => `<svg data-icon="${name}"></svg>`,
     getComputedStyle: () => ({ getPropertyValue: name => name === '--k-space-4' ? '16px' : '4px' }),
     MutationObserver: class {
@@ -129,7 +130,7 @@ function harness({ central = true } = {}) {
     const wrap = new Node(); wrap.className = 'ai-wrap';
     const content = new Node(); content.className = 'ai-content'; content.innerHTML = 'original reply';
     const actions = new Node(); actions.className = 'msg-actions';
-    const copy = button('copy', { onclick: 'copyMsg(this)' });
+    const copy = button('copy'); copy.dataset.msgAct = 'copy';
     const buttons = labels.map(label => button(label));
     actions.append(copy, ...buttons); wrap.append(content, actions); node.append(wrap); document.body.append(node);
     return { node, wrap, content, actions, copy, buttons,
@@ -175,7 +176,7 @@ test('compaction moves original buttons without losing listeners, identity or me
   h.compact(row.actions);
   assert.deepEqual(row.actions.children, [row.copy, row.trigger, row.menu]);
   assert.deepEqual(row.menu.children, row.buttons);
-  assert.equal(row.copy.getAttribute('onclick'), 'copyMsg(this)');
+  assert.equal(row.copy.dataset.msgAct, 'copy');
   assert.equal(row.copy.getAttribute('aria-label'), 'copy reply');
   assert.equal(row.trigger.getAttribute('aria-controls'), row.menu.id);
   h.dispatch(row.trigger, 'click'); h.dispatch(note, 'click');

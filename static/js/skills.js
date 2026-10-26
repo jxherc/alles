@@ -2,7 +2,8 @@
 // discover + load. category rail on the left, a card grid in the middle, and the
 // editor in a right slide-over drawer. library is just a mode of the same surface.
 import { toast } from './util.js';
-import { createFocusBoundary } from './kokuen.js';
+import { t, tp } from './i18n.js';
+import { createFocusBoundary } from './kokuen.js?v=4';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -28,14 +29,27 @@ async function _api(url, opts, fetcher = fetch) {
 
 // each skill carries its category from the backend (the library file it came from —
 // coding.json → 'coding'); custom/imported ones have none → bucketed as 'custom'.
+// getters, so the label is translated when it is read, not when the module loads
 const _CAT_LABEL = {
-  'ai-prompting': 'ai & prompting', coding: 'coding', 'devops-git': 'devops & git',
-  'testing-debugging': 'testing & debugging', 'data-sql': 'data & sql', utilities: 'utilities',
-  research: 'research', writing: 'writing', 'marketing-content': 'marketing & content',
-  communication: 'communication', creativity: 'creativity', 'design-ux': 'design & ux',
-  decision: 'decisions', learning: 'learning', productivity: 'productivity',
-  'life-health': 'life & health', 'personal-finance': 'personal finance',
-  'career-business': 'career & business', custom: 'custom',
+  get 'ai-prompting'() { return t('aide.skl_cat_ai_prompting'); },
+  get 'coding'() { return t('aide.skl_cat_coding'); },
+  get 'devops-git'() { return t('aide.skl_cat_devops_git'); },
+  get 'testing-debugging'() { return t('aide.skl_cat_testing_debugging'); },
+  get 'data-sql'() { return t('aide.skl_cat_data_sql'); },
+  get 'utilities'() { return t('aide.skl_cat_utilities'); },
+  get 'research'() { return t('aide.skl_cat_research'); },
+  get 'writing'() { return t('aide.skl_cat_writing'); },
+  get 'marketing-content'() { return t('aide.skl_cat_marketing_content'); },
+  get 'communication'() { return t('aide.skl_cat_communication'); },
+  get 'creativity'() { return t('aide.skl_cat_creativity'); },
+  get 'design-ux'() { return t('aide.skl_cat_design_ux'); },
+  get 'decision'() { return t('aide.skl_cat_decision'); },
+  get 'learning'() { return t('aide.skl_cat_learning'); },
+  get 'productivity'() { return t('aide.skl_cat_productivity'); },
+  get 'life-health'() { return t('aide.skl_cat_life_health'); },
+  get 'personal-finance'() { return t('aide.skl_cat_personal_finance'); },
+  get 'career-business'() { return t('aide.skl_cat_career_business'); },
+  get 'custom'() { return t('aide.skl_cat_custom'); },
 };
 const _CAT_ORDER = [
   'ai-prompting', 'coding', 'devops-git', 'testing-debugging', 'data-sql', 'utilities',
@@ -64,9 +78,9 @@ export function initSkills(fetcher = fetch) {
     body.innerHTML = `
       <div class="skills2">
         <div class="skl-head">
-          <input id="skl-search" aria-label="search skills" class="settings-input skl-search" placeholder="search skills…">
-          <button class="btn" id="skl-match">${_si('search')} what aide picks</button>
-          <button class="btn primary" id="skl-new">+ new</button>
+          <input id="skl-search" aria-label="${esc(t('aide.skl_search'))}" class="settings-input skl-search" placeholder="${esc(t('aide.skl_search_placeholder'))}">
+          <button class="btn" id="skl-match">${_si('search')} ${esc(t('aide.skl_what_aide_picks'))}</button>
+          <button class="btn primary" id="skl-new">${esc(t('aide.skl_new'))}</button>
         </div>
         <div class="skl-body">
           <nav class="skl-rail" id="skl-rail"></nav>
@@ -74,8 +88,8 @@ export function initSkills(fetcher = fetch) {
         </div>
         <div id="skl-drawer-host"></div>
       </div>`;
-    let t;
-    $('skl-search').oninput = e => { clearTimeout(t); t = setTimeout(() => { _state.q = e.target.value.trim(); _render(); }, 200); };
+    let searchTimer;
+    $('skl-search').oninput = e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { _state.q = e.target.value.trim(); _render(); }, 200); };
     $('skl-new').onclick = () => _openDrawer(null);
     $('skl-match').onclick = () => _openMatch();
     // rail clicks (delegated): category select + library/github/upload actions
@@ -101,7 +115,7 @@ async function _refresh(fetcher = fetch, { keepGrid = false } = {}) {
   if (_state.mode === 'library') return _browseSource(_state.source || 'builtin');
   const read = ++_listRead;
   const grid = $('skl-grid');
-  if (grid && !keepGrid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
+  if (grid && !keepGrid) grid.innerHTML = `<div class="skl-empty">${esc(t('aide.loading'))}</div>`;
   try {
     const data = await _api('/api/skills', undefined, fetcher);
     if (read !== _listRead) return;
@@ -109,7 +123,7 @@ async function _refresh(fetcher = fetch, { keepGrid = false } = {}) {
   }
   catch (error) {
     if (read !== _listRead) return;
-    if (grid && !keepGrid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">failed to load</div>';
+    if (grid && !keepGrid) grid.innerHTML = `<div class="skl-empty" style="color:var(--error)">${esc(t('aide.skl_load_failed'))}</div>`;
     throw error;
   }
   _render();
@@ -169,10 +183,10 @@ function _renderRail() {
         ? `<button class="skl-rail-cat${_state.libCat === key ? ' active' : ''}" data-libcat="${key}">
              <span class="skl-rail-label">${esc(label)}</span><span class="skl-rail-count">${counts[key]}</span>
            </button>` : '';
-      html += '<div class="skl-rail-sub">filter</div>';
-      html += lrow('all', 'all');
+      html += `<div class="skl-rail-sub">${esc(t('aide.skl_filter'))}</div>`;
+      html += lrow('all', t('aide.skl_all'));
       for (const k of _CAT_ORDER) if (k !== 'custom') html += lrow(k, _CAT_LABEL[k]);
-      html += lrow('custom', 'custom');
+      html += lrow('custom', _CAT_LABEL.custom);
     }
   } else {
     const counts = _catCounts(_data);
@@ -180,19 +194,19 @@ function _renderRail() {
       ? `<button class="skl-rail-cat${!_state.q && _state.cat === key ? ' active' : ''}" data-cat="${key}" aria-pressed="${!_state.q && _state.cat === key}">
            <span class="skl-rail-label">${esc(label)}</span><span class="skl-rail-count">${counts[key]}</span>
          </button>` : '';
-    if (_state.q) html += `<div class="skl-rail-results">results · ${_visible().length}</div>`;
-    html += row('start', 'start here');
-    if (counts.pinned) html += row('pinned', 'pinned');
-    html += row('all', 'all');
+    if (_state.q) html += `<div class="skl-rail-results">${esc(t('aide.skl_results', { count: _visible().length }))}</div>`;
+    html += row('start', t('aide.skl_start_here'));
+    if (counts.pinned) html += row('pinned', t('aide.skl_pinned'));
+    html += row('all', t('aide.skl_all'));
     if (!['start', 'pinned', 'custom'].includes(_state.cat)) {
       for (const k of _CAT_ORDER) if (k !== 'custom') html += row(k, _CAT_LABEL[k]);
     }
-    html += row('custom', 'custom');
+    html += row('custom', _CAT_LABEL.custom);
   }
   html += `<div class="skl-rail-foot">
-      <button class="skl-rail-act${_state.mode === 'library' ? ' active' : ''}" data-act="library">${_si('plus')} library</button>
-      <button class="skl-rail-act" data-act="github">${_si('download')} from github</button>
-      <button class="skl-rail-act" data-act="upload">${_si('upload')} upload</button>
+      <button class="skl-rail-act${_state.mode === 'library' ? ' active' : ''}" data-act="library">${_si('plus')} ${esc(t('aide.skl_library'))}</button>
+      <button class="skl-rail-act" data-act="github">${_si('download')} ${esc(t('aide.skl_from_github'))}</button>
+      <button class="skl-rail-act" data-act="upload">${_si('upload')} ${esc(t('aide.skl_upload'))}</button>
     </div>
     <input type="file" id="skl-file" accept=".md,.markdown,.txt" multiple style="display:none">`;
   rail.innerHTML = html;
@@ -211,13 +225,13 @@ function _renderGrid(list) {
   const value = card?.dataset[key];
   const action = focused?.dataset.act;
   if (!list.length) {
-    grid.innerHTML = `<div class="skl-empty">${_state.q ? 'no matches' : _state.mode === 'installed' && _state.cat === 'start' ? 'no starting skills here. choose all, search, or create a skill.' : 'nothing here'}</div>`;
+    grid.innerHTML = `<div class="skl-empty">${esc(_state.q ? t('aide.skl_no_matches') : _state.mode === 'installed' && _state.cat === 'start' ? t('aide.skl_no_starting') : t('aide.skl_nothing_here'))}</div>`;
   } else if (_state.mode === 'library') {
     grid.innerHTML = list.map(_state.source === 'builtin' ? _libCard : _srcCard).join('');
   } else {
     const sorted = [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
     // explain the order, but only on the plain installed grid (not while searching)
-    const hint = _state.q ? '' : `<div class="skl-rankhint">${_state.cat === 'start' ? 'common tasks, plus your pinned and custom skills. search covers all skills.' : 'ranked by usefulness - pinned first, then most-used, then recent'}</div>`;
+    const hint = _state.q ? '' : `<div class="skl-rankhint">${esc(_state.cat === 'start' ? t('aide.skl_hint_start') : t('aide.skl_hint_ranked'))}</div>`;
     grid.innerHTML = hint + sorted.map(_card).join('');
   }
   _bindCards(grid);
@@ -231,32 +245,32 @@ function _renderGrid(list) {
 function _ago(epoch) {
   if (!epoch) return '';
   const s = Math.max(0, Math.floor(Date.now() / 1000 - epoch));
-  if (s < 60) return 'just now';
-  const m = Math.floor(s / 60); if (m < 60) return m + 'm';
-  const h = Math.floor(m / 60); if (h < 24) return h + 'h';
-  const d = Math.floor(h / 24); if (d < 7) return d + 'd';
-  const w = Math.floor(d / 7); if (w < 5) return w + 'w';
-  const mo = Math.floor(d / 30); if (mo < 12) return mo + 'mo';
-  return Math.floor(d / 365) + 'y';
+  if (s < 60) return t('aide.run_just_now');
+  const m = Math.floor(s / 60); if (m < 60) return t('aide.skl_ago_m', { count: m });
+  const h = Math.floor(m / 60); if (h < 24) return t('aide.skl_ago_h', { count: h });
+  const d = Math.floor(h / 24); if (d < 7) return t('aide.skl_ago_d', { count: d });
+  const w = Math.floor(d / 7); if (w < 5) return t('aide.skl_ago_w', { count: w });
+  const mo = Math.floor(d / 30); if (mo < 12) return t('aide.skl_ago_mo', { count: mo });
+  return t('aide.skl_ago_y', { count: Math.floor(d / 365) });
 }
 
 function _card(s) {
   const badges = [
-    s.uses ? `<span class="skl-badge" title="loaded ${s.uses}×">${s.uses}×</span>` : '',
-    s.last_used ? `<span class="skl-badge muted" title="last used">${_ago(s.last_used)}</span>` : '',
-    s.source ? '<span class="skl-badge git" title="git-backed">git</span>' : '',
+    s.uses ? `<span class="skl-badge" title="${esc(t('aide.skl_loaded_times', { count: s.uses }))}">${s.uses}×</span>` : '',
+    s.last_used ? `<span class="skl-badge muted" title="${esc(t('aide.skl_last_used'))}">${_ago(s.last_used)}</span>` : '',
+    s.source ? `<span class="skl-badge git" title="${esc(t('aide.skl_git_backed'))}">git</span>` : '',
   ].join('');
   const acts = `<div class="skl-card-acts">
-         <button class="skl-pin${s.pinned ? ' on' : ''}" data-act="pin" aria-label="pin ${esc(s.name)}" aria-pressed="${!!s.pinned}" aria-disabled="${_pinning.has(s.slug)}"${_pinning.has(s.slug) ? ' aria-busy="true"' : ''} title="${s.pinned ? 'unpin' : 'pin to top'}">pin</button>
-         <button class="skl-del-q" data-act="del" aria-label="delete skill ${esc(s.name)}" title="delete">delete</button>
+         <button class="skl-pin${s.pinned ? ' on' : ''}" data-act="pin" aria-label="${esc(t('aide.skl_pin_named', { name: s.name }))}" aria-pressed="${!!s.pinned}" aria-disabled="${_pinning.has(s.slug)}"${_pinning.has(s.slug) ? ' aria-busy="true"' : ''} title="${esc(s.pinned ? t('aide.skl_unpin') : t('aide.skl_pin_to_top'))}">${esc(t('aide.skl_pin'))}</button>
+         <button class="skl-del-q" data-act="del" aria-label="${esc(t('aide.skl_delete_named', { name: s.name }))}" title="${esc(t('common.delete'))}">${esc(t('common.delete'))}</button>
        </div>`;
   return `
     <div class="skl-card${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
       <div class="skl-card-top">
-        <button type="button" class="skl-card-name" aria-label="open ${esc(s.name)}">${esc(s.name)}</button>
+        <button type="button" class="skl-card-name" aria-label="${esc(t('aide.skl_open_named', { name: s.name }))}">${esc(s.name)}</button>
         ${badges}
       </div>
-      <div class="skl-card-desc">${esc(s.description) || '<em>no description</em>'}</div>
+      <div class="skl-card-desc">${esc(s.description) || `<em>${esc(t('aide.skl_no_description'))}</em>`}</div>
       ${acts}
     </div>`;
 }
@@ -289,7 +303,7 @@ async function _togglePin(slug, pinned, trigger) {
     });
     saved = true;
     if (_state.mode === 'installed') await _refresh(fetch, { keepGrid: true });
-  } catch { toast(saved ? 'pin saved, but the list could not refresh. reopen skills.' : 'pin not confirmed. try again.', 'error'); }
+  } catch { toast(saved ? t('aide.skl_pin_saved_stale') : t('aide.skl_pin_unconfirmed'), 'error'); }
   finally {
     _pinning.delete(slug);
     const current = document.querySelector(`.skl-card[data-slug="${CSS.escape(slug)}"] .skl-pin`);
@@ -299,13 +313,13 @@ async function _togglePin(slug, pinned, trigger) {
 }
 
 async function _deleteCard(slug) {
-  if (!await dlgConfirm('delete this skill?')) return;
+  if (!await dlgConfirm(t('aide.skl_delete_confirm'))) return;
   try {
     await _api(`/api/skills/${encodeURIComponent(slug)}`, { method: 'DELETE' });
-    toast('skill deleted', 'success');
+    toast(t('aide.skl_deleted'), 'success');
     if (_cur === slug) _closeDrawer(true);
     await _refresh();
-  } catch { toast('delete failed', 'error'); }
+  } catch { toast(t('aide.skl_delete_failed'), 'error'); }
 }
 
 // ── library mode ────────────────────────────────────────────────────────────
@@ -319,7 +333,7 @@ async function _toggleLibrary() {
   _state.mode = 'library'; _state.q = '';
   if ($('skl-search')) $('skl-search').value = '';
   try { _sources = await _api('/api/skills/sources'); }
-  catch { _sources = [{ id: 'builtin', name: 'built-in', kind: 'builtin', count: 0 }]; }
+  catch { _sources = [{ id: 'builtin', name: t('aide.skl_builtin'), kind: 'builtin', count: 0 }]; }
   _browseSource('builtin');
 }
 
@@ -329,10 +343,10 @@ async function _browseSource(id) {
   _state.libCat = 'all';   // switching sources / re-entering library clears the sub-filter
   _renderRail();
   const grid = $('skl-grid');
-  if (grid) grid.innerHTML = '<div class="skl-empty">loading…</div>';
+  if (grid) grid.innerHTML = `<div class="skl-empty">${esc(t('aide.loading'))}</div>`;
   let data;
   try { data = await _api(`/api/skills/sources/${encodeURIComponent(id)}/browse`); }
-  catch { if (read === _listRead && grid) grid.innerHTML = '<div class="skl-empty" style="color:var(--error)">couldn\'t reach this source</div>'; return; }
+  catch { if (read === _listRead && grid) grid.innerHTML = `<div class="skl-empty" style="color:var(--error)">${esc(t('aide.skl_source_unreachable'))}</div>`; return; }
   if (read !== _listRead) return;
   _data = data.skills || [];
   _render();
@@ -340,25 +354,25 @@ async function _browseSource(id) {
 
 const _libCard = s => `
   <div class="skl-card" data-slug="${esc(s.slug)}" data-kind="builtin">
-    <div class="skl-card-top"><button type="button" class="skl-card-name" aria-label="open ${esc(s.name)}">${esc(s.name)}</button></div>
+    <div class="skl-card-top"><button type="button" class="skl-card-name" aria-label="${esc(t('aide.skl_open_named', { name: s.name }))}">${esc(s.name)}</button></div>
     <div class="skl-card-desc">${esc(s.description) || ''}</div>
-    ${s.installed ? `<span class="skl-added">${_si('check')} added</span>` : `<button class="skl-add" data-act="add">${_si('plus')} add</button>`}
+    ${s.installed ? `<span class="skl-added">${_si('check')} ${esc(t('aide.skl_added'))}</span>` : `<button class="skl-add" data-act="add">${_si('plus')} ${esc(t('aide.skl_add'))}</button>`}
   </div>`;
 
 const _srcCard = s => `
   <div class="skl-card" data-path="${esc(s.path)}" data-url="${esc(s.import_url)}" data-kind="github">
-    <div class="skl-card-top"><button type="button" class="skl-card-name" aria-label="open ${esc(s.name)}">${esc(s.name)}</button></div>
+    <div class="skl-card-top"><button type="button" class="skl-card-name" aria-label="${esc(t('aide.skl_open_named', { name: s.name }))}">${esc(s.name)}</button></div>
     ${s.dir ? `<div class="skl-card-desc skl-card-dir">${esc(s.dir)}</div>` : ''}
-    ${s.installed ? `<span class="skl-added">${_si('check')} added</span>` : `<button class="skl-add" data-act="add">${_si('plus')} add</button>`}
+    ${s.installed ? `<span class="skl-added">${_si('check')} ${esc(t('aide.skl_added'))}</span>` : `<button class="skl-add" data-act="add">${_si('plus')} ${esc(t('aide.skl_add'))}</button>`}
   </div>`;
 
 async function _addFromLibrary(c) {
   if (c.dataset.kind === 'builtin') { await _install([c.dataset.slug]); return; }
   try {
     await _api('/api/skills/import-github', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: c.dataset.url }) });
-    toast('added', 'success');
+    toast(t('aide.skl_added'), 'success');
     _browseSource(_state.source);
-  } catch { toast('add failed', 'error'); }
+  } catch { toast(t('aide.skl_add_failed'), 'error'); }
 }
 
 function _previewLibrary(c, source) {
@@ -375,7 +389,7 @@ function _previewLibrary(c, source) {
         _openPreview(s, { builtin: false, url: c.dataset.url }, source);
       }
     })
-    .catch(() => toast("couldn't fetch skill", 'error'));
+    .catch(() => toast(t('aide.skl_fetch_failed'), 'error'));
 }
 
 function _openPreview(s, opts, source) {
@@ -383,15 +397,15 @@ function _openPreview(s, opts, source) {
   const host = $('skl-drawer-host');
   if (!host) return;
   const addCtl = opts.installed
-    ? `<span class="skl-added">${_si('check')} added</span>`
-    : '<button class="btn primary" id="skl-pv-add">+ add</button>';
-  const srcLink = (s.source_url && /^https?:\/\//i.test(s.source_url)) ? `<a class="skl-pv-src" href="${esc(s.source_url)}" target="_blank" rel="noopener">view source</a>` : '';
+    ? `<span class="skl-added">${_si('check')} ${esc(t('aide.skl_added'))}</span>`
+    : `<button class="btn primary" id="skl-pv-add">${esc(t('aide.skl_plus_add'))}</button>`;
+  const srcLink = (s.source_url && /^https?:\/\//i.test(s.source_url)) ? `<a class="skl-pv-src" href="${esc(s.source_url)}" target="_blank" rel="noopener">${esc(t('aide.skl_view_source'))}</a>` : '';
   host.innerHTML = `
     <div class="skl-drawer-backdrop open" id="skl-drawer-bd"></div>
     <aside class="skl-drawer open" id="skl-drawer" role="dialog" aria-labelledby="skl-d-heading">
-      <div class="skl-drawer-head"><span id="skl-d-heading">${esc(s.name)}</span><button type="button" class="skl-drawer-x" id="skl-d-close" aria-label="close" data-kokuen-icon="close">✕</button></div>
+      <div class="skl-drawer-head"><span id="skl-d-heading">${esc(s.name)}</span><button type="button" class="skl-drawer-x" id="skl-d-close" aria-label="${esc(t('common.close'))}" data-kokuen-icon="close">✕</button></div>
       <div class="skl-drawer-body">
-        ${s.when_to_use ? `<div class="skl-pv-when"><b>when:</b> ${esc(s.when_to_use)}</div>` : ''}
+        ${s.when_to_use ? `<div class="skl-pv-when"><b>${esc(t('aide.skl_when'))}</b> ${esc(s.when_to_use)}</div>` : ''}
         ${s.description ? `<div class="skl-pv-desc">${esc(s.description)}</div>` : ''}
         <pre class="skl-pv-body">${esc(s.body || '')}</pre>
         <div class="skl-drawer-acts">${addCtl}${srcLink}</div>
@@ -406,8 +420,8 @@ function _openPreview(s, opts, source) {
     add.disabled = true;
     if (opts.builtin) { await _install([opts.slug]); }
     else {
-      try { await _api('/api/skills/import-github', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: opts.url }) }); toast('added', 'success'); }
-      catch { toast('add failed', 'error'); add.disabled = false; return; }
+      try { await _api('/api/skills/import-github', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: opts.url }) }); toast(t('aide.skl_added'), 'success'); }
+      catch { toast(t('aide.skl_add_failed'), 'error'); add.disabled = false; return; }
     }
     _closeDrawer();
     _browseSource(_state.source);
@@ -425,20 +439,20 @@ function _openMatch() {
   host.innerHTML = `
     <div class="skl-drawer-backdrop open" id="skl-drawer-bd"></div>
     <aside class="skl-drawer open" id="skl-drawer" role="dialog" aria-labelledby="skl-d-heading">
-      <div class="skl-drawer-head"><span id="skl-d-heading">what would aide load?</span><button type="button" class="skl-drawer-x" id="skl-d-close" aria-label="close" data-kokuen-icon="close">✕</button></div>
+      <div class="skl-drawer-head"><span id="skl-d-heading">${esc(t('aide.skl_what_load'))}</span><button type="button" class="skl-drawer-x" id="skl-d-close" aria-label="${esc(t('common.close'))}" data-kokuen-icon="close">✕</button></div>
       <div class="skl-drawer-body">
-        <input id="skl-match-q" aria-label="describe a task" class="settings-input" placeholder="describe a task…">
-        <div id="skl-match-results" class="skl-match-results"><div class="skl-match-hint">type a task to see which skills rank</div></div>
+        <input id="skl-match-q" aria-label="${esc(t('aide.skl_describe_task'))}" class="settings-input" placeholder="${esc(t('aide.skl_describe_task_placeholder'))}">
+        <div id="skl-match-results" class="skl-match-results"><div class="skl-match-hint">${esc(t('aide.skl_type_task'))}</div></div>
       </div>
     </aside>`;
   $('skl-d-close').onclick = _closeDrawer;
   $('skl-drawer-bd').onclick = _closeDrawer;
 
   const inp = $('skl-match-q');
-  let t;
+  let matchTimer;
   const go = () => _runMatch(inp.value.trim());
-  inp.oninput = () => { clearTimeout(t); t = setTimeout(go, 250); };
-  inp.onkeydown = e => { if (e.key === 'Enter') { clearTimeout(t); go(); } };
+  inp.oninput = () => { clearTimeout(matchTimer); matchTimer = setTimeout(go, 250); };
+  inp.onkeydown = e => { if (e.key === 'Enter') { clearTimeout(matchTimer); go(); } };
   _activateDrawer(source, inp);
 }
 
@@ -446,17 +460,17 @@ async function _runMatch(q) {
   const seq = ++_matchSeq;  // claim this generation; bail later if a newer call superseded us
   const box = $('skl-match-results');
   if (!box) return;
-  if (!q) { box.innerHTML = '<div class="skl-match-hint">type a task to see which skills rank</div>'; return; }
+  if (!q) { box.innerHTML = `<div class="skl-match-hint">${esc(t('aide.skl_type_task'))}</div>`; return; }
   let data;
   try { data = await _api(`/api/skills/match?q=${encodeURIComponent(q)}&k=8`); }
-  catch { if (seq === _matchSeq) box.innerHTML = '<div class="skl-match-hint" style="color:var(--error)">match failed</div>'; return; }
+  catch { if (seq === _matchSeq) box.innerHTML = `<div class="skl-match-hint" style="color:var(--error)">${esc(t('aide.skl_match_failed'))}</div>`; return; }
   if (seq !== _matchSeq) return;  // a newer query landed while we were waiting, drop this
   const matches = data.matches || [];
-  if (!matches.length) { box.innerHTML = '<div class="skl-match-hint">no skill matches that yet</div>'; return; }
+  if (!matches.length) { box.innerHTML = `<div class="skl-match-hint">${esc(t('aide.skl_no_match_yet'))}</div>`; return; }
   const top = matches[0].score || 1;
   box.innerHTML = matches.map((m, i) => {
     const w = Math.max(2, Math.round((m.score / top) * 100));
-    const tag = i === 0 ? '<span class="skl-match-auto">auto-loaded</span>' : '';
+    const tag = i === 0 ? `<span class="skl-match-auto">${esc(t('aide.skl_auto_loaded'))}</span>` : '';
     return `
       <div class="skl-match-row${i === 0 ? ' top' : ''}">
         <div class="skl-match-top">
@@ -473,21 +487,21 @@ async function _install(slugs) {
   if (!slugs.length) return;
   try {
     const r = await _api('/api/skills/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slugs }) });
-    toast(`added ${r.installed} skill${r.installed === 1 ? '' : 's'}`, 'success');
+    toast(tp('aide.skl_added_count', r.installed), 'success');
     await _refresh();
-  } catch { toast('install failed', 'error'); }
+  } catch { toast(t('aide.skl_install_failed'), 'error'); }
 }
 
 async function _importGithub() {
-  const url = await dlgPrompt('', '', { title: 'add a skill', label: 'github repo, folder or SKILL.md url', confirmLabel: 'add' });
+  const url = await dlgPrompt('', '', { title: t('aide.skl_add_title'), label: t('aide.skl_github_label'), confirmLabel: t('aide.skl_add') });
   if (!url || !url.trim()) return;
-  toast('fetching from github…');
+  toast(t('aide.skl_fetching'));
   try {
     const r = await _api('/api/skills/import-github', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: url.trim() }) });
     const n = r.imported.length;
-    toast(`imported ${n} skill${n === 1 ? '' : 's'}${r.failed ? `, ${r.failed} failed` : ''}`, n ? 'success' : 'error');
+    toast(`${tp('aide.skl_imported', n)}${r.failed ? t('aide.skl_failed_suffix', { count: r.failed }) : ''}`, n ? 'success' : 'error');
     _refresh();
-  } catch (e) { toast('github import failed: ' + e.message, 'error'); }
+  } catch (e) { toast(t('aide.skl_github_failed', { message: e.message }), 'error'); }
 }
 
 async function _uploadFiles(e) {
@@ -498,9 +512,9 @@ async function _uploadFiles(e) {
   try {
     const r = await _api('/api/skills/upload', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items }) });
     const n = r.imported.length;
-    toast(`uploaded ${n} skill${n === 1 ? '' : 's'}${r.failed ? `, ${r.failed} skipped` : ''}`, n ? 'success' : 'error');
+    toast(`${tp('aide.skl_uploaded', n)}${r.failed ? t('aide.skl_skipped_suffix', { count: r.failed }) : ''}`, n ? 'success' : 'error');
     _refresh();
-  } catch (e) { toast('upload failed: ' + e.message, 'error'); }
+  } catch (e) { toast(t('aide.skl_upload_failed', { message: e.message }), 'error'); }
 }
 
 // ── editor drawer ───────────────────────────────────────────────────────────
@@ -509,19 +523,19 @@ function _drawerHtml() {
     <div class="skl-drawer-backdrop" id="skl-drawer-bd"></div>
     <aside class="skl-drawer" id="skl-drawer" role="dialog" aria-labelledby="skl-d-heading" hidden inert>
       <div class="skl-drawer-head">
-        <span id="skl-d-heading">new skill</span>
-        <button type="button" class="skl-drawer-x" id="skl-d-close" aria-label="close" data-kokuen-icon="close">✕</button>
+        <span id="skl-d-heading">${esc(t('aide.skl_new_skill'))}</span>
+        <button type="button" class="skl-drawer-x" id="skl-d-close" aria-label="${esc(t('common.close'))}" data-kokuen-icon="close">✕</button>
       </div>
       <div class="skl-drawer-body">
-        <div class="s-field"><label for="skl-d-name">name</label><input id="skl-d-name" class="settings-input" placeholder="e.g. PDF form filler"></div>
-        <div class="s-field"><label for="skl-d-desc">description</label><input id="skl-d-desc" class="settings-input" placeholder="one line: what it does"></div>
-        <div class="s-field"><label for="skl-d-when">when to use</label><input id="skl-d-when" class="settings-input" placeholder="the trigger"></div>
-        <div class="s-field"><label for="skl-d-body">procedure (markdown)</label><textarea id="skl-d-body" class="settings-textarea" rows="14"></textarea></div>
+        <div class="s-field"><label for="skl-d-name">${esc(t('aide.skl_f_name'))}</label><input id="skl-d-name" class="settings-input" placeholder="${esc(t('aide.skl_f_name_ph'))}"></div>
+        <div class="s-field"><label for="skl-d-desc">${esc(t('aide.skl_f_desc'))}</label><input id="skl-d-desc" class="settings-input" placeholder="${esc(t('aide.skl_f_desc_ph'))}"></div>
+        <div class="s-field"><label for="skl-d-when">${esc(t('aide.skl_f_when'))}</label><input id="skl-d-when" class="settings-input" placeholder="${esc(t('aide.skl_f_when_ph'))}"></div>
+        <div class="s-field"><label for="skl-d-body">${esc(t('aide.skl_f_body'))}</label><textarea id="skl-d-body" class="settings-textarea" rows="14"></textarea></div>
         <div class="skl-drawer-acts">
-          <button class="btn primary" id="skl-d-save">save</button>
-          <button class="btn" id="skl-d-export" hidden>export</button>
-          <button class="btn" id="skl-d-update" hidden>update</button>
-          <button class="btn danger" id="skl-d-del" hidden>delete</button>
+          <button class="btn primary" id="skl-d-save">${esc(t('common.save'))}</button>
+          <button class="btn" id="skl-d-export" hidden>${esc(t('aide.skl_export'))}</button>
+          <button class="btn" id="skl-d-update" hidden>${esc(t('aide.skl_update'))}</button>
+          <button class="btn danger" id="skl-d-del" hidden>${esc(t('common.delete'))}</button>
           <span id="skl-d-status" class="skl-status"></span>
         </div>
         <div id="skl-d-source" class="skl-source" hidden></div>
@@ -545,11 +559,11 @@ async function _openDrawer(slug, source = document.activeElement) {
   let s = { name: '', description: '', when_to_use: '', body: '', source: '' };
   if (slug) {
     try { s = await _api(`/api/skills/${encodeURIComponent(slug)}`); }
-    catch { toast('failed to open skill', 'error'); return; }
+    catch { toast(t('aide.skl_open_failed'), 'error'); return; }
   }
   if (read !== _drawerRead || !source?.isConnected || document.activeElement !== source) return;
   _cur = slug || null;
-  $('skl-d-heading').textContent = slug ? 'edit skill' : 'new skill';
+  $('skl-d-heading').textContent = slug ? t('aide.skl_edit_skill') : t('aide.skl_new_skill');
   $('skl-d-name').value = s.name || '';
   $('skl-d-desc').value = s.description || '';
   $('skl-d-when').value = s.when_to_use || '';
@@ -561,8 +575,8 @@ async function _openDrawer(slug, source = document.activeElement) {
     $('skl-d-update').hidden = false; $('skl-d-source').hidden = false;
     // a source from a shared SKILL.md is only a link when it is a web address
     $('skl-d-source').innerHTML = /^https?:\/\//i.test(String(s.source || ''))
-      ? `git-backed · <a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.source)}</a>`
-      : `git-backed · ${esc(s.source)}`;
+      ? `${esc(t('aide.skl_git_backed'))} · <a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.source)}</a>`
+      : `${esc(t('aide.skl_git_backed'))} · ${esc(s.source)}`;
   } else { $('skl-d-update').hidden = true; $('skl-d-source').hidden = true; }
   $('skl-drawer').classList.add('open');
   $('skl-drawer-bd').classList.add('open');
@@ -608,7 +622,7 @@ async function _save() {
   const read = _drawerRead;
   const slug = _cur;
   const name = $('skl-d-name').value.trim();
-  if (!name) { toast('give the skill a name', 'error'); return; }
+  if (!name) { toast(t('aide.skl_needs_name'), 'error'); return; }
   const payload = { name, description: $('skl-d-desc').value.trim(), when_to_use: $('skl-d-when').value.trim(), body: $('skl-d-body').value };
   const button = $('skl-d-save');
   const saveRead = ++_saveRead;
@@ -620,24 +634,24 @@ async function _save() {
     const res = slug
       ? await _api(`/api/skills/${encodeURIComponent(slug)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
       : await _api('/api/skills', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!res?.slug) throw new Error('save was not confirmed. reopen skills to check');
+    if (!res?.slug) throw new Error(t('aide.skl_save_unconfirmed'));
     saved = true;
     const current = read === _drawerRead && drawer === $('skl-drawer');
     if (current) {
       _cur = res.slug;
       $('skl-d-del').hidden = false; $('skl-d-export').hidden = false;
-      $('skl-d-heading').textContent = 'edit skill';
+      $('skl-d-heading').textContent = t('aide.skl_edit_skill');
       const unchanged = name === $('skl-d-name').value.trim() && payload.description === $('skl-d-desc').value.trim()
         && payload.when_to_use === $('skl-d-when').value.trim() && payload.body === $('skl-d-body').value;
       const status = $('skl-d-status');
-      status.textContent = unchanged ? 'saved' : 'newer edits not saved';
+      status.textContent = unchanged ? t('models.saved') : t('aide.skl_newer_edits');
       if (unchanged) setTimeout(() => {
         if (read === _drawerRead && saveRead === _saveRead && drawer === $('skl-drawer')) status.textContent = '';
       }, 1500);
     }
-    toast(current ? 'skill saved' : `${name} saved`, 'success');
+    toast(current ? t('aide.skl_saved') : t('aide.skl_named_saved', { name }), 'success');
     await _refresh();
-  } catch (e) { toast(saved ? 'skill saved, but the list could not refresh. reopen skills' : 'save failed: ' + e.message, 'error'); }
+  } catch (e) { toast(saved ? t('aide.skl_saved_stale') : t('aide.skl_save_failed', { message: e.message }), 'error'); }
   finally {
     _savingDrawers.delete(drawer);
     button.removeAttribute('aria-disabled');
@@ -647,13 +661,13 @@ async function _save() {
 
 async function _delete() {
   if (!_cur) return;
-  if (!await dlgConfirm('delete this skill?')) return;
+  if (!await dlgConfirm(t('aide.skl_delete_confirm'))) return;
   try {
     await _api(`/api/skills/${encodeURIComponent(_cur)}`, { method: 'DELETE' });
-    toast('skill deleted', 'success');
+    toast(t('aide.skl_deleted'), 'success');
     _closeDrawer(true);
     await _refresh();
-  } catch { toast('delete failed', 'error'); }
+  } catch { toast(t('aide.skl_delete_failed'), 'error'); }
 }
 
 function _export() {
@@ -666,10 +680,10 @@ function _export() {
 
 async function _update() {
   if (!_cur) return;
-  toast('updating from source…');
+  toast(t('aide.skl_updating'));
   try {
     const r = await _api(`/api/skills/${encodeURIComponent(_cur)}/update`, { method: 'POST' });
-    toast(r.updated ? 'updated from source' : 'no source to update from', r.updated ? 'success' : '');
+    toast(r.updated ? t('aide.skl_updated') : t('aide.skl_no_source'), r.updated ? 'success' : '');
     if (r.updated) { _openDrawer(_cur); await _refresh(); }
-  } catch (e) { toast('update failed: ' + e.message, 'error'); }
+  } catch (e) { toast(t('aide.skl_update_failed', { message: e.message }), 'error'); }
 }

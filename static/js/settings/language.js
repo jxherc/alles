@@ -1,6 +1,6 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
-import { formatDateForLocale, formatTimeForLocale, prepareLocalization, t } from '../i18n.js';
+import { formatDateForLocale, formatTimeForLocale, prepareLocalization, regionName, t } from '../i18n.js';
 
 // ── Phase 10 locale Settings ─────────────────────────────────────────────────
 const LOCALE_FALLBACK_OPTIONS = {
@@ -61,9 +61,14 @@ function _localeChoiceOptions(name) {
   return _localeOptions[optionKey] || [];
 }
 
+function _optionText(name, item) {
+  return name === 'region' && item.value ? regionName(item.value, item.label) : item.label;
+}
+
 function _localeChoiceLabel(name, value) {
   if (!value) return t('common.automatic');
-  return _localeChoiceOptions(name).find(item => item.value === value)?.label || value;
+  const item = _localeChoiceOptions(name).find(option => option.value === value);
+  return item ? _optionText(name, item) : value;
 }
 
 function _renderLocaleChoiceMenu(name) {
@@ -79,7 +84,7 @@ function _renderLocaleChoiceMenu(name) {
     button.setAttribute('aria-selected', String(item.value === value));
     button.tabIndex = item.value === value ? 0 : -1;
     button.dataset.value = item.value;
-    button.textContent = item.value ? item.label : t('common.automatic');
+    button.textContent = item.value ? _optionText(name, item) : t('common.automatic');
     return button;
   }));
 }

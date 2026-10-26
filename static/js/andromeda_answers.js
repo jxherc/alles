@@ -1,8 +1,8 @@
 // Answer cards and tools above Andromeda's results. The server picks the card and its data;
 // this draws it and runs it in place. Every value is set as text, never as markup.
 // A tool asked for by name opens empty; a query that carries its input answers right away.
-import { formatCalendarDate, formatDate, formatNumber, formatTime } from './i18n.js';
-import { wireAutosizeTextarea } from './text_entry.js';
+import { formatCalendarDate, formatDate, formatNumber, formatTime, t, tp } from './i18n.js';
+import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import {
   ICON_COPY, ICON_SPEAK, ICON_SWAP, button, calcTool, canSpeak, choices, clockTool, colorTool, copyText,
   heading, iconButton, lookup, make, note, picker, randomTool, speak, statusLine, timeTool, timerTool, unitsTool,
@@ -22,7 +22,7 @@ function unavailable(title, message, retry) {
   const parts = [heading(title), make('p', 'andromeda-answer-detail', message)];
   if (retry) {
     const actions = make('div', 'andromeda-tool-actions');
-    actions.append(button('try again', { onClick: retry }));
+    actions.append(button(t('andromeda.ans_try_again'), { onClick: retry }));
     parts.push(actions);
   }
   return parts;
@@ -35,6 +35,35 @@ const LANG_CODES = {
   vietnamese: 'vi', cantonese: 'yue', persian: 'fa',
 };
 
+const LANG_LABELS = () => ({
+  arabic: t('andromeda.lang_arabic'),
+  chinese: t('andromeda.lang_chinese'),
+  dutch: t('andromeda.lang_dutch'),
+  english: t('andromeda.lang_english'),
+  french: t('andromeda.lang_french'),
+  german: t('andromeda.lang_german'),
+  greek: t('andromeda.lang_greek'),
+  hebrew: t('andromeda.lang_hebrew'),
+  hindi: t('andromeda.lang_hindi'),
+  indonesian: t('andromeda.lang_indonesian'),
+  italian: t('andromeda.lang_italian'),
+  japanese: t('andromeda.lang_japanese'),
+  korean: t('andromeda.lang_korean'),
+  latin: t('andromeda.lang_latin'),
+  polish: t('andromeda.lang_polish'),
+  portuguese: t('andromeda.lang_portuguese'),
+  russian: t('andromeda.lang_russian'),
+  spanish: t('andromeda.lang_spanish'),
+  swedish: t('andromeda.lang_swedish'),
+  thai: t('andromeda.lang_thai'),
+  turkish: t('andromeda.lang_turkish'),
+  ukrainian: t('andromeda.lang_ukrainian'),
+  vietnamese: t('andromeda.lang_vietnamese'),
+  cantonese: t('andromeda.lang_cantonese'),
+  persian: t('andromeda.lang_persian'),
+});
+const langLabel = name => LANG_LABELS()[name] ?? String(name ?? '');
+
 // ── translate ──
 // libretranslate answers in a fraction of a second, so the translation follows the typing
 function translateTool(data, ctx) {
@@ -42,9 +71,9 @@ function translateTool(data, ctx) {
   let from = data.from_detected ? '' : data.from || '';
   let to = data.to || 'english';
   let detected = '';
-  const fromPicker = picker('translate from', [{ value: '', label: 'detect language' }, ...languages.map(value => ({ value, label: value }))], from, value => { from = value; detected = ''; syncSwap(); void run(); });
-  const toPicker = picker('translate to', languages.map(value => ({ value, label: value })), to, value => { to = value; syncSwap(); void run(); });
-  const swap = iconButton('swap languages', ICON_SWAP, () => {
+  const fromPicker = picker(t('andromeda.ans_translate_from'), [{ value: '', label: t('andromeda.ans_detect_language') }, ...languages.map(value => ({ value, label: langLabel(value) }))], from, value => { from = value; detected = ''; syncSwap(); void run(); });
+  const toPicker = picker(t('andromeda.ans_translate_to'), languages.map(value => ({ value, label: langLabel(value) })), to, value => { to = value; syncSwap(); void run(); });
+  const swap = iconButton(t('andromeda.ans_swap_languages'), ICON_SWAP, () => {
     const source = from || detected;
     if (!source) return;
     const moved = output.textContent;
@@ -60,34 +89,34 @@ function translateTool(data, ctx) {
   const syncSwap = () => {
     const blocked = !(from || detected);
     swap.disabled = blocked;
-    swap.title = blocked ? 'pick the source language to swap' : 'swap languages';
+    swap.title = blocked ? t('andromeda.ans_pick_source') : t('andromeda.ans_swap_languages');
   };
   const bar = make('div', 'andromeda-translate-bar');
   bar.append(fromPicker, swap, toPicker);
 
   const panes = make('div', 'andromeda-translate-panes');
   const inputWrap = make('label', 'andromeda-translate-input');
-  inputWrap.append(make('span', 'sr-only', 'text to translate'));
+  inputWrap.append(make('span', 'sr-only', t('andromeda.ans_text_to_translate')));
   const input = make('textarea');
   input.rows = 1;
   input.maxLength = 5000;
-  input.placeholder = 'type to translate';
+  input.placeholder = t('andromeda.ans_type_to_translate');
   input.dataset.kokuenEntry = 'autogrow';
   input.value = data.text || '';
   inputWrap.append(input);
   const out = make('div', 'andromeda-translate-output');
   out.setAttribute('aria-live', 'polite');
   const output = make('p', 'andromeda-translate-text', '');
-  output.dataset.placeholder = 'translation';
+  output.dataset.placeholder = t('andromeda.ans_translation');
   const outputActions = make('div', 'andromeda-translate-tools');
   const status = statusLine();
-  if (canSpeak()) outputActions.append(iconButton('listen', ICON_SPEAK, () => speak(output.textContent, LANG_CODES[to] || 'en')));
-  outputActions.append(iconButton('copy translation', ICON_COPY, () => copyText(output.textContent, status)));
+  if (canSpeak()) outputActions.append(iconButton(t('andromeda.ans_listen'), ICON_SPEAK, () => speak(output.textContent, LANG_CODES[to] || 'en')));
+  outputActions.append(iconButton(t('andromeda.ans_copy_translation'), ICON_COPY, () => copyText(output.textContent, status)));
   outputActions.hidden = true;
   out.append(output, outputActions);
   panes.append(inputWrap, out);
   const credit = note('');
-  const creditFor = language => `${language ? `detected ${language} · ` : ''}libretranslate on your server`;
+  const creditFor = language => (language ? t('andromeda.ans_credit_detected', { language: langLabel(language) }) : t('andromeda.ans_credit'));
   credit.textContent = creditFor('');
   let seq = 0;
   let timer = 0;
@@ -109,7 +138,7 @@ function translateTool(data, ctx) {
       syncSwap();
     } catch (error) {
       if (mine !== seq) return;
-      status.textContent = error.message || 'translation failed';
+      status.textContent = error.message || t('andromeda.ans_translation_failed');
     } finally {
       if (mine === seq) out.removeAttribute('aria-busy');
     }
@@ -120,10 +149,10 @@ function translateTool(data, ctx) {
   });
   ctx.onStop(() => clearTimeout(timer));
   queueMicrotask(() => wireAutosizeTextarea(input));
-  if (data.engine === 'unavailable') status.textContent = 'the translator (libretranslate) isn\'t running on your server';
+  if (data.engine === 'unavailable') status.textContent = t('andromeda.ans_translator_down');
   else if (data.text) queueMicrotask(run);
   syncSwap();
-  return [heading('translate'), bar, panes, status, credit];
+  return [heading(t('andromeda.ans_translate')), bar, panes, status, credit];
 }
 
 // ── dictionary ──
@@ -138,12 +167,12 @@ function wordList(label, words, onPick) {
 
 function defineTool(data, ctx) {
   const look = word => ctx.swap(() => ctx.ask(`define ${word}`, 'define'));
-  const again = lookup('word to look up', 'define', look, { placeholder: data.status === 'ok' ? 'look up another word' : 'look up a word' });
-  if (data.status === 'empty') return [heading('dictionary'), again.form];
-  if (data.status === 'unavailable') return [...unavailable('dictionary', `the dictionary (${data.source || 'wiktionary'}) isn't answering right now.`, () => look(data.word)), again.form];
+  const again = lookup(t('andromeda.ans_word_lookup'), t('andromeda.ans_define'), look, { placeholder: data.status === 'ok' ? t('andromeda.ans_lookup_another') : t('andromeda.ans_lookup_a_word') });
+  if (data.status === 'empty') return [heading(t('andromeda.ans_dictionary')), again.form];
+  if (data.status === 'unavailable') return [...unavailable(t('andromeda.ans_dictionary'), t('andromeda.ans_dictionary_down', { source: data.source || 'wiktionary' }), () => look(data.word)), again.form];
   if (data.status === 'not_found') {
-    const parts = [heading('dictionary'), make('p', 'andromeda-answer-detail', `no definition found for "${data.word}".`)];
-    if (data.suggestions?.length) parts.push(wordList('did you mean', data.suggestions, look));
+    const parts = [heading(t('andromeda.ans_dictionary')), make('p', 'andromeda-answer-detail', t('andromeda.ans_no_definition', { word: data.word }))];
+    if (data.suggestions?.length) parts.push(wordList(t('andromeda.ans_did_you_mean'), data.suggestions, look));
     again.input.value = data.word;
     return [...parts, again.form];
   }
@@ -152,11 +181,11 @@ function defineTool(data, ctx) {
   word.lang = 'en';
   head.append(word);
   if (data.phonetic) head.append(make('span', `andromeda-answer-unit${data.focus === 'pronunciation' ? ' is-focus' : ''}`, data.phonetic));
-  if (canSpeak()) head.append(iconButton(`say ${data.word}`, ICON_SPEAK, () => speak(data.word, 'en')));
-  const parts = [heading('dictionary'), head];
+  if (canSpeak()) head.append(iconButton(t('andromeda.ans_say_word', { word: data.word }), ICON_SPEAK, () => speak(data.word, 'en')));
+  const parts = [heading(t('andromeda.ans_dictionary')), head];
   const related = [];
-  if (data.synonyms?.length) related.push(wordList('similar', data.synonyms, look));
-  if (data.antonyms?.length) related.push(wordList('opposite', data.antonyms, look));
+  if (data.synonyms?.length) related.push(wordList(t('andromeda.ans_similar'), data.synonyms, look));
+  if (data.antonyms?.length) related.push(wordList(t('andromeda.ans_opposite'), data.antonyms, look));
   if (data.focus === 'synonyms' || data.focus === 'antonyms') parts.push(...related);
   for (const meaning of data.meanings || []) {
     const block = make('div', 'andromeda-define-part');
@@ -177,22 +206,22 @@ function defineTool(data, ctx) {
 
 function spellTool(data, ctx) {
   const check = word => ctx.swap(() => ctx.ask(`spell ${word}`, 'spell'));
-  const again = lookup('word to check', 'check', check, { placeholder: 'check a spelling' });
-  if (data.status === 'empty') return [heading('spelling'), again.form];
-  if (data.status === 'unavailable') return [...unavailable('spelling', 'the spelling sources (wiktionary, datamuse) aren\'t answering right now.', () => check(data.word)), again.form];
-  const parts = [heading('spelling')];
+  const again = lookup(t('andromeda.ans_word_check'), t('andromeda.ans_check'), check, { placeholder: t('andromeda.ans_check_spelling') });
+  if (data.status === 'empty') return [heading(t('andromeda.ans_spelling')), again.form];
+  if (data.status === 'unavailable') return [...unavailable(t('andromeda.ans_spelling'), t('andromeda.ans_spelling_down'), () => check(data.word)), again.form];
+  const parts = [heading(t('andromeda.ans_spelling'))];
   if (data.correct) {
-    parts.push(bigLine('', data.word, 'is spelled correctly'));
+    parts.push(bigLine('', data.word, t('andromeda.ans_spelled_correctly')));
   } else if (data.suggestions?.length) {
-    parts.push(bigLine(`"${data.word}" is usually spelled`, data.suggestions[0]));
-    if (data.suggestions.length > 1) parts.push(make('p', 'andromeda-answer-detail', `or ${data.suggestions.slice(1).join(', ')}`));
+    parts.push(bigLine(t('andromeda.ans_usually_spelled', { word: data.word }), data.suggestions[0]));
+    if (data.suggestions.length > 1) parts.push(make('p', 'andromeda-answer-detail', t('andromeda.ans_or_list', { words: data.suggestions.slice(1).join(', ') })));
   } else {
-    parts.push(make('p', 'andromeda-answer-detail', `"${data.word}" isn't in the dictionary and nothing close came up.`));
+    parts.push(make('p', 'andromeda-answer-detail', t('andromeda.ans_not_in_dictionary', { word: data.word })));
   }
   const word = data.correct ? data.word : data.suggestions?.[0];
   const actions = make('div', 'andromeda-tool-actions');
-  if (word) actions.append(button(`define ${word}`, { onClick: () => ctx.swap(() => ctx.ask(`define ${word}`, 'define')) }));
-  if (word && canSpeak()) actions.append(button('say it', { onClick: () => speak(word, 'en') }));
+  if (word) actions.append(button(t('andromeda.ans_define_word', { word }), { onClick: () => ctx.swap(() => ctx.ask(`define ${word}`, 'define')) }));
+  if (word && canSpeak()) actions.append(button(t('andromeda.ans_say_it'), { onClick: () => speak(word, 'en') }));
   if (actions.childElementCount) parts.push(actions);
   parts.push(note(data.source), again.form);
   return parts;
@@ -208,19 +237,19 @@ function currencyTool(data, ctx) {
   const side = (which, code) => {
     const row = make('div', 'andromeda-convert-side');
     const wrap = make('label', 'andromeda-tool-field');
-    wrap.append(make('span', 'sr-only', `amount in ${which} currency`));
+    wrap.append(make('span', 'sr-only', which === 'from' ? t('andromeda.ans_amount_from_currency') : t('andromeda.ans_amount_to_currency')));
     const input = make('input');
     input.type = 'text';
     input.inputMode = 'decimal';
     input.autocomplete = 'off';
     wrap.append(input);
-    const choose = picker(`${which} currency`, codes, code, value => refetch(which, value));
+    const choose = picker(which === 'from' ? t('andromeda.ans_from_currency') : t('andromeda.ans_to_currency'), codes, code, value => refetch(which, value));
     row.append(wrap, choose);
     return { row, input, choose };
   };
   const left = side('from', from);
   const right = side('to', to);
-  const swap = iconButton('swap currencies', ICON_SWAP, () => refetch('swap'));
+  const swap = iconButton(t('andromeda.ans_swap_currencies'), ICON_SWAP, () => refetch('swap'));
   const rateLine = note('');
   const status = statusLine();
   const show = () => {
@@ -240,7 +269,7 @@ function currencyTool(data, ctx) {
     left.choose.value = from;
     right.choose.value = to;
     if (from === to) { rate = 1; status.textContent = ''; show(); update('left'); return; }
-    status.textContent = 'getting the rate…';
+    status.textContent = t('andromeda.ans_getting_rate');
     try {
       const next = await ctx.ask(`1 ${from} to ${to}`, 'currency');
       if (next?.status !== 'ok') throw new Error('unavailable');
@@ -249,7 +278,7 @@ function currencyTool(data, ctx) {
       status.textContent = '';
     } catch {
       rate = 0;
-      status.textContent = 'exchange rates are unavailable right now (frankfurter)';
+      status.textContent = t('andromeda.ans_rates_down');
     }
     show();
     update('left');
@@ -258,13 +287,13 @@ function currencyTool(data, ctx) {
   left.input.addEventListener('input', () => update('left'));
   right.input.addEventListener('input', () => update('right'));
   box.append(left.row, swap, right.row);
-  if (data.status !== 'ok') status.textContent = 'exchange rates are unavailable right now (frankfurter)';
+  if (data.status !== 'ok') status.textContent = t('andromeda.ans_rates_down');
   show();
   update('left');
-  const parts = [heading('currency converter'), box, rateLine, status];
+  const parts = [heading(t('andromeda.ans_currency_converter')), box, rateLine, status];
   if (data.status !== 'ok') {
     const actions = make('div', 'andromeda-tool-actions');
-    actions.append(button('try again', { onClick: () => refetch('from', from) }));
+    actions.append(button(t('andromeda.ans_try_again'), { onClick: () => refetch('from', from) }));
     parts.push(actions);
   }
   return parts;
@@ -308,15 +337,15 @@ function skyMark(sky) {
 
 function weatherTool(data, ctx) {
   const look = place => ctx.swap(() => ctx.ask(`weather ${place}`, 'weather'));
-  const again = lookup('place for the weather', 'show weather', look, { placeholder: data.status === 'ok' ? 'another place' : 'a city or town' });
-  if (data.status === 'empty') return [heading('weather'), again.form];
+  const again = lookup(t('andromeda.ans_place_weather'), t('andromeda.ans_show_weather'), look, { placeholder: data.status === 'ok' ? t('andromeda.ans_another_place') : t('andromeda.ans_city_or_town') });
+  if (data.status === 'empty') return [heading(t('andromeda.ans_weather')), again.form];
   if (data.status === 'unavailable') {
     again.input.value = data.place || '';
-    return [...unavailable('weather', 'open-meteo, the weather source, isn\'t answering right now.', () => look(data.place)), again.form];
+    return [...unavailable(t('andromeda.ans_weather'), t('andromeda.ans_weather_down'), () => look(data.place)), again.form];
   }
   if (data.status === 'not_found') {
     again.input.value = data.place;
-    return [heading('weather'), make('p', 'andromeda-answer-detail', `no place called "${data.place}" came up.`), again.form];
+    return [heading(t('andromeda.ans_weather')), make('p', 'andromeda-answer-detail', t('andromeda.ans_no_place', { place: data.place })), again.form];
   }
   let unit = ctx.prefs.get('andromeda-temp-unit') === 'f' ? 'f' : 'c';
   const host = make('div', 'andromeda-weather');
@@ -328,9 +357,9 @@ function weatherTool(data, ctx) {
     if (now) { now.classList.add('is-now'); main.querySelector('.andromeda-answer-value')?.prepend(now); }
     head.append(main, units);
     const detail = make('p', 'andromeda-answer-detail', [
-      data.feels_like != null ? `feels like ${degrees(data.feels_like)}` : '',
-      data.wind != null ? `wind ${Math.round(unit === 'f' ? data.wind / 1.609 : data.wind)} ${unit === 'f' ? 'mph' : 'km/h'}` : '',
-      data.humidity != null ? `humidity ${data.humidity}%` : '',
+      data.feels_like != null ? t('andromeda.ans_feels_like', { value: degrees(data.feels_like) }) : '',
+      data.wind != null ? t('andromeda.ans_wind', { speed: Math.round(unit === 'f' ? data.wind / 1.609 : data.wind), unit: unit === 'f' ? 'mph' : 'km/h' }) : '',
+      data.humidity != null ? t('andromeda.ans_humidity', { value: data.humidity }) : '',
     ].filter(Boolean).join(' · '));
     const days = make('ol', 'andromeda-weather-days');
     for (const day of data.days || []) {
@@ -340,31 +369,31 @@ function weatherTool(data, ctx) {
       if (mark) name.append(mark);
       const sky = make('span', 'andromeda-weather-sky', day.sky || '');
       if (day.rain != null && day.rain >= 20) {
-        sky.append(day.sky ? ' · ' : '', make('span', 'andromeda-weather-rain', `${day.rain}% rain`));
+        sky.append(day.sky ? ' · ' : '', make('span', 'andromeda-weather-rain', t('andromeda.ans_rain', { value: day.rain })));
       }
       item.append(name, make('span', 'andromeda-weather-temps', `${degrees(day.high)} / ${degrees(day.low)}`), sky);
       days.append(item);
     }
     host.replaceChildren(head, detail, days);
   };
-  const units = choices('temperature unit', [{ value: 'c', label: '°C' }, { value: 'f', label: '°F' }], unit, value => {
+  const units = choices(t('andromeda.ans_temperature_unit'), [{ value: 'c', label: '°C' }, { value: 'f', label: '°F' }], unit, value => {
     unit = value;
     ctx.prefs.set('andromeda-temp-unit', unit);
     draw();
   });
   draw();
-  return [heading('weather'), host, note(data.source), again.form];
+  return [heading(t('andromeda.ans_weather')), host, note(data.source), again.form];
 }
 
 // ── periodic table ──
 const CATEGORY_ORDER = ['alkali-metal', 'alkaline-earth', 'transition', 'post-transition', 'metalloid', 'nonmetal', 'halogen', 'noble-gas', 'lanthanide', 'actinide'];
-const FACT_LABELS = { mass: 'atomic mass', number: 'atomic number', symbol: 'symbol', group: 'group', period: 'period', category: 'category' };
+const FACT_LABELS = () => ({ mass: t('andromeda.ans_atomic_mass'), number: t('andromeda.ans_atomic_number'), symbol: t('andromeda.ans_symbol'), group: t('andromeda.ans_group'), period: t('andromeda.ans_period'), category: t('andromeda.ans_category') });
 
 function factValue(element, fact) {
   if (fact === 'mass') return { value: element.mass, unit: 'u' };
   if (fact === 'number') return { value: String(element.number) };
   if (fact === 'symbol') return { value: element.symbol };
-  if (fact === 'group') return { value: element.group ? String(element.group) : `${element.category_label} row` };
+  if (fact === 'group') return { value: element.group ? String(element.group) : t('andromeda.ans_category_row', { category: element.category_label }) };
   if (fact === 'period') return { value: String(element.period) };
   return { value: element.category_label };
 }
@@ -377,8 +406,8 @@ function elementDetail(element) {
   facts.append(make('p', 'andromeda-element-name', element.name));
   const list = make('dl', 'andromeda-element-list');
   for (const [term, value] of [
-    ['atomic number', element.number], ['atomic mass', `${element.mass} u`], ['category', element.category_label],
-    ['group', element.group || (element.category === 'lanthanide' ? 'lanthanides' : 'actinides')], ['period', element.period],
+    [t('andromeda.ans_atomic_number'), element.number], [t('andromeda.ans_atomic_mass'), `${element.mass} u`], [t('andromeda.ans_category'), element.category_label],
+    [t('andromeda.ans_group'), element.group || (element.category === 'lanthanide' ? t('andromeda.ans_lanthanides') : t('andromeda.ans_actinides'))], [t('andromeda.ans_period'), element.period],
   ]) list.append(make('dt', '', term), make('dd', '', String(value)));
   facts.append(list);
   box.append(tile, facts);
@@ -388,7 +417,7 @@ function elementDetail(element) {
 function periodicTable(data, onPick) {
   const grid = make('div', 'andromeda-ptable');
   grid.setAttribute('role', 'grid');
-  grid.setAttribute('aria-label', 'periodic table, arrow keys move between elements');
+  grid.setAttribute('aria-label', t('andromeda.ans_ptable_aria'));
   let lanthanide = 0;
   let actinide = 0;
   const cells = [];
@@ -447,7 +476,7 @@ function periodicTable(data, onPick) {
   });
   const legend = make('div', 'andromeda-ptable-legend');
   legend.setAttribute('role', 'group');
-  legend.setAttribute('aria-label', 'highlight a family');
+  legend.setAttribute('aria-label', t('andromeda.ans_highlight_family'));
   for (const category of CATEGORY_ORDER) {
     const example = data.elements.find(element => element.category === category);
     const item = make('button', `andromeda-ptable-key is-${category}`);
@@ -479,30 +508,30 @@ function tableBlock(data, detailHost) {
 function periodicTool(data) {
   const detailHost = make('div', 'andromeda-element-host');
   detailHost.setAttribute('aria-live', 'polite');
-  detailHost.append(make('p', 'andromeda-answer-detail', 'pick an element to see its details.'));
-  return [heading('periodic table'), detailHost, ...tableBlock({ ...data, selected: 0 }, detailHost)];
+  detailHost.append(make('p', 'andromeda-answer-detail', t('andromeda.ans_pick_element')));
+  return [heading(t('andromeda.ans_periodic_table')), detailHost, ...tableBlock({ ...data, selected: 0 }, detailHost)];
 }
 
 function elementTool(data) {
   const element = data.elements.find(row => row.number === data.selected);
-  const parts = [heading('element')];
+  const parts = [heading(t('andromeda.ans_element'))];
   if (data.fact) {
     const fact = factValue(element, data.fact);
-    parts.push(bigLine(`${FACT_LABELS[data.fact]} of ${element.name.toLowerCase()}`, fact.value, fact.unit || ''));
+    parts.push(bigLine(t('andromeda.ans_fact_of', { fact: FACT_LABELS()[data.fact], element: element.name.toLowerCase() }), fact.value, fact.unit || ''));
   }
   const detailHost = make('div', 'andromeda-element-host');
   detailHost.setAttribute('aria-live', 'polite');
   detailHost.append(elementDetail(element));
   const tableHost = make('div', 'andromeda-ptable-host');
   tableHost.hidden = true;
-  const toggle = button('show the periodic table');
+  const toggle = button(t('andromeda.ans_show_table'));
   toggle.setAttribute('aria-expanded', 'false');
   toggle.addEventListener('click', () => {
     const open = tableHost.hidden;
     if (open && !tableHost.childElementCount) tableHost.append(...tableBlock(data, detailHost));
     tableHost.hidden = !open;
     toggle.setAttribute('aria-expanded', String(open));
-    toggle.textContent = open ? 'hide the periodic table' : 'show the periodic table';
+    toggle.textContent = open ? t('andromeda.ans_hide_table') : t('andromeda.ans_show_table');
   });
   const actions = make('div', 'andromeda-tool-actions');
   actions.append(toggle);
@@ -512,7 +541,7 @@ function elementTool(data) {
 
 // ── formula 1 ──
 function countdownText(ms) {
-  if (ms <= 0) return 'under way';
+  if (ms <= 0) return t('andromeda.ans_under_way');
   const days = Math.floor(ms / 86400000);
   const hours = Math.floor((ms % 86400000) / 3600000);
   const minutes = Math.floor((ms % 3600000) / 60000);
@@ -564,51 +593,51 @@ function table(caption, columns, rows) {
 }
 
 function f1Tool(data, ctx) {
-  if (data.status !== 'ok') return unavailable('formula 1', 'jolpica-f1, the f1 data source, isn\'t answering right now.', () => ctx.swap(() => ctx.ask('f1', 'f1')));
+  if (data.status !== 'ok') return unavailable(t('andromeda.ans_formula_1'), t('andromeda.ans_f1_down'), () => ctx.swap(() => ctx.ask('f1', 'f1')));
   const now = Date.now();
   const schedule = data.schedule || [];
   const next = schedule.find(race => Date.parse(race.start) + 2 * 3600000 > now);
-  const missing = view => make('p', 'andromeda-answer-detail', `${view} aren't available right now; the rest of the card is.`);
+  const missing = view => make('p', 'andromeda-answer-detail', t('andromeda.ans_unavailable_view', { view }));
   let stopView = [];
   const viewStop = stop => { stopView.push(stop); ctx.onStop(stop); };
   const views = {
     next: () => {
-      if (!schedule.length) return [missing('the calendar and next race')];
-      if (!next) return [make('p', 'andromeda-answer-detail', `the ${data.season} season is over.`)];
+      if (!schedule.length) return [missing(t('andromeda.ans_view_calendar_next'))];
+      if (!next) return [make('p', 'andromeda-answer-detail', t('andromeda.ans_season_over', { season: data.season }))];
       const clock = make('p', 'andromeda-answer-value andromeda-f1-countdown', countdownText(Date.parse(next.start) - Date.now()));
-      clock.setAttribute('aria-label', `starts in ${countdownText(Date.parse(next.start) - Date.now())}`);
+      clock.setAttribute('aria-label', t('andromeda.ans_starts_in', { time: countdownText(Date.parse(next.start) - Date.now()) }));
       const tick = setInterval(() => { clock.textContent = countdownText(Date.parse(next.start) - Date.now()); }, 1000);
       viewStop(() => clearInterval(tick));
       const sessions = make('dl', 'andromeda-f1-sessions');
-      for (const session of [...next.sessions, { name: 'race', start: next.start }]) {
+      for (const session of [...next.sessions, { name: t('andromeda.ans_race'), start: next.start }]) {
         sessions.append(make('dt', '', session.name), make('dd', '', raceTime(session.start)));
       }
       return [
-        make('p', 'andromeda-answer-label', `round ${next.round} · ${next.place}`),
+        make('p', 'andromeda-answer-label', t('andromeda.ans_round_place', { round: next.round, place: next.place })),
         make('p', 'andromeda-f1-race', next.name),
         clock,
-        make('p', 'andromeda-answer-detail', `${next.circuit} · lights out ${raceTime(next.start)}, your time`),
+        make('p', 'andromeda-answer-detail', t('andromeda.ans_lights_out', { circuit: next.circuit, time: raceTime(next.start) })),
         sessions,
       ];
     },
-    drivers: () => (data.drivers ? [table(`driver standings after round ${data.after_round}`, [
-      { key: 'position', label: 'pos', className: 'is-num' }, { key: 'name', label: 'driver' }, { key: 'team', label: 'team', className: 'is-team', team: true },
-      { key: 'wins', label: 'wins', className: 'is-num' }, { key: 'points', label: 'pts', className: 'is-num' },
-    ], data.drivers)] : [missing('driver standings')]),
-    teams: () => (data.teams ? [table('constructor standings', [
-      { key: 'position', label: 'pos', className: 'is-num' }, { key: 'name', label: 'team', team: true },
-      { key: 'wins', label: 'wins', className: 'is-num' }, { key: 'points', label: 'pts', className: 'is-num' },
-    ], data.teams)] : [missing('constructor standings')]),
+    drivers: () => (data.drivers ? [table(t('andromeda.ans_driver_standings_after', { round: data.after_round }), [
+      { key: 'position', label: t('andromeda.ans_col_pos'), className: 'is-num' }, { key: 'name', label: t('andromeda.ans_col_driver') }, { key: 'team', label: t('andromeda.ans_col_team'), className: 'is-team', team: true },
+      { key: 'wins', label: t('andromeda.ans_col_wins'), className: 'is-num' }, { key: 'points', label: t('andromeda.ans_col_pts'), className: 'is-num' },
+    ], data.drivers)] : [missing(t('andromeda.ans_view_drivers'))]),
+    teams: () => (data.teams ? [table(t('andromeda.ans_constructor_standings'), [
+      { key: 'position', label: t('andromeda.ans_col_pos'), className: 'is-num' }, { key: 'name', label: t('andromeda.ans_col_team'), team: true },
+      { key: 'wins', label: t('andromeda.ans_col_wins'), className: 'is-num' }, { key: 'points', label: t('andromeda.ans_col_pts'), className: 'is-num' },
+    ], data.teams)] : [missing(t('andromeda.ans_constructor_standings'))]),
     results: () => (data.last?.results ? [
-      make('p', 'andromeda-answer-label', `round ${data.last.round} · ${formatDate(data.last.start, { month: 'long', day: 'numeric' })}`),
+      make('p', 'andromeda-answer-label', t('andromeda.ans_round_date', { round: data.last.round, date: formatDate(data.last.start, { month: 'long', day: 'numeric' }) })),
       make('p', 'andromeda-f1-race', data.last.name),
-      table(`${data.last.name} results`, [
-        { key: 'position', label: 'pos', className: 'is-num' }, { key: 'name', label: 'driver' }, { key: 'team', label: 'team', className: 'is-team', team: true },
-        { key: 'time', label: 'time' }, { key: 'points', label: 'pts', className: 'is-num' },
+      table(t('andromeda.ans_results_caption', { name: data.last.name }), [
+        { key: 'position', label: t('andromeda.ans_col_pos'), className: 'is-num' }, { key: 'name', label: t('andromeda.ans_col_driver') }, { key: 'team', label: t('andromeda.ans_col_team'), className: 'is-team', team: true },
+        { key: 'time', label: t('andromeda.ans_col_time') }, { key: 'points', label: t('andromeda.ans_col_pts'), className: 'is-num' },
       ], data.last.results),
-    ] : [missing('the last results')]),
+    ] : [missing(t('andromeda.ans_view_last_results'))]),
     schedule: () => {
-      if (!schedule.length) return [missing('the calendar')];
+      if (!schedule.length) return [missing(t('andromeda.ans_view_calendar'))];
       const list = make('ol', 'andromeda-f1-schedule');
       for (const race of schedule) {
         const item = make('li');
@@ -618,17 +647,17 @@ function f1Tool(data, ctx) {
         item.append(
           make('span', 'andromeda-f1-round', String(race.round)),
           make('span', 'andromeda-f1-name', race.name),
-          make('span', 'andromeda-f1-date', race === next ? `next · ${formatDate(race.start, { month: 'short', day: 'numeric' })}` : formatDate(race.start, { month: 'short', day: 'numeric' })),
+          make('span', 'andromeda-f1-date', race === next ? t('andromeda.ans_next_date', { date: formatDate(race.start, { month: 'short', day: 'numeric' }) }) : formatDate(race.start, { month: 'short', day: 'numeric' })),
         );
         list.append(item);
       }
       return [list];
     },
   };
-  const labels = { next: 'next race', drivers: 'drivers', teams: 'teams', results: 'last race', schedule: 'calendar' };
+  const labels = { next: t('andromeda.ans_tab_next'), drivers: t('andromeda.ans_tab_drivers'), teams: t('andromeda.ans_tab_teams'), results: t('andromeda.ans_tab_last'), schedule: t('andromeda.ans_tab_calendar') };
   const tabs = make('div', 'andromeda-f1-tabs');
   tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', 'formula 1 views');
+  tabs.setAttribute('aria-label', t('andromeda.ans_f1_views'));
   const panel = make('div', 'andromeda-f1-panel');
   panel.setAttribute('role', 'tabpanel');
   panel.tabIndex = 0;
@@ -665,14 +694,14 @@ function f1Tool(data, ctx) {
     pick(all[(to + all.length) % all.length].dataset.view, true);
   });
   pick(views[data.view] ? data.view : 'next');
-  const parts = [heading(`formula 1 · ${data.season} season`), tabs, panel];
-  parts.push(note(`${data.source}, the free successor to the ergast api${data.after_round ? ` · standings after round ${data.after_round}` : ''}`));
+  const parts = [heading(t('andromeda.ans_f1_title', { season: data.season })), tabs, panel];
+  parts.push(note(`${t('andromeda.ans_f1_source', { source: data.source })}${data.after_round ? t('andromeda.ans_f1_standings_after', { round: data.after_round }) : ''}`));
   return parts;
 }
 
 // ── dates ──
 const longDay = iso => formatCalendarDate(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-const dayWord = days => `${formatNumber(Math.abs(days))} ${Math.abs(days) === 1 ? 'day' : 'days'}`;
+const dayWord = days => tp('andromeda.ans_days', Math.abs(days), { n: formatNumber(Math.abs(days)) });
 
 // the answer first, big; what it is measured from underneath
 function dateLine(value, detail) {
@@ -682,16 +711,16 @@ function dateLine(value, detail) {
 }
 
 function dateTool(data, ctx) {
-  const parts = [heading('date')];
+  const parts = [heading(t('andromeda.ans_date'))];
   const name = data.name && !['today', 'tomorrow', 'yesterday'].includes(data.name) ? `${data.name}, ` : '';
-  if (data.mode === 'today') parts.push(dateLine(longDay(data.date), 'today'));
-  else if (data.mode === 'offset') parts.push(dateLine(longDay(data.date), data.days < 0 ? `${dayWord(data.days)} ago` : `${dayWord(data.days)} from today`));
+  if (data.mode === 'today') parts.push(dateLine(longDay(data.date), t('andromeda.ans_today')));
+  else if (data.mode === 'offset') parts.push(dateLine(longDay(data.date), data.days < 0 ? t('andromeda.ans_days_ago', { days: dayWord(data.days) }) : t('andromeda.ans_days_from_today', { days: dayWord(data.days) })));
   else if (data.mode === 'weekday') parts.push(dateLine(formatCalendarDate(data.date, { weekday: 'long' }), `${name}${formatCalendarDate(data.date, { year: 'numeric', month: 'long', day: 'numeric' })}`));
-  else if (data.mode === 'between') parts.push(dateLine(dayWord(data.days), `from ${longDay(data.date)} to ${longDay(data.other)}`));
-  else if (data.mode === 'since') parts.push(dateLine(dayWord(data.days), `since ${name}${longDay(data.date)}`));
+  else if (data.mode === 'between') parts.push(dateLine(dayWord(data.days), t('andromeda.ans_from_to', { from: longDay(data.date), to: longDay(data.other) })));
+  else if (data.mode === 'since') parts.push(dateLine(dayWord(data.days), t('andromeda.ans_since', { name, date: longDay(data.date) })));
   else {
-    const detail = data.days < 0 ? `ago: ${name}${longDay(data.date)}` : data.days === 0 ? `${name}${longDay(data.date)}` : `until ${name}${longDay(data.date)}`;
-    parts.push(dateLine(data.days === 0 ? 'today' : dayWord(data.days), detail));
+    const detail = data.days < 0 ? t('andromeda.ans_ago_date', { name, date: longDay(data.date) }) : data.days === 0 ? `${name}${longDay(data.date)}` : t('andromeda.ans_until_date', { name, date: longDay(data.date) });
+    parts.push(dateLine(data.days === 0 ? t('andromeda.ans_today') : dayWord(data.days), detail));
     if (data.live && data.days >= 0) {
       const [year, month, day] = data.date.split('-').map(Number);
       const target = new Date(year, month - 1, day).getTime();
@@ -745,7 +774,7 @@ export function renderAnswer(host, data, options = {}) {
   host.dataset.kind = data.kind;
   const ctx = {
     ask: options.ask || (async () => ({ kind: null })),
-    translate: options.translate || (async () => { throw new Error('translation is unavailable'); }),
+    translate: options.translate || (async () => { throw new Error(t('andromeda.ans_translation_unavailable')); }),
     prefs: PREFS,
     onStop: stop => stops.push(stop),
     // replace this card with a fresh lookup, keeping the old one until the answer arrives
@@ -760,7 +789,7 @@ export function renderAnswer(host, data, options = {}) {
         }
       } catch {
         const status = host.querySelector('.andromeda-tool-status') || host.appendChild(statusLine());
-        status.textContent = 'could not reach alles; try again';
+        status.textContent = t('andromeda.ans_unreachable');
       } finally {
         host.removeAttribute('aria-busy');
       }

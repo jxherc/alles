@@ -5,8 +5,21 @@ import { requestId } from './request_id.js';
 
 const TERMINAL = new Set(['succeeded', 'failed', 'cancelled', 'interrupted', 'uncertain']);
 const timers = new Map();
+const STATE_LABELS = {
+  preparing: () => tr('aide.bg_state_preparing'),
+  queued: () => tr('aide.bg_state_queued'),
+  running: () => tr('aide.bg_state_running'),
+  waiting_input: () => tr('aide.bg_state_waiting_input'),
+  waiting_approval: () => tr('aide.bg_state_waiting_approval'),
+  paused: () => tr('aide.sched_state_paused'),
+  succeeded: () => tr('aide.bg_state_succeeded'),
+  failed: () => tr('uploads.failed'),
+  cancelled: () => tr('aide.bg_state_cancelled'),
+  interrupted: () => tr('aide.bg_state_interrupted'),
+  uncertain: () => tr('aide.bg_state_uncertain'),
+};
 
-function safeMessage(value, fallback = 'background work is unavailable') {
+function safeMessage(value, fallback = tr('aide.bg_unavailable')) {
   return String(value || fallback).replace(/jarvis/gi, 'Aide');
 }
 
@@ -53,17 +66,17 @@ function renderCard(card, run = {}, preview = {}) {
   const head = document.createElement('div');
   head.className = 'aide-background-head';
   const title = document.createElement('strong');
-  title.textContent = TERMINAL.has(state) ? 'background work' : 'working in background';
+  title.textContent = TERMINAL.has(state) ? tr('aide.bg_title_done') : tr('aide.bg_title_working');
   const stateText = document.createElement('span');
   stateText.className = 'aide-background-state';
-  stateText.textContent = state.replaceAll('_', ' ');
+  stateText.textContent = STATE_LABELS[state]?.() ?? state.replaceAll('_', ' ');
   head.append(title, stateText);
 
   const details = document.createElement('div');
   details.className = 'aide-background-details';
   details.textContent = preview.model
-    ? `${preview.endpoint || 'model'} · ${preview.model}`
-    : 'this stays attached to this task';
+    ? `${preview.endpoint || tr('aide.bg_model')} · ${preview.model}`
+    : tr('aide.bg_stays_attached');
 
   card.replaceChildren(head, details);
   const summary = run.result_summary || run.safe_error;
@@ -80,7 +93,7 @@ function renderCard(card, run = {}, preview = {}) {
     actions.className = 'aide-background-actions';
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = action;
+    button.textContent = action === 'cancel' ? tr('common.cancel') : tr('common.retry');
     button.dataset.backgroundAction = action;
     button.addEventListener('click', () => act(card, action, preview));
     actions.append(button);
@@ -96,7 +109,7 @@ function stopPolling(runId) {
 }
 
 async function readRun(runId) {
-  return readJson(await fetch(`/api/jarvis/runs/${encodeURIComponent(runId)}`), 'background status is unavailable');
+  return readJson(await fetch(`/api/jarvis/runs/${encodeURIComponent(runId)}`), tr('aide.bg_status_unavailable'));
 }
 
 async function poll(card, preview = {}) {
@@ -143,7 +156,7 @@ async function act(card, action, preview) {
   try {
     const run = await readJson(
       await fetch(`/api/jarvis/runs/${encodeURIComponent(runId)}/${action}`, { method: 'POST' }),
-      `could not ${action} this work`,
+      action === 'cancel' ? tr('aide.bg_cancel_failed') : tr('aide.bg_retry_failed'),
     );
     if (!current()) return;
     renderCard(card, run, preview);
@@ -169,7 +182,7 @@ async function previewWork(sessionId, override) {
   }
   return readJson(
     await fetch(`/api/jarvis/handoffs/preview?${params}`),
-    'configure a background model in Settings',
+    tr('aide.bg_configure_model'),
   );
 }
 
@@ -197,7 +210,7 @@ export async function startBackgroundWork({
       const allowed = await confirmDialog(tr('aide.remote_background_confirm', {
         endpoint: preview.endpoint,
         model: preview.model,
-      }), { danger: false, confirmLabel: 'send' });
+      }), { danger: false, confirmLabel: tr('common.send') });
       if (!allowed) {
         card.closest('[data-background-work="true"]')?.remove();
         return null;
@@ -224,7 +237,7 @@ export async function startBackgroundWork({
           reasoning_mode: reasoningMode,
           custom_effort: customEffort,
         }),
-      }), 'could not start background work');
+      }), tr('aide.bg_start_failed'));
     } catch (error) {
       // A response can disappear after the durable write committed. Since the
       // request id is also the run id, reconcile before showing a false failure.

@@ -3,7 +3,7 @@
 // memory/swap breakdown, up/down network graphs, a disk panel, and a top-process
 // table. all monospace + hand-rendered, polled live. no chart library.
 import { confirm as confirmDialog } from './dialog.js';
-import { resolvedTimeZone } from './i18n.js';
+import { resolvedTimeZone, t, tp } from './i18n.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 const $ = id => document.getElementById(id);
@@ -238,7 +238,7 @@ export function browserClientInfo(source = globalThis.navigator || {}, timeZone 
 function uptime(sec) {
   if (!sec) return '—';
   const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
-  return (d ? `${d}d ` : '') + (h ? `${h}h ` : '') + `${m}m`;
+  return (d ? `${t('server.system_days', { count: d })} ` : '') + (h ? `${t('server.system_hours', { count: h })} ` : '') + t('server.system_minutes', { count: m });
 }
 
 function palette() {
@@ -262,9 +262,9 @@ function group(header, headerVal, rows) {
 // the page doesn't flash every tick; update() only rewrites the dynamic guts.
 function buildShell(s) {
   const note = s.live ? '' :
-    `<div class="sys-note">live cpu, process and network readings need the server monitoring package (psutil). reinstall the Alles server dependencies, then restart Alles. memory and disk totals remain available.</div>`;
+    `<div class="sys-note">${esc(t('server.system_psutil_note'))}</div>`;
   const logoKey = logoPlatform(s.host.platform);
-  const logoLabel = { darwin: 'macOS', windows: 'Windows', linux: 'Linux', generic: 'operating system' }[logoKey];
+  const logoLabel = { darwin: 'macOS', windows: 'Windows', linux: 'Linux', generic: t('server.system_os') }[logoKey];
   const logoGridSize = logoGrid(s.host.platform);
   $('system-body').innerHTML = `${note}
     <div id="sys-shell">
@@ -280,11 +280,11 @@ function buildShell(s) {
             <div class="btop-box" id="box-net"><div id="net-head"></div><canvas class="graph-canvas" id="net-dn-graph"></canvas><div id="net-mid"></div><canvas class="graph-canvas" id="net-up-graph"></canvas></div>
             <div class="btop-box" id="box-disk"><div id="disk-body"></div><canvas class="graph-canvas" id="disk-graph"></canvas></div>
           </div>
-          <div class="btop-box span2" id="box-proc"><div id="proc-body" role="region" aria-label="process details" tabindex="0"></div></div>
+          <div class="btop-box span2" id="box-proc"><div id="proc-body" role="region" aria-label="${esc(t('server.system_process_details'))}" tabindex="0"></div></div>
         </div>
       </div>
       <div class="neofetch">
-        <div class="nf-logo" data-os="${logoKey}" role="img" aria-label="${logoLabel} logo">
+        <div class="nf-logo" data-os="${logoKey}" role="img" aria-label="${esc(t('server.system_logo', { os: logoLabel }))}">
           <div class="nf-logo-art" aria-hidden="true"><pre class="nf-logo-glyphs" data-columns="${logoGridSize.columns}" data-rows="${logoGridSize.rows}" style="--nf-row-height:${logoGridSize.rowHeightCh.toFixed(6)}ch">${esc(logoFor(s.host.platform))}</pre></div>
         </div>
         <div class="nf-info" id="nf-info"></div>
@@ -298,35 +298,35 @@ async function loadManagedSearxng(fetcher = fetch) {
   if (!statusEl || !actions) return;
   try {
     const response = await fetcher('/api/system/searxng');
-    if (!response.ok) throw new Error('health unavailable');
+    if (!response.ok) throw new Error(t('server.system_health_unavailable'));
     const service = await response.json();
-    const runtime = service.available ? `docker ${service.docker_version || 'ready'}` : 'docker unavailable';
-    const state = !service.support_verified && !service.installed ? 'managed install unavailable' : !service.installed ? 'not installed' : !service.owned ? 'ownership check failed' : service.healthy ? 'healthy' : service.running ? 'unhealthy' : 'stopped';
+    const runtime = service.available ? service.docker_version ? t('server.system_docker_version', { version: service.docker_version }) : t('server.system_docker_ready') : t('server.system_docker_unavailable');
+    const state = !service.support_verified && !service.installed ? t('server.system_managed_unavailable') : !service.installed ? t('server.system_not_installed') : !service.owned ? t('server.system_ownership_failed') : service.healthy ? t('server.system_healthy') : service.running ? t('server.system_unhealthy') : t('server.system_stopped');
     statusEl.textContent = `${state} · ${runtime} · ${service.bind} · ${service.version} · ${service.license}`;
     const buttons = [];
-    if (!service.installed && service.support_verified) buttons.push(['install', 'install']);
+    if (!service.installed && service.support_verified) buttons.push(['install', t('server.system_install')]);
     if (service.installed && service.owned) {
-      buttons.push([service.running ? 'stop' : 'start', service.running ? 'stop' : 'start']);
-      buttons.push(['restart', 'restart'], ['test', 'test json search'], ['update', 'safe update'], ['rollback', 'rollback'], ['uninstall', 'uninstall · keep data']);
+      buttons.push([service.running ? 'stop' : 'start', service.running ? t('server.system_stop') : t('server.system_start')]);
+      buttons.push(['restart', t('server.system_restart')], ['test', t('server.system_test_search')], ['update', t('server.system_safe_update')], ['rollback', t('server.system_rollback')], ['uninstall', t('server.system_uninstall_keep')]);
     }
     actions.innerHTML = buttons.map(([action, label]) => `<button class="btn" type="button" data-searxng-action="${action}"${!service.available && action !== 'uninstall' ? ' disabled' : ''}>${label}</button>`).join('');
   } catch (error) {
-    statusEl.textContent = `${error.message}. external search providers remain available.`;
+    statusEl.textContent = t('server.system_external_remain', { reason: error.message });
     actions.replaceChildren();
   }
 }
 
 async function manageSearxng(action, button) {
-  if (action === 'uninstall' && !await confirmDialog('uninstall the Alles-owned SearXNG service? its settings and data will be kept.')) return;
+  if (action === 'uninstall' && !await confirmDialog(t('server.system_uninstall_confirm'))) return;
   button.disabled = true;
   const statusEl = $('server-searxng-status');
-  if (statusEl) statusEl.textContent = `${action} in progress…`;
+  if (statusEl) statusEl.textContent = t('server.system_in_progress', { action: t(`server.system_act_${action}`) });
   const path = `/api/system/searxng/${action}`;
   try {
     const response = await fetch(path, { method: 'POST' });
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.detail || `${action} failed`);
-    if (statusEl && action === 'test') statusEl.textContent = `json search passed · ${body.results} results`;
+    if (!response.ok) throw new Error(body.detail || t('server.system_action_failed', { action: t(`server.system_act_${action}`) }));
+    if (statusEl && action === 'test') statusEl.textContent = tp('server.system_json_passed', body.results);
     else await loadManagedSearxng();
   } catch (error) {
     if (statusEl) statusEl.textContent = error.message;
@@ -336,31 +336,31 @@ async function manageSearxng(action, button) {
 function buildInfo(s, freq, disk0) {
   const cpu = s.cpu, mem = s.memory, h = s.host, sw = s.swap;
   const client = browserClientInfo();
-  const title = `${h.user || 'user'}@${h.hostname || 'host'}`;
+  const title = `${h.user || t('server.system_user')}@${h.hostname || t('server.system_host')}`;
   return [
     `<div class="nf-title">${esc(title)}</div>`,
     `<div class="nf-rule">${'─'.repeat(Math.max(10, title.length))}</div>`,
-    group('SERVER OS', h.os, [
-      ['arch', h.arch || '—'],
-      ['uptime', uptime(s.uptime_sec)],
-      ['procs', String(s.proc_count || '—')],
+    group(t('server.system_server_os'), h.os, [
+      [t('server.system_arch'), h.arch || '—'],
+      [t('server.system_uptime'), uptime(s.uptime_sec)],
+      [t('server.system_procs'), String(s.proc_count || '—')],
     ]),
-    group('PC', h.hostname, [
-      ['cpu', `${cpu.name || 'cpu'} (${cpu.cores || '?'}) ${freq}`.trim()],
-      ['memory', `${mem.used_gb} / ${mem.total_gb} GB (${Math.round(mem.percent)}%)`],
-      ['gpu', s.gpu.has ? `${s.gpu.name}${s.gpu.vram_gb ? ` · ${s.gpu.vram_gb} GB` : ''}` : 'none detected'],
-      disk0 ? ['disk', `${disk0.used_gb} / ${disk0.total_gb} GB (${Math.round(disk0.percent)}%)`] : null,
+    group(t('server.system_pc'), h.hostname, [
+      [t('server.system_cpu'), `${cpu.name || t('server.system_cpu')} (${cpu.cores || '?'}) ${freq}`.trim()],
+      [t('server.system_memory'), `${mem.used_gb} / ${mem.total_gb} GB (${Math.round(mem.percent)}%)`],
+      [t('server.system_gpu'), s.gpu.has ? `${s.gpu.name}${s.gpu.vram_gb ? ` · ${s.gpu.vram_gb} GB` : ''}` : t('server.system_none_detected')],
+      disk0 ? [t('server.system_disk'), `${disk0.used_gb} / ${disk0.total_gb} GB (${Math.round(disk0.percent)}%)`] : null,
     ]),
-    group('SYS', '', [
-      s.load ? ['load', s.load.map(x => x.toFixed(2)).join('  ')] : null,
-      sw && sw.total_gb ? ['swap', `${sw.used_gb} / ${sw.total_gb} GB (${Math.round(sw.percent)}%)`] : null,
-      ['backend', h.backend || '—'],
-      ['shell', `python ${h.python || ''}`],
+    group(t('server.system_sys'), '', [
+      s.load ? [t('server.system_load'), s.load.map(x => x.toFixed(2)).join('  ')] : null,
+      sw && sw.total_gb ? [t('server.system_swap'), `${sw.used_gb} / ${sw.total_gb} GB (${Math.round(sw.percent)}%)`] : null,
+      [t('server.system_backend'), h.backend || '—'],
+      [t('server.system_shell'), `python ${h.python || ''}`],
     ]),
-    group('THIS BROWSER', 'client device', [
-      ['platform', client.platform],
-      ['language', client.language],
-      ['time zone', client.timezone],
+    group(t('server.system_this_browser'), t('server.system_client_device'), [
+      [t('server.system_platform'), client.platform],
+      [t('server.system_language'), client.language],
+      [t('server.system_time_zone'), client.timezone],
     ]),
     palette(),
   ].join('');
@@ -368,7 +368,7 @@ function buildInfo(s, freq, disk0) {
 
 function render(s, fetcher = fetch) {
   if (!$('sys-shell')) buildShell(s);
-  if ($('server-searxng-status')?.textContent === 'checking…') loadManagedSearxng(fetcher);
+  if ([t('server.system_checking'), 'checking…'].includes($('server-searxng-status')?.textContent)) loadManagedSearxng(fetcher);
   if (s.cpu.percent != null) push(cpuHist, s.cpu.percent);
   push(ramHist, s.memory.percent);
   push(netDownHist, (s.net?.down_bps || 0));
@@ -383,14 +383,14 @@ function render(s, fetcher = fetch) {
 
   const hostEl = $('system-host');
   if (hostEl) {
-    hostEl.textContent = s.live ? `live · ${s.proc_count || 0} processes` : 'live monitoring unavailable';
+    hostEl.textContent = s.live ? tp('server.system_live_procs', s.proc_count || 0) : t('server.system_live_unavailable');
     hostEl.dataset.state = s.live ? 'live' : 'static';
   }
 
   $('nf-info').innerHTML = buildInfo(s, freq, disk0);
 
   // cpu
-  $('box-cpu').dataset.label = `cpu  ${cpu.cores || '?'} threads ${freq}${s.temp_c ? '  ' + s.temp_c + '°C' : ''}`;
+  $('box-cpu').dataset.label = t('server.system_box_cpu', { cores: cpu.cores || '?', freq, temp: s.temp_c ? '  ' + s.temp_c + '°C' : '' });
   $('cpu-top').innerHTML = `<span class="bx-pct ${cpu.percent >= 90 ? 'hot' : ''}" style="color:${heat(cpu.percent)}">${cpu.percent == null ? '—' : Math.round(cpu.percent) + '%'}</span>${meter(cpu.percent, 30)}`;
   drawGraph($('cpu-graph'), cpuHist, _RAMP, 100);
   $('cpu-cores').innerHTML = (cpu.per_core || []).map((c, i) =>
@@ -401,38 +401,38 @@ function render(s, fetcher = fetch) {
   const memBar = (lbl, pct, val, color) =>
     `<div class="bx-line"><span class="bx-tag">${lbl}</span>${meter(pct, 14, color)}<span class="bx-pctv" style="color:${color || heat(pct)}">${Math.round(pct)}%</span><span class="bx-meta">${val}</span></div>`;
   const tot = mem.total_gb || 0, pctOf = g => tot ? g / tot * 100 : 0;
-  $('box-mem').dataset.label = 'mem';
+  $('box-mem').dataset.label = t('server.system_mem');
   $('mem-lines').innerHTML =
-    `<div class="bx-line bx-total"><span class="bx-tag">total</span><span class="bx-meta">${tot} GB</span></div>` +
-    memBar('used', mem.percent, `${mem.used_gb} GB`) +
-    (mem.available_gb != null ? memBar('avail', pctOf(mem.available_gb), `${mem.available_gb} GB`, '#4ade80') : '') +
-    (mem.cached_gb ? memBar('cached', pctOf(mem.cached_gb), `${mem.cached_gb} GB`, '#5ec8d8') : '') +
-    (mem.free_gb != null ? memBar('free', pctOf(mem.free_gb), `${mem.free_gb} GB`, '#7ee05a') : '') +
-    (sw && sw.total_gb ? memBar('swap', sw.percent, `${sw.used_gb} / ${sw.total_gb} GB`, '#c08cf8') : '');
+    `<div class="bx-line bx-total"><span class="bx-tag">${esc(t('server.system_total'))}</span><span class="bx-meta">${tot} GB</span></div>` +
+    memBar(t('server.system_used'), mem.percent, `${mem.used_gb} GB`) +
+    (mem.available_gb != null ? memBar(t('server.system_avail'), pctOf(mem.available_gb), `${mem.available_gb} GB`, '#4ade80') : '') +
+    (mem.cached_gb ? memBar(t('server.system_cached'), pctOf(mem.cached_gb), `${mem.cached_gb} GB`, '#5ec8d8') : '') +
+    (mem.free_gb != null ? memBar(t('server.system_free'), pctOf(mem.free_gb), `${mem.free_gb} GB`, '#7ee05a') : '') +
+    (sw && sw.total_gb ? memBar(t('server.system_swap'), sw.percent, `${sw.used_gb} / ${sw.total_gb} GB`, '#c08cf8') : '');
   drawGraph($('mem-graph'), ramHist, _RAMP, 100);
 
   // net — interface/ip header, rate + peak + total, a graph each way (filling the box)
-  $('box-net').dataset.label = 'net';
+  $('box-net').dataset.label = t('server.system_net');
   const peakDn = Math.max(1, ...netDownHist), peakUp = Math.max(1, ...netUpHist);
   $('net-head').innerHTML =
     (net.iface ? `<div class="bx-line bx-netif"><span class="bx-tag" style="color:var(--accent)">${esc(net.iface)}</span><span class="bx-meta">${esc(net.ip || '')}${net.link_mbps ? ` · ${net.link_mbps} Mb/s` : ''}</span></div>` : '') +
-    `<div class="bx-line"><span class="bx-tag" style="color:#5ec8d8">${_si('arrow-down')} down</span><span class="bx-rate">${fmtRate(net.down_bps)}</span><span class="bx-meta">peak ${fmtRate(peakDn)} · Σ ${fmtBytes(net.recv_total)}</span></div>`;
+    `<div class="bx-line"><span class="bx-tag" style="color:#5ec8d8">${_si('arrow-down')} ${esc(t('server.system_down'))}</span><span class="bx-rate">${fmtRate(net.down_bps)}</span><span class="bx-meta">${esc(t('server.system_peak'))} ${fmtRate(peakDn)} · Σ ${fmtBytes(net.recv_total)}</span></div>`;
   drawGraph($('net-dn-graph'), netDownHist, _RAMP_DN, 0);
   $('net-mid').innerHTML =
-    `<div class="bx-line"><span class="bx-tag" style="color:#c08cf8">${_si('arrow-up')} up</span><span class="bx-rate">${fmtRate(net.up_bps)}</span><span class="bx-meta">peak ${fmtRate(peakUp)} · Σ ${fmtBytes(net.sent_total)}</span></div>`;
+    `<div class="bx-line"><span class="bx-tag" style="color:#c08cf8">${_si('arrow-up')} ${esc(t('server.system_up'))}</span><span class="bx-rate">${fmtRate(net.up_bps)}</span><span class="bx-meta">${esc(t('server.system_peak'))} ${fmtRate(peakUp)} · Σ ${fmtBytes(net.sent_total)}</span></div>`;
   drawGraph($('net-up-graph'), netUpHist, _RAMP_UP, 0);
 
   // disk — per mount (used% · size · fs · free) + io rate + an io activity graph
-  $('box-disk').dataset.label = 'disk';
+  $('box-disk').dataset.label = t('server.system_disk');
   $('disk-body').innerHTML =
-    ((s.disks || []).map(d => `<div class="bx-line"><span class="bx-tag">${esc(d.mount)}</span>${meter(d.percent, 12)}<span class="bx-pctv" style="color:${heat(d.percent)}">${Math.round(d.percent)}%</span><span class="bx-meta">${d.used_gb}/${d.total_gb} GB${d.fstype ? ` · ${esc(d.fstype)}` : ''}${d.free_gb != null ? ` · ${d.free_gb} free` : ''}</span></div>`).join('') || '<span class="g-dim">no disks</span>') +
-    ((io.read_bps != null) ? `<div class="bx-line io"><span class="bx-tag">io</span><span class="bx-meta">r ${fmtRate(io.read_bps)} · w ${fmtRate(io.write_bps)}</span></div>` : '');
+    ((s.disks || []).map(d => `<div class="bx-line"><span class="bx-tag">${esc(d.mount)}</span>${meter(d.percent, 12)}<span class="bx-pctv" style="color:${heat(d.percent)}">${Math.round(d.percent)}%</span><span class="bx-meta">${d.used_gb}/${d.total_gb} GB${d.fstype ? ` · ${esc(d.fstype)}` : ''}${d.free_gb != null ? ` · <bdi class="bx-free">${esc(t('server.system_gb_free', { value: d.free_gb }))}</bdi>` : ''}</span></div>`).join('') || `<span class="g-dim">${esc(t('server.system_no_disks'))}</span>`) +
+    ((io.read_bps != null) ? `<div class="bx-line io"><span class="bx-tag">${esc(t('server.system_io'))}</span><span class="bx-meta">${esc(t('server.system_io_read'))} ${fmtRate(io.read_bps)} · ${esc(t('server.system_io_write'))} ${fmtRate(io.write_bps)}</span></div>` : '');
   drawGraph($('disk-graph'), dioHist, _RAMP, 0);
 
   // proc — btop-style table: pid · program · threads · user · mem · cpu(bar+%)
-  $('box-proc').dataset.label = `processes  (top ${(s.procs || []).length} of ${s.proc_count || 0})`;
+  $('box-proc').dataset.label = t('server.system_processes', { shown: (s.procs || []).length, total: s.proc_count || 0 });
   $('proc-body').innerHTML =
-    `<div class="proc-row proc-head"><span>pid</span><span>program</span><span>threads</span><span>user</span><span>mem</span><span>cpu%</span></div>` +
+    `<div class="proc-row proc-head"><span>${esc(t('server.system_pid'))}</span><span>${esc(t('server.system_program'))}</span><span>${esc(t('server.system_threads'))}</span><span>${esc(t('server.system_user'))}</span><span>${esc(t('server.system_mem'))}</span><span>${esc(t('server.system_cpu_pct'))}</span></div>` +
     ((s.procs || []).map(p => `<div class="proc-row">
       <span class="p-pid">${p.pid}</span>
       <span class="p-name">${esc(p.name)}</span>
@@ -441,8 +441,8 @@ function render(s, fetcher = fetch) {
       <span class="p-mem">${memMB(p.rss)}</span>
       <span class="p-cpu"><span class="p-cpubar">${cpuBar(p.cpu)}</span><b style="color:${heat(p.cpu)}">${procCpuLabel(p.cpu)}</b></span>
     </div>`).join('') || `<p class="g-dim">${s.live
-      ? 'no process details are available. check that Alles has permission to read processes on this server.'
-      : 'process details need the server monitoring package (psutil). reinstall the Alles server dependencies, then restart Alles.'}</p>`);
+      ? esc(t('server.system_no_proc_details'))
+      : esc(t('server.system_proc_need_psutil'))}</p>`);
 }
 
 function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
@@ -455,21 +455,21 @@ async function tick(fetcher = _systemFetcher) {
   const gen = _sysGen;
   try {
     const r = await fetcher('/api/system/stats');
-    if (!r.ok) throw new Error(r.status === 404 ? 'the /api/system/stats route is missing' : `server returned ${r.status}`);
+    if (!r.ok) { const failure = new Error(r.status === 404 ? t('server.system_route_missing') : t('server.system_server_returned', { status: r.status })); failure.restart = r.status === 404; throw failure; }
     const s = await r.json();
-    if (!s || !s.cpu || !s.memory) throw new Error('unexpected response');
+    if (!s || !s.cpu || !s.memory) { const failure = new Error(t('server.system_unexpected')); failure.restart = true; throw failure; }
     if (gen !== _sysGen || v.style.display === 'none') return;
     render(s, fetcher);
   } catch (e) {
     if (gen !== _sysGen || v.style.display === 'none') return;
     const host = $('system-host');
-    if (host) { host.textContent = 'unavailable'; host.dataset.state = 'unavailable'; }
+    if (host) { host.textContent = t('common.unavailable'); host.dataset.state = 'unavailable'; }
     const b = $('system-body');
     if (b) {
-      const restart = /missing|404|unexpected/.test(e.message)
-        ? ' if you just updated alles, restart the server so it picks up the new route: <code>python cli.py restart</code>'
+      const restart = e.restart
+        ? ` ${esc(t('server.system_restart_hint', { command: '@@cmd@@' })).replace('@@cmd@@', '<code>python cli.py restart</code>')}`
         : '';
-      b.innerHTML = `<div class="sys-note" role="status">couldn’t read system stats: ${esc(e.message)}. retrying automatically.${restart}</div>`;
+      b.innerHTML = `<div class="sys-note" role="status">${esc(t('server.system_read_failed', { reason: e.message, restart: '@@restart@@' })).replace('@@restart@@', restart)}</div>`;
     }
   }
 }
@@ -479,8 +479,8 @@ export async function initSystem(fetcher = fetch) {
   const gen = ++_sysGen;
   _systemFetcher = fetcher;
   const host = $('system-host');
-  if (host) { host.textContent = 'loading…'; host.dataset.state = 'loading'; }
-  $('system-body').innerHTML = '<div class="g-dim" style="padding:1rem">reading the machine…</div>';
+  if (host) { host.textContent = t('server.system_loading'); host.dataset.state = 'loading'; }
+  $('system-body').innerHTML = `<div class="g-dim" style="padding:1rem">${esc(t('server.system_reading'))}</div>`;
   if (_timer) { clearInterval(_timer); _timer = null; }
   void tick(fetcher);
   _timer = setInterval(() => tick(_systemFetcher), 1500);

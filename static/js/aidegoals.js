@@ -1,13 +1,26 @@
 // standing goals: things Aide keeps working on and only speaks up about when there's news.
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { toast } from './util.js';
-import { formatDateTime } from './i18n.js';
+import { formatDateTime, t, tp } from './i18n.js';
 
 const $ = id => document.getElementById(id);
-const EVERY = [['hour', 'hour'], ['six_hours', '6 hours'], ['day', 'day'], ['week', 'week']];
-const MODES = [['ask', 'ask me first'], ['act', 'just do it']];
-const WAKES = [['rhythm', 'on a rhythm'], ['mail', 'new mail'], ['webhook', 'a webhook']];
-const STATUS = { done: 'done', finished: 'finished', paused: 'paused' };
+const EVERY = () => [['hour', t('aide.goal_rhythm_hour')], ['six_hours', t('aide.goal_rhythm_six_hours')], ['day', t('aide.goal_rhythm_day')], ['week', t('aide.goal_rhythm_week')]];
+const MODES = () => [['ask', t('aide.goal_mode_ask')], ['act', t('aide.goal_mode_act')]];
+const WAKES = () => [['rhythm', t('aide.goal_wake_rhythm')], ['mail', t('aide.goal_wake_mail')], ['webhook', t('aide.goal_wake_webhook')]];
+const EVERY_LINE = {
+  hour: () => t('aide.goal_every_hour'),
+  six_hours: () => t('aide.sched_every_six_hours'),
+  day: () => t('aide.goal_every_day'),
+  week: () => t('aide.goal_every_week'),
+};
+const STATES = {
+  waiting: () => t('home.needs_you'),
+  running: () => t('aide.goal_checking_now'),
+  done: () => t('aide.goal_status_done'),
+  finished: () => t('aide.goal_status_finished'),
+  paused: () => t('aide.sched_state_paused'),
+  active: () => t('aide.sched_state_active'),
+};
 let wired = false, goals = [], editing = '', every = 'day', mode = 'ask', wake = 'rhythm', poll = 0, loadTicket = 0;
 
 function el(tag, className = '', text = '') {
@@ -22,7 +35,7 @@ async function ownerFetch(url, init = {}) {
   if (response.status !== 403) return response;
   const error = await response.clone().json().catch(() => ({}));
   if (error.code !== 'recent_auth_required') return response;
-  const password = await dlgPrompt('enter your Alles password to change goals', '', { secret: true });
+  const password = await dlgPrompt(t('aide.goal_reauth_prompt'), '', { secret: true });
   if (password == null) return response;
   const ok = await fetch('/api/auth/reauth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) });
   return ok.ok ? fetch(url, init) : response;
@@ -30,7 +43,7 @@ async function ownerFetch(url, init = {}) {
 async function api(url, init = {}) {
   const response = await ownerFetch(url, init);
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || data.detail || 'goal request failed');
+  if (!response.ok) throw new Error(data.message || data.detail || t('aide.goal_request_failed'));
   return data;
 }
 const send = (method, url, body) => api(url, { method, headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
@@ -39,10 +52,12 @@ function when(value) {
   return value ? formatDateTime(value, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
 }
 
-function stateText(goal) {
-  if (goal.waiting) return 'needs you';
-  if (goal.running) return 'checking now';
-  return STATUS[goal.status] || (goal.enabled ? 'active' : 'paused');
+// a state code, not text, so the 'on' check below holds in every language
+function stateOf(goal) {
+  if (goal.waiting) return 'waiting';
+  if (goal.running) return 'running';
+  if (['done', 'finished', 'paused'].includes(goal.status)) return goal.status;
+  return goal.enabled ? 'active' : 'paused';
 }
 
 function choiceGroup(label, options, value, onPick) {
@@ -96,22 +111,22 @@ function openForm(goal = null) {
   const form = el('form', 'aide-schedule-form aide-goal-form');
   form.id = 'aide-goal-form';
   const head = el('div', 'aide-schedule-form-head');
-  head.append(el('strong', '', goal ? 'edit goal' : 'new goal'));
-  const cancel = el('button', '', 'cancel');
+  head.append(el('strong', '', goal ? t('aide.goal_edit_title') : t('aide.goal_new')));
+  const cancel = el('button', '', t('common.cancel'));
   cancel.type = 'button';
   cancel.addEventListener('click', () => { closeForm(); $('aide-scheduled-new')?.focus(); });
   head.append(cancel);
   const aimLabel = el('label');
-  aimLabel.append(el('span', '', 'what should Aide keep working on?'));
+  aimLabel.append(el('span', '', t('aide.goal_aim_label')));
   const aim = el('textarea');
   aim.id = 'aide-goal-aim';
   aim.rows = 3;
   aim.maxLength = 4000;
-  aim.placeholder = 'watch flights to lisbon in december and tell me when one is under 300 eur';
+  aim.placeholder = t('aide.goal_aim_placeholder');
   aim.value = goal?.aim || '';
   aimLabel.append(aim);
   const untilLabel = el('label');
-  untilLabel.append(el('span', '', 'stop on (optional)'));
+  untilLabel.append(el('span', '', t('aide.goal_until_label')));
   const until = el('input');
   until.id = 'aide-goal-until';
   until.type = 'text';
@@ -120,34 +135,34 @@ function openForm(goal = null) {
   until.autocomplete = 'off';
   until.value = goal?.until ? goal.until.slice(0, 10) : '';
   untilLabel.append(until);
-  const rhythm = choiceGroup('check every', EVERY, every, key => { every = key; });
+  const rhythm = choiceGroup(t('aide.goal_check_every'), EVERY(), every, key => { every = key; });
   const filterLabel = el('label');
-  filterLabel.append(el('span', '', 'only mail with (optional)'));
+  filterLabel.append(el('span', '', t('aide.goal_mail_filter_label')));
   const filter = el('input');
   filter.id = 'aide-goal-mail-filter';
   filter.type = 'text';
   filter.maxLength = 200;
   filter.autocomplete = 'off';
-  filter.placeholder = 'a sender or a word in the subject';
+  filter.placeholder = t('aide.goal_mail_filter_placeholder');
   filter.value = goal?.mail_filter || '';
   filterLabel.append(filter);
   // sits in the field grid so it lines up with the inputs
   const hookNote = el('div', 'aide-schedule-field');
   hookNote.append(el('span'), el('p', 'aide-goal-note', goal?.has_hook
-    ? 'this goal keeps its webhook link; use "new link" on the goal to replace it.'
-    : 'you get a private link after saving. anything that calls it wakes this goal.'));
+    ? t('aide.goal_hook_kept')
+    : t('aide.goal_hook_after_save')));
   const showWake = () => {
     rhythm.hidden = wake !== 'rhythm';
     filterLabel.hidden = wake !== 'mail';
     hookNote.hidden = wake !== 'webhook';
   };
-  const wakeGroup = choiceGroup('wake it on', WAKES, wake, key => { wake = key; showWake(); });
+  const wakeGroup = choiceGroup(t('aide.goal_wake_on'), WAKES(), wake, key => { wake = key; showWake(); });
   showWake();
   const actions = el('div', 'aide-schedule-form-actions');
-  const status = el('span', '', 'Aide only pings you for news, a question or an approval');
+  const status = el('span', '', t('aide.goal_form_hint'));
   status.id = 'aide-goal-status';
   status.setAttribute('role', 'status');
-  const save = el('button', '', goal ? 'save goal' : 'start goal');
+  const save = el('button', '', goal ? t('aide.goal_save') : t('aide.goal_start'));
   save.type = 'submit';
   actions.append(status, save);
   form.append(
@@ -157,13 +172,13 @@ function openForm(goal = null) {
     rhythm,
     filterLabel,
     hookNote,
-    choiceGroup('when it wants to change something', MODES, mode, key => { mode = key; }),
+    choiceGroup(t('aide.goal_mode_label'), MODES(), mode, key => { mode = key; }),
     untilLabel,
     actions,
   );
   form.addEventListener('submit', async event => {
     event.preventDefault();
-    if (!aim.value.trim()) { status.textContent = 'say what the goal is'; aim.focus(); return; }
+    if (!aim.value.trim()) { status.textContent = t('aide.goal_aim_required'); aim.focus(); return; }
     save.disabled = true;
     try {
       const body = { aim: aim.value.trim(), every, mode, wake, mail_filter: filter.value.trim(), until: until.value.trim() };
@@ -194,29 +209,29 @@ function showHook(goalId, token) {
   const box = el('section', 'aide-goal-hook');
   box.id = 'aide-goal-hook';
   box.setAttribute('aria-labelledby', 'aide-goal-hook-title');
-  const title = el('strong', '', 'webhook link');
+  const title = el('strong', '', t('aide.goal_webhook_link'));
   title.id = 'aide-goal-hook-title';
   title.tabIndex = -1;
   const link = el('input');
   link.id = 'aide-goal-hook-url';
   link.readOnly = true;
   link.value = `${location.origin}/hooks/goal/${goalId}?token=${token}`;
-  link.setAttribute('aria-label', 'webhook link');
+  link.setAttribute('aria-label', t('aide.goal_webhook_link'));
   link.addEventListener('focus', () => link.select());
-  const copy = el('button', '', 'copy');
+  const copy = el('button', '', t('common.copy'));
   copy.type = 'button';
   copy.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(link.value); copy.textContent = 'copied'; }
-    catch { link.select(); copy.textContent = 'press ⌘C'; }
+    try { await navigator.clipboard.writeText(link.value); copy.textContent = t('common.copied'); }
+    catch { link.select(); copy.textContent = t('aide.goal_press_shortcut', { shortcut: '⌘C' }); }
   });
-  const close = el('button', '', 'done');
+  const close = el('button', '', t('common.done'));
   close.type = 'button';
   close.addEventListener('click', () => { box.remove(); $('aide-goal-list').querySelector(`[data-goal-id="${goalId}"] strong`)?.focus(); });
   const row = el('div', 'aide-goal-hook-row');
   row.append(link, copy, close);
   box.append(
     title,
-    el('p', '', 'POST to this link to wake the goal; the body becomes what woke it. it is shown only now, and anyone with it can wake this goal.'),
+    el('p', '', t('aide.goal_hook_help')),
     row,
   );
   $('aide-goal-list').prepend(box);
@@ -239,40 +254,43 @@ function row(goal) {
   const name = el('strong', '', goal.name);
   name.tabIndex = -1;
   const failed = !goal.running && goal.last_run?.state === 'failed';
-  const headline = failed ? `last check failed: ${goal.last_run.error || 'Aide could not finish it'}`
-    : goal.headline || (goal.checks ? 'no news yet' : 'first check on its way');
+  const headline = failed ? t('aide.goal_last_check_failed', { error: goal.last_run.error || t('aide.goal_could_not_finish') })
+    : goal.headline || (goal.checks ? t('aide.goal_no_news') : t('aide.goal_first_check'));
   const line = el('p', 'aide-goal-headline', headline);
   if (failed) line.dataset.failed = 'true';
   main.append(name, line);
-  const rhythm = EVERY.find(([key]) => key === goal.every)?.[1] || goal.every;
-  const woken = goal.wake === 'mail' ? `wakes on new mail${goal.mail_filter ? ` with "${goal.mail_filter}"` : ''}`
-    : goal.wake === 'webhook' ? 'wakes on its webhook' : `every ${rhythm}`;
-  const facts = [woken, `${goal.checks} ${goal.checks === 1 ? 'check' : 'checks'}`];
-  if (goal.enabled && goal.next_check_at) facts.push(`next ${when(goal.next_check_at)}`);
-  if (goal.mode === 'act') facts.push('acts on its own');
+  const rhythm = EVERY_LINE[goal.every]?.() || t('aide.goal_every_other', { rhythm: `${goal.every}` });
+  const woken = goal.wake === 'mail'
+    ? (goal.mail_filter ? t('aide.goal_wakes_on_mail_with', { filter: goal.mail_filter }) : t('aide.goal_wakes_on_mail'))
+    : goal.wake === 'webhook' ? t('aide.goal_wakes_on_webhook') : rhythm;
+  const facts = [woken, tp('aide.goal_checks', goal.checks)];
+  if (goal.enabled && goal.next_check_at) facts.push(t('aide.sched_next', { when: when(goal.next_check_at) }));
+  if (goal.mode === 'act') facts.push(t('aide.goal_acts_alone'));
   // one line of text, so a wrap never starts with a lone dot
   main.append(el('p', 'aide-goal-meta', facts.join(' · ')));
   if (goal.notes || goal.last_run?.summary) {
     const memory = el('details', 'aide-goal-memory');
-    memory.append(el('summary', '', 'what it remembers'));
+    memory.append(el('summary', '', t('aide.goal_memory')));
     if (goal.notes) memory.append(el('p', '', goal.notes));
     if (goal.last_run?.summary) {
-      memory.append(el('p', 'aide-goal-last-label', `last check${goal.last_checked_at ? `, ${when(goal.last_checked_at)}` : ''}`));
+      memory.append(el('p', 'aide-goal-last-label', goal.last_checked_at
+        ? t('aide.goal_last_check_at', { when: when(goal.last_checked_at) })
+        : t('aide.goal_last_check')));
       memory.append(el('p', 'aide-goal-last', goal.last_run.summary));
     }
     main.append(memory);
   }
-  const state = stateText(goal);
-  const badge = el('span', `aide-schedule-state ${['active', 'checking now', 'needs you'].includes(state) ? 'on' : ''}`, state);
+  const state = stateOf(goal);
+  const badge = el('span', `aide-schedule-state ${['active', 'running', 'waiting'].includes(state) ? 'on' : ''}`, STATES[state]());
   if (goal.waiting) badge.dataset.waiting = 'true';
   const actions = el('div', 'aide-schedule-actions');
-  if (goal.waiting) actions.append(action('answer', 'answer', goal));
+  if (goal.waiting) actions.append(action(t('aide.goal_answer'), 'answer', goal));
   actions.append(
-    action('check now', 'run', goal, !goal.enabled || goal.running),
-    action(goal.enabled ? 'pause' : 'resume', 'toggle', goal),
-    action('edit', 'edit', goal),
-    ...(goal.wake === 'webhook' ? [action('new link', 'hook', goal)] : []),
-    action('delete', 'delete', goal, goal.running),
+    action(t('aide.goal_check_now'), 'run', goal, !goal.enabled || goal.running),
+    action(goal.enabled ? t('common.pause') : t('common.resume'), 'toggle', goal),
+    action(t('common.edit'), 'edit', goal),
+    ...(goal.wake === 'webhook' ? [action(t('aide.goal_new_link'), 'hook', goal)] : []),
+    action(t('common.delete'), 'delete', goal, goal.running),
   );
   item.append(main, badge, actions);
   return item;
@@ -285,8 +303,8 @@ function render() {
   if (!goals.length) {
     const empty = el('div', 'aide-scheduled-empty');
     empty.append(
-      el('strong', '', 'no goals yet'),
-      el('p', '', 'Give Aide something to keep working on, like watching a price or keeping an inbox tidy. You can also just ask in conversation: "keep an eye on…".'),
+      el('strong', '', t('aide.goal_empty_title')),
+      el('p', '', t('aide.goal_empty_body')),
     );
     host.append(empty);
     return;
@@ -318,7 +336,7 @@ async function onAction(event) {
     return;
   }
   if (name === 'hook') {
-    if (goal.has_hook && !await dlgConfirm('make a new webhook link? the old one stops working.', { confirmLabel: 'new link', danger: false })) return;
+    if (goal.has_hook && !await dlgConfirm(t('aide.goal_new_link_confirm'), { confirmLabel: t('aide.goal_new_link'), danger: false })) return;
     try {
       const made = await send('POST', `/api/jarvis/aide-goals/${goal.id}/hook`);
       await loadGoals();
@@ -326,7 +344,7 @@ async function onAction(event) {
     } catch (error) { toast(error.message, 'error'); }
     return;
   }
-  if (name === 'delete' && !await dlgConfirm(`delete the goal "${goal.name}"? its past checks stay in recent runs.`, { confirmLabel: 'delete' })) return;
+  if (name === 'delete' && !await dlgConfirm(t('aide.goal_delete_confirm', { name: goal.name }), { confirmLabel: t('common.delete') })) return;
   button.disabled = true;
   try {
     if (name === 'run') await send('POST', `/api/jarvis/workflows/${goal.id}/runs`);

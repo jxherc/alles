@@ -3,9 +3,9 @@
 // summary aide already tracks. hand-drawn SVG sparklines, no chart lib. distinct from
 // the `system` app (which watches this machine).
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js?v=212';
+import { initCustomDropdown } from './dropdown.js?v=213';
 import { confirm as dlgConfirm } from './dialog.js';
-import { formatNumber } from './i18n.js';
+import { formatNumber, t, tp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -57,8 +57,8 @@ export async function loadWatch(fetcher = fetch) {
 async function watchJson(request, path, options, valid = value => value && typeof value === 'object') {
   const response = await request(path, options);
   const value = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(typeof value?.detail === 'string' ? value.detail : `request failed (${response.status}); try again`);
-  if (!valid(value)) throw new Error('the server response was not confirmed; try again');
+  if (!response.ok) throw new Error(typeof value?.detail === 'string' ? value.detail : t('server.watch_request_failed', { status: response.status }));
+  if (!valid(value)) throw new Error(t('common.response_unconfirmed'));
   return value;
 }
 
@@ -74,18 +74,18 @@ function esc(s) {
 }
 
 function _statusDot(s) {
-  return `<span class="watch-dot ${s}" title="${s}"></span>`;
+  return `<span class="watch-dot ${s}" title="${esc(['up', 'down'].includes(s) ? t(`server.watch_status_${s}`) : t('common.unknown'))}"></span>`;
 }
 
 function _agoLabel(iso) {
-  if (!iso) return 'never';
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return '';
-  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
-  return `${Math.round(s / 86400)}d ago`;
+  if (!iso) return t('server.watch_never');
+  const at = new Date(iso).getTime();
+  if (Number.isNaN(at)) return '';
+  const s = Math.max(0, Math.round((Date.now() - at) / 1000));
+  if (s < 60) return t('server.ago_seconds', { count: s });
+  if (s < 3600) return t('server.ago_minutes', { count: Math.round(s / 60) });
+  if (s < 86400) return t('server.ago_hours', { count: Math.round(s / 3600) });
+  return t('server.ago_days', { count: Math.round(s / 86400) });
 }
 
 function _spark(vals) {
@@ -105,7 +105,7 @@ function _certBar(m) {
   if (Number.isNaN(raw)) return '<span class="watch-spark-empty">—</span>';
   const pct = Math.max(2, Math.min(100, (raw / 90) * 100));   // 90-day horizon
   const cls = raw < 14 ? 'crit' : raw < 30 ? 'warn' : 'ok';
-  return `<div class="watch-cert-bar ${cls}" title="${raw} days until certificate expiry"><i style="width:${pct}%"></i></div>`;
+  return `<div class="watch-cert-bar ${cls}" title="${esc(tp('server.watch_cert_days', raw))}"><i style="width:${pct}%"></i></div>`;
 }
 
 function _kindBadge(k) {
@@ -122,26 +122,26 @@ function _render() {
   const down = _mons.filter(m => m.status === 'down').length;
   const unk = _mons.filter(m => m.status === 'unknown').length;
   const sumBits = [];
-  if (up) sumBits.push(`${up} up`);
-  if (down) sumBits.push(`${down} down`);
-  if (unk) sumBits.push(`${unk} pending`);
+  if (up) sumBits.push(t('server.watch_n_up', { count: up }));
+  if (down) sumBits.push(t('server.watch_n_down', { count: down }));
+  if (unk) sumBits.push(t('server.watch_n_pending', { count: unk }));
 
   const cards = _mons.map(m => m.id === _editing ? _editCard(m) : _card(m)).join('');
   const grid = _mons.length
     ? `<div class="watch-grid">${cards}</div>`
-    : (_adding || _loadError ? '' : `<div class="watch-empty">nothing watched yet: add a site, a <code>/health</code> endpoint, or a cert to keep an eye on. add one below.</div>`);
+    : (_adding || _loadError ? '' : `<div class="watch-empty">${esc(t('server.watch_empty'))}</div>`);
 
   body.innerHTML = `
     <div class="watch-bar">
-      <div class="watch-summary">${_loadError ? (_mons.length ? 'last loaded monitors' : 'monitor status unavailable') : sumBits.join(' · ') || 'no monitors'}</div>
+      <div class="watch-summary">${_loadError ? esc(_mons.length ? t('server.watch_last_loaded') : t('server.watch_unavailable')) : esc(sumBits.join(' · ') || t('server.watch_no_monitors'))}</div>
       <div class="watch-bar-actions">
-        ${_statusCfg.enabled ? `<a class="btn" href="/status" target="_blank" rel="noopener" title="public status page">status page ${_si('external')}</a>` : ''}
-        <button type="button" class="btn" id="watch-status-toggle" aria-pressed="${!!_statusCfg.enabled}" title="toggle the public /status page"${_statusPending || !_statusLoaded ? ' disabled' : ''}${_statusPending ? ' aria-busy="true"' : ''}>status: ${_statusLoaded ? (_statusCfg.enabled ? 'public' : 'off') : 'unavailable'}</button>
-        <button class="btn" id="watch-refresh-all">${_si('refresh')} refresh all</button>
-        <button class="btn primary" id="watch-add-toggle">${_si('plus')} monitor</button>
+        ${_statusCfg.enabled ? `<a class="btn" href="/status" target="_blank" rel="noopener" title="${esc(t('server.watch_status_page_title'))}">${esc(t('server.watch_status_page'))} ${_si('external')}</a>` : ''}
+        <button type="button" class="btn" id="watch-status-toggle" aria-pressed="${!!_statusCfg.enabled}" title="${esc(t('server.watch_toggle_title'))}"${_statusPending || !_statusLoaded ? ' disabled' : ''}${_statusPending ? ' aria-busy="true"' : ''}>${esc(t('server.watch_status_line', { state: _statusLoaded ? (_statusCfg.enabled ? t('server.watch_public') : t('server.watch_off')) : t('common.unavailable') }))}</button>
+        <button class="btn" id="watch-refresh-all">${_si('refresh')} ${esc(t('server.watch_refresh_all'))}</button>
+        <button class="btn primary" id="watch-add-toggle">${_si('plus')} ${esc(t('server.watch_monitor'))}</button>
       </div>
     </div>
-    ${_loadError || _statusError ? `<div class="watch-empty" role="alert">${_loadError ? `could not load monitors: ${esc(_loadError)}` : ''}${_statusError ? `<div>could not read public status settings: ${esc(_statusError)}</div>` : ''} <button class="btn" id="watch-retry">retry</button></div>` : ''}
+    ${_loadError || _statusError ? `<div class="watch-empty" role="alert">${_loadError ? esc(t('server.watch_load_failed', { reason: _loadError })) : ''}${_statusError ? `<div>${esc(t('server.watch_status_read_failed', { reason: _statusError }))}</div>` : ''} <button class="btn" id="watch-retry">${esc(t('common.retry'))}</button></div>` : ''}
     ${_aiCard()}
     ${_adding ? _addForm() : ''}
     ${grid}
@@ -157,13 +157,13 @@ function _aiCard() {
   const top = (_ai.by_model || []).slice(0, 3);
   return `
     <div class="watch-ai">
-      <div class="watch-ai-head">${_si('activity')} ai usage</div>
+      <div class="watch-ai-head">${_si('activity')} ${esc(t('server.watch_ai_usage'))}</div>
       <div class="watch-ai-stats">
-        <div class="watch-ai-stat"><b>${fmt(_ai.total_tokens || 0)}</b><span>total tokens</span></div>
-        <div class="watch-ai-stat"><b>${fmt(thisMonth ? thisMonth.total : 0)}</b><span>this month</span></div>
-        <div class="watch-ai-stat"><b>${formatNumber(_ai.total_messages || 0)}</b><span>messages</span></div>
+        <div class="watch-ai-stat"><b>${fmt(_ai.total_tokens || 0)}</b><span>${esc(t('server.watch_total_tokens'))}</span></div>
+        <div class="watch-ai-stat"><b>${fmt(thisMonth ? thisMonth.total : 0)}</b><span>${esc(t('server.watch_this_month'))}</span></div>
+        <div class="watch-ai-stat"><b>${formatNumber(_ai.total_messages || 0)}</b><span>${esc(t('server.watch_messages'))}</span></div>
       </div>
-      ${top.length ? `<div class="watch-ai-models">${top.map(m => `<span title="${esc(m.name)}: ${formatNumber(m.total)} tok">${esc(m.name)} · ${fmt(m.total)}</span>`).join('')}</div>` : ''}
+      ${top.length ? `<div class="watch-ai-models">${top.map(m => `<span title="${esc(t('server.watch_tok', { name: m.name, count: formatNumber(m.total) }))}">${esc(m.name)} · ${fmt(m.total)}</span>`).join('')}</div>` : ''}
     </div>`;
 }
 
@@ -182,40 +182,40 @@ function _card(m) {
       <div class="watch-url" title="${esc(m.url)}">${esc(m.url)}</div>
       <div class="watch-spark-row">${m.kind === 'cert' ? _certBar(m) : _spark(m.spark)}</div>
       <div class="watch-stats">
-        <span>${m.kind === 'cert' && detail ? detail + ' left' : (latency || '—')}</span>
-        <span title="uptime, last 24h / 7d">${_uptimeStr(m.uptime_24h)} <i>/</i> ${_uptimeStr(m.uptime_7d)}</span>
-        <span class="watch-ago">${l ? _agoLabel(l.ts) : 'never'}</span>
+        <span>${m.kind === 'cert' && detail ? t('server.watch_left', { detail }) : (latency || '—')}</span>
+        <span title="${esc(t('server.watch_uptime_title'))}">${_uptimeStr(m.uptime_24h)} <i>/</i> ${_uptimeStr(m.uptime_7d)}</span>
+        <span class="watch-ago">${l ? _agoLabel(l.ts) : esc(t('server.watch_never'))}</span>
       </div>
       ${errLine}
       <div class="watch-actions">
-        <button class="icon-btn" data-act="check" title="check now">${_si('refresh')}</button>
-        <button class="icon-btn" data-act="edit" title="edit">${_si('edit')}</button>
-        <button class="icon-btn danger" data-act="del" title="delete"${_deleting.has(m.id) ? ' disabled aria-busy="true"' : ''}>${_si('trash')}</button>
+        <button class="icon-btn" data-act="check" title="${esc(t('server.watch_check_now'))}">${_si('refresh')}</button>
+        <button class="icon-btn" data-act="edit" title="${esc(t('common.edit'))}">${_si('edit')}</button>
+        <button class="icon-btn danger" data-act="del" title="${esc(t('common.delete'))}"${_deleting.has(m.id) ? ' disabled aria-busy="true"' : ''}>${_si('trash')}</button>
       </div>
     </div>`;
 }
 
 function _kindSelect(val) {
-  return `<div class="settings-input custom-select" data-f="kind" data-value="${esc(val || 'http')}" data-options="http|http (site is up);health|health (json/keyword);cert|cert (tls expiry)"></div>`;
+  return `<div class="settings-input custom-select" data-f="kind" data-value="${esc(val || 'http')}" data-options="${esc(`http|${t('server.watch_kind_http')};health|${t('server.watch_kind_health')};cert|${t('server.watch_kind_cert')}`)}"></div>`;
 }
 
 function _editCard(m) {
   return `
     <div class="watch-card editing" data-id="${m.id}">
-      <input type="text" class="settings-input" data-f="name" value="${esc(m.name)}" placeholder="name">
+      <input type="text" class="settings-input" data-f="name" value="${esc(m.name)}" placeholder="${esc(t('server.watch_name'))}">
       <input type="text" class="settings-input" data-f="url" value="${esc(m.url)}" placeholder="https://example.com">
       ${_kindSelect(m.kind)}
       <div class="watch-edit-row">
-        <input type="text" class="settings-input" data-f="interval_secs" value="${m.interval_secs}" inputmode="numeric" placeholder="interval (s)" title="seconds between checks">
-        <input type="text" class="settings-input" data-f="expect_status" value="${m.expect_status}" inputmode="numeric" placeholder="status (0=any 2xx)" title="required status code, 0 = accept any 2xx/3xx">
+        <input type="text" class="settings-input" data-f="interval_secs" value="${m.interval_secs}" inputmode="numeric" placeholder="${esc(t('server.watch_interval'))}" title="${esc(t('server.watch_interval_title'))}">
+        <input type="text" class="settings-input" data-f="expect_status" value="${m.expect_status}" inputmode="numeric" placeholder="${esc(t('server.watch_status_ph'))}" title="${esc(t('server.watch_status_title'))}">
       </div>
       <div class="watch-edit-row">
-        <input type="text" class="settings-input" data-f="expect_keyword" value="${esc(m.expect_keyword)}" placeholder="keyword in body" title="text that must appear in the response">
-        <input type="text" class="settings-input" data-f="latency_ceiling_ms" value="${m.latency_ceiling_ms}" inputmode="numeric" placeholder="max ms (0=off)" title="fail if slower than this (ms), 0 = no ceiling">
+        <input type="text" class="settings-input" data-f="expect_keyword" value="${esc(m.expect_keyword)}" placeholder="${esc(t('server.watch_keyword_body'))}" title="${esc(t('server.watch_keyword_title'))}">
+        <input type="text" class="settings-input" data-f="latency_ceiling_ms" value="${m.latency_ceiling_ms}" inputmode="numeric" placeholder="${esc(t('server.watch_max_ms'))}" title="${esc(t('server.watch_max_ms_title'))}">
       </div>
       <div class="watch-actions">
-        <button class="btn primary" data-act="save">save</button>
-        <button class="btn" data-act="cancel">cancel</button>
+        <button class="btn primary" data-act="save">${esc(t('common.save'))}</button>
+        <button class="btn" data-act="cancel">${esc(t('common.cancel'))}</button>
       </div>
     </div>`;
 }
@@ -223,16 +223,16 @@ function _editCard(m) {
 function _addForm() {
   return `
     <div class="watch-card editing watch-add" data-add="1">
-      <input type="text" class="settings-input" data-f="name" placeholder="name (e.g. my site)">
+      <input type="text" class="settings-input" data-f="name" placeholder="${esc(t('server.watch_name_example'))}">
       <input type="text" class="settings-input" data-f="url" placeholder="https://example.com">
       ${_kindSelect('http')}
       <div class="watch-edit-row">
-        <input type="text" class="settings-input" data-f="interval_secs" value="300" inputmode="numeric" placeholder="interval (s)">
-        <input type="text" class="settings-input" data-f="expect_keyword" placeholder="keyword (optional)">
+        <input type="text" class="settings-input" data-f="interval_secs" value="300" inputmode="numeric" placeholder="${esc(t('server.watch_interval'))}">
+        <input type="text" class="settings-input" data-f="expect_keyword" placeholder="${esc(t('server.watch_keyword_optional'))}">
       </div>
       <div class="watch-actions">
-        <button class="btn primary" data-act="create">add monitor</button>
-        <button class="btn" data-act="cancel-add">cancel</button>
+        <button class="btn primary" data-act="create">${esc(t('server.watch_add_monitor'))}</button>
+        <button class="btn" data-act="cancel-add">${esc(t('common.cancel'))}</button>
       </div>
     </div>`;
 }
@@ -260,16 +260,16 @@ function _wire(body) {
       ++_loadSequence;
       _statusCfg = saved;
       if (button.isConnected) {
-        toast(next ? 'status page is now public at /status' : 'status page turned off', next ? 'success' : 'info');
+        toast(next ? t('server.watch_now_public') : t('server.watch_turned_off'), next ? 'success' : 'info');
         _render();
       }
-    } catch (error) { toast(error.message || 'status change failed; try again', 'error'); }
+    } catch (error) { toast(error.message || t('server.watch_status_change_failed'), 'error'); }
     finally {
       _statusPending = false;
       const current = $('watch-status-toggle');
       if (current) {
         current.disabled = !_statusLoaded; current.removeAttribute('aria-busy');
-        current.textContent = `status: ${_statusLoaded ? (_statusCfg.enabled ? 'public' : 'off') : 'unavailable'}`;
+        current.textContent = t('server.watch_status_line', { state: _statusLoaded ? (_statusCfg.enabled ? t('server.watch_public') : t('server.watch_off')) : t('common.unavailable') });
         current.setAttribute('aria-pressed', String(!!_statusCfg.enabled));
         if (document.activeElement === document.body) current.focus();
       }
@@ -300,17 +300,17 @@ function _wire(body) {
         _deleting.add(id);
         const m = _mons.find(x => x.id === id);
         try {
-          if (!await dlgConfirm(`stop watching ${m?.name || 'this'}?`)) return;
+          if (!await dlgConfirm(m?.name ? t('server.watch_stop', { name: m.name }) : t('server.watch_stop_this'))) return;
           btn.disabled = true; btn.setAttribute('aria-busy', 'true');
           await watchJson(fetch, `/api/watch/${id}`, { method: 'DELETE' }, value => value?.ok === true);
           ++_loadSequence;
           _mons = _mons.filter(item => item.id !== id);
           $('watch-body')?.querySelector(`.watch-card[data-id="${CSS.escape(id)}"]`)?.remove();
           if (_editing === id) _editing = null;
-          toast('removed', 'success');
+          toast(t('server.watch_removed'), 'success');
           await _refreshQuiet();
           if (document.activeElement === document.body) $('watch-add-toggle')?.focus();
-        } catch (error) { toast(error.message || 'removal failed; try again', 'error'); }
+        } catch (error) { toast(error.message || t('server.watch_removal_failed'), 'error'); }
         finally {
           _deleting.delete(id);
           const current = $('watch-body')?.querySelector(`.watch-card[data-id="${CSS.escape(id)}"] [data-act="del"]`) || btn;
@@ -331,9 +331,9 @@ function _wire(body) {
             latency_ceiling_ms: num('latency_ceiling_ms'),
           }),
         });
-        if (!r.ok) { toast((await r.json()).detail || 'save failed', 'error'); return; }
+        if (!r.ok) { toast((await r.json()).detail || t('server.watch_save_failed'), 'error'); return; }
         _editing = null;
-        toast('saved', 'success');
+        toast(t('common.saved'), 'success');
         loadWatch();
         return;
       }
@@ -345,8 +345,8 @@ async function _create(card) {
   const v = f => card.querySelector(`[data-f="${f}"]`);
   const name = v('name')?.value.trim();
   const url = v('url')?.value.trim();
-  if (!name) { toast('give it a name', 'error'); return; }
-  if (!url) { toast('what url should i watch?', 'error'); return; }
+  if (!name) { toast(t('server.watch_give_name'), 'error'); return; }
+  if (!url) { toast(t('server.watch_what_url'), 'error'); return; }
   const interval = parseInt(v('interval_secs')?.value, 10);
   const r = await fetch('/api/watch', {
     method: 'POST', headers: { 'content-type': 'application/json' },
@@ -356,9 +356,9 @@ async function _create(card) {
       expect_keyword: v('expect_keyword')?.value.trim() || '',
     }),
   });
-  if (!r.ok) { toast((await r.json()).detail || 'failed to add', 'error'); return; }
+  if (!r.ok) { toast((await r.json()).detail || t('server.watch_add_failed'), 'error'); return; }
   _adding = false;
-  toast(`watching ${name}`, 'success');
+  toast(t('server.watch_watching', { name }), 'success');
   // probe it once right away so the card isn't stuck on "pending"
   try { const m = await r.json(); fetch(`/api/watch/${m.id}/check`, { method: 'POST' }).then(() => loadWatch()); } catch { /* ignore */ }
   loadWatch();

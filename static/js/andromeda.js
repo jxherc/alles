@@ -1,8 +1,8 @@
-import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=212';
+import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=213';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
-import { createMenuController, setControlState, wireChoiceGroup } from './kokuen.js?v=2';
+import { createMenuController, setControlState, wireChoiceGroup } from './kokuen.js?v=4';
 import { replaceRouteUrl } from './route_history.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -208,7 +208,7 @@ function mediaFrame(result, { favicon = false, video = false } = {}) {
   if (src) {
     const image = document.createElement('img');
     image.src = src;
-    image.alt = favicon ? '' : (result.title || 'search result');
+    image.alt = favicon ? '' : (result.title || tr('andromeda.x_search_result'));
     image.loading = favicon ? 'eager' : 'lazy';
     image.decoding = 'async';
     image.addEventListener('load', () => {
@@ -300,14 +300,14 @@ function renderThread() {
   nav.hidden = !turns.length;
   if (!turns.length) return;
   const label = document.createElement('span');
-  label.textContent = 'following up on';
+  label.textContent = tr('andromeda.x_following_up');
   nav.append(label);
   turns.forEach((turn, index) => {
     const back = document.createElement('button');
     back.type = 'button';
     back.className = 'andromeda-thread-turn';
     back.textContent = turn.question;
-    back.setAttribute('aria-label', `search again: ${turn.question}`);
+    back.setAttribute('aria-label', tr('andromeda.x_search_again', { question: turn.question }));
     back.addEventListener('click', () => void runAndromedaSearch(turn.question, {
       context: turns.slice(0, index), followUpOf: turns[index - 1]?.question || '',
     }));
@@ -327,7 +327,7 @@ function askFollowUp(question) {
 }
 
 // ── saved-search monitors ──
-const WATCH_LABELS = { 0: 'off', 6: 'every 6 hours', 24: 'daily', 168: 'weekly' };
+const WATCH_LABELS = { 0: () => tr('common.off'), 6: () => tr('aide.sched_every_six_hours'), 24: () => tr('common.daily'), 168: () => tr('common.weekly') };
 
 function shortDate(value) {
   const date = value ? new Date(`${value}${/Z|[+-]\d\d:?\d\d$/.test(value) ? '' : 'Z'}`) : null;
@@ -337,11 +337,11 @@ function shortDate(value) {
 }
 
 function watchStateText(watch = {}) {
-  if (!watch.every_hours) return 'not watching. alles checks without a model, so nothing leaves this machine except the search itself.';
-  const parts = [`checking ${WATCH_LABELS[watch.every_hours] || `every ${watch.every_hours} hours`}`];
-  if (watch.checked_at) parts.push(`last checked ${shortDate(watch.checked_at)}`);
-  if (watch.next_at) parts.push(`next ${shortDate(watch.next_at)}`);
-  if (watch.error) parts.push(`last check failed (${watch.error})`);
+  if (!watch.every_hours) return tr('andromeda.x_not_watching');
+  const parts = [tr('andromeda.x_checking', { every: WATCH_LABELS[watch.every_hours]?.() || tr('andromeda.x_every_hours', { count: watch.every_hours }) })];
+  if (watch.checked_at) parts.push(tr('andromeda.x_last_checked', { when: shortDate(watch.checked_at) }));
+  if (watch.next_at) parts.push(tr('aide.sched_next', { when: shortDate(watch.next_at) }));
+  if (watch.error) parts.push(tr('andromeda.x_last_check_failed', { error: watch.error }));
   return parts.join(' · ');
 }
 
@@ -370,7 +370,7 @@ function renderWatch(saved, fresh = []) {
     link.textContent = item.title || item.url;
     if (url) { link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer'; }
     const meta = document.createElement('small');
-    meta.textContent = [hostOf(item.url), shortDate(item.found_at) && `found ${shortDate(item.found_at)}`].filter(Boolean).join(' · ');
+    meta.textContent = [hostOf(item.url), shortDate(item.found_at) && tr('andromeda.x_found', { when: shortDate(item.found_at) })].filter(Boolean).join(' · ');
     row.append(link, meta);
     return row;
   }));
@@ -383,7 +383,7 @@ async function changeWatch(every) {
   if (!_watching || Number(every) === _watching.every_hours) return;
   const previous = _watching.every_hours;
   setWatchChoice(every);
-  text('andromeda-watch-state', 'saving…');
+  text('andromeda-watch-state', tr('common.saving'));
   try {
     const saved = await jsonRequest(`/api/andromeda/saved/${encodeURIComponent(_watching.id)}/watch`, {
       method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ every_hours: Number(every) }),
@@ -395,7 +395,7 @@ async function changeWatch(every) {
   } catch (error) {
     setWatchChoice(previous);
     const state = el('andromeda-watch-state');
-    if (state) { state.textContent = `${error.message || 'watch was not saved'}; try again`; state.dataset.state = 'error'; }
+    if (state) { state.textContent = tr('andromeda.x_settings_save_failed', { message: error.message || tr('andromeda.x_watch_unsaved') }); state.dataset.state = 'error'; }
   }
 }
 
@@ -419,13 +419,13 @@ async function hideSite(result) {
   try {
     await patchHiddenSites(list => [...new Set([...list, host])]);
   } catch (error) {
-    status(failureMessage(error.message || 'this site could not be hidden; try again', error));
+    status(failureMessage(error.message || tr('andromeda.x_hide_failed'), error));
     return;
   }
   _lastHidden = { host, results: _state.results };
   _state.results = _state.results.filter(row => !sameSite(row.url, host));
   renderAndromedaResults(_state.results, _state.results.length ? 'ready' : 'empty', category());
-  text('andromeda-blocked-text', `${host} is hidden from results. hidden sites are listed in settings → search.`);
+  text('andromeda-blocked-text', tr('andromeda.x_hidden_notice', { host }));
   const notice = el('andromeda-blocked-notice');
   if (notice) notice.hidden = false;
   el('andromeda-blocked-undo')?.focus();
@@ -437,7 +437,7 @@ async function undoHideSite() {
   try {
     await patchHiddenSites(list => list.filter(site => site !== last.host));
   } catch (error) {
-    status(failureMessage(error.message || 'the site could not be shown again; try again', error));
+    status(failureMessage(error.message || tr('andromeda.x_unhide_failed'), error));
     return;
   }
   _lastHidden = null;
@@ -583,7 +583,7 @@ function stopResultSummary({ announce = true } = {}) {
   active.surface.removeAttribute('aria-busy');
   active.stop.hidden = true;
   active.retry.hidden = false;
-  if (announce) active.status.textContent = 'summary stopped. original link is unchanged.';
+  if (announce) active.status.textContent = tr('andromeda.x_summary_stopped');
 }
 
 function resetResultInteractions() {
@@ -607,7 +607,7 @@ function renderResultSummaryClaim(host, claim, result) {
     link.rel = 'noopener noreferrer';
     link.className = 'andromeda-result-summary-citation';
     link.textContent = `[${index + 1}]`;
-    link.setAttribute('aria-label', `source: ${citation.title || result.title || url.hostname}`);
+    link.setAttribute('aria-label', tr('andromeda.x_source_named', { name: citation.title || result.title || url.hostname }));
     line.append(' ', link);
   });
   host.appendChild(line);
@@ -624,7 +624,7 @@ async function startResultSummary(result, refs) {
   surface.hidden = false;
   surface.setAttribute('aria-busy', 'true');
   output.replaceChildren();
-  summaryStatus.textContent = 'checking this page…';
+  summaryStatus.textContent = tr('andromeda.x_checking_page');
   stop.hidden = false;
   retry.hidden = true;
   try {
@@ -642,13 +642,13 @@ async function startResultSummary(result, refs) {
       confirmation.confirmed_endpoint_id = preview.endpoint_id;
       confirmation.confirmed_model = preview.model;
     } else if (preview.privacy_class === 'remote') {
-      const host = safeUrl(result.url)?.hostname || 'this source';
+      const host = safeUrl(result.url)?.hostname || tr('andromeda.x_this_source');
       const allowed = await confirmDialog(
-        `summarize page: send the current query and content from ${host} to ${preview.endpoint} · ${preview.model}?`,
+        tr('andromeda.x_summarize_confirm', { host, endpoint: preview.endpoint, model: preview.model }),
       );
       if (!current()) return;
       if (!allowed) {
-        summaryStatus.textContent = 'summary cancelled before anything was sent.';
+        summaryStatus.textContent = tr('andromeda.x_summary_cancelled');
         retry.hidden = false;
         return;
       }
@@ -667,11 +667,11 @@ async function startResultSummary(result, refs) {
     if (!current()) { await response.body?.cancel(); return; }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      throw Object.assign(new Error(body.detail || 'could not summarize this page'), body);
+      throw Object.assign(new Error(body.detail || tr('andromeda.x_summarize_failed')), body);
     }
-    summaryStatus.textContent = `reading with ${preview.model} · ${preview.privacy_class}`;
+    summaryStatus.textContent = tr('andromeda.x_reading_with', { model: preview.model, privacy: preview.privacy_class });
     const reader = response.body?.getReader();
-    if (!reader) throw new Error('summary response was unavailable');
+    if (!reader) throw new Error(tr('andromeda.x_summary_unavailable'));
     const decoder = new TextDecoder();
     let buffer = '';
     let rendered = 0;
@@ -692,7 +692,7 @@ async function startResultSummary(result, refs) {
         } else if (event.type === 'overview') {
           complete = event.overview;
         } else if (event.type === 'error') {
-          throw Object.assign(new Error(event.detail || 'could not summarize this page'), event);
+          throw Object.assign(new Error(event.detail || tr('andromeda.x_summarize_failed')), event);
         }
       }
       if (done) break;
@@ -701,11 +701,11 @@ async function startResultSummary(result, refs) {
       for (const claim of complete.claims || []) renderResultSummaryClaim(output, claim, result);
       rendered = output.childElementCount;
     }
-    if (!rendered) throw new Error('this page did not provide enough evidence for a summary');
-    summaryStatus.textContent = `summary ready · ${preview.model}`;
+    if (!rendered) throw new Error(tr('andromeda.x_not_enough_evidence'));
+    summaryStatus.textContent = tr('andromeda.x_summary_ready', { model: preview.model });
   } catch (error) {
     if (!current()) return;
-    summaryStatus.textContent = `${error.message || 'could not summarize this page'}. original link is unchanged.`;
+    summaryStatus.textContent = tr('andromeda.x_summary_error', { message: error.message || tr('andromeda.x_summarize_failed') });
     retry.hidden = false;
   } finally {
     if (_resultSummaryAbort?.controller === controller) {
@@ -718,12 +718,12 @@ async function startResultSummary(result, refs) {
 
 async function copyResultLink(result, message) {
   const url = resultSaveUrl(result.url);
-  if (!url) { message.textContent = 'this link cannot be copied'; return; }
+  if (!url) { message.textContent = tr('andromeda.x_link_uncopyable'); return; }
   try {
     await navigator.clipboard.writeText(url);
-    message.textContent = 'link copied';
+    message.textContent = tr('andromeda.x_link_copied');
   } catch {
-    message.textContent = 'could not copy the link; open it instead';
+    message.textContent = tr('andromeda.x_link_copy_failed');
   }
 }
 
@@ -772,7 +772,7 @@ function resultNode(result, savedItems = null, index = 0) {
   trigger.className = 'andromeda-result-actions-trigger';
   trigger.dataset.resultAction = 'menu';
   trigger.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="19" cy="12" r="1.4"></circle></svg>';
-  trigger.setAttribute('aria-label', `actions for ${result.title || sourceName.textContent}`);
+  trigger.setAttribute('aria-label', tr('andromeda.x_actions_for', { name: result.title || sourceName.textContent }));
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.setAttribute('aria-expanded', 'false');
   const menu = document.createElement('div');
@@ -780,7 +780,7 @@ function resultNode(result, savedItems = null, index = 0) {
   menu.className = 'andromeda-result-menu';
   menu.hidden = true;
   menu.setAttribute('role', 'menu');
-  menu.setAttribute('aria-label', `actions for ${result.title || sourceName.textContent}`);
+  menu.setAttribute('aria-label', tr('andromeda.x_actions_for', { name: result.title || sourceName.textContent }));
   trigger.setAttribute('aria-controls', menu.id);
   const receipt = document.createElement('div');
   receipt.className = 'andromeda-result-receipt';
@@ -789,16 +789,16 @@ function resultNode(result, savedItems = null, index = 0) {
   const summary = document.createElement('section');
   summary.className = 'andromeda-result-summary';
   summary.hidden = true;
-  summary.setAttribute('aria-label', `summary of ${result.title || sourceName.textContent}`);
+  summary.setAttribute('aria-label', tr('andromeda.x_summary_of', { name: result.title || sourceName.textContent }));
   const summaryHead = document.createElement('div');
   summaryHead.className = 'andromeda-result-summary-head';
   const summaryStatus = document.createElement('span');
   summaryStatus.setAttribute('role', 'status');
   summaryStatus.setAttribute('aria-live', 'polite');
   const stop = document.createElement('button');
-  stop.type = 'button'; stop.textContent = 'stop'; stop.hidden = true;
+  stop.type = 'button'; stop.textContent = tr('common.stop'); stop.hidden = true;
   const retry = document.createElement('button');
-  retry.type = 'button'; retry.textContent = 'retry summary'; retry.hidden = true;
+  retry.type = 'button'; retry.textContent = tr('andromeda.x_retry_summary'); retry.hidden = true;
   const output = document.createElement('div');
   output.className = 'andromeda-result-summary-output';
   summaryHead.append(summaryStatus, stop, retry);
@@ -814,9 +814,9 @@ function resultNode(result, savedItems = null, index = 0) {
     menu.appendChild(button);
     return button;
   };
-  addMenuItem('summarize page', () => void startResultSummary(result, summaryRefs), 'summarize');
-  addMenuItem('copy link', () => void copyResultLink(result, receipt), 'copy');
-  if (hostOf(result.url)) addMenuItem(`hide ${hostOf(result.url)}`, () => void hideSite(result), 'hide-site');
+  addMenuItem(tr('andromeda.x_summarize_page'), () => void startResultSummary(result, summaryRefs), 'summarize');
+  addMenuItem(tr('andromeda.x_copy_link'), () => void copyResultLink(result, receipt), 'copy');
+  if (hostOf(result.url)) addMenuItem(tr('andromeda.x_hide_host', { host: hostOf(result.url) }), () => void hideSite(result), 'hide-site');
   const library = libraryControl(result, false, savedItems, receipt);
   library.button.role = 'menuitem';
   library.button.className = '';
@@ -883,7 +883,7 @@ function libraryControl(result, news = false, savedItems = null, existingMessage
   let busy = false;
   let acted = false;
   const label = () => {
-    button.textContent = savedItem ? 'open in Library' : tr('andromeda.save_library');
+    button.textContent = savedItem ? tr('andromeda.x_open_library') : tr('andromeda.save_library');
     button.setAttribute('aria-label', `${button.textContent}: ${result.title || url}`);
   };
   label();
@@ -905,11 +905,11 @@ function libraryControl(result, news = false, savedItems = null, existingMessage
     try {
       if (savedItem) {
         if (!await window._openRecord?.('read', savedItem.id)) {
-          message.textContent = 'could not open this item; try again';
+          message.textContent = tr('andromeda.x_open_item_failed');
         }
         return;
       }
-      message.textContent = 'saving excerpt…';
+      message.textContent = tr('andromeda.x_saving_excerpt');
       const saved = await jsonRequest(news ? '/api/read/save-news' : '/api/read/save-result', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -922,13 +922,13 @@ function libraryControl(result, news = false, savedItems = null, existingMessage
       if (!saved?.item || typeof saved.item.id !== 'string'
           || !/^[a-zA-Z0-9_-]{1,160}$/.test(saved.item.id)
           || resultSaveUrl(saved.item.url) !== url || typeof saved.duplicate !== 'boolean') {
-        throw new Error('could not confirm the saved item');
+        throw new Error(tr('andromeda.x_save_unconfirmed_item'));
       }
       savedItem = saved.item;
       label();
-      message.textContent = saved.duplicate ? 'already in Library' : 'saved to Library';
+      message.textContent = saved.duplicate ? tr('andromeda.x_already_library') : tr('aide.news_saved_library');
     } catch (error) {
-      message.textContent = `${error.message || 'could not confirm the save'}; retry safely`;
+      message.textContent = tr('andromeda.x_save_retry', { message: error.message || tr('andromeda.x_save_unconfirmed') });
     } finally {
       busy = false;
       button.setAttribute('aria-disabled', 'false');
@@ -967,7 +967,7 @@ function newsNode(result, savedItems = null) {
   const copy = document.createElement('div');
   const source = document.createElement('span');
   source.className = 'andromeda-news-source';
-  source.textContent = result.publisher || safeUrl(result.url)?.hostname || 'web';
+  source.textContent = result.publisher || safeUrl(result.url)?.hostname || tr('andromeda.x_web');
   const link = makeExternalLink(result, 'andromeda-news-title');
   const snippet = document.createElement('p');
   snippet.textContent = result.snippet || tr('andromeda.no_description');
@@ -1121,7 +1121,7 @@ function renderEvidence(sources) {
     const title = document.createElement('strong');
     title.textContent = `${source.id} · ${source.title}`;
     const meta = document.createElement('small');
-    meta.textContent = `${source.source_kind} · quality ${source.source_quality}`;
+    meta.textContent = tr('andromeda.x_kind_quality', { kind: sourceKindLabel(source.source_kind), quality: source.source_quality });
     node.append(title, meta);
     for (const passage of source.passages || []) {
       const quote = document.createElement('blockquote');
@@ -1140,6 +1140,7 @@ function hostOf(value) {
 }
 
 const SOURCE_KIND_LABELS = new Set(['official docs', 'release notes', 'source repository', 'package registry']);
+const sourceKindLabel = kind => ({ 'official docs': tr('andromeda.x_kind_docs'), 'release notes': tr('andromeda.x_kind_release'), 'source repository': tr('andromeda.x_kind_repo'), 'package registry': tr('andromeda.x_kind_package') }[kind] ?? String(kind ?? ''));
 
 function closeSourceCard({ restoreFocus = false } = {}) {
   if (!_openSourceCard) return;
@@ -1159,13 +1160,13 @@ function toggleSourceCard(chip, citation, anchor) {
   card.className = 'andromeda-source-card';
   card.id = `andromeda-source-card-${++_sourceCardSeq}`;
   card.setAttribute('role', 'group');
-  card.setAttribute('aria-label', `source for this claim: ${citation.title || hostOf(citation.url)}`);
+  card.setAttribute('aria-label', tr('andromeda.x_source_for_claim', { name: citation.title || hostOf(citation.url) }));
   const quote = document.createElement('blockquote');
   quote.textContent = citation.quote || '';
   const url = safeUrl(citation.url);
   const link = document.createElement('a');
   link.className = 'andromeda-source-card-title';
-  link.textContent = citation.title || hostOf(citation.url) || 'source';
+  link.textContent = citation.title || hostOf(citation.url) || tr('andromeda.x_source');
   if (url) { link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer'; }
   const evidence = (_state.evidence || []).find(item => item.id === citation.source_id);
   const meta = document.createElement('div');
@@ -1173,7 +1174,7 @@ function toggleSourceCard(chip, citation, anchor) {
   meta.textContent = [
     hostOf(citation.url),
     evidence?.dates?.[0] || '',
-    SOURCE_KIND_LABELS.has(citation.source_kind) ? citation.source_kind : '',
+    SOURCE_KIND_LABELS.has(citation.source_kind) ? sourceKindLabel(citation.source_kind) : '',
   ].filter(Boolean).join(' · ');
   card.append(quote, link, meta);
   card.addEventListener('keydown', event => {
@@ -1190,7 +1191,7 @@ function citationNodes(claim, anchor = null) {
   refs.className = 'andromeda-citations';
   const seen = new Map();
   (claim.citations || []).forEach((citation, index) => {
-    const host = hostOf(citation.url) || `source ${index + 1}`;
+    const host = hostOf(citation.url) || tr('andromeda.x_source_n', { number: index + 1 });
     const count = (seen.get(host) || 0) + 1;
     seen.set(host, count);
     const chip = document.createElement('button');
@@ -1198,7 +1199,7 @@ function citationNodes(claim, anchor = null) {
     chip.className = 'andromeda-citation';
     chip.textContent = count > 1 ? `${host} ${count}` : host;
     chip.setAttribute('aria-expanded', 'false');
-    chip.setAttribute('aria-label', `show the quote from ${citation.title || host}`);
+    chip.setAttribute('aria-label', tr('andromeda.x_show_quote', { name: citation.title || host }));
     chip.addEventListener('click', () => toggleSourceCard(chip, citation, anchor || refs.parentElement || refs));
     chip.addEventListener('keydown', event => {
       if (event.key === 'Escape' && chip.getAttribute('aria-expanded') === 'true') {
@@ -1369,7 +1370,7 @@ function openProseCard(trigger, numbers, block, sources) {
   card.className = 'andromeda-prose-card';
   card.id = `andromeda-prose-card-${++_sourceCardSeq}`;
   card.setAttribute('role', 'group');
-  card.setAttribute('aria-label', 'sources for this part');
+  card.setAttribute('aria-label', tr('andromeda.x_sources_for_part'));
   for (const number of numbers) {
     const source = sources[number - 1];
     if (!source) continue;
@@ -1382,7 +1383,7 @@ function openProseCard(trigger, numbers, block, sources) {
     link.rel = 'noopener noreferrer';
     const host = document.createElement('span');
     host.className = 'andromeda-prose-card-host';
-    host.textContent = hostOf(source.url) || 'source';
+    host.textContent = hostOf(source.url) || tr('andromeda.x_source');
     const title = document.createElement('span');
     title.className = 'andromeda-prose-card-title';
     title.textContent = source.title || source.url;
@@ -1420,7 +1421,7 @@ function proseLine(parent, line, block, sources, done) {
     span.tabIndex = 0;
     span.setAttribute('role', 'button');
     span.setAttribute('aria-expanded', 'false');
-    span.setAttribute('aria-label', `${words.replace(/\*\*/g, '')} (sources: ${known.map(n => hostOf(sources[n - 1].url)).join(', ')})`);
+    span.setAttribute('aria-label', tr('andromeda.x_words_sources', { words: words.replace(/\*\*/g, ''), sources: known.map(n => hostOf(sources[n - 1].url)).join(', ') }));
     boldInline(span, words);
     const open = () => openProseCard(span, known, block, sources);
     span.addEventListener('click', open);
@@ -1513,7 +1514,7 @@ function renderCompleteOverview(overview) {
   renderThread();
   renderFollowUps(_state.overview.status === 'ready' ? _state.overview.follow_ups : []);
   if (_state.overview.status === 'ready') {
-    text('andromeda-overview-state', `${tr('andromeda.checked_sources')}${checked}${_state.deep ? ' · deeper read' : ''}`);
+    text('andromeda-overview-state', `${tr('andromeda.checked_sources')}${checked}${_state.deep ? tr('andromeda.x_deeper_read') : ''}`);
     showRecovery(false);
   } else {
     text('andromeda-overview-state', `${tr('andromeda.insufficient_evidence')}${checked}`);
@@ -1533,7 +1534,7 @@ function renderProseOverview(overview) {
   const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: freshness.checked_on })}` : '';
   if (_state.overview.status === 'ready') {
     renderProse(_state.overview.text, _state.evidence, { done: true });
-    text('andromeda-overview-state', `${_state.model?.model || ''}${_state.deep ? ' · deeper read' : ''}${checked}`);
+    text('andromeda-overview-state', `${_state.model?.model || ''}${_state.deep ? tr('andromeda.x_deeper_read') : ''}${checked}`);
     showRecovery(false);
   } else {
     el('andromeda-claims')?.replaceChildren();
@@ -1587,26 +1588,26 @@ function renderVerification(verification = {}, { saved = false } = {}) {
   }
   const state = verification.status || 'skipped';
   if (state === 'pending' || state === 'running') {
-    text('andromeda-verification-state', 'checking independently…');
+    text('andromeda-verification-state', tr('andromeda.x_checking_independently'));
     return;
   }
   if (state !== 'checked') {
     text('andromeda-verification-state', state === 'cancelled'
-      ? 'independent check cancelled'
-      : 'not independently checked');
+      ? tr('andromeda.x_check_cancelled')
+      : tr('andromeda.x_not_checked'));
     if (retry) retry.hidden = false;
     return;
   }
   const result = verification.result || verification;
   const counts = result.counts || {};
   const checkedOn = result.checked_on || String(verification.checked_at || '').slice(0, 10);
-  const freshness = checkedOn === verificationToday() ? 'checked today' : `checked ${checkedOn || 'earlier'}`;
+  const freshness = checkedOn === verificationToday() ? tr('andromeda.x_checked_today') : tr('andromeda.x_checked_on', { when: checkedOn || tr('andromeda.x_earlier') });
   const parts = [freshness];
-  if (counts.verified) parts.push(`${counts.verified} ${counts.verified === 1 ? 'claim' : 'claims'} verified`);
-  if (counts.corrected) parts.push('corrected after verification', `${counts.corrected} ${counts.corrected === 1 ? 'claim' : 'claims'} corrected`);
-  if (counts.conflicting || result.source_conflicts) parts.push('sources conflict');
-  if (counts.insufficient) parts.push(`${counts.insufficient} unresolved`);
-  if (saved && checkedOn !== verificationToday()) parts.push('saved result');
+  if (counts.verified) parts.push(trp('andromeda.x_claims_verified', counts.verified));
+  if (counts.corrected) parts.push(tr('andromeda.x_corrected_after'), trp('andromeda.x_claims_corrected', counts.corrected));
+  if (counts.conflicting || result.source_conflicts) parts.push(tr('andromeda.x_sources_conflict'));
+  if (counts.insufficient) parts.push(tr('andromeda.x_unresolved', { count: counts.insufficient }));
+  if (saved && checkedOn !== verificationToday()) parts.push(tr('andromeda.x_saved_result'));
   text('andromeda-verification-state', parts.join(' · '));
   if (retry) retry.hidden = false;
   const changes = Array.isArray(result.changes) ? result.changes : [];
@@ -1615,8 +1616,8 @@ function renderVerification(verification = {}, { saved = false } = {}) {
     const item = document.createElement('div');
     const before = document.createElement('span');
     const after = document.createElement('strong');
-    before.textContent = `was: ${change.before || ''}`;
-    after.textContent = `now: ${change.after || ''}`;
+    before.textContent = tr('andromeda.x_was', { text: change.before || '' });
+    after.textContent = tr('andromeda.x_now', { text: change.after || '' });
     item.append(before, after);
     details.appendChild(item);
   }
@@ -1692,7 +1693,7 @@ async function startVerification(query, answer, results, searchGeneration, { man
     confirmation.confirmed_model = model.model;
   } else if (model.privacy_class === 'remote') {
     const allowed = await confirmDialog(
-      `independent fact-check: send this query, answer, and source evidence to ${model.endpoint} · ${model.model}?`,
+      tr('andromeda.x_factcheck_confirm', { endpoint: model.endpoint, model: model.model }),
     );
     if (searchGeneration !== _searchGeneration) return;
     if (!allowed) {
@@ -1804,7 +1805,7 @@ async function startOverview(query, results, searchGeneration, options = {}) {
       confirmation.confirmed_model = preview.model;
     } else if (preview.privacy_class === 'remote') {
       // a consent, not a destructive action, so the confirm stays neutral
-      const allowed = await confirmDialog(tr('andromeda.remote_confirm', { endpoint: preview.endpoint, model: preview.model }), { danger: false, confirmLabel: 'send' });
+      const allowed = await confirmDialog(tr('andromeda.remote_confirm', { endpoint: preview.endpoint, model: preview.model }), { danger: false, confirmLabel: tr('common.send') });
       if (!current()) return;
       if (!allowed) {
         text('andromeda-overview-state', tr('andromeda.cancelled_unsent'));
@@ -1934,7 +1935,7 @@ function renderSpelling(fixed = '') {
     if (input) input.value = fixed;
     void runAndromedaSearch(fixed);
   });
-  line.append(document.createTextNode('did you mean '), again);
+  line.append(document.createTextNode(`${tr('andromeda.ans_did_you_mean')} `), again);
 }
 
 async function loadAnswer(query, searchGeneration) {
@@ -2185,7 +2186,7 @@ async function saveCurrent() {
   if (!_state.rawQuery || _state.resultStatus === 'loading') return;
   const payload = searchSnapshot();
   if (matchingSavedSearch(JSON.stringify(payload))) {
-    _saveMessage = 'this search is already saved'; renderSaveRecovery(); return;
+    _saveMessage = tr('andromeda.x_already_saved'); renderSaveRecovery(); return;
   }
   try {
     const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -2198,7 +2199,7 @@ async function saveCurrent() {
     if (sessionStorage.getItem(key) !== raw) throw new Error('save recovery unavailable');
     _pendingSave = pending;
   } catch {
-    _saveMessage = 'could not keep this search for retry; allow browser storage or save fewer results';
+    _saveMessage = tr('andromeda.x_keep_failed');
     renderSaveRecovery(); return;
   }
   await sendPendingSave(false);
@@ -2208,7 +2209,7 @@ function renderSaveRecovery() {
   const panel = el('andromeda-save-recovery');
   if (!panel) return;
   panel.hidden = !(_pendingSave || _unreadableSave || _saveMessage || _savedResult);
-  text('andromeda-save-message', _saveMessage || (_pendingSave ? 'this search save still needs confirmation' : ''));
+  text('andromeda-save-message', _saveMessage || (_pendingSave ? tr('andromeda.x_needs_confirmation') : ''));
   text('andromeda-save-query', _pendingSave?.payload.query || _savedResult?.query || '');
   for (const [id, visible] of [
     ['andromeda-save-retry', !!_pendingSave],
@@ -2227,7 +2228,7 @@ function renderSaveRecovery() {
 function readSaveRecovery(scopes) {
   if (!Array.isArray(scopes) || !scopes.length || scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) {
     _saveReady = false;
-    throw new Error('save recovery could not load; retry before saving');
+    throw new Error(tr('andromeda.x_recovery_load_failed'));
   }
   if (_saveScopes.length && !scopes.some(scope => _saveScopes.includes(scope))) {
     _savedResult = null; _savedPayload = '';
@@ -2249,7 +2250,7 @@ function readSaveRecovery(scopes) {
       break;
     } catch {
       _unreadableSave = scope;
-      throw new Error('could not read the pending save; retry recovery or discard it');
+      throw new Error(tr('andromeda.x_pending_unreadable'));
     }
   }
   _saveReady = true;
@@ -2260,7 +2261,7 @@ async function sendPendingSave(checkOnly) {
   const pending = _pendingSave;
   const focused = document.activeElement;
   _saveBusy = true; _savedResult = null;
-  _saveMessage = checkOnly ? 'checking saved search…' : 'saving search…'; renderSaveRecovery();
+  _saveMessage = checkOnly ? tr('andromeda.x_checking_saved') : tr('andromeda.x_saving_search'); renderSaveRecovery();
   try {
     const result = await jsonRequest(checkOnly
       ? `/api/andromeda/saved/requests/${encodeURIComponent(pending.request_id)}?recovery_scope=${encodeURIComponent(pending.recovery_scope)}`
@@ -2269,21 +2270,21 @@ async function sendPendingSave(checkOnly) {
         body: JSON.stringify({ ...pending.payload, request_id: pending.request_id, recovery_scope: pending.recovery_scope }),
       });
     if (result?.request_id !== pending.request_id || typeof result.id !== 'string' || !result.id
-      || result.query !== pending.payload.query.trim() || !Array.isArray(result.results)) throw new Error('save reply was incomplete; check the saved search');
-    if (!_saveScopes.includes(pending.recovery_scope)) throw new Error('search storage changed; reload andromeda');
+      || result.query !== pending.payload.query.trim() || !Array.isArray(result.results)) throw new Error(tr('andromeda.x_save_reply_incomplete'));
+    if (!_saveScopes.includes(pending.recovery_scope)) throw new Error(tr('andromeda.x_storage_changed'));
     const key = SAVE_PREFIX + pending.recovery_scope;
     if (sessionStorage.getItem(key) === JSON.stringify(pending)) {
       sessionStorage.removeItem(key);
-      if (sessionStorage.getItem(key) !== null) throw new Error('search saved; browser recovery could not be cleared. check again.');
+      if (sessionStorage.getItem(key) !== null) throw new Error(tr('andromeda.x_recovery_not_cleared'));
     }
     _savedResult = result; _savedPayload = JSON.stringify(pending.payload);
     renderWatch(result, []);
     if (_pendingSave?.request_id === pending.request_id) _pendingSave = null;
-    _saveMessage = 'search saved';
+    _saveMessage = tr('andromeda.x_search_saved');
     readSaveRecovery(_saveScopes);
     await loadSaved();
   } catch (error) {
-    _saveMessage = error.message || 'could not confirm this save; check or retry';
+    _saveMessage = error.message || tr('andromeda.x_save_unconfirmed_retry');
   } finally {
     _saveBusy = false; renderSaveRecovery();
     if (_savedResult && focused?.hidden && document.activeElement === document.body
@@ -2293,14 +2294,14 @@ async function sendPendingSave(checkOnly) {
 
 async function discardPendingSave() {
   const pending = _pendingSave, scope = pending?.recovery_scope || _unreadableSave;
-  if (_saveBusy || !scope || !await confirmDialog('discard this pending search save? it may already be saved; check saved searches before saving it again.')) return;
+  if (_saveBusy || !scope || !await confirmDialog(tr('andromeda.x_discard_confirm'))) return;
   if (_saveBusy || pending !== _pendingSave || scope !== (_pendingSave?.recovery_scope || _unreadableSave)) return;
   try {
     const key = SAVE_PREFIX + scope;
-    if (pending && sessionStorage.getItem(key) !== JSON.stringify(pending)) throw new Error('pending save changed; reload recovery');
+    if (pending && sessionStorage.getItem(key) !== JSON.stringify(pending)) throw new Error(tr('andromeda.x_pending_changed'));
     sessionStorage.removeItem(key);
-    if (sessionStorage.getItem(key) !== null) throw new Error('could not discard browser recovery; allow browser storage and retry');
-    _pendingSave = null; _unreadableSave = ''; _saveMessage = 'pending save discarded';
+    if (sessionStorage.getItem(key) !== null) throw new Error(tr('andromeda.x_discard_failed'));
+    _pendingSave = null; _unreadableSave = ''; _saveMessage = tr('andromeda.x_discarded');
     readSaveRecovery(_saveScopes);
   } catch (error) { _saveMessage = error.message; }
   renderSaveRecovery();
@@ -2372,12 +2373,12 @@ function reopen(saved) {
 async function openSavedSearch(id) {
   const generation = ++_savedOpenGeneration, search = _searchGeneration;
   _savedOpenBusy = true;
-  _saveMessage = 'opening saved search…';
+  _saveMessage = tr('andromeda.x_opening_saved');
   setPageState('results'); renderSaveRecovery();
   try {
     const saved = await jsonRequest(`/api/andromeda/saved/${encodeURIComponent(id)}`);
     if (generation !== _savedOpenGeneration || search !== _searchGeneration || !el('andromeda-view')?.getClientRects().length) return;
-    if (saved?.id !== id || typeof saved.query !== 'string' || !Array.isArray(saved.results)) throw new Error('saved search reply was incomplete; retry');
+    if (saved?.id !== id || typeof saved.query !== 'string' || !Array.isArray(saved.results)) throw new Error(tr('andromeda.x_saved_reply_incomplete'));
     _savedOpenRetry = ''; _saveMessage = '';
     reopen(saved);
   } catch (error) {
@@ -2408,7 +2409,7 @@ async function loadSaved() {
   try {
     const { searches, recovery_scopes } = await jsonRequest('/api/andromeda/saved', { cache: 'no-store' });
     if (generation !== _savedListGeneration) return;
-    if (!Array.isArray(searches)) throw new Error('saved searches could not load');
+    if (!Array.isArray(searches)) throw new Error(tr('andromeda.x_saved_load_failed'));
     readSaveRecovery(recovery_scopes);
     list.replaceChildren();
     if (!searches.length) { list.textContent = tr('andromeda.nothing_saved'); return; }
@@ -2420,7 +2421,7 @@ async function loadSaved() {
       name.textContent = item.query;
       button.append(name);
       const watch = item.watch || {};
-      const meta = [watch.new_count ? `${watch.new_count} new` : '', watch.every_hours ? WATCH_LABELS[watch.every_hours] : ''].filter(Boolean).join(' · ');
+      const meta = [watch.new_count ? tr('andromeda.x_new_count', { count: watch.new_count }) : '', watch.every_hours ? WATCH_LABELS[watch.every_hours]?.() : ''].filter(Boolean).join(' · ');
       if (meta) {
         const small = document.createElement('small');
         small.textContent = meta;
@@ -2442,7 +2443,7 @@ async function loadSaved() {
 async function loadModelChoices() {
   const control = el('andromeda-exact-model');
   if (!control) return;
-  const options = [{ value: '', label: 'band default' }];
+  const options = [{ value: '', label: tr('andromeda.x_band_default') }];
   _modelChoices = new Map();
   try {
     const endpoints = await jsonRequest('/api/models');
@@ -2462,7 +2463,7 @@ async function loadProviderChoices(requestedConfigurationGeneration = null) {
   const control = el('andromeda-provider');
   if (!control) return;
   const selectedProvider = providerValue('andromeda-provider');
-  const options = [{ value: '', label: 'automatic' }];
+  const options = [{ value: '', label: tr('andromeda.x_automatic') }];
   try {
     const response = await jsonRequest('/api/andromeda/providers');
     for (const provider of response.providers || []) {
@@ -2471,7 +2472,7 @@ async function loadProviderChoices(requestedConfigurationGeneration = null) {
   } catch (error) {
     if (requestedConfigurationGeneration !== null
       && requestedConfigurationGeneration !== _searchConfigurationGeneration) return;
-    setSearchSettingsStatus(error.message || 'search providers unavailable', true);
+    setSearchSettingsStatus(error.message || tr('andromeda.x_providers_unavailable'), true);
     return;
   }
   if (requestedConfigurationGeneration !== null
@@ -2528,7 +2529,7 @@ export function buildAideSearchContext(state, origin = null, limit = 20_000) {
     context.results = []; context.evidence = [];
     context.overview = Object.keys(overview).length ? null : overview;
     context.verification = Object.keys(verification).length ? null : verification;
-    if (render().length > limit) throw new Error('the search query is too large for this handoff');
+    if (render().length > limit) throw new Error(tr('andromeda.x_too_large_handoff'));
     const add = (array, item) => {
       array.push(item);
       if (render().length <= limit) return true;
@@ -2561,8 +2562,8 @@ export function buildAideSearchContext(state, origin = null, limit = 20_000) {
     || context.evidence.some(source => source.passages.some(passage => passage.trim()));
   if (!hasExcerpt) {
     throw new Error(partial
-      ? 'these source excerpts are too large to send in one message. try a narrower search; the full search is unchanged.'
-      : 'this search has no source excerpts to explain. open a source or try another search.');
+      ? tr('andromeda.x_excerpts_too_large')
+      : tr('andromeda.x_no_excerpts'));
   }
   return { request: render(), coverage: counts, partial };
 }
@@ -2591,11 +2592,18 @@ async function explainResults() {
       new URLSearchParams(location.search).get('project_id'),
     );
     if (partial) {
-      const message = `this search is too large to send in one message. send ${coverage.results_included} of ${coverage.results_total} results and ${coverage.passages_included} of ${coverage.passages_total} passages from ${coverage.evidence_sources_included} of ${coverage.evidence_sources_total} evidence sources? ${coverage.overview_included ? 'the overview is included.' : 'the overview is omitted.'} ${coverage.verification_included ? '' : 'verification details are omitted. '}${saved ? 'the full saved search stays unchanged and linked.' : 'the full search stays here; cancel to save it first.'}`;
+      const message = tr('andromeda.x_too_large_confirm', {
+        results: coverage.results_included, resultsTotal: coverage.results_total,
+        passages: coverage.passages_included, passagesTotal: coverage.passages_total,
+        sources: coverage.evidence_sources_included, sourcesTotal: coverage.evidence_sources_total,
+        overview: coverage.overview_included ? tr('andromeda.x_overview_included') : tr('andromeda.x_overview_omitted'),
+        verification: coverage.verification_included ? '' : tr('andromeda.x_verification_omitted'),
+        saved: saved ? tr('andromeda.x_full_saved_linked') : tr('andromeda.x_full_here'),
+      });
       if (!await confirmDialog(message)) return;
       if (generation !== _searchGeneration || snapshot !== JSON.stringify(searchSnapshot())) return;
       if (saved?.id !== matchingSavedSearch(snapshot)?.id || savedScopes !== JSON.stringify(_saveScopes)) {
-        status('the saved search changed while confirming. review the current search and try again.');
+        status(tr('andromeda.x_saved_changed'));
         return;
       }
     }
@@ -2627,9 +2635,11 @@ function settingsOpen() { return !el('andromeda-settings-panel')?.hidden; }
 
 // filled from /api/search/engines; these are the names shown before it answers
 const SEARCH_PROVIDER_LABELS = {
-  duckduckgo: 'free search', tavily: 'tavily', brave: 'brave', searxng: 'searxng',
-  google_pse: 'google pse', serper: 'serper', exa: 'exa', disabled: 'disabled', none: 'stop',
+  tavily: 'tavily', brave: 'brave', searxng: 'searxng',
+  google_pse: 'google pse', serper: 'serper', exa: 'exa',
 };
+const providerLabel = value => SEARCH_PROVIDER_LABELS[value]
+  ?? ({ duckduckgo: tr('andromeda.x_free_search'), disabled: tr('andromeda.x_disabled'), none: tr('andromeda.x_stop') }[value] ?? value);
 
 const SEARCH_SECRET_SETTINGS = new Set([
   'tavily_api_key', 'brave_api_key', 'google_pse_api_key', 'serper_api_key', 'exa_api_key',
@@ -2652,7 +2662,7 @@ function setSearchSettingsStatus(message = '', error = false) {
   node.dataset.error = error ? 'true' : 'false';
 }
 
-async function patchSearchSettings(patch, message = 'saved') {
+async function patchSearchSettings(patch, message = tr('models.saved')) {
   try {
     const settings = await jsonRequest('/api/settings', {
       method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch),
@@ -2665,7 +2675,7 @@ async function patchSearchSettings(patch, message = 'saved') {
     setSearchSettingsStatus(message);
     return sanitizeSearchSettings(settings);
   } catch (error) {
-    setSearchSettingsStatus(`${error.message || 'settings could not be saved'}; try again`, true);
+    setSearchSettingsStatus(tr('andromeda.x_settings_save_failed', { message: error.message || tr('andromeda.x_settings_unsaved') }), true);
     throw error;
   }
 }
@@ -2673,9 +2683,9 @@ async function patchSearchSettings(patch, message = 'saved') {
 function updateProviderSettingsSummary() {
   const primary = providerValue('andromeda-primary-provider', 'duckduckgo');
   const fallback = providerValue('andromeda-fallback-provider', 'none');
-  const primaryLabel = SEARCH_PROVIDER_LABELS[primary] || primary;
+  const primaryLabel = providerLabel(primary);
   const hasFallback = fallback && !['none', 'disabled', primary].includes(fallback);
-  const fallbackLabel = SEARCH_PROVIDER_LABELS[fallback] || fallback;
+  const fallbackLabel = providerLabel(fallback);
   text('andromeda-provider-order', hasFallback ? `${primaryLabel} → ${fallbackLabel}` : primaryLabel);
   const selected = [...new Set([primary, fallback].filter(value => value && !['none', 'disabled'].includes(value)))];
   const fields = [...document.querySelectorAll('[data-andromeda-provider-field]')];
@@ -2688,9 +2698,9 @@ function updateProviderSettingsSummary() {
   if (container) container.hidden = visibleFields === 0;
 }
 
-function configuredPlaceholder(id, configured, emptyText = 'not configured') {
+function configuredPlaceholder(id, configured, emptyText = tr('andromeda.x_not_configured')) {
   const input = el(id);
-  if (input) input.placeholder = configured ? 'saved · type to replace' : emptyText;
+  if (input) input.placeholder = configured ? tr('andromeda.x_saved_replace') : emptyText;
 }
 
 function setCredentialClearState(inputId, configured) {
@@ -2729,10 +2739,12 @@ function ensureEngineFields(engines) {
     const field = document.createElement('div');
     field.className = 'andromeda-setting-field';
     field.dataset.andromedaProviderField = engine.id;
-    const name = `${engine.label.toLowerCase()} api key`;
-    field.innerHTML = `<label for="${inputId}"></label><div class="andromeda-setting-input"><input id="${inputId}" type="password" autocomplete="new-password" placeholder="not configured"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="${inputId}">clear</button></div>`;
+    const name = tr('andromeda.x_api_key_named', { name: engine.label.toLowerCase() });
+    field.innerHTML = `<label for="${inputId}"></label><div class="andromeda-setting-input"><input id="${inputId}" type="password" autocomplete="new-password"><button class="andromeda-setting-clear" type="button" data-andromeda-clear-setting="${inputId}"></button></div>`;
+    field.querySelector('input').placeholder = tr('andromeda.x_not_configured');
+    field.querySelector('button').textContent = tr('common.clear');
     field.querySelector('label').textContent = name;
-    field.querySelector('button').setAttribute('aria-label', `clear ${name}`);
+    field.querySelector('button').setAttribute('aria-label', tr('andromeda.x_clear_named', { name }));
     container.append(field);
     SEARCH_CREDENTIAL_FIELDS[inputId] = engine.key_setting;
     SEARCH_SECRET_SETTINGS.add(engine.key_setting);
@@ -2747,11 +2759,11 @@ async function loadSearchEngines() {
   } catch {
     return;
   }
-  for (const engine of _searchEngines) SEARCH_PROVIDER_LABELS[engine.id] = engine.label.toLowerCase();
-  const rows = _searchEngines.map(engine => ({ value: engine.id, label: engine.label.toLowerCase() }));
-  populateDropdown(el('andromeda-primary-provider'), [...rows, { value: 'disabled', label: 'disabled' }],
+  for (const engine of _searchEngines) SEARCH_PROVIDER_LABELS[engine.id] = engine.id === 'duckduckgo' ? tr('andromeda.x_free_search') : engine.label.toLowerCase();
+  const rows = _searchEngines.map(engine => ({ value: engine.id, label: providerLabel(engine.id) }));
+  populateDropdown(el('andromeda-primary-provider'), [...rows, { value: 'disabled', label: tr('andromeda.x_disabled') }],
     providerValue('andromeda-primary-provider', 'duckduckgo'));
-  populateDropdown(el('andromeda-fallback-provider'), [{ value: 'none', label: 'none' }, ...rows],
+  populateDropdown(el('andromeda-fallback-provider'), [{ value: 'none', label: tr('andromeda.x_none') }, ...rows],
     providerValue('andromeda-fallback-provider', 'none'));
   ensureEngineFields(_searchEngines);
 }
@@ -2798,7 +2810,7 @@ async function loadSearchConfiguration() {
     updateProviderSettingsSummary();
     return current;
   } catch (error) {
-    setSearchSettingsStatus(error.message || 'search settings unavailable', true);
+    setSearchSettingsStatus(error.message || tr('andromeda.x_settings_unavailable'), true);
     return null;
   }
 }
@@ -2823,7 +2835,7 @@ async function persistAndromedaSwitch(id, setting) {
   const next = !previous;
   // Keep keyboard focus while the busy guard rejects repeated activation.
   button.setAttribute('aria-disabled', 'true');
-  setControlState(button, 'busy', { message: 'saving setting' });
+  setControlState(button, 'busy', { message: tr('andromeda.x_saving_setting') });
   setPressed(id, next);
   let outcome = next ? 'selected' : 'resting';
   try {
@@ -2839,7 +2851,7 @@ async function persistAndromedaSwitch(id, setting) {
     button.removeAttribute('aria-disabled');
     button.removeAttribute('aria-busy');
     setControlState(button, outcome, {
-      message: outcome === 'error' ? 'setting was not saved; try again' : '',
+      message: outcome === 'error' ? tr('andromeda.x_setting_unsaved') : '',
     });
   }
 }
@@ -2904,15 +2916,15 @@ async function saveSearchCredential(input) {
   input.disabled = true;
   try {
     const label = input.closest('.andromeda-setting-field')?.querySelector('label')?.textContent
-      || 'provider setting';
+      || tr('andromeda.x_provider_setting');
     await queueSearchCredentialWrite(
       setting,
-      () => patchSearchSettings({ [setting]: value }, `${label} saved`),
+      () => patchSearchSettings({ [setting]: value }, tr('andromeda.x_label_saved', { label })),
     );
     setCredentialClearState(input.id, true);
     if (input.type === 'password') {
       input.value = '';
-      input.placeholder = 'saved · type to replace';
+      input.placeholder = tr('andromeda.x_saved_replace');
     }
     await loadProviderChoices();
   } catch {} finally {
@@ -2930,15 +2942,15 @@ async function clearSearchCredential(button) {
   input.disabled = true;
   try {
     const label = input.closest('.andromeda-setting-field')?.querySelector('label')?.textContent
-      || 'provider setting';
+      || tr('andromeda.x_provider_setting');
     await queueSearchCredentialWrite(
       setting,
-      () => patchSearchSettings({ [setting]: '' }, `${label} cleared`),
+      () => patchSearchSettings({ [setting]: '' }, tr('andromeda.x_label_cleared', { label })),
     );
     input.value = '';
     configuredPlaceholder(input.id, false, input.id === 'andromeda-searxng-url'
       ? 'https://search.example.com' : input.id === 'andromeda-google-cx'
-        ? 'search engine id' : 'not configured');
+        ? tr('andromeda.x_search_engine_id') : tr('andromeda.x_not_configured'));
     cleared = true;
     await loadProviderChoices();
   } catch {} finally {
@@ -2949,12 +2961,12 @@ async function clearSearchCredential(button) {
 }
 
 function managedSearxngState(service) {
-  if (!service.support_verified && !service.installed) return 'managed install unavailable';
-  if (!service.installed) return service.available ? 'ready to install' : 'needs docker, which this machine does not have running';
-  if (!service.owned) return 'ownership check failed';
-  if (service.healthy) return 'healthy';
-  if (service.running) return 'running, but search is unhealthy';
-  return 'stopped';
+  if (!service.support_verified && !service.installed) return tr('andromeda.x_sx_unavailable');
+  if (!service.installed) return service.available ? tr('andromeda.x_sx_ready') : tr('andromeda.x_sx_needs_docker');
+  if (!service.owned) return tr('andromeda.x_sx_ownership');
+  if (service.healthy) return tr('andromeda.x_sx_healthy');
+  if (service.running) return tr('andromeda.x_sx_unhealthy');
+  return tr('andromeda.x_sx_stopped');
 }
 
 function addManagedSearxngAction(host, action, label, disabled = false) {
@@ -2976,43 +2988,45 @@ async function loadManagedSearxng() {
   try {
     const service = await jsonRequest('/api/system/searxng');
     statusNode.textContent = managedSearxngState(service);
-    meta.textContent = `${service.bind} · ${service.version} · ${service.license}${service.data_kept ? ' · data kept' : ''}`;
+    meta.textContent = `${service.bind} · ${service.version} · ${service.license}${service.data_kept ? tr('andromeda.x_sx_data_kept') : ''}`;
     if (!service.installed) {
-      if (service.support_verified) addManagedSearxngAction(actions, 'install', 'install', !service.available);
+      if (service.support_verified) addManagedSearxngAction(actions, 'install', tr('andromeda.x_act_install'), !service.available);
       return;
     }
     if (!service.owned) return;
-    addManagedSearxngAction(actions, service.running ? 'stop' : 'start', service.running ? 'stop' : 'start', !service.available);
-    addManagedSearxngAction(actions, 'restart', 'restart', !service.available);
-    addManagedSearxngAction(actions, 'test', 'test search', !service.available || !service.running);
-    addManagedSearxngAction(actions, 'update', 'safe update', !service.available);
-    addManagedSearxngAction(actions, 'rollback', 'rollback', !service.available);
-    addManagedSearxngAction(actions, 'uninstall', 'uninstall · keep data');
+    addManagedSearxngAction(actions, service.running ? 'stop' : 'start', service.running ? tr('common.stop') : tr('andromeda.x_act_start'), !service.available);
+    addManagedSearxngAction(actions, 'restart', tr('andromeda.x_act_restart'), !service.available);
+    addManagedSearxngAction(actions, 'test', tr('andromeda.x_act_test'), !service.available || !service.running);
+    addManagedSearxngAction(actions, 'update', tr('andromeda.x_act_update'), !service.available);
+    addManagedSearxngAction(actions, 'rollback', tr('andromeda.x_act_rollback'), !service.available);
+    addManagedSearxngAction(actions, 'uninstall', tr('andromeda.x_act_uninstall'));
   } catch (error) {
-    statusNode.textContent = error.message || 'local SearXNG status unavailable';
+    statusNode.textContent = error.message || tr('andromeda.x_sx_status_unavailable');
     statusNode.dataset.state = 'error';
-    meta.textContent = 'External search providers remain available.';
+    meta.textContent = tr('andromeda.x_external_remain');
   }
 }
 
+const sxActionLabel = action => ({ install: tr('andromeda.x_act_install'), start: tr('andromeda.x_act_start'), stop: tr('common.stop'), restart: tr('andromeda.x_act_restart'), test: tr('andromeda.x_act_test'), update: tr('andromeda.x_act_update'), rollback: tr('andromeda.x_act_rollback'), uninstall: tr('andromeda.x_act_uninstall_short') }[action] ?? action);
+
 async function manageSearxng(action, button) {
   if (action === 'uninstall'
-    && !await confirmDialog('uninstall the Alles-managed SearXNG service? its settings and data will be kept.')) return;
+    && !await confirmDialog(tr('andromeda.x_uninstall_confirm'))) return;
   button.disabled = true;
   const statusNode = el('andromeda-searxng-status');
-  if (statusNode) statusNode.textContent = `${action} in progress…`;
+  if (statusNode) statusNode.textContent = tr('andromeda.x_in_progress', { action: sxActionLabel(action) });
   const endpoint = `/api/system/searxng/${action}`;
   let actionMessage = '';
   let actionState = '';
   try {
     const result = await jsonRequest(endpoint, { method: 'POST' });
     if (action === 'test') {
-      if (result?.ok !== true || !Number.isInteger(result.results) || result.results < 0) throw new Error('invalid search test response; try again');
-      actionMessage = `search passed · ${result.results} results`;
+      if (result?.ok !== true || !Number.isInteger(result.results) || result.results < 0) throw new Error(tr('andromeda.x_invalid_test'));
+      actionMessage = tr('andromeda.x_search_passed', { count: result.results });
     }
     await loadSearchConfiguration();
   } catch (error) {
-    actionMessage = error.message || `${action} failed`;
+    actionMessage = error.message || tr('andromeda.x_action_failed', { action: sxActionLabel(action) });
     actionState = 'error';
   } finally {
     await loadManagedSearxng();
@@ -3216,7 +3230,7 @@ function bindOnce() {
     if (!details) return;
     details.hidden = !details.hidden;
     event.currentTarget.setAttribute('aria-expanded', String(!details.hidden));
-    event.currentTarget.textContent = details.hidden ? 'what changed' : 'hide changes';
+    event.currentTarget.textContent = details.hidden ? tr('andromeda.x_what_changed') : tr('andromeda.x_hide_changes');
   });
   el('andromeda-save')?.addEventListener('click', saveCurrent);
   el('andromeda-save-retry')?.addEventListener('click', () => sendPendingSave(false));
@@ -3225,10 +3239,10 @@ function bindOnce() {
   el('andromeda-save-reload')?.addEventListener('click', async event => {
     if (_saveBusy) return;
     const button = event.currentTarget;
-    _saveBusy = true; _saveMessage = 'checking saved searches…'; renderSaveRecovery();
+    _saveBusy = true; _saveMessage = tr('andromeda.x_checking_saved_searches'); renderSaveRecovery();
     try {
       await loadSaved();
-      if (_saveReady) _saveMessage = _pendingSave ? '' : _savedResult ? 'search saved' : '';
+      if (_saveReady) _saveMessage = _pendingSave ? '' : _savedResult ? tr('andromeda.x_search_saved') : '';
     } finally {
       _saveBusy = false; renderSaveRecovery();
       if (button.hidden && document.activeElement === document.body && el('andromeda-view')?.getClientRects().length) {
@@ -3300,7 +3314,7 @@ export async function initAndromeda() {
   const saved = params.get('saved');
   if (saved && (saved !== _openedSaved?.id || _openedSaved.payload !== JSON.stringify(searchSnapshot()))) {
     if (PROJECT_ID.test(saved)) await openSavedSearch(saved);
-    else { setPageState('results'); status('this saved search link is invalid. open a search from settings.'); }
+    else { setPageState('results'); status(tr('andromeda.x_saved_link_invalid')); }
     return;
   }
   const query = params.get('q');

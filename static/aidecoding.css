@@ -204,7 +204,7 @@
 /* code blocks in pi's answers: a slim header with the language and copy */
 #aide-coding-workspace .code-block { margin: 0 0 var(--k-space-3); border-radius: var(--k-radius-control); background: var(--k-panel); overflow: hidden; }
 #aide-coding-workspace .code-block-header { display: flex; align-items: center; justify-content: space-between; min-height: var(--k-control); padding: 0 var(--k-space-1) 0 var(--k-space-3); background: transparent; }
-#aide-coding-workspace .code-block-header .code-lang:empty::before { content: "code"; }
+#aide-coding-workspace .code-block-header .code-lang:empty::before { content: attr(data-label); }
 #aide-coding-workspace .code-block-header button { min-height: var(--k-control); padding: 0 var(--k-space-2); font-size: 12px; }
 #aide-coding-workspace .code-block pre { margin: 0; background: transparent; border-radius: 0; padding-top: var(--k-space-3); }
 

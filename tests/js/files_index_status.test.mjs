@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
+import { t, tp } from '../../static/js/i18n.js';
+
 const source = readFileSync(new URL('../../static/js/filesphase7.js', import.meta.url), 'utf8');
 const functions = ['renderAppStatus', 'renderLocationStatus', 'startIndexing', 'loadIndexStatus'].map(name => {
   const signature = source.indexOf(`function ${name}(`);
@@ -20,6 +22,7 @@ for (const connectionMessage of ['', 'ready']) {
     const location = { id: 'default-local', name: 'on this server', kind: 'local', access: 'managed', is_default: true };
     let attempts = 0;
     const context = {
+      t, tp,
       $: node,
       document: { activeElement: null },
       state: { locationId: location.id, indexStatus: new Map() },

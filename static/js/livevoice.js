@@ -2,6 +2,7 @@ import { requestId } from './request_id.js';
 import { escapeHtml, toast } from './util.js';
 import { icon } from './icons.js';
 import { prompt as dlgPrompt } from './dialog.js';
+import { t } from './i18n.js';
 
 let active = null;
 let readiness = null;
@@ -39,22 +40,22 @@ function durationLabel(milliseconds) {
 
 function stateTitle() {
   return {
-    checking: 'checking connection', unavailable: 'calling unavailable', ready: 'ready to talk',
-    connecting: 'connecting', connected: active?.muted ? 'microphone muted' : 'connected',
-    reconnecting: 'reconnecting', ended: 'call ended', error: 'call interrupted',
-  }[state] || 'calling unavailable';
+    checking: t('call.title_checking'), unavailable: t('call.title_unavailable'), ready: t('call.title_ready'),
+    connecting: t('call.title_connecting'), connected: active?.muted ? t('call.title_muted') : t('common.connected'),
+    reconnecting: t('call.title_reconnecting'), ended: t('call.title_ended'), error: t('call.title_error'),
+  }[state] || t('call.title_unavailable');
 }
 
 function stateDescription() {
   if (message) return message;
-  if (state === 'ready') return 'your microphone turns on when you start.';
-  if (state === 'checking') return 'checking whether calling is available.';
-  if (state === 'unavailable') return readiness?.reason || 'set up a realtime model in settings.';
-  if (state === 'connecting') return active?.stream ? 'waiting for a voice connection.' : 'waiting for microphone permission.';
-  if (state === 'reconnecting') return 'the connection dropped. trying to reconnect.';
-  if (state === 'connected') return active?.muted ? 'you can still hear the call.' : 'speak naturally.';
-  if (state === 'ended') return 'background work keeps running.';
-  return 'try again when your connection is ready.';
+  if (state === 'ready') return t('call.desc_ready');
+  if (state === 'checking') return t('call.desc_checking');
+  if (state === 'unavailable') return readiness?.reason || t('call.desc_unavailable');
+  if (state === 'connecting') return active?.stream ? t('call.desc_connecting_voice') : t('call.desc_connecting_mic');
+  if (state === 'reconnecting') return t('call.desc_reconnecting');
+  if (state === 'connected') return active?.muted ? t('call.desc_muted') : t('call.desc_connected');
+  if (state === 'ended') return t('call.desc_ended');
+  return t('call.desc_error');
 }
 
 function updateButtons() {
@@ -64,8 +65,8 @@ function updateButtons() {
     button.dataset.state = state;
     button.setAttribute('aria-expanded', String(surfaceOpen));
     button.setAttribute('aria-controls', 'aide-call-workspace');
-    button.setAttribute('aria-label', active ? `return to call, ${stateTitle()}` : 'open voice call');
-    button.title = active ? 'return to call' : 'voice call';
+    button.setAttribute('aria-label', active ? t('call.return_to_call_state', { state: stateTitle() }) : t('call.open'));
+    button.title = active ? t('call.return_to_call') : t('call.voice_call');
     button.disabled = false;
     if (id === 'live-voice-btn') {
       button.hidden = Boolean(document.getElementById('aide-call-open'));
@@ -82,8 +83,8 @@ function updateOngoingCall() {
     control.id = 'aide-call-ongoing';
     control.dataset.kokuenSurface = 'ongoing-call';
     control.setAttribute('role', 'region');
-    control.setAttribute('aria-label', 'ongoing voice call');
-    control.innerHTML = `<button type="button" id="aide-call-return">${phone}<span>return to call</span><span id="aide-call-global-state" role="status" aria-live="polite"></span></button><button type="button" id="aide-call-global-end" aria-label="end voice call">${icon('close')}<span>end</span></button>`;
+    control.setAttribute('aria-label', t('call.ongoing'));
+    control.innerHTML = `<button type="button" id="aide-call-return">${phone}<span>${t('call.return_to_call')}</span><span id="aide-call-global-state" role="status" aria-live="polite"></span></button><button type="button" id="aide-call-global-end" aria-label="${t('call.end_voice_call')}">${icon('close')}<span>${t('call.end')}</span></button>`;
     document.body.appendChild(control);
     document.getElementById('aide-call-return')?.addEventListener('click', openLiveVoiceSurface);
     document.getElementById('aide-call-global-end')?.addEventListener('click', async () => {
@@ -98,7 +99,7 @@ function updateOngoingCall() {
   control.dataset.state = state;
   const label = document.getElementById('aide-call-global-state');
   if (label && label.textContent !== stateTitle()) label.textContent = stateTitle();
-  document.getElementById('aide-call-return')?.setAttribute('aria-label', `return to voice call, ${stateTitle()}`);
+  document.getElementById('aide-call-return')?.setAttribute('aria-label', t('call.return_to_voice_call_state', { state: stateTitle() }));
 }
 
 function emitState() {
@@ -122,14 +123,14 @@ function render() {
   surface.hidden = !surfaceOpen;
   surface.dataset.state = state;
   surface.dataset.kokuenSurface = 'aide-call';
-  surface.setAttribute('aria-label', 'voice call');
+  surface.setAttribute('aria-label', t('call.voice_call'));
   const canStart = !active && Boolean(readiness?.available) && state !== 'checking';
   const canMute = Boolean(active?.stream);
   const timeVisible = Boolean(active?.connectedAt) || (state === 'ended' && lastDuration > 0);
   surface.innerHTML = `
     <div class="aide-call-topline">
-      <button type="button" id="aide-call-back" class="aide-call-text">${icon('chevron-left')}<span>back</span></button>
-      <button type="button" id="aide-call-details-toggle" class="aide-call-text" aria-expanded="${detailsOpen}" aria-controls="aide-call-details">${icon('info')}<span>connection</span></button>
+      <button type="button" id="aide-call-back" class="aide-call-text">${icon('chevron-left')}<span>${t('common.back')}</span></button>
+      <button type="button" id="aide-call-details-toggle" class="aide-call-text" aria-expanded="${detailsOpen}" aria-controls="aide-call-details">${icon('info')}<span>${t('call.connection')}</span></button>
     </div>
     <div class="aide-call-body">
       <div class="aide-call-stage">
@@ -138,21 +139,21 @@ function render() {
           <h2 id="aide-call-title">${stateTitle()}</h2>
           <p id="aide-call-description">${escapeHtml(stateDescription())}</p>
         </div>
-        <span class="aide-call-time" id="aide-call-time" aria-label="call duration"${timeVisible ? '' : ' hidden'}>${durationLabel(elapsed())}</span>
+        <span class="aide-call-time" id="aide-call-time" aria-label="${t('call.duration')}"${timeVisible ? '' : ' hidden'}>${durationLabel(elapsed())}</span>
         <div class="aide-call-actions">
-          ${canStart ? `<button type="button" id="aide-call-start" class="aide-call-action aide-call-primary">${phone}<span>${state === 'ready' ? 'start call' : 'call again'}</span></button>` : ''}
-          ${canMute ? `<button type="button" id="aide-call-mute" class="aide-call-action" aria-pressed="${Boolean(active.muted)}" aria-label="${active.muted ? 'unmute microphone' : 'mute microphone'}">${active.muted ? micOff : icon('mic')}<span>${active.muted ? 'unmute' : 'mute'}</span></button>` : ''}
-          ${active ? `<button type="button" id="aide-call-end" class="aide-call-action aide-call-end">${icon('close')}<span>${state === 'connecting' ? 'cancel' : 'end call'}</span></button>` : ''}
-          ${!active && (state === 'unavailable' || state === 'error') ? `<button type="button" id="aide-call-retry" class="aide-call-action">${icon('refresh')}<span>check again</span></button>` : ''}
+          ${canStart ? `<button type="button" id="aide-call-start" class="aide-call-action aide-call-primary">${phone}<span>${state === 'ready' ? t('call.start') : t('call.again')}</span></button>` : ''}
+          ${canMute ? `<button type="button" id="aide-call-mute" class="aide-call-action" aria-pressed="${Boolean(active.muted)}" aria-label="${active.muted ? t('call.unmute_mic') : t('call.mute_mic')}">${active.muted ? micOff : icon('mic')}<span>${active.muted ? t('call.unmute') : t('call.mute')}</span></button>` : ''}
+          ${active ? `<button type="button" id="aide-call-end" class="aide-call-action aide-call-end">${icon('close')}<span>${state === 'connecting' ? t('common.cancel') : t('call.end_call')}</span></button>` : ''}
+          ${!active && (state === 'unavailable' || state === 'error') ? `<button type="button" id="aide-call-retry" class="aide-call-action">${icon('refresh')}<span>${t('call.check_again')}</span></button>` : ''}
         </div>
-        <div class="aide-call-transcript" id="aide-call-transcript"${transcripts.length ? '' : ' hidden'} aria-label="latest saved transcript">
-          ${transcripts.slice(-2).map(item => `<p><span>${item.role === 'user' ? 'you' : 'aide'}</span>${escapeHtml(item.text)}</p>`).join('')}
+        <div class="aide-call-transcript" id="aide-call-transcript"${transcripts.length ? '' : ' hidden'} aria-label="${t('call.transcript')}">
+          ${transcripts.slice(-2).map(item => `<p><span>${item.role === 'user' ? t('call.you') : t('call.aide')}</span>${escapeHtml(item.text)}</p>`).join('')}
         </div>
       </div>
-      <section class="aide-call-details" id="aide-call-details" aria-label="connection details"${detailsOpen ? '' : ' hidden'}>
-        <dl><div><dt>status</dt><dd>${readiness ? (readiness.available ? 'configured' : 'unavailable') : 'checking'}</dd></div>${readiness?.model ? `<div><dt>model</dt><dd>${escapeHtml(readiness.model)}</dd></div>` : ''}</dl>
-        <p>${escapeHtml(readiness?.available ? 'calls use your configured voice provider. provider usage may be billed.' : readiness?.reason || 'calling needs a realtime model.')} final transcripts stay in your main conversation.</p>
-        <button type="button" id="aide-call-settings" class="aide-call-text">${icon('gear')}<span>model settings</span></button>
+      <section class="aide-call-details" id="aide-call-details" aria-label="${t('call.details')}"${detailsOpen ? '' : ' hidden'}>
+        <dl><div><dt>${t('call.status')}</dt><dd>${readiness ? (readiness.available ? t('call.configured') : t('common.unavailable')) : t('call.checking')}</dd></div>${readiness?.model ? `<div><dt>${t('call.model')}</dt><dd>${escapeHtml(readiness.model)}</dd></div>` : ''}</dl>
+        <p>${escapeHtml(readiness?.available ? t('call.details_configured') : readiness?.reason || t('call.details_needs_model'))} ${t('call.details_transcripts')}</p>
+        <button type="button" id="aide-call-settings" class="aide-call-text">${icon('gear')}<span>${t('aide.model_settings')}</span></button>
       </section>
     </div>`;
   surface.querySelector('#aide-call-back')?.addEventListener('click', closeLiveVoiceSurface);
@@ -175,15 +176,15 @@ async function refreshReadiness() {
   changeState('checking');
   statusRequest = (async () => {
     try {
-      const capability = await json(await fetch('/api/voice/realtime/status'), 'could not check calling');
+      const capability = await json(await fetch('/api/voice/realtime/status'), t('call.check_failed'));
       const browserReady = Boolean(navigator.mediaDevices?.getUserMedia && typeof RTCPeerConnection === 'function');
       readiness = capability.available && !browserReady
-        ? { ...capability, available: false, reason: 'this browser needs a secure connection and microphone support.' }
+        ? { ...capability, available: false, reason: t('call.browser_unsupported') }
         : capability;
       if (!active) changeState(readiness.available ? 'ready' : 'unavailable');
       return readiness;
     } catch (error) {
-      readiness = { available: false, reason: error?.message || 'could not check calling. check your connection and try again.' };
+      readiness = { available: false, reason: error?.message || t('call.check_failed_retry') };
       if (!active) changeState('unavailable');
       return readiness;
     } finally {
@@ -228,7 +229,7 @@ async function persistTranscript(current, role, text, providerEventId) {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ role, text: text.trim(), provider_event_id: providerEventId }),
-  }), 'could not save the live transcript');
+  }), t('call.transcript_save_failed'));
   if (result.created !== false && (!active || active === current)) {
     transcripts.push({ role, text: text.trim() });
     transcripts = transcripts.slice(-2);
@@ -249,13 +250,13 @@ async function startBackgroundTask(call, event) {
   let args = {};
   try { args = JSON.parse(event.arguments || '{}'); } catch {}
   const request = String(args.request || '').trim();
-  if (!request) return { ok: false, error: 'the task request was empty' };
+  if (!request) return { ok: false, error: t('call.task_empty') };
   const preview = await json(
     await fetch(`/api/jarvis/handoffs/preview?session_id=${encodeURIComponent(call.session_id)}`),
-    'background work is unavailable',
+    t('call.background_unavailable'),
   );
   if (preview.privacy_class === 'remote') {
-    return { ok: false, error: 'open Alles to confirm the remote background model first' };
+    return { ok: false, error: t('call.confirm_remote') };
   }
   const run = await json(await fetch('/api/jarvis/handoffs', {
     method: 'POST',
@@ -269,7 +270,7 @@ async function startBackgroundTask(call, event) {
       reasoning_mode: 'automatic',
       custom_effort: {},
     }),
-  }), 'could not start background work');
+  }), t('call.background_start_failed'));
   return { ok: true, run_id: run.id, state: run.state };
 }
 
@@ -288,10 +289,10 @@ async function handleProviderEvent(current, event) {
     if (active !== current || current.closed) return;
     let result;
     try { result = await startBackgroundTask(call, event); }
-    catch (error) { result = { ok: false, error: error.message || 'background work unavailable' }; }
+    catch (error) { result = { ok: false, error: error.message || t('call.background_unavailable_short') }; }
     sendToolResult(channel, event.call_id, result);
   } else if (event.type === 'error') {
-    await finishCall(current, 'error', event.error?.message || 'the voice provider reported an error. try again.');
+    await finishCall(current, 'error', event.error?.message || t('call.provider_error'));
   }
 }
 
@@ -315,10 +316,10 @@ async function endRecord(current) {
   if (!current.call?.id || current.recordEnded) return;
   current.recordEnded = true;
   try {
-    await json(await fetch(`/api/aide/calls/${encodeURIComponent(current.call.id)}/hangup`, { method: 'POST' }), 'could not save the call ending');
+    await json(await fetch(`/api/aide/calls/${encodeURIComponent(current.call.id)}/hangup`, { method: 'POST' }), t('call.ending_save_failed'));
   } catch (error) {
     current.recordEnded = false;
-    toast(error?.message || 'could not save the call ending', 'error');
+    toast(error?.message || t('call.ending_save_failed'), 'error');
   }
 }
 
@@ -349,10 +350,10 @@ function observeConnection(current) {
   } else if (connection === 'disconnected') {
     changeState('reconnecting');
     current.reconnectTimer ||= setTimeout(() => {
-      void finishCall(current, 'error', 'the connection could not recover. try calling again.');
+      void finishCall(current, 'error', t('call.recover_failed'));
     }, 15000);
   } else if (connection === 'failed' || connection === 'closed') {
-    void finishCall(current, 'error', 'the voice connection ended unexpectedly. try calling again.');
+    void finishCall(current, 'error', t('call.ended_unexpectedly'));
   }
 }
 
@@ -364,14 +365,14 @@ async function negotiateWithOwner(current, offer) {
   if (current.closed || response.status !== 403) return response;
   const error = await response.clone().json().catch(() => ({}));
   if (error.code !== 'recent_auth_required') return response;
-  const password = await dlgPrompt('enter your Alles password to start this voice call', '', { secret: true });
+  const password = await dlgPrompt(t('call.password_prompt'), '', { secret: true });
   if (current.closed) return response;
-  if (password == null) throw new Error('call cancelled before connecting');
+  if (password == null) throw new Error(t('call.cancelled_before'));
   const confirmed = await fetch('/api/auth/reauth', {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }),
   });
   if (current.closed) return response;
-  if (!confirmed.ok) throw new Error('password confirmation failed. try calling again.');
+  if (!confirmed.ok) throw new Error(t('call.password_failed'));
   // Only this explicit pre-provider rejection is safe to resend. A timeout or
   // lost answer may have started provider work and must never be replayed here.
   return send();
@@ -393,14 +394,14 @@ export async function startLiveVoice() {
     });
     if (current.closed) { current.stream.getTracks().forEach(track => track.stop()); return; }
     for (const track of current.stream.getTracks()) track.addEventListener?.('ended', () => {
-      if (!current.closed) void finishCall(current, 'error', 'microphone access ended. check your microphone and try again.');
+      if (!current.closed) void finishCall(current, 'error', t('call.mic_ended'));
     });
     render();
     current.call = await json(await fetch('/api/aide/calls', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ request_id: requestId() }),
-    }), 'calling is unavailable');
+    }), t('call.unavailable_short'));
     if (current.closed) { await endRecord(current); return; }
     const peer = current.peer = new RTCPeerConnection();
     const audio = current.audio = document.createElement('audio');
@@ -412,14 +413,14 @@ export async function startLiveVoice() {
     channel.addEventListener('message', incoming => {
       try {
         void handleProviderEvent(current, JSON.parse(incoming.data)).catch(error => {
-          const detail = error?.message || 'could not save part of this call';
+          const detail = error?.message || t('call.partial_save_failed');
           if (active === current) changeState(state, detail);
           toast(detail, 'error');
         });
       } catch {}
     });
     channel.addEventListener('close', () => {
-      if (!current.closed) void finishCall(current, 'error', 'the voice session ended. try calling again.');
+      if (!current.closed) void finishCall(current, 'error', t('call.session_ended'));
     });
     const offer = await peer.createOffer();
     if (current.closed) return;
@@ -429,21 +430,21 @@ export async function startLiveVoice() {
     if (current.closed) { await endRecord(current); return; }
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      throw new Error(payload?.detail?.message || payload?.detail || 'could not connect the call');
+      throw new Error(payload?.detail?.message || payload?.detail || t('call.connect_failed'));
     }
     await peer.setRemoteDescription({ type: 'answer', sdp: await response.text() });
     if (current.closed) return;
     current.connectTimer = setTimeout(() => {
-      void finishCall(current, 'error', 'the voice connection timed out. try calling again.');
+      void finishCall(current, 'error', t('call.connect_timeout'));
     }, 30000);
     observeConnection(current);
   } catch (error) {
     if (current.closed) return;
     const reason = error?.name === 'NotAllowedError'
-      ? 'microphone access was denied. allow it in your browser and try again.'
+      ? t('call.mic_denied')
       : error?.name === 'NotFoundError'
-        ? 'no microphone was found. connect one and try again.'
-        : error?.message || 'calling is unavailable. try again.';
+        ? t('call.mic_missing')
+        : error?.message || t('call.unavailable_retry');
     await finishCall(current, 'error', reason);
   }
 }

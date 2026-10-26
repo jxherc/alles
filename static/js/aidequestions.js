@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 function answerPayload(card, request) {
   const answers = {};
   for (const question of request.questions || []) {
@@ -51,7 +53,7 @@ export function markAideQuestionResolved(root, id, cancelled = false) {
   setDisabled(card, true);
   card.classList.add(cancelled ? 'cancelled' : 'answered');
   const status = card.querySelector('[data-question-status]');
-  if (status) status.textContent = cancelled ? 'cancelled' : 'answer saved';
+  if (status) status.textContent = cancelled ? t('aide.question_cancelled') : t('aide.question_saved');
 }
 
 export function renderAideQuestion(root, request, { onResolved, sendAnswer, focus = true, allowCancel = true } = {}) {
@@ -66,7 +68,7 @@ export function renderAideQuestion(root, request, { onResolved, sendAnswer, focu
 
   const title = document.createElement('h3');
   title.id = `aide-question-title-${request.id}`;
-  title.textContent = request.title || 'Aide needs your input';
+  title.textContent = request.title || t('aide.question_needs_input');
   card.appendChild(title);
 
   request.questions.forEach((question, index) => {
@@ -112,7 +114,7 @@ export function renderAideQuestion(root, request, { onResolved, sendAnswer, focu
     if (question.allow_free_text) {
       const label = document.createElement('label');
       label.className = 'aide-question-free-label';
-      label.textContent = question.free_text_label || 'another answer';
+      label.textContent = question.free_text_label || t('aide.question_another_answer');
       const textarea = document.createElement('textarea');
       textarea.rows = 2;
       textarea.maxLength = 2000;
@@ -133,12 +135,12 @@ export function renderAideQuestion(root, request, { onResolved, sendAnswer, focu
   const cancel = document.createElement('button');
   cancel.type = 'button';
   cancel.className = 'aide-question-cancel';
-  cancel.textContent = 'cancel';
+  cancel.textContent = t('common.cancel');
   cancel.hidden = !allowCancel;
   const submit = document.createElement('button');
   submit.type = 'button';
   submit.className = 'aide-question-submit';
-  submit.textContent = 'continue';
+  submit.textContent = t('common.continue');
   submit.disabled = true;
   footer.append(status, cancel, submit);
   card.appendChild(footer);
@@ -148,7 +150,7 @@ export function renderAideQuestion(root, request, { onResolved, sendAnswer, focu
     const hadFocus = card.contains(focusBefore);
     const restoreFocus = () => card.isConnected && hadFocus && (document.activeElement === focusBefore || document.activeElement === document.body || card.contains(document.activeElement));
     setDisabled(card, true);
-    status.textContent = 'saving…';
+    status.textContent = t('common.saving');
     try {
       const response = sendAnswer ? await sendAnswer(payload) : await fetch(`/api/agent/questions/${encodeURIComponent(request.id)}/answer`, {
         method: 'POST',
@@ -162,7 +164,7 @@ export function renderAideQuestion(root, request, { onResolved, sendAnswer, focu
     } catch {
       setDisabled(card, false);
       submit.disabled = !isComplete(card, request);
-      status.textContent = 'could not save - try again';
+      status.textContent = t('aide.question_save_failed');
       if (restoreFocus()) focusBefore.focus();
     }
   };

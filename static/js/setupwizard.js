@@ -1,12 +1,12 @@
 // server-owned first-run setup: resumable across browsers and safe to dismiss.
 import { toast } from './util.js';
 import { requestWithRecentOwner } from './recent_owner.js';
-import { addEndpoint } from './models.js?v=213';
-import { resolvedTimeZone } from './i18n.js';
-import { wireChoiceGroup } from './kokuen.js?v=2';
+import { addEndpoint } from './models.js?v=214';
+import { resolvedTimeZone, t } from './i18n.js';
+import { wireChoiceGroup } from './kokuen.js?v=4';
 import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';
 const STEPS = ['basics', 'access', 'files', 'ai_search', 'protection'];
-const TITLES = { basics: 'basics', access: 'access', files: 'files', ai_search: 'AI + search', protection: 'protection' };
+const _titles = () => ({ basics: t('setup.step_basics'), access: t('setup.step_access'), files: t('common.files'), ai_search: t('setup.step_ai_search'), protection: t('setup.step_protection') });
 let _state = null;
 let _step = 0;
 let _pickedModel = null;
@@ -28,7 +28,7 @@ async function _api(path, options = {}, { recentOwner = false } = {}) {
     : await fetch(path, options);
   let payload = {};
   try { payload = await response.json(); } catch { /* retain the status fallback */ }
-  if (!response.ok) throw new Error(payload.message || payload.detail || 'request failed');
+  if (!response.ok) throw new Error(payload.message || payload.detail || t('common.request_failed'));
   return payload;
 }
 
@@ -55,7 +55,7 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
   modal.style.display = 'flex';
   delete modal.dataset.loadFailed;
   modal.setAttribute('aria-busy', 'true');
-  $('setup-wizard-body').innerHTML = '<div class="setup-loading">loading setup…</div>';
+  $('setup-wizard-body').innerHTML = `<div class="setup-loading">${esc(t('setup.loading'))}</div>`;
   if (!_background) {
     const node = document.querySelector('.app');
     if (node) { _background = { node, inert: node.inert }; node.inert = true; }
@@ -96,10 +96,10 @@ export async function openSetupWizard({ resume = false, status = null } = {}) {
     if (!stillOpen()) return;
     modal.dataset.loadFailed = '1';
     $('setup-wizard-body').innerHTML = `<div class="setup-error" role="alert">
-      <p>${esc(error.message || 'setup could not load')}</p>
+      <p>${esc(error.message || t('setup.load_failed'))}</p>
       <div class="setup-actions">
-        <button class="btn" type="button" id="sw-load-close">close</button>
-        <button class="btn primary" type="button" id="sw-load-retry">retry</button>
+        <button class="btn" type="button" id="sw-load-close">${esc(t('common.close'))}</button>
+        <button class="btn primary" type="button" id="sw-load-retry">${esc(t('common.retry'))}</button>
       </div>
     </div>`;
     $('sw-load-close')?.addEventListener('click', _close);
@@ -173,13 +173,13 @@ async function _dismiss() {
   const button = $('setup-skip');
   if (button?.getAttribute('aria-busy') === 'true') return;
   _loadSequence += 1;
-  _busy(button, true, 'pausing setup…');
+  _busy(button, true, t('setup.pausing'));
   try {
     const response = await _api('/api/setup/dismiss', { method: 'POST' });
     _state = response.setup;
     _dismissedThisSession = true;
     _close();
-    toast('setup paused. resume from settings → general → open setup.', 'success');
+    toast(t('setup.paused'), 'success');
   } catch (error) {
     _busy(button, false, error.message);
     toast(error.message, 'error');
@@ -195,8 +195,8 @@ function _progress() {
   if (!progress) return;
   const current = Math.min(_step + 1, STEPS.length);
   progress.textContent = _step >= STEPS.length
-    ? 'setup complete'
-    : `${current} / ${STEPS.length} · ${TITLES[STEPS[_step]]}`;
+    ? t('setup.complete')
+    : t('setup.progress', { current, total: STEPS.length, title: _titles()[STEPS[_step]] });
 }
 
 function _render() {
@@ -221,9 +221,9 @@ function _setStep(next) {
 }
 
 // status sits in the button row, next to the action it reports on
-function _actions(back = true, label = 'save + continue') {
+function _actions(back = true, label = t('setup.save_continue')) {
   return `<div class="setup-actions">
-    ${back ? '<button class="btn" type="button" id="sw-back">back</button>' : ''}
+    ${back ? `<button class="btn" type="button" id="sw-back">${esc(t('common.back'))}</button>` : ''}
     <div class="setup-status" id="sw-status" role="status" aria-live="polite"></div>
     <button class="btn primary" type="button" id="sw-save">${esc(label)}</button>
   </div>`;
@@ -274,20 +274,20 @@ function _browserDefaults() {
 function _renderBasics(body) {
   const defaults = _browserDefaults();
   const regionText = defaults.region
-    ? `region <strong>${esc(defaults.region)}</strong> is detected automatically from this browser.`
-    : 'region follows this browser automatically.';
+    ? t('setup.region_detected', { region: `<strong>${esc(defaults.region)}</strong>` })
+    : t('setup.region_follows');
   body.innerHTML = `
-    <div class="setup-title" id="setup-title">make alles yours</div>
-    <div class="setup-sub"><span id="sw-region-status">${regionText}</span> check your username and timezone. English is the reviewed interface language for now.</div>
-    <label class="setup-field"><span>username</span><input class="settings-input setup-input" id="sw-name" autocomplete="username" aria-describedby="sw-name-help" value="${esc(_state.username)}"></label>
-    <p class="setup-note" id="sw-name-help">synced across your apps. set a separate greeting name for this browser in settings → general.</p>
-    <label class="setup-field"><span>timezone</span><input class="settings-input setup-input" id="sw-timezone" placeholder="Asia/Taipei" value="${esc(_state.timezone || defaults.timezone)}"></label>
+    <div class="setup-title" id="setup-title">${esc(t('setup.basics_title'))}</div>
+    <div class="setup-sub"><span id="sw-region-status">${regionText}</span> ${esc(t('setup.basics_hint'))}</div>
+    <label class="setup-field"><span>${esc(t('common.username'))}</span><input class="settings-input setup-input" id="sw-name" autocomplete="username" aria-describedby="sw-name-help" value="${esc(_state.username)}"></label>
+    <p class="setup-note" id="sw-name-help">${esc(t('setup.name_help'))}</p>
+    <label class="setup-field"><span>${esc(t('locale.timezone'))}</span><input class="settings-input setup-input" id="sw-timezone" placeholder="Asia/Taipei" value="${esc(_state.timezone || defaults.timezone)}"></label>
     ${_actions(false)}`;
   $('sw-name').focus();
   _bindActions(async () => {
     const current = _formIsCurrent();
     const button = $('sw-save');
-    _busy(button, true, 'saving…');
+    _busy(button, true, t('common.saving'));
     try {
       await _saveStep('basics', {
         username: $('sw-name').value.trim(), language: 'en',
@@ -323,12 +323,12 @@ function _bindChoiceGroup(id, onChange) {
 function _renderAccess(body) {
   const selected = _state.access_profile || 'device';
   body.innerHTML = `
-    <div class="setup-title" id="setup-title">choose where alles answers</div>
-    <div class="setup-sub">device-only is the safe default. network access takes effect after the server restarts.</div>
+    <div class="setup-title" id="setup-title">${esc(t('setup.access_title'))}</div>
+    <div class="setup-sub">${esc(t('setup.access_hint'))}</div>
     ${_choiceGroup('sw-access', [
-      { value: 'device', label: 'this device', note: 'localhost only' },
-      { value: 'lan', label: 'home network', note: 'other devices on your LAN' },
-      { value: 'public', label: 'public domain', note: 'HTTPS reverse proxy required' },
+      { value: 'device', label: t('setup.access_device'), note: t('setup.access_device_note') },
+      { value: 'lan', label: t('setup.access_lan'), note: t('setup.access_lan_note') },
+      { value: 'public', label: t('setup.access_public'), note: t('setup.access_public_note') },
     ], selected)}
     <div id="sw-access-details"></div>
     ${_actions()}`;
@@ -338,14 +338,14 @@ function _renderAccess(body) {
     if ($('sw-status')) $('sw-status').textContent = '';
     if (profile === 'public') {
       host.innerHTML = `
-        <label class="setup-field"><span>public HTTPS origin</span><input class="settings-input setup-input" id="sw-public-url" placeholder="https://alles.example.com" value="${esc(_state.public_url)}"></label>
-        <label class="setup-field"><span>base domain</span><input class="settings-input setup-input" id="sw-base-domain" placeholder="alles.example.com" value="${esc(_state.base_domain)}"></label>
-        <label class="setup-field"><span>trusted hosts</span><input class="settings-input setup-input" id="sw-trusted-hosts" placeholder="alles.example.com,*.alles.example.com" value="${esc(_state.trusted_hosts)}"></label>
-        <label class="setup-field"><span>trusted proxy IP or CIDR</span><input class="settings-input setup-input" id="sw-proxies" placeholder="127.0.0.1/32" value="${esc(_state.forwarded_allow_ips)}"></label>`;
+        <label class="setup-field"><span>${esc(t('setup.public_origin'))}</span><input class="settings-input setup-input" id="sw-public-url" placeholder="https://alles.example.com" value="${esc(_state.public_url)}"></label>
+        <label class="setup-field"><span>${esc(t('setup.base_domain'))}</span><input class="settings-input setup-input" id="sw-base-domain" placeholder="alles.example.com" value="${esc(_state.base_domain)}"></label>
+        <label class="setup-field"><span>${esc(t('setup.trusted_hosts'))}</span><input class="settings-input setup-input" id="sw-trusted-hosts" placeholder="alles.example.com,*.alles.example.com" value="${esc(_state.trusted_hosts)}"></label>
+        <label class="setup-field"><span>${esc(t('setup.trusted_proxy'))}</span><input class="settings-input setup-input" id="sw-proxies" placeholder="127.0.0.1/32" value="${esc(_state.forwarded_allow_ips)}"></label>`;
     } else host.innerHTML = '';
     if (profile !== 'device' && !_auth.enabled) host.insertAdjacentHTML('beforeend', `
-      <label class="setup-field"><span>owner password</span><input class="settings-input setup-input" id="sw-owner-password" type="password" autocomplete="new-password" minlength="12" placeholder="12 or more characters"></label>`);
-    else if (profile !== 'device') host.insertAdjacentHTML('beforeend', '<p class="setup-note">owner password lock is already on.</p>');
+      <label class="setup-field"><span>${esc(t('setup.owner_password'))}</span><input class="settings-input setup-input" id="sw-owner-password" type="password" autocomplete="new-password" minlength="12" placeholder="${esc(t('setup.owner_password_placeholder'))}"></label>`);
+    else if (profile !== 'device') host.insertAdjacentHTML('beforeend', `<p class="setup-note">${esc(t('setup.password_already_on'))}</p>`);
   };
   details(selected);
   _bindChoiceGroup('sw-access', details);
@@ -354,9 +354,9 @@ function _renderAccess(body) {
     const profile = $('sw-access').querySelector('[aria-checked="true"]')?.dataset.value || 'device';
     const password = $('sw-owner-password')?.value || '';
     if (profile !== 'device' && !_auth.enabled && password.length < 12) {
-      _busy(null, false, 'network access needs an owner password of at least 12 characters'); return;
+      _busy(null, false, t('setup.password_needed')); return;
     }
-    const button = $('sw-save'); _busy(button, true, 'checking access policy…');
+    const button = $('sw-save'); _busy(button, true, t('setup.checking_access'));
     try {
       if (profile !== 'device' && !_auth.enabled) {
         await _api('/api/auth/config', _json('POST', { enabled: true, password }));
@@ -393,13 +393,13 @@ function _bindSwitch(id, onChange) {
 function _renderFiles(body) {
   const keep = Boolean(_state.keep_vault_inside_alles);
   body.innerHTML = `
-    <div class="setup-title" id="setup-title">put your files where you can see them</div>
-    <div class="setup-sub">the document folder holds Markdown files. passwords stay in the vault app. existing folders aren't moved; you can connect Obsidian after saving these locations.</div>
-    ${_switch('sw-keep-vault', 'keep documents and files inside alles', keep, 'recommended: ~/Alles/Vault and ~/Alles/Files')}
-    <label class="setup-field"><span>document folder</span><input class="settings-input setup-input" id="sw-vault" value="${esc(_state.vault_preview)}"></label>
-    <label class="setup-field"><span>files folder</span><input class="settings-input setup-input" id="sw-files" value="${esc(_state.files_preview)}"></label>
+    <div class="setup-title" id="setup-title">${esc(t('setup.files_title'))}</div>
+    <div class="setup-sub">${esc(t('setup.files_hint'))}</div>
+    ${_switch('sw-keep-vault', t('setup.keep_inside'), keep, t('setup.keep_inside_note'))}
+    <label class="setup-field"><span>${esc(t('setup.document_folder'))}</span><input class="settings-input setup-input" id="sw-vault" value="${esc(_state.vault_preview)}"></label>
+    <label class="setup-field"><span>${esc(t('setup.files_folder'))}</span><input class="settings-input setup-input" id="sw-files" value="${esc(_state.files_preview)}"></label>
     <div id="sw-obsidian"></div>
-    ${_actions(true, _filesSaved ? 'continue' : 'save locations')}`;
+    ${_actions(true, _filesSaved ? t('common.continue') : t('setup.save_locations'))}`;
   _bindSwitch('sw-keep-vault');
   if (_filesSaved) _renderObsidianChoice();
   $('sw-back')?.addEventListener('click', () => _setStep(1));
@@ -408,7 +408,7 @@ function _renderFiles(body) {
     const filesSignature = `${$('sw-vault').value.trim()}\n${$('sw-files').value.trim()}\n${$('sw-keep-vault').getAttribute('aria-checked') === 'true'}`;
     const locationsChanged = _filesSaved && filesSignature !== _savedFilesSignature;
     const advance = _filesSaved && !locationsChanged;
-    const button = $('sw-save'); _busy(button, true, 'checking folders…');
+    const button = $('sw-save'); _busy(button, true, t('setup.checking_folders'));
     try {
       if (!advance) _obsidian = null;
       await _saveStep('files', {
@@ -437,17 +437,17 @@ function _renderObsidianChoice() {
   if (!host) return;
   const installed = Boolean(_obsidian?.companion_installed);
   host.innerHTML = `<div class="setup-companion">
-    <div><strong>Obsidian companion</strong><small>${installed ? 'installed and verified' : 'optional; nothing was added automatically'}</small></div>
-    ${installed ? '' : '<button class="btn" type="button" id="sw-install-obsidian">install companion</button>'}
+    <div><strong>${esc(t('setup.companion'))}</strong><small>${esc(installed ? t('setup.companion_installed') : t('setup.companion_optional'))}</small></div>
+    ${installed ? '' : `<button class="btn" type="button" id="sw-install-obsidian">${esc(t('setup.install_companion'))}</button>`}
   </div>`;
   $('sw-install-obsidian')?.addEventListener('click', async () => {
     const button = $('sw-install-obsidian');
     if (button?.getAttribute('aria-busy') === 'true') return;
-    _busy(button, true, 'installing companion…');
+    _busy(button, true, t('setup.installing_companion'));
     try {
       _obsidian = await _api('/api/setup/obsidian', _json('POST', { approve: true }), { recentOwner: true });
       _busy(button, false);
-      _renderObsidianChoice(); toast('Obsidian companion installed', 'success');
+      _renderObsidianChoice(); toast(t('setup.companion_done'), 'success');
       $('sw-save')?.focus();
     } catch (error) {
       _busy(button, false, error.message);
@@ -461,15 +461,15 @@ function _renderAiSearch(body) {
   const selectedSearch = ['duckduckgo', 'searxng'].includes(_state.search_provider)
     ? _state.search_provider : 'duckduckgo';
   body.innerHTML = `
-    <div class="setup-title" id="setup-title">connect the tools you want</div>
-    <div class="setup-sub">a model is optional. search defaults to DuckDuckGo and needs no account.</div>
-    <div class="setup-section-label">AI model, optional</div>
-    <div class="model-provider-list" id="sw-models" aria-label="model providers"></div>
+    <div class="setup-title" id="setup-title">${esc(t('setup.ai_title'))}</div>
+    <div class="setup-sub">${esc(t('setup.ai_hint'))}</div>
+    <div class="setup-section-label">${esc(t('setup.ai_model_label'))}</div>
+    <div class="model-provider-list" id="sw-models" aria-label="${esc(t('setup.model_providers'))}"></div>
     <div id="sw-model-fields"></div>
-    <div class="setup-section-label">web search</div>
+    <div class="setup-section-label">${esc(t('setup.web_search'))}</div>
     ${_choiceGroup('sw-search', [
-      { value: 'duckduckgo', label: 'DuckDuckGo', note: 'works without setup' },
-      { value: 'searxng', label: 'SearXNG', note: 'connect an existing instance' },
+      { value: 'duckduckgo', label: 'DuckDuckGo', note: t('setup.ddg_note') },
+      { value: 'searxng', label: 'SearXNG', note: t('setup.searxng_note') },
     ], selectedSearch)}
     <div id="sw-search-fields"></div>
     ${_actions()}`;
@@ -478,10 +478,10 @@ function _renderAiSearch(body) {
       if (_pickedModel === provider) return;
       _pickedModel = provider;
       $('sw-model-fields').innerHTML = `
-        ${provider.custom ? '<label class="setup-field"><span>connection name</span><input class="settings-input setup-input" id="sw-model-name" autocomplete="off"></label>' : ''}
-        <label class="setup-field"><span>base URL</span><input class="settings-input setup-input" id="sw-model-url" type="url" spellcheck="false" value="${esc(provider.url)}"></label>
-        ${provider.keyless ? '' : `<label class="setup-field"><span>API key${provider.custom ? ' (optional for this machine)' : ''}</span><input class="settings-input setup-input" id="sw-model-key" type="password" autocomplete="off"></label>`}
-        ${provider.custom ? `<div class="setup-field"><span id="sw-model-type-label">API type</span><div class="s-ep-type" id="sw-model-type" role="radiogroup" aria-labelledby="sw-model-type-label">${API_TYPES.map(([value, label], index) => `<button type="button" role="radio" data-value="${value}" aria-checked="${index === 0}" tabindex="${index ? -1 : 0}">${esc(label)}</button>`).join('')}</div></div>` : ''}`;
+        ${provider.custom ? `<label class="setup-field"><span>${esc(t('setup.connection_name'))}</span><input class="settings-input setup-input" id="sw-model-name" autocomplete="off"></label>` : ''}
+        <label class="setup-field"><span>${esc(t('setup.base_url'))}</span><input class="settings-input setup-input" id="sw-model-url" type="url" spellcheck="false" value="${esc(provider.url)}"></label>
+        ${provider.keyless ? '' : `<label class="setup-field"><span>${esc(provider.custom ? t('setup.api_key_optional') : t('setup.api_key'))}</span><input class="settings-input setup-input" id="sw-model-key" type="password" autocomplete="off"></label>`}
+        ${provider.custom ? `<div class="setup-field"><span id="sw-model-type-label">${esc(t('setup.api_type'))}</span><div class="s-ep-type" id="sw-model-type" role="radiogroup" aria-labelledby="sw-model-type-label">${API_TYPES.map(([value, label], index) => `<button type="button" role="radio" data-value="${value}" aria-checked="${index === 0}" tabindex="${index ? -1 : 0}">${esc(label)}</button>`).join('')}</div></div>` : ''}`;
       if (provider.custom) wireChoiceGroup($('sw-model-type'));
       ($('sw-model-name') || $('sw-model-key') || $('sw-model-url')).focus();
     },
@@ -494,17 +494,17 @@ function _renderAiSearch(body) {
   _bindChoiceGroup('sw-search', searchFields);
   _bindActions(async () => {
     const current = _formIsCurrent();
-    const button = $('sw-save'); _busy(button, true, 'connecting…');
+    const button = $('sw-save'); _busy(button, true, t('setup.connecting'));
     try {
       if (_pickedModel) {
         const provider = _pickedModel;
         const url = $('sw-model-url').value.trim();
-        if (!url) throw new Error('the model base URL is required');
+        if (!url) throw new Error(t('setup.model_url_required'));
         const key = $('sw-model-key')?.value.trim() || '';
         // a cloud provider without its key saves a connection that can never answer
         if (!provider.keyless && !provider.custom && !key) {
           $('sw-model-key')?.focus();
-          throw new Error(`${provider.label} needs its API key to connect`);
+          throw new Error(t('setup.api_key_required', { provider: provider.label }));
         }
         const name = (provider.custom && $('sw-model-name')?.value.trim()) || provider.label;
         const adapter = provider.custom
@@ -521,28 +521,28 @@ function _renderAiSearch(body) {
       }, current);
       if (!current()) return;
       _setStep(4);
-    } catch (error) { if (current()) _busy(button, false, error.message || 'the connection could not be verified'); }
+    } catch (error) { if (current()) _busy(button, false, error.message || t('setup.connection_unverified')); }
   });
 }
 
 function _renderProtection(body) {
   const enabled = Boolean(_state.automatic_backup_enabled);
   body.innerHTML = `
-    <div class="setup-title" id="setup-title">keep a way back</div>
-    <div class="setup-sub">alles can make one encrypted local backup per day and keep the latest seven. store the recovery key separately.</div>
-    ${_switch('sw-auto-backup', 'automatic encrypted backups', enabled, 'daily, with seven-backup retention')}
+    <div class="setup-title" id="setup-title">${esc(t('setup.backup_title'))}</div>
+    <div class="setup-sub">${esc(t('setup.backup_hint'))}</div>
+    ${_switch('sw-auto-backup', t('setup.auto_backup'), enabled, t('setup.auto_backup_note'))}
     <div id="sw-backup-fields"></div>
     ${_actions()}`;
   const fields = on => {
     $('sw-backup-fields').innerHTML = on ? `
-      <label class="setup-field"><span>backup folder</span><input class="settings-input setup-input" id="sw-backup-dir" value="${esc(_state.automatic_backup_dir)}"></label>
-      <p class="setup-note">this folder must be outside alles data. download the recovery key from settings → backup after setup.</p>` : '';
+      <label class="setup-field"><span>${esc(t('setup.backup_folder'))}</span><input class="settings-input setup-input" id="sw-backup-dir" value="${esc(_state.automatic_backup_dir)}"></label>
+      <p class="setup-note">${esc(t('setup.backup_folder_note'))}</p>` : '';
   };
   fields(enabled);
   _bindSwitch('sw-auto-backup', fields);
   _bindActions(async () => {
     const current = _formIsCurrent();
-    const button = $('sw-save'); _busy(button, true, 'saving protection…');
+    const button = $('sw-save'); _busy(button, true, t('setup.saving_protection'));
     try {
       await _saveStep('protection', {
         automatic_backup_enabled: $('sw-auto-backup').getAttribute('aria-checked') === 'true',
@@ -559,14 +559,14 @@ function _renderProtection(body) {
 
 function _renderDone(body) {
   body.innerHTML = `
-    <div class="setup-title" id="setup-title">alles is ready</div>
-    <div class="setup-sub">your choices are saved on the server. you can change them later in settings.</div>
+    <div class="setup-title" id="setup-title">${esc(t('setup.done_title'))}</div>
+    <div class="setup-sub">${esc(t('setup.done_hint'))}</div>
     <div class="setup-summary">
-      <span>access</span><strong>${esc(_state.access_profile || 'device')}</strong>
-      <span>document folder</span><strong>${esc(_state.vault_preview || 'not connected')}</strong>
-      <span>backup</span><strong>${_state.automatic_backup_enabled ? 'daily encrypted' : 'off'}</strong>
+      <span>${esc(t('setup.summary_access'))}</span><strong>${esc(_state.access_profile || 'device')}</strong>
+      <span>${esc(t('setup.document_folder'))}</span><strong>${esc(_state.vault_preview || t('setup.not_connected'))}</strong>
+      <span>${esc(t('setup.summary_backup'))}</span><strong>${esc(_state.automatic_backup_enabled ? t('setup.backup_daily') : t('setup.backup_off'))}</strong>
     </div>
-    <div class="setup-actions"><button class="btn primary" type="button" id="sw-start" style="margin-left:auto">open alles</button></div>`;
+    <div class="setup-actions"><button class="btn primary" type="button" id="sw-start" style="margin-left:auto">${esc(t('setup.open_alles'))}</button></div>`;
   $('sw-start').addEventListener('click', _close);
   $('sw-start').focus();
 }

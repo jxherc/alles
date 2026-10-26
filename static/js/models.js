@@ -2,6 +2,7 @@ import { escapeHtml, toast } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
 import { providerLogo, providerKey, brandColor } from './brandlogo.js';
 import { sortModels, filterNewest } from './modelfilter.js';
+import { t, tp } from './i18n.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _endpoints = [];
@@ -76,8 +77,8 @@ export async function loadModels() {
   } catch {
     if (sequence !== _catalogSequence) return;
     _catalogStatus(_endpoints.length
-      ? 'could not refresh models. the last loaded catalog is still shown.'
-      : 'could not load models.');
+      ? t('models.catalog_refresh_failed')
+      : t('models.catalog_load_failed'));
   }
 }
 
@@ -98,7 +99,7 @@ function _catalogStatus(message = '') {
     const retry = document.createElement('button');
     retry.type = 'button';
     retry.className = 'btn';
-    retry.textContent = 'retry';
+    retry.textContent = t('common.retry');
     retry.addEventListener('click', () => loadModels());
     status.append(' ', retry);
   }
@@ -278,12 +279,12 @@ function updateTopbar() {
     if (aideLogo) aideLogo.innerHTML = providerLogo(selectedProvider, { size: 14 });
     if (provider) provider.textContent = ep?.name || '';
     if (button) {
-      button.title = `${_selected.model} · ${ep?.name || 'unknown provider'}`;
-      button.setAttribute('aria-label', `model ${_selected.model}, provider ${ep?.name || 'unknown'}`);
+      button.title = `${_selected.model} · ${ep?.name || t('models.unknown_provider')}`;
+      button.setAttribute('aria-label', t('models.model_provider_label', { model: _selected.model, provider: ep?.name || t('common.unknown') }));
     }
     if (aideButton) {
-      aideButton.title = `${_selected.model} · ${ep?.name || 'unknown provider'}`;
-      aideButton.setAttribute('aria-label', `model ${_selected.model}, provider ${ep?.name || 'unknown'}`);
+      aideButton.title = `${_selected.model} · ${ep?.name || t('models.unknown_provider')}`;
+      aideButton.setAttribute('aria-label', t('models.model_provider_label', { model: _selected.model, provider: ep?.name || t('common.unknown') }));
     }
     // the "glowing thing" becomes the provider's glowing brand logo
     dot?.classList.remove('offline');
@@ -291,14 +292,14 @@ function updateTopbar() {
     if (dot) dot.innerHTML = providerLogo(providerKey([ep && ep.provider, ep && ep.name, ep && ep.base_url, _selected.model].filter(Boolean).join(' ')), { size: 13 });
     if (ep) window._currentEndpoint = ep;
   } else {
-    if (label) label.textContent = 'no model';
-    if (aideLabel) aideLabel.textContent = 'no model';
+    if (label) label.textContent = t('aide.no_model');
+    if (aideLabel) aideLabel.textContent = t('aide.no_model');
     if (aideLogo) aideLogo.innerHTML = '';
     if (provider) provider.textContent = '';
-    if (button) button.setAttribute('aria-label', 'select model and provider');
+    if (button) button.setAttribute('aria-label', t('models.select_model_provider'));
     if (aideButton) {
-      aideButton.title = 'choose model';
-      aideButton.setAttribute('aria-label', 'select model and provider');
+      aideButton.title = t('aide.choose_model');
+      aideButton.setAttribute('aria-label', t('models.select_model_provider'));
     }
     dot?.classList.remove('has-logo');
     if (dot) dot.innerHTML = '';
@@ -340,14 +341,14 @@ export function renderModelList(filter = '') {
     html += `<div class="provider-label" style="color:${color}">${escapeHtml(String(ep.name || ''))}</div>`;
     if (!models.length && !imgs.length) {
       html += `<div style="padding:0.3rem 1rem;font-size:0.75rem;color:var(--muted)">
-        no models: <button style="background:none;border:none;cursor:pointer;color:var(--text);font:inherit;font-size:0.75rem" onclick="probeEndpoint('${String(ep.id || '').replace(/[^\w-]/g, '')}')">probe</button>
+        ${escHtml(t('models.no_models'))} <button type="button" class="model-probe" data-ep="${String(ep.id || '').replace(/[^\w-]/g, '')}" style="background:none;border:none;cursor:pointer;color:var(--text);font:inherit;font-size:0.75rem">${escHtml(t('models.probe'))}</button>
       </div>`;
       continue;
     }
     const visionSet = new Set(ep.vision_models || []);
     for (const m of models) {
       const isActive = _selected?.endpointId === ep.id && _selected?.model === m;
-      const eye = visionSet.has(m) ? `<span class="model-vision-badge" title="vision" aria-label="vision">${_si('eye')}</span>` : '';
+      const eye = visionSet.has(m) ? `<span class="model-vision-badge" title="${escAttr(t('models.vision'))}" aria-label="${escAttr(t('models.vision'))}">${_si('eye')}</span>` : '';
       html += `<button type="button" role="option" aria-selected="${isActive}" tabindex="${isActive ? '0' : '-1'}" class="model-row${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
         ${logoFor(m)}
         <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span>${eye}
@@ -358,17 +359,18 @@ export function renderModelList(filter = '') {
         (_selected?.endpointId === ep.id && _selected?.model === m);
       html += `<button type="button" role="option" aria-selected="${isActive}" tabindex="${isActive ? '0' : '-1'}" class="model-row model-row-img${isActive ? ' active' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}">
         ${logoFor(m)}
-        <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span><span class="model-img-badge" title="image generation" aria-label="image generation">${_si('palette')}</span>
+        <span class="model-name" title="${escAttr(m)}">${escHtml(prettyModel(m))}</span><span class="model-img-badge" title="${escAttr(t('models.image_generation'))}" aria-label="${escAttr(t('models.image_generation'))}">${_si('palette')}</span>
       </button>`;
     }
   }
-  if (!html) html = '<div style="padding:1rem;font-size:0.75rem;color:var(--muted)">no endpoints: add one in the endpoints tab</div>';
+  if (!html) html = `<div style="padding:1rem;font-size:0.75rem;color:var(--muted)">${escHtml(t('models.no_endpoints_add'))}</div>`;
   list.innerHTML = html;
   const rows = [...list.querySelectorAll('.model-row')];
   if (rows.length && !rows.some(row => row.tabIndex === 0)) rows[0].tabIndex = 0;
   rows.forEach(el => {
     el.addEventListener('click', () => selectModel(el.dataset.ep, el.dataset.model));
   });
+  list.querySelectorAll('.model-probe').forEach(el => el.addEventListener('click', () => window.probeEndpoint(el.dataset.ep)));
   list.onkeydown = event => {
     const index = rows.indexOf(document.activeElement);
     let next = -1;
@@ -399,20 +401,20 @@ export function renderSidebarModelList(filter = '') {
       <span style="color:${brandColor(providerKey(epCtx))}">${escHtml(ep.name)}</span>
     </div>`;
     if (!models.length && !imgs.length) {
-      html += `<div class="sidebar-model-empty">no cached models</div>`;
+      html += `<div class="sidebar-model-empty">${escHtml(t('models.no_cached_models'))}</div>`;
       continue;
     }
     const row = (m, img) => {
       const isActive = (_selected?.endpointId === ep.id && _selected?.model === m) ||
         (img && _imageSlot?.endpointId === ep.id && _imageSlot?.model === m);
       return `<button type="button" class="sidebar-model-row${isActive ? ' active' : ''}${img ? ' sidebar-model-img' : ''}" data-ep="${ep.id}" data-model="${escAttr(m)}" title="${escAttr(m)}">
-        <span>${escHtml(prettyModel(m))}</span>${img ? `<span class="model-img-badge" title="image generation" aria-label="image generation">${_si('palette')}</span>` : ''}
+        <span>${escHtml(prettyModel(m))}</span>${img ? `<span class="model-img-badge" title="${escAttr(t('models.image_generation'))}" aria-label="${escAttr(t('models.image_generation'))}">${_si('palette')}</span>` : ''}
       </button>`;
     };
     html += models.map(m => row(m, false)).join('');
     html += imgs.map(m => row(m, true)).join('');
   }
-  if (!html) html = '<div class="sidebar-model-empty">no models found</div>';
+  if (!html) html = `<div class="sidebar-model-empty">${escHtml(t('models.no_models_found'))}</div>`;
   list.innerHTML = html;
   list.querySelectorAll('.sidebar-model-row').forEach(btn => {
     btn.addEventListener('click', () => selectModel(btn.dataset.ep, btn.dataset.model));
@@ -466,7 +468,7 @@ export async function selectModel(endpointId, model) {
     } catch {
       if (selectionGeneration !== _modelSelectionGenerations.get(selectionKey)) return;
       if (window._currentSession?.id !== session?.id) return;
-      toast('model change could not be saved', 'error');
+      toast(t('models.change_not_saved'), 'error');
       restoreSessionModel(session);
       return;
     }
@@ -487,7 +489,7 @@ export function renderEndpointList() {
   const el = document.getElementById('mm-ep-list');
   if (!el) return;
   if (!_endpoints.length) {
-    el.innerHTML = '<div style="padding:0.65rem 0.75rem;font-size:0.75rem;color:var(--muted)">no endpoints yet: use presets below</div>';
+    el.innerHTML = `<div style="padding:0.65rem 0.75rem;font-size:0.75rem;color:var(--muted)">${escHtml(t('models.no_endpoints_presets'))}</div>`;
     return;
   }
   el.innerHTML = _endpoints.map(ep => {
@@ -497,23 +499,23 @@ export function renderEndpointList() {
       <div class="mm-ep-card-head">
         <span class="provider-dot" style="background:${color}"></span>
         <span class="mm-ep-name" style="font-weight:500">${escHtml(ep.name)}</span>
-        <span style="font-size:0.75rem;color:var(--muted)">${ep.models.length} models</span>
+        <span style="font-size:0.75rem;color:var(--muted)">${escHtml(tp('models.models_count', ep.models.length))}</span>
         <div class="mm-ep-actions" style="margin-left:auto;display:flex;gap:0.25rem">
-          <button class="btn mm-test-btn" type="button" data-id="${ep.id}" title="test completion" ${!ep.models.length ? 'disabled' : ''}>test</button>
-          <button class="btn mm-probe-btn" type="button" data-id="${ep.id}" title="probe models">probe</button>
-          <button class="act-btn mm-del-btn" type="button" data-id="${ep.id}" aria-label="remove ${escAttr(ep.name)} endpoint">×</button>
+          <button class="btn mm-test-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.test_completion'))}" ${!ep.models.length ? 'disabled' : ''}>${escHtml(t('models.test'))}</button>
+          <button class="btn mm-probe-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.probe_models'))}">${escHtml(t('models.probe'))}</button>
+          <button class="act-btn mm-del-btn" type="button" data-id="${ep.id}" aria-label="${escAttr(t('models.remove_endpoint', { name: ep.name }))}">×</button>
         </div>
       </div>
       <div class="mm-ep-edit" id="mm-ep-edit-${ep.id}" style="display:none">
-        <input class="settings-input mm-edit-name" placeholder="name" value="${escAttr(ep.name)}" style="width:120px">
-        <input class="settings-input mm-edit-url" placeholder="base url" value="${escAttr(ep.base_url || '')}" style="flex:1">
-        <input class="settings-input mm-edit-key" type="password" placeholder="api key" value="" style="width:140px">
-        <button class="btn primary mm-save-btn" type="button" data-id="${ep.id}">save</button>
-        <button class="btn mm-cancel-btn" type="button" data-id="${ep.id}">cancel</button>
+        <input class="settings-input mm-edit-name" placeholder="${escAttr(t('models.placeholder_name'))}" value="${escAttr(ep.name)}" style="width:120px">
+        <input class="settings-input mm-edit-url" placeholder="${escAttr(t('models.placeholder_base_url'))}" value="${escAttr(ep.base_url || '')}" style="flex:1">
+        <input class="settings-input mm-edit-key" type="password" placeholder="${escAttr(t('models.placeholder_api_key'))}" value="" style="width:140px">
+        <button class="btn primary mm-save-btn" type="button" data-id="${ep.id}">${escHtml(t('common.save'))}</button>
+        <button class="btn mm-cancel-btn" type="button" data-id="${ep.id}">${escHtml(t('common.cancel'))}</button>
       </div>
       <div class="mm-ep-info">
         <span style="font-size:0.75rem;color:var(--muted)">${escHtml(ep.base_url || '')}</span>
-        <button class="mm-edit-toggle" type="button" data-id="${ep.id}" aria-expanded="false" aria-controls="mm-ep-edit-${ep.id}" style="font-size:0.75rem;color:var(--muted);background:none;border:none;cursor:pointer;padding:0 0.25rem">edit</button>
+        <button class="mm-edit-toggle" type="button" data-id="${ep.id}" aria-expanded="false" aria-controls="mm-ep-edit-${ep.id}" style="font-size:0.75rem;color:var(--muted);background:none;border:none;cursor:pointer;padding:0 0.25rem">${escHtml(t('common.edit'))}</button>
       </div>
     </div>`;
   }).join('');
@@ -541,8 +543,8 @@ export function renderEndpointList() {
         method: 'PATCH', headers: {'content-type':'application/json'},
         body: JSON.stringify(patch),
       });
-      if (!response.ok) { toast('endpoint could not be saved', 'error'); return; }
-      toast('saved', 'success');
+      if (!response.ok) { toast(t('models.endpoint_save_failed'), 'error'); return; }
+      toast(t('models.saved'), 'success');
       await loadModels();
       renderEndpointList();
     });
@@ -560,11 +562,11 @@ export function renderEndpointList() {
       try {
         const r = await fetch(`/api/models/endpoint/${btn.dataset.id}/probe`, { method: 'POST' });
         const d = await r.json();
-        toast(`${d.models?.length || 0} models`, 'success');
+        toast(tp('models.models_count', d.models?.length || 0), 'success');
         await loadModels();
         renderEndpointList();
-      } catch { toast('probe failed', 'error'); }
-      btn.textContent = 'probe'; btn.disabled = false;
+      } catch { toast(t('models.probe_failed'), 'error'); }
+      btn.textContent = t('models.probe'); btn.disabled = false;
     });
   });
 
@@ -575,18 +577,18 @@ export function renderEndpointList() {
         const r = await fetch(`/api/models/endpoint/${btn.dataset.id}/test`, { method: 'POST' });
         if (!r.ok) throw new Error(await r.text());
         const d = await r.json();
-        toast(`success! model responded: ${d.response}`, 'success', 4000);
-      } catch (e) { toast('test failed', 'error'); }
-      btn.textContent = 'test'; btn.disabled = false;
+        toast(t('models.test_success', { response: d.response }), 'success', 4000);
+      } catch (e) { toast(t('models.test_failed'), 'error'); }
+      btn.textContent = t('models.test'); btn.disabled = false;
     });
   });
 
   el.querySelectorAll('.mm-del-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!await _dlgConfirm('remove this endpoint?')) return;
+      if (!await _dlgConfirm(t('models.remove_confirm'))) return;
       const response = await _ownerFetch(`/api/models/endpoint/${btn.dataset.id}`, { method: 'DELETE' });
-      if (!response.ok) { toast('endpoint could not be disconnected', 'error'); return; }
-      toast('removed', 'success');
+      if (!response.ok) { toast(t('models.endpoint_disconnect_failed'), 'error'); return; }
+      toast(t('models.removed'), 'success');
       await loadModels();
       renderEndpointList();
     });
@@ -596,7 +598,7 @@ export function renderEndpointList() {
 function _renderPresets() {
   const el = document.getElementById('mm-presets');
   if (!el) return;
-  el.innerHTML = '<span style="font-size:0.75rem;color:var(--muted);flex-shrink:0">quick add:</span>';
+  el.innerHTML = `<span style="font-size:0.75rem;color:var(--muted);flex-shrink:0">${escHtml(t('models.quick_add'))}</span>`;
   for (const p of PRESETS) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -606,7 +608,7 @@ function _renderPresets() {
       document.getElementById('ep-name').value = p.name;
       document.getElementById('ep-url').value = p.url;
       document.getElementById('ep-key').value = '';
-      document.getElementById('ep-key').placeholder = p.key || 'leave blank';
+      document.getElementById('ep-key').placeholder = p.key || t('models.leave_blank');
       document.getElementById('ep-key').focus();
     });
     el.appendChild(btn);
@@ -624,7 +626,7 @@ export function initModelModal() {
   // clicking the image-slot chip drops the companion image model
   document.getElementById('image-slot-btn')?.addEventListener('click', () => {
     setImageSlot(null, null);
-    toast('image model cleared', '');
+    toast(t('models.image_cleared'), '');
   });
   // refresh model lists when the picker opens (debounced) + manual button
   document.getElementById('model-btn')?.addEventListener('click', maybeAutoRefresh);
@@ -633,7 +635,7 @@ export function initModelModal() {
     b.textContent = '…'; b.disabled = true;
     await refreshModels(true);
     renderEndpointList();
-    b.textContent = 'refresh'; b.disabled = false;
+    b.textContent = t('common.refresh'); b.disabled = false;
   });
   // tab switching
   const tabs = [...document.querySelectorAll('.mm-tab')];
@@ -679,16 +681,16 @@ export function initModelModal() {
     const name = document.getElementById('ep-name').value.trim();
     const url  = document.getElementById('ep-url').value.trim();
     const key  = document.getElementById('ep-key').value.trim();
-    if (!name || !url) { toast('name + url required', 'error'); return; }
+    if (!name || !url) { toast(t('models.name_url_required'), 'error'); return; }
     const btn = document.getElementById('ep-add-btn');
-    btn.textContent = 'probing…'; btn.disabled = true;
+    btn.textContent = t('models.probing'); btn.disabled = true;
     try {
       await addEndpoint(name, url, key);
       ['ep-name','ep-url','ep-key'].forEach(id => document.getElementById(id).value = '');
-      toast('endpoint added', 'success');
+      toast(t('models.endpoint_added'), 'success');
       renderEndpointList();
-    } catch (e) { toast(`failed: ${e.message}`, 'error'); }
-    btn.textContent = 'add + probe'; btn.disabled = false;
+    } catch (e) { toast(t('models.failed_with', { message: e.message }), 'error'); }
+    btn.textContent = t('models.add_probe'); btn.disabled = false;
   });
 }
 
@@ -696,9 +698,9 @@ window.probeEndpoint = async function(epId) {
   try {
     const r = await fetch(`/api/models/endpoint/${epId}/probe`, { method: 'POST' });
     const data = await r.json();
-    toast(`found ${data.models.length} models`, 'success');
+    toast(t('models.found_models', { count: data.models.length }), 'success');
     await loadModels();
-  } catch { toast('probe failed', 'error'); }
+  } catch { toast(t('models.probe_failed'), 'error'); }
 };
 
 // ── auto-refresh: re-probe enabled endpoints so new provider models show up ──
@@ -709,13 +711,13 @@ export async function refreshModels(force = false) {
     const d = await r.json();
     if (d.added?.length) {
       await loadModels();
-      toast('new models: ' + d.added.slice(0, 6).join(', '), 'success');
+      toast(t('models.new_models', { models: d.added.slice(0, 6).join(', ') }), 'success');
     } else if (force) {
       await loadModels();
-      toast('models up to date', '');
+      toast(t('models.up_to_date'), '');
     }
     return d;
-  } catch { if (force) toast('refresh failed', 'error'); }
+  } catch { if (force) toast(t('models.refresh_failed'), 'error'); }
 }
 // called when the picker opens — client-debounced so opening it repeatedly is cheap
 function maybeAutoRefresh() {
@@ -742,7 +744,7 @@ export async function addEndpoint(name, url, key, adapter = 'auto', manualModels
       auth_type: auth.authType || 'api_key',
     }),
   });
-  if (!r.ok) throw await endpointError(r, 'connection could not be added; check the address and try again');
+  if (!r.ok) throw await endpointError(r, t('models.connection_add_failed'));
   const ep = await r.json();
   if (adapter === 'manual') {
     const updated = await _ownerFetch(`/api/models/endpoint/${ep.id}`, {
@@ -750,10 +752,10 @@ export async function addEndpoint(name, url, key, adapter = 'auto', manualModels
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ models: manualModels }),
     });
-    if (!updated.ok) throw await endpointError(updated, 'model list could not be saved; try again');
+    if (!updated.ok) throw await endpointError(updated, t('models.model_list_save_failed'));
   } else {
     const probe = await fetch(`/api/models/endpoint/${ep.id}/probe`, { method: 'POST' });
-    if (!probe.ok) toast(`${ep.name} saved, but its catalog is not available`, 'error');
+    if (!probe.ok) toast(t('models.saved_no_catalog', { name: ep.name }), 'error');
   }
   await loadModels();
   return ep;

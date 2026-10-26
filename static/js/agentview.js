@@ -3,6 +3,8 @@
 // flavored: a collapsible step list, each tool call showing its diff (green/red +/-)
 // with a +N −N count badge.
 
+import { t, tp } from './i18n.js';
+
 const DESTRUCTIVE = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
   'git_commit', 'git_push', 'revert_file', 'delete_file', 'mail_send',
   'computer_click', 'computer_type', 'computer_key', 'computer_scroll']);
@@ -45,7 +47,7 @@ export function docReceipt(name, args = {}, error = false) {
   const title = path.split('/').pop().replace(/\.md$/i, '');
   return `<button type="button" class="doc-receipt" data-open-doc="${esc(path)}">
     <span class="doc-receipt-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${MARKS.file}</svg></span>
-    <span class="doc-receipt-text"><span class="doc-receipt-title">${esc(title)}</span><span class="doc-receipt-where">saved in docs · open</span></span>
+    <span class="doc-receipt-text"><span class="doc-receipt-title">${esc(title)}</span><span class="doc-receipt-where">${esc(t('aide.step_saved_docs'))}</span></span>
   </button>`;
 }
 // one listener for every receipt, live or reloaded
@@ -69,17 +71,17 @@ function esc(s = '') {
 function summary(name, a = {}) {
   const cut = (s, n = 70) => String(s || '').replace(/\s+/g, ' ').slice(0, n);
   switch (name) {
-    case 'read_file': return `read ${a.path || ''}`;
-    case 'write_file': return `write ${a.path || ''}`;
-    case 'edit_file': return `edit ${a.path || ''}`;
-    case 'apply_patch': return 'apply a patch';
-    case 'shell': case 'bash': return `run: ${cut(a.command, 90)}`;
-    case 'grep_files': return `grep "${cut(a.pattern, 40)}"`;
-    case 'glob_files': return `glob ${a.pattern || ''}`;
-    case 'list_files': return `list ${a.path || '.'}`;
-    case 'web_search': return `search: ${cut(a.query, 50)}`;
-    case 'web_fetch': return `fetch ${cut(a.url, 60)}`;
-    case 'pi_run': return `hand to pi: ${cut(a.task, 110)}`;
+    case 'read_file': return t('aide.step_read', { path: a.path || '' });
+    case 'write_file': return t('aide.step_write', { path: a.path || '' });
+    case 'edit_file': return t('aide.step_edit', { path: a.path || '' });
+    case 'apply_patch': return t('aide.step_apply_patch');
+    case 'shell': case 'bash': return t('aide.step_run', { command: cut(a.command, 90) });
+    case 'grep_files': return t('aide.step_grep', { pattern: cut(a.pattern, 40) });
+    case 'glob_files': return t('aide.step_glob', { pattern: a.pattern || '' });
+    case 'list_files': return t('aide.step_list', { path: a.path || '.' });
+    case 'web_search': return t('aide.step_search', { query: cut(a.query, 50) });
+    case 'web_fetch': return t('aide.step_fetch', { url: cut(a.url, 60) });
+    case 'pi_run': return t('aide.step_hand_to_pi', { task: cut(a.task, 110) });
     default: { const v = Object.values(a).find(x => typeof x === 'string' && x.length < 80); return v ? `${name}: ${cut(v)}` : name; }
   }
 }
@@ -110,7 +112,7 @@ function asQuestion(step) {
   if ((step?.name || step?.tool) !== 'ask_user') return step;
   let cancelled = false;
   try { cancelled = JSON.parse(String(step.output || '{}'))?.cancelled === true; } catch {}
-  return { ...step, error: cancelled ? false : step.error, args: {}, output: '', _question: cancelled ? 'you skipped this question' : (step.args?.title || 'asked you a question') };
+  return { ...step, error: cancelled ? false : step.error, args: {}, output: '', _question: cancelled ? t('aide.step_skipped_question') : (step.args?.title || t('aide.step_asked_question')) };
 }
 
 export function renderAgentSteps(steps, open = false, agentRunId = '') {
@@ -129,32 +131,32 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
       badge = `<span class="agent-step-counts"><span class="diff-add">+${c.add}</span> <span class="diff-del">−${c.del}</span></span>`;
     }
     const argsBlock = (s.args && Object.keys(s.args).length)
-      ? `<details class="agent-step-args-wrap"><summary>args</summary><pre class="agent-step-args">${esc(JSON.stringify(s.args, null, 2))}</pre></details>` : '';
+      ? `<details class="agent-step-args-wrap"><summary>${esc(t('aide.step_args'))}</summary><pre class="agent-step-args">${esc(JSON.stringify(s.args, null, 2))}</pre></details>` : '';
     const out = s.output ? `<pre class="agent-step-output">${esc(String(s.output).slice(-4000))}</pre>` : '';
     const diff = s.diff ? `<pre class="agent-step-diff">${renderDiff(s.diff)}</pre>` : '';
     return `<div class="agent-step${destructive}${errCls}" data-kind="${stepKind(name)}">
       <div class="agent-step-head">
         <span class="agent-step-dot"></span>${stepMark(name)}
-        <span class="agent-step-name">${esc(s._question ? 'question' : name)}</span>
+        <span class="agent-step-name">${esc(s._question ? t('aide.step_question') : name)}</span>
         <span class="agent-step-summary">${esc(s._question || summary(name, s.args))}</span>
-        ${s.completed === false ? '<span class="agent-step-summary">no final result</span>' : ''}
+        ${s.completed === false ? `<span class="agent-step-summary">${esc(t('aide.step_no_final_result'))}</span>` : ''}
         ${badge}
       </div>${argsBlock}${out}${diff}
     </div>`;
   }).join('');
-  const detail = `${steps.length} step${steps.length === 1 ? '' : 's'}${edits ? ` · ${edits} edit${edits > 1 ? 's' : ''}` : ''}`;
+  const detail = `${tp('aide.run_steps', steps.length)}${edits ? ` · ${tp('aide.run_edits', edits)}` : ''}`;
   const runId = String(agentRunId || '').trim();
   const reversible = steps.some(step => step.diff && canRevertTool(step.name || step.tool));
   const controls = runId ? `<span class="agent-run-controls">
-    <button type="button" class="agent-sources-btn" data-agent-sources="${esc(runId)}" aria-expanded="false" title="confirmed reads, search results and tool outcomes">sources</button>
-    ${reversible ? `<button type="button" class="agent-revert-btn" data-agent-revert="${esc(runId)}" title="restore every file this run changed">revert edits</button>` : ''}
+    <button type="button" class="agent-sources-btn" data-agent-sources="${esc(runId)}" aria-expanded="false" title="${esc(t('aide.step_sources_title'))}">${esc(t('aide.step_sources'))}</button>
+    ${reversible ? `<button type="button" class="agent-revert-btn" data-agent-revert="${esc(runId)}" title="${esc(t('aide.step_revert_title'))}">${esc(t('aide.step_revert'))}</button>` : ''}
   </span>` : '';
   const failed = steps.filter(step => step?.error).length;
   const dots = `<span class="agent-steps-dots" aria-hidden="true">${steps.slice(-24).map(step => `<span class="${step?.error ? 'failed' : 'done'}"></span>`).join('')}</span>`;
   const receipts = steps.map(step => (step.name || step.tool) === 'pi_run'
     ? piDocReceipts(step.output, !!step.error)
     : docReceipt(step.name || step.tool, step.args, !!step.error)).join('');
-  return `<details class="agent-steps"${open ? ' open' : ''}><summary>${detail}${failed ? ` · ${failed} failed` : ''}${dots}${controls}</summary><div class="agent-step-list">${rows}</div></details>${receipts}`;
+  return `<details class="agent-steps"${open ? ' open' : ''}><summary>${detail}${failed ? ` · ${tp('aide.step_failed', failed)}` : ''}${dots}${controls}</summary><div class="agent-step-list">${rows}</div></details>${receipts}`;
 }
 
 export function wireAgentRunControls(root) {
@@ -168,7 +170,7 @@ export function wireAgentRunControls(root) {
       if (button.getAttribute('aria-disabled') === 'true') return;
       if (panel && !panel.hidden) { panel.hidden = true; button.setAttribute('aria-expanded', 'false'); return; }
       button.setAttribute('aria-disabled', 'true');
-      button.textContent = 'loading sources…';
+      button.textContent = t('aide.step_loading_sources');
       try {
         const response = await fetch(`/api/agent/runs/${encodeURIComponent(button.dataset.agentSources)}/sources`);
         if (!response.ok) throw new Error('sources unavailable');
@@ -185,10 +187,10 @@ export function wireAgentRunControls(root) {
           details.open = true;
           details.appendChild(panel);
         }
-        button.textContent = 'sources';
+        button.textContent = t('aide.step_sources');
         button.setAttribute('aria-expanded', 'true');
       } catch {
-        button.textContent = 'retry sources';
+        button.textContent = t('aide.step_retry_sources');
         button.setAttribute('aria-expanded', 'false');
       } finally {
         button.removeAttribute('aria-disabled');
@@ -202,14 +204,14 @@ export function wireAgentRunControls(root) {
       event.preventDefault();
       event.stopPropagation();
       button.disabled = true;
-      button.textContent = 'reverting…';
+      button.textContent = t('aide.run_reverting');
       try {
         const response = await fetch(`/api/agent/runs/${encodeURIComponent(button.dataset.agentRevert)}/revert`, { method: 'POST' });
         if (!response.ok) throw new Error('revert failed');
         const result = await response.json();
-        button.textContent = `reverted ${result.restored || 0}`;
+        button.textContent = tp('aide.run_reverted', result.restored || 0);
       } catch {
-        button.textContent = 'revert failed';
+        button.textContent = t('aide.run_revert_failed');
         button.disabled = false;
       }
     });

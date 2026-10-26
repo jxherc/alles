@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 function _esc(s = '') {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -90,8 +92,8 @@ export function confirm(msg, options = {}) {
     ov.innerHTML = `<div class="dialog-card" role="alertdialog" aria-modal="true" aria-labelledby="${labelId}">
       <div class="dialog-msg" id="${labelId}">${_esc(msg)}</div>
       <div class="dialog-btns">
-        <button class="btn" type="button" data-dialog-cancel>cancel</button>
-        <button class="btn ${options.danger === false ? 'primary' : 'danger'}" type="button" data-dialog-confirm>${_esc(options.confirmLabel || 'confirm')}</button>
+        <button class="btn" type="button" data-dialog-cancel>${t('common.cancel')}</button>
+        <button class="btn ${options.danger === false ? 'primary' : 'danger'}" type="button" data-dialog-confirm>${_esc(options.confirmLabel || t('common.confirm'))}</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
@@ -110,9 +112,9 @@ export function prompt(msg, def = '', options = {}) {
     const errorId = `${inputId}-error`;
     const hintId = `${inputId}-hint`;
     const secretCheck = options.secret && !options.label;
-    const title = options.title || (secretCheck ? 'confirm it’s you' : '');
-    const label = options.label || (secretCheck ? 'Alles password' : String(msg || '').replace(/\s*:\s*$/, ''));
-    const hint = options.hint || (secretCheck ? String(msg || '').replace(/^enter your alles password to /i, 'needed to ') : '');
+    const title = options.title || (secretCheck ? t('shell.confirm_its_you') : '');
+    const label = options.label || (secretCheck ? t('shell.alles_password') : String(msg || '').replace(/\s*:\s*$/, ''));
+    const hint = options.hint || (secretCheck ? String(msg || '').replace(/^enter your alles password to (.*)$/is, (_, rest) => t('shell.needed_to', { rest })) : '');
     const describedBy = [hint ? hintId : '', options.validate ? errorId : ''].filter(Boolean).join(' ');
     ov.innerHTML = `<div class="dialog-card dialog-form${options.validate ? ' dialog-validated' : ''}" role="dialog" aria-modal="true" aria-labelledby="${title ? `${inputId}-title` : `${inputId}-label`}">
       ${title ? `<h2 class="dialog-title" id="${inputId}-title">${_esc(title)}</h2>` : ''}
@@ -123,8 +125,8 @@ export function prompt(msg, def = '', options = {}) {
       ${hint ? `<p class="dialog-hint" id="${hintId}">${_esc(hint)}</p>` : ''}
       ${options.validate ? `<div class="dialog-validation" id="${errorId}" role="alert"></div>` : ''}
       <div class="dialog-btns">
-        <button class="btn" type="button" data-dialog-cancel>cancel</button>
-        <button class="btn primary" type="button" data-dialog-confirm>${_esc(options.confirmLabel || (secretCheck ? 'continue' : 'save'))}</button>
+        <button class="btn" type="button" data-dialog-cancel>${t('common.cancel')}</button>
+        <button class="btn primary" type="button" data-dialog-confirm>${_esc(options.confirmLabel || (secretCheck ? t('common.continue') : t('common.save')))}</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
@@ -174,8 +176,8 @@ export function fields(title, defs, options = {}) {
       ${inputs}
       ${options.submit ? '<div class="dialog-validation" role="alert"></div>' : ''}
       <div class="dialog-btns">
-        <button class="btn" type="button" data-dialog-cancel>cancel</button>
-        <button class="btn primary" type="button" data-dialog-confirm>save</button>
+        <button class="btn" type="button" data-dialog-cancel>${t('common.cancel')}</button>
+        <button class="btn primary" type="button" data-dialog-confirm>${t('common.save')}</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
@@ -183,10 +185,10 @@ export function fields(title, defs, options = {}) {
     const validate = options.submit ? async value => {
       const error = ov.querySelector('.dialog-validation');
       const button = ov.querySelector('[data-dialog-confirm]');
-      error.textContent = ''; button.textContent = 'saving…';
+      error.textContent = ''; button.textContent = t('common.saving');
       try { await options.submit(value); return true; }
-      catch (failure) { error.textContent = failure.message || 'could not confirm this save'; return false; }
-      finally { button.textContent = 'save'; }
+      catch (failure) { error.textContent = failure.message || t('shell.could_not_confirm_save'); return false; }
+      finally { button.textContent = t('common.save'); }
     } : () => true;
     _wireDialog(ov, resolve, collect, validate);
     ov.querySelector(`#dialog-${sequence}-${CSS.escape(defs[0].id)}`).focus();
@@ -200,7 +202,7 @@ export function choose(title, options) {
     ov.innerHTML = `<div class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
       <div class="dialog-msg" id="${titleId}">${_esc(title)}</div>
       <div class="dialog-choices">${options.map(option => `<button type="button" class="btn" data-dialog-confirm data-value="${_esc(option.value)}">${_esc(option.label)}</button>`).join('')}</div>
-      <div class="dialog-btns"><button type="button" class="btn" data-dialog-cancel>cancel</button></div>
+      <div class="dialog-btns"><button type="button" class="btn" data-dialog-cancel>${t('common.cancel')}</button></div>
     </div>`;
     document.body.appendChild(ov);
     _wireDialog(ov, resolve, button => button.dataset.value);

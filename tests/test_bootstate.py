@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 APP = (ROOT / "static" / "js" / "app.js").read_text(encoding="utf-8")
 MODELS = (ROOT / "static" / "js" / "models.js").read_text(encoding="utf-8")
 INDEX = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+EN = json.loads((ROOT / "static" / "locales" / "en.json").read_text(encoding="utf-8"))["messages"]
 
 
 def _state(reachable, authed):
@@ -46,7 +47,8 @@ class BootStateTests(unittest.TestCase):
 
     def test_no_model_copy_simplified(self):
         self.assertNotIn("add one in settings", MODELS)
-        self.assertIn("label.textContent = 'no model'", MODELS)
+        self.assertIn("label.textContent = t('aide.no_model')", MODELS)
+        self.assertEqual(EN["aide.no_model"], "no model")
         self.assertIn('data-i18n="aide.no_model">no model', INDEX)
 
     def test_notrunning_screen_markup_present(self):

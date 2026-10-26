@@ -9,12 +9,18 @@ import {
   resolvedTimeZone,
   formatTime,
   localizationState,
+  t,
 } from './i18n.js';
 
 let _open = null;
 
 export function initDatePickers(root = document) {
   root.querySelectorAll('.date-input').forEach(initDatePicker);
+}
+
+// data-ph-key names the catalog message; data-ph is a literal for built markup
+function _placeholder(el) {
+  return el.dataset.phKey ? t(el.dataset.phKey) : (el.dataset.ph || t('common.datepick_pick'));
 }
 
 export function initDatePicker(el) {
@@ -24,7 +30,7 @@ export function initDatePicker(el) {
   el.setAttribute('role', 'button');
   el.setAttribute('aria-haspopup', 'dialog');
   el.setAttribute('aria-expanded', 'false');
-  if (!el.hasAttribute('aria-label') && !el.hasAttribute('aria-labelledby')) el.setAttribute('aria-label', el.dataset.ph || 'pick a date');
+  if (!el.hasAttribute('aria-label') && !el.hasAttribute('aria-labelledby')) el.setAttribute('aria-label', _placeholder(el));
   Object.defineProperty(el, 'value', {
     configurable: true,
     get() { return el.dataset.value || ''; },
@@ -122,7 +128,7 @@ function _display(v, isDate) {
 }
 function _trigger(el) {
   const v = el.dataset.value;
-  el.innerHTML = `<span class="date-input-label${v ? '' : ' ph'}">${v ? _display(v, _isDate(el)) : (el.dataset.ph || 'pick a date')}</span>` +
+  el.innerHTML = `<span class="date-input-label${v ? '' : ' ph'}">${v ? _display(v, _isDate(el)) : _placeholder(el)}</span>` +
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
 }
 
@@ -133,7 +139,7 @@ function _openPanel(el) {
   const panel = document.createElement('div');
   panel.className = 'date-panel';
   panel.setAttribute('role', 'dialog');
-  panel.setAttribute('aria-label', el.getAttribute('aria-label') || 'choose date');
+  panel.setAttribute('aria-label', el.getAttribute('aria-label') || t('common.datepick_choose'));
   el.setAttribute('aria-expanded', 'true');
   // a tap on a weekday label, the month name or the time row's background focuses the panel
   // itself, so escape still reaches it
@@ -173,14 +179,14 @@ function _render(el) {
   );
   const time = isDate ? '' : `
     <div class="dp-time">
-      <button type="button" class="dp-step" data-step="h-1" aria-label="previous hour">‹</button><input class="dp-tv" data-part="h" inputmode="numeric" maxlength="2" aria-label="hour" value="${_z(sel.h)}"><button type="button" class="dp-step" data-step="h1" aria-label="next hour">›</button>
+      <button type="button" class="dp-step" data-step="h-1" aria-label="${t('common.datepick_prev_hour')}">‹</button><input class="dp-tv" data-part="h" inputmode="numeric" maxlength="2" aria-label="${t('common.datepick_hour')}" value="${_z(sel.h)}"><button type="button" class="dp-step" data-step="h1" aria-label="${t('common.datepick_next_hour')}">›</button>
       <span class="dp-colon">:</span>
-      <button type="button" class="dp-step" data-step="mi-1" aria-label="5 minutes earlier">‹</button><input class="dp-tv" data-part="mi" inputmode="numeric" maxlength="2" aria-label="minute" value="${_z(sel.mi)}"><button type="button" class="dp-step" data-step="mi1" aria-label="5 minutes later">›</button>
+      <button type="button" class="dp-step" data-step="mi-1" aria-label="${t('common.datepick_minutes_earlier')}">‹</button><input class="dp-tv" data-part="mi" inputmode="numeric" maxlength="2" aria-label="${t('common.datepick_minute')}" value="${_z(sel.mi)}"><button type="button" class="dp-step" data-step="mi1" aria-label="${t('common.datepick_minutes_later')}">›</button>
     </div>`;
   panel.innerHTML = `
-    <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="previous month">‹</button><span>${monthName} <input class="dp-year" inputmode="numeric" maxlength="4" aria-label="year" value="${view.y}"></span><button type="button" class="dp-nav" data-nav="1" aria-label="next month">›</button></div>
+    <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="${t('calendar.previous_month')}">‹</button><span>${monthName} <input class="dp-year" inputmode="numeric" maxlength="4" aria-label="${t('common.datepick_year')}" value="${view.y}"></span><button type="button" class="dp-nav" data-nav="1" aria-label="${t('calendar.next_month')}">›</button></div>
     <div class="dp-grid">${_grid(view, sel)}</div>${time}
-    <div class="dp-foot"><button type="button" class="dp-clear">clear</button><button type="button" class="dp-now">now</button></div>`;
+    <div class="dp-foot"><button type="button" class="dp-clear">${t('common.datepick_clear')}</button><button type="button" class="dp-now">${t('common.datepick_now')}</button></div>`;
 
   // safari doesn't focus a clicked button, so focus would sit on <body>: the rebuild couldn't
   // put it back and escape stopped closing the picker. focus what was clicked first

@@ -4,6 +4,8 @@
 // reusable control contract: primitive identity, state exposure, busy repeat
 // rejection, menu and tab keyboard models, and modal focus boundaries.
 
+import { t } from './i18n.js';
+
 export const KOKUEN_STATES = Object.freeze([
   'resting',
   'hover',
@@ -98,15 +100,18 @@ function decorateIconControl(element) {
   if (element.dataset.kokuenIcon !== name) element.dataset.kokuenIcon = name;
   if (!element.getAttribute('aria-label') && !element.getAttribute('aria-labelledby')) {
     // ‹ › page through months and years, so "previous" reads better than "back" there
-    const pager = { '‹': 'previous', '›': 'next' }[(element.textContent || '').trim()];
-    const fallback = element.getAttribute('title') || pager || {
-      close: 'close',
-      trash: 'delete',
-      send: 'send',
-      'chevron-up': 'move up',
-      'chevron-down': 'move down',
-      'chevron-left': 'back',
-      'chevron-right': 'next',
+    const pager = { '‹': t('common.previous'), '›': t('common.next') }[(element.textContent || '').trim()];
+    const titleKey = element.dataset.i18nTitle ? t(element.dataset.i18nTitle) : '';
+    // this runs before the language loads; the key lets the catalog pass relabel it
+    if (titleKey) element.dataset.i18nAriaLabel = element.dataset.i18nTitle;
+    const fallback = titleKey || element.getAttribute('title') || pager || {
+      close: t('common.close'),
+      trash: t('common.delete'),
+      send: t('common.send'),
+      'chevron-up': t('shell.move_up'),
+      'chevron-down': t('shell.move_down'),
+      'chevron-left': t('common.back'),
+      'chevron-right': t('common.next'),
     }[name];
     if (fallback) element.setAttribute('aria-label', fallback);
   }
@@ -240,7 +245,7 @@ export function setControlState(element, state, { message = '' } = {}) {
 }
 
 
-export function beginBusy(element, label = 'working') {
+export function beginBusy(element, label = t('shell.working')) {
   if (!element || element.getAttribute('aria-busy') === 'true') return null;
   const snapshot = {
     disabled: 'disabled' in element ? element.disabled : false,

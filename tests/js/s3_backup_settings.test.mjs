@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { runInNewContext } from 'node:vm';
 import { createSettingsPane } from '../../static/js/settings/pane.js';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 globalThis.window = {};
 globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
@@ -140,7 +141,7 @@ test('every s3 mutation uses recent-owner confirmation and restore sends multipa
   assert.match(s3Source, /if \(accessKey\) accessKey\.value = ''/);
   assert.match(s3Source, /if \(secretKey\) secretKey\.value = ''/);
   assert.match(s3Source, /if \(config\.error\) _setS3Status\(config\.error, 'error'\)/);
-  assert.match(s3Source, /config\.error \? 'remove broken settings' : 'disconnect'/);
+  assert.match(s3Source, /config\.error \? t\('backups\.remove_broken_settings'\) : t\('common\.disconnect'\)/);
   assert.match(s3Source, /data\.status_warning/);
   assert.doesNotMatch(s3Source, /\.innerHTML\s*=/);
 });
@@ -167,7 +168,7 @@ test('s3 local validation keeps credentials for a corrected-only retry and submi
   const requests = [];
   const notices = [];
   let release;
-  const context = {
+  const context = { t: i18nT, tp: i18nTp,
     document: { getElementById: id => nodes.get(id) },
     URL,
     toast: (message, kind) => notices.push({ message, kind }),
@@ -236,7 +237,7 @@ test('s3 mutations reconcile reopening during the write or its list read', async
         let firstListStarted;
         const firstList = new Promise(resolve => { firstListStarted = resolve; });
         const response = data => ({ ok: true, json: async () => data });
-        const context = {
+        const context = { t: i18nT, tp: i18nTp,
           document: { getElementById: id => nodes.get(id) }, URL, createSettingsPane,
           toast() {}, formatDateTime: () => 'synthetic time',
           populateDropdown: (node, _options, value) => { node.value = value; },
@@ -311,7 +312,7 @@ test('s3 restores require a staged receipt and derive its command from the valid
   const requests = [];
   const notices = [];
   let response;
-  const context = {
+  const context = { t: i18nT, tp: i18nTp,
     document: { getElementById: id => nodes.get(id) },
     FormData: class {
       fields = [];

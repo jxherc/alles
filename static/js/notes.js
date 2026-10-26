@@ -1,5 +1,6 @@
 import { toast } from './util.js';
 import { initDatePicker } from './datepick.js';
+import { t } from './i18n.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _notes = [];
@@ -52,7 +53,7 @@ async function _renderTagbar() {
   try { tags = await _fetcher('/api/notes/tags').then(r => r.json()); } catch {}
   if (!tags.length) { bar.innerHTML = ''; return; }
   bar.innerHTML =
-    `<button class="note-tag-chip${_tag ? '' : ' on'}" data-tag="">all</button>` +
+    `<button class="note-tag-chip${_tag ? '' : ' on'}" data-tag="">${t('common.all')}</button>` +
     tags.map(t => `<button class="note-tag-chip${_tag === t.tag ? ' on' : ''}" data-tag="${esc(t.tag)}">${esc(t.tag)} ${t.count}</button>`).join('');
   bar.querySelectorAll('.note-tag-chip').forEach(b => b.addEventListener('click', () => {
     _tag = b.dataset.tag; loadNotes();
@@ -67,25 +68,25 @@ function renderNotes() {
 
   if (!_notes.length) {
     const filtered = _q || _tag;
-    const title = filtered ? 'no notes match that' : 'no notes yet';
-    const sub = filtered ? 'try a different search or tag.' : 'jot a thought, a list, anything. hit + new note.';
+    const title = filtered ? t('notes.empty_filtered_title') : t('notes.empty_title');
+    const sub = filtered ? t('notes.empty_filtered_hint') : t('notes.empty_hint');
     list.innerHTML = `<div class="notes-empty"><div class="notes-empty-title">${title}</div><div class="notes-empty-sub">${sub}</div></div>`;
     return;
   }
 
   list.innerHTML = _notes.map(n => `
     <div class="note-card${n.pinned ? ' pinned' : ''}" data-id="${esc(n.id)}">
-      <button class="note-title" type="button">${esc(n.title || 'untitled')}</button>
+      <button class="note-title" type="button">${esc(n.title || t('notes.untitled'))}</button>
       <div class="note-preview">${esc(n.content.slice(0, 200)) || '—'}</div>
       ${(n.due || n.items?.length) ? `<div class="note-meta-row">
-        ${n.due ? `<span class="note-due${_isOverdue(n.due) ? ' overdue' : ''}">${_isOverdue(n.due) ? 'overdue' : 'due'} ${esc(n.due)}</span>` : ''}
+        ${n.due ? `<span class="note-due${_isOverdue(n.due) ? ' overdue' : ''}">${_isOverdue(n.due) ? t('notes.overdue_on', { date: esc(n.due) }) : t('notes.due_on', { date: esc(n.due) })}</span>` : ''}
         ${n.items?.length ? `<span class="note-progress">${_si('check')} ${n.items.filter(i => i.done).length}/${n.items.length}</span>` : ''}
       </div>` : ''}
       ${n.tags?.length ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       <div class="note-actions">
-        <button class="act-btn note-pin-btn" data-id="${esc(n.id)}" data-pinned="${n.pinned}">${n.pinned ? 'unpin' : 'pin'}</button>
-        <button class="act-btn note-archive-btn" data-id="${esc(n.id)}">archive</button>
-        <button class="act-btn note-del-btn" data-id="${esc(n.id)}">delete</button>
+        <button class="act-btn note-pin-btn" data-id="${esc(n.id)}" data-pinned="${n.pinned}">${n.pinned ? t('notes.unpin') : t('notes.pin')}</button>
+        <button class="act-btn note-archive-btn" data-id="${esc(n.id)}">${t('notes.archive')}</button>
+        <button class="act-btn note-del-btn" data-id="${esc(n.id)}">${t('common.delete')}</button>
       </div>
     </div>`).join('');
 
@@ -118,13 +119,13 @@ function renderNotes() {
           body: JSON.stringify({ archived: true }),
         });
         const result = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(result.detail || 'note could not be archived');
-        if (result.id !== btn.dataset.id || result.archived !== true) throw new Error('archive was not confirmed. reload notes to check');
+        if (!r.ok) throw new Error(result.detail || t('notes.archive_failed'));
+        if (result.id !== btn.dataset.id || result.archived !== true) throw new Error(t('notes.archive_unconfirmed'));
         archived = true;
-        toast('archived', 'success');
+        toast(t('notes.archived'), 'success');
         await loadNotes();
       } catch (error) {
-        toast(archived ? 'note archived, but the list could not refresh. reopen notes' : error.message || 'note could not be archived', 'error');
+        toast(archived ? t('notes.archived_refresh_failed') : error.message || t('notes.archive_failed'), 'error');
       } finally { archiving = false; btn.removeAttribute('aria-disabled'); }
     });
   });
@@ -150,19 +151,19 @@ function openEditor(note) {
 
   list.innerHTML = `
     <div class="note-editor">
-      <input class="note-editor-title" id="note-edit-title" value="${esc(note.title)}" placeholder="title...">
+      <input class="note-editor-title" id="note-edit-title" value="${esc(note.title)}" placeholder="${t('notes.title_placeholder')}">
       <textarea class="note-editor-body" id="note-edit-body" rows="7">${esc(note.content)}</textarea>
       <div class="note-checklist" id="note-checklist"></div>
-      <button class="act-btn" id="note-add-item" style="align-self:flex-start">${_si('plus')} checklist item</button>
+      <button class="act-btn" id="note-add-item" style="align-self:flex-start">${_si('plus')} ${t('notes.checklist_item')}</button>
       <div class="note-editor-fields">
-        <input class="note-editor-title" id="note-edit-tags" value="${esc((note.tags || []).join(', '))}" placeholder="tags, comma separated…" style="font-size:0.78rem;flex:1">
-        <span id="note-due-label" hidden>due date</span>
-        <div class="date-input note-edit-due" id="note-edit-due" data-type="date" data-ph="due date" data-value="${esc(note.due || '')}" aria-labelledby="note-due-label"></div>
+        <input class="note-editor-title" id="note-edit-tags" value="${esc((note.tags || []).join(', '))}" placeholder="${t('notes.tags_placeholder')}" style="font-size:0.78rem;flex:1">
+        <span id="note-due-label" hidden>${t('notes.due_date')}</span>
+        <div class="date-input note-edit-due" id="note-edit-due" data-type="date" data-ph="${t('notes.due_date')}" data-value="${esc(note.due || '')}" aria-labelledby="note-due-label"></div>
       </div>
       <div style="display:flex;gap:0.4rem;justify-content:flex-end">
-        <button class="btn" id="note-obsidian-btn" title="open this note in Obsidian">obsidian</button>
-        <button class="btn" id="note-back-btn">${_si('chevron-left')} back</button>
-        <button class="btn primary" id="note-save-btn">save</button>
+        <button class="btn" id="note-obsidian-btn" title="${t('notes.open_in_obsidian')}">obsidian</button>
+        <button class="btn" id="note-back-btn">${_si('chevron-left')} ${t('common.back')}</button>
+        <button class="btn primary" id="note-save-btn">${t('common.save')}</button>
       </div>
     </div>`;
 
@@ -195,7 +196,7 @@ function openEditor(note) {
     if (!updated) return;
     const current = owner === _editorOwner;
     const newer = current && owner.saved !== JSON.stringify(_editorFields());
-    toast(newer ? 'saved; newer edits are still unsaved' : current ? 'saved' : `saved ${updated.title || 'untitled'}`, 'success');
+    toast(newer ? t('notes.saved_newer_unsaved') : current ? t('common.saved') : t('notes.saved_title', { title: updated.title || t('notes.untitled') }), 'success');
   });
 }
 
@@ -205,9 +206,9 @@ function _addChecklistRow(text = '', done = false, focus = false) {
   const row = document.createElement('div');
   row.className = 'note-cl-row';
   row.innerHTML = `
-    <button type="button" class="note-cl-done chk" role="checkbox" aria-checked="${done ? 'true' : 'false'}" aria-label="mark item done"></button>
-    <input type="text" class="note-cl-text" value="${esc(text)}" placeholder="item…">
-    <button class="act-btn note-cl-del" title="remove" aria-label="remove">${_si('close')}</button>`;
+    <button type="button" class="note-cl-done chk" role="checkbox" aria-checked="${done ? 'true' : 'false'}" aria-label="${t('notes.mark_item_done')}"></button>
+    <input type="text" class="note-cl-text" value="${esc(text)}" placeholder="${t('notes.item_placeholder')}">
+    <button class="act-btn note-cl-del" title="${t('common.remove')}" aria-label="${t('common.remove')}">${_si('close')}</button>`;
   row.querySelector('.note-cl-done').addEventListener('click', event => {
     const button = event.currentTarget;
     button.setAttribute('aria-checked', button.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
@@ -281,20 +282,20 @@ async function _saveNote(owner, fields) {
     if (!r.ok) {
       const data = await r.json().catch(() => ({}));
       if (data.code === 'document_conflict') {
-        toast('this note changed outside Alles. reload it before saving', 'error');
+        toast(t('notes.changed_outside'), 'error');
         return null;
       }
-      throw new Error(data.detail || 'note could not be saved');
+      throw new Error(data.detail || t('notes.save_failed'));
     }
     updated = await r.json();
-    if (!updated?.id || !updated.hash) throw new Error('save was not confirmed. reload notes to check');
+    if (!updated?.id || !updated.hash) throw new Error(t('notes.save_unconfirmed'));
     owner.note = updated;
     owner.saved = JSON.stringify(fields);
     // Keep the live fields mounted: the receipt may rename the file, but it
     // must neither replace newer typing nor bind a different editor to this id.
     if (owner === _editorOwner) _editing = updated;
     return updated;
-  } catch (error) { toast(error.message || 'note could not be saved', 'error'); }
+  } catch (error) { toast(error.message || t('notes.save_failed'), 'error'); }
   return null;
 }
 
@@ -315,14 +316,14 @@ export async function newNote() {
       body: JSON.stringify({ title: '', content: '' }),
     });
     const note = await r.json();
-    if (!r.ok) throw new Error(note.detail || 'note could not be created');
-    if (!note?.id || !note.hash) throw new Error('new note was not confirmed. reload notes to check');
+    if (!r.ok) throw new Error(note.detail || t('notes.create_failed'));
+    if (!note?.id || !note.hash) throw new Error(t('notes.create_unconfirmed'));
     _notes.unshift(note);
     if (owner !== _editorOwner) return;
     if (owner && !await _saveBeforeLeaving(owner)) return;
     if (owner !== _editorOwner) return;
     openEditor(note);
-  } catch (error) { toast(error.message || 'note could not be created', 'error'); }
+  } catch (error) { toast(error.message || t('notes.create_failed'), 'error'); }
   finally {
     _creating = false;
     button?.removeAttribute('aria-disabled');

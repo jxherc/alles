@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/note_capture.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -13,6 +14,7 @@ function harness() {
   const writes = [];
   let fail = false;
   const context = vm.createContext({
+    t: i18nT,
     crypto: webcrypto, requestId, Uint8Array,
     sessionStorage: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) },
     fetch: async (url, options) => {

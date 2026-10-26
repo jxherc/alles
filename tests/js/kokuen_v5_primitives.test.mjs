@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const read = relative => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const html = read('static/index.html');
@@ -220,9 +221,9 @@ test('send-later context paths share a keyboard-complete custom dialog', () => {
   assert.match(app, /pop\.setAttribute\('role', 'dialog'\)/);
   assert.match(app, /createFocusBoundary\(pop, \{ trigger, onEscape: close \}\)/);
   assert.match(app, /focusBoundary\.activate\(\{ focus: when, source: trigger \}\)/);
-  assert.match(app, /const finishBusy = beginBusy\(scheduleButton, 'scheduling'\)/);
+  assert.match(app, /const finishBusy = beginBusy\(scheduleButton, t\('shell\.scheduling'\)\)/);
   assert.match(app, /if \(!finishBusy\) return/);
-  assert.match(app, /catch \(error\)[\s\S]*?finishBusy\(\{ state: 'error', text: 'retry schedule' \}\)/);
+  assert.match(app, /catch \(error\)[\s\S]*?finishBusy\(\{ state: 'error', text: t\('shell\.retry_schedule'\) \}\)/);
   assert.match(app, /setControlState\(scheduleButton, 'error'/);
 });
 
@@ -260,8 +261,8 @@ function focusDialog() {
   dialog.querySelectorAll = () => controls;
   dialog.addEventListener = (name, listener) => listeners.set(name, listener);
   dialog.removeEventListener = name => listeners.delete(name);
-  const context = vm.createContext({ document });
-  vm.runInContext(runtime.replace(/^export /gm, ''), context);
+  const context = vm.createContext({ document, t, tp });
+  vm.runInContext(runtime.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, ''), context);
   const create = vm.runInContext('createFocusBoundary', context);
   const add = (attributes = {}, parent = dialog) => {
     const control = element(attributes, parent);

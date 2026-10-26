@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const read = name => readFileSync(new URL(`../../static/js/${name}.js`, import.meta.url), 'utf8');
 const sessions = read('sessions');
@@ -90,7 +91,7 @@ function harness({ history = [], busy = false, online = true, refuse = false, ga
   Node.doc = document;
   const calls = { fetch: [], resend: [], send: [], toast: [], reread: [] };
   const storage = { data: stored ? { 'aide-edit-drafts-v1': JSON.stringify(stored) } : {}, getItem(k) { return this.data[k] ?? null; }, setItem(k, v) { this.data[k] = v; } };
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     document,
     sessionStorage: storage,
     isIncognitoMode: () => state.incognito,
@@ -461,7 +462,7 @@ test('a reply that started while regenerate was checking keeps its row', async (
 
 test('resendMessage asks once with the stored question\'s id and the newest id, nothing else', async () => {
   const streamed = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     getActiveId: () => 's1', canSendMessage: () => true, getSelected: () => ({ model: 'm' }),
     showSendIssue() {}, showMessages() {}, getMode: () => 'agent', isIncognitoMode: () => false,
     getPermMode: () => 'approve', getEffort: () => '', getReasoningMode: () => '', getCustomEffort: () => null,
@@ -529,7 +530,7 @@ test('the stream names both rows first and a refusal leaves the history alone', 
   // its retry only answers: it never cuts again
   assert.match(stream, /const \{ edit_message_id: _edit, regenerate_message_id: _regen, newest_id: _newest, \.\.\.asked \} = request;/);
   const refusal = chat.match(/^function resendRefusal\([^]*?^}/m)[0];
-  const context = vm.createContext({ plainError: message => message });
+  const context = vm.createContext({ t, tp, tr: t, trp: tp, plainError: message => message });
   vm.runInContext(`${refusal}\nglobalThis.refusal = resendRefusal;`, context);
   assert.equal(context.refusal(409, { code: 'history_moved' }).reason, 'stale');
   assert.equal(context.refusal(404, {}).reason, 'gone');
@@ -559,7 +560,7 @@ test('when the reply ends, touch lands on the reply and keyboards on the compose
     const focused = [];
     const row = { isConnected: true, attrs: {}, hasAttribute(name) { return name in this.attrs; }, focus(options) { focused.push(['row', options, this.tabIndex]); } };
     const composer = { focus() { focused.push(['composer']); } };
-    const context = vm.createContext({
+    const context = vm.createContext({ t, tp, tr: t, trp: tp,
       document: { getElementById: id => ({ messages: { lastElementChild: row }, 'composer-ta': composer }[id]) },
       matchMedia: query => ({ matches: query === '(pointer: coarse)' && coarse }),
     });
@@ -579,7 +580,7 @@ test('when the reply ends, touch lands on the reply and keyboards on the compose
 });
 
 test('retry counts a click safari never focused as being on the button', () => {
-  const retry = chat.slice(chat.indexOf("retry.textContent = 'retry response'"), chat.indexOf('body.querySelector(\'.error-msg\')?.appendChild(retry)'));
+  const retry = chat.slice(chat.indexOf("retry.textContent = t('aide.retry_response')"), chat.indexOf('body.querySelector(\'.error-msg\')?.appendChild(retry)'));
   assert.match(retry, /const a = document\.activeElement;/);
   assert.match(retry, /const restoreFocus = a === retry \|\| !a \|\| a === document\.body;/);
   assert.match(retry, /if \(restoreFocus\) focusAfterReply\(\);/);
@@ -682,7 +683,7 @@ test('the edit\'s own re-read draws over edit boxes; background refreshes still 
   const guard = sessions.match(/^function canRefreshAideHistory\([^]*?^}/m)[0];
   const box = { className: 'edit-inline' };
   for (const [overEdits, open, allowed] of [[false, true, false], [true, true, true], [false, false, true]]) {
-    const context = vm.createContext({
+    const context = vm.createContext({ t, tp, tr: t, trp: tp,
       window: {},
       document: { getElementById: () => ({ querySelector: selector => (open && !selector.includes(':not(.edit-inline)') ? box : null) }) },
     });
@@ -748,5 +749,5 @@ test('a stop that beat the turn ends quietly, like any stop', () => {
   // plain sends: no red error, nothing kept, the usual stopped ending
   assert.match(stream, /if \(error\.code === 'turn_stopped'\) \{[^]*?row\.dataset\.unsaved = '1';\s*throw new DOMException\('stopped before it started', 'AbortError'\);/);
   const panel = read('ask_panel');
-  assert.match(panel, /if \(err\.name === 'AbortError' \|\| err\.code === 'turn_stopped'\) \{\s*if \(!text\) answer\.innerHTML = '<p class="ask-panel-note">stopped\.<\/p>';/);
+  assert.match(panel, /if \(err\.name === 'AbortError' \|\| err\.code === 'turn_stopped'\) \{\s*if \(!text\) answer\.innerHTML = `<p class="ask-panel-note">\$\{t\('shell\.stopped'\)\}<\/p>`;/);
 });

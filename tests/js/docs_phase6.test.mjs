@@ -123,15 +123,15 @@ test('Docs saves dirty content before renaming a document', () => {
   const save = docs.match(/async function saveCurrent\(\)[\s\S]*?\n}\n\nasync function discardDraft/)?.[0] || '';
   const rename = docs.match(/async function renameCurrent\(\)[\s\S]*?\n}\n\nasync function deleteCurrent/)?.[0] || '';
   assert.match(save, /if \(!_cur \|\| !_doc\?\.editable \|\| !_dirty\) return true/);
-  assert.match(save, /setSaveState\('saved'\)[\s\S]*?return true/);
+  assert.match(save, /setSaveState\(t\('common\.saved'\)\)[\s\S]*?return true/);
   assert.match(save, /catch \(error\)[\s\S]*?return false/);
   assert.match(rename, /if \(_dirty && !\(await saveCurrent\(\)\)\) return/);
-  assert.match(rename, /if \(_draft && !_dirty\)[\s\S]*?resume or discard the saved draft before renaming/);
+  assert.match(rename, /if \(_draft && !_dirty\)[\s\S]*?t\('docs\.draft_blocks_rename'\)/);
 });
 
 test('Docs refuses to delete a document while a saved draft is unresolved', () => {
   const deletion = docs.match(/async function deleteCurrent\(\)[\s\S]*?\n}\n\nasync function openTrash/)?.[0] || '';
-  assert.match(deletion, /if \(_draft && !_dirty\)[\s\S]*?resume or discard the saved draft before deleting/);
+  assert.match(deletion, /if \(_draft && !_dirty\)[\s\S]*?t\('docs\.draft_blocks_delete'\)/);
   assert.ok(deletion.indexOf('if (_draft && !_dirty)') < deletion.indexOf("method: 'DELETE'"));
 });
 
@@ -223,9 +223,9 @@ test('all app navigation awaits the Docs draft guard and pagehide keeps a final 
   assert.match(docs, /sameWriteSession && emergencyRevision > serverRevision/);
   assert.match(docs, /sameWriteSession && serverRevision > emergencyRevision/);
   assert.match(docs, /draftsNeedOwnerChoice/);
-  assert.match(docs, /A browser recovery copy and a server draft both exist/);
-  assert.match(docs, /label: 'resume browser copy'/);
-  assert.match(docs, /label: 'use server draft'/);
+  assert.match(docs, /t\('docs\.two_drafts'\)/);
+  assert.match(docs, /label: t\('docs\.resume_browser_copy'\)/);
+  assert.match(docs, /label: t\('docs\.use_server_draft'\)/);
   assert.match(docs, /clearEmergencyDraft\(path, DRAFT_WRITE_SESSION, revision\)/);
   assert.match(docs, /byteLength > DRAFT_KEEPALIVE_BYTES[\s\S]*?startLargeDraftFlush\(\)/);
   assert.match(docs, /addEventListener\('beforeunload', guardLargeDraftDeparture\)/);

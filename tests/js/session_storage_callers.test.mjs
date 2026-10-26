@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8');
 const drafts = source.slice(source.indexOf('const _legacyDraftKey'), source.indexOf('export function newChat'));
@@ -16,7 +17,7 @@ const askStart = app.indexOf('window._askInChat = async (');
 const askEnd = app.indexOf('\nconst showModelsView', askStart);
 assert.ok(privateDay && askStart >= 0 && askEnd > askStart);
 const ask = app.slice(askStart, askEnd);
-const dynamicImport = "import('./andromeda.js?v=250')";
+const dynamicImport = "import('./andromeda.js?v=251')";
 assert.equal(ask.split(dynamicImport).length, 2, 'bind only this actual module import to the synthetic search dependency');
 const boundAsk = ask.replace(dynamicImport, '__loadAndromeda()');
 function clickHandler(id) {
@@ -73,7 +74,7 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     },
     removeItem(name) { storageCalls.push(['remove', name]); storage.delete(name); },
   };
-  const context = vm.createContext({ window, document, location, URL, URLSearchParams, Event: class {},
+  const context = vm.createContext({ t, tp, tr: t, trp: tp, window, document, location, URL, URLSearchParams, Event: class {},
     isIncognitoMode: () => privateMode, toast: text => notices.push(text),
     setIncognitoMode(value) { privateMode = value; effects.push(['privacy', value]); },
     discardAttachments: async () => { attachments.splice(0); effects.push('discard-attachments'); },

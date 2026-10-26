@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(process.env.A17_MAIL_SOURCE || new URL('../../static/js/mail.js', import.meta.url), 'utf8');
 const functionSource = name => {
@@ -83,7 +84,7 @@ function harness() {
   const $ = id => document.getElementById(id);
   const requests = [], confirms = [], changes = [], pending = { request_id: 'pending-save' };
   let confirmation = false;
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp,
     document, $, console, URL, location: { href: 'http://synthetic.invalid/?view=mail' },
     esc: value => String(value ?? ''), readRecordTarget: () => null, acctName: () => 'synthetic',
     resolvedTimeZone: () => 'UTC', _si: () => '', safeMailHtml: html => String(html ?? ''), formatDateTime: String,

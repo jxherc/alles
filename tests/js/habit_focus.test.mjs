@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/habits.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -53,7 +54,7 @@ function harness(disableFocus = 'body') {
   };
   document.getElementById = id => id === 'habits-body' ? body : id === 'habits-add-toggle' && showAdd ? addToggle : null;
   document.activeElement = initial;
-  const context = vm.createContext({ document, console,
+  const context = vm.createContext({ document, console, t, tp,
     CSS: { escape: String }, calendarDateKey: () => '2026-10-06',
     toast: (...args) => notices.push(args),
   });

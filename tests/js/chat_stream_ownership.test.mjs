@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/chat.js', import.meta.url), 'utf8')
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
@@ -22,7 +23,7 @@ function harness({ stopReply = { ok: true } } = {}) {
   };
   const document = { getElementById: get, activeElement: null, body: null };
   const context = vm.createContext({
-    window: {}, document, mdToHtml() {}, AbortController, setTimeout, t: key => key,
+    window: {}, document, mdToHtml() {}, AbortController, setTimeout, t, tp, tr: t, trp: tp,
     getActiveId: () => 'newly-selected-session',
     fetch: async (url, options) => {
       requests.push({ url, method: options.method, body: options.body && JSON.parse(options.body) });
@@ -69,7 +70,7 @@ test('Stop names its own turn, keeps reading until the server ends it, then lets
   assert.equal(controller.signal.aborted, true);
   assert.equal(h.canSend(), true);
   assert.equal(h.get('send-btn').disabled, false);
-  assert.equal(h.get('stop-btn').attrs['aria-label'], 'common.stop');
+  assert.equal(h.get('stop-btn').attrs['aria-label'], 'stop');
   assert.equal(h.get('stop-btn').attrs['aria-disabled'], undefined);
 });
 

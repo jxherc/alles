@@ -2,9 +2,9 @@
 // projects and their chats sit in the rail, the open chat fills the rest.
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { toast, mdToHtml } from './util.js';
-import { wireAutosizeTextarea, autosizeTextarea } from './text_entry.js';
-import { createMenuController } from './kokuen.js';
-import { formatDate } from './i18n.js';
+import { wireAutosizeTextarea, autosizeTextarea } from './text_entry.js?v=1';
+import { createMenuController } from './kokuen.js?v=4';
+import { formatDate, t, tp } from './i18n.js';
 
 const $ = id => document.getElementById(id);
 const icons = {
@@ -43,17 +43,20 @@ let harnessMenu = null, chatMenu = null;
 let thinking = { level: '', levels: [] }, thinkingPref = '', effortMenu = null, goal = '';
 let piCommands = [], slashItems = [], slashIndex = 0;
 const LEVELS = ['off', 'minimal', 'low', 'medium', 'high'];
-const levelName = level => ({ xhigh: 'extra high' }[level] || level);
+const levelName = level => ({
+  off: t('aide.code_level_off'), minimal: t('aide.code_level_minimal'), low: t('aide.code_level_low'),
+  medium: t('aide.code_level_medium'), high: t('aide.code_level_high'), xhigh: t('aide.code_level_xhigh'),
+}[level] || level);
 // alles's own commands; the rest come from pi (extensions, prompt templates)
-const BUILTINS = [
-  { name: 'new', description: 'start a new chat in this project' },
-  { name: 'model', description: 'pick the model pi uses' },
-  { name: 'effort', args: '[level]', description: 'how hard pi thinks before it answers' },
-  { name: 'context', description: 'show what fills the context window', live: true },
-  { name: 'compact', args: '[focus]', description: 'summarize the chat so far to free up context', live: true },
-  { name: 'goal', args: '[goal | clear]', description: 'set a goal pi keeps working toward' },
-  { name: 'stop', description: 'stop what pi is doing', live: true },
-  { name: 'whats-new', description: 'show what changed lately' },
+const builtins = () => [
+  { name: 'new', description: t('aide.code_cmd_new') },
+  { name: 'model', description: t('aide.code_cmd_model') },
+  { name: 'effort', args: '[level]', description: t('aide.code_cmd_effort') },
+  { name: 'context', description: t('aide.code_cmd_context'), live: true },
+  { name: 'compact', args: '[focus]', description: t('aide.code_cmd_compact'), live: true },
+  { name: 'goal', args: '[goal | clear]', description: t('aide.code_cmd_goal') },
+  { name: 'stop', description: t('aide.code_cmd_stop'), live: true },
+  { name: 'whats-new', description: t('aide.code_cmd_whats_new') },
 ];
 const harnessName = id => native.find(h => h.harness === id)?.name || catalogRows.find(h => h.id === id)?.name || id;
 const isNative = id => native.some(h => h.harness === id);
@@ -65,19 +68,19 @@ async function ownerFetch(input, init = {}) {
   if (error.code !== 'recent_auth_required') return response;
   const me = await fetch('/api/auth/me').then(result => result.json()).catch(() => null);
   if (me?.enabled === false) return response;
-  const password = await dlgPrompt('enter your Alles password to let pi work on this machine', '', { secret: true });
+  const password = await dlgPrompt(t('aide.code_password_prompt'), '', { secret: true });
   if (password == null) return response;
   const confirmed = await fetch('/api/auth/reauth', {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }),
   });
-  if (!confirmed.ok) { toast('password confirmation failed', 'error'); return response; }
+  if (!confirmed.ok) { toast(t('aide.code_password_failed'), 'error'); return response; }
   return fetch(input, init);
 }
 async function api(path, init = {}) {
   const response = await ownerFetch(path, init);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.message || data.detail || 'pi request failed');
+    const error = new Error(data.message || data.detail || t('aide.code_request_failed'));
     error.code = data.code || '';
     throw error;
   }
@@ -101,10 +104,10 @@ function piLine() {
   const line = $('aide-code-pi');
   const name = pi.name || 'pi';
   const copy = {
-    installing: `installing ${name} on this machine…`,
-    needs_node: pi.error || `${name} needs node 22.19 or newer on this machine`,
-    failed: `${name} could not install: ${pi.error || 'unknown error'}`,
-    missing: `${name} is not installed yet`,
+    installing: t('aide.code_pi_installing', { name }),
+    needs_node: pi.error || t('aide.code_pi_needs_node', { name }),
+    failed: t('aide.code_pi_failed', { name, error: pi.error || t('aide.code_unknown_error') }),
+    missing: t('aide.code_pi_missing', { name }),
   }[pi.state] || '';
   line.textContent = copy;
   line.hidden = !copy;
@@ -113,14 +116,14 @@ function piLine() {
 
 // "now", "5m", "3h", "2d", or a date, for the rail
 function ago(stamp) {
-  const t = Date.parse(stamp || '');
-  if (!t) return '';
-  const s = Math.max(0, (Date.now() - t) / 1000);
-  if (s < 60) return 'now';
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  if (s < 604800) return `${Math.floor(s / 86400)}d`;
-  return formatDate(new Date(t), { month: 'short', day: 'numeric' });
+  const at = Date.parse(stamp || '');
+  if (!at) return '';
+  const s = Math.max(0, (Date.now() - at) / 1000);
+  if (s < 60) return t('aide.code_ago_now');
+  if (s < 3600) return t('aide.code_ago_minutes', { n: Math.floor(s / 60) });
+  if (s < 86400) return t('aide.code_ago_hours', { n: Math.floor(s / 3600) });
+  if (s < 604800) return t('aide.code_ago_days', { n: Math.floor(s / 86400) });
+  return formatDate(new Date(at), { month: 'short', day: 'numeric' });
 }
 const isAideFolder = row => /\/Alles\/Aide$/.test(row?.path || '');
 
@@ -128,7 +131,7 @@ function renderRail() {
   const list = $('aide-code-projects');
   list.replaceChildren();
   if (!projects.length) {
-    list.append(el('p', 'acw-rail-empty', 'add a folder on this machine to start'));
+    list.append(el('p', 'acw-rail-empty', t('aide.code_rail_empty')));
     return;
   }
   for (const row of projects) {
@@ -141,12 +144,12 @@ function renderRail() {
     toggle.innerHTML = icon('chevron') + icon('folder');
     toggle.append(el('span', 'acw-project-name', row.name));
     // Aide's own folder, where the work it hands to pi lands
-    if (isAideFolder(row)) toggle.append(el('span', 'acw-project-tag', "Aide's work"));
+    if (isAideFolder(row)) toggle.append(el('span', 'acw-project-tag', t('aide.code_aide_work')));
     toggle.title = row.path;
     const more = el('button', 'acw-icon acw-project-more');
     more.type = 'button';
     more.dataset.projectMenu = row.id;
-    more.setAttribute('aria-label', `${row.name} actions`);
+    more.setAttribute('aria-label', t('aide.code_project_actions_named', { name: row.name }));
     more.setAttribute('aria-haspopup', 'menu');
     more.innerHTML = icon('more');
     head.append(toggle, more);
@@ -157,7 +160,7 @@ function renderRail() {
       fresh.type = 'button';
       fresh.dataset.newChat = row.id;
       fresh.innerHTML = icon('plus');
-      fresh.append(el('span', '', 'new chat'));
+      fresh.append(el('span', '', t('aide.code_new_chat')));
       if (current.projectId === row.id && !current.chatId) fresh.setAttribute('aria-current', 'true');
       items.append(fresh);
       for (const chat of chats.get(row.id) || []) {
@@ -167,12 +170,12 @@ function renderRail() {
         button.dataset.projectId = row.id;
         const text = el('span', 'acw-chat-text');
         text.append(el('span', 'acw-chat-title', chat.title));
-        const meta = el('span', 'acw-chat-meta', [chat.from_aide ? 'from Aide' : '', ago(chat.updated_at)].filter(Boolean).join(' · '));
+        const meta = el('span', 'acw-chat-meta', [chat.from_aide ? t('aide.code_from_aide') : '', ago(chat.updated_at)].filter(Boolean).join(' · '));
         text.append(meta);
         button.append(text);
         if (chat.running) {
           const live = el('span', 'acw-chat-live');
-          live.setAttribute('aria-label', 'pi is working');
+          live.setAttribute('aria-label', t('aide.code_pi_working_label'));
           button.append(live);
         }
         if (current.chatId === chat.id) button.setAttribute('aria-current', 'true');
@@ -207,7 +210,7 @@ function chatActions(on) {
 }
 
 function showProject(row) {
-  $('aide-code-project').textContent = row ? (isAideFolder(row) ? "Aide's work" : row.name) : '';
+  $('aide-code-project').textContent = row ? (isAideFolder(row) ? t('aide.code_aide_work') : row.name) : '';
   $('aide-code-new').hidden = !row;
 }
 
@@ -225,14 +228,17 @@ function showView(view) {
 }
 
 const TOOL_KINDS = {
-  read: ['file', 'read'], edit: ['pencil', 'edit'], write: ['plusfile', 'write'], bash: ['terminal', 'run'],
-  grep: ['search', 'search'], find: ['search', 'find'], ls: ['list', 'list'],
+  read: 'file', edit: 'pencil', write: 'plusfile', bash: 'terminal', grep: 'search', find: 'search', ls: 'list',
 };
+const toolVerbs = () => ({
+  read: t('aide.code_verb_read'), edit: t('aide.code_verb_edit'), write: t('aide.code_verb_write'), bash: t('aide.code_verb_run'),
+  grep: t('aide.code_verb_search'), find: t('aide.code_verb_find'), ls: t('aide.code_verb_list'),
+});
 const parseArgs = raw => { try { return JSON.parse(raw || '{}'); } catch { return {}; } };
-const since = start => { const s = Math.max(0, (Date.now() - start) / 1000); return s < 10 ? `${s.toFixed(1)}s` : `${Math.round(s)}s`; };
+const since = start => { const s = Math.max(0, (Date.now() - start) / 1000); return t('aide.code_seconds', { n: s < 10 ? s.toFixed(1) : Math.round(s) }); };
 
 function toolTitle(name, args) {
-  const [, verb] = TOOL_KINDS[name] || ['tool', name || 'tool'];
+  const verb = TOOL_KINDS[name] ? toolVerbs()[name] : (name || t('aide.code_verb_tool'));
   const target = args.command || args.path || args.pattern || args.file_path || '';
   return { verb, target: String(target).split('\n')[0] };
 }
@@ -264,7 +270,7 @@ function diffView(args) {
     const rows = lineDiff(String(change.oldText ?? ''), String(change.newText ?? ''));
     const near = rows.map((_, n) => rows.slice(Math.max(0, n - 2), n + 3).some(([kind]) => kind !== 'same'));
     let folded = 0;
-    const flush = () => { if (folded) { box.append(el('div', 'acw-diff-fold', `${folded} unchanged line${folded > 1 ? 's' : ''}`)); folded = 0; } };
+    const flush = () => { if (folded) { box.append(el('div', 'acw-diff-fold', tp('aide.code_unchanged_lines', folded))); folded = 0; } };
     rows.forEach(([kind, text], n) => {
       if (kind === 'same' && !near[n]) { folded++; return; }
       flush();
@@ -287,11 +293,11 @@ function toolRow(id, name, rawArgs) {
   card.dataset.start = String(Date.now());
   const summary = el('summary');
   const mark = el('span', 'acw-tool-mark');
-  mark.innerHTML = icon((TOOL_KINDS[name] || ['tool'])[0]);
+  mark.innerHTML = icon(TOOL_KINDS[name] || 'tool');
   const label = el('span', 'acw-tool-label');
   label.append(el('span', 'acw-tool-verb', verb), el('span', 'acw-tool-target', target));
   const state = el('span', 'acw-tool-state');
-  state.innerHTML = '<span class="acw-spin" aria-hidden="true"></span><span class="acw-tool-time">0.0s</span>';
+  state.innerHTML = `<span class="acw-spin" aria-hidden="true"></span><span class="acw-tool-time">${t('aide.code_seconds', { n: '0.0' })}</span>`;
   summary.append(mark, label, state);
   const body = el('div', 'acw-tool-body');
   if (name === 'bash' && args.command) body.append(el('pre', 'acw-term acw-term-cmd', `$ ${args.command}`));
@@ -302,7 +308,7 @@ function toolRow(id, name, rawArgs) {
     const add = diff.querySelectorAll('.acw-diff-line.add').length, del = diff.querySelectorAll('.acw-diff-line.del').length;
     if (add || del) {
       const stat = el('span', 'acw-tool-stat');
-      stat.setAttribute('aria-label', `${add} lines added, ${del} removed`);
+      stat.setAttribute('aria-label', t('aide.code_lines_changed', { add, del }));
       stat.append(el('span', 'add', `+${add}`), el('span', 'del', `−${del}`));
       label.append(stat);
     }
@@ -328,15 +334,15 @@ function finishTool(id, ok, output) {
   card.dataset.state = ok ? 'done' : 'failed';
   const state = card.querySelector('.acw-tool-state');
   const took = card.dataset.start ? since(+card.dataset.start) : '';
-  state.innerHTML = `${icon(ok ? 'check' : 'cross')}<span class="acw-tool-time">${ok ? took : 'failed'}</span>`;
+  state.innerHTML = `${icon(ok ? 'check' : 'cross')}<span class="acw-tool-time">${ok ? took : t('aide.code_failed')}</span>`;
   const pre = card.querySelector('.acw-tool-output:not(.acw-new-file)');
-  const text = output || (ok ? '' : 'failed with no output');
+  const text = output || (ok ? '' : t('aide.code_failed_no_output'));
   pre.textContent = text;
   pre.hidden = !text;
   pre.classList.toggle('acw-term', card.dataset.kind === 'bash');
   // a failed step says why on its own line; pi usually tries again, so it stays shut
   if (!ok) {
-    const why = text.split('\n').map(line => line.trim()).filter(Boolean).pop() || 'failed';
+    const why = text.split('\n').map(line => line.trim()).filter(Boolean).pop() || t('aide.code_failed');
     card.querySelector('.acw-tool-why')?.remove();
     card.querySelector('summary').after(el('p', 'acw-tool-why', why.slice(0, 160)));
   }
@@ -351,9 +357,9 @@ function stepsLabel(tools) {
   const edits = tools.filter(card => ['edit', 'write'].includes(card.dataset.kind)).length;
   const failed = tools.filter(card => card.dataset.state === 'failed').length;
   const secs = Math.round(span / 1000);
-  const took = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
-  return [span >= 1000 && `worked ${took}`, `${tools.length} steps`,
-    edits && `${edits} edit${edits > 1 ? 's' : ''}`, failed && `${failed} failed`].filter(Boolean).join(' · ');
+  const took = secs >= 60 ? t('aide.code_minutes_seconds', { m: Math.floor(secs / 60), s: secs % 60 }) : t('aide.code_seconds', { n: secs });
+  return [span >= 1000 && t('aide.code_worked', { time: took }), tp('aide.code_steps', tools.length),
+    edits && tp('aide.code_edits', edits), failed && t('aide.code_failed_count', { count: failed })].filter(Boolean).join(' · ');
 }
 
 function groupSteps() {
@@ -381,9 +387,14 @@ function groupSteps() {
   fold();
 }
 
+// an unnamed code block gets its label from here, so the css doesn't hold english
+function labelCode(node) {
+  node.querySelectorAll('.code-lang:empty').forEach(lang => { lang.dataset.label = t('aide.code_block'); });
+}
+
 function assistantBlock(text, error = '') {
   const block = el('div', 'acw-msg acw-assistant');
-  if (text) block.innerHTML = mdToHtml(text);
+  if (text) { block.innerHTML = mdToHtml(text); labelCode(block); }
   if (error) block.append(el('p', 'acw-msg-error', error));
   return block;
 }
@@ -394,7 +405,7 @@ function render(item) {
     // a /goal from before a reload: show the card, not the instructions alles sent with it
     render({ kind: 'goal', state: 'set', text: item.text.slice(6).split('\n\nWork toward this goal')[0] });
   } else if (item.kind === 'user') {
-    if (item.from_aide) log.append(el('p', 'acw-from', 'from Aide'));
+    if (item.from_aide) log.append(el('p', 'acw-from', t('aide.code_from_aide')));
     const bubble = el('div', 'acw-msg acw-user');
     bubble.textContent = item.text;
     log.append(bubble);
@@ -407,6 +418,7 @@ function render(item) {
     if (!streaming) { streaming = assistantBlock(''); streaming.dataset.text = ''; streaming.classList.add('is-streaming'); log.append(streaming); }
     streaming.dataset.text += item.text;
     streaming.innerHTML = mdToHtml(streaming.dataset.text);
+    labelCode(streaming);
   } else if (item.kind === 'assistant') {
     closeThinking();
     if (item.text) groupSteps();
@@ -441,7 +453,7 @@ function thinkingBlock(text) {
     thinking_ = el('details', 'acw-thinking');
     thinking_.dataset.start = String(Date.now());
     const summary = el('summary');
-    summary.append(el('span', 'acw-thinking-label', 'thinking'), el('span', 'acw-tool-time', '0s'));
+    summary.append(el('span', 'acw-thinking-label', t('aide.code_thinking')), el('span', 'acw-tool-time', t('aide.code_seconds', { n: 0 })));
     thinking_.append(summary, el('div', 'acw-thinking-text'));
     $('aide-code-log').append(thinking_);
     const node = thinking_;
@@ -458,7 +470,7 @@ function closeThinking() {
   if (!thinking_) return;
   thinking_.dataset.done = '1';
   clearInterval(thinking_._timer);
-  thinking_.querySelector('.acw-thinking-label').textContent = 'thought for';
+  thinking_.querySelector('.acw-thinking-label').textContent = t('aide.code_thought_for');
   thinking_ = null;
 }
 
@@ -477,33 +489,33 @@ function cells(used, total, count = 50) {
 
 function contextCard(item) {
   const card = el('section', 'acw-card acw-context');
-  card.setAttribute('aria-label', 'context');
+  card.setAttribute('aria-label', t('aide.code_context'));
   const head = el('div', 'acw-card-head');
   const pct = item.percent != null ? Math.round(item.percent) : null;
-  head.append(el('strong', '', 'context'), el('span', 'acw-muted', `${fmt(item.tokens)} of ${fmt(item.window)} tokens${pct != null ? ` · ${pct}%` : ''}`));
+  head.append(el('strong', '', t('aide.code_context')), el('span', 'acw-muted', t(pct != null ? 'aide.code_context_usage_pct' : 'aide.code_context_usage', { tokens: fmt(item.tokens), window: fmt(item.window), percent: pct })));
   const rows = el('dl', 'acw-card-rows');
   const add = (label, value) => { if (value == null || value === '') return; rows.append(el('dt', '', label), el('dd', '', String(value))); };
-  add('model', item.model);
-  add('effort', item.thinking ? levelName(item.thinking) : '');
-  add('messages', item.userMessages != null ? `${item.userMessages} from you, ${item.assistantMessages} from pi` : '');
-  add('tool calls', item.toolCalls);
-  add('tokens in', fmt(item.input));
-  add('tokens out', fmt(item.output));
-  add('read from cache', fmt(item.cache_read));
-  if (item.cost) add('cost', `$${Number(item.cost).toFixed(item.cost < 1 ? 3 : 2)}`);
+  add(t('aide.code_row_model'), item.model);
+  add(t('aide.code_row_effort'), item.thinking ? levelName(item.thinking) : '');
+  add(t('aide.code_row_messages'), item.userMessages != null ? t('aide.code_messages_split', { user: item.userMessages, ai: item.assistantMessages }) : '');
+  add(t('aide.code_row_tool_calls'), item.toolCalls);
+  add(t('aide.code_row_tokens_in'), fmt(item.input));
+  add(t('aide.code_row_tokens_out'), fmt(item.output));
+  add(t('aide.code_row_cache'), fmt(item.cache_read));
+  if (item.cost) add(t('aide.code_row_cost'), `$${Number(item.cost).toFixed(item.cost < 1 ? 3 : 2)}`);
   card.append(head, cells(item.tokens || 0, item.window || 0), rows);
   return card;
 }
 
 function compactCard(item) {
   const card = el('section', 'acw-card acw-compacted');
-  card.setAttribute('aria-label', 'context compacted');
+  card.setAttribute('aria-label', t('aide.code_compacted_label'));
   const head = el('div', 'acw-card-head');
-  head.append(el('strong', '', 'compacted'), el('span', 'acw-muted', `${fmt(item.before)} → ${fmt(item.after)} tokens`));
+  head.append(el('strong', '', t('aide.code_compacted')), el('span', 'acw-muted', t('aide.code_compacted_tokens', { before: fmt(item.before), after: fmt(item.after) })));
   const bars = el('div', 'acw-compact-bars');
   bars.setAttribute('aria-hidden', 'true');
   const top = Math.max(item.before || 0, item.window || 0, 1);
-  for (const [label, value] of [['before', item.before], ['after', item.after]]) {
+  for (const [label, value] of [[t('aide.code_before'), item.before], [t('aide.code_after'), item.after]]) {
     const bar = el('div', 'acw-bar');
     const fill = el('span');
     fill.style.width = `${Math.max(1, Math.round(((value || 0) / top) * 100))}%`;
@@ -513,7 +525,7 @@ function compactCard(item) {
   card.append(head, bars);
   if (item.summary) {
     const more = el('details', 'acw-card-more');
-    more.append(el('summary', '', 'what pi kept'), el('p', '', item.summary));
+    more.append(el('summary', '', t('aide.code_what_kept')), el('p', '', item.summary));
     card.append(more);
   }
   return card;
@@ -521,11 +533,11 @@ function compactCard(item) {
 
 function goalCard(item) {
   const card = el('section', 'acw-card acw-goal-card');
-  card.setAttribute('aria-label', 'goal');
-  const words = { set: 'goal set', cleared: 'goal cleared', none: 'no goal yet', shown: 'goal' }[item.state] || 'goal';
+  card.setAttribute('aria-label', t('aide.code_goal'));
+  const words = { set: t('aide.code_goal_set'), cleared: t('aide.code_goal_cleared'), none: t('aide.code_goal_none'), shown: t('aide.code_goal') }[item.state] || t('aide.code_goal');
   card.append(el('strong', '', words));
   if (item.text) card.append(el('p', '', item.text));
-  else if (item.state === 'none') card.append(el('p', 'acw-muted', 'type /goal and what you want done'));
+  else if (item.state === 'none') card.append(el('p', 'acw-muted', t('aide.code_goal_hint')));
   return card;
 }
 
@@ -560,7 +572,7 @@ function renderEffortMenu() {
 }
 
 async function setEffort(level) {
-  if (!effortLevels().includes(level)) { setError(`pi can't use "${level}" with this model`); return; }
+  if (!effortLevels().includes(level)) { setError(t('aide.code_effort_unsupported', { level })); return; }
   try {
     const data = await send_('PUT', '/api/aide/code/thinking', { level, project_id: current.projectId, chat_id: current.chatId });
     thinkingPref = level;
@@ -586,7 +598,8 @@ async function loadChatState() {
 // ── / menu ──
 
 function slashMatches(query) {
-  const all = [...BUILTINS, ...piCommands.filter(c => !BUILTINS.some(b => b.name === c.name))];
+  const own = builtins();
+  const all = [...own, ...piCommands.filter(c => !own.some(b => b.name === c.name))];
   const q = query.toLowerCase();
   const hits = all.filter(c => !q || c.name.toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q));
   return hits.sort((a, b) => Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q)));
@@ -616,7 +629,7 @@ function renderSlash() {
     name.append(el('span', 'slash-name', `/${command.name}`));
     if (command.args) name.append(el('span', 'slash-args', command.args));
     row.append(name, el('span', 'slash-desc', command.description || ''));
-    if (command.source) row.append(el('span', 'acw-slash-source', command.source === 'prompt' ? 'template' : command.source));
+    if (command.source) row.append(el('span', 'acw-slash-source', command.source === 'prompt' ? t('aide.code_template') : command.source));
     row.addEventListener('mousedown', event => { event.preventDefault(); slashIndex = index; pickSlash(true); });
     return row;
   }));
@@ -662,8 +675,8 @@ function onSlashKey(event) {
 function localCommand(text) {
   const [name, ...rest] = text.split(/\s+/);
   const arg = rest.join(' ').trim();
-  const needsChat = BUILTINS.find(b => `/${b.name}` === name)?.live;
-  if (needsChat && !current.chatId) { setError(`${name} works once a chat has started`); return true; }
+  const needsChat = builtins().find(b => `/${b.name}` === name)?.live;
+  if (needsChat && !current.chatId) { setError(t('aide.code_needs_chat', { name })); return true; }
   if (name === '/new') { startChat(current.projectId); return true; }
   if (name === '/model') { $('aide-code-model').click(); return true; }
   if (name === '/stop') { $('aide-code-stop').click(); return true; }
@@ -671,7 +684,7 @@ function localCommand(text) {
   if (name === '/effort') {
     if (arg) void setEffort(arg.toLowerCase().replace(/\s+/g, '') === 'extrahigh' ? 'xhigh' : arg.toLowerCase());
     else if (!$('aide-code-effort').hidden) $('aide-code-effort').click();
-    else setError('this model has no effort levels');
+    else setError(t('aide.code_no_effort'));
     return true;
   }
   return false;
@@ -685,7 +698,7 @@ function showWorking(on) {
   working = el('div', 'acw-working');
   working.setAttribute('role', 'status');
   working.dataset.start = String(Date.now());
-  working.innerHTML = '<span class="acw-spin" aria-hidden="true"></span><span class="acw-working-label">working</span><span class="acw-tool-time">0.0s</span>';
+  working.innerHTML = `<span class="acw-spin" aria-hidden="true"></span><span class="acw-working-label">${t('aide.code_working')}</span><span class="acw-tool-time">${t('aide.code_seconds', { n: '0.0' })}</span>`;
   $('aide-code-log').append(working);
   const node = working;
   node._timer = setInterval(() => { if (!node.isConnected) { clearInterval(node._timer); return; } node.querySelector('.acw-tool-time').textContent = since(+node.dataset.start); }, 100);
@@ -696,7 +709,7 @@ function setBusy(value) {
   const was = busy;
   busy = value;
   showWorking(busy && !was);
-  $('aide-code-status').textContent = busy ? 'pi is working…' : '';
+  $('aide-code-status').textContent = busy ? t('aide.code_pi_working') : '';
   sendOrStop();
   host.dataset.busy = String(busy);
   if (!busy) { showWorking(false); closeThinking(); streaming?.classList.remove('is-streaming'); groupSteps(); }
@@ -706,8 +719,8 @@ function setBusy(value) {
 
 function renderStats(stats = {}) {
   const parts = [];
-  if (stats.tokens_per_second) parts.push([`${stats.tokens_per_second} tok/s`, '']);
-  if (stats.cache_hit_rate != null) parts.push([`cache ${Math.round(stats.cache_hit_rate * 100)}%`, '']);
+  if (stats.tokens_per_second) parts.push([t('aide.code_tok_s', { n: stats.tokens_per_second }), '']);
+  if (stats.cache_hit_rate != null) parts.push([t('aide.code_cache_pct', { n: Math.round(stats.cache_hit_rate * 100) }), '']);
   $('aide-code-stats').replaceChildren(...parts.map(([text, className], index) => el('span', className, (index ? ' · ' : '') + text)));
   // context as a ring that fills; it opens /context
   const ring = $('aide-code-context');
@@ -718,8 +731,8 @@ function renderStats(stats = {}) {
     ring.style.setProperty('--pct', value);
     ring.dataset.level = value >= 85 ? 'high' : value >= 60 ? 'mid' : 'low';
     ring.querySelector('.acw-ring-text').textContent = `${value}%`;
-    ring.setAttribute('aria-label', `context ${value}% full; show what fills it`);
-    ring.title = `context ${value}% full`;
+    ring.setAttribute('aria-label', t('aide.code_ring_label', { value }));
+    ring.title = t('aide.code_ring_title', { value });
   }
 }
 
@@ -730,8 +743,8 @@ function renderQuestion(question) {
   box.dataset.questionId = question.id;
   box.append(el('p', 'acw-question-title', question.title));
   const actions = el('div', 'acw-question-actions');
-  const choices = question.method === 'confirm' ? [['yes', true], ['no', false]] : question.options.map(option => [option, option]);
-  for (const [label, value] of [...choices, ['skip', null]]) {
+  const choices = question.method === 'confirm' ? [[t('aide.code_yes'), true], [t('aide.code_no'), false]] : question.options.map(option => [option, option]);
+  for (const [label, value] of [...choices, [t('aide.code_skip'), null]]) {
     const button = el('button', 'acw-action', label);
     button.type = 'button';
     button.addEventListener('click', () => answer(question.id, value, button));
@@ -802,7 +815,7 @@ async function openChat(projectId, chatId, { keepScroll = false } = {}) {
   renderRail();
   showView('chat'); setPane('main');
   const row = project(projectId);
-  $('aide-code-title').textContent = (chats.get(projectId) || []).find(chat => chat.id === chatId)?.title || 'chat';
+  $('aide-code-title').textContent = (chats.get(projectId) || []).find(chat => chat.id === chatId)?.title || t('aide.code_chat');
   showPath(row?.path); showProject(row);
   chatActions(true);
   showIntro(false);
@@ -839,7 +852,7 @@ function startChat(projectId) {
   renderRail();
   resetLog();
   const row = project(projectId);
-  $('aide-code-title').textContent = 'new chat';
+  $('aide-code-title').textContent = t('aide.code_new_chat');
   showPath(row?.path); showProject(row);
   chatActions(false);
   showView('chat'); setPane('main');
@@ -855,11 +868,11 @@ function sendOrStop() {
   $('aide-code-send').hidden = busy && !typed;
 }
 
-const SUGGESTIONS = [
-  ['explain this project', 'explain what this project does and how it is laid out'],
-  ['find and fix a bug', 'look for a bug in this project, fix it, and show me how you checked'],
-  ['write tests', 'write tests for the most important code here and run them'],
-  ['work toward a goal', '/goal '],
+const suggestions = () => [
+  [t('aide.code_sugg_explain'), t('aide.code_sugg_explain_text')],
+  [t('aide.code_sugg_bug'), t('aide.code_sugg_bug_text')],
+  [t('aide.code_sugg_tests'), t('aide.code_sugg_tests_text')],
+  [t('aide.code_sugg_goal'), '/goal '],
 ];
 function showIntro(on) {
   const intro = $('aide-code-intro');
@@ -867,7 +880,7 @@ function showIntro(on) {
   if (!on) return;
   const list = intro.querySelector('.acw-suggest');
   if (list.childElementCount) return;
-  SUGGESTIONS.forEach(([label, text], n) => {
+  suggestions().forEach(([label, text], n) => {
     const chip = el('button', 'acw-suggestion', label);
     chip.type = 'button';
     chip.setAttribute('role', 'listitem');
@@ -890,24 +903,24 @@ function updateComposer() {
   const state = nativeUse ? native.find(h => h.harness === using)?.state : 'ready';
   const ready = state === 'ready' && (!nativeUse || !!model) && !!row;
   input.disabled = !row;
-  input.placeholder = row ? `ask ${harnessName(using)} to work in ${row.name}` : 'pick a project first';
+  input.placeholder = row ? t('aide.code_ask', { harness: harnessName(using), project: row.name }) : t('aide.code_pick_project');
   $('aide-code-send').disabled = !ready || sending || !input.value.trim();
   sendOrStop();
   // omp and pi use alles's models; an ACP harness brings its own list, if it shares one
   const acpModels = !nativeUse ? harnessModels || [] : null;
-  $('aide-code-model-label').textContent = nativeUse ? (model ? model.model : 'no coding model')
-    : (acpModels.find(m => m.selected)?.name || (acpModels.length ? 'model' : 'its own model'));
+  $('aide-code-model-label').textContent = nativeUse ? (model ? model.model : t('aide.code_no_model'))
+    : (acpModels.find(m => m.selected)?.name || (acpModels.length ? t('aide.code_row_model') : t('aide.code_own_model')));
   $('aide-code-model').disabled = nativeUse ? !models.length : !acpModels.length;
   $('aide-code-harness-label').textContent = harnessName(using);
   const levels = effortLevels();
   $('aide-code-effort').hidden = levels.length < 2;
-  $('aide-code-effort-label').textContent = levelName(currentLevel()) || 'effort';
-  $('aide-code-effort').title = 'how hard pi thinks';
+  $('aide-code-effort-label').textContent = levelName(currentLevel()) || t('aide.code_row_effort');
+  $('aide-code-effort').title = t('aide.code_cmd_effort_title');
   renderGoal();
-  $('aide-code-harness').title = current.chatId ? 'start a new chat to use another harness' : 'harness for new chats';
+  $('aide-code-harness').title = current.chatId ? t('aide.code_harness_locked') : t('aide.code_harness_new');
   $('aide-code-harness').disabled = !!current.chatId;
-  const hint = nativeUse && !models.length ? `add a model with an api key in settings → models to code with ${harnessName(using)}`
-    : state !== 'ready' ? `${harnessName(using)} will be ready once it finishes installing` : '';
+  const hint = nativeUse && !models.length ? t('aide.code_hint_no_model', { harness: harnessName(using) })
+    : state !== 'ready' ? t('aide.code_hint_installing', { harness: harnessName(using) }) : '';
   $('aide-code-hint').textContent = hint;
   $('aide-code-hint').hidden = !hint;
 }
@@ -930,7 +943,7 @@ async function send(event) {
       current = { projectId, chatId: made.chat_id };
       await refreshChats(projectId);
       // the server's title is masked; what was typed may hold a secret
-      $('aide-code-title').textContent = (chats.get(projectId) || []).find(chat => chat.id === made.chat_id)?.title || 'chat';
+      $('aide-code-title').textContent = (chats.get(projectId) || []).find(chat => chat.id === made.chat_id)?.title || t('aide.code_chat');
       chatActions(true);
       follow(projectId, made.chat_id, made.seq - 1);
       void loadChatState();
@@ -940,7 +953,7 @@ async function send(event) {
       if (!live) follow(projectId, chatId, sent.seq - 1);
     }
   } catch (error) {
-    setError(error.code === 'pi_not_ready' ? 'pi is still installing; try again in a moment' : error.message);
+    setError(error.code === 'pi_not_ready' ? t('aide.code_pi_not_ready') : error.message);
   } finally { sending = false; updateComposer(); }
 }
 
@@ -1000,6 +1013,11 @@ async function useHarness(id, nextApproval = approval) {
 }
 const send_ = (method, url, body) => api(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
+const menuState = state => ({
+  missing: t('aide.code_menu_missing'), installing: t('aide.code_menu_installing'), failed: t('aide.code_menu_failed'),
+  needs_node: t('aide.code_menu_needs_node'), manual: t('aide.code_menu_manual'), unavailable: t('aide.code_menu_unavailable'),
+}[state] || state.replace('_', ' '));
+
 function renderHarnessMenu() {
   const list = $('aide-code-harness-menu');
   list.replaceChildren();
@@ -1010,14 +1028,14 @@ function renderHarnessMenu() {
     item.setAttribute('role', 'menuitemradio');
     item.setAttribute('aria-checked', String(row.id === harness));
     const state = isNative(row.id) ? native.find(h => h.harness === row.id)?.state : row.state;
-    item.append(el('span', '', row.name), el('small', '', state === 'ready' ? (row.open_source ? 'open source' : row.license) : state.replace('_', ' ')));
+    item.append(el('span', '', row.name), el('small', '', state === 'ready' ? (row.open_source ? t('aide.code_open_source') : row.license) : menuState(state)));
     item.addEventListener('click', async () => {
       harnessMenu.close();
       try { await useHarness(row.id); } catch (error) { setError(error.message); }
     });
     list.append(item);
   }
-  const more = el('button', 'acw-menu-item', 'more harnesses…');
+  const more = el('button', 'acw-menu-item', t('aide.code_more_harnesses'));
   more.type = 'button';
   more.setAttribute('role', 'menuitem');
   more.addEventListener('click', () => { harnessMenu.close({ restoreFocus: false }); void openHarnesses(); });
@@ -1027,10 +1045,10 @@ function renderHarnessMenu() {
 async function openHarnesses() {
   ++version; closeLive();
   showView('harnesses'); setPane('main');
-  $('aide-code-title').textContent = 'harnesses';
+  $('aide-code-title').textContent = t('aide.code_harnesses');
   showPath('');
   chatActions(false);
-  $('aide-code-harness-list').textContent = 'loading…';
+  $('aide-code-harness-list').textContent = t('aide.code_loading');
   await loadCatalog();
   renderHarnessList();
   $('aide-code-title').focus();
@@ -1044,26 +1062,26 @@ function renderHarnessList() {
     const main = el('div', 'acw-harness-main');
     const nameLine = el('div', 'acw-harness-name');
     nameLine.append(el('strong', '', row.name));
-    if (row.id === harness) nameLine.append(el('span', 'acw-harness-default', 'default'));
+    if (row.id === harness) nameLine.append(el('span', 'acw-harness-default', t('aide.code_default')));
     main.append(nameLine);
     if (row.description) main.append(el('p', 'acw-muted', row.description));
-    const facts = [row.open_source ? `open source · ${row.license}` : `closed source · ${row.license}`];
+    const facts = [t(row.open_source ? 'aide.code_open_source_license' : 'aide.code_closed_source_license', { license: row.license })];
     if (row.version) facts.push(row.version);
     const state = isNative(row.id) ? native.find(h => h.harness === row.id)?.state || row.state : row.state;
-    facts.push({ ready: 'installed', missing: 'not installed', installing: 'installing…', failed: 'install failed', manual: 'install it yourself', unavailable: 'not for this machine', needs_node: 'needs node 22.19+' }[state] || state);
+    facts.push({ ready: t('aide.code_st_ready'), missing: t('aide.code_st_missing'), installing: t('aide.code_st_installing'), failed: t('aide.code_st_failed'), manual: t('aide.code_st_manual'), unavailable: t('aide.code_st_unavailable'), needs_node: t('aide.code_st_needs_node') }[state] || state);
     main.append(el('p', 'acw-harness-facts', facts.join(' · ')));
     if (row.error) main.append(el('p', 'acw-msg-error', row.error));
     if (state === 'manual' && row.install_hint) main.append(el('code', 'acw-harness-hint', row.install_hint));
     const actions = el('div', 'acw-harness-actions');
-    if (['missing', 'failed'].includes(state)) actions.append(harnessAction('install', row.id, 'install'));
-    if (state === 'ready' && row.id !== harness) actions.append(harnessAction('use as default', row.id, 'use'));
+    if (['missing', 'failed'].includes(state)) actions.append(harnessAction(t('aide.code_install'), row.id, 'install'));
+    if (state === 'ready' && row.id !== harness) actions.append(harnessAction(t('aide.code_use_default'), row.id, 'use'));
     item.append(main, actions);
     if (row.id === 'omp' && state === 'ready') {
       // omp can ask before it runs a command; pi has no such switch
       const group = el('div', 'acw-harness-approval');
       group.setAttribute('role', 'radiogroup');
-      group.setAttribute('aria-label', 'when omp wants to run a command');
-      for (const [key, label] of [['auto', 'just do it'], ['ask', 'ask me first']]) {
+      group.setAttribute('aria-label', t('aide.code_omp_ask'));
+      for (const [key, label] of [['auto', t('aide.code_just_do_it')], ['ask', t('aide.code_ask_first')]]) {
         const button = el('button', 'acw-action', label);
         button.type = 'button';
         button.setAttribute('role', 'radio');
@@ -1123,7 +1141,7 @@ async function browse(path) {
     $('aide-code-folder-up').disabled = !data.parent;
     $('aide-code-folder-up').dataset.path = data.parent || '';
     list.replaceChildren();
-    if (!data.folders.length) list.append(el('p', 'acw-rail-empty', 'no folders inside this one'));
+    if (!data.folders.length) list.append(el('p', 'acw-rail-empty', t('aide.code_no_folders')));
     for (const name of data.folders) {
       const button = el('button', 'acw-folder');
       button.type = 'button';
@@ -1139,8 +1157,8 @@ async function browse(path) {
 function openAdd() {
   ++version; closeLive();
   showView('add'); setPane('main');
-  $('aide-code-title').textContent = 'add a project';
-  $('aide-code-path').textContent = 'pick a folder on the machine that runs alles';
+  $('aide-code-title').textContent = t('aide.code_add_project');
+  $('aide-code-path').textContent = t('aide.code_pick_folder');
   chatActions(false);
   void browse($('aide-code-folder-path').value || '');
   $('aide-code-folder-path').focus();
@@ -1161,7 +1179,7 @@ async function addProject() {
 async function forgetProject(projectId) {
   const row = project(projectId);
   if (!row) return;
-  const ok = await dlgConfirm(`forget ${row.name}? its pi chats are set aside in alles's data folder. the folder itself is not touched.`, { confirmLabel: 'forget' });
+  const ok = await dlgConfirm(t('aide.code_forget_confirm', { name: row.name }), { confirmLabel: t('aide.code_forget') });
   if (!ok) return;
   try {
     await api(`/api/aide/code/projects/${encodeURIComponent(projectId)}`, { method: 'DELETE' });
@@ -1175,7 +1193,7 @@ async function forgetProject(projectId) {
 async function deleteChat() {
   const { projectId, chatId } = current;
   if (!chatId) return;
-  if (!await dlgConfirm('delete this chat? pi\'s record of it is removed. files it changed stay as they are.', { confirmLabel: 'delete' })) return;
+  if (!await dlgConfirm(t('aide.code_delete_confirm'), { confirmLabel: t('common.delete') })) return;
   try {
     await api(chatPath(projectId, chatId), { method: 'DELETE' });
     await refreshChats(projectId);
@@ -1185,7 +1203,7 @@ async function deleteChat() {
 
 function showFirst() {
   const first = projects[0];
-  if (!first) { showView('start'); showProject(null); $('aide-code-title').textContent = 'code with pi'; $('aide-code-path').textContent = ''; chatActions(false); setPane('main'); updateComposer(); return; }
+  if (!first) { showView('start'); showProject(null); $('aide-code-title').textContent = t('aide.code_title'); $('aide-code-path').textContent = ''; chatActions(false); setPane('main'); updateComposer(); return; }
   const recent = (chats.get(first.id) || [])[0];
   if (recent) void openChat(first.id, recent.id);
   else startChat(first.id);
@@ -1217,7 +1235,7 @@ function applyRail(save = true) {
   $('aide-code-rail').inert = rail.hidden && !narrowRail.matches;
   $('aide-code-rail-resize').setAttribute('aria-valuenow', String(rail.width));
   const toggle = $('aide-code-rail-toggle');
-  const label = rail.hidden ? 'show projects' : 'hide projects';
+  const label = rail.hidden ? t('aide.code_show_projects') : t('aide.code_hide_projects');
   toggle.setAttribute('aria-expanded', String(!rail.hidden));
   toggle.setAttribute('aria-label', label);
   toggle.title = label;
@@ -1260,82 +1278,82 @@ function wireRail() {
 function markup() {
   return `
     <div class="acw-body">
-      <aside class="acw-rail" id="aide-code-rail" aria-label="projects">
-        <div class="acw-rail-resize" id="aide-code-rail-resize" role="separator" aria-orientation="vertical" aria-label="resize projects" aria-controls="aide-code-rail" tabindex="0" aria-valuemin="${RAIL_MIN}" aria-valuemax="${RAIL_MAX}" aria-valuenow="${RAIL_DEFAULT}"></div>
-        <div class="acw-rail-head"><h2>projects</h2><button type="button" id="aide-code-add" class="acw-icon" aria-label="add a project" title="add a project">${icon('plus')}</button></div>
-        <nav id="aide-code-projects" class="acw-projects" aria-label="projects and chats"></nav>
-        <div class="acw-pi"><p id="aide-code-pi" role="status" hidden></p><button type="button" id="aide-code-pi-retry" class="acw-action" hidden>try again</button></div>
-        <div id="aide-code-project-menu" class="acw-menu" role="menu" aria-label="project actions" hidden>
-          <button type="button" role="menuitem" data-project-action="new">new chat</button>
-          <button type="button" role="menuitem" data-project-action="forget">forget project</button>
+      <aside class="acw-rail" id="aide-code-rail" aria-label="${t('aide.code_projects')}">
+        <div class="acw-rail-resize" id="aide-code-rail-resize" role="separator" aria-orientation="vertical" aria-label="${t('aide.code_resize_projects')}" aria-controls="aide-code-rail" tabindex="0" aria-valuemin="${RAIL_MIN}" aria-valuemax="${RAIL_MAX}" aria-valuenow="${RAIL_DEFAULT}"></div>
+        <div class="acw-rail-head"><h2>${t('aide.code_projects')}</h2><button type="button" id="aide-code-add" class="acw-icon" aria-label="${t('aide.code_add_project')}" title="${t('aide.code_add_project')}">${icon('plus')}</button></div>
+        <nav id="aide-code-projects" class="acw-projects" aria-label="${t('aide.code_projects_and_chats')}"></nav>
+        <div class="acw-pi"><p id="aide-code-pi" role="status" hidden></p><button type="button" id="aide-code-pi-retry" class="acw-action" hidden>${t('aide.code_try_again')}</button></div>
+        <div id="aide-code-project-menu" class="acw-menu" role="menu" aria-label="${t('aide.code_project_actions')}" hidden>
+          <button type="button" role="menuitem" data-project-action="new">${t('aide.code_new_chat')}</button>
+          <button type="button" role="menuitem" data-project-action="forget">${t('aide.code_forget_project')}</button>
         </div>
       </aside>
       <div class="acw-main">
         <header class="acw-head">
-          <button type="button" id="aide-code-rail-back" class="acw-icon acw-mobile-back" aria-label="projects">${icon('back')}</button>
-          <button type="button" id="aide-code-rail-toggle" class="acw-icon acw-rail-toggle" aria-label="hide projects" title="hide projects" aria-controls="aide-code-rail" aria-expanded="true">${icon('columns')}</button>
-          <div class="acw-head-text"><h2 id="aide-code-title" tabindex="-1">code with pi</h2><p class="acw-head-meta"><span id="aide-code-project" class="acw-head-project"></span><span id="aide-code-path" class="acw-path"></span></p></div>
-          <button type="button" id="aide-code-new" class="acw-action acw-head-new" hidden>${icon('plus')}<span>new chat</span></button>
+          <button type="button" id="aide-code-rail-back" class="acw-icon acw-mobile-back" aria-label="${t('aide.code_projects')}">${icon('back')}</button>
+          <button type="button" id="aide-code-rail-toggle" class="acw-icon acw-rail-toggle" aria-label="${t('aide.code_hide_projects')}" title="${t('aide.code_hide_projects')}" aria-controls="aide-code-rail" aria-expanded="true">${icon('columns')}</button>
+          <div class="acw-head-text"><h2 id="aide-code-title" tabindex="-1">${t('aide.code_title')}</h2><p class="acw-head-meta"><span id="aide-code-project" class="acw-head-project"></span><span id="aide-code-path" class="acw-path"></span></p></div>
+          <button type="button" id="aide-code-new" class="acw-action acw-head-new" hidden>${icon('plus')}<span>${t('aide.code_new_chat')}</span></button>
           <div class="acw-model acw-chat-menu-wrap">
-            <button type="button" id="aide-code-chat-more" class="acw-icon" aria-label="chat actions" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-chat-menu" hidden>${icon('more')}</button>
-            <div id="aide-code-chat-menu" class="acw-menu acw-menu-down" role="menu" aria-label="chat actions" hidden>
-              <button type="button" id="aide-code-delete" role="menuitem" hidden>delete chat</button>
+            <button type="button" id="aide-code-chat-more" class="acw-icon" aria-label="${t('aide.code_chat_actions')}" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-chat-menu" hidden>${icon('more')}</button>
+            <div id="aide-code-chat-menu" class="acw-menu acw-menu-down" role="menu" aria-label="${t('aide.code_chat_actions')}" hidden>
+              <button type="button" id="aide-code-delete" role="menuitem" hidden>${t('aide.code_delete_chat')}</button>
             </div>
           </div>
         </header>
         <p id="aide-code-error" class="acw-error" role="alert" hidden></p>
-        <div id="aide-code-loading" class="acw-loading" role="status" aria-label="loading" hidden><span></span><span></span><span></span></div>
+        <div id="aide-code-loading" class="acw-loading" role="status" aria-label="${t('common.loading')}" hidden><span></span><span></span><span></span></div>
         <section id="aide-code-start" class="acw-content acw-start" hidden>
-          <p>pi reads, edits and runs code in a folder on the machine that runs alles. it does not ask before each command, so give it a project folder you're happy for it to change.</p>
-          <button type="button" id="aide-code-start-add" class="acw-action acw-primary">add a project folder</button>
+          <p>${t('aide.code_start_intro')}</p>
+          <button type="button" id="aide-code-start-add" class="acw-action acw-primary">${t('aide.code_add_folder')}</button>
         </section>
         <section id="aide-code-harness-view" class="acw-content acw-harnesses" hidden>
-          <p class="acw-muted">pi is the default. omp and pi run natively; the rest connect through ACP and use their own sign-in and models. installs go into this machine's cache.</p>
+          <p class="acw-muted">${t('aide.code_harness_intro')}</p>
           <div id="aide-code-harness-list" class="acw-harness-list"></div>
         </section>
         <section id="aide-code-add-view" class="acw-content acw-add" hidden>
           <form id="aide-code-folder-form" class="acw-folder-bar">
-            <button type="button" id="aide-code-folder-up" class="acw-icon" aria-label="up one folder">${icon('back')}</button>
-            <input id="aide-code-folder-path" type="text" spellcheck="false" autocomplete="off" aria-label="folder path">
-            <button type="submit" class="acw-action">open</button>
+            <button type="button" id="aide-code-folder-up" class="acw-icon" aria-label="${t('aide.code_folder_up')}">${icon('back')}</button>
+            <input id="aide-code-folder-path" type="text" spellcheck="false" autocomplete="off" aria-label="${t('aide.code_folder_path')}">
+            <button type="submit" class="acw-action">${t('aide.code_open')}</button>
           </form>
           <div id="aide-code-folders" class="acw-folders"></div>
-          <div class="acw-add-foot"><button type="button" id="aide-code-folder-use" class="acw-action acw-primary">use this folder</button></div>
+          <div class="acw-add-foot"><button type="button" id="aide-code-folder-use" class="acw-action acw-primary">${t('aide.code_use_folder')}</button></div>
         </section>
         <section id="aide-code-chat" class="acw-chat-view" hidden>
           <div id="aide-code-scroll" class="acw-scroll">
             <div id="aide-code-intro" class="acw-intro" hidden>
-              <h3>what should pi do here?</h3>
+              <h3>${t('aide.code_what_should')}</h3>
               <div class="acw-suggest" role="list"></div>
             </div>
-            <div id="aide-code-log" class="acw-log" role="log" aria-label="chat with pi"></div>
+            <div id="aide-code-log" class="acw-log" role="log" aria-label="${t('aide.code_chat_with_pi')}"></div>
           </div>
-          <button type="button" id="aide-code-jump" class="acw-jump" aria-label="jump to the latest" hidden>${icon('down')}</button>
+          <button type="button" id="aide-code-jump" class="acw-jump" aria-label="${t('aide.code_jump_latest')}" hidden>${icon('down')}</button>
           <form id="aide-code-form" class="acw-composer">
-            <div id="aide-code-question" class="acw-question" role="group" aria-label="pi is asking" hidden></div>
+            <div id="aide-code-question" class="acw-question" role="group" aria-label="${t('aide.code_pi_asking')}" hidden></div>
             <p id="aide-code-hint" class="acw-muted" hidden></p>
-            <div id="aide-code-goal" class="acw-goal" hidden><span class="acw-goal-label">goal</span><span id="aide-code-goal-text"></span><button type="button" id="aide-code-goal-clear" class="acw-action">clear</button></div>
-            <div id="aide-code-slash" class="slash-popup acw-slash" role="listbox" aria-label="commands" hidden></div>
+            <div id="aide-code-goal" class="acw-goal" hidden><span class="acw-goal-label">${t('aide.code_goal')}</span><span id="aide-code-goal-text"></span><button type="button" id="aide-code-goal-clear" class="acw-action">${t('aide.code_clear')}</button></div>
+            <div id="aide-code-slash" class="slash-popup acw-slash" role="listbox" aria-label="${t('aide.code_commands')}" hidden></div>
             <div class="acw-entry">
-              <textarea id="aide-code-input" rows="1" maxlength="50000" data-kokuen-entry="autogrow" aria-label="message pi" role="combobox" aria-autocomplete="list" aria-controls="aide-code-slash" aria-expanded="false"></textarea>
+              <textarea id="aide-code-input" rows="1" maxlength="50000" data-kokuen-entry="autogrow" aria-label="${t('aide.code_message_pi')}" role="combobox" aria-autocomplete="list" aria-controls="aide-code-slash" aria-expanded="false"></textarea>
               <div class="acw-entry-foot">
                 <div class="acw-model acw-harness">
                   <button type="button" id="aide-code-harness" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-harness-menu"><span id="aide-code-harness-label">pi</span>${icon('chevron')}</button>
-                  <div id="aide-code-harness-menu" class="acw-menu acw-menu-up" role="menu" aria-label="harness for new chats" hidden></div>
+                  <div id="aide-code-harness-menu" class="acw-menu acw-menu-up" role="menu" aria-label="${t('aide.code_harness_new')}" hidden></div>
                 </div>
                 <div class="acw-model">
-                  <button type="button" id="aide-code-model" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-model-menu"><span id="aide-code-model-label">no coding model</span>${icon('chevron')}</button>
-                  <div id="aide-code-model-menu" class="acw-menu acw-menu-up" role="menu" aria-label="coding model" hidden></div>
+                  <button type="button" id="aide-code-model" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-model-menu"><span id="aide-code-model-label">${t('aide.code_no_model')}</span>${icon('chevron')}</button>
+                  <div id="aide-code-model-menu" class="acw-menu acw-menu-up" role="menu" aria-label="${t('aide.code_coding_model')}" hidden></div>
                 </div>
                 <div class="acw-model">
-                  <button type="button" id="aide-code-effort" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-effort-menu" hidden><span id="aide-code-effort-label">effort</span>${icon('chevron')}</button>
-                  <div id="aide-code-effort-menu" class="acw-menu acw-menu-up" role="menu" aria-label="effort" hidden></div>
+                  <button type="button" id="aide-code-effort" class="acw-action" aria-haspopup="menu" aria-expanded="false" aria-controls="aide-code-effort-menu" hidden><span id="aide-code-effort-label">${t('aide.code_row_effort')}</span>${icon('chevron')}</button>
+                  <div id="aide-code-effort-menu" class="acw-menu acw-menu-up" role="menu" aria-label="${t('aide.code_row_effort')}" hidden></div>
                 </div>
                 <span id="aide-code-stats" class="acw-stats"></span>
                 <button type="button" id="aide-code-context" class="acw-ring" hidden><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="acw-ring-track" cx="18" cy="18" r="15"/><circle class="acw-ring-fill" cx="18" cy="18" r="15" pathLength="100"/></svg><span class="acw-ring-text"></span></button>
                 <span id="aide-code-status" class="acw-muted" role="status"></span>
-                <button type="button" id="aide-code-stop" class="acw-icon" aria-label="stop pi" hidden>${icon('stop')}</button>
-                <button type="submit" id="aide-code-send" class="acw-icon acw-send" aria-label="send" disabled>${icon('up')}</button>
+                <button type="button" id="aide-code-stop" class="acw-icon" aria-label="${t('aide.code_stop_pi')}" hidden>${icon('stop')}</button>
+                <button type="submit" id="aide-code-send" class="acw-icon acw-send" aria-label="${t('common.send')}" disabled>${icon('up')}</button>
               </div>
             </div>
           </form>
@@ -1344,11 +1362,29 @@ function markup() {
     </div>`;
 }
 
+// escape closes the topmost open thing here (a menu, or the projects pane on a phone) and gives
+// focus back to what opened it. with nothing open it does nothing: the app-wide escape would close
+// things elsewhere and move focus away from where the owner is working
+function onEscape(event) {
+  if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
+  event.preventDefault();
+  const open = [
+    [chatMenu, 'aide-code-chat-menu'], [projectMenu, 'aide-code-project-menu'], [harnessMenu, 'aide-code-harness-menu'],
+    [menu, 'aide-code-model-menu'], [effortMenu, 'aide-code-effort-menu'],
+  ].find(([controller, id]) => controller && !$(id).hidden);
+  if (open) { open[0].close(); return; }
+  if (host.dataset.pane === 'rail' && !host.querySelector('.acw-main').getClientRects().length) {
+    setPane('main');
+    $('aide-code-rail-back').focus();
+  }
+}
+
 export function initAideCodingWorkspace() {
   const target = $('aide-coding-workspace');
   if (!target || target.tagName === 'BUTTON' || host === target) return;
-  host = target; host.classList.add('aide-coding-workspace'); host.setAttribute('aria-label', 'code with pi'); host.dataset.pane = 'main';
+  host = target; host.classList.add('aide-coding-workspace'); host.setAttribute('aria-label', t('aide.code_title')); host.dataset.pane = 'main';
   host.innerHTML = markup();
+  host.addEventListener('keydown', onEscape);
   wireRail();
   const input = $('aide-code-input');
   wireAutosizeTextarea(input);
@@ -1377,7 +1413,8 @@ export function initAideCodingWorkspace() {
   $('aide-code-stop').addEventListener('click', async () => {
     try { await post(`${chatPath(current.projectId, current.chatId)}/stop`); } catch (error) { setError(error.message); }
   });
-  $('aide-code-delete').addEventListener('click', () => { chatMenu.close({ restoreFocus: false }); void deleteChat(); });
+  // the menu hands focus back to its button first, so cancelling the confirm lands there too
+  $('aide-code-delete').addEventListener('click', () => { chatMenu.close(); void deleteChat(); });
   chatMenu = createMenuController($('aide-code-chat-menu'), { onClose: () => $('aide-code-chat-more').setAttribute('aria-expanded', 'false') });
   $('aide-code-chat-more').addEventListener('click', event => {
     if (!$('aide-code-chat-menu').hidden) { chatMenu.close(); return; }

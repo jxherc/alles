@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const sessions = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8');
 const drafts = sessions.slice(sessions.indexOf('const _legacyDraftKey'), sessions.indexOf('export function newChat'));
@@ -45,7 +46,7 @@ function harness({ id = 'outgoing', privateMode = false, missingComposer = false
     },
     removeItem(name) { storageCalls.push(['remove', name]); storage.delete(name); },
   };
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     window, location, URL, Event: class {}, CustomEvent: class {},
     document: { getElementById: name => name === 'composer-ta' ? (missingComposer ? null : field)
       : name === 'composer-send-recovery' ? recovery : null, querySelectorAll: () => rows, dispatchEvent() {} },

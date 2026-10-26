@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/chat.js', import.meta.url), 'utf8');
 const helper = source.slice(source.indexOf('function holdDocumentDraft'), source.indexOf('export async function sendMessage'));
@@ -13,7 +14,7 @@ function setup() {
   const field = { value: draft.text, style: {}, dispatchEvent() {}, focus() { state.focused = true; } };
   const window = { _pendingDocumentScope: scope, _setAideDocumentScope(value) { this._pendingDocumentScope = value; } };
   const consumed = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     document: { getElementById: () => field }, window, Event: class {},
     getActiveId: () => state.id, getComposerGeneration: () => state.generation,
     isIncognitoMode: () => state.private, getAttachments: () => state.files,
@@ -108,7 +109,7 @@ test('a public acceptance consumes its stored draft without changing a private c
 for (const text of ['', 'another unsent question']) {
   test(`programmatic acceptance consumes the unchanged scope while preserving ${JSON.stringify(text)}`, () => {
     const h = setup(); h.field.value = text; h.draft.text = text;
-    const context = vm.createContext({
+    const context = vm.createContext({ t, tp, tr: t, trp: tp,
       document: { getElementById: () => h.field }, window: h.window, Event: class {},
       getActiveId: () => 'original', getComposerGeneration: () => 1,
       isIncognitoMode: () => false, getAttachments: () => [], hasPendingAttachments: () => false,
@@ -133,7 +134,7 @@ for (const quota of [true, false]) {
     const newer = 'newer exact question 草稿';
     const field = { value: question, style: {}, dispatchEvent() {} };
     const window = { _pendingDocumentScope: scope, _setAideDocumentScope(value) { this._pendingDocumentScope = value; } };
-    const context = vm.createContext({
+    const context = vm.createContext({ t, tp, tr: t, trp: tp,
       document: { getElementById: () => field }, window, Event: class {},
       _activeId: 'original', getActiveId: () => 'original', getComposerGeneration: () => 1,
       isIncognitoMode: () => false, getAttachments: () => [], hasPendingAttachments: () => false,

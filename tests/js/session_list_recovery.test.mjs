@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/sessions.js', import.meta.url), 'utf8')
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
@@ -19,7 +20,7 @@ function harness() {
     });
   }
   const requests = [], opens = [], fresh = [], renders = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     window: { addEventListener() {} }, document, navigator: { onLine: false },
     fetch: () => { const request = deferred(); requests.push(request); return request.promise; },
     localStorage: { getItem: () => null }, URLSearchParams,

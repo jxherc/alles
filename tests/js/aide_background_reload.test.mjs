@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const read = name => readFileSync(new URL(`../../static/js/${name}.js`, import.meta.url), 'utf8');
 const moduleBody = source => source.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '').replace(/^export /gm, '');
@@ -27,7 +28,7 @@ function fixture({ space = 'aide', mode = 'conversation', busy = false } = {}) {
     _enterChatView() { effects.push('navigate'); archive.hidden = true; document.body.dataset.space = 'aide'; document.body.dataset.aideMode = 'conversation'; },
     _setMode: () => effects.push('mode'), addEventListener() {},
   };
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     window, document, location, URL, URLSearchParams,
     console: { error: (...args) => errors.push(args.map(String).join(' ')) },
     CustomEvent: class { constructor(type) { this.type = type; } },
@@ -103,7 +104,7 @@ test('legacy delayed completion forwards the original owner to the real global b
   const owner = fixture(); const timers = [], intervals = [];
   const status = { textContent: '' }, text = { textContent: '' };
   const box = { remove() {}, querySelector: selector => selector.endsWith('status') ? status : text };
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     window: owner.window,
     document: { getElementById: () => box },
     fetch: async url => ({ json: async () => url.includes('/active?')
@@ -121,7 +122,7 @@ test('modern fallback forwards its receipt owner when the quiet helper is unavai
   const source = read('aidebackground');
   const fn = name => source.match(new RegExp(`^(?:export )?(?:async )?function ${name}\\([^]*?^}`, 'm'))[0].replace(/^export /, '');
   const timeouts = [], calls = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     fetch: async () => ({ ok: true, json: async () => ({ id: 'run', state: 'succeeded', session_id: 'owner' }) }),
     window: { _reloadActiveSession: id => calls.push(id) },
     setTimeout: callback => { timeouts.push(callback); return timeouts.length; }, clearTimeout() {},

@@ -1,8 +1,8 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
-import { populateDropdown } from '../dropdown.js?v=212';
-import { formatDateTime } from '../i18n.js';
+import { populateDropdown } from '../dropdown.js?v=213';
+import { formatDateTime, formatNumber, t } from '../i18n.js';
 import { _confirmRecentOwner, _fetchWithRecentOwner } from './shared.js';
 
 // ── webdav backup ────────────────────────────────────────────────────────────
@@ -33,13 +33,13 @@ export function webdavBackupConfigPayload(url, username, password, hasSavedPassw
   const urlValue = String(url || '').trim();
   const usernameValue = String(username || '').trim();
   const passwordValue = String(password || '');
-  if (!urlValue) throw new Error('add the WebDAV https url');
+  if (!urlValue) throw new Error(t('backups.webdav_url_required'));
   let parsed;
-  try { parsed = new URL(urlValue); } catch { throw new Error('enter a valid WebDAV url'); }
-  if (parsed.protocol !== 'https:') throw new Error('the WebDAV url must use https');
-  if (parsed.username || parsed.password) throw new Error('keep the username and password out of the url');
-  if (!usernameValue) throw new Error('add the WebDAV username');
-  if (!passwordValue && !hasSavedPassword) throw new Error('add the WebDAV password');
+  try { parsed = new URL(urlValue); } catch { throw new Error(t('backups.webdav_url_invalid')); }
+  if (parsed.protocol !== 'https:') throw new Error(t('backups.webdav_url_https'));
+  if (parsed.username || parsed.password) throw new Error(t('backups.webdav_url_credentials'));
+  if (!usernameValue) throw new Error(t('backups.webdav_username_required'));
+  if (!passwordValue && !hasSavedPassword) throw new Error(t('backups.webdav_password_required'));
   const result = { url: parsed.toString(), username: usernameValue };
   if (passwordValue) result.password = passwordValue;
   return result;
@@ -65,17 +65,18 @@ export function webdavBackupsFromResponse(payload = {}) {
 }
 
 function _formatWebdavTime(value) {
-  if (!value) return 'never';
+  if (!value) return t('common.never');
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'unknown' : formatDateTime(date);
+  return Number.isNaN(date.getTime()) ? t('common.unknown') : formatDateTime(date);
 }
 
 function _formatWebdavBytes(value) {
   if (!Number.isFinite(value) || value < 0) return '';
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  const size = (number, digits = 1) => formatNumber(number, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false });
+  if (value < 1024) return t('backups.size_bytes', { size: size(value, 0) });
+  if (value < 1024 * 1024) return t('backups.size_kb', { size: size(value / 1024) });
+  if (value < 1024 * 1024 * 1024) return t('backups.size_mb', { size: size(value / (1024 * 1024)) });
+  return t('backups.size_gb', { size: size(value / (1024 * 1024 * 1024)) });
 }
 
 async function _webdavResponseJson(response) {
@@ -104,21 +105,21 @@ function _setWebdavMutationPending(pending) {
   const save = document.getElementById('webdav-backup-save-btn');
   if (save) {
     save.disabled = pending;
-    if (!pending) save.textContent = _webdavConfigured ? 'save connection' : 'connect and save';
+    if (!pending) save.textContent = _webdavConfigured ? t('backups.save_connection') : t('backups.connect_and_save');
   }
   const disconnect = document.getElementById('webdav-backup-disconnect-btn');
   if (disconnect) disconnect.disabled = pending || disconnect.hidden;
   const run = document.getElementById('webdav-backup-run-btn');
   if (run) {
     run.disabled = pending || !_webdavConfigured;
-    if (!pending) run.textContent = 'back up now';
+    if (!pending) run.textContent = t('backups.back_up_now');
   }
   const select = document.getElementById('webdav-backup-list');
   if (select) select.disabled = pending || !_webdavConfigured || !_webdavBackups.length;
   const restore = document.getElementById('webdav-backup-restore-btn');
   if (restore) {
     restore.disabled = pending || !_webdavConfigured || !_webdavBackups.some(backup => backup.filename === select?.value);
-    if (!pending) restore.textContent = 'verify and stage selected restore';
+    if (!pending) restore.textContent = t('backups.verify_stage_restore');
   }
   const refresh = document.getElementById('webdav-backup-refresh-btn');
   if (refresh) refresh.disabled = pending || !_webdavConfigured;
@@ -145,7 +146,7 @@ function _applyWebdavConfig(config, keepDraft = false) {
   const disconnect = document.getElementById('webdav-backup-disconnect-btn');
   if (disconnect) {
     disconnect.hidden = !config.configured && !config.error;
-    disconnect.textContent = config.error ? 'remove broken settings' : 'disconnect';
+    disconnect.textContent = config.error ? t('backups.remove_broken_settings') : t('common.disconnect');
   }
   _setWebdavMutationPending(_webdavMutationPending);
   const refresh = document.getElementById('webdav-backup-refresh-btn');
@@ -156,7 +157,7 @@ function _applyWebdavConfig(config, keepDraft = false) {
   if (lastVerified) lastVerified.textContent = _formatWebdavTime(config.last_verified_at);
   if (!_webdavMutationPending) {
     if (config.error) _setWebdavStatus(config.error, 'error');
-    else _setWebdavStatus(updateFields ? (config.configured ? 'connected' : 'not connected') : 'unsaved connection changes kept here', updateFields && config.configured ? 'success' : '');
+    else _setWebdavStatus(updateFields ? (config.configured ? t('common.connected') : t('common.not_connected')) : t('backups.unsaved_kept'), updateFields && config.configured ? 'success' : '');
   }
   if (!config.configured) renderWebdavBackups([]);
 }
@@ -165,11 +166,11 @@ async function loadWebdavBackup(isCurrent = () => true) {
   if (!document.getElementById('webdav-backup-card')) return;
   if (_webdavMutationPending) { _webdavDeferredListLoad = isCurrent; return; }
   const generation = ++_webdavLoadGeneration;
-  _setWebdavStatus('checking connection…');
+  _setWebdavStatus(t('backups.checking_connection'));
   try {
     const response = await fetch('/api/backup/webdav');
     const data = await _webdavResponseJson(response);
-    if (!response.ok) throw new Error(_webdavError(data, 'could not check WebDAV'));
+    if (!response.ok) throw new Error(_webdavError(data, t('backups.webdav_check_failed')));
     if (generation !== _webdavLoadGeneration || !isCurrent()) return;
     const config = normalizeWebdavBackupConfig(data);
     _applyWebdavConfig(config, true);
@@ -177,7 +178,7 @@ async function loadWebdavBackup(isCurrent = () => true) {
   } catch (error) {
     if (generation !== _webdavLoadGeneration || !isCurrent()) return;
     _webdavConfigured = false;
-    _setWebdavStatus(error.message || 'could not check WebDAV', 'error');
+    _setWebdavStatus(error.message || t('backups.webdav_check_failed'), 'error');
     renderWebdavBackups([]);
   }
 }
@@ -201,8 +202,8 @@ async function saveWebdavBackup() {
   }
   if (password) password.value = '';
   _setWebdavMutationPending(true);
-  if (button) button.textContent = 'saving…';
-  _setWebdavStatus('checking and saving…');
+  if (button) button.textContent = t('common.saving');
+  _setWebdavStatus(t('backups.checking_and_saving'));
   try {
     const response = await _fetchWithRecentOwner('/api/backup/webdav', {
       method: 'PUT',
@@ -210,18 +211,18 @@ async function saveWebdavBackup() {
       body: JSON.stringify(payload),
     });
     const data = await _webdavResponseJson(response);
-    if (!response.ok) throw new Error(_webdavError(data, 'WebDAV connection was not saved', [passwordValue]));
+    if (!response.ok) throw new Error(_webdavError(data, t('backups.webdav_not_saved'), [passwordValue]));
     const config = normalizeWebdavBackupConfig(data);
     if (revision === _webdavDraftRevision) _webdavDirty = false;
     _applyWebdavConfig(config, true);
-    toast('WebDAV connection saved', 'success');
+    toast(t('backups.webdav_saved'), 'success');
     const isCurrent = _webdavDeferredListLoad || (() => true);
     _webdavDeferredListLoad = null;
     await loadWebdavBackups(false, isCurrent);
-    _setWebdavStatus(_webdavDirty ? 'saved; newer connection edits kept here' : 'connected and saved', 'success');
+    _setWebdavStatus(_webdavDirty ? t('backups.saved_newer_kept') : t('backups.connected_and_saved'), 'success');
   } catch (error) {
-    _setWebdavStatus(error.message || 'WebDAV connection was not saved', 'error');
-    toast(error.message || 'WebDAV connection was not saved', 'error');
+    _setWebdavStatus(error.message || t('backups.webdav_not_saved'), 'error');
+    toast(error.message || t('backups.webdav_not_saved'), 'error');
   } finally {
     _setWebdavMutationPending(false);
   }
@@ -229,24 +230,24 @@ async function saveWebdavBackup() {
 
 async function disconnectWebdavBackup() {
   if (_webdavMutationPending) return;
-  if (!await _dlgConfirm('disconnect WebDAV backup? remote backups will stay on the server.')) return;
+  if (!await _dlgConfirm(t('backups.webdav_disconnect_confirm'))) return;
   if (_webdavMutationPending) return;
   const revision = _webdavDraftRevision;
   _setWebdavMutationPending(true);
-  _setWebdavStatus('disconnecting…');
+  _setWebdavStatus(t('common.disconnecting'));
   try {
     const response = await _fetchWithRecentOwner('/api/backup/webdav', { method: 'DELETE' });
     const data = await _webdavResponseJson(response);
-    if (!response.ok) throw new Error(_webdavError(data, 'WebDAV could not be disconnected'));
+    if (!response.ok) throw new Error(_webdavError(data, t('backups.webdav_disconnect_failed')));
     _webdavLoadGeneration += 1;
     _webdavListGeneration += 1;
     if (revision === _webdavDraftRevision) _webdavDirty = false;
     _applyWebdavConfig(normalizeWebdavBackupConfig({}), true);
-    _setWebdavStatus(_webdavDirty ? 'unsaved connection changes kept here' : 'not connected');
-    toast('WebDAV disconnected', 'success');
+    _setWebdavStatus(_webdavDirty ? t('backups.unsaved_kept') : t('common.not_connected'));
+    toast(t('backups.webdav_disconnected'), 'success');
   } catch (error) {
-    _setWebdavStatus(error.message || 'WebDAV could not be disconnected', 'error');
-    toast(error.message || 'WebDAV could not be disconnected', 'error');
+    _setWebdavStatus(error.message || t('backups.webdav_disconnect_failed'), 'error');
+    toast(error.message || t('backups.webdav_disconnect_failed'), 'error');
   } finally {
     _setWebdavMutationPending(false);
   }
@@ -256,25 +257,25 @@ async function runWebdavBackup() {
   if (_webdavMutationPending || !_webdavConfigured) return;
   _setWebdavMutationPending(true);
   const button = document.getElementById('webdav-backup-run-btn');
-  if (button) button.textContent = 'backing up…';
-  _setWebdavStatus('creating and uploading encrypted backup…');
+  if (button) button.textContent = t('backups.backing_up');
+  _setWebdavStatus(t('backups.webdav_uploading'));
   try {
     const response = await _fetchWithRecentOwner('/api/backup/webdav/run', { method: 'POST' });
     const data = await _webdavResponseJson(response);
-    if (!response.ok) throw new Error(_webdavError(data, 'WebDAV backup failed'));
+    if (!response.ok) throw new Error(_webdavError(data, t('backups.webdav_backup_failed')));
     const lastSuccess = document.getElementById('webdav-backup-last-success');
     if (lastSuccess) lastSuccess.textContent = _formatWebdavTime(data.last_backup_at);
     const lastVerified = document.getElementById('webdav-backup-last-verified');
     if (lastVerified) lastVerified.textContent = _formatWebdavTime(data.last_verified_at);
     const warning = String(data.status_warning || '');
-    toast(warning || 'WebDAV backup complete', warning ? '' : 'success', warning ? 6000 : 3000);
+    toast(warning || t('backups.webdav_backup_complete'), warning ? '' : 'success', warning ? 6000 : 3000);
     const isCurrent = _webdavDeferredListLoad || (() => true);
     _webdavDeferredListLoad = null;
     await loadWebdavBackups(false, isCurrent);
-    _setWebdavStatus(warning || 'backup uploaded and verified', warning ? '' : 'success');
+    _setWebdavStatus(warning || t('backups.webdav_uploaded_verified'), warning ? '' : 'success');
   } catch (error) {
-    _setWebdavStatus(error.message || 'WebDAV backup failed', 'error');
-    toast(error.message || 'WebDAV backup failed', 'error');
+    _setWebdavStatus(error.message || t('backups.webdav_backup_failed'), 'error');
+    toast(error.message || t('backups.webdav_backup_failed'), 'error');
   } finally {
     _setWebdavMutationPending(false);
   }
@@ -288,22 +289,22 @@ async function loadWebdavBackups(announce = false, isCurrent = () => true) {
     renderWebdavBackups([]);
     return;
   }
-  if (refresh) { refresh.disabled = true; refresh.textContent = 'refreshing…'; }
-  if (selection) selection.textContent = 'loading remote backups…';
+  if (refresh) { refresh.disabled = true; refresh.textContent = t('backups.refreshing'); }
+  if (selection) selection.textContent = t('backups.loading_remote');
   try {
     const response = await fetch('/api/backup/webdav/backups');
     const data = await _webdavResponseJson(response);
-    if (!response.ok) throw new Error(_webdavError(data, 'could not load remote backups'));
+    if (!response.ok) throw new Error(_webdavError(data, t('backups.load_remote_failed')));
     if (generation !== _webdavListGeneration || !isCurrent()) return;
     renderWebdavBackups(webdavBackupsFromResponse(data));
-    if (announce) toast('remote backups refreshed', 'success');
+    if (announce) toast(t('backups.remote_refreshed'), 'success');
   } catch (error) {
     if (generation !== _webdavListGeneration || !isCurrent()) return;
     renderWebdavBackups([]);
-    if (selection) selection.textContent = error.message || 'could not load remote backups';
-    if (announce) toast(error.message || 'could not load remote backups', 'error');
+    if (selection) selection.textContent = error.message || t('backups.load_remote_failed');
+    if (announce) toast(error.message || t('backups.load_remote_failed'), 'error');
   } finally {
-    if (generation === _webdavListGeneration && refresh) { refresh.disabled = _webdavMutationPending || !_webdavConfigured; refresh.textContent = 'refresh backups'; }
+    if (generation === _webdavListGeneration && refresh) { refresh.disabled = _webdavMutationPending || !_webdavConfigured; refresh.textContent = t('backups.refresh'); }
   }
 }
 
@@ -313,7 +314,7 @@ function renderWebdavBackups(backups) {
   if (!select) return;
   const previous = select.value;
   if (!backups.length) {
-    populateDropdown(select, [{ value: '', label: 'no remote backups found' }], '');
+    populateDropdown(select, [{ value: '', label: t('backups.none_found') }], '');
     select.disabled = true;
   } else {
     populateDropdown(select, backups.map(backup => ({ value: backup.filename, label: backup.filename })),
@@ -330,7 +331,7 @@ function renderWebdavSelection() {
   _setWebdavMutationPending(_webdavMutationPending);
   if (!label) return;
   if (!selected) {
-    label.textContent = _webdavConfigured ? 'no remote backups yet.' : 'connect WebDAV to list backups.';
+    label.textContent = _webdavConfigured ? t('backups.none_yet') : t('backups.webdav_connect_to_list');
     return;
   }
   const details = [selected.filename];
@@ -353,26 +354,26 @@ async function restoreWebdavBackup() {
   form.append('filename', filename);
   if (keyFile) form.append('recovery_key', keyFile, keyFile.name);
   _setWebdavMutationPending(true);
-  if (status) { status.hidden = false; status.textContent = 'downloading, verifying, and staging…'; }
-  if (button) { button.disabled = true; button.textContent = 'staging…'; }
+  if (status) { status.hidden = false; status.textContent = t('backups.staging_remote'); }
+  if (button) { button.disabled = true; button.textContent = t('backups.staging'); }
   try {
     const response = await _fetchWithRecentOwner('/api/backup/webdav/restore', { method: 'POST', body: form });
     const data = await _webdavResponseJson(response);
-    if (!response.ok) throw new Error(_webdavError(data, 'remote backup could not be staged'));
+    if (!response.ok) throw new Error(_webdavError(data, t('backups.remote_stage_failed')));
     if (data?.status !== 'staged' || typeof data?.restore_id !== 'string' || !/^[0-9a-f]{32}$/.test(data.restore_id)) {
-      throw new Error('could not verify the backup response');
+      throw new Error(t('backups.verify_response_failed'));
     }
     const command = `alles restore apply ${data.restore_id}`;
-    if (status) status.textContent = `verified and staged. live data is unchanged. stop Alles, then run: ${command}`;
-    toast('remote backup verified and staged', 'success');
+    if (status) status.textContent = t('backups.staged_run', { command });
+    toast(t('backups.remote_staged'), 'success');
   } catch (error) {
-    if (status) status.textContent = error.message || 'remote backup could not be staged';
-    toast(error.message || 'remote backup could not be staged', 'error');
+    if (status) status.textContent = error.message || t('backups.remote_stage_failed');
+    toast(error.message || t('backups.remote_stage_failed'), 'error');
   } finally {
     _setWebdavMutationPending(false);
     if (keyInput) keyInput.value = '';
     const keyName = document.getElementById('webdav-backup-recovery-key-name');
-    if (keyName) keyName.textContent = 'no separate key selected';
+    if (keyName) keyName.textContent = t('backups.no_key_selected');
   }
 }
 
@@ -423,17 +424,17 @@ export function s3BackupConfigPayload(
   const styleValue = String(addressingStyle || 'path');
   const accessKeyValue = String(accessKeyId || '');
   const secretValue = String(secretAccessKey || '');
-  if (!endpointValue) throw new Error('add the S3 https endpoint');
+  if (!endpointValue) throw new Error(t('backups.s3_endpoint_required'));
   let parsed;
-  try { parsed = new URL(endpointValue); } catch { throw new Error('enter a valid S3 endpoint'); }
-  if (parsed.protocol !== 'https:') throw new Error('the S3 endpoint must use https');
-  if (parsed.username || parsed.password) throw new Error('keep S3 credentials out of the endpoint');
-  if (parsed.search || parsed.hash) throw new Error('the S3 endpoint cannot include a query or fragment');
-  if (!regionValue) throw new Error('add the S3 region');
-  if (!bucketValue) throw new Error('add the existing S3 bucket');
-  if (!['path', 'virtual'].includes(styleValue)) throw new Error('choose path or virtual addressing');
-  if (!!accessKeyValue !== !!secretValue) throw new Error('enter both S3 credentials together');
-  if (!accessKeyValue && !hasSavedCredentials) throw new Error('add the S3 credential pair');
+  try { parsed = new URL(endpointValue); } catch { throw new Error(t('backups.s3_endpoint_invalid')); }
+  if (parsed.protocol !== 'https:') throw new Error(t('backups.s3_endpoint_https'));
+  if (parsed.username || parsed.password) throw new Error(t('backups.s3_endpoint_credentials'));
+  if (parsed.search || parsed.hash) throw new Error(t('backups.s3_endpoint_query'));
+  if (!regionValue) throw new Error(t('backups.s3_region_required'));
+  if (!bucketValue) throw new Error(t('backups.s3_bucket_required'));
+  if (!['path', 'virtual'].includes(styleValue)) throw new Error(t('backups.s3_addressing_required'));
+  if (!!accessKeyValue !== !!secretValue) throw new Error(t('backups.s3_credentials_pair'));
+  if (!accessKeyValue && !hasSavedCredentials) throw new Error(t('backups.s3_credentials_required'));
   const result = {
     endpoint: parsed.toString(),
     region: regionValue,
@@ -468,17 +469,18 @@ export function s3BackupsFromResponse(payload = {}) {
 }
 
 function _formatS3Time(value) {
-  if (!value) return 'never';
+  if (!value) return t('common.never');
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'unknown' : formatDateTime(date);
+  return Number.isNaN(date.getTime()) ? t('common.unknown') : formatDateTime(date);
 }
 
 function _formatS3Bytes(value) {
   if (!Number.isFinite(value) || value < 0) return '';
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  const size = (number, digits = 1) => formatNumber(number, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false });
+  if (value < 1024) return t('backups.size_bytes', { size: size(value, 0) });
+  if (value < 1024 * 1024) return t('backups.size_kb', { size: size(value / 1024) });
+  if (value < 1024 * 1024 * 1024) return t('backups.size_mb', { size: size(value / (1024 * 1024)) });
+  return t('backups.size_gb', { size: size(value / (1024 * 1024 * 1024)) });
 }
 
 async function _s3ResponseJson(response) {
@@ -507,21 +509,21 @@ function _setS3MutationPending(pending) {
   const save = document.getElementById('s3-backup-save-btn');
   if (save) {
     save.disabled = pending;
-    if (!pending) save.textContent = _s3Configured ? 'save connection' : 'connect and save';
+    if (!pending) save.textContent = _s3Configured ? t('backups.save_connection') : t('backups.connect_and_save');
   }
   const disconnect = document.getElementById('s3-backup-disconnect-btn');
   if (disconnect) disconnect.disabled = pending || disconnect.hidden;
   const run = document.getElementById('s3-backup-run-btn');
   if (run) {
     run.disabled = pending || !_s3Configured;
-    if (!pending) run.textContent = 'back up now';
+    if (!pending) run.textContent = t('backups.back_up_now');
   }
   const select = document.getElementById('s3-backup-list');
   if (select) select.disabled = pending || !_s3Configured || !_s3Backups.length;
   const restore = document.getElementById('s3-backup-restore-btn');
   if (restore) {
     restore.disabled = pending || !_s3Configured || !_s3Backups.some(backup => backup.filename === select?.value);
-    if (!pending) restore.textContent = 'verify and stage selected restore';
+    if (!pending) restore.textContent = t('backups.verify_stage_restore');
   }
   const refresh = document.getElementById('s3-backup-refresh-btn');
   if (refresh) refresh.disabled = pending || !_s3Configured;
@@ -557,7 +559,7 @@ function _applyS3Config(config, keepDraft = false) {
   const disconnect = document.getElementById('s3-backup-disconnect-btn');
   if (disconnect) {
     disconnect.hidden = !config.configured && !config.error;
-    disconnect.textContent = config.error ? 'remove broken settings' : 'disconnect';
+    disconnect.textContent = config.error ? t('backups.remove_broken_settings') : t('common.disconnect');
   }
   _setS3MutationPending(_s3MutationPending);
   const refresh = document.getElementById('s3-backup-refresh-btn');
@@ -568,7 +570,7 @@ function _applyS3Config(config, keepDraft = false) {
   if (lastVerified) lastVerified.textContent = _formatS3Time(config.last_verified_at);
   if (!_s3MutationPending) {
     if (config.error) _setS3Status(config.error, 'error');
-    else _setS3Status(updateFields ? (config.configured ? 'connected' : 'not connected') : 'unsaved connection changes kept here', updateFields && config.configured ? 'success' : '');
+    else _setS3Status(updateFields ? (config.configured ? t('common.connected') : t('common.not_connected')) : t('backups.unsaved_kept'), updateFields && config.configured ? 'success' : '');
   }
   if (!config.configured) renderS3Backups([]);
 }
@@ -577,11 +579,11 @@ async function loadS3Backup(isCurrent = () => true) {
   if (!document.getElementById('s3-backup-card')) return;
   if (_s3MutationPending) { _s3DeferredListLoad = isCurrent; return; }
   const generation = ++_s3LoadGeneration;
-  _setS3Status('checking connection…');
+  _setS3Status(t('backups.checking_connection'));
   try {
     const response = await fetch('/api/backup/s3');
     const data = await _s3ResponseJson(response);
-    if (!response.ok) throw new Error(_s3Error(data, 'could not check S3'));
+    if (!response.ok) throw new Error(_s3Error(data, t('backups.s3_check_failed')));
     if (generation !== _s3LoadGeneration || !isCurrent()) return;
     const config = normalizeS3BackupConfig(data);
     _applyS3Config(config, true);
@@ -590,7 +592,7 @@ async function loadS3Backup(isCurrent = () => true) {
     if (generation !== _s3LoadGeneration || !isCurrent()) return;
     _s3Configured = false;
     _s3CredentialsSet = false;
-    _setS3Status(error.message || 'could not check S3', 'error');
+    _setS3Status(error.message || t('backups.s3_check_failed'), 'error');
     renderS3Backups([]);
   }
 }
@@ -629,8 +631,8 @@ async function saveS3Backup() {
   if (accessKey) accessKey.value = '';
   if (secretKey) secretKey.value = '';
   _setS3MutationPending(true);
-  if (button) button.textContent = 'checking…';
-  _setS3Status('creating and removing a probe object…');
+  if (button) button.textContent = t('backups.checking');
+  _setS3Status(t('backups.s3_probing'));
   try {
     const response = await _fetchWithRecentOwner('/api/backup/s3', {
       method: 'PUT',
@@ -638,18 +640,18 @@ async function saveS3Backup() {
       body: JSON.stringify(payload),
     });
     const data = await _s3ResponseJson(response);
-    if (!response.ok) throw new Error(_s3Error(data, 'S3 connection was not saved', [accessKeyValue, secretValue]));
+    if (!response.ok) throw new Error(_s3Error(data, t('backups.s3_not_saved'), [accessKeyValue, secretValue]));
     const config = normalizeS3BackupConfig(data);
     if (revision === _s3DraftRevision) _s3Dirty = false;
     _applyS3Config(config, true);
-    toast('S3 connection saved', 'success');
+    toast(t('backups.s3_saved'), 'success');
     const isCurrent = _s3DeferredListLoad || (() => true);
     _s3DeferredListLoad = null;
     await loadS3Backups(false, isCurrent);
-    _setS3Status(_s3Dirty ? 'saved; newer connection edits kept here' : 'connected and saved', 'success');
+    _setS3Status(_s3Dirty ? t('backups.saved_newer_kept') : t('backups.connected_and_saved'), 'success');
   } catch (error) {
-    _setS3Status(error.message || 'S3 connection was not saved', 'error');
-    toast(error.message || 'S3 connection was not saved', 'error');
+    _setS3Status(error.message || t('backups.s3_not_saved'), 'error');
+    toast(error.message || t('backups.s3_not_saved'), 'error');
   } finally {
     _setS3MutationPending(false);
   }
@@ -657,24 +659,24 @@ async function saveS3Backup() {
 
 async function disconnectS3Backup() {
   if (_s3MutationPending) return;
-  if (!await _dlgConfirm('disconnect S3 backup? remote backups will stay in the bucket.')) return;
+  if (!await _dlgConfirm(t('backups.s3_disconnect_confirm'))) return;
   if (_s3MutationPending) return;
   const revision = _s3DraftRevision;
   _setS3MutationPending(true);
-  _setS3Status('disconnecting…');
+  _setS3Status(t('common.disconnecting'));
   try {
     const response = await _fetchWithRecentOwner('/api/backup/s3', { method: 'DELETE' });
     const data = await _s3ResponseJson(response);
-    if (!response.ok) throw new Error(_s3Error(data, 'S3 could not be disconnected'));
+    if (!response.ok) throw new Error(_s3Error(data, t('backups.s3_disconnect_failed')));
     _s3LoadGeneration += 1;
     _s3ListGeneration += 1;
     if (revision === _s3DraftRevision) _s3Dirty = false;
     _applyS3Config(normalizeS3BackupConfig({}), true);
-    _setS3Status(_s3Dirty ? 'unsaved connection changes kept here' : 'not connected');
-    toast('S3 disconnected', 'success');
+    _setS3Status(_s3Dirty ? t('backups.unsaved_kept') : t('common.not_connected'));
+    toast(t('backups.s3_disconnected'), 'success');
   } catch (error) {
-    _setS3Status(error.message || 'S3 could not be disconnected', 'error');
-    toast(error.message || 'S3 could not be disconnected', 'error');
+    _setS3Status(error.message || t('backups.s3_disconnect_failed'), 'error');
+    toast(error.message || t('backups.s3_disconnect_failed'), 'error');
   } finally {
     _setS3MutationPending(false);
   }
@@ -684,12 +686,12 @@ async function runS3Backup() {
   if (_s3MutationPending || !_s3Configured) return;
   _setS3MutationPending(true);
   const button = document.getElementById('s3-backup-run-btn');
-  if (button) button.textContent = 'backing up…';
-  _setS3Status('creating and copying encrypted backup…');
+  if (button) button.textContent = t('backups.backing_up');
+  _setS3Status(t('backups.s3_copying'));
   try {
     const response = await _fetchWithRecentOwner('/api/backup/s3/run', { method: 'POST' });
     const data = await _s3ResponseJson(response);
-    if (!response.ok) throw new Error(_s3Error(data, 'S3 backup failed'));
+    if (!response.ok) throw new Error(_s3Error(data, t('backups.s3_backup_failed')));
     const lastSuccess = document.getElementById('s3-backup-last-success');
     if (lastSuccess) lastSuccess.textContent = _formatS3Time(data.last_backup_at);
     const lastVerified = document.getElementById('s3-backup-last-verified');
@@ -697,14 +699,14 @@ async function runS3Backup() {
       lastVerified.textContent = _formatS3Time(data.last_verified_at || data.completed_at || data.last_backup_at);
     }
     const warning = String(data.status_warning || '');
-    toast(warning || 'S3 backup complete', warning ? '' : 'success', warning ? 6000 : 3000);
+    toast(warning || t('backups.s3_backup_complete'), warning ? '' : 'success', warning ? 6000 : 3000);
     const isCurrent = _s3DeferredListLoad || (() => true);
     _s3DeferredListLoad = null;
     await loadS3Backups(false, isCurrent);
-    _setS3Status(warning || 'backup copied and verified by read-back', warning ? '' : 'success');
+    _setS3Status(warning || t('backups.s3_copied_verified'), warning ? '' : 'success');
   } catch (error) {
-    _setS3Status(error.message || 'S3 backup failed', 'error');
-    toast(error.message || 'S3 backup failed', 'error');
+    _setS3Status(error.message || t('backups.s3_backup_failed'), 'error');
+    toast(error.message || t('backups.s3_backup_failed'), 'error');
   } finally {
     _setS3MutationPending(false);
   }
@@ -718,22 +720,22 @@ async function loadS3Backups(announce = false, isCurrent = () => true) {
     renderS3Backups([]);
     return;
   }
-  if (refresh) { refresh.disabled = true; refresh.textContent = 'refreshing…'; }
-  if (selection) selection.textContent = 'loading remote backups…';
+  if (refresh) { refresh.disabled = true; refresh.textContent = t('backups.refreshing'); }
+  if (selection) selection.textContent = t('backups.loading_remote');
   try {
     const response = await fetch('/api/backup/s3/backups');
     const data = await _s3ResponseJson(response);
-    if (!response.ok) throw new Error(_s3Error(data, 'could not load remote backups'));
+    if (!response.ok) throw new Error(_s3Error(data, t('backups.load_remote_failed')));
     if (generation !== _s3ListGeneration || !isCurrent()) return;
     renderS3Backups(s3BackupsFromResponse(data));
-    if (announce) toast('remote backups refreshed', 'success');
+    if (announce) toast(t('backups.remote_refreshed'), 'success');
   } catch (error) {
     if (generation !== _s3ListGeneration || !isCurrent()) return;
     renderS3Backups([]);
-    if (selection) selection.textContent = error.message || 'could not load remote backups';
-    if (announce) toast(error.message || 'could not load remote backups', 'error');
+    if (selection) selection.textContent = error.message || t('backups.load_remote_failed');
+    if (announce) toast(error.message || t('backups.load_remote_failed'), 'error');
   } finally {
-    if (generation === _s3ListGeneration && refresh) { refresh.disabled = _s3MutationPending || !_s3Configured; refresh.textContent = 'refresh backups'; }
+    if (generation === _s3ListGeneration && refresh) { refresh.disabled = _s3MutationPending || !_s3Configured; refresh.textContent = t('backups.refresh'); }
   }
 }
 
@@ -743,7 +745,7 @@ function renderS3Backups(backups) {
   if (!select) return;
   const previous = select.value;
   if (!backups.length) {
-    populateDropdown(select, [{ value: '', label: 'no remote backups found' }], '');
+    populateDropdown(select, [{ value: '', label: t('backups.none_found') }], '');
     select.disabled = true;
   } else {
     populateDropdown(select, backups.map(backup => ({ value: backup.filename, label: backup.filename })),
@@ -760,7 +762,7 @@ function renderS3Selection() {
   _setS3MutationPending(_s3MutationPending);
   if (!label) return;
   if (!selected) {
-    label.textContent = _s3Configured ? 'no remote backups yet.' : 'connect S3 to list backups.';
+    label.textContent = _s3Configured ? t('backups.none_yet') : t('backups.s3_connect_to_list');
     return;
   }
   const details = [selected.filename];
@@ -783,27 +785,40 @@ async function restoreS3Backup() {
   form.append('filename', filename);
   if (keyFile) form.append('recovery_key', keyFile, keyFile.name);
   _setS3MutationPending(true);
-  if (status) { status.hidden = false; status.textContent = 'downloading, verifying, and staging…'; }
-  if (button) { button.disabled = true; button.textContent = 'staging…'; }
+  if (status) { status.hidden = false; status.textContent = t('backups.staging_remote'); }
+  if (button) { button.disabled = true; button.textContent = t('backups.staging'); }
   try {
     const response = await _fetchWithRecentOwner('/api/backup/s3/restore', { method: 'POST', body: form });
     const data = await _s3ResponseJson(response);
-    if (!response.ok) throw new Error(_s3Error(data, 'remote backup could not be staged'));
+    if (!response.ok) throw new Error(_s3Error(data, t('backups.remote_stage_failed')));
     if (data?.status !== 'staged' || typeof data?.restore_id !== 'string' || !/^[0-9a-f]{32}$/.test(data.restore_id)) {
-      throw new Error('could not verify the backup response');
+      throw new Error(t('backups.verify_response_failed'));
     }
     const command = `alles restore apply ${data.restore_id}`;
-    if (status) status.textContent = `verified and staged. live data is unchanged. stop Alles, then run: ${command}`;
-    toast('remote backup verified and staged', 'success');
+    if (status) status.textContent = t('backups.staged_run', { command });
+    toast(t('backups.remote_staged'), 'success');
   } catch (error) {
-    if (status) status.textContent = error.message || 'remote backup could not be staged';
-    toast(error.message || 'remote backup could not be staged', 'error');
+    if (status) status.textContent = error.message || t('backups.remote_stage_failed');
+    toast(error.message || t('backups.remote_stage_failed'), 'error');
   } finally {
     _setS3MutationPending(false);
     if (keyInput) keyInput.value = '';
     const keyName = document.getElementById('s3-backup-recovery-key-name');
-    if (keyName) keyName.textContent = 'no separate key selected';
+    if (keyName) keyName.textContent = t('backups.no_key_selected');
   }
+}
+
+// the wizard's step ids, read the way the status line always showed them
+function _setupStepLabel(step) {
+  const labels = {
+    basics: t('backups.setup_step_basics'),
+    access: t('backups.setup_step_access'),
+    files: t('backups.setup_step_files'),
+    ai_search: t('backups.setup_step_ai_search'),
+    protection: t('backups.setup_step_protection'),
+    done: t('backups.setup_step_done'),
+  };
+  return labels[step] || String(step).replace('_', ' + ');
 }
 
 async function loadSetupStatus(isCurrent) {
@@ -819,14 +834,14 @@ async function loadSetupStatus(isCurrent) {
     if (generation !== _setupLoadGeneration || !isCurrent()) return;
     const setup = data.setup || {};
     status.textContent = setup.completed
-      ? 'setup is complete. open it to review the saved summary.'
+      ? t('backups.setup_complete')
       : setup.dismissed
-        ? 'setup is paused. your saved steps are still here.'
-        : `setup is in progress at ${String(setup.next_step || 'basics').replace('_', ' + ')}.`;
-    button.textContent = setup.completed ? 'review setup' : 'resume setup';
+        ? t('backups.setup_paused')
+        : t('backups.setup_in_progress', { step: _setupStepLabel(setup.next_step || 'basics') });
+    button.textContent = setup.completed ? t('backups.review_setup') : t('backups.resume_setup');
   } catch {
     if (generation !== _setupLoadGeneration || !isCurrent()) return;
-    status.textContent = 'setup status could not be loaded.';
+    status.textContent = t('backups.setup_status_failed');
   }
 }
 
@@ -837,14 +852,14 @@ function _wireBackupsPane(closeSettings) {
       if (!['webdav-backup-url', 'webdav-backup-username', 'webdav-backup-password'].includes(event.target.id)) return;
       _webdavDirty = true;
       _webdavDraftRevision += 1;
-      if (!_webdavMutationPending) _setWebdavStatus('connection changes not saved');
+      if (!_webdavMutationPending) _setWebdavStatus(t('backups.changes_not_saved'));
     });
     document.getElementById('s3-backup-card')?.addEventListener(type, event => {
       if (!['s3-backup-endpoint', 's3-backup-region', 's3-backup-bucket', 's3-backup-prefix',
         's3-backup-addressing-style', 's3-backup-access-key-id', 's3-backup-secret-access-key'].includes(event.target.id)) return;
       _s3Dirty = true;
       _s3DraftRevision += 1;
-      if (!_s3MutationPending) _setS3Status('connection changes not saved');
+      if (!_s3MutationPending) _setS3Status(t('backups.changes_not_saved'));
     });
   }
 
@@ -868,7 +883,7 @@ function _wireBackupsPane(closeSettings) {
   keyButton?.addEventListener('click', () => keyInput?.click());
   document.getElementById('backup-recovery-key-input')?.addEventListener('change', e => {
     const name = document.getElementById('backup-recovery-key-name');
-    if (name) name.textContent = e.target.files[0]?.name || 'no separate key selected';
+    if (name) name.textContent = e.target.files[0]?.name || t('backups.no_key_selected');
   });
   restoreInput?.addEventListener('change', async () => {
     const file = restoreInput.files[0];
@@ -882,43 +897,43 @@ function _wireBackupsPane(closeSettings) {
     const showStatus = text => {
       if (status) { status.hidden = false; status.textContent = text; }
     };
-    showStatus('checking backup…');
+    showStatus(t('backups.checking_backup'));
     const fd = new FormData(); fd.append('file', file);
     if (keyInput?.files[0]) fd.append('recovery_key', keyInput.files[0]);
     const send = async () => {
       const response = await fetch('/api/backup/restore', { method: 'POST', body: fd });
       let data;
       try { data = await response.json(); }
-      catch { throw new Error('could not read the backup response'); }
+      catch { throw new Error(t('backups.read_response_failed')); }
       return { response, data };
     };
     try {
       let { response, data } = await send();
       if (response.status === 403 && data?.code === 'recent_auth_required') {
-        showStatus('confirm your Alles password to check this backup.');
+        showStatus(t('backups.confirm_password'));
         if (!await _confirmRecentOwner()) {
-          showStatus('backup check canceled: password confirmation was not completed. choose a backup file to try again.');
+          showStatus(t('backups.check_canceled'));
           return;
         }
-        showStatus('checking backup…');
+        showStatus(t('backups.checking_backup'));
         ({ response, data } = await send());
       }
-      if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : 'backup check failed');
+      if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : t('backups.check_failed'));
       if (data?.status !== 'staged' || !/^[0-9a-f]{32}$/.test(data?.restore_id || '')) {
-        throw new Error('could not verify the backup response');
+        throw new Error(t('backups.verify_response_failed'));
       }
       const command = data.apply_command || `alles restore apply ${data.restore_id}`;
-      showStatus(`verified and staged. live data is unchanged. stop Alles, then run: ${command}`);
-      toast('backup verified and staged', 'success');
+      showStatus(t('backups.staged_run', { command }));
+      toast(t('backups.backup_staged'), 'success');
     } catch (error) {
-      const message = error instanceof TypeError ? 'connection lost while checking the backup' : error.message || 'backup check failed';
-      showStatus(`${message}. choose a backup file to try again.`);
+      const message = error instanceof TypeError ? t('backups.connection_lost') : error.message || t('backups.check_failed');
+      showStatus(t('backups.try_again', { message }));
       toast(message, 'error');
     } finally {
       restoreInput.value = '';
       if (keyInput) keyInput.value = '';
       const keyName = document.getElementById('backup-recovery-key-name');
-      if (keyName) keyName.textContent = 'no separate key selected';
+      if (keyName) keyName.textContent = t('backups.no_key_selected');
       checkingBackup = false;
       controls.forEach(control => { control.disabled = false; });
       restoreButton?.removeAttribute('aria-busy');
@@ -935,7 +950,7 @@ function _wireBackupsPane(closeSettings) {
   });
   document.getElementById('webdav-backup-recovery-key')?.addEventListener('change', event => {
     const label = document.getElementById('webdav-backup-recovery-key-name');
-    if (label) label.textContent = event.target.files[0]?.name || 'no separate key selected';
+    if (label) label.textContent = event.target.files[0]?.name || t('backups.no_key_selected');
   });
   document.getElementById('webdav-backup-restore-btn')?.addEventListener('click', restoreWebdavBackup);
   document.getElementById('s3-backup-save-btn')?.addEventListener('click', saveS3Backup);
@@ -948,7 +963,7 @@ function _wireBackupsPane(closeSettings) {
   });
   document.getElementById('s3-backup-recovery-key')?.addEventListener('change', event => {
     const label = document.getElementById('s3-backup-recovery-key-name');
-    if (label) label.textContent = event.target.files[0]?.name || 'no separate key selected';
+    if (label) label.textContent = event.target.files[0]?.name || t('backups.no_key_selected');
   });
   document.getElementById('s3-backup-restore-btn')?.addEventListener('click', restoreS3Backup);
 
@@ -970,7 +985,7 @@ export function createBackupPane(closeSettings) {
         const refresh = document.getElementById(`${kind}-backup-refresh-btn`);
         if (refresh) {
           refresh.disabled = kind === 'webdav' ? _webdavMutationPending || !_webdavConfigured : _s3MutationPending || !_s3Configured;
-          refresh.textContent = 'refresh backups';
+          refresh.textContent = t('backups.refresh');
         }
       }
     },

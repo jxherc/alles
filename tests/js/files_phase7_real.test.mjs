@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
+import { t, tp } from '../../static/js/i18n.js';
+
 const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
 const files = readFileSync(new URL('../../static/js/filesphase7.js', import.meta.url), 'utf8');
@@ -31,7 +33,7 @@ function locationFocusHarness() {
   };
   const source = files.match(/function renderLocations\(\) \{[\s\S]*?\n\}/)[0];
   const context = vm.createContext({
-    document, state, $: id => id === 'files-location-list' ? host : null,
+    t, document, state, $: id => id === 'files-location-list' ? host : null,
     esc: value => String(value), locationIcon: () => '',
   });
   vm.runInContext(source + '\nglobalThis.render = renderLocations;', context);
@@ -286,7 +288,7 @@ test('the real Files screen uses the Phase 7 multi-location workbench', () => {
   ]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
   }
-  assert.match(app, /from '\.\/filesphase7\.js\?v=486'/);
+  assert.match(app, /from '\.\/filesphase7\.js\?v=487'/);
   assert.doesNotMatch(html.match(/id="files-view"[\s\S]*?<\/div>\s*\n\s*<!-- ── mail view/)[0], /<select\b|type="(?:checkbox|radio)"/i);
 });
 
@@ -298,8 +300,10 @@ test('Files exposes the reviewed external Obsidian vault workflow', () => {
   assert.match(files, /\/api\/vault-transfer\/import\/preview/);
   assert.match(files, /\/api\/vault-transfer\/import/);
   assert.match(files, /\/api\/vault-transfer\/\$\{encodeURIComponent\(vaultTransferId\)\}\/rollback/);
-  assert.match(files, /the vault change was rolled back/);
-  assert.match(files, /relative links and file bytes stay unchanged/);
+  assert.match(files, /t\('files\.vault_rolled_back', \{ error: message \}\)/);
+  assert.match(t('files.vault_rolled_back', { error: 'copy failed' }), /^copy failed\. the vault change was rolled back$/);
+  assert.match(files, /t\('files\.vault_links_unchanged'\)/);
+  assert.equal(t('files.vault_links_unchanged'), 'relative links and file bytes stay unchanged');
   assert.match(files, /preview\.required_bytes/);
   assert.match(css, /\.files-choice-field\[hidden\] \{ display: none; \}/);
   assert.doesNotMatch(view, /type="(?:checkbox|radio)"/i);
@@ -390,7 +394,8 @@ test('cached descendants cannot create overlapping offline requests', () => {
 test('existing offline copies expose separate refresh and remove actions', () => {
   const details = files.match(/function renderDetails\(item\)[\s\S]*?\n}\n\nfunction closeDetails/)?.[0] || '';
   assert.match(details, /data-detail-action="offline-refresh"/);
-  assert.match(details, /refresh offline copy/);
+  assert.match(details, /data-detail-action="offline-refresh">\$\{t\('files\.offline_refresh'\)\}/);
+  assert.equal(t('files.offline_refresh'), 'refresh offline copy');
   assert.match(details, /data-detail-action="offline-remove"/);
   const setOffline = files.match(/async function setOffline\(item[^)]*\)[\s\S]*?\n}\n\nasync function keepItemsOffline/)?.[0] || '';
   assert.match(setOffline, /action === 'remove'/);
@@ -556,7 +561,7 @@ test('Files preview focus trap includes interactive media and embedded documents
 
 test('Files reports every part of a mixed Photos import', () => {
   const source = files.match(/function photosImportMessage\(result\)[\s\S]*?\n}/)[0];
-  const message = Function(`return (${source.replace(/^function photosImportMessage/, 'function')})`)();
+  const message = Function('t', 'tp', `return (${source.replace(/^function photosImportMessage/, 'function')})`)(t, tp);
   assert.equal(
     message({ imported: 1, skipped: 1, ignored: 1, failed: [{ error: 'broken' }] }),
     '1 item sent to Photos · 1 already there · 1 unsupported file skipped · 1 failed',
@@ -672,7 +677,7 @@ test('Files version results and failures cannot repaint a superseded detail', as
       let finish;
       const pending = new Promise((resolve, reject) => { finish = outcome === 'resolve' ? resolve : reject; });
       const context = vm.createContext({
-        state: { current: {}, locationId: 'original' }, detailSequence: 7,
+        t, state: { current: {}, locationId: 'original' }, detailSequence: 7,
         $: id => id === 'files-detail-panel' ? panel : host,
         request: () => pending, query: () => '', esc: value => value,
       });
@@ -961,7 +966,7 @@ function filesViewportHarness(options = {}) {
       return body;
     }).join('\n');
   const context = vm.createContext({
-    $: id => nodes[id], document, state: { selected },
+    tp, $: id => nodes[id], document, state: { selected },
     innerHeight: options.innerHeight || 450,
     getComputedStyle: element => styles.get(element),
     applyWriteState: () => { writeStateCalls += 1; },

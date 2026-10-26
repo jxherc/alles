@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/compare.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -29,7 +30,7 @@ function harness(response = async () => ({ ok: true, json: async () => ({ compar
     removeEventListener(name, callback) { assert.equal(name, 'focusin'); listeners.delete(callback); },
     focus(node) { this.activeElement = node; for (const listener of listeners) listener({ target: node }); },
   };
-  const context = vm.createContext({ document, window: {}, toast: (...args) => messages.push(args),
+  const context = vm.createContext({ t: i18nT, tp: i18nTp, document, window: {}, toast: (...args) => messages.push(args),
     fetch: async (...args) => { calls.push(args); return response(...args); } });
   vm.runInContext(source + '\nglobalThis.initialize = initCompareView;', context);
   context.initialize();

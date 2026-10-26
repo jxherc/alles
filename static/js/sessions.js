@@ -3,20 +3,20 @@ import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
-import { isIncognitoMode } from './modes.js?v=256';
+import { isIncognitoMode } from './modes.js?v=257';
 import { scrollToLatest } from './scrollfollow.js';
 import {
   modelOverrideForNewSession,
   restoreSessionModel,
   selectAideDefault,
-} from './models.js?v=213';
-import { t } from './i18n.js';
+} from './models.js?v=214';
+import { t, tp } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { loadAnswerNoteRecovery, reconcileAnswerNote } from './answer_note.js';
 import { loadAnswerTaskRecovery } from './answer_task.js';
-import { createMenuController } from './kokuen.js';
+import { createMenuController } from './kokuen.js?v=4';
 import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
-import { compactResponseActions } from './response_actions.js?v=2';
+import { compactResponseActions } from './response_actions.js?v=3';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
@@ -92,8 +92,8 @@ function renderSessionLoadState() {
     return;
   }
   message.textContent = _sessionLoadState === 'loading'
-    ? (_sessionsLoaded ? 'refreshing aide tasks…' : 'loading aide tasks…')
-    : (_sessionsLoaded ? 'could not refresh aide tasks. showing the last loaded list.' : 'could not load aide tasks. retry to see your saved work.');
+    ? (_sessionsLoaded ? t('aide.tasks_refreshing') : t('aide.tasks_loading'))
+    : (_sessionsLoaded ? t('aide.tasks_refresh_failed') : t('aide.tasks_load_failed'));
   if (_sessionLoadState === 'error') retry.hidden = false;
   retry.setAttribute('aria-disabled', String(_sessionLoadState === 'loading'));
   retry.onclick = () => { if (_sessionLoadState !== 'loading') void loadSessions(); };
@@ -154,7 +154,7 @@ function writeDraft(id, text, scope, reportFailure = true) {
     try { localStorage.removeItem(_legacyDraftKey(id)); } catch {}
     return true;
   } catch {
-    if (reportFailure && !_draftStorageWarned) toast('could not keep this draft for reload. keep this tab open.', 'error');
+    if (reportFailure && !_draftStorageWarned) toast(t('aide.draft_keep_failed'), 'error');
     if (reportFailure) _draftStorageWarned = true;
     return false;
   }
@@ -187,7 +187,7 @@ export function restoreDraft(id) {
     if (!draft || typeof draft.text !== 'string') throw new Error('invalid draft');
   } catch {
     draft = { text: '', document_scope: null };
-    toast('could not restore this browser draft. keep any other open copy.', 'error');
+    toast(t('aide.draft_restore_failed'), 'error');
   }
   ta.value = draft.text;
   window._setAideDocumentScope?.(draft.document_scope || null);
@@ -235,7 +235,7 @@ function clearStoredDraft(owner) {
     _draftStorageWarned = false;
     return true;
   } catch {
-    toast('could not clear the saved draft. check it before sending again.', 'error');
+    toast(t('aide.draft_clear_failed'), 'error');
     return false;
   }
 }
@@ -300,7 +300,7 @@ export function renderSidebar(filter = '') {
   }
 
   if (!src.length) {
-    const empty = fl ? (archive ? 'no matching conversations' : t('aide.no_matching_tasks')) : archive ? 'no earlier conversations' : t('aide.no_tasks');
+    const empty = fl ? (archive ? t('aide.no_matching_conversations') : t('aide.no_matching_tasks')) : archive ? t('aide.no_earlier_conversations') : t('aide.no_tasks');
     list.innerHTML = `<div class="empty-sessions">${empty}</div>`;
     if (!fl && !archive) renderProjectFolders(_allSessions, selectSidebarSession, () => loadSessions());
     return;
@@ -364,21 +364,27 @@ async function selectSidebarSession(id) {
   return selected;
 }
 
+const GROUP_LABELS = {
+  today: () => t('aide.group_today'),
+  yesterday: () => t('aide.group_yesterday'),
+  earlier: () => t('aide.group_earlier'),
+};
+
 function renderGroup(label, items) {
-  return `<span class="section-label">${label}</span>` + items.map(s => renderItem(s)).join('');
+  return `<span class="section-label">${GROUP_LABELS[label]()}</span>` + items.map(s => renderItem(s)).join('');
 }
 
 function renderItem(s) {
   const starred  = s.starred   ? ' starred'   : '';
   const incog    = s.incognito ? ' incognito' : '';
-  const icon     = s.incognito ? '<span class="incognito-icon" title="incognito" aria-hidden="true"></span>' : '';
+  const icon     = s.incognito ? `<span class="incognito-icon" title="${escHtml(t('aide.incognito_label'))}" aria-hidden="true"></span>` : '';
   return `<div class="session-item${starred}${incog}" data-id="${s.id}" draggable="true">
-  <button type="button" class="session-open" aria-haspopup="menu" aria-current="${s.id === _activeId ? 'true' : 'false'}" aria-label="open session ${escHtml(s.name)}">
+  <button type="button" class="session-open" aria-haspopup="menu" aria-current="${s.id === _activeId ? 'true' : 'false'}" aria-label="${escHtml(t('aide.open_session', { name: s.name }))}">
     <span class="session-dot"></span>
-    ${icon}<span class="session-name">${escHtml(s.name)}</span>${s.starred ? `<span class="session-starred" title="starred">${_si('star-fill')}</span>` : ''}
+    ${icon}<span class="session-name">${escHtml(s.name)}</span>${s.starred ? `<span class="session-starred" title="${escHtml(t('aide.starred'))}">${_si('star-fill')}</span>` : ''}
   </button>
-  <button type="button" class="session-more" aria-haspopup="menu" aria-label="actions for ${escHtml(s.name)}">${_si('more')}</button>
-  <button type="button" class="star" title="${s.starred ? 'unstar' : 'star'}" aria-label="${s.starred ? 'unstar session' : 'star session'}"></button>
+  <button type="button" class="session-more" aria-haspopup="menu" aria-label="${escHtml(t('aide.session_actions', { name: s.name }))}">${_si('more')}</button>
+  <button type="button" class="star" title="${s.starred ? t('aide.unstar') : t('aide.star')}" aria-label="${s.starred ? t('aide.unstar_session') : t('aide.star_session')}"></button>
 </div>`;
 }
 
@@ -449,7 +455,7 @@ async function toggleSessionStar(id) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ starred: next }),
   });
-  if (!r.ok) { toast('star failed', 'error'); return; }
+  if (!r.ok) { toast(t('aide.star_failed'), 'error'); return; }
   s.starred = next;
   const grouped = [..._sessions.today, ..._sessions.yesterday, ..._sessions.earlier].find(x => x.id === id);
   if (grouped) grouped.starred = next;
@@ -524,9 +530,9 @@ export async function selectSession(id, messageId = '', options = {}) {
       window._refreshPersonaBtn?.();
     } catch (e) {}
     // Reattach durable Aide work to this same task after a reload or tab switch.
-    import('./aidebackground.js?v=245').then(m => m.reattachBackgroundWork(id)).catch(() => {});
+    import('./aidebackground.js?v=246').then(m => m.reattachBackgroundWork(id)).catch(() => {});
     if (messageId && !focusSessionMessage(messageId)) {
-      toast('the original reply is no longer available', 'error'); return false;
+      toast(t('aide.original_reply_gone'), 'error'); return false;
     }
     return true;
   } catch (e) {
@@ -632,7 +638,7 @@ function renderMessages(msgs) {
       // compact divider
       const div = document.createElement('div');
       div.className = 'compact-divider';
-      div.innerHTML = '<span>context compacted</span>';
+      div.innerHTML = `<span>${escHtml(t('aide.context_compacted'))}</span>`;
       container.appendChild(div);
     } else if (m.role === 'assistant') {
       const { row, wrap, body } = appendAiMsg(
@@ -654,8 +660,8 @@ function renderMessages(msgs) {
         if (actions) {
           const btn = document.createElement('button');
           btn.className = 'act-btn';
-          btn.textContent = 'open artifact';
-          btn.setAttribute('onclick', 'openArtifactFromMsg(this)');
+          btn.textContent = t('aide.open_artifact');
+          btn.dataset.msgAct = 'artifact';
           actions.appendChild(btn);
         }
       }
@@ -663,8 +669,8 @@ function renderMessages(msgs) {
       if (actions) {
         const bb = document.createElement('button');
         bb.className = 'act-btn msg-branch-btn';
-        bb.textContent = 'branch';
-        bb.title = 'branch a new aide task from here (keeps this one)';
+        bb.textContent = t('aide.branch_button');
+        bb.title = t('aide.branch_title');
         bb.dataset.msgId = m.id;
         actions.appendChild(bb);
       }
@@ -687,18 +693,18 @@ function appendResponseRecovery(target, message, latest = false, row = null) {
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   status.textContent = retryable
-    ? 'the model could not answer this question. check model settings, then retry the original request.'
+    ? t('aide.recovery_retryable')
     : recovery?.status === 'failed'
-    ? 'this response failed. review any partial answer and task activity before sending again.'
-    : 'no complete response was saved. review task activity before sending again.';
+    ? t('aide.recovery_failed')
+    : t('aide.recovery_none');
   const settings = document.createElement('button');
-  settings.type = 'button'; settings.className = 'btn'; settings.textContent = 'model settings';
+  settings.type = 'button'; settings.className = 'btn'; settings.textContent = t('aide.model_settings');
   settings.addEventListener('click', () => window._openSettings?.('models'));
   notice.append(status, settings);
   if (retryable) {
     const original = { ...request, session_id: _activeId, message: message.content, retry_message_id: message.id };
     const retry = document.createElement('button');
-    retry.type = 'button'; retry.className = 'btn aide-retry-response'; retry.textContent = 'retry response';
+    retry.type = 'button'; retry.className = 'btn aide-retry-response'; retry.textContent = t('aide.retry_response');
     retry.addEventListener('click', async () => {
       const { retrySavedResponse } = await import('./chat.js');
       retrySavedResponse(original, row);
@@ -712,12 +718,12 @@ function appendResponseRecovery(target, message, latest = false, row = null) {
 export function appendUserMsg(text, documentScope = null) {
   const { row } = _makeRow('user');
   row.innerHTML = `<div class="user-wrap">
-    ${documentScope?.path ? `<div class="user-context-scope">using note · ${escHtml(documentScope.path)}</div>` : ''}
-    ${documentScope?.documents ? `<details class="user-context-scope"><summary>selected notes only · ${documentScope.documents.length} note${documentScope.documents.length === 1 ? '' : 's'}</summary><ul tabindex="0" aria-label="selected source notes">${documentScope.documents.map(item => `<li>${escHtml(item.path)}</li>`).join('')}</ul></details>` : ''}
+    ${documentScope?.path ? `<div class="user-context-scope">${escHtml(t('aide.using_note_path', { path: documentScope.path }))}</div>` : ''}
+    ${documentScope?.documents ? `<details class="user-context-scope"><summary>${escHtml(tp('aide.selected_notes_summary', documentScope.documents.length))}</summary><ul tabindex="0" aria-label="${escHtml(t('aide.selected_source_notes'))}">${documentScope.documents.map(item => `<li>${escHtml(item.path)}</li>`).join('')}</ul></details>` : ''}
     <div class="user-bubble">${escHtml(text)}</div>
     <div class="user-actions">
-    <button class="msg-memory-btn" type="button" onclick="rememberUserMessage(this)" aria-label="remember this message">remember</button>
-    <button class="msg-edit-btn" type="button" title="edit" aria-label="edit message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
+    <button class="msg-memory-btn" type="button" data-msg-act="remember" aria-label="${escHtml(t('aide.remember_message'))}">${escHtml(t('aide.remember'))}</button>
+    <button class="msg-edit-btn" type="button" title="${escHtml(t('common.edit'))}" aria-label="${escHtml(t('aide.edit_message'))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
     </div>
   </div>`;
   // an edit or regenerate asks again with the same notes
@@ -730,7 +736,7 @@ export function appendUserMsg(text, documentScope = null) {
 }
 
 
-export function appendInterruptionNotice(target, text = 'response interrupted') {
+export function appendInterruptionNotice(target, text = t('aide.response_interrupted')) {
   const notice = document.createElement('div');
   notice.className = 'aide-interruption';
   notice.setAttribute('role', 'status');
@@ -754,7 +760,7 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
   if (thinking) {
     const tb = document.createElement('details');
     tb.className = 'thinking-block';
-    tb.innerHTML = '<summary>thinking</summary><div class="thinking-content"></div>';
+    tb.innerHTML = `<summary>${escHtml(t('aide.thinking'))}</summary><div class="thinking-content"></div>`;
     tb.querySelector('.thinking-content').textContent = thinking;
     body.appendChild(tb);
   }
@@ -772,12 +778,12 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
 
   const actions = document.createElement('div');
   actions.className = 'msg-actions';
-  actions.innerHTML = `<button class="act-btn" onclick="copyMsg(this)">copy</button>
-    <button class="act-btn" onclick="saveMsgAs(this,'note')" title="save this reply as a note">+note</button>
-    <button class="act-btn" onclick="saveMsgAs(this,'task')" title="${t('aide.review_plan_task')}">${t('aide.add_plan_task')}</button>
-    <button class="msg-regen-btn act-btn" title="regenerate">regen</button>
-    <button class="msg-rewrite-btn act-btn" data-style="shorter" title="rewrite shorter">shorter</button>
-    <button class="msg-rewrite-btn act-btn" data-style="simpler" title="rewrite simpler">simpler</button>`;
+  actions.innerHTML = `<button class="act-btn" data-msg-act="copy">${t('common.copy')}</button>
+    <button class="act-btn" data-msg-act="note" title="${t('aide.note_title')}">${t('aide.note_button')}</button>
+    <button class="act-btn" data-msg-act="task" title="${t('aide.review_plan_task')}">${t('aide.add_plan_task')}</button>
+    <button class="msg-regen-btn act-btn" title="${t('aide.regenerate')}">${t('aide.regen')}</button>
+    <button class="msg-rewrite-btn act-btn" data-style="shorter" title="${t('aide.rewrite_shorter_title')}">${t('aide.shorter')}</button>
+    <button class="msg-rewrite-btn act-btn" data-style="simpler" title="${t('aide.rewrite_simpler_title')}">${t('aide.simpler')}</button>`;
   wrap.appendChild(actions);
   wireRewriteButtons(actions);
   compactResponseActions(actions);
@@ -825,7 +831,7 @@ function _wireBranchButtons(container) {
       if (row?.dataset.reservedId && !row.dataset.msgId) await _confirmReserved();
       const msgId = btn.dataset.msgId || row?.dataset.msgId;
       if (!_activeId) return;
-      if (!msgId) { toast(row?.dataset.unsaved ? 'this reply wasn\'t saved, so it can\'t be branched' : _RELOAD, 'error'); return; }
+      if (!msgId) { toast(row?.dataset.unsaved ? t('aide.branch_unsaved') : _MSG.reload, 'error'); return; }
       btn.disabled = true;
       try {
         const r = await fetch(`/api/sessions/${_activeId}/fork`, {
@@ -839,7 +845,7 @@ function _wireBranchButtons(container) {
       } catch {
         btn.disabled = false;
         const { toast } = await import('./util.js');
-        toast('couldn\'t branch this chat', 'error');
+        toast(t('aide.branch_failed'), 'error');
       }
     });
   });
@@ -867,10 +873,10 @@ export function wireRewriteButtons(scope) {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ session_id: _activeId, style, msg_id: row.dataset.msgId || '' }),
         });
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'rewrite failed');
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || t('aide.rewrite_failed'));
         const { content: text } = await r.json();
         content.innerHTML = _md(text);
-        toast(`rewritten ${style}`, 'success');
+        toast(style === 'simpler' ? t('aide.rewritten_simpler') : t('aide.rewritten_shorter'), 'success');
       } catch (err) {
         toast(String(err.message || err), 'error');
       } finally {
@@ -914,10 +920,12 @@ function _userRowBefore(row) {
   return prev || null;
 }
 
-const _OFFLINE = "can't reach alles right now. check the connection and try again";
-const _BUSY = 'wait for this reply to finish, or stop it first';
-const _RELOAD = 'reload the task first to change this message.';
-const _UNSAVED = 'this message wasn\'t saved, so it can\'t be answered again';
+const _MSG = {
+  get offline() { return t('aide.msg_offline'); },
+  get busy() { return t('aide.msg_busy'); },
+  get reload() { return t('aide.msg_reload'); },
+  get unsaved() { return t('aide.msg_unsaved'); },
+};
 
 // a reply stopped mid-way heard its id first but not whether it was kept. ask the saved history
 // by that exact id (never by its words); false when alles can't be reached
@@ -981,10 +989,10 @@ async function _rereadTask(sid, why, kind, msgId, afterTurn = '') {
   if (why === 'stopped' && fresh) return;
   const editing = kind === 'edit';
   const words = !fresh
-    ? (why === 'offline' ? _OFFLINE : 'this task changed in another tab. reload it first.')
-    : why === 'gone' ? `this message was removed in another tab.${editing ? ' your words are in the message box.' : ''}`
-    : why === 'offline' ? 'the connection dropped. this task is up to date now.'
-    : `this task changed in another tab. it's up to date now${editing ? ' and your edit is still open' : ''}.`;
+    ? (why === 'offline' ? _MSG.offline : t('aide.task_changed_reload'))
+    : why === 'gone' ? (editing ? t('aide.message_removed_edit') : t('aide.message_removed'))
+    : why === 'offline' ? t('aide.connection_dropped')
+    : (editing ? t('aide.task_moved_edit') : t('aide.task_moved'));
   toast(words, 'error');
 }
 
@@ -1039,7 +1047,7 @@ function _openEdit(btn, { text = null, focus = true } = {}) {
   // one row to start, so it grows from its words rather than from a two-row default
   ta.rows = 1;
   ta.value = text ?? original;
-  ta.setAttribute('aria-label', 'edit message');
+  ta.setAttribute('aria-label', t('aide.edit_message'));
   // 16px on touch, or ios safari zooms the page in on focus
   if (globalThis.matchMedia?.('(pointer: coarse)')?.matches) ta.style.fontSize = '16px';
   // leaving the box never sends: a dismissed phone keyboard or a stray click would cut every
@@ -1047,11 +1055,11 @@ function _openEdit(btn, { text = null, focus = true } = {}) {
   const actions = wrap.querySelector('.user-actions');
   const editActions = document.createElement('div');
   editActions.className = 'user-actions edit-actions';
-  const [cancelBtn, sendBtn] = ['cancel', 'send'].map(label => {
+  const [cancelBtn, sendBtn] = [['cancel', t('common.cancel')], ['send', t('common.send')]].map(([label, text]) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `edit-${label}`;
-    button.textContent = label;
+    button.textContent = text;
     return button;
   });
   editActions.append(cancelBtn, sendBtn);
@@ -1102,7 +1110,7 @@ function _openEdit(btn, { text = null, focus = true } = {}) {
     if (sid !== _activeId || !ta.isConnected) return;
     // the new words stay in the box to try again (cancel still puts the old ones back)
     const keepEditing = () => { done = false; if (ta.isConnected) ta.focus(); };
-    if (!chat.canSendMessage()) { keepEditing(); toast(_BUSY, ''); return; }
+    if (!chat.canSendMessage()) { keepEditing(); toast(_MSG.busy, ''); return; }
     // a refused send was never stored: its new words go out as a new message, nothing is cut
     if (row.dataset.unsaved) {
       close();
@@ -1110,10 +1118,10 @@ function _openEdit(btn, { text = null, focus = true } = {}) {
       chat.sendMessage(newText);
       return;
     }
-    if (!row.dataset.msgId) { keepEditing(); toast(_RELOAD, 'error'); return; }
+    if (!row.dataset.msgId) { keepEditing(); toast(_MSG.reload, 'error'); return; }
     const newest = await _newestShownId();
     if (sid !== _activeId || !ta.isConnected) return;
-    if (newest === null) { keepEditing(); toast(_OFFLINE, 'error'); return; }
+    if (newest === null) { keepEditing(); toast(_MSG.offline, 'error'); return; }
     // the same words sent again ask again: the old answer stays until a new one has words
     const same = newText === original.trim();
     // the server checks, cuts and answers in one go; until it takes the request nothing moves
@@ -1169,7 +1177,7 @@ function _wireEditButtons(container) {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       // checked before any await: ios only raises the keyboard for a focus inside the tap itself
-      if (document.body.classList.contains('aide-working')) { toast(_BUSY, ''); return; }
+      if (document.body.classList.contains('aide-working')) { toast(_MSG.busy, ''); return; }
       _openEdit(btn);
     });
   });
@@ -1189,12 +1197,12 @@ function _wireEditButtons(container) {
       btn.setAttribute('aria-disabled', 'true');
       try {
         const chat = await import('./chat.js');
-        if (!chat.canSendMessage()) { toast(_BUSY, ''); return; }
-        if (prev.dataset.unsaved) { toast(_UNSAVED, 'error'); return; }
-        if (!prev.dataset.msgId) { toast(_RELOAD, 'error'); return; }
+        if (!chat.canSendMessage()) { toast(_MSG.busy, ''); return; }
+        if (prev.dataset.unsaved) { toast(_MSG.unsaved, 'error'); return; }
+        if (!prev.dataset.msgId) { toast(_MSG.reload, 'error'); return; }
         const newest = await _newestShownId();
         if (sid !== _activeId || !aiRow.isConnected) return;
-        if (newest === null) { toast(_OFFLINE, 'error'); return; }
+        if (newest === null) { toast(_MSG.offline, 'error'); return; }
         // something else already answered again (another regen, an edit): leave its reply be
         if (!chat.canSendMessage()) return;
         const result = await chat.resendMessage(prev, userText, {
@@ -1244,14 +1252,10 @@ function greetingHtml() {
 function incognitoTitle() {
   const h = new Date().getHours();
   let pool;
-  if (h < 5)        pool = ['off the record, after hours', 'ghost mode, late night', 'no traces tonight',
-                            'midnight, no memory', 'the quiet, unlogged hours', 'this stays between us'];
-  else if (h < 12)  pool = ['a clean, private start', 'off the record this morning', 'no history today',
-                            'incognito, fresh', 'quietly, just us', 'nothing written down'];
-  else if (h < 18)  pool = ['off the books', 'a private session', 'nothing saved here',
-                            'between you and me', 'no memory, no trace', 'speak freely'];
-  else              pool = ['off the record tonight', 'a private evening', 'no traces this evening',
-                            'just between us', 'quiet and unlogged', 'the night, off the books'];
+  if (h < 5)        pool = [t('aide.incognito_night_1'), t('aide.incognito_night_2'), t('aide.incognito_night_3'), t('aide.incognito_night_4'), t('aide.incognito_night_5'), t('aide.incognito_night_6')];
+  else if (h < 12)  pool = [t('aide.incognito_morning_1'), t('aide.incognito_morning_2'), t('aide.incognito_morning_3'), t('aide.incognito_morning_4'), t('aide.incognito_morning_5'), t('aide.incognito_morning_6')];
+  else if (h < 18)  pool = [t('aide.incognito_afternoon_1'), t('aide.incognito_afternoon_2'), t('aide.incognito_afternoon_3'), t('aide.incognito_afternoon_4'), t('aide.incognito_afternoon_5'), t('aide.incognito_afternoon_6')];
+  else              pool = [t('aide.incognito_evening_1'), t('aide.incognito_evening_2'), t('aide.incognito_evening_3'), t('aide.incognito_evening_4'), t('aide.incognito_evening_5'), t('aide.incognito_evening_6')];
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -1264,14 +1268,14 @@ function _withName(g, name) {
 }
 
 // a few real starts under the greeting, so an empty chat says what Aide can do
-const STARTS = [
-  ['plan my day', 'look at my calendar, tasks and reminders and plan today'],
-  ['make a doc', 'make a document called '],
-  ['search the web', 'search the web for '],
-  ['what can you do?', 'what can you do in alles? keep it short'],
+const STARTS = () => [
+  [t('aide.start_plan_label'), t('aide.start_plan_text')],
+  [t('aide.start_doc_label'), t('aide.start_doc_text')],
+  [t('aide.start_search_label'), t('aide.start_search_text')],
+  [t('aide.start_can_label'), t('aide.start_can_text')],
 ];
 function welcomeStarts() {
-  return `<div class="welcome-starts" role="list">${STARTS.map(([label, text], n) =>
+  return `<div class="welcome-starts" role="list">${STARTS().map(([label, text], n) =>
     `<button type="button" class="welcome-start" role="listitem" style="--n:${n}" data-start="${_escName(text)}">${_escName(label)}</button>`).join('')}</div>`;
 }
 if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
@@ -1295,7 +1299,7 @@ export function showWelcome() {
       <div class="incognito-hero">
         <svg class="incognito-hero-mark incognito-ghost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21v-9a7 7 0 0 1 14 0v9l-2.4-1.5L14.2 21l-2.2-1.5L9.8 21l-2.4-1.5L5 21z"/><circle cx="9.5" cy="11" r="0.5" fill="currentColor"/><circle cx="14.5" cy="11" r="0.5" fill="currentColor"/></svg>
         <div class="incognito-hero-title">${incognitoTitle()}</div>
-        <div class="incognito-hero-note">incognito chats aren't saved, added to memory, or used to train models.</div>
+        <div class="incognito-hero-note">${escHtml(t('aide.incognito_note'))}</div>
       </div>`;
     document.getElementById('welcome').style.display = 'flex';
     document.getElementById('messages').style.display = 'none';
@@ -1347,7 +1351,7 @@ export function updateSessionHeader(session) {
 
 // download the active chat in any format — the server builds md/json/txt/html
 export function downloadSession(fmt = 'md') {
-  if (!_activeId) { toast('no active chat', 'error'); return; }
+  if (!_activeId) { toast(t('aide.no_active_chat'), 'error'); return; }
   const a = Object.assign(document.createElement('a'), {
     href: `/api/sessions/${_activeId}/export?fmt=${fmt}`,
     download: '',   // let the content-disposition filename win
@@ -1474,15 +1478,15 @@ function openCtxMenu(e, id, source = null) {
 
   const projects = getProjects();
   const projectItems = projects.map(p =>
-    `<button type="button" role="menuitem" class="ctx-item" data-action="move-project" data-pid="${p.id}">move to ${escHtml(p.name)}</button>`
+    `<button type="button" role="menuitem" class="ctx-item" data-action="move-project" data-pid="${p.id}">${escHtml(t('aide.move_to_project', { name: p.name }))}</button>`
   ).join('');
   menu.innerHTML = `
-    <button type="button" role="menuitem" class="ctx-item" data-action="rename">rename</button>
-    <button type="button" role="menuitem" class="ctx-item" data-action="star">${s.starred ? 'unstar' : 'star'}</button>
-    <button type="button" role="menuitem" class="ctx-item" data-action="archive">archive</button>
+    <button type="button" role="menuitem" class="ctx-item" data-action="rename">${escHtml(t('aide.rename'))}</button>
+    <button type="button" role="menuitem" class="ctx-item" data-action="star">${s.starred ? t('aide.unstar') : t('aide.star')}</button>
+    <button type="button" role="menuitem" class="ctx-item" data-action="archive">${escHtml(t('aide.archive'))}</button>
     ${projectItems}
-    <button type="button" role="menuitem" class="ctx-item" data-action="new-project">new project</button>
-    <button type="button" role="menuitem" class="ctx-item danger" data-action="delete">delete</button>
+    <button type="button" role="menuitem" class="ctx-item" data-action="new-project">${escHtml(t('aide.new_project'))}</button>
+    <button type="button" role="menuitem" class="ctx-item danger" data-action="delete">${escHtml(t('common.delete'))}</button>
   `;
   _contextMenuController ||= createMenuController(menu);
   _contextMenuController.open({ source: source || e.currentTarget });
@@ -1521,9 +1525,9 @@ function openCtxMenu(e, id, source = null) {
         await loadProjects();
         await loadSessions();
         refocus();
-        toast('moved to project', 'success');
+        toast(t('aide.moved_to_project'), 'success');
       } else if (action === 'new-project') {
-        const name = await _dlgPrompt('', '', { title: 'new project', label: 'project name', confirmLabel: 'create' });
+        const name = await _dlgPrompt('', '', { title: t('aide.new_project'), label: t('aide.project_name'), confirmLabel: t('aide.create') });
         if (!name?.trim()) return;
         const p = await createProject(name.trim());
         if (p) {
@@ -1531,14 +1535,14 @@ function openCtxMenu(e, id, source = null) {
           await loadProjects();
           await loadSessions();
           refocus();
-          toast(`project "${name}" created`, 'success');
+          toast(t('aide.project_created', { name }), 'success');
         }
       } else if (action === 'delete') {
-        if (!await _dlgConfirm('delete this session?')) return;
+        if (!await _dlgConfirm(t('aide.delete_session_confirm'))) return;
         const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
         if (!res.ok) {
           const detail = (await res.json().catch(() => ({})))?.detail;
-          toast(typeof detail === 'string' && detail ? detail : (s.starred ? 'unstar it before deleting' : 'could not delete this conversation; try again'), 'error');
+          toast(typeof detail === 'string' && detail ? detail : (s.starred ? t('aide.unstar_before_delete') : t('aide.delete_failed')), 'error');
           return;
         }
         const wasActive = id === _activeId;

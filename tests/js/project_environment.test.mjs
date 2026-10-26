@@ -43,5 +43,5 @@ test('afterlife sidebar keeps unfiled tasks separate from expandable Project fol
   assert.match(source, /data-session-drop="unassigned"/);
   assert.match(source, /await unassignSession\(session\.project_id, sessionId\)/);
   assert.match(source, /if \(!response\.ok\) throw new Error\('project unassignment failed'\)/);
-  assert.match(source, /toast\('could not move to tasks', 'error'\)/);
+  assert.match(source, /toast\(t\('aide\.move_to_tasks_failed'\), 'error'\)/);
 });

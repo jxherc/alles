@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp, installCatalog, configureLocalization } from '../../static/js/i18n.js';
 import { resolveCompatibilityRoute } from '../../static/js/routecompat.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -44,7 +45,7 @@ function harness() {
   source.focus();
   const calls = []; const boundaries = [];
   const window = { _navigateTo: async view => { calls.push(view); return true; }, _openSettings: pane => calls.push(`settings:${pane}`) };
-  const context = vm.createContext({ document, window,
+  const context = vm.createContext({ document, window, t,
     createFocusBoundary(dialog, options) {
       let source;
       const boundary = { activate(args) { source = args.source; args.focus.focus(); },
@@ -52,10 +53,10 @@ function harness() {
       boundaries.push(boundary); return boundary;
     },
   });
-  const content = read('../../static/js/help_content.js').replace(/^export /gm, '');
+  const content = read('../../static/js/help_content.js').replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
   const sourceText = read('../../static/js/help.js').replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
-  vm.runInContext(`${content}\n${sourceText}\nglobalThis.subject = { HELP_TOPICS, findManualTopics, manualTopicForApp, openManual, closeManual };`, context);
-  return { ...context.subject, document, source, background, alreadyInert, window, calls, boundaries,
+  vm.runInContext(`${content}\n${sourceText}\nglobalThis.subject = { helpTopics, findManualTopics, manualTopicForApp, openManual, closeManual };`, context);
+  return { ...context.subject, get HELP_TOPICS() { return context.subject.helpTopics(); }, document, source, background, alreadyInert, window, calls, boundaries,
     get: id => document.getElementById(id), all: selector => document.body.querySelectorAll(selector), text: node => [node.textContent, ...node.children.map(child => String(child.textContent))].join(' ') };
 }
 
@@ -68,7 +69,7 @@ test('shared help is a drawer utility and Finance has a contextual guide', () =>
 
 test('main Call has visible text without replacing the existing trigger', () => {
   const button = html.match(/<button[^>]+id="aide-call-open"[\s\S]*?<\/button>/)[0];
-  assert.match(button, /<span class="aide-call-label">call<\/span>/);
+  assert.match(button, /<span class="aide-call-label"[^>]*>call<\/span>/);
   assert.match(button, /aria-controls="aide-call-workspace"/);
 });
 
@@ -167,4 +168,19 @@ test('Settings actions use existing pane dispatch after restoring the underlying
   await h.all('[data-manual-pane="developer"]')[0].dispatch('click');
   assert.deepEqual(h.calls, ['settings:developer']);
   assert.equal(h.get('alles-help-dialog'), null);
+});
+
+test('every manual string comes from the catalog and follows the interface language', () => {
+  const h = harness();
+  const raw = JSON.stringify(h.HELP_TOPICS).match(/"help\.[a-z0-9_.]+"/g);
+  assert.equal(raw, null);
+  installCatalog({ schema_version: 1, language: 'fr', messages: { 'help.start.title': 'pour commencer', 'help.finance.s2.title': 'ajouter un compte' }, plurals: {} });
+  try {
+    configureLocalization({ language: 'fr' });
+    assert.equal(h.helpTopics()[0].title, 'pour commencer');
+    assert.equal(h.helpTopics().find(topic => topic.id === 'finance').sections[1].title, 'ajouter un compte');
+    h.openManual({ topic: 'start' });
+    assert.equal(h.all('[data-manual-topic="start"]')[0].textContent, 'pour commencer');
+  } finally { configureLocalization({ language: 'en' }); }
+  assert.equal(h.helpTopics()[0].title, 'getting started');
 });

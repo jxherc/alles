@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/notes.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -56,7 +57,7 @@ function harness() {
     const updated = { ...previous, ...body, id: body.title === previous.title ? id : body.title, hash: `saved-${writes.length}` };
     disk.delete(id); disk.set(updated.id, updated); return response(updated);
   };
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp,
     document: { getElementById: id => elements.get(id), querySelectorAll: () => [] },
     fetch: fetcher, URLSearchParams, location: { hash: '' }, setTimeout, clearTimeout,
     toast: (message, kind) => toasts.push({ message, kind }),
@@ -191,7 +192,7 @@ test('the due date is the app date picker, and its value is what saves', async (
 });
 
 test('the due date is named "due date", plus the chosen date once there is one', () => {
-  assert.match(source, /<span id="note-due-label" hidden>due date<\/span>/);
+  assert.match(source, /<span id="note-due-label" hidden>\$\{t\('notes\.due_date'\)\}<\/span>/);
   assert.doesNotMatch(source, /id="note-edit-due"[^>]*aria-label=/);
   assert.doesNotMatch(source, />\+ checklist item</);
   const fn = source.match(/const nameDue = [^\n]+/)?.[0];

@@ -1,5 +1,6 @@
-import { createFocusBoundary } from './kokuen.js?v=3';
-import { HELP_TOPICS, findManualTopics, manualTopicForApp } from './help_content.js?v=1';
+import { createFocusBoundary } from './kokuen.js?v=4';
+import { helpTopics, findManualTopics, manualTopicForApp } from './help_content.js?v=2';
+import { t } from './i18n.js';
 
 let currentManual = null;
 let manualGeneration = 0;
@@ -26,20 +27,21 @@ export function closeManual() {
 export function openManual({ topic = manualTopicForApp(document.body.dataset), source = document.activeElement, query = '', message = '' } = {}) {
   if (currentManual) { currentManual.closeButton.focus(); return; }
   const generation = ++manualGeneration;
-  let selected = HELP_TOPICS.find(item => item.id === topic) || HELP_TOPICS[0];
+  const topicList = helpTopics();
+  let selected = topicList.find(item => item.id === topic) || topicList[0];
   let navigationPending = false;
   const overlay = element('div', 'dialog-overlay alles-help-overlay');
   const dialog = element('section', 'dialog-card alles-help-card', '', { id: 'alles-help-dialog', role: 'dialog', 'aria-labelledby': 'alles-help-title', 'data-kokuen-surface': 'manual' });
   const header = element('header', 'alles-help-header');
-  const title = element('h2', '', 'help & manual', { id: 'alles-help-title' });
-  const closeButton = element('button', 'btn', 'close', { type: 'button', 'data-manual-close': '', 'aria-label': 'close help & manual' });
+  const title = element('h2', '', t('shell.app.help_manual'), { id: 'alles-help-title' });
+  const closeButton = element('button', 'btn', t('common.close'), { type: 'button', 'data-manual-close': '', 'aria-label': t('shell.close_help_manual') });
   header.append(title, closeButton);
-  const label = element('label', 'sr-only', 'search the manual', { for: 'alles-help-search' });
-  const search = element('input', 'settings-input', '', { id: 'alles-help-search', type: 'search', placeholder: 'search topics and instructions', 'data-kokuen-entry': 'compact' });
+  const label = element('label', 'sr-only', t('shell.search_the_manual'), { for: 'alles-help-search' });
+  const search = element('input', 'settings-input', '', { id: 'alles-help-search', type: 'search', placeholder: t('shell.search_topics_and_instructions'), 'data-kokuen-entry': 'compact' });
   search.value = query;
   const status = element('p', 'alles-help-status', '', { id: 'alles-help-status', role: 'status', 'aria-live': 'polite' });
   const body = element('div', 'alles-help-body');
-  const topics = element('nav', 'alles-help-topics', '', { 'aria-label': 'manual topics' });
+  const topics = element('nav', 'alles-help-topics', '', { 'aria-label': t('shell.manual_topics') });
   const article = element('article', 'alles-help-article', '', { id: 'alles-help-article', 'aria-labelledby': 'alles-help-topic-title', tabindex: '0' });
   body.append(topics, article);
   dialog.append(header, label, search, status, body);
@@ -56,7 +58,7 @@ export function openManual({ topic = manualTopicForApp(document.body.dataset), s
       else await window._openSettings(action.pane);
     } catch {
       if (generation === manualGeneration && !currentManual) {
-        openManual({ ...restore, message: 'could not open that screen. try its button again or use the app menu.' });
+        openManual({ ...restore, message: t('shell.manual_open_failed') });
       }
     }
   }
@@ -90,15 +92,15 @@ export function openManual({ topic = manualTopicForApp(document.body.dataset), s
     if (focus) heading.focus();
   }
 
-  for (const item of HELP_TOPICS) {
+  for (const item of topicList) {
     const button = element('button', '', item.title, { type: 'button', 'data-manual-topic': item.id });
     button.addEventListener('click', () => { selected = item; renderArticle({ focus: true }); });
     topics.append(button);
   }
   function filter() {
-    const matches = findManualTopics(search.value);
+    const matches = findManualTopics(search.value, topicList);
     for (const button of topics.querySelectorAll('[data-manual-topic]')) button.hidden = !matches.some(item => item.id === button.dataset.manualTopic);
-    status.textContent = matches.length ? '' : 'no topics match. try an app name or clear the search.';
+    status.textContent = matches.length ? '' : t('shell.manual_no_match');
     article.hidden = matches.length === 0;
     if (!matches.length) return;
     if (!matches.includes(selected)) selected = matches[0];

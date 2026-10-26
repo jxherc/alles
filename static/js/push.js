@@ -1,5 +1,6 @@
 // web push — service worker registration + subscription management
 import { toast } from './util.js';
+import { t } from './i18n.js';
 
 export function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
@@ -45,19 +46,19 @@ export async function initPushButton() {
 // chromium with no push service (brave's default, electron, embedded views) throws
 // "Registration failed - push service error", which means nothing to a person
 export function pushErrorText(e) {
-  const msg = String(e?.message || 'something went wrong');
-  if (/push service/i.test(msg)) return "this browser can't get push notifications. try safari, chrome or firefox";
-  if (/permission denied/i.test(msg)) return 'notifications blocked by the browser';
-  return `notifications: ${msg[0].toLowerCase()}${msg.slice(1)}`;
+  const msg = String(e?.message || t('push.generic_error'));
+  if (/push service/i.test(msg)) return t('push.unsupported');
+  if (/permission denied/i.test(msg)) return t('push.blocked');
+  return t('push.error_detail', { message: `${msg[0].toLowerCase()}${msg.slice(1)}` });
 }
 
 function _setLabel(btn, on) {
-  btn.textContent = on ? 'notifications on' : 'enable notifications';
+  btn.textContent = on ? t('push.on') : t('push.enable');
 }
 
 async function _enable() {
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') { toast('notifications blocked by the browser', 'error'); return; }
+  if (perm !== 'granted') { toast(t('push.blocked'), 'error'); return; }
   const reg = await navigator.serviceWorker.ready;
   const { key } = await fetch('/api/push/vapid-key').then(r => r.json());
   const sub = await reg.pushManager.subscribe({
@@ -70,7 +71,7 @@ async function _enable() {
     body: JSON.stringify({ endpoint: j.endpoint, keys: j.keys }),
   });
   if (!r.ok) { await sub.unsubscribe(); throw new Error('server rejected subscription'); }
-  toast('notifications enabled: reminders will reach you even with the tab closed', 'success');
+  toast(t('push.enabled'), 'success');
 }
 
 async function _disable(sub) {
@@ -79,5 +80,5 @@ async function _disable(sub) {
     body: JSON.stringify({ endpoint: sub.endpoint }),
   }).catch(() => {});
   await sub.unsubscribe();
-  toast('notifications disabled', '');
+  toast(t('push.disabled'), '');
 }

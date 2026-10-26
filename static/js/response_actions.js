@@ -1,5 +1,6 @@
-import { createMenuController } from './kokuen.js';
+import { createMenuController } from './kokuen.js?v=4';
 import { icon } from './icons.js';
+import { t } from './i18n.js';
 
 let sequence = 0;
 let opened = null;
@@ -14,10 +15,11 @@ function tuckProvenance(actions) {
   const summary = details.querySelector('summary');
   if (summary && !summary.dataset.full) {
     const full = summary.textContent.trim();
+    const detail = details.dataset.labels || full.replace(/^context\s*·\s*/, '');
     const model = full.split('·').pop().split('/').pop().trim();
     summary.dataset.full = full;
-    summary.title = `what Aide used: ${full.replace(/^context\s*·\s*/, '')}`;
-    summary.textContent = model ? `${model} · context` : full;
+    summary.title = t('aide.context_used', { detail });
+    summary.textContent = model ? t('aide.context_model', { model }) : full;
   }
   details.classList.add('is-tucked');
   actions.append(details);
@@ -42,15 +44,15 @@ export function compactResponseActions(actions) {
     menu.id = `aide-response-actions-${++sequence}`;
     menu.className = 'msg-actions-menu';
     menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', 'reply actions');
+    menu.setAttribute('aria-label', t('aide.reply_actions'));
     menu.tabIndex = -1;
     menu.hidden = true;
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'act-btn msg-more-trigger';
     trigger.innerHTML = icon('more');
-    trigger.title = 'more reply actions';
-    trigger.setAttribute('aria-label', 'more reply actions');
+    trigger.title = t('aide.more_reply_actions');
+    trigger.setAttribute('aria-label', t('aide.more_reply_actions'));
     trigger.setAttribute('aria-haspopup', 'menu');
     trigger.setAttribute('aria-expanded', 'false');
     trigger.setAttribute('aria-controls', menu.id);
@@ -140,9 +142,9 @@ export function compactResponseActions(actions) {
 
   for (const button of [...actions.children]) {
     if (button.tagName !== 'BUTTON' || button === control.trigger) continue;
-    if (button.getAttribute('onclick')?.startsWith('copyMsg(')) {
+    if (button.dataset.msgAct === 'copy') {
       button.classList.add('msg-copy-action');
-      button.setAttribute('aria-label', 'copy reply');
+      button.setAttribute('aria-label', t('aide.copy_reply'));
       button.type = 'button';
       continue;
     }

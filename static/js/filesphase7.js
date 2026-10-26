@@ -1,6 +1,6 @@
 import { toast } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
-import { formatDate } from './i18n.js';
+import { formatDate, t, tp } from './i18n.js';
 import { pushRouteUrl, replaceRouteUrl } from './route_history.js';
 
 const $ = id => document.getElementById(id);
@@ -78,11 +78,35 @@ function formatChanged(value) {
   const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const seconds = Math.max(0, (Date.now() - date.getTime()) / 1000);
-  if (seconds < 90) return 'just now';
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.round(seconds / 3600)}h ago`;
-  if (seconds < 86400 * 30) return `${Math.round(seconds / 86400)}d ago`;
+  if (seconds < 90) return t('files.changed_just_now');
+  if (seconds < 3600) return tp('files.changed_minutes_ago', Math.round(seconds / 60));
+  if (seconds < 86400) return tp('files.changed_hours_ago', Math.round(seconds / 3600));
+  if (seconds < 86400 * 30) return tp('files.changed_days_ago', Math.round(seconds / 86400));
   return formatDate(date);
+}
+
+// offline copy and operation states come from the server as plain words
+function stateLabel(value) {
+  if (value === 'queued') return t('files.state_queued');
+  if (value === 'syncing') return t('files.state_syncing');
+  if (value === 'ready') return t('files.state_ready');
+  if (value === 'running') return t('files.state_running');
+  if (value === 'completed') return t('files.state_completed');
+  if (value === 'failed') return t('files.state_failed');
+  if (value === 'cancelled') return t('files.state_cancelled');
+  if (value === 'deleting') return t('files.state_deleting');
+  if (value === 'undoing') return t('files.state_undoing');
+  if (value === 'undone') return t('files.state_undone');
+  return value;
+}
+
+function operationTitle(action, name) {
+  if (action === 'copy') return t('files.op_copy', { name });
+  if (action === 'move') return t('files.op_move', { name });
+  if (action === 'rename') return t('files.op_rename', { name });
+  if (action === 'delete') return t('files.op_delete', { name });
+  if (action === 'restore') return t('files.op_restore', { name });
+  return `${action} ${name}`;
 }
 
 function basename(path) {
@@ -109,7 +133,7 @@ async function request(url, options = {}, fetcher = fetch) {
   if (!response.ok) {
     const detail = data && typeof data === 'object' ? data.detail : data;
     const message = typeof detail === 'string' ? detail : detail?.message;
-    const error = new Error(message || `request failed (${response.status})`);
+    const error = new Error(message || t('files.request_failed_status', { status: response.status }));
     error.detail = detail;
     error.status = response.status;
     throw error;
@@ -135,7 +159,7 @@ function isWritable(location = currentLocation()) {
 
 function locationLabel(location) {
   if (!location) return '';
-  if (location.kind === 'local') return location.root_path || 'local folder';
+  if (location.kind === 'local') return location.root_path || t('files.local_folder');
   if (location.kind === 's3') return [location.endpoint, location.bucket].filter(Boolean).join(' / ');
   return location.endpoint || 'WebDAV';
 }
@@ -178,7 +202,8 @@ if (typeof window !== 'undefined') window.addEventListener('popstate', () => {
 
 async function loadLocations(fetcher = fetch) {
   const data = await request('/api/storage-locations', {}, fetcher);
-  state.locations = data.locations || [];
+  // the server names the built-in location in english
+  state.locations = (data.locations || []).map(location => (location.kind === 'local' && location.name === 'on this server' ? { ...location, name: t('files.location_this_server') } : location));
   const requested = new URLSearchParams(location.search).get('location') || '';
   if (!state.locations.some(location => location.id === state.locationId)) {
     state.locationId = state.locations.some(location => location.id === requested)
@@ -202,9 +227,9 @@ function renderLocations() {
       ${locationIcon(location.kind)}
       <span class="files-location-copy">
         <strong>${esc(location.name)}</strong>
-        <small>${esc(location.kind === 'local' ? 'local' : location.kind.toUpperCase())}</small>
+        <small>${esc(location.kind === 'local' ? t('files.kind_local') : location.kind.toUpperCase())}</small>
       </span>
-      <span class="files-location-access">${location.access === 'managed' ? 'managed' : 'read only'}</span>
+      <span class="files-location-access">${location.access === 'managed' ? t('files.access_managed') : t('files.read_only')}</span>
     </button>`).join('');
   if (focusedId && !host.hidden) {
     [...host.querySelectorAll('[data-location-id]')]
@@ -216,18 +241,18 @@ function renderAppStatus(location, index) {
   const host = $('files-app-status');
   if (!host) return;
   if (!location) {
-    host.textContent = 'no location';
+    host.textContent = t('files.no_location');
     return;
   }
   if (['queued', 'running'].includes(index.state)) {
-    host.textContent = 'indexing';
+    host.textContent = t('files.indexing');
     return;
   }
   if (index.state === 'error') {
-    host.textContent = 'indexing failed';
+    host.textContent = t('files.indexing_failed');
     return;
   }
-  host.textContent = location.access === 'managed' ? '' : 'read only';
+  host.textContent = location.access === 'managed' ? '' : t('files.read_only');
 }
 
 function renderLocationStatus(message) {
@@ -250,29 +275,29 @@ function renderLocationStatus(message) {
   if (message !== undefined) notice.textContent = message;
   $('files-current-location-name').textContent = location.name;
   $('files-current-location-path').textContent = locationLabel(location);
-  const kind = location.kind === 'local' ? 'local folder' : location.kind.toUpperCase();
-  $('files-current-location-access').textContent = `${kind} · ${location.access === 'managed' ? 'changes allowed' : 'read only'}`;
+  const kind = location.kind === 'local' ? t('files.local_folder') : location.kind.toUpperCase();
+  $('files-current-location-access').textContent = `${kind} · ${location.access === 'managed' ? t('files.changes_allowed') : t('files.read_only')}`;
   $('files-index-help').textContent = location.kind === 'local'
-    ? 'Index readable text for search without changing your files. Local filename search works without an index.'
-    : 'Index readable text to search this location. Refresh the index after changing files.';
+    ? t('files.index_help_local')
+    : t('files.index_help_remote');
   const indexing = ['queued', 'running'].includes(index.state);
   const indexCopy = indexing
-    ? `indexing${index.files_indexed ? ` · ${index.files_indexed} files` : ''}`
+    ? (index.files_indexed ? tp('files.indexing_count', index.files_indexed) : t('files.indexing'))
     : index.state === 'completed'
-      ? `${index.files_indexed} files indexed`
+      ? tp('files.files_indexed', index.files_indexed)
       : index.state === 'error'
-        ? (index.error || 'indexing failed')
-        : 'not indexed yet';
+        ? (index.error || t('files.indexing_failed'))
+        : t('files.not_indexed');
   host.querySelector('.files-location-index-state').textContent = indexCopy;
   const indexButton = host.querySelector('[data-location-action="index"]');
   if (indexing && document.activeElement === indexButton) {
     $('files-settings-dialog').querySelector('[data-files-dialog-close]').focus();
   }
   indexButton.disabled = indexing;
-  indexButton.textContent = index.state === 'completed' ? 'refresh search index' : 'index for search';
+  indexButton.textContent = index.state === 'completed' ? t('files.refresh_index') : t('files.index_for_search');
   const access = host.querySelector('[data-location-action="access"]');
   access.hidden = location.is_default;
-  access.textContent = location.access === 'managed' ? 'make read only' : 'allow changes';
+  access.textContent = location.access === 'managed' ? t('files.make_read_only') : t('files.allow_changes');
   host.querySelector('[data-location-action="remove"]').hidden = location.is_default;
 }
 
@@ -351,10 +376,10 @@ function applyWriteState() {
     button.hidden = trashView || cacheView;
     button.disabled = !writable || trashView || cacheView;
     button.title = trashView
-      ? 'not available in recently deleted'
+      ? t('files.unavailable_in_trash')
       : cacheView
-        ? 'offline copies are read only'
-        : (writable ? '' : 'this location is read only');
+        ? t('files.offline_read_only')
+        : (writable ? '' : t('files.location_read_only'));
   }
   document.querySelectorAll('[data-files-bulk]').forEach(button => {
     const action = button.dataset.filesBulk;
@@ -378,7 +403,7 @@ function renderFilesLoading(host) {
   filesRetry = null;
   host.setAttribute('aria-busy', 'true');
   host.innerHTML = `<div class="files-loading files-loading-list" role="status">
-    <span class="sr-only">loading files</span>
+    <span class="sr-only">${t('files.loading_files')}</span>
     ${Array.from({ length: 5 }, () => `<div class="files-loading-row" aria-hidden="true">
       <span class="files-loading-block"></span><span class="files-loading-block"></span>
       <span class="files-loading-block"></span><span class="files-loading-block"></span>
@@ -391,7 +416,7 @@ function renderFilesError(host, error, retry = null) {
   host.setAttribute('aria-busy', 'false');
   host.innerHTML = `<div class="files-error" role="alert">
     <span>${esc(error.message)}</span>
-    <button class="files-text-button" type="button" data-files-retry>retry</button>
+    <button class="files-text-button" type="button" data-files-retry>${t('common.retry')}</button>
   </div>`;
 }
 
@@ -413,7 +438,7 @@ export async function loadFiles(path = state.cwd, fetcher = fetch, { push = fals
   beginFilesRequest(host);
   try {
     if (!state.locations.length) await loadLocations(fetcher);
-    if (!state.locationId) throw new Error('no storage location is available');
+    if (!state.locationId) throw new Error(t('files.no_location_available'));
     const locationId = state.locationId;
     const data = await request(
       '/api/files/list' + query({
@@ -549,7 +574,7 @@ function renderBreadcrumb() {
     const segments = [
       `<button class="crumb" type="button" data-crumb-path="">${esc(location.name)}</button>`,
       '<span class="crumb-sep">/</span>',
-      '<button class="crumb" type="button" data-crumb-path="">offline</button>',
+      `<button class="crumb" type="button" data-crumb-path="">${esc(t('files.view_offline'))}</button>`,
     ];
     let path = '';
     state.cwd.split('/').filter(Boolean).forEach(part => {
@@ -561,7 +586,7 @@ function renderBreadcrumb() {
     return;
   }
   if (state.view !== 'all') {
-    host.innerHTML = `<button class="crumb" type="button" data-crumb-path="">${esc(location.name)}</button><span class="crumb-sep">/</span><span class="crumb">${esc(state.view === 'trash' ? 'recently deleted' : state.view)}</span>`;
+    host.innerHTML = `<button class="crumb" type="button" data-crumb-path="">${esc(location.name)}</button><span class="crumb-sep">/</span><span class="crumb">${esc(state.view === 'trash' ? t('files.recently_deleted') : state.view === 'starred' ? t('files.view_starred') : state.view)}</span>`;
     return;
   }
   const parts = state.cwd.split('/').filter(Boolean);
@@ -596,8 +621,10 @@ function renderItems() {
   if (!host) return;
   host.setAttribute('aria-busy', 'false');
   if (!state.items.length) {
-    const copy = state.searchTerm ? `no files match “${state.searchTerm}”`
-      : state.view === 'all' ? 'this folder is empty' : `no ${state.view === 'trash' ? 'deleted files' : state.view + ' files'}`;
+    const copy = state.searchTerm ? t('files.no_match', { term: state.searchTerm })
+      : state.view === 'all' ? t('files.folder_empty')
+        : state.view === 'trash' ? t('files.empty_trash')
+          : state.view === 'starred' ? t('files.empty_starred') : t('files.empty_offline');
     host.innerHTML = `<div class="files-empty">${esc(copy)}</div>`;
     updateSelectAll();
     return;
@@ -607,10 +634,10 @@ function renderItems() {
     const key = itemKey(item);
     const selected = state.selected.has(key);
     const current = itemKey(state.current) === key;
-    const stateCopy = item.offline_state && item.offline_state !== 'ready' ? item.offline_state : '';
+    const stateCopy = item.offline_state && item.offline_state !== 'ready' ? stateLabel(item.offline_state) : '';
     return `
       <div class="file-row${current ? ' is-current' : ''}" tabindex="0" data-path="${esc(key)}" data-type="${esc(item.type || 'file')}"${item.trash_id ? ` data-trash-id="${esc(item.trash_id)}"` : ''}>
-        <button class="files-check" type="button" role="checkbox" aria-checked="${selected}" aria-label="select ${esc(item.name || basename(path))}" data-file-select></button>
+        <button class="files-check" type="button" role="checkbox" aria-checked="${selected}" aria-label="${esc(t('files.select_named', { name: item.name || basename(path) }))}" data-file-select></button>
         <span class="file-main">${itemIcon(item)}<button class="file-name-button" type="button" data-file-open>${esc(item.name || basename(path))}${stateCopy ? ` · ${esc(stateCopy)}` : ''}</button></span>
         <span class="file-size">${esc(formatSize(item.size))}</span>
         <span class="file-changed">${esc(formatChanged(item.mtime || item.updated_at))}</span>
@@ -647,7 +674,7 @@ function renderSelection() {
   if (!bar) return;
   const count = state.selected.size;
   bar.hidden = count === 0;
-  $('files-selection-count').textContent = `${count} selected`;
+  $('files-selection-count').textContent = tp('files.selected_count', count);
   applyWriteState();
   revealFileControl(document.activeElement);
 }
@@ -712,23 +739,23 @@ async function renderDetails(item) {
     <div class="files-detail-path">${esc(path)}</div>
     <div class="files-detail-actions">
       ${state.view === 'trash'
-        ? (writable ? '<button class="files-text-button" type="button" data-detail-action="restore">restore</button>' : '')
-        : `${readable ? '<button class="files-text-button" type="button" data-detail-action="open">open</button>' : ''}
-           ${readable && item.type !== 'dir' ? `<a class="files-text-button" href="${esc(raw)}&download=1" download>download</a>` : ''}
+        ? (writable ? `<button class="files-text-button" type="button" data-detail-action="restore">${t('files.restore')}</button>` : '')
+        : `${readable ? `<button class="files-text-button" type="button" data-detail-action="open">${t('common.open')}</button>` : ''}
+           ${readable && item.type !== 'dir' ? `<a class="files-text-button" href="${esc(raw)}&download=1" download>${t('common.download')}</a>` : ''}
            ${offline
-             ? '<button class="files-text-button" type="button" data-detail-action="offline-refresh">refresh offline copy</button><button class="files-text-button" type="button" data-detail-action="offline-remove">remove offline copy</button>'
-             : state.view !== 'offline' ? '<button class="files-text-button" type="button" data-detail-action="offline">keep offline</button>' : ''}
-           ${state.view === 'offline' ? '' : `<button class="files-text-button" type="button" data-detail-action="star">${item.starred ? 'unstar' : 'star'}</button>`}
-           ${state.view !== 'offline' && writable ? '<button class="files-text-button" type="button" data-detail-action="rename">rename</button>' : ''}
-           ${state.view !== 'offline' && writable ? '<button class="files-text-button files-danger" type="button" data-detail-action="delete">delete</button>' : ''}
-           ${state.view !== 'offline' && canSendToPhotos(item) ? '<button class="files-text-button" type="button" data-detail-action="photos">send to Photos</button>' : ''}`}
+             ? `<button class="files-text-button" type="button" data-detail-action="offline-refresh">${t('files.offline_refresh')}</button><button class="files-text-button" type="button" data-detail-action="offline-remove">${t('files.offline_remove')}</button>`
+             : state.view !== 'offline' ? `<button class="files-text-button" type="button" data-detail-action="offline">${t('files.keep_offline')}</button>` : ''}
+           ${state.view === 'offline' ? '' : `<button class="files-text-button" type="button" data-detail-action="star">${item.starred ? t('files.unstar') : t('files.star')}</button>`}
+           ${state.view !== 'offline' && writable ? `<button class="files-text-button" type="button" data-detail-action="rename">${t('common.rename')}</button>` : ''}
+           ${state.view !== 'offline' && writable ? `<button class="files-text-button files-danger" type="button" data-detail-action="delete">${t('common.delete')}</button>` : ''}
+           ${state.view !== 'offline' && canSendToPhotos(item) ? `<button class="files-text-button" type="button" data-detail-action="photos">${t('files.send_to_photos')}</button>` : ''}`}
     </div>
     <dl class="files-detail-meta">
-      <dt>location</dt><dd>${esc(currentLocation()?.name || '')}</dd>
-      <dt>access</dt><dd>${isWritable() ? 'managed' : 'read only'}</dd>
-      <dt>kind</dt><dd>${esc(item.type || 'file')}</dd>
-      <dt>size</dt><dd data-files-detail-size>${esc(formatSize(item.size) || 'unknown')}</dd>
-      <dt>offline</dt><dd>${esc(offlineState || 'online only')}</dd>
+      <dt>${t('files.meta_location')}</dt><dd>${esc(currentLocation()?.name || '')}</dd>
+      <dt>${t('files.meta_access')}</dt><dd>${isWritable() ? t('files.access_managed') : t('files.read_only')}</dd>
+      <dt>${t('files.meta_kind')}</dt><dd>${esc(item.type === 'dir' ? t('files.type_dir') : !item.type || item.type === 'file' ? t('files.type_file') : item.type)}</dd>
+      <dt>${t('files.meta_size')}</dt><dd data-files-detail-size>${esc(formatSize(item.size) || t('common.unknown'))}</dd>
+      <dt>${t('files.meta_offline')}</dt><dd>${esc(stateLabel(offlineState) || t('files.online_only'))}</dd>
     </dl>
     <div id="files-detail-versions"></div>`;
   $('files-detail-close')?.focus();
@@ -749,10 +776,10 @@ async function loadVersions(path, locationId, detailRequest) {
     if (!current()) return;
     const expanded = host.querySelector('details')?.open;
     host.innerHTML = versions.length ? `<details class="files-version-history" ${expanded ? 'open' : ''}>
-      <summary>version history (${versions.length})</summary>
+      <summary>${esc(t('files.version_history_count', { count: versions.length }))}</summary>
       <ul>${versions.map((version, index) => `<li>
-        <span>version ${versions.length - index} · ${esc(formatDate(version.created_at))} · ${esc(formatSize(version.size))}</span>
-        ${isWritable() ? `<button type="button" class="files-text-button" data-version-id="${esc(version.id)}" aria-label="restore version ${versions.length - index}">restore</button>` : ''}
+        <span>${esc(t('files.version_line', { number: versions.length - index, date: formatDate(version.created_at), size: formatSize(version.size) }))}</span>
+        ${isWritable() ? `<button type="button" class="files-text-button" data-version-id="${esc(version.id)}" aria-label="${esc(t('files.restore_version_named', { number: versions.length - index }))}">${t('files.restore')}</button>` : ''}
       </li>`).join('')}</ul>
     </details><p class="files-version-feedback" role="status" tabindex="-1"></p>` : '';
     host.querySelectorAll('[data-version-id]').forEach(button => button.addEventListener('click', async () => {
@@ -760,13 +787,13 @@ async function loadVersions(path, locationId, detailRequest) {
       versionRestoreActive = true;
       host.querySelectorAll('button').forEach(control => { control.disabled = true; });
       const feedback = host.querySelector('.files-version-feedback');
-      feedback.textContent = 'checking version…';
+      feedback.textContent = t('files.checking_version');
       let expected = item.etag || '';
       let canceled = false;
       try {
-        if (!await dlgConfirm('restore this version? the current file will be kept in version history.') || !current()) {
+        if (!await dlgConfirm(t('files.restore_version_confirm')) || !current()) {
           canceled = true;
-          if (current()) feedback.textContent = 'restore canceled. the current file is unchanged.';
+          if (current()) feedback.textContent = t('files.restore_canceled');
           return;
         }
         while (current()) {
@@ -784,16 +811,16 @@ async function loadVersions(path, locationId, detailRequest) {
             await loadVersions(path, locationId, detailRequest);
             if (current()) {
               const result = host.querySelector('.files-version-feedback');
-              result.textContent = 'version restored. the previous file remains in version history.';
+              result.textContent = t('files.version_restored');
               result.focus();
             }
             return;
           } catch (error) {
             if (error.detail?.code !== 'file_conflict' || !error.detail.can_replace) throw error;
-            const accepted = await dlgConfirm(`${error.message}. Restore this version? The current file will be kept in version history.`);
+            const accepted = await dlgConfirm(t('files.version_conflict_confirm', { error: error.message }));
             if (!accepted || !current()) {
               canceled = true;
-              if (current()) feedback.textContent = 'restore canceled. the current file is unchanged.';
+              if (current()) feedback.textContent = t('files.restore_canceled');
               return;
             }
             expected = error.detail.expected_etag;
@@ -815,8 +842,8 @@ async function loadVersions(path, locationId, detailRequest) {
     }));
   } catch (error) {
     if (!current()) return;
-    host.innerHTML = `<p class="files-version-feedback" role="alert">version history unavailable: ${esc(error.message)}</p>
-      <button type="button" class="files-text-button">retry version history</button>`;
+    host.innerHTML = `<p class="files-version-feedback" role="alert">${esc(t('files.version_history_unavailable', { error: error.message }))}</p>
+      <button type="button" class="files-text-button">${t('files.retry_version_history')}</button>`;
     host.querySelector('button').addEventListener('click', () => loadVersions(path, locationId, detailRequest));
   }
 }
@@ -852,7 +879,7 @@ async function openPreview(item) {
   const offlineState = item.offline_state || item.state || state.offline.get(path)?.state || '';
   const cacheReady = Boolean(item.cache_only && (!offlineState || offlineState === 'ready'));
   if (state.view === 'offline' && !cacheReady) {
-    toast('offline copy is not ready', 'error');
+    toast(t('files.offline_not_ready'), 'error');
     return;
   }
   const raw = cacheReady
@@ -882,14 +909,14 @@ async function openPreview(item) {
     body.innerHTML = `<audio class="files-preview-media" src="${esc(raw)}" controls></audio>`;
     return;
   }
-  body.innerHTML = '<div class="files-loading">loading preview</div>';
+  body.innerHTML = `<div class="files-loading">${t('files.loading_preview')}</div>`;
   try {
     const readEndpoint = cacheReady ? '/api/files/offline/read' : '/api/files/read';
     const data = await request(readEndpoint + query({ path, location_id: location }));
     if (sequence !== previewSequence || path !== state.previewPath) return;
     body.innerHTML = data.is_text
       ? `<pre class="files-preview-pre">${esc(data.content)}</pre>`
-      : '<div class="files-empty">download this file to open it</div>';
+      : `<div class="files-empty">${t('files.download_to_open')}</div>`;
   } catch (error) {
     if (sequence !== previewSequence || path !== state.previewPath) return;
     body.innerHTML = `<div class="files-error">${esc(error.message)}</div>`;
@@ -934,7 +961,7 @@ async function setOffline(item, action = 'keep', refreshView = true) {
   const locationId = state.locationId;
   const current = state.offline.get(path);
   if (item.cache_only && !current) {
-    toast('remove the parent offline copy instead', 'error');
+    toast(t('files.remove_parent_offline'), 'error');
     return;
   }
   try {
@@ -990,7 +1017,7 @@ async function renameItem(item) {
   if (!isWritable()) return;
   const path = item.path || item.normalized_path;
   const oldName = basename(path);
-  const name = await dlgPrompt('', oldName, { title: 'rename', label: 'new name', confirmLabel: 'rename' });
+  const name = await dlgPrompt('', oldName, { title: t('common.rename'), label: t('files.new_name'), confirmLabel: t('common.rename') });
   if (!name || name === oldName) return;
   const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
   try {
@@ -1010,8 +1037,10 @@ async function renameItem(item) {
 async function deleteItems(items) {
   if (!isWritable() || !items.length) return;
   const locationId = state.locationId;
-  const subject = items.length === 1 ? `“${items[0].path || items[0].normalized_path || items[0].name}”` : `${items.length} items`;
-  const ok = await dlgConfirm(`move ${subject} to recently deleted? you can restore ${items.length === 1 ? 'it' : 'them'} there.`, { confirmLabel: 'move to recently deleted' });
+  const message = items.length === 1
+    ? t('files.delete_confirm_one', { name: items[0].path || items[0].normalized_path || items[0].name })
+    : tp('files.delete_confirm_many', items.length);
+  const ok = await dlgConfirm(message, { confirmLabel: t('files.move_to_recently_deleted') });
   if (!ok) return;
   const queued = [];
   try {
@@ -1059,11 +1088,11 @@ function photosImportMessage(result) {
   const ignored = Number(result.ignored || 0);
   const failed = Array.isArray(result.failed) ? result.failed.length : Number(result.failed || 0);
   const parts = [];
-  if (imported) parts.push(`${imported} item${imported === 1 ? '' : 's'} sent to Photos`);
-  if (skipped) parts.push(`${skipped} already there`);
-  if (ignored) parts.push(`${ignored} unsupported file${ignored === 1 ? '' : 's'} skipped`);
-  if (failed) parts.push(`${failed} failed`);
-  return parts.join(' · ') || 'nothing sent to Photos';
+  if (imported) parts.push(tp('files.photos_sent', imported));
+  if (skipped) parts.push(tp('files.photos_already_there', skipped));
+  if (ignored) parts.push(tp('files.photos_unsupported_skipped', ignored));
+  if (failed) parts.push(tp('files.photos_failed', failed));
+  return parts.join(' · ') || t('files.photos_nothing_sent');
 }
 
 async function sendToPhotos(item) {
@@ -1076,7 +1105,7 @@ async function sendToPhotos(item) {
   if (!button || !feedback || panel.dataset.photoImportKey !== importKey || button.disabled) return;
   button.disabled = true;
   feedback.hidden = false;
-  feedback.textContent = 'sending to Photos…';
+  feedback.textContent = t('files.sending_to_photos');
   try {
     const result = await request('/api/files/to-photos', jsonOptions('POST', {
       location_id: locationId,
@@ -1114,7 +1143,7 @@ function openTransferDialog(action) {
   const dialog = $('files-transfer-dialog');
   const title = $('files-transfer-dialog-title');
   if (!dialog || !title) return;
-  title.textContent = `${action} selected`;
+  title.textContent = action === 'move' ? t('files.move_selected') : t('files.copy_selected');
   const destinations = state.locations.filter(location => location.enabled && location.access === 'managed');
   $('files-transfer-locations').innerHTML = destinations.map(location => `
     <button type="button" role="radio" aria-checked="false" data-value="${esc(location.id)}">${esc(location.name)}</button>`).join('');
@@ -1127,7 +1156,7 @@ async function submitTransfer() {
   const locationId = $('files-transfer-locations').querySelector('[role="radio"][aria-checked="true"]')?.dataset.value;
   const folder = $('files-transfer-path').value.trim();
   if (!locationId) {
-    $('files-transfer-error').textContent = 'choose a destination';
+    $('files-transfer-error').textContent = t('files.choose_destination');
     return;
   }
   const items = [...state.selected.values()];
@@ -1151,7 +1180,7 @@ async function submitTransfer() {
     renderSelection();
     renderItems();
     $('files-transfer-error').textContent = queued.length
-      ? `${queued.length} queued; ${error.message}`
+      ? tp('files.transfer_partial', queued.length, { error: error.message })
       : error.message;
     return;
   }
@@ -1245,7 +1274,9 @@ function renderOperations() {
   const toggle = $('files-operations-clear');
   if (toggle) {
     toggle.hidden = history.length === 0;
-    toggle.textContent = `${state.hiddenCompleted ? 'show' : 'hide'} history (${history.length})`;
+    toggle.textContent = state.hiddenCompleted
+      ? t('files.show_history', { count: history.length })
+      : t('files.hide_history', { count: history.length });
     toggle.setAttribute('aria-expanded', String(!state.hiddenCompleted));
   }
   dock.hidden = state.operations.length === 0;
@@ -1253,19 +1284,19 @@ function renderOperations() {
   const focusedId = focused?.closest('[data-operation-id]')?.dataset.operationId;
   const focusedAction = focused?.dataset.operationAction;
   const renderRow = operation => {
-    const name = operation.action === 'restore' ? (operation.destination_path || 'file') : operation.source_path;
+    const name = operation.action === 'restore' ? (operation.destination_path || t('files.unnamed_file')) : operation.source_path;
     const progress = operation.bytes_total
       ? `${Math.min(100, Math.round((operation.bytes_done / operation.bytes_total) * 100))}%`
-      : operation.state;
+      : stateLabel(operation.state);
     return `
       <div class="files-operation-row" data-operation-id="${esc(operation.id)}">
-        <span class="files-operation-copy"><strong>${esc(operation.action)} ${esc(basename(name))}</strong><small>${esc(progress)}${operation.non_atomic ? (operation.state === 'completed' ? ' · verified transfer' : ' · cross-location transfer') : ''}</small>${operation.error_code ? `<span class="files-operation-error" role="status">${esc(operation.error_code)}</span>` : ''}</span>
+        <span class="files-operation-copy"><strong>${esc(operationTitle(operation.action, basename(name)))}</strong><small>${esc(progress)}${operation.non_atomic ? (operation.state === 'completed' ? ` · ${t('files.verified_transfer')}` : ` · ${t('files.cross_location_transfer')}`) : ''}</small>${operation.error_code ? `<span class="files-operation-error" role="status">${esc(operation.error_code)}</span>` : ''}</span>
         <span class="files-operation-actions">
-          ${operation.can_run ? '<button class="files-text-button" type="button" data-operation-action="run">start</button>' : ''}
-          ${operation.can_cancel ? '<button class="files-text-button" type="button" data-operation-action="cancel">cancel</button>' : ''}
-          ${operation.can_retry ? '<button class="files-text-button" type="button" data-operation-action="retry">retry</button>' : ''}
-          ${operation.can_discard ? '<button class="files-text-button" type="button" data-operation-action="discard">dismiss</button>' : ''}
-          ${operation.can_undo ? '<button class="files-text-button" type="button" data-operation-action="undo">undo</button>' : ''}
+          ${operation.can_run ? `<button class="files-text-button" type="button" data-operation-action="run">${t('files.start')}</button>` : ''}
+          ${operation.can_cancel ? `<button class="files-text-button" type="button" data-operation-action="cancel">${t('common.cancel')}</button>` : ''}
+          ${operation.can_retry ? `<button class="files-text-button" type="button" data-operation-action="retry">${t('common.retry')}</button>` : ''}
+          ${operation.can_discard ? `<button class="files-text-button" type="button" data-operation-action="discard">${t('files.dismiss')}</button>` : ''}
+          ${operation.can_undo ? `<button class="files-text-button" type="button" data-operation-action="undo">${t('common.undo')}</button>` : ''}
         </span>
       </div>`;
   };
@@ -1327,22 +1358,22 @@ function renderLocationFields(kind) {
   $('files-vault-workflow-field').hidden = !vault;
   resetVaultReview();
   if (kind === 'local') {
-    host.innerHTML = '<label>folder path<input id="files-location-root" autocomplete="off" placeholder="/absolute/path" required></label>';
+    host.innerHTML = `<label>${t('files.folder_path')}<input id="files-location-root" autocomplete="off" placeholder="/absolute/path" required></label>`;
   } else if (kind === 'obsidian') {
-    host.innerHTML = '<label>existing vault folder<input id="files-location-root" autocomplete="off" placeholder="/absolute/path/to/vault" required></label><p class="files-vault-help">Alles checks every file, space requirement, destination conflict, and rollback copy before switching Docs.</p>';
+    host.innerHTML = `<label>${t('files.vault_folder')}<input id="files-location-root" autocomplete="off" placeholder="/absolute/path/to/vault" required></label><p class="files-vault-help">${t('files.vault_help')}</p>`;
   } else if (kind === 'webdav') {
     host.innerHTML = `
-      <label>endpoint<input id="files-location-endpoint" autocomplete="url" placeholder="https://server.example/dav" required></label>
-      <label>username<input id="files-location-username" autocomplete="username"></label>
-      <label>password<input id="files-location-password" type="password" autocomplete="new-password"></label>`;
+      <label>${t('files.endpoint')}<input id="files-location-endpoint" autocomplete="url" placeholder="https://server.example/dav" required></label>
+      <label>${t('files.username')}<input id="files-location-username" autocomplete="username"></label>
+      <label>${t('files.password')}<input id="files-location-password" type="password" autocomplete="new-password"></label>`;
   } else {
     host.innerHTML = `
-      <label>endpoint<input id="files-location-endpoint" autocomplete="url" placeholder="https://s3.example" required></label>
-      <label>bucket<input id="files-location-bucket" autocomplete="off" required></label>
-      <label>prefix<input id="files-location-prefix" autocomplete="off"></label>
-      <label>region<input id="files-location-region" autocomplete="off"></label>
-      <label>access key<input id="files-location-access-key" autocomplete="off" required></label>
-      <label>secret key<input id="files-location-secret-key" type="password" autocomplete="new-password" required></label>`;
+      <label>${t('files.endpoint')}<input id="files-location-endpoint" autocomplete="url" placeholder="https://s3.example" required></label>
+      <label>${t('files.bucket')}<input id="files-location-bucket" autocomplete="off" required></label>
+      <label>${t('files.prefix')}<input id="files-location-prefix" autocomplete="off"></label>
+      <label>${t('files.region')}<input id="files-location-region" autocomplete="off"></label>
+      <label>${t('files.access_key')}<input id="files-location-access-key" autocomplete="off" required></label>
+      <label>${t('files.secret_key')}<input id="files-location-secret-key" type="password" autocomplete="new-password" required></label>`;
   }
 }
 
@@ -1352,7 +1383,7 @@ function resetVaultReview() {
   const review = $('files-vault-review');
   if (review) { review.hidden = true; review.replaceChildren(); }
   const submit = $('files-location-submit');
-  if (submit) { submit.textContent = 'add location'; submit.disabled = false; }
+  if (submit) { submit.textContent = t('files.add_location'); submit.disabled = false; }
 }
 
 function chosen(host) {
@@ -1389,13 +1420,15 @@ async function createLocation() {
         const review = $('files-vault-review');
         review.hidden = false;
         const conflict = preview.conflicts?.length
-          ? `${preview.conflicts.length} destination conflict - choose a different name`
-          : 'no destination conflicts';
+          ? tp('files.vault_conflicts', preview.conflicts.length)
+          : t('files.vault_no_conflicts');
         const storage = workflow === 'keep'
-          ? 'no additional storage required'
-          : `${formatSize(preview.required_bytes)} required · ${formatSize(preview.available_bytes)} available`;
-        review.innerHTML = `<strong>${esc(preview.source_files)} files · ${esc(formatSize(preview.source_bytes) || '0 B')}</strong><span>${esc(conflict)}</span><span>${esc(storage)}</span><span>relative links and file bytes stay unchanged</span>${workflow === 'move' ? '<span>the source is removed only after the destination and rollback copy verify</span>' : ''}`;
-        $('files-location-submit').textContent = preview.can_import ? (workflow === 'keep' ? 'keep external' : `${workflow} into Alles`) : 'review blocked';
+          ? t('files.vault_no_storage')
+          : t('files.vault_storage', { required: formatSize(preview.required_bytes), available: formatSize(preview.available_bytes) });
+        review.innerHTML = `<strong>${esc(tp('files.vault_source_summary', preview.source_files, { size: formatSize(preview.source_bytes) || '0 B' }))}</strong><span>${esc(conflict)}</span><span>${esc(storage)}</span><span>${t('files.vault_links_unchanged')}</span>${workflow === 'move' ? `<span>${t('files.vault_move_note')}</span>` : ''}`;
+        $('files-location-submit').textContent = preview.can_import
+          ? (workflow === 'keep' ? t('files.vault_keep_external') : workflow === 'move' ? t('files.vault_move_into') : workflow === 'copy' ? t('files.vault_copy_into') : `${workflow} into Alles`)
+          : t('files.vault_review_blocked');
         $('files-location-submit').disabled = !preview.can_import;
         if (!preview.can_import) $('files-location-error').textContent = conflict;
       } catch (error) {
@@ -1450,9 +1483,9 @@ async function createLocation() {
     if (vaultTransferId) {
       try {
         await request(`/api/vault-transfer/${encodeURIComponent(vaultTransferId)}/rollback`, { method: 'POST' });
-        message = `${message}. the vault change was rolled back`;
+        message = t('files.vault_rolled_back', { error: message });
       } catch (rollbackError) {
-        message = `${message}. vault rollback also failed: ${rollbackError.message}`;
+        message = t('files.vault_rollback_failed', { error: message, rollback_error: rollbackError.message });
       }
     }
     $('files-location-error').textContent = message;
@@ -1463,11 +1496,11 @@ async function testLocation() {
   const location = currentLocation();
   if (!location) return;
   const locationId = location.id;
-  renderLocationStatus('testing connection');
+  renderLocationStatus(t('files.testing_connection'));
   try {
     const result = await request(`/api/storage-locations/${encodeURIComponent(locationId)}/test`, { method: 'POST' });
     if (locationId !== state.locationId) return;
-    renderLocationStatus(result.ok ? 'ready' : (result.error || result.state || 'unavailable'));
+    renderLocationStatus(result.ok ? t('files.connection_ready') : (result.error || result.state || t('common.unavailable')));
   } catch (error) {
     if (locationId !== state.locationId) return;
     renderLocationStatus(error.message);
@@ -1491,7 +1524,7 @@ async function removeLocation() {
   const location = currentLocation();
   if (!location || location.is_default) return;
   const locationId = location.id;
-  const ok = await dlgConfirm(`remove the location "${location.name}"? files are not deleted.`);
+  const ok = await dlgConfirm(t('files.remove_location_confirm', { name: location.name }));
   if (!ok) return;
   try {
     await request(`/api/storage-locations/${encodeURIComponent(locationId)}`, { method: 'DELETE' });
@@ -1573,7 +1606,7 @@ async function searchFiles(term) {
     filterCurrentItems(q);
     renderItems();
     renderSelection();
-    showNotice(`${state.items.length} starred result${state.items.length === 1 ? '' : 's'}`);
+    showNotice(tp('files.starred_results', state.items.length));
     return;
   }
   if (state.view === 'offline') {
@@ -1581,7 +1614,7 @@ async function searchFiles(term) {
     filterOfflineItems(q);
     renderItems();
     renderSelection();
-    showNotice(`${state.items.length} cached result${state.items.length === 1 ? '' : 's'}`);
+    showNotice(tp('files.cached_results', state.items.length));
     return;
   }
   const searchingTrash = state.view === 'trash';
@@ -1608,7 +1641,7 @@ async function searchFiles(term) {
     state.items = data.results || [];
     renderItems();
     renderSelection();
-    showNotice(`${state.items.length} result${state.items.length === 1 ? '' : 's'}`);
+    showNotice(tp('files.results', state.items.length));
   } catch (error) {
     if (sequence !== searchSequence || locationId !== state.locationId || view !== state.view) return;
     if (cwd !== state.cwd) return;
@@ -1653,7 +1686,7 @@ function clearFilesSearch() {
 
 async function newFolder() {
   if (!isWritable()) return;
-  const name = await dlgPrompt('', '', { title: 'new folder', label: 'name', confirmLabel: 'create' });
+  const name = await dlgPrompt('', '', { title: t('files.new_folder'), label: t('files.name_label'), confirmLabel: t('files.create') });
   if (!name) return;
   try {
     await request('/api/files/mkdir', jsonOptions('POST', {
@@ -1680,16 +1713,16 @@ function reviewUpload(file, locationId, cwd, initialError) {
     const previousFocus = document.activeElement;
     const overlay = document.createElement('div');
     overlay.className = 'dialog-overlay files-upload-review';
-    const locationName = state.locations.find(location => location.id === locationId)?.name || 'files';
+    const locationName = state.locations.find(location => location.id === locationId)?.name || t('files.location_fallback');
     overlay.innerHTML = `<form class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="files-upload-review-title" aria-describedby="files-upload-review-message">
-      <h2 id="files-upload-review-title">finish upload</h2>
+      <h2 id="files-upload-review-title">${t('files.finish_upload')}</h2>
       <p class="files-upload-destination">${esc([locationName, cwd].filter(Boolean).join(' / '))}</p>
       <p id="files-upload-review-message" role="alert" tabindex="-1"></p>
-      <label for="files-upload-review-name">file name</label>
+      <label for="files-upload-review-name">${t('files.file_name')}</label>
       <input id="files-upload-review-name" class="settings-input" value="${esc(file.name)}" autocomplete="off">
       <div class="dialog-btns">
-        <button type="button" class="btn" data-upload-cancel>cancel upload</button>
-        <button type="submit" class="btn primary" data-upload-submit>retry upload</button>
+        <button type="button" class="btn" data-upload-cancel>${t('files.cancel_upload')}</button>
+        <button type="submit" class="btn primary" data-upload-submit>${t('files.retry_upload')}</button>
       </div>
     </form>`;
     document.body.appendChild(overlay);
@@ -1711,8 +1744,8 @@ function reviewUpload(file, locationId, cwd, initialError) {
       const collision = error.detail?.code === 'file_conflict';
       const replace = sameName && collision && error.detail.can_replace;
       const valid = Boolean(input.value.trim()) && !input.value.includes('/') && !input.value.includes('\\') && !/^\.+$/.test(input.value.trim());
-      message.textContent = error.message + (replace ? '. The current file will be kept in version history.' : '');
-      submit.textContent = replace ? 'replace file' : sameName ? 'retry upload' : 'upload with new name';
+      message.textContent = replace ? t('files.upload_replace_note', { error: error.message }) : error.message;
+      submit.textContent = replace ? t('files.replace_file') : sameName ? t('files.retry_upload') : t('files.upload_new_name');
       submit.disabled = busy || !valid || (sameName && collision && !error.detail.can_replace);
       input.disabled = cancel.disabled = busy;
     };
@@ -1736,7 +1769,7 @@ function reviewUpload(file, locationId, cwd, initialError) {
         ? error.detail.expected_etag : '';
       busy = true;
       update();
-      message.textContent = `uploading ${name}…`;
+      message.textContent = t('files.uploading_named', { name });
       try {
         await sendUpload(file, name, locationId, cwd, expected);
         finish(true);
@@ -1755,13 +1788,13 @@ function reviewUpload(file, locationId, cwd, initialError) {
 
 async function uploadFiles(files) {
   if (!isWritable()) return;
-  if (uploadActive) { toast('finish the current upload first', 'error'); return; }
+  if (uploadActive) { toast(t('files.finish_current_upload'), 'error'); return; }
   uploadActive = true;
   const button = $('files-upload-btn');
   const locationId = state.locationId;
   const cwd = state.cwd;
   let complete = 0;
-  if (button) { button.disabled = true; button.textContent = 'uploading…'; button.setAttribute('aria-busy', 'true'); }
+  if (button) { button.disabled = true; button.textContent = t('files.uploading'); button.setAttribute('aria-busy', 'true'); }
   try {
     for (const file of files) {
       try {
@@ -1772,13 +1805,13 @@ async function uploadFiles(files) {
       }
     }
     if (complete) {
-      toast(`${complete} file${complete === 1 ? '' : 's'} uploaded`, 'success');
+      toast(tp('files.uploaded_count', complete), 'success');
       if (state.locationId === locationId && state.cwd === cwd) await loadFiles(cwd);
     }
   } finally {
     uploadActive = false;
     if (button) {
-      button.textContent = 'upload'; button.removeAttribute('aria-busy'); button.disabled = !isWritable();
+      button.textContent = t('files.upload'); button.removeAttribute('aria-busy'); button.disabled = !isWritable();
       if (document.activeElement === document.body && button.offsetParent) button.focus();
     }
   }

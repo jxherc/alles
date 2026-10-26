@@ -1,10 +1,10 @@
 import { createSettingsPane } from './pane.js';
-import { getDropdownValue } from '../dropdown.js?v=212';
+import { getDropdownValue } from '../dropdown.js?v=213';
 import { toast } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { parsePrivateLines } from '../mcp-config.js';
 import { formatPhone } from '../liveformat.js';
-import { resolvedTimeZone, t } from '../i18n.js';
+import { formatDate, formatList, resolvedTimeZone, t, tp } from '../i18n.js';
 import { _setSwitch, _bindSwitch, _patchSetting, _patchSettings, _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -36,14 +36,14 @@ function _syncConnectionPending() {
   document.querySelectorAll('#conn-list button[data-id]').forEach(button => {
     const action = _connectionPending.get(_connectionServices.get(button.dataset.id));
     button.disabled = !!action;
-    button.textContent = action === 'delete' ? 'disconnecting…' : 'disconnect';
+    button.textContent = action === 'delete' ? t('common.disconnecting') : t('common.disconnect');
   });
 }
 
 function _syncMcpPending() {
   document.querySelectorAll('#mcp-server-list button[data-id]').forEach(button => {
     button.disabled = _mcpRemoving.has(button.dataset.id);
-    button.textContent = button.disabled ? 'removing…' : 'remove';
+    button.textContent = button.disabled ? t('connections.removing') : t('common.remove');
   });
   document.querySelectorAll('#mcp-presets button[data-id]').forEach(button => {
     button.disabled = _mcpPresetAdding.has(button.dataset.id);
@@ -54,7 +54,7 @@ function _syncPermPending() {
   const add = document.getElementById('perm-rule-add-btn');
   if (add) {
     add.disabled = _permRulesSaving || !_permRulesKnown;
-    add.textContent = _permRuleAdding ? 'saving…' : 'add rule';
+    add.textContent = _permRuleAdding ? t('common.saving') : t('connections.add_rule');
   }
   document.querySelectorAll('#perm-rules-list button').forEach(button => { button.disabled = _permRulesSaving; });
 }
@@ -95,7 +95,7 @@ async function loadAgentStatus(isCurrent = () => true) {
       const returnFocus = document.activeElement === rootsSave;
       _agentRootsSaving = true;
       rootsSave.disabled = true;
-      rootsSave.textContent = 'saving…';
+      rootsSave.textContent = t('common.saving');
       rootsSave.setAttribute('aria-busy', 'true');
       try {
         const response = await _fetchWithRecentOwner('/api/settings', {
@@ -103,18 +103,18 @@ async function loadAgentStatus(isCurrent = () => true) {
           body: JSON.stringify({ agent_allowed_roots: values }),
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.detail || 'approved roots could not be saved');
+        if (!response.ok) throw new Error(data.detail || t('connections.roots_save_failed'));
         if (revision === _agentRootsRevision) {
           _agentRootsDirty = false;
           if (roots) roots.value = (data.agent_allowed_roots || []).join('\n');
         }
-        toast('approved roots saved', 'success');
+        toast(t('connections.roots_saved'), 'success');
       } catch (error) {
-        toast(error.message || 'approved roots could not be saved', 'error');
+        toast(error.message || t('connections.roots_save_failed'), 'error');
       } finally {
         _agentRootsSaving = false;
         rootsSave.disabled = false;
-        rootsSave.textContent = 'save approved roots';
+        rootsSave.textContent = t('connections.save_roots');
         rootsSave.removeAttribute('aria-busy');
         if (returnFocus && document.activeElement === document.body && rootsSave.offsetParent) rootsSave.focus();
       }
@@ -127,33 +127,34 @@ async function loadAgentStatus(isCurrent = () => true) {
     ]);
     if (!current()) return;
     const opencode = s.opencode?.installed
-      ? 'installed'
-      : (s.opencode?.npx_fallback ? 'npx fallback' : 'missing');
+      ? t('connections.opencode_installed')
+      : (s.opencode?.npx_fallback ? t('connections.opencode_npx_fallback') : t('connections.opencode_missing'));
+    const yesNo = value => (value ? t('common.yes') : t('common.no'));
     grid.innerHTML = `
-      <div><span>tools</span><strong>${s.tool_count || 0}</strong></div>
+      <div><span>${_esc(t('connections.status_tools'))}</span><strong>${s.tool_count || 0}</strong></div>
       <div><span>opencode</span><strong>${_esc(opencode)}</strong></div>
       <div><span>mcp</span><strong>${s.mcp?.connected_tool_count || 0}</strong></div>
-      <div><span>skills</span><strong>${s.skills?.count || 0}</strong></div>
-      <div><span>docker</span><strong>${s.sandbox?.docker ? 'yes' : 'no'}</strong></div>
-      <div><span>pyautogui</span><strong>${s.computer_use?.pyautogui ? 'yes' : 'no'}</strong></div>
-      <div><span>connections</span><strong>${_esc((s.connections || []).join(', ') || 'none')}</strong></div>
+      <div><span>${_esc(t('connections.status_skills'))}</span><strong>${s.skills?.count || 0}</strong></div>
+      <div><span>docker</span><strong>${yesNo(s.sandbox?.docker)}</strong></div>
+      <div><span>pyautogui</span><strong>${yesNo(s.computer_use?.pyautogui)}</strong></div>
+      <div><span>${_esc(t('connections.status_connections'))}</span><strong>${_esc((s.connections || []).join(', ') || t('common.none'))}</strong></div>
     `;
-    list.innerHTML = (s.tools || []).map(t => `<span>${_esc(t)}</span>`).join('');
+    list.innerHTML = (s.tools || []).map(tool => `<span>${_esc(tool)}</span>`).join('');
 
     if (runsEl) {
       runsEl.innerHTML = Array.isArray(runs) && runs.length
         ? runs.map(r => `
           <div class="agent-run-row">
-            <span>${_esc(r.status || 'unknown')}</span>
-            <strong>${_esc((r.model || '').split('/').pop() || 'agent')}</strong>
+            <span>${_esc(r.status || t('common.unknown'))}</span>
+            <strong>${_esc((r.model || '').split('/').pop() || t('connections.run_agent'))}</strong>
             <em>${_esc((r.updated_at || '').replace('T', ' ').slice(0, 19))}</em>
           </div>
         `).join('')
-        : '<div class="settings-row-empty">no agent runs yet</div>';
+        : `<div class="settings-row-empty">${_esc(t('connections.no_agent_runs'))}</div>`;
     }
   } catch {
     if (!current()) return;
-    grid.innerHTML = '<div class="settings-row-empty">agent status unavailable</div>';
+    grid.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.agent_status_unavailable'))}</div>`;
     list.innerHTML = '';
     if (runsEl) runsEl.innerHTML = '';
   }
@@ -169,27 +170,28 @@ export async function loadMcpServers(isCurrent = () => true) {
     if (!response.ok) throw new Error();
     const servers = await response.json();
     if (!current() || _mcpRemoving.size || _mcpAdding || _mcpPresetAdding.size) return;
-    if (!servers.length) { el.innerHTML = '<div class="settings-row-empty">no servers</div>'; return; }
+    if (!servers.length) { el.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.no_servers'))}</div>`; return; }
     el.innerHTML = servers.map(s => {
-      const meta = s.state === 'needs_sign_in' ? 'needs sign-in'
-        : s.state === 'error' ? (s.error || 'not connected')
-        : s.connected ? `${s.tools.length} tools` : 'not connected';
+      const meta = s.state === 'needs_sign_in' ? t('connections.needs_sign_in')
+        : s.state === 'error' ? (s.error || t('common.not_connected'))
+        : s.connected ? tp('connections.tool_count', s.tools.length) : t('common.not_connected');
       const signIn = s.state === 'needs_sign_in'
-        ? `<button class="act-btn" data-id="${s.id}" data-mcp-sign-in>sign in</button>` : '';
-      const signOut = s.signed_in ? `<button class="act-btn" data-id="${s.id}" data-mcp-sign-out>sign out</button>` : '';
+        ? `<button class="act-btn" data-id="${s.id}" data-mcp-sign-in>${_esc(t('connections.sign_in'))}</button>` : '';
+      const signOut = s.signed_in ? `<button class="act-btn" data-id="${s.id}" data-mcp-sign-out>${_esc(t('connections.sign_out'))}</button>` : '';
       return `
       <div class="settings-list-row">
         <span class="status-dot" style="background:${s.connected ? 'var(--green)' : 'var(--faint)'}"></span>
         <span class="row-name">${_esc(s.name)}</span>
         <span class="row-meta"${s.state === 'error' ? ' data-error="true"' : ''}>${_esc(meta)}</span>
         ${signIn}${signOut}
-        <button class="act-btn" data-id="${s.id}" onclick="window._rmMcp(this)">remove</button>
+        <button class="act-btn" data-id="${s.id}" data-mcp-remove>${_esc(t('common.remove'))}</button>
       </div>`;
     }).join('');
     el.querySelectorAll('[data-mcp-sign-in]').forEach(b => b.onclick = () => _mcpSignIn(b));
     el.querySelectorAll('[data-mcp-sign-out]').forEach(b => b.onclick = () => _mcpSignOut(b));
+    el.querySelectorAll('[data-mcp-remove]').forEach(b => b.onclick = () => window._rmMcp(b));
   } catch {
-    if (current() && !_mcpRemoving.size && !_mcpAdding && !_mcpPresetAdding.size) el.innerHTML = '<div class="settings-row-empty">failed to load</div>';
+    if (current() && !_mcpRemoving.size && !_mcpAdding && !_mcpPresetAdding.size) el.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.load_failed'))}</div>`;
   }
 }
 
@@ -203,10 +205,10 @@ async function _mcpSignIn(button) {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || 'could not start sign-in');
-    if (!data.url) { tab?.close(); toast(data.detail || 'already connected', 'success'); loadMcpServers(); return; }
+    if (!response.ok) throw new Error(data.detail || t('connections.mcp_sign_in_failed'));
+    if (!data.url) { tab?.close(); toast(data.detail || t('connections.already_connected'), 'success'); loadMcpServers(); return; }
     if (tab) { tab.opener = null; tab.location = data.url; } else window.location.assign(data.url);
-    toast('finish signing in in the new tab', 'success');
+    toast(t('connections.finish_sign_in_tab'), 'success');
     clearInterval(_mcpSignInWatch);
     let tries = 0;
     _mcpSignInWatch = setInterval(async () => {
@@ -227,7 +229,7 @@ async function _mcpSignOut(button) {
   try {
     const response = await _fetchWithRecentOwner(`/api/mcp/servers/${button.dataset.id}/sign-out`, { method: 'POST' });
     if (!response.ok) throw new Error();
-  } catch { toast('could not sign out', 'error'); }
+  } catch { toast(t('connections.sign_out_failed'), 'error'); }
   loadMcpServers();
 }
 
@@ -239,22 +241,22 @@ async function _searchMcpRegistry() {
   const button = document.getElementById('mcp-registry-go');
   if (!input || !box) return;
   button.disabled = true;
-  box.innerHTML = '<div class="settings-row-empty">searching the registry… it can take a few seconds</div>';
+  box.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.registry_searching'))}</div>`;
   try {
     const response = await fetch(`/api/mcp/registry?q=${encodeURIComponent(input.value.trim())}`);
     const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || 'search failed');
+    if (!response.ok) throw new Error(data.detail || t('connections.registry_search_failed'));
     _mcpRegistryItems = data.items || [];
-    if (!_mcpRegistryItems.length) { box.innerHTML = '<div class="settings-row-empty">nothing found</div>'; return; }
+    if (!_mcpRegistryItems.length) { box.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.registry_nothing_found'))}</div>`; return; }
     box.innerHTML = _mcpRegistryItems.map((item, i) => `
       <div class="settings-list-row mcp-registry-row">
         <span class="row-name">${_esc(item.name)}<span class="mcp-registry-desc">${_esc(item.description)}</span></span>
-        <span class="row-meta">${item.remotes.length ? 'remote' : 'local'}</span>
-        <button class="act-btn" data-mcp-use="${i}">use</button>
+        <span class="row-meta">${_esc(item.remotes.length ? t('connections.registry_remote') : t('connections.registry_local'))}</span>
+        <button class="act-btn" data-mcp-use="${i}">${_esc(t('connections.registry_use'))}</button>
       </div>`).join('');
     box.querySelectorAll('[data-mcp-use]').forEach(b => b.onclick = () => _useMcpRegistry(_mcpRegistryItems[Number(b.dataset.mcpUse)]));
   } catch (error) {
-    box.innerHTML = `<div class="settings-row-empty">${_esc(error.message || 'search failed')}</div>`;
+    box.innerHTML = `<div class="settings-row-empty">${_esc(error.message || t('connections.registry_search_failed'))}</div>`;
   } finally { button.disabled = false; }
 }
 
@@ -281,8 +283,21 @@ function _useMcpRegistry(item) {
   }
   _mcpDraftRevision += 1;
   const needs = remote ? remote.headers.length : pkg?.env.length;
-  toast(needs ? 'fill in the private values, then add server' : 'ready: press add server', 'success');
+  toast(needs ? t('connections.registry_fill_values') : t('connections.registry_ready'), 'success');
   document.getElementById(needs ? (remote ? 'mcp-headers' : 'mcp-env') : 'mcp-add-btn')?.focus();
+}
+
+// photos permission ids from the native bridge, read the way the row always showed them
+function _photokitState(state) {
+  const labels = {
+    not_determined: t('connections.photokit_not_determined'),
+    restricted: t('connections.photokit_restricted'),
+    denied: t('connections.photokit_denied'),
+    authorized: t('connections.photokit_authorized'),
+    limited: t('connections.photokit_limited'),
+    unknown: t('common.unknown'),
+  };
+  return labels[state] || state.replace('_', ' ');
 }
 
 // 11a — macOS native integration status (available only on the Mac mini)
@@ -292,23 +307,32 @@ async function loadMacosStatus(isCurrent = () => true) {
   if (!box) return;
   let cap;
   try { cap = await fetch('/api/macos/status').then(r => r.json()); }
-  catch { if (current()) box.innerHTML = '<div class="settings-row-empty">status unavailable</div>'; return; }
+  catch { if (current()) box.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.status_unavailable'))}</div>`; return; }
   if (!current()) return;
   const dot = ok => `<span class="status-dot" style="background:${ok ? 'var(--green)' : 'var(--faint)'}"></span>`;
   const row = (label, ok) => `<div class="macos-row">${dot(ok)}<span>${label}</span></div>`;
   if (!cap.available) {
-    box.innerHTML = `<div class="settings-row-empty">unavailable on ${_esc(cap.platform)}. `
-      + 'macOS native integration runs on the Mac mini.</div>';
+    box.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.macos_unavailable', { platform: cap.platform }))}</div>`;
     return;
   }
-  box.innerHTML = `<div class="macos-avail">${_si('check')} available</div>`
-    + row('Keychain', cap.keychain)
-    + row('Calendar / Reminders (EventKit)', cap.eventkit)
-    + row(`Photos (PhotoKit)${cap.photokit_authorization && !cap.photokit_ready ? `: ${_esc(cap.photokit_authorization.replace('_', ' '))}` : ''}`, cap.photokit_ready)
+  const photos = cap.photokit_authorization && !cap.photokit_ready
+    ? t('connections.macos_photokit_state', { state: _photokitState(cap.photokit_authorization) })
+    : t('connections.macos_photokit');
+  box.innerHTML = `<div class="macos-avail">${_si('check')} ${_esc(t('connections.macos_available'))}</div>`
+    + row(_esc(t('connections.macos_keychain')), cap.keychain)
+    + row(_esc(t('connections.macos_eventkit')), cap.eventkit)
+    + row(_esc(photos), cap.photokit_ready)
     + row('iCloud Drive', cap.icloud);
 }
 
 // 10d — one-click connector presets
+// the server describes presets in english; the catalog has them by id. the braces are fields the owner fills in
+function _presetDescription(preset) {
+  const key = `settings.mcp_preset_${preset.id}`;
+  const text = t(key, { root: '{root}', db_path: '{db_path}' });
+  return text === key ? preset.description : text;
+}
+
 async function _loadMcpPresets(isCurrent = () => true) {
   const current = _connectionRead('presets', isCurrent);
   const box = document.getElementById('mcp-presets');
@@ -318,7 +342,7 @@ async function _loadMcpPresets(isCurrent = () => true) {
   catch { if (current() && !_mcpPresetAdding.size) box.innerHTML = ''; return; }
   if (!current() || _mcpPresetAdding.size) return;
   box.innerHTML = presets.map(p =>
-    `<button class="btn mcp-preset" data-id="${_escAttr(p.id)}" title="${_escAttr(p.description)}">+ ${_esc(p.name)}</button>`
+    `<button class="btn mcp-preset" data-id="${_escAttr(p.id)}" title="${_escAttr(_presetDescription(p))}">+ ${_esc(p.name)}</button>`
   ).join('');
   box.querySelectorAll('.mcp-preset').forEach(b => b.onclick = () => _addMcpPreset(b.dataset.id));
   _syncMcpPending();
@@ -328,14 +352,14 @@ async function _addMcpPreset(id) {
   if (_mcpPresetAdding.has(id)) return;
   _mcpPresetAdding.add(id);
   _syncMcpPending();
-  toast('adding connector…');
+  toast(t('connections.adding_connector'));
   try {
     const r = await _fetchWithRecentOwner(`/api/mcp/presets/${encodeURIComponent(id)}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ params: {} }),
     });
     if (!r.ok) throw new Error(r.status);
-    toast('connector added: edit its args if it needs a path/key', 'success');
-  } catch { toast('could not add connector', 'error'); }
+    toast(t('connections.connector_added'), 'success');
+  } catch { toast(t('connections.connector_add_failed'), 'error'); }
   finally {
     _mcpPresetAdding.delete(id);
     _syncMcpPending();
@@ -352,7 +376,7 @@ window._rmMcp = async btn => {
   try {
     const response = await _fetchWithRecentOwner(`/api/mcp/servers/${id}`, { method: 'DELETE' });
     if (!response.ok) throw new Error();
-  } catch { toast('could not remove mcp server', 'error'); }
+  } catch { toast(t('connections.mcp_remove_failed'), 'error'); }
   finally {
     _mcpRemoving.delete(id);
     _syncMcpPending();
@@ -383,17 +407,19 @@ export async function loadConnections(isCurrent = () => true) {
     if (!current() || _connectionPending.size) return;
     _connectionServices.clear();
     conns.forEach(connection => _connectionServices.set(connection.id, connection.service.trim().toLowerCase()));
-    if (!conns.length) { el.innerHTML = '<div class="settings-row-empty">nothing connected</div>'; return; }
+    if (!conns.length) { el.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.nothing_connected'))}</div>`; return; }
     el.innerHTML = conns.map(c => `
       <div class="settings-list-row">
         <span class="status-dot" style="background:${c.connected ? 'var(--green)' : 'var(--faint)'}"></span>
         <span class="row-name">${_esc(c.service)}</span>
         <span class="row-meta">${_esc(c.token_masked || '')}</span>
-        <button class="act-btn" data-svc="${_esc(c.service)}" onclick="window._testConn(this)">test</button>
-        <button class="act-btn" data-id="${c.id}" onclick="window._rmConn(this)">disconnect</button>
+        <button class="act-btn" data-svc="${_esc(c.service)}">${_esc(t('connections.test'))}</button>
+        <button class="act-btn" data-id="${c.id}">${_esc(t('common.disconnect'))}</button>
       </div>`).join('');
+    el.querySelectorAll('button[data-svc]').forEach(b => b.onclick = () => window._testConn(b));
+    el.querySelectorAll('button[data-id]').forEach(b => b.onclick = () => window._rmConn(b));
     _syncConnectionPending();
-  } catch { if (current() && !_connectionPending.size) el.innerHTML = '<div class="settings-row-empty">failed to load</div>'; }
+  } catch { if (current() && !_connectionPending.size) el.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.load_failed'))}</div>`; }
 }
 
 async function addConnection() {
@@ -402,8 +428,8 @@ async function addConnection() {
   let service = sel.value;
   if (service === 'custom') service = document.getElementById('conn-custom').value.trim();
   const token = document.getElementById('conn-token').value.trim();
-  if (!service) { toast('pick a service', 'error'); return; }
-  if (!token) { toast('token required', 'error'); return; }
+  if (!service) { toast(t('connections.pick_service'), 'error'); return; }
+  if (!token) { toast(t('connections.token_required'), 'error'); return; }
   const owner = service.trim().toLowerCase();
   if (_connectionPending.has(owner)) return;
   const revision = _connectionDraftRevision;
@@ -411,21 +437,21 @@ async function addConnection() {
   _connectionAdding = true;
   _connectionPending.set(owner, 'connect');
   _syncConnectionPending();
-  btn.disabled = true; btn.textContent = 'connecting…';
+  btn.disabled = true; btn.textContent = t('connections.connecting');
   try {
     const r = await _fetchWithRecentOwner('/api/connections', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ service, token }),
     });
-    if (!r.ok) { toast('connect failed', 'error'); return; }
-    toast(`${service} connected`, 'success');
+    if (!r.ok) { toast(t('connections.connect_failed'), 'error'); return; }
+    toast(t('connections.service_connected', { service }), 'success');
     if (revision === _connectionDraftRevision) document.getElementById('conn-token').value = '';
-  } catch { toast('connect failed', 'error'); }
+  } catch { toast(t('connections.connect_failed'), 'error'); }
   finally {
     _connectionAdding = false;
     _connectionPending.delete(owner);
     _syncConnectionPending();
-    btn.textContent = 'connect';
+    btn.textContent = t('connections.connect');
     loadConnections();
   }
 }
@@ -440,7 +466,7 @@ window._rmConn = async btn => {
   try {
     const response = await _fetchWithRecentOwner(`/api/connections/${id}`, { method: 'DELETE' });
     if (!response.ok) throw new Error();
-  } catch { toast('could not disconnect', 'error'); }
+  } catch { toast(t('connections.disconnect_failed'), 'error'); }
   finally {
     _connectionPending.delete(service);
     _syncConnectionPending();
@@ -454,10 +480,10 @@ window._testConn = async btn => {
   btn.textContent = '…';
   try {
     const r = await fetch(`/api/connections/${btn.dataset.svc}/test`).then(x => x.json());
-    if (r.ok) toast(`${btn.dataset.svc} ok${r.user ? ': ' + r.user : ''}`, 'success');
-    else toast(r.error || 'test failed', 'error');
-  } catch { toast('test failed', 'error'); }
-  btn.textContent = 'test';
+    if (r.ok) toast(r.user ? t('connections.test_ok_user', { service: btn.dataset.svc, user: r.user }) : t('connections.test_ok', { service: btn.dataset.svc }), 'success');
+    else toast(r.error || t('connections.test_failed'), 'error');
+  } catch { toast(t('connections.test_failed'), 'error'); }
+  btn.textContent = t('connections.test');
 };
 
 // Jarvis is only the optional owner-scoped Discord connection. It uses Aide's
@@ -492,7 +518,7 @@ function _discordJson(url, options = {}) {
       const response = await _fetchWithRecentOwner(url, options);
       let body = {};
       try { body = await response.json(); } catch {}
-      if (!response.ok) throw new Error(body.detail || body.message || 'Discord connection failed');
+      if (!response.ok) throw new Error(body.detail || body.message || t('connections.discord_failed'));
       return body;
     } finally {
       _discordBusy = false;
@@ -501,6 +527,18 @@ function _discordJson(url, options = {}) {
   const pending = _discordMutationQueue.then(mutate, mutate);
   _discordMutationQueue = pending.catch(() => {});
   return pending;
+}
+
+// gateway states from the server, read the way the card always showed them
+function _connectionState(state) {
+  const labels = {
+    connected: t('common.connected'),
+    connecting: t('connections.state_connecting'),
+    reconnecting: t('connections.state_reconnecting'),
+    disconnected: t('connections.state_disconnected'),
+    'token revoked': t('connections.state_token_revoked'),
+  };
+  return labels[state] || state;
 }
 
 function _renderDiscordConnection(data) {
@@ -513,13 +551,13 @@ function _renderDiscordConnection(data) {
   view.hidden = true;
   setup.hidden = !!data.configured;
   manage.hidden = !data.configured;
-  head.textContent = data.configured ? (data.connection_state || 'disconnected') : 'not connected';
+  head.textContent = data.configured ? _connectionState(data.connection_state || 'disconnected') : t('common.not_connected');
   if (!data.configured) return;
 
   document.getElementById('jarvis-discord-name').textContent = data.bot_name || 'Jarvis';
   const detail = data.paired
-    ? `paired with ${data.owner_name || 'owner'}`
-    : 'waiting for one owner to pair';
+    ? t('connections.discord_paired', { name: data.owner_name || t('connections.discord_owner') })
+    : t('connections.discord_waiting');
   document.getElementById('jarvis-discord-detail').textContent = detail;
   _setSwitch(document.getElementById('jarvis-discord-enabled'), !!data.enabled);
   const channels = document.getElementById('jarvis-discord-channels');
@@ -529,8 +567,8 @@ function _renderDiscordConnection(data) {
   pairCode.hidden = !_discordPairingCode;
   pairCode.textContent = _discordPairingCode || '';
   document.getElementById('jarvis-discord-pair').textContent = data.paired
-    ? 'replace pairing'
-    : (data.pairing_available ? 'replace hidden code' : 'new pairing code');
+    ? t('connections.discord_replace_pairing')
+    : (data.pairing_available ? t('connections.discord_replace_code') : t('connections.discord_new_code'));
   document.getElementById('jarvis-discord-revoke').hidden = !data.paired;
 
   const quiet = data.quiet_hours || {};
@@ -566,7 +604,7 @@ function _bindDiscordConnection() {
   document.getElementById('jarvis-discord-connect')?.addEventListener('click', async () => {
     if (_discordActionsPending.has('connect')) return;
     const token = document.getElementById('jarvis-discord-token').value.trim();
-    if (!token) { toast('bot token required', 'error'); return; }
+    if (!token) { toast(t('connections.discord_token_required'), 'error'); return; }
     const tokenRevision = _discordTokenRevision;
     const channelsRevision = _discordDraftRevisions.channels;
     const quietRevision = _discordDraftRevisions.quiet;
@@ -581,7 +619,7 @@ function _bindDiscordConnection() {
       if (quietRevision === _discordDraftRevisions.quiet) _discordDrafts.quiet = false;
       if (tokenRevision === _discordTokenRevision) document.getElementById('jarvis-discord-token').value = '';
       _renderDiscordConnection(data);
-      toast('Discord connected', 'success');
+      toast(t('connections.discord_connected'), 'success');
     } catch (error) { toast(error.message, 'error'); }
     finally { _setDiscordActionPending('connect', false); }
   });
@@ -611,7 +649,7 @@ function _bindDiscordConnection() {
   document.getElementById('jarvis-discord-save-channels')?.addEventListener('click', async () => {
     const ids = _discordLines(document.getElementById('jarvis-discord-channels').value);
     if (ids.some(value => !/^\d+$/.test(value))) {
-      toast('channel ids must contain numbers only', 'error'); return;
+      toast(t('connections.discord_channels_numeric'), 'error'); return;
     }
     const draftRevision = _discordDraftRevisions.channels;
     try {
@@ -621,12 +659,12 @@ function _bindDiscordConnection() {
       });
       if (draftRevision === _discordDraftRevisions.channels) _discordDrafts.channels = false;
       _renderDiscordConnection(data);
-      toast('approved channels saved', 'success');
+      toast(t('connections.discord_channels_saved'), 'success');
     } catch (error) { toast(error.message, 'error'); }
   });
   document.getElementById('jarvis-discord-revoke')?.addEventListener('click', async () => {
     if (_discordActionsPending.has('pairing')) return;
-    if (!await _dlgConfirm('Revoke the paired Discord owner?')) return;
+    if (!await _dlgConfirm(t('connections.discord_revoke_confirm'))) return;
     if (_discordActionsPending.has('pairing')) return;
     _setDiscordActionPending('pairing', true);
     try {
@@ -636,7 +674,7 @@ function _bindDiscordConnection() {
       });
       _discordPairingCode = data.pairing_code || '';
       _renderDiscordConnection(data);
-      toast('owner revoked; a new code is ready', 'success');
+      toast(t('connections.discord_owner_revoked'), 'success');
     } catch (error) { toast(error.message, 'error'); }
     finally { _setDiscordActionPending('pairing', false); }
   });
@@ -678,18 +716,18 @@ function _bindDiscordConnection() {
       });
       if (draftRevision === _discordDraftRevisions.quiet) _discordDrafts.quiet = false;
       _renderDiscordConnection(data);
-      toast('quiet hours saved', 'success');
+      toast(t('connections.discord_quiet_saved'), 'success');
     } catch (error) { toast(error.message, 'error'); }
   });
   document.getElementById('jarvis-discord-disconnect')?.addEventListener('click', async () => {
-    if (!await _dlgConfirm('Disconnect Aide from Discord?')) return;
+    if (!await _dlgConfirm(t('connections.discord_disconnect_confirm'))) return;
     try {
       await _discordJson('/api/jarvis/discord', { method: 'DELETE' });
       _discordPairingCode = '';
       _discordDrafts.channels = false;
       _discordDrafts.quiet = false;
       _renderDiscordConnection({ configured: false });
-      toast('Discord disconnected', 'success');
+      toast(t('connections.discord_disconnected'), 'success');
     } catch (error) { toast(error.message, 'error'); }
   });
 }
@@ -710,7 +748,7 @@ export async function loadDiscordConnection(isCurrent = () => true) {
   } catch {
     if (generation !== _discordGeneration || !isCurrent()) return;
     view.hidden = false;
-    view.innerHTML = '<div class="settings-row-empty">Discord status unavailable</div>';
+    view.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.discord_status_unavailable'))}</div>`;
     document.getElementById('jarvis-discord-setup').hidden = true;
     document.getElementById('jarvis-discord-manage').hidden = true;
   }
@@ -723,7 +761,7 @@ async function addMcpServer() {
   const transport = document.getElementById('mcp-transport')?.value || 'stdio';
   const url = document.getElementById('mcp-url')?.value.trim() || '';
   if (!name || (transport === 'stdio' ? !command : !url)) {
-    toast(transport === 'stdio' ? 'name + command required' : 'name + remote url required', 'error');
+    toast(transport === 'stdio' ? t('connections.mcp_command_required') : t('connections.mcp_url_required'), 'error');
     return;
   }
   const parts = command.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
@@ -736,7 +774,7 @@ async function addMcpServer() {
   const revision = _mcpDraftRevision;
   const btn = document.getElementById('mcp-add-btn');
   _mcpAdding = true;
-  btn.disabled = true; btn.textContent = 'adding…';
+  btn.disabled = true; btn.textContent = t('connections.adding');
   try {
     const response = await _fetchWithRecentOwner('/api/mcp/servers', {
       method: 'POST', headers: {'content-type':'application/json'},
@@ -744,7 +782,7 @@ async function addMcpServer() {
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      toast(error.detail || 'could not add mcp server', 'error');
+      toast(error.detail || t('connections.mcp_add_failed'), 'error');
       return;
     }
     if (revision === _mcpDraftRevision) {
@@ -754,25 +792,25 @@ async function addMcpServer() {
       document.getElementById('mcp-env').value = '';
       document.getElementById('mcp-headers').value = '';
     }
-    toast('mcp server added', 'success');
+    toast(t('connections.mcp_added'), 'success');
     loadMcpServers();
-  } catch { toast('could not add mcp server', 'error'); }
+  } catch { toast(t('connections.mcp_add_failed'), 'error'); }
   finally {
     _mcpAdding = false;
-    btn.disabled = false; btn.textContent = 'add server';
+    btn.disabled = false; btn.textContent = t('connections.add_server');
   }
 }
 
 async function rotateCredentialKey() {
   const button = document.getElementById('conn-rotate-key');
   button.disabled = true;
-  button.textContent = 'rotating…';
+  button.textContent = t('connections.rotating');
   try {
     const response = await _fetchWithRecentOwner('/api/connections/rotate-key', { method: 'POST' });
     if (!response.ok) throw new Error(response.status);
-    toast('credential key rotated', 'success');
-  } catch { toast('credential key rotation failed; the old key was kept', 'error'); }
-  finally { button.disabled = false; button.textContent = 'rotate credential key'; }
+    toast(t('connections.key_rotated'), 'success');
+  } catch { toast(t('connections.key_rotate_failed'), 'error'); }
+  finally { button.disabled = false; button.textContent = t('connections.rotate_key'); }
 }
 
 
@@ -807,6 +845,10 @@ function _wireConnectionsPane() {
 
 // ── permission rules: per-tool/path allow|ask|deny, layered over the agent mode ──
 let _permRules = [];
+function _permActionLabel(action) {
+  const labels = { allow: t('connections.perm_allow'), ask: t('connections.perm_ask'), deny: t('connections.perm_deny') };
+  return labels[action] || action;
+}
 async function loadPermRules(isCurrent = () => true) {
   const current = _connectionRead('permissions', isCurrent);
   let rules;
@@ -815,7 +857,7 @@ async function loadPermRules(isCurrent = () => true) {
     if (!response.ok) throw new Error();
     rules = (await response.json()).permission_rules || [];
   } catch {
-    if (current() && !_permRulesSaving) toast('could not load permission rules', 'error');
+    if (current() && !_permRulesSaving) toast(t('connections.perm_load_failed'), 'error');
     return;
   }
   if (!current() || _permRulesSaving) return;
@@ -826,12 +868,12 @@ async function loadPermRules(isCurrent = () => true) {
     el.innerHTML = _permRules.length
       ? _permRules.map((r, i) => `
         <div class="perm-rule-row">
-          <span class="perm-rule-act perm-${_esc(r.action)}">${_esc(r.action)}</span>
+          <span class="perm-rule-act perm-${_esc(r.action)}">${_esc(_permActionLabel(r.action))}</span>
           <span class="perm-rule-tool">${_esc(r.tool || '*')}</span>
           ${r.path ? `<span class="perm-rule-path">${_esc(r.path)}</span>` : ''}
-          <button class="perm-rule-del" data-i="${i}" title="remove">✕</button>
+          <button class="perm-rule-del" data-i="${i}" title="${_escAttr(t('common.remove'))}">✕</button>
         </div>`).join('')
-      : '<div style="font-size:0.75rem;color:var(--muted)">no rules: the agent follows the mode for everything</div>';
+      : `<div style="font-size:0.75rem;color:var(--muted)">${_esc(t('connections.perm_none'))}</div>`;
     el.querySelectorAll('.perm-rule-del').forEach(b => {
       const rule = _permRules[+b.dataset.i];
       b.onclick = () => _delPermRule(rule);
@@ -844,7 +886,7 @@ async function _addPermRule() {
   const tool = document.getElementById('perm-rule-tool').value.trim();
   const path = document.getElementById('perm-rule-path').value.trim();
   const action = getDropdownValue(document.getElementById('perm-rule-action')) || 'ask';
-  if (!tool) { toast('tool pattern required (use * for any)', 'error'); return; }
+  if (!tool) { toast(t('connections.perm_tool_required'), 'error'); return; }
   const revision = _permDraftRevision;
   _permRuleAdding = true;
   _permRulesSaving = true;
@@ -858,7 +900,7 @@ async function _addPermRule() {
       document.getElementById('perm-rule-tool').value = '';
       document.getElementById('perm-rule-path').value = '';
     }
-    toast('rule added', 'success');
+    toast(t('connections.perm_rule_added'), 'success');
   } finally {
     _permRuleAdding = false;
     _permRulesSaving = false;
@@ -894,29 +936,30 @@ function _renderPhotonLogin(data) {
   const note = document.getElementById('photon-connect-note');
   const busy = ['starting', 'waiting', 'finishing'].includes(login.state);
   button.disabled = busy;
-  button.textContent = data.has_secret ? 'reconnect Photon' : 'connect with Photon';
+  button.textContent = data.has_secret ? t('connections.photon_reconnect') : t('connections.photon_connect');
   note.replaceChildren();
   if (login.state === 'waiting' && login.url) {
-    note.append('approve in Photon with code ');
+    // one sentence around the code, so its word order can change per language
+    const [before, after = ''] = t('connections.photon_approve_code', { code: '\u0000' }).split('\u0000');
     const code = document.createElement('strong');
     code.textContent = login.user_code || '';
-    note.append(code, '. ');
+    note.append(before, code, after, ' ');
     const link = document.createElement('a');
     link.href = login.url;
     link.target = '_blank';
     link.rel = 'noopener';
-    link.textContent = 'open Photon';
+    link.textContent = t('connections.photon_open');
     note.append(link);
   } else if (login.state === 'starting' || login.state === 'finishing') {
-    note.textContent = login.state === 'starting' ? 'starting the sign-in…' : 'setting up your project and number…';
+    note.textContent = login.state === 'starting' ? t('connections.photon_starting') : t('connections.photon_setting_up');
   } else if (login.state === 'error') {
-    note.textContent = login.error || 'the sign-in didn\'t finish';
+    note.textContent = login.error || t('connections.photon_unfinished');
     note.dataset.error = 'true';
     return;
   } else {
     note.textContent = data.has_secret
-      ? 'connected to your Photon project. reconnect if you change accounts.'
-      : 'sign in to Photon once. alles sets up the project and lets your number through.';
+      ? t('connections.photon_connected_note')
+      : t('connections.photon_sign_in_note');
   }
   delete note.dataset.error;
   clearTimeout(_photonPoll);
@@ -932,7 +975,7 @@ function _renderPhotonLine(data) {
     line.hidden = false;
   } else if (lines.length) {
     delete line.dataset.error;
-    line.textContent = lines.map(([from, to]) => `text ${formatPhone(to)} from ${formatPhone(from)}`).join('. ') + '.';
+    line.textContent = lines.map(([from, to]) => t('connections.photon_line', { to: formatPhone(to), from: formatPhone(from) })).join(' ');
     line.hidden = false;
   } else {
     line.hidden = true;
@@ -946,7 +989,7 @@ async function _connectPhoton() {
   button.disabled = true;
   try {
     const response = await _fetchWithRecentOwner('/api/aide/channels/photon/connect', { method: 'POST' });
-    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'could not start the sign-in');
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || t('connections.photon_sign_in_failed'));
     for (let i = 0; i < 20; i++) {
       const data = await fetch('/api/aide/channels/photon').then(r => r.json());
       _renderPhoton(data);
@@ -968,14 +1011,24 @@ async function _connectPhoton() {
 function _renderPhoton(data) {
   _photonEnabled = !!data.enabled;
   _setSwitch(document.getElementById('photon-enabled'), _photonEnabled);
-  const head = { ready: 'connected', connecting: 'connecting', installing: 'installing', error: 'problem', off: 'off' }[data.state] || data.state;
+  const head = {
+    ready: t('common.connected'),
+    connecting: t('connections.state_connecting'),
+    installing: t('connections.photon_state_installing'),
+    error: t('connections.photon_state_problem'),
+    off: t('connections.photon_state_off'),
+  }[data.state] || data.state;
   document.getElementById('photon-head-state').textContent = head;
   const detail = document.getElementById('photon-detail');
   if (data.state === 'error' && data.error) detail.textContent = data.error;
-  else if (data.state === 'ready') detail.textContent = `connected. ${data.handled || 0} handled${data.ignored ? `, ${data.ignored} from other senders ignored` : ''}.`;
+  else if (data.state === 'ready') {
+    detail.textContent = data.ignored
+      ? tp('connections.photon_handled_ignored', data.ignored, { handled: data.handled || 0 })
+      : tp('connections.photon_handled', data.handled || 0);
+  }
   const id = document.getElementById('photon-project-id');
   if (document.activeElement !== id) id.value = data.project_id || '';
-  document.getElementById('photon-secret-note').textContent = data.has_secret ? 'saved; paste a new one to replace it' : 'encrypted and never shown again';
+  document.getElementById('photon-secret-note').textContent = data.has_secret ? t('connections.photon_secret_saved') : t('connections.photon_secret_hidden');
   const owner = document.getElementById('photon-owner');
   if (document.activeElement !== owner) owner.value = (data.owner_handles || []).map(formatPhone).join('\n');
   _renderPhotonLogin(data);
@@ -997,10 +1050,10 @@ async function _savePhoton(enabled) {
       }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.message || data.detail || 'could not save');
+    if (!response.ok) throw new Error(data.message || data.detail || t('connections.photon_save_failed'));
     document.getElementById('photon-project-secret').value = '';
     _renderPhoton(data);
-    toast(enabled ? 'iMessage turned on' : 'saved');
+    toast(enabled ? t('connections.imessage_on') : t('common.saved'));
   } catch (error) {
     _setSwitch(document.getElementById('photon-enabled'), _photonEnabled);
     toast(error.message, 'error');
@@ -1019,7 +1072,7 @@ export async function loadPhoton(isCurrent = () => true) {
     const data = await fetch('/api/aide/channels/photon').then(r => (r.ok ? r.json() : Promise.reject()));
     if (isCurrent()) _renderPhoton(data);
   } catch {
-    if (isCurrent()) document.getElementById('photon-head-state').textContent = 'unavailable';
+    if (isCurrent()) document.getElementById('photon-head-state').textContent = t('common.unavailable');
   }
 }
 
@@ -1043,23 +1096,24 @@ const _signinEl = id => document.getElementById(id);
 function _signinDate(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }).toLowerCase();
+  return formatDate(date, { day: 'numeric', month: 'short' }).toLowerCase();
 }
 
 function _renderSignedIn(sites) {
   const list = _signinEl('browser-sites');
   if (!list) return;
-  _signinEl('browser-signin-head-state').textContent = sites.length ? `${sites.length} signed in` : '';
+  _signinEl('browser-signin-head-state').textContent = sites.length ? tp('connections.signin_count', sites.length) : '';
   _signinEl('browser-signin-forget').hidden = !sites.length;
   if (!sites.length) {
-    list.innerHTML = '<div class="settings-row-empty">no sign-ins yet</div>';
+    list.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.signin_none'))}</div>`;
     return;
   }
   list.innerHTML = sites.map(site => {
-    const also = (site.also || []).length ? ` · also ${site.also.map(_esc).join(', ')}` : '';
+    const also = (site.also || []).length
+      ? ` · ${_esc(t('connections.signin_also', { sites: formatList(site.also, { type: 'unit', style: 'short' }) }))}` : '';
     return `<div class="browser-site-row">
-      <div class="browser-site-copy"><span class="browser-site-name">${_esc(site.site)}</span><span class="browser-site-meta">signed in ${_esc(_signinDate(site.at))}${also}</span></div>
-      <button class="btn" type="button" data-signout="${_escAttr(site.site)}" aria-label="sign out of ${_escAttr(site.site)}">sign out</button>
+      <div class="browser-site-copy"><span class="browser-site-name">${_esc(site.site)}</span><span class="browser-site-meta">${_esc(t('connections.signin_at', { date: _signinDate(site.at) }))}${also}</span></div>
+      <button class="btn" type="button" data-signout="${_escAttr(site.site)}" aria-label="${_escAttr(t('connections.sign_out_of', { site: site.site }))}">${_esc(t('connections.sign_out'))}</button>
     </div>`;
   }).join('');
 }
@@ -1080,10 +1134,10 @@ async function _signinSend(path, body) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body || {}),
   });
-  if (response.status === 409) { _endSignin('the sign-in view closed after a while; open the site again'); return null; }
+  if (response.status === 409) { _endSignin(t('connections.signin_expired')); return null; }
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    toast(typeof data.detail === 'string' ? data.detail : 'that did not reach the page', 'error');
+    toast(typeof data.detail === 'string' ? data.detail : t('connections.signin_not_reached'), 'error');
     return null;
   }
   _signinKick();
@@ -1093,14 +1147,14 @@ async function _signinSend(path, body) {
 function _signinSetBusy(busy) {
   _signinPending = busy;
   for (const id of ['browser-signin-go', 'browser-signin-url']) _signinEl(id).disabled = busy || _signinOpen;
-  _signinEl('browser-signin-go').textContent = busy ? 'opening…' : 'open';
+  _signinEl('browser-signin-go').textContent = busy ? t('connections.opening') : t('common.open');
 }
 
 async function _openSignin(event) {
   event.preventDefault();
   if (_signinPending || _signinOpen) return;
   const url = _signinEl('browser-signin-url').value.trim();
-  if (!url) { toast('type the site address first', 'error'); _signinEl('browser-signin-url').focus(); return; }
+  if (!url) { toast(t('connections.signin_url_required'), 'error'); _signinEl('browser-signin-url').focus(); return; }
   const live = _signinEl('browser-signin-live');
   // render the page at the size it'll be shown (1:1, readable), short enough that the page and
   // its controls fit the settings scroll area together
@@ -1122,7 +1176,7 @@ async function _openSignin(event) {
       body: JSON.stringify({ url, width, height }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || 'could not open that site');
+    if (!response.ok) throw new Error(data.detail || t('connections.signin_open_failed'));
     _signinOpen = true;
     if (_signinLeft) { void _finishSignin({ quiet: true }); return; }  // settings closed meanwhile
     live.hidden = false;
@@ -1151,10 +1205,10 @@ function _signinWhere(state) {
   const where = _signinEl('browser-signin-where');
   let host = state.url || '';
   try { host = new URL(state.url).host + new URL(state.url).pathname.replace(/\/$/, ''); } catch {}
-  if (state.url === 'about:blank') host = 'blank page';
+  if (state.url === 'about:blank') host = t('connections.signin_blank_page');
   where.textContent = host;
   where.title = state.url || '';
-  _signinEl('browser-signin-img').alt = state.title ? `the page: ${state.title}` : 'the page in Aide\'s browser';
+  _signinEl('browser-signin-img').alt = state.title ? t('connections.signin_page_alt', { title: state.title }) : t('connections.signin_page_alt_empty');
 }
 
 async function _signinFrame() {
@@ -1162,7 +1216,7 @@ async function _signinFrame() {
   _signinFrameBusy = true;
   try {
     const response = await fetch('/api/aide/browser/signin/frame', { cache: 'no-store' });
-    if (response.status === 409) { _endSignin('the sign-in view closed after a while; open the site again'); return; }
+    if (response.status === 409) { _endSignin(t('connections.signin_expired')); return; }
     if (!response.ok) return;
     const blob = await response.blob();
     if (!_signinOpen) return;
@@ -1216,7 +1270,7 @@ async function _finishSignin({ quiet = false } = {}) {
     if (response.ok) {
       _renderSignedIn(data.sites || []);
       _signinEl('browser-signin-url').value = '';
-      if (!quiet) toast('saved; Aide can use the browser again');
+      if (!quiet) toast(t('connections.signin_saved'));
     }
     _signinEl('browser-signin-url').focus();
   } finally { button.disabled = false; }
@@ -1224,34 +1278,34 @@ async function _finishSignin({ quiet = false } = {}) {
 
 async function _signOutSite(button) {
   const site = button.dataset.signout;
-  if (!await _dlgConfirm(`sign Aide's browser out of ${site}? its cookies and saved data for that site are deleted.`, { confirmLabel: 'sign out' })) return;
+  if (!await _dlgConfirm(t('connections.signout_confirm', { site }), { confirmLabel: t('connections.sign_out') })) return;
   button.disabled = true;
-  button.textContent = 'signing out…';
+  button.textContent = t('connections.signing_out');
   try {
     const response = await _fetchWithRecentOwner(`/api/aide/browser/sites/${encodeURIComponent(site)}`, { method: 'DELETE' });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || 'could not sign out');
+    if (!response.ok) throw new Error(data.detail || t('connections.sign_out_failed'));
     _renderSignedIn(data.sites || []);
-    toast(`signed out of ${site}`);
+    toast(t('connections.signed_out_of', { site }));
     _signinEl('browser-signin-url').focus();
   } catch (error) {
     toast(error.message, 'error');
     button.disabled = false;
-    button.textContent = 'sign out';
+    button.textContent = t('connections.sign_out');
   }
 }
 
 async function _forgetBrowser() {
-  if (!await _dlgConfirm('forget everything in Aide\'s browser? every sign-in, cookie and cached page is deleted.', { confirmLabel: 'forget all' })) return;
+  if (!await _dlgConfirm(t('connections.forget_confirm'), { confirmLabel: t('connections.forget_all') })) return;
   if (_signinOpen) _endSignin();
   const button = _signinEl('browser-signin-forget');
   button.disabled = true;
   try {
     const response = await _fetchWithRecentOwner('/api/aide/browser/sites', { method: 'DELETE' });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || 'could not clear the browser');
+    if (!response.ok) throw new Error(data.detail || t('connections.forget_failed'));
     _renderSignedIn([]);
-    toast('browser data deleted');
+    toast(t('connections.browser_data_deleted'));
     _signinEl('browser-signin-url').focus();
   } catch (error) {
     toast(error.message, 'error');
@@ -1300,7 +1354,7 @@ function _bindSignin() {
     const shown = field.type === 'password';
     field.type = shown ? 'text' : 'password';
     show.setAttribute('aria-pressed', String(shown));
-    show.textContent = shown ? 'hide' : 'show';
+    show.textContent = shown ? t('common.hide') : t('common.show');
   });
   document.querySelector('#browser-signin-card .browser-signin-keys').addEventListener('click', event => {
     const button = event.target.closest('button');
@@ -1319,7 +1373,7 @@ export async function loadBrowserSignin(isCurrent = () => true) {
     const data = await fetch('/api/aide/browser/sites').then(r => (r.ok ? r.json() : Promise.reject()));
     if (isCurrent()) _renderSignedIn(data.sites || []);
   } catch {
-    if (isCurrent()) _signinEl('browser-sites').innerHTML = '<div class="settings-row-empty">couldn\'t load sign-ins</div>';
+    if (isCurrent()) _signinEl('browser-sites').innerHTML = `<div class="settings-row-empty">${_esc(t('connections.signin_load_failed'))}</div>`;
   }
 }
 

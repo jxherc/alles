@@ -15,7 +15,7 @@ class AutofillWrap(unittest.TestCase):
         self.assertIn("data-browser-unlock", JS)
         self.assertIn("data-browser-lock", JS)
         self.assertIn("data-browser-revoke", JS)
-        self.assertIn("exact origin", JS)
+        self.assertIn("t('vault.approve_each_browser_here_access')", JS)
 
     def test_unsafe_vault_token_flow_stays_gone(self):
         self.assertNotIn("paste an unlock token", JS)

@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/answer_note.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
 
 function harness() {
   const wraps = [], writes = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ t, tp, tr: t, trp: tp,
     crypto: webcrypto, requestId,
     document: { querySelectorAll: () => wraps, getElementById: () => null, activeElement: null, body: {} },
     saveNote: async (text, path, options) => {

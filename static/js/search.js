@@ -1,5 +1,5 @@
 import { filterCommands } from './palette.js';
-import { chosenTimeZone } from './i18n.js';
+import { chosenTimeZone, t } from './i18n.js';
 
 let _debounce = null;
 let _financeDebounce = null;
@@ -53,7 +53,7 @@ function _renderState(kind, message) {
 }
 
 function _renderIdle() {
-  _renderState('idle', 'type to search apps, docs, tasks, messages, and more');
+  _renderState('idle', t('common.search_idle'));
 }
 
 function _cancelFinance() {
@@ -167,7 +167,7 @@ export function initSearch() {
       return;
     }
     _lastQ = query;
-    _renderState('loading', 'searching');
+    _renderState('loading', t('common.search_searching'));
     _debounce = setTimeout(() => _runSearch(query), 150);
   });
 
@@ -229,10 +229,10 @@ async function _runSearch(query) {
     if (!response.ok) {
       const state = [401, 403].includes(response.status) ? 'permission' : response.status >= 500 ? 'unavailable' : 'error';
       const message = state === 'permission'
-        ? 'search needs an unlocked Alles session'
+        ? t('common.search_locked')
         : state === 'unavailable'
-          ? 'local search is unavailable right now'
-          : 'search failed. check the query and try again';
+          ? t('common.search_unavailable')
+          : t('common.search_failed_query');
       _renderResults({}, query, { state, message });
       return;
     }
@@ -247,7 +247,7 @@ async function _runSearch(query) {
     if (requestId === _requestSequence) {
       _renderResults({}, query, {
         state: 'error',
-        message: 'search failed. check the connection and try again',
+        message: t('common.search_failed_connection'),
       });
     }
   }
@@ -303,10 +303,10 @@ function _row(attrs, name, snippet) {
 
 function _actionRail(query) {
   if (!query) return '';
-  return `<div class="search-group-label" role="presentation">actions</div>
+  return `<div class="search-group-label" role="presentation">${_esc(t('common.search_actions'))}</div>
     <div class="search-actions" role="presentation">
-      ${_option('search-act', 'data-act="ask"', `<span><b>ask aide</b> about “${_esc(query.slice(0, 40))}”</span>`)}
-      ${_option('search-act', 'data-act="web"', '<span>search the current web with andromeda</span>')}
+      ${_option('search-act', 'data-act="ask"', `<span><b>${_esc(t('common.search_ask_aide'))}</b> ${_esc(t('common.search_about', { query: query.slice(0, 40) }))}</span>`)}
+      ${_option('search-act', 'data-act="web"', `<span>${_esc(t('common.search_web'))}</span>`)}
     </div>`;
 }
 
@@ -325,31 +325,31 @@ function _renderResults(data, query, status = null, preserveSelection = false) {
 
   const navHits = query ? filterCommands(window._navCommands || [], query).slice(0, 6) : [];
   let matches = '';
-  matches += _group('go to', navHits, command => _row(`data-type="nav" data-view="${_esc(command.view)}"`, command.label, command.hint));
-  matches += _group('chats', chats, chat => _row(`data-type="chat" data-id="${_esc(chat.session_id)}"`, chat.session_name, chat.snippet));
-  matches += _group('docs', notes, note => _row(`data-type="note" data-path="${_esc(note.path)}"`, note.name, note.snippet));
+  matches += _group(t('common.search_group_go_to'), navHits, command => _row(`data-type="nav" data-view="${_esc(command.view)}"`, command.label, command.hint));
+  matches += _group(t('common.search_group_chats'), chats, chat => _row(`data-type="chat" data-id="${_esc(chat.session_id)}"`, chat.session_name, chat.snippet));
+  matches += _group(t('common.search_group_docs'), notes, note => _row(`data-type="note" data-path="${_esc(note.path)}"`, note.name, note.snippet));
   // tasks, events and messages open the record itself, not just their app
-  matches += _group('mail', mail, message => _row(`data-type="mail" data-view="mail" data-id="${_esc(message.uid)}" data-aid="${_esc(message.account_id)}" data-folder="${_esc(message.folder || 'INBOX')}"`, message.subject, _fromName(message.from)));
-  matches += _group('tasks', tasks, task => _row(`data-type="record" data-view="tasks" data-id="${_esc(task.id)}"`, task.title, task.done ? 'done' : ''));
-  matches += _group('calendar', calendar, event => _row(`data-type="record" data-view="calendar" data-id="${_esc(event.id)}"`, event.title, event.when));
-  matches += _group('books', books, book => _row('data-type="nav" data-view="books"', book.title, [book.author, book.status].filter(Boolean).join(' · ')));
-  matches += _group('read', read, item => _row('data-type="nav" data-view="read"', item.title, item.site));
-  matches += _group('habits', habits, habit => _row('data-type="nav" data-view="habits"', habit.name, ''));
-  matches += _group('watch', watch, item => _row('data-type="nav" data-view="watch"', item.name, item.url));
-  matches += _group('money', money, transaction => _row('data-type="nav" data-view="money"', transaction.payee, `${_money(transaction.amount)} · ${transaction.when}`));
-  matches += _group('subs', subs, subscription => _row('data-type="nav" data-view="subs"', subscription.name, subscription.snippet));
-  matches += _group('contacts', contacts, contact => _row('data-type="nav" data-view="contacts"', contact.name, contact.snippet));
-  matches += _group('photos', photos, photo => _row('data-type="nav" data-view="photos"', photo.name, ''));
-  matches += _group('memories', memories, memory => _row('data-type="nav" data-view="memory"', memory.text, ''));
+  matches += _group(t('common.search_group_mail'), mail, message => _row(`data-type="mail" data-view="mail" data-id="${_esc(message.uid)}" data-aid="${_esc(message.account_id)}" data-folder="${_esc(message.folder || 'INBOX')}"`, message.subject, _fromName(message.from)));
+  matches += _group(t('common.search_group_tasks'), tasks, task => _row(`data-type="record" data-view="tasks" data-id="${_esc(task.id)}"`, task.title, task.done ? t('common.done') : ''));
+  matches += _group(t('common.search_group_calendar'), calendar, event => _row(`data-type="record" data-view="calendar" data-id="${_esc(event.id)}"`, event.title, event.when));
+  matches += _group(t('common.search_group_books'), books, book => _row('data-type="nav" data-view="books"', book.title, [book.author, book.status].filter(Boolean).join(' · ')));
+  matches += _group(t('common.search_group_read'), read, item => _row('data-type="nav" data-view="read"', item.title, item.site));
+  matches += _group(t('common.search_group_habits'), habits, habit => _row('data-type="nav" data-view="habits"', habit.name, ''));
+  matches += _group(t('common.search_group_watch'), watch, item => _row('data-type="nav" data-view="watch"', item.name, item.url));
+  matches += _group(t('common.search_group_money'), money, transaction => _row('data-type="nav" data-view="money"', transaction.payee, `${_money(transaction.amount)} · ${transaction.when}`));
+  matches += _group(t('common.search_group_subs'), subs, subscription => _row('data-type="nav" data-view="subs"', subscription.name, subscription.snippet));
+  matches += _group(t('common.search_group_contacts'), contacts, contact => _row('data-type="nav" data-view="contacts"', contact.name, contact.snippet));
+  matches += _group(t('common.search_group_photos'), photos, photo => _row('data-type="nav" data-view="photos"', photo.name, ''));
+  matches += _group(t('common.search_group_memories'), memories, memory => _row('data-type="nav" data-view="memory"', memory.text, ''));
 
   const state = status
     ? `<div class="search-state search-state--${status.state}" role="status">${_esc(status.message)}</div>`
     : data?.finance_status === 'pending'
-      ? '<div class="search-state search-state--loading" role="status">searching finance… local search is ready</div>'
+      ? `<div class="search-state search-state--loading" role="status">${_esc(t('common.search_finance_pending'))}</div>`
       : data?.finance_status === 'unavailable'
-        ? '<div class="search-state search-state--unavailable" role="status">finance search is unavailable. local search still works</div>'
+        ? `<div class="search-state search-state--unavailable" role="status">${_esc(t('common.search_finance_unavailable'))}</div>`
     : !matches
-      ? '<div class="search-state search-state--empty" role="status">no matches. choose an action below</div>'
+      ? `<div class="search-state search-state--empty" role="status">${_esc(t('common.search_no_matches'))}</div>`
       : '';
   container.setAttribute('aria-busy', 'false');
   container.innerHTML = state + _actionRail(query) + matches;
@@ -392,7 +392,7 @@ async function _go(option) {
   const error = document.createElement('div');
   error.className = 'search-state search-state--error search-open-error';
   error.setAttribute('role', 'status');
-  error.textContent = 'could not open this result. try again';
+  error.textContent = t('common.search_open_failed');
   results?.prepend(error);
   _input()?.focus({ preventScroll: true });
 }

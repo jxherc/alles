@@ -3,11 +3,11 @@ import { openCaptureReview, showPendingCapture } from './capture.js';
 import { readRecordTarget, recordTarget } from './recordlinks.js';
 import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt, fields as dlgFields } from './dialog.js';
-import { populateDropdown, getDropdownValue } from './dropdown.js?v=212';
+import { populateDropdown, getDropdownValue } from './dropdown.js?v=213';
 import { initDatePicker as _dpInit } from './datepick.js';
-import { formatDate, formatDateTime, formatTime, resolvedTimeZone } from './i18n.js';
+import { formatDate, formatDateTime, formatTime, resolvedTimeZone, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
-import { reminderTimeFromWall } from './reminders.js';
+import { reminderTimeFromWall } from './reminders.js?v=245';
 
 // monochrome ui icons (same global as files/etc) — keeps the row controls matching the app
 const _si = n => (window.icon ? window.icon(n) : '');
@@ -76,7 +76,7 @@ function _initChipField(wrap) {
   const sync = () => { hidden.value = chips.join(', '); hidden.dispatchEvent(new Event('input', { bubbles: true })); };
   const render = () => {
     // the icon is pinned to close: kokuen turns a × named "remove …" into a trash can
-    chipsBox.innerHTML = chips.map((c, i) => `<span class="mc-chip${_validEmail(c) ? '' : ' bad'}" title="${esc(c)}">${esc(c)}<button type="button" class="mc-chip-x" data-i="${i}" data-kokuen-icon="close" aria-label="remove ${esc(c)}">×</button></span>`).join('');
+    chipsBox.innerHTML = chips.map((c, i) => `<span class="mc-chip${_validEmail(c) ? '' : ' bad'}" title="${esc(c)}">${esc(c)}<button type="button" class="mc-chip-x" data-i="${i}" data-kokuen-icon="close" aria-label="${esc(t('mail.remove_named', { name: c }))}">×</button></span>`).join('');
     chipsBox.querySelectorAll('.mc-chip-x').forEach(b => {
       // mousedown keeps focus in the input; click is what Enter/Space on the focused × fires
       b.addEventListener('mousedown', e => e.preventDefault());
@@ -146,12 +146,12 @@ export function mailBodySrcdoc(html = '') {
 const catchErr = msg => e => { console.error(msg || 'Error:', e); if (msg) toast(msg, 'error'); };
 const fromName = f => {
   const m = /^(.*?)\s*<([^>]+)>/.exec(f || '');
-  return (m ? (m[1].replace(/"/g, '').trim() || m[2]) : f) || '(unknown)';
+  return (m ? (m[1].replace(/"/g, '').trim() || m[2]) : f) || t('mail.unknown_sender');
 };
 const shortDate = d => { try { return formatDate(d, { month: 'short', day: 'numeric' }); } catch (e) { console.error(e); return ''; } };
 const acctName = id => {
   const a = _accounts.find(x => x.id === id);
-  return a ? (a.name || a.email || 'mail') : 'mail';
+  return a ? (a.name || a.email || t('mail.mail')) : t('mail.mail');
 };
 
 // stale-while-revalidate: IMAP is a network round-trip to your provider, so the
@@ -162,13 +162,15 @@ const readCache = () => { try { return JSON.parse(localStorage.getItem(cacheKey(
 const writeCache = msgs => { try { localStorage.setItem(cacheKey(), JSON.stringify(msgs.slice(0, 40))); } catch (e) { console.error(e); } };
 
 const PRESETS = [
-  { key: 'gmail', label: 'Gmail', re: /@gmail\.com$/i, imap: 'imap.gmail.com', smtp: 'smtp.gmail.com', apppw: 'https://myaccount.google.com/apppasswords', help: 'https://support.google.com/mail/answer/7126229', note: 'Gmail needs an app password (not your normal one), and 2-step verification must be on.' },
-  { key: 'outlook', label: 'Outlook', re: /@(outlook|hotmail|live)\.com$/i, imap: 'outlook.office365.com', smtp: 'smtp.office365.com', apppw: 'https://account.live.com/proofs/AppPassword', help: 'https://support.microsoft.com/office/pop-imap-and-smtp-settings', note: 'Outlook/Hotmail/Live need an app password (turn it on under account security).' },
-  { key: 'icloud', label: 'iCloud', re: /@(icloud|me|mac)\.com$/i, imap: 'imap.mail.me.com', smtp: 'smtp.mail.me.com', apppw: 'https://account.apple.com/account/manage', help: 'https://support.apple.com/102525', note: 'iCloud needs an app-specific password from your Apple ID.' },
-  { key: 'yahoo', label: 'Yahoo', re: /@yahoo\.com$/i, imap: 'imap.mail.yahoo.com', smtp: 'smtp.mail.yahoo.com', apppw: 'https://login.yahoo.com/account/security/app-passwords', help: 'https://help.yahoo.com/kb/SLN4075.html', note: 'Yahoo needs an app password from account security.' },
-  { key: 'fastmail', label: 'Fastmail', re: /@fastmail\.com$/i, imap: 'imap.fastmail.com', smtp: 'smtp.fastmail.com', apppw: 'https://app.fastmail.com/settings/security/apppassword', help: 'https://www.fastmail.help/hc/en-us/articles/1500000278342', note: 'Create an app password in Fastmail settings (custom domains work too).' },
-  { key: 'domain', label: 'Own domain', re: /@[^@\s]+\.[^@\s]+$/i, imap: '', smtp: '', apppw: '', help: '', note: 'Use your domain mailbox or self-hosted IMAP/SMTP server.' },
+  { key: 'gmail', label: 'Gmail', re: /@gmail\.com$/i, imap: 'imap.gmail.com', smtp: 'smtp.gmail.com', apppw: 'https://myaccount.google.com/apppasswords', help: 'https://support.google.com/mail/answer/7126229', note: 'mail.note_gmail' },
+  { key: 'outlook', label: 'Outlook', re: /@(outlook|hotmail|live)\.com$/i, imap: 'outlook.office365.com', smtp: 'smtp.office365.com', apppw: 'https://account.live.com/proofs/AppPassword', help: 'https://support.microsoft.com/office/pop-imap-and-smtp-settings', note: 'mail.note_outlook' },
+  { key: 'icloud', label: 'iCloud', re: /@(icloud|me|mac)\.com$/i, imap: 'imap.mail.me.com', smtp: 'smtp.mail.me.com', apppw: 'https://account.apple.com/account/manage', help: 'https://support.apple.com/102525', note: 'mail.note_icloud' },
+  { key: 'yahoo', label: 'Yahoo', re: /@yahoo\.com$/i, imap: 'imap.mail.yahoo.com', smtp: 'smtp.mail.yahoo.com', apppw: 'https://login.yahoo.com/account/security/app-passwords', help: 'https://help.yahoo.com/kb/SLN4075.html', note: 'mail.note_yahoo' },
+  { key: 'fastmail', label: 'Fastmail', re: /@fastmail\.com$/i, imap: 'imap.fastmail.com', smtp: 'smtp.fastmail.com', apppw: 'https://app.fastmail.com/settings/security/apppassword', help: 'https://www.fastmail.help/hc/en-us/articles/1500000278342', note: 'mail.note_fastmail' },
+  { key: 'domain', label: 'mail.own_domain', re: /@[^@\s]+\.[^@\s]+$/i, imap: '', smtp: '', apppw: '', help: '', note: 'mail.note_domain' },
 ];
+
+const _presetLabel = p => p.key === 'domain' ? t(p.label) : p.label;
 
 function domainFromEmail(email) {
   const m = /@([^@\s]+)$/.exec(email || '');
@@ -181,7 +183,7 @@ function providerForEmail(email) {
 
 function providerHelpHtml() {
   return PRESETS.filter(p => p.key !== 'domain').map(p =>
-    `<a class="mail-service-link" href="${esc(p.help)}" target="_blank" rel="noreferrer">${esc(p.label)}</a>`
+    `<a class="mail-service-link" href="${esc(p.help)}" target="_blank" rel="noreferrer">${esc(_presetLabel(p))}</a>`
   ).join('');
 }
 
@@ -245,7 +247,7 @@ function paintMailPaneWarning() {
   const hadFocus = box.contains(document.activeElement);
   box.dataset.state = state;
   box.hidden = !_mailErrors.length;
-  box.innerHTML = _mailErrors.length ? `<summary>connection warning</summary><p>${_mailErrors.map(esc).join('<br>')}</p><button type="button" class="btn">retry connection</button>` : '';
+  box.innerHTML = _mailErrors.length ? `<summary>${t('mail.connection_warning')}</summary><p>${_mailErrors.map(esc).join('<br>')}</p><button type="button" class="btn">${t('mail.retry_connection')}</button>` : '';
   box.querySelector('button')?.addEventListener('click', () => _reloadCurrent({ force: true }));
   if (hadFocus) (box.querySelector('summary') || $('mail-main').querySelector('.mail-pane-back'))?.focus();
 }
@@ -254,7 +256,7 @@ function showMailPane(root, returnTarget, focusTarget = root, focus = true) {
   _mailReturnTarget = returnTarget;
   const nav = document.createElement('div');
   nav.className = 'mail-pane-nav';
-  nav.innerHTML = '<button type="button" class="btn mail-pane-back">back to messages</button><details class="mail-pane-warning" hidden></details>';
+  nav.innerHTML = `<button type="button" class="btn mail-pane-back">${t('mail.back_to_messages')}</button><details class="mail-pane-warning" hidden></details>`;
   if (root.matches('.mail-compose')) nav.querySelector('button').setAttribute('id', 'mc-close');
   nav.querySelector('button').addEventListener('click', backToMailList);
   root.prepend(nav);
@@ -307,9 +309,9 @@ export async function prepareMailNavigation() {
       && mailSettings() === settings && settings?.snapshot() === settingsSnapshot;
     _mailLeave = (async () => {
       if (account && ((account.snapshot() !== account.initial && account.snapshot() !== account.pendingSnapshot) || account.extraSnapshot() !== account.extraInitial)
-          && !await dlgConfirm('discard unsaved account changes?')) return null;
-      if (editor && draftSnapshot !== editor.initial && !await dlgConfirm('discard unsaved draft changes?')) return null;
-      if (settings?.dirty() && !await dlgConfirm('discard unsaved rules or vacation changes?')) return null;
+          && !await dlgConfirm(t('mail.discard_account_confirm'))) return null;
+      if (editor && draftSnapshot !== editor.initial && !await dlgConfirm(t('mail.discard_draft_confirm'))) return null;
+      if (settings?.dirty() && !await dlgConfirm(t('mail.discard_rules_confirm'))) return null;
       return current() ? { editor, settings, current } : null;
     })().finally(() => { _mailLeave = null; });
   }
@@ -400,7 +402,7 @@ let _listGeneration = 0, _mailLoadGeneration = 0, _listContext = '';
 async function mailJson(url, options = {}, fetcher = fetch) {
   const response = await fetcher(url, options);
   const data = await response.json();
-  if (!response.ok) throw Object.assign(new Error(data?.message || data?.detail?.message || (typeof data?.detail === 'string' ? data.detail : 'mail is unavailable')), { status: response.status });
+  if (!response.ok) throw Object.assign(new Error(data?.message || data?.detail?.message || (typeof data?.detail === 'string' ? data.detail : t('mail.unavailable'))), { status: response.status });
   return data;
 }
 function preserveMailReadFocus(list) {
@@ -449,12 +451,12 @@ function beginMailRead(key, label) {
     },
   };
 }
-async function loadCachedMail(key, label, urlFor, empty = 'no mail here', fetcher = fetch) {
+async function loadCachedMail(key, label, urlFor, empty = null, fetcher = fetch) {
   const owner = beginMailRead(key, label);
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
   const results = await Promise.allSettled(accts.map(async account => {
     const data = await mailJson(urlFor(account), {}, fetcher);
-    if (!Array.isArray(data?.messages) || data.error) throw new Error(data?.error || 'could not read messages');
+    if (!Array.isArray(data?.messages) || data.error) throw new Error(data?.error || t('mail.read_failed'));
     return data.messages.map(message => ({ ...message, account_id: account.id, account_name: account.name || account.email }));
   }));
   if (!owner.current()) return;
@@ -463,14 +465,14 @@ async function loadCachedMail(key, label, urlFor, empty = 'no mail here', fetche
     if (result.status === 'fulfilled') messages.push(...result.value);
     else {
       const account = accts[index];
-      errors.push(`${acctName(account.id)}: ${mailProblem(result.reason?.message || 'could not read messages')}`);
+      errors.push(`${acctName(account.id)}: ${mailProblem(result.reason?.message || t('mail.read_failed'))}`);
       messages.push(...owner.previous.filter(message => message.account_id === account.id));
     }
   });
   owner.finish(() => {
     if (!messages.length && !errors.length) {
       _lastMsgs = [];
-      $('mail-list').innerHTML = `<div class="mail-empty" role="status">${esc(empty)}</div>`;
+      $('mail-list').innerHTML = `<div class="mail-empty" role="status">${esc(empty ?? t('mail.no_mail_here'))}</div>`;
     } else renderInbox(messages, errors);
   });
 }
@@ -479,7 +481,7 @@ async function searchMail(q, fetcher = fetch) {
   _labelFilter = '';
   _lastSearch = q;
   _renderSavedBar();
-  return loadCachedMail(`search:${q}`, 'searching…', a => `/api/mail/adv-search/${a.id}?q=${encodeURIComponent(q)}&limit=40`, `no mail matches “${q}”`, fetcher);
+  return loadCachedMail(`search:${q}`, t('mail.searching'), a => `/api/mail/adv-search/${a.id}?q=${encodeURIComponent(q)}&limit=40`, t('mail.no_search_matches', { query: q }), fetcher);
 }
 
 function _reloadCurrent({ force = false, silent = false, fetcher = fetch } = {}) {
@@ -500,7 +502,7 @@ let _savedSave = null;
 const _savedRemovals = new Set();
 // Match Python str.strip() used by the saved-search API, including U+0085.
 const savedText = value => value.replace(/^[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g, '');
-const savedLabel = value => value.name.trim() || value.query.trim() || 'saved search';
+const savedLabel = value => value.name.trim() || value.query.trim() || t('mail.saved_search');
 const savedKey = scope => SAVED_SEARCH_PREFIX + scope;
 const savedMatches = (row, pending) => row.id === pending.request_id && row.name === pending.name && row.query === pending.query;
 const savedIntentMatches = (a, b) => a?.request_id === b?.request_id && a?.recovery_scope === b?.recovery_scope && a?.name === b?.name && a?.query === b?.query;
@@ -526,7 +528,7 @@ function readPendingSearch() {
     _savedPending = pending;
     _savedConfirmed = false;
   } catch {
-    _savedRecoveryError = 'could not read the pending search. retry, or clear its recovery data.';
+    _savedRecoveryError = t('mail.saved_pending_unreadable');
   }
 }
 function clearPendingSearch(pending) {
@@ -534,18 +536,18 @@ function clearPendingSearch(pending) {
     const key = savedKey(scope), raw = sessionStorage.getItem(key);
     if (raw && JSON.parse(raw).request_id === pending.request_id) {
       sessionStorage.removeItem(key);
-      if (sessionStorage.getItem(key) !== null) throw new Error('could not clear recovery data');
+      if (sessionStorage.getItem(key) !== null) throw new Error(t('mail.clear_recovery_failed'));
     }
   }
   if (_savedPending?.request_id === pending.request_id) _savedPending = null;
 }
 function confirmSavedSearch(row, pending) {
-  if (!savedMatches(row, pending)) throw new Error('could not confirm the saved search');
+  if (!savedMatches(row, pending)) throw new Error(t('mail.saved_search_unconfirmed'));
   if (_savedSave?.pending.request_id === pending.request_id && _savedSave.pending.recovery_scope === pending.recovery_scope) _savedSave.confirmed = true;
   _savedConfirmed = true;
-  _savedNotice = 'search saved';
+  _savedNotice = t('mail.search_saved');
   try { clearPendingSearch(pending); }
-  catch { _savedNotice = 'search saved. its recovery data could not be cleared; retry cleanup.'; }
+  catch { _savedNotice = t('mail.search_saved_cleanup'); }
 }
 function paintSavedBar() {
   const bar = $('mail-saved'); if (!bar) return;
@@ -553,18 +555,18 @@ function paintSavedBar() {
   const blocked = _savedBusy || !_savedReady || Boolean(_savedReadError || _savedRecoveryError || _savedPending);
   const query = savedText(_lastSearch);
   const existing = _savedRows.find(row => row.query === query);
-  const chips = _savedRows.map(row => `<span class="mail-saved-item"><button type="button" class="mail-saved-chip" id="mail-saved-open-${esc(row.id)}" data-open="${esc(row.id)}">${esc(savedLabel(row))}</button><button type="button" class="mail-saved-del" id="mail-saved-delete-${esc(row.id)}" data-del="${esc(row.id)}" aria-label="remove saved search ${esc(savedLabel(row))}" aria-disabled="${_savedBusy || Boolean(_savedPending)}">×</button></span>`).join('');
-  const save = query && !existing ? `<button type="button" class="btn mail-saved-save" id="mail-saved-save" aria-disabled="${blocked || Boolean(existing)}">${existing ? 'saved' : 'save'} “${esc([...savedLabel({ name: query, query })].slice(0, 20).join(''))}”</button>` : '';
-  const removalNotice = [..._savedRemovals].filter(value => value.error && value.scopes.some(scope => _savedScopes.includes(scope))).map(value => `could not confirm removal of “${value.name}”: ${value.error}. retry removing this search.`).join(' ');
+  const chips = _savedRows.map(row => `<span class="mail-saved-item"><button type="button" class="mail-saved-chip" id="mail-saved-open-${esc(row.id)}" data-open="${esc(row.id)}">${esc(savedLabel(row))}</button><button type="button" class="mail-saved-del" id="mail-saved-delete-${esc(row.id)}" data-del="${esc(row.id)}" aria-label="${esc(t('mail.remove_saved_search', { name: savedLabel(row) }))}" aria-disabled="${_savedBusy || Boolean(_savedPending)}">×</button></span>`).join('');
+  const save = query && !existing ? `<button type="button" class="btn mail-saved-save" id="mail-saved-save" aria-disabled="${blocked || Boolean(existing)}">${existing ? t('common.saved') : t('common.save')} “${esc([...savedLabel({ name: query, query })].slice(0, 20).join(''))}”</button>` : '';
+  const removalNotice = [..._savedRemovals].filter(value => value.error && value.scopes.some(scope => _savedScopes.includes(scope))).map(value => t('mail.saved_removal_unconfirmed', { name: value.name, error: value.error })).join(' ');
   let message = _savedReadError || _savedRecoveryError || removalNotice || _savedNotice;
-  if (_savedBusy) message = 'saving changes…';
-  else if (_savedPending && !_savedConfirmed && !_savedReadError && !_savedRecoveryError) message = _savedNotice || `“${savedLabel(_savedPending)}” may not have saved. retry checks it.`;
+  if (_savedBusy) message = t('mail.saving_changes');
+  else if (_savedPending && !_savedConfirmed && !_savedReadError && !_savedRecoveryError) message = _savedNotice || t('mail.saved_may_not_have', { name: savedLabel(_savedPending) });
   let actions = '';
-  if (_savedReadError || _savedRecoveryError) actions += '<button type="button" class="btn" id="mail-saved-load-retry">retry loading saved searches</button>';
-  if (_savedRecoveryError) actions += '<button type="button" class="btn" id="mail-saved-clear">clear recovery data</button>';
+  if (_savedReadError || _savedRecoveryError) actions += `<button type="button" class="btn" id="mail-saved-load-retry">${t('mail.saved_retry_loading')}</button>`;
+  if (_savedRecoveryError) actions += `<button type="button" class="btn" id="mail-saved-clear">${t('mail.saved_clear_recovery')}</button>`;
   else if (_savedPending) actions += _savedConfirmed
-    ? `<button type="button" class="btn" id="mail-saved-cleanup" aria-disabled="${_savedBusy}">retry cleanup</button>`
-    : `<button type="button" class="btn" id="mail-saved-retry" aria-disabled="${_savedBusy || Boolean(_savedReadError)}">retry saving search</button><button type="button" class="btn" id="mail-saved-discard" aria-disabled="${_savedBusy}">dismiss</button>`;
+    ? `<button type="button" class="btn" id="mail-saved-cleanup" aria-disabled="${_savedBusy}">${t('mail.saved_retry_cleanup')}</button>`
+    : `<button type="button" class="btn" id="mail-saved-retry" aria-disabled="${_savedBusy || Boolean(_savedReadError)}">${t('mail.saved_retry_saving')}</button><button type="button" class="btn" id="mail-saved-discard" aria-disabled="${_savedBusy}">${t('mail.dismiss')}</button>`;
   bar.innerHTML = chips + save + (message || actions ? `<div class="mail-saved-status"><p id="mail-saved-status" role="status" tabindex="-1">${esc(message)}</p>${actions}</div>` : '');
   bar.querySelectorAll('[data-open]').forEach(button => button.onclick = () => {
     const row = _savedRows.find(value => value.id === button.dataset.open);
@@ -579,11 +581,11 @@ function paintSavedBar() {
     try {
       const raw = JSON.stringify(pending), key = savedKey(pending.recovery_scope);
       sessionStorage.setItem(key, raw);
-      if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain search');
+      if (sessionStorage.getItem(key) !== raw) throw new Error(t('mail.saved_retain_failed'));
       _savedPending = pending; _savedConfirmed = false; _savedNotice = '';
       savePendingSearch();
     } catch {
-      _savedRecoveryError = 'could not keep this save for recovery. no save was sent. retry loading saved searches.';
+      _savedRecoveryError = t('mail.saved_keep_failed');
       paintSavedBar();
     }
   });
@@ -593,8 +595,8 @@ function paintSavedBar() {
   $('mail-saved-clear')?.addEventListener('click', () => discardPendingSearch(true));
   $('mail-saved-cleanup')?.addEventListener('click', () => {
     if (_savedBusy || !_savedPending) return;
-    try { clearPendingSearch(_savedPending); _savedNotice = 'search saved'; readPendingSearch(); }
-    catch { _savedNotice = 'search saved. recovery data still could not be cleared.'; }
+    try { clearPendingSearch(_savedPending); _savedNotice = t('mail.search_saved'); readPendingSearch(); }
+    catch { _savedNotice = t('mail.saved_cleanup_failed'); }
     paintSavedBar();
   });
   if (focused && bar.getClientRects().length && document.activeElement === document.body) {
@@ -607,7 +609,7 @@ async function _renderSavedBar() {
   try {
     const data = await mailJson('/api/mail/saved-searches', { cache: 'no-store' });
     if (generation !== _savedRead) return;
-    if (!Array.isArray(data?.searches) || data.searches.some(row => !row || typeof row.id !== 'string' || typeof row.name !== 'string' || typeof row.query !== 'string') || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('could not confirm saved searches');
+    if (!Array.isArray(data?.searches) || data.searches.some(row => !row || typeof row.id !== 'string' || typeof row.name !== 'string' || typeof row.query !== 'string') || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error(t('mail.saved_unconfirmed'));
     if (_savedScopes.length && !data.recovery_scopes.some(scope => _savedScopes.includes(scope))) {
       _savedPending = null; _savedConfirmed = false; _savedNotice = '';
     }
@@ -618,17 +620,17 @@ async function _renderSavedBar() {
       if (removal.scopes.some(scope => _savedScopes.includes(scope)) && !_savedRows.some(row => row.id === removal.id)) {
         removal.confirmed = true;
         _savedRemovals.delete(removal);
-        if (!_savedPending && !_savedNotice) _savedNotice = 'saved search removed';
+        if (!_savedPending && !_savedNotice) _savedNotice = t('mail.saved_search_removed');
       }
     }
     if (_savedPending && !_savedRecoveryError) {
       const row = _savedRows.find(value => value.id === _savedPending.request_id);
       if (row && savedMatches(row, _savedPending)) confirmSavedSearch(row, _savedPending);
-      else if (row) _savedNotice = 'the saved search differs from the pending values. dismiss this pending save to keep it.';
+      else if (row) _savedNotice = t('mail.saved_differs');
     }
   } catch (error) {
     if (generation !== _savedRead) return;
-    _savedReadError = `could not load saved searches: ${error.message}`;
+    _savedReadError = t('mail.saved_load_failed', { error: error.message });
   }
   paintSavedBar();
 }
@@ -643,9 +645,9 @@ async function savePendingSearch() {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending),
     });
     if (operation.confirmed || !_savedScopes.includes(pending.recovery_scope)) return;
-    if (!savedMatches(row, pending)) throw new Error('could not confirm the saved search');
+    if (!savedMatches(row, pending)) throw new Error(t('mail.saved_search_unconfirmed'));
     // the list read below confirms it; until then it is being checked, not in doubt
-    _savedNotice = 'checking the save…';
+    _savedNotice = t('mail.saved_checking');
     await _renderSavedBar();
   } catch (error) {
     if (!_savedScopes.includes(pending.recovery_scope)) return;
@@ -653,11 +655,11 @@ async function savePendingSearch() {
       _savedRows = _savedRows.filter(row => row.id !== pending.request_id);
       _savedConfirmed = false;
       _savedNotice = _savedPending?.request_id === pending.request_id
-        ? 'this saved search was deleted. dismiss the pending save to start again.'
-        : 'this saved search was deleted.';
+        ? t('mail.saved_deleted_pending')
+        : t('mail.saved_deleted');
     } else {
       if (operation.confirmed && error.status !== 403) return;
-      _savedNotice = `could not confirm saving “${savedLabel(pending)}”: ${error.message}. retry checks the same save.`;
+      _savedNotice = t('mail.saved_save_unconfirmed', { name: savedLabel(pending), error: error.message });
     }
     await _renderSavedBar();
   } finally { _savedSave = null; _savedBusy = false; paintSavedBar(); }
@@ -666,23 +668,23 @@ async function savePendingSearch() {
 async function discardPendingSearch(clearUnreadable) {
   if (_savedBusy) return;
   const pending = _savedPending, scopes = [..._savedScopes];
-  if (!await dlgConfirm('stop checking this save? it may already be saved. this does not remove a saved search.')) return;
+  if (!await dlgConfirm(t('mail.saved_stop_confirm'))) return;
   if (_savedBusy || !savedIntentMatches(pending, _savedPending) || scopes.join() !== _savedScopes.join()) return;
   try {
     if (clearUnreadable) {
       for (const scope of scopes) {
         const key = savedKey(scope); sessionStorage.removeItem(key);
-        if (sessionStorage.getItem(key) !== null) throw new Error('could not clear recovery data');
+        if (sessionStorage.getItem(key) !== null) throw new Error(t('mail.clear_recovery_failed'));
       }
     } else if (pending) clearPendingSearch(pending);
     _savedNotice = ''; _savedRecoveryError = ''; readPendingSearch();
-  } catch { _savedRecoveryError = 'could not clear the pending search. its recovery data was kept.'; }
+  } catch { _savedRecoveryError = t('mail.saved_clear_failed'); }
   paintSavedBar();
 }
 async function deleteSavedSearch(id) {
   if (_savedBusy || _savedPending) return;
   const scopes = [..._savedScopes], row = _savedRows.find(value => value.id === id);
-  const name = row ? savedLabel(row) : 'this search';
+  const name = row ? savedLabel(row) : t('mail.this_search');
   for (const previous of _savedRemovals) {
     if (previous.id === id && previous.scopes.some(scope => scopes.includes(scope))) _savedRemovals.delete(previous);
   }
@@ -691,13 +693,13 @@ async function deleteSavedSearch(id) {
   _savedBusy = true; _savedNotice = ''; paintSavedBar();
   try {
     const result = await mailJson(`/api/mail/saved-searches/${encodeURIComponent(id)}?recovery_scope=${encodeURIComponent(scopes[0])}`, { method: 'DELETE' });
-    if (result?.ok !== true) throw new Error('could not confirm removal');
+    if (result?.ok !== true) throw new Error(t('mail.removal_unconfirmed'));
     if (operation.confirmed) return;
     operation.confirmed = true;
     _savedRemovals.delete(operation);
     if (!scopes.some(scope => _savedScopes.includes(scope))) return;
     _savedRows = _savedRows.filter(row => row.id !== id);
-    _savedNotice = 'saved search removed';
+    _savedNotice = t('mail.saved_search_removed');
     await _renderSavedBar();
   } catch (error) {
     if (operation.confirmed && error.status !== 403) return;
@@ -734,7 +736,7 @@ function readPendingDraft() {
     }
     if (!sameDraftIntent(pending, _draftPending)) _draftConfirmed = null;
     _draftPending = pending;
-  } catch { _draftStorageError = 'could not read draft recovery data. retry loading, or clear the unreadable data.'; }
+  } catch { _draftStorageError = t('mail.draft_unreadable'); }
 }
 function storePendingDraft(pending, editor, snapshot) {
   ++_draftRead;
@@ -744,14 +746,14 @@ function storePendingDraft(pending, editor, snapshot) {
   if (editor) {
     editor.scope = pending.recovery_scope; editor.pending = pending; editor.pendingSnapshot = snapshot;
   }
-  if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain this draft');
+  if (sessionStorage.getItem(key) !== raw) throw new Error(t('mail.draft_retain_failed'));
 }
 function clearPendingDraft(pending) {
   for (const scope of _draftScopes) {
     const key = draftKey(scope), raw = sessionStorage.getItem(key);
     if (raw && sameDraftIntent(JSON.parse(raw), pending)) {
       sessionStorage.removeItem(key);
-      if (sessionStorage.getItem(key) !== null) throw new Error('could not clear draft recovery data');
+      if (sessionStorage.getItem(key) !== null) throw new Error(t('mail.draft_clear_failed'));
     }
   }
   if (sameDraftIntent(_draftPending, pending)) _draftPending = null;
@@ -761,7 +763,7 @@ function retireDraftSave(pending) {
   _draftSave.retired = true; _draftSave = null; _draftBusy = false;
 }
 function confirmDraft(row, pending) {
-  if (!validDraft(row) || !draftMatches(row, pending)) throw new Error('could not confirm the saved draft');
+  if (!validDraft(row) || !draftMatches(row, pending)) throw new Error(t('mail.draft_unconfirmed'));
   const already = sameDraftIntent(_draftConfirmed?.pending, pending);
   _draftConfirmed = { pending, row };
   retireDraftSave(pending);
@@ -773,30 +775,30 @@ function confirmDraft(row, pending) {
     if (button.dataset.id === row.id && _draftScopes.includes(button.dataset.draftScope)
         && _draftScopes.includes(pending.recovery_scope)) button.dataset.revision = row.revision;
   });
-  if (!already) toast('draft saved', 'success');
-  _draftNotice = 'draft saved'; _draftConflict = '';
+  if (!already) toast(t('mail.draft_saved'), 'success');
+  _draftNotice = t('mail.draft_saved'); _draftConflict = '';
   try { clearPendingDraft(pending); _draftNotice = ''; }
-  catch { _draftNotice = 'draft saved. recovery data could not be cleared; retry cleanup.'; }
+  catch { _draftNotice = t('mail.draft_saved_cleanup'); }
 }
 function paintDraftRecovery() {
   const bar = $('mail-draft-recovery'); if (!bar) return;
   const focused = bar.contains(document.activeElement) ? document.activeElement.id : '';
   const pending = _draftPending;
   let message = _draftReadError || _draftStorageError || _draftNotice;
-  if (pending && !message) message = `“${pending.subject.trim() || 'untitled draft'}” may not have saved. retry checks it.`;
-  if (_draftBusy && !_draftConfirmed) message = 'saving draft…';
+  if (pending && !message) message = t('mail.draft_may_not_have', { name: pending.subject.trim() || t('mail.untitled_draft') });
+  if (_draftBusy && !_draftConfirmed) message = t('mail.saving_draft');
   let actions = '';
   const button = (id, label, blocked = _draftBusy) => `<button type="button" class="btn" id="${id}" aria-disabled="${blocked}">${label}</button>`;
-  if (_draftReadError || _draftStorageError) actions += button('mail-draft-load-retry', 'retry loading drafts', false);
-  if (_draftStorageError) actions += button('mail-draft-clear', 'clear recovery data');
+  if (_draftReadError || _draftStorageError) actions += button('mail-draft-load-retry', t('mail.draft_retry_loading'), false);
+  if (_draftStorageError) actions += button('mail-draft-clear', t('mail.saved_clear_recovery'));
   else if (pending) {
-    if (_draftConfirmed) actions += button('mail-draft-cleanup', 'retry cleanup');
+    if (_draftConfirmed) actions += button('mail-draft-cleanup', t('mail.saved_retry_cleanup'));
     else {
-      if (!_draftConflict) actions += button('mail-draft-retry', 'retry saving draft', _draftBusy || Boolean(_draftReadError));
-      actions += button('mail-draft-pending', 'open pending draft', false);
-      if (_draftConflict === 'changed') actions += button('mail-draft-current', 'open saved draft', false);
-      if (_draftConflict) actions += button('mail-draft-copy', 'save pending as new draft');
-      actions += button('mail-draft-dismiss', 'dismiss');
+      if (!_draftConflict) actions += button('mail-draft-retry', t('mail.retry_saving_draft'), _draftBusy || Boolean(_draftReadError));
+      actions += button('mail-draft-pending', t('mail.open_pending_draft'), false);
+      if (_draftConflict === 'changed') actions += button('mail-draft-current', t('mail.open_saved_draft'), false);
+      if (_draftConflict) actions += button('mail-draft-copy', t('mail.save_pending_as_new'));
+      actions += button('mail-draft-dismiss', t('mail.dismiss'));
     }
   }
   bar.hidden = !message && !actions;
@@ -811,15 +813,15 @@ function paintDraftRecovery() {
   $('mail-draft-cleanup')?.addEventListener('click', () => {
     if (_draftBusy || !_draftPending || !_draftConfirmed) return;
     try { clearPendingDraft(_draftPending); _draftNotice = ''; readPendingDraft(); }
-    catch { _draftNotice = 'draft saved. recovery data still could not be cleared.'; }
+    catch { _draftNotice = t('mail.draft_saved_cleanup2'); }
     paintDraftRecovery();
   });
   const editor = mailEditor(), save = editor?.root.querySelector('#mc-save');
   if (save) {
     const owned = sameDraftIntent(editor.pending, pending);
-    save.textContent = owned && !_draftConfirmed ? 'retry saving draft' : (editor.deleted ? 'save as new draft' : 'save draft');
+    save.textContent = owned && !_draftConfirmed ? t('mail.retry_saving_draft') : (editor.deleted ? t('mail.save_as_new_draft') : t('mail.save_draft'));
     const status = editor.root.querySelector('#mc-status');
-    const recoveryMessage = editor.scope && !_draftScopes.includes(editor.scope) ? 'this editor belongs to a different mail store. your text is still here.' : (editor.deleted ? 'this saved draft was deleted. your text is still here; save it as a new draft.' : '');
+    const recoveryMessage = editor.scope && !_draftScopes.includes(editor.scope) ? t('mail.editor_other_store') : (editor.deleted ? t('mail.editor_deleted') : '');
     if (recoveryMessage) { status.textContent = recoveryMessage; status.dataset.draftRecovery = '1'; }
     else if (status.dataset.draftRecovery) { status.textContent = ''; delete status.dataset.draftRecovery; }
     save.setAttribute('aria-disabled', String(_draftBusy || !_draftReady || Boolean(editor.scope && !_draftScopes.includes(editor.scope)) || Boolean(_draftReadError || _draftStorageError || (pending && (!owned || _draftConflict || _draftConfirmed)))));
@@ -833,7 +835,7 @@ async function loadDraftRecovery() {
   const generation = ++_draftRead;
   try {
     const data = await mailJson('/api/mail/drafts?context=true', { cache: 'no-store' });
-    if (!Array.isArray(data?.drafts) || data.drafts.some(row => !validDraft(row)) || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('could not confirm draft recovery');
+    if (!Array.isArray(data?.drafts) || data.drafts.some(row => !validDraft(row)) || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error(t('mail.draft_recovery_unconfirmed'));
     if (generation !== _draftRead) return data;
     if (_draftScopes.length && !data.recovery_scopes.some(scope => _draftScopes.includes(scope))) {
       _draftPending = null; _draftConfirmed = null; _draftNotice = ''; _draftConflict = '';
@@ -848,8 +850,8 @@ async function loadDraftRecovery() {
       else if (!_draftConfirmed) {
         const knownDeleted = _draftConflict === 'deleted' && !row;
         _draftConflict = row && (!pending.id || row.revision !== pending.expected_revision) ? 'changed' : (!row && (pending.id || knownDeleted) ? 'deleted' : '');
-        if (_draftConflict === 'changed') _draftNotice = 'the saved draft has changed. your pending version is kept; review the saved draft or save a separate copy.';
-        else if (_draftConflict === 'deleted') _draftNotice = 'the saved draft is no longer available. your pending version is kept; save a separate copy or dismiss it.';
+        if (_draftConflict === 'changed') _draftNotice = t('mail.draft_changed_review');
+        else if (_draftConflict === 'deleted') _draftNotice = t('mail.draft_gone');
         if (_draftConflict) retireDraftSave(pending);
       }
     }
@@ -858,7 +860,7 @@ async function loadDraftRecovery() {
     paintDraftRecovery();
     return data;
   } catch (error) {
-    if (generation === _draftRead) { _draftReadError = `could not load draft recovery: ${error.message}`; paintDraftRecovery(); }
+    if (generation === _draftRead) { _draftReadError = t('mail.draft_load_failed', { error: error.message }); paintDraftRecovery(); }
     return null;
   }
 }
@@ -871,15 +873,15 @@ async function savePendingDraft() {
   try {
     const row = await mailJson('/api/mail/drafts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(pending) });
     if (operation.retired || !_draftScopes.includes(pending.recovery_scope)) return;
-    if (!validDraft(row) || !draftMatches(row, pending)) throw new Error('could not confirm the saved draft');
+    if (!validDraft(row) || !draftMatches(row, pending)) throw new Error(t('mail.draft_unconfirmed'));
   } catch (error) {
     if (operation.retired || !_draftScopes.includes(pending.recovery_scope)) return;
     if (error.status === 410 || error.status === 404) {
-      _draftConflict = 'deleted'; _draftNotice = 'this draft was deleted. your pending version is kept; save a separate copy or dismiss it.';
+      _draftConflict = 'deleted'; _draftNotice = t('mail.draft_deleted_pending');
     } else if (error.status === 409) {
-      _draftConflict = 'changed'; _draftNotice = 'the saved draft has changed. your pending version is kept; review it before saving a separate copy.';
-    } else _draftNotice = `save is unconfirmed: ${error.message}. retry checks the same draft.`;
-    toast('save unconfirmed', 'error');
+      _draftConflict = 'changed'; _draftNotice = t('mail.draft_changed_pending');
+    } else _draftNotice = t('mail.draft_save_unconfirmed', { error: error.message });
+    toast(t('mail.save_unconfirmed'), 'error');
   } finally {
     if (_draftSave === operation) { _draftSave = null; _draftBusy = false; }
     paintDraftRecovery();
@@ -889,31 +891,31 @@ async function savePendingDraft() {
 async function dismissPendingDraft(unreadable) {
   if (_draftBusy) return;
   const pending = _draftPending, scopes = [..._draftScopes];
-  if (!await dlgConfirm('stop checking this draft save? it may already be saved. this does not delete a saved draft.')) return;
+  if (!await dlgConfirm(t('mail.draft_stop_confirm'))) return;
   if (_draftBusy || scopes.join() !== _draftScopes.join() || (!unreadable && !sameDraftIntent(pending, _draftPending))) return;
   try {
     if (unreadable) for (const scope of scopes) {
       const key = draftKey(scope); sessionStorage.removeItem(key);
-      if (sessionStorage.getItem(key) !== null) throw new Error('could not clear recovery data');
+      if (sessionStorage.getItem(key) !== null) throw new Error(t('mail.clear_recovery_failed'));
     }
     else if (pending) clearPendingDraft(pending);
     const editor = mailEditor();
     if (editor && sameDraftIntent(editor.pending, pending)) editor.pending = null;
     _draftConfirmed = null; _draftConflict = ''; _draftNotice = ''; readPendingDraft();
-  } catch { _draftStorageError = 'could not clear draft recovery data. the pending save was kept.'; }
+  } catch { _draftStorageError = t('mail.draft_clear_failed2'); }
   paintDraftRecovery();
 }
 async function copyPendingDraft() {
   if (_draftBusy || !_draftPending || !_draftConflict) return;
   const pending = _draftPending;
-  if (!await dlgConfirm('save the pending version as a separate draft? the current saved draft stays unchanged. newer editor changes stay unsaved.')) return;
+  if (!await dlgConfirm(t('mail.draft_copy_confirm'))) return;
   if (_draftBusy || !sameDraftIntent(pending, _draftPending) || !_draftScopes.includes(pending.recovery_scope)) return;
   const copy = { ...pending, id: '', expected_revision: '', request_id: savedRequestId() };
   try {
     const current = mailEditor(), editor = current && sameDraftIntent(current.pending, pending) ? current : null;
     storePendingDraft(copy, editor, editor?.pendingSnapshot);
     await savePendingDraft();
-  } catch { _draftStorageError = 'could not keep the new draft for recovery. no new save was sent.'; paintDraftRecovery(); }
+  } catch { _draftStorageError = t('mail.draft_copy_keep_failed'); paintDraftRecovery(); }
 }
 async function openCurrentDraft() {
   const pending = _draftPending;
@@ -924,11 +926,16 @@ async function openCurrentDraft() {
     const row = await mailJson(`/api/mail/drafts/${encodeURIComponent(draftIdentity(pending))}?recovery_scope=${encodeURIComponent(pending.recovery_scope)}`, { cache: 'no-store' });
     if (generation !== _messageGeneration || !sameDraftIntent(pending, _draftPending) || !validDraft(row) || row.id !== draftIdentity(pending)) return;
     await compose({ ...row, recovery_scope: pending.recovery_scope }, generation);
-  } catch (error) { toast(error.message || 'could not open saved draft', 'error'); }
+  } catch (error) { toast(error.message || t('mail.open_draft_failed'), 'error'); }
 }
 
 export async function loadMail(fetcher = fetch) {
   initMail();
+  const emptyHost = $('mail-main');
+  if (emptyHost?.dataset) {
+    emptyHost.dataset.emptyPick = t('mail.pick_message');
+    emptyHost.dataset.emptyNoAccount = t('mail.no_account_yet');
+  }
   // Back from a reader's own entry: close it, even mid-load, and land on the row it came from
   const leftReader = _readerEntry !== null && routeHistoryPosition() < _readerEntry;
   const returnTarget = leftReader && !mailSettings() && !mailEditor() && $('mail-main').firstElementChild?.matches('.mail-reader, .mail-empty') ? _mailReturnTarget : null;
@@ -942,7 +949,7 @@ export async function loadMail(fetcher = fetch) {
   ++_listGeneration;
   const accounts = await mailJson('/api/mail/accounts', {}, fetcher);
   if (generation !== _mailLoadGeneration) return;
-  if (!Array.isArray(accounts)) throw new Error('could not read mail accounts');
+  if (!Array.isArray(accounts)) throw new Error(t('mail.accounts_read_failed'));
   _accounts = accounts;
   if (_accounts.length > 1 && !localStorage.getItem('alles-mail-account-mode')) _active = 'all';
   syncAccountSelect();
@@ -956,7 +963,7 @@ export async function loadMail(fetcher = fetch) {
   }
   if (!_accounts.length) {
     $('mail-list').innerHTML = '';
-    if (mailEditor()) toast('the mail account is unavailable; your draft is still open', 'error');
+    if (mailEditor()) toast(t('mail.account_unavailable_draft'), 'error');
     else if (!mailSettings()) accountsPanel(true);
     return;
   }
@@ -973,7 +980,7 @@ function syncAccountSelect() {
   // no mailbox yet: folders, search and refresh have nothing to act on
   $('mail-view')?.toggleAttribute('data-no-account', !_accounts.length);
   if (!_accounts.length) {
-    populateDropdown(sel, [{ value: '', label: 'no accounts' }], '');
+    populateDropdown(sel, [{ value: '', label: t('mail.no_accounts') }], '');
     return;
   }
   const ids = new Set(_accounts.map(a => a.id));
@@ -981,7 +988,7 @@ function syncAccountSelect() {
   if (_accounts.length > 1 && !_active) _active = 'all';
   if (_accounts.length === 1 && _active === 'all') _active = _accounts[0].id;
   const opts = [];
-  if (_accounts.length > 1) opts.push({ value: 'all', label: 'all inboxes' });
+  if (_accounts.length > 1) opts.push({ value: 'all', label: t('mail.all_inboxes') });
   _accounts.forEach(a => opts.push({ value: a.id, label: a.name || a.email }));
   populateDropdown(sel, opts, _active);
 }
@@ -991,18 +998,18 @@ async function fetchInboxFor(account, limit = 35, folder = 'INBOX', quick = fals
   // hasn't moved — keeps the 30s background poll cheap on slow connections
   const url = `/api/mail/inbox/${account.id}?folder=${encodeURIComponent(folder)}&limit=${limit}${quick ? '&quick=1' : ''}`;
   const d = await mailJson(url, {}, fetcher);
-  if (!Array.isArray(d?.messages)) throw new Error('could not read messages');
+  if (!Array.isArray(d?.messages)) throw new Error(t('mail.read_failed'));
   const map = ms => ms.map(m => ({ ...m, account_id: account.id, account_name: account.name || account.email, folder }));
   // IMAP failed but the server handed back the cached copy → show it (offline-friendly) instead of erroring
   if (d.error && !d.messages.length) throw new Error(d.error);
-  return { messages: map(d.messages), warning: d.error ? `showing saved mail; ${mailProblem(d.error)}` : '' };
+  return { messages: map(d.messages), warning: d.error ? t('mail.showing_saved', { problem: mailProblem(d.error) }) : '' };
 }
 
 // providers don't agree on a sent-folder name; sniff it once per account
 async function sentFolderFor(account, fetcher = fetch) {
   if (_sentFolders[account.id]) return _sentFolders[account.id];
   const d = await mailJson(`/api/mail/folders/${account.id}`, {}, fetcher);
-  if (!Array.isArray(d?.folders) || d.error) throw new Error(d?.error || 'could not read mail folders');
+  if (!Array.isArray(d?.folders) || d.error) throw new Error(d?.error || t('mail.folders_read_failed'));
   const f = (d.folders || []).find(x => /sent/i.test(x)) || 'Sent';
   _sentFolders[account.id] = f;
   return f;
@@ -1038,7 +1045,7 @@ function updateMailRows(matches, changes, remove = false) {
 // the change it was about. the reason is made plain on its own; offline it just says what to do
 function failedBecause(what, error, fallback) {
   const reason = error?.message ? plainError(error.message) : fallback;
-  return `${what}. ${reason === plainError('failed to fetch') ? 'check the connection and try again' : reason}`;
+  return t('mail.failed_because', { what, reason: reason === plainError('failed to fetch') ? t('mail.check_connection') : reason });
 }
 async function changeMail(button, key, request, valid, apply, success, failure, waitWhileCurrent = null) {
   while (_mailChanges.has(key)) {
@@ -1052,11 +1059,11 @@ async function changeMail(button, key, request, valid, apply, success, failure, 
   button?.setAttribute('aria-disabled', 'true'); paintMailChanges();
   try {
     const result = await request();
-    if (!valid(result)) throw new Error(result?.error || 'the saved result could not be confirmed');
+    if (!valid(result)) throw new Error(result?.error || t('mail.result_unconfirmed'));
     apply(result);
     if (success) toast(success, 'success');
   } catch (error) {
-    toast(failedBecause(failure, error, 'check the mailbox before trying again'), 'error');
+    toast(failedBecause(failure, error, t('mail.check_mailbox')), 'error');
   } finally {
     _mailChanges.delete(key); release(); button?.setAttribute('aria-disabled', 'false'); paintMailChanges();
   }
@@ -1089,7 +1096,7 @@ function showTriageUndo(text, undo) {
   $('mail-triage-undo')?.remove();
   const bar = document.createElement('div');
   bar.id = 'mail-triage-undo'; bar.className = 'mail-undo-bar'; bar.setAttribute('role', 'status');
-  bar.innerHTML = `<span>${esc(text)}</span><button type="button" class="btn">undo</button>`;
+  bar.innerHTML = `<span>${esc(text)}</span><button type="button" class="btn">${t('common.undo')}</button>`;
   stackUndoBar(bar);
   const button = bar.querySelector('button');
   button.addEventListener('click', async () => {
@@ -1123,23 +1130,23 @@ function focusMailRow(match) {
 
 // Gmail-style left sidebar (4b): folders/categories as icon+label rows
 const _MAIL_NAV = [
-  { f: 'inbox', label: 'inbox', icon: 'mail' },
-  { f: 'cat:primary', label: 'primary', icon: 'user' },
-  { f: 'cat:social', label: 'social', icon: 'comment' },
-  { f: 'cat:promotions', label: 'promotions', icon: 'tag' },
-  { f: 'unread', label: 'unread', icon: 'bell' },
-  { f: 'flagged', label: 'flagged', icon: 'bookmark' },
-  { f: 'vip', label: 'vip', icon: 'star' },
-  { f: 'muted', label: 'muted', icon: 'mute' },
-  { f: 'snoozed', label: 'snoozed', icon: 'snooze' },
-  { f: 'sent', label: 'sent', icon: 'send' },
-  { f: 'drafts', label: 'drafts', icon: 'edit' },
+  { f: 'inbox', label: 'mail.nav_inbox', icon: 'mail' },
+  { f: 'cat:primary', label: 'mail.nav_primary', icon: 'user' },
+  { f: 'cat:social', label: 'mail.nav_social', icon: 'comment' },
+  { f: 'cat:promotions', label: 'mail.nav_promotions', icon: 'tag' },
+  { f: 'unread', label: 'mail.nav_unread', icon: 'bell' },
+  { f: 'flagged', label: 'mail.nav_flagged', icon: 'bookmark' },
+  { f: 'vip', label: 'mail.nav_vip', icon: 'star' },
+  { f: 'muted', label: 'mail.nav_muted', icon: 'mute' },
+  { f: 'snoozed', label: 'mail.nav_snoozed', icon: 'snooze' },
+  { f: 'sent', label: 'mail.nav_sent', icon: 'send' },
+  { f: 'drafts', label: 'mail.nav_drafts', icon: 'edit' },
 ];
 function _renderMailSidebar() {
   const nav = $('mail-sidebar'); if (!nav) return;
   const ic = window.icon || (() => '');
   nav.innerHTML = _MAIL_NAV.map(n =>
-    `<button class="mail-nav-item${n.f === _filter ? ' active' : ''}" data-filter="${n.f}" title="${n.label}"><span class="mail-nav-ic">${ic(n.icon)}</span><span class="mail-nav-label">${n.label}</span></button>`).join('');
+    `<button class="mail-nav-item${n.f === _filter ? ' active' : ''}" data-filter="${n.f}" title="${esc(t(n.label))}"><span class="mail-nav-ic">${ic(n.icon)}</span><span class="mail-nav-label">${esc(t(n.label))}</span></button>`).join('');
   nav.querySelectorAll('.mail-nav-item').forEach(b => b.addEventListener('click', () => setFilter(b.dataset.filter)));
 }
 function _initMailSidebar() {
@@ -1175,18 +1182,20 @@ function clearMailReader() {
 async function loadCategory(cat, { preserveReader = false } = {}) {
   _searchView = ''; _labelFilter = '';
   if (!preserveReader) clearMailReader();
-  return loadCachedMail(`category:${cat}`, `loading ${cat}…`, a => `/api/mail/category/${a.id}?cat=${encodeURIComponent(cat)}`);
+  return loadCachedMail(`category:${cat}`, t('mail.loading_named', { name: t('mail.nav_' + cat) }), a => `/api/mail/category/${a.id}?cat=${encodeURIComponent(cat)}`);
 }
 async function loadByLabel(label, { preserveReader = false } = {}) {
   _searchView = ''; _labelFilter = label;
   if (!preserveReader) clearMailReader();
-  return loadCachedMail(`label:${label}`, `label “${label}”…`, a => `/api/mail/by-label/${a.id}?label=${encodeURIComponent(label)}`);
+  return loadCachedMail(`label:${label}`, t('mail.label_loading', { label }), a => `/api/mail/by-label/${a.id}?label=${encodeURIComponent(label)}`);
 }
 async function loadSmart(filter, { preserveReader = false } = {}) {
   _searchView = ''; _labelFilter = '';
   if (!preserveReader) clearMailReader();
-  return loadCachedMail(`smart:${filter}`, `loading ${filter}…`, a => `/api/mail/smart/${a.id}?filter=${encodeURIComponent(filter)}`);
+  return loadCachedMail(`smart:${filter}`, t('mail.loading_named', { name: t('mail.nav_' + filter) }), a => `/api/mail/smart/${a.id}?filter=${encodeURIComponent(filter)}`);
 }
+
+const _filterName = f => t('mail.nav_' + String(f).replace(/^cat:/, ''));
 
 function draftPreview(html) {
   const template = document.createElement('template');
@@ -1214,7 +1223,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
   const list = $('mail-list'); const main = $('mail-main');
   if (!preserveReader) clearMailReader();
   list.setAttribute('aria-busy', 'true');
-  list.innerHTML = '<div class="mail-empty">loading drafts…</div>';
+  list.innerHTML = `<div class="mail-empty">${t('mail.loading_drafts')}</div>`;
   let drafts = [];
   try {
     const data = await loadDraftRecovery();
@@ -1227,16 +1236,16 @@ async function loadDrafts({ preserveReader = false } = {}) {
   } catch {
     if (!current()) return;
     list.setAttribute('aria-busy', 'false');
-    list.innerHTML = '<div class="mail-empty" role="alert">could not load drafts. <button class="btn" id="mail-drafts-retry">retry</button></div>';
+    list.innerHTML = `<div class="mail-empty" role="alert">${t('mail.drafts_load_failed')} <button class="btn" id="mail-drafts-retry">${t('common.retry')}</button></div>`;
     list.querySelector('#mail-drafts-retry').addEventListener('click', () => loadDrafts({ preserveReader: true }));
     return;
   }
-  if (!drafts.length) { list.innerHTML = '<div class="mail-empty">no drafts</div>'; return; }
+  if (!drafts.length) { list.innerHTML = `<div class="mail-empty">${t('mail.no_drafts')}</div>`; return; }
   list.innerHTML = drafts.map(d => `
     <div class="mail-row mail-draft-row" data-id="${esc(d.id)}">
-      <span class="mail-from">${esc(d.to || '(no recipient)')}</span>
-      <button type="button" class="mail-open mail-subj" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>${esc(d.subject || '(no subject)')}</button>
-      <button type="button" class="mail-draft-del icon-btn" data-id="${esc(d.id)}" data-revision="${esc(d.revision)}" data-draft-scope="${esc(_draftScopes[0])}" aria-label="delete draft: ${esc(d.subject || '(no subject)')}" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>${_si('trash')}</button>
+      <span class="mail-from">${esc(d.to || t('mail.no_recipient'))}</span>
+      <button type="button" class="mail-open mail-subj" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>${esc(d.subject || t('mail.no_subject'))}</button>
+      <button type="button" class="mail-draft-del icon-btn" data-id="${esc(d.id)}" data-revision="${esc(d.revision)}" data-draft-scope="${esc(_draftScopes[0])}" aria-label="${esc(t('mail.delete_draft_named', { subject: d.subject || t('mail.no_subject') }))}" ${_deletingDrafts.has(d.id) ? 'disabled' : ''}>${_si('trash')}</button>
       <div class="mail-snippet">${esc(draftPreview(d.body))}</div>
     </div>`).join('');
   const draftScope = _draftScopes[0];
@@ -1250,9 +1259,9 @@ async function loadDrafts({ preserveReader = false } = {}) {
       try {
         const d = await mailJson(`/api/mail/drafts/${encodeURIComponent(row.dataset.id)}?recovery_scope=${encodeURIComponent(draftScope)}`);
         if (generation !== _messageGeneration || opening.canceled) return;
-        if (d?.id !== row.dataset.id || typeof d.body !== 'string' || typeof d.subject !== 'string') throw new Error('could not confirm this draft');
+        if (d?.id !== row.dataset.id || typeof d.body !== 'string' || typeof d.subject !== 'string') throw new Error(t('mail.draft_confirm_failed'));
         await compose({ ...d, recovery_scope: draftScope }, generation, returnTarget);
-      } catch (error) { if (generation === _messageGeneration && !opening.canceled) toast(error.message || 'could not open draft', 'error'); }
+      } catch (error) { if (generation === _messageGeneration && !opening.canceled) toast(error.message || t('mail.open_draft_failed2'), 'error'); }
       finally { if (_openingDraft === opening) _openingDraft = null; }
     });
   });
@@ -1265,7 +1274,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
     const revision = b.dataset.revision || listed.revision;
     const snapshot = editor?.draftId === id ? editor.snapshot() : null;
     if (snapshot !== null && snapshot !== editor.initial) {
-      if (!await dlgConfirm('delete the saved draft and discard these changes?')) return;
+      if (!await dlgConfirm(t('mail.delete_draft_confirm'))) return;
       if (mailEditor() !== editor || editor.snapshot() !== snapshot) return;
     }
     if (_deletingDrafts.has(id)) return;
@@ -1281,7 +1290,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
     }
     try {
       const result = await mailJson(`/api/mail/drafts/${encodeURIComponent(id)}?expected_revision=${encodeURIComponent(revision)}&recovery_scope=${encodeURIComponent(draftScope)}`, { method: 'DELETE' });
-      if (result?.ok !== true) throw new Error('could not confirm draft deletion');
+      if (result?.ok !== true) throw new Error(t('mail.draft_delete_unconfirmed'));
       if (mailEditor() === editor && editor?.draftId === id) {
         if (editor.snapshot() === snapshot) clearMailEditor(editor);
         else editor.detach();
@@ -1290,7 +1299,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
         focusGeneration = listGeneration + 1;
         await loadDrafts({ preserveReader: true });
       }
-    } catch (error) { toast(error.message || 'could not delete draft', 'error'); }
+    } catch (error) { toast(error.message || t('mail.delete_draft_failed'), 'error'); }
     finally {
       _deletingDrafts.delete(id); b.disabled = false;
       $('mail-list').querySelectorAll(`.mail-draft-row[data-id="${CSS.escape(id)}"] button`).forEach(button => { button.disabled = false; });
@@ -1316,7 +1325,7 @@ async function loadInbox(force = false, silent = false, fetcher = fetch) {
   const renderWithFocus = preserveMailReadFocus(list);
   if (!silent) {
     if (cached?.length) renderInbox(applyFilter(cached), []);   // instant, stale
-    else list.innerHTML = `<div class="mail-empty">loading ${_filter}...</div>`;
+    else list.innerHTML = `<div class="mail-empty">${t('mail.loading_dots', { name: _filterName(_filter) })}</div>`;
   }
 
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
@@ -1333,7 +1342,7 @@ async function loadInbox(force = false, silent = false, fetcher = fetch) {
       messages.push(...result.value.messages);
       if (result.value.warning) errors.push(`${acctName(id)}: ${result.value.warning}`);
     } else {
-      errors.push(`${acctName(id)}: ${mailProblem(result.reason?.message || 'could not read messages')}`);
+      errors.push(`${acctName(id)}: ${mailProblem(result.reason?.message || t('mail.read_failed'))}`);
       if (Array.isArray(cached)) messages.push(...cached.filter(message => message.account_id === id));
     }
   });
@@ -1341,7 +1350,7 @@ async function loadInbox(force = false, silent = false, fetcher = fetch) {
   if (silent && !errors.length && !list.querySelector('.mail-error-strip') && _lastNewest && newest === _lastNewest) return;
   if (silent && _lastNewest && newest !== _lastNewest) {
     const top = [...messages].sort((a, b) => _msgTime(b) - _msgTime(a))[0];
-    if (top && !top.seen) toast(`new mail: ${fromName(top.from)}: ${(top.subject || '').slice(0, 60)}`, 'success');
+    if (top && !top.seen) toast(t('mail.new_mail', { from: fromName(top.from), subject: (top.subject || '').slice(0, 60) }), 'success');
   }
   _lastNewest = newest;
   renderWithFocus(() => renderInbox(applyFilter(messages), errors));
@@ -1399,14 +1408,14 @@ const _msgRow = (m, indent = false) => {
         <span class="mail-from">${esc(fromName(m.from))}</span>
         <span class="mail-date">${esc(shortDate(m.date))}</span>
       </div>
-      <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || '(no subject)')}</button>${(m.labels || []).map(l => `<button type="button" class="mail-label-chip" data-labelfilter="${esc(l)}" style="--cat:var(--cat-${categoryHue(l)})">${esc(l)}</button>`).join('')}</div>
+      <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || t('mail.no_subject'))}</button>${(m.labels || []).map(l => `<button type="button" class="mail-label-chip" data-labelfilter="${esc(l)}" style="--cat:var(--cat-${categoryHue(l)})">${esc(l)}</button>`).join('')}</div>
       <span class="mail-row-acts">
-        ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" title="unsubscribe">${_si('x-circle')}</button>` : ''}
-        <button class="mail-act" data-label title="add a label">${_si('tag')}</button>
-        <button class="mail-act" data-snooze data-snoozed="${snoozed}" title="${snoozed ? 'end snooze' : 'snooze until tomorrow'}">${_si('snooze')}</button>
-        <button class="mail-act" data-mute data-muted="${Boolean(m.muted)}" title="${m.muted ? 'unmute thread' : 'mute thread'}">${_si('mute')}</button>
-        <button class="mail-act" data-archive title="archive">${_si('archive')}</button>
-        <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag title="flag">${_si(m.flagged ? 'star-fill' : 'star')}</button>
+        ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" title="${esc(t('mail.unsubscribe'))}">${_si('x-circle')}</button>` : ''}
+        <button class="mail-act" data-label title="${esc(t('mail.add_label'))}">${_si('tag')}</button>
+        <button class="mail-act" data-snooze data-snoozed="${snoozed}" title="${esc(snoozed ? t('mail.end_snooze') : t('mail.snooze_tomorrow'))}">${_si('snooze')}</button>
+        <button class="mail-act" data-mute data-muted="${Boolean(m.muted)}" title="${esc(m.muted ? t('mail.unmute_thread') : t('mail.mute_thread'))}">${_si('mute')}</button>
+        <button class="mail-act" data-archive title="${esc(t('mail.archive'))}">${_si('archive')}</button>
+        <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag title="${esc(t('mail.flag'))}">${_si(m.flagged ? 'star-fill' : 'star')}</button>
       </span>
       ${_active === 'all' ? `<div class="mail-account-badge">${esc(m.account_name || acctName(m.account_id))}</div>` : ''}
     </div>`;
@@ -1419,11 +1428,11 @@ function renderInbox(messages, errors = []) {
   _lastMsgs = messages; _mailErrors = errors;
   paintMailPaneWarning();
   if (!messages.length && !errors.length) {
-    list.innerHTML = `<div class="mail-empty" role="status">nothing in ${esc(_filter)}</div>`;
+    list.innerHTML = `<div class="mail-empty" role="status">${esc(t('mail.nothing_in', { name: _filterName(_filter) }))}</div>`;
     return;
   }
   const errHtml = errors.length
-    ? `<div class="mail-error-strip" role="alert">${errors.map(esc).join('<br>')} <button type="button" class="btn" id="mail-read-retry">retry</button></div>`
+    ? `<div class="mail-error-strip" role="alert">${errors.map(esc).join('<br>')} <button type="button" class="btn" id="mail-read-retry">${t('common.retry')}</button></div>`
     : '';
   list.innerHTML = errHtml + (_threads ? _renderThreads(messages, msgTime) : messages.map(m => _msgRow(m)).join(''));
   _wireRows(list);
@@ -1441,19 +1450,19 @@ function _renderThreads(messages, msgTime) {
     return { k, msgs, top: msgs[0], unseen: msgs.filter(x => !x.seen).length };
   }).sort((a, b) => msgTime(b.top) - msgTime(a.top));
 
-  return threads.map(t => {
-    if (t.msgs.length === 1) return _msgRow(t.top);
-    const open = _expanded.has(t.k);
+  return threads.map(th => {
+    if (th.msgs.length === 1) return _msgRow(th.top);
+    const open = _expanded.has(th.k);
     const head = `
-      <div class="mail-row mail-thread-head${t.unseen ? ' unread' : ''}${open ? ' open' : ''}" data-thread="${esc(t.k)}">
+      <div class="mail-row mail-thread-head${th.unseen ? ' unread' : ''}${open ? ' open' : ''}" data-thread="${esc(th.k)}">
         <div class="mail-row-top">
-          <span class="mail-from">${esc(fromName(t.top.from))}</span>
-          <span class="mail-date">${esc(shortDate(t.top.date))}</span>
+          <span class="mail-from">${esc(fromName(th.top.from))}</span>
+          <span class="mail-date">${esc(shortDate(th.top.date))}</span>
         </div>
-        <button type="button" class="mail-open mail-subject" aria-expanded="${open}"><span class="mail-thread-caret" aria-hidden="true">${_si(open ? 'chevron-down' : 'chevron-right')}</span> ${esc(t.top.subject || '(no subject)')} <span class="mail-thread-count">${t.msgs.length}</span></button>
-        ${_active === 'all' ? `<div class="mail-account-badge">${esc(t.top.account_name || acctName(t.top.account_id))}</div>` : ''}
+        <button type="button" class="mail-open mail-subject" aria-expanded="${open}"><span class="mail-thread-caret" aria-hidden="true">${_si(open ? 'chevron-down' : 'chevron-right')}</span> ${esc(th.top.subject || t('mail.no_subject'))} <span class="mail-thread-count">${th.msgs.length}</span></button>
+        ${_active === 'all' ? `<div class="mail-account-badge">${esc(th.top.account_name || acctName(th.top.account_id))}</div>` : ''}
       </div>`;
-    const kids = open ? t.msgs.map(m => _msgRow(m, true)).join('') : '';
+    const kids = open ? th.msgs.map(m => _msgRow(m, true)).join('') : '';
     return head + kids;
   }).join('');
 }
@@ -1482,7 +1491,7 @@ function _wireRows(list) {
       () => mailJson(`/api/mail/flag/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}&flagged=${on}`, { method: 'POST' }),
       result => result?.ok === true && result.flagged === on,
       () => updateMailRows(message => sameMail(message, aid, uid, folder), { flagged: on }),
-      on ? 'flag saved' : 'flag removed', 'could not confirm flag change');
+      on ? t('mail.flag_saved') : t('mail.flag_removed'), t('mail.flag_unconfirmed'));
   }));
   // 5a triage row actions
   list.querySelectorAll('[data-unsub]').forEach(btn => btn.addEventListener('click', e => {
@@ -1490,7 +1499,7 @@ function _wireRows(list) {
     const link = btn.dataset.unsub;
     if (link.startsWith('mailto:')) location.href = link;
     else window.open(link, '_blank', 'noopener');
-    toast('opened unsubscribe', '');
+    toast(t('mail.opened_unsubscribe'), '');
   }));
   list.querySelectorAll('[data-mute]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
@@ -1499,7 +1508,7 @@ function _wireRows(list) {
     changeMail(btn, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/mute/${aid}`, { subject, muted }),
       result => Number.isInteger(result?.muted) && result.muted > 0,
       () => updateMailRows(message => message.account_id === aid && threadKey(message.subject) === threadKey(subject), { muted }, hideRemovesRow('muted', muted)),
-      muted ? 'thread muted' : 'thread unmuted', `could not confirm ${muted ? 'mute' : 'unmute'}`);
+      muted ? t('mail.thread_muted') : t('mail.thread_unmuted'), muted ? t('mail.mute_unconfirmed') : t('mail.unmute_unconfirmed'));
   }));
   list.querySelectorAll('[data-archive]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
@@ -1510,7 +1519,7 @@ function _wireRows(list) {
       let back = false;
       await changeMail(null, key, () => mailPost(`/api/mail/move/${aid}`, { message_id: messageId, folder: 'Archive', dest: folder }),
         result => result?.moved_on_server === true, () => { back = true; },
-        'moved back', 'could not move it back from the archive');
+        t('mail.moved_back'), t('mail.move_back_failed'));
       if (!back) return false;
       await _reloadCurrent({ force: true });
       focusMailRow(row => row.account_id === aid && row.message_id === messageId);
@@ -1520,21 +1529,21 @@ function _wireRows(list) {
       result => result?.moved_on_server === true,
       result => {
         updateMailRows(message => sameMail(message, aid, uid, folder), {}, true);
-        if (result.message_id) showTriageUndo('archived', undo(result.message_id));
-        else toast('archived', 'success');
+        if (result.message_id) showTriageUndo(t('mail.archived'), undo(result.message_id));
+        else toast(t('mail.archived'), 'success');
       },
-      '', 'archive is unconfirmed; refresh the mailbox before trying again');
+      '', t('mail.archive_unconfirmed'));
   }));
   list.querySelectorAll('[data-label]').forEach(btn => btn.addEventListener('click', async e => {
     e.stopPropagation();
     const { aid, uid, folder } = btn.closest('.mail-row').dataset;
     if (_mailChanges.has(mailIdentity(aid, uid, folder))) return;
-    const label = await dlgPrompt('', '', { title: 'label this message', label: 'label', confirmLabel: 'add label' }); if (!label || !label.trim()) return;
+    const label = await dlgPrompt('', '', { title: t('mail.label_message'), label: t('mail.label'), confirmLabel: t('mail.add_label_confirm') }); if (!label || !label.trim()) return;
     const target = [...list.querySelectorAll('.mail-row[data-aid]')].find(row => mailIdentity(row.dataset.aid, row.dataset.uid, row.dataset.folder) === mailIdentity(aid, uid, folder))?.querySelector('[data-label]');
     changeMail(target, mailIdentity(aid, uid, folder), () => mailPost(`/api/mail/labels/${aid}`, { uid, folder, add_label: label.trim() }),
       result => result?.ok === true && Array.isArray(result.labels) && result.labels.every(value => typeof value === 'string'),
       result => updateMailRows(row => sameMail(row, aid, uid, folder), { labels: result.labels }),
-      'labeled', 'could not confirm label', () => true);
+      t('mail.labeled'), t('mail.label_unconfirmed'), () => true);
   }));
   list.querySelectorAll('[data-labelfilter]').forEach(c => c.addEventListener('click', e => {
     e.stopPropagation();
@@ -1552,7 +1561,7 @@ function _wireRows(list) {
     // undo sends the old value back: '' wakes a fresh snooze, the old time puts an ended one back
     const undo = async () => {
       let back = false;
-      await changeMail(null, key, snooze(previous), saved, () => { back = true; }, until ? 'snooze undone' : 'snoozed again', 'could not undo the snooze');
+      await changeMail(null, key, snooze(previous), saved, () => { back = true; }, until ? t('mail.snooze_undone') : t('mail.snoozed_again'), t('mail.snooze_undo_failed'));
       if (!back) return false;
       restoreMailRow({ ...before, snoozed_until: previous }, context);
       focusMailRow(same);
@@ -1561,10 +1570,10 @@ function _wireRows(list) {
     changeMail(btn, key, snooze(until), saved,
       () => {
         updateMailRows(same, { snoozed_until: until }, hideRemovesRow('snoozed', Boolean(until)));
-        if (before) showTriageUndo(until ? 'snoozed until tomorrow' : 'snooze ended', undo);
-        else toast(until ? 'snoozed until tomorrow' : 'snooze ended', 'success');
+        if (before) showTriageUndo(until ? t('mail.snoozed_tomorrow') : t('mail.snooze_ended'), undo);
+        else toast(until ? t('mail.snoozed_tomorrow') : t('mail.snooze_ended'), 'success');
       },
-      '', `could not confirm ${until ? 'snooze' : 'ending snooze'}`);
+      '', until ? t('mail.snooze_unconfirmed') : t('mail.snooze_end_unconfirmed'));
   }));
   paintMailChanges();
 }
@@ -1583,15 +1592,15 @@ export async function openMailSource(id, isCurrent = () => true) {
   if (!isCurrent()) return false;
   const generation = _messageGeneration;
   const main = $('mail-main');
-  main.innerHTML = '<div class="mail-empty" role="status">loading original message…</div>';
+  main.innerHTML = `<div class="mail-empty" role="status">${t('mail.loading_original')}</div>`;
   const current = () => generation === _messageGeneration && isCurrent();
   let data;
   try {
     const response = await fetch(`/api/mail/source/${match[1]}/${encodeURIComponent(match[2])}`, { cache: 'no-store' });
     data = await response.json();
     if (!current()) return false;
-    if (!response.ok) throw new Error(data.detail?.message || (typeof data.detail === 'string' ? data.detail : 'could not open the original message'));
-    if (!data.message || data.source?.kind !== 'mail') throw new Error('could not confirm the original message');
+    if (!response.ok) throw new Error(data.detail?.message || (typeof data.detail === 'string' ? data.detail : t('mail.original_open_failed')));
+    if (!data.message || data.source?.kind !== 'mail') throw new Error(t('mail.original_unconfirmed'));
     await openMessage(data.source.account_id, data.source.uid, data.source.folder, data.message, isCurrent);
     if (isCurrent()) {
       const heading = main.querySelector('.mail-reader-subject');
@@ -1601,7 +1610,7 @@ export async function openMailSource(id, isCurrent = () => true) {
   } catch (error) {
     if (!current()) return false;
     const source = data?.detail?.source;
-    main.innerHTML = `<div class="mail-source-error"><p role="status" tabindex="-1">${esc(error.message)}</p>${source ? `<details open><summary>saved excerpt: ${esc(source.label)}</summary><pre>${esc(source.excerpt)}</pre></details>` : ''}<button class="btn" type="button">retry original message</button></div>`;
+    main.innerHTML = `<div class="mail-source-error"><p role="status" tabindex="-1">${esc(error.message)}</p>${source ? `<details open><summary>${esc(t('mail.saved_excerpt', { label: source.label }))}</summary><pre>${esc(source.excerpt)}</pre></details>` : ''}<button class="btn" type="button">${t('mail.retry_original')}</button></div>`;
     main.querySelector('button').onclick = () => openMailSource(id, isCurrent);
     main.querySelector('[role="status"]').focus();
     return true;
@@ -1627,7 +1636,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   const current = () => Boolean($('mail-view')?.getClientRects().length)
     && (reader ? reader.isConnected : generation === _messageGeneration && isCurrent());
   const main = $('mail-main');
-  main.innerHTML = '<div class="mail-empty" role="status">loading message...</div>';
+  main.innerHTML = `<div class="mail-empty" role="status">${t('mail.loading_message')}</div>`;
   showMailPane(main.firstElementChild, returnTarget);
   if (!verified && !$('mail-list')?.getClientRects().length && _readerEntry !== routeHistoryPosition()) {
     pushRouteUrl(location.pathname + location.search + location.hash);
@@ -1638,11 +1647,11 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     m = verified || await mailJson(`/api/mail/message/${aid}?uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folder)}`);
     if (!current()) return;
     if (m?.error) throw new Error(m.error);
-    if (typeof m?.from !== 'string' || typeof m.subject !== 'string' || typeof m.text !== 'string' || typeof m.html !== 'string' || (m.uid != null && String(m.uid) !== String(uid))) throw new Error('could not confirm this message');
+    if (typeof m?.from !== 'string' || typeof m.subject !== 'string' || typeof m.text !== 'string' || typeof m.html !== 'string' || (m.uid != null && String(m.uid) !== String(uid))) throw new Error(t('mail.message_unconfirmed'));
   } catch (error) {
     if (current()) {
       const hadFocus = main.contains(document.activeElement);
-      main.innerHTML = `<div class="mail-empty" role="alert">could not load message: ${esc(error.message)} <button type="button" class="btn" id="mail-message-retry">retry</button></div>`;
+      main.innerHTML = `<div class="mail-empty" role="alert">${esc(t('mail.message_load_failed', { error: error.message }))} <button type="button" class="btn" id="mail-message-retry">${t('common.retry')}</button></div>`;
       main.querySelector('button').onclick = () => {
         const target = verified && readRecordTarget(location.href);
         if (target?.view === 'mail') return openMailSource(target.id, isCurrent);
@@ -1654,21 +1663,21 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   }
   const hadFocus = main.contains(document.activeElement);
   const bodyHtml = m.html
-    ? `<div class="mail-reader-meta">remote images are blocked for privacy</div><iframe class="mail-body-frame" sandbox></iframe>`
-    : `<pre class="mail-body-text">${esc(m.text || '(no content)')}</pre>`;
+    ? `<div class="mail-reader-meta">${t('mail.images_blocked')}</div><iframe class="mail-body-frame" sandbox></iframe>`
+    : `<pre class="mail-body-text">${esc(m.text || t('mail.no_content'))}</pre>`;
   main.innerHTML = `<div class="mail-reader">
     <div class="mail-reader-head">
       <div class="mail-reader-kicker">${esc(acctName(aid))}</div>
       <div class="mail-reader-subject">${esc(m.subject)}</div>
       <div class="mail-reader-meta"><b>${esc(fromName(m.from))}</b> &lt;${esc((/<([^>]+)>/.exec(m.from) || [, m.from])[1])}&gt;</div>
-      <div class="mail-reader-meta">to ${esc(m.to)} · ${esc(readerDate(m.date))}</div>
+      <div class="mail-reader-meta">${esc(t('mail.to_line', { to: m.to }))} · ${esc(readerDate(m.date))}</div>
       <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-        <button class="btn" id="mail-reply">reply</button>
-        <button class="btn" id="mail-unread" title="mark as unread">unread</button>
-        <button class="btn" id="mail-vip" title="VIP sender" aria-label="VIP sender">${_si('plus')} VIP</button>
-        <button class="btn" id="mail-to-task" title="review a task from this mail">${_si('check-circle')} make a task</button>
-        <button class="btn" id="mail-to-cal" title="extract and review an event from this mail">${_si('calendar')} add to calendar</button>
-        <button class="btn" id="mail-summarize" title="AI summary + action items">summarize</button>
+        <button class="btn" id="mail-reply">${t('mail.reply')}</button>
+        <button class="btn" id="mail-unread" title="${esc(t('mail.mark_unread'))}">${t('mail.nav_unread')}</button>
+        <button class="btn" id="mail-vip" title="${esc(t('mail.vip_sender'))}" aria-label="${esc(t('mail.vip_sender'))}">${_si('plus')} ${t('mail.vip')}</button>
+        <button class="btn" id="mail-to-task" title="${esc(t('mail.make_task_title'))}">${_si('check-circle')} ${t('mail.make_task')}</button>
+        <button class="btn" id="mail-to-cal" title="${esc(t('mail.add_event_title'))}">${_si('calendar')} ${t('mail.add_event')}</button>
+        <button class="btn" id="mail-summarize" title="${esc(t('mail.summarize_title'))}">${t('mail.summarize')}</button>
       </div>
     </div>
     <div class="mail-summary" id="mail-summary" style="display:none"></div>
@@ -1694,7 +1703,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
       updateMailRows(matches, { seen });
       if (!seen && missing && _filter === 'unread' && !_searchView && !_labelFilter && folder === 'INBOX' && (_active === 'all' || _active === aid)) loadInbox(true).catch(console.error);
     },
-    seen ? '' : 'marked unread', `could not confirm ${seen ? 'read' : 'unread'} status`, seen ? current : null);
+    seen ? '' : t('mail.marked_unread'), seen ? t('mail.read_unconfirmed') : t('mail.unread_unconfirmed'), seen ? current : null);
   unread.addEventListener('click', () => { if (current() && unread.getAttribute('aria-disabled') !== 'true') changeRead(false); });
   changeRead(true);
   let vipState = null, vipLoading = false;
@@ -1702,8 +1711,8 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   // and "VIP" stays put
   const paintVip = on => {
     vipState = on; vip.classList.toggle('on', on);
-    vip.setAttribute('aria-pressed', String(on)); vip.setAttribute('aria-label', 'VIP sender');
-    vip.innerHTML = `${_si(on ? 'star-fill' : 'plus')} VIP`;
+    vip.setAttribute('aria-pressed', String(on)); vip.setAttribute('aria-label', t('mail.vip_sender'));
+    vip.innerHTML = `${_si(on ? 'star-fill' : 'plus')} ${t('mail.vip')}`;
   };
   const loadVip = async () => {
     if (vipLoading || !current()) return;
@@ -1714,11 +1723,11 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
         if (!current()) return;
       }
       const result = await mailJson('/api/mail/vips', { cache: 'no-store' });
-      if (!Array.isArray(result?.vips) || result.vips.some(value => typeof value !== 'string')) throw new Error('could not read VIP senders');
+      if (!Array.isArray(result?.vips) || result.vips.some(value => typeof value !== 'string')) throw new Error(t('mail.vip_read_failed'));
       if (current()) paintVip(result.vips.some(value => value.toLowerCase() === senderAddr));
     } catch (error) {
       // not a toggle until the state is known: its name is what it does now
-      if (current()) { vip.removeAttribute('aria-pressed'); vip.removeAttribute('aria-label'); vip.textContent = 'retry VIP status'; toast(error.message || 'could not read VIP senders', 'error'); }
+      if (current()) { vip.removeAttribute('aria-pressed'); vip.removeAttribute('aria-label'); vip.textContent = t('mail.vip_retry'); toast(error.message || t('mail.vip_read_failed'), 'error'); }
     } finally { vipLoading = false; vip.setAttribute('aria-disabled', 'false'); }
   };
   loadVip();
@@ -1729,7 +1738,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     changeMail(vip, 'vip:' + senderAddr, () => mailPost('/api/mail/vips', { email: senderAddr, add: adding }),
       result => Array.isArray(result?.vips) && result.vips.every(value => typeof value === 'string') && result.vips.some(value => value.toLowerCase() === senderAddr) === adding,
       () => { if (current()) paintVip(adding); },
-      adding ? 'added to VIP' : 'removed from VIP', 'could not confirm VIP change');
+      adding ? t('mail.vip_added') : t('mail.vip_removed'), t('mail.vip_unconfirmed'));
   });
   $('mail-reply')?.addEventListener('click', () => {
     const addr = (/<([^>]+)>/.exec(m.from) || [, m.from])[1];
@@ -1749,35 +1758,35 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     const ownsPreview = () => paneGeneration === _mailPaneGeneration && current();
     if (!ownsPreview()) return;
     const originalLabel = button.textContent;
-    button.disabled = true; button.textContent = kind === 'event' ? 'extracting…' : 'preparing…';
+    button.disabled = true; button.textContent = kind === 'event' ? t('mail.extracting') : t('mail.preparing');
     try {
       const response = await fetch(kind === 'task' ? '/api/mail/make-task' : '/api/mail/extract-event', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ preview: true, source: origin, ...(kind === 'task' ? { title: m.subject || `mail from ${fromName(m.from)}` } : { subject: m.subject || '', body: m.text || '', date: m.date || '' }) }),
+        body: JSON.stringify({ preview: true, source: origin, ...(kind === 'task' ? { title: m.subject || t('mail.task_title', { name: fromName(m.from) }) } : { subject: m.subject || '', body: m.text || '', date: m.date || '' }) }),
       });
       const proposal = await response.json();
       if (!ownsPreview()) return;
-      if (!response.ok) throw new Error(typeof proposal.detail === 'string' ? proposal.detail : 'could not prepare the capture');
-      if (kind === 'event' && !proposal.found) { toast('no event found in this mail', ''); return; }
+      if (!response.ok) throw new Error(typeof proposal.detail === 'string' ? proposal.detail : t('mail.capture_failed'));
+      if (kind === 'event' && !proposal.found) { toast(t('mail.no_event_found'), ''); return; }
       await openCaptureReview(proposal, button, null, ownsPreview);
-    } catch (error) { if (ownsPreview()) toast(error.message || 'could not prepare the capture; try again', 'error'); }
+    } catch (error) { if (ownsPreview()) toast(error.message || t('mail.capture_failed_retry'), 'error'); }
     finally { button.disabled = false; button.textContent = originalLabel; }
   }
   $('mail-to-task')?.addEventListener('click', event => reviewCapture('task', event.currentTarget));
   $('mail-summarize')?.addEventListener('click', async () => {
     const btn = $('mail-summarize');
     const box = $('mail-summary');
-    btn.disabled = true; btn.textContent = 'summarizing...';
+    btn.disabled = true; btn.textContent = t('mail.summarizing');
     try {
       const r = await fetch('/api/mail/summarize', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ subject: m.subject || '', body: m.text || '' }),
       });
       const d = await r.json();
-      if (!r.ok) toast(d.detail || 'summarize failed', 'error');
+      if (!r.ok) toast(d.detail || t('mail.summarize_failed'), 'error');
       else { box.textContent = d.summary; box.style.display = 'block'; }
-    } catch (e) { console.error(e); toast('summarize failed', 'error'); }
-    btn.disabled = false; btn.textContent = 'summarize';
+    } catch (e) { console.error(e); toast(t('mail.summarize_failed'), 'error'); }
+    btn.disabled = false; btn.textContent = t('mail.summarize');
   });
   $('mail-to-cal')?.addEventListener('click', event => reviewCapture('event', event.currentTarget));
   showMailPane(reader, returnTarget, main.querySelector('.mail-reader-subject'), hadFocus);
@@ -1831,54 +1840,54 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
   main.innerHTML = `<div class="mail-compose">
     <div class="mail-form-head">
       <div>
-        <div class="mail-compose-head">new message</div>
-        <div class="mail-form-sub">${!_accounts.length ? 'no sending account yet' : missingAccount ? 'from an unavailable account' : `from ${esc(acctName(defaultAid))}`}</div>
+        <div class="mail-compose-head">${t('mail.new_message')}</div>
+        <div class="mail-form-sub">${!_accounts.length ? t('mail.no_sending_account') : missingAccount ? t('mail.from_unavailable') : esc(t('mail.from_account', { name: acctName(defaultAid) }))}</div>
       </div>
       <div class="mail-form-actions">
-        <button class="btn" id="mc-save">save draft</button>
-        <button class="btn" id="mc-schedule" title="schedule for later">schedule</button>
-        <button class="btn primary" id="mc-send">send</button>
+        <button class="btn" id="mc-save">${t('mail.save_draft')}</button>
+        <button class="btn" id="mc-schedule" title="${esc(t('mail.schedule_title'))}">${t('mail.schedule')}</button>
+        <button class="btn primary" id="mc-send">${t('common.send')}</button>
       </div>
     </div>
     <div class="mc-sched-wrap" id="mc-sched-wrap" style="display:none">
-      <span class="mc-sched-zone">send at · ${esc(resolvedTimeZone())}</span>
-      <div class="settings-input date-input mc-sched-date" id="mc-sched-date" data-type="date" data-ph="date" aria-label="scheduled date"></div>
-      <input class="settings-input mc-sched-time" id="mc-sched-time" placeholder="HH:MM" value="09:00" maxlength="5" aria-label="scheduled time">
+      <span class="mc-sched-zone">${esc(t('mail.send_at', { zone: resolvedTimeZone() }))}</span>
+      <div class="settings-input date-input mc-sched-date" id="mc-sched-date" data-type="date" data-ph="${esc(t('mail.date'))}" aria-label="${esc(t('mail.scheduled_date'))}"></div>
+      <input class="settings-input mc-sched-time" id="mc-sched-time" placeholder="HH:MM" value="09:00" maxlength="5" aria-label="${esc(t('mail.scheduled_time'))}">
     </div>
-    ${_accounts.length > 1 || missingAccount ? `<div class="settings-input custom-select" id="mc-account" aria-label="sending account"></div>` : ''}
+    ${_accounts.length > 1 || missingAccount ? `<div class="settings-input custom-select" id="mc-account" aria-label="${esc(t('mail.sending_account'))}"></div>` : ''}
     <div class="mc-chipfield" data-role="to">
-      <span class="mc-chip-label">to</span><div class="mc-chips"></div>
-      <input class="mc-chip-input" autocomplete="off" placeholder="recipients…">
-      <span class="mc-ccbcc"><button type="button" id="mc-add-cc">Cc</button><button type="button" id="mc-add-bcc">Bcc</button></span>
+      <span class="mc-chip-label">${t('mail.to')}</span><div class="mc-chips"></div>
+      <input class="mc-chip-input" autocomplete="off" placeholder="${esc(t('mail.recipients_placeholder'))}">
+      <span class="mc-ccbcc"><button type="button" id="mc-add-cc">${t('mail.cc_button')}</button><button type="button" id="mc-add-bcc">${t('mail.bcc_button')}</button></span>
       <input type="hidden" id="mc-to">
     </div>
     <div class="mc-chipfield" data-role="cc" id="mc-cc-row" style="display:none">
-      <span class="mc-chip-label">cc</span><div class="mc-chips"></div>
+      <span class="mc-chip-label">${t('mail.cc')}</span><div class="mc-chips"></div>
       <input class="mc-chip-input" autocomplete="off"><input type="hidden" id="mc-cc">
     </div>
     <div class="mc-chipfield" data-role="bcc" id="mc-bcc-row" style="display:none">
-      <span class="mc-chip-label">bcc</span><div class="mc-chips"></div>
+      <span class="mc-chip-label">${t('mail.bcc')}</span><div class="mc-chips"></div>
       <input class="mc-chip-input" autocomplete="off"><input type="hidden" id="mc-bcc">
     </div>
     <div>
-      <label class="settings-label" for="mc-subj">subject</label>
-      <input class="settings-input" id="mc-subj" placeholder="subject" value="${esc(pre.subject || '')}">
+      <label class="settings-label" for="mc-subj">${t('mail.subject')}</label>
+      <input class="settings-input" id="mc-subj" placeholder="${esc(t('mail.subject'))}" value="${esc(pre.subject || '')}">
     </div>
     <div class="mail-richbar" id="mc-richbar">
-      <button class="btn mc-rt" data-cmd="bold" title="bold"><b>B</b></button>
-      <button class="btn mc-rt" data-cmd="italic" title="italic"><i>I</i></button>
-      <button class="btn mc-rt" type="button" data-cmd="insertUnorderedList" title="bullet list" aria-label="bullet list">${_si('list')}</button>
-      <button class="btn mc-rt" type="button" data-cmd="createLink" title="link" aria-label="insert link">${_si('link')}</button>
-      <button class="btn" type="button" id="mc-image" title="inline image" aria-label="insert image">${_si('image')}</button>
-      <button class="btn" type="button" id="mc-suggest" title="AI reply suggestions" aria-label="suggest replies">${_si('sparkles')} suggest</button>
+      <button class="btn mc-rt" data-cmd="bold" title="${esc(t('mail.bold'))}"><b>B</b></button>
+      <button class="btn mc-rt" data-cmd="italic" title="${esc(t('mail.italic'))}"><i>I</i></button>
+      <button class="btn mc-rt" type="button" data-cmd="insertUnorderedList" title="${esc(t('mail.bullet_list'))}" aria-label="${esc(t('mail.bullet_list'))}">${_si('list')}</button>
+      <button class="btn mc-rt" type="button" data-cmd="createLink" title="${esc(t('mail.link'))}" aria-label="${esc(t('mail.insert_link'))}">${_si('link')}</button>
+      <button class="btn" type="button" id="mc-image" title="${esc(t('mail.inline_image'))}" aria-label="${esc(t('mail.insert_image'))}">${_si('image')}</button>
+      <button class="btn" type="button" id="mc-suggest" title="${esc(t('mail.suggest_title'))}" aria-label="${esc(t('mail.suggest_label'))}">${_si('sparkles')} ${t('mail.suggest')}</button>
       <span class="mail-sig-wrap" id="mc-sig-list"></span>
-      <button class="btn" id="mc-sig-add" title="save a new signature">${_si('plus')} sig</button>
-      <button class="btn" type="button" id="mc-sig-manage" aria-expanded="false" aria-controls="mc-sig-manager">manage signatures</button>
-      <button class="btn" id="mc-sig-retry" style="display:none">retry signatures</button>
+      <button class="btn" id="mc-sig-add" title="${esc(t('mail.sig_add_title'))}">${_si('plus')} ${t('mail.sig')}</button>
+      <button class="btn" type="button" id="mc-sig-manage" aria-expanded="false" aria-controls="mc-sig-manager">${t('mail.manage_signatures')}</button>
+      <button class="btn" id="mc-sig-retry" style="display:none">${t('mail.retry_signatures')}</button>
       <span id="mc-sig-status" class="mail-status" role="status"></span>
     </div>
-    <section id="mc-sig-manager" aria-label="saved signatures" hidden></section>
-    <div class="settings-input mail-compose-body mail-rich-body" id="mc-html" contenteditable="true" role="textbox" aria-label="message" aria-multiline="true" data-ph="write your message…">${safeMailHtml(pre.body || '')}</div>
+    <section id="mc-sig-manager" aria-label="${esc(t('mail.saved_signatures'))}" hidden></section>
+    <div class="settings-input mail-compose-body mail-rich-body" id="mc-html" contenteditable="true" role="textbox" aria-label="${esc(t('mail.message'))}" aria-multiline="true" data-ph="${esc(t('mail.message_placeholder'))}">${safeMailHtml(pre.body || '')}</div>
     <div id="mc-suggest-box" class="mail-suggest-box"></div>
     <input type="file" id="mc-image-input" accept="image/*" style="display:none">
     <div id="mc-status" class="mail-status"></div>
@@ -1886,7 +1895,7 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
   const root = main.querySelector('.mail-compose');
   const $ = id => root.querySelector('#' + id);
   if ($('mc-account')) populateDropdown($('mc-account'), [
-    ...(missingAccount ? [{ value: defaultAid, label: 'unavailable account' }] : []),
+    ...(missingAccount ? [{ value: defaultAid, label: t('mail.unavailable_account') }] : []),
     ..._accounts.map(a => ({ value: a.id, label: a.name || a.email })),
   ], defaultAid);
   // recipient chip fields + address autocomplete (4d)
@@ -1927,23 +1936,23 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
     if (editor.scope && !_draftScopes.includes(editor.scope)) { paintDraftRecovery(); return; }
     if (_draftPending) {
       if (sameDraftIntent(editor.pending, _draftPending)) await savePendingDraft();
-      else toast('resolve the pending draft save first', 'error');
+      else toast(t('mail.resolve_draft_first'), 'error');
       return;
     }
     commitMailRecipients(root);
     if (editor.deleted) {
       const snapshot = editor.snapshot();
-      if (!await dlgConfirm('this saved draft was deleted. save this text as a new draft?')) return;
+      if (!await dlgConfirm(t('mail.draft_deleted_save_new'))) return;
       if (!current() || editor.snapshot() !== snapshot || _draftPending || _draftBusy) return;
       editor.detach();
     }
-    if (_draftId && !/^[a-f0-9]{64}$/.test(editor.revision)) { toast('reopen this draft before saving changes', 'error'); return; }
+    if (_draftId && !/^[a-f0-9]{64}$/.test(editor.revision)) { toast(t('mail.reopen_draft'), 'error'); return; }
     const pending = { ..._draftBody(), recovery_scope: editor.scope || _draftScopes[0], ...(_draftId ? { expected_revision: editor.revision } : { request_id: savedRequestId() }) };
     try {
       storePendingDraft(pending, editor, editor.snapshot());
       await savePendingDraft();
     } catch {
-      _draftStorageError = 'could not keep this save for recovery. no save was sent. retry loading drafts.';
+      _draftStorageError = t('mail.draft_keep_failed');
       paintDraftRecovery();
     }
   });
@@ -1958,14 +1967,14 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
   };
   const queueCompose = async (action, send_at = '') => {
     if (!_outboxReady || _outboxOperation || _outboxPending || _outboxReadError || _outboxStorageError) { paintOutbox(); return; }
-    if (editor.outboxScope && !_outboxScopes.includes(editor.outboxScope)) { toast('reopen the editor for this mail store; your text is still here', 'error'); return; }
-    if (_draftPending) { toast('resolve the pending draft save before sending', 'error'); paintDraftRecovery(); return; }
+    if (editor.outboxScope && !_outboxScopes.includes(editor.outboxScope)) { toast(t('mail.reopen_editor'), 'error'); return; }
+    if (_draftPending) { toast(t('mail.resolve_draft_before_send'), 'error'); paintDraftRecovery(); return; }
     const account_id = $('mc-account')?.value || defaultAid;
-    if (!_accounts.some(account => account.id === account_id)) { toast('choose an available sending account', 'error'); return; }
+    if (!_accounts.some(account => account.id === account_id)) { toast(t('mail.choose_account'), 'error'); return; }
     commitMailRecipients(root);
-    if (!$('mc-to').value.trim()) { toast('recipient required', 'error'); return; }
+    if (!$('mc-to').value.trim()) { toast(t('mail.recipient_required'), 'error'); return; }
     const bad = ['mc-to', 'mc-cc', 'mc-bcc'].flatMap(id => ($(id)?.value || '').split(/,(?![^<]*>)/).map(v => v.trim()).filter(Boolean)).filter(v => !_validEmail(v));
-    if (bad.length) { toast(`fix ${bad.length === 1 ? 'this address' : 'these addresses'} first: ${bad.join(', ')}`, 'error'); return; }
+    if (bad.length) { toast(tp('mail.fix_addresses', bad.length, { list: bad.join(', ') }), 'error'); return; }
     const pending = {
       version: 1, action, request_id: savedRequestId(), recovery_scope: _outboxScopes[0], account_id,
       subject: $('mc-subj').value,
@@ -1973,7 +1982,7 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
       ...(_draftId ? { draft: { id: _draftId, revision: editor.revision, scope: editor.scope } } : {}),
     };
     try { storePendingOutgoing(pending, editor, editor.snapshot()); }
-    catch { _outboxStorageError = 'could not retain this delivery for recovery. no new delivery request was sent.'; paintOutbox(); return; }
+    catch { _outboxStorageError = t('mail.delivery_retain_failed'); paintOutbox(); return; }
     await submitOutgoing();
   };
   $('mc-schedule').addEventListener('click', async () => {
@@ -1981,14 +1990,14 @@ async function compose(pre = {}, generation = null, returnTarget = mailPaneRetur
     const wrap = $('mc-sched-wrap');
     if (wrap.style.display === 'none') {
       wrap.style.display = ''; _dpInit($('mc-sched-date'));
-      $('mc-schedule').textContent = 'schedule send'; $('mc-sched-date').focus(); return;
+      $('mc-schedule').textContent = t('mail.schedule_send'); $('mc-sched-date').focus(); return;
     }
     try {
       const date = $('mc-sched-date').value.trim(), time = $('mc-sched-time').value.trim();
       const instant = reminderTimeFromWall(`${date}T${time}`);
-      if (instant.getTime() <= Date.now()) throw new Error('choose a future date and time');
+      if (instant.getTime() <= Date.now()) throw new Error(t('mail.choose_future'));
       await queueCompose('schedule', instant.toISOString());
-    } catch (error) { toast(error.message || 'choose a valid date and time', 'error'); }
+    } catch (error) { toast(error.message || t('mail.choose_valid'), 'error'); }
   });
   $('mc-send').addEventListener('click', () => queueCompose('send'));
   paintOutbox();
@@ -2022,11 +2031,11 @@ async function _wireRichCompose(defaultAid, root, current) {
         const range = selection?.rangeCount && editor.contains(selection.getRangeAt(0).commonAncestorContainer)
           ? selection.getRangeAt(0).cloneRange() : null;
         const command = button.dataset.cmd;
-        let value = command === 'createLink' ? await dlgPrompt('', '', { title: 'insert a link', label: 'link url', confirmLabel: 'insert' }) : null;
+        let value = command === 'createLink' ? await dlgPrompt('', '', { title: t('mail.insert_link_title'), label: t('mail.link_url'), confirmLabel: t('mail.insert') }) : null;
         if (!current() || (command === 'createLink' && !value)) return;
         if (command === 'createLink') {
           value = _linkHref(value);
-          if (value === null) toast('use a web or email address for a link', 'error');
+          if (value === null) toast(t('mail.link_invalid'), 'error');
           if (!value) return;
         }
         editor.focus();
@@ -2038,14 +2047,14 @@ async function _wireRichCompose(defaultAid, root, current) {
     });
     $('mc-suggest')?.addEventListener('click', async () => {
       const box = $('mc-suggest-box'); if (!box) return;
-      box.innerHTML = '<span class="mail-suggest-off">thinking…</span>';
+      box.innerHTML = `<span class="mail-suggest-off">${t('mail.thinking')}</span>`;
       const ctx = $('mc-html')?.innerText || $('mc-subj')?.value || '';
       let d;
       try { d = await fetch('/api/mail/smart-reply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: ctx }) }).then(r => r.json()); }
       catch (e) { console.error(e); d = { enabled: false, suggestions: [] }; }
       if (!current()) return;
-      if (!d.enabled) { box.innerHTML = '<span class="mail-suggest-off">configure a model in aide to get reply suggestions</span>'; return; }
-      if (!d.suggestions.length) { box.innerHTML = '<span class="mail-suggest-off">no suggestions</span>'; return; }
+      if (!d.enabled) { box.innerHTML = `<span class="mail-suggest-off">${t('mail.configure_model')}</span>`; return; }
+      if (!d.suggestions.length) { box.innerHTML = `<span class="mail-suggest-off">${t('mail.no_suggestions')}</span>`; return; }
       box.innerHTML = d.suggestions.map((s, i) => `<button class="btn mc-suggest-chip" data-i="${i}">${esc(s.slice(0, 80))}</button>`).join('');
       box.querySelectorAll('.mc-suggest-chip').forEach((bn, i) => bn.addEventListener('click', () => {
         const ed = $('mc-html'); if (ed) ed.innerHTML += esc(d.suggestions[i]).replace(/\n/g, '<br>');
@@ -2060,7 +2069,7 @@ async function _wireRichCompose(defaultAid, root, current) {
         if (!current()) return;
         const ed = $('mc-html'); ed?.focus();
         document.execCommand('insertHTML', false, `<img src="/api/uploads/${up.id}" alt="${esc(up.name || '')}" style="max-width:100%">`);
-      } catch (e) { console.error(e); toast('image upload failed', 'error'); }
+      } catch (e) { console.error(e); toast(t('mail.image_upload_failed'), 'error'); }
     });
   }
   const list = $('mc-sig-list'), status = $('mc-sig-status'), retry = $('mc-sig-retry');
@@ -2070,14 +2079,14 @@ async function _wireRichCompose(defaultAid, root, current) {
   const revisionOf = signature => signature.revision === undefined ? 0 : signature.revision;
   const readSignatures = async () => {
     const data = await mailJson('/api/mail/signatures', { cache: 'no-store', signal: AbortSignal.timeout(15000) });
-    if (!Array.isArray(data?.signatures) || !data.signatures.every(validSignature)) throw new Error('could not confirm the signature list');
+    if (!Array.isArray(data?.signatures) || !data.signatures.every(validSignature)) throw new Error(t('mail.signature_list_unconfirmed'));
     return data.signatures;
   };
   const renderSignatures = () => {
     if (!current()) return;
     const active = document.activeElement;
     const focused = [list, panel].some(node => node.contains(active)) ? { ...active.dataset } : null;
-    list.innerHTML = sigs.map(s => `<button class="btn mc-sig-chip" data-sig="${esc(s.id)}" title="insert signature">${_si('edit')} ${esc(s.name)}</button>`).join('');
+    list.innerHTML = sigs.map(s => `<button class="btn mc-sig-chip" data-sig="${esc(s.id)}" title="${esc(t('mail.insert_signature'))}">${_si('edit')} ${esc(s.name)}</button>`).join('');
     list.querySelectorAll('.mc-sig-chip').forEach(button => button.addEventListener('click', () => {
       if (!current()) return;
       const signature = sigs.find(row => row.id === button.dataset.sig);
@@ -2086,10 +2095,10 @@ async function _wireRichCompose(defaultAid, root, current) {
     }));
     manage.setAttribute('aria-expanded', String(managerOpen)); panel.hidden = !managerOpen;
     $('mc-sig-add').setAttribute('aria-disabled', String(signatureBusy));
-    panel.innerHTML = sigs.length ? sigs.map(s => `<div class="mail-rule-row"><span>${esc(s.name || 'signature')}</span><div class="mail-rule-actions">
-      <button class="btn" type="button" data-sig-edit="${esc(s.id)}" aria-label="edit ${esc(s.name || 'signature')}" aria-disabled="${signatureBusy}">edit</button>
-      <button class="btn" type="button" data-sig-remove="${esc(s.id)}" aria-label="remove ${esc(s.name || 'signature')}" aria-disabled="${signatureBusy || Boolean(pendingRemoval)}">remove</button>
-    </div></div>`).join('') : '<p class="mail-status">no saved signatures</p>';
+    panel.innerHTML = sigs.length ? sigs.map(s => `<div class="mail-rule-row"><span>${esc(s.name || t('mail.signature'))}</span><div class="mail-rule-actions">
+      <button class="btn" type="button" data-sig-edit="${esc(s.id)}" aria-label="${esc(t('mail.edit_named', { name: s.name || t('mail.signature') }))}" aria-disabled="${signatureBusy}">${t('common.edit')}</button>
+      <button class="btn" type="button" data-sig-remove="${esc(s.id)}" aria-label="${esc(t('mail.remove_named', { name: s.name || t('mail.signature') }))}" aria-disabled="${signatureBusy || Boolean(pendingRemoval)}">${t('common.remove')}</button>
+    </div></div>`).join('') : `<p class="mail-status">${t('mail.no_signatures')}</p>`;
     panel.querySelectorAll('[data-sig-edit]').forEach(button => button.addEventListener('click', () => {
       const signature = sigs.find(row => row.id === button.dataset.sigEdit);
       if (signature) editSignature(signature);
@@ -2099,9 +2108,9 @@ async function _wireRichCompose(defaultAid, root, current) {
       const signature = sigs.find(row => row.id === button.dataset.sigRemove);
       if (!signature) return;
       const revision = revisionOf(signature);
-      if (!Number.isSafeInteger(revision) || revision < 0) { status.textContent = 'could not confirm this signature version; reload signatures.'; retry.style.display = ''; return; }
+      if (!Number.isSafeInteger(revision) || revision < 0) { status.textContent = t('mail.sig_version_unconfirmed'); retry.style.display = ''; return; }
       signatureBusy = true; renderSignatures();
-      const confirmed = await dlgConfirm(`remove “${signature.name || 'signature'}” from saved signatures? text already inserted in messages stays unchanged.`);
+      const confirmed = await dlgConfirm(t('mail.remove_signature_confirm', { name: signature.name || t('mail.signature') }));
       signatureBusy = false;
       if (!current()) return;
       if (confirmed) { pendingRemoval = { id: signature.id, revision }; await removeSignature(); }
@@ -2109,7 +2118,7 @@ async function _wireRichCompose(defaultAid, root, current) {
     }));
     if (pendingRemoval) {
       const action = document.createElement('button'); action.className = 'btn'; action.type = 'button'; action.dataset.sigRetry = pendingRemoval.id;
-      action.textContent = 'retry signature removal'; action.setAttribute('aria-disabled', String(signatureBusy));
+      action.textContent = t('mail.retry_signature_removal'); action.setAttribute('aria-disabled', String(signatureBusy));
       action.addEventListener('click', removeSignature); panel.appendChild(action);
     }
     if (focused && document.activeElement === document.body) {
@@ -2120,7 +2129,7 @@ async function _wireRichCompose(defaultAid, root, current) {
   const loadSignatures = async () => {
     const generation = ++readGeneration;
     const restoreFocus = document.activeElement === retry;
-    retry.disabled = true; status.textContent = 'loading signatures…';
+    retry.disabled = true; status.textContent = t('mail.loading_signatures');
     try {
       const rows = await readSignatures();
       if (!current() || generation !== readGeneration) return;
@@ -2129,11 +2138,11 @@ async function _wireRichCompose(defaultAid, root, current) {
         const row = rows.find(item => item.id === pendingRemoval.id);
         if (!row || revisionOf(row) > pendingRemoval.revision) pendingRemoval = null;
       }
-      renderSignatures(); status.textContent = pendingRemoval ? 'signature removal is still unconfirmed. retry removal or review the saved signature.' : '';
+      renderSignatures(); status.textContent = pendingRemoval ? t('mail.sig_removal_unconfirmed') : '';
       retry.style.display = pendingRemoval ? '' : 'none';
     } catch (error) {
       if (!current() || generation !== readGeneration) return;
-      status.textContent = `could not load signatures. ${error.message || 'check your connection.'}`; retry.style.display = '';
+      status.textContent = t('mail.sigs_load_failed', { reason: error.message || t('mail.check_connection_short') }); retry.style.display = '';
     } finally {
       if (generation === readGeneration) {
         retry.disabled = false;
@@ -2146,11 +2155,11 @@ async function _wireRichCompose(defaultAid, root, current) {
   async function removeSignature() {
     if (!current() || signatureBusy || !pendingRemoval) return;
     const attempt = pendingRemoval; signatureBusy = true; ++readGeneration;
-    status.textContent = 'removing signature…'; renderSignatures();
+    status.textContent = t('mail.removing_signature'); renderSignatures();
     let confirmed = false, error;
     try {
       const result = await mailJson(`/api/mail/signatures/${encodeURIComponent(attempt.id)}?expected_revision=${attempt.revision}`, { method: 'DELETE', signal: AbortSignal.timeout(15000) });
-      if (result?.ok !== true) throw new Error('could not confirm signature removal');
+      if (result?.ok !== true) throw new Error(t('mail.sig_removal_unconfirmed2'));
       confirmed = true;
     } catch (failure) {
       error = failure;
@@ -2162,42 +2171,42 @@ async function _wireRichCompose(defaultAid, root, current) {
     retry.disabled = false;
     if (confirmed) {
       sigs = sigs.filter(row => row.id !== attempt.id); pendingRemoval = null; renderSignatures();
-      status.textContent = 'signature removed'; retry.style.display = 'none';
+      status.textContent = t('mail.signature_removed'); retry.style.display = 'none';
       if (retryFocused) manage.focus();
     } else {
-      status.textContent = `signature removal unconfirmed. ${error?.message || 'check your connection and retry.'}`;
+      status.textContent = t('mail.sig_removal_failed', { reason: error?.message || t('mail.check_connection_retry') });
       retry.style.display = ''; renderSignatures();
     }
   }
   async function editSignature(original = null) {
     if (!current() || signatureBusy) return;
     const baseline = original ? revisionOf(original) : 0;
-    if (!Number.isSafeInteger(baseline) || baseline < 0) { status.textContent = 'could not confirm this signature version; reload signatures.'; retry.style.display = ''; return; }
+    if (!Number.isSafeInteger(baseline) || baseline < 0) { status.textContent = t('mail.sig_version_unconfirmed'); retry.style.display = ''; return; }
     signatureBusy = true; ++readGeneration; renderSignatures();
     const id = original?.id || savedRequestId();
     let confirmed, attempt = null;
     try {
-      const values = await dlgFields(original ? 'edit signature' : 'signature', [
-        { id: 'name', label: 'name', value: original?.name || '' },
-        { id: 'body', label: 'signature text', multiline: true, value: original?.body || '' },
+      const values = await dlgFields(original ? t('mail.edit_signature') : t('mail.signature'), [
+        { id: 'name', label: t('mail.name'), value: original?.name || '' },
+        { id: 'body', label: t('mail.signature_text'), multiline: true, value: original?.body || '' },
       ], { submit: async fields => {
-        if (!current()) throw new Error('the original message is no longer open; your signature text is still here');
+        if (!current()) throw new Error(t('mail.sig_original_closed'));
         const desired = { id, name: fields.name.trim(), body: fields.body };
-        if (!desired.name) throw new Error('enter a signature name');
+        if (!desired.name) throw new Error(t('mail.enter_sig_name'));
         const unchanged = attempt && ['name', 'body'].every(key => attempt[key] === desired[key]);
         let latestRevision = baseline;
         if (original) {
           let rows;
           try { rows = await readSignatures(); }
-          catch { throw new Error('could not check the saved signature. check your connection and retry.'); }
+          catch { throw new Error(t('mail.sig_check_failed')); }
           const latest = rows.find(row => row.id === id);
-          if (!current()) throw new Error('the original message is no longer open; your signature text is still here');
-          if (!latest) throw new Error('this signature was removed. copy this text, cancel, then add a new signature.');
+          if (!current()) throw new Error(t('mail.sig_original_closed'));
+          if (!latest) throw new Error(t('mail.sig_removed'));
           latestRevision = revisionOf(latest);
           const same = row => row && ['id', 'name', 'body'].every(key => row[key] === latest[key]);
           if (!Number.isSafeInteger(latestRevision) || latestRevision < 0 ||
               !(same(original) && latestRevision === baseline) && !(same(attempt) && latestRevision >= attempt.revision)) {
-            throw new Error('this signature changed. copy your edits, cancel, then reload signatures to review the current version.');
+            throw new Error(t('mail.sig_changed'));
           }
           desired.expected_revision = latestRevision;
         }
@@ -2208,16 +2217,16 @@ async function _wireRichCompose(defaultAid, root, current) {
           const row = await mailJson('/api/mail/signatures', {
             method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(desired), signal: AbortSignal.timeout(15000),
           });
-          if (!matches(row)) throw new Error('could not confirm the saved signature');
+          if (!matches(row)) throw new Error(t('mail.sig_save_unconfirmed'));
           confirmed = row;
         } catch (error) {
           try { confirmed = (await readSignatures()).find(matches); } catch { /* Keep the original save error and form for retry. */ }
-          if (!confirmed) throw new Error(error.status === 410 ? 'this signature was removed. copy this text, cancel, then add a new signature.' : `save unconfirmed. ${error.message || 'check your connection and retry.'}`);
+          if (!confirmed) throw new Error(error.status === 410 ? t('mail.sig_removed') : t('mail.sig_save_failed', { reason: error.message || t('mail.check_connection_retry') }));
         }
       } });
       if (!values || !confirmed || !current()) return;
       if (pendingRemoval?.id === confirmed.id && confirmed.revision > pendingRemoval.revision) pendingRemoval = null;
-      sigs = [...sigs.filter(row => row.id !== confirmed.id), confirmed]; renderSignatures(); toast('signature saved', 'success');
+      sigs = [...sigs.filter(row => row.id !== confirmed.id), confirmed]; renderSignatures(); toast(t('mail.signature_saved'), 'success');
     } finally {
       signatureBusy = false;
       if (current()) { renderSignatures(); await loadSignatures(); }
@@ -2262,7 +2271,7 @@ function readPendingOutgoing() {
     }
     if (!sameOutgoing(pending, _outboxPending)) _outboxKnown = null;
     _outboxPending = pending;
-  } catch { _outboxStorageError = 'could not read delivery recovery data. retry loading, or review Sent and the outbox before clearing it.'; }
+  } catch { _outboxStorageError = t('mail.delivery_unreadable'); }
 }
 function storePendingOutgoing(pending, editor, snapshot) {
   ++_outboxRead;
@@ -2270,7 +2279,7 @@ function storePendingOutgoing(pending, editor, snapshot) {
   sessionStorage.setItem(key, raw);
   _outboxPending = pending; _outboxKnown = null; _outboxConflict = false; _outboxNotice = '';
   if (editor) { editor.outgoing = pending; editor.outgoingSnapshot = snapshot; }
-  if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain delivery recovery data');
+  if (sessionStorage.getItem(key) !== raw) throw new Error(t('mail.delivery_retain_failed2'));
 }
 function retireOutgoing() {
   if (_outboxOperation) _outboxOperation.retired = true;
@@ -2281,19 +2290,19 @@ function clearPendingOutgoing(pending) {
     const key = outgoingKey(scope), raw = sessionStorage.getItem(key);
     if (raw && sameOutgoing(JSON.parse(raw), pending)) {
       sessionStorage.removeItem(key);
-      if (sessionStorage.getItem(key) !== null) throw new Error('could not clear delivery recovery data');
+      if (sessionStorage.getItem(key) !== null) throw new Error(t('mail.delivery_clear_failed'));
     }
   }
   if (sameOutgoing(pending, _outboxPending)) { _outboxPending = null; _outboxKnown = null; _outboxCancelOwner = null; }
 }
 function outgoingStatus(row) {
-  if (row.status === 'sending') return 'delivery has started; cancellation is no longer available';
-  if (row.status === 'uncertain') return 'delivery is uncertain. check Sent before sending again';
-  if (row.status === 'sent') return 'sent';
-  if (row.status === 'canceled') return 'delivery canceled';
-  if (row.status === 'dismissed') return 'off the outbox list. check Sent before sending again';
+  if (row.status === 'sending') return t('mail.st_sending');
+  if (row.status === 'uncertain') return t('mail.st_uncertain');
+  if (row.status === 'sent') return t('mail.st_sent');
+  if (row.status === 'canceled') return t('mail.st_canceled');
+  if (row.status === 'dismissed') return t('mail.st_dismissed');
   const instant = new Date(outgoingInstant(row.send_at));
-  return Number.isFinite(instant.getTime()) ? `scheduled for ${formatDate(instant)} ${formatTime(instant, { hour: '2-digit', minute: '2-digit' })}` : 'scheduled time unavailable';
+  return Number.isFinite(instant.getTime()) ? t('mail.st_scheduled', { date: formatDate(instant), time: formatTime(instant, { hour: '2-digit', minute: '2-digit' }) }) : t('mail.st_time_unavailable');
 }
 const outboxOrder = () => [..._outboxRows].sort((a, b) => (outgoingInstant(b.send_at) || 0) - (outgoingInstant(a.send_at) || 0));
 function paintOutbox() {
@@ -2302,20 +2311,20 @@ function paintOutbox() {
   const focused = bar.contains(document.activeElement) || strip.contains(document.activeElement) ? document.activeElement.id : '';
   const pending = _outboxPending, busy = Boolean(_outboxOperation);
   let message = _outboxReadError || _outboxStorageError || _outboxNotice;
-  if (!message && pending) message = pending.cancel_requested || pending.action === 'cancel' ? 'cancellation is unconfirmed. check the current outcome or retry cancellation.' : `delivery of “${pending.subject.trim() || 'untitled message'}” is unconfirmed. retry uses the same request.`;
-  if (busy) message = { cancel: 'canceling delivery…', cleanup: 'removing the saved draft…', check: 'checking delivery…' }[_outboxOperation.action] || 'queueing message…';
+  if (!message && pending) message = pending.cancel_requested || pending.action === 'cancel' ? t('mail.cancel_unconfirmed') : t('mail.delivery_unconfirmed', { name: pending.subject.trim() || t('mail.untitled_message') });
+  if (busy) message = { cancel: t('mail.op_cancel'), cleanup: t('mail.op_cleanup'), check: t('mail.op_check') }[_outboxOperation.action] || t('mail.op_queue');
   const button = (id, label, blocked = busy) => `<button type="button" class="btn" id="${id}" aria-disabled="${blocked}">${label}</button>`;
   let actions = '';
-  if (pending || _outboxReadError || _outboxStorageError) actions += button('mail-outbox-check', 'check delivery status', false);
-  if (_outboxStorageError) actions += button('mail-outbox-clear', 'clear recovery data');
+  if (pending || _outboxReadError || _outboxStorageError) actions += button('mail-outbox-check', t('mail.check_delivery'), false);
+  if (_outboxStorageError) actions += button('mail-outbox-clear', t('mail.saved_clear_recovery'));
   else if (pending) {
     if (_outboxKnown && (_outboxKnown.status !== 'scheduled' || !(pending.cancel_requested || pending.action === 'cancel'))) {
-      actions += button('mail-outbox-finish', _outboxKnown.status === 'canceled' ? 'dismiss canceled message' : (pending.draft ? 'retry draft cleanup' : 'retry cleanup'));
-      if (pending.draft && _outboxKnown.status !== 'canceled') actions += button('mail-outbox-keep-draft', 'keep saved draft');
-    } else if (!_outboxConflict && !pending.cancel_requested && pending.action !== 'cancel') actions += button('mail-outbox-retry', 'retry delivery request', busy || Boolean(_outboxReadError));
-    if (!_outboxConflict && (!_outboxKnown || _outboxKnown.status === 'scheduled')) actions += button('mail-outbox-cancel', pending.cancel_requested || pending.action === 'cancel' ? 'retry cancellation' : 'cancel delivery', Boolean(busy && _outboxOperation.action === 'cancel'));
-    if (pending.action !== 'cancel' || _outboxKnown?.status === 'canceled') actions += button('mail-outbox-open', _outboxKnown?.status === 'canceled' ? 'open canceled message' : 'open pending message', busy && _outboxOperation.action === 'cleanup');
-    if (_outboxConflict) actions += button('mail-outbox-forget', 'dismiss recovery');
+      actions += button('mail-outbox-finish', _outboxKnown.status === 'canceled' ? t('mail.dismiss_canceled') : (pending.draft ? t('mail.retry_draft_cleanup') : t('mail.saved_retry_cleanup')));
+      if (pending.draft && _outboxKnown.status !== 'canceled') actions += button('mail-outbox-keep-draft', t('mail.keep_draft'));
+    } else if (!_outboxConflict && !pending.cancel_requested && pending.action !== 'cancel') actions += button('mail-outbox-retry', t('mail.retry_delivery'), busy || Boolean(_outboxReadError));
+    if (!_outboxConflict && (!_outboxKnown || _outboxKnown.status === 'scheduled')) actions += button('mail-outbox-cancel', pending.cancel_requested || pending.action === 'cancel' ? t('mail.retry_cancellation') : t('mail.cancel_delivery'), Boolean(busy && _outboxOperation.action === 'cancel'));
+    if (pending.action !== 'cancel' || _outboxKnown?.status === 'canceled') actions += button('mail-outbox-open', _outboxKnown?.status === 'canceled' ? t('mail.open_canceled') : t('mail.open_pending_message'), busy && _outboxOperation.action === 'cleanup');
+    if (_outboxConflict) actions += button('mail-outbox-forget', t('mail.dismiss_recovery'));
   }
   bar.hidden = !message && !actions;
   bar.innerHTML = message || actions ? `<div class="mail-saved-status"><p id="mail-outbox-status" role="status" tabindex="-1">${esc(message)}</p>${actions}</div>` : '';
@@ -2336,15 +2345,15 @@ function paintOutbox() {
   // newest first and three at a time: a pile of old uncertain ones never buries compose
   const rows = outboxOrder();
   const shown = _outboxShowAll ? rows : rows.slice(0, 3);
-  const name = row => esc(row.subject || 'untitled message');
+  const name = row => row.subject || t('mail.untitled_message');
   const rowActions = row => row.status === 'scheduled'
-    ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-cancel-${esc(row.id)}" data-cancel="${esc(row.id)}" aria-label="cancel ${name(row)}" aria-disabled="${Boolean(pending || busy || _outboxReadError || _outboxStorageError)}">cancel</button>`
+    ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-cancel-${esc(row.id)}" data-cancel="${esc(row.id)}" aria-label="${esc(t('mail.cancel_named', { name: name(row) }))}" aria-disabled="${Boolean(pending || busy || _outboxReadError || _outboxStorageError)}">${t('common.cancel')}</button>`
     : row.status === 'uncertain'
-      ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-recheck-${esc(row.id)}" data-recheck="${esc(row.id)}" aria-label="check again: ${name(row)}">check again</button>`
-        + `<button type="button" class="mail-sched-cancel" id="mail-outbox-dismiss-${esc(row.id)}" data-dismiss="${esc(row.id)}" aria-label="dismiss ${name(row)}" aria-disabled="${busy}">${_si('close')} dismiss</button>`
+      ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-recheck-${esc(row.id)}" data-recheck="${esc(row.id)}" aria-label="${esc(t('mail.check_again_named', { name: name(row) }))}">${t('mail.check_again')}</button>`
+        + `<button type="button" class="mail-sched-cancel" id="mail-outbox-dismiss-${esc(row.id)}" data-dismiss="${esc(row.id)}" aria-label="${esc(t('mail.dismiss_named', { name: name(row) }))}" aria-disabled="${busy}">${_si('close')} ${t('mail.dismiss')}</button>`
       : '';
-  const more = rows.length > 3 ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-more" aria-expanded="${_outboxShowAll}">${_outboxShowAll ? 'show fewer' : `+${rows.length - 3} more`}</button>` : '';
-  strip.innerHTML = rows.length ? '<span class="mail-sched-lbl">outbox</span>' + shown.map(row => `<span class="mail-sched-chip" data-row="${esc(row.id)}"><span>${esc(row.subject || '(no subject)')} · ${esc(outgoingStatus(row))}</span>${rowActions(row)}</span>`).join('') + more : '';
+  const more = rows.length > 3 ? `<button type="button" class="mail-sched-cancel" id="mail-outbox-more" aria-expanded="${_outboxShowAll}">${_outboxShowAll ? t('mail.show_fewer') : t('mail.show_more', { count: rows.length - 3 })}</button>` : '';
+  strip.innerHTML = rows.length ? `<span class="mail-sched-lbl">${t('mail.outbox')}</span>` + shown.map(row => `<span class="mail-sched-chip" data-row="${esc(row.id)}"><span>${esc(row.subject || t('mail.no_subject'))} · ${esc(outgoingStatus(row))}</span>${rowActions(row)}</span>`).join('') + more : '';
   strip.querySelectorAll('[data-cancel]').forEach(button => button.addEventListener('click', () => {
     if (button.getAttribute('aria-disabled') !== 'true') cancelOutgoing(_outboxRows.find(row => row.id === button.dataset.cancel));
   }));
@@ -2374,13 +2383,13 @@ async function recheckOutgoing(id) {
   let message = '', kind = '';
   try {
     const result = await mailJson(`/api/mail/scheduled?request_id=${encodeURIComponent(id)}&recovery_scope=${encodeURIComponent(_outboxScopes[0] || '')}`, { cache: 'no-store' });
-    if (!Array.isArray(result?.scheduled) || result.scheduled.length > 1 || result.scheduled.some(row => !validOutgoingRow(row) || row.id !== id)) throw new Error('could not read the outbox');
+    if (!Array.isArray(result?.scheduled) || result.scheduled.length > 1 || result.scheduled.some(row => !validOutgoingRow(row) || row.id !== id)) throw new Error(t('mail.outbox_read_failed'));
     const row = result.scheduled[0];
     _outboxRows = _outboxRows.filter(value => value.id !== id);
     if (row && ['scheduled', 'sending', 'uncertain'].includes(row.status)) _outboxRows.push(row);
-    message = row ? outgoingStatus(row) : 'no longer in the outbox';
+    message = row ? outgoingStatus(row) : t('mail.not_in_outbox');
     kind = row?.status === 'uncertain' ? '' : 'success';
-  } catch (error) { message = failedBecause('could not check delivery', error, 'try again'); kind = 'error'; }
+  } catch (error) { message = failedBecause(t('mail.check_failed'), error, t('mail.try_again')); kind = 'error'; }
   paintOutbox();
   if (!$(`mail-outbox-recheck-${id}`)) focusOutboxNext(at);
   else if (document.activeElement === document.body) $(`mail-outbox-recheck-${id}`).focus();
@@ -2390,25 +2399,25 @@ async function recheckOutgoing(id) {
 // send is never touched, and the row is kept, just not listed
 async function dismissOutgoing(id) {
   if (_outboxRows.find(row => row.id === id)?.status !== 'uncertain') return;
-  if (!await dlgConfirm('remove from this list? it may already have gone out.')) return;
+  if (!await dlgConfirm(t('mail.dismiss_confirm'))) return;
   const at = outboxOrder().findIndex(row => row.id === id);
   try {
     await mailJson(`/api/mail/scheduled/${encodeURIComponent(id)}/cancel?dismiss=true&recovery_scope=${encodeURIComponent(_outboxScopes[0] || '')}`, { method: 'POST' });
   } catch (error) {
-    toast(failedBecause('could not dismiss it', error, 'try again'), 'error');
+    toast(failedBecause(t('mail.dismiss_failed'), error, t('mail.try_again')), 'error');
     if (error.status === 404 || error.status === 409) await recheckOutgoing(id);
     return;
   }
   _outboxRows = _outboxRows.filter(row => row.id !== id);
   paintOutbox();
   focusOutboxNext(at);
-  toast('removed from the outbox list', 'success');
+  toast(t('mail.removed_from_outbox'), 'success');
 }
 async function _renderScheduled() {
   const generation = ++_outboxRead;
   try {
     const data = await mailJson('/api/mail/scheduled?context=true', { cache: 'no-store' });
-    if (!Array.isArray(data?.scheduled) || data.scheduled.some(row => !validOutgoingRow(row)) || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error('could not read outbox');
+    if (!Array.isArray(data?.scheduled) || data.scheduled.some(row => !validOutgoingRow(row)) || !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || data.recovery_scopes.some(scope => !/^[a-f0-9]{64}$/.test(scope))) throw new Error(t('mail.outbox_read_failed2'));
     if (generation !== _outboxRead) return;
     if (!_outboxScopes.some(scope => data.recovery_scopes.includes(scope))) {
       retireOutgoing(); _outboxPending = null; _outboxKnown = null; _outboxCancelOwner = null; _outboxNotice = ''; _outboxConflict = false;
@@ -2420,11 +2429,11 @@ async function _renderScheduled() {
     if (pending && !_outboxStorageError) {
       const result = await mailJson(`/api/mail/scheduled?request_id=${encodeURIComponent(pending.request_id)}&recovery_scope=${encodeURIComponent(pending.recovery_scope)}`, { cache: 'no-store' });
       if (generation !== _outboxRead || !sameOutgoing(pending, _outboxPending)) return;
-      if (!Array.isArray(result?.scheduled) || result.scheduled.length > 1 || result.scheduled.some(row => !validOutgoingRow(row) || row.id !== pending.request_id)) throw new Error('could not confirm delivery status');
+      if (!Array.isArray(result?.scheduled) || result.scheduled.length > 1 || result.scheduled.some(row => !validOutgoingRow(row) || row.id !== pending.request_id)) throw new Error(t('mail.delivery_status_unconfirmed'));
       const row = result.scheduled[0];
       _outboxKnown = null; _outboxConflict = false;
       if (row) {
-        if (!outgoingMatches(row, pending)) { _outboxConflict = true; _outboxNotice = 'this request belongs to a different message. review the outbox and Sent before dismissing recovery.'; retireOutgoing(); }
+        if (!outgoingMatches(row, pending)) { _outboxConflict = true; _outboxNotice = t('mail.request_other_message'); retireOutgoing(); }
         else {
           _outboxKnown = row;
           _outboxRows = _outboxRows.filter(value => value.id !== row.id);
@@ -2436,7 +2445,7 @@ async function _renderScheduled() {
         }
       }
     }
-  } catch (error) { if (generation === _outboxRead) _outboxReadError = `could not check the outbox. ${error.message || 'retry loading.'}`; }
+  } catch (error) { if (generation === _outboxRead) _outboxReadError = t('mail.outbox_check_failed', { reason: error.message || t('mail.retry_loading') }); }
   if (generation === _outboxRead || !_outboxOperation) paintOutbox();
 }
 async function finishOutgoing(pending, row, keepDraft = false) {
@@ -2444,7 +2453,7 @@ async function finishOutgoing(pending, row, keepDraft = false) {
   const canceled = row.status === 'canceled', cancel = pending.cancel_requested || pending.action === 'cancel';
   const editor = mailEditor();
   const owns = editor?.outgoing?.request_id === pending.request_id && editor.outgoing.recovery_scope === pending.recovery_scope;
-  _outboxNotice = cancel && !canceled ? `could not cancel: ${outgoingStatus(row)}` : outgoingStatus(row);
+  _outboxNotice = cancel && !canceled ? t('mail.could_not_cancel', { status: outgoingStatus(row) }) : outgoingStatus(row);
   if (canceled) {
     const undo = $('mail-undo-bar'); if (undo?.dataset.id === row.id) undo.remove();
     if (!keepDraft && !(owns && editor.snapshot() === editor.outgoingSnapshot)) {
@@ -2464,7 +2473,7 @@ async function finishOutgoing(pending, row, keepDraft = false) {
     }
     if (_outboxAnnounced !== pending.request_id) {
       _outboxAnnounced = pending.request_id;
-      toast(row.status === 'scheduled' ? 'scheduled' : outgoingStatus(row), row.status === 'uncertain' ? 'error' : 'success');
+      toast(row.status === 'scheduled' ? t('mail.scheduled') : outgoingStatus(row), row.status === 'uncertain' ? 'error' : 'success');
     }
     if (row.request_kind === 'send' && row.status === 'scheduled') _showUndoBar(row, pending.recovery_scope);
   }
@@ -2478,19 +2487,19 @@ async function finishOutgoing(pending, row, keepDraft = false) {
     _outboxOperation = operation; ++_outboxRead; paintOutbox();
     try {
       const draft = pending.draft;
-      if (!draft.id || !/^[a-f0-9]{64}$/.test(draft.revision) || !_draftScopes.includes(draft.scope)) throw new Error('reopen the saved draft to remove it');
+      if (!draft.id || !/^[a-f0-9]{64}$/.test(draft.revision) || !_draftScopes.includes(draft.scope)) throw new Error(t('mail.reopen_saved_draft'));
       await mailJson(`/api/mail/drafts/${encodeURIComponent(draft.id)}?expected_revision=${encodeURIComponent(draft.revision)}&recovery_scope=${encodeURIComponent(draft.scope)}`, { method: 'DELETE' });
       const live = mailEditor();
       if (live?.draftId === draft.id && live.revision === draft.revision && _draftScopes.includes(live.scope) && _draftScopes.includes(draft.scope)) { live.detach(); paintDraftRecovery(); }
       if (operation.retired || !sameOutgoing(pending, _outboxPending)) return;
     } catch (error) {
       if (operation.retired) return;
-      if (![404, 409].includes(error.status)) { _outboxNotice = `${outgoingStatus(row)}. could not remove the saved draft; retry cleanup or keep it.`; return; }
-      _outboxNotice += error.status === 409 ? '. the saved draft changed and was kept.' : '. the saved draft is already absent.';
+      if (![404, 409].includes(error.status)) { _outboxNotice = t('mail.draft_remove_failed', { status: outgoingStatus(row) }); return; }
+      _outboxNotice += error.status === 409 ? t('mail.draft_changed_kept') : t('mail.draft_absent');
     } finally { if (_outboxOperation === operation) _outboxOperation = null; paintOutbox(); }
   }
   try { clearPendingOutgoing(pending); readPendingOutgoing(); }
-  catch { _outboxNotice += '. recovery data could not be cleared; retry cleanup.'; }
+  catch { _outboxNotice += t('mail.recovery_cleanup_failed'); }
   if (canceled) { const undo = $('mail-undo-bar'); if (undo?.dataset.id === row.id) undo.remove(); }
   paintOutbox();
 }
@@ -2498,7 +2507,7 @@ async function submitOutgoing() {
   const pending = _outboxPending;
   if (!pending || pending.action === 'cancel' || pending.cancel_requested || _outboxOperation || _outboxKnown || _outboxConflict || _outboxReadError || _outboxStorageError) return;
   if (pending.action === 'schedule' && outgoingInstant(pending.message.send_at) <= Date.now()) {
-    if (!await dlgConfirm('this scheduled time has passed. retrying the same request may send it now. retry?')) return;
+    if (!await dlgConfirm(t('mail.scheduled_passed_confirm'))) return;
     if (!sameOutgoing(pending, _outboxPending) || _outboxOperation || _outboxKnown) return;
   }
   const operation = { pending, action: 'queue', retired: false };
@@ -2507,7 +2516,7 @@ async function submitOutgoing() {
   try {
     await mailJson(`/api/mail/${pending.action === 'send' ? 'send-undoable' : 'schedule'}/${encodeURIComponent(pending.account_id)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...pending.message, request_id: pending.request_id, recovery_scope: pending.recovery_scope }) });
     accepted = true;
-  } catch (error) { if (!operation.retired && sameOutgoing(pending, _outboxPending)) _outboxNotice = `delivery request unconfirmed. ${error.message || 'check its status or retry.'}`; }
+  } catch (error) { if (!operation.retired && sameOutgoing(pending, _outboxPending)) _outboxNotice = t('mail.delivery_request_unconfirmed', { reason: error.message || t('mail.check_status_or_retry') }); }
   // an accepted request reads "checking delivery…" until the outbox confirms it; painting it as
   // pending in between flashed "unconfirmed" after every good send
   finally { if (_outboxOperation === operation) { if (accepted) operation.action = 'check'; else _outboxOperation = null; } paintOutbox(); }
@@ -2524,7 +2533,7 @@ async function cancelOutgoing(row = null, scope = _outboxScopes[0]) {
   else pending = { ...pending, cancel_requested: true };
   const firstCancel = !(_outboxPending?.cancel_requested || _outboxPending?.action === 'cancel');
   try { storePendingOutgoing(pending); }
-  catch { _outboxStorageError = 'could not retain cancellation for recovery. no cancellation was sent.'; paintOutbox(); return; }
+  catch { _outboxStorageError = t('mail.cancel_retain_failed'); paintOutbox(); return; }
   if (firstCancel) _outboxCancelOwner = { pending, generation: _messageGeneration, pane: $('mail-main').firstElementChild };
   retireOutgoing();
   const operation = { pending, action: 'cancel', retired: false };
@@ -2532,27 +2541,27 @@ async function cancelOutgoing(row = null, scope = _outboxScopes[0]) {
   try {
     const reserve = /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(pending.request_id);
     await mailJson(`/api/mail/scheduled/${encodeURIComponent(pending.request_id)}/cancel?recovery_scope=${encodeURIComponent(pending.recovery_scope)}&reserve_if_missing=${reserve}`, { method: 'POST' });
-  } catch (error) { if (!operation.retired && sameOutgoing(pending, _outboxPending)) _outboxNotice = `cancellation unconfirmed. ${error.message || 'check its status or retry.'}`; }
+  } catch (error) { if (!operation.retired && sameOutgoing(pending, _outboxPending)) _outboxNotice = t('mail.cancellation_unconfirmed', { reason: error.message || t('mail.check_status_or_retry') }); }
   finally { if (_outboxOperation === operation) _outboxOperation = null; paintOutbox(); }
   if (!operation.retired && sameOutgoing(pending, _outboxPending)) await _renderScheduled();
 }
 async function forgetOutgoing(unreadable) {
   if (_outboxOperation) return;
   const pending = _outboxPending, scopes = [..._outboxScopes];
-  if (!await dlgConfirm('clear this recovery record? this does not cancel delivery. check Sent and the outbox before sending the message again.')) return;
+  if (!await dlgConfirm(t('mail.clear_record_confirm'))) return;
   if (_outboxOperation || scopes.join() !== _outboxScopes.join() || (!unreadable && !sameOutgoing(pending, _outboxPending))) return;
   try {
     if (unreadable) for (const scope of scopes) { sessionStorage.removeItem(outgoingKey(scope)); if (sessionStorage.getItem(outgoingKey(scope)) !== null) throw new Error('cleanup failed'); }
     else clearPendingOutgoing(pending);
     _outboxNotice = ''; _outboxConflict = false; readPendingOutgoing();
-  } catch { _outboxStorageError = 'could not clear delivery recovery data; it was kept.'; }
+  } catch { _outboxStorageError = t('mail.delivery_clear_kept'); }
   paintOutbox();
 }
 function _showUndoBar(row, scope) {
   let bar = $('mail-undo-bar');
   if (!bar) { bar = document.createElement('div'); bar.id = 'mail-undo-bar'; bar.className = 'mail-undo-bar'; stackUndoBar(bar); }
   bar.dataset.id = row.id; bar.dataset.scope = scope;
-  bar.innerHTML = '<span>queued to send</span><button type="button" class="btn" id="mail-undo-btn">undo</button>';
+  bar.innerHTML = `<span>${t('mail.queued_to_send')}</span><button type="button" class="btn" id="mail-undo-btn">${t('common.undo')}</button>`;
   bar.style.display = 'flex';
   $('mail-undo-btn').addEventListener('click', () => { if (!_outboxScopes.includes(scope)) { bar.remove(); return; } if (!_outboxPending) cancelOutgoing(row, scope); else if (_outboxPending.request_id === row.id && _outboxPending.recovery_scope === scope) cancelOutgoing(); else $('mail-outbox-status')?.focus(); });
   const remaining = Math.max(0, outgoingInstant(row.send_at) - Date.now());
@@ -2568,6 +2577,9 @@ const validRule = row => row && typeof row.id === 'string' && ['from', 'subject'
 const ruleKey = scope => 'alles-mail-rule:' + scope;
 const ruleRequest = (url, options = {}) => mailJson(url, { ...options, signal: AbortSignal.timeout(15000) });
 
+const _ruleFieldLabel = field => field === 'from' ? t('mail.field_from') : t('mail.subject');
+const _ruleActionLabel = action => ({ markread: t('mail.action_markread'), mute: t('mail.action_mute'), label: t('mail.label'), autoreply: t('mail.action_autoreply') })[action] || action;
+
 function mountRuleEditor(root, generation, initialRows, scopes) {
   const current = () => root.isConnected && generation === _messageGeneration;
   const el = id => root.querySelector('#' + id);
@@ -2581,23 +2593,23 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
   function keep(value) {
     const raw = JSON.stringify(value), key = ruleKey(value.recovery_scope);
     sessionStorage.setItem(key, raw);
-    if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain the pending rule');
+    if (sessionStorage.getItem(key) !== raw) throw new Error(t('mail.rule_retain_failed'));
     pending = value; confirmed = false;
   }
   function clear() {
     const key = ruleKey(pending.recovery_scope), raw = sessionStorage.getItem(key);
     if (raw && JSON.parse(raw).request_id !== pending.request_id) throw new Error('recovery data changed');
     sessionStorage.removeItem(key);
-    if (sessionStorage.getItem(key) !== null) throw new Error('could not clear recovery data');
+    if (sessionStorage.getItem(key) !== null) throw new Error(t('mail.clear_recovery_failed'));
     pending = null; confirmed = false;
   }
   function finish(deleted = false) {
     confirmed = true;
-    notice = deleted ? 'rule removed' : 'rule saved';
+    notice = deleted ? t('mail.rule_removed') : t('mail.rule_saved');
     if (!deleted && current() && sameFields(pending)) { el('mr-value').value = ''; el('mr-arg').value = ''; savedSnapshot = snapshot(); }
-    else if (!deleted && current()) notice += '; newer changes are unsaved';
+    else if (!deleted && current()) notice += t('mail.newer_unsaved');
     try { clear(); }
-    catch { notice += '. recovery data could not be cleared; retry cleanup.'; }
+    catch { notice += t('mail.recovery_cleanup_failed'); }
   }
   function readPending() {
     storageError = '';
@@ -2613,23 +2625,23 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
         if (pending) throw new Error('multiple pending rules');
         pending = value;
       }
-    } catch { storageError = 'could not read rule recovery data. retry reading it before making changes.'; }
+    } catch { storageError = t('mail.rule_recovery_unreadable'); }
   }
   function paint() {
     if (!current()) return;
     const focus = root.contains(document.activeElement) ? document.activeElement.id : '';
     const blocked = busy || Boolean(pending || storageError);
     el('mail-rules-list').innerHTML = rows.map(row => `<div class="mail-rule-row" data-id="${esc(row.id)}">
-      <span>if <b>${esc(row.match_field)}</b> contains “${esc(row.match_value)}” ${_si('arrow-right')}<span class="sr-only">then</span> <b>${esc(({ markread: 'mark read', autoreply: 'auto-reply' })[row.action] || row.action)}</b>${row.action_arg ? ` (${esc(row.action_arg)})` : ''}${row.enabled ? '' : ' · paused'}</span>
-      <button type="button" class="btn danger mail-rule-del" id="mr-delete-${esc(row.id)}" data-id="${esc(row.id)}" aria-label="remove rule for ${esc(row.match_value)}" aria-disabled="${blocked}">remove</button>
-    </div>`).join('') || '<div class="mail-empty-sm">no rules yet</div>';
+      <span>${t('mail.rule_summary', { field: `<b>${esc(_ruleFieldLabel(row.match_field))}</b>`, value: esc(row.match_value), arrow: `${_si('arrow-right')}<span class="sr-only">${t('mail.rule_then')}</span>`, action: `<b>${esc(_ruleActionLabel(row.action))}</b>`, arg: row.action_arg ? ` (${esc(row.action_arg)})` : '', paused: row.enabled ? '' : ` · ${t('mail.rule_paused')}` })}</span>
+      <button type="button" class="btn danger mail-rule-del" id="mr-delete-${esc(row.id)}" data-id="${esc(row.id)}" aria-label="${esc(t('mail.remove_rule_for', { value: row.match_value }))}" aria-disabled="${blocked}">${t('common.remove')}</button>
+    </div>`).join('') || `<div class="mail-empty-sm">${t('mail.no_rules')}</div>`;
     el('mr-add').setAttribute('aria-disabled', String(blocked));
     el('mr-run').setAttribute('aria-disabled', String(blocked || !_accounts.length));
-    const message = busy ? 'saving rule changes…' : storageError || notice || (pending ? `saving the rule for “${pending.match_value}” is unconfirmed. retry uses the same rule.` : '');
+    const message = busy ? t('mail.saving_rule') : storageError || notice || (pending ? t('mail.rule_unconfirmed', { value: pending.match_value }) : '');
     let actions = '';
-    if (storageError) actions = '<button type="button" class="btn" id="mr-read-retry">retry reading recovery data</button><button type="button" class="btn" id="mr-clear">clear recovery data</button>';
-    else if (pending) actions = confirmed ? '<button type="button" class="btn" id="mr-cleanup">retry cleanup</button>' :
-      `<button type="button" class="btn" id="mr-retry">${pending.kind === 'delete' ? 'retry removing rule' : 'retry saving rule'}</button>${pending.kind === 'create' ? '<button type="button" class="btn" id="mr-cancel">cancel pending rule</button>' : ''}`;
+    if (storageError) actions = `<button type="button" class="btn" id="mr-read-retry">${t('mail.retry_reading_recovery')}</button><button type="button" class="btn" id="mr-clear">${t('mail.saved_clear_recovery')}</button>`;
+    else if (pending) actions = confirmed ? `<button type="button" class="btn" id="mr-cleanup">${t('mail.saved_retry_cleanup')}</button>` :
+      `<button type="button" class="btn" id="mr-retry">${pending.kind === 'delete' ? t('mail.retry_removing_rule') : t('mail.retry_saving_rule')}</button>${pending.kind === 'create' ? `<button type="button" class="btn" id="mr-cancel">${t('mail.cancel_pending_rule')}</button>` : ''}`;
     el('mr-status').textContent = message;
     el('mr-recovery-actions').innerHTML = actions;
     el('mr-recovery').querySelectorAll('button').forEach(button => button.setAttribute('aria-disabled', String(busy)));
@@ -2645,16 +2657,16 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
     });
     el('mr-cleanup')?.addEventListener('click', () => {
       if (busy || !pending) return;
-      try { clear(); notice = 'rule recovery data cleared'; } catch { notice = 'could not clear rule recovery data; retry cleanup.'; }
+      try { clear(); notice = t('mail.rule_recovery_cleared'); } catch { notice = t('mail.rule_recovery_clear_failed'); }
       paint();
     });
     el('mr-read-retry')?.addEventListener('click', () => { if (!busy) { readPending(); reconcilePending(); paint(); } });
     el('mr-clear')?.addEventListener('click', async () => {
-      if (busy || !await dlgConfirm('clear unreadable rule recovery data? an earlier change may already be saved. check the rule list before adding it again.') || !current()) return;
+      if (busy || !await dlgConfirm(t('mail.rule_clear_confirm')) || !current()) return;
       try {
         for (const scope of scopes) { sessionStorage.removeItem(ruleKey(scope)); if (sessionStorage.getItem(ruleKey(scope)) !== null) throw new Error('cleanup failed'); }
-        pending = null; storageError = ''; notice = 'recovery data cleared. check saved rules before adding another.';
-      } catch { storageError = 'could not clear rule recovery data. retry reading it.'; }
+        pending = null; storageError = ''; notice = t('mail.rule_cleared_notice');
+      } catch { storageError = t('mail.rule_clear_failed'); }
       paint();
     });
     if (focus && document.activeElement === document.body) {
@@ -2666,7 +2678,7 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
     if (busy || storageError) return;
     notice = '';
     try { keep(value); save(); }
-    catch { storageError = 'could not retain this change for recovery. no request was sent. retry reading recovery data.'; paint(); }
+    catch { storageError = t('mail.rule_keep_failed'); paint(); }
   }
   async function save() {
     if (busy || !pending || confirmed || storageError) return;
@@ -2676,16 +2688,16 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
       try {
         if (desired.kind === 'delete') {
           const data = await ruleRequest(`/api/mail/rules/${encodeURIComponent(desired.request_id)}?recovery_scope=${encodeURIComponent(desired.recovery_scope)}`, { method: 'DELETE' });
-          if (data?.ok !== true) throw new Error('could not confirm removal');
+          if (data?.ok !== true) throw new Error(t('mail.removal_unconfirmed'));
           rows = rows.filter(row => row.id !== desired.request_id); finish(true);
         } else {
           const row = await ruleRequest('/api/mail/rules', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(desired) });
-          if (!validRule(row) || !ruleMatches(row, desired)) throw new Error('could not confirm the saved rule');
+          if (!validRule(row) || !ruleMatches(row, desired)) throw new Error(t('mail.rule_save_unconfirmed'));
           rows = [...rows.filter(value => value.id !== row.id), row]; finish();
         }
       } catch (error) {
         if (error.status === 410 && desired.kind === 'create') { rows = rows.filter(row => row.id !== desired.request_id); finish(true); }
-        else notice = `${desired.kind === 'delete' ? 'removal' : 'save'} unconfirmed. ${error.message || 'check your connection and retry.'} your rule is kept for retry.`;
+        else notice = desired.kind === 'delete' ? t('mail.rule_removal_failed', { reason: error.message || t('mail.check_connection_retry') }) : t('mail.rule_save_failed', { reason: error.message || t('mail.check_connection_retry') });
       } finally { busy = false; paint(); }
     })();
     _ruleWrite = writing;
@@ -2699,20 +2711,20 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
         el('mr-action').value = pending.action; el('mr-arg').value = pending.action_arg;
       }
       if (rows.some(row => ruleMatches(row, pending))) finish();
-    } else notice = `removal of the rule for “${pending.match_value}” is unconfirmed. retry removing it.`;
+    } else notice = t('mail.rule_removal_unconfirmed', { value: pending.match_value });
   }
   readPending(); reconcilePending();
   el('mr-add').addEventListener('click', () => {
     if (busy || pending || storageError) return;
     const value = fields();
-    if (!value.match_value) { notice = 'enter text to match'; paint(); el('mr-value').focus(); return; }
-    if (['label', 'autoreply'].includes(value.action) && !value.action_arg) { notice = value.action === 'label' ? 'enter a label' : 'enter a reply message'; paint(); el('mr-arg').focus(); return; }
+    if (!value.match_value) { notice = t('mail.enter_match'); paint(); el('mr-value').focus(); return; }
+    if (['label', 'autoreply'].includes(value.action) && !value.action_arg) { notice = value.action === 'label' ? t('mail.enter_label') : t('mail.enter_reply'); paint(); el('mr-arg').focus(); return; }
     start({ ...value, kind: 'create', request_id: savedRequestId(), recovery_scope: scopes[0] });
   });
   el('mr-run').addEventListener('click', async () => {
     if (busy || pending || storageError || !_accounts.length) return;
     busy = true; paint(); el('mr-status').textContent = '';
-    el('mr-run-status').textContent = 'running rules…';
+    el('mr-run-status').textContent = t('mail.running_rules');
     const accounts = [..._accounts];
     const running = (async () => {
       let total = 0, completed = 0; const failed = [];
@@ -2721,10 +2733,10 @@ function mountRuleEditor(root, generation, initialRows, scopes) {
           const result = await ruleRequest(`/api/mail/rules/run/${encodeURIComponent(account.id)}`, { method: 'POST' });
           if (!Number.isSafeInteger(result?.applied) || result.applied < 0) throw new Error('could not confirm result');
           total += result.applied; completed++;
-        } catch { failed.push(account.name || account.email || 'account'); }
+        } catch { failed.push(account.name || account.email || t('mail.account')); }
       }
       if (current()) {
-        el('mr-run-status').textContent = `${total} rule action(s) confirmed across ${completed} account(s).${failed.length ? ` could not confirm: ${failed.join(', ')}. check inbox before running again.` : ''}`;
+        el('mr-run-status').textContent = t('mail.rules_run_result', { total, completed, failed: failed.length ? ' ' + t('mail.rules_run_failed', { list: failed.join(', ') }) : '' });
         loadInbox();
       }
     })();
@@ -2740,7 +2752,7 @@ async function rulesPanel() {
   if (!await prepareMailNavigation()) return;
   const generation = _messageGeneration;
   const main = $('mail-main');
-  main.innerHTML = '<div class="mail-empty" role="status">loading rules…</div>';
+  main.innerHTML = `<div class="mail-empty" role="status">${t('mail.loading_rules')}</div>`;
   mountMailSettings(main.firstElementChild, rulesPanel);
   // A reopened form must read after its earlier save, not race a newer save against it.
   if (_vacationWrite) await _vacationWrite.catch(() => {});
@@ -2752,46 +2764,46 @@ async function rulesPanel() {
     if (!Array.isArray(data?.rules) || !data.rules.every(validRule) ||
         !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || !data.recovery_scopes.every(scope => /^[a-f0-9]{64}$/.test(scope)) ||
         typeof vacation?.enabled !== 'boolean' || typeof vacation.subject !== 'string' || typeof vacation.body !== 'string') {
-      throw new Error('could not confirm rules and vacation settings');
+      throw new Error(t('mail.rules_unconfirmed'));
     }
     rules = data.rules; vac = vacation; scopes = data.recovery_scopes;
   } catch (error) {
     if (generation !== _messageGeneration) return;
-    main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || 'could not load rules and vacation settings')} <button type="button" class="btn">retry</button></div>`;
+    main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || t('mail.rules_load_failed'))} <button type="button" class="btn">${t('common.retry')}</button></div>`;
     mountMailSettings(main.firstElementChild, rulesPanel);
     main.querySelector('button').addEventListener('click', () => rulesPanel());
     return;
   }
   if (generation !== _messageGeneration) return;
   main.innerHTML = `<div class="mail-rules-panel">
-    <div class="mail-compose-head">rules</div>
+    <div class="mail-compose-head">${t('mail.rules')}</div>
     <div id="mail-rules-list"></div>
     <div class="mail-rule-form">
-      <label><span>match field</span><div class="settings-input custom-select" id="mr-field" aria-label="match field"></div></label>
-      <label><span>contains</span><input class="settings-input" id="mr-value"></label>
-      <label><span>action</span><div class="settings-input custom-select" id="mr-action" aria-label="rule action"></div></label>
-      <label><span>label or reply message</span><textarea class="settings-input" id="mr-arg" rows="2" placeholder="for label or auto-reply rules"></textarea></label>
+      <label><span>${t('mail.match_field')}</span><div class="settings-input custom-select" id="mr-field" aria-label="${esc(t('mail.match_field'))}"></div></label>
+      <label><span>${t('mail.contains')}</span><input class="settings-input" id="mr-value"></label>
+      <label><span>${t('mail.action')}</span><div class="settings-input custom-select" id="mr-action" aria-label="${esc(t('mail.rule_action'))}"></div></label>
+      <label><span>${t('mail.label_or_reply')}</span><textarea class="settings-input" id="mr-arg" rows="2" placeholder="${esc(t('mail.arg_placeholder'))}"></textarea></label>
     </div>
-    <button type="button" class="btn primary" id="mr-add">add rule</button>
+    <button type="button" class="btn primary" id="mr-add">${t('mail.add_rule')}</button>
     <div class="mail-saved-status" id="mr-recovery"><p id="mr-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="mr-recovery-actions"></div></div>
-    <div class="mail-rule-actions"><button type="button" class="btn" id="mr-run">run rules now</button><span id="mr-run-status" class="mail-status" role="status" aria-live="polite"></span></div>
-    <div class="mail-compose-head" style="margin-top:1rem">vacation responder</div>
-    <button class="btn mail-vac-toggle${vac.enabled ? ' active' : ''}" id="mv-enabled" aria-pressed="${vac.enabled ? 'true' : 'false'}">${vac.enabled ? `${_si('check')} ` : ''}auto-reply when I'm away</button>
-    <input class="settings-input" id="mv-subject" aria-label="vacation subject" placeholder="subject" value="${esc(vac.subject || '')}">
-    <textarea class="settings-input mail-compose-body" id="mv-body" aria-label="vacation message" placeholder="out-of-office message…">${esc(vac.body || '')}</textarea>
-    <button class="btn primary" id="mv-save">save vacation reply</button>
+    <div class="mail-rule-actions"><button type="button" class="btn" id="mr-run">${t('mail.run_rules')}</button><span id="mr-run-status" class="mail-status" role="status" aria-live="polite"></span></div>
+    <div class="mail-compose-head" style="margin-top:1rem">${t('mail.vacation_responder')}</div>
+    <button class="btn mail-vac-toggle${vac.enabled ? ' active' : ''}" id="mv-enabled" aria-pressed="${vac.enabled ? 'true' : 'false'}">${vac.enabled ? `${_si('check')} ` : ''}${t('mail.vacation_toggle')}</button>
+    <input class="settings-input" id="mv-subject" aria-label="${esc(t('mail.vacation_subject'))}" placeholder="${esc(t('mail.subject'))}" value="${esc(vac.subject || '')}">
+    <textarea class="settings-input mail-compose-body" id="mv-body" aria-label="${esc(t('mail.vacation_message'))}" placeholder="${esc(t('mail.out_of_office'))}">${esc(vac.body || '')}</textarea>
+    <button class="btn primary" id="mv-save">${t('mail.save_vacation')}</button>
     <div id="mv-status" class="mail-status" role="status" aria-live="polite"></div>
   </div>`;
-  populateDropdown($('mr-field'), [{ value: 'from', label: 'from' }, { value: 'subject', label: 'subject' }], 'from');
+  populateDropdown($('mr-field'), [{ value: 'from', label: t('mail.field_from') }, { value: 'subject', label: t('mail.subject') }], 'from');
   populateDropdown($('mr-action'), [
-    { value: 'markread', label: 'mark read' }, { value: 'mute', label: 'mute' },
-    { value: 'label', label: 'label' }, { value: 'autoreply', label: 'auto-reply' },
+    { value: 'markread', label: _ruleActionLabel('markread') }, { value: 'mute', label: _ruleActionLabel('mute') },
+    { value: 'label', label: _ruleActionLabel('label') }, { value: 'autoreply', label: _ruleActionLabel('autoreply') },
   ], 'markread');
   $('mv-enabled').addEventListener('click', () => {
     const on = $('mv-enabled').getAttribute('aria-pressed') !== 'true';
     $('mv-enabled').setAttribute('aria-pressed', on ? 'true' : 'false');
     $('mv-enabled').classList.toggle('active', on);
-    $('mv-enabled').innerHTML = `${on ? `${_si('check')} ` : ''}auto-reply when I'm away`;
+    $('mv-enabled').innerHTML = `${on ? `${_si('check')} ` : ''}${t('mail.vacation_toggle')}`;
   });
   const ruleEditor = mountRuleEditor(main.querySelector('.mail-rules-panel'), generation, rules, scopes);
   const vacationRoot = main.querySelector('.mail-rules-panel');
@@ -2810,7 +2822,7 @@ async function rulesPanel() {
   const updateVacationStatus = () => {
     if (!vacationSaved || vacationSave.disabled) return;
     vacationStatus.textContent = sameVacation(vacationValue(), vacationSaved)
-      ? 'vacation reply saved' : 'vacation changes are unsaved';
+      ? t('mail.vacation_saved') : t('mail.vacation_unsaved');
   };
   for (const id of ['mv-subject', 'mv-body']) vacationRoot.querySelector(`#${id}`).addEventListener('input', updateVacationStatus);
   vacationRoot.querySelector('#mv-enabled').addEventListener('click', updateVacationStatus);
@@ -2819,19 +2831,19 @@ async function rulesPanel() {
     const body = vacationValue();
     vacationSaved = null;
     vacationSave.disabled = true;
-    vacationStatus.textContent = 'saving vacation reply…';
+    vacationStatus.textContent = t('mail.saving_vacation');
     const writing = mailPost('/api/mail/vacation', body);
     _vacationWrite = writing;
     try {
       const saved = await writing;
-      if (!sameVacation(saved, body)) throw new Error('could not confirm the saved vacation reply');
+      if (!sameVacation(saved, body)) throw new Error(t('mail.vacation_unconfirmed'));
       if (!vacationRoot.isConnected || generation !== _messageGeneration) return;
       vacationSaved = body; vacationInitial = body;
       vacationStatus.textContent = sameVacation(vacationValue(), body)
-        ? 'vacation reply saved' : 'earlier vacation reply saved; newer changes are unsaved';
+        ? t('mail.vacation_saved') : t('mail.vacation_earlier');
     } catch (error) {
       if (vacationRoot.isConnected && generation === _messageGeneration) {
-        vacationStatus.textContent = `save unconfirmed. ${error.message || 'check your connection and retry.'} your changes are still here.`;
+        vacationStatus.textContent = t('mail.vacation_failed', { reason: error.message || t('mail.check_connection_retry') });
       }
     } finally {
       if (_vacationWrite === writing) _vacationWrite = null;
@@ -2856,7 +2868,7 @@ async function readAccountContext() {
   const data = await accountRequest('/api/mail/accounts?context=true');
   if (!Array.isArray(data?.accounts) || !data.accounts.every(validAccount) ||
       !Array.isArray(data.recovery_scopes) || !data.recovery_scopes.length || !data.recovery_scopes.every(scope => /^[a-f0-9]{64}$/.test(scope))) {
-    throw new Error('could not confirm mail accounts');
+    throw new Error(t('mail.accounts_unconfirmed'));
   }
   return data;
 }
@@ -2882,7 +2894,7 @@ function readAccountRecovery(scopes) {
     }
     state.pending = pending;
     if (!pending && _accountEditor) _accountEditor.pendingSnapshot = null;
-  } catch { state.error = 'could not read account recovery data. retry reading it before making changes.'; }
+  } catch { state.error = t('mail.account_recovery_unreadable'); }
 }
 function keepAccountAttempt(pending, body = null) {
   const state = _accountRecovery;
@@ -2892,10 +2904,10 @@ function keepAccountAttempt(pending, body = null) {
   const raw = JSON.stringify(pending), key = accountKey(pending.recovery_scope);
   try {
     sessionStorage.setItem(key, raw);
-    if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain account recovery');
+    if (sessionStorage.getItem(key) !== raw) throw new Error(t('mail.account_retain_failed2'));
   } catch {
     if (_accountEditor) _accountEditor.pendingSnapshot = null;
-    state.error = 'could not retain account recovery. no request was sent; retry reading recovery data.';
+    state.error = t('mail.account_retain_failed');
     return false;
   }
   return true;
@@ -2906,7 +2918,7 @@ function clearAccountAttempt() {
   const key = accountKey(pending.recovery_scope), raw = sessionStorage.getItem(key);
   if (raw && JSON.stringify(JSON.parse(raw)) !== JSON.stringify(pending)) throw new Error('account recovery changed');
   sessionStorage.removeItem(key);
-  if (sessionStorage.getItem(key) !== null) throw new Error('could not clear account recovery');
+  if (sessionStorage.getItem(key) !== null) throw new Error(t('mail.account_clear_failed'));
   state.pending = null; state.attempt = null; state.confirmed = false;
   if (_accountEditor) _accountEditor.pendingSnapshot = null;
 }
@@ -2916,14 +2928,14 @@ function confirmAccountAttempt(result) {
   if (result.removed) {
     _accounts = _accounts.filter(row => row.id !== result.id);
     if (_active === result.id) _active = 'all';
-    state.notice = 'account removed';
+    state.notice = t('mail.account_removed');
   } else {
     _accounts = [..._accounts.filter(row => row.id !== result.row.id), result.row];
-    state.notice = 'account saved';
+    state.notice = t('mail.account_saved');
   }
   syncAccountSelect();
   try { clearAccountAttempt(); }
-  catch { state.notice += '. recovery data could not be cleared; retry cleanup.'; }
+  catch { state.notice += t('mail.recovery_cleanup_failed'); }
 }
 async function writeAccountAttempt() {
   const state = _accountRecovery;
@@ -2931,7 +2943,7 @@ async function writeAccountAttempt() {
   const pending = state.pending, body = state.attempt;
   if (pending.kind !== 'delete' && !body) return null;
   if (body && _accountEditor?.root.isConnected) _accountEditor.pendingSnapshot = accountSnapshot(body);
-  state.notice = pending.kind === 'delete' ? 'removing account…' : 'saving account…';
+  state.notice = pending.kind === 'delete' ? t('mail.removing_account') : t('mail.saving_account');
   const writing = (async () => {
     try {
       let result;
@@ -2939,7 +2951,7 @@ async function writeAccountAttempt() {
         const query = new URLSearchParams({ recovery_scope: pending.recovery_scope });
         if (pending.expected_revision !== undefined) query.set('expected_revision', pending.expected_revision);
         const value = await accountRequest(`/api/mail/accounts/${encodeURIComponent(pending.id)}?${query}`, { method: 'DELETE' });
-        if (value?.ok !== true) throw new Error('could not confirm account removal');
+        if (value?.ok !== true) throw new Error(t('mail.account_removal_unconfirmed'));
         result = { removed: true, id: pending.id };
       } else {
         const creating = pending.kind === 'create';
@@ -2948,13 +2960,13 @@ async function writeAccountAttempt() {
           body: JSON.stringify({ ...body, recovery_scope: pending.recovery_scope,
             ...(creating ? { request_id: pending.id } : { expected_revision: pending.expected_revision }) }),
         });
-        if (!validAccount(row) || row.id !== pending.id || !accountMatches(row, body)) throw new Error('could not confirm the saved account');
+        if (!validAccount(row) || row.id !== pending.id || !accountMatches(row, body)) throw new Error(t('mail.account_save_unconfirmed'));
         result = { row, fields: body };
       }
       confirmAccountAttempt(result);
       return result;
     } catch (error) {
-      state.notice = `${pending.kind === 'delete' ? 'removal' : 'save'} unconfirmed. ${error.message || 'check your connection and retry.'}`;
+      state.notice = pending.kind === 'delete' ? t('mail.removal_unconfirmed_reason', { reason: error.message || t('mail.check_connection_retry') }) : t('mail.save_unconfirmed_reason', { reason: error.message || t('mail.check_connection_retry') });
       return null;
     }
   })();
@@ -2968,7 +2980,7 @@ function mountAccountRecovery(root, current, changed) {
     if (!current()) return;
     const focus = actions.contains(document.activeElement);
     const pending = state.pending, row = pending && _accounts.find(value => value.id === pending.id);
-    status.textContent = state.error || state.notice || (pending ? `the last ${pending.kind === 'delete' ? 'removal' : 'save'} for “${pending.label}” is unconfirmed.` : '');
+    status.textContent = state.error || state.notice || (pending ? (pending.kind === 'delete' ? t('mail.last_removal_unconfirmed', { label: pending.label }) : t('mail.last_save_unconfirmed', { label: pending.label })) : '');
     actions.replaceChildren();
     const button = (label, fn) => {
       const node = document.createElement('button'); node.type = 'button'; node.className = 'btn'; node.textContent = label;
@@ -2976,42 +2988,42 @@ function mountAccountRecovery(root, current, changed) {
       node.addEventListener('click', async () => { if (!state.write) await fn(); }); actions.appendChild(node);
     };
     const update = result => { if (current()) { changed(result); paint(); } };
-    if (state.error) button('retry reading account recovery', async () => { readAccountRecovery(state.scopes); update(); });
-    else if (pending && state.confirmed) button('retry account recovery cleanup', () => {
-      try { clearAccountAttempt(); state.notice = 'account recovery cleared'; } catch { state.notice = 'recovery data could not be cleared; retry cleanup.'; }
+    if (state.error) button(t('mail.retry_reading_account'), async () => { readAccountRecovery(state.scopes); update(); });
+    else if (pending && state.confirmed) button(t('mail.retry_account_cleanup'), () => {
+      try { clearAccountAttempt(); state.notice = t('mail.account_recovery_cleared'); } catch { state.notice = t('mail.recovery_clear_failed'); }
       update();
     });
     else if (pending) {
-      if (state.attempt || pending.kind === 'delete') button(pending.kind === 'delete' ? 'retry removal' : 'retry saved changes', async () => {
+      if (state.attempt || pending.kind === 'delete') button(pending.kind === 'delete' ? t('mail.retry_removal') : t('mail.retry_saved_changes'), async () => {
         const writing = writeAccountAttempt(); paint(); update(await writing);
       });
-      if (pending.kind === 'create' && row) button('review saved account', () => {
-        try { clearAccountAttempt(); acctForm(row); } catch { state.notice = 'recovery data could not be cleared; retry.'; update(); }
+      if (pending.kind === 'create' && row) button(t('mail.review_saved_account'), () => {
+        try { clearAccountAttempt(); acctForm(row); } catch { state.notice = t('mail.recovery_clear_retry'); update(); }
       });
-      if (pending.kind === 'create' || (pending.kind === 'edit' && !row)) button('remove pending account', async () => {
-        if (!await dlgConfirm('remove this pending account? any delayed save will also be cancelled.')) return;
+      if (pending.kind === 'create' || (pending.kind === 'edit' && !row)) button(t('mail.remove_pending_account'), async () => {
+        if (!await dlgConfirm(t('mail.remove_pending_confirm'))) return;
         if (!current() || state.write || state.pending !== pending) return;
         if (!keepAccountAttempt({ kind: 'delete', id: pending.id, label: pending.label, recovery_scope: pending.recovery_scope })) { update(); return; }
         const writing = writeAccountAttempt(); paint(); update(await writing);
       });
-      if (pending.kind === 'edit' || (pending.kind === 'delete' && row && Number.isSafeInteger(pending.expected_revision))) button('review current settings', async () => {
-        if (!await dlgConfirm('keep the currently saved settings? the unconfirmed account change will be cancelled.')) return;
+      if (pending.kind === 'edit' || (pending.kind === 'delete' && row && Number.isSafeInteger(pending.expected_revision))) button(t('mail.review_current_settings'), async () => {
+        if (!await dlgConfirm(t('mail.keep_saved_confirm'))) return;
         if (!current() || state.write || state.pending !== pending) return;
         const draftSnapshot = () => JSON.stringify([serializeForm(root), root.querySelector('#ma-tls')?.getAttribute('aria-pressed')]);
         const initialDraft = draftSnapshot();
         // Claim the current revision so an older in-flight edit/removal cannot replace it.
         const operation = (async () => {
           const data = await readAccountContext();
-          if (!data.recovery_scopes.includes(pending.recovery_scope)) throw new Error('account storage has changed; reopen accounts');
+          if (!data.recovery_scopes.includes(pending.recovery_scope)) throw new Error(t('mail.account_storage_changed'));
           _accounts = data.accounts; syncAccountSelect();
           const saved = data.accounts.find(value => value.id === pending.id);
-          if (!saved) throw new Error('this account was removed elsewhere. remove the pending account to finish recovery.');
+          if (!saved) throw new Error(t('mail.account_removed_elsewhere'));
           return { saved, data };
         })();
         state.write = operation; paint();
         let data;
         try { data = await operation; }
-        catch (error) { state.notice = error.message || 'could not read current settings'; }
+        catch (error) { state.notice = error.message || t('mail.settings_read_failed'); }
         finally { if (state.write === operation) state.write = null; }
         if (!data || !current()) { update(); return; }
         const body = Object.fromEntries(accountFields.map(key => [key, data.saved[key]])); body.password = '';
@@ -3021,7 +3033,7 @@ function mountAccountRecovery(root, current, changed) {
         if (current() && result?.row && !state.pending && draftSnapshot() === initialDraft) acctForm(result.row);
         else update(result);
       });
-      if (!state.attempt && pending.kind === 'create' && !row) status.textContent += ' the password was not stored in this browser. remove the pending account before starting again.';
+      if (!state.attempt && pending.kind === 'create' && !row) status.textContent += ' ' + t('mail.password_not_stored');
     }
     if (focus && document.activeElement === document.body) {
       const target = actions.querySelector('button') || (status.textContent ? status : root.querySelector('#ma-save, #mail-add-acct'));
@@ -3038,7 +3050,7 @@ async function accountsPanel(firstRun = false) {
   if (!await prepareMailNavigation()) return;
   const main = $('mail-main'), generation = _messageGeneration;
   const current = () => main.isConnected && generation === _messageGeneration;
-  main.innerHTML = '<div class="mail-empty" role="status">loading accounts…</div>';
+  main.innerHTML = `<div class="mail-empty" role="status">${t('mail.loading_accounts')}</div>`;
   mountMailSettings(main.firstElementChild, () => accountsPanel(firstRun));
   if (_accountRecovery.write) await _accountRecovery.write.catch(() => {});
   if (!current()) return;
@@ -3048,13 +3060,13 @@ async function accountsPanel(firstRun = false) {
     _accounts = data.accounts; syncAccountSelect(); readAccountRecovery(data.recovery_scopes);
   } catch (error) {
     if (!current()) return;
-    main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || 'could not load accounts')} <button type="button" class="btn">retry</button></div>`;
+    main.innerHTML = `<div class="mail-empty" role="alert">${esc(error.message || t('mail.accounts_load_failed'))} <button type="button" class="btn">${t('common.retry')}</button></div>`;
     mountMailSettings(main.firstElementChild, () => accountsPanel(firstRun));
     main.querySelector('button').addEventListener('click', () => accountsPanel(firstRun)); return;
   }
-  main.innerHTML = `<div class="mail-accounts" role="region" aria-label="mail accounts">
-    <div class="mail-form-head"><div><div class="mail-compose-head">accounts</div><div class="mail-form-sub">${firstRun ? 'connect a mailbox to get started' : 'manage saved mailboxes'}</div></div>
-      <div class="mail-form-actions"><button type="button" class="btn" id="mail-accounts-close">close</button><button type="button" class="btn primary" id="mail-add-acct">add</button></div></div>
+  main.innerHTML = `<div class="mail-accounts" role="region" aria-label="${esc(t('mail.accounts_label'))}">
+    <div class="mail-form-head"><div><div class="mail-compose-head">${t('mail.accounts')}</div><div class="mail-form-sub">${firstRun ? t('mail.connect_mailbox') : t('mail.manage_mailboxes')}</div></div>
+      <div class="mail-form-actions"><button type="button" class="btn" id="mail-accounts-close">${t('common.close')}</button><button type="button" class="btn primary" id="mail-add-acct">${t('common.add')}</button></div></div>
     <div class="mail-service-links">${providerHelpHtml()}</div>${accountRecoveryHtml}<div id="mail-account-rows"></div></div>`;
   const root = main.querySelector('.mail-accounts');
   mountMailSettings(root, () => accountsPanel(firstRun));
@@ -3066,12 +3078,12 @@ async function accountsPanel(firstRun = false) {
     root.querySelector('#mail-add-acct').setAttribute('aria-disabled', String(blocked));
     const list = root.querySelector('#mail-account-rows'), focused = list.contains(document.activeElement);
     list.innerHTML = _accounts.map(a => `<div class="mail-acct-row"><span><b>${esc(a.name || a.email)}</b><em>${esc(a.email)}</em></span><span class="mail-acct-actions">
-      <button type="button" class="btn mail-acct-edit" data-id="${esc(a.id)}" aria-disabled="${blocked}">edit</button><button type="button" class="btn mail-acct-del" data-id="${esc(a.id)}" aria-disabled="${blocked}">remove</button></span></div>`).join('') || '<div class="mail-empty">no saved accounts</div>';
+      <button type="button" class="btn mail-acct-edit" data-id="${esc(a.id)}" aria-disabled="${blocked}">${t('common.edit')}</button><button type="button" class="btn mail-acct-del" data-id="${esc(a.id)}" aria-disabled="${blocked}">${t('common.remove')}</button></span></div>`).join('') || `<div class="mail-empty">${t('mail.no_accounts_saved')}</div>`;
     list.querySelectorAll('.mail-acct-edit').forEach(button => button.addEventListener('click', () => { if (!blocked) acctForm(_accounts.find(a => a.id === button.dataset.id)); }));
     list.querySelectorAll('.mail-acct-del').forEach(button => button.addEventListener('click', async () => {
       if (blocked) return;
       const row = _accounts.find(a => a.id === button.dataset.id);
-      if (!row || !await dlgConfirm(`remove ${row.name || row.email}?`)) return;
+      if (!row || !await dlgConfirm(t('mail.remove_account_confirm', { name: row.name || row.email }))) return;
       if (!live() || state.pending || state.write || state.error) return;
       if (!keepAccountAttempt({ kind: 'delete', id: row.id, label: row.name || row.email, recovery_scope: state.scopes[0], expected_revision: row.revision })) { paintRows(); paintRecovery(); return; }
       const writing = writeAccountAttempt(); paintRows(); paintRecovery(); await writing; paintRows(); paintRecovery();
@@ -3097,36 +3109,36 @@ function acctForm(acct) {
   const generation = ++_messageGeneration;
   let existing = acct, testing = false;
   const state = _accountRecovery;
-  main.innerHTML = `<div class="mail-accounts" role="region" aria-label="mail accounts">
+  main.innerHTML = `<div class="mail-accounts" role="region" aria-label="${esc(t('mail.accounts_label'))}">
     <div class="mail-form-head">
       <div>
-        <div class="mail-compose-head">${acct ? 'edit account' : 'add account'}</div>
-        <div class="mail-form-sub">IMAP receives, SMTP sends</div>
+        <div class="mail-compose-head">${acct ? t('mail.edit_account') : t('mail.add_account')}</div>
+        <div class="mail-form-sub">${t('mail.imap_smtp_hint')}</div>
       </div>
       <div class="mail-form-actions">
-        <button class="btn" id="ma-close">close</button>
-        <button type="button" class="btn primary" id="ma-save">save</button>
+        <button class="btn" id="ma-close">${t('common.close')}</button>
+        <button type="button" class="btn primary" id="ma-save">${t('common.save')}</button>
       </div>
     </div>
     <div class="mail-oauth" id="ma-oauth"></div>
-    <label class="mail-account-field"><span>email address</span><input class="settings-input" id="ma-email" placeholder="email address" value="${esc(a.email || '')}"></label>
-    <label class="mail-account-field"><span>label (optional)</span><input class="settings-input" id="ma-name" placeholder="label (optional)" value="${esc(a.name || '')}"></label>
+    <label class="mail-account-field"><span>${t('mail.email_address')}</span><input class="settings-input" id="ma-email" placeholder="${esc(t('mail.email_address'))}" value="${esc(a.email || '')}"></label>
+    <label class="mail-account-field"><span>${t('mail.label_optional')}</span><input class="settings-input" id="ma-name" placeholder="${esc(t('mail.label_optional'))}" value="${esc(a.name || '')}"></label>
     <div class="mail-provider-row">
-      ${PRESETS.map(p => `<button class="mail-provider-btn" type="button" data-provider="${esc(p.key)}">${esc(p.label)}</button>`).join('')}
+      ${PRESETS.map(p => `<button class="mail-provider-btn" type="button" data-provider="${esc(p.key)}">${esc(_presetLabel(p))}</button>`).join('')}
     </div>
-    <div class="mail-provider-note" id="ma-provider-note">pick a provider, or paste your own IMAP/SMTP hosts.</div>
+    <div class="mail-provider-note" id="ma-provider-note">${t('mail.pick_provider')}</div>
     <div class="mail-guide" id="ma-guide"></div>
     <div class="mail-form-grid">
-      <label class="mail-account-field"><span>IMAP host</span><input class="settings-input" id="ma-imaph" placeholder="imap host" value="${esc(a.imap_host || '')}"></label>
-      <label class="mail-account-field"><span>IMAP port</span><input class="settings-input" id="ma-imapp" placeholder="imap port" value="${esc(a.imap_port || (a.use_ssl === false ? 143 : 993))}"></label>
-      <label class="mail-account-field"><span>SMTP host</span><input class="settings-input" id="ma-smtph" placeholder="smtp host" value="${esc(a.smtp_host || '')}"></label>
-      <label class="mail-account-field"><span>SMTP port</span><input class="settings-input" id="ma-smtpp" placeholder="smtp port" value="${esc(a.smtp_port || 587)}"></label>
+      <label class="mail-account-field"><span>${t('mail.imap_host')}</span><input class="settings-input" id="ma-imaph" placeholder="${esc(t('mail.imap_host_ph'))}" value="${esc(a.imap_host || '')}"></label>
+      <label class="mail-account-field"><span>${t('mail.imap_port')}</span><input class="settings-input" id="ma-imapp" placeholder="${esc(t('mail.imap_port_ph'))}" value="${esc(a.imap_port || (a.use_ssl === false ? 143 : 993))}"></label>
+      <label class="mail-account-field"><span>${t('mail.smtp_host')}</span><input class="settings-input" id="ma-smtph" placeholder="${esc(t('mail.smtp_host_ph'))}" value="${esc(a.smtp_host || '')}"></label>
+      <label class="mail-account-field"><span>${t('mail.smtp_port')}</span><input class="settings-input" id="ma-smtpp" placeholder="${esc(t('mail.smtp_port_ph'))}" value="${esc(a.smtp_port || 587)}"></label>
     </div>
-    <label class="mail-account-field"><span>username</span><input class="settings-input" id="ma-user" placeholder="username (usually your email)" value="${esc(a.username || a.email || '')}"></label>
-    <label class="mail-account-field"><span>password</span><input class="settings-input" type="password" id="ma-pass" placeholder="${acct ? 'password (leave blank to keep)' : 'app-specific password'}"></label>
-    <button type="button" class="btn" id="ma-tls" aria-pressed="${a.use_ssl !== false}">IMAP over TLS: ${a.use_ssl !== false ? 'on' : 'off'}</button>
-    <div class="mail-form-sub">this switch and the connection test apply to incoming mail.</div>
-    <button type="button" class="btn" id="ma-test">test saved IMAP connection</button>
+    <label class="mail-account-field"><span>${t('contacts.username')}</span><input class="settings-input" id="ma-user" placeholder="${esc(t('mail.username_ph'))}" value="${esc(a.username || a.email || '')}"></label>
+    <label class="mail-account-field"><span>${t('mail.password')}</span><input class="settings-input" type="password" id="ma-pass" placeholder="${esc(acct ? t('mail.password_keep') : t('mail.app_password'))}"></label>
+    <button type="button" class="btn" id="ma-tls" aria-pressed="${a.use_ssl !== false}">${a.use_ssl !== false ? t('mail.tls_on') : t('mail.tls_off')}</button>
+    <div class="mail-form-sub">${t('mail.tls_hint')}</div>
+    <button type="button" class="btn" id="ma-test">${t('mail.test_imap')}</button>
     <div id="ma-status" class="mail-status" role="status" aria-live="polite" tabindex="-1"></div>
     ${accountRecoveryHtml}
   </div>`;
@@ -3145,14 +3157,14 @@ function acctForm(acct) {
         el('ma-smtph').value = `smtp.${domain}`;
         if (!el('ma-name').value) el('ma-name').value = domain;
       }
-      el('ma-provider-note').innerHTML = 'Own domain: point MX to your mail server/provider, then use its IMAP/SMTP host here. Add SPF, DKIM, and DMARC for deliverability.';
+      el('ma-provider-note').innerHTML = esc(t('mail.own_domain_note'));
     } else {
       el('ma-imaph').value = p.imap;
       el('ma-smtph').value = p.smtp;
-      el('ma-provider-note').innerHTML = `${esc(p.note)} ${p.help ? `<a href="${esc(p.help)}" target="_blank" rel="noreferrer">setup help</a>` : ''}`;
+      el('ma-provider-note').innerHTML = `${esc(t(p.note))} ${p.help ? `<a href="${esc(p.help)}" target="_blank" rel="noreferrer">${t('mail.setup_help')}</a>` : ''}`;
     }
     el('ma-tls').setAttribute('aria-pressed', 'true');
-    el('ma-tls').textContent = 'IMAP over TLS: on';
+    el('ma-tls').textContent = t('mail.tls_on');
     el('ma-imapp').value = 993;
     el('ma-smtpp').value = 587;
     if (!el('ma-user').value) el('ma-user').value = em;
@@ -3161,11 +3173,11 @@ function acctForm(acct) {
     if (guide) {
       if (p && p.apppw) {
         guide.innerHTML = `
-          <a class="btn primary mail-getpw" href="${esc(p.apppw)}" target="_blank" rel="noreferrer">get app password ${_si('external')}</a>
+          <a class="btn primary mail-getpw" href="${esc(p.apppw)}" target="_blank" rel="noreferrer">${t('mail.get_app_password')} ${_si('external')}</a>
           <ol class="mail-steps">
-            <li>opens ${esc(p.label)}'s app-password page - sign in if it asks</li>
-            <li>create one (name it "alles") and copy the code</li>
-            <li>paste it in the password box below, then hit save</li>
+            <li>${esc(t('mail.guide_open', { label: _presetLabel(p) }))}</li>
+            <li>${t('mail.guide_create')}</li>
+            <li>${t('mail.guide_paste')}</li>
           </ol>`;
       } else {
         guide.innerHTML = '';
@@ -3214,10 +3226,10 @@ function acctForm(acct) {
       }
       editor.pendingSnapshot = null;
       if (!state.pending) state.notice = '';
-      el('ma-status').textContent = dirty() ? 'earlier account settings saved; newer changes are unsaved' : 'account saved';
+      el('ma-status').textContent = dirty() ? t('mail.account_earlier') : t('mail.account_saved');
     } else if (result?.removed && existing?.id === result.id) {
       existing = null; editor.pendingSnapshot = null;
-      el('ma-status').textContent = 'account removed; entered settings are unsaved';
+      el('ma-status').textContent = t('mail.account_removed_unsaved');
     }
     paintForm();
   }
@@ -3225,25 +3237,25 @@ function acctForm(acct) {
   async function testConnection() {
     if (!current() || testing || state.pending || state.error || state.write || !existing) return;
     const savedId = existing.id;
-    testing = true; paintForm(); el('ma-status').textContent = 'account saved; testing the saved connection…';
+    testing = true; paintForm(); el('ma-status').textContent = t('mail.account_testing');
     try {
       const result = await accountRequest(`/api/mail/test/${encodeURIComponent(savedId)}`);
-      if (typeof result?.ok !== 'boolean') throw new Error('could not confirm the connection test');
+      if (typeof result?.ok !== 'boolean') throw new Error(t('mail.test_unconfirmed'));
       if (!result.ok) throw new Error(friendlyMailError(result.error));
-      if (current()) el('ma-status').textContent = 'account saved; incoming mail connected' + (dirty() ? '; newer changes are unsaved' : '');
+      if (current()) el('ma-status').textContent = t('mail.account_connected') + (dirty() ? t('mail.newer_unsaved') : '');
     } catch (error) {
-      if (current()) el('ma-status').textContent = `account saved, but connection unconfirmed: ${error.message || 'check your connection and retry.'}` + (dirty() ? ' newer changes are unsaved.' : '');
+      if (current()) el('ma-status').textContent = t('mail.account_connection_unconfirmed', { reason: error.message || t('mail.check_connection_retry') }) + (dirty() ? ' ' + t('mail.newer_unsaved2') : '');
     } finally { testing = false; paintForm(); }
   }
   function noteAccountChanges() {
     if (!state.pending) { state.notice = ''; paintRecovery(); }
-    if (!testing) el('ma-status').textContent = dirty() ? 'account changes are unsaved' : '';
+    if (!testing) el('ma-status').textContent = dirty() ? t('mail.account_unsaved') : '';
   }
   el('ma-close').addEventListener('click', () => accountsPanel());
   el('ma-test').addEventListener('click', testConnection);
   el('ma-tls').addEventListener('click', () => {
     const on = el('ma-tls').getAttribute('aria-pressed') !== 'true';
-    el('ma-tls').setAttribute('aria-pressed', String(on)); el('ma-tls').textContent = `IMAP over TLS: ${on ? 'on' : 'off'}`;
+    el('ma-tls').setAttribute('aria-pressed', String(on)); el('ma-tls').textContent = on ? t('mail.tls_on') : t('mail.tls_off');
     noteAccountChanges();
   });
   root.querySelectorAll('input').forEach(input => input.addEventListener('input', noteAccountChanges));
@@ -3251,12 +3263,12 @@ function acctForm(acct) {
     if (state.write || state.pending || state.error || testing || !current()) return;
     const body = collect();
     let issue;
-    if (!body.email) issue = ['ma-email', 'enter an email address'];
-    else if (!body.imap_host) issue = ['ma-imaph', 'enter the IMAP host'];
-    else if (!Number.isInteger(body.imap_port) || body.imap_port < 1 || body.imap_port > 65535) issue = ['ma-imapp', 'enter an IMAP port from 1 to 65535'];
-    else if (!body.smtp_host) issue = ['ma-smtph', 'enter the SMTP host'];
-    else if (!Number.isInteger(body.smtp_port) || body.smtp_port < 1 || body.smtp_port > 65535) issue = ['ma-smtpp', 'enter an SMTP port from 1 to 65535'];
-    else if (!existing && !body.password) issue = ['ma-pass', 'paste your app password'];
+    if (!body.email) issue = ['ma-email', t('mail.enter_email')];
+    else if (!body.imap_host) issue = ['ma-imaph', t('mail.enter_imap_host')];
+    else if (!Number.isInteger(body.imap_port) || body.imap_port < 1 || body.imap_port > 65535) issue = ['ma-imapp', t('mail.enter_imap_port')];
+    else if (!body.smtp_host) issue = ['ma-smtph', t('mail.enter_smtp_host')];
+    else if (!Number.isInteger(body.smtp_port) || body.smtp_port < 1 || body.smtp_port > 65535) issue = ['ma-smtpp', t('mail.enter_smtp_port')];
+    else if (!existing && !body.password) issue = ['ma-pass', t('mail.paste_app_password')];
     if (issue) { el('ma-status').textContent = issue[1]; el(issue[0]).focus(); return; }
     const pending = { kind: existing ? 'edit' : 'create', id: existing?.id || savedRequestId(), label: body.name || body.email, recovery_scope: state.scopes[0], ...(existing ? { expected_revision: existing.revision } : {}) };
     if (!keepAccountAttempt(pending, body)) { paintForm(); paintRecovery(); return; }
@@ -3284,7 +3296,7 @@ function validOauthStatus(value) {
 }
 async function readOauthStatus() {
   const value = await accountRequest('/api/mail/oauth/status');
-  if (!validOauthStatus(value)) throw new Error('could not confirm Google setup');
+  if (!validOauthStatus(value)) throw new Error(t('mail.google_unconfirmed'));
   return value;
 }
 function readOauthRecovery(scopes) {
@@ -3303,7 +3315,7 @@ function readOauthRecovery(scopes) {
       state.attempt = null; state.confirmed = false; state.notice = '';
     }
     state.pending = pending;
-  } catch { state.error = 'could not read Google setup recovery. retry reading it before saving.'; }
+  } catch { state.error = t('mail.google_recovery_unreadable'); }
 }
 function keepOauthAttempt(pending, body, inputs = null) {
   const state = _oauthRecovery;
@@ -3311,9 +3323,9 @@ function keepOauthAttempt(pending, body, inputs = null) {
   const raw = JSON.stringify(pending), key = oauthKey(pending.recovery_scope);
   try {
     sessionStorage.setItem(key, raw);
-    if (sessionStorage.getItem(key) !== raw) throw new Error('could not retain Google setup recovery');
+    if (sessionStorage.getItem(key) !== raw) throw new Error(t('mail.google_retain_failed2'));
     return true;
-  } catch { state.error = 'could not retain Google setup recovery. no request was sent; retry reading recovery data.'; return false; }
+  } catch { state.error = t('mail.google_retain_failed'); return false; }
 }
 function clearOauthAttempt() {
   const state = _oauthRecovery, pending = state.pending;
@@ -3321,14 +3333,14 @@ function clearOauthAttempt() {
   const key = oauthKey(pending.recovery_scope), raw = sessionStorage.getItem(key);
   if (raw && JSON.stringify(JSON.parse(raw)) !== JSON.stringify(pending)) throw new Error('Google setup recovery changed');
   sessionStorage.removeItem(key);
-  if (sessionStorage.getItem(key) !== null) throw new Error('could not clear Google setup recovery');
+  if (sessionStorage.getItem(key) !== null) throw new Error(t('mail.google_clear_failed'));
   state.pending = null; state.attempt = null; state.confirmed = false;
 }
 async function writeOauthAttempt() {
   const state = _oauthRecovery;
   if (state.write || state.error || !state.pending || !state.attempt || state.confirmed) return null;
   const pending = state.pending, { body, inputs } = state.attempt;
-  state.notice = 'saving Google setup…';
+  state.notice = t('mail.saving_google');
   const writing = (async () => {
     try {
       const saved = await accountRequest('/api/mail/oauth/config', {
@@ -3336,11 +3348,11 @@ async function writeOauthAttempt() {
       });
       if (!validOauthStatus(saved) || !saved.recovery_scopes.includes(pending.recovery_scope) ||
           saved.revision <= pending.expected_revision || saved.client_id !== body.client_id ||
-          (saved.redirect_base !== body.redirect_base && saved.redirect_base !== body.redirect_base.replace(/\/+$/, ''))) throw new Error('could not confirm the saved Google setup');
-      state.confirmed = true; state.attempt = null; state.notice = 'Google setup saved';
-      try { clearOauthAttempt(); } catch { state.notice += '. recovery data could not be cleared; retry cleanup.'; }
+          (saved.redirect_base !== body.redirect_base && saved.redirect_base !== body.redirect_base.replace(/\/+$/, ''))) throw new Error(t('mail.google_save_unconfirmed'));
+      state.confirmed = true; state.attempt = null; state.notice = t('mail.google_saved');
+      try { clearOauthAttempt(); } catch { state.notice += t('mail.recovery_cleanup_failed'); }
       return { saved, fields: body, inputs };
-    } catch (error) { state.notice = `Google save unconfirmed. ${error.message || 'check your connection and retry.'}`; return null; }
+    } catch (error) { state.notice = t('mail.google_save_failed', { reason: error.message || t('mail.check_connection_retry') }); return null; }
   })();
   state.write = writing;
   try { return await writing; } finally { if (state.write === writing) state.write = null; }
@@ -3351,7 +3363,7 @@ async function renderOauthBox(acct, editor) {
   const box = editor.root.querySelector('#ma-oauth'), state = _oauthRecovery;
   const current = () => box.isConnected && _accountEditor === editor;
   const el = id => box.querySelector('#' + id);
-  box.innerHTML = '<p role="status">loading Google setup…</p>';
+  box.innerHTML = `<p role="status">${t('mail.loading_google')}</p>`;
   if (state.write) await state.write.catch(() => {});
   if (!current()) return;
   let saved;
@@ -3361,27 +3373,27 @@ async function renderOauthBox(acct, editor) {
     readOauthRecovery(saved.recovery_scopes);
   } catch (error) {
     if (!current()) return;
-    box.innerHTML = `<p role="alert">could not load Google setup. ${esc(error.message || 'check your connection.')}</p><button type="button" class="btn">retry Google setup</button>`;
+    box.innerHTML = `<p role="alert">${esc(t('mail.google_load_failed', { reason: error.message || t('mail.check_connection_short') }))}</p><button type="button" class="btn">${t('mail.retry_google')}</button>`;
     box.querySelector('button').addEventListener('click', () => renderOauthBox(acct, editor));
     return;
   }
   box.innerHTML = `
     <p id="ma-oauth-saved"></p>
-    <a class="btn primary mail-google-btn" id="ma-google-start" href="/api/mail/oauth/google/start">${acct?.auth_type === 'oauth' ? 'reconnect with google' : 'sign in with google'}</a>
+    <a class="btn primary mail-google-btn" id="ma-google-start" href="/api/mail/oauth/google/start">${acct?.auth_type === 'oauth' ? t('mail.google_reconnect') : t('mail.google_signin')}</a>
     <details class="mail-oauth-setup"${saved.configured ? '' : ' open'}>
-      <summary>${saved.configured ? 'edit Google setup' : 'set up sign in with Google'}</summary>
+      <summary>${saved.configured ? t('mail.google_edit') : t('mail.google_setup')}</summary>
       <div class="mail-oauth-steps">
-        <p>create an OAuth client in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">google cloud console</a> (type: web application), then paste the keys here.</p>
-        <p>register this exact redirect url on that client:</p>
+        <p>${t('mail.google_create_client', { link: `<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">${t('mail.google_console')}</a>` })}</p>
+        <p>${t('mail.google_register')}</p>
         <code class="mail-redirect" id="ma-oauth-redirect">${esc(saved.redirect_uri)}</code>
-        <label class="mail-account-field"><span>Google client id</span><input class="settings-input" id="ma-cid" value="${esc(saved.client_id)}" autocomplete="off"></label>
-        <label class="mail-account-field"><span>Google client secret</span><input class="settings-input" type="password" id="ma-csec" autocomplete="new-password" placeholder="${saved.client_secret_configured ? 'leave blank to keep the saved secret' : 'paste the client secret'}"></label>
-        <label class="mail-account-field"><span>redirect base (optional)</span><input class="settings-input" id="ma-rbase" value="${esc(saved.redirect_base)}" placeholder="blank uses this server’s localhost address"></label>
-        <button type="button" class="btn primary" id="ma-oauth-save">save google keys</button>
+        <label class="mail-account-field"><span>${t('mail.google_client_id')}</span><input class="settings-input" id="ma-cid" value="${esc(saved.client_id)}" autocomplete="off"></label>
+        <label class="mail-account-field"><span>${t('mail.google_client_secret')}</span><input class="settings-input" type="password" id="ma-csec" autocomplete="new-password" placeholder="${esc(saved.client_secret_configured ? t('mail.google_secret_keep') : t('mail.google_secret_paste'))}"></label>
+        <label class="mail-account-field"><span>${t('mail.google_redirect_base')}</span><input class="settings-input" id="ma-rbase" value="${esc(saved.redirect_base)}" placeholder="${esc(t('mail.google_redirect_ph'))}"></label>
+        <button type="button" class="btn primary" id="ma-oauth-save">${t('mail.google_save_keys')}</button>
       </div>
     </details>
     <div class="mail-saved-status"><p id="ma-oauth-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="ma-oauth-actions"></div></div>
-    <div class="mail-or">or set it up by hand</div>`;
+    <div class="mail-or">${t('mail.or_by_hand')}</div>`;
   const collect = () => ({ client_id: el('ma-cid').value, client_secret: el('ma-csec').value, redirect_base: el('ma-rbase').value });
   editor.extraInitial = editor.extraSnapshot();
   if (state.attempt && state.attempt.editor !== editor) {
@@ -3397,7 +3409,7 @@ async function renderOauthBox(acct, editor) {
       }
     }
     editor.extraInitial = JSON.stringify([saved.client_id, '', saved.redirect_base]);
-    el('ma-csec').placeholder = saved.client_secret_configured ? 'leave blank to keep the saved secret' : 'paste the client secret';
+    el('ma-csec').placeholder = saved.client_secret_configured ? t('mail.google_secret_keep') : t('mail.google_secret_paste');
     el('ma-oauth-redirect').textContent = saved.redirect_uri;
   }
   function paint() {
@@ -3406,38 +3418,38 @@ async function renderOauthBox(acct, editor) {
     el('ma-oauth-save').setAttribute('aria-disabled', String(blocked));
     el('ma-google-start').hidden = !saved.configured;
     el('ma-google-start').setAttribute('aria-disabled', String(blocked));
-    el('ma-oauth-saved').textContent = saved.configured ? 'Google client keys are saved. sign in to authorize a mailbox.' : 'Google sign-in is not configured.';
+    el('ma-oauth-saved').textContent = saved.configured ? t('mail.google_keys_saved') : t('mail.google_not_configured');
     const status = el('ma-oauth-status'), actions = el('ma-oauth-actions'), focused = actions.contains(document.activeElement);
-    status.textContent = state.error || state.notice || (state.pending ? 'the last Google save is unconfirmed. review the currently saved setup before continuing.' : dirty() ? 'Google setup changes are unsaved' : '');
-    if (dirty() && state.notice) status.textContent += ' newer changes are unsaved.';
+    status.textContent = state.error || state.notice || (state.pending ? t('mail.google_last_unconfirmed') : dirty() ? t('mail.google_unsaved') : '');
+    if (dirty() && state.notice) status.textContent += ' ' + t('mail.newer_unsaved2');
     actions.replaceChildren();
     const button = (label, fn) => {
       const node = document.createElement('button'); node.type = 'button'; node.className = 'btn'; node.textContent = label;
       node.setAttribute('aria-disabled', String(Boolean(state.write)));
       node.addEventListener('click', async () => { if (!state.write && current()) await fn(); }); actions.appendChild(node);
     };
-    if (state.error) button('retry reading Google recovery', () => { readOauthRecovery(state.scopes); paint(); });
-    else if (state.pending && state.confirmed) button('retry Google recovery cleanup', () => {
-      try { clearOauthAttempt(); state.notice = 'Google setup recovery cleared'; } catch { state.notice = 'recovery data could not be cleared; retry cleanup.'; }
+    if (state.error) button(t('mail.retry_reading_google'), () => { readOauthRecovery(state.scopes); paint(); });
+    else if (state.pending && state.confirmed) button(t('mail.retry_google_cleanup'), () => {
+      try { clearOauthAttempt(); state.notice = t('mail.google_recovery_cleared'); } catch { state.notice = t('mail.recovery_clear_failed'); }
       paint();
     });
     else if (state.pending) {
-      if (state.attempt) button('retry Google save', async () => { const writing = writeOauthAttempt(); paint(); accept(await writing); paint(); });
-      button('review saved Google setup', async () => {
+      if (state.attempt) button(t('mail.retry_google_save'), async () => { const writing = writeOauthAttempt(); paint(); accept(await writing); paint(); });
+      button(t('mail.review_google'), async () => {
         const pending = state.pending, inputs = collect();
-        const reading = readOauthStatus(); state.write = reading; state.notice = 'loading saved Google setup…'; paint();
+        const reading = readOauthStatus(); state.write = reading; state.notice = t('mail.loading_saved_google'); paint();
         let value;
         try {
           value = await reading;
-          if (!value.recovery_scopes.includes(pending.recovery_scope)) throw new Error('mail storage changed; reopen accounts');
-        } catch (error) { value = null; state.notice = error.message || 'could not load saved Google setup'; }
+          if (!value.recovery_scopes.includes(pending.recovery_scope)) throw new Error(t('mail.mail_storage_changed'));
+        } catch (error) { value = null; state.notice = error.message || t('mail.google_saved_load_failed'); }
         finally { if (state.write === reading) state.write = null; }
         if (!value || !current()) { paint(); return; }
         paint();
         const description = value.client_id || value.client_secret_configured
-          ? `keep the saved Google setup: client id “${value.client_id || 'not set'}”, secret ${value.client_secret_configured ? 'saved' : 'not set'}, redirect “${value.redirect_uri}”?`
-          : 'keep Google sign-in unconfigured?';
-        if (!await dlgConfirm(description + ' this cancels the unconfirmed change.')) return;
+          ? t('mail.google_keep_saved', { id: value.client_id || t('mail.not_set'), secret: value.client_secret_configured ? t('mail.saved') : t('mail.not_set'), uri: value.redirect_uri })
+          : t('mail.google_keep_unconfigured');
+        if (!await dlgConfirm(description)) return;
         if (!current() || state.write || state.pending !== pending) return;
         const body = { client_id: value.client_id, client_secret: null, redirect_base: value.redirect_base };
         if (!keepOauthAttempt({ expected_revision: value.revision, recovery_scope: pending.recovery_scope }, body, inputs)) { paint(); return; }
@@ -3457,7 +3469,7 @@ async function renderOauthBox(acct, editor) {
     if (state.write || state.pending || state.error || !current()) return;
     const inputs = collect(), fields = { ...inputs, client_id: inputs.client_id.trim(), redirect_base: inputs.redirect_base.trim() };
     if (!fields.client_id || (!fields.client_secret && !saved.client_secret_configured)) {
-      state.notice = !fields.client_id ? 'enter a Google client id' : 'enter a Google client secret'; paint();
+      state.notice = !fields.client_id ? t('mail.enter_google_id') : t('mail.enter_google_secret'); paint();
       el(!fields.client_id ? 'ma-cid' : 'ma-csec').focus(); return;
     }
     const body = { ...fields, client_secret: fields.client_secret || null };
@@ -3475,23 +3487,23 @@ function mailProblem(text) { return plainError(friendlyMailError(text, true)); }
 function friendlyMailError(err, inList = false) {
   const e = (err || '').toLowerCase();
   if (e.includes('application-specific password') || e.includes('badcredentials') || e.includes('support.google'))
-    return inList ? 'this provider wants an app password, not your normal one. add it in mail settings, under accounts.'
-      : 'this provider wants an app password, not your normal password - tap "get app password" above.';
+    return inList ? t('mail.err_app_password_list')
+      : t('mail.err_app_password');
   if (e.includes('authenticationfailed') || e.includes('invalid credentials') || e.includes('authentication failed') || e.includes('not accepted') || e.includes('login failed'))
-    return inList ? 'login rejected. check the app password in mail settings, under accounts.'
-      : 'login rejected - paste the app password with no spaces, and make sure 2-step verification is on.';
+    return inList ? t('mail.err_login_list')
+      : t('mail.err_login');
   if (e.includes('getaddrinfo') || e.includes('name or service') || e.includes('nodename') || e.includes('temporary failure in name'))
-    return "couldn't reach the server - double-check the imap host.";
+    return t('mail.err_host');
   if (e.includes('timed out') || e.includes('timeout'))
-    return 'connection timed out - check the host/port or your network.';
+    return t('mail.err_timeout');
   if (e.includes('certificate') || e.includes(' ssl') || e.includes('tls'))
-    return 'tls problem - check the ports (993 imap, 587 smtp).';
+    return t('mail.err_tls');
   if (e.includes('connection refused') || e.includes('errno 61') || e.includes('errno 111') || e.includes('econnrefused'))
-    return 'the server refused the connection - check the host and port.';
+    return t('mail.err_refused');
   if (e.includes('network is unreachable') || e.includes('no route to host'))
-    return "couldn't reach the server - check your network.";
+    return t('mail.err_network');
   // anything left still loses python's "[Errno 61]" style prefix
-  return String(err || 'unknown error').replace(/\[errno -?\d+\]\s*/gi, '');
+  return String(err || t('mail.err_unknown')).replace(/\[errno -?\d+\]\s*/gi, '');
 }
 
 function serializeForm(root) {

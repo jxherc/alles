@@ -1,11 +1,7 @@
 import { plainError } from './util.js';
+import { t } from './i18n.js';
 const STAGES = Object.freeze(['backlog', 'next', 'doing', 'waiting']);
-const STAGE_LABELS = Object.freeze({
-  backlog: 'inbox',
-  next: 'planned',
-  doing: 'in progress',
-  waiting: 'blocked',
-});
+const stageLabel = stage => t(STAGES.includes(stage) ? `plan.stage_${stage}` : 'plan.stage_done');
 const PLAN_TASK_MIME = 'application/x-alles-plan-task';
 
 let selectedTaskId = '';
@@ -28,7 +24,7 @@ async function json(request, url, options) {
     let payload = null;
     try { payload = await response.json(); } catch { /* bounded fallback */ }
     const detail = payload?.detail?.message || payload?.detail || payload?.error?.message;
-    throw new Error(typeof detail === 'string' ? detail : `request failed: ${response.status}`);
+    throw new Error(typeof detail === 'string' ? detail : t('plan.board_request_failed', { status: response.status }));
   }
   return response.json();
 }
@@ -57,7 +53,7 @@ export function groupPlanBoardTasks(tasks) {
 }
 
 function projectName(task) {
-  return String(task?.project || '').trim() || 'no project';
+  return String(task?.project || '').trim() || t('plan.no_project');
 }
 
 export function localDateKey(value = new Date()) {
@@ -69,10 +65,10 @@ export function localDateKey(value = new Date()) {
 
 function dueLabel(task) {
   const due = String(task?.due_date || '').slice(0, 10);
-  if (!due) return 'no date';
+  if (!due) return t('plan.no_date');
   const today = localDateKey();
-  if (due < today) return `overdue · ${due}`;
-  if (due === today) return 'today';
+  if (due < today) return t('plan.overdue_on', { due });
+  if (due === today) return t('common.today');
   return due;
 }
 
@@ -85,7 +81,7 @@ function cardFor(task, selectTask) {
   const handle = el('button', 'plan-board-drag');
   handle.type = 'button';
   handle.draggable = true;
-  handle.setAttribute('aria-label', `drag ${task.title || 'task'}`);
+  handle.setAttribute('aria-label', t('plan.drag_task', { title: task.title || t('plan.task') }));
   handle.addEventListener('dragstart', event => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData(PLAN_TASK_MIME, task.id);
@@ -105,13 +101,13 @@ function cardFor(task, selectTask) {
   });
   const button = el('button', 'plan-board-card-main');
   button.type = 'button';
-  button.append(el('strong', 'plan-board-card-title', task.title || 'untitled task'));
+  button.append(el('strong', 'plan-board-card-title', task.title || t('plan.untitled_task')));
   const meta = el('span', 'plan-board-card-meta');
   if (Number(task.priority || 0) > 0) {
     // 1 low, 2 medium, 3 high, as tasks itself labels them
     const level = ['', 'low', 'medium', 'high'][Number(task.priority)] || 'high';
     const priority = el('span', `plan-board-priority${level === 'high' ? ' high' : ''}`);
-    priority.setAttribute('aria-label', `${level} priority`);
+    priority.setAttribute('aria-label', t('plan.priority_named', { level: t(`plan.priority_${level}`) }));
     meta.append(priority);
   }
   meta.append(el('span', '', projectName(task)), el('span', '', dueLabel(task)));
@@ -149,7 +145,7 @@ function wireRadioGroup(group, onChange) {
 
 function projectMenu(projects, onChange) {
   const wrap = el('div', 'plan-board-filter-wrap');
-  const trigger = el('button', 'plan-board-tool', 'project: all');
+  const trigger = el('button', 'plan-board-tool', t('plan.project_all'));
   trigger.type = 'button';
   trigger.setAttribute('aria-expanded', 'false');
   const menu = el('div', 'plan-board-menu');
@@ -157,11 +153,11 @@ function projectMenu(projects, onChange) {
   menu.id = menuId;
   menu.hidden = true;
   menu.setAttribute('role', 'menu');
-  menu.setAttribute('aria-label', 'filter tasks by project');
+  menu.setAttribute('aria-label', t('plan.filter_by_project'));
   trigger.setAttribute('aria-controls', menuId);
   const values = ['all', ...projects];
   const items = values.map(value => {
-    const item = el('button', 'plan-board-menu-item', value === 'all' ? 'all projects' : value);
+    const item = el('button', 'plan-board-menu-item', value === 'all' ? t('plan.all_projects') : value);
     item.type = 'button';
     item.dataset.value = value;
     item.setAttribute('role', 'menuitemradio');
@@ -185,7 +181,7 @@ function projectMenu(projects, onChange) {
   };
   const choose = item => {
     items.forEach(option => option.setAttribute('aria-checked', String(option === item)));
-    trigger.textContent = item.dataset.value === 'all' ? 'project: all' : `project: ${item.dataset.value}`;
+    trigger.textContent = item.dataset.value === 'all' ? t('plan.project_all') : t('plan.project_named', { name: item.dataset.value });
     onChange(item.dataset.value);
     close(true);
   };
@@ -260,8 +256,8 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
   const status = el('p', 'plan-board-status');
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');
-  if (activeResult.status === 'rejected') status.textContent = `tasks unavailable: ${activeResult.reason?.message || 'refresh failed'}`;
-  else if (doneResult.status === 'rejected') status.textContent = `active tasks ready; completed history unavailable: ${doneResult.reason?.message || 'refresh failed'}`;
+  if (activeResult.status === 'rejected') status.textContent = t('plan.board_tasks_unavailable', { reason: activeResult.reason?.message || t('plan.board_refresh_failed') });
+  else if (doneResult.status === 'rejected') status.textContent = t('plan.board_history_unavailable', { reason: doneResult.reason?.message || t('plan.board_refresh_failed') });
   else status.hidden = true;
   const setStatus = (message, tone = '') => {
     status.textContent = message;
@@ -271,37 +267,37 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
 
   const toolbar = el('div', 'plan-board-toolbar');
   const addForm = el('form', 'plan-board-add');
-  const addLabel = el('label', 'sr-only', 'new task title');
+  const addLabel = el('label', 'sr-only', t('plan.new_task_title'));
   const addInput = el('input');
   addInput.type = 'text';
   addInput.maxLength = 500;
   addInput.autocomplete = 'off';
-  addInput.placeholder = 'add a task to inbox';
-  addInput.setAttribute('aria-label', 'new task title');
-  const addButton = el('button', 'plan-board-add-button', 'add');
+  addInput.placeholder = t('plan.add_to_inbox');
+  addInput.setAttribute('aria-label', t('plan.new_task_title'));
+  const addButton = el('button', 'plan-board-add-button', t('common.add'));
   addButton.type = 'submit';
   addForm.append(addLabel, addInput, addButton);
   const search = el('input', 'plan-board-search');
   search.type = 'search';
   search.autocomplete = 'off';
-  search.placeholder = 'search tasks';
-  search.setAttribute('aria-label', 'search tasks');
+  search.placeholder = t('plan.search_tasks');
+  search.setAttribute('aria-label', t('plan.search_tasks'));
   let projectFilter = 'all';
-  const projects = [...new Set(tasks.map(projectName).filter(value => value !== 'no project'))].sort();
+  const projects = [...new Set(tasks.map(projectName).filter(value => value !== t('plan.no_project')))].sort();
   const filter = projectMenu(projects, value => {
     projectFilter = value;
     applyFilters();
   });
-  const completedButton = el('button', 'plan-board-tool', `completed · ${completed.length}`);
+  const completedButton = el('button', 'plan-board-tool', t('plan.completed_count', { count: completed.length }));
   completedButton.type = 'button';
   toolbar.append(addForm, search, filter.node, completedButton);
 
   const stageStrip = el('div', 'plan-board-stage-strip');
   stageStrip.setAttribute('role', 'radiogroup');
-  stageStrip.setAttribute('aria-label', 'visible task stage');
+  stageStrip.setAttribute('aria-label', t('plan.visible_stage'));
   for (const stage of STAGES) {
     const count = grouped[stage].length;
-    const choice = el('button', 'plan-board-stage-choice', `${STAGE_LABELS[stage]} · ${count}`);
+    const choice = el('button', 'plan-board-stage-choice', `${stageLabel(stage)} · ${count}`);
     choice.type = 'button';
     choice.dataset.value = stage;
     choice.setAttribute('role', 'radio');
@@ -314,9 +310,9 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
 
   const layout = el('div', 'plan-board-layout');
   const columns = el('div', 'plan-board-columns');
-  columns.setAttribute('aria-label', 'active task stages');
+  columns.setAttribute('aria-label', t('plan.active_stages'));
   const detail = el('aside', 'plan-board-detail');
-  detail.setAttribute('aria-label', 'selected task details');
+  detail.setAttribute('aria-label', t('plan.selected_details'));
   const lists = new Map();
 
   function selectTask(id) {
@@ -336,7 +332,7 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
   }
 
   async function patchTask(task, body, successMessage) {
-    setStatus('saving…');
+    setStatus(t('common.saving'));
     try {
       await json(request, `/api/tasks/${encodeURIComponent(task.id)}`, {
         method: 'PATCH',
@@ -357,7 +353,7 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
     } catch (error) {
       pendingFocus = null;
       pendingStatus = '';
-      setStatus(`${plainError(error.message)}. the task stayed in ${STAGE_LABELS[task.stage] || 'completed'}.`, 'danger');
+      setStatus(t('plan.board_task_stayed', { reason: plainError(error.message), stage: stageLabel(task.stage) }), 'danger');
     }
   }
 
@@ -372,34 +368,34 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
 
   function renderTaskDetail(task) {
     detail.replaceChildren();
-    const stage = el('span', 'plan-board-detail-stage', STAGE_LABELS[task.stage]);
-    const title = el('h2', '', task.title || 'untitled task');
+    const stage = el('span', 'plan-board-detail-stage', stageLabel(task.stage));
+    const title = el('h2', '', task.title || t('plan.untitled_task'));
     const facts = el('dl', 'plan-board-facts');
     for (const [label, value] of [
-      ['project', projectName(task)],
-      ['due', dueLabel(task)],
+      [t('plan.project'), projectName(task)],
+      [t('plan.due'), dueLabel(task)],
     ]) {
       const row = el('div');
       row.append(el('dt', '', label), el('dd', '', value));
       facts.append(row);
     }
-    const notes = el('p', 'plan-board-notes', task.notes || 'no notes');
+    const notes = el('p', 'plan-board-notes', task.notes || t('plan.no_notes'));
     const actions = el('div', 'plan-board-detail-actions');
     const index = STAGES.indexOf(task.stage);
-    const back = el('button', '', 'move back');
+    const back = el('button', '', t('plan.move_back'));
     back.type = 'button';
     back.dataset.act = 'back';
     back.disabled = index <= 0;
-    back.addEventListener('click', () => act(task, 'back', { stage: STAGES[index - 1] }, `moved to ${STAGE_LABELS[STAGES[index - 1]]}`));
-    const forward = el('button', '', 'move forward');
+    back.addEventListener('click', () => act(task, 'back', { stage: STAGES[index - 1] }, t('plan.moved_to', { stage: stageLabel(STAGES[index - 1]) })));
+    const forward = el('button', '', t('plan.move_forward'));
     forward.type = 'button';
     forward.dataset.act = 'forward';
     forward.disabled = index >= STAGES.length - 1;
-    forward.addEventListener('click', () => act(task, 'forward', { stage: STAGES[index + 1] }, `moved to ${STAGE_LABELS[STAGES[index + 1]]}`));
-    const complete = el('button', 'plan-board-complete', 'mark complete');
+    forward.addEventListener('click', () => act(task, 'forward', { stage: STAGES[index + 1] }, t('plan.moved_to', { stage: stageLabel(STAGES[index + 1]) })));
+    const complete = el('button', 'plan-board-complete', t('plan.mark_complete'));
     complete.type = 'button';
     complete.dataset.act = 'complete';
-    complete.addEventListener('click', () => act(task, 'complete', { stage: 'done' }, 'task completed'));
+    complete.addEventListener('click', () => act(task, 'complete', { stage: 'done' }, t('plan.task_completed')));
     actions.append(back, forward, complete);
     detail.append(stage, title, facts, notes, actions);
   }
@@ -407,16 +403,16 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
   function renderCompleted() {
     selectedTaskId = '';
     root.querySelectorAll('.plan-board-card').forEach(card => card.setAttribute('aria-selected', 'false'));
-    detail.replaceChildren(el('h2', '', 'completed tasks'));
+    detail.replaceChildren(el('h2', '', t('plan.completed_tasks')));
     const list = el('ul', 'plan-board-completed');
-    if (!completed.length) list.append(el('li', 'plan-board-empty', 'no completed tasks'));
+    if (!completed.length) list.append(el('li', 'plan-board-empty', t('plan.no_completed')));
     for (const task of completed) {
       const item = el('li');
       const copy = el('div');
-      copy.append(el('strong', '', task.title || 'untitled task'), el('span', '', `${projectName(task)} · completed`));
-      const restore = el('button', '', 'restore to inbox');
+      copy.append(el('strong', '', task.title || t('plan.untitled_task')), el('span', '', t('plan.project_completed', { project: projectName(task) })));
+      const restore = el('button', '', t('plan.restore_to_inbox'));
       restore.type = 'button';
-      restore.addEventListener('click', () => patchTask({ ...task, stage: 'done' }, { stage: 'backlog' }, 'restored to inbox'));
+      restore.addEventListener('click', () => patchTask({ ...task, stage: 'done' }, { stage: 'backlog' }, t('plan.restored_to_inbox')));
       item.append(copy, restore);
       list.append(item);
     }
@@ -437,27 +433,27 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
   let reorderQueue = Promise.resolve();
 
   async function persistOrder(task, oldStage, payload) {
-    setStatus('saving board order…');
+    setStatus(t('plan.saving_order'));
     try {
       await json(request, '/api/tasks/reorder', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      setStatus(`moved ${task.title} to ${STAGE_LABELS[task.stage]}`);
+      setStatus(t('plan.moved_task_to', { title: task.title, stage: stageLabel(task.stage) }));
       selectedTaskId = String(task.id);
       try {
         await refresh();
       } catch (refreshError) {
-        setStatus(`move saved, but the board could not refresh: ${refreshError.message}`, 'danger');
+        setStatus(t('plan.move_saved_no_refresh', { reason: refreshError.message }), 'danger');
       }
     } catch (error) {
-      setStatus(`move failed: ${error.message}. Reloading the last confirmed board.`, 'danger');
+      setStatus(t('plan.move_failed_reloading', { reason: error.message }), 'danger');
       task.stage = oldStage;
       try {
         await refresh();
       } catch (refreshError) {
-        setStatus(`move failed and the board could not reload: ${refreshError.message}`, 'danger');
+        setStatus(t('plan.move_failed_no_reload', { reason: refreshError.message }), 'danger');
       }
     }
   }
@@ -467,7 +463,7 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
     column.dataset.stage = stage;
     const heading = el('header', 'plan-board-column-head');
     const titleId = `plan-board-${stage}-title`;
-    const title = el('h2', '', STAGE_LABELS[stage]);
+    const title = el('h2', '', stageLabel(stage));
     title.id = titleId;
     heading.append(title, el('span', '', String(grouped[stage].length)));
     column.setAttribute('aria-labelledby', titleId);
@@ -475,24 +471,24 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
     list.dataset.stage = stage;
     lists.set(stage, list);
     for (const task of grouped[stage]) list.append(cardFor(task, selectTask));
-    if (!grouped[stage].length) list.append(el('li', 'plan-board-empty', 'no tasks in this stage'));
+    if (!grouped[stage].length) list.append(el('li', 'plan-board-empty', t('plan.no_tasks_stage')));
     const inline = el('form', 'plan-board-inline-add');
     const input = el('input');
     input.type = 'text';
     input.maxLength = 500;
     input.autocomplete = 'off';
-    input.placeholder = 'quick add';
-    input.setAttribute('aria-label', `add task to ${STAGE_LABELS[stage]}`);
+    input.placeholder = t('plan.quick_add');
+    input.setAttribute('aria-label', t('plan.add_task_to', { stage: stageLabel(stage) }));
     const button = el('button', '', '+');
     button.type = 'submit';
-    button.setAttribute('aria-label', `add to ${STAGE_LABELS[stage]}`);
+    button.setAttribute('aria-label', t('plan.add_to_stage', { stage: stageLabel(stage) }));
     inline.append(input, button);
     inline.addEventListener('submit', async event => {
       event.preventDefault();
       const titleValue = input.value.trim();
       if (!titleValue) return input.focus();
     button.disabled = true;
-    setStatus('adding task…');
+    setStatus(t('plan.adding_task'));
     let created = false;
     try {
       await json(request, '/api/tasks', {
@@ -502,16 +498,16 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
       });
       created = true;
       input.value = '';
-      setStatus(`added to ${STAGE_LABELS[stage]}`);
+      setStatus(t('plan.added_to_stage', { stage: stageLabel(stage) }));
     } catch (error) {
-      setStatus(`task could not be added: ${error.message}`, 'danger');
+      setStatus(t('plan.task_add_failed', { reason: error.message }), 'danger');
       input.focus();
     }
     if (created) {
       try {
         await refresh();
       } catch (error) {
-        setStatus(`task was added, but the board could not reload: ${error.message}`, 'danger');
+        setStatus(t('plan.task_added_no_reload', { reason: error.message }), 'danger');
       }
     }
     button.disabled = false;
@@ -561,7 +557,7 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
       const count = lists.get(stage).querySelectorAll('.plan-board-card:not([hidden])').length;
       root.querySelector(`.plan-board-column[data-stage="${stage}"] .plan-board-column-head span`).textContent = String(count);
       const choice = stageStrip.querySelector(`[data-value="${stage}"]`);
-      choice.textContent = `${STAGE_LABELS[stage]} · ${count}`;
+      choice.textContent = `${stageLabel(stage)} · ${count}`;
     }
   }
   search.addEventListener('input', applyFilters);
@@ -571,7 +567,7 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
     const title = addInput.value.trim();
     if (!title) return addInput.focus();
     addButton.disabled = true;
-    setStatus('adding task…');
+    setStatus(t('plan.adding_task'));
     let created = false;
     try {
       const task = await json(request, '/api/tasks', {
@@ -582,16 +578,16 @@ export async function renderPlanBoard(target, request = fetch, refresh = async (
       created = true;
       selectedTaskId = String(task.id);
       addInput.value = '';
-      setStatus('added to inbox');
+      setStatus(t('plan.added_to_inbox'));
     } catch (error) {
-      setStatus(`task could not be added: ${error.message}`, 'danger');
+      setStatus(t('plan.task_add_failed', { reason: error.message }), 'danger');
       addInput.focus();
     }
     if (created) {
       try {
         await refresh();
       } catch (error) {
-        setStatus(`task was added, but the board could not reload: ${error.message}`, 'danger');
+        setStatus(t('plan.task_added_no_reload', { reason: error.message }), 'danger');
       }
     }
     addButton.disabled = false;

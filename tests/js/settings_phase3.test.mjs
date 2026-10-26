@@ -22,7 +22,7 @@ test('settings is one accessible home reached from the universal shell', () => {
     'aide',
     'connections',
     'this alles',
-  ]) assert.equal(html.includes(`<div class="s-nav-group">${label}</div>`), true, `missing settings group: ${label}`);
+  ]) assert.equal(new RegExp(`<div class="s-nav-group"[^>]*>${label}</div>`).test(html), true, `missing settings group: ${label}`);
   assert.doesNotMatch(html, /id="space-profile-btn"/);
   assert.match(html, /id="app-drawer-settings"[^>]*type="button"/);
   const modal = html.match(/<[^>]+id="settings-modal"[^>]*>/)?.[0] || '';
@@ -39,11 +39,11 @@ test('Home customization lives in Settings and uses universal custom controls', 
   const source = readFileSync(new URL('../../static/js/settings/home.js', import.meta.url), 'utf8');
   const kokuen = readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8');
   const pane = html.match(/<div class="s-pane home-settings-pane" id="s-pane-home">[\s\S]*?<\/div>\s*<!-- end Home settings -->/)?.[0] || '';
-  assert.match(html, /data-pane="home">home<\/button>/);
+  assert.match(html, /data-pane="home"[^>]*>home<\/button>/);
   assert.match(pane, /id="home-settings-sections"/);
   assert.match(pane, /id="home-settings-shortcuts"/);
-  assert.match(pane, /<strong>pinned apps<\/strong>/);
-  assert.match(pane, /id="home-settings-shortcuts-title">pinned apps<\/h3>/);
+  assert.match(pane, /<strong[^>]*>pinned apps<\/strong>/);
+  assert.match(pane, /id="home-settings-shortcuts-title"[^>]*>pinned apps<\/h3>/);
   assert.doesNotMatch(pane, /<strong>shortcuts<\/strong>/);
   assert.deepEqual(
     [...pane.matchAll(/data-home-shortcut="([^"]+)"/g)].map(match => match[1]),
@@ -78,7 +78,7 @@ test('approved Phase 10 language and Credits workbenches use honest custom contr
   const localePane = html.match(/<!-- ── approved Phase 10 language and region workbench ── -->[\s\S]*?<!-- ── approved Phase 10 manifest-driven Credits workbench ── -->/)?.[0] || '';
   const creditsPane = html.match(/<!-- ── approved Phase 10 manifest-driven Credits workbench ── -->[\s\S]*?<!-- ── backup pane ── -->/)?.[0] || '';
 
-  assert.match(html, /data-pane="credits">about &amp; credits<\/button>/);
+  assert.match(html, /data-pane="credits"[^>]*>about &amp; credits<\/button>/);
   assert.equal((localePane.match(/data-locale-language=/g) || []).length, 8);
   assert.equal((localePane.match(/data-locale-language=/g) || []).length, 8);
   assert.match(source, /row\.setAttribute\('aria-disabled', String\(!language\.available\)\)/);
@@ -136,7 +136,7 @@ test('settings refreshes role state and provider catalogs without hiding failure
   const models = readFileSync(new URL('../../static/js/models.js', import.meta.url), 'utf8');
   assert.match(source, /Promise\.allSettled\(available\.map/);
   assert.match(source, /await window\._refreshAideModelDefault\?\.\(\)/);
-  assert.match(source, /replace the unavailable model before saving/);
+  assert.match(source, /t\('providers\.replace_unavailable'\)/);
   assert.match(source, /finally \{[\s\S]*?await loadEpList\(\); await loadModels\(\)/);
   const shared = readFileSync(new URL('../../static/js/settings/shared.js', import.meta.url), 'utf8');
   assert.match(shared, /window\._fetchWithRecentOwner = _fetchWithRecentOwner/);

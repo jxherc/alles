@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
-import { calendarDateKey, chosenTimeZone, configureLocalization, formatCalendarDate, formatClock, formatDateParts, formatDateTime } from '../../static/js/i18n.js';
+import { calendarDateKey, chosenTimeZone, configureLocalization, formatCalendarDate, formatClock, formatDateParts, formatDateTime, t, tp } from '../../static/js/i18n.js';
 import { recordTarget } from '../../static/js/recordlinks.js';
 
 const source = readFileSync(new URL('../../static/js/specialist_groups.js', import.meta.url), 'utf8');
@@ -107,7 +107,7 @@ function harness(data = fixtures()) {
   const window = { _openRecord: (...args) => { calls.push(args); return open(...args); } };
   const context = vm.createContext({
     document: { createElement: tag => new Element(tag), getElementById: id => elements.find(el => el.id === id) },
-    window, location, recordTarget, formatCalendarDate, formatClock, formatDateParts, formatDateTime, chosenTimeZone,
+    window, location, recordTarget, t, tp, formatCalendarDate, formatClock, formatDateParts, formatDateTime, chosenTimeZone,
     calendarDateKey: value => value === undefined ? today : calendarDateKey(value),
     disposePlanBoard() {},
   });
@@ -373,4 +373,29 @@ test('partial agenda data retains the available records and source warning', asy
   assert.match(h.overview.querySelector('.specialist-group-note').textContent, /partial data: calendar could not load/);
   await h.controls()[1].click();
   assert.deepEqual(h.calls, [['tasks', 'task-b', '']]);
+});
+
+test('open tasks due before today lead today and the next seven days, marked overdue', async () => {
+  const data = fixtures();
+  data['/api/tasks'] = [...data['/api/tasks'],
+    { id: 'late', title: 'late bill', due_date: '2026-10-01' },
+    { id: 'paid', title: 'paid bill', done: true, due_date: '2026-10-02' }];
+  for (const section of ['overview', 'week']) {
+    const h = harness(data);
+    await h.render(section);
+    const rows = h.rows();
+    const late = rows.filter(row => row.dataset.planAgendaRecord === 'task:late');
+    assert.equal(late.length, 1, section);
+    assert.equal(rows[0], late[0], `${section}: overdue leads`);
+    assert.equal(late[0].children[0].textContent, 'overdue');
+    assert.match(late[0].children[2].textContent, /^task · due /);
+    assert.ok(late[0].className.split(' ').includes('overdue'));
+    assert.equal(late[0].getAttribute('aria-label'), 'open task: late bill · overdue since 2026-10-01');
+    assert.equal(rows.some(row => row.dataset.planAgendaRecord === 'task:paid'), false, 'a done task is never overdue');
+    if (section === 'overview') {
+      assert.equal(h.choice('today').textContent, 'today · 6');
+      await late[0].click();
+      assert.deepEqual(h.calls, [['tasks', 'late', '']]);
+    }
+  }
 });

@@ -2,7 +2,8 @@
 // the run keeps going server-side even if the tab closed; we tail its persisted
 // events + accumulated prose and show progress instead of an empty chat.
 
-import { renderAideQuestion } from './aidequestions.js?v=1';
+import { renderAideQuestion } from './aidequestions.js?v=2';
+import { t } from './i18n.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _timer = null;
@@ -19,7 +20,7 @@ function _box() {
     b = document.createElement('div');
     b.id = 'bg-reattach';
     b.className = 'bg-reattach';
-    b.innerHTML = `<span class="bg-reattach-status">${_si('refresh')} running in background…</span>`
+    b.innerHTML = `<span class="bg-reattach-status">${_si('refresh')} ${t('aide.bgrun_running')}</span>`
       + '<div class="bg-reattach-text"></div><div class="bg-reattach-question"></div>';
     document.getElementById('messages')?.appendChild(b);
   }
@@ -65,7 +66,7 @@ export async function reattach(sessionId) {
     if (d && d.done) {
       stop();
       const st = box.querySelector('.bg-reattach-status');
-      if (st) st.innerHTML = `${_si('check')} finished`;
+      if (st) st.innerHTML = `${_si('check')} ${t('aide.status_finished')}`;
       // give the saved reply a moment to land, then refresh the conversation
       setTimeout(() => { box.remove(); window._reloadActiveSession?.(sessionId); }, 800);
     }

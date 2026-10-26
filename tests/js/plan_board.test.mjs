@@ -49,7 +49,7 @@ test('Plan board uses custom accessible controls and atomic stage ordering', () 
 
 test('Plan board distinguishes a successful create from a failed refresh', () => {
   assert.equal((source.match(/let created = false;/g) || []).length, 2);
-  assert.equal((source.match(/task was added, but the board could not reload/g) || []).length, 2);
+  assert.equal((source.match(/t\('plan\.task_added_no_reload'/g) || []).length, 2);
   assert.match(source, /created = true;[\s\S]*?if \(created\) \{[\s\S]*?await refresh\(\)/);
 });
 

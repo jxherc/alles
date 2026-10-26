@@ -1,3 +1,4 @@
+import json
 import secrets
 import sys
 import unittest
@@ -13,6 +14,7 @@ INDEX = (ROOT / "static" / "index.html").read_text("utf-8")
 PHOTOS_JS = (ROOT / "static" / "js" / "photos.js").read_text("utf-8")
 CONNECTIONS_JS = (ROOT / "static" / "js" / "settings" / "connections.js").read_text("utf-8")
 SW = (ROOT / "static" / "sw.js").read_text("utf-8")
+EN_PLURALS = json.loads((ROOT / "static" / "locales" / "en.json").read_text("utf-8"))["plurals"]
 
 
 class PhotoKitGalleryUiTest(unittest.TestCase):
@@ -23,7 +25,8 @@ class PhotoKitGalleryUiTest(unittest.TestCase):
 
     def test_action_starts_and_polls_a_background_import(self):
         self.assertIn("await dlgConfirm", PHOTOS_JS)
-        self.assertIn("hidden items stay excluded", PHOTOS_JS)
+        self.assertIn("tp('photos.import_confirm', _MAC_IMPORT_BATCH)", PHOTOS_JS)
+        self.assertIn("hidden items stay excluded", EN_PLURALS["photos.import_confirm"]["other"])
         self.assertIn("/api/photos/sync/macos?limit=${_MAC_IMPORT_BATCH}", PHOTOS_JS)
         self.assertIn("/api/photos/sync/macos/jobs/", PHOTOS_JS)
         self.assertIn("job.state === 'queued' || job.state === 'running'", PHOTOS_JS)
@@ -35,7 +38,8 @@ class PhotoKitGalleryUiTest(unittest.TestCase):
 
     def test_partial_failures_are_visible_and_not_styled_as_success(self):
         self.assertIn("job.failed ? 'error' : 'success'", PHOTOS_JS)
-        self.assertIn("${job.failed} failed", PHOTOS_JS)
+        self.assertIn("tp('photos.import_failed_count', job.failed)", PHOTOS_JS)
+        self.assertEqual(EN_PLURALS["photos.import_failed_count"]["other"], "{count} failed")
 
     def test_native_import_is_never_replayed_from_the_offline_outbox(self):
         noqueue = SW[SW.index("const NOQUEUE") : SW.index(";", SW.index("const NOQUEUE"))]

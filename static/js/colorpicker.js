@@ -2,6 +2,7 @@
 // and harmony suggestions. wraps <input type="color"> non-invasively: the element's
 // .value stays the source of truth and we dispatch 'input' so existing listeners work.
 // ported from odysseus, trimmed for alles.
+import { t } from './i18n.js';
 
 const LS_RECENT = 'alles-recent-colors';
 const MAX_RECENT = 12;
@@ -64,11 +65,11 @@ function addRecent(hex) {
 
 function computeSuggestions() {
   return [
-    { hex: hsvToHex(_h + 180, _s, _v), label: 'Complement' },
-    { hex: hsvToHex(_h + 30, _s, _v), label: 'Analogous +30' },
-    { hex: hsvToHex(_h - 30, _s, _v), label: 'Analogous -30' },
-    { hex: hsvToHex(_h + 150, _s, _v), label: 'Split-complement' },
-    { hex: hsvToHex(_h, _s, clamp(_v > 50 ? _v - 30 : _v + 30, 10, 95)), label: 'Tone shift' },
+    { hex: hsvToHex(_h + 180, _s, _v), label: t('settings.color_complement') },
+    { hex: hsvToHex(_h + 30, _s, _v), label: t('settings.color_analogous_plus') },
+    { hex: hsvToHex(_h - 30, _s, _v), label: t('settings.color_analogous_minus') },
+    { hex: hsvToHex(_h + 150, _s, _v), label: t('settings.color_split_complement') },
+    { hex: hsvToHex(_h, _s, clamp(_v > 50 ? _v - 30 : _v + 30, 10, 95)), label: t('settings.color_tone_shift') },
   ];
 }
 
@@ -77,22 +78,22 @@ function buildPopover() {
   p.className = 'cp-popover';
   p.id = 'color-picker-popover';
   p.setAttribute('role', 'dialog');
-  p.setAttribute('aria-label', 'choose color');
+  p.setAttribute('aria-label', t('settings.color_choose'));
   p.innerHTML = `
     <div class="cp-sl" data-drag="sl"><div class="cp-sl-white"></div><div class="cp-sl-black"></div><div class="cp-sl-handle"></div></div>
     <div class="cp-hue" data-drag="hue"><div class="cp-hue-handle"></div></div>
     <div class="cp-row">
       <div class="cp-preview"></div>
-      <input type="text" class="cp-hex" aria-label="hex color" maxlength="7" spellcheck="false" autocomplete="off">
-      <button class="cp-eyedropper" title="eyedropper" type="button">
+      <input type="text" class="cp-hex" aria-label="${t('settings.color_hex')}" maxlength="7" spellcheck="false" autocomplete="off">
+      <button class="cp-eyedropper" title="${t('settings.color_eyedropper')}" type="button">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22l4-4m0 0l3-3 5 5-3 3a2 2 0 01-2.8 0l-2.2-2.2a2 2 0 010-2.8z"/><path d="M14 8l3-3a3 3 0 014.2 4.2l-3 3-4.2-4.2z"/></svg>
       </button>
     </div>
-    <div class="cp-section-label">suggestions</div>
+    <div class="cp-section-label">${t('settings.color_suggestions')}</div>
     <div class="cp-swatches cp-suggestions"></div>
-    <div class="cp-section-label">recent</div>
+    <div class="cp-section-label">${t('settings.color_recent')}</div>
     <div class="cp-swatches cp-recent"></div>
-    <button type="button" class="btn cp-done">done</button>`;
+    <button type="button" class="btn cp-done">${t('common.done')}</button>`;
   document.body.appendChild(p);
   wireHandlers(p);
   return p;
@@ -117,7 +118,7 @@ function syncUI() {
   const recs = getRecents();
   _popover.querySelector('.cp-recent').innerHTML = recs.length
     ? recs.map(h => `<button class="cp-swatch" title="${h}" data-hex="${h}" style="background:${h}"></button>`).join('')
-    : '<div class="cp-recent-empty">(none yet)</div>';
+    : `<div class="cp-recent-empty">${t('settings.color_none_yet')}</div>`;
 }
 
 function applyToInput(push) {
@@ -172,7 +173,7 @@ function wireHandlers(p) {
         document.addEventListener('keydown', _onEsc, true);
       });
     });
-  } else { eye.disabled = true; eye.style.opacity = '0.3'; eye.title = 'eyedropper not supported here'; }
+  } else { eye.disabled = true; eye.style.opacity = '0.3'; eye.title = t('settings.color_eyedropper_unsupported'); }
 }
 
 function handleDrag(e) {
@@ -245,7 +246,7 @@ export function attachColorPicker(inputEl) {
   inputEl.type = 'text'; inputEl.readOnly = true; inputEl.classList.add('cp-swatch-input');
   if (!inputEl.id) inputEl.id = `color-picker-${++_pickerSequence}`;
   inputEl.setAttribute('role', 'button');
-  inputEl.setAttribute('aria-label', inputEl.getAttribute('aria-label') || inputEl.closest('label')?.textContent.trim() || 'choose color');
+  inputEl.setAttribute('aria-label', inputEl.getAttribute('aria-label') || inputEl.closest('label')?.textContent.trim() || t('settings.color_choose'));
   inputEl.setAttribute('aria-haspopup', 'dialog');
   inputEl.setAttribute('aria-expanded', 'false');
   inputEl.setAttribute('aria-controls', 'color-picker-popover');

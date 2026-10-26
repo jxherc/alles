@@ -1,11 +1,12 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
-import { loadModels, addEndpoint, renderModelList } from '../models.js?v=213';
-import { initCustomDropdowns, getDropdownValue, populateDropdown } from '../dropdown.js?v=212';
+import { loadModels, addEndpoint, renderModelList } from '../models.js?v=214';
+import { initCustomDropdowns, getDropdownValue, populateDropdown } from '../dropdown.js?v=213';
 import { _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 import { API_TYPES, authFor, mountProviderPicker } from '../model_providers.js';
-import { wireChoiceGroup } from '../kokuen.js?v=2';
+import { wireChoiceGroup } from '../kokuen.js?v=4';
+import { t, tp } from '../i18n.js';
 
 let _providersActive = false;
 let _providersCurrent = () => false;
@@ -28,11 +29,12 @@ let _customPullPending = null;
 function _syncLocalPresetPending(model) {
   document.querySelectorAll(`#s-local-presets [data-local-model="${CSS.escape(model)}"]`).forEach(row => {
     const pending = _localPresetPending.get(model);
-    row.querySelector('[data-local-state]').textContent = pending?.label || 'installed';
+    row.querySelector('[data-local-state]').textContent = pending?.label || t('providers.installed');
     row.querySelectorAll('[data-local-serve], [data-local-remove]').forEach(button => {
       const action = button.hasAttribute('data-local-remove') ? 'remove' : 'serve';
       button.disabled = !!pending || (action === 'remove' && _localPresetConfirmations.has(model));
-      button.textContent = pending?.action === action ? pending.label : action;
+      button.textContent = pending?.action === action ? pending.label
+        : action === 'remove' ? t('common.remove') : t('providers.serve');
     });
   });
 }
@@ -85,20 +87,21 @@ async function loadLocalModels() {
   const listEl = document.getElementById('s-local-presets');
   if (!ollamaEl || !hwEl || !listEl || !_providersActive) return;
   const generation = ++_localLoadGeneration;
-  ollamaEl.textContent = 'checking Ollama...';
+  ollamaEl.textContent = t('providers.checking_ollama');
   try {
     const data = await _localJson('/api/local-models/status');
     if (!_providersActive || generation !== _localLoadGeneration) return;
     const o = data.ollama || {};
     const hw = data.hardware || {};
-    const gpu = (hw.gpus || []).map(g => `${g.name} (${g.vram_gb} GB)`).join(', ') || 'no NVIDIA GPU detected';
-    const state = o.running ? 'running' : (o.installed ? 'installed, stopped' : 'not installed');
-    ollamaEl.textContent = `Ollama: ${state} - ${o.base_url || 'http://localhost:11434'}`;
-    hwEl.textContent = `Hardware: ${hw.ram_gb || '?'} GB RAM - ${gpu}`;
+    const gpu = (hw.gpus || []).map(g => t('providers.gpu', { name: g.name, vram: g.vram_gb })).join(', ') || t('providers.no_gpu');
+    const state = o.running ? t('providers.ollama_running')
+      : (o.installed ? t('providers.ollama_stopped') : t('providers.ollama_not_installed'));
+    ollamaEl.textContent = t('providers.ollama_status', { state, url: o.base_url || 'http://localhost:11434' });
+    hwEl.textContent = t('providers.hardware', { ram: hw.ram_gb || '?', gpu });
     renderLocalPresets(data.presets || []);
   } catch (e) {
     if (!_providersActive || generation !== _localLoadGeneration) return;
-    ollamaEl.textContent = e.message || 'local model status failed';
+    ollamaEl.textContent = e.message || t('providers.local_status_failed');
     hwEl.textContent = '';
     if (!_localPresetPending.size) listEl.innerHTML = '';
   }
@@ -110,19 +113,19 @@ function renderLocalPresets(presets) {
   if (!listEl) return;
   presets = presets.filter(p => p.installed);
   if (!presets.length) {
-    listEl.innerHTML = '<div class="s-card-hint">no local models yet. pull one by name below.</div>';
+    listEl.innerHTML = `<div class="s-card-hint">${_esc(t('providers.no_local_models'))}</div>`;
     return;
   }
   listEl.innerHTML = presets.map(p => {
-    const badge = p.fit === 'fits_gpu' ? 'gpu fit' : (p.fit === 'fits_cpu' ? 'cpu fit' : 'large');
+    const badge = p.fit === 'fits_gpu' ? t('providers.fit_gpu') : (p.fit === 'fits_cpu' ? t('providers.fit_cpu') : t('providers.fit_large'));
     return `<div class="settings-list-row" data-local-model="${_escAttr(p.model)}" data-local-installed="true" style="align-items:flex-start;gap:0.55rem">
       <span class="status-dot" style="margin-top:0.35rem;background:var(--green)"></span>
       <div style="min-width:0;flex:1">
         <div class="row-name">${_esc(p.label)} <span style="color:var(--muted);font-weight:400">${_esc(p.model)}</span></div>
-        <div class="row-meta">${badge} - <span data-local-state>installed</span> - ${_esc(p.fit_reason || '')}</div>
+        <div class="row-meta">${_esc(badge)} - <span data-local-state>${_esc(t('providers.installed'))}</span> - ${_esc(p.fit_reason || '')}</div>
       </div>
-      <button class="btn" data-local-remove="${_escAttr(p.model)}">remove</button>
-      <button type="button" class="btn" data-local-serve="${_escAttr(p.model)}">serve</button>
+      <button class="btn" data-local-remove="${_escAttr(p.model)}">${_esc(t('common.remove'))}</button>
+      <button type="button" class="btn" data-local-serve="${_escAttr(p.model)}">${_esc(t('providers.serve'))}</button>
     </div>`;
   }).join('');
 
@@ -137,15 +140,15 @@ function renderLocalPresets(presets) {
 
 async function startLocalOllama() {
   const btn = document.getElementById('s-local-start-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'starting...'; }
+  if (btn) { btn.disabled = true; btn.textContent = t('providers.local_starting'); }
   try {
     const data = await _localJson('/api/local-models/start', { method: 'POST' });
-    if (data.ok) toast(data.started ? 'Ollama started' : 'Ollama already starting', 'success');
-    else toast(data.error || 'Ollama start failed', 'error');
+    if (data.ok) toast(data.started ? t('providers.ollama_started') : t('providers.ollama_already_starting'), 'success');
+    else toast(data.error || t('providers.ollama_start_failed'), 'error');
   } catch (e) {
-    toast(e.message || 'Ollama start failed', 'error');
+    toast(e.message || t('providers.ollama_start_failed'), 'error');
   }
-  if (btn) { btn.disabled = false; btn.textContent = 'start Ollama'; }
+  if (btn) { btn.disabled = false; btn.textContent = t('providers.start_ollama'); }
   setTimeout(loadLocalModels, 700);
 }
 
@@ -153,8 +156,8 @@ async function pollLocalJob(jobId, btn, model = null, pending = null, onFinish =
   if (!jobId) {
     if (model) _releaseLocalPreset(model, pending);
     btn.disabled = false;
-    btn.textContent = 'download';
-    toast('download could not be confirmed; try again', 'error');
+    btn.textContent = t('common.download');
+    toast(t('providers.download_unconfirmed'), 'error');
     onFinish?.(false);
     return;
   }
@@ -165,8 +168,8 @@ async function pollLocalJob(jobId, btn, model = null, pending = null, onFinish =
     if (job.status === 'done') {
       if (typeof job.model !== 'string' || !job.model) throw new Error('invalid download receipt');
       if (model) _releaseLocalPreset(model, pending);
-      btn.textContent = 'downloaded';
-      toast(`${job.model} downloaded`, 'success');
+      btn.textContent = t('providers.downloaded');
+      toast(t('providers.model_downloaded', { model: job.model }), 'success');
       loadLocalModels();
       loadModels();
       onFinish?.(true);
@@ -175,12 +178,12 @@ async function pollLocalJob(jobId, btn, model = null, pending = null, onFinish =
     if (job.status === 'error') {
       if (model) _releaseLocalPreset(model, pending);
       btn.disabled = false;
-      btn.textContent = 'download';
-      toast(job.error || 'download failed', 'error');
+      btn.textContent = t('common.download');
+      toast(job.error || t('providers.download_failed'), 'error');
       onFinish?.(false);
       return;
     }
-    btn.textContent = job.status === 'running' ? 'pulling...' : 'queued';
+    btn.textContent = job.status === 'running' ? t('providers.local_pulling') : t('providers.queued');
     if (model && _localPresetPending.get(model) === pending) {
       pending.label = btn.textContent;
       _syncLocalPresetPending(model);
@@ -189,8 +192,8 @@ async function pollLocalJob(jobId, btn, model = null, pending = null, onFinish =
   } catch {
     if (model) _releaseLocalPreset(model, pending);
     btn.disabled = false;
-    btn.textContent = 'download';
-    toast('download status could not be confirmed; try again', 'error');
+    btn.textContent = t('common.download');
+    toast(t('providers.download_status_unconfirmed'), 'error');
     onFinish?.(false);
   }
 }
@@ -201,7 +204,7 @@ async function pullCustomLocalModel() {
   if (!inp || !btn || _customPullPending || btn.disabled) return;
   const draft = inp?.value || '';
   const model = draft.trim();
-  if (!model) { toast('enter a model name', 'error'); return; }
+  if (!model) { toast(t('providers.enter_model_name'), 'error'); return; }
   const pending = {};
   _customPullPending = pending;
   let edited = false;
@@ -212,20 +215,20 @@ async function pullCustomLocalModel() {
     _customPullPending = null;
     inp.removeEventListener('input', markEdited);
     btn.disabled = false;
-    btn.textContent = 'pull';
+    btn.textContent = t('providers.pull');
     if (succeeded && !edited && inp.value === draft) inp.value = '';
   };
-  btn.disabled = true; btn.textContent = 'queued';
+  btn.disabled = true; btn.textContent = t('providers.queued');
   try {
     const job = await _localJson('/api/local-models/download_model', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model }),
     });
-    if (typeof job?.id !== 'string' || !job.id.trim()) throw new Error('pull could not be confirmed');
+    if (typeof job?.id !== 'string' || !job.id.trim()) throw new Error(t('providers.pull_unconfirmed'));
     pollLocalJob(job.id, btn, null, null, finish);
   } catch (e) {
     finish(false);
-    toast(e.message || 'pull failed to start', 'error');
+    toast(e.message || t('providers.pull_failed'), 'error');
   }
 }
 
@@ -236,7 +239,7 @@ async function deleteLocalModel(model, btn) {
   _localPresetConfirmations.add(model);
   _syncLocalPresetPending(model);
   let confirmed;
-  try { confirmed = await _dlgConfirm(`remove ${model} from disk?`); }
+  try { confirmed = await _dlgConfirm(t('providers.remove_from_disk', { model })); }
   finally {
     _localPresetConfirmations.delete(model);
     _syncLocalPresetPending(model);
@@ -245,16 +248,16 @@ async function deleteLocalModel(model, btn) {
         document.activeElement === document.body) currentButton.focus({ preventScroll: true });
   }
   if (!confirmed || _localPresetPending.has(model)) return;
-  const pending = _claimLocalPreset(model, 'remove', 'removing...');
-  btn.disabled = true; btn.textContent = 'removing...';
+  const pending = _claimLocalPreset(model, 'remove', t('providers.local_removing'));
+  btn.disabled = true; btn.textContent = t('providers.local_removing');
   try {
     await _localJson('/api/local-models/delete', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model }),
     });
-    toast(`${model} removed`, 'success');
+    toast(t('providers.model_removed', { model }), 'success');
   } catch (e) {
-    toast(e.message || 'remove failed', 'error');
+    toast(e.message || t('providers.remove_failed'), 'error');
   } finally { _releaseLocalPreset(model, pending); }
   loadLocalModels();
   loadModels();
@@ -262,24 +265,24 @@ async function deleteLocalModel(model, btn) {
 
 async function serveLocalModel(model, btn) {
   if (!model || _localPresetPending.has(model)) return;
-  const pending = _claimLocalPreset(model, 'serve', 'serving...');
+  const pending = _claimLocalPreset(model, 'serve', t('providers.local_serving'));
   btn.disabled = true;
-  btn.textContent = 'serving...';
+  btn.textContent = t('providers.local_serving');
   try {
     const data = await _localJson('/api/local-models/serve', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model, autostart: true, set_default: true }),
     });
-    toast(`${data.model || model} selected`, 'success');
+    toast(t('providers.model_selected', { model: data.model || model }), 'success');
     loadEpList();
     loadModels();
     renderModelList();
   } catch (e) {
-    toast(e.message || 'serve failed', 'error');
+    toast(e.message || t('providers.serve_failed'), 'error');
   } finally { _releaseLocalPreset(model, pending); }
   btn.disabled = false;
-  btn.textContent = 'serve';
+  btn.textContent = t('providers.serve');
   loadLocalModels();
 }
 
@@ -290,19 +293,45 @@ async function _localJson(url, options = {}) {
   if (!r.ok) {
     const detail = data.detail || data;
     if (typeof detail === 'string') throw new Error(detail);
-    throw new Error(detail.error || data.error || `request failed (${r.status})`);
+    throw new Error(detail.error || data.error || t('providers.request_failed_status', { status: r.status }));
   }
   return data;
 }
 
-const _MODEL_ROLE_COPY = {
-  aide_chat: ['Aide Chat', 'normal chats and agent work'],
-  andromeda_answer: ['Andromeda answer', 'fast compact cited answers'],
-  andromeda_verifier: ['Andromeda verifier', 'independent current-fact checks'],
-  jarvis: ['Aide background', 'deep research and background work'],
-  coding: ['Coding', 'pi chats in Aide code'],
-};
-const _ADAPTER_OPTIONS = 'auto|auto detect;openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|manual list';
+// built when rendered, so a language switch shows up on the next render
+const _modelRoleCopy = () => ({
+  aide_chat: [t('providers.role_aide_chat'), t('providers.role_aide_chat_desc')],
+  andromeda_answer: [t('providers.role_andromeda_answer'), t('providers.role_andromeda_answer_desc')],
+  andromeda_verifier: [t('providers.role_andromeda_verifier'), t('providers.role_andromeda_verifier_desc')],
+  jarvis: [t('providers.role_background'), t('providers.role_background_desc')],
+  coding: [t('providers.role_coding'), t('providers.role_coding_desc')],
+});
+const _adapterOptions = () => `auto|${_safeDropdownLabel(t('providers.adapter_auto'))};openai-compatible|openai-compatible;anthropic|anthropic;gemini|gemini;ollama|ollama;manual|${_safeDropdownLabel(t('providers.adapter_manual'))}`;
+
+// status words the server sends as plain values; anything unknown shows as sent
+function _stateWord(value) {
+  const words = {
+    live: t('providers.state_live'),
+    stale: t('providers.state_stale'),
+    manual: t('providers.state_manual'),
+    unverified: t('providers.state_unverified'),
+    unavailable: t('common.unavailable'),
+    healthy: t('providers.state_healthy'),
+    connected: t('providers.state_connected'),
+    expired: t('providers.state_expired'),
+    revoked: t('providers.state_revoked'),
+    incomplete: t('providers.state_incomplete'),
+    local: t('providers.state_local'),
+    remote: t('providers.state_remote'),
+  };
+  return words[value] ?? value;
+}
+
+function _authTypeWord(value) {
+  if (value === 'api_key') return t('providers.auth_api_key');
+  if (value === 'none') return t('providers.auth_none');
+  return value.replaceAll('_', ' ');
+}
 let _modelRoleSettings = {};
 
 // the provider picked in "add connection", and the api type a custom endpoint speaks
@@ -320,7 +349,7 @@ function _showManualEndpointFields() {
   // hidden until a provider is picked, so only in-flight work disables it
   btn.disabled = _endpointAddPending
     || !!(_endpointPartialCreate && _endpointPending.has(_endpointPartialCreate.id));
-  if (!_endpointAddPending) btn.textContent = _manualModels().length ? 'add with these models' : 'add + read models';
+  if (!_endpointAddPending) btn.textContent = _manualModels().length ? t('providers.add_with_models') : t('providers.add_read_models');
 }
 
 function _showEndpointAuthFields() {
@@ -328,7 +357,7 @@ function _showEndpointAuthFields() {
   const keyRow = document.getElementById('s-ep-key-row');
   if (keyRow) keyRow.hidden = !p || !!p.keyless;
   const note = document.getElementById('s-ep-key-note');
-  if (note) note.textContent = p?.custom ? 'optional for an address on this machine' : '';
+  if (note) note.textContent = p?.custom ? t('providers.key_optional_local') : '';
 }
 
 function _applyProvider(p) {
@@ -383,10 +412,10 @@ async function _offerAideModel(endpointId) {
         method: 'PATCH', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ model_roles: roles }),
       });
-      if (!response.ok) throw new Error('the default could not be saved');
+      if (!response.ok) throw new Error(t('providers.default_not_saved'));
       list.querySelectorAll('[role="option"]').forEach(o => o.setAttribute('aria-selected', String(o === option)));
       await window._refreshAideModelDefault?.();
-      toast(`Aide chat now uses ${option.dataset.model}`, 'success');
+      toast(t('providers.aide_chat_uses', { model: option.dataset.model }), 'success');
       await loadEpList();
     } catch (error) {
       toast(error.message, 'error');
@@ -412,12 +441,12 @@ async function startGeminiOAuth() {
   const clientSecret = document.getElementById('s-gemini-client-secret')?.value.trim() || '';
   const projectId = document.getElementById('s-gemini-project-id')?.value.trim() || '';
   if (!clientId || !clientSecret || !projectId) {
-    toast('client ID, client secret, and project ID are required', 'error');
+    toast(t('providers.gemini_fields_required'), 'error');
     return;
   }
   const generation = ++_oauthStartGeneration;
   btn.disabled = true;
-  btn.textContent = 'preparing…';
+  btn.textContent = t('providers.preparing');
   try {
     const result = await _endpointJson(await _fetchWithRecentOwner('/api/models/oauth/gemini/start', {
       method: 'POST',
@@ -426,8 +455,8 @@ async function startGeminiOAuth() {
     }));
     if (!_providersActive || generation !== _oauthStartGeneration) return;
     const popup = window.open(result.authorization_url, 'alles-gemini-oauth', 'popup,width=620,height=760');
-    if (!popup) throw new Error('allow the authorization popup and try again');
-    toast('finish authorization in the Google window', 'success');
+    if (!popup) throw new Error(t('providers.allow_popup'));
+    toast(t('providers.finish_google_auth'), 'success');
     let checks = 0;
     const poll = window.setInterval(async () => {
       checks += 1;
@@ -439,10 +468,10 @@ async function startGeminiOAuth() {
     }, 2000);
     _oauthPolls.add(poll);
   } catch (error) {
-    toast(error.message || 'Gemini OAuth could not start', 'error');
+    toast(error.message || t('providers.gemini_oauth_failed'), 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'open Google authorization';
+    btn.textContent = t('providers.open_google_auth');
   }
 }
 
@@ -451,7 +480,7 @@ function _safeDropdownLabel(value = '') {
 }
 
 function _roleOptionData(eps, configured) {
-  const options = [{ value: '', label: 'automatic' }];
+  const options = [{ value: '', label: t('common.automatic') }];
   const choices = { '': null };
   let index = 0;
   for (const ep of eps) {
@@ -469,7 +498,7 @@ function _roleOptionData(eps, configured) {
     }) || '';
     if (!selected) {
       selected = `unavailable-${index}`;
-      options.push({ value: selected, label: `${_safeDropdownLabel(configured.model)} · unavailable` });
+      options.push({ value: selected, label: t('providers.model_unavailable', { model: _safeDropdownLabel(configured.model) }) });
       choices[selected] = { endpoint_id: configured.endpoint_id, model: configured.model };
     }
   }
@@ -486,7 +515,7 @@ function _renderModelRoles(eps, settings, states) {
   // Keep saved defaults visible even when their connection is no longer available.
   if (defaults) defaults.hidden = !eps.length && !Object.values(_modelRoleSettings)
     .some(role => role?.endpoint_id || role?.model);
-  root.innerHTML = Object.entries(_MODEL_ROLE_COPY).map(([role, copy]) => {
+  root.innerHTML = Object.entries(_modelRoleCopy()).map(([role, copy]) => {
     const state = states?.[role];
     const effective = state?.effective;
     const configured = _modelRoleSettings[role] || {};
@@ -494,17 +523,17 @@ function _renderModelRoles(eps, settings, states) {
     const broken = state?.status === 'broken' && hasConfigured;
     const automatic = !configured.endpoint_id && !configured.model;
     const status = broken
-      ? 'needs a replacement'
+      ? t('providers.needs_replacement')
       : effective
-        ? `${automatic ? 'automatic · ' : ''}${effective.privacy_class} · ${_safeDropdownLabel(effective.model)}`
-        : 'add an endpoint first';
+        ? `${automatic ? `${t('common.automatic')} · ` : ''}${_stateWord(effective.privacy_class)} · ${_safeDropdownLabel(effective.model)}`
+        : t('providers.add_endpoint_first');
     return `<div class="s-role-row${broken ? ' broken' : ''}" data-role="${role}">
       <div class="s-role-copy">
-        <div class="s-role-name">${copy[0]}</div>
-        <div class="s-role-desc">${copy[1]}</div>
+        <div class="s-role-name">${_esc(copy[0])}</div>
+        <div class="s-role-desc">${_esc(copy[1])}</div>
       </div>
       <div class="s-role-control">
-        <div class="custom-select settings-input s-role-select" data-role-select="${role}" aria-label="${copy[0]} default model"></div>
+        <div class="custom-select settings-input s-role-select" data-role-select="${role}" aria-label="${_escAttr(t('providers.role_default_model', { role: copy[0] }))}"></div>
         <div class="s-role-status">${_esc(status)}</div>
       </div>
     </div>`;
@@ -523,9 +552,9 @@ function _renderModelRoles(eps, settings, states) {
       const row = select.closest('.s-role-row');
       row?.classList.remove('broken');
       const status = row?.querySelector('.s-role-status');
-      if (status) status.textContent = 'not saved';
+      if (status) status.textContent = t('providers.not_saved');
       const saveState = document.getElementById('s-role-save-state');
-      if (saveState) saveState.textContent = 'changes not saved';
+      if (saveState) saveState.textContent = t('providers.changes_not_saved');
     });
   });
 }
@@ -537,14 +566,14 @@ async function saveModelRoles() {
     .find(select => getDropdownValue(select).startsWith('unavailable-'));
   if (unavailable) {
     unavailable.focus();
-    toast('replace the unavailable model before saving', 'error');
+    toast(t('providers.replace_unavailable'), 'error');
     return;
   }
   const revision = _modelRolesRevision;
   const focusTarget = document.activeElement;
   _endpointLoadGeneration += 1;
   btn.disabled = true;
-  btn.textContent = 'saving…';
+  btn.textContent = t('common.saving');
   const modelRoles = {};
   document.querySelectorAll('[data-role-select]').forEach(select => {
     const role = select.dataset.roleSelect;
@@ -563,16 +592,16 @@ async function saveModelRoles() {
       method: 'PATCH', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model_roles: modelRoles }),
     });
-    if (!response.ok) throw new Error('defaults could not be saved');
+    if (!response.ok) throw new Error(t('providers.defaults_not_saved'));
     if (revision === _modelRolesRevision) _modelRolesDirty = false;
     await window._refreshAideModelDefault?.();
-    toast('model defaults saved', 'success');
+    toast(t('providers.defaults_saved'), 'success');
     await loadEpList();
   } catch (error) {
-    toast(error.message || 'defaults could not be saved', 'error');
+    toast(error.message || t('providers.defaults_not_saved'), 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'save defaults';
+    btn.textContent = t('providers.save_defaults');
     if (_providersActive && focusTarget?.isConnected && document.activeElement === document.body) {
       focusTarget.focus({ preventScroll: true });
     }
@@ -583,11 +612,11 @@ async function refreshAllModelEndpoints() {
   const btn = document.getElementById('s-ep-refresh-all');
   if (!btn || btn.disabled) return;
   btn.disabled = true;
-  btn.textContent = 'refreshing…';
+  btn.textContent = t('providers.refreshing');
   try {
     const endpoints = await _endpointJson(await fetch('/api/models'));
     if (!Array.isArray(endpoints) || !endpoints.length) {
-      toast('add an endpoint first', 'error');
+      toast(t('providers.add_endpoint_first'), 'error');
       return;
     }
     const available = endpoints.filter(endpoint => !_endpointPending.has(endpoint.id));
@@ -601,26 +630,28 @@ async function refreshAllModelEndpoints() {
     await loadEpList();
     await loadModels();
     renderModelList();
-    toast(failed ? `${available.length - failed} refreshed · ${failed} unavailable` : `${available.length} endpoints refreshed`, failed ? 'error' : 'success');
+    toast(failed
+      ? t('providers.refresh_partial', { refreshed: available.length - failed, failed })
+      : tp('providers.endpoints_refreshed', available.length), failed ? 'error' : 'success');
   } catch (error) {
-    toast(error.message || 'endpoints could not be refreshed', 'error');
+    toast(error.message || t('providers.endpoints_refresh_failed'), 'error');
     await loadEpList();
   } finally {
     btn.disabled = false;
-    btn.textContent = 'refresh all';
+    btn.textContent = t('providers.refresh_all');
   }
 }
 
 function _catalogLabel(ep) {
   const status = ep.catalog_status || 'unverified';
-  if (status === 'stale' && ep.catalog_error) return `stale · ${ep.catalog_error.replaceAll('_', ' ')}`;
-  return status;
+  if (status === 'stale' && ep.catalog_error) return `${_stateWord('stale')} · ${ep.catalog_error.replaceAll('_', ' ')}`;
+  return _stateWord(status);
 }
 
 export async function _endpointJson(response) {
   let data = {};
   try { data = await response.json(); } catch {}
-  if (!response.ok) throw new Error(data.detail || 'request failed');
+  if (!response.ok) throw new Error(data.detail || t('common.request_failed'));
   return data;
 }
 
@@ -639,7 +670,7 @@ async function loadEpList() {
     if (!_modelRolesDirty && !document.activeElement?.matches('#s-model-roles [data-role-select]')) _renderModelRoles(eps, settings, roles);
     if (_hasEndpointDrafts() || _endpointPending.size || _endpointConfirmations.size) return;
     if (!eps.length) {
-      el.innerHTML = '<div class="s-role-empty">connect a local model server or a provider below. then choose your defaults.</div>';
+      el.innerHTML = `<div class="s-role-empty">${_esc(t('providers.no_endpoints'))}</div>`;
       return;
     }
     el.innerHTML = eps.map(ep => {
@@ -650,25 +681,25 @@ async function loadEpList() {
           <div class="s-ep-dot ${ep.health_status === 'healthy' ? 'ok' : status === 'stale' || ep.health_status === 'unavailable' ? 'stale' : ''}"></div>
           <div class="s-ep-info">
             <div class="s-ep-title-line"><span class="s-ep-name">${_esc(ep.name)}</span><span class="s-state-tag ${_escAttr(status)}">${_esc(_catalogLabel(ep))}</span></div>
-            <div class="s-ep-meta">${_esc(ep.provider_label || ep.provider || 'custom')} · ${_esc((ep.auth_type || 'api_key').replaceAll('_', ' '))} · ${_esc(ep.auth_status || 'incomplete')}</div>
-            <div class="s-ep-meta">${_esc(ep.base_url)} · ${ep.models?.length || 0} ready · ${_esc(ep.health_status || 'unverified')}${unavailable ? ` · ${unavailable} unavailable` : ''}</div>
+            <div class="s-ep-meta">${_esc(ep.provider_label || ep.provider || t('providers.custom'))} · ${_esc(_authTypeWord(ep.auth_type || 'api_key'))} · ${_esc(_stateWord(ep.auth_status || 'incomplete'))}</div>
+            <div class="s-ep-meta">${_esc(ep.base_url)} · ${_esc(tp('providers.ready_count', ep.models?.length || 0))} · ${_esc(_stateWord(ep.health_status || 'unverified'))}${unavailable ? ` · ${_esc(tp('providers.unavailable_count', unavailable))}` : ''}</div>
           </div>
           <div class="s-ep-actions">
-            <button class="btn" data-probe="${_escAttr(ep.id)}">refresh</button>
-            <button class="btn" data-test-ep="${_escAttr(ep.id)}">test</button>
-            ${ep.auth_type === 'oauth' ? `<button class="btn" data-auth-refresh="${_escAttr(ep.id)}">refresh grant</button><button class="btn danger" data-auth-revoke="${_escAttr(ep.id)}">revoke</button>` : ''}
-            <button class="btn" data-edit-list="${_escAttr(ep.id)}" aria-expanded="false">models</button>
-            <button class="btn danger" data-del="${_escAttr(ep.id)}" aria-label="disconnect ${_escAttr(ep.name)}">disconnect</button>
+            <button class="btn" data-probe="${_escAttr(ep.id)}">${_esc(t('providers.refresh'))}</button>
+            <button class="btn" data-test-ep="${_escAttr(ep.id)}">${_esc(t('providers.test'))}</button>
+            ${ep.auth_type === 'oauth' ? `<button class="btn" data-auth-refresh="${_escAttr(ep.id)}">${_esc(t('providers.refresh_grant'))}</button><button class="btn danger" data-auth-revoke="${_escAttr(ep.id)}">${_esc(t('providers.revoke'))}</button>` : ''}
+            <button class="btn" data-edit-list="${_escAttr(ep.id)}" aria-expanded="false">${_esc(t('providers.models'))}</button>
+            <button class="btn danger" data-del="${_escAttr(ep.id)}" aria-label="${_escAttr(t('providers.disconnect_named', { name: ep.name }))}">${_esc(t('providers.disconnect'))}</button>
           </div>
         </div>
         <div class="s-ep-editor" data-editor="${_escAttr(ep.id)}" hidden>
-          <div class="s-ep-editor-note">${_esc(ep.quota_warning || '')}${ep.account_identity ? ` Connected project/account: ${_esc(ep.account_identity)}.` : ''} ${_esc(ep.revocation || '')}${ep.billing_url ? ` <a href="${_escAttr(ep.billing_url)}" target="_blank" rel="noopener noreferrer">provider usage</a>` : ''}</div>
-          <div class="s-ep-editor-note">use discovery when the provider supports it. saving a manual list turns discovery off for this endpoint.</div>
+          <div class="s-ep-editor-note">${_esc(ep.quota_warning || '')}${ep.account_identity ? ` ${_esc(t('providers.connected_account', { account: ep.account_identity }))}` : ''} ${_esc(ep.revocation || '')}${ep.billing_url ? ` <a href="${_escAttr(ep.billing_url)}" target="_blank" rel="noopener noreferrer">${_esc(t('providers.provider_usage'))}</a>` : ''}</div>
+          <div class="s-ep-editor-note">${_esc(t('providers.discovery_note'))}</div>
           <div class="s-ep-editor-grid">
-            <div class="s-field"><label>adapter</label><div class="custom-select settings-input" data-edit-adapter data-value="${_escAttr(ep.provider_adapter || 'auto')}" data-options="${_ADAPTER_OPTIONS}" aria-label="provider adapter"></div></div>
-            <div class="s-field"><label>models <span class="s-field-note">comma-separated</span></label><input class="settings-input" data-edit-models value="${_escAttr((ep.models || []).join(', '))}"></div>
+            <div class="s-field"><label>${_esc(t('providers.adapter'))}</label><div class="custom-select settings-input" data-edit-adapter data-value="${_escAttr(ep.provider_adapter || 'auto')}" data-options="${_escAttr(_adapterOptions())}" aria-label="${_escAttr(t('providers.provider_adapter'))}"></div></div>
+            <div class="s-field"><label>${_esc(t('providers.models'))} <span class="s-field-note">${_esc(t('providers.comma_separated'))}</span></label><input class="settings-input" data-edit-models value="${_escAttr((ep.models || []).join(', '))}"></div>
           </div>
-          <div class="s-ep-editor-actions"><button class="btn primary" data-save-list="${_escAttr(ep.id)}">save endpoint</button></div>
+          <div class="s-ep-editor-actions"><button class="btn primary" data-save-list="${_escAttr(ep.id)}">${_esc(t('providers.save_endpoint'))}</button></div>
         </div>
       </div>`;
     }).join('');
@@ -688,10 +719,10 @@ async function loadEpList() {
         const editor = el.querySelector(`[data-editor="${CSS.escape(btn.dataset.saveList)}"]`);
         const adapter = getDropdownValue(editor?.querySelector('[data-edit-adapter]')) || 'auto';
         const models = (editor?.querySelector('[data-edit-models]')?.value || '').split(',').map(value => value.trim()).filter(Boolean);
-        if (adapter === 'manual' && !models.length) { toast('add at least one manual model', 'error'); return; }
+        if (adapter === 'manual' && !models.length) { toast(t('providers.manual_model_required'), 'error'); return; }
         const draftRevision = editor.dataset.dirty;
         _setEndpointPending(btn.dataset.saveList, true);
-        btn.disabled = true; btn.textContent = 'saving…';
+        btn.disabled = true; btn.textContent = t('common.saving');
         try {
           const patch = { provider_adapter: adapter };
           if (adapter === 'manual') patch.models = models;
@@ -702,12 +733,12 @@ async function loadEpList() {
             await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.saveList}/probe`, { method: 'POST' }));
           }
           if (editor.dataset.dirty === draftRevision) delete editor.dataset.dirty;
-          toast('endpoint saved', 'success');
+          toast(t('providers.endpoint_saved'), 'success');
           loadModels(); renderModelList();
-        } catch (error) { toast(error.message || 'endpoint could not be saved', 'error'); }
+        } catch (error) { toast(error.message || t('providers.endpoint_not_saved'), 'error'); }
         finally {
           _setEndpointPending(btn.dataset.saveList, false);
-          btn.textContent = 'save endpoint';
+          btn.textContent = t('providers.save_endpoint');
           await loadEpList();
         }
       });
@@ -716,14 +747,14 @@ async function loadEpList() {
       btn.addEventListener('click', async () => {
         if (_endpointPending.has(btn.dataset.probe)) return;
         _setEndpointPending(btn.dataset.probe, true);
-        btn.textContent = 'refreshing…'; btn.disabled = true;
+        btn.textContent = t('providers.refreshing'); btn.disabled = true;
         try {
           const data = await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.probe}/probe`, { method: 'POST' }));
-          toast(`${data.models?.length || 0} models ready`, 'success');
-        } catch (error) { toast(error.message || 'catalog refresh failed', 'error'); }
+          toast(tp('providers.models_ready', data.models?.length || 0), 'success');
+        } catch (error) { toast(error.message || t('providers.catalog_refresh_failed'), 'error'); }
         finally {
           _setEndpointPending(btn.dataset.probe, false);
-          btn.textContent = 'refresh';
+          btn.textContent = t('providers.refresh');
           await loadEpList(); await loadModels(); renderModelList();
         }
       });
@@ -732,14 +763,14 @@ async function loadEpList() {
       btn.addEventListener('click', async () => {
         if (_endpointPending.has(btn.dataset.testEp)) return;
         _setEndpointPending(btn.dataset.testEp, true);
-        btn.textContent = 'testing…'; btn.disabled = true;
+        btn.textContent = t('providers.testing'); btn.disabled = true;
         try {
           await _endpointJson(await fetch(`/api/models/endpoint/${btn.dataset.testEp}/test`, { method: 'POST' }));
-          toast('model endpoint is working', 'success');
-        } catch (error) { toast(error.message || 'model endpoint test failed', 'error'); }
+          toast(t('providers.endpoint_working'), 'success');
+        } catch (error) { toast(error.message || t('providers.endpoint_test_failed'), 'error'); }
         finally {
           _setEndpointPending(btn.dataset.testEp, false);
-          btn.textContent = 'test';
+          btn.textContent = t('providers.test');
           await loadEpList();
         }
       });
@@ -748,14 +779,14 @@ async function loadEpList() {
       btn.addEventListener('click', async () => {
         if (_endpointPending.has(btn.dataset.authRefresh)) return;
         _setEndpointPending(btn.dataset.authRefresh, true);
-        btn.disabled = true; btn.textContent = 'refreshing…';
+        btn.disabled = true; btn.textContent = t('providers.refreshing');
         try {
           await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.authRefresh}/auth/refresh`, { method: 'POST' }));
-          toast('Gemini grant refreshed', 'success');
-        } catch (error) { toast(error.message || 'grant refresh failed', 'error'); }
+          toast(t('providers.grant_refreshed'), 'success');
+        } catch (error) { toast(error.message || t('providers.grant_refresh_failed'), 'error'); }
         finally {
           _setEndpointPending(btn.dataset.authRefresh, false);
-          btn.textContent = 'refresh grant';
+          btn.textContent = t('providers.refresh_grant');
           await loadEpList();
         }
       });
@@ -763,17 +794,17 @@ async function loadEpList() {
     el.querySelectorAll('[data-auth-revoke]').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (_endpointPending.has(btn.dataset.authRevoke)) return;
-        if (!await _confirmEndpointAction(btn.dataset.authRevoke, 'revoke this Gemini grant at Google and disable the endpoint?')) return;
+        if (!await _confirmEndpointAction(btn.dataset.authRevoke, t('providers.revoke_confirm'))) return;
         if (_endpointPending.has(btn.dataset.authRevoke)) return;
         _setEndpointPending(btn.dataset.authRevoke, true);
-        btn.disabled = true; btn.textContent = 'revoking…';
+        btn.disabled = true; btn.textContent = t('providers.revoking');
         try {
           await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.authRevoke}/auth/revoke`, { method: 'POST' }));
-          toast('Gemini grant revoked', 'success');
-        } catch (error) { toast(error.message || 'Google did not confirm revocation', 'error'); }
+          toast(t('providers.grant_revoked'), 'success');
+        } catch (error) { toast(error.message || t('providers.revoke_unconfirmed'), 'error'); }
         finally {
           _setEndpointPending(btn.dataset.authRevoke, false);
-          btn.textContent = 'revoke';
+          btn.textContent = t('providers.revoke');
           await loadEpList(); await loadModels(); renderModelList();
         }
       });
@@ -781,28 +812,28 @@ async function loadEpList() {
     el.querySelectorAll('[data-del]').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (_endpointPending.has(btn.dataset.del)) return;
-        if (!await _confirmEndpointAction(btn.dataset.del, 'remove this endpoint?')) return;
+        if (!await _confirmEndpointAction(btn.dataset.del, t('providers.remove_endpoint_confirm'))) return;
         if (_endpointPending.has(btn.dataset.del)) return;
         _setEndpointPending(btn.dataset.del, true);
-        btn.textContent = 'removing…';
+        btn.textContent = t('providers.removing');
         try {
           await _endpointJson(await _fetchWithRecentOwner(`/api/models/endpoint/${btn.dataset.del}`, { method: 'DELETE' }));
           if (_endpointPartialCreate?.id === btn.dataset.del) _endpointPartialCreate = null;
-          toast('endpoint removed', 'success');
+          toast(t('providers.endpoint_removed'), 'success');
           loadModels(); renderModelList();
-        } catch (error) { toast(error.message || 'endpoint could not be removed', 'error'); }
+        } catch (error) { toast(error.message || t('providers.endpoint_not_removed'), 'error'); }
         finally {
           _setEndpointPending(btn.dataset.del, false);
-          btn.textContent = 'disconnect';
+          btn.textContent = t('providers.disconnect');
           await loadEpList();
         }
       });
     });
   } catch {
     if (!_providersActive || generation !== _endpointLoadGeneration) return;
-    if (!_hasEndpointDrafts() && !_endpointPending.size && !_endpointConfirmations.size) el.innerHTML = '<div class="s-role-empty error">model settings could not be loaded.</div>';
+    if (!_hasEndpointDrafts() && !_endpointPending.size && !_endpointConfirmations.size) el.innerHTML = `<div class="s-role-empty error">${_esc(t('providers.load_error'))}</div>`;
     const roles = document.getElementById('s-model-roles');
-    if (roles && !_modelRolesDirty && !roles.contains(document.activeElement)) roles.innerHTML = '<div class="s-role-empty error">model defaults could not be loaded.</div>';
+    if (roles && !_modelRolesDirty && !roles.contains(document.activeElement)) roles.innerHTML = `<div class="s-role-empty error">${_esc(t('providers.defaults_load_error'))}</div>`;
   }
 }
 
@@ -864,7 +895,7 @@ function _wireProvidersPane() {
     const adapter = manualModels.length ? 'manual' : (p.custom ? _customApiType : p.adapter);
     const providerId = p.provider;
     const authType = authFor(p, key);
-    if (!url) { toast('add the endpoint address', 'error'); document.getElementById('s-ep-url')?.focus(); return; }
+    if (!url) { toast(t('providers.address_required'), 'error'); document.getElementById('s-ep-url')?.focus(); return; }
     const btn = document.getElementById('s-ep-add-btn');
     const revision = _endpointAddRevision;
     const configRevision = _endpointAddConfigRevision;
@@ -873,14 +904,14 @@ function _wireProvidersPane() {
     if (partial && _endpointPending.has(partial.id)) return;
     let pendingId = null;
     _endpointAddPending = true;
-    btn.textContent = 'probing…'; btn.disabled = true;
+    btn.textContent = t('providers.probing'); btn.disabled = true;
     try {
       const ep = partial || await addEndpoint(name, url, key, adapter, manualModels, { providerId, authType });
       if (ep?.id && configRevision === _endpointAddConfigRevision) {
         _endpointPartialCreate = { id: ep.id, configRevision };
       }
       if ((visionRaw || partial) && ep?.id) {
-        if (_endpointPending.has(ep.id)) throw new Error('endpoint is busy; try again');
+        if (_endpointPending.has(ep.id)) throw new Error(t('providers.endpoint_busy'));
         pendingId = ep.id;
         _setEndpointPending(pendingId, true);
         const visionList = visionRaw.split(',').map(s => s.trim()).filter(Boolean);
@@ -899,12 +930,12 @@ function _wireProvidersPane() {
         document.querySelectorAll('#s-ep-provider-list [role="option"]').forEach(o => o.setAttribute('aria-selected', 'false'));
         _showManualEndpointFields();
       }
-      toast('connection added', 'success');
+      toast(t('providers.connection_added'), 'success');
       loadEpList();
       loadModels();
       renderModelList();
       if (ep?.id) await _offerAideModel(ep.id);
-    } catch (e) { toast(`failed: ${e.message}`, 'error'); }
+    } catch (e) { toast(t('providers.add_failed', { error: e.message }), 'error'); }
     finally {
       if (pendingId) _setEndpointPending(pendingId, false);
       _endpointAddPending = false;

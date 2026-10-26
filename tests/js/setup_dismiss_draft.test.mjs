@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/setupwizard.js', import.meta.url), 'utf8')
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
@@ -22,7 +23,7 @@ function harness({ loading = false } = {}) {
   nodes.get('setup-wizard').setAttribute('aria-busy', String(loading));
   document.activeElement = nodes.get('sw-name');
   const calls = [], notices = [];
-  const context = vm.createContext({ document, toast: (...args) => notices.push(args), calls,
+  const context = vm.createContext({ t: i18nT, tp: i18nTp, document, toast: (...args) => notices.push(args), calls,
     fetch: async path => {
       calls.push(path);
       return { ok: false, json: async () => ({ detail: 'pause refused; try again' }) };

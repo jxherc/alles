@@ -1,6 +1,7 @@
 // Offline changes stay in this browser until the server accepts them or the owner
 // explicitly discards a reviewed failure.
 import { confirm as confirmDialog } from './dialog.js';
+import { t, tp } from './i18n.js';
 
 function _sw() {
   return navigator.serviceWorker;
@@ -17,17 +18,17 @@ function ping() {
 function outboxMessage(type, extra = {}) {
   return new Promise((resolve, reject) => {
     const worker = _sw()?.controller;
-    if (!worker) { reject(new Error('offline storage is not ready. try again.')); return; }
+    if (!worker) { reject(new Error(t('sync.storage_not_ready'))); return; }
     const channel = new MessageChannel();
     const timer = setTimeout(() => {
       channel.port1.close();
-      reject(new Error('offline storage did not respond. try again.'));
+      reject(new Error(t('sync.storage_no_response')));
     }, 15000);
     channel.port1.onmessage = event => {
       clearTimeout(timer);
       channel.port1.close();
       if (event.data?.ok) resolve(event.data);
-      else reject(new Error(event.data?.error || 'could not read offline changes. try again.'));
+      else reject(new Error(event.data?.error || t('sync.read_failed')));
     };
     worker.postMessage({ type, ...extra }, [channel.port2]);
   });
@@ -51,26 +52,26 @@ function itemTitle(item) {
   let area = 'Alles';
   try {
     const part = new URL(item.url, location.origin).pathname.split('/')[2];
-    area = ({ health: 'Health', tasks: 'Plan', calendar: 'Plan', reminders: 'Plan',
-      habits: 'Health', wiki: 'Docs', files: 'Files', books: 'Library', read: 'Library',
-      mail: 'Inbox', contacts: 'Inbox' })[part] || 'Alles';
+    area = ({ health: t('sync.area_health'), tasks: t('sync.area_plan'), calendar: t('sync.area_plan'), reminders: t('sync.area_plan'),
+      habits: t('sync.area_health'), wiki: t('sync.area_docs'), files: t('sync.area_files'), books: t('sync.area_library'), read: t('sync.area_library'),
+      mail: t('sync.area_inbox'), contacts: t('sync.area_inbox') })[part] || 'Alles';
   } catch {}
-  const action = ({ POST: 'add', PUT: 'update', PATCH: 'update', DELETE: 'delete' })[item.method] || 'change';
-  return `${area} · ${action}`;
+  const action = ({ POST: t('common.add'), PUT: t('sync.action_update'), PATCH: t('sync.action_update'), DELETE: t('common.delete') })[item.method] || t('sync.action_change');
+  return t('sync.item_title', { area, action });
 }
 
 function itemReason(item, earlierPending = false) {
   switch (item.blocked_reason) {
-    case 'auth_required': return 'sign in to send this saved change.';
-    case 'conflict': return 'this change conflicts with the current saved data. check the app before retrying.';
-    case 'validation_failed': return 'the server could not accept this input. save a copy, correct it in the app, then discard this copy.';
-    case 'replay_policy_changed': return 'this change needs to be entered again in its app. this version cannot send it automatically.';
-    case 'request_rejected': return 'the server rejected this change. check the saved input and the app before retrying.';
+    case 'auth_required': return t('sync.reason_auth');
+    case 'conflict': return t('sync.reason_conflict');
+    case 'validation_failed': return t('sync.reason_validation');
+    case 'replay_policy_changed': return t('sync.reason_policy');
+    case 'request_rejected': return t('sync.reason_rejected');
     default: return earlierPending
-      ? 'waiting for an earlier offline change to be resolved.'
+      ? t('sync.reason_earlier')
       : item.response_status
-      ? 'the server is temporarily unavailable. this change is kept for another attempt.'
-      : 'waiting to send when the connection returns.';
+      ? t('sync.reason_unavailable')
+      : t('sync.reason_waiting');
   }
 }
 
@@ -94,15 +95,15 @@ async function reviewOutbox() {
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-modal', 'true');
   card.setAttribute('aria-labelledby', 'sync-review-title');
-  const title = node('h2', 'offline changes');
+  const title = node('h2', t('sync.title'));
   title.id = 'sync-review-title';
-  const status = node('p', 'loading saved changes…', 'sync-review-status');
+  const status = node('p', t('sync.loading'), 'sync-review-status');
   status.id = 'sync-review-status';
   status.setAttribute('role', 'status');
   status.tabIndex = -1;
   const list = node('div', null, 'sync-review-list');
   const actions = node('div', null, 'dialog-btns');
-  const close = button('close', dismiss);
+  const close = button(t('common.close'), dismiss);
   actions.append(close);
   card.append(title, status, list, actions);
   overlay.append(card);
@@ -136,8 +137,8 @@ async function reviewOutbox() {
     if (!overlay.isConnected) return;
     list.replaceChildren();
     status.textContent = items.length
-      ? 'saved in this browser. they are not yet saved on the server.'
-      : 'all changes have been sent or discarded.';
+      ? t('sync.pending_note')
+      : t('sync.all_clear');
     let earlierPending = false;
     for (const item of items) {
       renderItem(item, earlierPending);
@@ -149,7 +150,7 @@ async function reviewOutbox() {
     if (busy) return;
     busy = true;
     list.querySelectorAll('button').forEach(element => { element.disabled = true; });
-    status.textContent = 'updating…';
+    status.textContent = t('sync.updating');
     try {
       await action();
       await refresh();
@@ -169,7 +170,7 @@ async function reviewOutbox() {
     section.append(node('h3', itemTitle(item)), node('p', itemReason(item, earlierPending)));
     if (item.response_detail) section.append(node('p', item.response_detail, 'sync-review-detail'));
     if (earlierPending && item.blocked_reason !== 'replay_policy_changed') {
-      const waiting = node('p', 'resolve the earlier offline change before retrying this one.');
+      const waiting = node('p', t('sync.resolve_earlier'));
       waiting.id = `sync-waiting-${item.id}`;
       section.append(waiting);
     }
@@ -183,9 +184,9 @@ async function reviewOutbox() {
     }
     if (fields.length) section.append(values);
     const controls = node('div', null, 'sync-review-actions');
-    controls.append(button('save a copy', () => saveCopy(item)));
+    controls.append(button(t('sync.save_copy'), () => saveCopy(item)));
     if (item.blocked_reason === 'auth_required' && !earlierPending) {
-      const label = node('label', 'Alles password');
+      const label = node('label', t('sync.password'));
       const password = node('input', null, 'settings-input');
       password.type = 'password';
       password.autocomplete = 'current-password';
@@ -199,10 +200,10 @@ async function reviewOutbox() {
             method: 'POST', headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ password: password.value }),
           });
-        } catch { throw new Error('could not reach Alles. your offline change is kept.'); }
-        if (!response.ok) throw new Error(response.status === 401 ? 'wrong password. your offline change is kept.'
-          : response.status === 429 ? 'too many attempts. wait a few minutes and try again.'
-            : 'sign-in is temporarily unavailable. your offline change is kept.');
+        } catch { throw new Error(t('sync.signin_unreachable')); }
+        if (!response.ok) throw new Error(response.status === 401 ? t('sync.signin_wrong')
+          : response.status === 429 ? t('sync.signin_throttled')
+            : t('sync.signin_unavailable'));
         password.value = '';
         await outboxMessage('alles-flush', { retryAuth: true });
       });
@@ -210,9 +211,9 @@ async function reviewOutbox() {
         if (event.key === 'Enter') { event.preventDefault(); signIn(); }
       });
       section.append(label, password);
-      controls.append(button('sign in & retry', signIn));
+      controls.append(button(t('sync.signin_retry'), signIn));
     } else if (item.blocked_reason !== 'replay_policy_changed') {
-      const retry = button('retry saved change', () => run(() => outboxMessage('alles-retry-outbox', { id: item.id })));
+      const retry = button(t('sync.retry'), () => run(() => outboxMessage('alles-retry-outbox', { id: item.id })));
       if (earlierPending) {
         retry.disabled = true;
         retry.dataset.outboxWaiting = 'true';
@@ -221,8 +222,8 @@ async function reviewOutbox() {
       controls.append(retry);
     }
     if (item.blocked_reason) {
-      controls.append(button('discard', async () => {
-        if (await confirmDialog('discard this offline change? its saved input will be removed from this browser.')) {
+      controls.append(button(t('sync.discard'), async () => {
+        if (await confirmDialog(t('sync.discard_confirm'))) {
           await run(() => outboxMessage('alles-discard-outbox', { id: item.id }));
         }
       }, 'btn danger'));
@@ -241,12 +242,12 @@ function updateBadge(n, blocked = 0, auth = 0) {
   let status = el.querySelector('span');
   if (!status) {
     status = node('span');
-    el.replaceChildren(status, button('review', reviewOutbox));
+    el.replaceChildren(status, button(t('sync.review'), reviewOutbox));
   }
-  status.textContent = auth > 0 ? `${n} offline change${n === 1 ? '' : 's'} · sign in needed`
-    : blocked > 0 ? `${n} offline change${n === 1 ? '' : 's'} · needs attention` : `${n} pending`;
+  status.textContent = auth > 0 ? tp('sync.badge_sign_in', n)
+    : blocked > 0 ? tp('sync.badge_attention', n) : t('sync.badge_pending', { count: n });
   el.style.display = n > 0 ? 'flex' : 'none';
-  el.title = 'changes saved in this browser, waiting to reach the server';
+  el.title = t('sync.badge_title');
 }
 
 export function initSync() {

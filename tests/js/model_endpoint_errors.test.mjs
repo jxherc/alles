@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/models.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -14,7 +15,7 @@ for (const stage of ['create', 'manual catalog']) {
   ]) {
     test(`${stage}: ${label} gives a readable error and stops before probing`, async () => {
       const requests = [];
-      const context = vm.createContext({
+      const context = vm.createContext({ t, tp, tr: t, trp: tp,
         window: {}, localStorage: { getItem: () => null },
         fetch: async (url, options) => {
           requests.push({ url, options });

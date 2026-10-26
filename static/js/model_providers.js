@@ -1,6 +1,7 @@
 // One provider list for settings and first-run setup. Alphabetical; nothing is
 // recommended or pre-selected. "custom endpoint" covers anything OpenAI-compatible,
 // Anthropic, Gemini or Ollama style that is not listed.
+import { t } from './i18n.js';
 
 export const MODEL_PROVIDERS = Object.freeze([
   { id: 'anthropic', label: 'Anthropic', url: 'https://api.anthropic.com', provider: 'anthropic', adapter: 'anthropic' },
@@ -11,13 +12,13 @@ export const MODEL_PROVIDERS = Object.freeze([
   { id: 'groq', label: 'Groq', url: 'https://api.groq.com/openai', provider: 'custom', adapter: 'openai-compatible' },
   { id: 'kimi', label: 'Kimi', url: 'https://api.moonshot.ai/v1', provider: 'kimi', adapter: 'openai-compatible' },
   { id: 'mistral', label: 'Mistral', url: 'https://api.mistral.ai', provider: 'custom', adapter: 'openai-compatible' },
-  { id: 'ollama', label: 'Ollama', note: 'this machine', url: 'http://localhost:11434', provider: 'ollama', adapter: 'ollama', keyless: true },
+  { id: 'ollama', label: 'Ollama', get note() { return t('providers.this_machine'); }, url: 'http://localhost:11434', provider: 'ollama', adapter: 'ollama', keyless: true },
   { id: 'openai', label: 'OpenAI', url: 'https://api.openai.com', provider: 'openai', adapter: 'openai-compatible' },
   { id: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api', provider: 'custom', adapter: 'openai-compatible' },
   { id: 'perplexity', label: 'Perplexity', url: 'https://api.perplexity.ai', provider: 'custom', adapter: 'openai-compatible' },
   { id: 'together', label: 'Together', url: 'https://api.together.xyz', provider: 'custom', adapter: 'openai-compatible' },
   { id: 'xai', label: 'xAI', url: 'https://api.x.ai', provider: 'custom', adapter: 'openai-compatible' },
-  { id: 'custom', label: 'custom endpoint', note: 'any compatible address', url: '', provider: 'custom', adapter: 'openai-compatible', custom: true },
+  { id: 'custom', get label() { return t('providers.custom_endpoint'); }, get note() { return t('providers.any_compatible'); }, url: '', provider: 'custom', adapter: 'openai-compatible', custom: true },
 ]);
 
 export const API_TYPES = Object.freeze([

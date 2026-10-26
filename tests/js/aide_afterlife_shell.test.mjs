@@ -83,7 +83,7 @@ test('aide uses one safe permission control and a focused add menu', () => {
   assert.match(app, /permLabel\('full_auto'\)/);
   assert.match(app, /data-tool="upload"/);
   assert.match(app, /data-tool="app"/);
-  assert.match(app, /link an app/);
+  assert.match(app, /t\('shell\.link_an_app'\)/);
   assert.match(app, /insertComposerText\(`@\$\{view\} `/);
   assert.doesNotMatch(app, /data-tool="files"/);
   assert.doesNotMatch(app, /data-tool="photos"/);
@@ -102,7 +102,7 @@ test('full access is orange while auto mode keeps the ai purple', () => {
 });
 
 test('full access warns that an unsandboxed host shell is unrestricted', () => {
-  assert.match(app, /host shell is unrestricted unless sandboxed/);
+  assert.match(app, /t\('shell\.perm_full_access_desc'\)/);
 });
 
 test('effort and reasoning menu is clamped to the space around its anchor', () => {
@@ -166,8 +166,8 @@ test('latest response usage uses one bare token-fragment mark and keeps its live
   assert.match(counter, /class="session-token-mark"/);
   assert.match(counter, /id="session-token-count-value"/);
   assert.doesNotMatch(counter, /style=/);
-  assert.match(chat, /value\.textContent = `\$\{formatted\} tok`/);
-  assert.match(chat, /tokens used in the latest response/);
+  assert.match(chat, /value\.textContent = t\('aide\.tokens_short', \{ count: formatted \}\)/);
+  assert.match(chat, /t\('aide\.tokens_used', \{ count: formatted \}\)/);
   assert.match(chat, /el\.hidden = false/);
   assert.match(sessions, /tokCount\.hidden = true/);
   assert.match(sessions, /tokValue\.textContent = ''/);
@@ -315,13 +315,13 @@ test('new tasks cannot overlap the removed proactive tool and can add a project 
   assert.doesNotMatch(html, /class="nav-item aide-tool-link" data-view="proactive"/);
   assert.doesNotMatch(html, /id="proactive-view"/);
   assert.doesNotMatch(app, /'proactive-view'/);
-  assert.match(rail, /choose folder…/);
+  assert.match(rail, /t\('aide\.choose_folder'\)/);
   assert.match(rail, /\/api\/project-folders/);
 });
 
 test('expected model and session fetch failures stay out of the offline console', () => {
   assert.doesNotMatch(models, /console\.error\('loadModels'/);
-  assert.match(models, /could not refresh models\. the last loaded catalog is still shown\./);
+  assert.match(models, /t\('models\.catalog_refresh_failed'\)/);
   assert.match(models, /status\.setAttribute\('role', 'status'\)/);
   assert.match(sessions, /navigator\?\.onLine !== false\) console\.error\('loadSessions'/);
 });

@@ -12,15 +12,25 @@ let _perm = normalizePermMode(localStorage.getItem(PERM_KEY));
 export function getPermMode() { return _perm; }
 
 export function permLabel(m = _perm) {
-  if (m === 'full_access') return 'full access';
-  if (m === 'full_auto') return 'auto mode';
-  if (m === 'plan') return 'plan';
+  if (m === 'full_access') return t('aide.perm_full_access');
+  if (m === 'full_auto') return t('aide.perm_auto_mode');
+  if (m === 'plan') return t('aide.perm_plan');
   return t('aide.ask_approval');
 }
 
+const EFFORT_LABELS = {
+  low: () => t('aide.effort_low'),
+  medium: () => t('aide.effort_medium'),
+  high: () => t('aide.effort_high'),
+  xhigh: () => t('aide.effort_xhigh'),
+  max: () => t('aide.effort_max'),
+  deep_work: () => t('aide.effort_deep_work'),
+  custom: () => t('aide.effort_custom'),
+};
+
 export function effortLabel(value = DEFAULT_EFFORT) {
   const effort = normalizeEffort(value);
-  return effort === 'medium' ? t('aide.effort_medium') : effort.replace('_', ' ');
+  return EFFORT_LABELS[effort]?.() ?? effort.replace('_', ' ');
 }
 
 export function setPermMode(m) {
@@ -33,7 +43,7 @@ export function setPermMode(m) {
     else btn.textContent = permLabel(m);
     btn.classList.toggle('perm-auto', m === 'full_auto');
     btn.classList.toggle('perm-full', m === 'full_access');
-    btn.setAttribute('aria-label', `permission: ${permLabel(m)}`);
+    btn.setAttribute('aria-label', t('aide.perm_aria_label', { mode: permLabel(m) }));
     btn.setAttribute('aria-expanded', 'false');
   }
 }
@@ -139,7 +149,7 @@ export function setIncognitoMode(on) {
     btn.classList.toggle('active', _incognitoMode);
     btn.setAttribute('aria-pressed', String(_incognitoMode));
     btn.title = _incognitoMode
-      ? 'incognito mode active - click to disable'
-      : 'enable incognito mode';
+      ? t('aide.incognito_active_title')
+      : t('aide.incognito_enable');
   }
 }

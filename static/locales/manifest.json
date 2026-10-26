@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_revision": "phase10-canonical-2026-07-21",
+  "source_revision": "davinci-canonical-2026-10-25",
   "languages": [
     {"id": "en", "label": "English", "english_name": "English", "direction": "ltr", "plural_categories": ["one", "other"], "release_state": "available"},
     {"id": "fr", "label": "Français", "english_name": "French", "direction": "ltr", "plural_categories": ["one", "many", "other"], "release_state": "available"},
@@ -24,7 +24,7 @@
     "source_language_boundaries": [
       "owner-authored content, documents, filenames, mail, and saved task or event text",
       "third-party search results, provider errors, logs, terminal output, code, paths, and URLs",
-      "legacy specialist apps and advanced Calendar or Andromeda administration outside the named primary flows"
+      "text alles sends or stores for other software: outgoing mail prefixes and quotes, prompts sent to a model, and stored category names"
     ]
   }
 }

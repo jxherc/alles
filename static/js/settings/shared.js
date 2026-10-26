@@ -1,5 +1,6 @@
 import { toast } from '../util.js';
 import { prompt as _dlgPrompt } from '../dialog.js';
+import { t } from '../i18n.js';
 
 // ── switch helpers ────────────────────────────────────────────────────────────
 export function _setSwitch(el, on) {
@@ -27,7 +28,7 @@ export function _bindSwitch(el, getter, setter) {
     try {
       if (await setter(next) !== null) state.confirmed = next;
     } catch (error) {
-      toast(error.message || 'setting could not be saved; try again', 'error');
+      toast(error.message || t('settings.setting_save_failed_retry'), 'error');
     } finally {
       if (revision === state.revision) _setSwitch(el, state.confirmed);
       if (--state.pending === 0) el.removeAttribute('aria-busy');
@@ -56,7 +57,7 @@ export function _patchSettings(patch) {
       status.dataset.state = state;
     }
   };
-  show('saving…', 'saving');
+  show(t('common.saving'), 'saving');
   // Capture each patch now and issue it only after the preceding write settles.
   // A failed write must not poison the queue or turn the next save into a no-op.
   const pending = _settingsWriteQueue.then(async () => {
@@ -65,14 +66,14 @@ export function _patchSettings(patch) {
         method: 'PATCH', headers: { 'content-type': 'application/json' }, body,
       });
       const settings = await response.json();
-      if (!response.ok) throw new Error(settings?.detail || 'setting could not be saved');
+      if (!response.ok) throw new Error(settings?.detail || t('settings.setting_save_failed'));
       if (!settings || typeof settings.context_limit !== 'number' || typeof settings.language !== 'string') {
-        throw new Error('save could not be confirmed');
+        throw new Error(t('settings.save_unconfirmed'));
       }
-      show('saved', 'saved');
+      show(t('common.saved'), 'saved');
       return settings;
     } catch (error) {
-      const message = `${error.message || 'save could not be confirmed'}. Try the control again.`;
+      const message = t('settings.save_failed_try_again', { message: error.message || t('settings.save_unconfirmed') });
       show(message, 'error');
       toast(message, 'error');
       return null;
@@ -97,13 +98,13 @@ export function _escAttr(s = '') {
 export async function _confirmRecentOwner() {
   const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
   if (me && me.enabled === false) return true;
-  const password = await _dlgPrompt('enter your Alles password to continue', '', { secret: true });
+  const password = await _dlgPrompt(t('settings.reauth_prompt'), '', { secret: true });
   if (password == null) return false;
   const r = await fetch('/api/auth/reauth', {
     method: 'POST', headers: {'content-type':'application/json'},
     body: JSON.stringify({ password }),
   });
-  if (!r.ok) { toast('password confirmation failed', 'error'); return false; }
+  if (!r.ok) { toast(t('settings.reauth_failed'), 'error'); return false; }
   return true;
 }
 
