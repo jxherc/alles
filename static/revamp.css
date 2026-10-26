@@ -1250,6 +1250,23 @@ html:not(#_):not(#_) #subs-view > .page-view-footer > :is(#sub-required, #sub-cr
   html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-create-status { grid-row: 4; }
 }
 
+/* a subscription on a phone reads as two rows for every plan: its name and price, then its date and
+   buttons. as a free-flowing wrap the date jumped under a long name and stayed beside a short one */
+@media (max-width: 600px) {
+  html:not(#_):not(#_) #subs-view .sub-item:not(.editing) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--k-space-3);
+    row-gap: var(--k-space-1);
+    align-items: baseline;
+  }
+  html:not(#_):not(#_) #subs-view .sub-item:not(.editing) > .sub-main { grid-column: 1; min-width: 0; }
+  html:not(#_):not(#_) #subs-view .sub-item:not(.editing) > .sub-price { grid-column: 2; text-align: right; }
+  html:not(#_):not(#_) #subs-view .sub-item:not(.editing) > .sub-due { grid-column: 1 / -1; min-width: 0; text-align: left; }
+  html:not(#_):not(#_) #subs-view .sub-item:not(.editing) > .sub-actions { grid-column: 1 / -1; flex-wrap: wrap; align-items: center; }
+  html:not(#_):not(#_) #subs-view .subs-fc-bars { gap: var(--k-space-1); }
+}
+
 /* the fields carry fixed widths inline; the grid owns their widths now */
 html:not(#_):not(#_) #subs-view > .page-view-footer > :is(input, .custom-select, .date-input) {
   width: auto !important;
@@ -1334,8 +1351,21 @@ html:not(#_):not(#_) .totals-currency-note {
 
 /* beside a wide note the two buttons would split across lines ("show totals in USD" alone below
    "add USD rate"); on a tablet the note takes its own line so the buttons stay together under it */
-@media (min-width: 561px) {
-  html:not(#_):not(#_) .totals-currency-note > span:first-child { flex: 1 1 100%; }
+@media (min-width: 561px) and (max-width: 1100px) {
+  html:not(#_):not(#_) .totals-currency-wrap { align-items: flex-start; }
+  html:not(#_):not(#_) .totals-currency-note > span:first-child {
+    display: flex;
+    flex: 1 1 100%;
+    align-items: center;
+    /* its line centres on the 44px picker beside it, not on the note's two rows */
+    min-height: 44px;
+  }
+}
+
+/* five totals: where the row can't hold all five, the projection takes a row of its own instead of
+   sitting alone at the left of a second row */
+@container money-summary (min-width: 30rem) and (max-width: 78rem) {
+  html:not(#_):not(#_) .money-summary .ms-card[data-forecast] { grid-column: 1 / -1; }
 }
 
 /* the spending caps' own note sits above the caps it explains */
@@ -2986,6 +3016,40 @@ html:not(#_):not(#_) .finance-import-choice > button {
 }
 
 html:not(#_):not(#_) .finance-import-choice > button:hover { background: var(--k-btn-fill-hover); }
+
+/* the file, apply and receipt buttons are secondary buttons like the change buttons above them, not
+   outlined boxes; the file's name takes the room between the picker and "preview import" so the
+   preview button ends on the right edge */
+html:not(#_):not(#_) #finance-view :is(.finance-import-file-row, .finance-import-actions) > button:not(:disabled) {
+  border-color: transparent;
+  background: var(--k-btn-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) #finance-view :is(.finance-import-file-row, .finance-import-actions) > button:not(:disabled):hover {
+  background: var(--k-btn-fill-hover);
+}
+
+html:not(#_):not(#_) #finance-view .finance-import-file-row > span {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* a preview's head puts the file's name on its own line, so it never breaks letter by letter in a
+   third of the card; the account and the counts follow it. a row's detail lines sit close under its words */
+html:not(#_):not(#_) #finance-view .finance-import-receipt-head {
+  flex-wrap: wrap;
+  row-gap: var(--k-space-1);
+  column-gap: var(--k-space-5);
+}
+
+html:not(#_):not(#_) #finance-view .finance-import-receipt-head > strong {
+  flex: 1 1 100%;
+  overflow-wrap: anywhere;
+}
+
+html:not(#_):not(#_) #finance-view .finance-import-row { row-gap: var(--k-space-1); }
 
 /* settings: a button is as wide as its words on a desktop (full width read as a banner, and two
    stacked full-width buttons as one slab); a phone keeps them full width */

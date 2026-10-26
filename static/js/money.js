@@ -1283,15 +1283,17 @@ function budgetsList() {
   // the summary shows each cap in the totals currency when a rate allows (saved in the ledger one)
   const cur = _canonicalLedger ? _cur : capsIn();
   return `<div class="budgets">` + _budgets.map(b => {
-    const spent = byCat[b.category]?.spent || 0;
-    const limit = _canonicalLedger ? b.limit_amt : byCat[b.category]?.limit ?? b.limit_amt;
+    // a tag cap has no category: it is named and looked up by its tag, or it showed as a blank row
+    const name = b.category || b.tag || '';
+    const spent = byCat[name]?.spent || 0;
+    const limit = _canonicalLedger ? b.limit_amt : byCat[name]?.limit ?? b.limit_amt;
     const pct = limit > 0 ? Math.min(100, spent / limit * 100) : 0;
     const over = limit > 0 && spent > limit;
     return `<div class="budget-row" data-id="${b.id}">
-      <div class="bg-head"><span class="bg-cat">${catDot(b.category)}${esc(b.category)}</span>
+      <div class="bg-head"><span class="bg-cat">${catDot(name)}${esc(name)}</span>
         <span class="bg-nums ${over ? 'over' : ''}">${fmt(spent, cur)} / ${fmt(limit, cur)}</span>
-        <button class="bg-del" data-del-budget="${b.id}" aria-label="${t('money.remove_cap_for', { name: esc(b.category) })}" title="${t('common.remove')}">×</button></div>
-      <div class="bg-bar-wrap"><div class="bg-bar ${over ? 'over' : ''}" style="width:${pct}%;--cat:var(--cat-${hueOf(b.category)})"></div></div>
+        <button class="bg-del" data-del-budget="${b.id}" aria-label="${t('money.remove_cap_for', { name: esc(name) })}" title="${t('common.remove')}">×</button></div>
+      <div class="bg-bar-wrap"><div class="bg-bar ${over ? 'over' : ''}" style="width:${pct}%;--cat:var(--cat-${hueOf(name)})"></div></div>
     </div>`;
   }).join('') + `</div>`;
 }
@@ -1536,7 +1538,7 @@ function editTxnRow(txn) {
     ${moneyField(t('money.date'), `<div class="date-input" data-f="date" data-type="date" data-value="${esc(txn.date || _today())}" data-ph="${t('money.date')}" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
     ${moneyField(t('money.account'), `<div class="settings-input custom-select" data-f="account_id" data-value="${esc(txn.account_id)}" data-options="${esc(acctOpts)}" style="flex:1 1 11rem;min-width:11rem"></div>`)}
     ${moneyField(t('money.payee'), `<input type="text" class="settings-input" data-f="payee" value="${esc(txn.payee || '')}" placeholder="${t('money.payee')}" style="flex:1.4 1 9.5rem;min-width:9.5rem">`)}
-    ${moneyField(t('money.category'), `<input type="text" class="settings-input" data-f="category" value="${esc(txn.category || '')}" placeholder="${t('money.category')}" style="flex:1;min-width:5rem">`)}
+    ${moneyField(t('money.category'), `<input type="text" class="settings-input" data-f="category" value="${esc(txn.category || '')}" placeholder="${t('money.category')}" style="flex:1;min-width:8rem">`)}
     ${moneyField(t('money.type'), `<div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:6.25rem"></div>`)}
     ${moneyField(t('money.amount'), `<input type="text" class="settings-input" data-f="amount" value="${Math.abs(txn.amount || 0)}" inputmode="decimal" style="width:5.25rem">`)}
     <button class="btn primary" data-save-txn="${txn.id}">${t('money.save_changes')}</button>

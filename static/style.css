@@ -4653,13 +4653,13 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .cal-quick { background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.35rem 0.55rem; font-size: 0.8125rem; min-width: 150px; }
 .cal-quick:focus { outline: none; }
 
-.subs-chart { padding: 0.6rem 0.4rem 0.9rem; border-bottom: 1px solid var(--faint); margin-bottom: 0.5rem; }
+.subs-chart { padding: 0.6rem 0 0.9rem; border-bottom: 1px solid var(--faint); margin-bottom: 0.5rem; }
 .subs-chart-title { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.5rem; letter-spacing: 0.02em; }
-.subs-bar-row { display: grid; grid-template-columns: 110px 1fr 72px; gap: 0.5rem; align-items: center; margin-bottom: 0.3rem; font-size: 0.8125rem; }
+.subs-bar-row { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; gap: 0.5rem; align-items: center; margin-bottom: 0.3rem; font-size: 0.8125rem; }
 .subs-bar-label { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .subs-bar-track { background: var(--faint); border-radius: var(--k-radius-control); height: 8px; overflow: hidden; }
 .subs-bar-fill { display: block; height: 100%; background: var(--cat-blue); border-radius: var(--k-radius-control); }
-.subs-bar-val { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.subs-bar-val { text-align: right; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
 .usage-wrap { padding: 0.4rem 0 1rem; }
 .usage-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
 .usage-card { border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.7rem 0.8rem; }
@@ -4797,7 +4797,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .subs-up-head { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.45rem; }
 .subs-up-head strong { color: var(--text); font-weight: 600; }
 .subs-up-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.subs-up-chip { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8125rem; border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.12rem 0.45rem; white-space: nowrap; }
+/* a long plan name wraps inside its chip: nowrap pushed the chip past a phone's edge and cut the amount */
+.subs-up-chip { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: 0.35rem; max-width: 100%; font-size: 0.8125rem; border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.12rem 0.45rem; }
+.subs-up-name { overflow-wrap: anywhere; }
+.subs-up-when, .subs-up-amt { white-space: nowrap; }
 .subs-up-name { color: var(--text); }
 .subs-up-when { color: var(--muted); }
 .subs-up-when.soon { color: var(--signal); }
@@ -4825,7 +4828,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .subs-fc-head { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.4rem; }
 .subs-fc-bars { display: flex; gap: 0.5rem; align-items: flex-end; }
 .subs-fc-col { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; flex: 1; min-width: 0; }
-.subs-fc-amt { font-size: 0.8125rem; color: var(--muted); height: 0.8rem; }
+.subs-fc-amt { font-size: 0.8125rem; color: var(--muted); line-height: 1.3; white-space: nowrap; }
 .subs-fc-bar { width: 60%; max-width: 34px; background: color-mix(in srgb, var(--cat-blue) 60%, transparent); border-radius: 2px 2px 0 0; }
 .subs-fc-m { font-size: 0.8125rem; color: var(--muted); }
 .sub-item { position: relative; }
@@ -5226,10 +5229,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .split-actions { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
 /* 4d — goals, reports, base currency */
 :where(#money-view) .goal-row { margin-bottom: 0.6rem; }
-:where(#money-view) .goal-head { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8125rem; }
-:where(#money-view) .goal-name { flex: 1; }
-:where(#money-view) .goal-kind { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-surface); padding: 0 0.35rem; }
-:where(#money-view) .goal-nums { color: var(--muted); font-variant-numeric: tabular-nums; }
+:where(#money-view) .goal-head { display: flex; flex-wrap: wrap; align-items: center; column-gap: 0.4rem; font-size: 0.8125rem; }
+/* the name takes its own line in a narrow card, so the amounts and the remove button sit together under it
+   and every goal reads the same */
+:where(#money-view) .goal-name { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+:where(#money-view) .goal-kind { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-surface); padding: 0 0.35rem; white-space: nowrap; }
+:where(#money-view) .goal-nums { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+:where(#money-view) .goal-head > .tx-del { margin-inline-start: auto; }
 :where(#money-view) .goal-bar-wrap { height: 7px; background: var(--bg); border-radius: var(--k-radius-surface); overflow: hidden; margin: 0.25rem 0; }
 :where(#money-view) .goal-bar { height: 100%; background: var(--green); }
 :where(#money-view) .goal-eta { font-size: 0.8125rem; color: var(--muted); }
@@ -5258,7 +5264,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .hold-total { font-size: 0.8125rem; color: var(--muted); margin-top: 0.4rem; }
 :where(#money-view) .hold-total .pos { color: var(--green); } :where(#money-view) .hold-total .neg { color: var(--error); }
 :where(#money-view) .hold-form { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
-:where(#money-view) .card-hide { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.875rem; float: right; opacity: 0.62; transition: opacity 0.15s; }
+/* the hide button sits in the card's corner, outside the flow: as a 44px float it narrowed the first rows under it */
+:where(#money-view) .money-card[data-card] { position: relative; }
+:where(#money-view) .money-card[data-card] > h3 { padding-inline-end: 2.75rem; }
+:where(#money-view) .card-hide { position: absolute; inset-block-start: 0; inset-inline-end: 0; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.875rem; opacity: 0.62; transition: opacity 0.15s; }
 :where(#money-view) .money-card:hover .card-hide, :where(#money-view) .money-card:focus-within .card-hide, :where(#money-view) .card-hide:focus-visible { opacity: 1; }
 :where(#money-view) .card-hide:hover { color: var(--error); }
 :where(#money-view) .money-restore-cards { align-self: start; }
@@ -5297,19 +5306,33 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .env-unbound p { margin: 0 0 var(--k-space-2, 8px); color: var(--muted); font-size: 0.8125rem; }
 :where(#money-view) .env-unbound-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--k-space-2, 8px); padding-block: var(--k-space-1, 4px); font-size: 0.8125rem; }
 :where(#money-view) .env-unbound-row span { min-width: 0; overflow-wrap: anywhere; }
-:where(#money-view) .env-add { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+:where(#money-view) .env-add { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
 :where(#money-view) .env-tgt-btn, :where(#money-view) .env-bind-target, :where(#money-view) .env-move-target { min-height: 44px; }
 :where(#money-view) .env-tgt-btn { flex-shrink: 0; background: none; border: none; color: var(--muted); cursor: pointer; font: inherit; font-size: 0.8125rem; padding-inline: var(--k-space-2, 8px); }
 :where(#money-view) .env-tgt-btn:hover, :where(#money-view) .env-tgt-btn:focus-visible { color: var(--text); }
-@media (max-width: 620px) {
-  :where(#money-view) .env-row { grid-template-columns: minmax(0, 1fr) minmax(96px, auto); row-gap: var(--k-space-1, 4px); padding-block: var(--k-space-2, 8px); }
+/* the manage cards sit two to a row on a tablet, so they stack by their own width, not the window's:
+   the envelope row's category name was squeezed to nothing beside three fixed columns */
+#money-view .money-grid > .money-card { container: money-card / inline-size; }
+@container money-card (max-width: 28rem) {
+  :where(#money-view) .env-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: var(--k-space-1, 4px); padding-block: var(--k-space-2, 8px); }
   :where(#money-view) .env-head { display: none; }
-  :where(#money-view) .env-cat { flex-wrap: wrap; }
+  :where(#money-view) .env-cat { flex-direction: column; align-items: flex-start; gap: 0; }
   :where(#money-view) .env-cat-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  :where(#money-view) .env-assignment { justify-self: end; }
+  :where(#money-view) .env-assign { width: 8.5rem; }
   :where(#money-view) .env-input-label, :where(#money-view) .env-stat-label { display: inline; color: var(--muted); font-size: 0.8125rem; }
   :where(#money-view) .env-assignment { text-align: right; }
   :where(#money-view) .env-input-label { display: block; }
   :where(#money-view) .env-spent { text-align: left; }
+  :where(#money-view) .env-spent { white-space: nowrap; }
+  /* a schedule is its payee and amount, then its date and buttons under them */
+  #money-view .recur { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; column-gap: var(--k-space-2, 8px); row-gap: 0; }
+  #money-view .rc-payee { grid-column: 1; min-width: 0; flex: none; white-space: normal; overflow-wrap: anywhere; }
+  #money-view .rc-amt { grid-column: 2 / -1; justify-self: end; }
+  #money-view .rc-next { grid-column: 1; min-width: 0; text-align: left; }
+  #money-view .rc-toggle { grid-column: 2; }
+  #money-view :is(.rc-edit, .rc-delete) { grid-column: 3; }
+  #money-view :is(.rc-delete, .tx-del) { grid-column: 4; }
 }
 :where(#money-view) .ma-rc { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.875rem; }
 :where(#money-view) .ma-rc:hover { color: var(--text); }
@@ -5342,7 +5365,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .rc-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
 :where(#money-view) .rc-amt.pos { color: var(--green); } :where(#money-view) .rc-amt.neg { color: var(--text); }
 :where(#money-view) .rc-cyc { color: var(--muted); font-size: 0.8125rem; margin-left: 0.15rem; }
-:where(#money-view) .rc-next { width: 48px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+:where(#money-view) .rc-next { min-width: 3.5rem; text-align: right; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
 :where(#money-view) .rc-toggle { font-size: 0.8125rem; padding: 0.1rem 0.4rem; min-height: 44px; }
 :where(#money-view) .rc-delete { min-height: 44px; }
 :where(#money-view) .money-recurring-note { color: var(--muted); font-size: 0.8125rem; margin: var(--k-space-2, 8px) 0 0; }
@@ -5414,7 +5437,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view :is(#money-entry-fields, #money-entry-action, #money-summary-toggle, .ms-card)[hidden] { display: none; }
 @media (max-width: 720px) {
   #money-view .money-summary { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-1, 4px); margin-bottom: var(--k-space-1, 4px); }
-  #money-view .ms-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: baseline; gap: var(--k-space-2, 8px); border: 0; background: transparent; padding: var(--k-space-2, 8px) 0; }
+  #money-view .ms-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--k-space-2, 8px); border: 0; background: transparent; padding: var(--k-space-2, 8px) 0; }
   #money-view .ms-label { letter-spacing: normal; }
   #money-view .ms-val { text-align: right; }
   #money-view .ms-card[data-forecast] { min-height: 0; }
@@ -5447,7 +5470,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-entry-card { margin-bottom: var(--k-space-4, 16px); }
 #money-view .money-entry-card > h2 { color: var(--k-ink, var(--text)); font-size: 1rem; }
 #money-view .money-entry-card .txn-add { margin-bottom: var(--k-space-3, 12px); }
-#money-view .money-entry-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k-space-3, 12px); margin-bottom: var(--k-space-3, 12px); }
+#money-view .money-entry-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: var(--k-space-3, 12px); margin-bottom: var(--k-space-3, 12px); }
 #money-view .money-entry-details[hidden] { display: none; }
 #money-view .money-entry-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
 #money-view .money-entry-actions > .btn { min-height: 44px; }
@@ -5463,6 +5486,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 @media (max-width: 560px) {
   #money-view :is(.txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add) > .money-field { flex: 1 1 100% !important; width: 100% !important; min-width: 0 !important; }
 }
+#money-view #txn-search { text-overflow: ellipsis; }
 #money-view .txn-search-wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--k-space-2, 8px); width: 100%; margin: var(--k-space-3, 12px) 0; align-items: end; }
 #money-view #txn-amount-range { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k-space-2, 8px); }
 #money-view :is(#txn-amount-range, #money-management)[hidden] { display: none; }
@@ -5476,9 +5500,16 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #finance-view .finance-daily { margin-bottom: var(--k-space-4, 16px); }
 #finance-view .finance-daily-actions { margin-bottom: var(--k-space-3, 12px); }
 #finance-view .finance-daily-actions :is(a, button) { display: inline-flex; align-items: center; min-height: 44px; }
-#finance-view .finance-daily .specialist-group-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--k-space-2, 8px); }
-#finance-view .finance-daily .specialist-group-row strong { min-width: 0; overflow-wrap: anywhere; }
+/* every row is a name and its figure on one baseline; a long name wraps beside the figure. a card too narrow for both
+   (a phone) stacks the figure under the name in every row, not only in the rows whose name is long */
+#finance-view .finance-daily .specialist-group-card { container: finance-card / inline-size; }
+#finance-view .finance-daily .specialist-group-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--k-space-1, 4px) var(--k-space-3, 12px); }
+#finance-view .finance-daily .specialist-group-row strong { min-width: 0; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; }
 #finance-view .finance-daily .specialist-group-row span { white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums; }
+@container finance-card (max-width: 22rem) {
+  #finance-view .finance-daily .specialist-group-row { grid-template-columns: minmax(0, 1fr); }
+  #finance-view .finance-daily .specialist-group-row span { text-align: left; }
+}
 #finance-view .finance-actual-content { display: grid; gap: var(--k-space-3, 12px); }
 #finance-view .finance-actual-content[hidden] { display: none; }
 #finance-view .finance-actual-authority { margin: 0; color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; }
