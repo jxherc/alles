@@ -6817,6 +6817,16 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
   font-size: 0.8125rem; padding: 1px 4px; border-radius: var(--k-radius-control); overflow: hidden;
   color: var(--bg); line-height: 1.25;
 }
+/* an event too short for two lines reads "busy thing… 1:00 PM" on one line, title first as
+   google calendar does; wrapping cut its title after the first word */
+.cal-tev[data-id] { container-type: size; }
+@container (max-height: 2.25rem) {
+  /* the time wraps onto a second, clipped line when both don't fit, so the title keeps the room */
+  .cal-tev-box { display: flex; flex-wrap: wrap; align-items: center; column-gap: 4px; white-space: nowrap; }
+  .cal-tev-title { order: -1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .cal-tev-box > b { font-weight: 400; opacity: 0.8; }
+  .cal-tev-box > .cal-tev-loc { display: none; }
+}
 .cal-tev.accent, .cal-allday-ev.accent { background: var(--cat-blue); }
 .cal-tev.green,  .cal-allday-ev.green  { background: var(--green); }
 .cal-tev.error,  .cal-allday-ev.error  { background: var(--error); }
