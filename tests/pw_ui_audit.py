@@ -69,7 +69,9 @@ PROBE = r"""
   const SCALE = [0, 4, 8, 12, 16, 24, 32, 48, 64];
   const RADII = [0, 6, 8, 12, 16];
   // 20 is the page title (decision 0041: page 20, section 16, row 14, label 12)
-  const TYPE = [12, 13, 14, 15, 16, 20];
+  // the role scale (0044) at this root, plus the 16px floor of a touch text field
+  const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  const TYPE = [13, 14, 15, 16, 18, 20, 22, 24, 28, 32].map(role => role * rootPx / 16).concat(16);
   const vw = document.documentElement.clientWidth, vh = window.innerHeight;
   const tally = (rubric, check, ok, el, detail) => {
     const k = rubric + ':' + check;
