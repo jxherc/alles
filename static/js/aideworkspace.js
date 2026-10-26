@@ -564,7 +564,8 @@ async function ensureTerminal() {
       convertEol: false,
       cursorBlink: true,
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-      fontSize: 13,
+      // role 13 on the root scale (0044), so the terminal grows with the rest of the text
+      fontSize: Math.round(13 * parseFloat(getComputedStyle(document.documentElement).fontSize) / 16),
       lineHeight: 1.22,
       minimumContrastRatio: 4.5,
       scrollback: 5000,

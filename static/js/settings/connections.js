@@ -873,7 +873,7 @@ async function loadPermRules(isCurrent = () => true) {
           ${r.path ? `<span class="perm-rule-path">${_esc(r.path)}</span>` : ''}
           <button class="perm-rule-del" data-i="${i}" title="${_escAttr(t('common.remove'))}">✕</button>
         </div>`).join('')
-      : `<div style="font-size:0.75rem;color:var(--muted)">${_esc(t('connections.perm_none'))}</div>`;
+      : `<div style="font-size:0.8125rem;color:var(--muted)">${_esc(t('connections.perm_none'))}</div>`;
     el.querySelectorAll('.perm-rule-del').forEach(b => {
       const rule = _permRules[+b.dataset.i];
       b.onclick = () => _delPermRule(rule);
