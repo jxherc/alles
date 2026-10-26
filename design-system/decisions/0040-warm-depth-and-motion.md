@@ -46,6 +46,9 @@ density. They took the recommended "ember" palette by asking to start building.
   (Web Animations, so no element's own transition list is touched). Menus grow from their
   corner, dialogs spring in over a blur, toasts rise and fade out, a view settles in when it
   opens (opacity only), money's totals count up, app glyphs and everyday icons move on hover.
+  Drawers (the app list, Aide's archive) slide in from their edge in 380ms with no overshoot, since
+  a bounce opens a gap at the screen edge; the app list's groups follow about 30ms apart, and
+  closing slides back out before the drawer hides (2026-10-26).
   Easing `cubic-bezier(.23,1,.32,1)`; springs as css `linear()` from Open Props (MIT). This widens
   MOTION.md's "motion only for feedback" by the owner's direction, as 0036 began for Aide. All of
   it stops under reduced motion, and automated browsers get final numbers at once.

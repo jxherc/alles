@@ -2209,6 +2209,53 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   from { opacity: 0; translate: 16px 0; }
 }
 
+/* drawers slide in from their edge, the app list follows a beat behind, and closing slides back
+   out before the drawer hides. no spring here: a bounce would open a gap at the screen edge */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(#_) :is(#app-drawer, body.aide-central[data-space="aide"] .sidebar) {
+    transition: translate 380ms var(--k-ease-out), opacity 200ms var(--k-ease-out), display 380ms allow-discrete;
+  }
+
+  html:not(#_) :is(#app-drawer[hidden], body.aide-central[data-space="aide"].sidebar-hidden .sidebar) {
+    translate: -100% 0;
+    opacity: 0;
+    transition: translate 240ms cubic-bezier(.4, 0, 1, 1), opacity 240ms ease-in, display 240ms allow-discrete;
+  }
+
+  @starting-style {
+    html:not(#_) :is(#app-drawer:not([hidden]), body.aide-central[data-space="aide"]:not(.sidebar-hidden) .sidebar) {
+      translate: -100% 0;
+      opacity: 0;
+    }
+  }
+
+  html:not(#_) :is(#app-drawer-scrim, body.aide-central[data-space="aide"] .nav-backdrop) {
+    transition: opacity 260ms var(--k-ease-out), display 260ms allow-discrete;
+  }
+
+  html:not(#_) :is(#app-drawer-scrim[hidden], body.aide-central[data-space="aide"].sidebar-hidden .nav-backdrop) { opacity: 0; }
+
+  @starting-style {
+    html:not(#_) :is(#app-drawer-scrim:not([hidden]), body.aide-central[data-space="aide"]:not(.sidebar-hidden) .nav-backdrop) { opacity: 0; }
+  }
+
+  html:not(#_) #app-drawer:not([hidden]) :is(.app-drawer-head, .app-drawer-content > h2, .app-drawer-group, .app-drawer-footer) {
+    animation: drawer-rise 460ms var(--k-ease-out) both;
+  }
+
+  html:not(#_) #app-drawer:not([hidden]) .app-drawer-content > h2 { animation-delay: 40ms; }
+  html:not(#_) #app-drawer:not([hidden]) .app-drawer-group:nth-child(1) { animation-delay: 70ms; }
+  html:not(#_) #app-drawer:not([hidden]) .app-drawer-group:nth-child(2) { animation-delay: 100ms; }
+  html:not(#_) #app-drawer:not([hidden]) .app-drawer-group:nth-child(3) { animation-delay: 130ms; }
+  html:not(#_) #app-drawer:not([hidden]) .app-drawer-group:nth-child(4) { animation-delay: 160ms; }
+  html:not(#_) #app-drawer:not([hidden]) .app-drawer-group:nth-child(n + 5) { animation-delay: 190ms; }
+  html:not(#_) #app-drawer:not([hidden]) .app-drawer-footer { animation-delay: 210ms; }
+}
+
+@keyframes drawer-rise {
+  from { opacity: 0; translate: -14px 0; }
+}
+
 #ask-panel .ask-panel-head {
   display: flex;
   align-items: center;
