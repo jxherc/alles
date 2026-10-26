@@ -15,7 +15,14 @@ import {
   releaseSpecialistLegacyView,
 } from '../../static/js/specialist_groups.js';
 import { viewToSub } from '../../static/js/subdomain.js';
-import { configureLocalization } from '../../static/js/i18n.js';
+import { configureLocalization, t, tp } from '../../static/js/i18n.js';
+
+// copy now lives in the catalog: a phrase counts when a key used in this source says it
+const assertCopy = (source, pattern) => {
+  const keys = [...String(source).matchAll(/\bt[p]?\('([a-z0-9_.]+)'/g)].map(match => match[1]);
+  assert.ok(keys.flatMap(key => [t(key), tp(key, 1), tp(key, 2)]).some(text => pattern.test(text)), String(pattern));
+};
+
 
 const specialistSource = readFileSync(
   new URL('../../static/js/specialist_groups.js', import.meta.url),
@@ -132,7 +139,7 @@ test('Finance privileged mutations recover recent-owner expiry and expose busy s
   assert.match(specialistSource, /function _setAsyncControlBusy/);
   assert.match(specialistSource, /control\.setAttribute\('aria-busy', 'true'\)/);
   assert.match(specialistSource, /panel\.setAttribute\('aria-busy', busy \? 'true' : 'false'\)/);
-  assert.match(specialistSource, /undo this import\? only transactions created by this receipt will be removed/);
+  assertCopy(specialistSource, /undo this import\? only transactions created by this receipt will be removed/);
 });
 
 test('hiding the views strip does not hide task filters, documents or file locations', () => {
@@ -287,6 +294,7 @@ function financeHarness(extraContext = {}) {
     get classList() { return { add() {}, remove() {} }; }
   }
   const context = vm.createContext({
+    t, tp,
     document: { createElement: tag => new Element(tag) },
     window: {},
     formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),
@@ -453,8 +461,8 @@ test('ambiguous statement matches expose explicit duplicate and import-new decis
     'utf8',
   );
   assert.match(source, /resolve-match/);
-  assert.match(source, /treat as duplicate/);
-  assert.match(source, /import as new/);
+  assertCopy(source, /treat as duplicate/);
+  assertCopy(source, /import as new/);
   assert.match(source, /JSON\.stringify\(\{ decision \}\)/);
   assert.match(source, /if \(resolutionBusy\) return/);
   assert.match(source, /resolutionButtons\.forEach\(button => _setAsyncControlBusy\(button, true\)\)/);
@@ -466,10 +474,10 @@ test('interrupted imports expose recovery actions and reserve undo for local rec
     'utf8',
   );
   assert.match(source, /resolve-recovery/);
-  assert.match(source, /accept edited Actual transaction as replacement/);
-  assert.match(source, /delete it and retry/);
-  assert.match(source, /undo applied rows/);
-  assert.match(source, /undo is unavailable for Actual imports/);
+  assertCopy(source, /accept edited Actual transaction as replacement/);
+  assertCopy(source, /delete it and retry/);
+  assertCopy(source, /undo applied rows/);
+  assertCopy(source, /undo is unavailable for Actual imports/);
   assert.match(source, /confirmDialog/);
   assert.match(source, /if \(recoveryBusy\) return/);
   assert.match(source, /if \(receiptMutationBusy\) return/);
@@ -485,9 +493,9 @@ test('foreign-currency import review uses an explicit accessible evidence form',
   assert.match(source, /base_amount_text/);
   assert.match(source, /rate_text/);
   assert.match(source, /rate_date/);
-  assert.match(source, /conversion rate source/);
+  assertCopy(source, /conversion rate source/);
   assert.match(source, /\/rows\/\$\{encodeURIComponent\(row\.id\)\}\/conversion/);
-  assert.match(source, /save reviewed conversion/);
+  assertCopy(source, /save reviewed conversion/);
 });
 
 test('specialist subsection roots stay mounted so they can be revisited', () => {
@@ -515,24 +523,26 @@ test('Finance distinguishes unavailable data and gates apply until review is com
     new URL('../../static/js/specialist_groups.js', import.meta.url),
     'utf8',
   );
-  assert.match(source, /subscriptions unavailable:/);
-  assert.match(source, /accounts unavailable:/);
+  assertCopy(source, /subscriptions unavailable:/);
+  assertCopy(source, /accounts unavailable:/);
   assert.match(source, /receipt\.counts\.conflicts === 0/);
   assert.match(source, /receipt\.counts\.applying === 0/);
-  assert.match(source, /import could not be applied/);
-  assert.match(source, /reported \? \(ledger\.mode === 'actual' \? 'Actual' : 'Alles'\) : 'not reported'/);
-  assert.match(source, /status unavailable/);
-  assert.match(source, /previewMessage\.textContent = error\?\.message \|\| 'import preview could not be created'/);
+  assertCopy(source, /import could not be applied/);
+  assert.match(source, /reported \? \(ledger\.mode === 'actual' \? 'Actual' : 'Alles'\) : t\('finance\.not_reported'\)/);
+  assertCopy(source, /not reported/);
+  assertCopy(source, /status unavailable/);
+  assert.match(source, /previewMessage\.textContent = error\?\.message \|\| t\('finance\.preview_failed'\)/);
+  assertCopy(source, /import preview could not be created/);
   assert.match(source, /previewMessage\.setAttribute\('aria-live', 'polite'\)/);
   assert.match(source, /Array\.isArray\(profileData\?\.profiles\)/);
-  assert.match(source, /import setup unavailable:/);
-  assert.match(source, /retry import setup/);
+  assertCopy(source, /import setup unavailable:/);
+  assertCopy(source, /retry import setup/);
   assert.match(source, /if \(!profiles\.length\)/);
   assert.match(source, /const selectedProfile = profiles\.find/);
   assert.match(source, /file\.size > 5 \* 1024 \* 1024/);
-  assert.match(source, /statement files must be 5 MiB or smaller/);
+  assertCopy(source, /statement files must be 5 MiB or smaller/);
   assert.match(source, /try \{ receipts = await _json\(request, '\/api\/finance\/imports'\); \}/);
-  assert.match(source, /new imports still work/);
+  assertCopy(source, /new imports still work/);
   assert.doesNotMatch(source, /profileData\.profiles\.find/);
   assert.match(source, /const generation = \+\+previewGeneration/);
   assert.match(source, /const capturedAccountId = accountId/);
@@ -545,14 +555,14 @@ test('specialist overviews keep partial failures distinct from honest empty stat
     new URL('../../static/js/specialist_groups.js', import.meta.url),
     'utf8',
   );
-  assert.match(source, /partial data:/);
-  assert.match(source, /calendar data could not be loaded/);
-  assert.match(source, /mail accounts unavailable/);
-  assert.match(source, /contacts unavailable/);
-  assert.match(source, /saved reading could not be loaded/);
-  assert.match(source, /measurements unavailable/);
-  assert.match(source, /habits unavailable/);
-  assert.match(source, /no items were returned by available sources/);
+  assertCopy(source, /partial data:/);
+  assertCopy(source, /calendar data could not be loaded/);
+  assertCopy(source, /mail accounts unavailable/);
+  assertCopy(source, /contacts unavailable/);
+  assertCopy(source, /saved reading could not be loaded/);
+  assertCopy(source, /measurements unavailable/);
+  assertCopy(source, /habits unavailable/);
+  assertCopy(source, /no items were returned by available sources/);
 });
 
 test('a committed import receipt survives an independent history refresh failure', () => {
@@ -566,7 +576,7 @@ test('a committed import receipt survives an independent history refresh failure
   );
   assert.match(showReceipt, /_renderImportReceipt\(receiptTarget, receipt/);
   assert.match(showReceipt, /try \{/);
-  assert.match(showReceipt, /recent receipts could not be refreshed; the receipt above is current/);
+  assertCopy(showReceipt, /recent receipts could not be refreshed; the receipt above is current/);
   assert.doesNotMatch(showReceipt, /throw/);
 });
 
@@ -579,7 +589,7 @@ test('notification imports require an explicit account-suffix confirmation actio
   assert.match(source, /\/confirm-account/);
   assert.match(source, /account_id: receipt\.account_id/);
   assert.match(source, /account_suffix: parsed\.account_suffix \|\| ''/);
-  assert.match(source, /account suffix could not be confirmed/);
+  assertCopy(source, /account suffix could not be confirmed/);
 });
 
 test('statement imports prefer the selected account currency over a profile fallback', () => {
@@ -602,8 +612,8 @@ test('Plan quick capture reports create and refresh failures without losing a re
   );
   const capture = source.slice(source.indexOf("capture.addEventListener('submit'"), source.indexOf("const workbench =", source.indexOf("capture.addEventListener('submit'")));
   assert.match(capture, /catch \(error\)/);
-  assert.match(capture, /task could not be added/);
-  assert.match(capture, /task saved; plan could not refresh/);
+  assertCopy(capture, /task could not be added/);
+  assertCopy(capture, /task saved; plan could not refresh/);
   assert.match(capture, /input\.value = ''/);
   assert.match(capture, /input\.focus\(\)/);
 });

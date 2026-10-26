@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -34,6 +35,7 @@ function harness() {
     return next.promise;
   };
   const context = vm.createContext({
+    t, tp,
     calendarDateKey: () => '2026-10-16', location: { search: '' }, URLSearchParams,
     AbortController, fetch() {}, document: { activeElement: null, getElementById: get, body: { append() {} } },
     createFocusBoundary: () => ({ activate() {}, deactivate() {}, destroy() {} }),

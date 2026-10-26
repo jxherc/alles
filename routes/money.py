@@ -5,6 +5,7 @@ import inspect
 import math
 from collections import defaultdict
 from datetime import date, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.routing import APIRoute
@@ -29,7 +30,7 @@ from core.database import (
     Watch,
     get_db,
 )
-from services import actual_finance, finance_currency, finance_requests, finance_undo, fx
+from services import actual_finance, finance_currency, finance_requests, finance_undo, money_totals
 from services.money_stats import balance_deltas as _balances
 from services.money_stats import distribute_expense as _distribute
 from services.money_stats import finite_amount as _fin
@@ -41,6 +42,23 @@ from services.money_stats import spending_by_category as _spending_by_cat
 def _actual_error(exc: actual_finance.ActualFinanceError):
     status_code = 503 if isinstance(exc, actual_finance.ActualFinanceUnavailable) else 409
     raise HTTPException(status_code, str(exc)) from exc
+
+
+def _base_ledger(db, transactions=None, month="", within=None, code=""):
+    """the local ledger in the totals currency (or in `code`), plus the fields saying what that
+    left out; its income and expense cover `month`, or the entries `within` picks"""
+    base = money_totals.base_currency(db)
+    totals = money_totals.Totals(code or base["code"])
+    ledger = money_totals.BaseLedger(db, totals, transactions=transactions)
+    if ledger.unit is None:
+        return ledger, {}
+    return ledger, money_totals.payload(
+        totals,
+        base,
+        ledger.left_out(month, within),
+        ledger=money_totals.ledger_base(db),
+        included=ledger.included,
+    )
 
 
 def _legacy_ledger_mutation(method: str, path: str) -> bool:
@@ -230,6 +248,40 @@ def supported_currencies(db: DbSession = Depends(get_db)):
     return {"codes": sorted(finance_currency.SUPPORTED_CURRENCY_CODES)}
 
 
+@router.patch("/totals-currency")
+def set_totals_currency(body: dict, db: DbSession = Depends(get_db)):
+    """the currency money and subscription totals are shown in, and the rates into it.
+    neither changes a stored amount; an empty rate removes that pair. a rate is a number or
+    a plain decimal string"""
+    base, rate = body.get("base"), body.get("rate")
+    if base is None and rate is None:
+        raise HTTPException(400, "choose a currency or enter a rate")
+    if base is not None and not isinstance(base, str):
+        raise HTTPException(400, "choose a currency code, like CAD or USD")
+    if rate is not None and (
+        not isinstance(rate, dict)
+        or not all(isinstance(rate.get(key), str) for key in ("from", "to"))
+    ):
+        raise HTTPException(400, "a rate needs two currency codes, like USD and CAD")
+    try:
+        if base is not None:
+            if actual_finance.is_canonical(db):
+                raise HTTPException(409, "totals stay in Actual's base currency after the move")
+            money_totals.save_base(base)
+        if rate is not None:
+            value = rate.get("rate", "")
+            if value is not None and not isinstance(value, (str, int, float)):
+                raise ValueError("enter a rate above zero with a dot for decimals, like 1.37")
+            money_totals.save_rate(rate["from"], rate["to"], "" if value is None else value)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    saved = money_totals.saved_rates()
+    return {
+        "base_currency": money_totals.base_currency(db),
+        "rates": [money_totals.rate_row(frm, to, row) for (frm, to), row in sorted(saved.items())],
+    }
+
+
 @router.get("/accounts")
 def list_accounts(db: DbSession = Depends(get_db)):
     if actual_finance.is_canonical(db):
@@ -338,6 +390,16 @@ def update_account(aid: str, body: dict, db: DbSession = Depends(get_db)):
         if original_opening and not opening_changed:
             a.original_opening_text = original_opening
             a.base_opening_text = original_opening
+        if current == "XXX":
+            # naming the currency an unknown account was always in: its entries with no
+            # currency of their own take it too. ones that already have one keep it
+            for t in db.query(Transaction).filter_by(account_id=aid).all():
+                if finance_currency.currency_code(t.original_currency_code) == "XXX":
+                    _prepare_money(
+                        lambda t=t: finance_currency.prepare_transaction(
+                            db, t, source="owner_declared"
+                        )
+                    )
     elif opening_changed:
         _prepare_money(
             lambda: finance_currency.refresh_account_opening(a),
@@ -460,7 +522,7 @@ def _norm_tags(s):
     return ",".join(out)
 
 
-def _txn(t):
+def _txn(t, account_code=""):
     return {
         "id": t.id,
         "account_id": t.account_id,
@@ -478,6 +540,8 @@ def _txn(t):
         "original_currency_code": t.original_currency_code or "",
         "base_amount_text": t.base_amount_text or "",
         "base_currency_code": t.base_currency_code or "",
+        # a reviewed renewal posts its converted price: the amount isn't in original_currency_code
+        "amount_currency_code": finance_currency.amount_currency(t, account_code),
         "import_identity": t.import_identity or "",
         "import_batch_id": t.import_batch_id or "",
         "import_source": t.import_source or "",
@@ -1654,10 +1718,18 @@ def envelope(month: str = "", db: DbSession = Depends(get_db)):
             _actual_error(exc)
     # fetch txns + splits once and reuse — both _spending_by_cat calls and the income sum below
     # otherwise each call re-scanned the whole Transaction + TxnSplit tables (4b perf)
-    all_txns = db.query(Transaction).all()
-    splits_by_txn = defaultdict(list)
-    for s in db.query(TxnSplit).all():
-        splits_by_txn[s.txn_id].append(s)
+    # assignments and targets are saved in the ledger currency, so the month adds up there and
+    # is shown in the totals currency only at the end
+    saved_in = money_totals.ledger_base(db)
+    ledger, shared = _base_ledger(db, month=month, code=saved_in)
+    display = money_totals.Totals(money_totals.base_currency(db)["code"])
+    factor = display.factor(saved_in) if ledger.unit else Decimal(1)
+
+    def shown(value):
+        return round(float(Decimal(str(value)) * factor), 2) if factor is not None else value
+
+    all_txns = ledger.transactions
+    splits_by_txn = ledger.splits(db)
     spent_now = _spending_by_cat(db, month, txns=all_txns, splits_by_txn=splits_by_txn)
     spent_upto = _spending_by_cat(db, month, upto=True, txns=all_txns, splits_by_txn=splits_by_txn)
     assigns = db.query(BudgetAssignment).all()
@@ -1676,16 +1748,18 @@ def envelope(month: str = "", db: DbSession = Depends(get_db)):
         if c in targets and targets[c].amount > 0:
             amt = targets[c].amount
             tgt = {
-                "amount": amt,
+                "amount": shown(amt),
                 "date": targets[c].target_date or "",
                 "funded": round(max(0.0, avail) / amt, 4) if amt else 0.0,
             }
         out.append(
             {
                 "category": c,
-                "assigned": round(assigned_now.get(c, 0.0), 2),
-                "spent": round(spent_now.get(c, 0.0), 2),
-                "available": avail,
+                "assigned": shown(round(assigned_now.get(c, 0.0), 2)),
+                # the editor keeps the saved number, so a save never stores a converted one
+                "assigned_saved": round(assigned_now.get(c, 0.0), 2),
+                "spent": shown(round(spent_now.get(c, 0.0), 2)),
+                "available": shown(avail),
                 "target": tgt,
             }
         )
@@ -1696,12 +1770,24 @@ def envelope(month: str = "", db: DbSession = Depends(get_db)):
         if (t.date or "")[:7] == month and not t.transfer_id and (t.amount or 0.0) > 0
     )
     assigned_total = round(sum(assigned_now.values()), 2)
+    if shared:
+        # what stayed out is counted against the ledger currency, where the month adds up
+        shared = {
+            **shared,
+            "currency": display.base if factor is not None else saved_in,
+            "rates": sorted(
+                {(r["from"], r["to"]): r for r in shared["rates"] + display.rates_used()}.values(),
+                key=lambda r: (r["from"], r["to"]),
+            ),
+            "excluded_currency": saved_in,
+        }
     return {
         "month": month,
-        "income": round(income, 2),
-        "assigned_total": assigned_total,
-        "to_be_budgeted": round(income - assigned_total, 2),
+        "income": shown(round(income, 2)),
+        "assigned_total": shown(assigned_total),
+        "to_be_budgeted": shown(round(income - assigned_total, 2)),
         "categories": out,
+        **shared,
     }
 
 
@@ -1717,7 +1803,7 @@ def age_of_money(db: DbSession = Depends(get_db)):
     else:
         transactions = [
             {"date": row.date, "amount": row.amount, "transfer_id": row.transfer_id}
-            for row in db.query(Transaction).all()
+            for row in _base_ledger(db)[0].transactions
         ]
 
     def _d(s):
@@ -1810,28 +1896,27 @@ def forecast(
         except actual_finance.ActualFinanceError as exc:
             _actual_error(exc)
         categories = forecast_svc.category_averages_from_rows(accounts, transactions, as_of=as_of_d)
+        shared = {}
     else:
-        accounts = [
-            {"id": row.id, "opening": row.opening, "archived": row.archived}
-            for row in db.query(Account).all()
-        ]
-        transactions = [
-            {"account_id": row.account_id, "date": row.date, "amount": row.amount}
-            for row in db.query(Transaction).all()
-        ]
-        schedules = [
-            {
-                "next_date": row.next_date,
-                "anchor_day": row.anchor_day,
-                "cycle": row.cycle,
-                "cycle_days": row.cycle_days,
-                "amount": row.amount,
-                "payee": row.payee or row.category or "recurring",
-                "active": row.active,
-            }
-            for row in db.query(RecurringTxn).filter(RecurringTxn.active == True).all()  # noqa: E712
-        ]
-        categories = forecast_svc.category_averages(db, as_of=as_of_d)
+        ledger, shared = _base_ledger(db, month=month)
+        accounts, transactions = ledger.rows()
+        schedules = []
+        for row in db.query(RecurringTxn).filter(RecurringTxn.active == True).all():  # noqa: E712
+            factor = ledger.account_factor(row.account_id)
+            if factor is None:
+                continue  # its account's currency has no rate yet, like the account itself
+            schedules.append(
+                {
+                    "next_date": row.next_date,
+                    "anchor_day": row.anchor_day,
+                    "cycle": row.cycle,
+                    "cycle_days": row.cycle_days,
+                    "amount": float(Decimal(str(_fin(row.amount or 0.0))) * factor),
+                    "payee": row.payee or row.category or "recurring",
+                    "active": row.active,
+                }
+            )
+        categories = forecast_svc.category_averages_from_rows(accounts, transactions, as_of=as_of_d)
     start = _net_worth_at(accounts, transactions, as_of_d.isoformat())
     occ = []
     for r in schedules:
@@ -1876,6 +1961,7 @@ def forecast(
         "recurring": occ,
         "line": line,
         "categories": categories,
+        **shared,
     }
 
 
@@ -1888,14 +1974,7 @@ def networth_history(months: int = 6, as_of: str = "", db: DbSession = Depends(g
             return actual_finance.networth_history(db, end_month=f"{y:04d}-{m:02d}", months=months)
         except actual_finance.ActualFinanceError as exc:
             _actual_error(exc)
-    accounts = [
-        {"id": row.id, "opening": row.opening, "archived": row.archived}
-        for row in db.query(Account).all()
-    ]
-    transactions = [
-        {"account_id": row.account_id, "date": row.date, "amount": row.amount}
-        for row in db.query(Transaction).all()
-    ]
+    accounts, transactions = _base_ledger(db)[0].rows()
     return _networth_history(accounts, transactions, end_month=f"{y:04d}-{m:02d}", months=months)
 
 
@@ -2069,6 +2148,8 @@ def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession =
             _actual_error(exc)
     else:
         balances = _balances(db)
+        ledger, _ = _base_ledger(db)
+        # amounts in the base currency; one with no rate keeps its own amount and says which
         transactions = [
             {
                 "id": row.id,
@@ -2078,19 +2159,44 @@ def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession =
                 "payee": row.payee,
                 "category": row.category,
             }
-            for row in db.query(Transaction).filter(Transaction.date.like(f"{month}%")).all()
-        ]
-        schedules = [
+            for row in ledger.transactions
+            if (row.date or "").startswith(month)
+        ] + [
             {
                 "id": row.id,
+                "date": row.date,
+                "transfer_id": row.transfer_id,
+                "amount": row.amount,
                 "payee": row.payee,
                 "category": row.category,
-                "amount": row.amount,
-                "next_date": row.next_date,
-                "active": row.active,
+                "_currency": code,
             }
-            for row in db.query(RecurringTxn).filter(RecurringTxn.active == True).all()  # noqa: E712
+            for row, code in ledger.left_transactions
+            if (row.date or "").startswith(month) and code != "XXX"
         ]
+        account_rows = db.query(Account).all()
+        codes = {
+            row.id: finance_currency.currency_code(row.currency_code or row.currency)
+            for row in account_rows
+        }
+        schedules = []
+        for row in db.query(RecurringTxn).filter(RecurringTxn.active == True).all():  # noqa: E712
+            factor = ledger.account_factor(row.account_id)
+            own = codes.get(row.account_id, "XXX")
+            schedules.append(
+                {
+                    "id": row.id,
+                    "payee": row.payee,
+                    "category": row.category,
+                    "amount": row.amount
+                    if factor is None
+                    else float(Decimal(str(_fin(row.amount or 0.0))) * factor),
+                    "next_date": row.next_date,
+                    "active": row.active,
+                    **({"_currency": own} if factor is None and own != "XXX" else {}),
+                }
+            )
+        # a low balance is checked against its own account's threshold, in that currency
         accounts = [
             {
                 "id": row.id,
@@ -2098,8 +2204,9 @@ def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession =
                 "archived": row.archived,
                 "low_balance": row.low_balance,
                 "balance": (row.opening or 0.0) + balances.get(row.id, 0.0),
+                **({"_currency": codes[row.id]} if ledger.unit and codes[row.id] != "XXX" else {}),
             }
-            for row in db.query(Account).all()
+            for row in account_rows
         ]
     watches = db.query(Watch).all()
     large, watch_hits = [], []
@@ -2107,7 +2214,9 @@ def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession =
         if (txn.get("date") or "")[:7] != month or txn.get("transfer_id"):
             continue
         amt = txn.get("amount") or 0.0
-        if amt < 0 and abs(amt) >= big:
+        own = {"currency": txn["_currency"]} if txn.get("_currency") else {}
+        # `big` is in the totals currency, so an amount with no rate can't be compared to it
+        if amt < 0 and abs(amt) >= big and not own:
             large.append(
                 {
                     "id": txn["id"],
@@ -2115,6 +2224,7 @@ def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession =
                     "amount": amt,
                     "date": txn.get("date"),
                     "category": txn.get("category"),
+                    **own,
                 }
             )
         for w in watches:
@@ -2127,6 +2237,7 @@ def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession =
                         "amount": amt,
                         "date": txn.get("date"),
                         "watch": w.value,
+                        **own,
                     }
                 )
                 break
@@ -2148,6 +2259,7 @@ def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession =
                     "amount_kind": schedule.get("amount_kind", "exact"),
                     "date": schedule["next_date"],
                     "days": days,
+                    **({"currency": schedule["_currency"]} if schedule.get("_currency") else {}),
                 }
             )
     low_balance = []
@@ -2163,6 +2275,7 @@ def alerts(month: str = "", big: float = 200.0, as_of: str = "", db: DbSession =
                     "name": account["name"],
                     "balance": current,
                     "threshold": threshold,
+                    **({"currency": account["_currency"]} if account.get("_currency") else {}),
                 }
             )
     return {
@@ -2213,7 +2326,21 @@ class GoalBody(BaseModel):
 
 @router.get("/goals")
 def list_goals(db: DbSession = Depends(get_db)):
-    return {"goals": [_goal(g) for g in db.query(Goal).order_by(Goal.created_at.asc()).all()]}
+    """goals are saved in the ledger currency and shown in the totals one when a rate allows"""
+    goals = [_goal(g) for g in db.query(Goal).order_by(Goal.created_at.asc()).all()]
+    saved_in = money_totals.ledger_base(db)
+    display = money_totals.Totals(money_totals.base_currency(db)["code"])
+    factor = display.factor(saved_in)
+    if factor is not None:
+        for goal in goals:
+            for key in ("target", "current", "monthly", "remaining"):
+                goal[key] = round(float(Decimal(str(goal[key] or 0.0)) * factor), 2)
+    return {
+        "goals": goals,
+        "currency": display.base if factor is not None else saved_in,
+        "ledger_currency": saved_in,
+        "rates": display.rates_used(),
+    }
 
 
 @router.post("/goals")
@@ -2255,6 +2382,7 @@ def delete_goal(gid: str, db: DbSession = Depends(get_db)):
 
 
 def _report_data(db, start, end):
+    """income, spending, categories, the saved rows in range, and what the totals left out"""
     if actual_finance.is_canonical(db):
         rows = []
         income = expense = 0.0
@@ -2278,20 +2406,21 @@ def _report_data(db, start, end):
             ([category, round(value, 2)] for category, value in by.items()),
             key=lambda item: -item[1],
         )
-        return income, expense, cats, rows
-    splits_by_txn = defaultdict(list)
-    for s in db.query(TxnSplit).all():
-        splits_by_txn[s.txn_id].append(s)
+        return income, expense, cats, rows, {}
+    native = db.query(Transaction).order_by(Transaction.date.asc()).all()
+
+    def within(t):
+        d = t.date or ""
+        return not t.transfer_id and not ((start and d < start) or (end and d > end))
+
+    ledger, shared = _base_ledger(db, native, within=within)
+    splits_by_txn = ledger.splits(db)
     income = expense = 0.0
     by = defaultdict(float)
-    rows = []
-    for t in db.query(Transaction).order_by(Transaction.date.asc()).all():
-        if t.transfer_id:
+
+    for t in ledger.transactions:
+        if not within(t):
             continue
-        d = t.date or ""
-        if (start and d < start) or (end and d > end):
-            continue
-        rows.append(t)
         amt = t.amount or 0.0
         if amt >= 0:
             income += amt
@@ -2299,12 +2428,12 @@ def _report_data(db, start, end):
             expense += -amt
             _distribute(t, splits_by_txn, by)
     cats = sorted(([c, round(v, 2)] for c, v in by.items()), key=lambda x: -x[1])
-    return income, expense, cats, rows
+    return income, expense, cats, [t for t in native if within(t)], shared
 
 
 @router.get("/report")
 def report(start: str = "", end: str = "", db: DbSession = Depends(get_db)):
-    income, expense, cats, _ = _report_data(db, start, end)
+    income, expense, cats, _, shared = _report_data(db, start, end)
     return {
         "start": start,
         "end": end,
@@ -2312,6 +2441,7 @@ def report(start: str = "", end: str = "", db: DbSession = Depends(get_db)):
         "expense": round(expense, 2),
         "net": round(income - expense, 2),
         "by_category": cats,
+        **shared,
     }
 
 
@@ -2326,16 +2456,23 @@ def report_csv(start: str = "", end: str = "", db: DbSession = Depends(get_db)):
         s = "" if v is None else str(v)
         return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
 
-    _, _, _, rows = _report_data(db, start, end)
+    _, _, _, rows, _ = _report_data(db, start, end)
+    # each row keeps its own amount, so it says which currency that amount is in
+    canonical_code = ""
+    if actual_finance.is_canonical(db):
+        state = db.get(FinanceLedgerState, "primary")
+        canonical_code = finance_currency.currency_code(state.base_currency_code if state else "")
+    codes = {a.id: a.currency_code or a.currency for a in db.query(Account).all()}
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["date", "amount", "category", "payee", "notes"])
+    w.writerow(["date", "amount", "currency", "category", "payee", "notes"])
     for t in rows:
-        value = t if isinstance(t, dict) else _txn(t)
+        value = t if isinstance(t, dict) else _txn(t, codes.get(t.account_id, ""))
         w.writerow(
             [
                 _safe(value["date"]),
                 value["amount"],
+                canonical_code if isinstance(t, dict) else value["amount_currency_code"],
                 _safe(value["category"]),
                 _safe(value["payee"]),
                 _safe(value["notes"]),
@@ -2384,43 +2521,43 @@ def networth_base(base: str | None = None, db: DbSession = Depends(get_db)):
             "net_worth": round(sum(row["converted"] for row in rows), 2),
             "accounts": rows,
         }
-    base = finance_currency.currency_code(base or "USD")
+    chosen = money_totals.base_currency(db)
+    base = finance_currency.currency_code(base or chosen["code"])
     if base == "XXX":
         raise HTTPException(400, "choose a supported base currency code")
-    rates = fx.get_rates()
-    bal = _balances(db)
-    accounts = db.query(Account).all()
-    _, balances = finance_currency.native_currency_totals(accounts, db.query(Transaction).all())
+    # saved rates only, like every other total: no rate leaves that account out, with a note
+    totals = money_totals.Totals(base)
+    ledger = money_totals.BaseLedger(db, totals)
+    bal = ledger.balances()
+    native = _balances(db)
+    left = {a.id for a, _ in ledger.left_accounts}
     rows = []
     total = 0.0
-    for a in accounts:
-        if a.archived:
+    for account, row in zip(ledger.account_rows, ledger.accounts, strict=True):
+        if account.archived:
             continue
-        currency = finance_currency.currency_code(a.currency_code or a.currency)
-        codes = {row["currency"] for row in balances.get(a.id, [])}
-        if currency == "XXX" or codes != {currency}:
-            raise HTTPException(
-                409, "account currency evidence is incomplete; no conversion was applied"
-            )
-        if currency != base and (currency not in rates or base not in rates):
-            raise HTTPException(409, "no stored rate for this currency; no conversion was applied")
-        native = (a.opening or 0.0) + bal.get(a.id, 0.0)
-        conv = round(native, 2) if currency == base else fx.convert(native, currency, base, rates)
-        total += conv
+        # the same sum as the summary's net worth: what converts counts, the rest is in excluded
+        converted = round(row["opening"] + bal.get(account.id, 0.0), 2)
+        total += converted
+        if account.id in left and account.id not in bal:
+            continue
         rows.append(
             {
-                "id": a.id,
-                "name": a.name,
-                "currency": currency,
-                "native": round(native, 2),
-                "converted": conv,
+                "id": account.id,
+                "name": account.name,
+                "currency": finance_currency.currency_code(
+                    account.currency_code or account.currency
+                ),
+                "native": round((account.opening or 0.0) + native.get(account.id, 0.0), 2),
+                "converted": converted,
             }
         )
     return {
         "base": base,
         "net_worth": round(total, 2),
         "accounts": rows,
-        "rate_source": "static_estimate",
+        "rate_source": "saved_rates",
+        **money_totals.payload(totals, chosen | {"code": base}, ledger.left_out()),
     }
 
 
@@ -2523,16 +2660,20 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
             "currency": base,
         }
     accounts = db.query(Account).all()
-    bal = _balances(db)
-    net_worth = sum((a.opening or 0.0) + bal.get(a.id, 0.0) for a in accounts if not a.archived)
-
     # fetch all transactions and splits once to avoid N+1 scans
-    all_txns = db.query(Transaction).all()
-    currency_totals, _ = finance_currency.native_currency_totals(accounts, all_txns, month)
+    native_txns = db.query(Transaction).all()
+    currency_totals, _ = finance_currency.native_currency_totals(accounts, native_txns, month)
     codes = {row["currency"] for row in currency_totals}
-    splits_by_txn = defaultdict(list)
-    for s in db.query(TxnSplit).all():
-        splits_by_txn[s.txn_id].append(s)
+    base = money_totals.base_currency(db)
+    totals = money_totals.Totals(base["code"])
+    # every amount in the base currency; one with no rate stays out and is counted below
+    ledger = money_totals.BaseLedger(db, totals, accounts, native_txns)
+    all_txns = ledger.transactions
+    splits_by_txn = ledger.splits(db)
+    bal = ledger.balances()
+    net_worth = sum(
+        row["opening"] + bal.get(row["id"], 0.0) for row in ledger.accounts if not row["archived"]
+    )
 
     income = expense = 0.0
     for t in all_txns:
@@ -2550,11 +2691,23 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
     cats = sorted(([c, round(v, 2)] for c, v in by_cat.items()), key=lambda x: -x[1])
 
     budget_rows = db.query(Budget).order_by(Budget.category.asc()).all()
+    # a cap is saved in the ledger currency. it's shown in the totals currency when a rate
+    # allows; otherwise caps and their spending both stay in the ledger currency
+    saved_in = money_totals.ledger_base(db)
+    cap_factor = totals.factor(saved_in) if ledger.unit else Decimal(1)
+    cap_ledger, cap_by_cat = ledger, by_cat
+    if cap_factor is None:
+        cap_ledger = money_totals.BaseLedger(
+            db, money_totals.Totals(saved_in), accounts, native_txns
+        )
+        cap_by_cat = _spending_by_cat(
+            db, month, txns=cap_ledger.transactions, splits_by_txn=cap_ledger.splits(db)
+        )
     # tag budgets store category="" so by_cat can't see them - sum this month's tagged expenses
     tag_budgets = [b for b in budget_rows if (b.tag or "").strip()]
     tag_spend: dict[str, float] = {}
     if tag_budgets:
-        for t in all_txns:
+        for t in cap_ledger.transactions:
             if t.transfer_id or (t.amount or 0.0) >= 0 or (t.date or "")[:7] != month:
                 continue
             tags = set(_norm_tags(t.tags or "").split(","))
@@ -2568,9 +2721,11 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
             {
                 "category": b.tag if is_tag else b.category,  # show the tag name, not a blank
                 "tag": b.tag or "",
-                "limit": b.limit_amt,
+                "limit": round(float(Decimal(str(b.limit_amt or 0.0)) * cap_factor), 2)
+                if cap_factor is not None
+                else b.limit_amt,
                 "spent": round(
-                    tag_spend.get(b.id, 0.0) if is_tag else by_cat.get(b.category, 0.0), 2
+                    tag_spend.get(b.id, 0.0) if is_tag else cap_by_cat.get(b.category, 0.0), 2
                 ),
             }
         )
@@ -2593,6 +2748,27 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
         for mo in months
     ]
 
+    if ledger.unit is None:
+        # no currency known anywhere (old "$" accounts): raw sums, as before
+        status = "unknown" if "XXX" in codes else "single"
+        shared = {
+            "currency": accounts[0].currency if accounts else "$",
+            "base_currency": base,
+            "ledger_currency": saved_in,
+            "rates": [],
+            "excluded": [],
+            "complete": True,
+            "included": True,
+        }
+        caps = {"budgets_currency": shared["currency"], "budgets_excluded": []}
+    else:
+        left = ledger.left_out(month)
+        status = "partial" if left else "converted" if totals.used else "single"
+        shared = money_totals.payload(totals, base, left, ledger=saved_in, included=ledger.included)
+        caps = {
+            "budgets_currency": totals.base if cap_factor is not None else saved_in,
+            "budgets_excluded": left if cap_ledger is ledger else cap_ledger.left_out(month),
+        }
     return {
         "ledger": "alles",
         "month": month,
@@ -2602,8 +2778,9 @@ def summary(month: str = "", db: DbSession = Depends(get_db)):
         "net": round(income - expense, 2),
         "by_category": cats,
         "budgets": budgets,
+        **caps,
         "trend": trend,
-        "currency": accounts[0].currency if accounts else "$",
-        "currency_status": "unknown" if "XXX" in codes else "mixed" if len(codes) > 1 else "single",
+        **shared,
+        "currency_status": status,
         "totals_by_currency": currency_totals,
     }

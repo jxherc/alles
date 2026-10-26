@@ -1,4 +1,6 @@
-import { calendarDateKey } from '../../static/js/i18n.js';
+import { calendarDateKey, t, tp } from '../../static/js/i18n.js';
+import { amountIn, excludedNotes, totalsCurrency } from '../../static/js/money_currency.js';
+import { assignHues, categoryHue } from '../../static/js/color.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -22,11 +24,13 @@ function harness() {
   };
   const requests = [];
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     document: { getElementById: get }, location: { search: '' }, URLSearchParams,
     formatCalendarDate: () => 'october 2026',
     formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),
     toast() {}, tickNumbers() {}, api: async (...args) => { requests.push(args); return {}; },
+    amountIn, excludedNotes, totalsCurrency, wireCurrency() {}, assignHues, categoryHue,
   });
   vm.runInContext(source + `
     _cur = 'CAD';
@@ -36,9 +40,11 @@ function harness() {
       _accountForm, _budgetForm, _recurringForm, goalsCard, holdingsCard, reportsCard,
       moneyField, moneySection, toggleMoneySection, toggleTransactionDetails, fmt, summaryAmount, addTxn, transactionAmountError,
       _renderTxnMain, accountsList, summaryCards, catChart, trendChart, envelopeCard, networthCard, alertsStrip,
+      budgetsList, totalsUnit, setBudgets: rows => { _budgets = rows; }, setGoals: (rows, currency) => { _goals = rows; _goalsCurrency = currency; },
       setCurrency: (accounts, summary, canonical = false) => { _accounts = accounts; _sum = summary; _canonicalLedger = canonical; _cur = summary.currency; },
       setTask: id => { _moneyPlanTask = id; },
       setEnvelope: value => { _envelope = value; },
+      setAlerts: value => { _alerts = value; },
       setRecurring: (rows, error = false) => { _recurring = rows; _recurringError = error; } };
   `, context);
   return { ...context.subject, get, requests };
@@ -168,20 +174,50 @@ test('native rows use historical currency and unknown evidence stays unknown', (
   assert.match(h._renderTxnMain({ ...row, original_currency_code: 'USD' }, { a: 'migrated' }), /−CAD\u00a010\.00/);
 });
 
-test('mixed-currency summary stays separate and combined analytics cannot present raw sums as a conversion', () => {
+test('a foreign account no longer turns analytics off: totals stay in the base currency and say what they left out', () => {
   const h = harness();
-  h.setCurrency([], { currency: 'CAD', currency_status: 'mixed', net_worth: 180, expense: 20,
+  h.setCurrency([{ id: 'c', name: 'everyday', currency_code: 'CAD' }, { id: 'u', name: 'us card', currency_code: 'USD' }], {
+    currency: 'CAD', currency_status: 'partial', net_worth: 90, expense: 10, income: 0, net: -10, by_category: [['food', 10]], budgets: [], trend: [],
+    base_currency: { code: 'CAD', fixed: false }, rates: [], complete: false,
+    excluded: [{ currency: 'USD', accounts: 1, transactions: 1, net_worth: 90, income: 0, expense: 10 }],
     totals_by_currency: ['CAD', 'USD'].map(currency => ({ currency, net_worth: 90, expense: 10, income: 0, net: -10 })) });
-  const strip = html => html.replace(/<[^>]*>/g, '');
+  const strip = html => html.replace(/<[a-z/][^>]*>/gi, ' ').replace(/\s+/g, ' ');
   const html = h.summaryCards();
-  assert.match(html, /mixed currencies/);
-  assert.match(strip(html), /CAD\u00a090\.00/);
-  assert.match(strip(html), /USD\u00a090\.00/);
-  assert.doesNotMatch(strip(html), /CAD\u00a0180\.00|CAD\u00a020\.00/);
+  assert.match(strip(html), /totals in CAD/);
+  assert.match(strip(html), /1 account in USD isn't in these totals · USD 90\.00, spent USD 10\.00 this month add USD rate/);
+  assert.match(strip(html), /net worth CAD 90\.00/);
+  assert.doesNotMatch(strip(html), /CAD 180\.00|mixed currencies|no conversion has been applied/);
+  for (const renderer of [h.catChart, h.envelopeCard, h.goalsCard, h.holdingsCard, h.reportsCard]) {
+    assert.doesNotMatch(renderer(), /combined analytics need one known currency/);
+  }
+  assert.match(h.catChart(), /food/);
+  h.setTask('budgets');
+  h.render();
+  assert.match(strip(h.get('money-body').innerHTML), /spending caps USD 10\.00 of spending isn't counted here yet add USD rate/);
+});
+
+test('a ledger with no currency set anywhere keeps its totals separate', () => {
+  const h = harness();
+  h.setCurrency([], { currency: '$', currency_status: 'unknown', net_worth: 180, expense: 20,
+    totals_by_currency: [{ currency: 'XXX', account_id: 'a', account_name: 'a', net_worth: 90, expense: 10, income: 0, net: -10 },
+      { currency: 'XXX', account_id: 'b', account_name: 'b', net_worth: 90, expense: 10, income: 0, net: -10 }] });
+  const html = h.summaryCards();
+  assert.match(html, /currency not set · totals stay separate/);
   for (const renderer of [h.catChart, h.trendChart, h.envelopeCard, h.networthCard, h.goalsCard, h.holdingsCard, h.reportsCard]) {
     assert.match(renderer(), /combined analytics need one known currency/);
   }
   assert.equal(h.alertsStrip(), '');
+});
+
+test('alerts keep an amount with no rate in its own currency', () => {
+  const h = harness();
+  h.setCurrency([], { currency: 'CAD', currency_status: 'partial' });
+  h.setAlerts({ large_purchases: [{ payee: 'us shop', amount: -250, currency: 'USD' }, { payee: 'home', amount: -300 }],
+    low_balance: [{ name: 'us card', balance: 5, threshold: 50, currency: 'USD' }] });
+  const html = h.alertsStrip().replace(/<[a-z/][^>]*>/gi, '');
+  assert.match(html, /us shop −USD\u00a0250\.00/);
+  assert.match(html, /home −CAD\u00a0300\.00/);
+  assert.match(html, /us card low: USD\u00a05\.00 < USD\u00a050\.00/);
 });
 
 test('Money supporting sections start closed and preserve deliberate expansion through refresh', () => {
@@ -256,4 +292,67 @@ test('transaction action text explains effects and cleared keeps a stable toggle
   assert.match(html, /aria-label="cleared: owned &amp; exact/);
   assert.match(html, />view receipt<\/a>/);
   assert.match(h._renderTxnMain({...row,transfer_id:'transfer'}, {checking:'checking'}), />delete transfer<\/button>/);
+});
+
+test('totals are labelled in the currency the summary added up in, not the first account', () => {
+  const h = harness();
+  // EUR account first, CAD second, reviewed EUR→CAD: the CAD total once read "EUR 200.00"
+  h.setCurrency([{ id: 'e', currency_code: 'EUR' }, { id: 'c', currency_code: 'CAD' }], {
+    currency: 'CAD', currency_status: 'single', base_currency: { code: 'CAD', fixed: false }, net_worth: 200,
+    totals_by_currency: [{ currency: 'EUR', net_worth: 100 }, { currency: 'CAD', net_worth: 50 }] });
+  assert.equal(h.totalsUnit(), 'CAD');
+  // an older reply with no base currency keeps its one native group
+  h.setCurrency([], { currency: '$', currency_status: 'single', totals_by_currency: [{ currency: 'EUR' }] });
+  assert.equal(h.totalsUnit(), 'EUR');
+});
+
+test('caps saved in CAD show converted in USD totals, or stay in CAD with a note when no rate', () => {
+  const h = harness();
+  const strip = html => html.replace(/<[a-z/][^>]*>/gi, ' ').replace(/\s+/g, ' ');
+  const base = { currency: 'USD', currency_status: 'converted', base_currency: { code: 'USD', fixed: false },
+    ledger_currency: 'CAD', rates: [{ from: 'USD', to: 'CAD', rate: '1.25' }], excluded: [], included: true };
+  h.setCurrency([{ id: 'c', currency_code: 'CAD' }], { ...base, budgets_currency: 'USD', budgets: [{ category: 'food', limit: 80, spent: 32 }] });
+  h.setBudgets([{ id: 'b', category: 'food', limit_amt: 100 }]);
+  assert.match(strip(h.budgetsList()), /USD 32\.00 \/ USD 80\.00/);
+  h.setCurrency([{ id: 'c', currency_code: 'CAD' }], { ...base, rates: [], budgets_currency: 'CAD', budgets: [{ category: 'food', limit: 100, spent: 40 }] });
+  assert.match(strip(h.budgetsList()), /CAD 40\.00 \/ CAD 100\.00/);
+  h.setTask('budgets');
+  h.render();
+  const html = h.get('money-body').innerHTML;
+  assert.match(strip(html), /spending caps are saved in CAD, so they're shown in CAD add CAD rate/);
+  assert.match(html, /data-totals-rate="CAD:USD"/);
+  assert.match(strip(html), /monthly cap \(CAD\)/);
+  h.setGoals([{ id: 'g', name: 'trip', kind: 'savings', target: 800, current: 200, progress: 0.25, eta_months: null }], 'USD');
+  assert.match(strip(h.goalsCard()), /USD 200\.00 \/ USD 800\.00/);
+  assert.match(strip(h.goalsCard()), /target amount \(CAD\)/);
+});
+
+test('the envelope edits the saved number and names income it left out', () => {
+  const h = harness();
+  const strip = html => html.replace(/<[a-z/][^>]*>/gi, ' ').replace(/\s+/g, ' ');
+  h.setCurrency([{ id: 'c', currency_code: 'CAD' }], { currency: 'USD', currency_status: 'converted',
+    base_currency: { code: 'USD', fixed: false }, ledger_currency: 'CAD', rates: [], excluded: [], included: true });
+  h.setEnvelope({ currency: 'USD', excluded_currency: 'CAD', income: 400, to_be_budgeted: 240, assigned_total: 160,
+    excluded: [{ currency: 'EUR', accounts: 1, income: 1000, expense: 0 }],
+    categories: [{ category: 'food', assigned: 160, assigned_saved: 200, spent: 32, available: 128, target: null }] });
+  const html = h.envelopeCard();
+  assert.match(html, /value="200"/);
+  assert.match(html, /data-expected="200"/);
+  assert.match(strip(html), /assigned \(CAD\)/);
+  assert.match(strip(html), /USD 128\.00/);
+  assert.match(strip(html), /EUR 1,000\.00 income isn't counted yet add EUR rate/);
+  assert.match(html, /data-totals-rate="EUR:CAD"/);
+});
+
+test('an account with no currency gets its subtotal and the way to set it; Actual says its base is fixed', () => {
+  const h = harness();
+  const strip = html => html.replace(/<[a-z/][^>]*>/gi, ' ').replace(/\s+/g, ' ');
+  h.setCurrency([{ id: 'old', name: 'old', currency_code: 'XXX', balance: 460 }, { id: 'c', currency_code: 'CAD' }], {
+    currency: 'CAD', currency_status: 'partial', base_currency: { code: 'CAD', fixed: false }, ledger_currency: 'CAD',
+    rates: [], included: true, excluded: [{ currency: 'XXX', accounts: 1, transactions: 1, net_worth: 460, income: 0, expense: 40 }] });
+  const html = h.summaryCards();
+  assert.match(strip(html), /1 account has no currency set and isn't in these totals · 460\.00 set currency/);
+  assert.match(html, /data-set-currency="old"/);
+  h.setCurrency([], { currency: 'CAD', ledger: 'actual' }, true);
+  assert.match(strip(h.summaryCards()), /totals follow your Actual ledger in CAD/);
 });

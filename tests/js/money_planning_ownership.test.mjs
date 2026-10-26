@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -15,6 +16,7 @@ function harness(kind) {
   const ids = kind === 'budget' ? ['bf-cat', 'bf-amt'] : ['gl-name', 'gl-target', 'gl-current', 'gl-monthly'];
   ['groceries', '75.25', '5.25', '10'].slice(0, ids.length).forEach((value, index) => { get(ids[index]).value = value; });
   const context = vm.createContext({
+    t, tp,
     calendarDateKey: () => '2026-10-16', location: { search: '' }, URLSearchParams, fetch() {},
     document: { getElementById: get }, getDropdownValue: () => 'savings',
     toast: (message, type) => toasts.push({ message, type }),

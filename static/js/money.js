@@ -2,15 +2,16 @@
 // the charts (no chart lib), api() helper for the fetches.
 import { api, toast } from './util.js';
 import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from './dialog.js';
-import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=212';
+import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=213';
 import { initDatePicker, calendarDateParts } from './datepick.js';
-import { calendarDateKey, formatCalendarDate, formatDate, formatNumber } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=2';
+import { calendarDateKey, formatCalendarDate, formatDate, formatNumber, t, tp } from './i18n.js';
+import { createFocusBoundary } from './kokuen.js?v=4';
 import { bankRequest as _ownerFetch, openPlaidLink } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';
 import { tickNumbers } from './motion.js';
 import { formatDecimal } from './liveformat.js';
+import { amountIn, excludedNotes, totalsCurrency, wireCurrency } from './money_currency.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 // one hue per category for everything on screen: the chart's categories pick first so its bars
@@ -22,7 +23,7 @@ function hueOf(name) {
     _hueFrom = from;
     _hues = assignHues(
       (_sum?.by_category || []).slice(0, 8).map(row => row[0]),
-      [..._budgets.map(b => b.category), ..._txns.map(t => t.category), ...(_searchResults || []).map(t => t.category)],
+      [..._budgets.map(b => b.category), ..._txns.map(txn => txn.category), ...(_searchResults || []).map(txn => txn.category)],
     );
   }
   return _hues.get(String(name || '').trim().toLowerCase()) || categoryHue(name);
@@ -42,7 +43,7 @@ function _decimal(value, empty = NaN) {
 }
 function _validAmounts(...values) {
   if (values.every(Number.isFinite)) return true;
-  toast('enter a number using a decimal point, e.g. 1234.56', 'error');
+  toast(t('money.number_decimal_point'), 'error');
   return false;
 }
 
@@ -60,8 +61,9 @@ const _envAssignmentBusy = new Set();
 const _targetDrafts = new Map();
 let _targetStatus = '';
 let _forecast = null, _nwhist = [], _holdings = null, _alerts = null;   // Simplifi (4c)
-let _forecastError = 'couldn\'t load forecast';
+let _forecastError = '';
 let _goals = [];   // savings/debt goals (4d)
+let _goalsCurrency = '';   // goals are saved in the ledger currency, shown in this one
 let _goalSaving = false, _budgetSaving = false;
 let _searchResults = null;   // array when a search/filter is active, else null
 let _searchTimer = null;
@@ -138,10 +140,14 @@ async function _createPayloadFingerprint(payload) {
   }
 }
 
+const _kindLabel = kind => ({
+  account: t('money.kind_account'), transaction: t('money.kind_transaction'), transfer: t('money.kind_transfer'), recurring: t('money.kind_recurring'),
+}[kind] || kind);
+
 async function _createRequestId(kind, payload) {
   const { fingerprint, persistable } = await _createPayloadFingerprint(payload);
   const pending = _pendingCreateRequests.get(kind);
-  if (pending?.active) throw new Error(`${kind} creation is already in progress`);
+  if (pending?.active) throw new Error(t('money.creation_in_progress', { kind: _kindLabel(kind) }));
   if (pending?.fingerprint === fingerprint) {
     pending.active = true;
     return pending.requestId;
@@ -192,7 +198,7 @@ function _monthLabel(m) {
   return formatCalendarDate(`${m}-01`, { month: 'long', year: 'numeric' }).toLowerCase();
 }
 function currencyPrefix(currency = _cur) {
-  return currency === 'XXX' ? 'currency not set\u00a0' : currency + (/^[A-Z]{3}$/.test(currency) ? '\u00a0' : '');
+  return currency === 'XXX' ? t('finance.currency_not_set') + '\u00a0' : currency + (/^[A-Z]{3}$/.test(currency) ? '\u00a0' : '');
 }
 // a true minus before the code (−USD 12.00), the same as signed(). with no currency the label
 // isn't part of the amount, so there the minus stays on the number
@@ -203,22 +209,83 @@ const fmt = (n, currency = _cur) => {
   return currency === 'XXX' ? `${currencyPrefix(currency)}${sign}${number}` : `${sign}${currencyPrefix(currency)}${number}`;
 };
 const signed = (n, currency = _cur) => (n >= 0 ? '+' : '−') + fmt(Math.abs(n), currency);
+const fmtMoney = (n, currency) => fmt(n, currency);
 
 function transactionCurrency(transaction) {
   if (_canonicalLedger) return _cur;
-  return transaction.original_currency_code || 'XXX';
+  // a reviewed renewal posts its converted price, so its amount isn't in original_currency_code
+  return transaction.amount_currency_code || transaction.original_currency_code || 'XXX';
 }
 
 function accountCurrency(account) {
   return _canonicalLedger ? _cur : account?.currency_code || 'XXX';
 }
 
-function comparableTotals() {
-  return _canonicalLedger || !_sum?.currency_status || _sum.currency_status === 'single';
+// totals add up in one base currency; a currency with no rate stays out with a note. only a
+// ledger with no currency set anywhere (old "$" accounts) has nothing to add up into
+// with a base currency the summary already added everything up in it; only an older reply
+// without one falls back to its single native group
+function totalsUnit() {
+  return (!_canonicalLedger && !_sum?.base_currency && _sum?.currency_status === 'single' && _sum.totals_by_currency?.[0]?.currency)
+    || _sum?.currency || (_accounts[0]?.currency) || '$';
 }
 
+function comparableTotals() {
+  return _canonicalLedger || !_sum?.currency_status || _sum.currency_status !== 'unknown';
+}
+
+function moneyCurrency() {
+  if (_canonicalLedger) return `<div class="totals-currency-wrap"><div class="totals-currency"><span class="totals-currency-lbl">${t('money.totals_follow_actual', { code: `<span class="totals-currency-code">${esc(_cur)}</span>` })}</span></div></div>`;
+  if (!_sum?.base_currency) return '';
+  const unknown = _accounts.find(a => !a.archived && a.currency_code === 'XXX');
+  return totalsCurrency(_sum, row => {
+    const amount = formatNumber(row.net_worth || 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (row.currency === 'XXX') return row.accounts ? tp('money.excl_none', row.accounts, { amount }) : t('money.excl_none_entries', { amount });
+    const spent = row.expense ? t('money.spent_this_month', { amount: amountIn(row.currency, row.expense) }) : '';
+    const total = amountIn(row.currency, row.net_worth);
+    return row.accounts ? tp('money.excl_currency', row.accounts, { currency: row.currency, amount: total, spent }) : t('money.excl_currency_entries', { currency: row.currency, amount: total, spent });
+  }, { extra: () => unknown ? `<button type="button" class="btn" data-set-currency="${esc(unknown.id)}">${t('money.set_currency')}</button>` : '' });
+}
+
+// a cap, an assignment or a goal is a plain number saved in the ledger currency
+const savedIn = () => _sum?.ledger_currency || _cur;
+const capsIn = () => _sum?.budgets_currency || _cur;
+
+// spending caps sit far from the totals note, so they say for themselves what they can't count yet
+function budgetsCurrencyNote() {
+  if (_canonicalLedger || !_sum?.base_currency) return '';
+  const caps = capsIn(), shown = _sum.currency;
+  // no rate from the ledger currency into the totals one: caps stay as saved
+  const kept = caps !== shown
+    ? excludedNotes({ ..._sum, excluded: [{ currency: caps }] },
+      () => t('money.caps_saved_in', { code: caps }), { base: shown })
+    : '';
+  // with caps kept as saved, spending in the totals currency waits on that same rate: one ask
+  const spending = (_sum.budgets_excluded || _sum.excluded || []).filter(row => row.expense && !(kept && row.currency === shown));
+  return kept + excludedNotes({ ..._sum, excluded: spending }, row => row.currency === 'XXX'
+    ? t('money.spending_no_currency', { amount: formatNumber(row.expense, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })
+    : t('money.spending_not_counted', { amount: amountIn(row.currency, row.expense) }), { base: caps });
+}
+
+// the envelope adds up in the ledger currency; income with no rate into it waits, said here
+function envelopeCurrencyNote() {
+  const e = _envelope;
+  if (_canonicalLedger || !e?.excluded_currency) return '';
+  const income = (e.excluded || []).filter(row => row.income);
+  const kept = e.currency !== _cur
+    ? excludedNotes({ ..._sum, excluded: [{ currency: e.currency }] },
+      () => t('money.envelope_saved_in', { code: e.currency }), { base: _cur })
+    : '';
+  return kept + excludedNotes({ ..._sum, excluded: income }, row => row.currency === 'XXX'
+    ? t('money.income_no_currency')
+    : t('money.income_not_counted', { amount: amountIn(row.currency, row.income) }), { base: e.excluded_currency });
+}
+
+// a field for a saved amount names its currency when the totals are shown in another one
+const savedLabel = label => (savedIn() !== _cur ? `${label} (${savedIn()})` : label);
+
 function currencyBoundary() {
-  return '<p class="money-empty-sm" role="status">combined analytics need one known currency. account balances and transactions are still shown.</p>';
+  return `<p class="money-empty-sm" role="status">${t('money.combined_needs_currency')}</p>`;
 }
 
 function groupedSummaryAmount(field, showSign = false) {
@@ -241,7 +308,7 @@ function moneySection(id, label, cards, attention = false) {
   if (attention) _expandedMoneySections.add(id);
   const open = _expandedMoneySections.has(id);
   return `<section class="money-section">
-    <button type="button" class="money-section-toggle" data-money-section="${id}" aria-expanded="${open}" aria-controls="money-section-${id}"${attention ? ' disabled' : ''}>${label}${attention ? ' · needs attention' : ''}</button>
+    <button type="button" class="money-section-toggle" data-money-section="${id}" aria-expanded="${open}" aria-controls="money-section-${id}"${attention ? ' disabled' : ''}>${label}${attention ? t('money.needs_attention_suffix') : ''}</button>
     <div class="money-grid" id="money-section-${id}"${open ? '' : ' hidden'}>${cards}</div>
   </section>`;
 }
@@ -311,11 +378,11 @@ function refreshMoneyTasks() {
     if (card) {
       card.dataset.attention = String(attention);
       const title = id === 'schedules' ? card.querySelector('h3')?.firstChild : null;
-      if (title?.nodeType === 3) title.textContent = 'recurring' + (attention ? ' · needs attention' : '');
+      if (title?.nodeType === 3) title.textContent = t('money.recurring') + (attention ? t('money.needs_attention_suffix') : '');
     }
   }
   const attention = Object.values(pending).some(Boolean);
-  plans.textContent = 'accounts, budgets, schedules & goals' + (attention ? ' · needs attention' : '');
+  plans.textContent = t('money.plans_section') + (attention ? t('money.needs_attention_suffix') : '');
   if (attention) {
     _expandedMoneySections.add('plans');
     $('money-section-plans').hidden = false;
@@ -347,13 +414,13 @@ function syncMoneyLayout() {
   action.hidden = !!_editTxn;
   action.classList.toggle('primary', entry.hidden);
   action.setAttribute('aria-expanded', String(!entry.hidden));
-  action.textContent = entry.hidden ? 'add transaction' : 'close entry';
+  action.textContent = entry.hidden ? t('money.add_transaction') : t('money.close_entry');
   for (const card of secondary) card.hidden = compact && !_moneyTotalsOpen;
   if (!compact && document.activeElement === totals) action.focus();
   totals.hidden = !compact;
   totals.setAttribute('aria-expanded', String(_moneyTotalsOpen));
-  totals.textContent = (_moneyTotalsOpen ? 'fewer totals' : 'more totals')
-    + (_forecast ? '' : ' · forecast unavailable');
+  totals.textContent = (_moneyTotalsOpen ? t('money.fewer_totals') : t('money.more_totals'))
+    + (_forecast ? '' : t('money.forecast_unavailable_suffix'));
 }
 
 export function initMoneyPanel(fetcher = fetch) {
@@ -377,7 +444,7 @@ export function initMoneyPanel(fetcher = fetch) {
     _moneySavedCurrent = _moneySaved.at(-1)?.id;
     try {
       const pending = JSON.parse(sessionStorage.getItem(_createRequestKey('transaction')) || 'null');
-      if (pending?.request_id) transactionSaveStatus('an earlier transaction may already be saved. check the list before adding it again. retrying the exact entry checks the same save.');
+      if (pending?.request_id) transactionSaveStatus(t('money.earlier_may_be_saved'));
     } catch {}
     window.matchMedia('(max-width: 720px)').addEventListener('change', syncMoneyLayout);
     $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(fetch, true, false); });
@@ -399,12 +466,12 @@ function _bankDialog() {
   const overlay = document.createElement('div');
   overlay.className = 'dialog-overlay finance-bank-overlay';
   overlay.innerHTML = `<section class="dialog-card finance-bank-dialog" role="dialog" aria-modal="true" aria-labelledby="finance-bank-title">
-    <header class="finance-bank-head"><div><h2 id="finance-bank-title">bank connections</h2><p>read-only sync. Alles never asks for a bank password.</p></div><button class="btn" type="button" data-bank-close>close</button></header>
+    <header class="finance-bank-head"><div><h2 id="finance-bank-title">${t('finance.bank_connections')}</h2><p>${t('finance.bank_readonly')}</p></div><button class="btn" type="button" data-bank-close>${t('common.close')}</button></header>
     <div class="finance-bank-status" role="status" aria-live="polite"></div>
-    <button class="btn" type="button" data-bank-refresh>refresh connections</button><div class="finance-bank-connections"></div>
+    <button class="btn" type="button" data-bank-refresh>${t('finance.bank_refresh')}</button><div class="finance-bank-connections"></div>
     <div class="finance-bank-setup">
-      <section><h3>SimpleFIN</h3><p>Paste a one-time setup token. It is exchanged once and never shown again.</p><label for="finance-simplefin-token">setup token</label><textarea id="finance-simplefin-token" rows="3" autocomplete="off" spellcheck="false"></textarea><button class="btn" type="button" data-bank-simplefin>connect SimpleFIN</button></section>
-      <section><h3>Plaid</h3><p>Use your Plaid application credentials, then finish in official Plaid Link. Sandbox uses test accounts; production requires Plaid access.</p><label for="finance-plaid-client">client id</label><input id="finance-plaid-client" autocomplete="off"><label for="finance-plaid-secret">secret</label><input id="finance-plaid-secret" type="password" autocomplete="new-password"><div class="finance-bank-environments" role="group" aria-label="Plaid environment"><button class="btn active" type="button" aria-pressed="true" data-plaid-env="sandbox">sandbox</button><button class="btn" type="button" aria-pressed="false" data-plaid-env="production">production</button></div><button class="btn" type="button" data-bank-plaid>connect Plaid</button></section>
+      <section><h3>SimpleFIN</h3><p>${t('finance.simplefin_help')}</p><label for="finance-simplefin-token">${t('finance.setup_token')}</label><textarea id="finance-simplefin-token" rows="3" autocomplete="off" spellcheck="false"></textarea><button class="btn" type="button" data-bank-simplefin>${t('finance.connect_simplefin')}</button></section>
+      <section><h3>Plaid</h3><p>${t('finance.plaid_help')}</p><label for="finance-plaid-client">${t('finance.client_id')}</label><input id="finance-plaid-client" autocomplete="off"><label for="finance-plaid-secret">${t('finance.secret')}</label><input id="finance-plaid-secret" type="password" autocomplete="new-password"><div class="finance-bank-environments" role="group" aria-label="${t('finance.plaid_environment')}"><button class="btn active" type="button" aria-pressed="true" data-plaid-env="sandbox">${t('finance.env_sandbox')}</button><button class="btn" type="button" aria-pressed="false" data-plaid-env="production">${t('finance.env_production')}</button></div><button class="btn" type="button" data-bank-plaid>${t('finance.connect_plaid')}</button></section>
     </div>
   </section>`;
   return overlay;
@@ -416,7 +483,7 @@ let _bankActionPending = false;
 function _confirmedConnection(value, provider) {
   if (!value || typeof value.id !== 'string' || !value.id || value.provider !== provider
     || value.status !== (provider === 'simplefin' ? 'connected' : 'link_required')) {
-    throw new Error('the connection was not confirmed. refresh connections before trying again.');
+    throw new Error(t('finance.connection_unconfirmed'));
   }
   return value;
 }
@@ -477,29 +544,29 @@ async function openBankConnections() {
   const refresh = async () => {
     const sequence = ++refreshSequence;
     const payload = await _ownerFetch('/api/finance/connections');
-    if (!Array.isArray(payload?.connections)) throw new Error('could not read bank connections. try refresh connections.');
+    if (!Array.isArray(payload?.connections)) throw new Error(t('finance.bank_read_failed'));
     if (!overlay.isConnected || sequence !== refreshSequence) return;
     const host = overlay.querySelector('.finance-bank-connections');
-    host.innerHTML = payload.connections.length ? payload.connections.map(connection => `<article class="finance-bank-row" data-bank-id="${esc(connection.id)}"><div><strong>${esc(connection.label)}</strong><span>${connection.provider === 'plaid' ? `${connection.environment === 'sandbox' ? 'sandbox · test accounts' : 'production'} · ` : ''}${esc(connection.status)}${connection.last_synced_at ? ` · synced ${esc(formatDate(connection.last_synced_at))}` : ''}</span>${connection.last_error ? `<small>${esc(connection.last_error)}</small>` : ''}</div><div><button class="btn" type="button" data-bank-sync${connection.status === 'link_required' ? ' disabled data-unavailable="true"' : ''}>sync</button>${connection.provider === 'plaid' ? `<button class="btn" type="button" data-bank-link>${connection.item_id ? 'reconnect' : 'open Link'}</button>` : ''}<button class="btn" type="button" data-bank-disconnect>disconnect</button></div></article>`).join('') : '<p class="finance-bank-empty">no bank connections</p>';
+    host.innerHTML = payload.connections.length ? payload.connections.map(connection => `<article class="finance-bank-row" data-bank-id="${esc(connection.id)}"><div><strong>${esc(connection.label)}</strong><span>${connection.provider === 'plaid' ? `${connection.environment === 'sandbox' ? t('finance.sandbox_test') : t('finance.env_production')} · ` : ''}${esc(connection.status)}${connection.last_synced_at ? ` · ${t('finance.bank_synced', { date: esc(formatDate(connection.last_synced_at)) })}` : ''}</span>${connection.last_error ? `<small>${esc(connection.last_error)}</small>` : ''}</div><div><button class="btn" type="button" data-bank-sync${connection.status === 'link_required' ? ' disabled data-unavailable="true"' : ''}>${t('finance.bank_sync')}</button>${connection.provider === 'plaid' ? `<button class="btn" type="button" data-bank-link>${connection.item_id ? t('finance.bank_reconnect') : t('finance.bank_open_link')}</button>` : ''}<button class="btn" type="button" data-bank-disconnect>${t('finance.bank_disconnect')}</button></div></article>`).join('') : `<p class="finance-bank-empty">${t('finance.bank_none')}</p>`;
     host.querySelectorAll('[data-bank-id]').forEach(row => {
       const connection = payload.connections.find(item => item.id === row.dataset.bankId);
       row.querySelector('[data-bank-sync]')?.addEventListener('click', () => action(async () => {
-        setStatus('syncing…');
+        setStatus(t('finance.bank_syncing'));
         const result = await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}/sync`, { method: 'POST' });
         if (result?.id !== connection.id || !Number.isInteger(result.created) || !Number.isInteger(result.updated)) {
-          throw new Error('sync was not confirmed. refresh connections before trying again.');
+          throw new Error(t('finance.sync_unconfirmed'));
         }
-        setStatus(`sync complete · ${result.created} new · ${result.updated} updated`);
+        setStatus(t('finance.sync_complete', { created: result.created, updated: result.updated }));
         await refresh();
         await load(fetch, true);
       }));
       row.querySelector('[data-bank-link]')?.addEventListener('click', () => action(() => finishLink(connection)));
       row.querySelector('[data-bank-disconnect]')?.addEventListener('click', () => action(async () => {
-        if (!await dlgConfirm(`disconnect ${connection.label}? imported transactions stay in Finance.`)) return;
+        if (!await dlgConfirm(t('finance.disconnect_confirm', { label: connection.label }))) return;
         controller.signal.throwIfAborted();
         const result = await _ownerFetch(`/api/finance/connections/${encodeURIComponent(connection.id)}`, { method: 'DELETE' });
-        if (result?.ok !== true || result.connection_id !== connection.id) throw new Error('disconnect was not confirmed. refresh connections before trying again.');
-        setStatus('connection revoked');
+        if (result?.ok !== true || result.connection_id !== connection.id) throw new Error(t('finance.disconnect_unconfirmed'));
+        setStatus(t('finance.connection_revoked'));
         await refresh();
       }));
     });
@@ -507,32 +574,32 @@ async function openBankConnections() {
   };
   const finishLink = async connection => {
     controller.signal.throwIfAborted();
-    setStatus('opening Plaid Link…');
+    setStatus(t('finance.opening_link'));
     try {
       const result = await openPlaidLink(connection, { signal: controller.signal });
-      setStatus(result.cancelled ? 'Plaid Link closed. use open Link or reconnect to continue.' : 'Plaid connected. run sync when you are ready.');
+      setStatus(result.cancelled ? t('finance.link_closed') : t('finance.link_connected'));
     } finally {
       // Configuration is already saved even if Link was cancelled or could not load.
       if (overlay.isConnected) await refresh();
     }
   };
   overlay.querySelector('[data-bank-refresh]').addEventListener('click', () => action(async () => {
-    setStatus('refreshing connections…'); await refresh(); setStatus('connections refreshed');
+    setStatus(t('finance.bank_refreshing')); await refresh(); setStatus(t('finance.bank_refreshed'));
   }));
   overlay.querySelector('[data-bank-simplefin]').addEventListener('click', () => action(async () => {
     const field = overlay.querySelector('#finance-simplefin-token'), token = field.value;
-    if (!token.trim()) { setStatus('enter your one-time SimpleFIN setup token.', true); field.focus(); return; }
-    setStatus('exchanging one-time token…');
+    if (!token.trim()) { setStatus(t('finance.simplefin_enter'), true); field.focus(); return; }
+    setStatus(t('finance.simplefin_exchanging'));
     _confirmedConnection(await _ownerFetch('/api/finance/connections/simplefin', { method: 'POST', body: { setup_token: token.trim() } }), 'simplefin');
     if (field.value === token) field.value = '';
-    setStatus('SimpleFIN connected');
+    setStatus(t('finance.simplefin_connected'));
     await refresh();
   }));
   overlay.querySelector('[data-bank-plaid]').addEventListener('click', () => action(async () => {
     const clientId = overlay.querySelector('#finance-plaid-client'), secret = overlay.querySelector('#finance-plaid-secret');
     const submittedSecret = secret.value;
-    if (!clientId.value.trim() || !submittedSecret.trim()) { setStatus('enter your Plaid client id and matching environment secret.', true); return; }
-    setStatus('saving encrypted Plaid credentials…');
+    if (!clientId.value.trim() || !submittedSecret.trim()) { setStatus(t('finance.plaid_enter'), true); return; }
+    setStatus(t('finance.plaid_saving'));
     const connection = _confirmedConnection(await _ownerFetch('/api/finance/connections/plaid', { method: 'POST', body: { client_id: clientId.value.trim(), secret: submittedSecret, environment } }), 'plaid');
     if (secret.value === submittedSecret) secret.value = '';
     controller.signal.throwIfAborted();
@@ -580,7 +647,8 @@ async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = p
       request(`/api/money/alerts?month=${month}`).catch(() => null),
       request('/api/money/currencies').then(result => result.codes || []).catch(() => []),
     ]);
-    const goals = (await request('/api/money/goals').catch(() => null))?.goals || [];
+    const goalReply = await request('/api/money/goals').catch(() => null);
+    const goals = goalReply?.goals || [];
     if (sequence !== _moneyLoadSequence || month !== _month) return false;
     if (preserveDrafts && recurring === null && _recurringEdit) throw new Error('schedule refresh unavailable');
     const currencyCodes = results.pop();
@@ -590,10 +658,10 @@ async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = p
     _recurringError = recurring === null;
     _recurringStatus = '';
     _goals = goals;
+    _goalsCurrency = goalReply?.currency || '';
     _canonicalLedger = _sum?.ledger === 'actual';
     if (_recurringEdit && !_recurring.some(row => row.id === _recurringEdit.id && row.editable)) _recurringEdit = null;
-    _cur = (!_canonicalLedger && _sum?.currency_status === 'single' && _sum.totals_by_currency?.[0]?.currency)
-      || _sum?.currency || (_accounts[0]?.currency) || '$';
+    _cur = totalsUnit();
   } catch {
     if (sequence !== _moneyLoadSequence) return false;
     _moneyRefreshing = false;
@@ -604,7 +672,7 @@ async function load(fetcher = fetch, preserveDrafts = false, preserveFilters = p
     }
     _moneyRefreshFailed = true;
     $('money-entry-slot').replaceChildren();
-    $('money-body').innerHTML = savedTransactions() + '<div class="money-empty">failed to load</div>';
+    $('money-body').innerHTML = savedTransactions() + `<div class="money-empty">${t('money.load_failed')}</div>`;
     wireSavedTransactions();
     return false;
   }
@@ -640,12 +708,12 @@ function render(preserveDrafts = false, preserveFilters = preserveDrafts) {
   const clearedFocus = b.contains(document.activeElement) ? document.activeElement.dataset.clearTxn : null;
   _snapshotRecurringEdit();
   $('money-entry-slot').innerHTML = _accounts.length
-    ? '<button type="button" class="btn primary money-entry-action" id="money-entry-action" aria-controls="money-entry-fields">add transaction</button>'
+    ? `<button type="button" class="btn primary money-entry-action" id="money-entry-action" aria-controls="money-entry-fields">${t('money.add_transaction')}</button>`
     : '';
   if (!_accounts.length) {
     b.innerHTML = savedTransactions() + `<div class="money-empty">
-      <div class="money-empty-title">no accounts yet</div>
-      <div class="money-empty-sub">add an account to start tracking your money</div>
+      <div class="money-empty-title">${t('money.no_accounts')}</div>
+      <div class="money-empty-sub">${t('money.add_account_to_start')}</div>
       ${_accountForm()}</div>`;
     _wireAccountForm();
     wireSavedTransactions();
@@ -656,45 +724,45 @@ function render(preserveDrafts = false, preserveFilters = preserveDrafts) {
   b.innerHTML =
     savedTransactions() +
     `<section class="money-card money-entry-card" id="money-entry-fields">
-      <h2>new transaction</h2>${addTxnRow()}${transferRow()}
+      <h2>${t('money.new_transaction')}</h2>${addTxnRow()}${transferRow()}
     </section>` + summaryCards() +
-    `<button type="button" class="money-section-toggle" id="money-summary-toggle" aria-controls="money-income money-net money-projection">more totals</button>` +
+    `<button type="button" class="money-section-toggle" id="money-summary-toggle" aria-controls="money-income money-net money-projection">${t('money.more_totals')}</button>` +
     `<div id="money-alerts-content" role="status" tabindex="-1">${alertsStrip()}</div>` +
     `<section class="money-card money-txns">
-      <h2>transactions · ${_monthLabel(_month)}</h2>
-      <div class="txn-search-wrap" role="group" aria-label="filter transactions">
-        ${moneyField('search transactions', '<input type="text" id="txn-search" class="settings-input" placeholder="payee, category or notes" autocomplete="off">')}
-        <button type="button" class="btn" id="txn-range-toggle" aria-expanded="false" aria-controls="txn-amount-range">amount range</button>
+      <h2>${t('money.transactions_month', { month: _monthLabel(_month) })}</h2>
+      <div class="txn-search-wrap" role="group" aria-label="${t('money.filter_transactions')}">
+        ${moneyField(t('money.search_transactions'), `<input type="text" id="txn-search" class="settings-input" placeholder="${t('money.search_placeholder')}" autocomplete="off">`)}
+        <button type="button" class="btn" id="txn-range-toggle" aria-expanded="false" aria-controls="txn-amount-range">${t('money.amount_range')}</button>
         <div id="txn-amount-range" hidden>
-          ${moneyField('minimum amount', '<input type="text" id="txn-min" class="settings-input" placeholder="0.00" inputmode="decimal">')}
-          ${moneyField('maximum amount', '<input type="text" id="txn-max" class="settings-input" placeholder="0.00" inputmode="decimal">')}
+          ${moneyField(t('money.minimum_amount'), '<input type="text" id="txn-min" class="settings-input" placeholder="0.00" inputmode="decimal">')}
+          ${moneyField(t('money.maximum_amount'), '<input type="text" id="txn-max" class="settings-input" placeholder="0.00" inputmode="decimal">')}
         </div>
       </div>
       <div id="txn-rows">${txnList()}</div>
     </section>` +
-    moneySection('plans', 'accounts, budgets, schedules & goals', `
-      <div class="money-task-choices" role="group" aria-label="manage money">
-        ${['accounts', 'budgets', 'schedules', 'goals'].map(id => `<button type="button" class="btn" data-money-task="${id}" aria-pressed="${_moneyPlanTask === id}" aria-controls="money-task-${id}">${id}</button>`).join('')}
+    moneySection('plans', t('money.plans_section'), `
+      <div class="money-task-choices" role="group" aria-label="${t('money.manage_money')}">
+        ${[['accounts', t('money.tab_accounts')], ['budgets', t('money.tab_budgets')], ['schedules', t('money.tab_schedules')], ['goals', t('money.tab_goals')]].map(([id, label]) => `<button type="button" class="btn" data-money-task="${id}" aria-pressed="${_moneyPlanTask === id}" aria-controls="money-task-${id}">${label}</button>`).join('')}
       </div>
       ${moneyTask('accounts', `
-      <section class="money-card" data-card="accounts"><h3>accounts</h3>${accountsList()}<div id="money-acct-form-wrap"></div>
-        <button class="btn money-add-acct" id="money-add-acct">+ account</button></section>`)}
+      <section class="money-card" data-card="accounts"><h3>${t('money.tab_accounts')}</h3>${accountsList()}<div id="money-acct-form-wrap"></div>
+        <button class="btn money-add-acct" id="money-add-acct">${t('money.add_account')}</button></section>`)}
       ${moneyTask('budgets', `
       <section class="money-card money-envelope" data-card="envelope"${_envelope?.pending_assignments?.length ? ' data-attention="true"' : ''}>${envelopeHeading()}${envelopeCard()}</section>
-      <section class="money-card" data-card="budgets"><h3>spending caps</h3>${comparableTotals() ? budgetsList() + _budgetForm() : currencyBoundary()}</section>
+      <section class="money-card" data-card="budgets"><h3>${t('money.spending_caps')}</h3>${comparableTotals() ? budgetsCurrencyNote() + budgetsList() + _budgetForm() : currencyBoundary()}</section>
       `, !!_envelope?.pending_assignments?.length)}
       ${moneyTask('schedules', `
-      <section class="money-card" data-card="recurring"${scheduleNeedsAttention() ? ' data-attention="true"' : ''}><h3 tabindex="-1">recurring${scheduleNeedsAttention() ? ' · needs attention' : ''}</h3><div id="recurring-content"><div id="recurring-list">${recurringList()}</div>${_recurringForm()}</div></section>
+      <section class="money-card" data-card="recurring"${scheduleNeedsAttention() ? ' data-attention="true"' : ''}><h3 tabindex="-1">${t('money.recurring')}${scheduleNeedsAttention() ? t('money.needs_attention_suffix') : ''}</h3><div id="recurring-content"><div id="recurring-list">${recurringList()}</div>${_recurringForm()}</div></section>
       `, scheduleNeedsAttention())}
-      ${moneyTask('goals', `<section class="money-card" data-card="goals"><h3>goals</h3>${goalsCard()}</section>`)}
+      ${moneyTask('goals', `<section class="money-card" data-card="goals"><h3>${t('money.tab_goals')}</h3>${goalsCard()}</section>`)}
     `, scheduleNeedsAttention() || !!_envelope?.pending_assignments?.length) +
-    moneySection('analytics', 'analytics & tools', `
-      <section class="money-card" data-card="category"><h3>spending by category</h3>${catChart()}</section>
-      <section class="money-card" data-card="trend"><h3>last 6 months</h3>${trendChart()}</section>
-      <section class="money-card" data-card="networth"><h3 tabindex="-1">net worth over time</h3><div id="nw-history-content">${networthCard()}</div></section>
-      <section class="money-card" data-card="holdings"><h3>investments</h3>${holdingsCard()}</section>
-      <section class="money-card" data-card="reports"><h3>reports</h3>${reportsCard()}</section>
-      <section class="money-card" data-card="rules"><h3>auto-categorize${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="apply to existing uncategorized">apply</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
+    moneySection('analytics', t('money.analytics_tools'), `
+      <section class="money-card" data-card="category"><h3>${t('money.spending_by_category')}</h3>${catChart()}</section>
+      <section class="money-card" data-card="trend"><h3>${t('money.last_6_months')}</h3>${trendChart()}</section>
+      <section class="money-card" data-card="networth"><h3 tabindex="-1">${t('money.net_worth_over_time')}</h3><div id="nw-history-content">${networthCard()}</div></section>
+      <section class="money-card" data-card="holdings"><h3>${t('money.investments')}</h3>${holdingsCard()}</section>
+      <section class="money-card" data-card="reports"><h3>${t('money.reports')}</h3>${reportsCard()}</section>
+      <section class="money-card" data-card="rules"><h3>${t('money.auto_categorize')}${_rules.length ? ` <button class="btn rules-apply" id="rules-apply" title="${t('money.apply_to_uncategorized')}">${t('money.apply')}</button>` : ''}</h3>${rulesList()}${_ruleForm()}</section>
     `);
   wire();
   tickNumbers(b, '.money-summary .ms-number');
@@ -707,7 +775,7 @@ function render(preserveDrafts = false, preserveFilters = preserveDrafts) {
 function retainMoneyDrafts(body, preserveFilters) {
   const selectors = ['#money-entry-fields', '#money-acct-form-wrap', '#acct-form',
     '.budget-form', '#recurring-create', '#rce-panel', '.goal-form', '.hold-form', '.report-form',
-    '.rule-form', '.env-add', '.nw-base'];
+    '.rule-form', '.env-add'];
   if (preserveFilters) selectors.push('.txn-search-wrap');
   const nodes = selectors.map(selector => ({ selector, node: body.querySelector?.(selector) })).filter(item => item.node);
   for (const node of body.querySelectorAll?.('.rc-panel, .txn-edit, .txn-split-editor, .env-assign') || []) {
@@ -745,13 +813,12 @@ function restoreMoneyDrafts(body, retained) {
     if (!replacement || replacement === node) continue;
     replacement.replaceWith(node);
     if (node.classList.contains('rc-panel')) node.querySelector('.rc-out')?.replaceChildren();
-    if (node.classList.contains('nw-base')) node.querySelector('#nw-base-out')?.replaceChildren();
   }
   // Retain the draft control, but refresh choices from the latest successful read.
   const currency = body.querySelector('#af-currency');
   if (currency && _currencyCodes.length) {
     populateDropdown(currency,
-      [{ value: '', label: 'choose currency' }, ..._currencyCodes.map(value => ({ value, label: value }))],
+      [{ value: '', label: t('money.choose_currency') }, ..._currencyCodes.map(value => ({ value, label: value }))],
       getDropdownValue(currency));
   }
   const create = $('recurring-create');
@@ -795,21 +862,21 @@ function savedTransactions() {
   const recent = item => item === current || item.id === focused || item.busy || item.state === 'uncertain';
   const receipt = item => {
     const saved = item.saved;
-    const label = saved ? `${saved.payee || saved.category || 'transaction'} · ${signed(saved.amount, saved.undo ? saved.original_currency_code || 'XXX' : _cur)} · ${saved.date}` : 'saved transaction';
-    const status = item.state === 'undone' ? 'transaction undone.' : item.state === 'removed' ? 'transaction already removed.'
-      : item.state === 'uncertain' ? 'undo not confirmed. retry checks this same transaction.'
-      : item.state === 'blocked' ? 'undo unavailable: the transaction changed or its saved proof is unavailable. review it before deleting.'
-      : item.state === 'unsupported' ? 'transaction saved. undo is unavailable for Actual transactions; review the transaction before deleting.'
-      : 'transaction saved.';
+    const label = saved ? `${saved.payee || saved.category || t('money.kind_transaction')} · ${signed(saved.amount, saved.undo ? saved.original_currency_code || 'XXX' : _cur)} · ${saved.date}` : t('money.saved_transaction');
+    const status = item.state === 'undone' ? t('money.txn_undone') : item.state === 'removed' ? t('money.txn_removed')
+      : item.state === 'uncertain' ? t('money.undo_unconfirmed')
+      : item.state === 'blocked' ? t('money.undo_blocked')
+      : item.state === 'unsupported' ? t('money.undo_unsupported')
+      : t('money.txn_saved');
     const canUndo = !['undone', 'removed', 'blocked', 'unsupported'].includes(item.state);
     return `<div class="money-saved-result" data-saved-txn="${esc(item.id)}"><p role="status">${esc(status)} <span>${esc(label)}</span></p>
-      <div class="money-saved-actions">${canUndo ? `<button type="button" class="btn" data-undo-saved="${esc(item.id)}" aria-label="${item.state === 'uncertain' ? 'retry undo' : 'undo'} ${esc(saved?.payee || 'saved transaction')}"${item.busy ? ' disabled' : ''}>${item.busy ? 'undoing…' : item.state === 'uncertain' ? 'retry undo' : 'undo'}</button>` : ''}
-      <button type="button" class="btn" data-dismiss-saved="${esc(item.id)}"${item.busy || item.state === 'uncertain' ? ' disabled' : ''}>dismiss</button></div></div>`;
+      <div class="money-saved-actions">${canUndo ? `<button type="button" class="btn" data-undo-saved="${esc(item.id)}" aria-label="${item.state === 'uncertain' ? t('money.retry_undo_named', { name: esc(saved?.payee || t('money.saved_transaction')) }) : t('money.undo_named', { name: esc(saved?.payee || t('money.saved_transaction')) })}"${item.busy ? ' disabled' : ''}>${item.busy ? t('money.undoing') : item.state === 'uncertain' ? t('money.retry_undo') : t('money.undo')}</button>` : ''}
+      <button type="button" class="btn" data-dismiss-saved="${esc(item.id)}"${item.busy || item.state === 'uncertain' ? ' disabled' : ''}>${t('common.dismiss')}</button></div></div>`;
   };
   const receipts = _moneySaved.filter(recent).map(receipt).join('');
   const earlier = _moneySaved.filter(item => !recent(item));
-  const history = earlier.length ? `<button type="button" class="btn" id="money-saved-history" aria-controls="money-earlier-saved" aria-expanded="${_moneySavedExpanded}">${_moneySavedExpanded ? 'hide' : 'show'} earlier saved transactions (${earlier.length})</button><div id="money-earlier-saved"${_moneySavedExpanded ? '' : ' hidden'}>${earlier.map(receipt).join('')}</div>` : '';
-  return `<div id="money-save-results" tabindex="-1" role="region" aria-label="saved transactions">${receipts}${history}${_moneyRefreshing ? '<p role="status">updating the list and balances…</p>' : _moneyRefreshFailed ? '<p role="status">the list and balances could not be refreshed. your drafts and saved outcomes are retained.</p><button type="button" class="btn" id="money-result-retry">retry balances</button>' : ''}</div>`;
+  const history = earlier.length ? `<button type="button" class="btn" id="money-saved-history" aria-controls="money-earlier-saved" aria-expanded="${_moneySavedExpanded}">${t(_moneySavedExpanded ? 'money.hide_earlier' : 'money.show_earlier', { count: earlier.length })}</button><div id="money-earlier-saved"${_moneySavedExpanded ? '' : ' hidden'}>${earlier.map(receipt).join('')}</div>` : '';
+  return `<div id="money-save-results" tabindex="-1" role="region" aria-label="${t('money.saved_transactions')}">${receipts}${history}${_moneyRefreshing ? `<p role="status">${t('money.updating_list')}</p>` : _moneyRefreshFailed ? `<p role="status">${t('money.refresh_failed')}</p><button type="button" class="btn" id="money-result-retry">${t('money.retry_balances')}</button>` : ''}</div>`;
 }
 
 function wireSavedTransactions() {
@@ -873,7 +940,7 @@ async function undoSavedTransaction(button) {
   const item = _moneySaved.find(receipt => receipt.id === button.dataset.undoSaved);
   if (!item || item.busy || item.state === 'unsupported') return;
   if (_editTxn === item.id || _splitTxn === item.id) {
-    toast('finish or cancel this transaction edit before undoing it', 'error');
+    toast(t('money.finish_edit_first'), 'error');
     return;
   }
   const previousState = item.state;
@@ -883,7 +950,7 @@ async function undoSavedTransaction(button) {
   if (!persistSavedTransactions()) {
     item.state = previousState;
     _moneySavedCurrent = previousCurrent;
-    toast("couldn't save undo recovery in this browser. this attempt wasn't sent. try again.", 'error');
+    toast(t('money.undo_recovery_failed'), 'error');
     return;
   }
   _completeCreateRequest('transaction', item.request_id);
@@ -891,7 +958,7 @@ async function undoSavedTransaction(button) {
   _moneySavedAction = ++_moneySavedActionSequence;
   item.busy = true;
   button.disabled = true;
-  button.textContent = 'undoing…';
+  button.textContent = t('money.undoing');
   $('money-save-results')?.querySelector(`[data-dismiss-saved="${CSS.escape(item.id)}"]`)?.setAttribute('disabled', '');
   setTransactionUndoAvailability(item.id);
   try {
@@ -921,11 +988,11 @@ function setTransactionUndoAvailability(id) {
 
 function summaryCards() {
   const s = _sum || {};
-  return `${comparableTotals() ? '' : `<p class="money-empty-sm" role="status">${_sum.currency_status === 'mixed' ? 'mixed currencies' : 'currency not set'} · totals stay separate. no conversion has been applied.</p>`}<div class="money-summary">
-    <div class="ms-card"><span class="ms-label">net worth</span><span class="ms-val">${groupedSummaryAmount('net_worth')}</span></div>
-    <div class="ms-card" id="money-income" data-secondary-total><span class="ms-label">income · this month</span><span class="ms-val pos">${groupedSummaryAmount('income')}</span></div>
-    <div class="ms-card"><span class="ms-label">spent · this month</span><span class="ms-val neg">${groupedSummaryAmount('expense')}</span></div>
-    <div class="ms-card" id="money-net" data-secondary-total><span class="ms-label">net</span><span class="ms-val ${s.net >= 0 ? 'pos' : 'neg'}">${groupedSummaryAmount('net', true)}</span></div>
+  return `${comparableTotals() ? moneyCurrency() : `<p class="money-empty-sm" role="status">${t('money.currency_not_set_separate')}</p>`}<div class="money-summary">
+    <div class="ms-card"><span class="ms-label">${t('money.net_worth')}</span><span class="ms-val">${groupedSummaryAmount('net_worth')}</span></div>
+    <div class="ms-card" id="money-income" data-secondary-total><span class="ms-label">${t('money.income_this_month')}</span><span class="ms-val pos">${groupedSummaryAmount('income')}</span></div>
+    <div class="ms-card"><span class="ms-label">${t('money.spent_this_month_label')}</span><span class="ms-val neg">${groupedSummaryAmount('expense')}</span></div>
+    <div class="ms-card" id="money-net" data-secondary-total><span class="ms-label">${t('money.net')}</span><span class="ms-val ${s.net >= 0 ? 'pos' : 'neg'}">${groupedSummaryAmount('net', true)}</span></div>
     ${forecastCard()}
   </div>`;
 }
@@ -940,15 +1007,15 @@ function summaryAmount(n, showSign = false, currency = _cur) {
 }
 
 function forecastCard() {
-  if (!comparableTotals()) return `<div class="ms-card" id="money-projection" data-secondary-total><span class="ms-label">projected · month-end</span>${currencyBoundary()}</div>`;
-  return `<div class="ms-card" id="money-projection" data-secondary-total data-forecast tabindex="-1"><span class="ms-label">projected · month-end</span>
-    ${_forecast ? `<span class="ms-val ${_forecast.projected < 0 ? 'neg' : ''}">${summaryAmount(_forecast.projected)}</span>` : `<span class="ms-unavailable" role="status">${esc(_forecastError)}</span><button type="button" class="btn ms-retry" id="forecast-retry">retry</button>`}</div>`;
+  if (!comparableTotals()) return `<div class="ms-card" id="money-projection" data-secondary-total><span class="ms-label">${t('money.projected')}</span>${currencyBoundary()}</div>`;
+  return `<div class="ms-card" id="money-projection" data-secondary-total data-forecast tabindex="-1"><span class="ms-label">${t('money.projected')}</span>
+    ${_forecast ? `<span class="ms-val ${_forecast.projected < 0 ? 'neg' : ''}">${summaryAmount(_forecast.projected)}</span>` : `<span class="ms-unavailable" role="status">${esc(_forecastError || t('money.forecast_failed'))}</span><button type="button" class="btn ms-retry" id="forecast-retry">${t('common.retry')}</button>`}</div>`;
 }
 
 function forecastFailure(error) {
   return error?.status === 409 && /schedule|recurrence/i.test(error.message)
-    ? 'fix Actual schedule'
-    : 'couldn\'t load forecast';
+    ? t('money.fix_actual_schedule')
+    : t('money.forecast_failed');
 }
 
 async function retryForecast() {
@@ -956,7 +1023,7 @@ async function retryForecast() {
   const ownedFocus = document.activeElement === button;
   if (ownedFocus) _moneyTotalsOpen = true;
   button.disabled = true;
-  button.textContent = 'retrying…';
+  button.textContent = t('money.retrying');
   try { _forecast = await api(`/api/money/forecast?month=${_month}`); }
   catch (error) { _forecast = null; _forecastError = forecastFailure(error); }
   const card = document.querySelector('[data-forecast]');
@@ -978,15 +1045,15 @@ function wireForecast() {
 function alertsStrip() {
   if (!comparableTotals()) return '';
   const a = _alerts;
-  if (!a) return '<div class="money-alerts money-history-error">couldn\'t load alerts <button type="button" class="btn" id="alerts-retry">retry</button></div>';
+  if (!a) return `<div class="money-alerts money-history-error">${t('money.alerts_failed')} <button type="button" class="btn" id="alerts-retry">${t('common.retry')}</button></div>`;
   const items = [];
   (a.upcoming_bills || []).forEach(b => {
-    const amount = b.amount == null ? 'amount varies' : `${b.amount_kind === 'approx' ? '≈' : ''}${signed(b.amount)}`;
-    items.push(`<span class="alert-chip bill">${_si('calendar')} ${esc(b.payee)} ${amount} in ${b.days}d</span>`);
+    const amount = b.amount == null ? t('money.amount_varies') : `${b.amount_kind === 'approx' ? '≈' : ''}${signed(b.amount, b.currency || _cur)}`;
+    items.push(`<span class="alert-chip bill">${_si('calendar')} ${t('money.alert_bill', { payee: esc(b.payee), amount, days: b.days })}</span>`);
   });
-  (a.large_purchases || []).forEach(p => items.push(`<span class="alert-chip big">${_si('warning')} large: ${esc(p.payee) || esc(p.category) || '—'} ${signed(p.amount)}</span>`));
-  (a.watch_hits || []).forEach(w => items.push(`<span class="alert-chip watch">${_si('eye')} ${esc(w.watch)}: ${esc(w.payee) || '—'} ${signed(w.amount)}</span>`));
-  (a.low_balance || []).forEach(l => items.push(`<span class="alert-chip big">${_si('trend-down')} ${esc(l.name)} low: ${fmt(l.balance)} < ${fmt(l.threshold)}</span>`));
+  (a.large_purchases || []).forEach(p => items.push(`<span class="alert-chip big">${_si('warning')} ${t('money.alert_large', { what: esc(p.payee) || esc(p.category) || '—', amount: signed(p.amount, p.currency || _cur) })}</span>`));
+  (a.watch_hits || []).forEach(w => items.push(`<span class="alert-chip watch">${_si('eye')} ${esc(w.watch)}: ${esc(w.payee) || '—'} ${signed(w.amount, w.currency || _cur)}</span>`));
+  (a.low_balance || []).forEach(l => items.push(`<span class="alert-chip big">${_si('trend-down')} ${t('money.alert_low', { name: esc(l.name), balance: fmt(l.balance, l.currency || _cur), threshold: fmt(l.threshold, l.currency || _cur) })}</span>`));
   if (!items.length) return '';
   return `<div class="money-alerts">${items.join('')}</div>`;
 }
@@ -994,12 +1061,12 @@ function alertsStrip() {
 async function retryAlerts() {
   const button = $('alerts-retry');
   button.disabled = true;
-  button.textContent = 'retrying…';
+  button.textContent = t('money.retrying');
   try { _alerts = await api(`/api/money/alerts?month=${_month}`); }
   catch { _alerts = null; }
   const content = $('money-alerts-content');
   if (!content) return;
-  content.innerHTML = alertsStrip() || '<div class="money-empty-sm">no alerts right now</div>';
+  content.innerHTML = alertsStrip() || `<div class="money-empty-sm">${t('money.no_alerts')}</div>`;
   wireAlerts();
   (_alerts ? content : $('alerts-retry'))?.focus();
 }
@@ -1010,9 +1077,9 @@ function wireAlerts() {
 
 function networthCard() {
   if (!comparableTotals()) return currencyBoundary();
-  if (_nwhist === null) return '<div class="money-empty-sm money-history-error" role="status">couldn\'t load history <button type="button" class="btn" id="nw-history-retry">retry</button></div>';
+  if (_nwhist === null) return `<div class="money-empty-sm money-history-error" role="status">${t('money.history_failed')} <button type="button" class="btn" id="nw-history-retry">${t('common.retry')}</button></div>`;
   const h = _nwhist || [];
-  if (h.length < 2) return '<div class="money-empty-sm">not enough history yet</div>';
+  if (h.length < 2) return `<div class="money-empty-sm">${t('money.not_enough_history')}</div>`;
   const vals = h.map(x => x.net_worth);
   const min = Math.min(...vals), max = Math.max(...vals), span = (max - min) || 1;
   // center each point in its 1/n slot so the polyline lines up under the slot-centered month labels
@@ -1021,14 +1088,13 @@ function networthCard() {
   const labels = h.map((x, i) => `<span style="width:${100 / h.length}%">${x.month.slice(5)}</span>`).join('');
   return `<svg class="nw-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts.join(' ')}" fill="none" stroke="var(--cat-blue)" stroke-width="2"></polyline></svg>
     <div class="trend-labels">${labels}</div>
-    <div class="nw-now">now: ${fmt(vals[vals.length - 1])}</div>
-    <div class="nw-base">${moneyField('base currency', `<input type="text" id="nw-base-cur" class="settings-input" placeholder="base (USD/EUR…)" style="width:120px">`)}<button class="btn" id="nw-base-go">show in base</button><span id="nw-base-out" class="nw-base-out"></span></div>`;
+    <div class="nw-now">${t('money.now_amount', { amount: fmt(vals[vals.length - 1]) })}</div>`;
 }
 
 async function retryNetworthHistory() {
   const button = $('nw-history-retry');
   button.disabled = true;
-  button.textContent = 'retrying…';
+  button.textContent = t('money.retrying');
   try { _nwhist = await api('/api/money/networth-history?months=6'); }
   catch { _nwhist = null; }
   const content = $('nw-history-content');
@@ -1039,41 +1105,42 @@ async function retryNetworthHistory() {
 }
 
 function wireNetworthHistory() {
-  $('nw-base-go')?.addEventListener('click', runBaseNw);
   $('nw-history-retry')?.addEventListener('click', retryNetworthHistory);
 }
+
+const _goalKind = kind => ({ savings: t('money.goal_savings'), debt: t('money.goal_debt') }[kind] || kind);
 
 function goalsCard() {
   if (!comparableTotals()) return currencyBoundary();
   const rows = (_goals || []).map(g => {
     const pct = Math.round((g.progress || 0) * 100);
-    const eta = g.eta_months === 0 ? 'reached' : (g.eta_months != null ? `~${g.eta_months}mo left` : 'set a monthly amount');
+    const eta = g.eta_months === 0 ? t('money.goal_reached') : (g.eta_months != null ? t('money.goal_months_left', { n: g.eta_months }) : t('money.goal_set_monthly'));
     return `<div class="goal-row" data-id="${g.id}">
-      <div class="goal-head"><span class="goal-name">${esc(g.name)} <span class="goal-kind">${esc(g.kind)}</span></span>
-        <span class="goal-nums">${fmt(g.current)} / ${fmt(g.target)}</span>
-        <button class="tx-del" data-del-goal="${g.id}" aria-label="remove goal ${esc(g.name)}" title="remove">×</button></div>
+      <div class="goal-head"><span class="goal-name">${esc(g.name)} <span class="goal-kind">${esc(_goalKind(g.kind))}</span></span>
+        <span class="goal-nums">${fmt(g.current, _goalsCurrency || _cur)} / ${fmt(g.target, _goalsCurrency || _cur)}</span>
+        <button class="tx-del" data-del-goal="${g.id}" aria-label="${t('money.remove_goal', { name: esc(g.name) })}" title="${t('common.remove')}">×</button></div>
       <div class="goal-bar-wrap"><div class="goal-bar" style="width:${pct}%"></div></div>
       <div class="goal-eta">${pct}% · ${eta}</div>
     </div>`;
   }).join('');
-  return `<div class="goals">${rows || '<div class="money-empty-sm">no goals: set a savings or debt-payoff goal</div>'}</div>
+  return `<div class="goals">${rows || `<div class="money-empty-sm">${t('money.no_goals')}</div>`}</div>
     <div class="goal-form">
-      ${moneyField('goal name', `<input type="text" id="gl-name" class="settings-input" placeholder="goal name" style="flex:1;min-width:100px">`)}
-      ${moneyField('goal type', `<div class="settings-input custom-select" id="gl-kind" data-value="savings" data-options="savings|savings;debt|debt payoff" style="width:120px"></div>`)}
-      ${moneyField('target amount', `<input type="text" id="gl-target" class="settings-input" placeholder="target" inputmode="decimal" style="width:80px">`)}
-      ${moneyField('current amount', `<input type="text" id="gl-current" class="settings-input" placeholder="current" inputmode="decimal" style="width:80px">`)}
-      ${moneyField('monthly amount', `<input type="text" id="gl-monthly" class="settings-input" placeholder="monthly" inputmode="decimal" style="width:80px">`)}
-      <button class="btn" id="gl-add">add</button>
+      ${moneyField(t('money.goal_name'), `<input type="text" id="gl-name" class="settings-input" placeholder="${t('money.goal_name')}" style="flex:1;min-width:100px">`)}
+      ${moneyField(t('money.goal_type'), `<div class="settings-input custom-select" id="gl-kind" data-value="savings" data-options="savings|${t('money.goal_savings')};debt|${t('money.goal_debt')}" style="width:120px"></div>`)}
+      ${moneyField(savedLabel(t('money.target_amount')), `<input type="text" id="gl-target" class="settings-input" placeholder="${t('money.target')}" inputmode="decimal" style="width:80px">`)}
+      ${moneyField(savedLabel(t('money.current_amount')), `<input type="text" id="gl-current" class="settings-input" placeholder="${t('money.current')}" inputmode="decimal" style="width:80px">`)}
+      ${moneyField(savedLabel(t('money.monthly_amount')), `<input type="text" id="gl-monthly" class="settings-input" placeholder="${t('money.monthly')}" inputmode="decimal" style="width:80px">`)}
+      <button class="btn" id="gl-add">${t('common.add')}</button>
     </div>`;
 }
 
 function reportsCard() {
   if (!comparableTotals()) return currencyBoundary();
   return `<div class="report-form">
-      ${moneyField('start date', `<div class="date-input" id="rp-start" data-type="date" data-value="" data-ph="start" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
-      ${moneyField('end date', `<div class="date-input" id="rp-end" data-type="date" data-value="" data-ph="end" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
-      <button class="btn" id="rp-run">run</button>
-      <a class="btn" id="rp-export" href="#" style="display:none">export csv</a>
+      ${moneyField(t('money.start_date'), `<div class="date-input" id="rp-start" data-type="date" data-value="" data-ph="${t('money.start')}" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
+      ${moneyField(t('money.end_date'), `<div class="date-input" id="rp-end" data-type="date" data-value="" data-ph="${t('money.end')}" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
+      <button class="btn" id="rp-run">${t('money.run')}</button>
+      <a class="btn" id="rp-export" href="#" style="display:none">${t('money.export_csv')}</a>
     </div>
     <div id="rp-out" class="report-out"></div>`;
 }
@@ -1081,25 +1148,27 @@ function reportsCard() {
 function holdingsCard() {
   if (!comparableTotals()) return currencyBoundary();
   const d = _holdings;
+  const fmt = (n, currency = _canonicalLedger ? _cur : savedIn()) => fmtMoney(n, currency);
+  const signed = n => (n >= 0 ? '+' : '−') + fmt(Math.abs(n));
   const rows = (d?.holdings || []).map(h => `
     <div class="hold-row" data-id="${h.id}">
       <span class="hold-sym">${esc(h.symbol)}</span>
       <span class="hold-qty">${h.qty}×${fmt(h.price)}</span>
       <span class="hold-val">${fmt(h.value)}</span>
       <span class="hold-gain ${h.gain >= 0 ? 'pos' : 'neg'}">${signed(h.gain)} (${h.gain_pct}%)</span>
-      <button class="tx-del" data-del-hold="${h.id}" aria-label="remove holding ${esc(h.symbol)}" title="remove">×</button>
+      <button class="tx-del" data-del-hold="${h.id}" aria-label="${t('money.remove_holding', { symbol: esc(h.symbol) })}" title="${t('common.remove')}">×</button>
     </div>`).join('');
   const tot = d?.totals || {};
   const totRow = (d?.holdings || []).length
-    ? `<div class="hold-total">total ${fmt(tot.value || 0)} · <span class="${(tot.gain || 0) >= 0 ? 'pos' : 'neg'}">${signed(tot.gain || 0)}</span></div>`
-    : '<div class="money-empty-sm">no holdings: add a stock/fund below</div>';
+    ? `<div class="hold-total">${t('money.holdings_total', { amount: fmt(tot.value || 0) })} · <span class="${(tot.gain || 0) >= 0 ? 'pos' : 'neg'}">${signed(tot.gain || 0)}</span></div>`
+    : `<div class="money-empty-sm">${t('money.no_holdings')}</div>`;
   return `<div class="holds">${rows}</div>${totRow}
     <div class="hold-form">
-      ${moneyField('symbol', `<input type="text" id="hd-sym" class="settings-input" placeholder="symbol" style="width:80px">`)}
-      ${moneyField('quantity', `<input type="text" id="hd-qty" class="settings-input" placeholder="qty" inputmode="decimal" style="width:64px">`)}
-      ${moneyField('cost per share', `<input type="text" id="hd-cost" class="settings-input" placeholder="cost/sh" inputmode="decimal" style="width:74px">`)}
-      ${moneyField('price per share', `<input type="text" id="hd-price" class="settings-input" placeholder="price" inputmode="decimal" style="width:64px">`)}
-      <button class="btn" id="hd-add">add</button>
+      ${moneyField(t('money.symbol'), `<input type="text" id="hd-sym" class="settings-input" placeholder="${t('money.symbol')}" style="width:80px">`)}
+      ${moneyField(t('money.quantity'), `<input type="text" id="hd-qty" class="settings-input" placeholder="${t('money.qty')}" inputmode="decimal" style="width:64px">`)}
+      ${moneyField(t('money.cost_per_share'), `<input type="text" id="hd-cost" class="settings-input" placeholder="${t('money.cost_sh')}" inputmode="decimal" style="width:74px">`)}
+      ${moneyField(t('money.price_per_share'), `<input type="text" id="hd-price" class="settings-input" placeholder="${t('money.price')}" inputmode="decimal" style="width:64px">`)}
+      <button class="btn" id="hd-add">${t('common.add')}</button>
     </div>`;
 }
 
@@ -1107,14 +1176,14 @@ function accountsList() {
   return `<div class="money-accts">` + _accounts.map(a => `
     <div class="money-acct ${a.archived ? 'arch' : ''}" data-id="${a.id}">
       <div class="ma-top"><span class="ma-name">${esc(a.name)}</span>
-        <button class="ma-rc" data-rc-acct="${a.id}" aria-label="reconcile ${esc(a.name)} to a statement" title="reconcile to a statement">${_si('scale')}</button>
-        <button class="ma-del" data-del-acct="${a.id}" aria-label="delete account ${esc(a.name)}" title="delete">×</button></div>
+        <button class="ma-rc" data-rc-acct="${a.id}" aria-label="${t('money.reconcile_named', { name: esc(a.name) })}" title="${t('money.reconcile_title')}">${_si('scale')}</button>
+        <button class="ma-del" data-del-acct="${a.id}" aria-label="${t('money.delete_account_named', { name: esc(a.name) })}" title="${t('common.delete')}">×</button></div>
       <div class="ma-bal ${a.balance < 0 ? 'neg' : ''}">${(!_canonicalLedger && a.balance_by_currency?.length ? a.balance_by_currency : [{ currency: accountCurrency(a), balance: a.balance }]).map(row => esc(fmt(row.balance, row.currency))).join('<br>')}</div>
       <div class="ma-kind">${esc(a.kind)} · ${esc(accountCurrency(a))}</div>
-      ${_canonicalLedger ? '' : `<button type="button" class="btn" data-currency-acct="${a.id}"${a.currency_edit_reason ? ' disabled' : ''}>change currency</button>${a.currency_edit_reason ? `<p class="money-empty-sm">${esc(a.currency_edit_reason)}</p>` : ''}<p id="acct-currency-status-${a.id}" class="money-field-error" role="status"></p>`}
+      ${_canonicalLedger ? '' : `<button type="button" class="btn" data-currency-acct="${a.id}"${a.currency_edit_reason ? ' disabled' : ''}>${t('money.change_currency')}</button>${a.currency_edit_reason ? `<p class="money-empty-sm">${esc(a.currency_edit_reason)}</p>` : ''}<p id="acct-currency-status-${a.id}" class="money-field-error" role="status"></p>`}
       <div class="rc-panel" id="rc-panel-${a.id}" style="display:none">
-        ${moneyField('statement balance', `<input type="text" class="settings-input" id="rc-stmt-${a.id}" placeholder="statement balance" inputmode="decimal">`)}
-        <button class="btn" data-rc-run="${a.id}">check</button>
+        ${moneyField(t('money.statement_balance'), `<input type="text" class="settings-input" id="rc-stmt-${a.id}" placeholder="${t('money.statement_balance')}" inputmode="decimal">`)}
+        <button class="btn" data-rc-run="${a.id}">${t('money.check')}</button>
         <div class="rc-out" id="rc-out-${a.id}"></div>
       </div>
     </div>`).join('') + `</div>`;
@@ -1123,7 +1192,7 @@ function accountsList() {
 function catChart() {
   if (!comparableTotals()) return currencyBoundary();
   const cats = (_sum?.by_category || []).slice(0, 8);
-  if (!cats.length) return '<div class="money-empty-sm">no spending this month</div>';
+  if (!cats.length) return `<div class="money-empty-sm">${t('money.no_spending')}</div>`;
   const max = Math.max(...cats.map(c => c[1])) || 1;
   return `<div class="cat-chart">` + cats.map(([name, amt]) => `
     <div class="cat-row">
@@ -1135,116 +1204,124 @@ function catChart() {
 
 function trendChart() {
   if (!comparableTotals()) return currencyBoundary();
-  const t = _sum?.trend || [];
-  if (!t.length) return '<div class="money-empty-sm">no data</div>';
-  const max = Math.max(1, ...t.map(m => Math.max(m.income, m.expense)));
-  const W = 280, H = 110, bw = W / t.length, gap = 5;
+  const trend = _sum?.trend || [];
+  if (!trend.length) return `<div class="money-empty-sm">${t('money.no_data')}</div>`;
+  const max = Math.max(1, ...trend.map(m => Math.max(m.income, m.expense)));
+  const W = 280, H = 110, bw = W / trend.length, gap = 5;
   let bars = '';
-  t.forEach((m, i) => {
+  trend.forEach((m, i) => {
     const x = i * bw;
     const ih = m.income / max * H, eh = m.expense / max * H;
     const half = (bw - gap * 2) / 2;
-    bars += `<rect x="${x + gap}" y="${H - ih}" width="${half}" height="${ih}" class="tr-inc"><title>${m.month} income ${fmt(m.income)}</title></rect>`;
-    bars += `<rect x="${x + gap + half}" y="${H - eh}" width="${half}" height="${eh}" class="tr-exp"><title>${m.month} spent ${fmt(m.expense)}</title></rect>`;
+    bars += `<rect x="${x + gap}" y="${H - ih}" width="${half}" height="${ih}" class="tr-inc"><title>${t('money.trend_income', { month: m.month, amount: fmt(m.income) })}</title></rect>`;
+    bars += `<rect x="${x + gap + half}" y="${H - eh}" width="${half}" height="${eh}" class="tr-exp"><title>${t('money.trend_spent', { month: m.month, amount: fmt(m.expense) })}</title></rect>`;
   });
-  const labels = t.map((m, i) => `<span style="width:${100 / t.length}%">${m.month.slice(5)}</span>`).join('');
+  const labels = trend.map((m, i) => `<span style="width:${100 / trend.length}%">${m.month.slice(5)}</span>`).join('');
   return `<svg class="trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>
     <div class="trend-labels">${labels}</div>
-    <div class="trend-legend"><span class="lg-inc">income</span><span class="lg-exp">spent</span></div>`;
+    <div class="trend-legend"><span class="lg-inc">${t('money.income')}</span><span class="lg-exp">${t('money.spent')}</span></div>`;
 }
 
 function ageOfMoneyStatus() {
   if (!comparableTotals()) return '';
-  if (!_aom) return '<span class="aom aom-error">couldn\'t load age of money <button type="button" class="btn" id="age-retry">retry</button></span>';
-  if (_aom.age == null) return '<span class="aom aom-empty">age of money: not enough data</span>';
-  return `<span class="aom" title="days between income arriving and being spent">age of money: ${esc(_aom.age)}d</span>`;
+  if (!_aom) return `<span class="aom aom-error">${t('money.aom_failed')} <button type="button" class="btn" id="age-retry">${t('common.retry')}</button></span>`;
+  if (_aom.age == null) return `<span class="aom aom-empty">${t('money.aom_empty')}</span>`;
+  return `<span class="aom" title="${t('money.aom_title')}">${t('money.aom_value', { n: esc(_aom.age) })}</span>`;
 }
 
 function envelopeHeading() {
-  return `<h3 tabindex="-1">envelope budgeting<span id="money-age-content" role="status">${ageOfMoneyStatus()}</span></h3>`;
+  return `<h3 tabindex="-1">${t('money.envelope_budgeting')}<span id="money-age-content" role="status">${ageOfMoneyStatus()}</span></h3>`;
 }
 
 function envelopeCard() {
   if (!comparableTotals()) return currencyBoundary();
   const e = _envelope;
   if (!e) return _canonicalLedger
-    ? `<div class="money-empty-sm" role="status">couldn't load Actual's budget month <button type="button" class="btn" id="env-retry">retry</button></div>`
-    : `<div class="money-empty-sm" role="status">couldn't load envelope data; reload Finance to try again</div>`;
+    ? `<div class="money-empty-sm" role="status">${t('money.env_actual_failed')} <button type="button" class="btn" id="env-retry">${t('common.retry')}</button></div>`
+    : `<div class="money-empty-sm" role="status">${t('money.env_failed')}</div>`;
   const tbb = e.to_be_budgeted || 0;
-  const banner = `<div class="env-tbb ${tbb < 0 ? 'over' : (tbb > 0 ? 'pos' : '')}">
-    <span class="env-tbb-num">${signed(tbb)}</span><span class="env-tbb-lbl">to be budgeted</span></div>`;
+  // a local envelope is saved in the ledger currency and shown in e.currency
+  const cur = _canonicalLedger ? _cur : e.currency || _cur;
+  const fmtIn = n => fmt(n, cur);
+  const signedIn = n => signed(n, cur);
+  const assignedLabel = !_canonicalLedger && cur !== savedIn() ? t('money.assigned_in', { code: savedIn() }) : t('money.assigned');
+  const banner = envelopeCurrencyNote() + `<div class="env-tbb ${tbb < 0 ? 'over' : (tbb > 0 ? 'pos' : '')}">
+    <span class="env-tbb-num">${signedIn(tbb)}</span><span class="env-tbb-lbl">${t('money.to_be_budgeted')}</span></div>`;
   const pending = _canonicalLedger ? (e.pending_assignments || []) : [];
   const rows = (e.categories || []).filter(c => _canonicalLedger || c.assigned || c.spent || c.available || c.target).map(c => {
     const av = c.available || 0;
     const pendingWrite = pending.find(item => item.category_id === c.category_id);
     const label = _canonicalLedger && c.group ? `${c.group} / ${c.category}` : c.category;
     const tgt = c.target ? (_canonicalLedger
-      ? `<div class="env-target-note"><span>target ${fmt(c.target.amount)}${c.target.date ? ` by ${esc(c.target.date)}` : ''} · ${Math.round((c.target.funded || 0) * 100)}% funded</span>${c.target.id ? `<button type="button" class="btn env-move-target" data-target-id="${esc(c.target.id)}">change category</button>` : ''}</div>`
-      : `<div class="env-target"><div class="env-target-bar" style="width:${Math.min(100, (c.target.funded || 0) * 100)}%"></div><span class="env-target-lbl">${Math.round((c.target.funded || 0) * 100)}% of ${fmt(c.target.amount)}${c.target.date ? ` by ${esc(c.target.date)}` : ''}</span></div>`) : '';
+      ? `<div class="env-target-note"><span>${c.target.date ? t('money.target_by_funded', { amount: fmtIn(c.target.amount), date: esc(c.target.date), pct: Math.round((c.target.funded || 0) * 100) }) : t('money.target_funded', { amount: fmtIn(c.target.amount), pct: Math.round((c.target.funded || 0) * 100) })}</span>${c.target.id ? `<button type="button" class="btn env-move-target" data-target-id="${esc(c.target.id)}">${t('money.change_category')}</button>` : ''}</div>`
+      : `<div class="env-target"><div class="env-target-bar" style="width:${Math.min(100, (c.target.funded || 0) * 100)}%"></div><span class="env-target-lbl">${c.target.date ? t('money.pct_of_by', { pct: Math.round((c.target.funded || 0) * 100), amount: fmtIn(c.target.amount), date: esc(c.target.date) }) : t('money.pct_of', { pct: Math.round((c.target.funded || 0) * 100), amount: fmtIn(c.target.amount) })}</span></div>`) : '';
     return `<div class="env-row" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}">
-      <div class="env-cat"><span class="env-cat-name" title="${esc(label)}">${esc(label)}</span><button type="button" class="env-tgt-btn" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}" aria-label="${c.target ? 'edit' : 'set'} funding target for ${esc(label)}">${c.target ? 'edit target' : 'set target'}</button></div>
-      ${pendingWrite ? `<span class="env-assigned" title="save not confirmed">${fmt(c.assigned || 0)}</span>` : `<label class="env-assignment"><span class="env-input-label">assigned</span><input type="text" class="settings-input env-assign" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}" data-expected="${c.assigned || 0}" value="${c.assigned || 0}" inputmode="decimal" aria-label="assigned this month for ${esc(label)}"></label>`}
-      <span class="env-spent" title="spent this month"><span class="sr-only">spent this month: </span><span class="env-stat-label" aria-hidden="true">spent </span>${fmt(c.spent || 0)}</span>
-      <span class="env-avail ${av < 0 ? 'neg' : 'pos'}" title="available (rolls over)"><span class="sr-only">available: </span><span class="env-stat-label" aria-hidden="true">available </span>${fmt(av)}</span>
-      ${pendingWrite ? `<div class="env-pending" role="status">save not confirmed for ${esc(label)}. <button type="button" class="btn" data-env-retry="${esc(c.category_id)}" data-amount="${pendingWrite.assigned}" data-expected="${pendingWrite.expected_assigned}">retry the same amount</button></div>` : ''}
+      <div class="env-cat"><span class="env-cat-name" title="${esc(label)}">${esc(label)}</span><button type="button" class="env-tgt-btn" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}" aria-label="${c.target ? t('money.edit_target_for', { name: esc(label) }) : t('money.set_target_for', { name: esc(label) })}">${c.target ? t('money.edit_target') : t('money.set_target')}</button></div>
+      ${pendingWrite ? `<span class="env-assigned" title="${t('money.save_not_confirmed')}">${fmtIn(c.assigned || 0)}</span>` : `<label class="env-assignment"><span class="env-input-label">${assignedLabel}</span><input type="text" class="settings-input env-assign" data-cat="${esc(c.category)}" data-category-id="${esc(c.category_id || '')}" data-expected="${c.assigned_saved ?? c.assigned ?? 0}" value="${c.assigned_saved ?? c.assigned ?? 0}" inputmode="decimal" aria-label="${t('money.assigned_this_month_for', { name: esc(label) })}"></label>`}
+      <span class="env-spent" title="${t('money.spent_this_month_title')}"><span class="sr-only">${t('money.spent_this_month_sr')}</span><span class="env-stat-label" aria-hidden="true">${t('money.spent_label')}</span>${fmtIn(c.spent || 0)}</span>
+      <span class="env-avail ${av < 0 ? 'neg' : 'pos'}" title="${t('money.available_title')}"><span class="sr-only">${t('money.available_sr')}</span><span class="env-stat-label" aria-hidden="true">${t('money.available_label')}</span>${fmtIn(av)}</span>
+      ${pendingWrite ? `<div class="env-pending" role="status">${t('money.save_not_confirmed_for', { name: esc(label) })} <button type="button" class="btn" data-env-retry="${esc(c.category_id)}" data-amount="${pendingWrite.assigned}" data-expected="${pendingWrite.expected_assigned}">${t('money.retry_same_amount')}</button></div>` : ''}
       ${tgt}
     </div>`;
   }).join('');
   if (_canonicalLedger) {
-    const unbound = (e.unbound_targets || []).map(target => `<div class="env-unbound-row" data-target-id="${esc(target.id)}"><span>${esc(target.category)} · ${fmt(target.amount)}${target.date ? ` by ${esc(target.date)}` : ''}</span><button type="button" class="btn env-bind-target" data-target-id="${esc(target.id)}">choose category</button></div>`).join('');
-    return banner + `<p class="money-recurring-note">assignments use Actual. spending caps and funding targets stay separate.</p><div id="env-save-status" role="status" class="env-save-status"></div><div id="env-target-status" role="status" class="env-target-status">${esc(_targetStatus)}</div>` +
-    (rows ? `<div class="env-rows"><div class="env-row env-head" aria-hidden="true"><span>category</span><span>assigned</span><span>spent</span><span>available</span></div>${rows}</div>`
-      : '<div class="money-empty-sm">no spending categories yet. add a categorized transaction first</div>') +
-      (unbound ? `<section class="env-unbound"><h4>targets needing a category</h4><p>these old targets are saved, but their Actual category isn't known. choose one to use each target.</p>${unbound}</section>` : '');
+    const unbound = (e.unbound_targets || []).map(target => `<div class="env-unbound-row" data-target-id="${esc(target.id)}"><span>${esc(target.category)} · ${fmtIn(target.amount)}${target.date ? ` ${t('money.by_date', { date: esc(target.date) })}` : ''}</span><button type="button" class="btn env-bind-target" data-target-id="${esc(target.id)}">${t('money.choose_category')}</button></div>`).join('');
+    return banner + `<p class="money-recurring-note">${t('money.assignments_use_actual')}</p><div id="env-save-status" role="status" class="env-save-status"></div><div id="env-target-status" role="status" class="env-target-status">${esc(_targetStatus)}</div>` +
+    (rows ? `<div class="env-rows"><div class="env-row env-head" aria-hidden="true"><span>${t('money.category')}</span><span>${t('money.assigned')}</span><span>${t('money.spent')}</span><span>${t('money.available')}</span></div>${rows}</div>`
+      : `<div class="money-empty-sm">${t('money.no_categories')}</div>`) +
+      (unbound ? `<section class="env-unbound"><h4>${t('money.targets_need_category')}</h4><p>${t('money.targets_need_category_help')}</p>${unbound}</section>` : '');
   }
   return banner + (rows
     ? `<div class="env-rows">${rows}</div>`
-    : '<div class="money-empty-sm">assign money to a category to start budgeting</div>') +
-    `<div class="env-add">${moneyField('category', `<input type="text" id="env-new-cat" class="settings-input" placeholder="category" style="flex:1">`)}${moneyField('assignment amount', `<input type="text" id="env-new-amt" class="settings-input" placeholder="assign" inputmode="decimal" style="width:90px">`)}<button class="btn" id="env-assign-btn">assign</button></div>`;
+    : `<div class="money-empty-sm">${t('money.assign_to_start')}</div>`) +
+    `<div class="env-add">${moneyField(t('money.category'), `<input type="text" id="env-new-cat" class="settings-input" placeholder="${t('money.category')}" style="flex:1">`)}${moneyField(savedLabel(t('money.assignment_amount')), `<input type="text" id="env-new-amt" class="settings-input" placeholder="${t('money.assign')}" inputmode="decimal" style="width:90px">`)}<button class="btn" id="env-assign-btn">${t('money.assign')}</button></div>`;
 }
 
 function budgetsList() {
-  if (!_budgets.length) return '<div class="money-empty-sm">no spending caps yet</div>';
+  if (!_budgets.length) return `<div class="money-empty-sm">${t('money.no_caps')}</div>`;
   const byCat = {}; (_sum?.budgets || []).forEach(b => byCat[b.category] = b);
+  // the summary shows each cap in the totals currency when a rate allows (saved in the ledger one)
+  const cur = _canonicalLedger ? _cur : capsIn();
   return `<div class="budgets">` + _budgets.map(b => {
     const spent = byCat[b.category]?.spent || 0;
-    const pct = b.limit_amt > 0 ? Math.min(100, spent / b.limit_amt * 100) : 0;
-    const over = b.limit_amt > 0 && spent > b.limit_amt;
+    const limit = _canonicalLedger ? b.limit_amt : byCat[b.category]?.limit ?? b.limit_amt;
+    const pct = limit > 0 ? Math.min(100, spent / limit * 100) : 0;
+    const over = limit > 0 && spent > limit;
     return `<div class="budget-row" data-id="${b.id}">
       <div class="bg-head"><span class="bg-cat">${catDot(b.category)}${esc(b.category)}</span>
-        <span class="bg-nums ${over ? 'over' : ''}">${fmt(spent)} / ${fmt(b.limit_amt)}</span>
-        <button class="bg-del" data-del-budget="${b.id}" aria-label="remove spending cap for ${esc(b.category)}" title="remove">×</button></div>
+        <span class="bg-nums ${over ? 'over' : ''}">${fmt(spent, cur)} / ${fmt(limit, cur)}</span>
+        <button class="bg-del" data-del-budget="${b.id}" aria-label="${t('money.remove_cap_for', { name: esc(b.category) })}" title="${t('common.remove')}">×</button></div>
       <div class="bg-bar-wrap"><div class="bg-bar ${over ? 'over' : ''}" style="width:${pct}%;--cat:var(--cat-${hueOf(b.category)})"></div></div>
     </div>`;
   }).join('') + `</div>`;
 }
 
 function rulesList() {
-  if (!_rules.length) return '<div class="money-empty-sm">no rules: auto-tag a payee to a category</div>';
+  if (!_rules.length) return `<div class="money-empty-sm">${t('money.no_rules')}</div>`;
   return `<div class="rules">` + _rules.map(r => `
     <div class="rule" data-id="${r.id}">
       <span class="rl-match">${esc(r.match)}</span>
       <span class="rl-arrow" aria-hidden="true">${_si('arrow-right')}</span>
-      <span class="rl-cat">${esc(r.category) || '<span class="tx-dim">(clear)</span>'}</span>
-      <button class="tx-del" data-del-rule="${r.id}" aria-label="delete rule for ${esc(r.match)}" title="delete">×</button>
+      <span class="rl-cat">${esc(r.category) || `<span class="tx-dim">${t('money.clear_paren')}</span>`}</span>
+      <button class="tx-del" data-del-rule="${r.id}" aria-label="${t('money.delete_rule_for', { name: esc(r.match) })}" title="${t('common.delete')}">×</button>
     </div>`).join('') + `</div>`;
 }
 
 function _ruleForm() {
   return `<div class="rule-form">
-    ${moneyField('payee contains', `<input type="text" id="rl-match" class="settings-input" placeholder="if payee contains…" style="flex:1.2;min-width:120px">`)}
+    ${moneyField(t('money.payee_contains'), `<input type="text" id="rl-match" class="settings-input" placeholder="${t('money.if_payee_contains')}" style="flex:1.2;min-width:120px">`)}
     <span class="rl-arrow" aria-hidden="true">${_si('arrow-right')}</span>
-    ${moneyField('category', `<input type="text" id="rl-cat" class="settings-input" placeholder="category" style="flex:1;min-width:90px">`)}
-    <button class="btn" id="rl-add">add</button>
+    ${moneyField(t('money.category'), `<input type="text" id="rl-cat" class="settings-input" placeholder="${t('money.category')}" style="flex:1;min-width:90px">`)}
+    <button class="btn" id="rl-add">${t('common.add')}</button>
   </div>`;
 }
 
-const _cycleShort = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', custom: '·custom', actual: '·Actual' };
+const _cycleShort = () => ({ weekly: t('subs.per_wk'), monthly: t('subs.per_mo'), quarterly: t('subs.per_qtr'), yearly: t('subs.per_yr'), custom: t('money.cycle_custom_short'), actual: '·Actual' });
 
 function _recurringChoiceLabel(options, value, empty = '') {
   if (!value) return empty;
   const row = options.find(option => option.id === value);
-  if (!row) return 'unavailable';
+  if (!row) return t('common.unavailable');
   return options.filter(option => option.name === row.name).length > 1
     ? `${row.name} (${row.id.slice(-6)})` : row.name;
 }
@@ -1252,51 +1329,51 @@ function _recurringChoiceLabel(options, value, empty = '') {
 function _recurringEditForm(r) {
   const edit = _recurringEdit;
   if (!edit || edit.id !== r.id || !r.editable) return '';
-  if (edit.loading) return '<div class="recur-edit-state" role="status">loading edit choices…</div>';
-  if (!edit.options) return `<div class="recur-edit-state" role="alert">${esc(edit.status)} <button type="button" class="btn" data-retry-open-rec="${esc(r.id)}">retry</button></div>`;
+  if (edit.loading) return `<div class="recur-edit-state" role="status">${t('money.loading_edit_choices')}</div>`;
+  if (!edit.options) return `<div class="recur-edit-state" role="alert">${esc(edit.status)} <button type="button" class="btn" data-retry-open-rec="${esc(r.id)}">${t('common.retry')}</button></div>`;
   const draft = edit.draft;
   const options = edit.options;
   const choice = (field, label, list, empty = '') => `<div class="recur-field"><span id="rce-${field}-label">${label}</span><button type="button" class="btn recur-edit-choice" data-rec-choice="${field}" data-choice-id="${esc(draft[field])}" aria-labelledby="rce-${field}-label rce-${field}-choice" id="rce-${field}-choice">${esc(_recurringChoiceLabel(list, draft[field], empty))}</button></div>`;
-  return `<div class="recur-edit" id="rce-panel" role="group" tabindex="-1" aria-busy="${edit.saving}" aria-label="edit ${esc(r.payee || 'recurring')} schedule">
+  return `<div class="recur-edit" id="rce-panel" role="group" tabindex="-1" aria-busy="${edit.saving}" aria-label="${t('money.edit_schedule_named', { name: esc(r.payee || t('money.recurring')) })}">
     <div class="recur-form recur-form-canonical recur-edit-fields" ${edit.saving ? 'inert' : ''}>
-      ${choice('account_id', 'account', options.accounts)}
-      ${choice('payee_id', 'payee', options.payees)}
-      ${choice('category_id', 'category', options.categories, 'no category')}
-      <div class="recur-field"><span id="rce-sign-label">type</span><div class="settings-input custom-select" id="rce-sign" aria-labelledby="rce-sign-label" data-value="${draft.sign}" data-options="-|expense;+|income"></div></div>
-      <label class="recur-field" for="rce-amount"><span>amount</span><input type="text" class="settings-input" id="rce-amount" value="${esc(draft.amountText)}" inputmode="decimal"></label>
-      <div class="recur-field"><span id="rce-cycle-label">repeat</span><div class="settings-input custom-select" id="rce-cycle" aria-labelledby="rce-cycle-label" data-value="${esc(draft.cycle)}" data-options="daily|daily;weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly;custom|every n days"></div></div>
-      <label class="recur-field" for="rce-days" ${draft.cycle === 'custom' ? '' : 'hidden'}><span>days between</span><input type="text" class="settings-input" id="rce-days" value="${esc(draft.cycle_days)}" inputmode="numeric"></label>
-      <div class="recur-field"><span id="rce-date-label">next date</span><div class="date-input" id="rce-date" aria-labelledby="rce-date-label" data-type="date" data-value="${esc(draft.next_date)}" data-ph="next date"></div></div>
-      <label class="recur-edit-active" for="rce-active"><span>auto-post</span><button type="button" id="rce-active" class="s-switch ${draft.active ? 'on' : ''}" role="switch" aria-checked="${draft.active}" aria-label="auto-post" ${edit.saving ? 'disabled' : ''}></button></label>
-      <label class="recur-field recur-edit-notes" for="rce-notes"><span>notes</span><input type="text" class="settings-input" id="rce-notes" value="${esc(draft.notes)}"></label>
+      ${choice('account_id', t('money.account'), options.accounts)}
+      ${choice('payee_id', t('money.payee'), options.payees)}
+      ${choice('category_id', t('money.category'), options.categories, t('money.no_category'))}
+      <div class="recur-field"><span id="rce-sign-label">${t('money.type')}</span><div class="settings-input custom-select" id="rce-sign" aria-labelledby="rce-sign-label" data-value="${draft.sign}" data-options="-|${t('money.expense')};+|${t('money.income')}"></div></div>
+      <label class="recur-field" for="rce-amount"><span>${t('money.amount')}</span><input type="text" class="settings-input" id="rce-amount" value="${esc(draft.amountText)}" inputmode="decimal"></label>
+      <div class="recur-field"><span id="rce-cycle-label">${t('money.repeat')}</span><div class="settings-input custom-select" id="rce-cycle" aria-labelledby="rce-cycle-label" data-value="${esc(draft.cycle)}" data-options="daily|${t('money.cycle_daily')};weekly|${t('subs.cycle_weekly')};monthly|${t('subs.cycle_monthly')};quarterly|${t('subs.cycle_quarterly')};yearly|${t('subs.cycle_yearly')};custom|${t('money.cycle_every_n')}"></div></div>
+      <label class="recur-field" for="rce-days" ${draft.cycle === 'custom' ? '' : 'hidden'}><span>${t('money.days_between')}</span><input type="text" class="settings-input" id="rce-days" value="${esc(draft.cycle_days)}" inputmode="numeric"></label>
+      <div class="recur-field"><span id="rce-date-label">${t('money.next_date')}</span><div class="date-input" id="rce-date" aria-labelledby="rce-date-label" data-type="date" data-value="${esc(draft.next_date)}" data-ph="${t('money.next_date')}"></div></div>
+      <label class="recur-edit-active" for="rce-active"><span>${t('money.auto_post')}</span><button type="button" id="rce-active" class="s-switch ${draft.active ? 'on' : ''}" role="switch" aria-checked="${draft.active}" aria-label="${t('money.auto_post')}" ${edit.saving ? 'disabled' : ''}></button></label>
+      <label class="recur-field recur-edit-notes" for="rce-notes"><span>${t('money.notes')}</span><input type="text" class="settings-input" id="rce-notes" value="${esc(draft.notes)}"></label>
     </div>
-    <div class="recur-edit-actions"><button type="button" class="btn primary" id="rce-save" ${edit.saving || edit.blocked ? 'disabled' : ''}>${edit.saving ? 'saving…' : 'save changes'}</button><button type="button" class="btn" id="rce-cancel" ${edit.saving ? 'disabled' : ''}>cancel</button>${edit.blocked ? '<button type="button" class="btn" id="rce-check">check schedule</button>' : ''}</div>
+    <div class="recur-edit-actions"><button type="button" class="btn primary" id="rce-save" ${edit.saving || edit.blocked ? 'disabled' : ''}>${edit.saving ? t('common.saving') : t('money.save_changes')}</button><button type="button" class="btn" id="rce-cancel" ${edit.saving ? 'disabled' : ''}>${t('common.cancel')}</button>${edit.blocked ? `<button type="button" class="btn" id="rce-check">${t('money.check_schedule')}</button>` : ''}</div>
     ${edit.status ? `<p class="money-recurring-error" role="alert">${esc(edit.status)}</p>` : ''}
   </div>`;
 }
 
 function recurringList() {
-  if (_recurringError) return '<div class="money-empty-sm money-history-error" role="status">couldn\'t load schedules <button type="button" class="btn" id="recurring-retry">retry</button></div>';
+  if (_recurringError) return `<div class="money-empty-sm money-history-error" role="status">${t('money.schedules_failed')} <button type="button" class="btn" id="recurring-retry">${t('common.retry')}</button></div>`;
   const status = _recurringStatus ? `<p class="money-recurring-error" role="status">${esc(_recurringStatus)}</p>` : '';
-  if (!_recurring.length) return status + `<div class="money-empty-sm">${_canonicalLedger ? 'no auto-post schedules in Actual' : 'nothing recurring: add rent, salary, a loan…'}</div>`;
+  if (!_recurring.length) return status + `<div class="money-empty-sm">${_canonicalLedger ? t('money.no_schedules_actual') : t('money.no_recurring')}</div>`;
   return `${status}<div class="recurs">` + _recurring.map(r => `
     <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending || r.create_pending || r.edit_pending || r.delete_pending || (_canonicalLedger && r.editable) ? '' : 'paused'}">
       <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
-      <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? 'range' : 'varies') : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount, accountCurrency(_accounts.find(a => a.id === r.account_id)))}`}<span class="rc-cyc">${_cycleShort[r.cycle] || ''}</span></span>
-      <span class="rc-next" title="${r.create_pending ? 'creation pending' : r.edit_pending ? 'edit pending' : r.delete_pending ? 'deletion pending' : r.next_date ? `next post ${esc(r.next_date)}` : 'next date unavailable'}">${r.create_pending || r.edit_pending || r.delete_pending ? 'pending' : r.active ? (r.next_date ? esc(r.next_date.slice(5)) : 'unknown') : (_canonicalLedger ? 'inactive' : 'paused')}</span>
-      ${_canonicalLedger && r.manageable && !r.edit_pending && _recurringEdit?.id !== r.id ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? `retry ${r.posting_target_active ? 'resume' : 'pause'}` : r.active ? 'pause' : 'resume'}</button>` : ''}
-      ${_canonicalLedger && r.editable ? `<button type="button" class="btn rc-edit" data-edit-rec="${esc(r.id)}" aria-label="edit ${esc(r.payee || 'recurring')} schedule" aria-expanded="${_recurringEdit?.id === r.id}" ${_recurringEdit?.id === r.id && _recurringEdit.options ? 'aria-controls="rce-panel"' : ''} ${_recurringEdit && (_recurringEdit.id !== r.id || _recurringEdit.saving) ? 'disabled' : ''}>edit</button>` : ''}
-      ${_canonicalLedger && r.editable && !_recurringEdit ? `<button type="button" class="btn rc-delete" data-del-rec="${esc(r.id)}" aria-label="delete ${esc(r.payee || 'recurring')} schedule">delete</button>` : ''}
-      ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? 'pause' : 'resume'}">${r.active ? 'pause' : 'resume'}</button>
-      <button class="tx-del" data-del-rec="${esc(r.id)}" aria-label="delete ${esc(r.payee || r.category || 'recurring')} schedule" title="delete">×</button>`}
-    </div>${_recurringEditForm(r)}${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? 'creation marker missing in Actual. review the schedule there before trying again.' : 'creation not confirmed. retry the saved schedule; this will not start another one.'}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">retry creation</button>`}</div>` : ''}${_canonicalLedger && r.edit_pending ? `<div class="recur-repair" role="status"><span>${r.edit_needs_review ? "couldn't match this edit in Actual. review the schedule there before retrying." : 'edit not confirmed; Actual may be paused. retry the saved edit.'}</span>${r.edit_needs_review ? '' : `<button type="button" class="btn" data-retry-edit-rec="${esc(r.id)}">retry edit</button>`}</div>` : ''}${_canonicalLedger && r.delete_pending ? `<div class="recur-repair" role="status"><span>${r.delete_needs_review ? "couldn't match this schedule in Actual. review it before retrying deletion." : 'deletion not confirmed. retry the saved deletion; past transactions stay.'}</span>${r.delete_needs_review ? '' : `<button type="button" class="btn" data-retry-delete-rec="${esc(r.id)}">retry deletion</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? 'repair incomplete; Actual may be paused. retry the saved category.' : 'this old schedule still posts without a guarded category and notes rule.'}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? 'retry repair' : 'repair posting'}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? 'resume' : 'pause'} not confirmed; Actual may have changed. retry the saved action.</span></div>` : ''}</div>`).join('') + `</div>`;
+      <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? t('money.range') : t('money.varies')) : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount, accountCurrency(_accounts.find(a => a.id === r.account_id)))}`}<span class="rc-cyc">${_cycleShort()[r.cycle] || ''}</span></span>
+      <span class="rc-next" title="${r.create_pending ? t('money.creation_pending') : r.edit_pending ? t('money.edit_pending') : r.delete_pending ? t('money.deletion_pending') : r.next_date ? t('money.next_post', { date: esc(r.next_date) }) : t('money.next_date_unavailable')}">${r.create_pending || r.edit_pending || r.delete_pending ? t('money.pending') : r.active ? (r.next_date ? esc(r.next_date.slice(5)) : t('common.unknown')) : (_canonicalLedger ? t('money.inactive') : t('subs.paused'))}</span>
+      ${_canonicalLedger && r.manageable && !r.edit_pending && _recurringEdit?.id !== r.id ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? (r.posting_target_active ? t('money.retry_resume') : t('money.retry_pause')) : r.active ? t('subs.pause') : t('subs.resume')}</button>` : ''}
+      ${_canonicalLedger && r.editable ? `<button type="button" class="btn rc-edit" data-edit-rec="${esc(r.id)}" aria-label="${t('money.edit_schedule_named', { name: esc(r.payee || t('money.recurring')) })}" aria-expanded="${_recurringEdit?.id === r.id}" ${_recurringEdit?.id === r.id && _recurringEdit.options ? 'aria-controls="rce-panel"' : ''} ${_recurringEdit && (_recurringEdit.id !== r.id || _recurringEdit.saving) ? 'disabled' : ''}>${t('common.edit')}</button>` : ''}
+      ${_canonicalLedger && r.editable && !_recurringEdit ? `<button type="button" class="btn rc-delete" data-del-rec="${esc(r.id)}" aria-label="${t('money.delete_schedule_named', { name: esc(r.payee || t('money.recurring')) })}">${t('common.delete')}</button>` : ''}
+      ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? t('subs.pause') : t('subs.resume')}">${r.active ? t('subs.pause') : t('subs.resume')}</button>
+      <button class="tx-del" data-del-rec="${esc(r.id)}" aria-label="${t('money.delete_schedule_named', { name: esc(r.payee || r.category || t('money.recurring')) })}" title="${t('common.delete')}">×</button>`}
+    </div>${_recurringEditForm(r)}${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? t('money.create_marker_missing') : t('money.create_unconfirmed')}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">${t('money.retry_creation')}</button>`}</div>` : ''}${_canonicalLedger && r.edit_pending ? `<div class="recur-repair" role="status"><span>${r.edit_needs_review ? t('money.edit_no_match') : t('money.edit_unconfirmed')}</span>${r.edit_needs_review ? '' : `<button type="button" class="btn" data-retry-edit-rec="${esc(r.id)}">${t('money.retry_edit')}</button>`}</div>` : ''}${_canonicalLedger && r.delete_pending ? `<div class="recur-repair" role="status"><span>${r.delete_needs_review ? t('money.delete_no_match') : t('money.delete_unconfirmed')}</span>${r.delete_needs_review ? '' : `<button type="button" class="btn" data-retry-delete-rec="${esc(r.id)}">${t('money.retry_deletion')}</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? t('money.repair_incomplete') : t('money.repair_old')}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? t('money.retry_repair') : t('money.repair_posting')}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? t('money.resume_not_confirmed') : t('money.pause_not_confirmed')}</span></div>` : ''}</div>`).join('') + `</div>`;
 }
 
 function recurringCreateUnavailable() {
-  if (_recurringError) return 'retry loading schedules before adding another.';
-  if (_canonicalLedger && _recurring.some(row => row.create_pending)) return 'finish the pending schedule before adding another.';
-  if (!_accounts.length) return 'add an account before adding a schedule.';
-  if (_canonicalLedger && !_accounts.some(a => !a.archived)) return 'open an Actual account before adding a schedule.';
+  if (_recurringError) return t('money.retry_loading_schedules');
+  if (_canonicalLedger && _recurring.some(row => row.create_pending)) return t('money.finish_pending_schedule');
+  if (!_accounts.length) return t('money.add_account_first');
+  if (_canonicalLedger && !_accounts.some(a => !a.archived)) return t('money.open_actual_account');
   return '';
 }
 
@@ -1307,28 +1384,28 @@ function _recurringForm() {
 
 function _recurringFields() {
   const availableAccounts = _canonicalLedger ? _accounts.filter(a => !a.archived) : _accounts;
-  if (!availableAccounts.length) return _canonicalLedger ? '<p class="money-recurring-note">open an Actual account before adding a schedule.</p>' : '';
+  if (!availableAccounts.length) return _canonicalLedger ? `<p class="money-recurring-note">${t('money.open_actual_account')}</p>` : '';
   const acctOpts = availableAccounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const first = availableAccounts[0]?.id || '';
-  if (_canonicalLedger) return `<div class="recur-form recur-form-canonical" role="group" aria-label="add recurring schedule">
-    <label class="recur-field" for="rc-payee"><span>payee</span><input type="text" id="rc-payee" class="settings-input" placeholder="e.g. rent" autocomplete="off"></label>
-    <div class="recur-field"><span id="rc-category-label">category</span><button type="button" class="btn rc-category-choice" id="rc-category-choice" aria-labelledby="rc-category-label rc-category-choice" data-category-id="">no category</button></div>
-    <div class="recur-field"><span id="rc-sign-label">type</span><div class="settings-input custom-select" id="rc-sign" aria-labelledby="rc-sign-label" data-value="-" data-options="-|expense;+|income"></div></div>
-    <label class="recur-field" for="rc-amt"><span>amount</span><input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal"></label>
-    <div class="recur-field"><span id="rc-cycle-label">repeat</span><div class="settings-input custom-select" id="rc-cycle" aria-labelledby="rc-cycle-label" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly"></div></div>
-    <div class="recur-field"><span id="rc-next-label">first date</span><div class="date-input" id="rc-next" aria-labelledby="rc-next-label" data-type="date" data-value="${_today()}" data-ph="first date"></div></div>
-    <div class="recur-field"><span id="rc-acct-label">account</span><div class="settings-input custom-select" id="rc-acct" aria-labelledby="rc-acct-label" data-value="${esc(first)}" data-options="${esc(acctOpts)}"></div></div>
-    <button type="button" class="btn primary" id="rc-add">add schedule</button>
-  </div><p class="money-recurring-note">new schedules post in Actual. eligible linked guarded schedules can be edited or deleted here.</p>`;
+  if (_canonicalLedger) return `<div class="recur-form recur-form-canonical" role="group" aria-label="${t('money.add_recurring_schedule')}">
+    <label class="recur-field" for="rc-payee"><span>${t('money.payee')}</span><input type="text" id="rc-payee" class="settings-input" placeholder="${t('money.eg_rent')}" autocomplete="off"></label>
+    <div class="recur-field"><span id="rc-category-label">${t('money.category')}</span><button type="button" class="btn rc-category-choice" id="rc-category-choice" aria-labelledby="rc-category-label rc-category-choice" data-category-id="">${t('money.no_category')}</button></div>
+    <div class="recur-field"><span id="rc-sign-label">${t('money.type')}</span><div class="settings-input custom-select" id="rc-sign" aria-labelledby="rc-sign-label" data-value="-" data-options="-|${t('money.expense')};+|${t('money.income')}"></div></div>
+    <label class="recur-field" for="rc-amt"><span>${t('money.amount')}</span><input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal"></label>
+    <div class="recur-field"><span id="rc-cycle-label">${t('money.repeat')}</span><div class="settings-input custom-select" id="rc-cycle" aria-labelledby="rc-cycle-label" data-value="monthly" data-options="weekly|${t('subs.cycle_weekly')};monthly|${t('subs.cycle_monthly')};quarterly|${t('subs.cycle_quarterly')};yearly|${t('subs.cycle_yearly')}"></div></div>
+    <div class="recur-field"><span id="rc-next-label">${t('money.first_date')}</span><div class="date-input" id="rc-next" aria-labelledby="rc-next-label" data-type="date" data-value="${_today()}" data-ph="${t('money.first_date')}"></div></div>
+    <div class="recur-field"><span id="rc-acct-label">${t('money.account')}</span><div class="settings-input custom-select" id="rc-acct" aria-labelledby="rc-acct-label" data-value="${esc(first)}" data-options="${esc(acctOpts)}"></div></div>
+    <button type="button" class="btn primary" id="rc-add">${t('money.add_schedule')}</button>
+  </div><p class="money-recurring-note">${t('money.new_schedules_note')}</p>`;
   return `<div class="recur-form">
-    ${moneyField('payee', `<input type="text" id="rc-payee" class="settings-input" placeholder="payee (e.g. rent)" style="flex:1.3;min-width:100px">`)}
-    ${moneyField('category', `<input type="text" id="rc-cat" class="settings-input" placeholder="category" style="flex:1;min-width:80px">`)}
-    ${moneyField('type', `<div class="settings-input custom-select" id="rc-sign" data-value="-" data-options="-|expense;+|income" style="width:104px"></div>`)}
-    ${moneyField('amount', `<input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:84px">`)}
-    ${moneyField('repeat', `<div class="settings-input custom-select" id="rc-cycle" data-value="monthly" data-options="weekly|weekly;monthly|monthly;quarterly|quarterly;yearly|yearly" style="width:120px"></div>`)}
-    ${moneyField('next date', `<div class="date-input" id="rc-next" data-type="date" data-value="${_today()}" data-ph="next date" style="width:128px"></div>`)}
-    ${moneyField('account', `<div class="settings-input custom-select" id="rc-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>`)}
-    <button class="btn primary" id="rc-add">add</button>
+    ${moneyField(t('money.payee'), `<input type="text" id="rc-payee" class="settings-input" placeholder="${t('money.payee_eg_rent')}" style="flex:1.3;min-width:100px">`)}
+    ${moneyField(t('money.category'), `<input type="text" id="rc-cat" class="settings-input" placeholder="${t('money.category')}" style="flex:1;min-width:80px">`)}
+    ${moneyField(t('money.type'), `<div class="settings-input custom-select" id="rc-sign" data-value="-" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:104px"></div>`)}
+    ${moneyField(t('money.amount'), `<input type="text" id="rc-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:84px">`)}
+    ${moneyField(t('money.repeat'), `<div class="settings-input custom-select" id="rc-cycle" data-value="monthly" data-options="weekly|${t('subs.cycle_weekly')};monthly|${t('subs.cycle_monthly')};quarterly|${t('subs.cycle_quarterly')};yearly|${t('subs.cycle_yearly')}" style="width:120px"></div>`)}
+    ${moneyField(t('money.next_date'), `<div class="date-input" id="rc-next" data-type="date" data-value="${_today()}" data-ph="${t('money.next_date')}" style="width:128px"></div>`)}
+    ${moneyField(t('money.account'), `<div class="settings-input custom-select" id="rc-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="width:128px"></div>`)}
+    <button class="btn primary" id="rc-add">${t('common.add')}</button>
   </div>`;
 }
 
@@ -1336,20 +1413,20 @@ function addTxnRow() {
   const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const first = _accounts[0]?.id || '';
   return `<div class="txn-add">
-    ${moneyField('date', `<div class="date-input" id="tx-date" data-type="date" data-value="${_today()}" data-ph="date" style="flex:1 1 9.5rem"></div>`)}
-    ${moneyField('account', `<div class="settings-input custom-select" id="tx-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="flex:1 1 11rem"></div>`)}
-    ${moneyField('type', `<div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|expense;+|income" style="width:106px"></div>`)}
-    ${moneyField('amount', `<input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
-    ${moneyField('payee', `<input type="text" id="tx-payee" class="settings-input" placeholder="payee / what" style="flex:1.4;min-width:120px;grid-column:1 / -1">`)}
+    ${moneyField(t('money.date'), `<div class="date-input" id="tx-date" data-type="date" data-value="${_today()}" data-ph="${t('money.date')}" style="flex:1 1 9.5rem"></div>`)}
+    ${moneyField(t('money.account'), `<div class="settings-input custom-select" id="tx-acct" data-value="${esc(first)}" data-options="${esc(acctOpts)}" style="flex:1 1 11rem"></div>`)}
+    ${moneyField(t('money.type'), `<div class="settings-input custom-select" id="tx-sign" data-value="-" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:106px"></div>`)}
+    ${moneyField(t('money.amount'), `<input type="text" id="tx-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="width:96px">`)}
+    ${moneyField(t('money.payee'), `<input type="text" id="tx-payee" class="settings-input" placeholder="${t('money.payee_what')}" style="flex:1.4;min-width:120px;grid-column:1 / -1">`)}
   </div><p id="tx-amt-error" class="money-field-error" role="status"></p>
-  <button type="button" class="money-section-toggle money-entry-details-toggle" id="tx-details-toggle" aria-expanded="${_moneyEntryDetailsOpen}" aria-controls="tx-details">category and tags (optional)</button>
+  <button type="button" class="money-section-toggle money-entry-details-toggle" id="tx-details-toggle" aria-expanded="${_moneyEntryDetailsOpen}" aria-controls="tx-details">${t('money.category_and_tags')}</button>
   <div class="money-entry-details" id="tx-details"${_moneyEntryDetailsOpen ? '' : ' hidden'}>
-    ${moneyField('category', '<input type="text" id="tx-cat" class="settings-input" placeholder="category">')}
-    ${moneyField('tags (comma separated)', '<input type="text" id="tx-tags" class="settings-input" placeholder="tags (comma)">')}
+    ${moneyField(t('money.category'), `<input type="text" id="tx-cat" class="settings-input" placeholder="${t('money.category')}">`)}
+    ${moneyField(t('money.tags_comma_separated'), `<input type="text" id="tx-tags" class="settings-input" placeholder="${t('money.tags_comma')}">`)}
   </div>
   <div class="money-entry-actions">
-    <button class="btn primary" id="tx-add">add transaction</button>
-    ${_accounts.length >= 2 ? `<button class="btn" id="tx-transfer-toggle" title="move money between accounts">${_si('swap')} transfer</button>` : ''}
+    <button class="btn primary" id="tx-add">${t('money.add_transaction')}</button>
+    ${_accounts.length >= 2 ? `<button class="btn" id="tx-transfer-toggle" title="${t('money.move_between_accounts')}">${_si('swap')} ${t('money.transfer')}</button>` : ''}
   </div>
   <p id="tx-save-status" class="money-field-error" role="status" ${_transactionSaveStatus ? '' : 'hidden'}>${esc(_transactionSaveStatus)}</p>`;
 }
@@ -1370,119 +1447,119 @@ function transferRow() {
   const opts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
   const a0 = _accounts[0]?.id || '', a1 = _accounts[1]?.id || '';
   return `<div class="txn-transfer" id="txn-transfer" style="display:none">
-    <span class="tr-lbl">move</span>
-    ${moneyField('from account', `<div class="settings-input custom-select" id="tr-from" data-value="${esc(a0)}" data-options="${esc(opts)}" style="flex:1 1 clamp(11rem, calc(50% - 3rem), 18rem);min-width:11rem"></div>`)}
+    <span class="tr-lbl">${t('money.move')}</span>
+    ${moneyField(t('money.from_account'), `<div class="settings-input custom-select" id="tr-from" data-value="${esc(a0)}" data-options="${esc(opts)}" style="flex:1 1 clamp(11rem, calc(50% - 3rem), 18rem);min-width:11rem"></div>`)}
     <span class="tr-arrow" aria-hidden="true">${_si('arrow-right')}</span>
-    ${moneyField('to account', `<div class="settings-input custom-select" id="tr-to" data-value="${esc(a1)}" data-options="${esc(opts)}" style="flex:1 1 clamp(11rem, calc(50% - 3rem), 18rem);min-width:11rem"></div>`)}
-    ${moneyField('date', `<div class="date-input" id="tr-date" data-type="date" data-value="${_today()}" data-ph="date" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
-    ${moneyField('amount', `<input type="text" id="tr-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="flex:1 1 7rem;min-width:7rem">`)}
-    <button class="btn primary" id="tr-do">transfer</button>
+    ${moneyField(t('money.to_account'), `<div class="settings-input custom-select" id="tr-to" data-value="${esc(a1)}" data-options="${esc(opts)}" style="flex:1 1 clamp(11rem, calc(50% - 3rem), 18rem);min-width:11rem"></div>`)}
+    ${moneyField(t('money.date'), `<div class="date-input" id="tr-date" data-type="date" data-value="${_today()}" data-ph="${t('money.date')}" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
+    ${moneyField(t('money.amount'), `<input type="text" id="tr-amt" class="settings-input" placeholder="0.00" inputmode="decimal" style="flex:1 1 7rem;min-width:7rem">`)}
+    <button class="btn primary" id="tr-do">${t('money.transfer')}</button>
   </div>`;
 }
 
 function txnList() {
   const rows = _searchResults !== null ? _searchResults : _txns;
   let banner = _tagFilter
-    ? `<div class="txn-tagfilter">filtered by tag <span class="tx-tag">${esc(_tagFilter)}</span><button class="btn" id="tag-clear">clear</button></div>`
+    ? `<div class="txn-tagfilter">${t('money.filtered_by_tag')} <span class="tx-tag">${esc(_tagFilter)}</span><button class="btn" id="tag-clear">${t('money.clear')}</button></div>`
     : '';
   if (_searchStatus) {
     const loading = _searchStatus === 'loading';
-    banner += `<div class="money-empty-sm" role="status">${loading ? 'loading matching transactions…' : "couldn't load matching transactions."}${rows.length ? ' previous transactions remain below.' : ''}
-      <button type="button" class="btn" id="txn-search-retry" aria-disabled="${loading}">retry</button>
-      <button type="button" class="btn" id="txn-search-clear">clear filters</button></div>`;
+    banner += `<div class="money-empty-sm" role="status">${loading ? t('money.loading_matches') : t('money.matches_failed')}${rows.length ? ` ${t('money.previous_remain')}` : ''}
+      <button type="button" class="btn" id="txn-search-retry" aria-disabled="${loading}">${t('common.retry')}</button>
+      <button type="button" class="btn" id="txn-search-clear">${t('money.clear_filters')}</button></div>`;
     if (!rows.length) return banner;
   }
-  if (!rows.length) return banner + `<div class="money-empty-sm">${(_searchResults !== null || _tagFilter) ? 'no matches' : 'no transactions this month'}</div>`;
+  if (!rows.length) return banner + `<div class="money-empty-sm">${(_searchResults !== null || _tagFilter) ? t('money.no_matches') : t('money.no_transactions')}</div>`;
   const an = {}; _accounts.forEach(a => an[a.id] = a.name);
-  return banner + `<div class="txns">` + rows.map(t => {
-    const main = _renderTxnMain(t, an);
-    return main + (_splitTxn === t.id ? splitEditorRow(t) : '');
+  return banner + `<div class="txns">` + rows.map(txn => {
+    const main = _renderTxnMain(txn, an);
+    return main + (_splitTxn === txn.id ? splitEditorRow(txn) : '');
   }).join('') + `</div>`;
 }
 
-function _renderTxnMain(t, an) {
-  if (_editTxn === t.id && !t.transfer_id) return editTxnRow(t);
+function _renderTxnMain(txn, an) {
+  if (_editTxn === txn.id && !txn.transfer_id) return editTxnRow(txn);
   // transfer legs aren't inline-editable (editing one would desync the pair) and
   // their × removes the whole transfer, not just this leg
-  const xf = !!t.transfer_id;
-  const tags = (t.tags || '').split(',').filter(Boolean)
-    .map(tg => `<button type="button" class="tx-tag" data-tag="${esc(tg)}" aria-label="filter by ${esc(tg)}">${esc(tg)}</button>`).join('');
-  const canSplit = (t.amount || 0) < 0;  // only an expense divides across categories (matches the api)
-  const currency = transactionCurrency(t);
-  const label = esc(`${t.payee || 'transaction'}, ${t.date || 'undated'}, ${signed(t.amount, currency)}, ${an[t.account_id] || 'account'}`);
+  const xf = !!txn.transfer_id;
+  const tags = (txn.tags || '').split(',').filter(Boolean)
+    .map(tg => `<button type="button" class="tx-tag" data-tag="${esc(tg)}" aria-label="${t('money.filter_by', { name: esc(tg) })}">${esc(tg)}</button>`).join('');
+  const canSplit = (txn.amount || 0) < 0;  // only an expense divides across categories (matches the api)
+  const currency = transactionCurrency(txn);
+  const label = esc(t('money.txn_label', { payee: txn.payee || t('money.kind_transaction'), date: txn.date || t('money.undated'), amount: signed(txn.amount, currency), account: an[txn.account_id] || t('money.kind_account') }));
   const actions = xf ? '' : `<span class="tx-actions">
-    <button type="button" class="tx-edit" data-edit-txn="${t.id}" aria-label="edit ${label}">edit</button>
-    <button class="tx-clear ${t.cleared ? 'on' : ''}" data-clear-txn="${t.id}" aria-label="cleared: ${label}" aria-pressed="${!!t.cleared}"><span aria-hidden="true">${_si(t.cleared ? 'check-circle' : 'circle')}</span> cleared</button>
-    ${canSplit ? `<button class="tx-split-btn ${t.split ? 'on' : ''}" data-split-txn="${t.id}" aria-label="split ${label} across categories" aria-expanded="${_splitTxn === t.id}" title="split across categories">split</button>` : ''}
-    ${t.receipt_id
-      ? `<a class="tx-receipt" href="/api/uploads/${esc(t.receipt_id)}" target="_blank" rel="noopener" aria-label="view receipt for ${label}" title="view receipt">view receipt</a>`
-      : `<button class="tx-receipt-btn" data-receipt-txn="${t.id}" aria-label="attach receipt to ${label}" title="attach receipt">attach receipt</button>`}
+    <button type="button" class="tx-edit" data-edit-txn="${txn.id}" aria-label="${t('money.edit_named', { label })}">${t('common.edit')}</button>
+    <button class="tx-clear ${txn.cleared ? 'on' : ''}" data-clear-txn="${txn.id}" aria-label="${t('money.cleared_named', { label })}" aria-pressed="${!!txn.cleared}"><span aria-hidden="true">${_si(txn.cleared ? 'check-circle' : 'circle')}</span> ${t('money.cleared')}</button>
+    ${canSplit ? `<button class="tx-split-btn ${txn.split ? 'on' : ''}" data-split-txn="${txn.id}" aria-label="${t('money.split_named', { label })}" aria-expanded="${_splitTxn === txn.id}" title="${t('money.split_title')}">${t('money.split')}</button>` : ''}
+    ${txn.receipt_id
+      ? `<a class="tx-receipt" href="/api/uploads/${esc(txn.receipt_id)}" target="_blank" rel="noopener" aria-label="${t('money.view_receipt_for', { label })}" title="${t('money.view_receipt')}">${t('money.view_receipt')}</a>`
+      : `<button class="tx-receipt-btn" data-receipt-txn="${txn.id}" aria-label="${t('money.attach_receipt_to', { label })}" title="${t('money.attach_receipt')}">${t('money.attach_receipt')}</button>`}
   </span>`;
   return `
-    <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${t.id}">
-      <span class="tx-date">${esc((t.date || '').slice(5))}</span>
-      <span class="tx-payee">${esc(t.payee) || '<span class="tx-dim">—</span>'}</span>
-      <span class="tx-cat">${xf ? `${_si('swap')} transfer` : (t.category ? `${catDot(t.category)}${esc(t.category)}` : '')}</span>
+    <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${txn.id}">
+      <span class="tx-date">${esc((txn.date || '').slice(5))}</span>
+      <span class="tx-payee">${esc(txn.payee) || '<span class="tx-dim">—</span>'}</span>
+      <span class="tx-cat">${xf ? `${_si('swap')} ${t('money.transfer')}` : (txn.category ? `${catDot(txn.category)}${esc(txn.category)}` : '')}</span>
       ${xf ? '' : `<span class="tx-tags">${tags}</span>`}
-      <span class="tx-acct">${esc(an[t.account_id] || '')}</span>
-      <span class="tx-amt ${t.amount >= 0 ? 'pos' : 'neg'}">${signed(t.amount, currency)}</span>
+      <span class="tx-acct">${esc(an[txn.account_id] || '')}</span>
+      <span class="tx-amt ${txn.amount >= 0 ? 'pos' : 'neg'}">${signed(txn.amount, currency)}</span>
       ${actions}
       ${xf
-        ? `<button class="tx-del" data-del-transfer="${t.transfer_id}" aria-label="delete transfer (both legs): ${label}" title="delete transfer (both legs)">delete transfer</button>`
-        : `<button class="tx-del" data-del-txn="${t.id}" aria-label="delete ${label}" title="delete">delete</button>`}
+        ? `<button class="tx-del" data-del-transfer="${txn.transfer_id}" aria-label="${t('money.delete_transfer_named', { label })}" title="${t('money.delete_transfer_title')}">${t('money.delete_transfer')}</button>`
+        : `<button class="tx-del" data-del-txn="${txn.id}" aria-label="${t('money.delete_named', { label })}" title="${t('common.delete')}">${t('common.delete')}</button>`}
     </div>`;
 }
 
-function splitEditorRow(t) {
+function splitEditorRow(txn) {
   const rows = (_splitRows.length ? _splitRows : [{ category: '', amount: '' }]).map((s, i) => `
     <div class="split-row" data-i="${i}">
-      ${moneyField('category', `<input type="text" class="settings-input split-cat" value="${esc(s.category || '')}" placeholder="category" style="flex:1">`)}
-      ${moneyField('amount', `<input type="text" class="settings-input split-amt" value="${esc(String(s.amount || ''))}" placeholder="amount" inputmode="decimal" style="width:90px">`)}
-      <button class="btn split-row-del" data-i="${i}" aria-label="remove split row ${i + 1}" title="remove">×</button>
+      ${moneyField(t('money.category'), `<input type="text" class="settings-input split-cat" value="${esc(s.category || '')}" placeholder="${t('money.category')}" style="flex:1">`)}
+      ${moneyField(t('money.amount'), `<input type="text" class="settings-input split-amt" value="${esc(String(s.amount || ''))}" placeholder="${t('money.amount')}" inputmode="decimal" style="width:90px">`)}
+      <button class="btn split-row-del" data-i="${i}" aria-label="${t('money.remove_split_row', { n: i + 1 })}" title="${t('common.remove')}">×</button>
     </div>`).join('');
-  return `<div class="txn-split-editor" data-id="${t.id}">
-    <div class="split-head">split ${fmt(Math.abs(t.amount || 0), transactionCurrency(t))} across categories</div>
+  return `<div class="txn-split-editor" data-id="${txn.id}">
+    <div class="split-head">${t('money.split_head', { amount: fmt(Math.abs(txn.amount || 0), transactionCurrency(txn)) })}</div>
     ${rows}
     <div class="split-actions">
-      <button class="btn" id="split-add-row">+ row</button>
-      <button class="btn primary" id="split-save" data-id="${t.id}">save</button>
-      <button class="btn" id="split-cancel">cancel</button>
+      <button class="btn" id="split-add-row">${t('money.add_row')}</button>
+      <button class="btn primary" id="split-save" data-id="${txn.id}">${t('common.save')}</button>
+      <button class="btn" id="split-cancel">${t('common.cancel')}</button>
     </div>
   </div>`;
 }
 
-function editTxnRow(t) {
+function editTxnRow(txn) {
   const acctOpts = _accounts.map(a => `${a.id}|${(a.name || '').replace(/[;|]/g, '')}`).join(';');
-  const neg = (t.amount || 0) < 0;
-  return `<div class="txn txn-edit" data-id="${t.id}" data-original-account="${esc(t.account_id)}" data-original-amount="${esc(String(t.amount))}" role="group" aria-label="edit ${esc(t.payee || 'transaction')}">
-    <h3>edit ${esc(t.payee || 'transaction')}<span data-edit-context hidden> · outside this list</span></h3>
-    ${moneyField('date', `<div class="date-input" data-f="date" data-type="date" data-value="${esc(t.date || _today())}" data-ph="date" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
-    ${moneyField('account', `<div class="settings-input custom-select" data-f="account_id" data-value="${esc(t.account_id)}" data-options="${esc(acctOpts)}" style="flex:1 1 11rem;min-width:11rem"></div>`)}
-    ${moneyField('payee', `<input type="text" class="settings-input" data-f="payee" value="${esc(t.payee || '')}" placeholder="payee" style="flex:1.4 1 9.5rem;min-width:9.5rem">`)}
-    ${moneyField('category', `<input type="text" class="settings-input" data-f="category" value="${esc(t.category || '')}" placeholder="category" style="flex:1;min-width:80px">`)}
-    ${moneyField('type', `<div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|expense;+|income" style="width:100px"></div>`)}
-    ${moneyField('amount', `<input type="text" class="settings-input" data-f="amount" value="${Math.abs(t.amount || 0)}" inputmode="decimal" style="width:84px">`)}
-    <button class="btn primary" data-save-txn="${t.id}">save changes</button>
-    <button class="btn" data-cancel-txn="${t.id}" aria-label="cancel editing ${esc(t.payee || 'transaction')}">cancel</button>
+  const neg = (txn.amount || 0) < 0;
+  return `<div class="txn txn-edit" data-id="${txn.id}" data-original-account="${esc(txn.account_id)}" data-original-amount="${esc(String(txn.amount))}" role="group" aria-label="${t('money.edit_named', { label: esc(txn.payee || t('money.kind_transaction')) })}">
+    <h3>${t('money.edit_named', { label: esc(txn.payee || t('money.kind_transaction')) })}<span data-edit-context hidden>${t('money.outside_list')}</span></h3>
+    ${moneyField(t('money.date'), `<div class="date-input" data-f="date" data-type="date" data-value="${esc(txn.date || _today())}" data-ph="${t('money.date')}" style="flex:1 1 9.5rem;min-width:9.5rem"></div>`)}
+    ${moneyField(t('money.account'), `<div class="settings-input custom-select" data-f="account_id" data-value="${esc(txn.account_id)}" data-options="${esc(acctOpts)}" style="flex:1 1 11rem;min-width:11rem"></div>`)}
+    ${moneyField(t('money.payee'), `<input type="text" class="settings-input" data-f="payee" value="${esc(txn.payee || '')}" placeholder="${t('money.payee')}" style="flex:1.4 1 9.5rem;min-width:9.5rem">`)}
+    ${moneyField(t('money.category'), `<input type="text" class="settings-input" data-f="category" value="${esc(txn.category || '')}" placeholder="${t('money.category')}" style="flex:1;min-width:80px">`)}
+    ${moneyField(t('money.type'), `<div class="settings-input custom-select" data-f="sign" data-value="${neg ? '-' : '+'}" data-options="-|${t('money.expense')};+|${t('money.income')}" style="width:100px"></div>`)}
+    ${moneyField(t('money.amount'), `<input type="text" class="settings-input" data-f="amount" value="${Math.abs(txn.amount || 0)}" inputmode="decimal" style="width:84px">`)}
+    <button class="btn primary" data-save-txn="${txn.id}">${t('money.save_changes')}</button>
+    <button class="btn" data-cancel-txn="${txn.id}" aria-label="${t('money.cancel_editing', { name: esc(txn.payee || t('money.kind_transaction')) })}">${t('common.cancel')}</button>
   </div>`;
 }
 
 // ── inline forms ──────────────────────────────────────────────────────────────
 function _accountForm() {
   return `<div class="acct-form" id="acct-form">
-    ${moneyField('account name', `<input type="text" id="af-name" class="settings-input" placeholder="account name (e.g. checking)" style="flex:1;min-width:150px">`)}
-    ${moneyField('account type', `<div class="settings-input custom-select" id="af-kind" data-value="checking" data-options="checking|checking;savings|savings;cash|cash;credit|credit card;investment|investment" style="width:150px"></div>`)}
-    ${moneyField('currency', `<div class="settings-input custom-select" id="af-currency" data-value="" data-options="|choose currency;${_currencyCodes.map(code => `${code}|${code}`).join(';')}" aria-describedby="af-currency-error" style="width:150px"></div>`)}
-    ${moneyField('opening balance', `<input type="text" id="af-open" class="settings-input" placeholder="opening balance" inputmode="decimal" style="width:140px">`)}
-    ${moneyField('low balance alert (0 = off)', `<input type="text" id="af-low" class="settings-input" placeholder="low-bal alert" inputmode="decimal" style="width:110px" title="alert when balance drops below this (0 = off)">`)}
-    <button class="btn primary" id="af-add">add account</button>
-  </div><p id="af-currency-error" class="money-field-error" role="status">${_currencyCodes.length ? '' : 'currency choices could not be loaded.'}</p>${_currencyCodes.length ? '' : '<button type="button" class="btn" id="af-currency-retry">retry currency choices</button>'}`;
+    ${moneyField(t('money.account_name'), `<input type="text" id="af-name" class="settings-input" placeholder="${t('money.account_name_eg')}" style="flex:1;min-width:150px">`)}
+    ${moneyField(t('money.account_type'), `<div class="settings-input custom-select" id="af-kind" data-value="checking" data-options="checking|${t('money.kind_checking')};savings|${t('money.kind_savings')};cash|${t('money.kind_cash')};credit|${t('money.kind_credit')};investment|${t('money.kind_investment')}" style="width:150px"></div>`)}
+    ${moneyField(t('money.currency'), `<div class="settings-input custom-select" id="af-currency" data-value="" data-options="|${t('money.choose_currency')};${_currencyCodes.map(code => `${code}|${code}`).join(';')}" aria-describedby="af-currency-error" style="width:150px"></div>`)}
+    ${moneyField(t('money.opening_balance'), `<input type="text" id="af-open" class="settings-input" placeholder="${t('money.opening_balance')}" inputmode="decimal" style="width:140px">`)}
+    ${moneyField(t('money.low_balance_alert'), `<input type="text" id="af-low" class="settings-input" placeholder="${t('money.low_bal_alert')}" inputmode="decimal" style="width:110px" title="${t('money.low_balance_title')}">`)}
+    <button class="btn primary" id="af-add">${t('money.add_account_btn')}</button>
+  </div><p id="af-currency-error" class="money-field-error" role="status">${_currencyCodes.length ? '' : t('money.currency_choices_unloaded')}</p>${_currencyCodes.length ? '' : `<button type="button" class="btn" id="af-currency-retry">${t('money.retry_currency_choices')}</button>`}`;
 }
 function _budgetForm() {
   return `<div class="budget-form">
-    ${moneyField('category', `<input type="text" id="bf-cat" class="settings-input" placeholder="${_canonicalLedger ? 'Actual category' : 'category'}" style="flex:1;min-width:110px">`)}
-    ${moneyField('monthly cap', `<input type="text" id="bf-amt" class="settings-input" placeholder="monthly cap" inputmode="decimal" style="width:120px">`)}
-    <button class="btn" id="bf-add">set</button>
+    ${moneyField(t('money.category'), `<input type="text" id="bf-cat" class="settings-input" placeholder="${_canonicalLedger ? t('money.actual_category') : t('money.category')}" style="flex:1;min-width:110px">`)}
+    ${moneyField(_canonicalLedger ? t('money.monthly_cap') : savedLabel(t('money.monthly_cap')), `<input type="text" id="bf-amt" class="settings-input" placeholder="${t('money.monthly_cap')}" inputmode="decimal" style="width:120px">`)}
+    <button class="btn" id="bf-add">${t('money.set')}</button>
   </div>`;
 }
 
@@ -1516,7 +1593,7 @@ async function retryCurrencyChoices() {
     if (currencyRead !== _currencyReadSequence || control !== $('af-currency')) return;
     _currencyCodes = result.codes || [];
     if (!_currencyCodes.length) throw new Error('currency choices unavailable');
-    populateDropdown(control, [{ value: '', label: 'choose currency' }, ..._currencyCodes.map(value => ({ value, label: value }))], '');
+    populateDropdown(control, [{ value: '', label: t('money.choose_currency') }, ..._currencyCodes.map(value => ({ value, label: value }))], '');
     control.removeAttribute('aria-invalid');
     $('af-currency-error').textContent = '';
     const currentButton = $('af-currency-retry');
@@ -1526,11 +1603,12 @@ async function retryCurrencyChoices() {
     currentButton?.remove();
     if (ownsFocus) control.focus();
   } catch {
-    if (currencyRead === _currencyReadSequence && control === $('af-currency')) $('af-currency-error').textContent = 'currency choices could not be loaded. retry.';
+    if (currencyRead === _currencyReadSequence && control === $('af-currency')) $('af-currency-error').textContent = t('money.currency_choices_retry');
   } finally { button.disabled = false; }
 }
 function wire() {
   _initControls();
+  wireCurrency($('money-body'), _sum || {}, () => load(fetch, true));
   $('money-body').querySelectorAll('[data-money-section]').forEach(button => button.addEventListener('click', () => toggleMoneySection(button)));
   $('money-body').querySelectorAll('[data-money-task]').forEach(button => button.addEventListener('click', () => selectMoneyTask(button)));
   $('money-entry-action')?.addEventListener('click', () => {
@@ -1588,6 +1666,15 @@ function wire() {
   _wireTxnRows();
   $('money-body').querySelectorAll('[data-del-acct]').forEach(b => b.addEventListener('click', () => delAccount(b.dataset.delAcct)));
   $('money-body').querySelectorAll('[data-currency-acct]').forEach(b => b.addEventListener('click', () => editAccountCurrency(b.dataset.currencyAcct)));
+  $('money-body').querySelectorAll('[data-set-currency]').forEach(b => b.addEventListener('click', () => {
+    const plans = $('money-body').querySelector('[data-money-section="plans"]');
+    if (plans && plans.getAttribute('aria-expanded') !== 'true') toggleMoneySection(plans);
+    const task = $('money-body').querySelector('[data-money-task="accounts"]');
+    if (task) selectMoneyTask(task);
+    const target = $('money-body').querySelector(`[data-currency-acct="${CSS.escape(b.dataset.setCurrency)}"]`);
+    target?.scrollIntoView({ block: 'center' });
+    target?.focus();
+  }));
   $('money-body').querySelectorAll('[data-rc-acct]').forEach(b => b.addEventListener('click', () => toggleReconcile(b.dataset.rcAcct)));
   $('money-body').querySelectorAll('[data-rc-run]').forEach(b => b.addEventListener('click', () => runReconcile(b.dataset.rcRun)));
   $('money-body').querySelectorAll('[data-del-budget]').forEach(b => b.addEventListener('click', () => delBudget(b.dataset.delBudget)));
@@ -1602,7 +1689,7 @@ async function retryRecurring(focusId = '', focusOwner = captureMoneyFocus('sche
   const button = $('recurring-retry');
   if (button) {
     button.disabled = true;
-    button.textContent = 'retrying…';
+    button.textContent = t('money.retrying');
   }
   await readRecurring(api);
   const content = $('recurring-content');
@@ -1716,7 +1803,7 @@ async function openRecurringEdit(id, retry = false) {
   } catch (error) {
     if (_recurringEdit !== edit) return;
     _recurringEdit.loading = false;
-    _recurringEdit.status = `couldn't load edit choices: ${error.message || 'try again'}`;
+    _recurringEdit.status = t('money.edit_choices_failed', { error: error.message || t('money.try_again') });
     _drawRecurringEdit('[data-retry-open-rec]');
   }
 }
@@ -1736,14 +1823,14 @@ async function chooseRecurringEditValue(button) {
   const list = { account_id: edit.options.accounts, payee_id: edit.options.payees, category_id: edit.options.categories }[field];
   if (!list) return;
   const options = [
-    ...(field === 'category_id' ? [{ value: '', label: 'no category' }] : []),
+    ...(field === 'category_id' ? [{ value: '', label: t('money.no_category') }] : []),
     ...list.map(row => ({ value: row.id, label: _recurringChoiceLabel(list, row.id) })),
   ];
-  const picked = await dlgChoose(`choose ${field === 'category_id' ? 'category' : field === 'payee_id' ? 'payee' : 'account'}`, options);
+  const picked = await dlgChoose(field === 'category_id' ? t('money.choose_category_title') : field === 'payee_id' ? t('money.choose_payee') : t('money.choose_account'), options);
   if (picked === null || _recurringEdit !== edit) return;
   edit.draft[field] = picked;
   button.dataset.choiceId = picked;
-  button.textContent = options.find(option => option.value === picked)?.label || 'no category';
+  button.textContent = options.find(option => option.value === picked)?.label || t('money.no_category');
   button.focus();
 }
 
@@ -1762,13 +1849,13 @@ async function checkRecurringEdit() {
       _drawRecurringEdit(row?.edit_pending && !row.edit_needs_review ? `[data-retry-edit-rec="${CSS.escape(edit.id)}"]` : '');
     } else {
       edit.blocked = false;
-      edit.status = 'no pending edit found. check the values before saving again.';
+      edit.status = t('money.no_pending_edit');
       _drawRecurringEdit('#rce-save');
     }
   } catch {
     if (_recurringEdit !== edit) return;
     edit.blocked = true;
-    edit.status = "couldn't check the schedule. don't save again until a check succeeds.";
+    edit.status = t('money.check_failed');
     _drawRecurringEdit('#rce-check');
   }
 }
@@ -1781,14 +1868,14 @@ async function saveRecurringEdit() {
   const raw = draft.amountText.trim();
   const amount = _decimal(raw);
   if (!/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(raw) || !_validAmounts(amount)) {
-    toast('enter an amount with at most two decimal places', 'error'); return;
+    toast(t('money.amount_two_decimals'), 'error'); return;
   }
-  if (!calendarDateParts(draft.next_date)) { toast('choose a valid next date', 'error'); return; }
+  if (!calendarDateParts(draft.next_date)) { toast(t('money.valid_next_date'), 'error'); return; }
   const customDays = String(draft.cycle_days).trim();
   const days = draft.cycle === 'custom'
     ? (/^\d+$/.test(customDays) ? Number(customDays) : NaN)
     : ({ daily: 1, weekly: 7, monthly: 30, quarterly: 91, yearly: 365 })[draft.cycle];
-  if (!Number.isSafeInteger(days) || days < 1) { toast('enter a valid number of days', 'error'); return; }
+  if (!Number.isSafeInteger(days) || days < 1) { toast(t('money.valid_days'), 'error'); return; }
   const payload = {
     account_id: draft.account_id, payee_id: draft.payee_id,
     amount: (draft.sign === '+' ? 1 : -1) * amount,
@@ -1808,7 +1895,7 @@ async function saveRecurringEdit() {
   } catch (error) {
     if (_recurringEdit !== edit) return;
     edit.saving = false;
-    edit.status = `edit not confirmed: ${error.message || 'check the schedule'}`;
+    edit.status = t('money.edit_not_confirmed', { error: error.message || t('money.check_the_schedule') });
     await checkRecurringEdit();
   }
 }
@@ -1876,7 +1963,7 @@ function syncAmountRange() {
   const hasAmount = Boolean($('txn-min')?.value.trim() || $('txn-max')?.value.trim());
   panel.hidden = !_amountRangeOpen;
   button.setAttribute('aria-expanded', String(_amountRangeOpen));
-  button.textContent = hasAmount ? 'clear range' : _amountRangeOpen ? 'hide range' : 'amount range';
+  button.textContent = hasAmount ? t('money.clear_range') : _amountRangeOpen ? t('money.hide_range') : t('money.amount_range');
 }
 
 function toggleAmountRange() {
@@ -1949,14 +2036,14 @@ async function readTransactionFilter(path, sequence) {
 // ── actions ────────────────────────────────────────────────────────────────
 async function addAccount() {
   const name = $('af-name')?.value.trim();
-  if (!name) { toast('name the account', 'error'); return; }
+  if (!name) { toast(t('money.name_account'), 'error'); return; }
   const opening = _decimal($('af-open')?.value, 0);
   const low_balance = _decimal($('af-low')?.value, 0);
   if (!_validAmounts(opening, low_balance)) return;
   const currency = getDropdownValue($('af-currency'));
   if (!_currencyCodes.includes(currency)) {
     const error = $('af-currency-error');
-    if (error) error.textContent = _currencyCodes.length ? 'choose a currency for this account.' : 'currency choices could not be loaded. retry.';
+    if (error) error.textContent = _currencyCodes.length ? t('money.choose_account_currency') : t('money.currency_choices_retry');
     $('af-currency')?.setAttribute?.('aria-invalid', 'true');
     $('af-currency')?.focus?.();
     return;
@@ -1971,13 +2058,13 @@ async function addAccount() {
     await load();
   } catch {
     if (requestId) _releaseCreateRequest('account', requestId);
-    toast('couldn\'t add account', 'error');
+    toast(t('money.add_account_failed'), 'error');
   }
 }
 async function delAccount(id) {
-  if (!await dlgConfirm('delete this account and all its transactions?')) return;
+  if (!await dlgConfirm(t('money.delete_account_confirm'))) return;
   try { await api(`/api/money/accounts/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast('delete failed', 'error'); }
+  catch { toast(t('money.delete_failed'), 'error'); }
 }
 function transactionAmountError(message) {
   const field = $('tx-amt'), error = $('tx-amt-error');
@@ -2004,18 +2091,18 @@ function transactionSaveStatus(message) {
 function updateTransactionSaveStatus() {
   if (_transactionUncertainSnapshot === null) return transactionSaveStatus(_transactionSaveStatus);
   transactionSaveStatus(transactionEntrySnapshot() === _transactionUncertainSnapshot
-    ? 'save not confirmed. your input is kept. retry without changing it to check the same transaction.'
-    : 'earlier transaction save not confirmed. your newer input is kept; check transactions before adding it again.');
+    ? t('money.save_not_confirmed_kept')
+    : t('money.earlier_not_confirmed'));
 }
 
 async function addTxn() {
   const amtRaw = _decimal($('tx-amt')?.value);
   if (!Number.isFinite(amtRaw)) {
-    transactionAmountError('use a decimal point, e.g. 1234.56');
+    transactionAmountError(t('money.use_decimal_point'));
     return;
   }
   if (!amtRaw || amtRaw <= 0) {
-    transactionAmountError('enter an amount greater than zero');
+    transactionAmountError(t('money.amount_gt_zero'));
     return;
   }
   transactionAmountError('');
@@ -2036,7 +2123,7 @@ async function addTxn() {
     _moneySavedAction = Math.max(_moneySavedAction, action);
     _transactionSaveRequestId = requestId;
     _transactionUncertainSnapshot = null;
-    transactionSaveStatus('saving transaction…');
+    transactionSaveStatus(t('money.saving_transaction'));
     transactionPayload.request_id = requestId;
     const saved = await api('/api/money/transactions', { method: 'POST', body: transactionPayload });
     const restoreFocus = action === _moneySavedAction && ownedEntryFocus && document.activeElement === focusAtSubmit;
@@ -2049,7 +2136,7 @@ async function addTxn() {
       if (requestId === _transactionSaveRequestId) {
         _transactionSaveRequestId = '';
         _transactionUncertainSnapshot = null;
-        transactionSaveStatus('transaction saved. could not keep undo for reload. keep this tab open; free browser storage before undoing it.');
+        transactionSaveStatus(t('money.saved_no_undo_storage'));
       }
       await load(fetch, true);
       return;
@@ -2083,10 +2170,10 @@ async function addTxn() {
     if (requestId && requestId === _transactionSaveRequestId) {
       const refused = [400, 401, 403, 404, 409, 410, 422].includes(error.status);
       _transactionUncertainSnapshot = refused ? null : entrySnapshot;
-      if (refused) transactionSaveStatus(`transaction refused. your input is kept. ${error.message || 'review the entry and try again.'}`);
+      if (refused) transactionSaveStatus(t('money.transaction_refused', { reason: error.message || t('money.review_entry') }));
       else updateTransactionSaveStatus();
     }
-    toast(requestId ? 'check the transaction entry for save status.' : error.message || 'could not start this transaction.', 'error');
+    toast(requestId ? t('money.check_entry_status') : error.message || t('money.could_not_start'), 'error');
   }
 }
 
@@ -2095,10 +2182,10 @@ function transactionEntrySnapshot() {
     'tr-from', 'tr-to', 'tr-amt', 'tr-date', 'tr-notes'].map(id => [$(id)?.value, $(id)?.dataset?.value]));
 }
 async function delTxn(id) {
-  if (!await dlgConfirm('delete this transaction?')) return;
+  if (!await dlgConfirm(t('money.delete_transaction_confirm'))) return;
   const next = _rowAfter(id), focusVersion = _moneyFocusChange;
   try { await api(`/api/money/transactions/${id}`, { method: 'DELETE' }); }
-  catch { toast('delete failed', 'error'); return; }
+  catch { toast(t('money.delete_failed'), 'error'); return; }
   // gone at once, even if the refresh fails. load(fetch, true) keeps an active search (load()
   // alone drops back to the month); then focus lands on the next row
   _dropRows(row => row.id === id);
@@ -2156,7 +2243,7 @@ async function saveSplits(id) {
     await api(`/api/money/transactions/${id}/splits`, { method: 'PUT', body: { splits } });
     _splitTxn = null; _splitRows = [];
     await load();
-  } catch (e) { toast(e?.message?.includes('exceed') ? 'splits exceed the amount' : 'save failed', 'error'); }
+  } catch (e) { toast(e?.message?.includes('exceed') ? t('money.splits_exceed') : t('money.save_failed_short'), 'error'); }
 }
 function attachReceipt(id) {
   let inp = document.getElementById('money-receipt-input');
@@ -2176,19 +2263,19 @@ function attachReceipt(id) {
       }
       const saved = await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: { receipt_id: up.id } });
       if (saved?.id !== id || saved.receipt_id !== up.id) throw new Error('attachment not confirmed');
-      toast('receipt attached', 'success');
+      toast(t('money.receipt_attached'), 'success');
       await load(fetch, true);
-    } catch { toast('receipt attachment not confirmed. try again.', 'error'); }
+    } catch { toast(t('money.receipt_not_confirmed'), 'error'); }
   };
   inp.click();
 }
 async function toggleCleared(id) {
   const rows = _searchResults !== null ? _searchResults : _txns;
-  const t = rows.find(x => x.id === id);
+  const txn = rows.find(x => x.id === id);
   try {
-    await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: { cleared: !(t && t.cleared) } });
+    await api(`/api/money/transactions/${id}`, { method: 'PATCH', body: { cleared: !(txn && txn.cleared) } });
     await load();
-  } catch { toast('failed', 'error'); }
+  } catch { toast(t('money.failed'), 'error'); }
 }
 export async function filterByTag(tag) {
   clearTimeout(_searchTimer);
@@ -2225,14 +2312,14 @@ function toggleReconcile(aid) {
 async function runReconcile(aid) {
   const v = _decimal($(`rc-stmt-${aid}`)?.value);
   const out = $(`rc-out-${aid}`); if (!out) return;
-  if (!Number.isFinite(v)) { out.className = 'rc-out bad'; out.textContent = 'enter a statement balance using a decimal point, e.g. 1234.56'; return; }
+  if (!Number.isFinite(v)) { out.className = 'rc-out bad'; out.textContent = t('money.statement_decimal'); return; }
   try {
     const d = await api(`/api/money/accounts/${aid}/reconcile?statement=${v}`);
     out.className = 'rc-out ' + (d.reconciled ? 'ok' : 'bad');
     out.textContent = d.reconciled
-      ? `reconciled: cleared ${fmt(d.cleared_balance)}`
-      : `cleared ${fmt(d.cleared_balance)} · off by ${fmt(Math.abs(d.difference))}`;
-  } catch { out.textContent = 'failed'; }
+      ? t('money.reconciled', { amount: fmt(d.cleared_balance) })
+      : t('money.off_by', { amount: fmt(d.cleared_balance), diff: fmt(Math.abs(d.difference)) });
+  } catch { out.textContent = t('money.failed'); }
 }
 let _transferBusy = false;
 async function doTransfer() {
@@ -2242,8 +2329,8 @@ async function doTransfer() {
   const from = getDropdownValue($('tr-from')), to = getDropdownValue($('tr-to'));
   const amt = _decimal($('tr-amt')?.value);
   if (!_validAmounts(amt)) return;
-  if (!amt || amt <= 0) { toast('enter an amount', 'error'); return; }
-  if (from === to) { toast('pick two different accounts', 'error'); return; }
+  if (!amt || amt <= 0) { toast(t('money.enter_amount'), 'error'); return; }
+  if (from === to) { toast(t('money.pick_two_accounts'), 'error'); return; }
   let requestId = '';
   _transferBusy = true;
   try {
@@ -2254,20 +2341,20 @@ async function doTransfer() {
     transferPayload.request_id = requestId;
     await api('/api/money/transfer', { method: 'POST', body: transferPayload });
     _completeCreateRequest('transfer', requestId);
-    toast('transferred', 'success');
+    toast(t('money.transferred'), 'success');
     await load();
   } catch (error) {
     if (requestId) _releaseCreateRequest('transfer', requestId);
-    toast(error.message || 'transfer failed', 'error');
+    toast(error.message || t('money.transfer_failed'), 'error');
   } finally {
     _transferBusy = false;
   }
 }
 async function delTransfer(tid) {
-  if (!await dlgConfirm('delete this transfer (removes both legs)?')) return;
+  if (!await dlgConfirm(t('money.delete_transfer_confirm'))) return;
   const next = _rowAfter(tid), focusVersion = _moneyFocusChange;
   try { await api(`/api/money/transfer/${tid}`, { method: 'DELETE' }); }
-  catch { toast('delete failed', 'error'); return; }
+  catch { toast(t('money.delete_failed'), 'error'); return; }
   _dropRows(row => row.transfer_id === tid);
   await load(fetch, true);
   _focusAfterRowDelete(next, focusVersion);
@@ -2278,7 +2365,7 @@ async function saveTxn(id) {
   const f = name => row.querySelector(`[data-f="${name}"]`);
   const amtRaw = _decimal(f('amount')?.value);
   if (!_validAmounts(amtRaw)) return;
-  if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
+  if (!amtRaw || amtRaw <= 0) { toast(t('money.enter_amount'), 'error'); return; }
   const sign = getDropdownValue(f('sign')) === '+' ? 1 : -1;
   const existing = (_searchResults || _txns).find(transaction => transaction.id === id)
     || { account_id: row.dataset.originalAccount, amount: Number(row.dataset.originalAmount) };
@@ -2306,16 +2393,18 @@ async function saveTxn(id) {
     if (owned && focusVersion === _moneyFocusChange && document.activeElement === document.body) {
       ($('txn-rows').querySelector(`[data-edit-txn="${CSS.escape(id)}"]`) || $('txn-search'))?.focus();
     }
-  } catch { toast('save failed', 'error'); }
+  } catch { toast(t('money.save_failed_short'), 'error'); }
 }
 
 async function editAccountCurrency(id) {
   const account = _accounts.find(row => row.id === id);
   if (!account || _canonicalLedger || account.currency_edit_reason) return;
   const status = $(`acct-currency-status-${id}`);
-  if (!_currencyCodes.length) { status.textContent = 'currency choices could not be loaded. reload Finance to retry.'; return; }
-  const selected = await dlgChoose(`currency for ${account.name}`, _currencyCodes.map(value => ({ value, label: value })));
+  if (!_currencyCodes.length) { status.textContent = t('money.currency_choices_reload'); return; }
+  const selected = await dlgChoose(t('money.currency_for', { name: account.name }), _currencyCodes.map(value => ({ value, label: value })));
   if (selected === null || selected === account.currency_code) return;
+  if (account.currency_code === 'XXX' && (account.balance || account.opening)
+    && !await dlgConfirm(t('money.count_as', { name: account.name, code: selected }), { confirmLabel: t('money.use_code', { code: selected }), danger: false })) return;
   const button = document.querySelector(`[data-currency-acct="${CSS.escape(id)}"]`);
   if (!button || !_currencyCodes.includes(selected)) return;
   const focused = document.activeElement, focusVersion = _moneyFocusChange;
@@ -2326,13 +2415,13 @@ async function editAccountCurrency(id) {
     if (focused === button && focusVersion === _moneyFocusChange && document.activeElement === document.body) {
       document.querySelector(`[data-currency-acct="${CSS.escape(id)}"]`)?.focus();
     }
-  } catch (error) { status.textContent = error.message || 'currency could not be saved. try again.'; }
+  } catch (error) { status.textContent = error.message || t('money.currency_save_failed'); }
   finally { button.disabled = false; }
 }
 async function addGoal() {
   if (_goalSaving) return;
   const name = $('gl-name')?.value.trim();
-  if (!name) { toast('name the goal', 'error'); return; }
+  if (!name) { toast(t('money.name_goal'), 'error'); return; }
   const target = _decimal($('gl-target')?.value, 0);
   const current = _decimal($('gl-current')?.value, 0);
   const monthly = _decimal($('gl-monthly')?.value, 0);
@@ -2346,21 +2435,21 @@ async function addGoal() {
     const saved = await api('/api/money/goals', { method: 'POST', body: { name, kind, target, current, monthly } });
     if (!saved?.id || saved.name !== name || saved.kind !== kind
       || saved.target !== target || saved.current !== current || saved.monthly !== monthly) {
-      throw new Error('goal was not confirmed. reload goals before trying again.');
+      throw Object.assign(new Error(t('money.goal_unconfirmed')), { unconfirmed: true });
     }
     if (fields.every(([id, field, value]) => $(id) === field && field.value === value)
       && getDropdownValue($('gl-kind')) === kind) fields.forEach(([, field]) => { field.value = ''; });
     await load(fetch, true);
-  } catch (error) { toast(error.message?.includes('not confirmed') ? error.message : 'add failed', 'error'); }
+  } catch (error) { toast(error.unconfirmed ? error.message : t('money.add_failed'), 'error'); }
   finally {
     _goalSaving = false;
     if ($('gl-add')) $('gl-add').disabled = false;
   }
 }
 async function delGoal(id) {
-  if (!await dlgConfirm('delete this goal?')) return;
+  if (!await dlgConfirm(t('money.delete_goal_confirm'))) return;
   try { await api(`/api/money/goals/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast('delete failed', 'error'); }
+  catch { toast(t('money.delete_failed'), 'error'); }
 }
 async function runReport() {
   const start = $('rp-start')?.dataset.value || '', end = $('rp-end')?.dataset.value || '';
@@ -2368,23 +2457,25 @@ async function runReport() {
   const p = new URLSearchParams(); if (start) p.set('start', start); if (end) p.set('end', end);
   try {
     const d = await api(`/api/money/report?${p}`);
-    const cats = (d.by_category || []).map(c => `<div class="rp-cat"><span>${esc(c[0])}</span><span>${fmt(c[1])}</span></div>`).join('');
-    out.innerHTML = `<div class="rp-tot">income <span class="pos">${fmt(d.income)}</span> · spent <span class="neg">${fmt(d.expense)}</span> · net ${signed(d.net)}</div>${cats}`;
+    const cur = d.currency || _cur;
+    const cats = (d.by_category || []).map(c => `<div class="rp-cat"><span>${esc(c[0])}</span><span>${fmt(c[1], cur)}</span></div>`).join('');
+    const left = excludedNotes({ ..._sum, ...d }, row => {
+      if (row.currency === 'XXX') return t('money.report_no_currency');
+      const income = row.income && amountIn(row.currency, row.income), expense = row.expense && amountIn(row.currency, row.expense);
+      if (income && expense) return t('money.report_both', { income, expense });
+      if (income) return t('money.report_income', { income });
+      if (expense) return t('money.report_expense', { expense });
+      return t('money.report_currency', { code: row.currency });
+    });
+    out.innerHTML = `${left}<div class="rp-tot">${t('money.report_totals', { income: `<span class="pos">${fmt(d.income, cur)}</span>`, spent: `<span class="neg">${fmt(d.expense, cur)}</span>`, net: signed(d.net, cur) })}</div>${cats}`;
+    wireCurrency(out, { ..._sum, ...d }, () => load(fetch, true));
     const link = $('rp-export');
     if (link) { link.href = `/api/money/report/export.csv?${p}`; link.style.display = ''; }
-  } catch { out.textContent = 'report failed'; }
-}
-async function runBaseNw() {
-  const base = ($('nw-base-cur')?.value || 'USD').trim() || 'USD';
-  const out = $('nw-base-out'); if (!out) return;
-  try {
-    const d = await api(`/api/money/networth-base?base=${encodeURIComponent(base)}`);
-    out.textContent = fmt(d.net_worth, d.base);
-  } catch { out.textContent = 'fx failed'; }
+  } catch { out.textContent = t('money.report_failed'); }
 }
 async function addHolding() {
   const symbol = $('hd-sym')?.value.trim();
-  if (!symbol) { toast('enter a symbol', 'error'); return; }
+  if (!symbol) { toast(t('money.enter_symbol'), 'error'); return; }
   const qty = _decimal($('hd-qty')?.value, 0);
   const cost_basis = _decimal($('hd-cost')?.value, 0);
   const price = _decimal($('hd-price')?.value, 0);
@@ -2394,12 +2485,12 @@ async function addHolding() {
       symbol, qty, cost_basis, price,
     } });
     await load();
-  } catch { toast('add failed', 'error'); }
+  } catch { toast(t('money.add_failed'), 'error'); }
 }
 async function delHolding(id) {
-  if (!await dlgConfirm('delete this holding?')) return;
+  if (!await dlgConfirm(t('money.delete_holding_confirm'))) return;
   try { await api(`/api/money/holdings/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast('delete failed', 'error'); }
+  catch { toast(t('money.delete_failed'), 'error'); }
 }
 
 // dashboard: hide/show cards, persisted in localStorage (4c)
@@ -2413,8 +2504,8 @@ function _decorateCards() {
     const h3 = card.querySelector('h3');
     if (h3 && !h3.querySelector('.card-hide')) {
       const x = document.createElement('button');
-      x.className = 'card-hide'; x.textContent = '×'; x.title = 'hide this card';
-      x.setAttribute('aria-label', `hide ${h3.firstChild?.textContent.trim() || id} card`);
+      x.className = 'card-hide'; x.textContent = '×'; x.title = t('money.hide_card');
+      x.setAttribute('aria-label', t('money.hide_card_named', { name: h3.firstChild?.textContent.trim() || id }));
       x.addEventListener('click', () => { const s = _hiddenCards(); s.add(id); _saveHidden(s); _decorateCards(); });
       h3.appendChild(x);
     }
@@ -2423,7 +2514,7 @@ function _decorateCards() {
     if (hide) {
       if (attention && document.activeElement === hide) focusMoneyTask(_moneyPlanTask);
       hide.disabled = attention;
-      hide.title = attention ? 'resolve pending work before hiding this card' : 'hide this card';
+      hide.title = attention ? t('money.resolve_before_hiding') : t('money.hide_card');
     }
     const conceal = hidden.has(id) && !attention;
     if (conceal) {
@@ -2447,7 +2538,7 @@ function _decorateCards() {
       });
       $('money-body').querySelector('.money-grid')?.appendChild(chip);
     }
-    chip.textContent = `restore ${hiddenCount} hidden card${hiddenCount > 1 ? 's' : ''}`;
+    chip.textContent = tp('money.restore_cards', hiddenCount);
     chip.style.display = '';
   } else if (chip) {
     if (document.activeElement === chip) focusMoneyTask(_moneyPlanTask);
@@ -2456,7 +2547,7 @@ function _decorateCards() {
 }
 async function assignEnvelope(category, amount, categoryId = '', expectedAmount = null) {
   category = (category || '').trim();
-  if (!category && !_canonicalLedger) { toast('name a category', 'error'); return false; }
+  if (!category && !_canonicalLedger) { toast(t('money.name_category'), 'error'); return false; }
   amount = _decimal(amount, 0);
   if (!_validAmounts(amount)) return false;
   const key = `${_month}:${categoryId || category}`;
@@ -2488,15 +2579,15 @@ async function assignEnvelope(category, amount, categoryId = '', expectedAmount 
     if (status) {
       const stale = error?.message?.includes('changed; reload');
       status.textContent = stale
-        ? 'assignment changed. reload Finance before saving again.'
-        : 'save not confirmed. keep this amount and retry the same save.';
+        ? t('money.assignment_changed')
+        : t('money.keep_amount_retry');
       if (!stale) {
-        status.insertAdjacentHTML('beforeend', '<button type="button" class="btn" data-env-retry-save>retry same amount</button>');
+        status.insertAdjacentHTML('beforeend', `<button type="button" class="btn" data-env-retry-save>${t('money.retry_same_amount_btn')}</button>`);
         status.querySelector('[data-env-retry-save]').addEventListener(
           'click', () => assignEnvelope(category, amount, categoryId, expectedAmount),
         );
       }
-    } else toast('assign failed', 'error');
+    } else toast(t('money.assign_failed'), 'error');
     return false;
   } finally { _envAssignmentBusy.delete(key); refreshMoneyTasks(); }
 }
@@ -2504,7 +2595,7 @@ async function assignEnvelope(category, amount, categoryId = '', expectedAmount 
 async function retryAgeOfMoney() {
   const button = $('age-retry');
   button.disabled = true;
-  button.textContent = 'retrying…';
+  button.textContent = t('money.retrying');
   try { _aom = await api('/api/money/age-of-money'); }
   catch { _aom = null; }
   const content = $('money-age-content');
@@ -2517,7 +2608,7 @@ async function retryEnvelope() {
   const button = $('env-retry');
   const focusOwner = captureMoneyFocus('budgets');
   button.disabled = true;
-  button.textContent = 'retrying…';
+  button.textContent = t('money.retrying');
   try { _envelope = await api(`/api/money/envelope?month=${_month}`); }
   catch { _envelope = null; }
   const card = $('money-body').querySelector('.money-envelope');
@@ -2562,14 +2653,14 @@ async function setEnvTarget(category, categoryId = '') {
   const label = current?.group ? `${current.group} / ${current.category}` : category;
   const draftKey = categoryId || `legacy:${category}`;
   const draft = _targetDrafts.get(draftKey) || {};
-  const v = await dlgFields(`funding target for ${label} (0 clears it)`, [
-    { id: 'amount', label: 'target amount', value: draft.amount ?? current?.target?.amount ?? '' },
-    { id: 'date', label: 'by date (YYYY-MM-DD, optional)', value: draft.date ?? current?.target?.date ?? '' },
+  const v = await dlgFields(t('money.funding_target_for', { name: label }), [
+    { id: 'amount', label: t('money.target_amount'), value: draft.amount ?? current?.target?.amount ?? '' },
+    { id: 'date', label: t('money.by_date_optional'), value: draft.date ?? current?.target?.date ?? '' },
   ]);
   if (!v) return;
   const amount = _decimal(v.amount, 0);
   if (!_validAmounts(amount)) return;
-  if (_canonicalLedger && amount < 0) { toast('use 0 to clear a target', 'error'); return; }
+  if (_canonicalLedger && amount < 0) { toast(t('money.use_zero_clear'), 'error'); return; }
   try {
     await api('/api/money/envelope/target', { method: 'PUT', body: { category, category_id: categoryId, amount, target_date: (v.date || '').trim() } });
     _targetDrafts.delete(draftKey);
@@ -2579,9 +2670,9 @@ async function setEnvTarget(category, categoryId = '') {
       ? button.dataset.categoryId === categoryId : button.dataset.cat === category)?.focus();
   } catch {
     _targetDrafts.set(draftKey, { amount: v.amount, date: v.date });
-    _targetStatus = `couldn't save the target for ${label}. reopen it to retry; your values are kept.`;
+    _targetStatus = t('money.target_save_failed', { name: label });
     if ($('env-target-status')) $('env-target-status').textContent = _targetStatus;
-    else toast('couldn\'t save target', 'error');
+    else toast(t('money.target_save_failed_short'), 'error');
   }
 }
 async function bindEnvTarget(targetId) {
@@ -2590,9 +2681,9 @@ async function bindEnvTarget(targetId) {
   if (!unbound && !bound) return;
   const label = unbound ? unbound.category : (bound.group ? `${bound.group} / ${bound.category}` : bound.category);
   const categories = (_envelope?.categories || []).filter(row => !row.target);
-  if (!categories.length) { toast('no unused spending category is available', 'error'); return; }
+  if (!categories.length) { toast(t('money.no_unused_category'), 'error'); return; }
   const names = categories.map(row => row.group ? `${row.group} / ${row.category}` : row.category);
-  const selected = await dlgChoose(`choose the category for ${label}`, categories.map((row, index) => ({
+  const selected = await dlgChoose(t('money.choose_category_for', { name: label }), categories.map((row, index) => ({
     value: row.category_id,
     label: names.filter(name => name === names[index]).length > 1 ? `${names[index]} (${row.category_id.slice(-6)})` : names[index],
   })));
@@ -2603,7 +2694,7 @@ async function bindEnvTarget(targetId) {
     await load();
     [...document.querySelectorAll('.env-tgt-btn')].find(button => button.dataset.categoryId === selected)?.focus();
   } catch {
-    _targetStatus = `couldn't change the category for ${label}. the target is still saved; try again.`;
+    _targetStatus = t('money.category_change_failed', { name: label });
     if ($('env-target-status')) $('env-target-status').textContent = _targetStatus;
   }
 }
@@ -2612,7 +2703,7 @@ async function addBudget() {
   const category = $('bf-cat')?.value.trim();
   const limit_amt = _decimal($('bf-amt')?.value, 0);
   if (!_validAmounts(limit_amt)) return;
-  if (!category) { toast('pick a category', 'error'); return; }
+  if (!category) { toast(t('money.pick_category'), 'error'); return; }
   const fields = ['bf-cat', 'bf-amt'].map(id => [id, $(id), $(id)?.value]);
   const button = $('bf-add');
   _budgetSaving = true;
@@ -2620,32 +2711,32 @@ async function addBudget() {
   try {
     const saved = await api('/api/money/budgets', { method: 'POST', body: { category, limit_amt } });
     if (!saved?.id || saved.category !== category || saved.limit_amt !== limit_amt) {
-      throw new Error('spending cap was not confirmed. reload budgets before trying again.');
+      throw Object.assign(new Error(t('money.cap_unconfirmed')), { unconfirmed: true });
     }
     if (fields.every(([id, field, value]) => $(id) === field && field.value === value)) {
       fields.forEach(([, field]) => { field.value = ''; });
     }
     await load(fetch, true);
   } catch (error) {
-    toast(error.message?.includes('not confirmed') ? error.message
-      : error.message?.includes('budget cap requires one existing spending category') ? 'use one existing spending category in Actual' : 'couldn\'t set spending cap', 'error');
+    toast(error.unconfirmed ? error.message
+      : error.message?.includes('budget cap requires one existing spending category') ? t('money.use_existing_category') : t('money.cap_failed'), 'error');
   } finally {
     _budgetSaving = false;
     if ($('bf-add')) $('bf-add').disabled = false;
   }
 }
 async function delBudget(id) {
-  if (!await dlgConfirm('remove this spending cap?')) return;
+  if (!await dlgConfirm(t('money.remove_cap_confirm'))) return;
   try { await api(`/api/money/budgets/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast('delete failed', 'error'); }
+  catch { toast(t('money.delete_failed'), 'error'); }
 }
 async function addRecurring() {
   const payee = $('rc-payee')?.value.trim();
   const amtRaw = _decimal($('rc-amt')?.value);
   if (!_validAmounts(amtRaw)) return;
-  if (!payee && _canonicalLedger) { toast('give it a payee', 'error'); return; }
-  if (!payee && !$('rc-cat')?.value.trim()) { toast('give it a payee or category', 'error'); return; }
-  if (!amtRaw || amtRaw <= 0) { toast('enter an amount', 'error'); return; }
+  if (!payee && _canonicalLedger) { toast(t('money.give_payee'), 'error'); return; }
+  if (!payee && !$('rc-cat')?.value.trim()) { toast(t('money.give_payee_or_category'), 'error'); return; }
+  if (!amtRaw || amtRaw <= 0) { toast(t('money.enter_amount'), 'error'); return; }
   const sign = getDropdownValue($('rc-sign')) === '+' ? 1 : -1;
   const payload = {
     account_id: getDropdownValue($('rc-acct')), amount: sign * amtRaw,
@@ -2656,7 +2747,7 @@ async function addRecurring() {
   else payload.category = $('rc-cat').value.trim();
   const button = $('rc-add');
   let requestId = '';
-  if (button) { button.disabled = true; button.textContent = 'saving…'; }
+  if (button) { button.disabled = true; button.textContent = t('common.saving'); }
   try {
     if (_canonicalLedger) {
       requestId = await _createRequestId('recurring', payload);
@@ -2667,12 +2758,12 @@ async function addRecurring() {
     await load();
     // a first date of today or earlier posts its charge right away; say so, or it looks like a
     // stray transaction (and a rent already logged by hand gets counted twice)
-    toast(payload.next_date <= _today() ? 'schedule added. its first charge is in transactions now'
-      : `schedule added. first charge on ${payload.next_date}`, 'success');
+    toast(payload.next_date <= _today() ? t('money.schedule_added_now')
+      : t('money.schedule_added_on', { date: payload.next_date }), 'success');
   } catch (error) {
     if (requestId) _releaseCreateRequest('recurring', requestId);
     if (_canonicalLedger) {
-      _recurringStatus = `creation not confirmed: ${error.message || 'retry the saved schedule'}`;
+      _recurringStatus = t('money.creation_not_confirmed', { error: error.message || t('money.retry_saved_schedule') });
       await readRecurring(api);
       const content = $('recurring-content');
       if (_recurring.some(row => row.create_pending) && content) {
@@ -2683,8 +2774,8 @@ async function addRecurring() {
         const list = $('recurring-list');
         if (list) { list.innerHTML = recurringList(); wireRecurringList(); }
       }
-    } else toast('couldn\'t add recurring', 'error');
-    if (button) { button.disabled = false; button.textContent = _canonicalLedger ? 'add schedule' : 'add'; }
+    } else toast(t('money.add_recurring_failed'), 'error');
+    if (button) { button.disabled = false; button.textContent = _canonicalLedger ? t('money.add_schedule') : t('common.add'); }
   }
 }
 async function chooseRecurringCategory() {
@@ -2696,21 +2787,21 @@ async function chooseRecurringCategory() {
     catch { categories = null; }
   }
   if (!Array.isArray(categories)) {
-    _recurringStatus = 'could not load Actual categories. retry when Actual is available.';
+    _recurringStatus = t('money.categories_failed');
     const list = $('recurring-list');
     if (list) { list.innerHTML = recurringList(); wireRecurringList(); }
     return;
   }
   const names = categories.map(row => row.group ? `${row.group} / ${row.category}` : row.category);
-  const options = [{ value: '', label: 'no category' }, ...categories.map((row, index) => ({
+  const options = [{ value: '', label: t('money.no_category') }, ...categories.map((row, index) => ({
     value: row.category_id,
     label: names.filter(name => name === names[index]).length > 1
       ? `${names[index]} (${row.category_id.slice(-6)})` : names[index],
   }))];
-  const selected = await dlgChoose('choose a spending category', options);
+  const selected = await dlgChoose(t('money.choose_spending_category'), options);
   if (selected === null) return;
   button.dataset.categoryId = selected;
-  button.textContent = options.find(option => option.value === selected)?.label || 'no category';
+  button.textContent = options.find(option => option.value === selected)?.label || t('money.no_category');
   button.focus();
 }
 async function retryRecurringCreate(button) {
@@ -2718,12 +2809,12 @@ async function retryRecurringCreate(button) {
   if (!_canonicalLedger || !r?.create_pending || r.create_needs_review || button.disabled) return;
   const focusOwner = captureMoneyFocus('schedules');
   button.disabled = true;
-  button.textContent = 'retrying…';
+  button.textContent = t('money.retrying');
   try {
     await api(`/api/money/recurring/${encodeURIComponent(r.id)}/retry`, { method: 'POST' });
     _recurringStatus = '';
   } catch (error) {
-    _recurringStatus = `creation not confirmed for ${r.payee}: ${error.message || 'review the schedule in Actual'}`;
+    _recurringStatus = t('money.creation_not_confirmed_for', { payee: r.payee, error: error.message || t('money.review_in_actual') });
   }
   await retryRecurring(r.id, focusOwner);
 }
@@ -2732,12 +2823,12 @@ async function retryRecurringEdit(button) {
   if (!_canonicalLedger || !r?.edit_pending || r.edit_needs_review || button.disabled) return;
   const focusOwner = captureMoneyFocus('schedules');
   button.disabled = true;
-  button.textContent = 'retrying…';
+  button.textContent = t('money.retrying');
   try {
     await api(`/api/money/recurring/${encodeURIComponent(r.id)}/edit/retry`, { method: 'POST' });
     _recurringStatus = '';
   } catch (error) {
-    _recurringStatus = `edit not confirmed for ${r.payee}: ${error.message || 'review the schedule in Actual'}`;
+    _recurringStatus = t('money.edit_not_confirmed_for', { payee: r.payee, error: error.message || t('money.review_in_actual') });
   }
   await retryRecurring(r.id, focusOwner);
 }
@@ -2746,12 +2837,12 @@ async function retryRecurringDelete(button) {
   if (!_canonicalLedger || !r?.delete_pending || r.delete_needs_review || button.disabled) return;
   const focusOwner = captureMoneyFocus('schedules');
   button.disabled = true;
-  button.textContent = 'retrying…';
+  button.textContent = t('money.retrying');
   try {
     await api(`/api/money/recurring/${encodeURIComponent(r.id)}/delete/retry`, { method: 'POST' });
     _recurringStatus = '';
   } catch (error) {
-    _recurringStatus = `deletion not confirmed for ${r.payee}: ${error.message || 'review the schedule in Actual'}`;
+    _recurringStatus = t('money.deletion_not_confirmed_for', { payee: r.payee, error: error.message || t('money.review_in_actual') });
   }
   await retryRecurring(r.id, focusOwner);
 }
@@ -2760,7 +2851,7 @@ async function delRecurring(id) {
   if (_canonicalLedger) {
     const r = _recurring.find(row => row.id === id);
     if (!r?.editable || _recurringEdit) return;
-    if (!await dlgConfirm(`delete the ${r.payee || 'recurring'} schedule? future posts stop; past transactions stay. a backup is saved first.`)) return;
+    if (!await dlgConfirm(t('money.delete_schedule_confirm', { name: r.payee || t('money.recurring') }))) return;
     focusOwner = captureMoneyFocus('schedules');
     try {
       await api(`/api/money/recurring/${encodeURIComponent(id)}/delete`, {
@@ -2768,14 +2859,14 @@ async function delRecurring(id) {
       });
       _recurringStatus = '';
     } catch (error) {
-      _recurringStatus = `deletion not confirmed for ${r.payee}: ${error.message || 'retry the saved deletion'}`;
+      _recurringStatus = t('money.deletion_not_confirmed_for', { payee: r.payee, error: error.message || t('money.retry_saved_deletion') });
     }
     await retryRecurring(id, focusOwner);
     return;
   }
-  if (!await dlgConfirm('stop this recurring transaction?')) return;
+  if (!await dlgConfirm(t('money.stop_recurring_confirm'))) return;
   try { await api(`/api/money/recurring/${encodeURIComponent(id)}`, { method: 'DELETE' }); await load(); }
-  catch { toast('delete failed', 'error'); }
+  catch { toast(t('money.delete_failed'), 'error'); }
 }
 async function toggleRecurring(button) {
   const focusOwner = captureMoneyFocus('schedules');
@@ -2783,7 +2874,7 @@ async function toggleRecurring(button) {
   if (!r || button.disabled || (_canonicalLedger && !r.manageable)) return;
   const active = r.posting_pending ? r.posting_target_active : !r.active;
   button.disabled = true;
-  button.textContent = 'saving…';
+  button.textContent = t('common.saving');
   try {
     await api(`/api/money/recurring/${encodeURIComponent(r.id)}`, { method: 'PATCH', body: { active } });
     _recurringStatus = '';
@@ -2791,12 +2882,12 @@ async function toggleRecurring(button) {
     else await load();
   } catch (error) {
     if (_canonicalLedger) {
-      _recurringStatus = `${active ? 'resume' : 'pause'} not confirmed for ${r.payee}: ${error.message || 'retry the saved action'}`;
+      _recurringStatus = t(active ? 'money.resume_not_confirmed_for' : 'money.pause_not_confirmed_for', { payee: r.payee, error: error.message || t('money.retry_saved_action') });
       await retryRecurring(r.id, focusOwner);
     } else {
       button.disabled = false;
-      button.textContent = r.active ? 'pause' : 'resume';
-      toast('update failed', 'error');
+      button.textContent = r.active ? t('subs.pause') : t('subs.resume');
+      toast(t('money.update_failed'), 'error');
     }
   }
 }
@@ -2812,7 +2903,7 @@ async function repairRecurring(button) {
       catch { categories = null; }
     }
     if (!Array.isArray(categories)) {
-      _recurringStatus = 'could not load Actual categories. retry when Actual is available.';
+      _recurringStatus = t('money.categories_failed');
       await retryRecurring('', focusOwner);
       return;
     }
@@ -2822,47 +2913,47 @@ async function repairRecurring(button) {
       label: names.filter(name => name === names[index]).length > 1
         ? `${names[index]} (${row.category_id.slice(-6)})` : names[index],
     }));
-    if (!r.category) options.unshift({ value: '', label: 'leave uncategorized' });
+    if (!r.category) options.unshift({ value: '', label: t('money.leave_uncategorized') });
     if (!options.length) {
-      _recurringStatus = 'add a spending category in Actual before repairing this schedule.';
+      _recurringStatus = t('money.add_category_first');
       await retryRecurring('', focusOwner);
       return;
     }
-    categoryId = await dlgChoose(`choose the Actual category for ${r.payee}`, options);
+    categoryId = await dlgChoose(t('money.choose_actual_category_for', { name: r.payee }), options);
     if (categoryId === null) return;
     focusOwner = captureMoneyFocus('schedules');
   }
   button.disabled = true;
-  button.textContent = 'repairing…';
+  button.textContent = t('money.repairing');
   try {
     await api(`/api/money/recurring/${encodeURIComponent(r.id)}/repair`, {
       method: 'POST', body: { category_id: categoryId },
     });
     _recurringStatus = '';
     await retryRecurring('', focusOwner);
-    toast('posting repaired', 'success');
+    toast(t('money.posting_repaired'), 'success');
   } catch (error) {
-    _recurringStatus = `repair not confirmed for ${r.payee}: ${error.message || 'retry the saved choice'}`;
+    _recurringStatus = t('money.repair_not_confirmed_for', { payee: r.payee, error: error.message || t('money.retry_saved_choice') });
     await retryRecurring('', focusOwner);
   }
 }
 async function addRule() {
   const match = $('rl-match')?.value.trim();
-  if (!match) { toast('what should it match?', 'error'); return; }
+  if (!match) { toast(t('money.what_match'), 'error'); return; }
   try {
     await api('/api/money/rules', { method: 'POST', body: { match, category: $('rl-cat').value.trim() } });
     await load();
-  } catch { toast('couldn\'t add rule', 'error'); }
+  } catch { toast(t('money.add_rule_failed'), 'error'); }
 }
 async function delRule(id) {
-  if (!await dlgConfirm('delete this categorization rule?')) return;
+  if (!await dlgConfirm(t('money.delete_rule_confirm'))) return;
   try { await api(`/api/money/rules/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast('delete failed', 'error'); }
+  catch { toast(t('money.delete_failed'), 'error'); }
 }
 async function applyRules() {
   try {
     const r = await api('/api/money/rules/apply', { method: 'POST' });
-    toast(r.updated ? `categorized ${r.updated} transaction${r.updated === 1 ? '' : 's'}` : 'nothing to categorize', 'success');
+    toast(r.updated ? tp('money.categorized', r.updated) : t('money.nothing_to_categorize'), 'success');
     await load();
-  } catch { toast('apply failed', 'error'); }
+  } catch { toast(t('money.apply_failed'), 'error'); }
 }

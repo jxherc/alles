@@ -5,7 +5,16 @@ from services import sub_overlap
 
 
 def _sub(name, price=1, active=True):
-    return SimpleNamespace(id=name, name=name, price=price, active=active)
+    return SimpleNamespace(
+        id=name,
+        name=name,
+        price=price,
+        active=active,
+        cycle="monthly",
+        cycle_days=30,
+        currency="$",
+        original_currency_code="",
+    )
 
 
 class SubOverlapTests(unittest.TestCase):

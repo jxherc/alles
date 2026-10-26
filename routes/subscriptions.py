@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import FinanceLedgerState, SessionLocal, Subscription, get_db
-from services import actual_finance, finance_currency, finance_requests
+from services import actual_finance, finance_currency, finance_requests, money_totals
 
 
 def _subscription_write_authority(endpoint):
@@ -302,63 +302,78 @@ def _roll_and_post(sub: Subscription, today: date, db) -> bool:
 
 
 def _monthly_cost(sub: Subscription) -> float:
-    if sub.cycle == "custom":
-        return sub.price * 30.44 / max(1, sub.cycle_days or 30)
-    return sub.price * _PER_MONTH.get(sub.cycle, 1.0)
+    return _per_month(sub, sub.price)
 
 
-def _base_price(sub: Subscription) -> float:
-    base_price_text = getattr(sub, "canonical_base_price_text", "") or sub.base_price_text
-    if (
-        not str(base_price_text or "").strip()
-        or not str(
-            getattr(sub, "canonical_base_currency_code", "") or sub.base_currency_code or ""
-        ).strip()
-        or finance_currency.currency_code(
-            getattr(sub, "canonical_base_currency_code", "") or sub.base_currency_code
-        )
-        == "XXX"
-    ):
-        raise HTTPException(
-            409,
-            f"subscription {sub.id} requires reviewed conversion evidence before aggregation",
-        )
-    try:
-        value = Decimal(str(base_price_text))
-    except (InvalidOperation, ValueError) as exc:
-        raise HTTPException(
-            409, f"subscription {sub.id} has invalid base-currency evidence"
-        ) from exc
-    if not value.is_finite() or value < 0:
-        raise HTTPException(409, f"subscription {sub.id} has invalid base-currency evidence")
-    return float(value)
-
-
-def _base_monthly_cost(sub: Subscription) -> float:
-    price = _base_price(sub)
+def _per_month(sub, price: float) -> float:
     if sub.cycle == "custom":
         return price * 30.44 / max(1, sub.cycle_days or 30)
     return price * _PER_MONTH.get(sub.cycle, 1.0)
 
 
-def _aggregate_currency(subscriptions: list[Subscription], db: DbSession) -> str:
-    state = db.get(FinanceLedgerState, "primary")
-    configured_base = finance_currency.currency_code(state.base_currency_code if state else "CAD")
-    if configured_base == "XXX":
-        raise HTTPException(409, "subscription totals require a valid ledger base currency")
-    if not subscriptions:
-        return configured_base
-    for sub in subscriptions:
-        _base_price(sub)
-        evidence_base = finance_currency.currency_code(
-            getattr(sub, "canonical_base_currency_code", "") or sub.base_currency_code
+def _sub_base_price(sub, totals: money_totals.Totals) -> float | None:
+    """the price in the totals currency, or None while there's no rate for it"""
+    evidence = finance_currency.currency_code(
+        getattr(sub, "canonical_base_currency_code", "") or sub.base_currency_code or ""
+    )
+    text = str(getattr(sub, "canonical_base_price_text", "") or sub.base_price_text or "").strip()
+    # reviewed evidence into this same base wins over a saved pair rate
+    if evidence == totals.base and text:
+        try:
+            value = Decimal(text)
+        except (InvalidOperation, ValueError):
+            value = None
+        if value is not None and value.is_finite() and value >= 0:
+            return float(value)
+    try:
+        price = Decimal(sub.original_price_text or finance_currency.decimal_text(sub.price))
+    except (InvalidOperation, ValueError):
+        return None
+    if not price.is_finite():
+        return None
+    factor = totals.factor(sub.original_currency_code or sub.currency)
+    return None if factor is None else float(price * factor)
+
+
+class _SubTotals:
+    """active subscriptions added up in one currency. the ones with no rate stay out, per currency"""
+
+    def __init__(self, db: DbSession, subs):
+        self.base = money_totals.base_currency(db)
+        self.ledger = money_totals.ledger_base(db)
+        self.totals = money_totals.Totals(self.base["code"])
+        self.prices: dict[str, float] = {}
+        self.left = []
+        for sub in subs:
+            price = _sub_base_price(sub, self.totals)
+            if price is None:
+                self.left.append(sub)
+            else:
+                self.prices[sub.id] = price
+
+    def included(self, subs):
+        return [sub for sub in subs if sub.id in self.prices]
+
+    def monthly(self, sub) -> float:
+        return _per_month(sub, self.prices[sub.id])
+
+    def excluded(self, amount) -> list[dict]:
+        """per currency: how many stay out and their own-currency subtotal, from amount(sub)"""
+        groups: dict[str, dict] = {}
+        for sub in self.left:
+            code = finance_currency.currency_code(sub.original_currency_code or sub.currency)
+            row = groups.setdefault(code, {"currency": code, "count": 0, "total": 0.0})
+            row["count"] += 1
+            row["total"] += amount(sub)
+        return [
+            {**row, "total": round(row["total"], 2)}
+            for row in sorted(groups.values(), key=lambda row: row["currency"])
+        ]
+
+    def fields(self, excluded: list[dict]) -> dict:
+        return money_totals.payload(
+            self.totals, self.base, excluded, ledger=self.ledger, included=bool(self.prices)
         )
-        if evidence_base != configured_base:
-            raise HTTPException(
-                409,
-                "subscription totals require reviewed conversion evidence in the configured ledger base currency",
-            )
-    return configured_base
 
 
 def _trial_days_left(sub, today: date):
@@ -452,14 +467,12 @@ def list_subscriptions(advance: bool = True, db: DbSession = Depends(get_db)):
             if changed:
                 db.commit()
     active = [s for s in subs if s.active]
-    try:
-        aggregate_currency = _aggregate_currency(active, db)
-        monthly = sum(_base_monthly_cost(s) for s in active)
-        totals_available = True
-    except HTTPException:
-        aggregate_currency = ""
-        monthly = None
-        totals_available = False
+    totals = _SubTotals(db, active)
+    monthly = sum(totals.monthly(s) for s in totals.included(active))
+    excluded = [
+        {**row, "monthly_total": row["total"], "yearly_total": round(row["total"] * 12, 2)}
+        for row in totals.excluded(_monthly_cost)
+    ]
     items = sorted(
         (
             _fmt(
@@ -515,10 +528,11 @@ def list_subscriptions(advance: bool = True, db: DbSession = Depends(get_db)):
         "subscriptions": items,
         "summary": {
             "active": len(active),
-            "monthly_total": round(monthly, 2) if monthly is not None else None,
-            "yearly_total": round(monthly * 12, 2) if monthly is not None else None,
-            "currency": aggregate_currency,
-            "totals_available": totals_available,
+            "monthly_total": round(monthly, 2),
+            "yearly_total": round(monthly * 12, 2),
+            # a missing rate leaves those out with a note instead of hiding every total
+            "totals_available": True,
+            **totals.fields(excluded),
         },
     }
 
@@ -527,19 +541,23 @@ def list_subscriptions(advance: bool = True, db: DbSession = Depends(get_db)):
 def analytics(db: DbSession = Depends(get_db)):
     """normalized monthly spend, broken down by category and by billing cycle."""
     active = [s for s in _subscription_rows(db) if s.active]
-    aggregate_currency = _aggregate_currency(active, db)
+    totals = _SubTotals(db, active)
     by_cat: dict[str, float] = {}
     by_cycle: dict[str, float] = {}
-    for s in active:
-        mc = _base_monthly_cost(s)
+    for s in totals.included(active):
+        mc = totals.monthly(s)
         cat = (s.category or "").strip() or "uncategorized"
         by_cat[cat] = by_cat.get(cat, 0) + mc
         by_cycle[s.cycle] = by_cycle.get(s.cycle, 0) + mc
-    monthly = sum(_base_monthly_cost(s) for s in active)
+    monthly = sum(by_cat.values())
+    excluded = [
+        {**row, "monthly_total": row["total"], "yearly_total": round(row["total"] * 12, 2)}
+        for row in totals.excluded(_monthly_cost)
+    ]
     return {
         "monthly_total": round(monthly, 2),
         "yearly_total": round(monthly * 12, 2),
-        "currency": aggregate_currency,
+        **totals.fields(excluded),
         "count": len(active),
         "by_category": [
             {"name": k, "monthly": round(v, 2)}
@@ -671,15 +689,15 @@ def upcoming_renewals(days: int = 7, db: DbSession = Depends(get_db)):
         du = (due - today).days
         if 0 <= du <= days:
             matched.append(sub)
-    aggregate_currency = _aggregate_currency(matched, db)
+    totals = _SubTotals(db, matched)
     items = [_fmt(sub, today) for sub in matched]
     items.sort(key=lambda s: s["days_until"])
-    total = round(sum(_base_price(sub) for sub in matched), 2)
+    total = round(sum(totals.prices.values()), 2)
     return {
         "days": days,
         "count": len(items),
         "total": total,
-        "currency": aggregate_currency,
+        **totals.fields(totals.excluded(lambda sub: sub.price or 0.0)),
         "items": items,
     }
 
@@ -745,7 +763,10 @@ def overlaps(db: DbSession = Depends(get_db)):
     """flag paying for 2+ services in the same redundant category (spotify + apple music). 2f"""
     from services import sub_overlap
 
-    groups = sub_overlap.overlaps(_subscription_rows(db))
+    subs = _subscription_rows(db)
+    totals = _SubTotals(db, [s for s in subs if s.active])
+    monthly = {s.id: totals.monthly(s) for s in subs if s.id in totals.prices}
+    groups = sub_overlap.overlaps(subs, monthly=monthly, currency=totals.totals.base)
     return {"groups": groups, "count": len(groups)}
 
 
@@ -755,7 +776,7 @@ def forecast(months: int = 6, db: DbSession = Depends(get_db)):
     months = max(1, min(24, months))
     today = date.today()
     active = [s for s in _subscription_rows(db) if s.active]
-    aggregate_currency = _aggregate_currency(active, db)
+    totals = _SubTotals(db, active)
     buckets = []
     y, m = today.year, today.month
     for _ in range(months):
@@ -765,27 +786,35 @@ def forecast(months: int = 6, db: DbSession = Depends(get_db)):
             m, y = 1, y + 1
     last_y, last_m = buckets[-1]
     end = date(last_y, last_m, calendar.monthrange(last_y, last_m)[1])
-    totals = {bkt: 0.0 for bkt in buckets}
-    for s in active:
+    sums = {bkt: 0.0 for bkt in buckets}
+    native: dict[str, float] = {}
+
+    def charges(s) -> int:
         d = _parse_maybe(s.next_due)
         if not d:
-            continue
-        guard = 0
+            return 0
+        count = guard = 0
         while d < today and guard < 2000:  # skip charges already in the past
             d = _advance(d, s.cycle, s.cycle_days)
             guard += 1
         while d <= end and guard < 2000:
             key = (d.year, d.month)
-            if key in totals:
-                totals[key] += _base_price(s)
+            if key in sums:
+                count += 1
+                if s.id in totals.prices:
+                    sums[key] += totals.prices[s.id]
             d = _advance(d, s.cycle, s.cycle_days)
             guard += 1
+        return count
+
+    for s in active:
+        native[s.id] = charges(s) * (s.price or 0.0)
     out = [
-        {"month": f"{by:04d}-{bm:02d}", "total": round(totals[(by, bm)], 2)} for (by, bm) in buckets
+        {"month": f"{by:04d}-{bm:02d}", "total": round(sums[(by, bm)], 2)} for (by, bm) in buckets
     ]
     return {
         "months": months,
-        "currency": aggregate_currency,
+        **totals.fields(totals.excluded(lambda sub: native.get(sub.id, 0.0))),
         "forecast": out,
         "total": round(sum(x["total"] for x in out), 2),
     }
@@ -800,8 +829,9 @@ def create_subscription(body: SubBody, db: DbSession = Depends(get_db)):
     )
     if replay is not None:
         return replay
-    state = db.get(FinanceLedgerState, "primary")
-    default_currency = finance_currency.currency_code(state.base_currency_code if state else "CAD")
+    # a new one with no currency is in the ledger currency, where renewals post. "totals in"
+    # only changes how totals are shown
+    default_currency = money_totals.ledger_base(db)
     resolved_currency = (body.currency or "").strip() or default_currency
     if finance_currency.currency_code(resolved_currency) == "XXX":
         raise HTTPException(400, "currency must be an unambiguous ISO currency code")

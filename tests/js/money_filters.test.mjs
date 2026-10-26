@@ -1,4 +1,4 @@
-import { calendarDateKey } from '../../static/js/i18n.js';
+import { calendarDateKey, t, tp } from '../../static/js/i18n.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -25,6 +25,7 @@ function harness() {
   };
   const requests = [];
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     document: { getElementById: get }, location: { search: '' }, URLSearchParams,
     clearTimeout, toast() {},

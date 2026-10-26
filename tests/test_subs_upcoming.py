@@ -263,8 +263,15 @@ class SubUpcomingTests(ApiTest):
         self.assertEqual(sub.base_currency_code, "CAD")
         self.assertEqual(sub.fx_rate_text, "")
         db.close()
-        blocked = self.client.get("/api/subscriptions/upcoming?days=7")
-        self.assertEqual(blocked.status_code, 409, blocked.text)
+        # no CNY rate yet: the renewal stays listed, out of the total, with its own subtotal
+        upcoming = self.client.get("/api/subscriptions/upcoming?days=7")
+        self.assertEqual(upcoming.status_code, 200, upcoming.text)
+        self.assertEqual(upcoming.json()["count"], 1)
+        self.assertEqual(upcoming.json()["total"], 0)
+        self.assertEqual(
+            upcoming.json()["excluded"], [{"currency": "CNY", "count": 1, "total": 110.0}]
+        )
+        self.assertFalse(upcoming.json()["complete"])
 
     def test_non_finite_prices_are_rejected_before_mutation(self):
         created = self.client.post(
@@ -300,24 +307,30 @@ class SubUpcomingTests(ApiTest):
             self.assertIn(k, r)
         self.assertEqual(r["count"], len(r["items"]))
 
-    def test_basic_list_keeps_rows_visible_when_totals_need_conversion_review(self):
+    def test_a_price_in_the_base_currency_needs_no_extra_evidence(self):
         self._seed(
-            name="Needs review",
+            name="Blank evidence",
             next_due=_due_in(2),
             base_price_text="",
             base_currency_code="",
         )
         response = self.client.get("/api/subscriptions", params={"advance": False})
         self.assertEqual(response.status_code, 200, response.text)
-        payload = response.json()
-        self.assertEqual([row["name"] for row in payload["subscriptions"]], ["Needs review"])
-        self.assertFalse(payload["summary"]["totals_available"])
-        self.assertIsNone(payload["summary"]["monthly_total"])
-        self.assertIsNone(payload["summary"]["yearly_total"])
+        summary = response.json()["summary"]
+        self.assertEqual(
+            [row["name"] for row in response.json()["subscriptions"]], ["Blank evidence"]
+        )
+        self.assertTrue(summary["totals_available"])
+        self.assertEqual((summary["monthly_total"], summary["yearly_total"]), (5, 60))
+        self.assertEqual((summary["currency"], summary["complete"]), ("CAD", True))
 
-    def test_wrong_base_keeps_list_visible_but_blocks_aggregate_endpoints(self):
+    def test_another_currency_stays_out_until_a_rate_or_base_brings_it_in(self):
+        from core.settings import save_settings
+
+        self.addCleanup(save_settings, {"money_base_currency": "", "money_fx_rates": {}})
+        self._seed(name="Local", price=10, next_due=_due_in(1))
         self._seed(
-            name="Wrong base",
+            name="Foreign",
             price=5,
             currency="USD",
             base_price_text="5",
@@ -326,14 +339,51 @@ class SubUpcomingTests(ApiTest):
         )
         response = self.client.get("/api/subscriptions", params={"advance": False})
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertFalse(response.json()["summary"]["totals_available"])
-        for path in (
+        summary = response.json()["summary"]
+        self.assertEqual((summary["currency"], summary["monthly_total"]), ("CAD", 10))
+        self.assertEqual(
+            summary["excluded"],
+            [
+                {
+                    "currency": "USD",
+                    "count": 1,
+                    "total": 5.0,
+                    "monthly_total": 5.0,
+                    "yearly_total": 60.0,
+                }
+            ],
+        )
+        self.assertFalse(summary["complete"])
+        paths = (
             "/api/subscriptions/analytics",
             "/api/subscriptions/upcoming?days=7",
             "/api/subscriptions/forecast?months=1",
-        ):
-            blocked = self.client.get(path)
-            self.assertEqual(blocked.status_code, 409, (path, blocked.text))
+        )
+        for path in paths:
+            partial = self.client.get(path)
+            self.assertEqual(partial.status_code, 200, (path, partial.text))
+            self.assertEqual(partial.json()["excluded"][0]["currency"], "USD", path)
+        self.assertEqual(self.client.get(paths[0]).json()["monthly_total"], 10)
+        self.assertEqual(self.client.get(paths[1]).json()["total"], 10)
+
+        saved = self.client.patch(
+            "/api/money/totals-currency",
+            json={"rate": {"from": "USD", "to": "CAD", "rate": "1.36"}},
+        )
+        self.assertEqual(saved.status_code, 200, saved.text)
+        summary = self.client.get("/api/subscriptions", params={"advance": False}).json()["summary"]
+        self.assertEqual((summary["monthly_total"], summary["complete"]), (16.8, True))
+        self.assertEqual(
+            [(r["from"], r["to"], r["rate"]) for r in summary["rates"]], [("USD", "CAD", "1.36")]
+        )
+        for path in paths:
+            self.assertTrue(self.client.get(path).json()["complete"], path)
+
+        self.client.patch("/api/money/totals-currency", json={"base": "USD"})
+        summary = self.client.get("/api/subscriptions", params={"advance": False}).json()["summary"]
+        # the same pair works backwards: 10 CAD at 1 / 1.36
+        self.assertEqual((summary["currency"], summary["monthly_total"]), ("USD", 12.35))
+        self.assertEqual(summary["base_currency"], {"code": "USD", "fixed": False})
 
     def test_malformed_next_due_does_not_break_list_or_upcoming(self):
         self._seed(name="Bad", next_due="not-a-date")
@@ -347,3 +397,27 @@ class SubUpcomingTests(ApiTest):
 
         up = self._get(7)
         self.assertEqual([i["name"] for i in up["items"]], ["Good"])
+
+    def test_overlap_totals_never_add_two_currencies_raw(self):
+        from core.settings import save_settings
+
+        self.addCleanup(save_settings, {"money_base_currency": "", "money_fx_rates": {}})
+        self._seed(name="Spotify", price=10, next_due=_due_in(3))
+        self._seed(
+            name="Apple Music",
+            price=10,
+            currency="USD",
+            base_price_text="10",
+            base_currency_code="USD",
+            cycle="yearly",
+            next_due=_due_in(3),
+        )
+        group = self.client.get("/api/subscriptions/overlaps").json()["groups"][0]
+        self.assertEqual((group["category"], group["currency"]), ("music", "CAD"))
+        self.assertEqual((group["monthly_total"], len(group["excluded"])), (10, 1))
+        self.client.patch(
+            "/api/money/totals-currency", json={"rate": {"from": "USD", "to": "CAD", "rate": "1.2"}}
+        )
+        group = self.client.get("/api/subscriptions/overlaps").json()["groups"][0]
+        # 10 a month plus 12 a year at 1.2 = 1 a month
+        self.assertEqual((group["monthly_total"], group["excluded"]), (11, []))

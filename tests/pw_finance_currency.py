@@ -376,9 +376,12 @@ with sync_playwright() as pw:
                 expect(page.locator(f'.txn[data-id="{usd["id"]}"] .tx-amt')).to_have_text(
                     "−USD\u00a010.00"
                 )
-                expect(page.locator("#money-body")).to_contain_text("mixed currencies")
+                # totals stay in the base currency (CAD); USD has no rate, so it's out and named
+                expect(page.locator(".totals-currency-wrap")).to_contain_text(
+                    "1 account in USD isn't in these totals"
+                )
                 summary = page.locator(".money-summary").inner_text()
-                assert "USD" in summary and "CAD" in summary and "180.00" not in summary
+                assert "CAD" in summary and "USD" not in summary and "180.00" not in summary
                 plans()
                 expect(page.locator(f'[data-currency-acct="{aid}"]')).to_be_disabled()
                 expect(page.locator(f'[data-currency-acct="{planned["id"]}"]')).to_be_disabled()
@@ -447,7 +450,12 @@ with sync_playwright() as pw:
                 expect(page.locator(f'.money-acct[data-id="{legacy["id"]}"] .ma-bal')).to_have_text(
                     "currency not set\u00a093.00"
                 )
-                expect(page.locator('[data-card="envelope"]')).to_contain_text(
+                # no currency set can't take a rate: those accounts stay out with their own line,
+                # and the base-currency analytics keep working
+                expect(page.locator(".totals-currency-wrap")).to_contain_text(
+                    "2 accounts have no currency set and aren't in these totals"
+                )
+                expect(page.locator('[data-card="envelope"]')).not_to_contain_text(
                     "combined analytics need one known currency"
                 )
                 if not page.locator("#tx-payee").is_visible():

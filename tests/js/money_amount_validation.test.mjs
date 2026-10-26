@@ -1,4 +1,4 @@
-import { calendarDateKey } from '../../static/js/i18n.js';
+import { calendarDateKey, t, tp } from '../../static/js/i18n.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -27,6 +27,7 @@ function harness(values = {}, { canonical = false, targetEditor = null, apiHandl
     ? { dataset: originalEditor, contains: () => false, querySelector: field => get(edits[field.match(/data-f="(.+)"/)[1]]) }
     : null;
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     document, CSS: { escape: String }, location: { search: '' }, URLSearchParams,
     crypto: webcrypto, TextEncoder,

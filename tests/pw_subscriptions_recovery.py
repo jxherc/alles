@@ -113,7 +113,15 @@ def run():
                         value,
                     )
 
+                def show_form():
+                    # a phone keeps the add form folded behind one "+ subscription" row
+                    fold = page.locator("#sub-add-toggle")
+                    if fold.is_visible() and fold.get_attribute("aria-expanded") == "false":
+                        key(fold)
+                        expect(page.locator("#sub-name")).to_be_focused()
+
                 def open_form():
+                    show_form()
                     page.locator("#sub-name").fill(name)
                     page.locator("#sub-price").fill("10")
                     set_control(page.locator("#sub-due"), future)
@@ -297,6 +305,7 @@ def run():
                         expect(page.locator(".sub-hist-pop [role=status]")).to_contain_text(
                             "loading"
                         )
+                        show_form()
                         page.locator("#sub-name").fill("typing a new subscription")
                         expect(page.locator("#sub-name")).to_be_focused()
                         for _ in range(100):

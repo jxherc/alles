@@ -47,6 +47,7 @@
     "static/js/memoryactions.js": "aide.conversation-and-execution",
     "static/js/models.js": "aide.conversation-and-execution",
     "static/js/money.js": "finance.actual-ledger",
+    "static/js/money_currency.js": "finance.actual-ledger",
     "static/js/finance_plaid.js": "finance.actual-ledger",
     "static/js/finance_plaid_return.js": "finance.actual-ledger",
     "static/js/notes.js": "docs.documents-and-journal",

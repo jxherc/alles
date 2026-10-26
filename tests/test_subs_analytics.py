@@ -1,6 +1,5 @@
 import unittest
 
-from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -153,7 +152,7 @@ class AnalyticsTests(unittest.TestCase):
         self.assertEqual(result["currency"], "CAD")
         self.assertEqual(result["monthly_total"], 30)
 
-    def test_analytics_rejects_mixed_unreviewed_aggregate_currencies(self):
+    def test_analytics_leaves_a_currency_with_no_rate_out_of_the_total(self):
         db = _mkdb(self)
         db.add_all(
             [
@@ -162,10 +161,25 @@ class AnalyticsTests(unittest.TestCase):
             ]
         )
         db.commit()
-        with self.assertRaisesRegex(HTTPException, "reviewed conversion evidence"):
-            S.analytics(db)
+        result = S.analytics(db)
+        self.assertEqual((result["currency"], result["monthly_total"]), ("CAD", 10))
+        self.assertEqual(result["count"], 2)
+        self.assertEqual([row["name"] for row in result["by_category"]], ["uncategorized"])
+        self.assertEqual(
+            result["excluded"],
+            [
+                {
+                    "currency": "CNY",
+                    "count": 1,
+                    "total": 10.0,
+                    "monthly_total": 10.0,
+                    "yearly_total": 120.0,
+                }
+            ],
+        )
+        self.assertFalse(result["complete"])
 
-    def test_analytics_rejects_one_currency_that_is_not_the_ledger_base(self):
+    def test_analytics_with_only_another_currency_totals_zero_with_a_note(self):
         db = _mkdb(self)
         db.add(
             _sub(
@@ -177,8 +191,10 @@ class AnalyticsTests(unittest.TestCase):
             )
         )
         db.commit()
-        with self.assertRaisesRegex(HTTPException, "configured ledger base currency"):
-            S.analytics(db)
+        result = S.analytics(db)
+        self.assertEqual((result["currency"], result["monthly_total"]), ("CAD", 0))
+        self.assertEqual(result["excluded"][0]["currency"], "USD")
+        self.assertEqual(result["by_category"], [])
 
 
 class AutoPostTests(unittest.TestCase):

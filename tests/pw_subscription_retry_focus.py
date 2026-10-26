@@ -154,6 +154,10 @@ with sync_playwright() as pw:
                         expect(close).to_be_focused()
                     if case.startswith("newer-input"):
                         draft = page.locator("#sub-name")
+                        # a phone keeps the add form folded behind one "+ subscription" row
+                        fold = page.locator("#sub-add-toggle")
+                        if fold.is_visible() and fold.get_attribute("aria-expanded") == "false":
+                            fold.press("Enter")
                         draft.fill("  newer subscription 草稿  ")
                         draft.evaluate("el => el.setSelectionRange(2, 10, 'backward')")
                         page.evaluate(

@@ -138,6 +138,18 @@ with sync_playwright() as pw:
                 use(page.locator(".dp-now"))
                 assert due.evaluate("e=>e.value")
 
+            # a phone keeps the add form folded behind one "+ subscription" row, and folds it
+            # again after each saved add so the new one shows in the list
+            fold = page.locator("#sub-add-toggle")
+
+            def reopen():
+                if fold.is_visible() and fold.get_attribute("aria-expanded") == "false":
+                    use(fold)
+                    expect(field).to_be_visible()
+                    expect(field).to_be_focused()
+
+            reopen()
+
             def stored():
                 response = api.get(base + "/api/subscriptions?advance=false")
                 assert response.ok
@@ -209,6 +221,9 @@ with sync_playwright() as pw:
             assert len(stored()) == 1
             assert len(writes) == 3 and writes[1] == writes[2]
             assert writes[0]["request_id"] != writes[1]["request_id"]
+            if fold.is_visible():
+                expect(fold).to_be_focused()
+            reopen()
             field.fill(held_name)
             mode = "hold"
             use(add)

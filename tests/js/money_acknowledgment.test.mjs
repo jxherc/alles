@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
+import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -29,6 +30,7 @@ function harness({ search = false, missing = false, quota = false } = {}) {
   const writes = [], storage = new Map();
   const state = { quota };
   const context = vm.createContext({
+    t, tp,
     calendarDateKey: () => '2026-10-06', location: { search:'' }, URLSearchParams,
     crypto:webcrypto, TextEncoder, fetch:async () => {},
     document: { activeElement:null, getElementById:get },
@@ -100,6 +102,7 @@ function refreshHarness() {
     return elements.get(id);
   };
   const context = vm.createContext({
+    t, tp,
     document: { getElementById: get, activeElement: null },
     calendarDateKey: () => '2026-10-07', formatCalendarDate: () => 'october 2026',
     formatNumber: (number, options) => new Intl.NumberFormat('en-CA', options).format(number),

@@ -1233,7 +1233,7 @@ html:not(#_):not(#_) :is(.msg-actions, .msg-actions-menu) :is(.act-btn, .btn):ho
 /* subscriptions: one row of fields under its note, each as wide as what goes in it */
 html:not(#_):not(#_) #subs-view > .page-view-footer {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(88px, 0.6fr) minmax(128px, 0.8fr) minmax(170px, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 2fr) auto minmax(88px, 0.6fr) minmax(128px, 0.8fr) minmax(170px, 1fr) minmax(0, 1fr) auto;
   align-items: center;
   gap: 0;
 }
@@ -1246,6 +1246,87 @@ html:not(#_):not(#_) #subs-view > .page-view-footer > :is(#sub-required, #sub-cr
 html:not(#_):not(#_) #subs-view > .page-view-footer > :is(input, .custom-select, .date-input) {
   width: auto !important;
   min-width: 0 !important;
+}
+
+/* the currency a new subscription is saved in, picked like the other fields: no box of its own */
+html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-currency {
+  justify-content: flex-start;
+  gap: var(--k-space-1);
+  min-height: 44px;
+  margin: 0;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-left: 1px solid var(--k-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-currency[hidden] {
+  display: none;
+}
+
+html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-currency:hover {
+  background: var(--k-hover);
+}
+
+html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-currency + #sub-price {
+  border-left: 1px solid var(--k-line) !important;
+}
+
+/* the row that folds the add form away exists only on a phone */
+html:not(#_):not(#_) #sub-add-toggle {
+  display: none;
+}
+
+/* an open payment history says what just happened in its own line, where the finger is */
+html:not(#_):not(#_) .sub-hist-status {
+  font-size: 13px;
+  color: var(--success);
+}
+
+/* totals in one currency (money and subscriptions): "totals in CAD" picks it, a saved rate reads
+   "1 USD = 1.36 CAD" and opens to edit, and each currency a total leaves out gets one line with
+   its own subtotal and the way to bring it in */
+html:not(#_):not(#_) .totals-currency-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--k-space-2) var(--k-space-6);
+  margin: 0 0 var(--k-space-3);
+  font-size: 13px;
+}
+
+html:not(#_):not(#_) .totals-currency {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--k-space-2);
+  color: var(--k-muted);
+}
+
+html:not(#_):not(#_) .totals-currency-pick {
+  gap: var(--k-space-1);
+}
+
+html:not(#_):not(#_) .totals-currency-code {
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) .totals-currency-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--k-space-2) var(--k-space-3);
+  margin: 0;
+  font-size: 13px;
+  color: var(--k-soft);
+}
+
+/* the spending caps' own note sits above the caps it explains */
+html:not(#_):not(#_) .money-card > .totals-currency-note {
+  margin-bottom: var(--k-space-3);
 }
 
 /* mail's head is a toolbar like every other app's, not a ruled band */
@@ -2049,6 +2130,49 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
     margin: 6px 0 0;
   }
 
+  /* the add form took ~45% of a phone and stayed put while the list scrolled under it. it folds
+     into one "+ subscription" row; the row opens it, and reads "new subscription ×" to close */
+  html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-add-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--k-space-2);
+    min-height: 44px;
+    margin: 0;
+    padding: 0 var(--k-space-3);
+    border: 0;
+    border-radius: var(--k-radius-control);
+    background: transparent;
+    box-shadow: none;
+    color: var(--k-muted);
+    font-size: 15px;
+    text-align: start;
+  }
+
+  html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-add-toggle:hover {
+    background: var(--k-hover);
+    color: var(--k-text);
+  }
+
+  html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-add-toggle[aria-expanded="true"] {
+    justify-content: space-between;
+    color: var(--k-text);
+  }
+
+  html:not(#_):not(#_) #subs-view > .page-view-footer[data-collapsed] > :not(#sub-add-toggle) {
+    display: none !important;
+  }
+
+  html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-currency {
+    border-left: 0;
+    border-top: 1px solid var(--k-line);
+  }
+
+  html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-currency + #sub-price {
+    border-left: 0 !important;
+    border-top: 1px solid var(--k-line) !important;
+  }
+
   /* a task's actions sit at the end of its first line, not on a line of their own */
   html:not(#_):not(#_) .task-item {
     grid-template-columns: 44px minmax(0, 1fr) auto;
@@ -2507,7 +2631,7 @@ html:not(#_):not(#_) #mail-view .mail-error-strip {
 
 /* an empty reading pane says what it is for */
 html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before {
-  content: "pick a message to read it here";
+  content: attr(data-empty-pick);
   display: block;
   margin-top: clamp(48px, 14vh, 120px);
   color: var(--k-muted);
@@ -2517,7 +2641,7 @@ html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before 
 
 /* with no mailbox there's nothing to pick, so it points at where one gets added */
 html:not(#_):not(#_) #mail-view[data-no-account]:has(#mail-sidebar > *) #mail-main:empty::before {
-  content: "no mail account yet. add one in mail settings";
+  content: attr(data-empty-no-account);
 }
 
 /* overview cards: a card title owns one 44px row, so titles across a row of cards line up whether
@@ -2979,3 +3103,13 @@ html:not(#_) .session-item .session-more {
 html:not(#_) .session-item .session-more:hover { background: var(--k-hover); color: var(--k-text); }
 html:not(#_) .session-item .session-starred { flex: 0 0 auto; display: inline-flex; color: var(--k-muted); }
 html:not(#_) .session-item .session-starred .ic { width: 13px; height: 13px; }
+
+/* direction icons point the way the text flows: previous/next chevrons and arrows flip in rtl */
+html:not(#_)[dir="rtl"] :is([data-kokuen-icon="chevron-left"], [data-kokuen-icon="chevron-right"], [data-kokuen-icon="arrow-right"]) > svg {
+  transform: scaleX(-1);
+}
+
+/* numbers with units ("17.5 GB", "2.45 MiB/s") keep their order inside arabic rows */
+html:not(#_)[dir="rtl"] :is(.bx-meta, .bx-rate, .bx-tag, .p-name, .p-mem, .nf-val) {
+  unicode-bidi: plaintext;
+}

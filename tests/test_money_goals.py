@@ -5,6 +5,11 @@ from tests._client import ApiTest
 class MoneyGoalsTests(ApiTest):
     def setUp(self):
         super().setUp()
+        from core.settings import save_settings
+
+        # this ledger is in USD and EUR: its totals are shown in USD
+        save_settings({"money_base_currency": "USD", "money_fx_rates": {}})
+        self.addCleanup(save_settings, {"money_base_currency": "", "money_fx_rates": {}})
         db = self.db()
         self.usd = Account(name="US", kind="checking", currency="USD", opening=100.0)
         self.eur = Account(name="EU", kind="savings", currency="EUR", opening=100.0)
@@ -108,5 +113,13 @@ class MoneyGoalsTests(ApiTest):
     def test_networth_base_rollup(self):
         d = self.client.get("/api/money/networth-base", params={"base": "USD"}).json()
         self.assertEqual(d["base"], "USD")
-        # 100 USD + 100 EUR→USD (100/0.92 = 108.70) = 208.70
-        self.assertAlmostEqual(d["net_worth"], 208.70, delta=0.05)
+        # no EUR rate saved yet: EUR stays out and is named, never guessed
+        self.assertEqual(d["net_worth"], 100)
+        self.assertEqual(d["excluded"][0]["currency"], "EUR")
+        self.client.patch(
+            "/api/money/totals-currency",
+            json={"rate": {"from": "EUR", "to": "USD", "rate": "1.087"}},
+        )
+        d = self.client.get("/api/money/networth-base").json()
+        # 100 USD + 100 EUR at 1.087 = 208.70
+        self.assertEqual((d["base"], d["net_worth"], d["excluded"]), ("USD", 208.7, []))

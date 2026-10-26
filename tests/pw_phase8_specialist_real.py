@@ -156,8 +156,9 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
     header = root.locator(":scope > .specialist-app-head")
     app_name = header.locator(".specialist-app-name")
     assert app_name.is_visible() and app_name.inner_text() == label
+    # decision 0041 type scale: an app's h2 is a 16px section title
     assert (
-        round(app_name.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")) == 15
+        round(app_name.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")) == 16
     )
     assert root.locator(":scope > .specialist-group-head").count() == 0
     assert header.locator("[data-specialist-home]").count() == 0
@@ -255,6 +256,13 @@ def _assert_readable(page: Page, root_selector: str) -> None:
             return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
           };
           const parse = value => {
+            // hover colors made with color-mix() serialize as color(srgb 0.7 0.69 0.98 / 1)
+            const mixed = (value || '').match(/^color\(srgb ([^)]+)\)/);
+            if (mixed) {
+              const [channels, alpha] = mixed[1].split('/');
+              const [r, g, b] = channels.trim().split(/\s+/).map(item => Number(item) * 255);
+              return { r, g, b, a: alpha === undefined ? 1 : Number(alpha) };
+            }
             const match = (value || '').match(/rgba?\(([^)]+)\)/);
             if (!match) return null;
             const parts = match[1].split(',').map(Number);

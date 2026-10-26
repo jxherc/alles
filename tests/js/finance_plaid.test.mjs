@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { t } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/finance_plaid.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -19,6 +20,7 @@ function harness({ sdk = true, storage = new Map(), update = false } = {}) {
     handlers.push(handler); return handler;
   } };
   const context = vm.createContext({
+    t,
     window: sdk ? { Plaid } : {}, URL, Date, setTimeout, clearTimeout, DOMException,
     location: { origin, href: received }, fetch() {},
     requestWithRecentOwner: async () => ({ ok: true, json: async () => ({}) }),

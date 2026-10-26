@@ -1,4 +1,4 @@
-import { calendarDateKey } from '../../static/js/i18n.js';
+import { calendarDateKey, t, tp } from '../../static/js/i18n.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -42,6 +42,7 @@ test('old Actual schedule repair chooses a category once and retries the saved c
   const calls = [];
   let choices = 0;
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
@@ -73,6 +74,7 @@ test('canonical recurring pause retries only the saved provider posting choice',
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
@@ -119,6 +121,7 @@ test('canonical recurring creation sends an exact category id and reuses its req
   element('rc-category-choice').dataset.categoryId = 'housing-id';
   const calls = [], storage = new Map();
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     location: { search: '' }, URLSearchParams, crypto: webcrypto, TextEncoder,
     sessionStorage: {
@@ -156,6 +159,7 @@ test('pending canonical creation offers one retry action and holds the new form'
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
@@ -186,6 +190,7 @@ test('pending recurring edit stays visible and retries only the saved edit', asy
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
@@ -221,6 +226,7 @@ test('canonical recurring deletion confirms its scope and retries only a saved d
   const calls = [];
   const confirmations = [];
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
@@ -267,6 +273,7 @@ test('canonical recurring deletion confirms its scope and retries only a saved d
 test('recurring edit stays scoped to one eligible linked schedule', () => {
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const context = vm.createContext({
+    t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
     location: { search: '' }, URLSearchParams,
@@ -312,13 +319,16 @@ test('finance dialogs, rows, and destructive actions expose complete interaction
   assert.match(moneySource, /class="tx-edit" data-edit-txn=/);
   assert.match(moneySource, /<button type="button" class="tx-tag"/);
   assert.doesNotMatch(moneySource, /<span class="tx-tag" data-tag=/);
-  for (const consequence of [
-    'delete this transaction',
-    'delete this goal',
-    'delete this holding',
-    'remove this spending cap',
-    'delete this categorization rule',
-  ]) assert.match(moneySource, new RegExp(consequence));
+  for (const [key, consequence] of [
+    ['money.delete_transaction_confirm', 'delete this transaction'],
+    ['money.delete_goal_confirm', 'delete this goal'],
+    ['money.delete_holding_confirm', 'delete this holding'],
+    ['money.remove_cap_confirm', 'remove this spending cap'],
+    ['money.delete_rule_confirm', 'delete this categorization rule'],
+  ]) {
+    assert.ok(moneySource.includes(`'${key}'`), key);
+    assert.match(t(key), new RegExp(consequence));
+  }
   assert.match(styleSource, /#money-view :where\(button, a\.btn\)[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
   assert.match(styleSource, /#money-view :where\(input:not\(\[type="file"\]\), textarea, \.custom-select, \.date-input\)[\s\S]*?min-height: 44px;/);
 });

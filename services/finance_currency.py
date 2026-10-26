@@ -146,7 +146,13 @@ def prepare_account(account) -> None:
 
 
 def account_currency_edit_reason(account, *, has_saved_amounts: bool) -> str:
-    """A denomination change cannot reinterpret saved amounts or reviewed evidence."""
+    """A denomination change cannot reinterpret saved amounts or reviewed evidence.
+
+    An account with no known currency (an old "$" one) can still be told which currency its
+    amounts were always in: nothing known is reinterpreted.
+    """
+    if currency_code(account.currency_code or account.currency) == "XXX":
+        return ""
     if has_saved_amounts or account.opening or account.low_balance:
         return "currency is fixed while an account has saved amounts. use a new account for another currency."
     if account.opening_fx_source not in (None, "", "manual_identity"):
@@ -154,10 +160,35 @@ def account_currency_edit_reason(account, *, has_saved_amounts: bool) -> str:
     return ""
 
 
+def amount_currency(transaction, account_code="") -> str:
+    """The currency a transaction's amount is really in.
+
+    Usually that is its original currency. A reviewed renewal or a converted import posts the
+    converted amount into its account, while original_* keep the source price, so there the
+    amount is in its base (or account) currency. Blank historical evidence stays unknown.
+    """
+    original = currency_code(transaction.original_currency_code)
+    if original == "XXX":
+        return "XXX"
+    text = str(transaction.original_amount_text or "").strip()
+    try:
+        same = not text or Decimal(text) == Decimal(str(finite_amount(transaction.amount)))
+    except (InvalidOperation, ValueError):
+        same = True
+    if same:
+        return original
+    base = currency_code(transaction.base_currency_code or "")
+    if base != "XXX":
+        return base
+    account = currency_code(account_code or "")
+    return account if account != "XXX" else original
+
+
 def native_currency_totals(accounts, transactions, month=""):
     """Separate raw native amounts by their own currency; unknown units stay per account."""
     by_account = {account.id: {} for account in accounts}
     account_names = {account.id: account.name for account in accounts}
+    account_codes = {account.id: account.currency_code or account.currency for account in accounts}
     archived = {account.id for account in accounts if account.archived}
     totals = {}
 
@@ -183,7 +214,10 @@ def native_currency_totals(accounts, transactions, month=""):
             total["net_worth"] += opening
     for transaction in transactions:
         # Blank historical row evidence is unknown, even if its account now has a code.
-        code, total = group(transaction.account_id, transaction.original_currency_code)
+        code, total = group(
+            transaction.account_id,
+            amount_currency(transaction, account_codes.get(transaction.account_id, "")),
+        )
         amount = finite_amount(transaction.amount)
         balance = by_account.setdefault(transaction.account_id, {})
         balance[code] = balance.get(code, 0.0) + amount

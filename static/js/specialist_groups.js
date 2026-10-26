@@ -3,7 +3,7 @@
 
 import { confirm as confirmDialog } from './dialog.js';
 import { initDatePicker } from './datepick.js';
-import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDateParts, formatDateTime, formatNumber, t } from './i18n.js';
+import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDateParts, formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
@@ -135,7 +135,7 @@ async function _json(request, url, options) {
     let payload = null;
     try { payload = await response.json(); } catch { /* keep the bounded fallback */ }
     const message = payload?.error?.message || payload?.detail?.message || payload?.detail;
-    throw new Error(typeof message === 'string' ? message : `request failed: ${response.status}`);
+    throw new Error(typeof message === 'string' ? message : t('groups.request_failed_status', { status: response.status }));
   }
   return response.json();
 }
@@ -154,7 +154,7 @@ function _list(title, rows, emptyCopy) {
   if (!rows.length) list.append(_el('p', 'specialist-group-empty', emptyCopy));
   for (const row of rows.slice(0, 6)) {
     const item = _el('div', 'specialist-group-row');
-    item.append(_el('strong', '', row.title || 'untitled'));
+    item.append(_el('strong', '', row.title || t('groups.untitled')));
     if (row.meta) item.append(_el('span', '', row.meta));
     list.append(item);
   }
@@ -185,7 +185,7 @@ function _partialAvailability(failures) {
     'p',
     'specialist-group-note',
     // which source is missing is what helps; its error text ("request failed: 500") isn't
-    `partial data: ${unavailable.map(([source]) => source).join(', ')} could not load, the rest is shown`,
+    t('groups.partial_data', { sources: unavailable.map(([source]) => source).join(', ') }),
   );
   note.setAttribute('role', 'status');
   return note;
@@ -276,10 +276,10 @@ export function planCommitments(events, tasks, reminders) {
       id: `event:${item.id || ''}:${date}`,
       target: date ? recordTarget('calendar', item.id, date) : null,
       type: 'event',
-      title: item.title || 'untitled event',
+      title: item.title || t('groups.untitled_event'),
       date,
       time: _timeKey(when),
-      meta: item.location || item.calendar || 'calendar',
+      meta: item.location || item.calendar || t('groups.type_calendar'),
       sort: _commitmentSortKey(when),
     });
   }
@@ -291,10 +291,10 @@ export function planCommitments(events, tasks, reminders) {
       id: `task:${item.id || ''}`,
       target: recordTarget('tasks', item.id),
       type: 'task',
-      title: item.title || 'untitled task',
+      title: item.title || t('groups.untitled_task'),
       date: _dateKey(when),
       time: _timeKey(when),
-      meta: item.project_name || item.status || 'task',
+      meta: item.project_name || item.status || t('groups.type_task'),
       sort: _commitmentSortKey(when),
     });
   }
@@ -305,10 +305,10 @@ export function planCommitments(events, tasks, reminders) {
     rows.push({
       id: `reminder:${item.id || when}:${item.text || ''}`,
       type: 'reminder',
-      title: item.text || item.title || 'untitled reminder',
+      title: item.text || item.title || t('groups.untitled_reminder'),
       date: _dateKey(when),
       time: _timeKey(when),
-      meta: item.repeat_rule || 'reminder',
+      meta: item.repeat_rule || t('groups.type_reminder'),
       sort: _commitmentSortKey(when),
     });
   }
@@ -316,14 +316,18 @@ export function planCommitments(events, tasks, reminders) {
 }
 
 function _agendaDayLabel(key) {
-  if (!key) return 'no date';
+  if (!key) return t('groups.no_date');
   const today = calendarDateKey(new Date());
-  if (key === today) return 'today';
+  if (key === today) return t('common.today');
   const next = new Date(`${today}T00:00:00Z`);
   next.setUTCDate(next.getUTCDate() + 1);
-  if (key === next.toISOString().slice(0, 10)) return 'tomorrow';
+  if (key === next.toISOString().slice(0, 10)) return t('groups.tomorrow');
   return formatCalendarDate(key, { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase();
 }
+
+const _typeLabel = type => ({
+  event: t('groups.type_event'), task: t('groups.type_task'), reminder: t('groups.type_reminder'),
+}[type] || type);
 
 function _agendaRows(target, rows, emptyCopy, openRecord) {
   target.replaceChildren();
@@ -342,19 +346,23 @@ function _agendaRows(target, rows, emptyCopy, openRecord) {
       target.append(_el('h3', 'specialist-record-day', _agendaDayLabel(row.date)));
     }
     const interactive = row.type === 'task' || row.type === 'event';
-    const item = _el(interactive ? 'button' : 'div', 'specialist-record-row');
+    const item = _el(interactive ? 'button' : 'div', `specialist-record-row${row.overdue ? ' overdue' : ''}`);
     if (interactive) {
       // Reuse the existing record button's layout, hover and focus treatment.
       item.className += ' specialist-library-row';
       item.type = 'button';
       item.dataset.planAgendaRecord = row.id;
-      item.setAttribute('aria-label', `open ${row.type}: ${row.title}${row.date ? ` · ${row.date}` : ''}${row.time ? ` ${formatClock(row.time)}` : ''}`);
+      item.setAttribute('aria-label', row.overdue
+        ? t('groups.open_overdue', { type: _typeLabel(row.type), title: row.title, due: row.due })
+        : t('groups.open_record', { type: _typeLabel(row.type), title: row.title, when: `${row.date ? ` · ${row.date}` : ''}${row.time ? ` ${formatClock(row.time)}` : ''}` }));
       item.addEventListener('click', () => openRecord(row, item));
     }
-    const meta = row.meta && row.meta !== row.type ? `${row.type} · ${row.meta}` : row.type;
+    const typeName = _typeLabel(row.type);
+    const meta = row.meta && row.meta !== typeName ? `${typeName} · ${row.meta}` : typeName;
     item.append(
       // row.time stays "09:00" for sorting; it reads like every other time in the app
-      _el('span', 'specialist-record-time', (row.time && formatClock(row.time)) || (byDay ? (row.type === 'task' ? 'due' : 'all day') : row.date) || '--'),
+      _el('span', 'specialist-record-time', row.overdue ? t('groups.overdue')
+        : (row.time && formatClock(row.time)) || (byDay ? (row.type === 'task' ? t('groups.due') : t('groups.all_day')) : row.date) || '--'),
       _el('strong', 'specialist-record-title', row.title),
       _el('span', 'specialist-record-meta', meta),
     );
@@ -380,30 +388,30 @@ async function _renderPlan(target, request, section = 'overview') {
   const tasks = _asArray(_settled(tasksResult, []));
   const reminders = _asArray(_settled(remindersResult, []));
   const failures = [
-    ['calendar', _settledError(eventsResult, 'calendar data could not be loaded')],
-    ['tasks', _settledError(tasksResult, 'task data could not be loaded')],
-    ['reminders', _settledError(remindersResult, 'reminder data could not be loaded')],
+    [t('groups.src_calendar'), _settledError(eventsResult, t('groups.err_calendar'))],
+    [t('groups.src_tasks'), _settledError(tasksResult, t('groups.err_tasks'))],
+    [t('groups.src_reminders'), _settledError(remindersResult, t('groups.err_reminders'))],
   ];
   const unavailableSources = failures.filter(([, error]) => error).map(([source]) => source);
   const commitmentsEmpty = unavailableSources.length
-    ? `no commitments from available sources · ${unavailableSources.join(', ')} unavailable`
-    : 'nothing is committed in this window';
+    ? t('groups.no_commitments_unavailable', { sources: unavailableSources.join(', ') })
+    : t('groups.nothing_committed');
   const unscheduledEmpty = failures[1][1]
-    ? 'tasks unavailable · unscheduled work could not be checked'
-    : 'no unscheduled tasks';
+    ? t('groups.tasks_unavailable_unscheduled')
+    : t('groups.no_unscheduled');
   const commitments = planCommitments(events, tasks, reminders);
   target.replaceChildren();
 
   const capture = _el('form', 'specialist-group-capture');
-  capture.setAttribute('aria-label', 'quick task');
+  capture.setAttribute('aria-label', t('groups.quick_task'));
   const input = _el('input');
   input.type = 'text';
   input.name = 'title';
   input.maxLength = 500;
-  input.placeholder = 'capture a task';
-  input.setAttribute('aria-label', 'capture a task');
+  input.placeholder = t('groups.capture_task');
+  input.setAttribute('aria-label', t('groups.capture_task'));
   input.autocomplete = 'off';
-  const button = _el('button', '', 'add task');
+  const button = _el('button', '', t('groups.add_task'));
   button.type = 'submit';
   const captureMessage = _el('p', 'specialist-group-capture-status');
   captureMessage.setAttribute('role', 'status');
@@ -423,7 +431,7 @@ async function _renderPlan(target, request, section = 'overview') {
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title }),
         });
       } catch (error) {
-        captureMessage.textContent = error?.message || 'task could not be added';
+        captureMessage.textContent = error?.message || t('groups.task_not_added');
         captureMessage.hidden = false;
         input.focus();
         return;
@@ -432,7 +440,7 @@ async function _renderPlan(target, request, section = 'overview') {
       try {
         await _refresh('plan');
       } catch (error) {
-        captureMessage.textContent = `task saved; plan could not refresh: ${error?.message || 'refresh failed'}`;
+        captureMessage.textContent = t('groups.task_saved_no_refresh', { error: error?.message || t('groups.refresh_failed') });
         captureMessage.hidden = false;
       }
     } finally { button.disabled = false; }
@@ -443,12 +451,19 @@ async function _renderPlan(target, request, section = 'overview') {
 
   const today = _todayKey();
   const sevenDayEndKey = addDateKeyDays(today, 7);
+  // open tasks due before today lead today and the next seven days, marked overdue the way home
+  // marks them; the meta keeps the day they were due
+  const overdue = commitments
+    .filter(item => item.type === 'task' && item.date && item.date < today)
+    .map(item => ({ ...item, due: item.date, date: today, time: '', overdue: true, meta: t('groups.due_day', { day: _agendaDayLabel(item.date) }) }));
+  const inWindow = value => [...overdue, ...commitments.filter(item => (value === 'today'
+    ? item.date === today : item.date >= today && item.date < sevenDayEndKey))];
   const returnTo = _planAgendaReturn?.section === section && _planAgendaReturn.url === location.href
     ? _planAgendaReturn : null;
   let windowName = returnTo?.windowName || (section === 'week' ? 'seven' : 'today');
   const agenda = _el('section', 'specialist-workbench-main');
   const agendaHead = _el('div', 'specialist-workbench-head');
-  agendaHead.append(_el('h2', '', 'agenda'), _el('span', '', today));
+  agendaHead.append(_el('h2', '', t('groups.agenda')), _el('span', '', today));
   const agendaList = _el('div', 'specialist-record-list');
   const openStatus = _el('p', 'specialist-group-note plan-agenda-status');
   openStatus.setAttribute('role', 'status');
@@ -464,7 +479,7 @@ async function _renderPlan(target, request, section = 'overview') {
       control.focus();
     };
     if (!row.target) {
-      report('this item is unavailable; refresh plan to check its current record');
+      report(t('groups.item_unavailable'));
       return;
     }
     openStatus.hidden = true;
@@ -479,7 +494,7 @@ async function _renderPlan(target, request, section = 'overview') {
     finally { _setAsyncControlBusy(control, false); }
     if (!navigated && _planAgendaReturn === origin && isCurrent()) {
       _planAgendaReturn = null;
-      report('could not open this item; try again');
+      report(t('groups.item_open_failed'));
     }
   };
   const renderWindow = value => {
@@ -487,21 +502,18 @@ async function _renderPlan(target, request, section = 'overview') {
     openStatus.hidden = true;
     let rows = commitments;
     let empty = commitmentsEmpty;
-    if (value === 'today') rows = commitments.filter(item => item.date === today);
-    if (value === 'seven') {
-      rows = commitments.filter(item => item.date >= today && item.date < sevenDayEndKey);
-    }
+    if (value === 'today' || value === 'seven') rows = inWindow(value);
     if (value === 'unscheduled') {
       rows = commitments.filter(item => item.type === 'task' && !item.date);
       empty = unscheduledEmpty;
     }
-    agendaHead.querySelector('span').textContent = value === 'today' ? today : value === 'seven' ? 'next seven days' : 'no date';
+    agendaHead.querySelector('span').textContent = value === 'today' ? today : value === 'seven' ? t('groups.next_seven_days') : t('groups.no_date');
     _agendaRows(agendaList, rows, empty, openRecord);
   };
-  const choices = _choiceButtons('Plan time window', [
-    { value: 'today', label: `today · ${commitments.filter(item => item.date === today).length}` },
-    { value: 'seven', label: `next 7 days · ${commitments.filter(item => item.date >= today && item.date < sevenDayEndKey).length}` },
-    { value: 'unscheduled', label: `unscheduled · ${commitments.filter(item => item.type === 'task' && !item.date).length}` },
+  const choices = _choiceButtons(t('groups.plan_window'), [
+    { value: 'today', label: t('groups.window_today', { count: inWindow('today').length }) },
+    { value: 'seven', label: t('groups.window_seven', { count: inWindow('seven').length }) },
+    { value: 'unscheduled', label: t('groups.window_unscheduled', { count: commitments.filter(item => item.type === 'task' && !item.date).length }) },
   ], windowName, renderWindow);
   rail.append(choices);
   agenda.append(agendaHead, openStatus, agendaList);
@@ -523,7 +535,7 @@ function _restorePlanAgendaFocus(overview, section) {
   const destination = record || overview.querySelector('.specialist-choice-group')?.querySelector('[aria-pressed="true"]');
   if (!record) {
     const status = overview.querySelector('.plan-agenda-status');
-    status.textContent = 'the opened item is no longer in this agenda window; refresh plan or choose another window to check';
+    status.textContent = t('groups.item_gone');
     status.hidden = false;
   }
   destination?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
@@ -537,16 +549,16 @@ async function _renderInbox(target, request) {
   ]);
   const accounts = _asArray(_settled(accountsResult, []));
   const contacts = _asArray(_settled(contactsResult, []));
-  const accountsError = _settledError(accountsResult, 'mail accounts could not be loaded');
-  const contactsError = _settledError(contactsResult, 'contacts could not be loaded');
+  const accountsError = _settledError(accountsResult, t('groups.err_mail_accounts'));
+  const contactsError = _settledError(contactsResult, t('groups.err_contacts'));
   const cached = await Promise.allSettled(accounts.map(account =>
     _json(request, `/api/mail/cached/${encodeURIComponent(account.id)}?folder=INBOX&limit=24`)));
   const cachedFailures = cached.flatMap((result, index) => result.status === 'rejected'
-    ? [[`cached mail for ${accounts[index]?.name || accounts[index]?.email || 'account'}`, result.reason?.message || 'messages could not be loaded']]
+    ? [[t('groups.src_cached_mail', { name: accounts[index]?.name || accounts[index]?.email || t('groups.account') }), result.reason?.message || t('groups.err_messages')]]
     : []);
   const failures = [
-    ['mail accounts', accountsError],
-    ['contacts', contactsError],
+    [t('groups.src_mail_accounts'), accountsError],
+    [t('groups.src_contacts'), contactsError],
     ...cachedFailures,
   ];
   const messages = cached.flatMap((result, index) => _asArray(_settled(result, {}), 'messages').map(message => ({
@@ -557,45 +569,45 @@ async function _renderInbox(target, request) {
   target.replaceChildren();
   const workbench = _el('div', 'specialist-workbench specialist-workbench-inbox');
   const rail = _el('aside', 'specialist-workbench-rail');
-  rail.append(_el('h2', '', 'mailboxes'));
+  rail.append(_el('h2', '', t('groups.mailboxes')));
   const main = _el('section', 'specialist-workbench-main');
   const head = _el('div', 'specialist-workbench-head');
-  head.append(_el('h2', '', 'cached messages'), _sectionJump('inbox', 'mail', 'open mail', 'specialist-inline-action'));
+  head.append(_el('h2', '', t('groups.cached_messages')), _sectionJump('inbox', 'mail', t('groups.open_mail'), 'specialist-inline-action'));
   const messageList = _el('div', 'specialist-message-list');
   const detail = _el('aside', 'specialist-workbench-detail');
   let selectedAccount = '';
   let selectedMessage = null;
   const emptyMailboxCopy = accountsError
-    ? 'mail accounts unavailable'
+    ? t('groups.mail_accounts_unavailable')
     : cachedFailures.length
-      ? 'cached mail is unavailable for one or more accounts; no messages were returned by available accounts'
-      : accounts.length ? 'cached inbox is clear' : 'connect an account in Mail';
+      ? t('groups.cached_unavailable')
+      : accounts.length ? t('groups.inbox_clear') : t('groups.connect_account');
   const sender = message => message.from_name || message.from || message.sender || message.from_email || '';
   const drawDetail = message => {
     detail.replaceChildren();
-    detail.append(_el('h2', '', 'selected message'));
+    detail.append(_el('h2', '', t('groups.selected_message')));
     if (!message) {
       detail.append(_el('p', 'specialist-workbench-empty', emptyMailboxCopy));
       return;
     }
     detail.append(
-      _el('strong', 'specialist-detail-title', message.subject || '(no subject)'),
-      _el('p', 'specialist-detail-meta', `${sender(message) || 'unknown sender'} · ${_dateLabel(message.date || message.received_at || message.internal_date)}`),
-      _el('p', 'specialist-detail-body', message.snippet || message.preview || message.body_text || 'open mail to read the whole message.'),
+      _el('strong', 'specialist-detail-title', message.subject || t('groups.no_subject')),
+      _el('p', 'specialist-detail-meta', `${sender(message) || t('groups.unknown_sender')} · ${_dateLabel(message.date || message.received_at || message.internal_date)}`),
+      _el('p', 'specialist-detail-body', message.snippet || message.preview || message.body_text || t('groups.open_mail_to_read')),
     );
     const contact = contacts.find(item => {
       const address = mailboxAddress(message.from_email || message.from || '');
       return address && mailboxAddress(item.email) === address;
     });
-    detail.append(_el('h2', '', 'person context'));
+    detail.append(_el('h2', '', t('groups.person_context')));
     if (contact) {
       detail.append(
         _el('strong', 'specialist-detail-title', contact.name || contact.email),
         _el('p', 'specialist-detail-meta', contact.email || contact.phone || ''),
-        _sectionJump('inbox', 'contacts', 'open contact', 'specialist-inline-action'),
+        _sectionJump('inbox', 'contacts', t('groups.open_contact'), 'specialist-inline-action'),
       );
     } else {
-      detail.append(_el('p', 'specialist-workbench-empty', contactsError ? 'contacts unavailable' : 'no matching contact record'));
+      detail.append(_el('p', 'specialist-workbench-empty', contactsError ? t('groups.contacts_unavailable') : t('groups.no_matching_contact')));
     }
   };
   const drawMessages = () => {
@@ -614,8 +626,8 @@ async function _renderInbox(target, request) {
       button.setAttribute('aria-current', message === selectedMessage ? 'true' : 'false');
       button.append(
         _el('span', 'specialist-record-time', _dateLabel(message.date || message.received_at || message.internal_date)),
-        _el('strong', 'specialist-record-title', message.subject || '(no subject)'),
-        _el('span', 'specialist-record-meta', sender(message) || message.account_name || 'unknown sender'),
+        _el('strong', 'specialist-record-title', message.subject || t('groups.no_subject')),
+        _el('span', 'specialist-record-meta', sender(message) || message.account_name || t('groups.unknown_sender')),
       );
       button.addEventListener('click', () => {
         selectedMessage = message;
@@ -626,16 +638,16 @@ async function _renderInbox(target, request) {
     }
     drawDetail(selectedMessage);
   };
-  const mailboxChoices = [{ value: '', label: `all accounts · ${messages.length}` }, ...accounts.map(account => ({
+  const mailboxChoices = [{ value: '', label: t('groups.all_accounts', { count: messages.length }) }, ...accounts.map(account => ({
     value: String(account.id ?? ''),
-    label: `${account.name || account.email || 'account'} · ${messages.filter(item => item.account_id === String(account.id ?? '')).length}`,
+    label: `${account.name || account.email || t('groups.account')} · ${messages.filter(item => item.account_id === String(account.id ?? '')).length}`,
   }))];
-  rail.append(_choiceButtons('Inbox account', mailboxChoices, selectedAccount, value => {
+  rail.append(_choiceButtons(t('groups.inbox_account'), mailboxChoices, selectedAccount, value => {
     selectedAccount = value;
     drawMessages();
-  }), _el('h2', '', 'people'));
+  }), _el('h2', '', t('groups.people')));
   const people = _el('div', 'specialist-workbench-jumps');
-  people.append(_sectionJump('inbox', 'contacts', `all contacts · ${contacts.length}`));
+  people.append(_sectionJump('inbox', 'contacts', t('groups.all_contacts', { count: contacts.length })));
   rail.append(people);
   main.append(head, messageList);
   workbench.append(rail, main, detail);
@@ -645,6 +657,11 @@ async function _renderInbox(target, request) {
   drawMessages();
 }
 
+const _readState = state => ({
+  reading: t('groups.state_reading'), want: t('groups.state_want'), done: t('groups.state_done'),
+  read: t('groups.state_read'), unread: t('groups.state_unread'),
+}[state] || state);
+
 async function _renderLibrary(target, request) {
   const [readResult, booksResult] = await Promise.allSettled([
     _json(request, '/api/read'),
@@ -652,8 +669,8 @@ async function _renderLibrary(target, request) {
   ]);
   const read = _asArray(_settled(readResult, {}), 'items');
   const booksData = _settled(booksResult, {});
-  const readError = _settledError(readResult, 'saved reading could not be loaded');
-  const booksError = _settledError(booksResult, 'books could not be loaded');
+  const readError = _settledError(readResult, t('groups.err_saved_reading'));
+  const booksError = _settledError(booksResult, t('groups.err_books'));
   const shelves = booksData?.shelves || {};
   const books = [
     ..._asArray(shelves.reading).map(item => ({ ...item, reading_state: 'reading' })),
@@ -664,18 +681,18 @@ async function _renderLibrary(target, request) {
     ...read.map(item => ({
       id: `saved:${item.id || item.url || item.title}`,
       targetId: item.id,
-      kind: item.source_kind === 'saved_news' ? 'saved news' : 'saved reading',
-      title: item.title || item.url || 'untitled saved item',
-      meta: item.site || item.url || item.status || 'saved',
+      kind: item.source_kind === 'saved_news' ? t('groups.saved_news') : t('groups.src_saved_reading'),
+      title: item.title || item.url || t('groups.untitled_saved'),
+      meta: item.site || item.url || item.status || t('groups.saved'),
       section: 'read',
       state: item.status || (item.read ? 'read' : 'unread'),
     })),
     ...books.map(item => ({
       id: `book:${item.id || item.title}`,
       targetId: item.id,
-      kind: 'book',
-      title: item.title || 'untitled book',
-      meta: item.author || item.reading_state || 'book',
+      kind: t('groups.book'),
+      title: item.title || t('groups.untitled_book'),
+      meta: item.author || item.reading_state || t('groups.book'),
       section: 'books',
       state: item.reading_state,
     })),
@@ -684,25 +701,26 @@ async function _renderLibrary(target, request) {
   const workbench = _el('div', 'specialist-workbench specialist-workbench-library');
   const main = _el('section', 'specialist-workbench-main');
   const head = _el('div', 'specialist-workbench-head');
-  head.append(_el('h2', '', 'reading queue'), _el('span', '', `${records.length} items`));
+  head.append(_el('h2', '', t('groups.reading_queue')), _el('span', '', tp('groups.items', records.length)));
   const list = _el('div', 'specialist-message-list');
   let filter = 'all';
   const draw = () => {
     list.replaceChildren();
     const visible = records.filter(item => filter === 'all' || (filter === 'saved' ? item.section === 'read' : item.section === 'books'));
-    head.querySelector('span').textContent = `${visible.length} item${visible.length === 1 ? '' : 's'}`;
+    head.querySelector('span').textContent = tp('groups.items', visible.length);
     if (!visible.length) {
-      const unavailable = filter === 'saved' ? (readError ? 'saved reading' : '')
-        : filter === 'books' ? (booksError ? 'books' : '')
-          : [readError && 'saved reading', booksError && 'books'].filter(Boolean).join(' and ');
+      const unavailable = filter === 'saved' ? (readError ? t('groups.src_saved_reading') : '')
+        : filter === 'books' ? (booksError ? t('groups.src_books') : '')
+          : readError && booksError ? t('groups.saved_reading_and_books')
+            : readError ? t('groups.src_saved_reading') : booksError ? t('groups.src_books') : '';
       list.append(_el(
         'p',
         'specialist-workbench-empty',
-        unavailable ? `${unavailable} unavailable; no items were returned by available sources` : 'nothing in this part of Library yet',
+        unavailable ? t('groups.unavailable_no_items', { what: unavailable }) : t('groups.library_empty'),
       ));
       if (!unavailable) {
         const section = filter === 'saved' ? 'read' : 'books';
-        const add = _el('button', 'btn', section === 'read' ? 'save reading' : 'add a book');
+        const add = _el('button', 'btn', section === 'read' ? t('groups.save_reading') : t('groups.add_book'));
         add.type = 'button';
         add.addEventListener('click', async () => {
           const navigated = await window._navigateSpecialistSection?.('library', section);
@@ -722,7 +740,7 @@ async function _renderLibrary(target, request) {
     for (const record of visible) {
       const button = _el('button', 'specialist-library-row');
       button.type = 'button';
-      button.setAttribute('aria-label', `open ${record.kind}: ${record.title}`);
+      button.setAttribute('aria-label', t('groups.open_kind', { kind: record.kind, title: record.title }));
       button.addEventListener('click', async () => {
         if (!record.targetId) return;
         const navigated = await window._navigateSpecialistSection?.('library', record.section);
@@ -738,22 +756,22 @@ async function _renderLibrary(target, request) {
       button.append(
         _el('span', 'specialist-record-time', record.kind),
         _el('strong', 'specialist-record-title', record.title),
-        _el('span', 'specialist-record-meta', `${record.state || 'saved'} · ${record.meta}`),
+        _el('span', 'specialist-record-meta', `${_readState(record.state) || t('groups.saved')} · ${record.meta}`),
       );
       list.append(button);
     }
   };
-  const filters = _choiceButtons('Library material', [
-    { value: 'all', label: `everything · ${records.length}` },
-    { value: 'saved', label: `saved · ${read.length}` },
-    { value: 'books', label: `books · ${books.length}` },
+  const filters = _choiceButtons(t('groups.library_material'), [
+    { value: 'all', label: t('groups.filter_everything', { count: records.length }) },
+    { value: 'saved', label: t('groups.filter_saved', { count: read.length }) },
+    { value: 'books', label: t('groups.filter_books', { count: books.length }) },
   ], filter, value => { filter = value; draw(); });
   filters.setAttribute('role', 'group');
   main.append(head, filters, list);
   workbench.append(main);
   const partial = _partialAvailability([
-    ['saved reading', readError],
-    ['books', booksError],
+    [t('groups.src_saved_reading'), readError],
+    [t('groups.src_books'), booksError],
   ]);
   if (partial) target.append(partial);
   target.append(workbench);
@@ -768,37 +786,37 @@ async function _renderHealth(target, request) {
   ]);
   const health = _asArray(_settled(healthResult, {}), 'kinds');
   const habits = _asArray(_settled(habitsResult, {}), 'habits');
-  const healthError = _settledError(healthResult, 'measurements could not be loaded');
-  const habitsError = _settledError(habitsResult, 'habits could not be loaded');
+  const healthError = _settledError(healthResult, t('groups.err_measurements'));
+  const habitsError = _settledError(habitsResult, t('groups.err_habits'));
   target.replaceChildren();
   const workbench = _el('div', 'specialist-workbench specialist-workbench-health');
   const rail = _el('aside', 'specialist-workbench-rail');
-  rail.append(_el('h2', '', 'today'));
+  rail.append(_el('h2', '', t('common.today')));
   const rhythm = _el('div', 'specialist-health-rhythm');
-  if (!habits.length) rhythm.append(_el('p', 'specialist-workbench-empty', habitsError ? 'habits unavailable' : 'no habits yet'));
-  if (!habits.length && !habitsError) rhythm.append(_sectionJump('health', 'habits', 'add a habit', 'specialist-inline-action'));
+  if (!habits.length) rhythm.append(_el('p', 'specialist-workbench-empty', habitsError ? t('groups.habits_unavailable') : t('groups.no_habits')));
+  if (!habits.length && !habitsError) rhythm.append(_sectionJump('health', 'habits', t('groups.add_habit'), 'specialist-inline-action'));
   for (const habit of habits) {
     const button = _sectionJump('health', 'habits', '', 'specialist-habit-row');
-    button.setAttribute('aria-label', `open habit ${habit.name || 'untitled'}`);
+    button.setAttribute('aria-label', t('groups.open_habit', { name: habit.name || t('groups.untitled') }));
     button.append(
-      _el('strong', '', habit.name || 'untitled habit'),
-      _el('span', '', habit.done_today ? 'done today' : `${habit.streak || 0} day streak`),
+      _el('strong', '', habit.name || t('groups.untitled_habit')),
+      _el('span', '', habit.done_today ? t('groups.done_today') : tp('groups.day_streak', habit.streak || 0)),
     );
     rhythm.append(button);
   }
   rail.append(rhythm);
   const main = _el('section', 'specialist-workbench-main');
   const head = _el('div', 'specialist-workbench-head');
-  head.append(_el('h2', '', 'latest measurements'));
+  head.append(_el('h2', '', t('groups.latest_measurements')));
   const measurements = _el('div', 'specialist-record-list');
-  if (!health.length) measurements.append(_el('p', 'specialist-workbench-empty', healthError ? 'measurements unavailable' : 'no measurements yet'));
-  if (!health.length && !healthError) measurements.append(_sectionJump('health', 'health', 'log a measurement', 'specialist-inline-action'));
+  if (!health.length) measurements.append(_el('p', 'specialist-workbench-empty', healthError ? t('groups.measurements_unavailable') : t('groups.no_measurements')));
+  if (!health.length && !healthError) measurements.append(_sectionJump('health', 'health', t('groups.log_measurement'), 'specialist-inline-action'));
   for (const item of health) {
     const row = _el('div', 'specialist-record-row');
     row.append(
       _el('span', 'specialist-record-time', item.latest?.date || '--'),
-      _el('strong', 'specialist-record-title', item.label || item.kind || 'measurement'),
-      _el('span', 'specialist-record-meta', item.latest ? `${item.latest.value} ${item.latest.unit || ''}` : 'no entries'),
+      _el('strong', 'specialist-record-title', item.label || item.kind || t('groups.measurement')),
+      _el('span', 'specialist-record-meta', item.latest ? `${item.latest.value} ${item.latest.unit || ''}` : t('groups.no_entries')),
     );
     measurements.append(row);
   }
@@ -806,12 +824,12 @@ async function _renderHealth(target, request) {
   const detail = _el('aside', 'specialist-workbench-detail');
   const completed = habits.filter(item => item.done_today).length;
   // the rail already says when there are no habits; this column only adds the day's tally
-  if (habits.length) detail.append(_el('h2', '', 'done today'), _el('strong', 'specialist-detail-title', `${completed} of ${habits.length}`));
-  if (health.length) detail.append(_sectionJump('health', 'health', 'open health history', 'specialist-inline-action'));
+  if (habits.length) detail.append(_el('h2', '', t('groups.done_today')), _el('strong', 'specialist-detail-title', t('groups.x_of_y', { done: completed, total: habits.length })));
+  if (health.length) detail.append(_sectionJump('health', 'health', t('groups.open_health_history'), 'specialist-inline-action'));
   workbench.append(rail, main, detail);
   const partial = _partialAvailability([
-    ['measurements', healthError],
-    ['habits', habitsError],
+    [t('groups.src_measurements'), healthError],
+    [t('groups.src_habits'), habitsError],
   ]);
   if (partial) target.append(partial);
   target.append(workbench);
@@ -823,8 +841,8 @@ export function financeActualPresentation(value) {
   if (!service || !ledger) {
     return {
       state: 'unavailable',
-      title: 'ledger status unavailable',
-      detail: 'Finance records remain untouched. Reload after the local status request recovers.',
+      title: t('finance.ledger_status_unavailable'),
+      detail: t('finance.ledger_status_unavailable_detail'),
       actions: [],
     };
   }
@@ -837,34 +855,34 @@ export function financeActualPresentation(value) {
     const healthy = service.available && service.installed && service.running && service.healthy;
     return {
       state: healthy ? 'canonical' : 'canonical-unhealthy',
-      title: healthy ? 'Actual ledger active' : 'Actual ledger needs attention',
+      title: healthy ? t('finance.actual_active') : t('finance.actual_needs_attention'),
       detail: healthy
-        ? 'new transactions are saved only in Actual. the previous Alles ledger is kept read-only so you can return to it.'
-        : 'transactions still use Actual, but its service is unavailable. recover the service or return to the previous Alles ledger.',
+        ? t('finance.actual_active_detail')
+        : t('finance.actual_unhealthy_detail'),
       actions: [...recovery, 'rollback-ledger'],
     };
   }
   if (!service.available) {
     return {
       state: 'unavailable',
-      title: 'Actual unavailable',
-      detail: `Node 22 or newer is required. Detected ${service.node_version || 'no supported Node runtime'}.`,
+      title: t('finance.actual_unavailable'),
+      detail: t('finance.node_required', { version: service.node_version || t('finance.no_node') }),
       actions: [],
     };
   }
   if (!service.installed) {
     return {
       state: 'not-installed',
-      title: 'Alles ledger active',
-      detail: 'Actual 26.7.0 is not installed. Installation stays inside the Alles data directory and binds only to loopback.',
+      title: t('finance.alles_active'),
+      detail: t('finance.actual_not_installed_detail'),
       actions: ['install'],
     };
   }
   if (!service.healthy) {
     return {
       state: service.running ? 'unhealthy' : 'stopped',
-      title: service.running ? 'Actual needs attention' : 'Actual stopped',
-      detail: 'the active ledger has not changed. start Actual before preparing or using its ledger.',
+      title: service.running ? t('finance.actual_needs_attention_short') : t('finance.actual_stopped'),
+      detail: t('finance.actual_stopped_detail'),
       actions: [service.running ? 'restart' : 'start'],
     };
   }
@@ -872,25 +890,25 @@ export function financeActualPresentation(value) {
   if (runStatus === 'ready') {
     return {
       state: 'ready',
-      title: 'ledgers match',
-      detail: 'the prepared Actual copy matches the current Alles records. switching ledgers runs another check and creates a backup with the service stopped.',
+      title: t('finance.ledgers_match'),
+      detail: t('finance.ledgers_match_detail'),
       actions: ['cutover', 'backup', 'stop'],
     };
   }
   if (runStatus === 'staging') {
     return {
       state: 'staging',
-      title: 'preparing Actual copy',
-      detail: 'new transactions still go to Alles while its records are copied to Actual and checked.',
+      title: t('finance.preparing_copy'),
+      detail: t('finance.preparing_copy_detail'),
       actions: ['backup'],
     };
   }
   return {
     state: runStatus === 'failed' ? 'failed' : 'available',
-    title: runStatus === 'failed' ? 'copy needs another try' : 'ready to copy to Actual',
+    title: runStatus === 'failed' ? t('finance.copy_retry') : t('finance.ready_to_copy'),
     detail: runStatus === 'failed'
-      ? (ledger.run?.error || 'the last copy failed. new transactions still go to Alles. you can retry the copy.')
-      : 'new transactions still go to Alles. copying and checking them in Actual will not change where transactions are saved.',
+      ? (ledger.run?.error || t('finance.copy_failed_detail'))
+      : t('finance.ready_to_copy_detail'),
     actions: [
       ...(/^[A-Z]{3}$/.test(String(ledger.base_currency_code || '').trim()) ? ['stage'] : []),
       'backup',
@@ -899,31 +917,31 @@ export function financeActualPresentation(value) {
   };
 }
 
-const ACTUAL_ACTION_LABELS = Object.freeze({
-  install: 'install Actual 26.7.0',
-  start: 'start Actual',
-  restart: 'restart Actual',
-  stop: 'stop Actual',
-  backup: 'create backup',
-  stage: 'copy and check records',
-  cutover: 'review ledger switch',
-  'rollback-ledger': 'review return to Alles',
+const actualActionLabels = () => ({
+  install: t('finance.act_install'),
+  start: t('finance.act_start'),
+  restart: t('finance.act_restart'),
+  stop: t('finance.act_stop'),
+  backup: t('finance.act_backup'),
+  stage: t('finance.act_stage'),
+  cutover: t('finance.act_cutover'),
+  'rollback-ledger': t('finance.act_rollback'),
 });
 
 function _actualConfirmation(panel, action, trigger, runAction) {
   panel.querySelector('.finance-actual-confirm')?.remove();
   const confirmation = _el('section', 'finance-actual-confirm');
   confirmation.setAttribute('role', 'region');
-  confirmation.setAttribute('aria-label', action === 'cutover' ? 'confirm ledger switch' : 'confirm return to Alles');
+  confirmation.setAttribute('aria-label', action === 'cutover' ? t('finance.confirm_switch') : t('finance.confirm_return'));
   confirmation.tabIndex = -1;
-  const heading = _el('h3', '', action === 'cutover' ? 'save new transactions in Actual?' : 'return to the frozen Alles ledger?');
+  const heading = _el('h3', '', action === 'cutover' ? t('finance.switch_heading') : t('finance.return_heading'));
   const body = _el('p', '', action === 'cutover'
-    ? 'Alles will check that the ledgers match, create a backup with the service stopped, then save new transactions only in Actual. the old Alles records stay unchanged and read-only.'
-    : 'new transactions will go to the previous, unchanged Alles ledger. transactions saved only in Actual after the switch are not copied back.');
+    ? t('finance.switch_body')
+    : t('finance.return_body'));
   const actions = _el('div', 'finance-actual-confirm-actions');
-  const cancel = _el('button', '', 'keep current ledger');
+  const cancel = _el('button', '', t('finance.keep_ledger'));
   cancel.type = 'button';
-  const confirm = _el('button', 'finance-actual-confirm-primary', action === 'cutover' ? 'use Actual ledger' : 'use Alles ledger');
+  const confirm = _el('button', 'finance-actual-confirm-primary', action === 'cutover' ? t('finance.use_actual') : t('finance.use_alles'));
   confirm.type = 'button';
   const toggle = panel.querySelector('.finance-actual-toggle');
   if (toggle) toggle.disabled = true;
@@ -956,18 +974,18 @@ function _renderActualStatus(value, request) {
   const service = value?.service || {};
   const ledger = value?.ledger || {};
   const panel = _el('section', `finance-actual-panel finance-actual-${presentation.state}`);
-  panel.setAttribute('aria-label', 'Actual ledger status');
+  panel.setAttribute('aria-label', t('finance.ledger_status_label'));
   const compact = ['canonical', 'ready', 'available', 'not-installed'].includes(presentation.state);
   const heading = _el('header', 'finance-actual-head');
   const status = compact
-    ? (presentation.state === 'ready' ? 'ready for review' : `${ledger.mode === 'actual' ? 'Actual' : 'Alles'} active`)
+    ? (presentation.state === 'ready' ? t('finance.ready_for_review') : t('finance.ledger_active', { ledger: ledger.mode === 'actual' ? 'Actual' : 'Alles' }))
     : presentation.title;
-  heading.append(_el('h2', '', 'Actual ledger'), _el('strong', '', status));
+  heading.append(_el('h2', '', t('finance.actual_ledger')), _el('strong', '', status));
   const content = _el('div', 'finance-actual-content');
   content.id = 'finance-actual-content';
   let toggle = null;
   if (compact) {
-    toggle = _el('button', 'finance-actual-toggle', 'show ledger setup');
+    toggle = _el('button', 'finance-actual-toggle', t('finance.show_setup'));
     toggle.type = 'button';
     toggle.setAttribute('aria-controls', content.id);
     toggle.setAttribute('aria-expanded', 'false');
@@ -975,7 +993,7 @@ function _renderActualStatus(value, request) {
     toggle.addEventListener('click', () => {
       content.hidden = !content.hidden;
       toggle.setAttribute('aria-expanded', String(!content.hidden));
-      toggle.textContent = content.hidden ? 'show ledger setup' : 'hide ledger setup';
+      toggle.textContent = content.hidden ? t('finance.show_setup') : t('finance.hide_setup');
     });
   }
   const detail = _el('p', 'finance-actual-detail', presentation.detail);
@@ -983,10 +1001,10 @@ function _renderActualStatus(value, request) {
   const fact = (term, description) => {
     facts.append(_el('dt', '', term), _el('dd', '', description));
   };
-  fact('transactions saved in', reported ? (ledger.mode === 'actual' ? 'Actual' : 'Alles') : 'not reported');
-  fact('base currency', ledger.base_currency_code || 'not reported');
-  fact('managed service', reported ? (service.installed ? `${service.version || '26.7.0'} · ${service.healthy ? 'healthy' : service.running ? 'unhealthy' : 'stopped'}` : 'not installed') : 'status unavailable');
-  if (ledger.run) fact('latest ledger check', `${ledger.run.status || 'unknown'} · ${ledger.run.links ?? 0} linked records`);
+  fact(t('finance.fact_saved_in'), reported ? (ledger.mode === 'actual' ? 'Actual' : 'Alles') : t('finance.not_reported'));
+  fact(t('finance.fact_base_currency'), ledger.base_currency_code || t('finance.not_reported'));
+  fact(t('finance.fact_service'), reported ? (service.installed ? t('finance.service_state', { version: service.version || '26.7.0', state: service.healthy ? t('finance.healthy') : service.running ? t('finance.unhealthy') : t('finance.stopped') }) : t('finance.not_installed')) : t('finance.status_unavailable'));
+  if (ledger.run) fact(t('finance.fact_latest_check'), t('finance.latest_check', { status: ledger.run.status || t('common.unknown'), links: ledger.run.links ?? 0 }));
   const message = _el('p', 'finance-actual-message');
   message.setAttribute('role', 'status');
   message.setAttribute('aria-live', 'polite');
@@ -1001,13 +1019,13 @@ function _renderActualStatus(value, request) {
     setBusy(true);
     panel.querySelector('.finance-actual-confirm')?.remove();
     message.classList.remove('finance-actual-error');
-    message.textContent = `${ACTUAL_ACTION_LABELS[action]} in progress…`;
+    message.textContent = t('finance.in_progress', { action: actualActionLabels()[action] });
     let url = `/api/finance/actual/service/${action}`;
     const options = { method: 'POST' };
     if (action === 'stage') {
       const baseCurrency = String(ledger.base_currency_code || '').trim();
       if (!/^[A-Z]{3}$/.test(baseCurrency)) {
-        message.textContent = 'confirm a base currency before copying records';
+        message.textContent = t('finance.confirm_base');
         message.classList.add('finance-actual-error');
         setBusy(false);
         if (returnFocus?.isConnected) returnFocus.focus();
@@ -1024,13 +1042,13 @@ function _renderActualStatus(value, request) {
     try {
       const result = await _json(request, url, options);
       if (action === 'backup') {
-        message.textContent = `backup ${result.backup_id || ''} verified`;
+        message.textContent = t('finance.backup_verified', { id: result.backup_id || '' });
         setBusy(false);
       } else {
         await _refresh('finance');
       }
     } catch (error) {
-      message.textContent = error?.message || 'Actual action failed';
+      message.textContent = error?.message || t('finance.action_failed');
       message.classList.add('finance-actual-error');
       setBusy(false);
       if (returnFocus?.isConnected) returnFocus.focus();
@@ -1038,14 +1056,14 @@ function _renderActualStatus(value, request) {
   };
 
   for (const action of presentation.actions) {
-    const button = _el('button', action === 'cutover' ? 'finance-actual-primary' : '', ACTUAL_ACTION_LABELS[action]);
+    const button = _el('button', action === 'cutover' ? 'finance-actual-primary' : '', actualActionLabels()[action]);
     button.type = 'button';
     button.dataset.actualAction = action;
     button.addEventListener('click', async () => {
       if (action === 'cutover' || action === 'rollback-ledger') {
         _actualConfirmation(panel, action, button, runAction);
       } else if (action === 'stop') {
-        if (!await confirmDialog('stop Actual Budget? transactions will still use the current ledger. the Actual service will be unavailable until restarted.')) return;
+        if (!await confirmDialog(t('finance.stop_confirm'))) return;
         runAction(action, button);
       } else {
         runAction(action, button);
@@ -1055,7 +1073,7 @@ function _renderActualStatus(value, request) {
   }
   panel.append(heading);
   if (compact) {
-    panel.append(_el('p', 'finance-actual-authority', `writes to ${ledger.mode === 'actual' ? 'Actual' : 'Alles'}${ledger.base_currency_code ? ` · ${ledger.base_currency_code}` : ''}`), toggle);
+    panel.append(_el('p', 'finance-actual-authority', `${t('finance.writes_to', { ledger: ledger.mode === 'actual' ? 'Actual' : 'Alles' })}${ledger.base_currency_code ? ` · ${ledger.base_currency_code}` : ''}`), toggle);
   }
   if (compact) content.append(_el('p', 'finance-actual-detail', presentation.title));
   content.append(detail, facts, actions, message);
@@ -1069,7 +1087,7 @@ function financeAmount(value, currency = '') {
   const cents = Math.round(Number(value ?? 0) * 100);
   const number = formatNumber(Math.abs(cents) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sign = cents < 0 ? '−' : '';
-  const code = `${currency === 'XXX' ? 'currency not set' : currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}`;
+  const code = `${currency === 'XXX' ? t('finance.currency_not_set') : currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}`;
   return currency === 'XXX' ? `${code}${sign}${number}` : `${sign}${code}${number}`;
 }
 
@@ -1089,27 +1107,27 @@ async function _renderFinance(target, request) {
   const subscriptionData = _settled(subscriptionsResult, {});
   const subscriptions = _asArray(subscriptionData, 'subscriptions');
   const actual = _settled(actualResult, null);
-  const accountsError = _settledError(accountsResult, 'account data could not be loaded');
-  const subscriptionsError = _settledError(subscriptionsResult, 'subscription data could not be loaded');
-  const actualError = _settledError(actualResult, 'Actual status could not be loaded');
+  const accountsError = _settledError(accountsResult, t('finance.err_accounts'));
+  const subscriptionsError = _settledError(subscriptionsResult, t('finance.err_subscriptions'));
+  const actualError = _settledError(actualResult, t('finance.err_actual'));
   target.replaceChildren();
   const grid = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
   grid.append(
-    _list('accounts', accounts.map(item => ({ title: item.name, meta: item.balance_by_currency?.length ? item.balance_by_currency.map(row => financeAmount(row.balance, row.currency)).join(' · ') : financeAmount(item.balance, item.currency || item.currency_code || '') })), accountsError ? `accounts unavailable: ${accountsError}` : 'no accounts yet'),
-    _list('subscriptions', subscriptions.map(item => ({ title: item.name, meta: `${financeAmount(item.price, item.currency || '')} · ${item.cycle || ''}` })), subscriptionsError ? `subscriptions unavailable: ${subscriptionsError}` : 'no subscriptions yet'),
+    _list(t('finance.accounts'), accounts.map(item => ({ title: item.name, meta: item.balance_by_currency?.length ? item.balance_by_currency.map(row => financeAmount(row.balance, row.currency)).join(' · ') : financeAmount(item.balance, item.currency || item.currency_code || '') })), accountsError ? t('finance.accounts_unavailable', { error: accountsError }) : t('finance.no_accounts')),
+    _list(t('finance.subscriptions'), subscriptions.map(item => ({ title: item.name, meta: `${financeAmount(item.price, item.currency || '')} · ${item.cycle ? t('subs.cycle_' + item.cycle) : ''}` })), subscriptionsError ? t('finance.subscriptions_unavailable', { error: subscriptionsError }) : t('finance.no_subscriptions')),
   );
   const work = _el('div', 'finance-daily-actions');
-  work.append(_sectionJump('finance', 'money', 'open transactions', 'specialist-inline-action'));
+  work.append(_sectionJump('finance', 'money', t('finance.open_transactions'), 'specialist-inline-action'));
   const ledgerPanel = _renderActualStatus(actual, request);
   const urgent = financeActualPresentation(actual).state === 'canonical-unhealthy' || !!actualError;
   if (urgent) target.append(ledgerPanel);
-  if (actualError) target.append(_el('p', 'specialist-group-error', `Actual status unavailable: ${actualError}`));
+  if (actualError) target.append(_el('p', 'specialist-group-error', t('finance.actual_status_unavailable', { error: actualError })));
   target.append(work, grid);
   if (!urgent) target.append(ledgerPanel);
 }
 
 async function _renderServer(target, request, section) {
-  const module = await import('./server_workbench.js?v=7');
+  const module = await import('./server_workbench.js?v=8');
   return module.renderServerSection(target, request, section);
 }
 
@@ -1117,15 +1135,15 @@ function _choiceField(label, options, selected, onSelect) {
   const field = _el('fieldset', 'finance-import-choice');
   field.append(_el('legend', '', label));
   const value = _el('span', 'finance-import-selected', options.find(option => option.value === selected)?.label || '');
-  const change = _el('button', '', `change ${label}`);
+  const change = _el('button', '', t('finance.change_choice', { label }));
   change.type = 'button';
   change.setAttribute('aria-expanded', 'false');
   const picker = _el('div', 'finance-import-picker');
   picker.hidden = true;
   const search = _el('input', 'settings-input');
   search.type = 'search';
-  search.setAttribute('aria-label', `search ${label} choices`);
-  const empty = _el('p', 'specialist-group-note', 'no matching choices. try another search.');
+  search.setAttribute('aria-label', t('finance.search_choices', { label }));
+  const empty = _el('p', 'specialist-group-note', t('finance.no_matching_choices'));
   empty.setAttribute('role', 'status');
   empty.hidden = true;
   const list = _el('div', 'finance-import-choice-list');
@@ -1204,29 +1222,38 @@ function _choiceField(label, options, selected, onSelect) {
 function _importRepairHint(row) {
   if (row.status !== 'needs_review') return '';
   const reason = row.conflict_reason || '';
-  const retry = ' correct the file, choose it again, and preview before applying.';
   if (reason === 'date is missing or ambiguous') {
-    return 'use a date column with year-month-day, for example 2026-04-05.' + retry;
+    return t('finance.hint_date');
   }
   if (/^amount (is missing|is not a decimal number|has more than two decimal places)$/.test(reason)) {
-    return 'use an amount column: -8.25 for spending or 8.25 for money received, with at most two decimal places.' + retry;
+    return t('finance.hint_amount');
   }
   if (reason === 'currency is missing or ambiguous') {
-    return 'use a currency code such as CAD or USD in the currency column; a dollar sign alone is ambiguous.' + retry;
+    return t('finance.hint_currency');
   }
   if (/^import currency [A-Z]{3} does not match selected account currency [A-Z]{3}$/.test(reason)) {
-    return 'choose an account matching the file’s currency. for mixed currencies, split the file by currency and preview each part with its matching account. amounts are not converted.';
+    return t('finance.hint_mismatch');
   }
   if (reason === 'selected account requires a reviewed currency code before import') {
-    return 'set a currency code in account settings, then create a new preview.';
+    return t('finance.hint_account_currency');
   }
   return '';
 }
 
+const _importStatus = status => ({
+  pending: t('finance.st_pending'), duplicate: t('finance.st_duplicate'), needs_review: t('finance.needs_review'),
+  conflict: t('finance.st_conflict'), applied: t('finance.st_applied'), applying: t('finance.st_applying'),
+  preview: t('finance.st_preview'), undone: t('finance.st_undone'),
+}[status] || String(status).replace('_', ' '));
+
+const _importMetaKey = key => ({
+  category: t('finance.meta_category'), notes: t('finance.meta_notes'), tags: t('finance.meta_tags'),
+}[key] || key);
+
 function _renderImportReceipt(target, receipt, request, refresh) {
   target.replaceChildren();
   if (!receipt) {
-    target.append(_el('p', 'specialist-group-empty', 'choose an account, reviewed profile, and statement file to preview. nothing posts before review.'));
+    target.append(_el('p', 'specialist-group-empty', t('finance.receipt_empty')));
     return;
   }
   const heading = _el('div', 'finance-import-receipt-head');
@@ -1246,7 +1273,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
   heading.append(
     _el('strong', '', receipt.source_name),
     _el('span', '', receipt.receipt?.account_name || receipt.account_id),
-    _el('span', '', `${receipt.counts.rows} rows · ${receipt.counts.pending} ready · ${receipt.counts.duplicates} duplicate · ${receipt.counts.conflicts} review`),
+    _el('span', '', t('finance.receipt_counts', { rows: receipt.counts.rows, pending: receipt.counts.pending, duplicates: receipt.counts.duplicates, conflicts: receipt.counts.conflicts })),
   );
   const rows = _el('div', 'finance-import-rows');
   let reviewInFile = 0;
@@ -1254,13 +1281,13 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     const parsed = row.parsed || {};
     const item = _el('div', `finance-import-row finance-import-row-${row.status}`);
     item.append(
-      _el('span', 'finance-import-row-date', parsed.date || `line ${row.row_number}`),
-      _el('strong', '', parsed.payee || row.conflict_reason || (parsed.date ? 'unnamed transaction' : 'needs review')),
+      _el('span', 'finance-import-row-date', parsed.date || t('finance.line_n', { n: row.row_number })),
+      _el('strong', '', parsed.payee || row.conflict_reason || (parsed.date ? t('finance.unnamed_transaction') : t('finance.needs_review'))),
       _el('span', 'finance-import-row-amount', parsed.amount_text ? _importAmount(parsed.currency_code || '', String(parsed.amount_text)) : ''),
-      _el('span', 'finance-import-row-status', row.status.replace('_', ' ')),
+      _el('span', 'finance-import-row-status', _importStatus(row.status)),
     );
     for (const key of ['category', 'notes', 'tags']) {
-      if (parsed[key]) item.append(_el('small', 'finance-import-metadata', `${key}: ${parsed[key]}`));
+      if (parsed[key]) item.append(_el('small', 'finance-import-metadata', t('finance.metadata', { key: _importMetaKey(key), value: parsed[key] })));
     }
     if (row.conflict_reason && parsed.payee) item.append(_el('small', '', row.conflict_reason));
     const repairHint = _importRepairHint(row);
@@ -1269,27 +1296,27 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     if (['needs_review', 'conflict'].includes(row.status) && !/conversion evidence|confirm account ending|no bank reference.*different statement|incomplete Actual write no longer matches/i.test(row.conflict_reason || '')) reviewInFile += 1;
     if (row.status === 'needs_review' && /conversion evidence/i.test(row.conflict_reason || '')) {
       const form = _el('form', 'finance-import-conversion');
-      const baseCode = receipt.canonical_base_currency_code || 'base';
+      const baseCode = receipt.canonical_base_currency_code || t('finance.base');
       const baseAmount = _el('input');
       baseAmount.name = 'base_amount_text';
       baseAmount.inputMode = 'decimal';
-      baseAmount.placeholder = `${baseCode} amount`;
-      baseAmount.setAttribute('aria-label', `${baseCode} converted amount`);
+      baseAmount.placeholder = t('finance.base_amount', { code: baseCode });
+      baseAmount.setAttribute('aria-label', t('finance.base_converted', { code: baseCode }));
       const rate = _el('input');
       rate.name = 'rate_text';
       rate.inputMode = 'decimal';
-      rate.placeholder = `${baseCode} per ${parsed.currency_code || 'source unit'}`;
-      rate.setAttribute('aria-label', `conversion rate in ${baseCode} per ${parsed.currency_code || 'source unit'}`);
+      rate.placeholder = t('finance.rate_per', { base: baseCode, source: parsed.currency_code || t('finance.source_unit') });
+      rate.setAttribute('aria-label', t('finance.rate_label', { base: baseCode, source: parsed.currency_code || t('finance.source_unit') }));
       const rateDate = _el('div', 'date-input');
       rateDate.dataset.type = 'date';
       rateDate.dataset.value = '';
-      rateDate.dataset.ph = 'rate date';
-      rateDate.setAttribute('aria-label', 'conversion rate date');
+      rateDate.dataset.ph = t('finance.rate_date');
+      rateDate.setAttribute('aria-label', t('finance.rate_date_label'));
       const source = _el('input');
       source.name = 'source';
-      source.placeholder = 'rate source';
-      source.setAttribute('aria-label', 'conversion rate source');
-      const save = _el('button', '', 'save reviewed conversion');
+      source.placeholder = t('finance.rate_source');
+      source.setAttribute('aria-label', t('finance.rate_source_label'));
+      const save = _el('button', '', t('finance.save_conversion'));
       save.type = 'submit';
       form.append(baseAmount, rate, rateDate, source, save);
       initDatePicker(rateDate);
@@ -1305,9 +1332,9 @@ function _renderImportReceipt(target, receipt, request, refresh) {
             `/api/finance/imports/${encodeURIComponent(receipt.id)}/rows/${encodeURIComponent(row.id)}/conversion`,
             { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) },
           ));
-          settleOnStatus('conversion saved');
+          settleOnStatus(t('finance.conversion_saved'));
         } catch (error) {
-          message.textContent = error?.message || 'conversion evidence could not be saved';
+          message.textContent = error?.message || t('finance.conversion_failed');
         } finally { _setAsyncControlBusy(save, false); }
       });
       item.append(form);
@@ -1316,7 +1343,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
       const confirm = _el(
         'button',
         'finance-import-confirm-account',
-        `confirm ending ${parsed.account_suffix || ''} belongs to ${receipt.receipt?.account_name || 'this account'}`,
+        t('finance.confirm_ending', { suffix: parsed.account_suffix || '', account: receipt.receipt?.account_name || t('finance.this_account') }),
       );
       confirm.type = 'button';
       confirm.addEventListener('click', async () => {
@@ -1335,9 +1362,9 @@ function _renderImportReceipt(target, receipt, request, refresh) {
               }),
             },
           ));
-          settleOnStatus(`ending ${parsed.account_suffix || ''} confirmed`);
+          settleOnStatus(t('finance.ending_confirmed', { suffix: parsed.account_suffix || '' }));
         } catch (error) {
-          message.textContent = error?.message || 'account suffix could not be confirmed';
+          message.textContent = error?.message || t('finance.suffix_failed');
         } finally { _setAsyncControlBusy(confirm, false); }
       });
       item.append(confirm);
@@ -1361,18 +1388,18 @@ function _renderImportReceipt(target, receipt, request, refresh) {
               body: JSON.stringify({ decision }),
             },
           ));
-          settleOnStatus(decision === 'duplicate' ? 'marked as a duplicate' : 'marked to import as new');
+          settleOnStatus(decision === 'duplicate' ? t('finance.marked_duplicate') : t('finance.marked_new'));
         } catch (error) {
-          message.textContent = error?.message || 'match decision could not be saved';
+          message.textContent = error?.message || t('finance.match_failed');
         } finally {
           resolutionBusy = false;
           resolutionButtons.forEach(button => _setAsyncControlBusy(button, false));
         }
       };
-      const duplicate = _el('button', '', 'treat as duplicate');
+      const duplicate = _el('button', '', t('finance.treat_duplicate'));
       duplicate.type = 'button';
       duplicate.addEventListener('click', () => resolve('duplicate'));
-      const importNew = _el('button', '', 'import as new');
+      const importNew = _el('button', '', t('finance.import_new'));
       importNew.type = 'button';
       importNew.addEventListener('click', () => resolve('new'));
       resolutionButtons.push(duplicate, importNew);
@@ -1390,7 +1417,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
         message.textContent = '';
         try {
           if (decision === 'delete'
-            && !await confirmDialog('delete the edited Actual transaction, then return this row to the import queue?')) return;
+            && !await confirmDialog(t('finance.delete_edited_confirm'))) return;
           await refresh(await _json(
             request,
             `/api/finance/imports/${encodeURIComponent(receipt.id)}/rows/${encodeURIComponent(row.id)}/resolve-recovery`,
@@ -1400,18 +1427,18 @@ function _renderImportReceipt(target, receipt, request, refresh) {
               body: JSON.stringify({ decision }),
             },
           ));
-          settleOnStatus(decision === 'keep' ? 'edited transaction kept' : 'row is back in the import queue');
+          settleOnStatus(decision === 'keep' ? t('finance.edited_kept') : t('finance.row_requeued'));
         } catch (error) {
-          message.textContent = error?.message || 'interrupted import could not be recovered';
+          message.textContent = error?.message || t('finance.recover_failed');
         } finally {
           recoveryBusy = false;
           recoveryButtons.forEach(button => _setAsyncControlBusy(button, false));
         }
       };
-      const keep = _el('button', '', 'accept edited Actual transaction as replacement');
+      const keep = _el('button', '', t('finance.accept_edited'));
       keep.type = 'button';
       keep.addEventListener('click', () => resolve('keep'));
-      const retry = _el('button', '', 'delete it and retry');
+      const retry = _el('button', '', t('finance.delete_retry'));
       retry.type = 'button';
       retry.addEventListener('click', () => resolve('delete'));
       recoveryButtons.push(keep, retry);
@@ -1445,40 +1472,40 @@ function _renderImportReceipt(target, receipt, request, refresh) {
   if (receipt.status === 'preview' && receipt.counts.conflicts > 0 && receipt.counts.applying === 0 && !unresolvedClaim) {
     // apply waits for review. say so where the button would be instead of leaving a gap
     const count = receipt.counts.conflicts;
-    const rowsText = `${count} row${count === 1 ? '' : 's'} that need${count === 1 ? 's' : ''} review`;
+    const rowsText = tp('finance.rows_need_review', count);
     actions.append(_el('p', 'specialist-group-note finance-import-blocked', reviewInFile
-      ? `fix the ${rowsText}, then preview again`
-      : `resolve the ${rowsText} above, then apply`));
+      ? t('finance.fix_rows', { rows: rowsText })
+      : t('finance.resolve_rows', { rows: rowsText })));
   }
   if (receipt.status === 'preview' && (receipt.counts.pending > 0 || canFinishDuplicates) && receipt.counts.conflicts === 0 && receipt.counts.applying === 0) {
     const label = receipt.counts.pending > 0
-      ? `apply ${receipt.counts.pending} ready row${receipt.counts.pending === 1 ? '' : 's'}`
-      : 'finish duplicate receipt';
+      ? tp('finance.apply_ready', receipt.counts.pending)
+      : t('finance.finish_duplicate');
     const apply = _el('button', 'finance-import-apply', label);
     apply.type = 'button';
     apply.addEventListener('click', () => mutateReceipt(
       `/api/finance/imports/${encodeURIComponent(receipt.id)}/apply`,
-      'import could not be applied',
+      t('finance.apply_failed'),
       '',
-      'import applied',
+      t('finance.applied'),
     ));
     receiptMutationButtons.push(apply);
     actions.append(apply);
   }
   if (['applied', 'preview'].includes(receipt.status) && receipt.counts.applied > 0 && receipt.receipt?.ledger_backend === 'actual') {
-    actions.append(_el('p', 'specialist-group-note', 'undo is unavailable for Actual imports. review the imported transactions in the ledger before deleting.'));
+    actions.append(_el('p', 'specialist-group-note', t('finance.undo_unavailable')));
   } else if (['applied', 'preview'].includes(receipt.status) && receipt.counts.applied > 0 && !unresolvedClaim) {
     const undo = _el(
       'button',
       'finance-import-undo',
-      receipt.status === 'applied' ? 'undo this import' : 'undo applied rows',
+      receipt.status === 'applied' ? t('finance.undo_import') : t('finance.undo_rows'),
     );
     undo.type = 'button';
     undo.addEventListener('click', () => mutateReceipt(
       `/api/finance/imports/${encodeURIComponent(receipt.id)}/undo`,
-      'import could not be undone',
-      'undo this import? only transactions created by this receipt will be removed.',
-      'import undone',
+      t('finance.undo_failed'),
+      t('finance.undo_confirm'),
+      t('finance.undone'),
     ));
     receiptMutationButtons.push(undo);
     actions.append(undo);
@@ -1487,7 +1514,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
 }
 
 async function _renderImports(target, request) {
-  target.replaceChildren(_el('p', 'specialist-group-empty', 'loading reviewed import profiles…'));
+  target.replaceChildren(_el('p', 'specialist-group-empty', t('finance.loading_profiles')));
   let accounts;
   let profileData;
   try {
@@ -1499,9 +1526,9 @@ async function _renderImports(target, request) {
     const message = _el(
       'p',
       'specialist-group-empty',
-      `import setup unavailable: ${error?.message || 'request failed'}`,
+      t('finance.setup_unavailable', { error: error?.message || t('finance.request_failed') }),
     );
-    const retry = _el('button', '', 'retry import setup');
+    const retry = _el('button', '', t('finance.retry_setup'));
     retry.type = 'button';
     retry.addEventListener('click', async () => {
       retry.disabled = true;
@@ -1516,12 +1543,12 @@ async function _renderImports(target, request) {
   catch { historyUnavailable = true; }
   target.replaceChildren();
   if (!accounts.length) {
-    target.append(_el('p', 'specialist-group-empty', 'create a Finance account before importing a statement.'));
+    target.append(_el('p', 'specialist-group-empty', t('finance.create_account_first')));
     return;
   }
   const profiles = Array.isArray(profileData?.profiles) ? profileData.profiles : [];
   if (!profiles.length) {
-    target.append(_el('p', 'specialist-group-empty', 'no reviewed import profiles are available. Nothing was uploaded or changed.'));
+    target.append(_el('p', 'specialist-group-empty', t('finance.no_profiles')));
     return;
   }
   let accountId = accounts[0].id;
@@ -1530,17 +1557,17 @@ async function _renderImports(target, request) {
   let previewGeneration = 0;
   let activePreviewGeneration = 0;
   const panel = _el('section', 'finance-import-panel');
-  const boundary = _el('p', 'specialist-group-note', 'pick an account, then preview the file before you apply it.');
+  const boundary = _el('p', 'specialist-group-note', t('finance.boundary'));
   const formatHelp = _el('p', 'specialist-group-note finance-import-format-help',
-    'csv columns: date, payee, amount. example row: 2026-04-05,groceries,-8.25. optional currency uses a code such as CAD or USD; otherwise the selected account’s currency is used. use one currency per file and choose a matching account. fix the file and preview again if a row needs review.');
+    t('finance.format_help'));
   formatHelp.hidden = profileId !== 'generic-csv';
   const choices = _el('div', 'finance-import-choices');
   choices.append(
-    _choiceField('account', accounts.map(account => ({ value: account.id, label: `${account.name} · ${account.currency_code || account.currency}` })), accountId, value => {
+    _choiceField(t('finance.choice_account'), accounts.map(account => ({ value: account.id, label: `${account.name} · ${account.currency_code || account.currency}` })), accountId, value => {
       accountId = value;
       previewGeneration += 1;
     }),
-    _choiceField('statement format', profiles.map(profile => ({ value: profile.id, label: profile.label })), profileId, value => {
+    _choiceField(t('finance.choice_format'), profiles.map(profile => ({ value: profile.id, label: profile.label })), profileId, value => {
       profileId = value;
       formatHelp.hidden = profileId !== 'generic-csv';
       previewGeneration += 1;
@@ -1551,10 +1578,10 @@ async function _renderImports(target, request) {
   fileInput.accept = '.csv,.txt,text/csv,text/plain';
   fileInput.hidden = true;
   const fileRow = _el('div', 'finance-import-file-row');
-  const choose = _el('button', '', 'choose statement or notification file');
+  const choose = _el('button', '', t('finance.choose_file'));
   choose.type = 'button';
-  const fileName = _el('span', '', 'no file chosen');
-  const preview = _el('button', 'finance-import-preview', 'preview import');
+  const fileName = _el('span', '', t('finance.no_file'));
+  const preview = _el('button', 'finance-import-preview', t('finance.preview_import'));
   preview.type = 'button';
   preview.disabled = true;
   const previewMessage = _el('p', 'finance-import-message');
@@ -1564,7 +1591,7 @@ async function _renderImports(target, request) {
   fileInput.addEventListener('change', () => {
     previewGeneration += 1;
     selectedFile = fileInput.files?.[0] || null;
-    fileName.textContent = selectedFile?.name || 'no file chosen';
+    fileName.textContent = selectedFile?.name || t('finance.no_file');
     preview.disabled = !selectedFile;
   });
   const receiptTarget = _el('section', 'finance-import-receipt');
@@ -1578,7 +1605,7 @@ async function _renderImports(target, request) {
       historyTarget.replaceChildren(_el(
         'p',
         'specialist-group-empty',
-        'recent receipts could not be refreshed; the receipt above is current.',
+        t('finance.history_stale'),
       ));
     }
   };
@@ -1596,7 +1623,7 @@ async function _renderImports(target, request) {
     previewMessage.textContent = '';
     try {
       if (file.size > 5 * 1024 * 1024) {
-        throw new Error('statement files must be 5 MiB or smaller');
+        throw new Error(t('finance.file_too_big'));
       }
       const content = await file.text();
       if (generation !== previewGeneration) return;
@@ -1620,7 +1647,7 @@ async function _renderImports(target, request) {
       await showReceipt(result);
     } catch (error) {
       if (generation === previewGeneration) {
-        previewMessage.textContent = error?.message || 'import preview could not be created';
+        previewMessage.textContent = error?.message || t('finance.preview_failed');
       }
     } finally {
       if (activePreviewGeneration === generation) {
@@ -1634,14 +1661,14 @@ async function _renderImports(target, request) {
   });
   fileRow.append(fileInput, choose, fileName, preview, previewMessage);
   const historySection = _el('section', 'finance-import-history');
-  historySection.append(_el('h2', '', 'recent receipts'));
+  historySection.append(_el('h2', '', t('finance.recent_receipts')));
   historyTarget = _el('div', 'finance-import-history-list');
   historySection.append(historyTarget);
   panel.append(boundary, choices, formatHelp, fileRow, receiptTarget, historySection);
   target.append(panel);
   _renderImportReceipt(receiptTarget, receipts[0] || null, request, showReceipt);
   if (historyUnavailable) {
-    historyTarget.replaceChildren(_el('p', 'specialist-group-empty', 'recent receipts are unavailable; new imports still work.'));
+    historyTarget.replaceChildren(_el('p', 'specialist-group-empty', t('finance.history_unavailable')));
   } else {
     historyTarget.replaceChildren(..._receiptHistory(receipts, showReceipt));
   }
@@ -1662,9 +1689,9 @@ function _receiptHistory(receipts, open) {
     const rows = item.counts?.rows;
     const label = [
       item.source_name,
-      item.status,
+      _importStatus(item.status),
       _receiptTime(item.created_at),
-      Number.isFinite(rows) ? `${rows} row${rows === 1 ? '' : 's'}` : '',
+      Number.isFinite(rows) ? tp('finance.rows_count', rows) : '',
     ].filter(Boolean).join(' · ');
     const button = _el('button', '', label);
     button.type = 'button';
@@ -1848,7 +1875,7 @@ export async function initSpecialistGroup(group, { section = 'overview', request
     slot.hidden = true;
     overview.hidden = false;
     _setTabs(root, selected);
-    overview.replaceChildren(_el('p', 'specialist-group-empty', 'loading current data…'));
+    overview.replaceChildren(_el('p', 'specialist-group-empty', t('groups.loading_data')));
     return _renderCurrentOverview(group, selected, overview, request, renderNonce);
   }
 

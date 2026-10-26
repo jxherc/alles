@@ -5209,8 +5209,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .rp-tot { margin-bottom: 0.4rem; }
 :where(#money-view) .rp-tot .pos { color: var(--green); } :where(#money-view) .rp-tot .neg { color: var(--error); }
 :where(#money-view) .rp-cat { display: flex; justify-content: space-between; color: var(--muted); padding: 0.1rem 0; }
-:where(#money-view) .nw-base { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.5rem; }
-:where(#money-view) .nw-base-out { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* 4c — forecast, net worth, holdings, alerts, dashboard */
 :where(#money-view) .money-alerts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
@@ -5408,7 +5406,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-task-choices [aria-pressed="true"] { background: var(--k-raised, var(--raised)); color: var(--k-ink, var(--text)); -webkit-text-stroke: 0.35px currentColor; }
 #money-view .money-task { margin-bottom: 0; }
 #money-view .txn .tx-del { align-self: start; }
-#money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .nw-base, .split-row) { align-items: end; }
+#money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .split-row) { align-items: end; }
 #money-view .money-field { display: grid; gap: var(--k-space-1, 4px); height: auto; min-width: 0; max-width: 100%; box-sizing: border-box; text-align: start; } /* the empty state centers its text; a label still starts where its field does */
 #money-view .money-field-label { color: var(--k-ink-muted, var(--muted)); font-size: 0.75rem; font-weight: 400; letter-spacing: normal; line-height: 1.4; }
 #money-view .money-field > :is(.settings-input, .date-input) { width: 100%; min-width: 0; min-height: 44px; height: 44px; box-sizing: border-box; }
@@ -6503,6 +6501,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .bx-tag { color: var(--muted); min-width: 2.6rem; }
 .bx-rate { color: var(--text); min-width: 5.5rem; }
 .bx-meta { color: var(--muted); font-size: 0.75rem; }
+/* "54.6 free" reads in its own language's direction and never splits across lines */
+.bx-free { white-space: nowrap; }
 .bx-line.io .bx-meta { font-size: 0.75rem; }
 .m-track { color: var(--faint); letter-spacing: -0.5px; }
 .m-empty { color: var(--faint); }
@@ -6652,11 +6652,18 @@ button.cal-allday-ev { display: block; box-sizing: border-box; width: 100%; min-
 .cal-agenda { max-width: 760px; margin: 0 auto; padding: 0.5rem 0; }
 .cal-agenda-empty, .cal-agenda-day + .cal-agenda-empty { color: var(--muted); padding: 2rem; text-align: center; }
 .cal-agenda-day { display: flex; gap: 1rem; padding: 0.5rem 0; border-bottom: 1px solid var(--faint); }
-.cal-agenda-date { width: 110px; flex-shrink: 0; color: var(--muted); font-size: 0.75rem; padding-top: 0.15rem; }
+/* the date's one line sits level with the day's first 44px row */
+.cal-agenda-date { width: 110px; flex-shrink: 0; color: var(--muted); font-size: 0.75rem; line-height: 44px; }
 .cal-agenda-evs { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
-.cal-agenda-ev { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.15rem 0.25rem; border-radius: var(--k-radius-control); }
+/* every row is a 44px button: a tap lands and a keyboard opens it */
+.cal-agenda-ev { display: flex; align-items: center; gap: 0.5rem; min-height: 44px; cursor: pointer; padding: 0.15rem 0.25rem; border-radius: var(--k-radius-control); }
+button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; }
 .cal-agenda-ev:hover { background: var(--faint); }
 .cal-agenda-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+/* an open task: a square where an event has its dot; overdue ones lead today in the signal colour, like home */
+.cal-agenda-task .cal-agenda-dot { border: 1px solid currentColor; border-radius: 2px; box-sizing: border-box; color: var(--muted); }
+.cal-agenda-task.overdue :is(.cal-agenda-dot, .cal-agenda-time) { color: var(--signal); }
+.specialist-record-row.overdue .specialist-record-time { color: var(--signal); }
 .cal-agenda-time { color: var(--muted); font-size: 0.75rem; width: 64px; flex-shrink: 0; }
 .cal-agenda-title { font-size: 0.78rem; color: var(--text); }
 .cal-agenda-recur { color: var(--muted); font-size: 0.75rem; }
