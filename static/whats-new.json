@@ -1,6 +1,28 @@
 {
   "releases": [
     {
+      "id": "2026-10-25",
+      "date": "october 25, 2026",
+      "items": [
+        {
+          "title": "alles in your language",
+          "body": "the whole app, manual included, now comes in français, español, 简体中文, 繁體中文, 日本語, 한국어 and العربية. pick one in settings → language & region."
+        },
+        {
+          "title": "totals in one currency",
+          "body": "finance and subscriptions add everything up in your ledger currency. an amount with no rate is listed, not guessed, with a button to add the rate."
+        },
+        {
+          "title": "calendar files keep their times",
+          "body": "a repeating event from another time zone now repeats in that zone, so it stays right when clocks change. importing the same file again replaces it instead of doubling it."
+        },
+        {
+          "title": "a tighter shell for Aide",
+          "body": "Aide's shell, git and patch tools can only write inside the task's folder and its own temp folder, on macOS and linux."
+        }
+      ]
+    },
+    {
       "id": "2026-10-21",
       "date": "october 21, 2026",
       "items": [

@@ -1179,7 +1179,7 @@
       "id": "localization.regional-settings",
       "category": "localization",
       "app": "settings",
-      "behavior": "Apply reviewed language catalogs and independent automatic or explicit region, timezone, clock, week, and currency preferences.",
+      "behavior": "Translate the whole interface, manual and what's new into eight languages, and apply independent automatic or explicit region, timezone, clock, week, and currency preferences.",
       "risk": "medium",
       "dependencies": [],
       "platforms": [
@@ -1190,6 +1190,7 @@
       "aide_tools": [],
       "automated_tests": [
         "tests/test_localization_catalogs.py",
+        "tests/test_localization_source_contract.py",
         "tests/js/i18n.test.mjs"
       ],
       "computer_scenarios": [

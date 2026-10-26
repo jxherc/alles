@@ -577,7 +577,9 @@ a real email client (read + send), with one-click setup for the big providers an
 ### calendar
 a calendar with month / week / day views and repeating events.
 
-- real time-grid week and day views, a month grid, and an **agenda list**
+- real time-grid week and day views, a month grid, and an **agenda list**. the agenda also lists
+  open tasks on their due day, and puts overdue ones (due before today, oldest first, the same
+  list home shows) at the top of today, marked overdue. a task row opens the task
 - in week and day views an event's box is as long as the event (half an hour at least), and a
   short one still takes a tap 44px tall. dragging an event moves it and keeps its length, and
   stops at midnight; only a move into another column changes the day. the bottom edge changes
@@ -591,7 +593,35 @@ a calendar with month / week / day views and repeating events.
 - an all-day event keeps its date as sent: no zone moves it
 - **recurring events**: daily / weekly / monthly, with a small **↻ marker** on every repeating occurrence so you never mistake one instance for a one-off
 - **import / export `.ics`**: round-trip with apple calendar, google, outlook (export everything, or import a `.ics` someone sent you)
+- a repeating series goes out as one event with an `RRULE` (daily, weekly with its days, monthly,
+  yearly, every N, until, count) and its skipped days as `EXDATE`. a monthly 29th-31st or a
+  yearly feb 29 says it moves to a short month's last day, as alles shows it. times go out with
+  the owner's zone as a `TZID` and a `VTIMEZONE` block built from the zone's rules, all-day
+  events as dates, a row that kept its offset in utc with its rule on utc's days (or in its own
+  offset when no utc rule says the same), and with no zone known times stay floating
+- import reads `RRULE`, `EXDATE` (zoned, utc or dates), `RECURRENCE-ID` (a moved time is skipped
+  in the series and comes in as its own event; a cancelled one is just skipped) and the file's
+  zones: IANA names, outlook's windows names and any zone a `VTIMEZONE` describes (a file's own
+  `VTIMEZONE` wins over the windows name when the two disagree). a series is stored as wall time
+  in the owner's zone when that shows every time where the source does, else in the source's
+  offset when it's fixed (utc, tokyo), else with the source's IANA zone (`source_zone`): its rule,
+  last day and skipped days are that zone's, and each time is read in the owner's, so a london or
+  sydney series lands right all year, and it goes back out with its own `TZID`. only a zone the
+  file describes with no IANA name stays as close as it gets. with no owner zone known nothing is
+  kept as the source's wall time. a cancelled series is left out, `LOCATION` is kept, and
+  importing the same file again replaces its events by `UID` (a moved time by `UID` and
+  `RECURRENCE-ID`) instead of adding them twice. a repeat alles can't show (a monthly or yearly
+  weekday rule like "2nd tuesday", a month day only some months have, `RDATE`, `EXRULE`, hourly)
+  comes in as its first time, and the receipt says how many ("3 events repeat in a way alles
+  can't show yet; only their first time was imported"). calendar subscriptions read feeds the
+  same way, in the browser's zone (the owner's zone for the hourly refresh), so a feed's series
+  shows every time; a feed that sends something other than a whole calendar (an html error page)
+  keeps its events and shows an error
 - **natural-language quick-add** right in the header: "lunch with sam friday 1pm" makes the timed event; "team sync tomorrow" makes an all-day one; and it now understands repeats too: "standup daily 9am", "yoga every monday 6pm", "class every week until 2026-08-01"
+- a weekday that is today means today while its time is still ahead on the owner's clock
+  ("friday 1pm" typed friday morning), and next week once it has gone by or with "next"
+  ("next friday 1pm"). a weekday with no time is still the next one to come. task quick add
+  reads a weekday the same way when the line has a time, and keeps the time in the title
 - quick-add undo removes the exact saved event only while its values are unchanged. newer edits
   remain saved; an interrupted response can be retried without deleting another event.
 - quick-add refuses a date or time that doesn't exist and says why ("feb 30 isn't a date",
@@ -621,8 +651,8 @@ a calendar with month / week / day views and repeating events.
   setting, else the last zone a browser reported, else the server's. a browser that only reports
   utc doesn't replace a real zone seen before, so set the timezone in settings if you really live
   on utc, or for behaviour that doesn't follow you when you travel. an export sends wall times
-  as utc instants read in that zone, so other calendars show the same moment without a
-  timezone block; with no zone known they stay floating.
+  in that zone, named by its `TZID` and described in a `VTIMEZONE` block, so other calendars show
+  the same moments, repeats across daylight saving too; with no zone known they stay floating.
 - a public booking page opens on the owner's today and offers only times still ahead, inside its
   window (`days_ahead`), labelled with the owner's zone; a visitor elsewhere also sees each time
   on their own clock. working hours run from 0 to 24, and a time the clocks skip in spring isn't
@@ -681,6 +711,15 @@ track what you're paying for every month so nothing surprises you.
 - a **6-month spend forecast** of what's coming up, and **duplicate detection** that flags two subs that look like the same service
 - a **manage ↗ link** straight to the cancel/billing page you saved
 - monthly **and** yearly totals, plus a **spend-by-category bar chart** (plain css, no chart library)
+- totals are in one base currency, picked from "totals in" above them (the ledger's, CAD, until you
+  pick; after cutover the bar says totals follow the Actual ledger). it's a display choice: a new
+  subscription is saved in the ledger currency unless the add form's currency field picks another.
+  a subscription in another currency counts at its reviewed rate or a saved rate. with neither it
+  stays out of the totals, upcoming, forecast, chart and overlap totals, each total adds "+ USD
+  19.49/mo" for it, and a note names it ("2 subscriptions in USD aren't in the total") with an "add
+  USD rate" button. a missing rate never fails the totals
+- on a phone the add form folds into one "+ subscription" row that opens it. an open payment
+  history shows "payment undone" or the next due date in its own status line, not a toast over it
 - a **push notification before anything renews** so you can cancel in time
 
 <p align="center"><img src="docs/screenshots/subs.png" width="760" alt="subs: renewals, a 6-month forecast, and spend by category"></p>
@@ -710,11 +749,30 @@ imports, with an optional gated move to an alles-managed actual budget core.
   changes to those rules after preview do not silently change the approved values. metadata survives
   apply and retry; local undo refuses to remove an imported row that was edited afterward. export all
   transactions to csv; existing direct-import api callers keep their legacy behavior.
-- **budgets**: set a monthly cap per category; a progress bar turns red when you go over
+- **budgets**: set a monthly cap per category; a progress bar turns red when you go over. an
+  account in another currency no longer turns them off: its spending counts once it has a rate
 - **charts**: spending-by-category bars and a 6-month income-vs-spent trend (plain svg, no chart library)
 - this-month cards: net worth · income · spent · net
 - an additive currency foundation preserves exact original and base values, conversion evidence, and
   stable import identities without changing existing amounts or renewal history
+- local totals (net worth, the month's cards, spending caps, charts, forecast, net-worth history,
+  `networth-base`, envelope, age of money, alerts and reports) add up in the base currency that
+  subscriptions use. an amount counts in the currency it is really in: a reviewed renewal posts its
+  converted price into its account, so it counts once, at its reviewed base or source amount. other
+  amounts use a saved rate (a pair works both ways), never a built-in estimate. without a rate an
+  amount stays out, and a note names the accounts, their own subtotal and an "add rate" button; a
+  large-purchase alert only judges amounts it could convert. `PATCH /api/money/totals-currency`
+  picks the base or saves/removes a rate (a plain decimal string or a number; a comma typed in the
+  rate field is a decimal point, and a rate ten times off the saved one asks first). both live in
+  settings (`money_base_currency`, `money_fx_rates`) and never change a saved amount
+- spending caps, envelope assignments and targets, goals and holdings are plain numbers saved in the
+  ledger currency. they're shown converted into the totals currency when a rate allows, otherwise
+  as saved with a note; their fields name the ledger currency when it differs. the envelope also
+  names income it couldn't count. the report names what it left out for its dates, and its csv has
+  a currency column for each row
+- an old "$" account with no currency can be told which one it was always in (its change currency
+  button stays open); its entries with no currency take that one. with no currency set anywhere,
+  totals stay separate as before
 - reviewed generic csv and supported bank statement/notification profiles always preview first; repeat
   rows are stable duplicates, changed source rows are conflicts, and local undo removes only receipt-owned
   transactions. read-only simplefin and plaid connections are available after provider setup
@@ -1150,7 +1208,7 @@ graph TD
 **the toolset (registered tools), by category:**
 
 - **files:** `read_file`, `write_file`, `edit_file` (exact find/replace), `apply_patch` (unified diffs), `list_files`, `glob_files`, `grep_files`, `revert_file`
-- **shell:** `shell` runs the platform shell, including python commands; docker sandboxing is optional
+- **shell:** `shell` runs the platform shell, including python commands, inside a write sandbox (see **sandbox**)
 - **code intelligence:** `code_symbols`, `find_definition`, `diagnostics` (run linters)
 - **git:** `git_status`, `git_diff`, `git_branch`, `git_commit`
 - **web:** `web_search`, `web_fetch` (fetch + read a page)
@@ -1169,8 +1227,8 @@ graph TD
 - **checkpoints**: `write_file`, `edit_file`, and `apply_patch` attempt to capture the original text before changing it. revert restores available checkpoints; it does not undo shell commands, remote actions, or edits that were not captured
 - **provenance you can see**: every agent reply has a **sources** button listing exactly what that run touched (files, urls fetched, searches, shell commands), and a **runs drawer** (the ⟳ in the top bar) browses past runs: their status, to-do list, tool steps, and the same sources; so the agent is inspectable, not a black box
 - **prompt-injection guard**: when the agent reads something it didn't write (a web page, an email, a file, repo contents, an mcp result), that text is wrapped as *data, not instructions* before it goes back to the model, and scanned for the classic attacks ("ignore previous instructions," "reveal your system prompt," "email the api key to…"). anything that trips gets flagged. this reduces the chance of untrusted content steering the run; it does not guarantee that a model will ignore every attack. *(it's a seatbelt, not a force field, see security.)*
-- **approved file roots**: agent file reads stay inside the selected project folder plus any extra folders you approve in settings. extra folders start read-only. every path a tool names is resolved first, links included, and checked before anything is approved. writes, deletes, reverts, patches and a shell's working folder stay inside the selected project; the one way out is approve mode, where the owner approves that single step (any write in General works the same way). the prompt shows the full resolved path and says it's outside this task's folder, the approval covers that exact path for that one step and is re-checked when it runs (a link swapped in meanwhile is refused), and nothing remembers it. full auto, full access, unattended runs and sub-agents never write outside; they say to switch to approve mode. credential stores (`~/.ssh`, `~/.aws`, `.env`, `*.pem`, `id_rsa`, `.netrc`, `.docker/config.json`…) remain blocked by default. shell commands are a separate boundary and can still reach the host unless you enable the docker sandbox.
-- **sandbox**: the shell can run inside a docker container with the workspace mounted at `/work` and (optionally) no network, so commands can't touch your real filesystem
+- **approved file roots**: agent file reads stay inside the selected project folder plus any extra folders you approve in settings. extra folders start read-only. every path a tool names is resolved first, links included, and checked before anything is approved. writes, deletes, reverts, patches and a shell's working folder stay inside the selected project; the one way out is approve mode, where the owner approves that single step (any write in General works the same way). the prompt shows the full resolved path and says it's outside this task's folder, the approval covers that exact path for that one step and is re-checked when it runs (a link swapped in meanwhile is refused), and nothing remembers it. full auto, full access, unattended runs and sub-agents never write outside; they say to switch to approve mode. credential stores (`~/.ssh`, `~/.aws`, `.env`, `*.pem`, `id_rsa`, `.netrc`, `.docker/config.json`…) remain blocked by default. a shell command can name any path, so its writes are held in by the sandbox below, not by these checks.
+- **sandbox**: every tool that runs a command (`shell`, the git tools, `apply_patch`, `diagnostics`, `opencode_run`) can write only inside the task's folder and a private temp folder kept for the run (`$TMPDIR`; `/tmp` on linux). `cd ..`, absolute paths, links, `~`, scripts and `python -c` writing elsewhere all fail. the git tools never run the repo's hooks or a file-system monitor from its config (`core.hooksPath=/dev/null`), and whatever else its config starts (a filter, say) runs inside the sandbox. alles's own port is closed to a sandboxed command, since its api could otherwise do the writing for it. on macOS commands run under `sandbox-exec`, which also refuses opening or scripting other apps (launch services, apple events, spotlight, file coordination), connecting to sockets outside the folder (so docker's socket can't do the writing for it), connecting to alles's port on any local address, and signalling processes outside its own; other local ports, dns and the internet work. on linux under bubblewrap (`bwrap`): the system read-only, the folder and the temp folder read-write, a private `/tmp`, its own processes (a fresh `/proc`, so alles can't be seen, traced or signalled; a vm that hides part of its own `/proc` refuses a fresh one, and then the real one is bound read-only: other processes are listed there but still can't be signalled, traced or have their environment read), ipc and host name, the user's runtime folder and the docker socket hidden. bubblewrap can't close one port, so while alles has no password a sandboxed command gets no network at all (its error and the agent's notes say so); with a password the api needs the owner's session and the network stays. `opencode_run` keeps its own data for the run in the temp folder, so it can't use logins your own opencode saved. reads stay as they are. alles checks once that the sandbox really holds a write in before it relies on it. with neither available, full auto, full access, unattended runs and sub-agents refuse these tools ("shell needs a sandbox here: install bubblewrap, or switch to approve mode"), and approve mode asks for each one, read tools included, marked as running without a sandbox. known limits: on macOS setuid programs still start (they stay inside the same sandbox), and the temp folder there isn't where a bare `mktemp` looks; a run in its own git worktree can't commit from inside the sandbox. the optional docker sandbox still applies when it's on: the workspace mounted at `/work`, optionally with no network
 - **automatic behavior**: a plain aide turn that clearly asks for work can enter the tool loop or keep
   running in the background. simple questions stay simple, and every mutation still follows its
   approval rule.
@@ -1296,6 +1354,7 @@ you can start with no `.env` file. most preferences live in the interface and pe
 | `ALLES_TRUSTED_HOSTS` | narrow device hosts or configured policy | accepted host headers |
 | `ALLES_FORWARDED_ALLOW_IPS` | unset | exact proxy addresses or cidrs trusted for forwarded headers |
 | `ALLES_CORS_ORIGINS` | empty | exact additional browser origins; wildcards are rejected |
+| `ALLES_API_DOCS` | off | serve fastapi's `/docs`, `/redoc` and `/openapi.json` (owner-only when auth is on) |
 | `DEEPSEEK_API_KEY` | unset | deepseek endpoint bootstrap |
 | `ANTHROPIC_API_KEY` | unset | anthropic endpoint bootstrap |
 | `TAVILY_API_KEY` | unset | optional search credential |
@@ -1312,7 +1371,7 @@ server → search and models owns andromeda provider order and its independent a
 
 server → access policy edits only `ALLES_DATA/server-policy.json`. the schema accepts `owned_only` or `allowlisted_host` and exact launchd/systemd service ids, with no arbitrary command or path field. unsafe permissions, wrong ownership, symlinks, and malformed policies fail closed to owned services.
 
-language, region, iana time zone, clock format, week start, and currency are separate preferences. owner content, provider text, and some specialist or advanced screens retain their source language. [services/localization.py](services/localization.py) defines the localization behavior. the about pane reads [credits/manifest.json](credits/manifest.json).
+language, region, iana time zone, clock format, week start, and currency are separate preferences. the whole interface comes in english, français, español, 简体中文, 繁體中文, 日本語, 한국어 and العربية (right to left), including the in-app manual and what's new. owner content, provider and server text, and what alles sends or stores for other software (outgoing mail prefixes, model prompts) stay in their source language. english is built into `static/js/i18n.js`; other languages load from `static/locales/` and are revalidated, not re-downloaded, on each start. `tests/test_localization_source_contract.py` fails when any screen uses a key the english catalog doesn't have. a language change relabels open screens in place, keeping what they had picked. the apple photos import states read in the chosen language from the server's state name; only an unexpected helper error shows the server's english. [services/localization.py](services/localization.py) defines the localization behavior. the about pane reads [credits/manifest.json](credits/manifest.json).
 
 ## architecture: one server, many subdomains
 
@@ -1377,7 +1436,7 @@ the bookmark.
 
 the browser uses the native `/api/` routes. external clients can use those same routes, or the openai-compatible `GET /v1/models` and `POST /v1/chat/completions` interface.
 
-the [complete endpoint inventory](#complete-endpoint-inventory) lists every registered http operation and its handler. `/openapi.json` supplies the machine-readable request/response models; `/docs` and `/redoc` expose fastapi's schema viewers. handlers with generic dictionary inputs still apply their own validation.
+the [complete endpoint inventory](#complete-endpoint-inventory) lists every registered http operation and its handler. with `ALLES_API_DOCS` set, `/openapi.json` supplies the machine-readable request/response models and `/docs` and `/redoc` expose fastapi's schema viewers (owner-only when auth is on; 404 otherwise). handlers with generic dictionary inputs still apply their own validation.
 
 json errors may contain `detail` and a stable `code`; legacy handlers also use normal fastapi errors. `401` means missing/invalid authentication, `403` means insufficient authority, `409` means a conflicting version/value/identity, and `410` marks a retired or deliberately deleted target. inspect the operation's response before deciding whether retry is safe.
 
@@ -1516,6 +1575,7 @@ alles is built for **one person on their own machine.** read this before you put
 - **network guards depend on the operation.** ordinary guarded integrations block loopback, link-local, reserved, multicast, and unspecified addresses while allowing private lan targets for self-hosted services. public-only fetches, including search images, also reject private targets. [services/net_guard.py](services/net_guard.py) contains these policies and redirect handling.
 - **the old browser-autofill token stays retired.** `/api/vault/match` revokes the exact pasted vault token and returns `410 Gone` without credential data. its replacement pairs a named browser with a hashed narrow device secret, then requires a separate unlocked-vault owner approval for each five-minute in-memory/session-storage fill session. it requests the chosen alles host plus `activeTab`, ships no permanent all-site content script, matches exact normalized scheme/host/effective port, returns metadata before one selected release, injects only frame 0, and never submits. lock, browser/server restart, computer lock, or revoke removes fill authority.
 - **protected public shares use slow password hashes.** share passwords use bcrypt and are submitted outside the url. expiry dates normalize to utc and invalid dates fail closed. ten unlock attempts per ip and share are allowed every five minutes. a correct password creates a one-hour, in-memory, httponly cookie bound to that link and password version; changing or revoking the share invalidates existing unlocks.
+- **every html page carries a content security policy.** scripts load only from alles itself and plaid link's loader (`script-src 'self' https://cdn.plaid.com`): no inline scripts, inline event handlers or `eval`, so markup that slips into a page can't run code. styles keep `'unsafe-inline'`, images may come from any web host (`https:` and `http:`: markdown, feeds, book covers, map tiles; an https page upgrades or blocks plain-http images itself), and fetches, frames and workers stay on alles itself plus plaid's hosts for bank linking. `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'self'` and `form-action 'self'` hold everywhere. a route that sets its own policy keeps it, so file and document previews stay sandboxed under `default-src 'none'`. aide's html artifacts and "run" on a code block load into `/static/sandbox.html`, whose own policy (`sandbox allow-scripts`, `referrer-policy: no-referrer`) gives it an opaque origin with no alles cookies, storage or api, so code inside may be inline; it gets its html by message from the alles page, again after each reload. an opaque-origin frame never goes through the service worker, so artifacts and runs need a connection: offline, or when the frame doesn't answer within three seconds, its spot says so with a retry. fastapi's `/docs`, `/redoc` and `/openapi.json` are off (404) unless `ALLES_API_DOCS` is set, and then need the owner's sign-in when auth is on; only those pages may load swagger and redoc from jsdelivr. every response also sends `x-content-type-options: nosniff` and `referrer-policy: strict-origin-when-cross-origin` (map tiles need the referer).
 - this reference describes implemented boundaries; it does not establish an independent security audit of every provider, platform, or deployment.
 
 ---
@@ -1528,7 +1588,7 @@ the main mechanisms are:
 - **endpoint cooldown**: two recorded failures trigger a 20-second host cooldown; model fallback still follows resolver constraints
 - **mail**: connection pooling, read caching, body-only fetches, and a change-detecting poll
 - **what's new**: release notes live in `static/whats-new.json` (newest first). the shell shows the newest release once on a first visit, and on later visits the releases since the last one seen (up to three), then remembers the newest id in browser storage. it waits while another dialog is on screen, skips automated browsers, and `/whats-new` in Aide code reopens it.
-- **service worker**: the server hashes `static/` into a build id, sends it with the page (`x-alles-build`) and bakes it into `/sw.js`. a page whose build matches the worker's reads its code and styles straight from the cache; any other page, and release notes (json), prefer the network with cache fallback, and a page from another build never fills the cache. other static assets can use cached bytes while refreshing. public share viewers stay live so cached pages cannot bypass revocation
+- **service worker**: the server hashes `static/` into a build id, sends it with the page (`x-alles-build`) and bakes it into `/sw.js`. a page whose build matches the worker's reads its code and styles straight from the cache; any other page, and release notes (json), prefer the network with cache fallback, and a page from another build never fills the cache. other static assets can use cached bytes while refreshing. public share viewers stay live so cached pages cannot bypass revocation. every module is imported under exactly one url (one `?v=` stamp, or none, everywhere it is imported): two urls would run two copies with separate state. `tests/test_modulepreload.py` checks it
 - **agent context trimming**: older tool output is shortened during long runs; the model's actual context limit still applies
 - **migrations and recovery**: version history, staging, maintenance locks, and rollback paths protect supported upgrades and restores. an unsuccessful validation remains a failure
 - **partial availability**: search can try configured fallbacks, and optional integrations report their own unavailable state. an offline browser can load cached ui; it still needs a reachable server for uncached data, connected apps, and model execution
@@ -1569,21 +1629,21 @@ python checks cover domain operations, math, migrations, api handlers, permissio
 
 [.github/workflows/tests.yml](.github/workflows/tests.yml) declares python, ruff, javascript, and browser jobs for main/dev pushes, pull requests, and manual runs. a workflow or route being declared does not establish that a particular run passed.
 
-[features/registry.json](features/registry.json) records behavior and test ownership. the catalog, interaction-map, and control-census generators accept `--output-dir` for local reports; tests generate and validate their output in temporary directories. development plans and review evidence stay local; this specification describes implemented behavior.
+[features/registry.json](features/registry.json) records behavior and test ownership. the catalog, interaction-map, and control-census generators accept `--output-dir` for local reports; the census reads a label drawn through the catalog (`t('key')`) as its english text; tests generate and validate their output in temporary directories. development plans and review evidence stay local; this specification describes implemented behavior.
 
 ## complete endpoint inventory
 
-the registered http operations are grouped by handler source. use `/openapi.json` for payload models and [the api section](#the-api-for-other-tools) for authentication/streaming semantics. paths keep fastapi converter syntax: `{subpath:path}` accepts multiple path segments, while openapi shows the parameter as `{subpath}`.
+the registered http operations are grouped by handler source. use `/openapi.json` (with `ALLES_API_DOCS` set) for payload models and [the api section](#the-api-for-other-tools) for authentication/streaming semantics. paths keep fastapi converter syntax: `{subpath:path}` accepts multiple path segments, while openapi shows the parameter as `{subpath}`.
 
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 991 http method/path pairs
-- 969 `/api/*`, 2 `/v1/*`, and 20 non-api shell/public pairs
-- sha-256: `871e5f1d8f58104f80897c1a18f7ed099330dea7be7943ec4ff7d41fc03300da`
+- 996 http method/path pairs
+- 970 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
+- sha-256: `bb1a4406ea6a1c73d170be84c0f5cd0a9da77db232e3fa12ff559167cc94893b`
 
 <details>
-<summary>app.py · 6 operations</summary>
+<summary>app.py · 10 operations</summary>
 
 [source](app.py)
 
@@ -1592,8 +1652,12 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/` | `index` |
 | `GET` | `/api/ping` | `ping` |
 | `GET` | `/api/pwa/precache` | `pwa_precache` |
+| `GET` | `/docs` | `api_docs` |
+| `GET` | `/docs/oauth2-redirect` | `api_docs_redirect` |
 | `GET` | `/health` | `health` |
 | `GET` | `/manifest.json` | `manifest` |
+| `GET` | `/openapi.json` | `api_schema` |
+| `GET` | `/redoc` | `api_redoc` |
 | `GET` | `/sw.js` | `service_worker` |
 
 </details>
@@ -2626,7 +2690,7 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 </details>
 
 <details>
-<summary>routes/money.py · 69 operations</summary>
+<summary>routes/money.py · 70 operations</summary>
 
 [source](routes/money.py)
 
@@ -2683,6 +2747,7 @@ updating the rule list. manual runs report confirmed action counts and any uncon
 | `POST` | `/api/money/tag-rules` | `create_tag_rule` |
 | `POST` | `/api/money/tag-rules/apply` | `apply_tag_rules` |
 | `DELETE` | `/api/money/tag-rules/{rid}` | `delete_tag_rule` |
+| `PATCH` | `/api/money/totals-currency` | `set_totals_currency` |
 | `GET` | `/api/money/transactions` | `list_txns` |
 | `POST` | `/api/money/transactions` | `create_txn` |
 | `GET` | `/api/money/transactions/export.csv` | `export_txns_csv` |
@@ -4033,6 +4098,7 @@ the main configuration table explains the usual setup. this index covers literal
 | `ALLES_ACCESS_PROFILE` | [core/server_config.py](core/server_config.py) |
 | `ALLES_ACTUAL_PASSWORD` | [services/managed_actual.py](services/managed_actual.py) |
 | `ALLES_ACTUAL_PORT` | [services/managed_actual.py](services/managed_actual.py) |
+| `ALLES_API_DOCS` | [app.py](app.py) |
 | `ALLES_AFTERLIFE_FEATURES` | [core/build_info.py](core/build_info.py) |
 | `ALLES_BUILD_ID` | [core/build_info.py](core/build_info.py) |
 | `ALLES_CLIP_DIR` | [services/clip.py](services/clip.py) |

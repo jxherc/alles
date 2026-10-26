@@ -1,6 +1,6 @@
 # alles
 
-alles is for keeping your everyday stuff in one place, on a machine you control. write notes, plan your week, check your mail, find your files, and track your money without jumping between a bunch of different apps.
+alles is a private replacement for the google ecosystem. your mail, calendar, docs, files, photos, contacts, tasks, money and passwords live in one app on a machine you control, instead of on someone else's servers.
 
 it's built for one person. your main data lives in a folder you control, and you decide which outside services to connect. there's also aide, an ai assistant that can work with the apps when you approve its actions. use it if it's helpful; the local tools work without an ai model.
 
@@ -58,6 +58,8 @@ an interrupted reply keeps a retry for the same transaction. Actual transactions
 imports, and transfers use their existing review and deletion workflows.
 
 some things need a connection before they work. add your imap/smtp account for mail, connect a service for online storage or banking, and add a model in **settings → models** if you want to use aide. local models through ollama work too.
+
+the interface comes in english, français, español, 简体中文, 繁體中文, 日本語, 한국어 and العربية. pick yours in **settings → language & region**.
 
 [specifications.md](specifications.md) has the detailed app behavior, architecture, api, and configuration.
 

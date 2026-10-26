@@ -1,59 +1,87 @@
 # alles
 
-> 2026 年 7 月 21 日レビュー済み · 正本: `README.md` · ソースリビジョン:
-> `phase10-canonical-2026-07-21`
+> 2026 年 10 月 25 日レビュー済み · 正本: `README.md` · ソースリビジョン:
+> `davinci-canonical-2026-10-25`
+
+alles は Google のエコシステムを置き換える、プライベートなアプリです。メール、カレンダー、ドキュメント、ファイル、写真、連絡先、タスク、お金、パスワードを、他人のサーバーではなく自分で管理するマシン上の 1 つのアプリにまとめられます。
+
+1 人で使うことを前提に作られています。主なデータは自分で管理するフォルダーに保存され、どの外部サービスにつなぐかも自分で決められます。AI アシスタントの aide も入っていて、あなたが操作を承認すれば、各アプリで作業してくれます。役に立つなら使ってください。ローカルのツールは AI モデルがなくても動きます。
 
 [english](../../README.md) · [français](README.fr.md) · [español](README.es.md) ·
 [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md) · **日本語** · [한국어](README.ko.md) ·
 [العربية](README.ar.md)
 
-**alles** はセルフホスト型の個人用アプリです。1 つの Python プログラムに Aide、検索、
-メール、リンクされた Markdown ドキュメント、日記、ファイル、カレンダー、タスク、家計、
-写真、連絡先、暗号化された保管庫がまとまっています。ローカルデータは自分で管理する
-フォルダーに残ります。テレメトリはなく、外部プロバイダーへ送られるのは自分で選んだ要求だけです。
+## はじめに
 
-## クイックスタート
-
-Python 3.11 以降が必要です。
+Python 3.11 以降が必要です。macOS や Linux では、次のように実行します。
 
 ```bash
 git clone https://github.com/jxherc/alles.git
 cd alles
-pip install -r requirements.lock
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.lock
 python app.py
 ```
 
-`http://localhost:6769` を開きます。起動に API キーは不要です。Aide を使う場合だけ、
-**設定 → モデル**でモデルを追加してください。
+[http://localhost:6769](http://localhost:6769) を開いて、セットアップを進めてください。始めるのに API キーは要りません。
 
-macOS/Linux の管理インストールには `./alles install` を使います。`alles update` は新しい
-リリースを準備してヘルスチェックし、`alles update rollback` は対応するコードとデータを
-元に戻します。`./alles uninstall` は個人データを残します。
+初期状態の alles は、このデバイスからしかアクセスできず、パスワードなしで起動します。**ネットワークに公開する前に**、認証をオンにし、強力なオーナーパスワードと `SECRET_KEY` を設定して、適切なアクセスプロファイルを選んでください。ローカルネットワークとパブリックアクセスでは必要な条件が違います。先に[セキュリティ](../../specifications.md#security--read-before-exposing-it)と [.env.example](../../.env.example) を読んでください。
 
-Docker:
+Docker を使う場合は、次のとおりです。
 
 ```bash
 docker build -t alles .
 docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
-ループバックだけに公開するため、新しいコンテナはこの端末からのみアクセスできます。
+これでアクセスは自分のデバイスだけに限られ、データは `alles-data` ボリュームに保存されます。コンテナーを入れ替えるときも、このボリュームは残してください。
 
-## データ、ネットワーク、バックアップ
+## できること
 
-Alles は単一ユーザー向けです。ネットワークからアクセスさせる前に認証を有効化し、強い所有者
-パスワードと実際の `secret_key` を設定してください。公開前に
-[セキュリティの説明](../../specifications.md#security--read-before-exposing-it)を確認してください。
+| アプリ | 用途 |
+| --- | --- |
+| home | 1 日の予定を見る、アプリを開く、タスクをさっとメモする |
+| aide | 設定したモデルとチャットし、ワークスペースでの操作を承認する |
+| andromeda | Web を検索し、必要なら出典付きの概要も作る |
+| plan | カレンダー、タスク、リマインダー、カウントダウンを管理する |
+| inbox | アカウントを接続して、メールを読み、連絡先を管理する |
+| docs | Markdown のノートや日記を書く |
+| files | ローカルや接続先のストレージ、オフラインコピー、写真を見る |
+| library | 記事やリーディングリストを保存する |
+| health | 習慣や健康の記録をつける |
+| finance | 口座、取引、予算、サブスクリプションを管理する |
+| vault | シークレット、パスワード、パスキーを暗号化して保管する |
+| server | 状態、アクセス設定、バックアップ、アップデートを確認する |
 
-**設定 → バックアップ**で暗号化したローカルバックアップを作成し、WebDAV または S3 互換
-ストレージへ手動送信できます。復旧キーは別の場所に保存してください。復元データは、使用中の
-データへ触れる前に検証されてステージングされます。
+ローカルの財務台帳に手動で保存した新しい取引は、元に戻せます。元に戻すと削除されるのはその取引だけで、保存された内容が変わっていない間に限られます。応答が途中で切れた場合は、同じ取引をもう一度試せます。Actual の取引、インポート、振替は、これまでどおりの確認と削除の手順で扱います。
 
-## 詳細
+一部の機能は、接続してから使えるようになります。メールには IMAP/SMTP アカウントを追加し、オンラインストレージや銀行には対応するサービスを接続してください。aide を使うなら **settings → models** でモデルを追加します。Ollama のローカルモデルも使えます。
 
-アプリ、ルート、構成の一覧は [`specifications.md`](../../specifications.md) にあります。
-依存関係とライセンスは [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) を参照してください。
+画面の言語は english, français, español, 简体中文, 繁體中文, 日本語, 한국어、العربية から選べます。**設定 → 言語と地域** で切り替えてください。
 
-## ライセンス
+アプリの詳しい動作、アーキテクチャ、API、設定は [specifications.md](../../specifications.md) にまとめています。
 
-MIT。[`LICENSE`](../../LICENSE) を参照してください。
+## データとバックアップ
+
+データベースと alles が管理するファイルは、標準では `data/` に置かれます。別の場所にしたい場合は `ALLES_DATA` を設定してください。このフォルダーは非公開にして、バックアップを取っておきましょう。外部プロバイダーには、その接続を通じてあなたが送ったリクエストが届きます。
+
+**settings → backup** を開くと、暗号化したバックアップをダウンロードできます。既存の HTTPS の WebDAV フォルダーや S3 互換バケットへ手動で送ることも、初回セットアップ時に毎日のローカルバックアップを設定することもできます。アプリが動かなくなっても取り出せるよう、リカバリーキーは alles の外に保管してください。
+
+alles はバックアップを確認し、復元の準備をしてから適用します。アプリを止めてから、表示されるコマンドに従ってください。既存のインストールを移す前に、[バックアップと復元の詳細](../../specifications.md#your-data-where-everything-lives)を読んでください。
+
+## サービスとしてインストールする
+
+macOS や Linux で alles をサービスとして動かしたい場合は、`bash alles install` を実行します。専用の Python 環境を用意し、`alles` コマンドを追加します。更新には `alles update`、前のコードとデータに戻すには `alles update rollback` を使います。`bash alles uninstall` を実行しても個人データは残ります。`bash alles --help` でコマンドの一覧を表示できます。
+
+alles は FastAPI、SQLite、素の JavaScript、CSS で作られています。フロントエンドのビルド手順はありません。技術的な詳細は [specifications.md](../../specifications.md) にあります。
+
+## リリース履歴
+
+[davinci](../../docs/releases/davinci.md) には、完了した日常ワークフローのマイルストーンを記録しています。
+
+## クレジットとライセンス
+
+aide は [odysseus](https://github.com/pewdiepie-archdaemon/odysseus) に着想を得ました。alles は独立した実装です。[acknowledgments.md](../../ACKNOWLEDGMENTS.md) には、そのプロジェクトと alles が使っているほかの成果へのクレジットを載せています。サードパーティのライセンスは[サードパーティ通知](../../THIRD_PARTY_NOTICES.md)にあります。
+
+alles は [MIT ライセンス](../../LICENSE)で公開しています。

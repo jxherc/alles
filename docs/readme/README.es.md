@@ -1,59 +1,89 @@
 # alles
 
-> traducción revisada el 21 de julio de 2026 · fuente canónica: `README.md` · revisión:
-> `phase10-canonical-2026-07-21`
+> traducción revisada el 25 de octubre de 2026 · fuente canónica: `README.md` · revisión:
+> `davinci-canonical-2026-10-25`
+
+alles es una alternativa privada al ecosistema de Google. tu correo, calendario, documentos, archivos, fotos, contactos, tareas, dinero y contraseñas viven en una sola app, en una máquina que tú controlas, y no en los servidores de otra persona.
+
+alles está pensado para una sola persona. tus datos principales se guardan en una carpeta que tú controlas, y tú decides qué servicios externos conectar. también incluye aide, un asistente de IA que puede trabajar con las apps cuando apruebas sus acciones. úsalo si te resulta útil; las herramientas locales funcionan sin un modelo de IA.
 
 [english](../../README.md) · [français](README.fr.md) · **español** · [简体中文](README.zh-Hans.md) ·
 [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
 
-**alles** es una aplicación personal autoalojada. Un único programa de Python reúne Aide,
-búsqueda, correo, documentos Markdown enlazados, diario, archivos, calendario, tareas, finanzas,
-fotos, contactos y una bóveda cifrada. Los datos locales permanecen en una carpeta bajo tu control.
-No hay telemetría; los proveedores externos solo reciben las solicitudes que tú decides enviarles.
+## primeros pasos
 
-## inicio rápido
-
-Necesitas Python 3.11 o una versión posterior.
+necesitas Python 3.11 o una versión más reciente. en macOS o Linux:
 
 ```bash
 git clone https://github.com/jxherc/alles.git
 cd alles
-pip install -r requirements.lock
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.lock
 python app.py
 ```
 
-Abre `http://localhost:6769`. No hace falta una clave API para iniciar. Añade un modelo en
-**ajustes → modelos** solo si quieres usar Aide.
+abre [http://localhost:6769](http://localhost:6769) y sigue la configuración. no necesitas una clave de API para empezar.
 
-Para una instalación administrada en macOS/Linux, ejecuta `./alles install`. `alles update` prepara
-y comprueba una versión nueva; `alles update rollback` restaura el par anterior de código y datos.
-`./alles uninstall` conserva los datos personales.
+de forma predeterminada, a alles solo se puede acceder desde este dispositivo, y arranca sin contraseña. **antes de ponerlo en tu red**, activa la autenticación, define una contraseña de propietario segura y una `SECRET_KEY`, y elige el perfil de acceso adecuado. el acceso desde la red local y el acceso público tienen requisitos distintos; lee primero [seguridad](../../specifications.md#security--read-before-exposing-it) y [.env.example](../../.env.example).
 
-Docker:
+si prefieres usar Docker:
 
 ```bash
 docker build -t alles .
 docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
-El puerto limitado a la interfaz local mantiene una instalación nueva en este dispositivo.
+así el acceso queda limitado a tu dispositivo y tus datos se guardan en el volumen `alles-data`. conserva ese volumen cuando reemplaces el contenedor.
 
-## datos, red y copias de seguridad
+## qué puedes hacer
 
-Alles está diseñado para una sola persona. Antes de permitir acceso por red, activa la autenticación,
-usa una contraseña de propietario fuerte y define una `secret_key` real. Lee la
-[sección de seguridad](../../specifications.md#security--read-before-exposing-it) antes de exponerlo.
+| app | para qué sirve |
+| --- | --- |
+| home | ver tu día, abrir tus apps y apuntar una tarea al vuelo |
+| aide | chatear con un modelo configurado y aprobar acciones en tu espacio de trabajo |
+| andromeda | buscar en la web y, si quieres, obtener un resumen con fuentes |
+| plan | llevar un calendario, tareas, recordatorios y cuentas atrás |
+| inbox | leer el correo y gestionar contactos después de conectar tu cuenta |
+| docs | escribir notas en Markdown y entradas de diario |
+| files | explorar almacenamiento local o conectado, copias sin conexión y fotos |
+| library | guardar artículos y listas de lectura |
+| health | registrar hábitos y datos de salud |
+| finance | controlar cuentas, transacciones, presupuestos y suscripciones |
+| vault | guardar secretos, contraseñas y llaves de acceso cifrados |
+| server | revisar el estado, los ajustes de acceso, las copias de seguridad y las actualizaciones |
 
-En **ajustes → copia de seguridad** puedes crear una copia local cifrada o enviarla manualmente a
-WebDAV o a un almacenamiento compatible con S3. Guarda la clave de recuperación por separado. Una
-restauración se verifica y prepara antes de modificar los datos activos.
+las transacciones manuales nuevas que guardas en el registro financiero local se pueden deshacer.
+deshacer elimina solo esa transacción concreta, y solo mientras sus datos guardados no hayan cambiado;
+si la respuesta se corta, queda un reintento disponible para la misma transacción. las transacciones de Actual,
+las importaciones y las transferencias siguen sus flujos habituales de revisión y eliminación.
 
-## más información
+algunas cosas necesitan una conexión antes de funcionar. añade tu cuenta IMAP/SMTP para el correo, conecta un servicio para el almacenamiento en línea o la banca, y añade un modelo en **settings → models** si quieres usar aide. también funcionan los modelos locales con Ollama.
 
-La lista completa de aplicaciones, rutas y arquitectura está en
-[`specifications.md`](../../specifications.md). Las dependencias y sus licencias se enumeran en
-[`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md).
+la interfaz está disponible en english, français, español, 简体中文, 繁體中文, 日本語, 한국어 y العربية. elige la tuya en **ajustes → idioma y región**.
 
-## licencia
+[specifications.md](../../specifications.md) explica en detalle el comportamiento de las apps, la arquitectura, la API y la configuración.
 
-MIT. Consulta [`LICENSE`](../../LICENSE).
+## tus datos y copias de seguridad
+
+tu base de datos y los archivos que gestiona alles están en `data/` de forma predeterminada. define `ALLES_DATA` si los quieres en otro sitio. mantén esa carpeta privada y haz copias de seguridad de ella. los proveedores externos reciben las solicitudes que les envías a través de sus conexiones.
+
+abre **settings → backup** para descargar una copia de seguridad cifrada. también puedes enviar una a mano a una carpeta WebDAV por HTTPS que ya exista o a un bucket compatible con S3, o activar copias locales diarias durante la configuración inicial. guarda tu clave de recuperación en algún lugar fuera de alles para poder acceder a ella aunque la app deje de funcionar.
+
+alles comprueba la copia y prepara la restauración antes de aplicarla. detén la app y luego sigue el comando que te indique. lee [los detalles de copia y restauración](../../specifications.md#your-data-where-everything-lives) antes de mover una instalación existente.
+
+## instalarlo como servicio
+
+si quieres que alles se ejecute como servicio en macOS o Linux, ejecuta `bash alles install`. crea su propio entorno de Python y añade el comando `alles`. usa `alles update` para actualizarlo, o `alles update rollback` para volver al código y los datos anteriores. `bash alles uninstall` conserva tus datos personales. `bash alles --help` muestra la lista de comandos.
+
+está hecho con FastAPI, SQLite, JavaScript vanilla y CSS. no hay paso de compilación del frontend. los detalles técnicos están en [specifications.md](../../specifications.md).
+
+## historial de versiones
+
+[davinci](../../docs/releases/davinci.md) documenta el hito completado de flujos de trabajo diarios.
+
+## créditos y licencia
+
+aide se inspiró en [odysseus](https://github.com/pewdiepie-archdaemon/odysseus). alles es una implementación independiente; [acknowledgments.md](../../ACKNOWLEDGMENTS.md) da crédito a ese proyecto y a los demás trabajos que usa. las licencias de terceros están en los [avisos de terceros](../../THIRD_PARTY_NOTICES.md).
+
+alles se publica bajo la [licencia MIT](../../LICENSE).
