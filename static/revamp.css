@@ -2983,15 +2983,19 @@ html:not(#_):not(#_) .code-block > .code-block-header {
   background: linear-gradient(to right, transparent, var(--panel) var(--k-space-4));
 }
 
-/* a phone has no room to share: the language and actions take a slim row over the code */
-@media (max-width: 600px) {
+/* a narrow block has no room to share: the language and actions take a slim row over the code.
+   it's the block's own width that counts (a phone, an ipad's docs column, the ask panel), since a
+   floating header over a short line hides most of it */
+html:not(#_):not(#_) .code-block { container: code-block / inline-size; }
+@container code-block (max-width: 36rem) {
   html:not(#_):not(#_) .code-block > .code-block-header { position: static; justify-content: flex-end; background: none; padding-left: 0; }
-  html:not(#_):not(#_) .code-block > pre { padding-right: var(--k-space-3); }
+  html:not(#_):not(#_) .code-block > pre { padding-right: var(--k-space-3) !important; }
 }
 
 html:not(#_):not(#_) .code-block > .code-block-header .code-lang:empty { display: none; }
 html:not(#_):not(#_) .code-block > .code-block-header .code-lang { max-width: 6rem; overflow: hidden; color: var(--k-muted); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
-html:not(#_):not(#_) .code-block > .code-block-header .code-copy { min-height: 44px; padding: 0 var(--k-space-3); }
+/* run reads like copy beside it: a word with a 44px target, not a boxed button next to a bare one */
+html:not(#_):not(#_) .code-block > .code-block-header :is(.code-copy, .code-run) { min-height: 44px; padding: 0 var(--k-space-3); border: 0; background: none; letter-spacing: 0.04em; }
 /* the header hides what runs under it, so a long line needs a gutter as wide as the header (label
    capped above, plus run when there is one) to scroll fully clear of it. code doesn't wrap, so the
    gutter only adds scroll room. a phone's header is its own row, so it keeps the slim padding */

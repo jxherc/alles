@@ -6806,6 +6806,8 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
   .cal-cell { min-height: 44px; }
   .cal-cell.today .cal-cell-num { min-width: 20px; height: 20px; padding: 0 3px; border-radius: 10px; }
   .cal-cell .cal-more { padding-inline-end: 3px !important; }
+  /* a 52px cell has no room for "+12" beside the date, so it drops to the bottom of the date strip */
+  .cal-cell .cal-more { align-items: flex-end !important; padding-bottom: 2px !important; }
 }
 
 .cal-side-search { width: 100%; background: var(--panel); border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--text); font-size: 0.8125rem; padding: 0.35rem 0.5rem; margin-bottom: 0.7rem; font-family: inherit; }
