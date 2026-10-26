@@ -2029,10 +2029,11 @@ html:not(#_):not(#_) :is(.money-field-label, .docs-nav-label, .ms-label) {
   font-weight: 500;
 }
 
-/* figures line up: money, times, dates, sizes and counts take tabular digits */
+/* figures line up: money, times, sizes and counts take tabular digits. dates don't: inter's
+   tabular hyphen is 44% wider, so "2026-10-26" read as if letter-spaced */
 html:not(#_):not(#_) :is(
-  .ms-val, .txn-amt, [class*="-amount"], [class*="-time"], [class*="-date"], [class*="-size"],
-  [class*="-count"], .file-size, .file-date, .cal-mini td, .days-num, td
+  .ms-val, .txn-amt, [class*="-amount"], [class*="-time"], [class*="-size"],
+  [class*="-count"], .file-size, .cal-mini td, .days-num, td
 ) {
   font-variant-numeric: tabular-nums;
 }
