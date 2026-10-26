@@ -6,6 +6,7 @@ import { plainError } from './util.js';
 import { formatNumber, t, tp } from './i18n.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { requestWithRecentOwner } from './recent_owner.js';
+import { announceModelRoles, onModelRoles } from './settings/model_roles.js';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -761,19 +762,31 @@ async function renderSearch(target, request) {
       const selected = choices.some(item => item.value === configuredValue) ? configuredValue : '';
       const options = [{ value: '', label: t('common.automatic') }, ...choices];
       models.append(choice(role === 'andromeda_answer' ? t('server.wb_answer_model') : t('server.wb_verifier_model'), options, selected, async value => {
-        const nextRoles = { ...(settings.model_roles || {}) };
+        // read the roles again: settings or andromeda may have changed one since this was drawn
+        const fresh = await json(request, '/api/settings');
+        const nextRoles = { ...(fresh.model_roles || {}) };
         if (!value) nextRoles[role] = {};
         else {
           const picked = choices.find(item => item.value === value);
           nextRoles[role] = { endpoint_id: picked.endpointId, model: picked.model };
         }
-        await save({ model_roles: nextRoles });
+        const saved = await save({ model_roles: nextRoles });
+        announceModelRoles(saved?.model_roles || nextRoles, 'server');
       }));
       models.append(fact(role === 'andromeda_answer' ? t('server.wb_answer_status') : t('server.wb_verifier_status'), roles[role]?.status || t('common.unavailable')));
     }
   }
   target.replaceChildren(panel, models, credentials);
+  // a role picked in settings or andromeda shows here too, without a reload
+  _roleWatch.get(target)?.();
+  const off = onModelRoles(({ source }) => {
+    if (!target.isConnected) return off();
+    if (source !== 'server') void renderSearch(target, request).catch(() => {});
+  });
+  _roleWatch.set(target, off);
 }
+
+const _roleWatch = new WeakMap();
 
 async function renderBackups(target, request, completed = null) {
   const [settingsResult, locationsResult, webdavResult, s3Result] = await Promise.allSettled([

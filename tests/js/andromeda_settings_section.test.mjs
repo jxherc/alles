@@ -123,5 +123,5 @@ test('settings opens the andromeda section from the page and from the sidebar na
   const settings = read('static/js/settings.js');
   assert.match(settings, /andromeda: andromedaPane,/);
   assert.match(settings, /import \{ andromedaPane \} from '\.\/settings\/andromeda\.js'/);
-  assert.match(html, /<button class="s-nav-item" type="button" data-pane="andromeda" data-i18n="common\.andromeda">/);
+  assert.match(html, /<button class="s-nav-item" type="button" data-pane="andromeda" data-i18n="shell\.app_andromeda">/);
 });
