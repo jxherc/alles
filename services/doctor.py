@@ -67,7 +67,7 @@ def check_optional_deps():
     missing = [m for m, _ in _OPTIONAL if not _have(m)]
     detail = f"{len(present)}/{len(_OPTIONAL)} installed"
     if missing:
-        detail += " — not installed: " + ", ".join(missing)
+        detail += "; not installed: " + ", ".join(missing)
     return True, "optional dependencies", detail  # always ok — these degrade gracefully
 
 
@@ -104,10 +104,13 @@ def check_endpoint_configured():
         return (
             True,
             "ai provider",
-            "none yet — add one in settings → models (this is normal on a fresh install)",
+            "none yet: add one in settings → models (normal on a fresh install)",
         )
     except Exception as e:
-        return False, "ai provider", f"check skipped: {e}"
+        if "no such table" in str(e):
+            # the database is created the first time alles starts
+            return True, "ai provider", "not set up yet: start alles, then add one in settings"
+        return False, "ai provider", f"check skipped: {str(e).splitlines()[0][:120]}"
 
 
 _CHECKS = [

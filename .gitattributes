@@ -1,0 +1,17 @@
+# the one-line install and `alles update` download github's archive of this repo. these paths are
+# for developing alles, so they stay out of it (services/native_install.py's _DEV_ONLY matches)
+/.github export-ignore
+/.gitattributes export-ignore
+/docs export-ignore
+/tests export-ignore
+/design-system export-ignore
+/mobile export-ignore
+/scripts/** export-ignore
+/scripts/local_voice_worker.py -export-ignore
+/specifications.md export-ignore
+/README.md export-ignore
+/Dockerfile export-ignore
+/.dockerignore export-ignore
+/pyproject.toml export-ignore
+/alles.cmd export-ignore
+/install.sh export-ignore

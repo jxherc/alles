@@ -63,7 +63,9 @@
         "cli_commands": [
           "install",
           "uninstall",
-          "doctor"
+          "doctor",
+          "access",
+          "config"
         ],
         "jobs": [],
         "automation_actions": [],

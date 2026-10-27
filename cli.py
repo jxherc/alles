@@ -1,10 +1,15 @@
 """
 alles CLI
 
+  alles                status, address and the everyday commands
+  alles install        install alles as a background service (macos/linux)
+  alles access lan     let your phone and other computers open it (asks for a password)
+  alles access device  only this computer can open it again
+  alles config         edit the settings file  (alles config path prints where it is)
   alles start          start the server in the background
   alles stop           stop it
-  alles restart        restart it
-  alles status         running/stopped + url + reachability
+  alles restart        restart it (after changing settings)
+  alles status         running or stopped, health, address and access
   alles logs [N]       print the last N log lines (default 60)
   alles logs -f        follow the log live (ctrl-c to stop)
   alles logs --clear   truncate the log file
@@ -21,8 +26,9 @@ alles CLI
                        put original data back after an interrupted restore
   alles restore rollback <operation-id>
                        roll back a completed restore while its snapshot exists
-  alles install        put `alles` on your PATH so you can run it from anywhere
-  alles uninstall      remove the PATH launcher again
+  alles install --launcher-only
+                       only put `alles` on your PATH
+  alles uninstall      remove alles again; your personal data stays
 
 windows: alles.cmd   unix/git-bash: ./alles   or just: python app.py
 """
@@ -323,32 +329,108 @@ def cmd_restart(args=()):
     cmd_start()
 
 
+def _health_ok(port: int) -> bool:
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=3) as response:
+            return response.status == 200
+    except Exception:
+        return False
+
+
+def _access_label() -> str:
+    try:
+        from core.server_config import access_profile
+        from core.settings import auth_enabled
+
+        profile = access_profile()
+        locked = auth_enabled()
+    except Exception:
+        return ""
+    if profile == "device":
+        return "this computer only"
+    lock = "password on" if locked else "no password"
+    return f"other devices ({profile}, {lock})"
+
+
+def _settings_path(native) -> Path:
+    if native is not None and getattr(native, "config_file", None):
+        return native.config_file
+    return ROOT / ".env"
+
+
 def cmd_status(args=()):
+    from services import cli_ui
+
+    ui = cli_ui.Style()
     native = _native_layout()
+    ui.header("status")
+    port = 6769 if native is not None else _port()
+    url = f"http://localhost:{port}"
+    width = 10
     if native is not None:
         from services import service_manager
 
         try:
             state = service_manager.status("server")
         except service_manager.ServiceOwnershipError as exc:
-            print(f"alles native service is untrusted: {exc}")
+            ui.check(False, "service", f"untrusted: {exc}", width)
             return False
-        label = "running" if state["running"] else "stopped"
-        suffix = "" if state["available"] else " (service manager unavailable)"
-        print(f"alles {label} through {native.manager}{suffix}")
-        return bool(state["available"] and state["running"])
-    pid = _pid()
-    up = _port_open()
-    if _running(pid) and _alles_process(pid) is not None:
-        state = "reachable" if up else "process up, port not answering yet"
-        print(f"alles running   pid={pid}   {_url()}   ({state})")
-    elif _running(pid):
-        print(f"stale pid file points to another process ({pid}); it was not touched")
-    elif up:
-        print(f"port {_port()} is busy, but no verified Alles process is tracked")
+        if not state["available"]:
+            ui.check(False, "service", f"{native.manager} is unavailable", width)
+            return False
+        running = bool(state["running"])
     else:
-        print("alles stopped")
-        PID_FILE.unlink(missing_ok=True)
+        pid = _pid()
+        running = _running(pid) and _alles_process(pid) is not None
+        if not running and _running(pid):
+            ui.check(None, "pid file", f"points to another process ({pid}); left alone", width)
+        elif not running and _port_open():
+            ui.check(
+                None, "port", f"{port} is busy, but no verified Alles process is tracked", width
+            )
+        elif not running:
+            PID_FILE.unlink(missing_ok=True)
+    if running:
+        healthy = _health_ok(port)
+        ui.check(True, "running", url, width)
+        ui.check(healthy, "health", "ok" if healthy else "not answering yet: alles logs", width)
+    else:
+        ui.check(False, "stopped", "start it with: alles start", width)
+    rows = []
+    access = _access_label()
+    if access:
+        rows.append(("access", access))
+    rows.append(("settings", cli_ui.short_path(_settings_path(native))))
+    rows.append(
+        ("data", cli_ui.short_path(native.data_root if native is not None else _runtime_dir()))
+    )
+    ui.say()
+    ui.rows(rows, dim_value=True)
+    return running
+
+
+_EVERYDAY = (
+    ("alles access lan", "open it from your phone or another computer"),
+    ("alles logs -f", "watch what it is doing"),
+    ("alles doctor", "check the install"),
+    ("alles config", "edit settings, then: alles restart"),
+    ("alles update", "get the newest version"),
+    ("alles help", "every command"),
+)
+
+
+def cmd_home(args=()):
+    """Bare `alles`: where it stands and what to type next."""
+    from services import cli_ui
+
+    cmd_status()
+    ui = cli_ui.Style()
+    ui.say()
+    ui.rows(list(_EVERYDAY))
+    ui.say()
+    return True
 
 
 def cmd_logs(args=()):
@@ -1021,6 +1103,8 @@ def _fetch_native_update_source(manifest: dict, update_dir: Path) -> tuple[Path 
     import uuid
 
     source = manifest.get("source") or {}
+    if source.get("kind") == "archive":
+        return _fetch_archive_update_source(source, update_dir)
     if source.get("kind") != "git":
         raise RuntimeError(
             "this install has no verified Git update source; reinstall from a tracked release"
@@ -1097,6 +1181,72 @@ def _fetch_native_update_source(manifest: dict, update_dir: Path) -> tuple[Path 
     except Exception:
         shutil.rmtree(checkout, ignore_errors=True)
         raise
+
+
+def _fetch_archive_update_source(source: dict, update_dir: Path) -> tuple[Path | None, str]:
+    """Resolve the branch's newest commit on github and unpack exactly that archive."""
+    import re
+    import shutil
+    import tarfile
+    import tempfile
+    import urllib.request
+    import uuid
+
+    repository, branch = source["repository"], source["branch"]
+    headers = {"Accept": "application/vnd.github.sha", "User-Agent": "alles-update"}
+    try:
+        request = urllib.request.Request(
+            f"https://api.github.com/repos/{repository}/commits/{branch}", headers=headers
+        )
+        with urllib.request.urlopen(request, timeout=60) as response:
+            target = response.read().decode("ascii", "replace").strip().lower()
+    except Exception as exc:
+        raise RuntimeError("the configured release source could not be checked") from exc
+    if not re.fullmatch(r"[0-9a-f]{40}", target):
+        raise RuntimeError("the configured release branch returned an invalid commit")
+    if target == source["commit"]:
+        return None, target
+
+    update_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    checkout = update_dir / f".native-source-{uuid.uuid4().hex}"
+    unpack = Path(tempfile.mkdtemp(prefix="archive-", dir=update_dir))
+    try:
+        archive = unpack / "release.tar.gz"
+        request = urllib.request.Request(
+            f"https://codeload.github.com/{repository}/tar.gz/{target}",
+            headers={"User-Agent": "alles-update"},
+        )
+        with urllib.request.urlopen(request, timeout=300) as response, archive.open("wb") as out:
+            shutil.copyfileobj(response, out)
+        with tarfile.open(archive) as bundle:
+            if bundle.pax_headers.get("comment", target).lower() != target:
+                raise RuntimeError("the downloaded release did not match the resolved commit")
+            if hasattr(tarfile, "data_filter"):
+                bundle.extractall(unpack / "tree", filter="data")
+            else:
+                # older 3.11 builds: refuse anything that is not a plain file or folder inside
+                for member in bundle.getmembers():
+                    name = Path(member.name)
+                    if (
+                        name.is_absolute()
+                        or ".." in name.parts
+                        or not (member.isfile() or member.isdir())
+                    ):
+                        raise RuntimeError("the downloaded release contains an unsafe entry")
+                bundle.extractall(unpack / "tree")
+        tops = list((unpack / "tree").iterdir())
+        if len(tops) != 1 or not tops[0].is_dir():
+            raise RuntimeError("the downloaded release has an unexpected layout")
+        os.replace(tops[0], checkout)
+        return checkout, target
+    except RuntimeError:
+        shutil.rmtree(checkout, ignore_errors=True)
+        raise
+    except Exception as exc:
+        shutil.rmtree(checkout, ignore_errors=True)
+        raise RuntimeError("the new release could not be downloaded safely") from exc
+    finally:
+        shutil.rmtree(unpack, ignore_errors=True)
 
 
 def _native_candidate_control_plane_ok(release: Path, python: Path, update_dir: Path) -> bool:
@@ -1999,23 +2149,37 @@ def cmd_open(args=()):
 
 
 def cmd_doctor(args=()):
-    """fresh-install readiness check — deps, data dir, encryption key, provider."""
+    """fresh-install readiness check: deps, data dir, encryption key, provider, and the server."""
+    from services import cli_ui
+
+    ui = cli_ui.Style()
+    ui.header("doctor")
     try:
         from services import doctor
     except Exception as e:
-        print(f"couldn't load checks: {e}")
-        return
+        ui.check(False, "checks", f"couldn't load: {e}")
+        return False
     checks = doctor.run_all()
-    print("alles doctor\n")
+    width = max(len(c["label"]) for c in checks) + 2
     for c in checks:
-        mark = "ok " if c["ok"] else "!! "
-        print(f"  [{mark}] {c['label']:<24} {c['detail']}")
+        # a missing optional piece is a note, not a failure
+        ok = True if c["ok"] else (False if c["label"] in doctor._HARD else None)
+        detail = (str(c["detail"]).splitlines() or [""])[0]
+        ui.check(ok, c["label"], detail[:140], width)
+    native = _native_layout()
+    port = 6769 if native is not None else _port()
+    if native is not None or _port_open(port):
+        healthy = _health_ok(port)
+        ui.check(
+            healthy, "server", "answering" if healthy else "not answering: alles status", width
+        )
     hard_fail = [c for c in checks if not c["ok"] and c["label"] in doctor._HARD]
-    print()
+    ui.say()
     if hard_fail:
-        print("not ready — fix the !! items above, then:  alles start")
-        sys.exit(1)
-    print("ready to go.  start with:  alles start")
+        ui.say(f"  {ui.bad('not ready')}: fix the {ui.mark_bad} lines, then run alles doctor again")
+        return False
+    ui.say(f"  {ui.good('ready')}")
+    return True
 
 
 def _unix_bin_dirs():
@@ -2084,8 +2248,89 @@ def _native_install_probe(release: Path, python: Path) -> bool:
         )
 
 
+_INSTALL_STEPS = {
+    "folders": "folders",
+    "copy": "app files",
+    "environment": "python environment",
+    "packages": "python packages",
+    "check": "startup check",
+    "service": "background service",
+    "linger": "runs after logout",
+}
+
+
+def _install_source_from_env() -> dict | None:
+    """install.sh names the exact github archive it downloaded, so updates can follow it."""
+    repository, branch, commit = (
+        os.environ.get(f"ALLES_INSTALL_{key}", "").strip()
+        for key in ("REPOSITORY", "BRANCH", "COMMIT")
+    )
+    if repository and branch and commit:
+        return {
+            "kind": "archive",
+            "repository": repository,
+            "branch": branch,
+            "commit": commit.lower(),
+        }
+    return None
+
+
+def _wait_for_health(port: int, seconds: float = 45) -> bool:
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        if _health_ok(port):
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def _shell_rc() -> Path:
+    shell = Path(os.environ.get("SHELL", "")).name
+    home = Path.home()
+    if shell == "zsh":
+        return home / ".zshrc"
+    if shell == "bash":
+        return home / ".bashrc"
+    return home / ".profile"
+
+
+def _put_launcher_on_path(launcher: Path) -> Path | None:
+    """Add the launcher's folder to PATH for new shells. Returns the file changed, if any."""
+    folder = launcher.parent
+    entries = [
+        Path(entry).expanduser() for entry in os.environ.get("PATH", "").split(os.pathsep) if entry
+    ]
+    if any(entry == folder for entry in entries):
+        return None
+    rc = _shell_rc()
+    try:
+        current = rc.read_text("utf-8") if rc.exists() else ""
+    except OSError:
+        return None
+    if ".local/bin" in current:
+        return None
+    line = 'export PATH="$HOME/.local/bin:$PATH"'
+    with rc.open("a", encoding="utf-8") as handle:
+        handle.write(
+            ("" if current.endswith("\n") or not current else "\n")
+            + f"\n# added by the alles installer\n{line}\n"
+        )
+    return rc
+
+
+def _ask(ui, question: str) -> bool:
+    if not sys.stdin.isatty():
+        return False
+    try:
+        answer = input(f"  {question} [y/N] ")
+    except (EOFError, KeyboardInterrupt):
+        ui.say()
+        return False
+    return answer.strip().lower() in {"y", "yes"}
+
+
 def cmd_install(args=()):
-    """Install an owned native runtime, launcher, and user service on macOS/Linux."""
+    """Install alles as a background service on macOS or Linux, one step per line."""
     args = tuple(args)
     if args in (("launcher",), ("--launcher-only",)):
         return _cmd_install_launcher()
@@ -2093,24 +2338,260 @@ def cmd_install(args=()):
         print("usage:  alles install  |  alles install --launcher-only")
         return False
     if IS_WIN:
-        print("the native installer currently supports macOS and Linux")
+        print("the installer supports macOS and Linux")
         return False
-    from services import native_install
+    from services import cli_ui, native_install
 
+    ui = cli_ui.Style()
+    source = _install_source_from_env()
+    if source is None:  # install.sh already printed the header and its download line
+        ui.header("install")
+    steps = cli_ui.Steps(_INSTALL_STEPS, ui)
+    version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if sys.version_info < (3, 11):
+        ui.check(False, f"python {version}", "alles needs python 3.11 or newer", steps.width)
+        return False
+    ui.check(True, f"python {version}", "", steps.width)
     try:
         layout = native_install.platform_layout()
         result = native_install.install(
             ROOT,
             layout,
             release_probe=_native_install_probe,
+            install_source=source,
+            progress=steps.handle,
         )
     except native_install.NativeInstallError as exc:
-        print(f"native install stopped safely: {exc}")
+        steps.fail(f"stopped safely: {exc}")
         return False
-    print(f"alles installed at {result['runtime_root']}")
-    print(f"personal data: {result['data_root']}")
-    print(f"setup: {_native_service_endpoint(layout)[1]}")
+    except KeyboardInterrupt:
+        steps.fail("stopped: nothing was left half-installed")
+        return False
+    finally:
+        steps.close()
+
+    port, _ = _native_service_endpoint(layout)
+    running = _wait_for_health(port)
+    changed_rc = _put_launcher_on_path(layout.launcher)
+    ui.say()
+    if running:
+        ui.say(f"  {ui.good(ui.mark_ok)} {ui.bold('alles is running')}")
+    else:
+        ui.say(
+            f"  {ui.warn(ui.mark_warn)} {ui.bold('alles is still starting')}  {ui.dim('check with: alles status')}"
+        )
+    ui.say()
+    ui.rows(
+        [
+            ("open", f"http://localhost:{port}"),
+            ("settings", cli_ui.short_path(result.get("config_file") or "")),
+            ("data", cli_ui.short_path(result["data_root"])),
+        ]
+    )
+    ui.say()
+    if layout.manager == "launchd":
+        ui.say(
+            ui.dim("  it keeps running after you close this terminal and starts when you log in.")
+        )
+    elif result.get("keeps_running"):
+        ui.say(
+            ui.dim(
+                "  it keeps running after you close this terminal and starts again after a restart."
+            )
+        )
+    else:
+        ui.say(
+            ui.dim("  it stops when you log out until you run: sudo loginctl enable-linger $USER")
+        )
+    if changed_rc is not None:
+        ui.say(
+            ui.dim(
+                f"  the alles command works in new terminals ({cli_ui.short_path(changed_rc)} was updated)."
+            )
+        )
+    ui.say()
+    ui.rows(list(_EVERYDAY))
+    ui.say()
+    if _ask(ui, "open alles from your phone or another computer too?"):
+        subprocess.call([str(layout.launcher), "access", "lan"])
     return True
+
+
+def _reachable_addresses() -> list[tuple[str, str]]:
+    """Addresses other devices can use: tailscale's name and ip, then this network's ip."""
+    import json
+
+    found: list[tuple[str, str]] = []
+    try:
+        status = subprocess.run(
+            ["tailscale", "status", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        me = json.loads(status.stdout or "{}").get("Self") or {}
+        name = str(me.get("DNSName") or "").rstrip(".")
+        if name:
+            found.append((name, "tailscale"))
+        for ip in me.get("TailscaleIPs") or []:
+            if ":" not in ip:
+                found.append((ip, "tailscale"))
+                break
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    try:
+        # a udp "connect" sends nothing; it only picks the outgoing interface
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(("192.0.2.1", 9))
+            ip = probe.getsockname()[0]
+        if not ip.startswith("127.") and all(ip != known for known, _ in found):
+            found.append((ip, "this network"))
+    except OSError:
+        pass
+    return found
+
+
+def _restart_for_settings(native) -> bool:
+    if native is not None:
+        from services import service_manager
+
+        try:
+            service_manager.control("server", "restart")
+        except (service_manager.ServiceControlError, service_manager.ServiceOwnershipError):
+            return False
+        return _wait_for_health(6769, 30)
+    if _running(_pid()):
+        return bool(cmd_restart())
+    return False
+
+
+def cmd_access(args=()):
+    """alles access lan | device: who can open alles."""
+    from services import cli_ui
+
+    ui = cli_ui.Style()
+    choice = args[0] if args else ""
+    if choice not in ("lan", "device"):
+        ui.header("access")
+        current = _access_label()
+        if current:
+            ui.rows([("now", current)], dim_value=True)
+            ui.say()
+        ui.rows(
+            [
+                (
+                    "alles access lan",
+                    "your phone and other computers can open it (asks for a password)",
+                ),
+                ("alles access device", "only this computer can open it"),
+            ]
+        )
+        ui.say()
+        return not args
+    try:
+        from core.auth import MIN_OWNER_PASSWORD_LENGTH, hash_password
+        from core.settings import auth_enabled, load_settings, save_settings
+    except ImportError:
+        ui.say(
+            "  run this with the installed alles command, or inside the alles python environment"
+        )
+        return False
+    native = _native_layout()
+    ui.header(f"access {choice}")
+    width = 22
+    if choice == "lan" and not auth_enabled():
+        if load_settings().get("auth_password_hash"):
+            save_settings({"auth_enabled": True})
+            ui.check(True, "owner password", "turned back on", width)
+        else:
+            import getpass
+
+            if not sys.stdin.isatty():
+                ui.check(
+                    False, "owner password", "run this in a terminal so it can ask for one", width
+                )
+                return False
+            ui.say(
+                ui.dim(
+                    f"  choose an owner password, {MIN_OWNER_PASSWORD_LENGTH} characters or more"
+                )
+            )
+            while True:
+                try:
+                    first = getpass.getpass("  password: ")
+                    second = getpass.getpass("  again:    ")
+                except (EOFError, KeyboardInterrupt):
+                    ui.say()
+                    return False
+                if len(first) < MIN_OWNER_PASSWORD_LENGTH:
+                    ui.say(ui.warn(f"  too short: {MIN_OWNER_PASSWORD_LENGTH} characters or more"))
+                elif first != second:
+                    ui.say(ui.warn("  those didn't match, try again"))
+                else:
+                    break
+            save_settings({"auth_password_hash": hash_password(first), "auth_enabled": True})
+            ui.check(True, "owner password", "set", width)
+    save_settings(
+        {
+            "access_profile": choice,
+            "public_url": "",
+            "base_domain": "",
+            "trusted_hosts": "",
+            "forwarded_allow_ips": "",
+        }
+    )
+    restarted = _restart_for_settings(native)
+    label = "open to other devices" if choice == "lan" else "this computer only"
+    if restarted:
+        ui.check(True, label, "alles restarted", width)
+    else:
+        ui.check(None, label, "saved; it applies when alles starts: alles start", width)
+    if choice == "lan":
+        addresses = _reachable_addresses()
+        if addresses:
+            ui.say()
+            ui.say("  open it from your other devices")
+            ui.rows([(f"http://{host}:6769", where) for host, where in addresses], dim_value=True)
+    ui.say()
+    return True
+
+
+def cmd_config(args=()):
+    """Open the settings file in an editor; `alles config path` prints where it is."""
+    import shlex
+
+    from services import cli_ui
+
+    native = _native_layout()
+    path = _settings_path(native)
+    if args and args[0] == "path":
+        print(path)
+        return True
+    if not path.exists():
+        if native is not None:
+            from services import native_install
+
+            native_install._write_settings_file(native)
+        else:
+            example = ROOT / ".env.example"
+            path.write_text(example.read_text("utf-8") if example.exists() else "", "utf-8")
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+    if not editor:
+        editor = next((name for name in ("nano", "vi") if _which(name)), "")
+    ui = cli_ui.Style()
+    if not editor or not sys.stdin.isatty():
+        ui.say(str(path))
+        return True
+    subprocess.call([*shlex.split(editor), str(path)])
+    ui.say(ui.dim("  changed something? run  alles restart  to use it"))
+    return True
+
+
+def _which(name: str) -> bool:
+    import shutil
+
+    return shutil.which(name) is not None
 
 
 def _legacy_launcher_source() -> str:
@@ -2710,6 +3191,8 @@ COMMANDS = {
     "restore": cmd_restore,
     "install": cmd_install,
     "uninstall": cmd_uninstall,
+    "access": cmd_access,
+    "config": cmd_config,
     "test": cmd_test,
 }
 
@@ -2723,9 +3206,11 @@ def main():
     if args and args[0] in ("-h", "--help", "help"):
         print(_usage())
         return
-    if not args or args[0] not in COMMANDS:
-        if args:
-            print(f"alles: unknown command '{args[0]}'\n", file=sys.stderr)
+    if not args:
+        cmd_home()
+        return
+    if args[0] not in COMMANDS:
+        print(f"alles: unknown command '{args[0]}'\n", file=sys.stderr)
         print(_usage(), file=sys.stderr)
         sys.exit(1)
     if COMMANDS[args[0]](args[1:]) is False:

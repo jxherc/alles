@@ -12,6 +12,16 @@ from core.credential_inventory import SETTING_CREDENTIAL_KEYS
 load_dotenv(encoding="utf-8-sig")  # utf-8-sig handles windows BOM
 
 
+def load_owner_config() -> None:
+    # an installed alles keeps the owner's settings in one file outside the program
+    path = os.environ.get("ALLES_CONFIG")
+    if path:
+        load_dotenv(path, encoding="utf-8-sig")
+
+
+load_owner_config()
+
+
 def data_dir() -> Path:
     # base data dir; ALLES_DATA lets an isolated instance (autorun/tests) keep its files separate
     raw = os.environ.get("ALLES_DATA")

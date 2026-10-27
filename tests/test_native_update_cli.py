@@ -49,10 +49,19 @@ class NativeUpdateCliTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_native_install_prints_the_owned_service_endpoint(self):
-        layout = SimpleNamespace()
-        installed = {"runtime_root": "/owned/runtime", "data_root": "/owned/data"}
+        import io
+
+        layout = SimpleNamespace(launcher=self.root / "bin" / "alles", manager="systemd-user")
+        installed = {
+            "runtime_root": "/owned/runtime",
+            "data_root": "/owned/data",
+            "config_file": "/owned/alles.env",
+            "keeps_running": True,
+        }
+        clean_env = {k: v for k, v in cli.os.environ.items() if not k.startswith("ALLES_INSTALL_")}
         with (
             mock.patch.object(cli, "IS_WIN", False),
+            mock.patch.dict(cli.os.environ, clean_env, clear=True),
             mock.patch.object(native_install, "platform_layout", return_value=layout),
             mock.patch.object(native_install, "install", return_value=installed) as install,
             mock.patch.object(
@@ -60,17 +69,22 @@ class NativeUpdateCliTest(unittest.TestCase):
                 "_native_service_endpoint",
                 return_value=(6769, "http://127.0.0.1:6769"),
             ) as endpoint,
-            mock.patch("builtins.print") as output,
+            mock.patch.object(cli, "_wait_for_health", return_value=True),
+            mock.patch.object(cli, "_put_launcher_on_path", return_value=None),
+            mock.patch.object(cli, "_ask", return_value=False),
+            mock.patch("sys.stdout", new_callable=io.StringIO) as output,
         ):
             self.assertTrue(cli.cmd_install())
 
-        install.assert_called_once_with(
-            cli.ROOT,
-            layout,
-            release_probe=cli._native_install_probe,
-        )
+        args, kwargs = install.call_args
+        self.assertEqual(args, (cli.ROOT, layout))
+        self.assertIs(kwargs["release_probe"], cli._native_install_probe)
+        self.assertIsNone(kwargs["install_source"])
         endpoint.assert_called_once_with(layout)
-        output.assert_any_call("setup: http://127.0.0.1:6769")
+        text = output.getvalue()
+        self.assertIn("alles is running", text)
+        self.assertIn("http://localhost:6769", text)
+        self.assertIn("/owned/alles.env", text)
 
     def _patches(self, *, healthy=True):
         rollback = SimpleNamespace(restore_id="c" * 32, manifest={"locations": []})

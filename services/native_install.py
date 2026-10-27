@@ -30,6 +30,8 @@ _RELEASE_FILES = ".alles-owned-files.json"
 _INSTALL_VERSION = 1
 _RELEASE_TRANSACTION = "release-transaction.json"
 _RELEASE_REMOVAL = "release-removal.json"
+# sources pinned to one exact commit: a git checkout, or a github archive (the one-line install)
+_COMMIT_SOURCES = frozenset({"git", "archive"})
 
 
 class NativeInstallError(RuntimeError):
@@ -62,6 +64,7 @@ class NativeLayout:
     service_definition: Path
     manager: str
     unit: str
+    config_file: Path | None = None
 
 
 def platform_layout(
@@ -79,6 +82,7 @@ def platform_layout(
         definition = home / "Library" / "LaunchAgents" / "app.alles.server.plist"
         manager = "launchd"
         unit = "app.alles.server"
+        config = support / "alles.env"
     elif system == "Linux":
         if xdg_data_home is None and not home_was_explicit:
             configured = os.environ.get("XDG_DATA_HOME", "").strip()
@@ -102,6 +106,7 @@ def platform_layout(
         definition = config_home / "systemd" / "user" / "alles-server.service"
         manager = "systemd-user"
         unit = "alles-server.service"
+        config = config_home / "alles" / "alles.env"
     else:
         raise NativeInstallError("the native installer supports macOS and Linux")
 
@@ -126,6 +131,7 @@ def platform_layout(
         service_definition=definition,
         manager=manager,
         unit=unit,
+        config_file=config,
     )
 
 
@@ -276,8 +282,81 @@ def _copy_ignore(_directory: str, names: list[str]) -> set[str]:
     return {name for name in names if name in blocked or name.endswith(".pyc")}
 
 
-def build_release(source: Path, destination: Path) -> Path:
+# the app runs from the rest. .gitattributes keeps these same paths out of github's archives, which
+# the one-line install and updates download
+_DEV_ONLY = frozenset(
+    {
+        ".github",
+        ".gitattributes",
+        "docs",
+        "tests",
+        "design-system",
+        "mobile",
+        "specifications.md",
+        "README.md",
+        "Dockerfile",
+        ".dockerignore",
+        "pyproject.toml",
+        "alles.cmd",
+        "install.sh",
+    }
+)
+_SCRIPTS_KEPT = frozenset({"local_voice_worker.py"})
+
+
+def _release_ignore(root: Path) -> Callable[[str, list[str]], set[str]]:
+    top = os.fspath(root)
+    scripts = os.path.join(top, "scripts")
+
+    def ignore(directory: str, names: list[str]) -> set[str]:
+        ignored = _copy_ignore(directory, names)
+        if directory == top:
+            ignored |= {name for name in names if name in _DEV_ONLY}
+        elif directory == scripts:
+            ignored |= {name for name in names if name not in _SCRIPTS_KEPT}
+        return ignored
+
+    return ignore
+
+
+def _pip_install(command: list[str], progress) -> None:
+    """Run pip with its output counted into one progress line instead of printed."""
+    import threading
+
+    try:
+        proc = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+        )
+    except OSError as exc:
+        raise NativeInstallError("could not build the private Python environment") from exc
+    watchdog = threading.Timer(1800, proc.kill)
+    watchdog.start()
+    tail: list[str] = []
+    seen = 0
+    try:
+        for line in proc.stdout or ():
+            tail = (tail + [line.rstrip()])[-25:]
+            if line.startswith("Collecting "):
+                seen += 1
+                progress("packages", "update", f"{seen} downloaded")
+            elif line.startswith("Installing collected packages"):
+                progress("packages", "update", f"setting up {seen}")
+        proc.wait()
+    finally:
+        watchdog.cancel()
+    if proc.returncode != 0:
+        progress("packages", "log", "\n".join(tail))
+        raise NativeInstallError("could not build the private Python environment")
+    progress("packages", "done", f"{seen} installed")
+
+
+def _no_progress(_step: str, _state: str, _detail: str = "") -> None:
+    return None
+
+
+def build_release(source: Path, destination: Path, *, progress=None) -> Path:
     """Copy one source release and build its private Python environment."""
+    progress = progress or _no_progress
     from services.credits import verify_release_notice_set
 
     source = source.expanduser().resolve()
@@ -293,7 +372,8 @@ def build_release(source: Path, destination: Path) -> Path:
     try:
         # Preserve links while copying so copytree can never dereference a link to data outside
         # the source tree. Release sources are then required to contain no links at all.
-        shutil.copytree(source, destination, ignore=_copy_ignore, symlinks=True)
+        progress("copy", "start")
+        shutil.copytree(source, destination, ignore=_release_ignore(source), symlinks=True)
     except OSError as exc:
         raise NativeInstallError("could not stage the Alles release") from exc
     for current, directories, files in os.walk(destination, followlinks=False):
@@ -303,34 +383,43 @@ def build_release(source: Path, destination: Path) -> Path:
         verify_release_notice_set(destination)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise NativeInstallError("staged release notices are incomplete") from exc
+    progress("copy", "done")
     python = destination / ".venv" / "bin" / "python"
-    commands = (
-        [sys.executable or "python3", "-m", "venv", str(destination / ".venv")],
+    progress("environment", "start")
+    try:
+        result = subprocess.run(
+            [sys.executable or "python3", "-m", "venv", str(destination / ".venv")],
+            capture_output=True,
+            text=True,
+            timeout=1800,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise NativeInstallError("could not build the private Python environment") from exc
+    if result.returncode != 0:
+        # debian and ubuntu ship venv's pip bootstrap in its own package
+        if "ensurepip" in f"{result.stdout or ''}{result.stderr or ''}":
+            raise NativeInstallError(
+                "python's venv module is missing; on debian or ubuntu run "
+                "`sudo apt install python3-venv`, then install again"
+            )
+        raise NativeInstallError("could not build the private Python environment")
+    progress("environment", "done")
+    progress("packages", "start")
+    _pip_install(
         [
             str(python),
             "-m",
             "pip",
             "install",
             "--disable-pip-version-check",
+            "--progress-bar",
+            "off",
             "-r",
             str(destination / "requirements.lock"),
         ],
+        progress,
     )
-    for command in commands:
-        try:
-            result = subprocess.run(
-                command, capture_output=True, text=True, timeout=1800, check=False
-            )
-        except (OSError, subprocess.SubprocessError) as exc:
-            raise NativeInstallError("could not build the private Python environment") from exc
-        if result.returncode != 0:
-            # debian and ubuntu ship venv's pip bootstrap in its own package
-            if "ensurepip" in f"{result.stdout or ''}{result.stderr or ''}":
-                raise NativeInstallError(
-                    "python's venv module is missing; on debian or ubuntu run "
-                    "`sudo apt install python3-venv`, then install again"
-                )
-            raise NativeInstallError("could not build the private Python environment")
     return python
 
 
@@ -356,12 +445,18 @@ def _dispatcher_source(layout: NativeLayout) -> bytes:
             f"export XDG_DATA_HOME={shlex.quote(str(layout.support_root.parent))}\n"
             f"export XDG_CONFIG_HOME={shlex.quote(str(layout.service_definition.parents[2]))}\n"
         )
+    config = (
+        f"export ALLES_CONFIG={shlex.quote(str(layout.config_file))}\n"
+        if layout.config_file is not None
+        else ""
+    )
     return (
         "#!/bin/sh\n"
         "set -eu\n"
         f"runtime={runtime}\n"
         f"export ALLES_DATA={data}\n"
         f"export ALLES_NATIVE_ROOT={runtime}\n"
+        f"{config}"
         f"{xdg_environment}"
         'release="$(sed -n \'1p\' "$runtime/current-release")"\n'
         'case "$release" in (*[!a-z0-9._-]*|"") echo "alles: invalid installed release" >&2; exit 1;; esac\n'
@@ -409,7 +504,13 @@ def _service_source(layout: NativeLayout) -> bytes:
             '<plist version="1.0"><dict>\n'
             f"<key>Label</key><string>{_xml(layout.unit)}</string>\n"
             f"<key>ProgramArguments</key><array>{args}</array>\n"
-            "<key>EnvironmentVariables</key><dict><key>PORT</key><string>6769</string></dict>\n"
+            "<key>EnvironmentVariables</key><dict><key>PORT</key><string>6769</string>"
+            + (
+                f"<key>ALLES_CONFIG</key><string>{_xml(str(layout.config_file))}</string>"
+                if layout.config_file is not None
+                else ""
+            )
+            + "</dict>\n"
             "<key>RunAtLoad</key><true/>\n"
             "<key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>\n"
             f"<key>StandardOutPath</key><string>{_xml(str(layout.data_root / 'alles-service.log'))}</string>\n"
@@ -424,7 +525,12 @@ def _service_source(layout: NativeLayout) -> bytes:
             "Environment=PORT=6769\n"
             f"Environment=ALLES_DATA={_systemd_quote(layout.data_root)}\n"
             f"Environment=ALLES_NATIVE_ROOT={_systemd_quote(layout.runtime_root)}\n"
-            f"Environment=XDG_DATA_HOME={_systemd_quote(layout.support_root.parent)}\n"
+            + (
+                f"Environment=ALLES_CONFIG={_systemd_quote(layout.config_file)}\n"
+                if layout.config_file is not None
+                else ""
+            )
+            + f"Environment=XDG_DATA_HOME={_systemd_quote(layout.support_root.parent)}\n"
             f"Environment=XDG_CONFIG_HOME={_systemd_quote(layout.service_definition.parents[2])}\n"
             f"StandardOutput=append:{_systemd_quote(layout.data_root / 'alles-service.log')}\n"
             "StandardError=inherit\n"
@@ -432,6 +538,69 @@ def _service_source(layout: NativeLayout) -> bytes:
             "[Install]\nWantedBy=default.target\n"
         )
     return content.encode("utf-8")
+
+
+_SETTINGS_TEMPLATE = """\
+# alles settings. a line that starts with # is off: remove the # to use it,
+# then run: alles restart
+#
+# to open alles from your phone or another computer, run: alles access lan
+
+# made for you at install. it signs alles's own tokens; keep it secret
+SECRET_KEY={secret}
+
+# ai models: alles adds a connection for each key it finds here
+# DEEPSEEK_API_KEY=
+# ANTHROPIC_API_KEY=
+
+# web search for research mode (free key at tavily.com). without it alles uses duckduckgo
+# TAVILY_API_KEY=
+"""
+
+
+def _write_settings_file(layout: NativeLayout) -> bool:
+    """Create the owner's settings file once, with a fresh secret. An existing one is kept."""
+    import secrets
+
+    path = layout.config_file
+    if path is None or path.exists() or path.is_symlink():
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    _atomic_bytes(
+        path,
+        _SETTINGS_TEMPLATE.format(secret=secrets.token_hex(32)).encode("utf-8"),
+        mode=0o600,
+    )
+    return True
+
+
+def _keep_running_after_logout(runner) -> bool:
+    """systemd stops a user's services when their last session ends, unless linger is on."""
+    import pwd
+
+    user = pwd.getpwuid(os.getuid()).pw_name
+    commands = (
+        ["loginctl", "enable-linger", user],
+        # a server's owner often has passwordless sudo; -n never prompts
+        ["sudo", "-n", "loginctl", "enable-linger", user],
+    )
+    try:
+        state = runner(
+            ["loginctl", "show-user", user, "--property=Linger", "--value"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if state.returncode == 0 and (state.stdout or "").strip() == "yes":
+            return True
+        for command in commands:
+            result = runner(command, capture_output=True, text=True, timeout=30, check=False)
+            if result.returncode == 0:
+                return True
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return False
 
 
 def _run_checked(runner, command: list[str], *, action: str) -> None:
@@ -553,7 +722,15 @@ def _disable_service(layout: NativeLayout, runner) -> None:
 
 
 def _validated_source_metadata(value, *, error: str) -> dict:
-    if not isinstance(value, dict) or value.get("kind") not in {"git", "unavailable"}:
+    if not isinstance(value, dict) or value.get("kind") not in {"git", "archive", "unavailable"}:
+        raise NativeInstallError(error)
+    if value.get("kind") == "archive" and (
+        not re.fullmatch(
+            r"[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}", str(value.get("repository", ""))
+        )
+        or not re.fullmatch(r"[A-Za-z0-9._/-]{1,240}", str(value.get("branch", "")))
+        or not re.fullmatch(r"[0-9a-f]{40}", str(value.get("commit", "")))
+    ):
         raise NativeInstallError(error)
     if value.get("kind") == "git" and (
         not isinstance(value.get("url"), str)
@@ -603,7 +780,7 @@ def _load_manifest(layout: NativeLayout) -> dict:
     ):
         raise NativeInstallError("owned install release metadata is invalid")
     release_commits = dict(raw_commits)
-    if source.get("kind") == "git":
+    if source.get("kind") in _COMMIT_SOURCES:
         release_commits.setdefault(str(value.get("release_id") or ""), source["commit"])
     value = {**value, "source": source, "release_commits": release_commits}
     return value
@@ -909,14 +1086,21 @@ def install(
     release_probe: Callable[[Path, Path], bool],
     install_source: dict | None = None,
     runner=subprocess.run,
+    progress=None,
 ) -> dict:
     """Create a clean native install. Existing or unowned destinations fail closed."""
+    progress = progress or _no_progress
     source = source.expanduser().resolve()
-    release_id = _validate_release_id(release_id) if release_id else _default_release_id(source)
     recorded_source = _validated_source_metadata(
         dict(install_source) if install_source is not None else source_metadata(source),
         error="install source metadata is invalid",
     )
+    if release_id:
+        release_id = _validate_release_id(release_id)
+    elif recorded_source.get("kind") == "archive":
+        release_id = _validate_release_id(recorded_source["commit"][:12])
+    else:
+        release_id = _default_release_id(source)
     if layout.manifest.exists() or layout.manifest.is_symlink():
         raise NativeInstallError("an owned native installation already exists")
     for path, label in (
@@ -942,6 +1126,7 @@ def install(
     manifest = None
     installed = False
     try:
+        progress("folders", "start")
         layout.support_root.mkdir(parents=True, exist_ok=True, mode=0o700)
         _ensure_private_directory(layout.support_root, "support root")
         for directory, label in (
@@ -953,10 +1138,16 @@ def install(
                 created_program_directories.append(directory)
         layout.data_root.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         _ensure_private_directory(layout.data_root, "data root")
-        python = release_builder(source, stage)
+        progress("folders", "done", str(layout.support_root))
+        if release_builder is build_release:
+            python = build_release(source, stage, progress=progress)
+        else:
+            python = release_builder(source, stage)
         _verify_private_python(stage, python)
+        progress("check", "start")
         if not release_probe(stage, python):
             raise NativeInstallError("staged release health probe failed")
+        progress("check", "done")
         _atomic_json(
             stage / _RELEASE_MARKER,
             {"installation_id": installation_id, "release_id": release_id},
@@ -999,7 +1190,7 @@ def install(
             "source": recorded_source,
             "release_commits": (
                 {release_id: recorded_source["commit"]}
-                if recorded_source.get("kind") == "git"
+                if recorded_source.get("kind") in _COMMIT_SOURCES
                 else {}
             ),
         }
@@ -1013,12 +1204,23 @@ def install(
             unit=layout.unit,
         )
         registered = True
+        settings_created = _write_settings_file(layout)
+        progress("service", "start")
         try:
             _enable_service(layout, runner)
         except _ServiceEnableError as exc:
             service_enable_attempted = exc.acquired
             raise
         service_enable_attempted = True
+        progress("service", "done")
+        keeps_running = True
+        if layout.manager == "systemd-user":
+            progress("linger", "start")
+            keeps_running = _keep_running_after_logout(runner)
+            if keeps_running:
+                progress("linger", "done")
+            else:
+                progress("linger", "warn", "needs: sudo loginctl enable-linger $USER")
         installed = True
         return {
             "ok": True,
@@ -1027,6 +1229,10 @@ def install(
             "data_root": str(layout.data_root),
             "vault_default": str(layout.vault_default),
             "files_default": str(layout.files_default),
+            "config_file": str(layout.config_file) if layout.config_file else "",
+            "config_created": settings_created,
+            "launcher": str(layout.launcher),
+            "keeps_running": keeps_running,
         }
     except Exception:
         service_cleanup_failed = False
@@ -1240,7 +1446,7 @@ def _manifest_for_release(
     source = dict(updated.get("source") or {})
     release_commits = dict(updated.get("release_commits") or {})
     candidate = source_commit or release_id
-    if source.get("kind") == "git" and re.fullmatch(r"[0-9a-f]{40}", candidate):
+    if source.get("kind") in _COMMIT_SOURCES and re.fullmatch(r"[0-9a-f]{40}", candidate):
         source["commit"] = candidate
         updated["source"] = source
         release_commits[release_id] = candidate
@@ -1467,7 +1673,7 @@ def rollback_release(layout: NativeLayout, *, source_commit: str | None = None) 
     previous = _read_release_pointer(layout.previous_release, "previous")
     current = manifest["release_id"]
     rollback_commit = source_commit or manifest.get("release_commits", {}).get(previous)
-    if manifest.get("source", {}).get("kind") == "git" and not rollback_commit:
+    if manifest.get("source", {}).get("kind") in _COMMIT_SOURCES and not rollback_commit:
         raise NativeInstallError("previous release source commit is unavailable")
     _verify_release(
         layout.releases / previous,

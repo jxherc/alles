@@ -141,6 +141,19 @@ class DoctorTest(unittest.TestCase):
         self.assertIn("check skipped", detail)
         self.assertEqual(label, "ai provider")
 
+    def test_a_database_not_created_yet_is_a_note_not_a_failure(self):
+        with mock.patch(
+            "core.database.SessionLocal",
+            side_effect=RuntimeError(
+                "(sqlite3.OperationalError) no such table: model_endpoints\n[SQL: ...]"
+            ),
+        ):
+            ok, label, detail = doctor.check_endpoint_configured()
+        self.assertTrue(ok)
+        self.assertEqual(label, "ai provider")
+        self.assertIn("start alles", detail)
+        self.assertNotIn("SQL", detail)
+
 
 if __name__ == "__main__":
     unittest.main()
