@@ -1307,13 +1307,33 @@ shortcuts are remappable in settings. global search is one command palette acros
 
 ## the cli
 
+the one-line install (`curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh`)
+checks the system and python (offering `python3-venv` on debian/ubuntu), resolves the branch's newest
+commit through the github api, downloads exactly that archive, and runs `alles install` from it. the
+archive leaves out what `.gitattributes` marks `export-ignore` (tests, docs, design files, the mobile
+app, dev scripts): the same list `services/native_install.py` skips when it copies a release, so a
+clone install and every update hold only the app plus its license and notice files.
+
+`alles install` shows one line per step (python, folders, app files, python environment, packages,
+startup check, background service, linger) with a spinner, then the address, the settings file and
+the data folder. on linux it turns on systemd linger (`loginctl enable-linger`, then `sudo -n`) so
+the user service keeps running after logout and starts at boot; when neither is allowed it says
+which command to run. it puts `~/.local/bin` on `PATH` for new shells when it isn't there and offers
+`alles access lan`. it creates one settings file, `~/.config/alles/alles.env` on linux or
+`~/Library/Application Support/Alles/alles.env` on macos (mode 600, with a fresh `SECRET_KEY`); the
+service and the cli read it through `ALLES_CONFIG`, and an existing file is kept.
+
 a small command runs the server for you:
 
 ```
+alles               status, address and the everyday commands
+alles access lan    let other devices open it: sets an owner password, saves the lan profile, restarts
+alles access device only this computer again
+alles config        open the settings file in $EDITOR (alles config path prints it)
 alles start         start in the background (waits until it's actually up)
 alles stop          stop it
 alles restart       restart it
-alles status        running/stopped + url + reachability
+alles status        running or stopped, /health, address, access, settings and data paths
 alles logs [n]      print the last n log lines (default 60)
 alles logs -f       follow the log live
 alles update        stage + verify a fast-forward release, then health-check it
@@ -1323,12 +1343,14 @@ alles update accept accept a healthy update, keep its encrypted backup, and remo
 alles install       build a private versioned runtime and user service (macos/linux)
 alles uninstall     remove verified program files and keep personal data
 alles open          open the browser
-alles doctor        check the install is ready (deps, data dir, provider)
+alles doctor        check the install is ready (deps, data dir, provider, the server's /health)
 ```
 
 `alles doctor` is the first thing to run on a fresh checkout; it reports your python version, which required/optional deps are present, whether the data dir is writable, and whether an ai provider is configured yet, then tells you if you're good to `start`.
 
-updates do not pull into a running install. alles fetches a pinned fast-forward commit into a detached worktree, compiles both the server and cli, runs a rollback-control probe, stops verified writers, creates an encrypted exact-data backup, and boots the migrated candidate twice before switching. the live checkout and health endpoint are rechecked before data moves. rollback is crash-resumable and refuses unknown processes, unrelated restores, dirty code, or a late edit; accepting an update keeps the encrypted backup and removes its temporary full copies.
+an install made by install.sh records a github archive source (repository, branch, commit) and
+updates by downloading the branch's newest archive the same way; a clone install records its git
+source. updates do not pull into a running install. alles fetches a pinned fast-forward commit into a detached worktree, compiles both the server and cli, runs a rollback-control probe, stops verified writers, creates an encrypted exact-data backup, and boots the migrated candidate twice before switching. the live checkout and health endpoint are rechecked before data moves. rollback is crash-resumable and refuses unknown processes, unrelated restores, dirty code, or a late edit; accepting an update keeps the encrypted backup and removes its temporary full copies.
 
 on macos and linux, `alles install` publishes immutable release directories with one private venv per
 release, an owned dispatcher/launcher, and a launchd or systemd-user definition. runtime, data,

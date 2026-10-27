@@ -12,7 +12,29 @@ alles 是一套私有的 Google 全家桶替代方案。邮件、日历、文档
 
 ## 开始使用
 
-需要 git 和 Python 3.11 或更高版本。在 Debian 或 Ubuntu 上，先运行 `sudo apt install git python3-venv`。然后在 macOS 或 Linux 上运行：
+在 macOS 或 Linux 上运行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+它只下载应用本身，把它装成后台服务，并逐步显示每一步。关掉终端后 alles 会继续运行，机器重启后也会自动启动。需要 Python 3.11 或更高版本；在 Debian 或 Ubuntu 上，如果缺少 Python 的 venv 模块，安装程序会提出帮你装上。
+
+然后打开 [http://localhost:6769](http://localhost:6769)，按提示完成设置。开始使用不需要 API 密钥。之后用 `alles` 命令处理其余的事：单独运行它会显示 alles 是否在运行以及如何打开，`alles doctor` 检查安装，`alles config` 打开设置文件。
+
+默认情况下，只有这台设备能访问 alles，而且启动时没有密码。**在放到网络上之前**，先给它设密码并选择谁能打开它：`alles access lan` 两件事一起完成。局域网访问和公网访问的要求不同；请先阅读[安全说明](../../specifications.md#security--read-before-exposing-it)。
+
+### 从其他设备使用
+
+```bash
+alles access lan
+```
+
+它会要求设置所有者密码，重启 alles 让你的手机和其他电脑可以打开它，并列出要用的地址，例如 `http://100.101.102.103:6769`。`alles access device` 会让它重新只供这台电脑使用。
+
+### 从源码运行
+
+用于开发，或者不想装成服务时使用。在 Debian 或 Ubuntu 上，先运行 `sudo apt install git python3-venv`。
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -23,9 +45,7 @@ python -m pip install -r requirements.lock
 python app.py
 ```
 
-打开 [http://localhost:6769](http://localhost:6769)，按提示完成设置。开始使用不需要 API 密钥。
-
-默认情况下，只有这台设备能访问 alles，而且它启动时没有密码。**在把它放到网络上之前**，请开启身份验证，设置足够强的所有者密码和 `SECRET_KEY`，并选择合适的访问配置。局域网访问和公网访问的要求不同；请先阅读[安全说明](../../specifications.md#security--read-before-exposing-it)和 [.env.example](../../.env.example)。
+这里也可以用 `python cli.py access lan` 开启其他设备的访问；之后重新启动 `python app.py`。
 
 如果你更想用 Docker：
 
@@ -35,20 +55,6 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
 这样只有你的设备能访问，数据保存在 `alles-data` 卷中。替换容器时请保留这个卷。
-
-### 从其他设备使用
-
-想在手机或另一台电脑上打开 alles（通过家里的局域网或 [Tailscale](https://tailscale.com)），先给它设一个密码。在 alles 文件夹里新建一个 `.env` 文件，写入这几行：
-
-```dotenv
-ALLES_ACCESS_PROFILE=lan
-AUTH_ENABLED=true
-AUTH_PASSWORD=a-long-password-only-you-know
-SECRET_KEY=paste-a-random-key-here
-ALLES_HOST=100.101.102.103
-```
-
-用 `python3 -c "import secrets; print(secrets.token_hex(32))"` 生成密钥。把 `ALLES_HOST` 设成其他设备访问时用的地址，比如服务器的 Tailscale IP，这样 alles 不会在别的网络上监听。然后重新启动 `python app.py`，用这个地址的 6769 端口打开，例如 `http://100.101.102.103:6769`。
 
 ## 能做什么
 
@@ -77,15 +83,15 @@ ALLES_HOST=100.101.102.103
 
 ## 你的数据与备份
 
-默认情况下，数据库和 alles 管理的文件都放在 `data/` 中。想放到别处，可以设置 `ALLES_DATA`。这个文件夹不要公开，并记得备份。外部服务商会收到你通过它们的连接发出的请求。
+安装后，alles 会把数据库和它管理的文件放在 `~/.local/share/alles/data`（Linux）或 `~/Library/Application Support/Alles/data`（macOS）；`alles status` 会显示具体位置。从源码运行时使用 `data/`，设置了 `ALLES_DATA` 就用它指定的位置。这个文件夹不要公开，并记得备份。外部服务商会收到你通过它们的连接发出的请求。
 
 打开 **settings → backup** 可以下载加密备份。你也可以手动把备份发送到现有的 HTTPS WebDAV 文件夹或兼容 S3 的存储桶，或者在初始设置时开启每日本地备份。请把恢复密钥存放在 alles 之外的地方，这样即使应用无法运行，你也能找到它。
 
 alles 会先检查备份并准备好恢复，然后才应用。请先停止应用，再按照它给出的命令操作。迁移现有安装之前，请阅读[备份与恢复详情](../../specifications.md#your-data-where-everything-lives)。
 
-## 作为服务安装
+## 更新与卸载
 
-如果想在 macOS 或 Linux 上把 alles 作为服务运行，请执行 `bash alles install`。它会创建自己的 Python 环境，并添加 `alles` 命令。用 `alles update` 更新，或用 `alles update rollback` 回到之前的代码和数据。`bash alles uninstall` 会保留你的个人数据。`bash alles --help` 会列出所有命令。
+`alles update` 会安装最新版本并保留上一个版本，所以 `alles update rollback` 可以连同你的数据一起回到上一个版本。`alles uninstall` 会移除 alles，但保留你的个人数据。`alles help` 会列出所有命令。
 
 alles 用 FastAPI、SQLite、原生 JavaScript 和 CSS 构建，前端没有构建步骤。技术细节见 [specifications.md](../../specifications.md)。
 

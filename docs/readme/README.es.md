@@ -12,7 +12,29 @@ alles está pensado para una sola persona. tus datos principales se guardan en u
 
 ## primeros pasos
 
-necesitas git y Python 3.11 o una versión más reciente. en Debian o Ubuntu, ejecuta antes `sudo apt install git python3-venv`. después, en macOS o Linux:
+en macOS o Linux, ejecuta:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+descarga solo la app, la instala como servicio en segundo plano y muestra cada paso mientras avanza. alles sigue funcionando cuando cierras la terminal y vuelve a arrancar después de reiniciar el equipo. necesita Python 3.11 o una versión más reciente; en Debian o Ubuntu, el instalador ofrece añadir el módulo venv de Python si falta.
+
+después abre [http://localhost:6769](http://localhost:6769) y sigue la configuración. no necesitas una clave de API para empezar. a partir de ahí, el comando `alles` se encarga del resto: solo, muestra si alles está funcionando y cómo abrirlo, `alles doctor` revisa la instalación y `alles config` abre el archivo de ajustes.
+
+por defecto, solo se puede acceder a alles desde este dispositivo y arranca sin contraseña. **antes de ponerlo en tu red**, ponle una contraseña y elige quién puede abrirlo: `alles access lan` hace ambas cosas. el acceso en la red local y el acceso público tienen requisitos distintos; lee primero la sección de [seguridad](../../specifications.md#security--read-before-exposing-it).
+
+### usarlo desde otro dispositivo
+
+```bash
+alles access lan
+```
+
+pide una contraseña de propietario, reinicia alles para que tu teléfono y tus otros ordenadores puedan abrirlo y muestra las direcciones que debes usar, por ejemplo `http://100.101.102.103:6769`. `alles access device` vuelve a dejarlo solo para este ordenador.
+
+### ejecutarlo desde el código fuente
+
+para desarrollo, o para ejecutarlo sin el servicio. en Debian o Ubuntu, ejecuta antes `sudo apt install git python3-venv`.
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -23,9 +45,7 @@ python -m pip install -r requirements.lock
 python app.py
 ```
 
-abre [http://localhost:6769](http://localhost:6769) y sigue la configuración. no necesitas una clave de API para empezar.
-
-de forma predeterminada, a alles solo se puede acceder desde este dispositivo, y arranca sin contraseña. **antes de ponerlo en tu red**, activa la autenticación, define una contraseña de propietario segura y una `SECRET_KEY`, y elige el perfil de acceso adecuado. el acceso desde la red local y el acceso público tienen requisitos distintos; lee primero [seguridad](../../specifications.md#security--read-before-exposing-it) y [.env.example](../../.env.example).
+`python cli.py access lan` también permite aquí el acceso desde otros dispositivos; después vuelve a iniciar `python app.py`.
 
 si prefieres usar Docker:
 
@@ -35,20 +55,6 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
 así el acceso queda limitado a tu dispositivo y tus datos se guardan en el volumen `alles-data`. conserva ese volumen cuando reemplaces el contenedor.
-
-### usarlo desde otro dispositivo
-
-para abrir alles desde tu teléfono u otro ordenador, en tu red local o a través de [Tailscale](https://tailscale.com), ponle primero una contraseña. escribe estas líneas en un archivo `.env` dentro de la carpeta de alles:
-
-```dotenv
-ALLES_ACCESS_PROFILE=lan
-AUTH_ENABLED=true
-AUTH_PASSWORD=a-long-password-only-you-know
-SECRET_KEY=paste-a-random-key-here
-ALLES_HOST=100.101.102.103
-```
-
-genera la clave con `python3 -c "import secrets; print(secrets.token_hex(32))"`. pon en `ALLES_HOST` la dirección que usan tus otros dispositivos, por ejemplo la IP de Tailscale del servidor, para que alles no escuche en ningún otro sitio. luego vuelve a iniciar `python app.py` y abre esa dirección en el puerto 6769, por ejemplo `http://100.101.102.103:6769`.
 
 ## qué puedes hacer
 
@@ -80,15 +86,15 @@ la interfaz está disponible en english, français, español, 简体中文, 繁�
 
 ## tus datos y copias de seguridad
 
-tu base de datos y los archivos que gestiona alles están en `data/` de forma predeterminada. define `ALLES_DATA` si los quieres en otro sitio. mantén esa carpeta privada y haz copias de seguridad de ella. los proveedores externos reciben las solicitudes que les envías a través de sus conexiones.
+una vez instalado, alles guarda tu base de datos y los archivos que gestiona en `~/.local/share/alles/data` en Linux o en `~/Library/Application Support/Alles/data` en macOS; `alles status` muestra dónde. si lo ejecutas desde el código fuente, usa `data/`, o `ALLES_DATA` si lo defines. mantén esa carpeta privada y haz copias de seguridad de ella. los proveedores externos reciben las solicitudes que les envías a través de sus conexiones.
 
 abre **settings → backup** para descargar una copia de seguridad cifrada. también puedes enviar una a mano a una carpeta WebDAV por HTTPS que ya exista o a un bucket compatible con S3, o activar copias locales diarias durante la configuración inicial. guarda tu clave de recuperación en algún lugar fuera de alles para poder acceder a ella aunque la app deje de funcionar.
 
 alles comprueba la copia y prepara la restauración antes de aplicarla. detén la app y luego sigue el comando que te indique. lee [los detalles de copia y restauración](../../specifications.md#your-data-where-everything-lives) antes de mover una instalación existente.
 
-## instalarlo como servicio
+## actualizar y desinstalar
 
-si quieres que alles se ejecute como servicio en macOS o Linux, ejecuta `bash alles install`. crea su propio entorno de Python y añade el comando `alles`. usa `alles update` para actualizarlo, o `alles update rollback` para volver al código y los datos anteriores. `bash alles uninstall` conserva tus datos personales. `bash alles --help` muestra la lista de comandos.
+`alles update` instala la versión más reciente y guarda la anterior, para que `alles update rollback` pueda volver a ella con tus datos. `alles uninstall` quita alles y conserva tus datos personales. `alles help` muestra todos los comandos.
 
 está hecho con FastAPI, SQLite, JavaScript vanilla y CSS. no hay paso de compilación del frontend. los detalles técnicos están en [specifications.md](../../specifications.md).
 

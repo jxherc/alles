@@ -13,7 +13,29 @@ alles は Google のエコシステムを置き換える、プライベートな
 
 ## はじめに
 
-git と Python 3.11 以降が必要です。Debian や Ubuntu では、先に `sudo apt install git python3-venv` を実行してください。そのうえで、macOS や Linux では次のように実行します。
+macOS や Linux では、次を実行します。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+アプリ本体だけをダウンロードし、バックグラウンドのサービスとして設定しながら、各ステップを順に表示します。ターミナルを閉じても alles は動き続け、再起動後も自動で立ち上がります。Python 3.11 以降が必要です。Debian や Ubuntu で Python の venv モジュールがない場合は、インストーラーが追加を提案します。
+
+そのあと [http://localhost:6769](http://localhost:6769) を開き、セットアップに沿って進めてください。始めるのに API キーは要りません。あとは `alles` コマンドで足ります。単体で実行すると alles が動いているかと開き方を表示し、`alles doctor` はインストールを確認し、`alles config` は設定ファイルを開きます。
+
+標準では、alles にはこのデバイスからしかアクセスできず、パスワードなしで起動します。**ネットワークに公開する前に**、パスワードを設定し、誰が開けるかを決めてください。`alles access lan` で両方できます。ローカルネットワークでの利用と公開アクセスでは条件が異なります。先に[セキュリティ](../../specifications.md#security--read-before-exposing-it)を読んでください。
+
+### ほかのデバイスから使う
+
+```bash
+alles access lan
+```
+
+オーナーパスワードを尋ね、スマートフォンやほかのパソコンから開けるように alles を再起動し、使うアドレス（例: `http://100.101.102.103:6769`）を表示します。`alles access device` で、このパソコンだけで使う状態に戻せます。
+
+### ソースから実行する
+
+開発用、またはサービスにせずに動かしたいとき向けです。Debian や Ubuntu では、先に `sudo apt install git python3-venv` を実行してください。
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -24,9 +46,7 @@ python -m pip install -r requirements.lock
 python app.py
 ```
 
-[http://localhost:6769](http://localhost:6769) を開いて、セットアップを進めてください。始めるのに API キーは要りません。
-
-初期状態の alles は、このデバイスからしかアクセスできず、パスワードなしで起動します。**ネットワークに公開する前に**、認証をオンにし、強力なオーナーパスワードと `SECRET_KEY` を設定して、適切なアクセスプロファイルを選んでください。ローカルネットワークとパブリックアクセスでは必要な条件が違います。先に[セキュリティ](../../specifications.md#security--read-before-exposing-it)と [.env.example](../../.env.example) を読んでください。
+ここでも `python cli.py access lan` でほかのデバイスからのアクセスを設定できます。そのあと `python app.py` をもう一度起動してください。
 
 Docker を使う場合は、次のとおりです。
 
@@ -36,20 +56,6 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
 これでアクセスは自分のデバイスだけに限られ、データは `alles-data` ボリュームに保存されます。コンテナーを入れ替えるときも、このボリュームは残してください。
-
-### ほかのデバイスから使う
-
-スマートフォンや別のパソコンから、自宅のネットワークや [Tailscale](https://tailscale.com) 経由で alles を開くには、まずパスワードを設定します。alles のフォルダーに `.env` ファイルを作り、次の行を書き込んでください。
-
-```dotenv
-ALLES_ACCESS_PROFILE=lan
-AUTH_ENABLED=true
-AUTH_PASSWORD=a-long-password-only-you-know
-SECRET_KEY=paste-a-random-key-here
-ALLES_HOST=100.101.102.103
-```
-
-鍵は `python3 -c "import secrets; print(secrets.token_hex(32))"` で作れます。`ALLES_HOST` には、ほかのデバイスが接続に使うアドレス（たとえばサーバーの Tailscale IP）を指定してください。こうすると、alles はほかのネットワークでは待ち受けません。そのあと `python app.py` をもう一度起動し、そのアドレスのポート 6769 を開きます。例: `http://100.101.102.103:6769`
 
 ## できること
 
@@ -78,15 +84,15 @@ ALLES_HOST=100.101.102.103
 
 ## データとバックアップ
 
-データベースと alles が管理するファイルは、標準では `data/` に置かれます。別の場所にしたい場合は `ALLES_DATA` を設定してください。このフォルダーは非公開にして、バックアップを取っておきましょう。外部プロバイダーには、その接続を通じてあなたが送ったリクエストが届きます。
+インストールした alles は、データベースと管理するファイルを Linux では `~/.local/share/alles/data`、macOS では `~/Library/Application Support/Alles/data` に置きます。場所は `alles status` で確認できます。ソースから実行した場合は `data/` を使い、`ALLES_DATA` を設定していればその場所を使います。このフォルダーは非公開にして、バックアップを取っておきましょう。外部プロバイダーには、その接続を通じてあなたが送ったリクエストが届きます。
 
 **settings → backup** を開くと、暗号化したバックアップをダウンロードできます。既存の HTTPS の WebDAV フォルダーや S3 互換バケットへ手動で送ることも、初回セットアップ時に毎日のローカルバックアップを設定することもできます。アプリが動かなくなっても取り出せるよう、リカバリーキーは alles の外に保管してください。
 
 alles はバックアップを確認し、復元の準備をしてから適用します。アプリを止めてから、表示されるコマンドに従ってください。既存のインストールを移す前に、[バックアップと復元の詳細](../../specifications.md#your-data-where-everything-lives)を読んでください。
 
-## サービスとしてインストールする
+## 更新と削除
 
-macOS や Linux で alles をサービスとして動かしたい場合は、`bash alles install` を実行します。専用の Python 環境を用意し、`alles` コマンドを追加します。更新には `alles update`、前のコードとデータに戻すには `alles update rollback` を使います。`bash alles uninstall` を実行しても個人データは残ります。`bash alles --help` でコマンドの一覧を表示できます。
+`alles update` は最新版を入れ、前のバージョンも残すので、`alles update rollback` でデータごと前の状態に戻せます。`alles uninstall` は alles を削除しますが、個人データは残します。`alles help` ですべてのコマンドを表示できます。
 
 alles は FastAPI、SQLite、素の JavaScript、CSS で作られています。フロントエンドのビルド手順はありません。技術的な詳細は [specifications.md](../../specifications.md) にあります。
 

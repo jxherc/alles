@@ -11,7 +11,29 @@ it's built for one person. your main data lives in a folder you control, and you
 
 ## get started
 
-you need git and python 3.11 or newer. on debian or ubuntu, run `sudo apt install git python3-venv` first. then, on macos or linux:
+on macos or linux, run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+it downloads only the app, sets it up as a background service and shows each step as it goes. alles keeps running after you close the terminal and starts again after a restart. it needs python 3.11 or newer; on debian or ubuntu it offers to add python's venv module if that's missing.
+
+then open [http://localhost:6769](http://localhost:6769) and follow the setup. you don't need an api key to get started. from then on, the `alles` command does the rest: on its own it shows whether alles is running and how to open it, `alles doctor` checks the install, and `alles config` opens the settings file.
+
+by default, alles is only accessible from this device and starts without a password. **before putting it on your network**, give it a password and choose who can open it: `alles access lan` does both. local network and public access have different requirements; read [security](specifications.md#security--read-before-exposing-it) first.
+
+### use it from another device
+
+```bash
+alles access lan
+```
+
+it asks for an owner password, restarts alles so your phone and other computers can open it, and prints the addresses to use, like `http://100.101.102.103:6769`. `alles access device` makes it private to this computer again.
+
+### run it from source
+
+for development, or to run it without the service. on debian or ubuntu, run `sudo apt install git python3-venv` first.
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -22,9 +44,7 @@ python -m pip install -r requirements.lock
 python app.py
 ```
 
-open [http://localhost:6769](http://localhost:6769) and follow the setup. you don't need an api key to get started.
-
-by default, alles is only accessible from this device and starts without a password. **before putting it on your network**, turn on authentication, set a strong owner password and `SECRET_KEY`, and choose the right access profile. local network and public access have different requirements; read [security](specifications.md#security--read-before-exposing-it) and [.env.example](.env.example) first.
+`python cli.py access lan` sets up access from other devices here too; start `python app.py` again afterwards.
 
 if you'd rather use docker:
 
@@ -34,20 +54,6 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
 this keeps access limited to your device and saves your data in the `alles-data` volume. keep that volume when you replace the container.
-
-### use it from another device
-
-to open alles from your phone or another computer, over your home network or [tailscale](https://tailscale.com), give it a password first. put these lines in a `.env` file in the alles folder:
-
-```dotenv
-ALLES_ACCESS_PROFILE=lan
-AUTH_ENABLED=true
-AUTH_PASSWORD=a-long-password-only-you-know
-SECRET_KEY=paste-a-random-key-here
-ALLES_HOST=100.101.102.103
-```
-
-make the key with `python3 -c "import secrets; print(secrets.token_hex(32))"`. set `ALLES_HOST` to the address your other devices use, like the server's tailscale ip, so alles doesn't listen anywhere else. then start `python app.py` again and open that address on port 6769, like `http://100.101.102.103:6769`.
 
 ## what you can do
 
@@ -79,15 +85,15 @@ the interface comes in english, français, español, 简体中文, 繁體中文,
 
 ## your data and backups
 
-your database and the files alles manages live in `data/` by default. set `ALLES_DATA` if you want them somewhere else. keep that folder private and back it up. outside providers receive the requests you send them through their connections.
+an installed alles keeps your database and the files it manages in `~/.local/share/alles/data` on linux or `~/Library/Application Support/Alles/data` on macos; `alles status` shows where. a source run uses `data/`, or `ALLES_DATA` if you set it. keep that folder private and back it up. outside providers receive the requests you send them through their connections.
 
 open **settings → backup** to download an encrypted backup. you can also send one manually to an existing https webdav folder or s3-compatible bucket, or set up daily local backups during the initial setup. keep your recovery key somewhere outside alles so you can still get to it if the app stops working.
 
 alles checks a backup and prepares the restore before applying it. stop the app, then follow the command it gives you. read [the backup and restore details](specifications.md#your-data-where-everything-lives) before moving an existing installation.
 
-## installing as a service
+## updating and removing
 
-if you want alles to run as a service on macos or linux, run `bash alles install`. it sets up its own python environment and adds the `alles` command. use `alles update` to update it, or `alles update rollback` to return to the previous code and data. `bash alles uninstall` keeps your personal data. `bash alles --help` lists the commands.
+`alles update` gets the newest version and keeps the previous one, so `alles update rollback` can return to it with your data. `alles uninstall` removes alles and keeps your personal data. `alles help` lists every command.
 
 it's built with fastapi, sqlite, vanilla javascript, and css. there's no frontend build step. the technical details are in [specifications.md](specifications.md).
 
