@@ -10,6 +10,7 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import cli
@@ -400,6 +401,89 @@ class ArchiveUpdateTest(unittest.TestCase):
             self.assertEqual(target, new)
             self.assertEqual((checkout / "app.py").read_text("utf-8"), "print('alles')\n")
             self.assertTrue(re.fullmatch(r"\.native-source-[0-9a-f]{32}", checkout.name))
+
+
+class NativeRollbackResumeTest(unittest.TestCase):
+    """A rollback that restored the data and then failed must not restore it a second time."""
+
+    def test_a_retry_after_restoring_the_data_finishes_without_restoring_again(self):
+        with tempfile.TemporaryDirectory(prefix="alles-rollback-") as directory:
+            root = Path(directory)
+            layout = SimpleNamespace(
+                data_root=root / "data",
+                releases=root / "releases",
+                previous_release=root / "previous-release",
+            )
+            layout.data_root.mkdir()
+            (layout.releases / "new").mkdir(parents=True)
+            state_path = root / "state.json"
+            state = {
+                "kind": "native",
+                "phase": "data_swapped",
+                "update_id": "a" * 32,
+                "old_release": "old",
+                "new_release": "new",
+                "old_commit": "b" * 40,
+                "new_commit": "c" * 40,
+            }
+            discard = mock.Mock(
+                side_effect=[native_install.NativeInstallError("release changed"), None]
+            )
+            restore = mock.Mock(return_value=True)
+            with (
+                mock.patch.object(cli, "_native_stop_service"),
+                mock.patch.object(
+                    native_install, "verify_install", return_value={"release_id": "old"}
+                ),
+                mock.patch.object(native_install, "discard_inactive_release", discard),
+                mock.patch.object(cli, "_native_restore_update_data", restore),
+                mock.patch("sys.stdout", new_callable=io.StringIO),
+            ):
+                self.assertFalse(cli._native_rollback_update(layout, state, state_path))
+                saved = json.loads(state_path.read_text("utf-8"))
+                self.assertEqual(saved["phase"], "data_restored")
+                self.assertTrue(cli._native_rollback_update(layout, saved, state_path))
+            restore.assert_called_once()
+            self.assertEqual(json.loads(state_path.read_text("utf-8"))["phase"], "rolled_back")
+
+
+class ReleaseProbeBytecodeTest(unittest.TestCase):
+    """Checks that run a published release's python must not write bytecode into it."""
+
+    def test_control_plane_probe_writes_no_bytecode(self):
+        seen = {}
+
+        def run(command, **kwargs):
+            seen.update(kwargs["env"])
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        with tempfile.TemporaryDirectory(prefix="alles-probe-") as directory:
+            with mock.patch.object(cli.subprocess, "run", side_effect=run):
+                cli._native_candidate_control_plane_ok(
+                    Path(directory), Path("python"), Path(directory)
+                )
+        self.assertEqual(seen.get("PYTHONDONTWRITEBYTECODE"), "1")
+
+    def test_boot_probe_writes_no_bytecode(self):
+        seen = {}
+
+        class Stop(Exception):
+            pass
+
+        def popen(command, **kwargs):
+            seen.update(kwargs["env"])
+            raise Stop
+
+        with tempfile.TemporaryDirectory(prefix="alles-boot-") as directory:
+            release = Path(directory) / "release"
+            release.mkdir()
+            (release / "app.py").write_text("", "utf-8")
+            with (
+                mock.patch.object(cli.subprocess, "Popen", side_effect=popen),
+                self.assertRaises(Stop),
+            ):
+                cli._recovery_probe_once(Path(directory) / "data", app_root=release)
+        self.assertEqual(seen.get("PYTHONDONTWRITEBYTECODE"), "1")
 
 
 if __name__ == "__main__":

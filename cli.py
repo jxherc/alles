@@ -1084,6 +1084,7 @@ def _load_native_update_state(path: Path) -> dict | None:
         "data_swapped",
         "release_switched",
         "applied",
+        "data_restored",
         "accepting",
         "accepted",
         "rolled_back",
@@ -1261,6 +1262,8 @@ def _native_candidate_control_plane_ok(release: Path, python: Path, update_dir: 
             "ALLES_DB": "",
             "AUTH_ENABLED": "false",
             "PYTHON_DOTENV_DISABLED": "1",
+            # a published release is checked file by file; bytecode would change it
+            "PYTHONDONTWRITEBYTECODE": "1",
         }
     )
     env.pop("ALLES_NATIVE_ROOT", None)
@@ -1414,6 +1417,10 @@ def _native_rollback_update(layout, state: dict, state_path: Path) -> bool:
         if phase in {"data_swapping", "data_swapped", "release_switched", "applied"}:
             if not _native_restore_update_data(state, live):
                 raise RuntimeError("the pre-update data snapshot could not be restored")
+            # the snapshot is used up once applied; a retry after a later failure must not
+            # try to restore it again
+            state["phase"] = "data_restored"
+            _write_update_state(state_path, state)
 
         # Once rolled back, the failed candidate must not remain as a selectable release.
         manifest = native_install.verify_install(layout)
@@ -2725,6 +2732,8 @@ def _recovery_probe_once(
             "PORT": str(port),
             "PYTHON_DOTENV_DISABLED": "1",
             "PYTHONUNBUFFERED": "1",
+            # a published release is checked file by file; bytecode would change it
+            "PYTHONDONTWRITEBYTECODE": "1",
         }
     )
     env.pop("ALLES_RELOAD", None)
