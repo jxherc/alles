@@ -63,8 +63,10 @@ trap 'rm -rf "$tmp"' EXIT INT TERM
 # debian and ubuntu ship python's venv module as its own package
 if ! "$python" -m venv "$tmp/venv-check" >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1 && ask "python's venv module is missing. install python3-venv now?"; then
-    sudo apt-get install -y -qq python3-venv >/dev/null || fail "python" "could not install python3-venv"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv >/dev/null 2>&1 \
+      || fail "python" "could not install python3-venv"
     "$python" -m venv "$tmp/venv-check" >/dev/null 2>&1 || fail "python" "python's venv module still does not work"
+    ok "venv module" "python3-venv added"
   else
     fail "python" "python's venv module is missing" "run: sudo apt install python3-venv, then this again"
   fi

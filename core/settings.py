@@ -5,7 +5,13 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # `alles install` runs on plain system python before alles has its packages
+
+    def load_dotenv(*_args, **_kwargs):
+        return False
+
 
 from core.credential_inventory import SETTING_CREDENTIAL_KEYS
 

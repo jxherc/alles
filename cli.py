@@ -2354,6 +2354,8 @@ def cmd_install(args=()):
     ui.check(True, f"python {version}", "", steps.width)
     try:
         layout = native_install.platform_layout()
+        # the installer registers the service under the install's own data folder, not this checkout
+        os.environ["ALLES_DATA"] = str(layout.data_root)
         result = native_install.install(
             ROOT,
             layout,

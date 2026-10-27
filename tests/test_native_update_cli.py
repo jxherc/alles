@@ -51,7 +51,12 @@ class NativeUpdateCliTest(unittest.TestCase):
     def test_native_install_prints_the_owned_service_endpoint(self):
         import io
 
-        layout = SimpleNamespace(launcher=self.root / "bin" / "alles", manager="systemd-user")
+        layout = SimpleNamespace(
+            launcher=self.root / "bin" / "alles",
+            manager="systemd-user",
+            data_root=self.root / "owned-data",
+        )
+        seen_data = []
         installed = {
             "runtime_root": "/owned/runtime",
             "data_root": "/owned/data",
@@ -63,7 +68,13 @@ class NativeUpdateCliTest(unittest.TestCase):
             mock.patch.object(cli, "IS_WIN", False),
             mock.patch.dict(cli.os.environ, clean_env, clear=True),
             mock.patch.object(native_install, "platform_layout", return_value=layout),
-            mock.patch.object(native_install, "install", return_value=installed) as install,
+            mock.patch.object(
+                native_install,
+                "install",
+                side_effect=lambda *a, **k: (
+                    seen_data.append(cli.os.environ.get("ALLES_DATA")) or installed
+                ),
+            ) as install,
             mock.patch.object(
                 cli,
                 "_native_service_endpoint",
@@ -81,6 +92,8 @@ class NativeUpdateCliTest(unittest.TestCase):
         self.assertIs(kwargs["release_probe"], cli._native_install_probe)
         self.assertIsNone(kwargs["install_source"])
         endpoint.assert_called_once_with(layout)
+        # the service is registered under the install's data folder, not the checkout's
+        self.assertEqual(seen_data, [str(layout.data_root)])
         text = output.getvalue()
         self.assertIn("alles is running", text)
         self.assertIn("http://localhost:6769", text)

@@ -5,6 +5,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -263,6 +264,24 @@ class CliInstallHelpersTest(unittest.TestCase):
             self.assertEqual((home / ".zshrc").read_text("utf-8").count(".local/bin"), 1)
             with mock.patch.dict(cli.os.environ, {"PATH": f"{launcher.parent}:/usr/bin"}):
                 self.assertIsNone(cli._put_launcher_on_path(launcher))
+
+    def test_the_installer_imports_on_plain_python(self):
+        # install.sh runs `cli.py install` before alles has any packages; -S hides site-packages
+        probe = subprocess.run(
+            [
+                sys.executable,
+                "-S",
+                "-c",
+                "import sys; sys.path.insert(0, sys.argv[1]); import cli, services.native_install, services.cli_ui",
+                str(ROOT),
+            ],
+            env={"PATH": os.environ.get("PATH", ""), "ALLES_DATA": tempfile.gettempdir()},
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        self.assertEqual(probe.returncode, 0, probe.stderr)
 
     def test_install_sh_is_valid_sh(self):
         result = subprocess.run(
