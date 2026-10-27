@@ -1460,8 +1460,14 @@ def _native_complete_rollback(layout, state: dict, state_path: Path) -> bool:
             else:
                 discard_consumed_staged_recovery(layout.data_root, candidate_id)
         operation_id = state.get("operation_id")
-        if operation_id and (recovery / "operations" / f"{operation_id}.json").exists():
-            discard_completed_restore(layout.data_root, operation_id)
+        journal = recovery / "operations" / f"{operation_id}.json" if operation_id else None
+        if journal is not None and journal.exists():
+            import json
+
+            # only an applied operation has temporary copies to drop. a rolled-back one keeps
+            # its journal and failed copy as the record of what happened
+            if json.loads(journal.read_text("utf-8")).get("state") == "applied":
+                discard_completed_restore(layout.data_root, operation_id)
         restore_id = state.get("restore_id")
         if restore_id and (recovery / "staged" / restore_id).exists():
             restore = recovery / "staged" / restore_id

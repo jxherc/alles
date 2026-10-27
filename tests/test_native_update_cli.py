@@ -439,7 +439,7 @@ class NativeUpdateCliTest(unittest.TestCase):
         (recovery / "staged" / state["candidate_id"]).mkdir(parents=True)
         operation = recovery / "operations" / f"{state['operation_id']}.json"
         operation.parent.mkdir(parents=True)
-        operation.write_text("{}", "utf-8")
+        operation.write_text('{"state": "applied"}', "utf-8")
         with (
             mock.patch.object(cli, "_native_rollback_update", return_value=True),
             mock.patch(

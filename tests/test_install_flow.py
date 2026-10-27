@@ -447,6 +447,34 @@ class NativeRollbackResumeTest(unittest.TestCase):
             self.assertEqual(json.loads(state_path.read_text("utf-8"))["phase"], "rolled_back")
 
 
+class NativeRollbackBookkeepingTest(unittest.TestCase):
+    def test_a_rolled_back_update_operation_does_not_block_finishing(self):
+        from services.backup_recovery import staging_root
+
+        with tempfile.TemporaryDirectory(prefix="alles-bookkeeping-") as directory:
+            live = Path(directory) / "data"
+            live.mkdir()
+            operations = staging_root(live) / "operations"
+            operations.mkdir(parents=True)
+            (operations / ("a" * 32 + ".json")).write_text(
+                json.dumps({"state": "rolled_back"}), "utf-8"
+            )
+            state = {"update_id": "b" * 32, "operation_id": "a" * 32}
+            layout = SimpleNamespace(data_root=live)
+            (live / "lock").write_text("", "utf-8")
+            with (
+                mock.patch("services.restore_apply.discard_completed_restore") as discard,
+                mock.patch("services.update_safety.update_lock_path", return_value=live / "lock"),
+                mock.patch("services.update_safety.finish_update") as finish,
+                mock.patch("sys.stdout", new_callable=io.StringIO),
+            ):
+                self.assertTrue(
+                    cli._native_complete_rollback(layout, state, Path(directory) / "u" / "s.json")
+                )
+            discard.assert_not_called()
+            finish.assert_called_once_with(live, "b" * 32)
+
+
 class ReleaseProbeBytecodeTest(unittest.TestCase):
     """Checks that run a published release's python must not write bytecode into it."""
 
