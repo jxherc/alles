@@ -69,7 +69,7 @@ class Style:
             mark = self.warn(self.mark_warn)
         else:
             mark = self.good(self.mark_ok) if ok else self.bad(self.mark_bad)
-        tail = f"  {self.dim(detail)}" if detail else ""
+        tail = self.dim(detail) if detail else ""
         self.say(f"  {mark} {label.ljust(width)}{tail}".rstrip())
 
 

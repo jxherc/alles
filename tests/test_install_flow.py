@@ -144,6 +144,32 @@ class NativeInstallStepsTest(unittest.TestCase):
             any(command[:2] == ["loginctl", "enable-linger"] for command in self.commands)
         )
 
+    def test_systemd_seeing_the_new_unit_file_does_not_block_the_install(self):
+        # systemctl show reports a unit as loaded once its file is on disk
+        def systemd(command, **_kwargs):
+            self.commands.append(list(command))
+            if command[:3] == ["systemctl", "--user", "show"]:
+                exists = self.layout.service_definition.exists()
+                return subprocess.CompletedProcess(
+                    command, 0, "loaded" if exists else "not-found", ""
+                )
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        with mock.patch.dict(os.environ, {"ALLES_DATA": str(self.layout.data_root)}):
+            result = native_install.install(
+                self.source,
+                self.layout,
+                release_id="r1",
+                release_builder=self._builder,
+                release_probe=lambda _release, _python: True,
+                install_source={"kind": "unavailable"},
+                runner=systemd,
+            )
+        self.assertTrue(result["ok"])
+        self.assertIn(
+            ["systemctl", "--user", "enable", "--now", "alles-server.service"], self.commands
+        )
+
     def test_settings_file_gets_a_secret_once_and_stays_private(self):
         result, _ = self._install(install_source={"kind": "unavailable"}, release_id="r1")
         config = self.layout.config_file

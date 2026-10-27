@@ -628,8 +628,8 @@ def _service_present(layout: NativeLayout, runner) -> bool:
     return result.returncode == 0 and output not in {"", "not-found"}
 
 
-def _enable_service(layout: NativeLayout, runner) -> None:
-    if _service_present(layout, runner):
+def _enable_service(layout: NativeLayout, runner, *, preflight: bool = True) -> None:
+    if preflight and _service_present(layout, runner):
         raise _ServiceEnableError("service install target already exists", acquired=False)
     if layout.manager == "launchd":
         try:
@@ -1115,6 +1115,10 @@ def install(
     ):
         if path.exists() or path.is_symlink():
             raise NativeInstallError(f"refusing to replace an unowned {label}")
+    # ask the service manager before writing the definition: systemd reports a unit as loaded as
+    # soon as its file exists, so asking afterwards always looked taken
+    if _service_present(layout, runner):
+        raise NativeInstallError("service install target already exists")
 
     installation_id = uuid.uuid4().hex
     stage = layout.staging / f"{release_id}-{uuid.uuid4().hex}"
@@ -1207,7 +1211,7 @@ def install(
         settings_created = _write_settings_file(layout)
         progress("service", "start")
         try:
-            _enable_service(layout, runner)
+            _enable_service(layout, runner, preflight=False)
         except _ServiceEnableError as exc:
             service_enable_attempted = exc.acquired
             raise
