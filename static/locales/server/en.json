@@ -1701,6 +1701,7 @@
     "service definition changed after registration",
     "service definition is missing or unsafe",
     "service definition is no longer trusted",
+    "service install target already exists",
     "service manager is unavailable",
     "service preflight failed",
     "service registry is no longer trusted",

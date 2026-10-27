@@ -2501,7 +2501,7 @@ def cmd_access(args=()):
         return False
     native = _native_layout()
     ui.header(f"access {choice}")
-    width = 22
+    width = 24
     if choice == "lan" and not auth_enabled():
         if load_settings().get("auth_password_hash"):
             save_settings({"auth_enabled": True})

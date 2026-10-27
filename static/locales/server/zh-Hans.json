@@ -1701,6 +1701,7 @@
     "service definition changed after registration": "服务定义在注册后发生了变化",
     "service definition is missing or unsafe": "服务定义缺失或不安全",
     "service definition is no longer trusted": "服务定义不再受信任",
+    "service install target already exists": "服务安装目标已存在",
     "service manager is unavailable": "服务管理器不可用",
     "service preflight failed": "服务预检失败",
     "service registry is no longer trusted": "服务注册表不再受信任",

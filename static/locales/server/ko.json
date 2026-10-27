@@ -1701,6 +1701,7 @@
     "service definition changed after registration": "등록 후 서비스 정의가 변경되었습니다",
     "service definition is missing or unsafe": "서비스 정의가 없거나 안전하지 않습니다",
     "service definition is no longer trusted": "서비스 정의를 더 이상 신뢰할 수 없습니다",
+    "service install target already exists": "서비스 설치 대상이 이미 있습니다",
     "service manager is unavailable": "서비스 관리자를 사용할 수 없습니다",
     "service preflight failed": "서비스 사전 점검에 실패했습니다",
     "service registry is no longer trusted": "서비스 레지스트리를 더 이상 신뢰할 수 없습니다",

@@ -1701,6 +1701,7 @@
     "service definition changed after registration": "la definición del servicio cambió después del registro",
     "service definition is missing or unsafe": "falta la definición del servicio o no es segura",
     "service definition is no longer trusted": "la definición del servicio ya no es de confianza",
+    "service install target already exists": "el destino de instalación del servicio ya existe",
     "service manager is unavailable": "el gestor de servicios no está disponible",
     "service preflight failed": "falló la comprobación previa del servicio",
     "service registry is no longer trusted": "el registro de servicios ya no es de confianza",

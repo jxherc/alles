@@ -1701,6 +1701,7 @@
     "service definition changed after registration": "تغيّر تعريف الخدمة بعد التسجيل",
     "service definition is missing or unsafe": "تعريف الخدمة مفقود أو غير آمن",
     "service definition is no longer trusted": "تعريف الخدمة لم يعد موثوقًا",
+    "service install target already exists": "هدف تثبيت الخدمة موجود بالفعل",
     "service manager is unavailable": "مدير الخدمات غير متاح",
     "service preflight failed": "فشل الفحص المسبق للخدمة",
     "service registry is no longer trusted": "سجل الخدمات لم يعد موثوقًا",
