@@ -1,7 +1,7 @@
 # alles
 
-> 2026년 10월 25일 검토 완료 · 기준 원문: `README.md` · 원문 리비전:
-> `davinci-canonical-2026-10-25`
+> 2026년 10월 27일 검토 완료 · 기준 원문: `README.md` · 원문 리비전:
+> `davinci-canonical-2026-10-27`
 
 alles는 Google 생태계를 대신하는 프라이빗한 대안입니다. 메일, 캘린더, 문서, 파일, 사진, 연락처, 할 일, 돈 관리, 비밀번호를 남의 서버가 아니라 내가 관리하는 기기의 앱 하나에 모아 둡니다.
 
@@ -13,7 +13,7 @@ alles는 Google 생태계를 대신하는 프라이빗한 대안입니다. 메�
 
 ## 시작하기
 
-Python 3.11 이상이 필요합니다. macOS나 Linux에서는 다음을 실행하세요.
+git과 Python 3.11 이상이 필요합니다. Debian이나 Ubuntu에서는 먼저 `sudo apt install git python3-venv`를 실행하세요. 그다음 macOS나 Linux에서 다음을 실행하세요.
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -36,6 +36,20 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
 이렇게 하면 접근이 내 기기로 제한되고 데이터는 `alles-data` 볼륨에 저장됩니다. 컨테이너를 교체할 때도 이 볼륨은 남겨 두세요.
+
+### 다른 기기에서 사용하기
+
+휴대폰이나 다른 컴퓨터에서 집 네트워크나 [Tailscale](https://tailscale.com)을 통해 alles를 열려면 먼저 비밀번호를 설정하세요. alles 폴더에 `.env` 파일을 만들고 다음 줄을 넣습니다.
+
+```dotenv
+ALLES_ACCESS_PROFILE=lan
+AUTH_ENABLED=true
+AUTH_PASSWORD=a-long-password-only-you-know
+SECRET_KEY=paste-a-random-key-here
+ALLES_HOST=100.101.102.103
+```
+
+키는 `python3 -c "import secrets; print(secrets.token_hex(32))"`로 만들 수 있습니다. `ALLES_HOST`에는 다른 기기가 접속할 때 쓰는 주소(예: 서버의 Tailscale IP)를 넣으세요. 그러면 alles가 다른 네트워크에서는 연결을 받지 않습니다. 그런 다음 `python app.py`를 다시 실행하고 그 주소의 6769 포트를 엽니다. 예: `http://100.101.102.103:6769`
 
 ## 할 수 있는 일
 

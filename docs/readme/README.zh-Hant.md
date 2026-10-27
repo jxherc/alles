@@ -1,7 +1,7 @@
 # alles
 
-> 2026 年 10 月 25 日完成審核 · 規範來源：`README.md` · 來源修訂：
-> `davinci-canonical-2026-10-25`
+> 2026 年 10 月 27 日完成審核 · 規範來源：`README.md` · 來源修訂：
+> `davinci-canonical-2026-10-27`
 
 alles 是 Google 生態系的私人替代方案。郵件、行事曆、文件、檔案、相片、聯絡人、待辦事項、財務和密碼都放在同一個應用程式裡，跑在你自己掌控的機器上，而不是別人的伺服器上。
 
@@ -13,7 +13,7 @@ alles 是 Google 生態系的私人替代方案。郵件、行事曆、文件、
 
 ## 開始使用
 
-需要 Python 3.11 或更新版本。在 macOS 或 Linux 上執行：
+需要 git 和 Python 3.11 或更新版本。在 Debian 或 Ubuntu 上，請先執行 `sudo apt install git python3-venv`。接著在 macOS 或 Linux 上執行：
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -36,6 +36,20 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
 這樣只有你的裝置能存取，資料會存放在 `alles-data` 磁碟區中。更換容器時請保留這個磁碟區。
+
+### 從其他裝置使用
+
+想在手機或另一台電腦上開啟 alles（透過家中的區域網路或 [Tailscale](https://tailscale.com)），請先為它設定密碼。在 alles 資料夾中建立 `.env` 檔案，寫入以下幾行：
+
+```dotenv
+ALLES_ACCESS_PROFILE=lan
+AUTH_ENABLED=true
+AUTH_PASSWORD=a-long-password-only-you-know
+SECRET_KEY=paste-a-random-key-here
+ALLES_HOST=100.101.102.103
+```
+
+用 `python3 -c "import secrets; print(secrets.token_hex(32))"` 產生金鑰。把 `ALLES_HOST` 設為其他裝置連線時使用的位址，例如伺服器的 Tailscale IP，這樣 alles 就不會在其他網路上監聽。接著重新啟動 `python app.py`，以這個位址的 6769 連接埠開啟，例如 `http://100.101.102.103:6769`。
 
 ## 可以做什麼
 

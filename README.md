@@ -11,7 +11,7 @@ it's built for one person. your main data lives in a folder you control, and you
 
 ## get started
 
-you need python 3.11 or newer. on macos or linux:
+you need git and python 3.11 or newer. on debian or ubuntu, run `sudo apt install git python3-venv` first. then, on macos or linux:
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -34,6 +34,20 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
 this keeps access limited to your device and saves your data in the `alles-data` volume. keep that volume when you replace the container.
+
+### use it from another device
+
+to open alles from your phone or another computer, over your home network or [tailscale](https://tailscale.com), give it a password first. put these lines in a `.env` file in the alles folder:
+
+```dotenv
+ALLES_ACCESS_PROFILE=lan
+AUTH_ENABLED=true
+AUTH_PASSWORD=a-long-password-only-you-know
+SECRET_KEY=paste-a-random-key-here
+ALLES_HOST=100.101.102.103
+```
+
+make the key with `python3 -c "import secrets; print(secrets.token_hex(32))"`. set `ALLES_HOST` to the address your other devices use, like the server's tailscale ip, so alles doesn't listen anywhere else. then start `python app.py` again and open that address on port 6769, like `http://100.101.102.103:6769`.
 
 ## what you can do
 

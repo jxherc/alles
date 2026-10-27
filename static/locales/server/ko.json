@@ -1372,6 +1372,7 @@
     "push delivery failed": "푸시 전송에 실패했습니다",
     "push delivery outcome is uncertain": "푸시 전송 결과가 불확실합니다",
     "put {query} in the address or the body": "{query}을(를) 주소나 본문에 넣으세요",
+    "python's venv module is missing; on debian or ubuntu run `sudo apt install python3-venv`, then install again": "Python venv 모듈이 없습니다. Debian이나 Ubuntu에서는 `sudo apt install python3-venv`를 실행한 뒤 다시 설치하세요",
     "qualified models are invalid": "검증된 모델이 올바르지 않습니다",
     "quarantined copy changed during undo": "실행 취소 중 격리된 사본이 변경되었습니다",
     "quarantined release contains unexpected files during removal": "제거 중 격리된 릴리스에 예기치 않은 파일이 있습니다",

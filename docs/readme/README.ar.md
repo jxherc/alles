@@ -1,7 +1,7 @@
 # alles
 
-> ترجمة مراجعة في 25 أكتوبر 2026 · المصدر المعتمد: `README.md` · مراجعة المصدر:
-> `davinci-canonical-2026-10-25`
+> ترجمة مراجعة في 27 أكتوبر 2026 · المصدر المعتمد: `README.md` · مراجعة المصدر:
+> `davinci-canonical-2026-10-27`
 
 <div dir="rtl">
 
@@ -15,7 +15,7 @@
 
 ## البدء
 
-تحتاج إلى Python 3.11 أو إصدار أحدث. على macOS أو Linux:
+تحتاج إلى git وPython 3.11 أو إصدار أحدث. على Debian أو Ubuntu، شغّل أولاً `sudo apt install git python3-venv`. بعد ذلك، على macOS أو Linux:
 
 </div>
 
@@ -46,6 +46,24 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 <div dir="rtl">
 
 بهذا يبقى الوصول مقتصراً على جهازك، وتُحفظ بياناتك في وحدة التخزين `alles-data`. احتفظ بوحدة التخزين هذه عند استبدال الحاوية.
+
+### استخدامه من جهاز آخر
+
+لفتح alles من هاتفك أو من حاسوب آخر، عبر شبكتك المنزلية أو عبر [Tailscale](https://tailscale.com)، اضبط له كلمة مرور أولاً. ضع هذه الأسطر في ملف `.env` داخل مجلد alles:
+
+</div>
+
+```dotenv
+ALLES_ACCESS_PROFILE=lan
+AUTH_ENABLED=true
+AUTH_PASSWORD=a-long-password-only-you-know
+SECRET_KEY=paste-a-random-key-here
+ALLES_HOST=100.101.102.103
+```
+
+<div dir="rtl">
+
+أنشئ المفتاح بالأمر `python3 -c "import secrets; print(secrets.token_hex(32))"`. اضبط `ALLES_HOST` على العنوان الذي تستخدمه أجهزتك الأخرى، مثل عنوان IP الخاص بالخادم على Tailscale، حتى لا يستمع alles على أي شبكة أخرى. ثم شغّل `python app.py` من جديد وافتح ذلك العنوان على المنفذ 6769، مثل `http://100.101.102.103:6769`.
 
 ## ما الذي يمكنك فعله
 

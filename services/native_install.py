@@ -324,6 +324,12 @@ def build_release(source: Path, destination: Path) -> Path:
         except (OSError, subprocess.SubprocessError) as exc:
             raise NativeInstallError("could not build the private Python environment") from exc
         if result.returncode != 0:
+            # debian and ubuntu ship venv's pip bootstrap in its own package
+            if "ensurepip" in f"{result.stdout or ''}{result.stderr or ''}":
+                raise NativeInstallError(
+                    "python's venv module is missing; on debian or ubuntu run "
+                    "`sudo apt install python3-venv`, then install again"
+                )
             raise NativeInstallError("could not build the private Python environment")
     return python
 

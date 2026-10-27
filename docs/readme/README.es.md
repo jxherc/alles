@@ -1,7 +1,7 @@
 # alles
 
-> traducción revisada el 25 de octubre de 2026 · fuente canónica: `README.md` · revisión:
-> `davinci-canonical-2026-10-25`
+> traducción revisada el 27 de octubre de 2026 · fuente canónica: `README.md` · revisión:
+> `davinci-canonical-2026-10-27`
 
 alles es una alternativa privada al ecosistema de Google. tu correo, calendario, documentos, archivos, fotos, contactos, tareas, dinero y contraseñas viven en una sola app, en una máquina que tú controlas, y no en los servidores de otra persona.
 
@@ -12,7 +12,7 @@ alles está pensado para una sola persona. tus datos principales se guardan en u
 
 ## primeros pasos
 
-necesitas Python 3.11 o una versión más reciente. en macOS o Linux:
+necesitas git y Python 3.11 o una versión más reciente. en Debian o Ubuntu, ejecuta antes `sudo apt install git python3-venv`. después, en macOS o Linux:
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -35,6 +35,20 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
 así el acceso queda limitado a tu dispositivo y tus datos se guardan en el volumen `alles-data`. conserva ese volumen cuando reemplaces el contenedor.
+
+### usarlo desde otro dispositivo
+
+para abrir alles desde tu teléfono u otro ordenador, en tu red local o a través de [Tailscale](https://tailscale.com), ponle primero una contraseña. escribe estas líneas en un archivo `.env` dentro de la carpeta de alles:
+
+```dotenv
+ALLES_ACCESS_PROFILE=lan
+AUTH_ENABLED=true
+AUTH_PASSWORD=a-long-password-only-you-know
+SECRET_KEY=paste-a-random-key-here
+ALLES_HOST=100.101.102.103
+```
+
+genera la clave con `python3 -c "import secrets; print(secrets.token_hex(32))"`. pon en `ALLES_HOST` la dirección que usan tus otros dispositivos, por ejemplo la IP de Tailscale del servidor, para que alles no escuche en ningún otro sitio. luego vuelve a iniciar `python app.py` y abre esa dirección en el puerto 6769, por ejemplo `http://100.101.102.103:6769`.
 
 ## qué puedes hacer
 

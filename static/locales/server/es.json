@@ -1372,6 +1372,7 @@
     "push delivery failed": "falló la entrega push",
     "push delivery outcome is uncertain": "el resultado de la entrega push es incierto",
     "put {query} in the address or the body": "pon {query} en la dirección o en el cuerpo",
+    "python's venv module is missing; on debian or ubuntu run `sudo apt install python3-venv`, then install again": "falta el módulo venv de Python; en Debian o Ubuntu, ejecuta `sudo apt install python3-venv` y vuelve a instalar",
     "qualified models are invalid": "los modelos calificados no son válidos",
     "quarantined copy changed during undo": "la copia en cuarentena cambió durante deshacer",
     "quarantined release contains unexpected files during removal": "la versión en cuarentena contiene archivos inesperados durante la eliminación",

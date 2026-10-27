@@ -1372,6 +1372,7 @@
     "push delivery failed": "فشل تسليم الإشعار الفوري",
     "push delivery outcome is uncertain": "نتيجة تسليم الإشعار الفوري غير مؤكدة",
     "put {query} in the address or the body": "ضع {query} في العنوان أو في النص",
+    "python's venv module is missing; on debian or ubuntu run `sudo apt install python3-venv`, then install again": "وحدة venv الخاصة بـ Python غير موجودة؛ على Debian أو Ubuntu شغّل `sudo apt install python3-venv` ثم أعد التثبيت",
     "qualified models are invalid": "النماذج المؤهلة غير صالحة",
     "quarantined copy changed during undo": "تغيّرت النسخة المعزولة أثناء التراجع",
     "quarantined release contains unexpected files during removal": "يحتوي الإصدار المعزول على ملفات غير متوقعة أثناء الإزالة",

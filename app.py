@@ -1683,6 +1683,12 @@ if __name__ == "__main__":
     )  # ALLES_RELOAD=1 -> hot-reload on .py edits (dev)
     display_host = "localhost" if host in {"127.0.0.1", "::1", "0.0.0.0", "::"} else host
     log.info(f"starting alles on http://{display_host}:{port}{' (reload)' if do_reload else ''}")
+    if access_profile() == "device":
+        # on a server, http://<server ip>:<port> from another device otherwise just shows nothing
+        log.info(
+            "only this device can open it. to use it from another device, "
+            "see 'use it from another device' in README.md"
+        )
     proxy_ips = forwarded_allow_ips() if access_profile() == "public" else ()
     uvicorn.run(
         "app:app",

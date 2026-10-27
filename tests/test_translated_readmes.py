@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TRANSLATIONS = ("fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar")
-SOURCE_REVISION = "davinci-canonical-2026-10-25"
+SOURCE_REVISION = "davinci-canonical-2026-10-27"
 
 
 class TranslatedReadmeTests(unittest.TestCase):
@@ -13,6 +13,8 @@ class TranslatedReadmeTests(unittest.TestCase):
             "git clone https://github.com/jxherc/alles.git",
             "pip install -r requirements.lock",
             "python app.py",
+            "sudo apt install git python3-venv",
+            "ALLES_ACCESS_PROFILE=lan",
             "docker build -t alles .",
             "-p 127.0.0.1:6769:6769",
             "../../specifications.md#security--read-before-exposing-it",

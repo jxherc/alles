@@ -251,6 +251,23 @@ class NativeInstallLifecycleTest(unittest.TestCase):
         self.assertTrue(installed_python.is_symlink())
         self.assertTrue(installed_python.is_file())
 
+    def test_missing_venv_module_names_the_debian_package(self):
+        # a bare debian or ubuntu has python3 but not python3-venv
+        failed = subprocess.CompletedProcess(
+            [],
+            1,
+            "",
+            "The virtual environment was not created successfully because ensurepip is not\navailable.",
+        )
+        with (
+            mock.patch("services.credits.verify_release_notice_set"),
+            mock.patch.object(native_install.subprocess, "run", return_value=failed),
+            self.assertRaisesRegex(
+                native_install.NativeInstallError, "sudo apt install python3-venv"
+            ),
+        ):
+            native_install.build_release(self.source, self.root / "stage")
+
     def test_default_release_builder_never_dereferences_source_symlinks(self):
         outside = self.root / "outside"
         outside.mkdir()

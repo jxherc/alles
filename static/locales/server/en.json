@@ -1372,6 +1372,7 @@
     "push delivery failed",
     "push delivery outcome is uncertain",
     "put {query} in the address or the body",
+    "python's venv module is missing; on debian or ubuntu run `sudo apt install python3-venv`, then install again",
     "qualified models are invalid",
     "quarantined copy changed during undo",
     "quarantined release contains unexpected files during removal",

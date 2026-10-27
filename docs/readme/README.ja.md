@@ -1,7 +1,7 @@
 # alles
 
-> 2026 年 10 月 25 日レビュー済み · 正本: `README.md` · ソースリビジョン:
-> `davinci-canonical-2026-10-25`
+> 2026 年 10 月 27 日レビュー済み · 正本: `README.md` · ソースリビジョン:
+> `davinci-canonical-2026-10-27`
 
 alles は Google のエコシステムを置き換える、プライベートなアプリです。メール、カレンダー、ドキュメント、ファイル、写真、連絡先、タスク、お金、パスワードを、他人のサーバーではなく自分で管理するマシン上の 1 つのアプリにまとめられます。
 
@@ -13,7 +13,7 @@ alles は Google のエコシステムを置き換える、プライベートな
 
 ## はじめに
 
-Python 3.11 以降が必要です。macOS や Linux では、次のように実行します。
+git と Python 3.11 以降が必要です。Debian や Ubuntu では、先に `sudo apt install git python3-venv` を実行してください。そのうえで、macOS や Linux では次のように実行します。
 
 ```bash
 git clone https://github.com/jxherc/alles.git
@@ -36,6 +36,20 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ```
 
 これでアクセスは自分のデバイスだけに限られ、データは `alles-data` ボリュームに保存されます。コンテナーを入れ替えるときも、このボリュームは残してください。
+
+### ほかのデバイスから使う
+
+スマートフォンや別のパソコンから、自宅のネットワークや [Tailscale](https://tailscale.com) 経由で alles を開くには、まずパスワードを設定します。alles のフォルダーに `.env` ファイルを作り、次の行を書き込んでください。
+
+```dotenv
+ALLES_ACCESS_PROFILE=lan
+AUTH_ENABLED=true
+AUTH_PASSWORD=a-long-password-only-you-know
+SECRET_KEY=paste-a-random-key-here
+ALLES_HOST=100.101.102.103
+```
+
+鍵は `python3 -c "import secrets; print(secrets.token_hex(32))"` で作れます。`ALLES_HOST` には、ほかのデバイスが接続に使うアドレス（たとえばサーバーの Tailscale IP）を指定してください。こうすると、alles はほかのネットワークでは待ち受けません。そのあと `python app.py` をもう一度起動し、そのアドレスのポート 6769 を開きます。例: `http://100.101.102.103:6769`
 
 ## できること
 

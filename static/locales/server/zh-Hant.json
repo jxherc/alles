@@ -1372,6 +1372,7 @@
     "push delivery failed": "推播投遞失敗",
     "push delivery outcome is uncertain": "推播投遞結果不確定",
     "put {query} in the address or the body": "請把 {query} 放在位址或內容中",
+    "python's venv module is missing; on debian or ubuntu run `sudo apt install python3-venv`, then install again": "缺少 Python 的 venv 模組；在 Debian 或 Ubuntu 上執行 `sudo apt install python3-venv`，然後重新安裝",
     "qualified models are invalid": "合格模型清單無效",
     "quarantined copy changed during undo": "復原期間隔離的副本已變更",
     "quarantined release contains unexpected files during removal": "移除期間隔離的版本含有非預期的檔案",
