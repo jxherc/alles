@@ -1317,23 +1317,53 @@ def _native_stop_service(layout) -> None:
         raise RuntimeError("the owned Alles service did not stop")
 
 
-def _native_start_service_healthy(layout) -> bool:
+def _service_update_token(layout, token: str | None) -> None:
+    """Hand an update's start token to the service manager, or take it back (None).
+
+    systemd and launchd start alles with their own environment, so the new release could not see
+    the token and refused to start while the update lock was held.
+    """
+    if getattr(layout, "manager", "") == "launchd":
+        command = (
+            ["launchctl", "setenv", "ALLES_UPDATE_TOKEN", token]
+            if token
+            else ["launchctl", "unsetenv", "ALLES_UPDATE_TOKEN"]
+        )
+    else:
+        command = (
+            ["systemctl", "--user", "set-environment", f"ALLES_UPDATE_TOKEN={token}"]
+            if token
+            else ["systemctl", "--user", "unset-environment", "ALLES_UPDATE_TOKEN"]
+        )
+    try:
+        subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def _native_start_service_healthy(layout, token: str | None = None) -> bool:
     from services import service_manager
 
     _, base_url = _native_service_endpoint(layout)
+    if token:
+        _service_update_token(layout, token)
     try:
-        service_manager.control("server", "start")
-    except Exception:
-        return False
-    deadline = time.time() + 60
-    while time.time() < deadline:
         try:
-            if _native_service_running() and _health_endpoint_ok(timeout=1, base_url=base_url):
-                return True
+            service_manager.control("server", "start")
         except Exception:
             return False
-        time.sleep(0.4)
-    return False
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            try:
+                if _native_service_running() and _health_endpoint_ok(timeout=1, base_url=base_url):
+                    return True
+            except Exception:
+                return False
+            time.sleep(0.4)
+        return False
+    finally:
+        if token:
+            _service_update_token(layout, None)
 
 
 def _native_restore_update_data(state: dict, live: Path) -> bool:
@@ -1799,7 +1829,7 @@ def _cmd_native_update_locked(layout) -> bool:
         complete_restore_operation(operation)
         state["phase"] = "applied"
         _write_update_state(state_path, state)
-        if was_running and not _native_start_service_healthy(layout):
+        if was_running and not _native_start_service_healthy(layout, token=update_id):
             raise RuntimeError("the native release failed normal service startup")
         finish_update(live, update_id)
         print(f"alles updated safely to native release {target[:12]}")

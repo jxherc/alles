@@ -492,6 +492,13 @@ def _systemd_quote(value: Path | str) -> str:
     return '"' + raw.replace("%", "%%").replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def _systemd_path(value: Path) -> str:
+    raw = str(value)
+    if any(char in raw for char in "\n\r\0") or not raw.startswith("/"):
+        raise NativeInstallError("install path contains an unsupported character")
+    return raw.replace("%", "%%")
+
+
 def _service_source(layout: NativeLayout) -> bytes:
     if layout.manager == "launchd":
         args = "".join(
@@ -532,7 +539,8 @@ def _service_source(layout: NativeLayout) -> bytes:
             )
             + f"Environment=XDG_DATA_HOME={_systemd_quote(layout.support_root.parent)}\n"
             f"Environment=XDG_CONFIG_HOME={_systemd_quote(layout.service_definition.parents[2])}\n"
-            f"StandardOutput=append:{_systemd_quote(layout.data_root / 'alles-service.log')}\n"
+            # systemd takes this path as written: quotes would make it "not absolute"
+            f"StandardOutput=append:{_systemd_path(layout.data_root / 'alles-service.log')}\n"
             "StandardError=inherit\n"
             "Restart=on-failure\nRestartSec=2\n\n"
             "[Install]\nWantedBy=default.target\n"

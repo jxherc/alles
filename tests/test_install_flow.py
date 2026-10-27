@@ -183,9 +183,10 @@ class NativeInstallStepsTest(unittest.TestCase):
         self.assertEqual(config.read_text("utf-8"), text)
         dispatcher = self.layout.dispatcher.read_text("utf-8")
         self.assertIn("export ALLES_CONFIG=", dispatcher)
-        self.assertIn(
-            "Environment=ALLES_CONFIG=", self.layout.service_definition.read_text("utf-8")
-        )
+        unit = self.layout.service_definition.read_text("utf-8")
+        self.assertIn("Environment=ALLES_CONFIG=", unit)
+        # systemd rejects a quoted path here ("not absolute") and falls back to the journal
+        self.assertIn(f"StandardOutput=append:{self.layout.data_root}/alles-service.log\n", unit)
 
     def test_an_archive_install_names_its_release_after_the_commit(self):
         commit = "ab" * 20
@@ -473,6 +474,34 @@ class NativeRollbackBookkeepingTest(unittest.TestCase):
                 )
             discard.assert_not_called()
             finish.assert_called_once_with(live, "b" * 32)
+
+
+class ServiceUpdateTokenTest(unittest.TestCase):
+    def test_the_update_token_reaches_the_service_and_is_taken_back(self):
+        calls = []
+        layout = SimpleNamespace(manager="systemd-user")
+        with (
+            mock.patch.object(
+                cli.subprocess, "run", side_effect=lambda cmd, **_k: calls.append(cmd)
+            ),
+            mock.patch.object(
+                cli, "_native_service_endpoint", return_value=(6769, "http://127.0.0.1:6769")
+            ),
+            mock.patch(
+                "services.service_manager.control", side_effect=lambda *_a: calls.append("start")
+            ),
+            mock.patch.object(cli, "_native_service_running", return_value=True),
+            mock.patch.object(cli, "_health_endpoint_ok", return_value=True),
+        ):
+            self.assertTrue(cli._native_start_service_healthy(layout, token="c" * 32))
+        self.assertEqual(
+            calls,
+            [
+                ["systemctl", "--user", "set-environment", "ALLES_UPDATE_TOKEN=" + "c" * 32],
+                "start",
+                ["systemctl", "--user", "unset-environment", "ALLES_UPDATE_TOKEN"],
+            ],
+        )
 
 
 class ReleaseProbeBytecodeTest(unittest.TestCase):

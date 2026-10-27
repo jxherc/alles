@@ -185,7 +185,7 @@ class NativeUpdateCliTest(unittest.TestCase):
                             ):
                                 with patches[16] as begin, patches[17] as finish, patches[18]:
                                     lifecycle = []
-                                    start.side_effect = lambda _layout: (
+                                    start.side_effect = lambda _layout, **_kw: (
                                         lifecycle.append("start") or True
                                     )
                                     finish.side_effect = lambda *_args: lifecycle.append("finish")
@@ -207,7 +207,7 @@ class NativeUpdateCliTest(unittest.TestCase):
             self.data.resolve(), passes=1, app_root=self.release, python_path=self.python
         )
         complete.assert_called_once_with(operation)
-        start.assert_called_once_with(self.layout)
+        start.assert_called_once_with(self.layout, token=mock.ANY)
         begin.assert_called_once()
         finish.assert_called_once()
         self.assertEqual(lifecycle, ["start", "finish"])
@@ -360,7 +360,7 @@ class NativeUpdateCliTest(unittest.TestCase):
         calls = []
         with ExitStack() as stack:
             entered = [stack.enter_context(patch) for patch in patches]
-            entered[11].side_effect = lambda _layout: calls.append("start") or True
+            entered[11].side_effect = lambda _layout, **_kw: calls.append("start") or True
             entered[17].side_effect = lambda *_args: calls.append("finish")
             stack.enter_context(
                 mock.patch.object(
@@ -376,6 +376,8 @@ class NativeUpdateCliTest(unittest.TestCase):
         self.assertTrue(result)
         self.assertLess(calls.index("write:applied"), calls.index("start"))
         self.assertLess(calls.index("start"), calls.index("finish"))
+        # the service manager starts alles without our environment, so the token goes with it
+        self.assertRegex(entered[11].call_args.kwargs.get("token") or "", r"^[0-9a-f]{32}$")
 
     def test_native_lock_conflict_never_rolls_back_an_unowned_update(self):
         _rollback, _candidate, _operation, _lock, patches = self._patches(healthy=True)
