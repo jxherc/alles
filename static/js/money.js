@@ -4,14 +4,14 @@ import { api, toast, plainError } from './util.js';
 import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=214';
 import { initDatePicker, calendarDateParts } from './datepick.js';
-import { calendarDateKey, formatCalendarDate, formatDate, formatNumber, t, tp } from './i18n.js';
+import { calendarDateKey, currencySymbol, formatCalendarDate, formatDate, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=4';
 import { bankRequest as _ownerFetch, openPlaidLink } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';
 import { tickNumbers } from './motion.js';
 import { formatDecimal } from './liveformat.js';
-import { amountIn, currencySymbol, excludedNotes, totalsCurrency, wireCurrency } from './money_currency.js';
+import { amountIn, excludedNotes, totalsCurrency, wireCurrency } from './money_currency.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 // one hue per category for everything on screen: the chart's categories pick first so its bars

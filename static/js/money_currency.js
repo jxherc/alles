@@ -1,7 +1,7 @@
 // totals in one currency: the picker, the saved rates, and the note for what a total leaves out.
 // money and subscriptions share it, so both say the same thing the same way
 import { api, toast } from './util.js';
-import { formatNumber, localeTag, t } from './i18n.js';
+import { currencySymbol, formatNumber, localeTag, t } from './i18n.js';
 import { confirm as dlgConfirm, pick as dlgPick, prompt as dlgPrompt } from './dialog.js';
 
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');
@@ -62,14 +62,6 @@ export function rateJump(previous, next) {
   const ratio = Number(next) / Number(previous);
   if (!(Number(previous) > 0) || !(ratio > 0) || (ratio <= 10 && ratio >= 0.1)) return '';
   return ratio > 10 ? t('money.rate_jump_up', { n: Math.round(ratio) }) : t('money.rate_jump_down', { n: Math.round(1 / ratio) });
-}
-
-// "$", "€", "CA$": the sign a person reads, from the browser's own locale data
-export function currencySymbol(code) {
-  try {
-    return new Intl.NumberFormat(localeTag(), { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
-      .formatToParts(0).find(part => part.type === 'currency')?.value || code;
-  } catch { return code; }
 }
 
 export function currencyName(code) {

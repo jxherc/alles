@@ -21,7 +21,7 @@ it downloads only the app, sets it up as a background service and shows each ste
 
 then open [http://localhost:6769](http://localhost:6769) and follow the setup. you don't need an api key to get started. from then on, the `alles` command does the rest: on its own it shows whether alles is running and how to open it, `alles doctor` checks the install, and `alles config` opens the settings file.
 
-by default, alles is only accessible from this device and starts without a password. **before putting it on your network**, give it a password and choose who can open it: `alles access lan` does both. local network and public access have different requirements; read [security](specifications.md#security--read-before-exposing-it) first.
+by default, alles is only accessible from this device and starts without a password. right after installing it asks whether you want one (8 characters or more; `alles password` sets or changes it later) and whether your other devices should open it. **before putting it on your network**, give it a password and choose who can open it: `alles access lan` does both. local network and public access have different requirements; read [security](specifications.md#security--read-before-exposing-it) first.
 
 ### use it from another device
 
@@ -77,7 +77,7 @@ undo removes that exact transaction only while its saved details remain unchange
 an interrupted reply keeps a retry for the same transaction. Actual transactions,
 imports, and transfers use their existing review and deletion workflows.
 
-some things need a connection before they work. add your imap/smtp account for mail, connect a service for online storage or banking, and add a model in **settings → models** if you want to use aide. local models through ollama work too.
+some things need a connection before they work. in mail, pick gmail, outlook, icloud, yahoo or fastmail and the form fills itself in; gmail signs in with google after a one-time google cloud setup that alles walks you through (download the client json and drop it in). bank sync lives under **finance → bank connections** (plaid for most banks in canada and the us, or simplefin). add a model in **settings → models** if you want to use aide; local models through ollama work too.
 
 the interface comes in english, français, español, 简体中文, 繁體中文, 日本語, 한국어 and العربية. pick yours in **settings → language & region**.
 

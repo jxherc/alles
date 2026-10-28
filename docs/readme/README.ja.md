@@ -23,7 +23,7 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
 
 そのあと [http://localhost:6769](http://localhost:6769) を開き、セットアップに沿って進めてください。始めるのに API キーは要りません。あとは `alles` コマンドで足ります。単体で実行すると alles が動いているかと開き方を表示し、`alles doctor` はインストールを確認し、`alles config` は設定ファイルを開きます。
 
-標準では、alles にはこのデバイスからしかアクセスできず、パスワードなしで起動します。**ネットワークに公開する前に**、パスワードを設定し、誰が開けるかを決めてください。`alles access lan` で両方できます。ローカルネットワークでの利用と公開アクセスでは条件が異なります。先に[セキュリティ](../../specifications.md#security--read-before-exposing-it)を読んでください。
+標準では、alles にはこのデバイスからしかアクセスできず、パスワードなしで起動します。**ネットワークに公開する前に**、パスワードを設定し、誰が開けるかを決めてください。`alles access lan` で両方できます。ローカルネットワークでの利用と公開アクセスでは条件が異なります。先に[セキュリティ](../../specifications.md#security--read-before-exposing-it)を読んでください。インストール直後に、パスワードを設定するか（8 文字以上。あとから `alles password` で設定・変更できます）と、ほかのデバイスからも開けるようにするかを尋ねます。
 
 ### ほかのデバイスから使う
 
@@ -77,6 +77,8 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 ローカルの財務台帳に手動で保存した新しい取引は、元に戻せます。元に戻すと削除されるのはその取引だけで、保存された内容が変わっていない間に限られます。応答が途中で切れた場合は、同じ取引をもう一度試せます。Actual の取引、インポート、振替は、これまでどおりの確認と削除の手順で扱います。
 
 一部の機能は、接続してから使えるようになります。メールには IMAP/SMTP アカウントを追加し、オンラインストレージや銀行には対応するサービスを接続してください。aide を使うなら **settings → models** でモデルを追加します。Ollama のローカルモデルも使えます。
+
+メールで gmail・outlook・icloud・yahoo・fastmail を選ぶとフォームが自動で埋まります。gmail は一度だけの google cloud 設定のあと google でサインインでき、alles が手順を案内します（クライアントの json をダウンロードしてドロップするだけ）。銀行の同期は **finance → bank connections** にあります（カナダと米国のほとんどの銀行は plaid、または simplefin）。
 
 画面の言語は english, français, español, 简体中文, 繁體中文, 日本語, 한국어、العربية から選べます。**設定 → 言語と地域** で切り替えてください。
 

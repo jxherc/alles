@@ -22,7 +22,7 @@ il télécharge seulement l’app, l’installe comme service en arrière-plan e
 
 ouvrez ensuite [http://localhost:6769](http://localhost:6769) et suivez la configuration. pas besoin de clé API pour commencer. ensuite, la commande `alles` s’occupe du reste : seule, elle indique si alles tourne et comment l’ouvrir, `alles doctor` vérifie l’installation et `alles config` ouvre le fichier de réglages.
 
-par défaut, alles n’est accessible que depuis cet appareil et démarre sans mot de passe. **avant de le mettre sur votre réseau**, donnez-lui un mot de passe et choisissez qui peut l’ouvrir : `alles access lan` fait les deux. le réseau local et l’accès public n’ont pas les mêmes exigences ; lisez d’abord la section [sécurité](../../specifications.md#security--read-before-exposing-it).
+par défaut, alles n’est accessible que depuis cet appareil et démarre sans mot de passe. **avant de le mettre sur votre réseau**, donnez-lui un mot de passe et choisissez qui peut l’ouvrir : `alles access lan` fait les deux. le réseau local et l’accès public n’ont pas les mêmes exigences ; lisez d’abord la section [sécurité](../../specifications.md#security--read-before-exposing-it). juste après l’installation, il vous demande si vous voulez un mot de passe (8 caractères ou plus ; `alles password` le définit ou le change ensuite) et si vos autres appareils doivent pouvoir l’ouvrir.
 
 ### l’utiliser depuis un autre appareil
 
@@ -79,6 +79,8 @@ si la réponse est interrompue, un nouvel essai reste possible pour la même tra
 les imports et les virements passent par leurs circuits habituels de vérification et de suppression.
 
 certaines fonctions demandent une connexion avant de marcher. ajoutez votre compte IMAP/SMTP pour les e-mails, connectez un service pour le stockage en ligne ou les services bancaires, et ajoutez un modèle dans **settings → models** si vous voulez utiliser Aide. les modèles locaux via Ollama marchent aussi.
+
+dans e-mail, choisissez gmail, outlook, icloud, yahoo ou fastmail et le formulaire se remplit tout seul ; gmail se connecte avec google après une configuration google cloud unique qu’alles vous guide pas à pas (téléchargez le json du client et déposez-le). la synchronisation bancaire se trouve dans **finance → connexions bancaires** (plaid pour la plupart des banques au canada et aux états-unis, ou simplefin).
 
 l’interface existe en english, français, español, 简体中文, 繁體中文, 日本語, 한국어 et العربية. choisissez la vôtre dans **réglages → langue et région**.
 

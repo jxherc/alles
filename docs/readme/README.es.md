@@ -22,7 +22,7 @@ descarga solo la app, la instala como servicio en segundo plano y muestra cada p
 
 después abre [http://localhost:6769](http://localhost:6769) y sigue la configuración. no necesitas una clave de API para empezar. a partir de ahí, el comando `alles` se encarga del resto: solo, muestra si alles está funcionando y cómo abrirlo, `alles doctor` revisa la instalación y `alles config` abre el archivo de ajustes.
 
-por defecto, solo se puede acceder a alles desde este dispositivo y arranca sin contraseña. **antes de ponerlo en tu red**, ponle una contraseña y elige quién puede abrirlo: `alles access lan` hace ambas cosas. el acceso en la red local y el acceso público tienen requisitos distintos; lee primero la sección de [seguridad](../../specifications.md#security--read-before-exposing-it).
+por defecto, solo se puede acceder a alles desde este dispositivo y arranca sin contraseña. **antes de ponerlo en tu red**, ponle una contraseña y elige quién puede abrirlo: `alles access lan` hace ambas cosas. el acceso en la red local y el acceso público tienen requisitos distintos; lee primero la sección de [seguridad](../../specifications.md#security--read-before-exposing-it). justo después de instalarlo, pregunta si quieres una contraseña (8 caracteres o más; `alles password` la crea o la cambia después) y si tus otros dispositivos deben poder abrirlo.
 
 ### usarlo desde otro dispositivo
 
@@ -79,6 +79,8 @@ si la respuesta se corta, queda un reintento disponible para la misma transacci�
 las importaciones y las transferencias siguen sus flujos habituales de revisión y eliminación.
 
 algunas cosas necesitan una conexión antes de funcionar. añade tu cuenta IMAP/SMTP para el correo, conecta un servicio para el almacenamiento en línea o la banca, y añade un modelo en **settings → models** si quieres usar aide. también funcionan los modelos locales con Ollama.
+
+en correo, elige gmail, outlook, icloud, yahoo o fastmail y el formulario se rellena solo; gmail inicia sesión con google tras una configuración única de google cloud que alles te guía paso a paso (descarga el json del cliente y suéltalo). la sincronización bancaria está en **finanzas → conexiones bancarias** (plaid para la mayoría de bancos de canadá y ee. uu., o simplefin).
 
 la interfaz está disponible en english, français, español, 简体中文, 繁體中文, 日本語, 한국어 y العربية. elige la tuya en **ajustes → idioma y región**.
 

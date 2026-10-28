@@ -1,6 +1,32 @@
 {
   "releases": [
     {
+      "id": "2026-10-28",
+      "date": "october 28, 2026",
+      "items": [
+        {
+          "title": "bank sync you can find",
+          "body": "finance shows bank connections on its overview and when you have no accounts yet. plaid comes first with its sign-up steps, and it now links over the tailnet."
+        },
+        {
+          "title": "gmail in one tap",
+          "body": "pick gmail in mail. after a one-time google setup that alles walks you through, signing in is one button."
+        },
+        {
+          "title": "copy that works",
+          "body": "copy buttons work when alles is opened over plain http on your network, and vault copy works in safari."
+        },
+        {
+          "title": "the whole world in settings",
+          "body": "region, time zone and currency list every option with a search, and setup lets you fix a wrongly guessed region. passwords need 8 characters."
+        },
+        {
+          "title": "calmer details",
+          "body": "fields show focus on their own edge, hover never looks like a pick, drawers slide shut, letters jump through dropdowns, and search suggests a fix for typos."
+        }
+      ]
+    },
+    {
       "id": "2026-10-26",
       "date": "october 26, 2026",
       "items": [

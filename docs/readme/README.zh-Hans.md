@@ -22,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
 
 然后打开 [http://localhost:6769](http://localhost:6769)，按提示完成设置。开始使用不需要 API 密钥。之后用 `alles` 命令处理其余的事：单独运行它会显示 alles 是否在运行以及如何打开，`alles doctor` 检查安装，`alles config` 打开设置文件。
 
-默认情况下，只有这台设备能访问 alles，而且启动时没有密码。**在放到网络上之前**，先给它设密码并选择谁能打开它：`alles access lan` 两件事一起完成。局域网访问和公网访问的要求不同；请先阅读[安全说明](../../specifications.md#security--read-before-exposing-it)。
+默认情况下，只有这台设备能访问 alles，而且启动时没有密码。**在放到网络上之前**，先给它设密码并选择谁能打开它：`alles access lan` 两件事一起完成。局域网访问和公网访问的要求不同；请先阅读[安全说明](../../specifications.md#security--read-before-exposing-it)。安装完成后，它会问你要不要设置密码（至少 8 个字符；之后可以用 `alles password` 设置或修改），以及你的其他设备是否也要能打开它。
 
 ### 从其他设备使用
 
@@ -76,6 +76,8 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 在本地财务账本中手动新建的交易可以撤销。撤销只会删除那一笔交易，而且前提是它保存的内容没有改动过；如果响应中断，同一笔交易仍可重试。Actual 交易、导入和转账沿用各自已有的审核和删除流程。
 
 有些功能需要先连接才能用。添加 IMAP/SMTP 账户来使用邮件，连接相应服务来使用在线存储或银行功能；想用 aide 的话，到 **settings → models** 添加模型。也可以用 Ollama 运行本地模型。
+
+在邮件里选择 gmail、outlook、icloud、yahoo 或 fastmail，表单会自动填好；gmail 在完成一次 google cloud 设置后用 google 登录，alles 会一步步带你完成（下载客户端 json 后拖进来即可）。银行同步在 **财务 → 银行连接**（加拿大和美国的大多数银行用 plaid，也可以用 simplefin）。
 
 界面支持 english, français, español, 简体中文, 繁體中文, 日本語, 한국어 和 العربية。在 **设置 → 语言与地区** 里选择。
 
