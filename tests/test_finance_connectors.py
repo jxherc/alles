@@ -320,6 +320,75 @@ class FinanceConnectorApiTests(ApiTest):
         finally:
             db.close()
 
+    def test_plaid_link_skips_a_return_address_plaid_would_reject(self):
+        db = self.db()
+        try:
+            row = FinanceConnection(
+                provider="plaid",
+                label="Plaid",
+                environment="production",
+                client_id="fake-client",
+                client_secret="fake-secret",
+                status="link_required",
+            )
+            db.add(row)
+            db.commit()
+            client = Client(Response({"link_token": "fake-link", "expiration": "later"}))
+            uri = "http://alles.example/api/finance/connections/plaid/return"
+            link = finance_connectors.plaid_link_token(db, row.id, redirect_uri=uri, client=client)
+            self.assertEqual(link["redirect_uri"], "")
+            self.assertNotIn("redirect_uri", client.calls[0][2]["json"])
+
+            unregistered = Response(
+                {
+                    "error_message": "OAuth redirect URI must be configured in the developer dashboard"
+                },
+                status=400,
+            )
+            client = Client(
+                unregistered, Response({"link_token": "fake-link", "expiration": "later"})
+            )
+            uri = "https://alles.example/api/finance/connections/plaid/return"
+            link = finance_connectors.plaid_link_token(db, row.id, redirect_uri=uri, client=client)
+            self.assertEqual(link["redirect_uri"], "")
+            self.assertEqual(client.calls[0][2]["json"]["redirect_uri"], uri)
+            self.assertNotIn("redirect_uri", client.calls[1][2]["json"])
+
+            client = Client(Response({"error_message": "invalid secret"}, status=400))
+            with self.assertRaisesRegex(finance_connectors.FinanceConnectorError, "invalid secret"):
+                finance_connectors.plaid_link_token(db, row.id, redirect_uri=uri, client=client)
+        finally:
+            db.close()
+
+    def test_plaid_link_token_uses_the_browser_origin_behind_a_proxy(self):
+        db = self.db()
+        try:
+            row = FinanceConnection(
+                provider="plaid",
+                label="Plaid",
+                environment="production",
+                client_id="fake-client",
+                client_secret="fake-secret",
+                status="link_required",
+            )
+            db.add(row)
+            db.commit()
+            row_id = row.id
+        finally:
+            db.close()
+        with mock.patch(
+            "services.finance_connectors.httpx.post",
+            return_value=Response({"link_token": "fake-link", "expiration": "later"}),
+        ) as post:
+            response = self.client.post(
+                f"/api/finance/connections/{row_id}/plaid/link-token",
+                headers={"origin": "https://testserver"},
+            )
+        self.assertEqual(response.status_code, 200)
+        expected = "https://testserver/api/finance/connections/plaid/return"
+        self.assertEqual(response.json()["redirect_uri"], expected)
+        self.assertEqual(post.call_args.kwargs["json"]["redirect_uri"], expected)
+
     def test_plaid_update_does_not_clear_provider_error_or_accept_a_different_item(self):
         db = self.db()
         try:

@@ -1,6 +1,7 @@
 """Owner-controlled read-only bank aggregation."""
 
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse
@@ -62,6 +63,13 @@ def configure_plaid(body: PlaidConfigBody, db: DbSession = Depends(get_db)):
 @router.post("/{connection_id}/plaid/link-token", dependencies=[Depends(require_recent_owner)])
 def plaid_link_token(connection_id: str, request: Request, db: DbSession = Depends(get_db)):
     redirect_uri = str(request.url_for("finance_plaid_return"))
+    # behind tailscale serve the app sees http; the browser's origin keeps the https
+    origin = urlsplit(request.headers.get("origin") or "")
+    if (
+        origin.scheme in {"http", "https"}
+        and origin.netloc.casefold() == request.headers.get("host", "").casefold()
+    ):
+        redirect_uri = f"{origin.scheme}://{origin.netloc}{urlsplit(redirect_uri).path}"
     try:
         return finance_connectors.plaid_link_token(db, connection_id, redirect_uri=redirect_uri)
     except finance_connectors.FinanceConnectorError as exc:

@@ -133,7 +133,9 @@ def run():
             expect(dialog).to_be_visible()
             expect(dialog.get_by_role("button", name="close", exact=True)).to_be_focused()
             page.keyboard.press("Shift+Tab")
-            expect(dialog.get_by_role("button", name="connect Plaid", exact=True)).to_be_focused()
+            expect(
+                dialog.get_by_role("button", name="connect SimpleFIN", exact=True)
+            ).to_be_focused()
 
             # Uncertain response cannot erase the one-time token.
             state["delay"] = "/simplefin"

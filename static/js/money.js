@@ -467,11 +467,11 @@ function _bankDialog() {
   overlay.className = 'dialog-overlay finance-bank-overlay';
   overlay.innerHTML = `<section class="dialog-card finance-bank-dialog" role="dialog" aria-modal="true" aria-labelledby="finance-bank-title">
     <header class="finance-bank-head"><div><h2 id="finance-bank-title">${t('finance.bank_connections')}</h2><p>${t('finance.bank_readonly')}</p></div><button class="btn" type="button" data-bank-close>${t('common.close')}</button></header>
-    <div class="finance-bank-status" role="status" aria-live="polite"></div>
-    <button class="btn" type="button" data-bank-refresh>${t('finance.bank_refresh')}</button><div class="finance-bank-connections"></div>
+    <div class="finance-bank-toolbar"><button class="btn" type="button" data-bank-refresh>${t('finance.bank_refresh')}</button><div class="finance-bank-status" role="status" aria-live="polite"></div></div>
+    <div class="finance-bank-connections"></div>
     <div class="finance-bank-setup">
-      <section><h3>SimpleFIN</h3><p>${t('finance.simplefin_help')}</p><label for="finance-simplefin-token">${t('finance.setup_token')}</label><textarea id="finance-simplefin-token" rows="3" autocomplete="off" spellcheck="false"></textarea><button class="btn" type="button" data-bank-simplefin>${t('finance.connect_simplefin')}</button></section>
-      <section><h3>Plaid</h3><p>${t('finance.plaid_help')}</p><label for="finance-plaid-client">${t('finance.client_id')}</label><input id="finance-plaid-client" autocomplete="off"><label for="finance-plaid-secret">${t('finance.secret')}</label><input id="finance-plaid-secret" type="password" autocomplete="new-password"><div class="finance-bank-environments" role="group" aria-label="${t('finance.plaid_environment')}"><button class="btn active" type="button" aria-pressed="true" data-plaid-env="sandbox">${t('finance.env_sandbox')}</button><button class="btn" type="button" aria-pressed="false" data-plaid-env="production">${t('finance.env_production')}</button></div><button class="btn" type="button" data-bank-plaid>${t('finance.connect_plaid')}</button></section>
+      <section><h3>Plaid</h3><p>${t('finance.plaid_lead')}</p><ol class="finance-bank-steps"><li><a href="https://dashboard.plaid.com/signup" target="_blank" rel="noopener noreferrer">${t('finance.plaid_step_signup')}</a></li><li><a href="https://dashboard.plaid.com/developers/keys" target="_blank" rel="noopener noreferrer">${t('finance.plaid_step_keys')}</a></li><li>${t('finance.plaid_step_link')}</li></ol><label for="finance-plaid-client">${t('finance.client_id')}</label><input id="finance-plaid-client" autocomplete="off" spellcheck="false"><label for="finance-plaid-secret">${t('finance.secret')}</label><input id="finance-plaid-secret" type="password" autocomplete="new-password"><div class="finance-bank-environments" role="group" aria-label="${t('finance.plaid_environment')}"><button class="btn active" type="button" aria-pressed="true" data-plaid-env="production">${t('finance.env_real')}</button><button class="btn" type="button" aria-pressed="false" data-plaid-env="sandbox">${t('finance.env_test')}</button></div><button class="btn" type="button" data-bank-plaid>${t('finance.connect_plaid')}</button></section>
+      <section><h3>SimpleFIN</h3><p>${t('finance.simplefin_help')}</p><ol class="finance-bank-steps"><li><a href="https://bridge.simplefin.org/" target="_blank" rel="noopener noreferrer">${t('finance.simplefin_step_token')}</a></li><li>${t('finance.simplefin_step_paste')}</li></ol><label for="finance-simplefin-token">${t('finance.setup_token')}</label><textarea id="finance-simplefin-token" rows="3" autocomplete="off" spellcheck="false"></textarea><button class="btn" type="button" data-bank-simplefin>${t('finance.connect_simplefin')}</button></section>
     </div>
   </section>`;
   return overlay;
@@ -488,7 +488,7 @@ function _confirmedConnection(value, provider) {
   return value;
 }
 
-async function openBankConnections() {
+export async function openBankConnections() {
   if (_bankOverlay?.isConnected) { _bankOverlay.querySelector('[data-bank-close]').focus(); return; }
   const overlay = _bankDialog();
   _bankOverlay = overlay;
@@ -514,7 +514,7 @@ async function openBankConnections() {
   overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
   focusBoundary = createFocusBoundary(dialog, { trigger: prior, onEscape: close });
   focusBoundary.activate({ source: prior, focus: overlay.querySelector('[data-bank-close]') });
-  let environment = 'sandbox', refreshSequence = 0;
+  let environment = 'production', refreshSequence = 0;
   const updateBusy = () => {
     const target = _bankOverlay;
     if (!target?.isConnected) return;
@@ -714,7 +714,9 @@ function render(preserveDrafts = false, preserveFilters = preserveDrafts) {
     b.innerHTML = savedTransactions() + `<div class="money-empty">
       <div class="money-empty-title">${t('money.no_accounts')}</div>
       <div class="money-empty-sub">${t('money.add_account_to_start')}</div>
+      <button type="button" class="btn money-empty-bank" id="money-empty-bank">${t('money.connect_bank')}</button>
       ${_accountForm()}</div>`;
+    $('money-empty-bank').addEventListener('click', openBankConnections);
     _wireAccountForm();
     wireSavedTransactions();
     if (retained) restoreMoneyDrafts(b, retained);

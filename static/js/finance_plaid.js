@@ -82,14 +82,17 @@ export async function openPlaidLink(connection, { request = bankRequest, signal,
   if (!binding) {
     const token = await request(`/api/finance/connections/${encodeURIComponent(connection.id)}/plaid/link-token`, { method: 'POST' });
     signal?.throwIfAborted();
-    const redirect = returnUrl(token.redirect_uri);
+    // no return address means plaid runs the bank sign-in in a popup instead
+    const redirect = token.redirect_uri ? returnUrl(token.redirect_uri) : null;
     const expiration = Date.parse(token.expiration);
-    if (!token.link_token || typeof token.link_token !== 'string' || redirect.search
+    if (!token.link_token || typeof token.link_token !== 'string' || redirect?.search
       || !Number.isFinite(expiration) || expiration <= Date.now()) throw new Error(t('finance.plaid_invalid_session'));
     binding = { connection_id: connection.id, link_token: token.link_token,
-      expires_at: expiration, redirect_uri: redirect.href, update_mode: token.update_mode === true };
-    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(binding)); }
-    catch { throw new Error(t('finance.plaid_storage_blocked')); }
+      expires_at: expiration, redirect_uri: redirect?.href || '', update_mode: token.update_mode === true };
+    if (redirect) {
+      try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(binding)); }
+      catch { throw new Error(t('finance.plaid_storage_blocked')); }
+    }
   }
   let Plaid;
   try {

@@ -2956,7 +2956,7 @@ html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action {
 }
 
 html:not(#_):not(#_) .finance-daily-actions .specialist-inline-action:hover { background: var(--k-btn-fill-hover); }
-html:not(#_):not(#_) .finance-daily-actions { margin-bottom: var(--k-block-gap); }
+html:not(#_):not(#_) .finance-daily-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin-bottom: var(--k-block-gap); }
 
 /* ── docs ───────────────────────────────────────────────────────────────── */
 /* an open document's toolbar actions are all text actions; import was the one filled box */

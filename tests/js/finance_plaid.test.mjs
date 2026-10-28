@@ -12,7 +12,7 @@ const redirect = origin + '/api/finance/connections/plaid/return';
 const received = redirect + '?oauth_state_id=synthetic-state';
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-function harness({ sdk = true, storage = new Map(), update = false } = {}) {
+function harness({ sdk = true, storage = new Map(), update = false, redirectUri = redirect } = {}) {
   const scripts = [], calls = [], handlers = [];
   const Plaid = { create(config) {
     const handler = { config, opened: false, destroyed: false,
@@ -34,7 +34,7 @@ function harness({ sdk = true, storage = new Map(), update = false } = {}) {
     calls.push({ path, ...options });
     return path.endsWith('/link-token') ? {
       link_token: 'original-link', expiration: new Date(Date.now() + 60000).toISOString(),
-      redirect_uri: redirect, update_mode: update,
+      redirect_uri: redirectUri, update_mode: update,
     } : { id: 'connection-1', status: 'connected' };
   };
   return { ...context.subject, scripts, calls, handlers, storage, Plaid, context, request,
@@ -65,6 +65,15 @@ test('success exchanges once, destroys Link, and removes the return binding', as
   assert.equal(h.calls.filter(call => call.path.endsWith('/exchange')).length, 1);
   assert.equal(h.handlers[0].destroyed, true);
   assert.equal(h.storage.has(key), false);
+});
+
+test('without a return address Link runs as a popup and needs no session storage', async () => {
+  const storage = new Map();
+  storage.set = () => { throw new Error('blocked'); };
+  const h = harness({ redirectUri: '', storage }); const pending = h.start(); await tick();
+  assert.equal(h.handlers[0].opened, true);
+  await h.handlers[0].config.onSuccess('public-token');
+  assert.equal((await pending).connection.status, 'connected');
 });
 
 test('update mode confirms the existing item without a public-token exchange', async () => {

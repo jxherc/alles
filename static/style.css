@@ -559,11 +559,12 @@ body[data-app="files"] .dialog-msg { overflow-wrap: anywhere; }
 .aide-help-commands dd { margin-top: var(--k-space-1); color: var(--muted); }
 .aide-help-card footer { display: flex; flex-wrap: wrap; gap: var(--k-space-2); justify-content: flex-end; flex-shrink: 0; }
 .aide-help-card button, body.afterlife-aide-projects[data-space="aide"] #aide-help { min-width: 44px; min-height: 44px; }
-.finance-bank-dialog { width: min(760px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 32px)); overflow: auto; }
+.finance-bank-dialog { width: min(760px, calc(100vw - 32px)); max-width: min(760px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 32px)); overflow: auto; }
 .finance-bank-head, .finance-bank-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .finance-bank-head h2, .finance-bank-setup h3 { margin: 0; color: var(--text); font-size: 0.875rem; font-weight: 620; }
 .finance-bank-head p, .finance-bank-setup p, .finance-bank-empty { margin: 4px 0 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
-.finance-bank-status { min-height: 20px; margin: 14px 0 8px; color: var(--muted); font-size: 0.8125rem; }
+.finance-bank-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
+.finance-bank-status { flex: 1 1 200px; color: var(--muted); font-size: 0.8125rem; }
 .finance-bank-status[data-error="true"] { color: var(--error); }
 .finance-bank-connections { display: grid; gap: 8px; }
 .finance-bank-row { padding: 12px 0; border-bottom: 1px solid var(--faint); }
@@ -578,7 +579,10 @@ body[data-app="files"] .dialog-msg { overflow-wrap: anywhere; }
 .finance-bank-dialog button { min-width: 44px; min-height: 44px; }
 .finance-bank-setup input:focus, .finance-bank-setup textarea:focus { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
 .finance-bank-setup > section > .btn { margin-top: 10px; }
-.finance-bank-environments { margin-top: 10px; }
+.finance-bank-environments { margin-top: 12px; }
+.finance-bank-steps { margin: 8px 0 0; padding-inline-start: 20px; color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
+.finance-bank-steps li + li { margin-top: 4px; }
+.finance-bank-steps a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
 .finance-bank-environments .active { color: var(--text); background: var(--faint); }
 @media (max-width: 620px) {
   .finance-bank-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
@@ -5121,6 +5125,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .money-empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
 :where(#money-view) .money-empty-title { font-size: 1.125rem; color: var(--text); margin-bottom: 0.3rem; }
 :where(#money-view) .money-empty-sub { font-size: 0.8125rem; margin-bottom: 1.2rem; }
+:where(#money-view) .money-empty-bank { margin-bottom: 1.5rem; }
 :where(#money-view) .money-empty-sm { font-size: 0.8125rem; color: var(--muted); padding: 0.6rem 0; }
 :where(#money-view) .money-history-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); }
 

@@ -780,6 +780,11 @@ imports, with an optional gated move to an alles-managed actual budget core.
 - reviewed generic csv and supported bank statement/notification profiles always preview first; repeat
   rows are stable duplicates, changed source rows are conflicts, and local undo removes only receipt-owned
   transactions. read-only simplefin and plaid connections are available after provider setup
+- bank connections open from the finance overview, from money's empty state and from money → manage →
+  banks. plaid comes first with its sign-up and keys links and defaults to a real bank; test data is the
+  other choice. plaid only gets an https return address (or plain-http localhost in sandbox), taken from
+  the browser's origin so tailscale serve keeps the https; when plaid rejects an unregistered return
+  address, link retries without one and runs the bank sign-in in plaid's popup
 - managed actual 26.7.0 stays on loopback with private alles-owned authentication, cold backups, fresh
   restore read-back, and paired app/manifest rollback
 - actual becomes canonical only after staged count, balance, aggregate, transfer, budget, schedule,

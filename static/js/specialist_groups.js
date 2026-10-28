@@ -1117,7 +1117,10 @@ async function _renderFinance(target, request) {
     _list(t('finance.subscriptions'), subscriptions.map(item => ({ title: item.name, meta: `${financeAmount(item.price, item.currency || '')} · ${item.cycle ? t('subs.cycle_' + item.cycle) : ''}` })), subscriptionsError ? t('finance.subscriptions_unavailable', { error: subscriptionsError }) : t('finance.no_subscriptions')),
   );
   const work = _el('div', 'finance-daily-actions');
-  work.append(_sectionJump('finance', 'money', t('finance.open_transactions'), 'specialist-inline-action'));
+  const banks = _el('button', 'specialist-inline-action', t('finance.bank_connections'));
+  banks.type = 'button';
+  banks.addEventListener('click', async () => (await import('./money.js')).openBankConnections());
+  work.append(_sectionJump('finance', 'money', t('finance.open_transactions'), 'specialist-inline-action'), banks);
   const ledgerPanel = _renderActualStatus(actual, request);
   const urgent = financeActualPresentation(actual).state === 'canonical-unhealthy' || !!actualError;
   if (urgent) target.append(ledgerPanel);

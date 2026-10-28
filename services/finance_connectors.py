@@ -194,6 +194,18 @@ def _plaid_post(row: FinanceConnection, path: str, payload: dict, *, client=http
     return data
 
 
+def _plaid_redirect_allowed(uri: str, environment: str) -> bool:
+    # plaid only takes https, except plain-http localhost in sandbox
+    parsed = urlsplit(uri)
+    if parsed.scheme == "https":
+        return True
+    return (
+        environment == "sandbox"
+        and parsed.scheme == "http"
+        and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+    )
+
+
 def plaid_link_token(db, connection_id: str, *, redirect_uri: str = "", client=httpx) -> dict:
     row = db.get(FinanceConnection, connection_id)
     if not row or row.provider != "plaid":
@@ -206,13 +218,23 @@ def plaid_link_token(db, connection_id: str, *, redirect_uri: str = "", client=h
         "language": "en",
         "transactions": {"days_requested": 90},
     }
+    if redirect_uri and not _plaid_redirect_allowed(redirect_uri, row.environment):
+        redirect_uri = ""
     if redirect_uri:
         request["redirect_uri"] = redirect_uri
     if row.access_token:
         request["access_token"] = row.access_token
         request.pop("products", None)
         request.pop("transactions", None)
-    data = _plaid_post(row, "/link/token/create", request, client=client)
+    try:
+        data = _plaid_post(row, "/link/token/create", request, client=client)
+    except FinanceConnectorError as exc:
+        # an unregistered return address fails the whole link; web Link falls back to a popup
+        if not redirect_uri or "redirect" not in str(exc).lower():
+            raise
+        redirect_uri = ""
+        request.pop("redirect_uri", None)
+        data = _plaid_post(row, "/link/token/create", request, client=client)
     token = str(data.get("link_token") or "")
     if not token:
         raise FinanceConnectorError("Plaid did not return a Link token")

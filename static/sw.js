@@ -1,8 +1,8 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v437';   // every app fits the larger type: rows, headers and panels sized in rem, nothing cut or stacked by accident.
+const VERSION = 'v438';   // bank connect is visible in finance, plaid works over the tailnet and the bank dialog uses its full width.
 const BUILD = '__ALLES_BUILD__';   // the server swaps in a hash of static/, so any change is a new worker
 const CACHE = `alles-${VERSION}-${BUILD}`;
-const STAMP = '590';   // keep in sync with index.html ?v=
+const STAMP = '591';   // keep in sync with index.html ?v=
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
 // page -> whether its html came from this same build. a same-build page reads its code straight
 // from the cache: nothing there can be from another build. a restarted worker forgets and asks the network
