@@ -1324,12 +1324,16 @@ async function loadInbox(force = false, silent = false, fetcher = fetch) {
   list.setAttribute('aria-busy', 'true');
   const cached = readCache();
   const renderWithFocus = preserveMailReadFocus(list);
+  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
   if (!silent) {
     if (cached?.length) renderInbox(applyFilter(cached), []);   // instant, stale
-    else list.innerHTML = `<div class="mail-empty">${t('mail.loading_dots', { name: _filterName(_filter) })}</div>`;
+    else {
+      list.innerHTML = `<div class="mail-empty">${t('mail.loading_dots', { name: _filterName(_filter) })}</div>`;
+      // a new browser has nothing saved yet: paint the server's saved headers while IMAP catches up
+      if (filter !== 'sent') void _paintServerCache(accts, account === 'all' ? 30 : 45, generation, fetcher);
+    }
   }
 
-  const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
   const results = await Promise.allSettled(accts.map(async a => {
     const folder = filter === 'sent' ? await sentFolderFor(a, fetcher) : 'INBOX';
     return fetchInboxFor(a, account === 'all' ? 30 : 45, folder, silent, fetcher);   // silent poll → cheap quick fetch
@@ -1357,6 +1361,17 @@ async function loadInbox(force = false, silent = false, fetcher = fetch) {
   renderWithFocus(() => renderInbox(applyFilter(messages), errors));
   writeCache(messages);
 
+}
+
+async function _paintServerCache(accts, limit, generation, fetcher) {
+  const saved = await Promise.all(accts.map(a => fetcher(`/api/mail/cached/${a.id}?folder=INBOX&limit=${limit}`)
+    .then(r => (r.ok ? r.json() : null))
+    .then(d => (d?.messages || []).map(m => ({ ...m, account_id: a.id, account_name: a.name || a.email, folder: 'INBOX' })))
+    .catch(() => [])));
+  const messages = saved.flat();
+  // the live answer may already be on screen; never paint older headers over it
+  if (!messages.length || generation !== _listGeneration || $('mail-list')?.getAttribute('aria-busy') !== 'true') return;
+  renderInbox(applyFilter(messages), []);
 }
 
 // ── live inbox: poll while the mail view is visible ─────────────────────────
