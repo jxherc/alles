@@ -43,7 +43,7 @@ def run():
                         const knob=getComputedStyle(e,'::after'), track=getComputedStyle(e,'::before');
                         const rect=e.getBoundingClientRect();
                         return {knob:knob.backgroundColor,track:track.backgroundColor,
-                            adjust:knob.forcedColorAdjust,left:knob.left,
+                            adjust:knob.forcedColorAdjust,left:knob.left,translate:knob.translate,
                             width:rect.width,height:rect.height};
                     }""")
                     assert style["knob"] != style["track"], style
@@ -53,7 +53,8 @@ def run():
                     page.screenshot(path=str(output / f"{width}-{label}-{expected}.png"))
                     control.press("Space")
                 expect(control).to_have_attribute("aria-checked", initial)
-                assert states[0]["left"] != states[1]["left"], states
+                # the knob slides with translate (decision 0047), its left stays put
+                assert states[0]["translate"] != states[1]["translate"], states
                 rows.append({"width": width, "control": label, "states": states})
 
             inspect("#s-welcome-toggle", "settings")

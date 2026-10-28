@@ -79,7 +79,7 @@ body.aide-central[data-space="aide"] .user-bubble {
 body.aide-central[data-space="aide"] .ai-wrap { padding: var(--k-space-3, 12px) 0 0; }
 body.aide-central[data-space="aide"] .ai-body { padding-left: 0; font-size: 1rem; line-height: 1.65; }
 body.aide-central[data-space="aide"] .ai-body > :where(p, ul, ol, blockquote, h1, h2, h3, h4, h5, h6),
-body.aide-central[data-space="aide"] .ai-content > :where(p, ul, ol, blockquote, h1, h2, h3, h4, h5, h6) { max-width: 68ch; }
+body.aide-central[data-space="aide"] .ai-content > :where(p, ul, ol, blockquote, h1, h2, h3, h4, h5, h6) { max-width: var(--k-measure); }
 body.aide-central[data-space="aide"] .ai-body::before { display: none; }
 body.aide-central[data-space="aide"] .ai-actions { opacity: 1; }
 body.aide-central[data-space="aide"] .welcome { flex: 1; justify-content: center; padding: var(--k-space-6, 32px); }
@@ -303,7 +303,6 @@ body.aide-central[data-space="aide"] .composer-ta { font-size: 0.9375rem; --fiel
 body.aide-central[data-space="aide"] .composer-box {
   border: 0; background: var(--k-raised, var(--panel));
   box-shadow: inset 0 0 0 1px var(--k-line, var(--faint));
-  transition: box-shadow 140ms ease;
 }
 body.aide-central[data-space="aide"] .composer-box:focus-within { box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--muted)); }
 /* the send keeps its 44px target, but only a 32px square in its middle fills, so it sits the same

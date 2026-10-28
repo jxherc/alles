@@ -344,7 +344,8 @@ def run():
                     db.commit()
                 page.goto(base + "/?view=health", wait_until="networkidle")
                 page.get_by_role("tab", name="overview", exact=True).click()
-                overview_row = page.get_by_role("button", name=f"open habit {habit_name}")
+                # the row is named by its own words (label in name): the habit, then its day state
+                overview_row = page.get_by_role("button", name=habit_name)
                 expect(overview_row).to_contain_text("done today")
                 page.goto(base + "/?view=habits", wait_until="networkidle")
                 card = page.locator(f'.habit-card[data-id="{habit_id}"]')

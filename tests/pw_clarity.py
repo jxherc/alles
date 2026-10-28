@@ -65,8 +65,8 @@ def run():
                     if page.locator("#sw-back").is_visible():
                         page.locator("#sw-back").click()
                     field = page.locator("#sw-name")
-                    expect(field).to_have_accessible_name("username")
-                    expect(field).to_have_attribute("autocomplete", "username")
+                    expect(field).to_have_accessible_name("nickname")
+                    expect(field).to_have_attribute("autocomplete", "nickname")
                     expect(field).to_have_accessible_description(
                         "synced across your apps. set a separate greeting name for this browser in settings → general."
                     )
@@ -196,7 +196,8 @@ def run():
                     assert reduced["name"] == "none" and reduced["opacity"] == "1", reduced
                     page.emulate_media(reduced_motion="no-preference")
                     normal = motion()
-                    assert normal["name"] == "sys-blink" and normal["count"] == "infinite", normal
+                    # the live mark holds still: a caret blinking on text nobody types into is decoration
+                    assert normal["name"] == "none" and normal["opacity"] == "1", normal
                     page.emulate_media(reduced_motion="reduce")
                     assert motion()["name"] == "none"
                     result.update(reduced_motion=reduced, normal_motion=normal)

@@ -109,20 +109,18 @@ test('logo grids measure the printed neofetch columns and rows', () => {
   assert.equal(logoFor('Darwin').split('\n').at(-1), '       "cooc*"    "*coo\'');
 });
 
-test('system logos render in a square stage and square art canvas with reduced-motion support', () => {
+test('system logos render in a square stage and square art canvas', () => {
   assert.match(SYSTEM_CSS, /\.nf-logo\s*\{[^}]*aspect-ratio:\s*1\s*;/s);
   assert.match(SYSTEM_CSS, /\.nf-logo-art\s*\{[^}]*aspect-ratio:\s*1\s*;/s);
-  assert.match(SYSTEM_CSS, /\.nf-logo-glyphs\s*\{[^}]*logo-cycle/s);
-  assert.match(SYSTEM_CSS, /prefers-reduced-motion:[^)]+\)[^{]*\{[^}]*\.nf-logo-glyphs/s);
   assert.doesNotMatch(SYSTEM_CSS, /\.nf-logo::before/);
 });
 
-test('the restored shimmer and pulse share one seamless animation timeline', () => {
-  assert.match(SYSTEM_CSS, /repeating-linear-gradient\(90deg,[\s\S]*?480px\)/);
-  assert.match(SYSTEM_CSS, /@keyframes logo-cycle\s*\{[\s\S]*?0%\s*\{[^}]*background-position:\s*0 0;[^}]*filter:/s);
-  assert.match(SYSTEM_CSS, /50%\s*\{[^}]*background-position:\s*-240px 0;[^}]*filter:/s);
-  assert.match(SYSTEM_CSS, /100%\s*\{[^}]*background-position:\s*-480px 0;[^}]*filter:/s);
-  assert.doesNotMatch(SYSTEM_CSS, /logo-pulse|logo-shimmer/);
+// motion is for feedback, never decoration alone (principle 17): the logo, the live mark and a
+// hot value hold still instead of looping forever
+test('the server monitor has no decorative loop', () => {
+  assert.match(SYSTEM_CSS, /\.nf-logo-glyphs\s*\{[^}]*color:\s*var\(--accent\)/s);
+  assert.doesNotMatch(SYSTEM_CSS, /logo-cycle|logo-pulse|logo-shimmer|sys-blink|hot-pulse/);
+  assert.doesNotMatch(SYSTEM_CSS, /\.nf-logo-glyphs\s*\{[^}]*(animation|will-change|background-clip)/s);
 });
 
 test('system refreshes keep using the scoped specialist fetcher', () => {

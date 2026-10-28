@@ -38,6 +38,9 @@
   --k-focus: var(--focus, var(--k-soft));
   --k-field-focus: var(--muted, var(--k-soft));
   --k-focus-offset: -2px;
+  /* the reading measure, about 72 letters. in em, not ch: ch is inter's wide "0", so 68ch held
+     about 85 letters a line */
+  --k-measure: 36em;
   --k-accent: var(--accent, #aaa6ff);
   /* a switch that is on: a soft alles-purple track every surface shares */
   --k-switch-on-line: color-mix(in srgb, var(--k-accent) 70%, var(--k-line-strong));
@@ -1116,7 +1119,7 @@ body:is(
 .server-workbench-copy,
 .server-workbench-status,
 .server-workbench-empty {
-  max-width: 72ch;
+  max-width: var(--k-measure);
   margin: 0 0 16px;
   color: var(--k-muted, var(--muted));
   font-size: 0.8125rem;
@@ -1517,8 +1520,9 @@ body:is(
 .specialist-message-row,
 .specialist-library-row {
   display: grid;
-  /* the first column stops at 14rem: a long sender name squeezed the subject to one letter a line */
-  grid-template-columns: minmax(5.5rem, min(14rem, 30%)) minmax(0, 1fr) minmax(7rem, auto);
+  /* the first and last columns stop short: a long date or sender name squeezed the subject to one
+     letter a line. the last one fits its words up to a third of the row, then wraps */
+  grid-template-columns: minmax(5.5rem, min(14rem, 30%)) minmax(0, 1fr) fit-content(min(16rem, 34%));
   align-items: baseline;
   gap: var(--k-space-3, 12px);
   min-height: 46px;
@@ -1529,6 +1533,20 @@ body:is(
 .specialist-message-row,
 .specialist-library-row {
   width: 100%;
+}
+
+/* a message reads like a mail list: the subject, its sender under it. beside a date and a sender
+   the subject had a third of a narrow card and wrapped every few letters */
+.specialist-message-row {
+  /* a short mail date ("6:24 AM", "Oct 27", "Oct 27, 2025") fits 6.75rem, the tablet column */
+  grid-template-columns: 6.75rem minmax(0, 1fr);
+  row-gap: var(--k-space-1, 4px);
+}
+
+.specialist-message-row > .specialist-record-meta {
+  grid-column: 2;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 :is(.specialist-record-row, .specialist-message-row, .specialist-library-row) > :first-child {
@@ -1562,7 +1580,8 @@ body:is(
   overflow-wrap: anywhere;
 }
 
-.specialist-record-meta { text-align: right; }
+/* a long author wraps into two even lines, never one word left alone on the second */
+.specialist-record-meta { text-align: right; text-wrap: balance; }
 .specialist-workbench-detail .specialist-record-row {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--k-space-1, 4px);
@@ -3672,7 +3691,8 @@ textarea[data-kokuen-entry="autogrow"] {
   width: 100%;
   min-height: var(--k-control);
   margin: 0;
-  padding: 0 var(--k-space-3);
+  /* still 44px on one line; a label that wraps (zoom, a longer language) keeps 8px off its edges */
+  padding: var(--k-space-2) var(--k-space-3);
   border: 1px solid transparent;
   border-radius: var(--k-radius-control);
   color: var(--k-soft);
@@ -3851,7 +3871,7 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 #settings-modal[data-kokuen-surface="settings"] .settings-pane-intro p {
-  max-width: 64ch;
+  max-width: var(--k-measure);
   margin: var(--k-space-1) 0 0;
   color: var(--k-muted);
   font-size: 0.8125rem;
@@ -4673,7 +4693,7 @@ html[dir="rtl"] :where(
   height: 16px;
   border-radius: 50%;
   background: var(--k-muted);
-  transition: left var(--k-motion-fast) var(--k-ease), background var(--k-motion-fast) var(--k-ease);
+  transition: translate var(--k-motion-fast) var(--k-ease), background var(--k-motion-fast) var(--k-ease);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::before,
@@ -4684,7 +4704,7 @@ html[dir="rtl"] :where(
 
 #settings-modal[data-kokuen-surface="settings"] .home-settings-switch[aria-checked="true"]::after,
 .server-workbench-switch-row .home-settings-switch[aria-checked="true"]::after {
-  left: 23px;
+  translate: 18px 0;
   background: var(--k-text);
 }
 
@@ -5356,7 +5376,7 @@ body.afterlife-aide-projects[data-space="aide"] .news-switch::after {
   height: 16px;
   border-radius: 50%;
   background: var(--k-muted);
-  transition: left var(--k-motion-fast) var(--k-ease), background var(--k-motion-fast) var(--k-ease);
+  transition: translate var(--k-motion-fast) var(--k-ease), background var(--k-motion-fast) var(--k-ease);
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-switch[aria-checked="true"]::before {
@@ -5365,7 +5385,7 @@ body.afterlife-aide-projects[data-space="aide"] .news-switch[aria-checked="true"
 }
 
 body.afterlife-aide-projects[data-space="aide"] .news-switch[aria-checked="true"]::after {
-  left: 23px;
+  translate: 18px 0;
   background: var(--k-text);
 }
 
@@ -7097,7 +7117,8 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
     overflow-x: auto;
   }
 
-  body[data-app="files"] #files-view :where(.files-phase7-table-head, .file-row) {
+  /* :is, not :where: at zero weight the desktop columns above won and a phone row ran 66px wide */
+  body[data-app="files"] #files-view :is(.files-phase7-table-head, .file-row) {
     grid-template-columns: 24px minmax(140px, 1fr) 64px;
   }
 
@@ -7110,7 +7131,7 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
     display: none;
   }
 
-  body[data-app="files"] #files-view :where(.files-phase7-table-head, .file-row) > :last-child {
+  body[data-app="files"] #files-view :is(.files-phase7-table-head, .file-row) > :last-child {
     display: none;
   }
 

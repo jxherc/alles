@@ -147,7 +147,8 @@ function meter(pct, width = 18, color) {
   for (let i = 0; i < width; i++) {
     bar += i < fill ? `<span style="color:${color || hgrad(i, width)}">█</span>` : '░';
   }
-  return `<span class="m-track">[${bar}]</span>`;
+  // the % beside it says the same; a reader would read the glyphs out one by one
+  return `<span class="m-track" aria-hidden="true">[${bar}]</span>`;
 }
 
 // btop-style window: the last `n` real samples, newest on the right, left padded
@@ -253,7 +254,7 @@ function group(header, headerVal, rows) {
   let out = `<div class="nf-grp"><span class="nf-head">${esc(header)}</span>` +
     (headerVal ? `<span class="nf-val">${esc(headerVal)}</span>` : '') + `</div>`;
   rows.filter(Boolean).forEach((r, i, a) => {
-    out += `<div class="nf-row"><span class="nf-branch">${i === a.length - 1 ? '└' : '├'}</span>` +
+    out += `<div class="nf-row"><span class="nf-branch" aria-hidden="true">${i === a.length - 1 ? '└' : '├'}</span>` +
       `<span class="nf-key">${esc(r[0])}</span><span class="nf-val">${esc(r[1])}</span></div>`;
   });
   return out;
@@ -340,7 +341,6 @@ function buildInfo(s, freq, disk0) {
   const title = `${h.user || t('server.system_user')}@${h.hostname || t('server.system_host')}`;
   return [
     `<div class="nf-title">${esc(title)}</div>`,
-    `<div class="nf-rule">${'─'.repeat(Math.max(10, title.length))}</div>`,
     group(t('server.system_server_os'), h.os, [
       [t('server.system_arch'), h.arch || '—'],
       [t('server.system_uptime'), uptime(s.uptime_sec)],
@@ -440,7 +440,7 @@ function render(s, fetcher = fetch) {
       <span class="p-thr">${p.threads || ''}</span>
       <span class="p-user">${esc(p.user || '')}</span>
       <span class="p-mem">${memMB(p.rss)}</span>
-      <span class="p-cpu"><span class="p-cpubar">${cpuBar(p.cpu)}</span><b style="color:${heat(p.cpu)}">${procCpuLabel(p.cpu)}</b></span>
+      <span class="p-cpu"><span class="p-cpubar" aria-hidden="true">${cpuBar(p.cpu)}</span><b style="color:${heat(p.cpu)}">${procCpuLabel(p.cpu)}</b></span>
     </div>`).join('') || `<p class="g-dim">${s.live
       ? esc(t('server.system_no_proc_details'))
       : esc(t('server.system_proc_need_psutil'))}</p>`);

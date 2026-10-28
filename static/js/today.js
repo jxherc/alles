@@ -301,7 +301,9 @@ function render() {
   const summary = document.getElementById('today-summary');
   if (summary) {
     const taskLabel = Number.isInteger(openTasks) ? tp('home.open_count', openTasks) : t('tasks.title');
-    summary.innerHTML = `${esc(tp('home.attention_count', needs.length))} <button type="button" class="today-summary-tasks">${esc(taskLabel)}</button>`;
+    // "0 things need you" said what the needs-you section below already says
+    const attention = needs.length ? `${esc(tp('home.attention_count', needs.length))} ` : '';
+    summary.innerHTML = `${attention}<button type="button" class="today-summary-tasks">${esc(taskLabel)}</button>`;
     summary.querySelector('button').addEventListener('click', () => navigate('tasks', { allTasks: true }));
   }
 }
@@ -500,7 +502,8 @@ function wireCapture() {
     event.preventDefault();
     if (form.getAttribute('aria-busy') === 'true') return;
     const value = input.value;
-    if (!value.trim()) return;
+    // nothing to save: send the caret back to the field instead of doing nothing at all
+    if (!value.trim()) { input.focus(); return; }
     const asTask = mode.getAttribute('aria-pressed') === 'true';
     let reviewed = false;
     form.setAttribute('aria-busy', 'true');

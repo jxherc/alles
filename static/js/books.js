@@ -100,20 +100,14 @@ function _stars(b) {
   return out + '</span>';
 }
 
-// a cover that won't load becomes the letter placeholder. error doesn't bubble, so it's caught
-// on the way down (the csp blocks the inline onerror this used to be)
+// a cover that won't load leaves the card without one: a letter in a box stood in for a picture.
+// error doesn't bubble, so it's caught on the way down (the csp blocks an inline onerror)
 if (typeof document !== 'undefined') document.addEventListener?.('error', e => {
-  const img = e.target;
-  if (!img?.matches?.('img.book-cover')) return;
-  img.replaceWith(Object.assign(document.createElement('div'), { className: 'book-cover book-cover-ph', textContent: img.dataset.ph }));
+  if (e.target?.matches?.('img.book-cover')) e.target.remove();
 }, true);
 
 function _cover(b) {
-  if (b.cover) {
-    const ph = (b.title || '?')[0].toUpperCase();
-    return `<img class="book-cover" src="${esc(b.cover)}" alt="" loading="lazy" data-ph="${esc(ph)}">`;
-  }
-  return `<div class="book-cover book-cover-ph">${esc((b.title || '?')[0].toUpperCase())}</div>`;
+  return b.cover ? `<img class="book-cover" src="${esc(b.cover)}" alt="" loading="lazy">` : '';
 }
 
 function _applyBookValue(id, field, value, scope) {

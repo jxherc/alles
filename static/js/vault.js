@@ -1592,7 +1592,7 @@ function _showStrength(s) {
   if (!box) return;
   box.style.display = 'flex';
   const colors = ['var(--error)', 'var(--error)', '#d8a24a', 'var(--green)', 'var(--green)'];
-  box.querySelector('.vault-strength-fill').style.width = ((s.score + 1) * 20) + '%';
+  box.querySelector('.vault-strength-fill').style.transform = `scaleX(${(s.score + 1) / 5})`;
   box.querySelector('.vault-strength-fill').style.background = colors[s.score] || 'var(--muted)';
   box.querySelector('.vault-strength-label').textContent = s.label + (s.warning ? ': ' + s.warning : '');
 }
@@ -1892,7 +1892,7 @@ async function _loadEntries(fetcher = fetch) {
     if (!_entries.length) { list.innerHTML = `<div class="page-empty">${_esc(t('vault.no_entries_hit_new'))}</div>`; return; }
     list.innerHTML = _entries.map(e => `
       <div class="vault-entry" data-id="${e.id}">
-        <button type="button" class="vault-entry-main" data-vault-open="${e.id}" aria-label="${_esc(t('vault.open_named', { name: e.name }))}">
+        <button type="button" class="vault-entry-main" data-vault-open="${e.id}">
           <span class="vault-entry-name">${_esc(e.name)}${e.username ? ` <span class="vault-entry-user">${_esc(e.username)}</span>` : ''}</span>
           <span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>
           <span class="vault-entry-grow"></span>

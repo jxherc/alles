@@ -60,12 +60,10 @@ def run():
             def unlock():
                 page.locator("#vault-pw-input").fill(password)
                 page.locator("#vault-unlock-btn").click()
-                expect(
-                    page.get_by_role("button", name="open TOTP fixture", exact=True)
-                ).to_be_visible()
+                expect(page.locator(".vault-entry-main", has_text="TOTP fixture")).to_be_visible()
 
             unlock()
-            page.get_by_role("button", name="open TOTP fixture", exact=True).click()
+            page.locator(".vault-entry-main", has_text="TOTP fixture").click()
             expect(page.locator(".vault-totp-code")).to_have_text(
                 re.compile(r"\s*\d{3}\s*\d{3}\s*")
             )
@@ -90,7 +88,7 @@ def run():
             expect(page.locator("#vault-entry-list")).to_have_text("scanning…")
             assert len(pending) == 1
             scan.click()
-            expect(page.get_by_role("button", name="open TOTP fixture", exact=True)).to_be_visible()
+            expect(page.locator(".vault-entry-main", has_text="TOTP fixture")).to_be_visible()
             late = {
                 "weak": [{"name": "stale scan"}],
                 "reused": [],
@@ -114,7 +112,7 @@ def run():
             unlock()
             page.route("**/api/vault/watchtower", lambda route: route.fulfill(json={}))
             scan.click()
-            expect(page.get_by_role("button", name="open TOTP fixture", exact=True)).to_be_visible()
+            expect(page.locator(".vault-entry-main", has_text="TOTP fixture")).to_be_visible()
             expect(page.locator("#vault-wt")).to_have_count(0)
             expect(page.locator("#toast-container")).to_contain_text("scan failed")
             assert not errors, errors

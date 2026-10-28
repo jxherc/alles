@@ -176,11 +176,18 @@ def _assert_owned_shell(page: Page, root_selector: str, label: str, width: int) 
     brand_box = header.locator(".specialist-app-brand").evaluate(
         "element => element.getBoundingClientRect()"
     )
+    assert round(brand_box["height"]) == 52, brand_box
+    root_box = root.evaluate("element => element.getBoundingClientRect()")
+    if label == "vault":
+        # one view, so no tab row that switches nothing; the name keeps the header
+        assert header.locator(".specialist-group-tabs").count() == 0
+        if width <= 760:
+            assert round(root_box["x"]) == 0, root_box
+            assert round(root_box["width"]) == width, root_box
+        return
     tabs_box = header.locator(".specialist-group-tabs").evaluate(
         "element => element.getBoundingClientRect()"
     )
-    assert round(brand_box["height"]) == 52, brand_box
-    root_box = root.evaluate("element => element.getBoundingClientRect()")
     assert header.locator(".specialist-group-tabs").is_visible()
     if width > 760:
         # like Aide's header: the views sit in the same 52px row, right after the app name

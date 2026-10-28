@@ -25,7 +25,7 @@ body[data-app="files"] .alles-help-card.dialog-card {
 .alles-help-article { min-width: 0; overflow: auto; overscroll-behavior: contain; padding: var(--k-space-1); font-size: 0.9375rem; line-height: 1.5; }
 .alles-help-article h3 { margin: 0 0 var(--k-space-4); font-size: 1rem; font-weight: 620; }
 .alles-help-article h4 { margin: var(--k-space-5) 0 var(--k-space-2); font-size: 0.9375rem; font-weight: 580; }
-.alles-help-article p { max-width: 68ch; margin: 0 0 var(--k-space-3); color: var(--text); overflow-wrap: anywhere; }
+.alles-help-article p { max-width: var(--k-measure); margin: 0 0 var(--k-space-3); color: var(--text); overflow-wrap: anywhere; }
 .alles-help-article ol { margin: 0 0 var(--k-space-3); padding-inline-start: var(--k-space-5); }
 .alles-help-article li { margin-block: var(--k-space-2); }
 .alles-help-article pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); background: var(--k-raised); padding: var(--k-space-3); font-size: 0.8125rem; }

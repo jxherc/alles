@@ -459,13 +459,12 @@ def run():
                 assert listed[item["id"]]["source_kind"] == "saved_news"
                 assert listed[saved[0]["id"]]["source_kind"] == "read_later"
                 page.goto(base + "/?view=library", wait_until="networkidle")
+                # rows are named by their own words: kind, title, then state
                 expect(
-                    page.get_by_role("button", name=f"open saved news: {item['title']}")
+                    page.get_by_role("button", name=f"saved news {item['title']}")
                 ).to_be_visible()
                 expect(
-                    page.get_by_role(
-                        "button", name=f"open saved reading: {saved[0]['title']}"
-                    ).first
+                    page.get_by_role("button", name=f"saved reading {saved[0]['title']}").first
                 ).to_be_visible()
                 shot("saved-news-source-label")
                 passed()
@@ -492,7 +491,7 @@ def run():
                 page.get_by_role("tab", name="overview", exact=True).click()
                 passed()
                 begin("library.overview-opens-book")
-                keyboard_reach(f'.specialist-library-row[aria-label="open book: {title}"]')
+                keyboard_reach(f'.specialist-library-row:has(strong:text-is("{title}"))')
                 page.keyboard.press("Enter")
                 expect(card).to_be_visible()
                 expect(card).to_be_focused()
@@ -500,9 +499,7 @@ def run():
                 passed()
                 page.goto(base + "/?view=library", wait_until="networkidle")
                 begin("library.overview-opens-saved-reading")
-                keyboard_reach(
-                    f'.specialist-library-row[aria-label="open saved news: {item["title"]}"]'
-                )
+                keyboard_reach(f'.specialist-library-row:has(strong:text-is("{item["title"]}"))')
                 page.keyboard.press("Enter")
                 expect(page.locator(".read-article h1")).to_have_text(item["title"])
                 expect(page.locator("#read-back")).to_be_focused()
@@ -522,7 +519,7 @@ def run():
                     bad_item_url,
                     lambda route: route.fulfill(status=200, body="invalid item response"),
                 )
-                page.get_by_role("button", name=f"open saved news: {item['title']}").click()
+                page.get_by_role("button", name=f"saved news {item['title']}").click()
                 expect(page.locator("#read-q")).to_be_focused()
                 expect(page.locator(".read-article")).to_have_count(0)
                 expect(page.locator(".toast.error")).to_have_text("could not open")

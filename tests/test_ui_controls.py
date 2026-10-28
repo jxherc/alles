@@ -36,8 +36,11 @@ class ToggleSwitchTests(unittest.TestCase):
         self.assertIn("border-radius: 50%", _block(".s-switch::after"))
 
     def test_switch_on_moves_knob(self):
+        # the knob slides with translate, not left (decision 0047): same 18px of travel
         self.assertIn("left: 5px", _block(".s-switch::after"))
-        self.assertIn("left: 23px", _block('.s-switch:is(.on, [aria-checked="true"])::after'))
+        self.assertIn(
+            "translate: 18px 0", _block('.s-switch:is(.on, [aria-checked="true"])::after')
+        )
 
     def test_switch_on_changes_track_background(self):
         self.assertRegex(

@@ -31,7 +31,6 @@ ALLOWED = {
     ],  # glyph -> svg map
     # ‹ › pager buttons, replaced by kokuen's chevron svg at render
     "datepick.js": ['class="dp-step"', 'class="dp-nav"'],
-    "specialist_groups.js": ["'specialist-view-scroll'"],
     "calendar.js": ['class="cal-mini-nav"'],
     "aideworkspace.js": ["back.textContent = '‹'"],
     "index.html": ['id="cal-prev"', 'id="cal-next"', 'id="money-prev"', 'id="money-next"'],

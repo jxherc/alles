@@ -28,6 +28,10 @@ const _deleteErrors = new Map();
 const _deleting = new Set();
 
 const KIND_UNIT = { weight: 'kg', sleep: 'h', workout: 'min', med: '', custom: '' };
+// a new entry keeps the unit the owner already logs that kind in (lb stays lb), else the default
+const _unitFor = kind => _data.kinds?.find(k => k.kind === kind)?.latest?.unit
+  || _entries.find(e => e.kind === kind && e.unit)?.unit
+  || KIND_UNIT[kind] || '';
 const KIND_LABEL = { weight: 'health.kind_weight', sleep: 'health.kind_sleep', workout: 'health.kind_workout', med: 'health.kind_med', custom: 'health.kind_custom' };
 const kindLabel = kind => (KIND_LABEL[kind] ? t(KIND_LABEL[kind]) : kind);
 const RANGES = [[7, 'health.range_7d'], [30, 'health.range_30d'], [90, 'health.range_90d'], [365, 'health.range_1y']];
@@ -352,7 +356,7 @@ async function _openEntry(entry = null) {
   if (_draft && !await dlgConfirm(_createUncertain ? t('health.discard_uncertain') : t('health.discard_unsaved'))) return;
   if (_draft !== previousDraft || _saving) return;
   _returnFocus = entry ? `.health-row[data-record-id="${CSS.escape(entry.record_id || '')}"] [data-act="edit"]` : '#health-add-toggle';
-  _draft = entry ? { ...entry, value: String(entry.value) } : { kind: 'weight', value: '', unit: 'kg', date: '', label: '', note: '' };
+  _draft = entry ? { ...entry, value: String(entry.value) } : { kind: 'weight', value: '', unit: _unitFor('weight'), date: '', label: '', note: '' };
   _formError = '';
   _createUncertain = false; _conflictId = null;
   _render();
@@ -390,7 +394,7 @@ function _wire(body) {
     initCustomDropdown(kindEl);
     kindEl?.addEventListener('change', () => {
       _draft.kind = kindEl.dataset.value;
-      _draft.unit = KIND_UNIT[_draft.kind] ?? '';
+      _draft.unit = _unitFor(_draft.kind);
       _render();
       $('health-kind')?.focus();
     });

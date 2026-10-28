@@ -442,7 +442,7 @@ html:not(#_) .task-addsub:hover {
 
 @media (prefers-reduced-motion: no-preference) {
   html:not(#_) :is(.s-switch, .home-settings-switch, .news-switch)::after {
-    transition: left var(--k-motion-slide) var(--k-spring), translate var(--k-motion-slide) var(--k-spring), background-color 180ms var(--k-ease-out);
+    transition: translate var(--k-motion-slide) var(--k-spring), background-color 180ms var(--k-ease-out);
   }
 
   html:not(#_) :is(.s-switch, .home-settings-switch, .news-switch)::before {
@@ -1568,7 +1568,6 @@ html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer {
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
   box-shadow: 0 0 0 1px var(--k-line);
-  transition: box-shadow 200ms var(--k-ease-out);
 }
 
 html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:focus-within {
@@ -1579,7 +1578,7 @@ html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :
   min-height: 44px;
   padding-inline: var(--k-space-3);
   border: 0 !important;
-  border-radius: 0;
+  border-radius: var(--k-radius-control);
   background: transparent !important;
   box-shadow: none !important;
 }
@@ -1614,7 +1613,6 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture {
   border-radius: var(--k-radius-large);
   background: var(--k-panel);
   box-shadow: 0 0 0 1px var(--k-line);
-  transition: box-shadow 200ms var(--k-ease-out);
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture:focus-within {
@@ -1708,7 +1706,7 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search 
   border-radius: var(--k-radius-large);
   background: var(--k-panel);
   box-shadow: 0 0 0 1px var(--k-line);
-  transition: box-shadow 200ms var(--k-ease-out), background-color 200ms var(--k-ease-out);
+  transition: background-color 200ms var(--k-ease-out);
 }
 
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:is(:hover, :focus-within, [data-keyboard-focus]) {
@@ -1751,7 +1749,7 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="i
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
   box-shadow: 0 0 0 1px var(--k-line);
-  transition: box-shadow 200ms var(--k-ease-out), background-color 200ms var(--k-ease-out);
+  transition: background-color 200ms var(--k-ease-out);
 }
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="idle"]) .andromeda-search:is(:hover, :focus-within, [data-keyboard-focus])::before {
   background: var(--k-raised);
@@ -2188,10 +2186,13 @@ html:not(#_):not(#_) .specialist-workbench-empty + .btn {
 /* ── fields: one filled style (decision 0041 replaces 0035's underline) ──────────
    a 5% fill and a faint ring, label above, 44px. the underline read as a heading rule or as
    nothing at all on an empty screen; every product studied fills its fields */
+/* the id stays outside :is(), which takes its strongest member's weight: inside, it outranked
+   every bar that clears its own fields (the plan capture's due day drew a box in the box) */
 html:not(#_):not(#_) :is(
   .settings-input, .settings-textarea, .date-input, .cal-quick,
-  [data-specialist-app] input[type="search"], #files-search
-) {
+  [data-specialist-app] input[type="search"]
+),
+html:not(#_):not(#_) #files-search {
   box-sizing: border-box;
   min-height: 44px;
   padding-inline: var(--k-space-3);
@@ -2199,7 +2200,7 @@ html:not(#_):not(#_) :is(
   border-radius: var(--k-radius-control);
   background: var(--k-field);
   box-shadow: inset 0 0 0 1px var(--k-field-ring);
-  transition: box-shadow 120ms var(--k-ease-out), background-color 120ms var(--k-ease-out);
+  transition: background-color 120ms var(--k-ease-out);
 }
 
 html:not(#_):not(#_) :is(.settings-textarea, textarea.settings-input) {
@@ -2208,8 +2209,9 @@ html:not(#_):not(#_) :is(.settings-textarea, textarea.settings-input) {
 
 html:not(#_):not(#_) :is(
   .settings-input, .settings-textarea, .date-input, .cal-quick,
-  [data-specialist-app] input[type="search"], #files-search
-):is(:hover, .open) {
+  [data-specialist-app] input[type="search"]
+):is(:hover, .open),
+html:not(#_):not(#_) #files-search:is(:hover, .open) {
   box-shadow: inset 0 0 0 1px var(--k-field-ring-hover);
 }
 
@@ -2784,7 +2786,6 @@ html:not(#_):not(#_) .plan-board-add {
   border-radius: var(--k-radius-large);
   background: var(--k-panel);
   box-shadow: 0 0 0 1px var(--k-line);
-  transition: box-shadow 200ms var(--k-ease-out);
 }
 
 html:not(#_):not(#_) .plan-board-add:focus-within {
@@ -2855,7 +2856,6 @@ html:not(#_):not(#_) #reminders-view .reminder-add-form {
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
   box-shadow: 0 0 0 1px var(--k-line);
-  transition: box-shadow 200ms var(--k-ease-out);
 }
 
 html:not(#_):not(#_) #reminders-view .reminder-add-form:focus-within {
@@ -3834,4 +3834,59 @@ html:not(#_):not(#_) #mail-view .mail-richbar :is(.mail-sig-wrap, .mail-status):
 html:not(#_) .specialist-inline-action {
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+/* bare-word buttons that start a column: room for the inset focus ring, then pulled back by the
+   same 8px so the words stay on the column. the ring ran through their first letter */
+html:not(#_):not(#_) :is(.task-title, .file-name-button, #mail-view .mail-row .mail-subject, #mail-view .mail-row .mail-subject .mail-open) {
+  width: calc(100% + 2 * var(--k-space-2));
+  margin-inline: calc(-1 * var(--k-space-2));
+  padding-inline: var(--k-space-2);
+}
+
+html:not(#_):not(#_) :is(.plan-board-card-main, #vault-workbench-view .vault-entry-main) {
+  margin-inline: calc(-1 * var(--k-space-2));
+  padding-inline: var(--k-space-2);
+}
+
+html:not(#_):not(#_) .book-add-note {
+  margin-inline-start: calc(-1 * var(--k-space-2));
+  padding-inline-start: var(--k-space-2);
+}
+
+/* selected files: the bulk actions take the table head's own row (labels step aside, select-all
+   stays) instead of a new row that pushed every file down 45px */
+html:not(#_):not(#_) #files-view .files-phase7-table-head:has(> .files-phase7-selection:not([hidden])) > span {
+  display: none;
+}
+
+html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-selection {
+  grid-column: 2 / -1;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+  min-height: var(--k-control);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-selection > #files-selection-count {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* the actions sit at the row's end; on a phone they keep their size and the strip scrolls */
+html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-selection .files-phase7-selection-actions {
+  flex: 0 1 auto;
+  justify-content: flex-start;
+  min-width: 0;
+  width: auto;
+  margin-inline-start: auto;
+  overflow-x: auto;
+}
+
+html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-selection .files-phase7-selection-actions > button {
+  flex: none;
 }

@@ -58,30 +58,10 @@ def _check(browser, viewport: dict[str, int], mobile: bool, platform: str, expec
     assert abs(glyph_box["width"] - glyph_box["height"]) <= 1
     assert logo.get_attribute("aria-label")
     assert logo.locator(".nf-logo-glyphs").inner_text().strip()
-    loop = logo.evaluate(
-        """el => {
-          const animations = el.getAnimations({subtree: true});
-          const timing = animations.map(animation => ({
-            name: animation.animationName,
-            duration: animation.effect.getTiming().duration,
-            infinite: animation.effect.getTiming().iterations === Infinity,
-          }));
-          animations.forEach(animation => { animation.pause(); animation.currentTime = 0; });
-          const snapshot = () => {
-            const art = getComputedStyle(el.querySelector('.nf-logo-glyphs'));
-            return [art.backgroundPosition, art.filter];
-          };
-          const start = snapshot();
-          animations.forEach(animation => { animation.currentTime = 6000; });
-          return {timing, start, end: snapshot()};
-        }"""
-    )
-    assert [item["name"] for item in loop["timing"]] == ["logo-cycle"]
-    assert all(item["duration"] == 6000 for item in loop["timing"])
-    assert all(item["infinite"] for item in loop["timing"])
-    assert loop["start"] == loop["end"]
-    page.emulate_media(reduced_motion="reduce")
-    assert logo.evaluate("el => el.getAnimations({subtree: true}).length") == 0
+    # the logo holds still in both motion settings: a loop that never ends is decoration
+    for motion in ("no-preference", "reduce"):
+        page.emulate_media(reduced_motion=motion)
+        assert logo.evaluate("el => el.getAnimations({subtree: true}).length") == 0
     page.emulate_media(reduced_motion="no-preference")
     size = "mobile" if mobile else "desktop"
     page.screenshot(path=f"/tmp/alles-system-{expected}-{size}.png", full_page=True)

@@ -78,7 +78,7 @@ def run():
             page.keyboard.press("Enter")
 
         def reveal():
-            page.get_by_role("button", name="open daily credential", exact=True).click()
+            page.locator(".vault-entry-main", has_text="daily credential").click()
             expect(page.locator("#vf-f-password")).to_be_visible()
 
         record = begin("first-run-confirmation")

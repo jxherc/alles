@@ -740,7 +740,7 @@
   {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item; check for nested bezels",
-    "css_block_sha256": "59913d482e5681351843d75c84d0cadb8263ac47593dcc9a2d271d789c75b364",
+    "css_block_sha256": "22cd445addd9c24cb7657fdeb3f552cb7bb8c12e2dc3abf1869da1c56b53bc54",
     "path": "static/kokuen.css",
     "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .s-nav-item",
     "job": "control-bezel",

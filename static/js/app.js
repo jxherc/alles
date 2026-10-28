@@ -21,7 +21,7 @@ import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
 import { openManual } from './help.js?v=2';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
-import { loadVaultView, initVault } from './vault.js?v=289';
+import { loadVaultView, initVault } from './vault.js?v=290';
 import { loadContacts, addContact } from './contacts.js';
 import { initLiveFormat } from './liveformat.js';
 import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=490';
@@ -33,7 +33,7 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=14';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=15';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
 import { openSettings, closeSettings, applyVis } from './settings.js?v=297';
@@ -431,7 +431,7 @@ async function _boot({ reachable = true } = {}) {
   window._reloadPhotos = loadPhotos;
   window._reloadCalendar = () => loadCalendar();
   window._reloadMail = startMailPoll;
-  window._reloadSystem = () => import('./system.js?v=268').then(m => m.initSystem());
+  window._reloadSystem = () => import('./system.js?v=269').then(m => m.initSystem());
   applySubdomainScope(initialRoute);
   const sourceMessage = new URLSearchParams(location.search).get('message');
   if (sourceMessage && document.body.classList.contains('is-aide') && !focusSessionMessage(sourceMessage)) {
@@ -576,7 +576,9 @@ function renderAppCrumb(appName, sub) {
 function _buildCrumb(el, appName, appSub) {
   const appA = document.createElement('a');
   appA.className = 'crumb-app'; appA.textContent = appLabel(appName);
-  appA.href = urlForApp(appSub); appA.title = t('shell.open_app', { name: appLabel(appName) });
+  // one origin (an ip or a plain host name) has no app subdomains: plan.<ip> is no host at all
+  appA.href = singleHost() ? `/?view=${encodeURIComponent(appForSub(appSub).primary)}` : urlForApp(appSub);
+  appA.title = t('shell.open_app', { name: appLabel(appName) });
   el.replaceChildren(appA);
 }
 
@@ -1069,7 +1071,7 @@ const showMoneyView      = () => showView('money-view',     'money',     (track,
 const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=6'), module => module.initDaysPanel(request)));
 const showJournalView    = () => showWikiView('journal');
 const showActivityView   = () => showView('activity-view',  'activity',  (track, request) => trackedImport(track, request, () => import('./activity.js'), module => module.initActivity(request)));
-const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=268'), module => module.initSystem(request)));
+const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=269'), module => module.initSystem(request)));
 const showWatchView      = () => showView('watch-view',     'watch',     (track, request) => trackedImport(track, request, () => import('./watch.js'), module => module.initWatch(request)));
 const showHabitsView     = () => showView('habits-view',    'habits',    (track, request) => trackedImport(track, request, () => import('./habits.js'), module => module.initHabits(request)));
 const showReadView       = () => showView('read-view',      'read',      (track, request) => trackedImport(track, request, () => import('./read.js'), module => module.initRead(request)));
@@ -1083,7 +1085,7 @@ const showMailView       = () => showView('mail-view',      'mail',      (_track
 const showPhotosView     = () => showView('photos-view',    'photos',    (_track, request) => { initPhotos(); return loadPhotos(request); });
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=310'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=311'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
   _renderFirstRun();
   return result;
 };
@@ -1112,7 +1114,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
-  if (group === 'server' && section === 'overview') return import('./system.js?v=268').then(module => module.initSystem(request));
+  if (group === 'server' && section === 'overview') return import('./system.js?v=269').then(module => module.initSystem(request));
   if (group === 'server' && section === 'activity') return import('./activity.js').then(module => module.initActivity(request));
   if (group === 'server' && section === 'watch') return import('./watch.js').then(module => module.initWatch(request));
 }

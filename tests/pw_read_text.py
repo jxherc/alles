@@ -290,9 +290,7 @@ def run(context_factory=None):
                         with page.expect_response(
                             lambda r: r.url == endpoint and r.request.method == "GET"
                         ):
-                            page.get_by_role(
-                                "button", name="open saved news: " + item["title"], exact=True
-                            ).click()
+                            page.get_by_role("button", name="saved news " + item["title"]).click()
                         expect(page.locator("#read-back")).to_be_focused()
                         expect(page.locator(".read-article h1")).to_have_text(item["title"])
                         held.pop().continue_()

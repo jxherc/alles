@@ -147,7 +147,9 @@ test('agenda task and event rows are named native buttons that open exact IDs de
   assert.equal(h.controls().length, 4);
   for (const button of h.controls()) {
     assert.equal(button.type, 'button');
-    assert.match(button.getAttribute('aria-label'), /open (task|event): réunion 日本語 🌱/);
+    // named by its own visible words (wcag 2.5.3 label in name), not by a hidden label
+    assert.equal(button.getAttribute('aria-label'), null);
+    assert.equal(button.children[1].textContent, 'réunion 日本語 🌱');
     await button.click();
   }
   assert.deepEqual(h.calls, [
@@ -391,7 +393,8 @@ test('open tasks due before today lead today and the next seven days, marked ove
     assert.equal(late[0].children[0].textContent, 'overdue');
     assert.match(late[0].children[2].textContent, /^task · due /);
     assert.ok(late[0].className.split(' ').includes('overdue'));
-    assert.equal(late[0].getAttribute('aria-label'), 'open task: late bill · overdue since 2026-10-01');
+    assert.equal(late[0].getAttribute('aria-label'), null);
+    assert.equal(late[0].children[1].textContent, 'late bill');
     assert.equal(rows.some(row => row.dataset.planAgendaRecord === 'task:paid'), false, 'a done task is never overdue');
     if (section === 'overview') {
       assert.equal(h.choice('today').textContent, 'today · 6');

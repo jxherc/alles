@@ -119,7 +119,9 @@ test('every specialist app keeps its views in the header row, with nothing that 
   assert.doesNotMatch(specialistHtml, /specialist-sidebar-toggle|data-specialist-sidebar-toggle/);
   assert.doesNotMatch(specialistSource, /SPECIALIST_SIDEBAR_STORAGE_KEY|sidebarCollapsed/);
   assert.doesNotMatch(kokuenCss, /\[data-sidebar-collapsed="true"\]/);
-  assert.equal([...specialistHtml.matchAll(/class="specialist-group-tabs" id="[a-z]+-tabs" role="tablist"/g)].length, 9);
+  // eight apps have views to switch; vault has one, so no tab row that switches nothing
+  assert.equal([...specialistHtml.matchAll(/class="specialist-group-tabs" id="[a-z]+-tabs" role="tablist"/g)].length, 8);
+  assert.doesNotMatch(specialistHtml, /id="vault-tabs"/);
   // on a wide screen the views sit in the 52px header row, after the app name
   assert.match(kokuenCss, /\.specialist-group \.specialist-view-strip \{ grid-column: 2; grid-row: 1;/);
 });

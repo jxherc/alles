@@ -3,6 +3,7 @@
 
 import { confirm as confirmDialog } from './dialog.js';
 import { initDatePicker } from './datepick.js';
+import { iconEl } from './icons.js';
 import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDateParts, formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
@@ -62,6 +63,9 @@ export const GROUP_DEFINITIONS = Object.freeze({
     legacyRoots: Object.freeze({ overview: 'system-view', activity: 'activity-view', watch: 'watch-view' }),
   }),
 });
+
+// rows inbox's overview lists before pointing at mail for the rest
+const OVERVIEW_MESSAGES = 8;
 
 const ROUTES = Object.freeze({
   plan: ['plan', 'overview'], 'plan-week': ['plan', 'week'], 'plan-board': ['plan', 'board'], calendar: ['plan', 'calendar'], tasks: ['plan', 'tasks'], reminders: ['plan', 'reminders'], days: ['plan', 'days'],
@@ -167,6 +171,17 @@ function _dateLabel(value) {
   if (!raw) return '';
   const parsed = new Date(raw);
   return Number.isNaN(parsed.valueOf()) ? raw.slice(0, 16) : formatDateTime(parsed, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+// a mail list's date: the time for today, the day for this year, the full date before that.
+// the full date and time cut off in the narrow first column
+function _mailDateLabel(value) {
+  const parsed = new Date(String(value || ''));
+  if (!value || Number.isNaN(parsed.valueOf())) return _dateLabel(value);
+  const key = calendarDateKey(parsed), today = calendarDateKey();
+  if (key === today) return formatDateTime(parsed, { timeStyle: 'short' });
+  if (key.slice(0, 4) === today.slice(0, 4)) return formatDateTime(parsed, { month: 'short', day: 'numeric' });
+  return formatDateTime(parsed, { dateStyle: 'medium' });
 }
 
 function _settled(result, fallback) {
@@ -352,17 +367,15 @@ function _agendaRows(target, rows, emptyCopy, openRecord) {
       item.className += ' specialist-library-row';
       item.type = 'button';
       item.dataset.planAgendaRecord = row.id;
-      item.setAttribute('aria-label', row.overdue
-        ? t('groups.open_overdue', { type: _typeLabel(row.type), title: row.title, due: row.due })
-        : t('groups.open_record', { type: _typeLabel(row.type), title: row.title, when: `${row.date ? ` · ${row.date}` : ''}${row.time ? ` ${formatClock(row.time)}` : ''}` }));
       item.addEventListener('click', () => openRecord(row, item));
     }
     const typeName = _typeLabel(row.type);
     const meta = row.meta && row.meta !== typeName ? `${typeName} · ${row.meta}` : typeName;
     item.append(
       // row.time stays "09:00" for sorting; it reads like every other time in the app
+      // one day's list: the card head already shows the date, so an untimed row says due or all day
       _el('span', 'specialist-record-time', row.overdue ? t('groups.overdue')
-        : (row.time && formatClock(row.time)) || (byDay ? (row.type === 'task' ? t('groups.due') : t('groups.all_day')) : row.date) || '--'),
+        : (row.time && formatClock(row.time)) || (byDay || row.date ? (row.type === 'task' ? t('groups.due') : t('groups.all_day')) : '--')),
       _el('strong', 'specialist-record-title', row.title),
       _el('span', 'specialist-record-meta', meta),
     );
@@ -649,15 +662,17 @@ async function _renderInbox(target, request) {
       const address = mailboxAddress(message.from_email || message.from || '');
       return address && mailboxAddress(item.email) === address;
     });
-    detail.append(_el('h2', '', t('groups.person_context')));
+    // the person block only when there is a person (or contacts failed): "no matching contact"
+    // under every stranger's mail was a heading with nothing in it
     if (contact) {
       detail.append(
+        _el('h2', '', t('groups.person_context')),
         _el('strong', 'specialist-detail-title', contact.name || contact.email),
         _el('p', 'specialist-detail-meta', contact.email || contact.phone || ''),
         _sectionJump('inbox', 'contacts', t('groups.open_contact'), 'specialist-inline-action'),
       );
-    } else {
-      detail.append(_el('p', 'specialist-workbench-empty', contactsError ? t('groups.contacts_unavailable') : t('groups.no_matching_contact')));
+    } else if (contactsError) {
+      detail.append(_el('h2', '', t('groups.person_context')), _el('p', 'specialist-workbench-empty', t('groups.contacts_unavailable')));
     }
   };
   const drawMessages = () => {
@@ -670,12 +685,13 @@ async function _renderInbox(target, request) {
       return;
     }
     if (!visible.includes(selectedMessage)) selectedMessage = visible[0];
-    for (const message of visible) {
+    // an overview is a glance: the newest few, and the rest one step away in mail
+    for (const message of visible.slice(0, OVERVIEW_MESSAGES)) {
       const button = _el('button', 'specialist-message-row');
       button.type = 'button';
       button.setAttribute('aria-current', message === selectedMessage ? 'true' : 'false');
       button.append(
-        _el('span', 'specialist-record-time', _dateLabel(message.date || message.received_at || message.internal_date)),
+        _el('span', 'specialist-record-time', _mailDateLabel(message.date || message.received_at || message.internal_date)),
         _el('strong', 'specialist-record-title', message.subject || t('groups.no_subject')),
         _el('span', 'specialist-record-meta', sender(message) || message.account_name || t('groups.unknown_sender')),
       );
@@ -685,6 +701,9 @@ async function _renderInbox(target, request) {
         drawDetail(message);
       });
       messageList.append(button);
+    }
+    if (visible.length > OVERVIEW_MESSAGES) {
+      messageList.append(_sectionJump('inbox', 'mail', tp('groups.more_in_mail', visible.length - OVERVIEW_MESSAGES), 'specialist-inline-action'));
     }
     drawDetail(selectedMessage);
   };
@@ -710,7 +729,8 @@ async function _renderInbox(target, request) {
 }
 
 const _readState = state => ({
-  reading: t('groups.state_reading'), want: t('groups.state_want'), done: t('groups.state_done'),
+  // books say what the books tab says
+  reading: t('books.shelf_reading'), want: t('books.shelf_want'), done: t('books.shelf_done'),
   read: t('groups.state_read'), unread: t('groups.state_unread'),
 }[state] || state);
 
@@ -792,7 +812,6 @@ async function _renderLibrary(target, request) {
     for (const record of visible) {
       const button = _el('button', 'specialist-library-row');
       button.type = 'button';
-      button.setAttribute('aria-label', t('groups.open_kind', { kind: record.kind, title: record.title }));
       button.addEventListener('click', async () => {
         if (!record.targetId) return;
         const navigated = await window._navigateSpecialistSection?.('library', record.section);
@@ -849,7 +868,6 @@ async function _renderHealth(target, request) {
   if (!habits.length && !habitsError) rhythm.append(_sectionJump('health', 'habits', t('groups.add_habit'), 'specialist-inline-action'));
   for (const habit of habits) {
     const button = _sectionJump('health', 'habits', '', 'specialist-habit-row');
-    button.setAttribute('aria-label', t('groups.open_habit', { name: habit.name || t('groups.untitled') }));
     button.append(
       _el('strong', '', habit.name || t('groups.untitled_habit')),
       _el('span', '', habit.done_today ? t('groups.done_today') : tp('groups.day_streak', habit.streak || 0)),
@@ -1790,15 +1808,17 @@ function _setTabs(root, section) {
   const overview = root.querySelector('[data-group-overview]');
   const slot = root.querySelector('[data-group-slot]');
   const panel = slot?.hidden === false ? slot : overview;
-  panel?.setAttribute('aria-labelledby', activeTab?.id || '');
+  if (activeTab) panel?.setAttribute('aria-labelledby', activeTab.id);
   activeTab?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 }
 
 function _wireViewScroll(tablist) {
   if (!tablist) return;
   const strip = _el('div', 'specialist-view-strip');
-  const previous = _el('button', 'specialist-view-scroll', '‹');
-  const next = _el('button', 'specialist-view-scroll', '›');
+  const previous = _el('button', 'specialist-view-scroll');
+  const next = _el('button', 'specialist-view-scroll');
+  previous.append(iconEl('chevron-left'));
+  next.append(iconEl('chevron-right'));
   for (const button of [previous, next]) {
     button.type = 'button';
     button.hidden = true;
@@ -1851,8 +1871,9 @@ function _wire(group, root) {
   const tablist = root.querySelector('[role="tablist"]');
   const overview = root.querySelector('[data-group-overview]');
   const slot = root.querySelector('[data-group-slot]');
-  if (overview) { overview.id = `${group}-overview-panel`; overview.setAttribute('role', 'tabpanel'); }
-  if (slot) { slot.id = `${group}-legacy-panel`; slot.setAttribute('role', 'tabpanel'); }
+  // a one-section app (vault) has no tab row, so its panels are plain regions of the page
+  if (overview) { overview.id = `${group}-overview-panel`; if (tablist) overview.setAttribute('role', 'tabpanel'); }
+  if (slot) { slot.id = `${group}-legacy-panel`; if (tablist) slot.setAttribute('role', 'tabpanel'); }
   tablist?.setAttribute('aria-orientation', 'horizontal');
   _wireViewScroll(tablist);
   root.querySelectorAll('[data-group-section]').forEach(button => {
