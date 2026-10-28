@@ -12,7 +12,7 @@ from starlette.requests import HTTPConnection
 _tokens: dict[str, float] = {}  # token → expiry unix timestamp
 _recent_auth: dict[str, float] = {}  # token → last password confirmation
 RECENT_AUTH_SECONDS = 10 * 60
-MIN_OWNER_PASSWORD_LENGTH = 12
+MIN_OWNER_PASSWORD_LENGTH = 8
 
 
 def hash_password(pw: str) -> str:

@@ -4094,6 +4094,11 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .mail-google-btn { align-self: stretch; text-align: center; text-decoration: none; }
 .mail-or { font-size: 0.8125rem; color: var(--muted); text-align: center; }
 .mail-oauth-toggle { align-self: flex-start; }
+.conn-token-link { display: flex; justify-content: center; width: 100%; margin-bottom: 0.75rem; box-sizing: border-box; text-decoration: none; }
+.conn-token-link[hidden] { display: none; }
+.tg-chat-row { display: flex; gap: 0.5rem; }
+.tg-chat-row .settings-input { flex: 1; min-width: 0; }
+.tg-chat-row + .s-card-hint a { color: var(--text); }
 .mail-oauth-steps { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--faint); border-radius: var(--k-radius-control); background: var(--panel); color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
 .mail-oauth-steps[hidden] { display: none; }
 .mail-oauth-steps p { margin: 0; }
@@ -5625,6 +5630,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-body { min-height: 300px; max-height: calc(100dvh - 78px); padding: 20px 24px 24px; overflow-y: auto; }
 .setup-title { color: var(--text); font-size: 1.125rem; font-weight: 520; letter-spacing: -0.015em; }
 .setup-sub { max-width: 58ch; margin: 6px 0 20px; color: var(--k-soft, color-mix(in srgb, var(--text) 76%, var(--bg))); font-size: 0.8125rem; line-height: 1.55; }
+.setup-sub:has(> .setup-region-change) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
 .setup-sub strong { color: var(--text); font-weight: 500; }
 .setup-loading, .setup-error { min-height: 220px; display: grid; place-items: center; color: var(--muted); font-size: 0.8125rem; }
 .setup-error { color: var(--error); }
@@ -6937,6 +6943,13 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
 .cal-editor .cal-sw:not(.cal-sw-def)::before { content: ''; width: 18px; height: 18px; background: var(--cal-swatch); border-radius: 50%; }
 .dialog-choices { display: flex; flex-direction: column; gap: 0.5rem; max-height: min(60dvh, 480px); overflow-y: auto; }
 .dialog-choices .btn { min-height: 44px; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.dialog-pick { width: min(420px, calc(100vw - 32px)); max-width: min(420px, calc(100vw - 32px)); gap: 0.75rem; }
+.dialog-pick-list { display: flex; flex-direction: column; gap: 2px; max-height: min(50dvh, 420px); overflow-y: auto; overscroll-behavior: contain; }
+.dialog-pick-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--k-radius-control); background: none; color: var(--text); font: inherit; font-size: 0.875rem; text-align: start; cursor: pointer; }
+.dialog-pick-option small { color: var(--muted); font-size: 0.8125rem; }
+.dialog-pick-option:hover, .dialog-pick-option[data-active] { background: var(--k-btn-fill-hover, var(--hover)); }
+.dialog-pick-option[aria-selected="true"] { -webkit-text-stroke: 0.35px currentColor; }
+.dialog-pick-empty { margin: 0; color: var(--muted); font-size: 0.8125rem; }
 .cal-ed-actions { flex-wrap: wrap; }
 .cal-ed-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.5rem; }
 @media (max-width: 720px) {
@@ -10778,6 +10791,13 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .source-snapshot a { display: inline-flex; min-height: 44px; align-items: center; }
 .source-citation-status { color: var(--muted); font-size: 0.8125rem; }
 .aide-note-recovery:empty { display: none; }
+/* a saved confirmation sits on one line: what happened, its action, and a close button at the end */
+:is(.aide-note-recovery, .aide-task-saved):has(> .notice-close) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+:is(.aide-note-recovery, .aide-task-saved):has(> .notice-close) > p { margin: 0; flex: 1 1 12rem; }
+.notice-close { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: var(--k-radius-control); background: none; color: var(--muted); cursor: pointer; }
+.notice-close:hover { color: var(--text); background: var(--hover, var(--panel)); }
+.notice-close:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.notice-close .ic { width: 1rem; height: 1rem; }
 .aide-note-recovery { max-height: 35vh; overflow: auto; overflow-wrap: anywhere; padding: 0.5rem; }
 .aide-note-recovery pre { white-space: pre-wrap; }
 #composer-choose-model[hidden] { display: none; }

@@ -34,7 +34,7 @@ class VaultSetupTests(ApiTest):
         return response.json()
 
     def test_empty_default_reports_setup_without_creating_anything(self):
-        self.assertEqual(self.status(), {"state": "setup", "minimum_password_length": 12})
+        self.assertEqual(self.status(), {"state": "setup", "minimum_password_length": 8})
         with self.db() as db:
             self.assertEqual(db.query(Vault).count(), 0)
         self.assertEqual(vault._unlock_tokens, {})
@@ -43,7 +43,7 @@ class VaultSetupTests(ApiTest):
         password = str(uuid.uuid4())
         response = self.client.post("/api/vault/unlock", json={"password": password})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(self.status(), {"state": "locked", "minimum_password_length": 12})
+        self.assertEqual(self.status(), {"state": "locked", "minimum_password_length": 8})
 
     def test_legacy_settings_verifier_reports_unlock_without_database_creation(self):
         settings.save_settings({"vault_verifier": make_verifier(str(uuid.uuid4()))})

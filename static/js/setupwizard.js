@@ -2,7 +2,8 @@
 import { toast, plainError } from './util.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { addEndpoint } from './models.js?v=216';
-import { resolvedTimeZone, t } from './i18n.js';
+import { regionName, resolvedTimeZone, t } from './i18n.js';
+import { pick } from './dialog.js';
 import { wireChoiceGroup } from './kokuen.js?v=4';
 import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';
 const STEPS = ['basics', 'access', 'files', 'ai_search', 'protection'];
@@ -273,17 +274,34 @@ function _browserDefaults() {
 
 function _renderBasics(body) {
   const defaults = _browserDefaults();
-  const regionText = defaults.region
-    ? t('setup.region_detected', { region: `<strong>${esc(defaults.region)}</strong>` })
+  // a browser in another country than you (a server, a vpn) guesses wrong, so the region can change here
+  let region = _state.region || defaults.region;
+  const regionText = () => region
+    ? (region === defaults.region && !_state.region
+      ? t('setup.region_detected', { region: `<strong>${esc(regionName(region))}</strong>` })
+      : t('setup.region_chosen', { region: `<strong>${esc(regionName(region))}</strong>` }))
     : t('setup.region_follows');
   body.innerHTML = `
     <div class="setup-title" id="setup-title">${esc(t('setup.basics_title'))}</div>
-    <div class="setup-sub"><span id="sw-region-status">${regionText}</span> ${esc(t('setup.basics_hint'))}</div>
-    <label class="setup-field"><span>${esc(t('common.username'))}</span><input class="settings-input setup-input" id="sw-name" autocomplete="username" aria-describedby="sw-name-help" value="${esc(_state.username)}"></label>
+    <div class="setup-sub"><span id="sw-region-status">${regionText()}</span> <button type="button" class="btn setup-region-change" id="sw-region-change">${esc(t('setup.region_change'))}</button></div>
+    <div class="setup-sub">${esc(t('setup.basics_hint'))}</div>
+    <label class="setup-field"><span>${esc(t('common.nickname'))}</span><input class="settings-input setup-input" id="sw-name" autocomplete="nickname" aria-describedby="sw-name-help" value="${esc(_state.username)}"></label>
     <p class="setup-note" id="sw-name-help">${esc(t('setup.name_help'))}</p>
     <label class="setup-field"><span>${esc(t('locale.timezone'))}</span><input class="settings-input setup-input" id="sw-timezone" placeholder="Asia/Taipei" value="${esc(_state.timezone || defaults.timezone)}"></label>
     ${_actions(false)}`;
   $('sw-name').focus();
+  $('sw-region-change').addEventListener('click', async () => {
+    let regions = [];
+    try { regions = (await _api('/api/settings/localization/options')).regions || []; }
+    catch (error) { _busy(null, false, error.message); return; }
+    const options = regions.filter(item => item.value)
+      .map(item => ({ value: item.value, label: regionName(item.value, item.label), hint: item.value }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    const chosen = await pick(t('locale.region'), options, { value: region });
+    if (!chosen) return;
+    region = chosen;
+    $('sw-region-status').innerHTML = regionText();
+  });
   _bindActions(async () => {
     const current = _formIsCurrent();
     const button = $('sw-save');
@@ -291,7 +309,7 @@ function _renderBasics(body) {
     try {
       await _saveStep('basics', {
         username: $('sw-name').value.trim(), language: 'en',
-        region: defaults.region, timezone: $('sw-timezone').value.trim(),
+        region, timezone: $('sw-timezone').value.trim(),
       }, current);
       if (!current()) return;
       _setStep(1);
@@ -344,7 +362,7 @@ function _renderAccess(body) {
         <label class="setup-field"><span>${esc(t('setup.trusted_proxy'))}</span><input class="settings-input setup-input" id="sw-proxies" placeholder="127.0.0.1/32" value="${esc(_state.forwarded_allow_ips)}"></label>`;
     } else host.innerHTML = '';
     if (profile !== 'device' && !_auth.enabled) host.insertAdjacentHTML('beforeend', `
-      <label class="setup-field"><span>${esc(t('setup.owner_password'))}</span><input class="settings-input setup-input" id="sw-owner-password" type="password" autocomplete="new-password" minlength="12" placeholder="${esc(t('setup.owner_password_placeholder'))}"></label>`);
+      <label class="setup-field"><span>${esc(t('setup.owner_password'))}</span><input class="settings-input setup-input" id="sw-owner-password" type="password" autocomplete="new-password" minlength="8" placeholder="${esc(t('setup.owner_password_placeholder'))}"></label>`);
     else if (profile !== 'device') host.insertAdjacentHTML('beforeend', `<p class="setup-note">${esc(t('setup.password_already_on'))}</p>`);
   };
   details(selected);
@@ -353,7 +371,7 @@ function _renderAccess(body) {
     const current = _formIsCurrent();
     const profile = $('sw-access').querySelector('[aria-checked="true"]')?.dataset.value || 'device';
     const password = $('sw-owner-password')?.value || '';
-    if (profile !== 'device' && !_auth.enabled && password.length < 12) {
+    if (profile !== 'device' && !_auth.enabled && password.length < 8) {
       _busy(null, false, t('setup.password_needed')); return;
     }
     const button = $('sw-save'); _busy(button, true, t('setup.checking_access'));

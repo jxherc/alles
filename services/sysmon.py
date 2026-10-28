@@ -13,6 +13,8 @@ import shutil
 import socket
 import time
 
+_cpu_window_open = False
+
 
 def _psutil():
     try:
@@ -281,9 +283,15 @@ def snapshot() -> dict:
     }
 
     if ps:
-        # one blocking sample gives both per-core and the overall average
-        per = ps.cpu_percent(interval=0.12, percpu=True)
-        out["cpu"]["per_core"] = [round(x) for x in per]
+        # the load since the last poll, not a 0.12s blink: an idle box read 0 every time. the very
+        # first read has no window yet, so it opens one and waits a moment
+        global _cpu_window_open
+        if not _cpu_window_open:
+            ps.cpu_percent(interval=None, percpu=True)
+            _cpu_window_open = True
+            time.sleep(0.3)
+        per = ps.cpu_percent(interval=None, percpu=True)
+        out["cpu"]["per_core"] = [round(x, 1) for x in per]
         out["cpu"]["percent"] = round(sum(per) / len(per), 1) if per else None
         try:
             fr = ps.cpu_freq()

@@ -35,7 +35,7 @@ log = logging.getLogger("alles.vault")
 _unlock_tokens: dict[str, tuple[float, str, str]] = {}
 _TTL = 600  # 10 min
 DEFAULT_VAULT = "default"
-MIN_VAULT_PASSWORD_LENGTH = 12
+MIN_VAULT_PASSWORD_LENGTH = 8
 
 
 def _require_new_vault_password(password: str) -> None:

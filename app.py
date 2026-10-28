@@ -1672,6 +1672,9 @@ async def ping(cached: bool = False):
 if __name__ == "__main__":
     import uvicorn
 
+    from core.tool_path import extend_tool_path
+
+    extend_tool_path()
     port = get_port()
     try:
         host = bind_host()

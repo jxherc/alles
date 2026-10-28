@@ -397,6 +397,7 @@ export async function loadConnections(isCurrent = () => true) {
     sel.dataset.bound = '1';
     sel.addEventListener('change', () => {
       document.getElementById('conn-custom-row').style.display = sel.value === 'custom' ? '' : 'none';
+      document.getElementById('conn-github-token').hidden = sel.value !== 'github';
     });
     document.getElementById('conn-add-btn')?.addEventListener('click', addConnection);
   }
@@ -570,6 +571,10 @@ function _renderDiscordConnection(data) {
     ? t('connections.discord_replace_pairing')
     : (data.pairing_available ? t('connections.discord_replace_code') : t('connections.discord_new_code'));
   document.getElementById('jarvis-discord-revoke').hidden = !data.paired;
+  // a bot's user id is its application id; view, send, embed, attach and read history
+  const invite = document.getElementById('jarvis-discord-invite');
+  invite.hidden = !/^\d+$/.test(data.bot_id || '');
+  if (!invite.hidden) invite.href = `https://discord.com/oauth2/authorize?client_id=${data.bot_id}&scope=bot&permissions=117760`;
 
   const quiet = data.quiet_hours || {};
   const quietOn = !!quiet.enabled;

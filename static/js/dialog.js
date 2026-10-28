@@ -209,3 +209,55 @@ export function choose(title, options) {
     ov.querySelector('[data-dialog-cancel]').focus();
   });
 }
+
+// a long list (regions, currencies): type to filter, arrows to move, enter to pick. options are
+// { value, label, hint? }; the current value starts selected and in view
+export function pick(title, options, { value = '', placeholder = '' } = {}) {
+  return new Promise(resolve => {
+    const ov = _overlay();
+    const titleId = `dialog-title-${++dialogSequence}`;
+    const listId = `dialog-list-${dialogSequence}`;
+    ov.innerHTML = `<div class="dialog-card dialog-pick" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+      <div class="dialog-msg" id="${titleId}">${_esc(title)}</div>
+      <input class="settings-input dialog-pick-search" type="search" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="${listId}" aria-autocomplete="list" placeholder="${_esc(placeholder || t('common.search'))}">
+      <div class="dialog-pick-list" id="${listId}" role="listbox" aria-labelledby="${titleId}"></div>
+      <p class="dialog-pick-empty" role="status" hidden>${_esc(t('common.no_results'))}</p>
+      <div class="dialog-btns"><button type="button" class="btn" data-dialog-cancel>${t('common.cancel')}</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const search = ov.querySelector('.dialog-pick-search'), list = ov.querySelector('.dialog-pick-list');
+    const empty = ov.querySelector('.dialog-pick-empty');
+    let shown = [], active = 0;
+    const submit = _wireDialog(ov, resolve, button => button.dataset.value);
+    const paint = () => {
+      const query = search.value.trim().toLowerCase();
+      shown = options.filter(option => !query || `${option.label} ${option.value} ${option.hint || ''}`.toLowerCase().includes(query));
+      // a label that starts with what was typed comes first, so "c" lands on canada
+      if (query) shown.sort((a, b) => Number(!a.label.toLowerCase().startsWith(query)) - Number(!b.label.toLowerCase().startsWith(query)));
+      list.innerHTML = shown.map((option, index) => `<button type="button" class="dialog-pick-option" role="option" id="${listId}-${index}" tabindex="-1" data-dialog-confirm data-value="${_esc(option.value)}" aria-selected="${option.value === value}"><span>${_esc(option.label)}</span>${option.hint ? `<small>${_esc(option.hint)}</small>` : ''}</button>`).join('');
+      list.querySelectorAll('[data-dialog-confirm]').forEach(button => button.addEventListener('click', () => submit(button)));
+      empty.hidden = shown.length > 0;
+      move(query ? 0 : Math.max(0, shown.findIndex(option => option.value === value)));
+    };
+    const move = index => {
+      active = Math.min(Math.max(index, 0), shown.length - 1);
+      list.querySelectorAll('[role="option"]').forEach((node, at) => node.toggleAttribute('data-active', at === active));
+      const node = list.querySelector(`#${CSS.escape(`${listId}-${active}`)}`);
+      if (node) { search.setAttribute('aria-activedescendant', node.id); node.scrollIntoView({ block: 'nearest' }); }
+      else search.removeAttribute('aria-activedescendant');
+    };
+    search.addEventListener('input', paint);
+    search.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        move(active + (event.key === 'ArrowDown' ? 1 : -1));
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        const node = list.querySelector(`#${CSS.escape(`${listId}-${active}`)}`);
+        if (node) submit(node);
+      }
+    });
+    paint();
+    search.focus();
+  });
+}

@@ -50,10 +50,10 @@ class AuthApiTest(ApiTest):
 
     def test_short_password_rejected(self):
         response = self.client.post(
-            "/api/auth/change-password", json={"new_password": "elevenchars"}
+            "/api/auth/change-password", json={"new_password": "sevench"}
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("at least 12 characters", response.json()["detail"])
+        self.assertIn("at least 8 characters", response.json()["detail"])
 
     def test_change_password_throttles_brute_force(self):
         from core import auth

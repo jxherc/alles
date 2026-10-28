@@ -5,6 +5,7 @@ import { stripArtifacts } from './artifacts.js';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { sourceCitationStatus } from './memoryactions.js';
 import { t } from './i18n.js';
+import { dismissAfter } from './notice.js';
 
 const savedAnswers = new Map();
 
@@ -77,6 +78,7 @@ function noteSaved(saved, text, focus = false, _body = null, sourceKey = '') {
   };
   host.replaceChildren(status, open);
   if (focus && host.getClientRects().length) open.focus();
+  dismissAfter(host);
 }
 
 export async function loadAnswerNoteRecovery() {

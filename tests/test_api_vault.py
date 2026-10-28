@@ -88,10 +88,10 @@ class VaultApiTest(ApiTest):
             self.client.post("/api/vault/unlock", json={"password": "wrong"}).status_code, 401
         )
 
-    def test_new_vault_password_rejects_fewer_than_twelve_characters(self):
-        response = self.client.post("/api/vault/unlock", json={"password": "elevenchars"})
+    def test_new_vault_password_rejects_fewer_than_eight_characters(self):
+        response = self.client.post("/api/vault/unlock", json={"password": "sevench"})
         self.assertEqual(response.status_code, 400)
-        self.assertIn("at least 12 characters", response.json()["detail"])
+        self.assertIn("at least 8 characters", response.json()["detail"])
 
     def test_missing_verifier_cannot_claim_a_vault_with_existing_data(self):
         db = self.db()

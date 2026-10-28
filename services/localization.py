@@ -12,34 +12,53 @@ CATALOG_DIR = ROOT / "static" / "locales"
 CATALOG_MANIFEST_PATH = CATALOG_DIR / "manifest.json"
 _PLACEHOLDER_RE = re.compile(r"\{([a-z][a-z0-9_]*)\}", re.IGNORECASE)
 
-REGION_OPTIONS = (
-    {"value": "", "label": "automatic"},
-    {"value": "TW", "label": "Taiwan"},
-    {"value": "US", "label": "United States"},
-    {"value": "FR", "label": "France"},
-    {"value": "ES", "label": "Spain"},
-    {"value": "CN", "label": "China"},
-    {"value": "JP", "label": "Japan"},
-    {"value": "KR", "label": "South Korea"},
+# every iso 3166-1 region; the browser names them in the reader's language (Intl.DisplayNames),
+# so the server only sends codes. seven hand-picked regions left out canada and most of the world
+REGION_CODES = (
+    "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS "
+    "BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE "
+    "EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM "
+    "HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC "
+    "LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA "
+    "NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW "
+    "SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO "
+    "TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW"
+).split()
+
+REGION_OPTIONS = ({"value": "", "label": "automatic"},) + tuple(
+    {"value": code, "label": code} for code in REGION_CODES
 )
 
-TIMEZONE_OPTIONS = (
-    {"value": "", "label": "automatic"},
-    {"value": "Asia/Taipei", "label": "Asia/Taipei"},
-    {"value": "Europe/Paris", "label": "Europe/Paris"},
-    {"value": "America/New_York", "label": "America/New_York"},
-    {"value": "UTC", "label": "UTC"},
+_ZONE_AREAS = (
+    "Africa",
+    "America",
+    "Antarctica",
+    "Asia",
+    "Atlantic",
+    "Australia",
+    "Europe",
+    "Indian",
+    "Pacific",
 )
 
-CURRENCY_OPTIONS = (
-    {"value": "", "label": "automatic"},
-    {"value": "TWD", "label": "TWD"},
-    {"value": "USD", "label": "USD"},
-    {"value": "EUR", "label": "EUR"},
-    {"value": "CNY", "label": "CNY"},
-    {"value": "JPY", "label": "JPY"},
-    {"value": "KRW", "label": "KRW"},
-)
+
+def _timezone_options() -> tuple[dict, ...]:
+    # the real tz database, not five picks; old aliases (US/Eastern, Etc/GMT+5) stay out
+    from zoneinfo import available_timezones
+
+    names = sorted(name for name in available_timezones() if name.split("/", 1)[0] in _ZONE_AREAS)
+    return ({"value": "", "label": "automatic"}, {"value": "UTC", "label": "UTC"}) + tuple(
+        {"value": name, "label": name} for name in names
+    )
+
+
+def _currency_options() -> tuple[dict, ...]:
+    # every currency finance can hold, so the default currency is never missing one
+    from services.finance_currency import SUPPORTED_CURRENCY_CODES
+
+    return ({"value": "", "label": "automatic"},) + tuple(
+        {"value": code, "label": code} for code in sorted(SUPPORTED_CURRENCY_CODES)
+    )
 
 
 def _unique_object(pairs: list[tuple[str, object]]) -> dict:
@@ -295,8 +314,8 @@ def localization_options() -> dict:
         "source_revision": status["source_revision"],
         "languages": [dict(item) for item in status["languages"]],
         "regions": [dict(item) for item in REGION_OPTIONS],
-        "timezones": [dict(item) for item in TIMEZONE_OPTIONS],
-        "currencies": [dict(item) for item in CURRENCY_OPTIONS],
+        "timezones": [dict(item) for item in _timezone_options()],
+        "currencies": [dict(item) for item in _currency_options()],
         "clock_formats": [
             {"value": "auto", "label": "automatic"},
             {"value": "24", "label": "24 hour"},

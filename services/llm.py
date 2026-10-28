@@ -212,6 +212,10 @@ def _build_openai_payload(messages, model, stream=True, provider="openai", **kw)
             p["reasoning"] = {"effort": eff}
         elif provider in {"openai", "gemini"}:
             p["reasoning_effort"] = eff
+        elif provider == "deepseek" and kw.get("thinking") is not False:
+            # deepseek only reasons with thinking on, so effort turns it on too
+            p["reasoning_effort"] = eff
+            p["thinking"] = {"type": "enabled"}
     if "tools" in kw and kw["tools"]:
         p["tools"] = kw["tools"]
         p["tool_choice"] = "auto"

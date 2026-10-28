@@ -58,7 +58,10 @@ assert.match(wizard, /searchFields\(selectedSearch\)/);
 assert.match(wizard, /function _renderAiSearch\(body\) \{\s*_pickedModel = null/);
 assert.doesNotMatch(wizard, /id="sw-region"/);
 assert.match(wizard, /new Intl\.Locale\(locale\)\.region/);
-assert.match(wizard, /region: defaults\.region/);
+// a browser in another country guesses wrong, so the detected region can be changed (oct 27 bug list)
+assert.match(wizard, /let region = _state\.region \|\| defaults\.region/);
+assert.match(wizard, /id="sw-region-change"/);
+assert.match(wizard, /region, timezone: \$\('sw-timezone'\)/);
 assert.doesNotMatch(wizard, /<select\b/i);
 assert.doesNotMatch(wizard, /function _bindChoiceGroup[\s\S]{0,900}Arrow(?:Left|Right|Up|Down)/);
 assert.doesNotMatch(wizard, /alles-firstrun-dismissed/);

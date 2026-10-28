@@ -104,7 +104,7 @@ function harness(code = source) {
   const requests = [], notices = [];
   const context = vm.createContext({ t: i18nT, tp: i18nTp,
     document, HTMLElement: Element, navigator: { language: 'en-US' }, Intl,
-    resolvedTimeZone: () => 'UTC', visible: node => node.isConnected,
+    resolvedTimeZone: () => 'UTC', regionName: code => code, pick: async () => null, visible: node => node.isConnected,
     setControlState() {}, toast: (...args) => notices.push(args),
     requestWithRecentOwner: (fetcher, ...args) => fetcher(...args),
     addEndpoint: async () => { throw new Error('unexpected endpoint creation'); },

@@ -1,5 +1,6 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
+import { pick } from '../dialog.js';
 import { formatDateForLocale, formatTimeForLocale, prepareLocalization, regionName, t } from '../i18n.js';
 
 // ── Phase 10 locale Settings ─────────────────────────────────────────────────
@@ -135,11 +136,24 @@ function _positionLocaleChoice() {
   menu.style.top = `${below >= height || below >= above ? rect.bottom + 4 : Math.max(8, rect.top - height - 4)}px`;
 }
 
+// regions, timezones and currencies run to hundreds, so they open a list you can type into
+async function _pickLocaleChoice(name, trigger) {
+  const options = _localeChoiceOptions(name).map(item => ({
+    value: item.value,
+    label: item.value ? _optionText(name, item) : t('common.automatic'),
+    hint: name === 'region' && item.value ? item.value : '',
+  }));
+  const label = trigger.closest('.s-field')?.querySelector('label')?.textContent?.trim() || '';
+  const chosen = await pick(label, options, { value: trigger.dataset.value || '' });
+  if (chosen !== null && chosen !== undefined) _setLocaleChoiceValue(name, chosen, true);
+}
+
 function _openLocaleChoice(name, edge = '') {
   _closeLocaleChoice(false);
   const menu = document.querySelector(`[data-locale-menu="${name}"]`);
   const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
   if (!menu || !trigger) return;
+  if (_localeChoiceOptions(name).length > 12) { void _pickLocaleChoice(name, trigger); return; }
   _renderLocaleChoiceMenu(name);
   _localeMenuHome = menu.parentElement;
   document.getElementById('settings-modal')?.append(menu);

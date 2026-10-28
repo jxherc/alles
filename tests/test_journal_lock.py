@@ -40,15 +40,15 @@ class JournalLockTests(ApiTest):
         self.assertEqual(self._set("journal-passcode-one").status_code, 200)
         self.assertTrue(self.client.get("/api/journal/lock/status").json()["enabled"])
 
-    def test_new_passcode_rejects_fewer_than_twelve_characters(self):
-        response = self._set("short")
+    def test_new_passcode_rejects_fewer_than_eight_characters(self):
+        response = self._set("sevench")
         self.assertEqual(response.status_code, 400)
-        self.assertIn("at least 12", response.json()["detail"])
+        self.assertIn("at least 8", response.json()["detail"])
 
     def test_new_passcode_rejects_whitespace_only_input(self):
         response = self._set(" " * 12)
         self.assertEqual(response.status_code, 400)
-        self.assertIn("at least 12", response.json()["detail"])
+        self.assertIn("at least 8", response.json()["detail"])
 
     def test_new_passcode_preserves_leading_and_trailing_whitespace(self):
         passcode = "  journal-passcode-one  "

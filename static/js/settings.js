@@ -650,7 +650,7 @@ function _loadThemeColorControls() {
       if (pwBtn.disabled) return;
       const submitted = fields.map(field => field?.value ?? '');
       const [oldp, newp, conf] = submitted;
-      if (newp.length < 12) { toast(t('settings.password_too_short'), 'error'); return; }
+      if (newp.length < 8) { toast(t('settings.password_too_short'), 'error'); return; }
       if (newp !== conf) { toast(t('settings.password_mismatch'), 'error'); return; }
       const savingRevision = revision;
       pwBtn.disabled = true;
@@ -1896,6 +1896,25 @@ async function loadRulesPane() {
       let timer;
       el.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => _patchSetting(key, el.value.trim()), 500); });
     }
+  }
+  const find = document.getElementById('s-notify-tgfind');
+  if (find && !find.dataset.bound) {
+    find.dataset.bound = '1';
+    find.addEventListener('click', async () => {
+      find.disabled = true;
+      try {
+        const token = document.getElementById('s-notify-tgtoken').value.trim();
+        const response = await _fetchWithRecentOwner('/api/settings/telegram/find-chat', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || typeof data?.chat_id !== 'string') throw new Error(data?.detail || t('settings.telegram_find_failed'));
+        document.getElementById('s-notify-tgchat').value = data.chat_id;
+        await _patchSetting('notify_telegram_chat_id', data.chat_id);
+        toast(t('settings.telegram_chat_found', { name: data.name || data.chat_id }), 'success');
+      } catch (error) { toast(error.message || t('settings.telegram_find_failed'), 'error'); }
+      finally { find.disabled = false; }
+    });
   }
   _renderRules();
 }

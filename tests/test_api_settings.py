@@ -295,6 +295,16 @@ class SettingsApiTest(ApiTest):
         self.assertEqual(data["regions"][0], {"value": "", "label": "automatic"})
         self.assertEqual(data["timezones"][0], {"value": "", "label": "automatic"})
         self.assertEqual(data["currencies"][0], {"value": "", "label": "automatic"})
+        # the lists cover the world, not a handful: canada was missing from all three
+        self.assertIn({"value": "CA", "label": "CA"}, data["regions"])
+        self.assertIn({"value": "America/Toronto", "label": "America/Toronto"}, data["timezones"])
+        self.assertIn({"value": "CAD", "label": "CAD"}, data["currencies"])
+        self.assertEqual(
+            self.client.patch(
+                "/api/settings", json={"currency": "CAD", "region": "CA"}
+            ).status_code,
+            200,
+        )
 
     def test_rejects_unknown_language_and_invalid_locale_values(self):
         cases = (

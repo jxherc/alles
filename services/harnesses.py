@@ -432,7 +432,9 @@ async def _install(entry: dict) -> None:
     home = _home(entry)
     home.mkdir(parents=True, exist_ok=True)
     if kind == "npx":
-        npm = shutil.which("npm")
+        from core.tool_path import find_tool
+
+        npm = find_tool("npm")
         if not npm:
             raise RuntimeError("npm was not found on this machine")
         await _run(

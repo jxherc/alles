@@ -682,8 +682,8 @@ function showLock(mode) {
         <div class="jrnl-lock-icon">${_si('lock')}</div>
         <div class="jrnl-lock-title">${titles[mode] || t('journal.title')}</div>
         ${needsOld ? `<input type="password" id="jl-old" class="jrnl-tags" placeholder="${mode === 'unlock' ? t('journal.passcode') : t('journal.current_passcode')}" autocomplete="off">` : ''}
-        ${needsNew ? `<input type="password" id="jl-new" class="jrnl-tags" placeholder="${t('journal.new_passcode')}" minlength="12" autocomplete="new-password">` : ''}
-        ${needsNew ? `<input type="password" id="jl-new2" class="jrnl-tags" placeholder="${t('journal.confirm_passcode')}" minlength="12" autocomplete="new-password">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new" class="jrnl-tags" placeholder="${t('journal.new_passcode')}" minlength="8" autocomplete="new-password">` : ''}
+        ${needsNew ? `<input type="password" id="jl-new2" class="jrnl-tags" placeholder="${t('journal.confirm_passcode')}" minlength="8" autocomplete="new-password">` : ''}
         <div class="jrnl-lock-actions">
           <button class="btn primary" id="jl-go">${mode === 'unlock' ? t('journal.unlock') : mode === 'disable' ? t('journal.disable') : t('common.save')}</button>
           ${mode !== 'unlock' ? `<button class="btn" id="jl-cancel">${t('common.cancel')}</button>` : ''}
@@ -707,7 +707,7 @@ function showLock(mode) {
         const r = await fetch('/api/journal/lock/disable', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: old }) });
         if (!r.ok) return err(t('journal.wrong_passcode')); _setToken(''); _built = false; buildJournal();
       } else { // set | change
-        if (nw.length < 12) return err(t('journal.passcode_too_short'));
+        if (nw.length < 8) return err(t('journal.passcode_too_short'));
         if (nw !== nw2) return err(t('journal.passcode_mismatch'));
         const r = await fetch('/api/journal/lock/set', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode: nw, old }) });
         if (!r.ok) return err((await r.json().catch(() => ({}))).detail || t('journal.failed'));

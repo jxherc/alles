@@ -100,18 +100,26 @@ function project(id = current.projectId) { return projects.find(row => row.id ==
 
 // ── rail ──
 
+// what a harness that isn't ready says, for the status line and the composer hint alike
+function harnessStateText(row) {
+  const name = row?.name || 'pi';
+  return {
+    installing: t('aide.code_pi_installing', { name }),
+    needs_node: t('aide.code_pi_needs_node', { name }),
+    failed: t('aide.code_pi_failed', { name, error: row?.error || t('aide.code_unknown_error') }),
+    missing: t('aide.code_pi_missing', { name }),
+  }[row?.state] || '';
+}
+
 function piLine() {
   const line = $('aide-code-pi');
-  const name = pi.name || 'pi';
-  const copy = {
-    installing: t('aide.code_pi_installing', { name }),
-    needs_node: pi.error || t('aide.code_pi_needs_node', { name }),
-    failed: t('aide.code_pi_failed', { name, error: pi.error || t('aide.code_unknown_error') }),
-    missing: t('aide.code_pi_missing', { name }),
-  }[pi.state] || '';
+  const copy = harnessStateText(pi);
   line.textContent = copy;
   line.hidden = !copy;
-  $('aide-code-pi-retry').hidden = pi.state !== 'failed';
+  // after installing node, "check again" finds it without a restart
+  const retry = $('aide-code-pi-retry');
+  retry.hidden = !['failed', 'needs_node', 'missing'].includes(pi.state);
+  retry.textContent = pi.state === 'needs_node' ? t('aide.code_check_again') : pi.state === 'missing' ? t('aide.code_install') : t('aide.code_try_again');
 }
 
 // "now", "5m", "3h", "2d", or a date, for the rail
@@ -922,7 +930,7 @@ function updateComposer() {
   $('aide-code-harness').title = current.chatId ? t('aide.code_harness_locked') : t('aide.code_harness_new');
   $('aide-code-harness').disabled = !!current.chatId;
   const hint = nativeUse && !models.length ? t('aide.code_hint_no_model', { harness: harnessName(using) })
-    : state !== 'ready' ? t('aide.code_hint_installing', { harness: harnessName(using) }) : '';
+    : state !== 'ready' ? harnessStateText(native.find(h => h.harness === using) || { name: harnessName(using), state: 'installing' }) : '';
   $('aide-code-hint').textContent = hint;
   $('aide-code-hint').hidden = !hint;
 }

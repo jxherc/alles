@@ -779,11 +779,11 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
   const actions = document.createElement('div');
   actions.className = 'msg-actions';
   actions.innerHTML = `<button class="act-btn" data-msg-act="copy">${t('common.copy')}</button>
-    <button class="act-btn" data-msg-act="note" title="${t('aide.note_title')}">${t('aide.note_button')}</button>
-    <button class="act-btn" data-msg-act="task" title="${t('aide.review_plan_task')}">${t('aide.add_plan_task')}</button>
-    <button class="msg-regen-btn act-btn" title="${t('aide.regenerate')}">${t('aide.regen')}</button>
-    <button class="msg-rewrite-btn act-btn" data-style="shorter" title="${t('aide.rewrite_shorter_title')}">${t('aide.shorter')}</button>
-    <button class="msg-rewrite-btn act-btn" data-style="simpler" title="${t('aide.rewrite_simpler_title')}">${t('aide.simpler')}</button>`;
+    <button class="act-btn" data-msg-act="note">${t('aide.note_button')}</button>
+    <button class="act-btn" data-msg-act="task">${t('aide.add_plan_task')}</button>
+    <button class="msg-regen-btn act-btn">${t('aide.regen')}</button>
+    <button class="msg-rewrite-btn act-btn" data-style="shorter">${t('aide.shorter')}</button>
+    <button class="msg-rewrite-btn act-btn" data-style="simpler">${t('aide.simpler')}</button>`;
   wrap.appendChild(actions);
   wireRewriteButtons(actions);
   compactResponseActions(actions);

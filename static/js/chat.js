@@ -1167,11 +1167,11 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       let html = '';
       if (cleanText) {
         html += `<button class="act-btn" data-msg-act="copy">${t('common.copy')}</button>`;
-        html += `<button class="act-btn" data-msg-act="note" title="${t('aide.note_title')}">${t('aide.note_button')}</button>`;
-        html += `<button class="act-btn" data-msg-act="task" title="${t('aide.review_plan_task')}">${t('aide.add_plan_task')}</button>`;
-        html += `<button class="msg-regen-btn act-btn" title="${t('aide.regenerate')}">${t('aide.regen')}</button>`;
-        html += `<button class="msg-rewrite-btn act-btn" data-style="shorter" title="${t('aide.rewrite_shorter_title')}">${t('aide.shorter')}</button>`;
-        html += `<button class="msg-rewrite-btn act-btn" data-style="simpler" title="${t('aide.rewrite_simpler_title')}">${t('aide.simpler')}</button>`;
+        html += `<button class="act-btn" data-msg-act="note">${t('aide.note_button')}</button>`;
+        html += `<button class="act-btn" data-msg-act="task">${t('aide.add_plan_task')}</button>`;
+        html += `<button class="msg-regen-btn act-btn">${t('aide.regen')}</button>`;
+        html += `<button class="msg-rewrite-btn act-btn" data-style="shorter">${t('aide.shorter')}</button>`;
+        html += `<button class="msg-rewrite-btn act-btn" data-style="simpler">${t('aide.simpler')}</button>`;
       }
       if (artifacts.length) {
         wrap.dataset.artifacts = JSON.stringify(artifacts);

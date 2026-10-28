@@ -163,7 +163,9 @@ _install = {name: {"task": None, "error": ""} for name in NATIVE}
 
 
 def node_version() -> tuple[int, int] | None:
-    node = shutil.which("node")
+    from core.tool_path import find_tool
+
+    node = find_tool("node")
     if not node:
         return None
     try:

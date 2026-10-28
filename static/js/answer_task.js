@@ -3,6 +3,8 @@ import { openCaptureReview, showPendingCapture } from './capture.js';
 import { reconcileSourceReply } from './answer_note.js';
 import { t } from './i18n.js';
 import { refreshScrollFollow } from './scrollfollow.js';
+import { sha256Hex } from './sha256.js';
+import { dismissAfter } from './notice.js';
 
 const identity = /^[a-zA-Z0-9_-]{1,160}$/;
 let preparation = 0;
@@ -24,6 +26,7 @@ function taskSaved(saved, kind, focus = false) {
   host.replaceChildren(status, open);
   refreshScrollFollow();
   if (focus && host.getClientRects().length) open.focus();
+  dismissAfter(host);
   return open;
 }
 
@@ -58,9 +61,8 @@ export async function saveAnswerTask(button) {
       throw new Error(t('aide.task_reply_unconfirmed'));
     }
     const excerpt = Array.from(raw).slice(0, 6000).join('');
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(excerpt));
+    const fingerprint = await sha256Hex(excerpt);
     if (!current()) return;
-    const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
     const source = { kind: 'aide', label: t('aide.task_source_label'), excerpt, fingerprint,
       private: privateReply, session_id: sessionId, message_id: messageId };
     const title = raw.split('\n')[0].replace(/[#*`\[\]]/g, '').trim().slice(0, 200) || t('aide.task_default_title');

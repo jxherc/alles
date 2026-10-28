@@ -37,10 +37,10 @@ class JournalLockUi(unittest.TestCase):
         self.assertNotIn("🔓", JS)
 
     def test_new_passcode_ui_matches_server_minimum(self):
-        self.assertIn('minlength="12"', JS)
-        self.assertIn("nw.length < 12", JS)
+        self.assertIn('minlength="8"', JS)
+        self.assertIn("nw.length < 8", JS)
         self.assertIn("return err(t('journal.passcode_too_short'))", JS)
-        self.assertEqual(EN["journal.passcode_too_short"], "use at least 12 characters")
+        self.assertEqual(EN["journal.passcode_too_short"], "use at least 8 characters")
 
     def test_menu_css_is_fixed_dropdown(self):
         self.assertRegex(CSS, r"\.jrnl-lockmenu\s*\{[^}]*position:\s*fixed")

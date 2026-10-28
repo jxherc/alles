@@ -392,7 +392,7 @@ function render(s, fetcher = fetch) {
 
   // cpu
   $('box-cpu').dataset.label = t('server.system_box_cpu', { cores: cpu.cores || '?', freq, temp: s.temp_c ? '  ' + s.temp_c + '°C' : '' });
-  $('cpu-top').innerHTML = `<span class="bx-pct ${cpu.percent >= 90 ? 'hot' : ''}" style="color:${heat(cpu.percent)}">${cpu.percent == null ? '—' : Math.round(cpu.percent) + '%'}</span>${meter(cpu.percent, 30)}`;
+  $('cpu-top').innerHTML = `<span class="bx-pct ${cpu.percent >= 90 ? 'hot' : ''}" style="color:${heat(cpu.percent)}">${cpu.percent == null ? '—' : (cpu.percent < 10 ? cpu.percent.toFixed(1) : Math.round(cpu.percent)) + '%'}</span>${meter(cpu.percent, 30)}`;
   drawGraph($('cpu-graph'), cpuHist, _RAMP, 100);
   $('cpu-cores').innerHTML = (cpu.per_core || []).map((c, i) =>
     `<span class="core"><span class="core-id">${String(i).padStart(2, '0')}</span>` +

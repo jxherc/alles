@@ -169,6 +169,12 @@ def _gemini_levels(name: str) -> list[str]:
     return list(_LMH) if re.search(r"gemini-(2-5|[3-9])", name) else []
 
 
+def _deepseek_levels(name: str) -> list[str]:
+    # api-docs.deepseek.com/guides/thinking_mode: reasoning_effort low/high/max with thinking on;
+    # deepseek-chat is the non-thinking model
+    return [] if "chat" in name else ["low", "high", "max"]
+
+
 def _from_metadata(metadata: dict) -> list[str] | None:
     """Levels the provider's own catalog states, or None when it says nothing."""
     reasoning = metadata.get("reasoning")
@@ -199,6 +205,8 @@ def effort_levels(provider: str, model: str, metadata: dict | None = None) -> li
         return _openai_levels(name)
     if provider == "gemini":
         return _gemini_levels(name)
+    if provider == "deepseek":
+        return _deepseek_levels(name)
     return []
 
 

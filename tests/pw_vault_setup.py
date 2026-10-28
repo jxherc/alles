@@ -91,7 +91,7 @@ def run():
             expect(page.locator("#vault-pw-confirm")).to_be_visible()
             page.locator("#vault-pw-confirm").fill("short")
             unlock("short")
-            expect(page.locator("#vault-unlock-error")).to_contain_text("12")
+            expect(page.locator("#vault-unlock-error")).to_contain_text("8 characters")
             page.locator("#vault-pw-confirm").fill(replacement)
             unlock(password)
             expect(page.locator("#vault-unlock-error")).to_contain_text("match")

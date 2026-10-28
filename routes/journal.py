@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api")
 # reflectable). verifier lives in settings; unlock tokens are in-memory only.
 _unlock_tokens: dict[str, float] = {}  # token → expiry
 _TTL = 1800  # 30 min
-MIN_JOURNAL_PASSCODE_LENGTH = 12
+MIN_JOURNAL_PASSCODE_LENGTH = 8
 
 
 def _passcode_set() -> bool:

@@ -246,7 +246,7 @@ def check_profile(browser, profile, output, records):
                     password = "synthetic-owner-browser-passphrase"
                     page.locator("#sw-owner-password").fill("short")
                     page.locator("#sw-save").click()
-                    expect(page.locator("#sw-status")).to_contain_text("12 characters")
+                    expect(page.locator("#sw-status")).to_contain_text("8 characters")
                     page.locator("#sw-owner-password").fill(password)
                     page.locator("#sw-save").click()
                     expect(page.locator("#setup-dots")).to_contain_text("3 / 5")

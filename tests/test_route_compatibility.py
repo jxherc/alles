@@ -138,6 +138,9 @@ _TOTALS_CURRENCY_ADDITIONS = {"PATCH /api/money/totals-currency"}
 # the api docs pages, now our own owner-only routes behind ALLES_API_DOCS (404 when it's off)
 _API_DOCS_ADDITIONS = {"GET /docs", "GET /docs/oauth2-redirect", "GET /openapi.json", "GET /redoc"}
 
+# settings asks the owner's telegram bot for their chat id
+_TELEGRAM_CHAT_ADDITIONS = {"POST /api/settings/telegram/find-chat"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -154,6 +157,7 @@ def _route_rows():
         | _DOC_ASSET_ADDITIONS
         | _TOTALS_CURRENCY_ADDITIONS
         | _API_DOCS_ADDITIONS
+        | _TELEGRAM_CHAT_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -285,6 +289,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _DOC_ASSET_ADDITIONS
                 - _TOTALS_CURRENCY_ADDITIONS
                 - _API_DOCS_ADDITIONS
+                - _TELEGRAM_CHAT_ADDITIONS
             ),
             960,
         )
@@ -325,6 +330,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _DOC_ASSET_ADDITIONS
                 - _TOTALS_CURRENCY_ADDITIONS
                 - _API_DOCS_ADDITIONS
+                - _TELEGRAM_CHAT_ADDITIONS
             ),
             974,
         )
@@ -347,11 +353,14 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_api_docs_routes_are_additive(self):
         self.assertTrue(_API_DOCS_ADDITIONS <= set(_current_rows()))
 
+    def test_telegram_chat_route_is_additive(self):
+        self.assertTrue(_TELEGRAM_CHAT_ADDITIONS <= set(_current_rows()))
+
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 996)
-        self.assertEqual(digest, "bb1a4406ea6a1c73d170be84c0f5cd0a9da77db232e3fa12ff559167cc94893b")
+        self.assertEqual(len(rows), 997)
+        self.assertEqual(digest, "fcb4d816497b1d79de34352444e693aa744a7aa82c72f05ec0b56369e090d3ea")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -360,7 +369,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 970, "v1": 2, "public": 24})
+        self.assertEqual(groups, {"api": 971, "v1": 2, "public": 24})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

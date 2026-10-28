@@ -374,7 +374,7 @@ function _createVaultForm() {
         <div class="vform-field"><label for="nv-name">${_esc(t('common.name'))}</label>
           <input id="nv-name" class="settings-input vform-input" placeholder="${_esc(t('vault.e_g_work'))}"></div>
         <div class="vform-field"><label for="nv-pw">${_esc(t('vault.master_password'))}</label>
-          <input id="nv-pw" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="12" placeholder="${_esc(t('vault.12_or_more_characters'))}"></div>
+          <input id="nv-pw" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="8" placeholder="${_esc(t('vault.12_or_more_characters'))}"></div>
       </div>
       <div class="vault-form-actions">
         <button type="button" class="btn" id="nv-cancel">${_esc(t('common.cancel'))}</button>
@@ -389,7 +389,7 @@ function _createVaultForm() {
   ov.querySelector('#nv-create').onclick = async () => {
     const name = ov.querySelector('#nv-name').value.trim();
     const pw = ov.querySelector('#nv-pw').value;
-    if (!name || pw.length < 12) { toast(t('vault.name_a_12_character_password'), 'error'); return; }
+    if (!name || pw.length < 8) { toast(t('vault.name_a_12_character_password'), 'error'); return; }
     const r = await _vfetch('/api/vault/vaults', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name, password: pw }),
@@ -931,8 +931,8 @@ function _promptNewPw() {
       <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="np-title" style="max-width:340px">
         <div class="modal-head"><span class="modal-title" id="np-title">${_esc(t('vault.change_password'))}</span></div>
         <div class="vault-form">
-          <div class="vform-field"><label for="np-1">${_esc(t('vault.new_password'))}</label><input id="np-1" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="12" placeholder="${_esc(t('vault.12_or_more_characters'))}"></div>
-          <div class="vform-field"><label for="np-2">${_esc(t('vault.confirm_new_password'))}</label><input id="np-2" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="12" placeholder="${_esc(t('vault.repeat_new_password'))}"></div>
+          <div class="vform-field"><label for="np-1">${_esc(t('vault.new_password'))}</label><input id="np-1" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="8" placeholder="${_esc(t('vault.12_or_more_characters'))}"></div>
+          <div class="vform-field"><label for="np-2">${_esc(t('vault.confirm_new_password'))}</label><input id="np-2" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="8" placeholder="${_esc(t('vault.repeat_new_password'))}"></div>
           <div class="np-err" id="np-err"></div>
         </div>
         <div class="vault-form-actions">
@@ -949,7 +949,7 @@ function _promptNewPw() {
     };
     const go = () => {
       const a = ov.querySelector('#np-1').value, b = ov.querySelector('#np-2').value;
-      if (a.length < 12) { ov.querySelector('#np-err').textContent = t('vault.use_at_least_12_characters'); return; }
+      if (a.length < 8) { ov.querySelector('#np-err').textContent = t('vault.use_at_least_12_characters'); return; }
       if (a !== b) { ov.querySelector('#np-err').textContent = t('vault.passwords_don_t_match'); return; }
       done(a);
     };
@@ -1687,7 +1687,7 @@ async function _doUnlock() {
   const pw = $('vault-pw-input')?.value;
   if (!pw) { _unlockError(t('vault.enter_master_password')); return; }
   if (_setupState === 'setup') {
-    if (pw.length < 12) { _unlockError(t('vault.use_at_least_12_characters')); return; }
+    if (pw.length < 8) { _unlockError(t('vault.use_at_least_12_characters')); return; }
     if (pw !== $('vault-pw-confirm')?.value) { _unlockError(t('vault.passwords_don_t_match')); return; }
   }
   const generation = ++_unlockGeneration;

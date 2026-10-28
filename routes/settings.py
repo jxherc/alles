@@ -520,10 +520,9 @@ def patch_settings(body: SettingsPatch, request: Request):
             raise ApiError(400, "invalid_currency", "currency must be a supported ISO 4217 code")
         patch["currency"] = patch["currency"].strip().upper()
         if patch["currency"]:
-            from services.localization import CURRENCY_OPTIONS
+            from services.finance_currency import SUPPORTED_CURRENCY_CODES
 
-            supported = {item["value"] for item in CURRENCY_OPTIONS if item["value"]}
-            if patch["currency"] not in supported:
+            if patch["currency"] not in SUPPORTED_CURRENCY_CODES:
                 raise ApiError(
                     400, "invalid_currency", "currency must be a supported ISO 4217 code"
                 )
@@ -693,3 +692,38 @@ def patch_settings(body: SettingsPatch, request: Request):
         except Exception:
             pass
     return _public_settings(out)
+
+
+class TelegramFindChat(BaseModel):
+    token: str = ""
+
+
+@router.post("/settings/telegram/find-chat")
+def find_telegram_chat(body: TelegramFindChat, request: Request):
+    """read the bot's recent messages and return the newest private chat, so nobody has to dig
+    for a chat id"""
+    import httpx
+
+    require_recent_owner(request)
+    token = (body.token or str(load_settings().get("notify_telegram_token", ""))).strip()
+    if not re.fullmatch(r"\d+:[A-Za-z0-9_-]{20,}", token):
+        raise ApiError(400, "telegram_token_missing", "paste the bot token from BotFather first")
+    try:
+        response = httpx.get(f"https://api.telegram.org/bot{token}/getUpdates", timeout=10)
+        data = response.json()
+    except Exception as exc:
+        raise ApiError(502, "telegram_unreachable", "could not reach telegram, try again") from exc
+    if response.status_code in (401, 404):
+        raise ApiError(400, "telegram_token_invalid", "telegram did not accept that bot token")
+    updates = data.get("result") if isinstance(data, dict) else None
+    for update in reversed(updates if isinstance(updates, list) else []):
+        if not isinstance(update, dict):
+            continue
+        message = update.get("message") or update.get("edited_message") or {}
+        chat = message.get("chat") or {}
+        if chat.get("type") == "private" and chat.get("id") is not None:
+            name = chat.get("first_name") or chat.get("username") or ""
+            return {"chat_id": str(chat["id"]), "name": str(name)[:100]}
+    raise ApiError(
+        404, "telegram_no_message", "send your bot any message in telegram, then try again"
+    )

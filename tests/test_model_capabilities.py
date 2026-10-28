@@ -71,7 +71,7 @@ class EffortLevelsTest(unittest.TestCase):
 
     def test_models_with_no_levels(self):
         for provider, name in (
-            ("deepseek", "deepseek-reasoner"),
+            ("deepseek", "deepseek-chat"),
             ("ollama", "qwen3:8b"),
             ("groq", "llama-3.3-70b"),
             ("openrouter", "openai/gpt-5"),
@@ -209,9 +209,19 @@ class RequestPayloadTest(unittest.TestCase):
         self.assertNotIn("reasoning", p)
         p = llm._build_openai_payload(MSGS, "gemini-2.5-pro", provider="gemini", effort="low")
         self.assertEqual(p["reasoning_effort"], "low")
-        p = llm._build_openai_payload(MSGS, "deepseek-reasoner", provider="deepseek", effort="high")
+        # deepseek takes low/high/max with thinking on, so effort turns thinking on as well
+        p = llm._build_openai_payload(MSGS, "deepseek-flash", provider="deepseek", effort="max")
+        self.assertEqual(p["reasoning_effort"], "max")
+        self.assertEqual(p["thinking"], {"type": "enabled"})
+        p = llm._build_openai_payload(
+            MSGS, "deepseek-flash", provider="deepseek", effort="high", thinking=False
+        )
         self.assertNotIn("reasoning_effort", p)
-        self.assertNotIn("reasoning", p)
+        self.assertEqual(p["thinking"], {"type": "disabled"})
+        p = llm._build_openai_payload(MSGS, "deepseek-flash", provider="deepseek", effort="medium")
+        self.assertNotIn("reasoning_effort", p)
+        p = llm._build_openai_payload(MSGS, "deepseek-chat", provider="deepseek", effort="high")
+        self.assertNotIn("reasoning_effort", p)
 
     def test_anthropic_effort_field_budget_and_drops(self):
         build = llm._build_anthropic_payload
@@ -435,7 +445,7 @@ class RunControlTest(unittest.TestCase):
         self.assertEqual(provider_effort(settings), "")
         settings = {}
         _apply_run_controls(
-            settings, self.body(effort="high"), "https://api.deepseek.com", "deepseek-v4"
+            settings, self.body(effort="high"), "https://api.deepseek.com", "deepseek-chat"
         )
         self.assertEqual(settings["agent_effort"], "")
 
@@ -498,10 +508,10 @@ class ModelsPayloadTest(ApiTest):
         listed = self.client.get("/api/models").json()[0]
         self.assertEqual(listed["effort_levels"], {"a/with": ["low", "high"]})
 
-    def test_deepseek_has_no_levels_but_a_reasoning_switch(self):
+    def test_deepseek_has_levels_and_a_reasoning_switch(self):
         self.seed("https://api.deepseek.com", ["deepseek-v4"])
         listed = self.client.get("/api/models").json()[0]
-        self.assertEqual(listed["effort_levels"], {})
+        self.assertEqual(listed["effort_levels"], {"deepseek-v4": ["low", "high", "max"]})
         self.assertEqual(listed["reasoning_control"], ["deepseek-v4"])
 
 

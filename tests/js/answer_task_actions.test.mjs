@@ -40,6 +40,8 @@ function harness({ compact = true, privateReply = false } = {}) {
   else actions.append(button);
   const context = vm.createContext({
     document: { body, getElementById: () => null }, window: {}, crypto: webcrypto, TextEncoder,
+    sha256Hex: async text => createHash('sha256').update(text, 'utf8').digest('hex'),
+    dismissAfter() {},
     t: key => key, refreshScrollFollow() {}, showPendingCapture: async () => {},
     reconcileSourceReply: async () => { if (state.reconcileGate) await state.reconcileGate.promise; },
     openCaptureReview: async (proposal, trigger, onSaved, isCurrent = () => true) => {

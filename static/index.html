@@ -7,7 +7,7 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=592">
+<link rel="stylesheet" href="/static/style.css?v=593">
   <link rel="stylesheet" href="/static/kokuen.css?v=84">
 <link rel="stylesheet" href="/static/aidecentral.css?v=16">
 <link rel="stylesheet" href="/static/aidecoding.css?v=24">
@@ -23,7 +23,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=592">
+<link rel="modulepreload" href="/static/js/app.js?v=593">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=216">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -41,7 +41,7 @@
 <link rel="modulepreload" href="/static/js/search.js">
 <link rel="modulepreload" href="/static/js/help.js?v=2">
 <link rel="modulepreload" href="/static/js/compare.js">
-<link rel="modulepreload" href="/static/js/vault.js?v=286">
+<link rel="modulepreload" href="/static/js/vault.js?v=287">
 <link rel="modulepreload" href="/static/js/contacts.js">
 <link rel="modulepreload" href="/static/js/liveformat.js">
 <link rel="modulepreload" href="/static/js/filesphase7.js?v=488">
@@ -56,7 +56,7 @@
 <link rel="modulepreload" href="/static/js/specialist_groups.js?v=12">
 <link rel="modulepreload" href="/static/js/sso-state.js">
 <link rel="modulepreload" href="/static/js/brain.js?v=242">
-<link rel="modulepreload" href="/static/js/settings.js?v=295">
+<link rel="modulepreload" href="/static/js/settings.js?v=296">
 <link rel="modulepreload" href="/static/js/modes.js?v=258">
 <link rel="modulepreload" href="/static/js/privacy.js">
 <link rel="modulepreload" href="/static/js/scrollfollow.js">
@@ -107,6 +107,8 @@
 <link rel="modulepreload" href="/static/js/aidecoding.js">
 <link rel="modulepreload" href="/static/js/andromeda_answers.js">
 <link rel="modulepreload" href="/static/js/note_capture.js">
+<link rel="modulepreload" href="/static/js/notice.js">
+<link rel="modulepreload" href="/static/js/sha256.js">
 <link rel="modulepreload" href="/static/js/settings/pane.js">
 <link rel="modulepreload" href="/static/js/model_providers.js">
 <link rel="modulepreload" href="/static/js/settings/model_roles.js">
@@ -2214,7 +2216,7 @@
                 <input type="text" class="settings-input" id="s-user-name" placeholder="e.g. eric" data-i18n-placeholder="settings.example_display_name" style="width:100%">
               </div>
               <div class="s-field">
-                <label for="s-username"><span data-i18n="common.username">username</span><span style="color:var(--muted);font-weight:400" data-i18n="shell.settings_general.synced_across_your_apps">: synced across your apps</span></label>
+                <label for="s-username"><span data-i18n="common.nickname">nickname</span><span style="color:var(--muted);font-weight:400" data-i18n="shell.settings_general.synced_across_your_apps">: synced across your apps</span></label>
                 <input type="text" class="settings-input" id="s-username" placeholder="e.g. jxh" data-i18n-placeholder="settings.example_username" style="width:100%">
               </div>
             </div>
@@ -2256,7 +2258,7 @@
             <div class="s-card-body">
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_security.require_password">require password</div><div class="s-toggle-desc" data-i18n="shell.settings_security.lock_alles_behind_your_password">lock alles behind your password</div></div><div class="s-switch" id="s-auth-enable"></div></div>
               <div class="s-field"><label for="s-pw-old" data-i18n="shell.settings_security.current_password">current password</label><input type="password" class="settings-input" id="s-pw-old" placeholder="leave blank if none set" style="width:100%" data-i18n-placeholder="shell.settings_security.leave_blank_if_none_set"></div>
-              <div class="s-field"><label for="s-pw-new" data-i18n="shell.settings_security.new_password">new password</label><input type="password" class="settings-input" id="s-pw-new" minlength="12" placeholder="at least 12 characters" style="width:100%" data-i18n-placeholder="shell.settings_security.at_least_12_characters"></div>
+              <div class="s-field"><label for="s-pw-new" data-i18n="shell.settings_security.new_password">new password</label><input type="password" class="settings-input" id="s-pw-new" minlength="8" placeholder="at least 8 characters" style="width:100%" data-i18n-placeholder="shell.settings_security.at_least_12_characters"></div>
               <div class="s-field"><label for="s-pw-new2"><span data-i18n="shell.settings_security.verify_password">verify password</span><span style="color:var(--muted);font-weight:400" data-i18n="shell.settings_security.enter_it_again">: enter it again</span></label><input type="password" class="settings-input" id="s-pw-new2" placeholder="re-enter new password" style="width:100%" data-i18n-placeholder="shell.settings_security.re_enter_new_password"></div>
               <button type="button" class="btn primary" id="s-pw-save" style="width:100%;margin-top:0.3rem" data-i18n="shell.settings_security.change_password">change password</button>
             </div>
@@ -2450,15 +2452,17 @@
                 <div class="settings-row-empty" data-i18n="shell.jarvis_discord.loading_connection">loading connection…</div>
               </div>
               <div id="jarvis-discord-setup" hidden>
+                <a class="btn conn-token-link" href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" data-i18n="shell.settings_tools.open_discord_portal">open the Discord developer portal</a>
                 <div class="s-field"><label for="jarvis-discord-token"><span data-i18n="shell.settings_tools.discord_bot_token">Discord bot token</span> <span class="s-field-note" data-i18n="shell.settings_tools.encrypted_and_never_shown_again">encrypted and never shown again</span></label><input type="password" class="settings-input" id="jarvis-discord-token" autocomplete="off" placeholder="paste the bot token" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_bot_token"></div>
                 <button class="btn primary" type="button" id="jarvis-discord-connect" style="width:100%" data-i18n="shell.settings_tools.connect_discord">connect Discord</button>
-                <div class="s-card-hint" data-i18n="shell.settings_tools.create_a_private_discord_bot_enable">create a private Discord bot, enable message content, then paste its token here. you talk to Aide there, same as in alles.</div>
+                <div class="s-card-hint" data-i18n="shell.settings_tools.create_a_private_discord_bot_enable">in the portal: new application, then bot. turn on message content intent, press reset token and paste it here. after connecting, add the bot to a server and DM it the pairing code.</div>
               </div>
               <div id="jarvis-discord-manage" hidden>
                 <div class="jarvis-discord-status">
                   <div><div class="s-toggle-label" id="jarvis-discord-name" data-i18n="shell.settings_tools.aide_on_discord">Aide on Discord</div><div class="s-toggle-desc" id="jarvis-discord-detail">not paired</div></div>
                   <button class="s-switch" type="button" id="jarvis-discord-enabled" role="switch" aria-checked="false" aria-label="enable Aide on Discord" data-i18n-aria-label="shell.settings_tools.enable_aide_on_discord"></button>
                 </div>
+                <a class="btn conn-token-link" id="jarvis-discord-invite" target="_blank" rel="noopener noreferrer" hidden data-i18n="shell.settings_tools.add_bot_to_server">add Aide to a server</a>
                 <div class="jarvis-pairing" id="jarvis-pairing">
                   <div class="jarvis-pairing-copy"><strong data-i18n="shell.settings_tools.pair_one_owner">pair one owner</strong><span>send <code>pair CODE</code> in a DM to the bot. the code expires after 10 minutes.</span></div>
                   <div class="jarvis-pairing-code" id="jarvis-pairing-code" hidden></div>
@@ -2631,9 +2635,10 @@
                 <div class="settings-input custom-select" id="conn-service" data-value="github" data-options="github|github;gitlab|gitlab;custom|custom…" data-i18n-options=";;settings.opt_custom" style="width:100%"></div>
               </div>
               <div class="s-field" id="conn-custom-row" style="display:none"><label for="conn-custom" data-i18n="common.name">name</label><input type="text" class="settings-input" id="conn-custom" placeholder="service id" style="width:100%" data-i18n-placeholder="shell.settings_tools.service_id"></div>
+              <a class="btn conn-token-link" id="conn-github-token" href="https://github.com/settings/personal-access-tokens/new?name=alles&amp;description=lets+aide+read+your+repos+and+open+issues+and+pull+requests&amp;expires_in=366&amp;contents=read&amp;issues=write&amp;pull_requests=write" target="_blank" rel="noopener noreferrer" data-i18n="shell.settings_tools.create_github_token">create a github token</a>
               <div class="s-field"><label for="conn-token" data-i18n="shell.settings_tools.token">token</label><input type="password" class="settings-input" id="conn-token" placeholder="personal access token" style="width:100%" data-i18n-placeholder="shell.settings_tools.personal_access_token"></div>
               <button type="button" class="btn primary" id="conn-add-btn" style="width:100%" data-i18n="shell.settings_tools.connect">connect</button>
-              <div class="s-card-hint" data-i18n="shell.settings_tools.github_a_fine_grained_or_classic">github: a fine-grained or classic PAT with repo scope. the agent gets github_* tools once connected.</div>
+              <div class="s-card-hint" data-i18n="shell.settings_tools.github_a_fine_grained_or_classic">github: the button opens a token already filled in; pick your repos, create it and paste it here. aide gets github tools once connected.</div>
               <div class="s-card-hint" data-i18n="shell.settings_tools.alles_cannot_show_quota_or_credits">alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed.</div>
               <button type="button" class="btn" id="conn-rotate-key" style="width:100%;margin-top:0.65rem" data-i18n="shell.settings_tools.rotate_credential_key">rotate credential key</button>
               <div class="s-card-hint" data-i18n="shell.settings_tools.re_encrypts_saved_credentials_then_safely">re-encrypts saved credentials, then safely retires the old key.</div>
@@ -2873,7 +2878,9 @@
               <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.6rem" data-i18n="shell.settings_rules.the_send_to_discord_telegram_actions">the "send to discord / telegram" actions use these. paste a discord webhook url and/or a telegram bot token + chat id.</p>
               <input type="text" id="s-notify-discord" aria-label="Discord webhook URL" class="settings-input" placeholder="discord webhook url" style="width:100%;margin-bottom:0.45rem" data-i18n-aria-label="shell.settings_rules.discord_webhook_url_2" data-i18n-placeholder="shell.settings_rules.discord_webhook_url">
               <input type="text" id="s-notify-tgtoken" aria-label="Telegram bot token" class="settings-input" placeholder="telegram bot token" style="width:100%;margin-bottom:0.45rem" data-i18n-aria-label="shell.settings_rules.telegram_bot_token_2" data-i18n-placeholder="shell.settings_rules.telegram_bot_token">
-              <input type="text" id="s-notify-tgchat" aria-label="Telegram chat ID" class="settings-input" placeholder="telegram chat id" style="width:100%" data-i18n-aria-label="shell.settings_rules.telegram_chat_id_2" data-i18n-placeholder="shell.settings_rules.telegram_chat_id">
+              <div class="tg-chat-row"><input type="text" id="s-notify-tgchat" aria-label="Telegram chat ID" class="settings-input" placeholder="telegram chat id" data-i18n-aria-label="shell.settings_rules.telegram_chat_id_2" data-i18n-placeholder="shell.settings_rules.telegram_chat_id"><button type="button" class="btn" id="s-notify-tgfind" data-i18n="shell.settings_rules.find_chat_id">find my chat id</button></div>
+              <p class="s-card-hint"><a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" data-i18n="shell.settings_rules.make_telegram_bot">make a bot with BotFather</a></p>
+              <p class="s-card-hint" data-i18n="shell.settings_rules.telegram_steps">paste its token above, send the bot any message in telegram, then press find my chat id.</p>
             </div>
           </div>
         </div>
@@ -3105,6 +3112,6 @@
   </div><!-- /s-modal -->
 </div>
 
-<script type="module" src="/static/js/app.js?v=592"></script>
+<script type="module" src="/static/js/app.js?v=593"></script>
 </body>
 </html>

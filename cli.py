@@ -3249,6 +3249,9 @@ def _usage():
 
 
 def main():
+    from core.tool_path import extend_tool_path
+
+    extend_tool_path()
     args = sys.argv[1:]
     if args and args[0] in ("-h", "--help", "help"):
         print(_usage())

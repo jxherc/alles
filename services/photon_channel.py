@@ -117,7 +117,9 @@ async def register_numbers() -> None:
 
 
 async def _run_install() -> None:
-    npm = shutil.which("npm")
+    from core.tool_path import find_tool
+
+    npm = find_tool("npm")
     if not npm:
         raise RuntimeError("npm was not found on this machine")
     home = _home()
@@ -168,7 +170,9 @@ async def _connect() -> None:
         await _run_install()
     home = _home()
     shutil.copyfile(SIDECAR, home / "sidecar.mjs")  # node finds spectrum-ts next to it
-    node = shutil.which("node")
+    from core.tool_path import find_tool
+
+    node = find_tool("node")
     if not node:
         raise RuntimeError("node was not found on this machine")
     env = {k: v for k, v in os.environ.items() if not k.startswith("ALLES_")}
