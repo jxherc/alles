@@ -5665,6 +5665,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 18px; margin: 18px 0; padding: 16px 0; border-top: 1px solid var(--faint); border-bottom: 1px solid var(--faint); font-size: 0.8125rem; }
 .setup-summary span { color: var(--muted); }
 .setup-summary strong { min-width: 0; overflow: hidden; color: var(--text); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.setup-connect-title { margin: 0 0 8px; color: var(--text); font-size: 0.875rem; font-weight: 600; }
+.setup-connect { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.setup-connect-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.setup-connect-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.setup-connect-text > span:first-child { color: var(--text); font-size: 0.875rem; }
+.setup-connect-note { color: var(--muted); font-size: 0.8125rem; }
+.setup-connect-row .btn { flex: none; }
 .setup-status { flex: 1; min-width: 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.4; text-align: right; }
 .setup-status[data-state="error"] { color: var(--error); }
 .setup-actions { min-height: 44px; display: flex; align-items: center; gap: 12px; margin-top: 16px; }

@@ -621,7 +621,51 @@ function _renderDone(body) {
       <span>${esc(t('setup.document_folder'))}</span><strong>${esc(_state.vault_preview || t('setup.not_connected'))}</strong>
       <span>${esc(t('setup.summary_backup'))}</span><strong>${esc(_state.automatic_backup_enabled ? t('setup.backup_daily') : t('setup.backup_off'))}</strong>
     </div>
+    <div class="setup-connect-title" id="sw-connect-title">${esc(t('setup.connect_title'))}</div>
+    <div class="setup-connect" id="sw-connect" role="list" aria-labelledby="sw-connect-title"></div>
     <div class="setup-actions"><button class="btn primary" type="button" id="sw-start" style="margin-left:auto">${esc(t('setup.open_alles'))}</button></div>`;
+  _renderConnect($('sw-connect'));
   $('sw-start').addEventListener('click', _close);
   $('sw-start').focus();
+}
+
+// where each kind of app gets connected; setup only points there, so there is one place to manage each
+const _CONNECT = [
+  { id: 'mail', view: 'mail' },
+  { id: 'phone', pane: 'tools', card: 'telegram-card' },
+  { id: 'bank', view: 'finance' },
+  { id: 'services', pane: 'tools', card: 'conn-service' },
+];
+
+async function _connectStates() {
+  const read = path => fetch(path).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const [mail, telegram, photon, discord] = await Promise.all([
+    read('/api/mail/accounts'), read('/api/aide/channels/telegram'),
+    read('/api/aide/channels/photon'), read('/api/jarvis/discord'),
+  ]);
+  const phone = [telegram?.enabled && 'Telegram', photon?.enabled && 'iMessage', discord?.configured && 'Discord'].filter(Boolean);
+  return {
+    mail: Array.isArray(mail) && mail.length ? t('setup.connect_mail_count', { count: mail.length }) : '',
+    phone: phone.join(', '),
+  };
+}
+
+function _renderConnect(host) {
+  const draw = (states = {}) => {
+    host.innerHTML = _CONNECT.map(item => `
+      <div class="setup-connect-row" role="listitem">
+        <div class="setup-connect-text"><span>${esc(t(`setup.connect_${item.id}`))}</span><span class="setup-connect-note">${esc(states[item.id] || t(`setup.connect_${item.id}_note`))}</span></div>
+        <button class="btn" type="button" data-connect="${item.id}">${esc(states[item.id] ? t('setup.connect_open') : t('setup.connect_go'))}</button>
+      </div>`).join('');
+  };
+  draw();
+  _connectStates().then(states => { if (host.isConnected) draw(states); });
+  host.addEventListener('click', event => {
+    const item = _CONNECT.find(entry => entry.id === event.target.closest('[data-connect]')?.dataset.connect);
+    if (!item) return;
+    _close({ restoreFocus: false });
+    if (item.view) { window._navigateTo?.(item.view); return; }
+    window._openSettings?.(item.pane);
+    requestAnimationFrame(() => document.getElementById(item.card)?.closest('.s-card')?.scrollIntoView({ block: 'start' }));
+  });
 }

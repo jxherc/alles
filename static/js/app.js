@@ -844,6 +844,7 @@ window._openProject = (pid) => showView('project-view', 'project', () => import(
 // the command palette (search.js) reaches across subdomains, so expose the router
 // + an "ask aide / Andromeda search" handoff it can call from any app.
 window._navigateTo = (v, options) => navigateTo(v, options);
+window._openSettings = pane => openSettings(pane);
 window._navigateHome = () => navigateTo('today');
 
 window._openSearchResult = async (type, value, messageId = '') => {
