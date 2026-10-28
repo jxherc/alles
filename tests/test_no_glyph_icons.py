@@ -41,6 +41,7 @@ ALLOWED = {
     "vault.js": ['class="modal-close"'],  # ✕ close, replaced by its svg at render
     "connections.js": ['class="perm-rule-del"'],  # ✕ remove, replaced by its svg at render
     "habits.js": ["HABIT_COLORS", "_si('none')"],
+    "emoji_picker.js": ["E('"],  # a habit's own emoji are user content, the picker's list
     "icons.js": ["//"],
 }
 

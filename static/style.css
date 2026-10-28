@@ -9131,7 +9131,22 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .habit-target-field[hidden] { display: none; }
 .habit-cadence-help { margin: 0; }
 .habit-edit-row .settings-input { flex: 1; min-width: 0; }
-.habit-edit-row .habit-icon-in { width: 64px; max-width: 64px; text-align: center; }
+.habit-icon-pick { width: 64px; }
+.habit-icon-btn { width: 100%; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1; }
+.habit-icon-glyph { font-size: 1.25rem; }
+.habit-icon-btn svg { width: 16px; height: 16px; color: var(--muted); }
+/* floats under the icon button. 4px inside a 1px border, so inner corners are the panel's minus 5px */
+.emoji-panel { position: fixed; z-index: 1000; width: min(calc(7 * 44px + 2 * var(--k-space-1) + 2px), calc(100vw - 2 * var(--k-space-2))); box-sizing: border-box; padding: var(--k-space-1); background: var(--k-panel); border: 1px solid var(--k-line); border-radius: var(--k-radius-surface); box-shadow: var(--k-float, 0 12px 32px rgba(0, 0, 0, 0.35)); }
+.emoji-head { display: flex; gap: var(--k-space-1); margin-bottom: var(--k-space-1); }
+.emoji-head .settings-input { flex: 1; min-width: 0; font-size: max(1rem, 16px); }
+.emoji-head :is(.settings-input, .btn) { border-radius: calc(var(--k-radius-surface) - var(--k-space-1) - 1px); }
+.emoji-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); max-height: calc(6 * 44px); overflow-y: auto; overscroll-behavior: contain; }
+.emoji-opt { height: 44px; padding: 0; border: 0; background: none; cursor: pointer; font-size: 1.375rem; line-height: 1; border-radius: calc(var(--k-radius-surface) - var(--k-space-1) - 1px); }
+.emoji-opt.active { background: var(--k-hover); }
+.emoji-opt[aria-selected="true"] { background: var(--k-raised); }
+.emoji-panel[data-kb] .emoji-opt.active { outline: 2px solid var(--k-focus); outline-offset: -2px; }
+.emoji-empty { margin: 0; padding: var(--k-space-3); color: var(--muted); font-size: 0.8125rem; }
+.emoji-empty[hidden] { display: none; }
 .habit-colors { display: flex; flex-wrap: wrap; gap: 0; align-items: center; margin-inline-start: -13px; }
 /* a 44px button with the 18px dot in its middle, so the colours can be tapped and tabbed to */
 .habit-sw { position: relative; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); font: inherit; font-size: 0.8125rem; }

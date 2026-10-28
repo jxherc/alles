@@ -6,6 +6,7 @@ import { initCustomDropdown } from './dropdown.js?v=214';
 import { confirm as dlgConfirm } from './dialog.js';
 import { calendarDateKey, formatCalendarDate, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
+import { closeEmojiPicker, emojiFieldHtml, wireEmojiPicker } from './emoji_picker.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -107,7 +108,7 @@ async function writeHabit(change) {
 
 function readForm(card) {
   const value = field => card.querySelector(`[data-f="${field}"]`);
-  return { id: card.dataset.id || null, name: value('name')?.value || '', icon: value('icon')?.value || '',
+  return { id: card.dataset.id || null, name: value('name')?.value || '', icon: value('icon')?.dataset.value || '',
     cadence: value('cadence')?.dataset.value || 'daily', target: value('target')?.value ?? '3', color: value('color')?.dataset.value || '' };
 }
 
@@ -156,8 +157,9 @@ const _iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0'
 function _render() {
   const body = $('habits-body');
   if (!body) return;
+  closeEmojiPicker({ restore: false });
   const active = body.contains(document.activeElement) ? document.activeElement : null;
-  const field = active?.dataset.f;
+  const field = (active?.closest('[data-f]') ?? active)?.dataset.f;
   const toolbarFocus = active?.closest('.habits-bar') ? (active.id ? `#${CSS.escape(active.id)}` : `[data-act="${CSS.escape(active.dataset.act)}"]`) : null;
   const focusedRecord = active?.matches('.habit-card.record-target') ? active.dataset.id : null;
   const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
@@ -177,7 +179,8 @@ function _render() {
   _wire(body);
   setBusy();
   if (field) {
-    const input = body.querySelector(`.habit-card.editing [data-f="${CSS.escape(field)}"]`);
+    const found = body.querySelector(`.habit-card.editing [data-f="${CSS.escape(field)}"]`);
+    const input = found?.matches('.habit-icon-pick') ? found.querySelector('button') : found;
     input?.focus();
     if (selection && input?.setSelectionRange) input.setSelectionRange(...selection);
   } else if (focusedRecord) {
@@ -249,9 +252,10 @@ function _formFields(h, scope) {
       <input type="text" class="settings-input" data-f="name" value="${esc(h.name)}" placeholder="${esc(t('habits.name_placeholder'))}">
     </label>
     <div class="habit-edit-row">
-      <label class="habit-field habit-icon-field">${esc(t('habits.icon'))}
-        <input type="text" class="settings-input habit-icon-in" data-f="icon" value="${esc(h.icon)}" placeholder="${esc(t('habits.emoji'))}">
-      </label>
+      <div class="habit-field habit-icon-field">
+        <span>${esc(t('habits.icon'))}</span>
+        ${emojiFieldHtml(h.icon)}
+      </div>
       ${_cadenceSelect(h.cadence, id)}
       <label class="habit-field habit-target-field"${h.cadence === 'weekly' ? '' : ' hidden'}>${esc(t('habits.days_per_week'))}
         <input type="text" class="settings-input" data-f="target" value="${esc(h.target)}" inputmode="numeric" placeholder="${esc(t('habits.target_placeholder'))}" aria-describedby="${id}-frequency-help">
@@ -301,6 +305,7 @@ function _addForm() {
 
 function _wire(body) {
   body.querySelectorAll('.custom-select').forEach(initCustomDropdown);
+  body.querySelectorAll('.habit-icon-pick').forEach(host => wireEmojiPicker(host, { disabled: () => _saving }));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => {
     if (!_showArchived && typeof window._navigateTo === 'function') window._navigateTo('habits', { preserveRecord: true });
     else loadHabits();
