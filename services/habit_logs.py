@@ -53,6 +53,20 @@ def toggle(
     return True, day
 
 
+def save_log(db: Session, habit_id: str, raw_date: str, data: str | None) -> str:
+    """mark the day done and store its details (json text, or None for none). one row stays."""
+    day = canonical_day(raw_date)
+    matches = _rows_on_day(db, habit_id, day)
+    for extra in matches[1:]:
+        db.delete(extra)
+    if matches:
+        matches[0].data = data
+    else:
+        db.add(HabitLog(habit_id=habit_id, date=day, data=data))
+    db.commit()
+    return day
+
+
 def mark(db: Session, habit_id: str, raw_date: str) -> bool:
     day = canonical_day(raw_date)
     if _rows_on_day(db, habit_id, day):

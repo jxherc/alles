@@ -95,6 +95,7 @@ def run():
                             "loading"
                         )
                         page.locator("#habits-add-toggle").click()
+                        page.locator(".dialog-pick-action").click()
                         draft = page.locator('.habit-add [data-f="name"]')
                         draft.fill("retained slow-load draft")
                         page.route(base + "/api/habits", reject)
@@ -148,6 +149,9 @@ def run():
                             expect(page.locator('#habits-body [role="status"]')).to_have_count(0)
                             expect(control).to_be_focused()
                         page.keyboard.press("Enter")
+                        custom = page.locator(".dialog-pick-action")
+                        custom.focus()
+                        page.keyboard.press("Enter")
                         draft = page.locator('.habit-add [data-f="name"]')
                         expect(draft).to_be_focused()
                         draft.fill("keyboard draft after refresh")
@@ -187,6 +191,7 @@ def run():
                                 card.locator('[data-f="name"]').fill("retained edit")
                         if case == "create":
                             page.locator("#habits-add-toggle").click()
+                            page.locator(".dialog-pick-action").click()
                             card = page.locator(".habit-add")
                             card.locator('[data-f="name"]').fill("retained new habit")
                             pattern = base + "/api/habits"

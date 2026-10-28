@@ -195,6 +195,52 @@ export function fields(title, defs, options = {}) {
   });
 }
 
+// a dialog around the caller's own fields. collect(card) reads them; submit(value) saves and
+// throws to keep the dialog open with its message. `remove` ({ label }) adds a quiet button on
+// the left that resolves { remove: true }. wire(card) runs once the markup is in the page
+export function form(title, html, { confirmLabel = '', collect, submit, remove = null, wire = null, className = '' } = {}) {
+  return new Promise(resolve => {
+    const ov = _overlay();
+    const titleId = `dialog-title-${++dialogSequence}`;
+    ov.innerHTML = `<div class="dialog-card dialog-form dialog-validated${className ? ` ${_esc(className)}` : ''}" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+      <h2 class="dialog-title" id="${titleId}">${_esc(title)}</h2>
+      <div class="dialog-form-body">${html}</div>
+      <div class="dialog-validation" role="alert"></div>
+      <div class="dialog-btns">
+        ${remove ? `<button class="btn dialog-remove" type="button" data-dialog-confirm data-dialog-remove>${_esc(remove.label)}</button>` : ''}
+        <button class="btn" type="button" data-dialog-cancel>${t('common.cancel')}</button>
+        <button class="btn primary" type="button" data-dialog-confirm>${_esc(confirmLabel || t('common.save'))}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const card = ov.querySelector('.dialog-card');
+    const error = ov.querySelector('.dialog-validation');
+    const save = ov.querySelector('[data-dialog-confirm]:not([data-dialog-remove])');
+    const run = async value => {
+      error.textContent = '';
+      if (value?.remove || !submit) return true;
+      save.textContent = t('common.saving');
+      try { await submit(value); return true; }
+      catch (failure) { error.textContent = failure.message || t('shell.could_not_confirm_save'); return false; }
+      finally { save.textContent = confirmLabel || t('common.save'); }
+    };
+    const valueOf = button => {
+      if (button.hasAttribute('data-dialog-remove')) return { remove: true };
+      try { return collect ? collect(card) : null; }
+      catch (failure) { error.textContent = failure.message; return { invalid: true }; }
+    };
+    const submitButton = _wireDialog(ov, resolve, valueOf, value => (value?.invalid ? false : run(value)));
+    card.addEventListener('keydown', event => {
+      // enter in a one-line field saves, like a form would
+      if (event.key !== 'Enter' || event.defaultPrevented || !event.target.matches('input')) return;
+      event.preventDefault();
+      submitButton(save);
+    });
+    wire?.(card);
+    (card.querySelector('.dialog-form-body input:not([disabled]), .dialog-form-body button:not([disabled])') || save).focus();
+  });
+}
+
 export function choose(title, options) {
   return new Promise(resolve => {
     const ov = _overlay();
@@ -211,8 +257,11 @@ export function choose(title, options) {
 }
 
 // a long list (regions, currencies): type to filter, arrows to move, enter to pick. options are
-// { value, label, hint? }; the current value starts selected and in view
-export function pick(title, options, { value = '', placeholder = '' } = {}) {
+// { value, label, hint?, icon?, group?, words? }: icon is an emoji shown before the label, group a
+// heading the option sits under while nothing is typed, words extra search terms. `action`
+// ({ label }) adds a button beside cancel that resolves { action: true, query } instead of a value.
+// the current value starts selected and in view
+export function pick(title, options, { value = '', placeholder = '', action = null } = {}) {
   return new Promise(resolve => {
     const ov = _overlay();
     const titleId = `dialog-title-${++dialogSequence}`;
@@ -222,19 +271,25 @@ export function pick(title, options, { value = '', placeholder = '' } = {}) {
       <input class="settings-input dialog-pick-search" type="search" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="${listId}" aria-autocomplete="list" placeholder="${_esc(placeholder || t('common.search'))}">
       <div class="dialog-pick-list" id="${listId}" role="listbox" aria-labelledby="${titleId}"></div>
       <p class="dialog-pick-empty" role="status" hidden>${_esc(t('common.no_results'))}</p>
-      <div class="dialog-btns"><button type="button" class="btn" data-dialog-cancel>${t('common.cancel')}</button></div>
+      <div class="dialog-btns">${action ? `<button type="button" class="btn dialog-pick-action" data-dialog-confirm data-pick-action>${_esc(action.label)}</button>` : ''}<button type="button" class="btn" data-dialog-cancel>${t('common.cancel')}</button></div>
     </div>`;
     document.body.appendChild(ov);
     const search = ov.querySelector('.dialog-pick-search'), list = ov.querySelector('.dialog-pick-list');
     const empty = ov.querySelector('.dialog-pick-empty');
     let shown = [], active = 0;
-    const submit = _wireDialog(ov, resolve, button => button.dataset.value);
+    const submit = _wireDialog(ov, resolve, button => button.hasAttribute('data-pick-action')
+      ? { action: true, query: search.value.trim() } : button.dataset.value);
+    const optionHtml = (option, index) => `<button type="button" class="dialog-pick-option" role="option" id="${listId}-${index}" tabindex="-1" data-dialog-confirm data-value="${_esc(option.value)}" aria-selected="${option.value === value}"><span>${option.icon ? `<span class="dialog-pick-icon" aria-hidden="true">${_esc(option.icon)}</span>` : ''}${_esc(option.label)}</span>${option.hint ? `<small>${_esc(option.hint)}</small>` : ''}</button>`;
     const paint = () => {
       const query = search.value.trim().toLowerCase();
-      shown = options.filter(option => !query || `${option.label} ${option.value} ${option.hint || ''}`.toLowerCase().includes(query));
+      shown = options.filter(option => !query || `${option.label} ${option.value} ${option.hint || ''} ${option.words || ''}`.toLowerCase().includes(query));
       // a label that starts with what was typed comes first, so "c" lands on canada
       if (query) shown.sort((a, b) => Number(!a.label.toLowerCase().startsWith(query)) - Number(!b.label.toLowerCase().startsWith(query)));
-      list.innerHTML = shown.map((option, index) => `<button type="button" class="dialog-pick-option" role="option" id="${listId}-${index}" tabindex="-1" data-dialog-confirm data-value="${_esc(option.value)}" aria-selected="${option.value === value}"><span>${_esc(option.label)}</span>${option.hint ? `<small>${_esc(option.hint)}</small>` : ''}</button>`).join('');
+      // headings only while browsing: a search ranks across groups
+      const grouped = !query && shown.some(option => option.group);
+      list.innerHTML = grouped
+        ? [...new Set(shown.map(option => option.group || ''))].map((group, at) => `<div class="dialog-pick-group" role="group" aria-labelledby="${listId}-g${at}"><div class="dialog-pick-heading" id="${listId}-g${at}" role="presentation">${_esc(group)}</div>${shown.map((option, index) => (option.group || '') === group ? optionHtml(option, index) : '').join('')}</div>`).join('')
+        : shown.map(optionHtml).join('');
       list.querySelectorAll('[data-dialog-confirm]').forEach(button => button.addEventListener('click', () => submit(button)));
       empty.hidden = shown.length > 0;
       move(query ? 0 : Math.max(0, shown.findIndex(option => option.value === value)));

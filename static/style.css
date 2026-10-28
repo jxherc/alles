@@ -6974,6 +6974,12 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
 .dialog-pick-option:hover, .dialog-pick-option[data-active] { background: var(--k-btn-fill-hover, var(--hover)); }
 .dialog-pick-option[aria-selected="true"] { -webkit-text-stroke: 0.35px currentColor; }
 .dialog-pick-empty { margin: 0; color: var(--muted); font-size: 0.8125rem; }
+.dialog-pick-group { display: flex; flex-direction: column; gap: 2px; }
+.dialog-pick-group + .dialog-pick-group { margin-top: var(--k-space-2); }
+.dialog-pick-heading { padding: var(--k-space-2) 12px var(--k-space-1); color: var(--muted); font-size: 0.8125rem; }
+.dialog-pick-option > span:first-child { display: inline-flex; align-items: center; min-width: 0; }
+.dialog-pick-icon { flex: 0 0 auto; width: 1.5em; margin-inline-end: var(--k-space-2); font-size: 1.125rem; line-height: 1; text-align: center; }
+.dialog-btns .dialog-pick-action, .dialog-btns .dialog-remove { margin-inline-end: auto; }
 .cal-ed-actions { flex-wrap: wrap; }
 .cal-ed-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.5rem; }
 @media (max-width: 720px) {
@@ -9183,6 +9189,30 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .habit-sw { position: relative; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); font: inherit; font-size: 0.8125rem; }
 .habit-sw::before { content: ""; position: absolute; inset: 13px; border-radius: 50%; border: 1px solid var(--faint); background: var(--sw, transparent); }
 .habit-sw.sel::before { outline: 2px solid var(--text); outline-offset: 1px; }
+/* today's log under the name: "lat pulldown 70 × 10 · 3 sets" */
+.habit-log-sum { margin: calc(-1 * var(--k-space-1)) 0 var(--k-space-2); font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+/* the day log dialog: one column of fields, set rows line up under the first row's labels */
+.dialog-card.habit-log-dialog { width: min(520px, calc(100vw - 2 * var(--k-space-4))); max-height: calc(100dvh - 2 * var(--k-space-4)); overflow-y: auto; overscroll-behavior: contain; }
+.hlog-fields { display: flex; flex-direction: column; gap: var(--k-space-4); }
+.hlog-f { display: flex; flex-direction: column; gap: var(--k-space-1); min-width: 0; color: var(--muted); font-size: 0.8125rem; }
+.hlog-inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--k-space-3); }
+.hlog-inline > .hlog-f:first-child { flex: 1 1 120px; }
+.hlog-seg { gap: var(--k-space-1); }
+.hlog-rows { display: flex; flex-direction: column; gap: var(--k-space-4); }
+.hlog-row { display: flex; flex-direction: column; gap: var(--k-space-2); }
+.hlog-line { display: flex; align-items: flex-end; gap: var(--k-space-2); }
+.hlog-line .hlog-ex { flex: 1; }
+.hlog-nums { display: grid; grid-template-columns: 76px 64px 56px minmax(0, 1fr); gap: var(--k-space-2); }
+.hlog-row + .hlog-row { padding-top: var(--k-space-4); border-top: 1px solid var(--faint); }
+.hlog-remove { flex: 0 0 44px; width: 44px; height: 44px; }
+.hlog-remove svg { width: 16px; height: 16px; }
+.hlog-remove:hover { color: var(--error); }
+.hlog-add { align-self: flex-start; display: inline-flex; align-items: center; gap: var(--k-space-2); min-height: 44px; }
+.hlog-add svg { width: 14px; height: 14px; }
+.hlog-suggest { position: fixed; z-index: 2001; box-sizing: border-box; max-height: calc(5 * 44px + 2 * var(--k-space-1)); overflow-y: auto; overscroll-behavior: contain; padding: var(--k-space-1); background: var(--k-panel, var(--panel)); border: 1px solid var(--k-line, var(--faint)); border-radius: var(--k-radius-surface); box-shadow: var(--k-float, 0 12px 32px rgba(0, 0, 0, 0.35)); }
+.hlog-suggest[hidden] { display: none; }
+.hlog-option { display: flex; align-items: center; min-height: 44px; padding: 0 var(--k-space-3); border-radius: calc(var(--k-radius-surface) - var(--k-space-1)); color: var(--text); font-size: 0.875rem; cursor: pointer; overflow-wrap: anywhere; }
+.hlog-option[data-active] { background: var(--k-hover, var(--hover)); }
 
 /* ── read-later ───────────────────────────────────────────────────────────────── */
 #read-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }

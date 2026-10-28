@@ -233,6 +233,25 @@ deleted habits cannot be recreated by retrying an old request. **archived habits
 history visible and provides an explicit restore action. restoring brings the same habit and history
 back to the active list; it does not create a replacement.
 
+**habit types.** "new habit" opens a searchable catalog of about 55 habits in seven groups
+(fitness, health, mind, learning, home, money, people; [static/js/habit_catalog.js](static/js/habit_catalog.js)),
+each with its emoji, a type (`kind`) and, for counts, a unit. picking one fills the habit form;
+"custom habit" opens it blank (with whatever was typed as the name) and is always a plain check.
+the type is fixed when the habit is made. a `check` habit toggles a day as before. the others open
+a day log when a day is tapped, and saving it marks that day done with its details in
+`habit_logs.data` (json, one row per habit per day still means "done"):
+`workout` set rows {exercise, weight in lb (dumbbells per hand, machines per side), reps (10 when
+blank), sets (1 when blank), note}, with "add set" copying the last row and exercise names
+suggested from that habit's past logs; `reading` {amount, pages or chapters, book}; `count`
+{amount} in the habit's unit (glasses, steps, reps, servings, words, cards); `duration`
+{minutes}; `distance` {distance, km or mi, optional minutes}. the card shows today's log in muted
+text ("lat pulldown 70 × 10 · 3 sets"), and any day in the week strip opens its log to view, edit
+or remove. [services/habit_kinds.py](services/habit_kinds.py) checks every log on the server
+(types, ranges, at most 50 workout rows, text caps) and refuses an unknown type or details sent to
+a check habit. the overview returns the last 14 days of details and, for a workout, every exercise
+name used. aide's habit tools still mark a day done without details. migration 76 adds the
+columns; existing habits become checks.
+
 [services/personal_index.py](services/personal_index.py) indexes supported records for recall. [services/journal_migration.py](services/journal_migration.py) stages verified markdown copies while the database remains authoritative; [services/journal_vault.py](services/journal_vault.py) provides the optional unlocked mirror. locked content is not copied to plaintext implicitly.
 
 install/update separates versioned code, private data, logs, and service ownership. candidates need validation before switching. restore/update journals and maintenance locks prevent normal startup through an unfinished swap.
@@ -3693,8 +3712,8 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `finance_ledger_state` | `id: VARCHAR pk`, `mode: VARCHAR`, `base_currency_code: VARCHAR`, `active_run_id: VARCHAR ?`, `actual_budget_id: VARCHAR ?`, `actual_sync_id: VARCHAR ?`, `legacy_read_only: BOOLEAN`, `cutover_at: DATETIME ?`, `rollback_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `gallery_images` | `id: VARCHAR pk`, `filename: VARCHAR`, `prompt: TEXT ?`, `tags: TEXT ?`, `source: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `habit_create_receipts` | `id: VARCHAR pk`, `habit_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
-| `habit_logs` | `id: INTEGER pk`, `habit_id: VARCHAR ?`, `date: VARCHAR ?`, `created_at: DATETIME ?` | — |
-| `habits` | `id: VARCHAR pk`, `name: VARCHAR`, `icon: VARCHAR ?`, `color: VARCHAR ?`, `cadence: VARCHAR ?`, `target: INTEGER ?`, `created_at: DATETIME ?`, `archived: BOOLEAN ?` | — |
+| `habit_logs` | `id: INTEGER pk`, `habit_id: VARCHAR ?`, `date: VARCHAR ?`, `created_at: DATETIME ?`, `data: TEXT ?` | — |
+| `habits` | `id: VARCHAR pk`, `name: VARCHAR`, `icon: VARCHAR ?`, `color: VARCHAR ?`, `cadence: VARCHAR ?`, `target: INTEGER ?`, `created_at: DATETIME ?`, `archived: BOOLEAN ?`, `kind: VARCHAR ?`, `unit: VARCHAR ?` | — |
 | `health_create_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR(64)`, `entry_id: INTEGER ?`, `created_at: DATETIME ?` | — |
 | `health_entries` | `id: INTEGER pk`, `record_id: VARCHAR`, `kind: VARCHAR ?`, `date: VARCHAR ?`, `value: FLOAT ?`, `unit: VARCHAR ?`, `note: VARCHAR ?`, `label: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `health_import_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR(64)`, `imported: INTEGER`, `skipped: INTEGER`, `created_at: DATETIME ?` | — |
@@ -3864,6 +3883,7 @@ known versions run in ascending order.
 | 72 | `coding_projects` | [m0072_coding_projects.py](core/migrations/m0072_coding_projects.py) |
 | 73 | `aide_goals` | [m0073_aide_goals.py](core/migrations/m0073_aide_goals.py) |
 | 74 | `calendar_wall_times` | [m0074_calendar_wall_times.py](core/migrations/m0074_calendar_wall_times.py) |
+| 76 | `habit_kinds` | [m0076_habit_kinds.py](core/migrations/m0076_habit_kinds.py) |
 
 </details>
 

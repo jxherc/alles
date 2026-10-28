@@ -103,6 +103,8 @@ def run():
 
                 def open_form():
                     keyboard(page.locator("#habits-add-toggle"))
+                    # "new habit" opens the catalog first; a custom habit is the plain form
+                    keyboard(page.locator(".dialog-pick-action"))
                     form.locator('[data-f="name"]').fill(name)
 
                 def discard_confirmation():

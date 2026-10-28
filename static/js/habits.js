@@ -3,10 +3,12 @@
 // GitHub-style contribution heatmap. mirrors the days/watch panel conventions.
 import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=215';
-import { confirm as dlgConfirm } from './dialog.js';
+import { confirm as dlgConfirm, pick } from './dialog.js';
 import { calendarDateKey, formatCalendarDate, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
 import { closeEmojiPicker, emojiFieldHtml, wireEmojiPicker } from './emoji_picker.js';
+import { catalogEntry, catalogName, catalogOptions } from './habit_catalog.js';
+import { hasLogger, logSummary, openLogger } from './habit_loggers.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -109,7 +111,8 @@ async function writeHabit(change) {
 function readForm(card) {
   const value = field => card.querySelector(`[data-f="${field}"]`);
   return { id: card.dataset.id || null, name: value('name')?.value || '', icon: value('icon')?.dataset.value || '',
-    cadence: value('cadence')?.dataset.value || 'daily', target: value('target')?.value ?? '3', color: value('color')?.dataset.value || '' };
+    cadence: value('cadence')?.dataset.value || 'daily', target: value('target')?.value ?? '3', color: value('color')?.dataset.value || '',
+    kind: card.dataset.kind || 'check', unit: card.dataset.unit || '' };
 }
 
 function formPayload(card) {
@@ -118,8 +121,10 @@ function formPayload(card) {
   // one whole emoji: a 2-character cap cut flags and family emoji in half
   const icon = typeof Intl.Segmenter === 'function'
     ? ([...new Intl.Segmenter().segment(values.icon.trim())][0]?.segment || '') : values.icon.trim();
-  return { name: values.name.trim(), icon, cadence: values.cadence,
+  const payload = { name: values.name.trim(), icon, cadence: values.cadence,
     color: values.color, target: Number.isNaN(target) ? 3 : target };
+  // the type is chosen once, when the habit is made
+  return card.dataset.add ? { ...payload, kind: values.kind, unit: values.unit } : payload;
 }
 
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -207,7 +212,7 @@ function _weekStrip(h) {
     const completed = done.has(iso);
     const date = formatCalendarDate(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const letter = formatCalendarDate(iso, { weekday: 'narrow' });
-    return `<button type="button" class="habit-day${completed ? ' done' : ''}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}" aria-label="${esc(t(completed ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date }))}"><span>${esc(letter)}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
+    return `<button type="button" class="habit-day${completed ? ' done' : ''}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}"${hasLogger(h) ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(t(completed ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date }))}"><span>${esc(letter)}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
   }).join('')}</div>`;
 }
 
@@ -217,6 +222,7 @@ function _card(h) {
   const accent = /^#[0-9a-f]{3,8}$/i.test(String(h.color || '')) ? h.color : `var(--cat-${categoryHue(h.name)})`;
   const slip = !h.archived && h.risk && h.risk.slipping
     ? `<span class="habit-slip" title="${esc(h.risk.reason)}">${esc(t('habits.slipping'))}</span>` : '';
+  const today = h.archived ? '' : logSummary(h, h.logs?.[_day]);
   return `
     <div class="habit-card${slip ? ' at-risk' : ''}" data-id="${h.id}" style="--habit-accent:${esc(accent)}">
       <div class="habit-top">
@@ -229,6 +235,7 @@ function _card(h) {
           <button class="icon-btn danger" data-act="del" title="${esc(t('common.delete'))}">${_si('trash')}</button>
         </div>
       </div>
+      ${today ? `<div class="habit-log-sum">${esc(today)}</div>` : ''}
       ${h.archived ? `<div class="habit-meta">${esc(t('habits.archived_kept'))}</div>` : _weekStrip(h)}
       ${_heat(h.grid)}
       <div class="habit-meta">${esc(h.cadence === 'weekly' ? t('habits.week_progress', { done: h.week_done, target: h.target }) : t('habits.days_progress', { done: h.week_done }))} · ${h.pct}%</div>
@@ -289,9 +296,9 @@ function _editCard(h) {
 }
 
 function _addForm() {
-  const draft = _draft?.id === null ? _draft : { name: '', icon: '', cadence: 'daily', target: '3', color: '' };
+  const draft = _draft?.id === null ? _draft : { name: '', icon: '', cadence: 'daily', target: '3', color: '', kind: 'check', unit: '' };
   return `
-    <div class="habit-card editing habit-add" data-add="1">
+    <div class="habit-card editing habit-add" data-add="1" data-kind="${esc(draft.kind || 'check')}" data-unit="${esc(draft.unit || '')}">
       ${_formFields(draft, 'habit-add')}
       ${_colorPicker(draft.color)}
       ${_creation?.error ? `<div class="habit-create-error specialist-group-note" role="alert">${esc(_creation.error)}</div>` : ''}
@@ -318,9 +325,14 @@ function _wire(body) {
   $('habits-add-toggle')?.addEventListener('click', async () => {
     if (_saving) return;
     if (_adding) { if (!await closeAdd()) return; }
-    else { _adding = true; _creation = { requestId: newRequestId() }; _draft = null; }
+    else {
+      const navigation = _navigation;
+      const draft = await _pickHabit();
+      if (!draft || navigation !== _navigation || _saving || _adding) return;
+      _adding = true; _creation = { requestId: newRequestId() }; _draft = draft;
+    }
     _editing = null; _render();
-    body.querySelector('.habit-add [data-f="name"]')?.focus();
+    $('habits-body')?.querySelector('.habit-add [data-f="name"]')?.focus();
   });
   body.querySelectorAll('.habit-card.editing').forEach(card => {
     for (const event of ['input', 'change']) card.addEventListener(event, () => {
@@ -385,13 +397,10 @@ function _wire(body) {
     });
   }
 
-  body.querySelectorAll('.habit-day[data-toggle]').forEach(btn => btn.addEventListener('click', () => writeHabit(async () => {
-    const id = btn.closest('.habit-card').dataset.id;
-    const saved = await api(`/api/habits/${id}/toggle`, { method: 'POST', body: { date: btn.dataset.toggle, done: !btn.classList.contains('done') } });
-    const habit = _habits.find(h => h.id === id);
-    if (habit) habit.grid = habit.grid.map(day => day.date === saved.date ? { ...day, done: saved.done } : day);
-    await loadHabits();
-  })));
+  body.querySelectorAll('.habit-day[data-toggle]').forEach(btn => btn.addEventListener('click', () => {
+    const habit = _habits.find(h => h.id === btn.closest('.habit-card').dataset.id);
+    return hasLogger(habit) ? _openDayLog(habit, btn.dataset.toggle) : _toggleDay(btn);
+  }));
 
   // escape on the edit card is cancel. an open frequency menu keeps its escape to itself
   body.querySelectorAll('.habit-card.editing[data-id]').forEach(card => card.addEventListener('keydown', event => {
@@ -400,6 +409,45 @@ function _wire(body) {
     card.querySelector('[data-act="cancel"]')?.click();
   }));
 
+  _wireCards(body);
+}
+
+// "new habit": pick one from the catalog, or start a custom one (a plain check) with what was typed
+async function _pickHabit() {
+  const choice = await pick(t('habits.new_habit'), catalogOptions(), {
+    placeholder: t('habits.search_habits'), action: { label: t('habits.custom_habit') } });
+  if (!choice) return null;
+  const blank = { id: null, name: '', icon: '', cadence: 'daily', target: '3', color: '', kind: 'check', unit: '' };
+  if (choice.action) return { ...blank, name: choice.query };
+  const entry = catalogEntry(choice);
+  return entry ? { ...blank, name: catalogName(entry), icon: entry.icon, kind: entry.kind, unit: entry.unit } : null;
+}
+
+// a habit with a logger opens that day's log; saving marks the day done with its details
+async function _openDayLog(habit, day) {
+  if (_saving) return;
+  const navigation = _navigation;
+  const done = habit.grid.some(g => g.date === day && g.done);
+  const result = await openLogger(habit, day, { done,
+    save: data => api(`/api/habits/${habit.id}/toggle`, { method: 'POST', body: { date: day, data } }) });
+  if (!result || navigation !== _navigation) return;
+  await writeHabit(async () => {
+    if (result.remove) await api(`/api/habits/${habit.id}/toggle`, { method: 'POST', body: { date: day, done: false } });
+    await loadHabits();
+  });
+}
+
+function _toggleDay(btn) {
+  return writeHabit(async () => {
+    const id = btn.closest('.habit-card').dataset.id;
+    const saved = await api(`/api/habits/${id}/toggle`, { method: 'POST', body: { date: btn.dataset.toggle, done: !btn.classList.contains('done') } });
+    const habit = _habits.find(h => h.id === id);
+    if (habit) habit.grid = habit.grid.map(day => day.date === saved.date ? { ...day, done: saved.done } : day);
+    await loadHabits();
+  });
+}
+
+function _wireCards(body) {
   body.querySelectorAll('.habit-card[data-id]').forEach(card => {
     const id = card.dataset.id;
     card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {

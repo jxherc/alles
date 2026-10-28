@@ -1501,6 +1501,9 @@ class Habit(Base):
     target = Column(Integer, default=1)  # times per week (weekly cadence)
     created_at = Column(DateTime, default=_now)
     archived = Column(Boolean, default=False)
+    # check | workout | reading | count | duration | distance (services/habit_kinds.py)
+    kind = Column(String, default="check")
+    unit = Column(String, default="")  # a count habit's unit: glasses, steps, ...
 
 
 class HabitCreateReceipt(Base):
@@ -1518,6 +1521,7 @@ class HabitLog(Base):
     habit_id = Column(String, index=True)
     date = Column(String, index=True)  # ISO YYYY-MM-DD (viewer-local)
     created_at = Column(DateTime, default=_now)
+    data = Column(Text, nullable=True)  # json details for the habit's kind; null = just done
 
 
 class BookCreateReceipt(Base):
