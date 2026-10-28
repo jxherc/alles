@@ -367,12 +367,9 @@ async function switchDocsSection(section) {
 function toggleNavigation() {
   const view = $('wiki-view');
   if (!view) return;
-  const mobile = matchMedia('(max-width: 760px)').matches;
-  if (mobile) {
-    if (closeNavigation(true)) return;
-    view.classList.add('docs-nav-open');
-    $('wiki-nav-close')?.focus();
-  } else view.classList.toggle('docs-nav-hidden');
+  if (closeNavigation(true)) return;
+  view.classList.add('docs-nav-open');
+  $('wiki-nav-close')?.focus();
   syncNavigationToggle();
 }
 
@@ -389,7 +386,7 @@ function syncNavigationToggle() {
   const view = $('wiki-view');
   if (!view) return;
   const mobile = matchMedia('(max-width: 760px)').matches;
-  const visible = mobile ? view.classList.contains('docs-nav-open') : !view.classList.contains('docs-nav-hidden');
+  const visible = mobile ? view.classList.contains('docs-nav-open') : true;
   $('wiki-tree-toggle')?.setAttribute('aria-expanded', String(visible));
 }
 

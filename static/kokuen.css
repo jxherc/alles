@@ -3419,6 +3419,15 @@ textarea[data-kokuen-entry="autogrow"] {
   color: var(--k-text);
 }
 
+/* the picked editor view reads as raised with a strong edge and weight, same recipe as .btn.active;
+   the bare text-action rule above would otherwise flatten both modes to the same look */
+#wiki-view[data-kokuen-surface="docs"] .docs-mode-switch button[aria-pressed="true"] {
+  border-color: var(--k-line-strong);
+  background: var(--k-raised);
+  color: var(--k-text);
+  -webkit-text-stroke: 0.35px currentColor;
+}
+
 /* labels never wrap; the row wraps instead */
 #wiki-view[data-kokuen-surface="docs"] .docs-empty-actions {
   flex-wrap: wrap;

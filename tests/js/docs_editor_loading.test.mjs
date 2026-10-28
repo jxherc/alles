@@ -185,13 +185,10 @@ test('a document dialog keeps its navigation available for focus restoration', (
   assert.equal(h.get('wiki-view').classList.contains('docs-nav-open'), true);
 });
 
-test('desktop navigation retains its trigger focus and ordinary collapse behavior', () => {
-  const h = harness(); h.wire(); h.get('wiki-tree-toggle').focus();
-  h.get('wiki-tree-toggle').click();
-  assert.equal(h.document.activeElement, h.get('wiki-tree-toggle'));
-  assert.equal(h.get('wiki-view').classList.contains('docs-nav-hidden'), true);
-  h.get('wiki-tree-toggle').click();
+test('desktop navigation never collapses', () => {
+  const h = harness(); h.wire(); h.get('wiki-tree-toggle').click();
   assert.equal(h.get('wiki-view').classList.contains('docs-nav-hidden'), false);
+  assert.equal(h.get('wiki-tree-toggle').getAttribute('aria-expanded'), 'true');
 });
 
 async function opened(content = 'original') {

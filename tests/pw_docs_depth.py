@@ -177,11 +177,9 @@ def main():
             pg.query_selector('#wiki-tree .wiki-file[data-file="browser created.md"]') is not None
         )
 
-        pg.click("#wiki-tree-toggle")
-        r["docs_tree_toggle_hides_panel"] = pg.eval_on_selector(
-            "#wiki-view", "el => el.classList.contains('docs-nav-hidden')"
-        )
-        pg.click("#wiki-tree-toggle")
+        r["docs_tree_stays_beside_page_on_desktop"] = pg.is_visible(
+            "#docs-nav-panel"
+        ) and not pg.is_visible("#wiki-tree-toggle")
 
         pg.click('.docs-sec-btn[data-section="notes"]')
         pg.wait_for_function("document.getElementById('wiki-notes')?.offsetParent !== null")
