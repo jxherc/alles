@@ -2,7 +2,7 @@
 // unit converter, world clock, timer and stopwatch, coin, dice and random numbers, color picker.
 // Every value is set as text, never as markup. Each tool starts with what the owner asked for
 // and nothing more; "timer" opens a stopped timer, "5 minute timer" starts one.
-import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=214';
+import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=215';
 import { formatDate, formatDateParts, formatTime, resolvedTimeZone, t, tp } from './i18n.js';
 import { wireChoiceGroup } from './kokuen.js?v=4';
 import { writeClipboard } from './util.js';

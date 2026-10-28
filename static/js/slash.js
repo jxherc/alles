@@ -162,7 +162,7 @@ function _showHelp() {
   overlay.querySelectorAll('[data-help-settings]').forEach(button => { button.onclick = async () => {
     const pane = button.dataset.helpSettings;
     close();
-    const { openSettings } = await import('./settings.js?v=296');
+    const { openSettings } = await import('./settings.js?v=297');
     if (source?.isConnected && document.activeElement === source) {
       openSettings(pane);
       if (pane === 'developer') requestAnimationFrame(() => {
@@ -417,7 +417,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'memories': {
-      (await import('./settings.js?v=296')).openSettings('memory');
+      (await import('./settings.js?v=297')).openSettings('memory');
       return true;
     }
 
@@ -560,7 +560,7 @@ export async function tryExecuteSlashCommand(text) {
       if (_reminderBusy) return 'keep-draft';
       _reminderBusy = true;
       try {
-        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=245');
+        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=246');
         const type = cmd === 'send' ? 'message' : 'reminder';
         const sessionId = getActiveId();
         const command = `/${cmd} ${args}`;

@@ -3,7 +3,7 @@
 // summary aide already tracks. hand-drawn SVG sparklines, no chart lib. distinct from
 // the `system` app (which watches this machine).
 import { toast } from './util.js';
-import { initCustomDropdown } from './dropdown.js?v=214';
+import { initCustomDropdown } from './dropdown.js?v=215';
 import { confirm as dlgConfirm } from './dialog.js';
 import { formatNumber, t, tp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');

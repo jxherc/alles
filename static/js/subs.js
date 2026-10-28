@@ -1,7 +1,7 @@
 // subscriptions — recurring costs with billing cycles and renewal reminders
 import { api, toast } from './util.js';
 import { calendarDateKey, formatNumber, t, tp } from './i18n.js';
-import { initCustomDropdown } from './dropdown.js?v=214';
+import { initCustomDropdown } from './dropdown.js?v=215';
 import { initDatePicker } from './datepick.js';
 import { choose as dlgChoose, confirm as dlgConfirm } from './dialog.js';
 import { amountIn, totalsCurrency, wireCurrency } from './money_currency.js';

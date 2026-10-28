@@ -15,16 +15,16 @@ import { closeWithSlide } from './motion.js';
 import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
-import { initSlash, tryExecuteSlashCommand } from './slash.js?v=399';
+import { initSlash, tryExecuteSlashCommand } from './slash.js?v=400';
 import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=254';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
 import { openManual } from './help.js?v=2';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
-import { loadVaultView, initVault } from './vault.js?v=288';
+import { loadVaultView, initVault } from './vault.js?v=289';
 import { loadContacts, addContact } from './contacts.js';
 import { initLiveFormat } from './liveformat.js';
-import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=489';
+import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=490';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos, closeLightbox } from './photos.js';
@@ -33,10 +33,10 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=13';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=14';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=296';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=297';
 import {
   setIncognitoMode,
   isIncognitoMode,
@@ -58,10 +58,10 @@ import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import { initAideWorkspace } from './aideworkspace.js?v=281';
 import { initAideCentral } from './aidecentral.js?v=2';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=4';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=254';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=255';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
-import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=245';
+import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=246';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
 import { cachedLocalizationSettings, configureLocalization, formatDateTime, prepareLocalization, t, tp } from './i18n.js';
@@ -431,7 +431,7 @@ async function _boot({ reachable = true } = {}) {
   window._reloadPhotos = loadPhotos;
   window._reloadCalendar = () => loadCalendar();
   window._reloadMail = startMailPoll;
-  window._reloadSystem = () => import('./system.js?v=267').then(m => m.initSystem());
+  window._reloadSystem = () => import('./system.js?v=268').then(m => m.initSystem());
   applySubdomainScope(initialRoute);
   const sourceMessage = new URLSearchParams(location.search).get('message');
   if (sourceMessage && document.body.classList.contains('is-aide') && !focusSessionMessage(sourceMessage)) {
@@ -862,7 +862,7 @@ window._openSearchResult = async (type, value, messageId = '') => {
   }
   if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat', { preserveSession: true }))) return false;
   if (type === 'chat') return selectSession(value, messageId);
-  const { openNote } = await import('./docs.js?v=262');
+  const { openNote } = await import('./docs.js?v=263');
   return openNote(value);
 };
 
@@ -985,7 +985,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=254');
+      const module = await import('./andromeda.js?v=255');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1055,7 +1055,7 @@ const showCompareView  = () => showView('compare-view',  'compare',  () => { ini
 const showWikiView     = (section = 'docs') => showView(
   'wiki-view',
   section === 'journal' ? 'journal' : 'wiki',
-  (track, request) => trackedImport(track, request, () => import('./docs.js?v=262'), module => module.initDocs(section, request)),
+  (track, request) => trackedImport(track, request, () => import('./docs.js?v=263'), module => module.initDocs(section, request)),
   section === 'journal' ? 'docs-journal-section' : '',
 );
 const showVaultView      = () => showView('vault-view',      'vault',     (_track, request) => loadVaultView(request));
@@ -1066,10 +1066,10 @@ const showRemindersView  = () => {
 };
 const showSubsView       = () => showView('subs-view',      'subs',      (track, request) => trackedImport(track, request, () => import('./subs.js'), module => module.initSubsPanel(request)));
 const showMoneyView      = () => showView('money-view',     'money',     (track, request) => trackedImport(track, request, () => import('./money.js'), module => module.initMoneyPanel(request)));
-const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=5'), module => module.initDaysPanel(request)));
+const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=6'), module => module.initDaysPanel(request)));
 const showJournalView    = () => showWikiView('journal');
 const showActivityView   = () => showView('activity-view',  'activity',  (track, request) => trackedImport(track, request, () => import('./activity.js'), module => module.initActivity(request)));
-const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=267'), module => module.initSystem(request)));
+const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=268'), module => module.initSystem(request)));
 const showWatchView      = () => showView('watch-view',     'watch',     (track, request) => trackedImport(track, request, () => import('./watch.js'), module => module.initWatch(request)));
 const showHabitsView     = () => showView('habits-view',    'habits',    (track, request) => trackedImport(track, request, () => import('./habits.js'), module => module.initHabits(request)));
 const showReadView       = () => showView('read-view',      'read',      (track, request) => trackedImport(track, request, () => import('./read.js'), module => module.initRead(request)));
@@ -1087,7 +1087,7 @@ const showTodayView      = () => {
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=254'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=255'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
@@ -1099,7 +1099,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'calendar') return loadCalendar(request);
   if (section === 'tasks') return loadTasks(request, readRecordTarget(location.href));
   if (section === 'reminders') return initReminderPanel(request, () => showSpecialistGroup(group, section));
-  if (section === 'days') return import('./days.js?v=5').then(module => module.initDaysPanel(request));
+  if (section === 'days') return import('./days.js?v=6').then(module => module.initDaysPanel(request));
   if (section === 'mail') return loadMail(request);
   if (section === 'contacts') return loadContacts('', request);
   if (section === 'books') return import('./books.js').then(module => module.initBooks(request));
@@ -1108,11 +1108,11 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'habits') return import('./habits.js').then(module => module.initHabits(request));
   if (section === 'money') return import('./money.js').then(module => module.initMoneyPanel(request));
   if (section === 'subs') return import('./subs.js').then(module => module.initSubsPanel(request));
-  if (group === 'docs') return import('./docs.js?v=262').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
+  if (group === 'docs') return import('./docs.js?v=263').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
-  if (group === 'server' && section === 'overview') return import('./system.js?v=267').then(module => module.initSystem(request));
+  if (group === 'server' && section === 'overview') return import('./system.js?v=268').then(module => module.initSystem(request));
   if (group === 'server' && section === 'activity') return import('./activity.js').then(module => module.initActivity(request));
   if (group === 'server' && section === 'watch') return import('./watch.js').then(module => module.initWatch(request));
 }
@@ -1621,10 +1621,10 @@ async function _renderFirstRun() {
   catch { return; }   // never let this block Home
   if (st.setup?.completed || st.setup?.dismissed) return;
   if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
-  (await import('./setupwizard.js?v=449')).openSetupWizard({ status: st });
+  (await import('./setupwizard.js?v=450')).openSetupWizard({ status: st });
 }
 // let anything (a settings link, the command palette) re-run the wizard on demand
-window._openSetupWizard = async () => (await import('./setupwizard.js?v=449')).openSetupWizard({ resume: true });
+window._openSetupWizard = async () => (await import('./setupwizard.js?v=450')).openSetupWizard({ resume: true });
 
 // aide's tools live in the collapsible "tools" group
 const _moreViews = new Set(['gallery','brain','models','aide-reminders','subs','days']);

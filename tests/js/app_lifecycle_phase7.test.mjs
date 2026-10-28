@@ -158,7 +158,7 @@ test('single-host chat transitions always restore Aide chrome', () => {
 });
 
 test('slash memories reuses the exact Settings module instance loaded by the app', () => {
-  assert.match(app, /from '\.\/slash\.js\?v=399'/);
+  assert.match(app, /from '\.\/slash\.js\?v=400'/);
   const owner = app.match(/from '(\.\/settings\.js[^']*)'/)?.[1];
   const consumers = [...slash.matchAll(/import\('(\.\/settings\.js[^']*)'\)/g)].map(match => match[1]);
   assert.ok(owner && consumers.length);

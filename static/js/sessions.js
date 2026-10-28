@@ -16,7 +16,7 @@ import { loadAnswerNoteRecovery, reconcileAnswerNote } from './answer_note.js';
 import { loadAnswerTaskRecovery } from './answer_task.js';
 import { createMenuController } from './kokuen.js?v=4';
 import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
-import { compactResponseActions } from './response_actions.js?v=4';
+import { compactResponseActions } from './response_actions.js?v=5';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _sessions = { today: [], yesterday: [], earlier: [] };
