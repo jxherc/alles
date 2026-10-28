@@ -66,6 +66,9 @@ test('only a card that really answers lets the overview wait', () => {
   assert.equal(answerCovers({ kind: 'weather', status: 'unavailable' }), false);
   assert.equal(answerCovers({ kind: 'define', status: 'not_found' }), false);
   assert.equal(answerCovers({ kind: 'translate', status: 'needs_model' }), false);
+  for (const kind of ['tip', 'percent', 'bmi', 'loan', 'base', 'roman', 'unix', 'generate', 'encode', 'counter', 'moon', 'numfacts']) {
+    assert.equal(answerCovers({ kind, status: 'ok' }), true, kind);
+  }
   assert.equal(answerCovers({ kind: null }), false);
   assert.equal(answerCovers(null), false);
 });

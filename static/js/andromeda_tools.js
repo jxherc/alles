@@ -661,11 +661,11 @@ export const contrast = (one, two) => {
   return (a + 0.05) / (b + 0.05);
 };
 
-function slider(label, max, value, onInput) {
+export function slider(label, max, value, onInput, min = 0) {
   const track = make('div', 'andromeda-slider');
   track.setAttribute('role', 'slider');
   track.setAttribute('aria-label', label);
-  track.setAttribute('aria-valuemin', '0');
+  track.setAttribute('aria-valuemin', String(min));
   track.setAttribute('aria-valuemax', String(max));
   track.tabIndex = 0;
   const rail = make('div', 'andromeda-slider-rail');
@@ -674,14 +674,14 @@ function slider(label, max, value, onInput) {
   track.append(rail);
   let current = value;
   const set = (next, fire = true) => {
-    current = Math.max(0, Math.min(max, Math.round(next)));
-    knob.style.left = `${(current / max) * 100}%`;
+    current = Math.max(min, Math.min(max, Math.round(next)));
+    knob.style.left = `${((current - min) / (max - min)) * 100}%`;
     track.setAttribute('aria-valuenow', String(current));
     if (fire) onInput(current);
   };
   const fromPointer = event => {
     const box = rail.getBoundingClientRect();
-    set(((event.clientX - box.left) / box.width) * max);
+    set(min + ((event.clientX - box.left) / box.width) * (max - min));
   };
   track.addEventListener('pointerdown', event => {
     track.setPointerCapture(event.pointerId);
@@ -694,7 +694,7 @@ function slider(label, max, value, onInput) {
   track.addEventListener('keydown', event => {
     const steps = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 10, PageDown: -10 };
     if (event.key in steps) { event.preventDefault(); set(current + steps[event.key]); }
-    if (event.key === 'Home') { event.preventDefault(); set(0); }
+    if (event.key === 'Home') { event.preventDefault(); set(min); }
     if (event.key === 'End') { event.preventDefault(); set(max); }
   });
   set(value, false);

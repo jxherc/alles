@@ -9888,12 +9888,12 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
 /* translate */
 .andromeda-view .andromeda-translate-bar { display: grid; grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr); align-items: center; gap: 8px; }
 .andromeda-view .andromeda-translate-panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-.andromeda-view .andromeda-translate-input { display: flex; min-width: 0; }
-.andromeda-view .andromeda-translate-input textarea {
+.andromeda-view :is(.andromeda-translate-input, .andromeda-tool-text) { display: flex; min-width: 0; }
+.andromeda-view :is(.andromeda-translate-input, .andromeda-tool-text) textarea {
   width: 100%; min-height: 44px; max-height: 40vh; padding: 12px 0; border: 0; border-bottom: 1px solid var(--andromeda-line); border-radius: 0;
   background: transparent; color: var(--text); font: inherit; font-size: 1.125rem; line-height: 1.45; resize: none;
 }
-.andromeda-view .andromeda-translate-input textarea::placeholder { color: var(--muted); opacity: 1; }
+.andromeda-view :is(.andromeda-translate-input, .andromeda-tool-text) textarea::placeholder { color: var(--muted); opacity: 1; }
 .andromeda-view .andromeda-translate-output { min-width: 0; display: grid; align-content: start; gap: 4px; padding: 12px 0 0; }
 .andromeda-view .andromeda-translate-text { min-height: 24px; margin: 0; color: var(--text); font-size: 1.125rem; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
 .andromeda-view .andromeda-translate-text:empty::before { content: attr(data-placeholder); color: var(--muted); }
@@ -9945,10 +9945,30 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
   position: absolute; top: 50%; width: 18px; height: 18px; border: 2px solid var(--text); border-radius: 50%;
   background: var(--bg); transform: translate(-50%, -50%);
 }
-.andromeda-view .andromeda-color-values { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0 16px; margin: 0; font-size: 0.875rem; }
-.andromeda-view .andromeda-color-values dt { color: var(--muted); font-size: 0.8125rem; }
-.andromeda-view .andromeda-color-values dd { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
-.andromeda-view .andromeda-color-copy { margin-inline-end: -13px; }
+.andromeda-view :is(.andromeda-color-values, .andromeda-tool-values) { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0 16px; margin: 0; font-size: 0.875rem; }
+.andromeda-view :is(.andromeda-color-values, .andromeda-tool-values) dt { color: var(--muted); font-size: 0.8125rem; }
+.andromeda-view :is(.andromeda-color-values, .andromeda-tool-values) dd { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+.andromeda-view :is(.andromeda-color-copy, .andromeda-tool-copy) { margin-inline-end: -13px; }
+
+/* small offline tools: a name above each field, value lists, generated text, the moon */
+.andromeda-view .andromeda-tool-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 16px; }
+.andromeda-view .andromeda-tool-labeled { flex: 1 1 112px; min-width: 96px; display: grid; }
+.andromeda-view .andromeda-tool-labeled[hidden],
+.andromeda-view .andromeda-tool-values[hidden] { display: none; }
+.andromeda-view .andromeda-tool-value-text { min-width: 0; overflow-wrap: anywhere; }
+.andromeda-view .andromeda-tool-body { display: grid; gap: 12px; }
+.andromeda-view .andromeda-generated,
+.andromeda-view .andromeda-tool-out { font-family: var(--k-mono); letter-spacing: 0; }
+.andromeda-view .andromeda-generated { font-size: 1.375rem; font-weight: 400; line-height: 1.4; }
+.andromeda-view .andromeda-tool-out { font-size: 0.9375rem; }
+.andromeda-view .andromeda-tool-slider { display: grid; grid-template-columns: 84px minmax(0, 1fr) 32px; align-items: center; gap: 12px; max-width: 420px; }
+.andromeda-view .andromeda-tool-slider-value { color: var(--text); font-size: 0.875rem; font-variant-numeric: tabular-nums; text-align: end; }
+.andromeda-view .andromeda-tool-toggle { min-height: 44px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.andromeda-view .andromeda-moon-top { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; align-items: start; }
+.andromeda-view .andromeda-moon-art svg { width: 96px; height: 96px; display: block; }
+.andromeda-view .andromeda-moon-disc { fill: color-mix(in srgb, var(--text) 6%, transparent); stroke: var(--andromeda-line); stroke-width: 1.5; }
+.andromeda-view .andromeda-moon-lit { fill: var(--text); }
+.andromeda-view .andromeda-moon-side { display: grid; gap: 8px; min-width: 0; }
 
 /* formula 1 */
 .andromeda-view .andromeda-f1-tabs { display: flex; gap: 0; margin-inline-start: -12px; overflow-x: auto; scrollbar-width: none; }

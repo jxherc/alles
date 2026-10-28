@@ -826,12 +826,15 @@ def detect(query: str) -> dict | None:
 
     one rule runs through it: asking for a tool opens the tool, empty; asking with the input answers.
     """
-    from services import andromeda_dates, andromeda_f1
+    from services import andromeda_dates, andromeda_f1, andromeda_utilities
 
     text = re.sub(r"\s+", " ", str(query or "").strip())
     low = text.lower().rstrip("?!. ").strip()
     if not low or len(low) > 300:
         return None
+    found = andromeda_utilities.detect(low, text)
+    if found:
+        return found
     for check in (
         _tool,
         andromeda_f1.detect,
@@ -880,6 +883,38 @@ _ANSWERS_FULLY = {
     "random",
     "color",
     "date",
+    "tip",
+    "percent",
+    "bmi",
+    "loan",
+    "base",
+    "roman",
+    "unix",
+    "generate",
+    "encode",
+    "counter",
+    "moon",
+    "numfacts",
+}
+
+
+# these run in the browser: the card only needs what the owner asked for
+_BROWSER_TOOLS = {
+    "timer",
+    "random",
+    "color",
+    "tip",
+    "percent",
+    "bmi",
+    "loan",
+    "base",
+    "roman",
+    "unix",
+    "generate",
+    "encode",
+    "counter",
+    "moon",
+    "numfacts",
 }
 
 
@@ -1559,7 +1594,6 @@ async def resolve(found: dict, *, strict: bool = False) -> dict | None:
     if kind == "date":
         answer = andromeda_dates.resolve(found)
         return {**answer, "status": "ok"} if answer else None
-    if kind in ("timer", "random", "color"):
-        # these run in the browser; the card only needs what the owner asked for
+    if kind in _BROWSER_TOOLS:
         return {**found, "status": "ok"}
     return None

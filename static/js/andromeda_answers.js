@@ -8,6 +8,7 @@ import {
   ICON_COPY, ICON_SPEAK, ICON_SWAP, button, calcTool, canSpeak, choices, clockTool, colorTool, copyText,
   heading, iconButton, lookup, make, note, picker, randomTool, speak, statusLine, timeTool, timerTool, unitsTool,
 } from './andromeda_tools.js';
+import { baseTool, bmiTool, counterTool, encodeTool, generateTool, loanTool, moonTool, numfactsTool, percentTool, romanTool, tipTool, unixTool } from './andromeda_utility_tools.js';
 
 function bigLine(label, value, unit = '') {
   const wrap = make('div', 'andromeda-answer-main');
@@ -751,6 +752,18 @@ const RENDER = {
   timer: timerTool,
   random: randomTool,
   color: colorTool,
+  tip: tipTool,
+  percent: percentTool,
+  bmi: bmiTool,
+  loan: loanTool,
+  base: baseTool,
+  roman: romanTool,
+  unix: unixTool,
+  generate: generateTool,
+  encode: encodeTool,
+  counter: counterTool,
+  moon: moonTool,
+  numfacts: numfactsTool,
 };
 
 const PREFS = {

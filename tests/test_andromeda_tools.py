@@ -81,6 +81,40 @@ class ToolWithoutInputTest(ApiTest):
             "roll": False,
         },
         "color picker": {"kind": "color", "value": ""},
+        "tip calculator": {"kind": "tip", "bill": None, "percent": None, "people": None},
+        "percentage calculator": {"kind": "percent", "mode": "of", "a": None, "b": None},
+        "discount calculator": {"kind": "percent", "mode": "off", "a": None, "b": None},
+        "bmi calculator": {"kind": "bmi", "unit": "metric", "weight": None, "height": None},
+        "mortgage calculator": {
+            "kind": "loan",
+            "mode": "mortgage",
+            "amount": None,
+            "rate": None,
+            "years": None,
+        },
+        "loan calculator": {
+            "kind": "loan",
+            "mode": "loan",
+            "amount": None,
+            "rate": None,
+            "years": None,
+        },
+        "base converter": {"kind": "base", "value": "", "from": 10, "to": 16},
+        "binary to decimal": {"kind": "base", "value": "", "from": 2, "to": 10},
+        "roman numeral converter": {"kind": "roman", "value": ""},
+        "epoch converter": {"kind": "unix", "value": ""},
+        "unix time": {"kind": "unix", "value": ""},
+        "password generator": {
+            "kind": "generate",
+            "mode": "password",
+            "length": None,
+            "roll": False,
+        },
+        "uuid generator": {"kind": "generate", "mode": "uuid", "length": None, "roll": False},
+        "base64 decoder": {"kind": "encode", "scheme": "base64", "dir": "decode", "text": ""},
+        "word counter": {"kind": "counter", "text": ""},
+        "moon phase": {"kind": "moon"},
+        "prime number checker": {"kind": "numfacts", "mode": "prime", "a": None, "b": None},
         "unit converter": {"kind": "units", "amount": 1.0, "from": "m", "to": "ft"},
         "temperature converter": {"kind": "units", "amount": 1.0, "from": "c", "to": "f"},
         "currency converter": {"kind": "currency", "amount": 1.0, "from": "usd", "to": "eur"},
@@ -110,6 +144,19 @@ class ToolWithoutInputTest(ApiTest):
         self.assertEqual(card["kind"], "periodic")
         self.assertNotIn("selected", card)
         self.assertEqual(len(card["elements"]), 118)
+
+    def test_the_small_tools_resolve_to_their_own_card(self):
+        for query, kind in (
+            ("tip calculator", "tip"),
+            ("255 in hex", "base"),
+            ("moon phase", "moon"),
+        ):
+            with self.subTest(query=query):
+                card = run(andromeda_answers.resolve(detect(query)))
+                self.assertEqual((card["kind"], card["status"]), (kind, "ok"))
+
+    def test_percent_of_stays_with_the_calculator(self):
+        self.assertEqual(detect("what is 15% of 80")["kind"], "calc")
 
     def test_empty_tools_do_not_fetch_anything(self):
         fetch = mock.AsyncMock()
@@ -162,6 +209,51 @@ class ToolWithInputTest(ApiTest):
         "#ff6600": {"kind": "color", "value": "#ff6600"},
         "rgb(255, 102, 0)": {"kind": "color", "value": "#ff6600"},
         "hex fff": {"kind": "color", "value": "#ffffff"},
+        "tip 18% on 64": {"kind": "tip", "bill": 64.0, "percent": 18.0, "people": None},
+        "split 120 between 4 with 15% tip": {
+            "kind": "tip",
+            "bill": 120.0,
+            "percent": 15.0,
+            "people": 4,
+        },
+        "20 is what percent of 80": {"kind": "percent", "mode": "is", "a": 20.0, "b": 80.0},
+        "percent change from 40 to 50": {"kind": "percent", "mode": "change", "a": 40.0, "b": 50.0},
+        "20% off 80": {"kind": "percent", "mode": "off", "a": 20.0, "b": 80.0},
+        "bmi 70kg 175cm": {"kind": "bmi", "unit": "metric", "weight": 70.0, "height": 175.0},
+        "bmi 154 lb 5ft 9in": {"kind": "bmi", "unit": "imperial", "weight": 154.0, "height": 69.0},
+        "mortgage 400000 at 5% for 25 years": {
+            "kind": "loan",
+            "amount": 400000.0,
+            "rate": 5.0,
+            "years": 25.0,
+        },
+        "$250,000 loan at 6.5% for 60 months": {
+            "kind": "loan",
+            "amount": 250000.0,
+            "rate": 6.5,
+            "years": 5.0,
+        },
+        "255 in hex": {"kind": "base", "value": "255", "from": 10, "to": 16},
+        "0xff in decimal": {"kind": "base", "value": "0xff", "from": 16, "to": 10},
+        "42 to binary": {"kind": "base", "value": "42", "from": 10, "to": 2},
+        "1994 in roman numerals": {"kind": "roman", "value": "1994"},
+        "MCMXCIV": {"kind": "roman", "value": "MCMXCIV"},
+        "1730000000 unix": {"kind": "unix", "value": "1730000000"},
+        "generate a password": {"kind": "generate", "mode": "password", "roll": True},
+        "generate a 20 character password": {"kind": "generate", "mode": "password", "length": 20},
+        "generate uuid": {"kind": "generate", "mode": "uuid", "roll": True},
+        "base64 encode hello": {
+            "kind": "encode",
+            "scheme": "base64",
+            "dir": "encode",
+            "text": "hello",
+        },
+        "Base64 decode aGVsbG8=": {"kind": "encode", "dir": "decode", "text": "aGVsbG8="},
+        "url decode %20": {"kind": "encode", "scheme": "url", "dir": "decode", "text": "%20"},
+        "moon tonight": {"kind": "moon"},
+        "when is the next full moon": {"kind": "moon"},
+        "is 97 prime": {"kind": "numfacts", "mode": "prime", "a": 97},
+        "gcd of 48 and 18": {"kind": "numfacts", "mode": "gcd", "a": 48, "b": 18},
         "days until christmas": {"kind": "date", "mode": "until", "day": "christmas"},
         "countdown to new year": {"kind": "date", "mode": "until", "live": True},
         "100 days from today": {"kind": "date", "mode": "offset", "days": 100},
@@ -192,8 +284,30 @@ class ToolWithInputTest(ApiTest):
             "python vs rust",
             "how to install python",
             "climate change",
-            "tip calculator",
             "spelling bee",
+            # words that only look like a tool
+            "python base64 tutorial",
+            "base64 encoding explained",
+            "url encode javascript",
+            "base64 decode in python",
+            "roman empire",
+            "mix",
+            "unix",
+            "epoch",
+            "tip of the iceberg",
+            "tips for 3 day trip",
+            "what is a healthy bmi",
+            "bmi for children",
+            "mortgage rates 2026",
+            "student loan forgiveness 2026",
+            "password manager",
+            "forgot password",
+            "password",
+            "uuid",
+            "moon landing",
+            "full moon lyrics",
+            "word count of hamlet",
+            "what is 15% of 80x",
             "f1 2019 standings",
         ):
             with self.subTest(query=query):
@@ -204,6 +318,14 @@ class OverviewFitTest(ApiTest):
     def test_tools_that_answer_skip_the_overview(self):
         self.assertEqual(andromeda_answers.overview_mode(detect("100 usd to cad")), "skip")
         self.assertEqual(andromeda_answers.overview_mode(detect("english to french")), "skip")
+        for query in (
+            "tip 18% on 64",
+            "bmi calculator",
+            "255 in hex",
+            "moon phase",
+            "uuid generator",
+        ):
+            self.assertEqual(andromeda_answers.overview_mode(detect(query)), "skip", query)
         self.assertEqual(andromeda_answers.overview_mode(detect("carbon")), "brief")
         self.assertEqual(andromeda_answers.overview_mode(detect("f1")), "brief")
         self.assertEqual(andromeda_answers.overview_mode(None, "why is the sky blue"), "full")

@@ -162,7 +162,7 @@ http audit metadata in [services/audit.py](services/audit.py) is separate from d
 | --- | --- | --- |
 | models/catalogs | [services/llm.py](services/llm.py), [services/model_providers.py](services/model_providers.py) | protocol formatting and live model ids |
 | search/pages | [services/andromeda.py](services/andromeda.py), [services/net_guard.py](services/net_guard.py) | bounded evidence, quotes, guarded urls/redirects |
-| answer tools | [services/andromeda_answers.py](services/andromeda_answers.py), [services/andromeda_f1.py](services/andromeda_f1.py), [services/andromeda_dates.py](services/andromeda_dates.py) | fixed public data hosts through the guarded fetcher; translation through the answer model |
+| answer tools | [services/andromeda_answers.py](services/andromeda_answers.py), [services/andromeda_f1.py](services/andromeda_f1.py), [services/andromeda_dates.py](services/andromeda_dates.py), [services/andromeda_utilities.py](services/andromeda_utilities.py) | fixed public data hosts through the guarded fetcher; translation through the answer model |
 | mail | [services/mail.py](services/mail.py), [services/mail_compose.py](services/mail_compose.py) | imap/smtp, local cache, compose, sending |
 | calendars/contacts | [services/caldav_sync.py](services/caldav_sync.py), [services/carddav_sync.py](services/carddav_sync.py) | configured synchronization |
 | remote storage | [services/webdav_locations.py](services/webdav_locations.py), [services/s3_locations.py](services/s3_locations.py) | selected locations and conditional operations |
@@ -1050,6 +1050,20 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
     since a day or holiday, n days from today, weekdays, live countdowns), **timer and stopwatch**,
     **coin, dice and random numbers** (the browser's crypto source) and a **color picker** (hex, rgb,
     hsl, the readable text color).
+  - **small offline tools**, all computed in the browser with nothing sent anywhere
+    ([services/andromeda_utilities.py](services/andromeda_utilities.py) only reads the query,
+    [static/js/andromeda_calcs.js](static/js/andromeda_calcs.js) does the maths):
+    **tip calculator** ("tip 18% on 64", "split 120 between 4 with 15% tip"), **percentage** ("20 is
+    what percent of 80", "percent change from 40 to 50", "20% off 80"; "15% of 80" stays with the
+    calculator), **bmi** (kg/cm or lb/ft-in, with the healthy weight range), **loan and mortgage
+    payment**, **number base converter** (binary, octal, decimal, hex, any size), **roman numerals**
+    (both ways, 1 to 3999), **unix time** (live now, timestamp to date in the owner's time zone and
+    back), **password and uuid generator** (crypto random in the browser, never the server; length,
+    uppercase, numbers and symbols), **base64, url and html encoder and decoder**, **word and
+    character counter**, **moon phase** (phase, lit share, age, next full and new moon from the Meeus
+    series, with day stepping) and **number facts** (prime check, factors, gcd, lcm). a query only
+    opens one when it is made of the tool's own words ("python base64 tutorial", "roman empire",
+    "tips for a 3 day trip" stay searches).
   every lookup goes through the ssrf-safe fetcher with an 8 second limit. a source that is down says so in
   the card with a retry; a typed place or word that doesn't exist says so; a search that only looks like
   a tool ("climate change weather") stays a search.
