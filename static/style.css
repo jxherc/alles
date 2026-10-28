@@ -4093,9 +4093,14 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .mail-oauth { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.2rem; }
 .mail-google-btn { align-self: stretch; text-align: center; text-decoration: none; }
 .mail-or { font-size: 0.8125rem; color: var(--muted); text-align: center; }
-.mail-oauth-setup { border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.5rem 0.7rem; background: var(--panel); font-size: 0.8125rem; }
-.mail-oauth-setup summary { min-height: var(--ui-control-height, 44px); align-content: center; cursor: pointer; color: var(--text); }
-.mail-oauth-steps { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.5rem; color: var(--muted); line-height: 1.5; }
+.mail-oauth-toggle { align-self: flex-start; }
+.mail-oauth-steps { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--faint); border-radius: var(--k-radius-control); background: var(--panel); color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
+.mail-oauth-steps[hidden] { display: none; }
+.mail-oauth-steps p { margin: 0; }
+.mail-oauth-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; padding-inline-start: 1.25rem; }
+.mail-redirect-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.25rem; }
+.mail-redirect-row .mail-redirect { flex: 1 1 14rem; min-width: 0; }
+.mail-oauth-warn { color: var(--warn, var(--text)); }
 .mail-oauth-steps a { color: var(--text); border-bottom: 1px solid var(--faint); text-decoration: none; }
 .mail-oauth-steps .settings-input { width: 100%; }
 .mail-redirect { display: block; font-family: monospace; font-size: 0.8125rem; word-break: break-all; background: var(--bg); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.35rem 0.45rem; color: var(--text); }

@@ -141,7 +141,7 @@ export function harness() {
     _accountRecovery: { scopes: [scope], write: null, pending: null, error: '', notice: '' },
     accountRecoveryHtml: '<p id="ma-recovery-status"></p><div id="ma-recovery-actions"></div>',
     readAccountContext: async () => ({ accounts: [account], recovery_scopes: [scope] }), readAccountRecovery() {},
-    mountAccountRecovery: () => () => {}, providerHelpHtml: () => '', PRESETS: [], providerForEmail: () => null,
+    mountAccountRecovery: () => () => {}, providerStartHtml: () => '', PRESETS: [], providerForEmail: () => null,
     accountSnapshot: value => JSON.stringify(value), renderOauthBox() {},
     _vacationWrite: null, mailPost: async (url, body) => body,
     _addrBook: [{ email: 'chosen@example.invalid', name: 'Chosen' }],

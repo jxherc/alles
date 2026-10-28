@@ -185,7 +185,7 @@ with sync_playwright() as pw:
 
             def inputs():
                 if configured:
-                    disclosure = page.locator("#ma-oauth summary")
+                    disclosure = page.locator("#ma-oauth-toggle")
                     disclosure.scroll_into_view_if_needed()
                     box = disclosure.bounding_box()
                     assert box and box["height"] >= 44 and box["width"] >= 44, box
@@ -314,7 +314,7 @@ with sync_playwright() as pw:
                             "newer changes are unsaved"
                         )
                 elif case == "keep-secret":
-                    page.locator("#ma-oauth summary").click()
+                    page.locator("#ma-oauth-toggle").click()
                     expect(page.locator("#ma-cid")).to_have_value("saved-client")
                     expect(page.locator("#ma-csec")).to_have_value("")
                     page.locator("#ma-rbase").fill("")

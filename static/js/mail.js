@@ -1,4 +1,4 @@
-import { plainError, safeMailHtml, toast } from './util.js';
+import { plainError, safeMailHtml, toast, writeClipboard } from './util.js';
 import { openCaptureReview, showPendingCapture } from './capture.js';
 import { readRecordTarget, recordTarget } from './recordlinks.js';
 import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
@@ -181,9 +181,10 @@ function providerForEmail(email) {
   return PRESETS.find(p => p.key !== 'domain' && p.re.test(email || '')) || null;
 }
 
-function providerHelpHtml() {
+// one tap per provider: gmail goes straight to google once sign-in is set up, the rest open the form filled in
+function providerStartHtml() {
   return PRESETS.filter(p => p.key !== 'domain').map(p =>
-    `<a class="mail-service-link" href="${esc(p.help)}" target="_blank" rel="noreferrer">${esc(_presetLabel(p))}</a>`
+    `<button type="button" class="mail-service-link" data-provider-start="${esc(p.key)}">${esc(_presetLabel(p))}</button>`
   ).join('');
 }
 
@@ -3067,7 +3068,7 @@ async function accountsPanel(firstRun = false) {
   main.innerHTML = `<div class="mail-accounts" role="region" aria-label="${esc(t('mail.accounts_label'))}">
     <div class="mail-form-head"><div><div class="mail-compose-head">${t('mail.accounts')}</div><div class="mail-form-sub">${firstRun ? t('mail.connect_mailbox') : t('mail.manage_mailboxes')}</div></div>
       <div class="mail-form-actions"><button type="button" class="btn" id="mail-accounts-close">${t('common.close')}</button><button type="button" class="btn primary" id="mail-add-acct">${t('common.add')}</button></div></div>
-    <div class="mail-service-links">${providerHelpHtml()}</div>${accountRecoveryHtml}<div id="mail-account-rows"></div></div>`;
+    <div class="mail-service-links">${providerStartHtml()}</div>${accountRecoveryHtml}<div id="mail-account-rows"></div></div>`;
   const root = main.querySelector('.mail-accounts');
   mountMailSettings(root, () => accountsPanel(firstRun));
   const live = () => current() && root.isConnected;
@@ -3091,6 +3092,19 @@ async function accountsPanel(firstRun = false) {
     if (focused && document.activeElement === document.body) root.querySelector('#mail-add-acct').focus();
   }
   root.querySelector('#mail-add-acct').addEventListener('click', () => { if (!_accountRecovery.pending && !_accountRecovery.error && !_accountRecovery.write) acctForm(null); });
+  root.querySelectorAll('[data-provider-start]').forEach(button => button.addEventListener('click', async () => {
+    if (_accountRecovery.pending || _accountRecovery.error || _accountRecovery.write) return;
+    const key = button.dataset.providerStart;
+    if (key === 'gmail' && !_oauthRecovery.pending && !_oauthRecovery.write) {
+      const status = await readOauthStatus().catch(() => null);
+      if (!live()) return;
+      if (status?.configured) {
+        if (await prepareMailNavigation()) window.location.assign('/api/mail/oauth/google/start');
+        return;
+      }
+    }
+    acctForm(null, key);
+  }));
   // opened from the cog's menu (gone now) or anything else that left focus nowhere: start on
   // the panel's main action
   if (!document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected) root.querySelector('#mail-add-acct')?.focus();
@@ -3103,7 +3117,7 @@ async function accountsPanel(firstRun = false) {
   paintRows(); paintRecovery();
 }
 
-function acctForm(acct) {
+function acctForm(acct, presetKey = '') {
   const main = $('mail-main');
   const a = acct || {};
   const generation = ++_messageGeneration;
@@ -3259,6 +3273,14 @@ function acctForm(acct) {
     noteAccountChanges();
   });
   root.querySelectorAll('input').forEach(input => input.addEventListener('input', noteAccountChanges));
+  // a provider picked from the accounts list is the form's starting point, not an unsaved edit
+  if (presetKey) {
+    // google sign-in only belongs to gmail
+    if (presetKey !== 'gmail') el('ma-oauth').style.display = 'none';
+    applyProvider(PRESETS.find(p => p.key === presetKey));
+    editor.initial = editor.snapshot();
+    el('ma-status').textContent = '';
+  }
   el('ma-save').addEventListener('click', async () => {
     if (state.write || state.pending || state.error || testing || !current()) return;
     const body = collect();
@@ -3377,23 +3399,38 @@ async function renderOauthBox(acct, editor) {
     box.querySelector('button').addEventListener('click', () => renderOauthBox(acct, editor));
     return;
   }
+  // google only sends you back to https or localhost, so a fresh setup starts from the address alles is open at
+  const originOk = location.protocol === 'https:' || /(^|\.)localhost$|^127\.0\.0\.1$|^\[::1\]$/.test(location.hostname);
+  const base = saved.redirect_base || (!saved.configured && location.protocol === 'https:' ? location.origin : '');
+  const link = (href, label) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
   box.innerHTML = `
     <p id="ma-oauth-saved"></p>
     <a class="btn primary mail-google-btn" id="ma-google-start" href="/api/mail/oauth/google/start">${acct?.auth_type === 'oauth' ? t('mail.google_reconnect') : t('mail.google_signin')}</a>
-    <details class="mail-oauth-setup"${saved.configured ? '' : ' open'}>
-      <summary>${saved.configured ? t('mail.google_edit') : t('mail.google_setup')}</summary>
-      <div class="mail-oauth-steps">
-        <p>${t('mail.google_create_client', { link: `<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">${t('mail.google_console')}</a>` })}</p>
-        <p>${t('mail.google_register')}</p>
-        <code class="mail-redirect" id="ma-oauth-redirect">${esc(saved.redirect_uri)}</code>
-        <label class="mail-account-field"><span>${t('mail.google_client_id')}</span><input class="settings-input" id="ma-cid" value="${esc(saved.client_id)}" autocomplete="off"></label>
-        <label class="mail-account-field"><span>${t('mail.google_client_secret')}</span><input class="settings-input" type="password" id="ma-csec" autocomplete="new-password" placeholder="${esc(saved.client_secret_configured ? t('mail.google_secret_keep') : t('mail.google_secret_paste'))}"></label>
-        <label class="mail-account-field"><span>${t('mail.google_redirect_base')}</span><input class="settings-input" id="ma-rbase" value="${esc(saved.redirect_base)}" placeholder="${esc(t('mail.google_redirect_ph'))}"></label>
-        <button type="button" class="btn primary" id="ma-oauth-save">${t('mail.google_save_keys')}</button>
-      </div>
-    </details>
+    <button type="button" class="btn mail-oauth-toggle" id="ma-oauth-toggle" aria-expanded="${!saved.configured}" aria-controls="ma-oauth-steps">${saved.configured ? t('mail.google_edit') : t('mail.google_setup')}</button>
+    <div class="mail-oauth-steps" id="ma-oauth-steps"${saved.configured ? ' hidden' : ''}>
+      <p>${t('mail.google_intro')}</p>
+      <p class="mail-oauth-warn" id="ma-oauth-https"${originOk || saved.configured ? ' hidden' : ''}>${t('mail.google_needs_https')}</p>
+      <ol class="mail-oauth-list">
+        <li>${t('mail.google_step_api', { link: link('https://console.cloud.google.com/flows/enableapi?apiid=gmail.googleapis.com', t('mail.google_step_api_link')) })}</li>
+        <li>${t('mail.google_step_consent', { link: link('https://console.cloud.google.com/auth/overview', t('mail.google_step_consent_link')) })}</li>
+        <li>${t('mail.google_step_client', { link: link('https://console.cloud.google.com/auth/clients/create', t('mail.google_step_client_link')) })}
+          <span class="mail-redirect-row"><code class="mail-redirect" id="ma-oauth-redirect"></code><button type="button" class="btn" id="ma-oauth-copy">${t('common.copy')}</button></span></li>
+        <li>${t('mail.google_step_keys')}
+          <span class="mail-redirect-row"><button type="button" class="btn" id="ma-oauth-json">${t('mail.google_choose_json')}</button><input type="file" id="ma-oauth-file" accept=".json,application/json" hidden></span></li>
+      </ol>
+      <label class="mail-account-field"><span>${t('mail.google_client_id')}</span><input class="settings-input" id="ma-cid" value="${esc(saved.client_id)}" autocomplete="off" spellcheck="false"></label>
+      <label class="mail-account-field"><span>${t('mail.google_client_secret')}</span><input class="settings-input" type="password" id="ma-csec" autocomplete="new-password" placeholder="${esc(saved.client_secret_configured ? t('mail.google_secret_keep') : t('mail.google_secret_paste'))}"></label>
+      <label class="mail-account-field"><span>${t('mail.google_redirect_base')}</span><input class="settings-input" id="ma-rbase" value="${esc(base)}" placeholder="${esc(t('mail.google_redirect_ph'))}" spellcheck="false"></label>
+      <button type="button" class="btn primary" id="ma-oauth-save">${t('mail.google_save_keys')}</button>
+      <p class="mail-oauth-note">${t('mail.google_unverified')}</p>
+    </div>
     <div class="mail-saved-status"><p id="ma-oauth-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="ma-oauth-actions"></div></div>
     <div class="mail-or">${t('mail.or_by_hand')}</div>`;
+  const showRedirect = () => {
+    const typed = el('ma-rbase').value.trim().replace(/\/+$/, '');
+    el('ma-oauth-redirect').textContent = typed ? typed + '/api/mail/oauth/google/callback' : saved.redirect_uri;
+  };
+  showRedirect();
   const collect = () => ({ client_id: el('ma-cid').value, client_secret: el('ma-csec').value, redirect_base: el('ma-rbase').value });
   editor.extraInitial = editor.extraSnapshot();
   if (state.attempt && state.attempt.editor !== editor) {
@@ -3410,7 +3447,7 @@ async function renderOauthBox(acct, editor) {
     }
     editor.extraInitial = JSON.stringify([saved.client_id, '', saved.redirect_base]);
     el('ma-csec').placeholder = saved.client_secret_configured ? t('mail.google_secret_keep') : t('mail.google_secret_paste');
-    el('ma-oauth-redirect').textContent = saved.redirect_uri;
+    showRedirect();
   }
   function paint() {
     if (!current()) return;
@@ -3419,6 +3456,7 @@ async function renderOauthBox(acct, editor) {
     el('ma-google-start').hidden = !saved.configured;
     el('ma-google-start').setAttribute('aria-disabled', String(blocked));
     el('ma-oauth-saved').textContent = saved.configured ? t('mail.google_keys_saved') : t('mail.google_not_configured');
+    el('ma-oauth-toggle').textContent = saved.configured ? t('mail.google_edit') : t('mail.google_setup');
     const status = el('ma-oauth-status'), actions = el('ma-oauth-actions'), focused = actions.contains(document.activeElement);
     status.textContent = state.error || state.notice || (state.pending ? t('mail.google_last_unconfirmed') : dirty() ? t('mail.google_unsaved') : '');
     if (dirty() && state.notice) status.textContent += ' ' + t('mail.newer_unsaved2');
@@ -3465,6 +3503,33 @@ async function renderOauthBox(acct, editor) {
     if (await prepareMailNavigation()) window.location.assign('/api/mail/oauth/google/start');
   });
   for (const id of ['ma-cid', 'ma-csec', 'ma-rbase']) el(id).addEventListener('input', () => { if (!state.pending) state.notice = ''; paint(); });
+  el('ma-rbase').addEventListener('input', showRedirect);
+  el('ma-oauth-toggle').addEventListener('click', () => {
+    const panel = el('ma-oauth-steps');
+    panel.hidden = !panel.hidden;
+    el('ma-oauth-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+  });
+  el('ma-oauth-copy').addEventListener('click', async () => {
+    const code = el('ma-oauth-redirect');
+    try { await writeClipboard(code.textContent); toast(t('common.copied'), 'success'); }
+    catch { getSelection()?.selectAllChildren(code); toast(t('mail.google_copy_failed'), 'error'); }
+  });
+  el('ma-oauth-json').addEventListener('click', () => el('ma-oauth-file').click());
+  el('ma-oauth-file').addEventListener('change', async () => {
+    const input = el('ma-oauth-file'), file = input.files?.[0];
+    input.value = '';
+    if (!file || !current()) return;
+    let client = null;
+    try { const data = JSON.parse(await file.text()); client = data?.web || data?.installed || null; } catch {}
+    if (!current()) return;
+    if (typeof client?.client_id !== 'string' || typeof client?.client_secret !== 'string' || !client.client_id || !client.client_secret) {
+      state.notice = t('mail.google_json_bad'); paint(); toast(state.notice, 'error'); return;
+    }
+    el('ma-cid').value = client.client_id;
+    el('ma-csec').value = client.client_secret;
+    // the file is the whole setup, so save it straight away
+    el('ma-oauth-save').click();
+  });
   el('ma-oauth-save').addEventListener('click', async () => {
     if (state.write || state.pending || state.error || !current()) return;
     const inputs = collect(), fields = { ...inputs, client_id: inputs.client_id.trim(), redirect_base: inputs.redirect_base.trim() };

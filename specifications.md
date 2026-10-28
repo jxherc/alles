@@ -2640,6 +2640,19 @@ HTTP(S) URL without credentials, queries or fragments. an unchanged keep-current
 legacy partial or invalid settings while advancing the revision; later edits require validation.
 secrets remain encrypted server-side.
 
+the accounts list's provider buttons start a connection: gmail goes straight to google when sign-in
+is set up, otherwise every provider opens the account form filled in for it (only gmail shows the
+google box). an unconfigured google box lists the four console steps with direct links (gmail api,
+google auth platform with "publish app" so tokens don't expire weekly, a web client with the exact
+redirect uri and a copy button, then the client json). choosing the downloaded client json fills the
+id and secret and saves them at once. on an https page with no saved redirect base the base starts as
+the page's origin; on plain http away from localhost the box says google needs https.
+
+copy buttons use `writeClipboard` in `static/js/util.js`: the clipboard api on a secure page, a hidden
+textarea copy when the api is missing (plain http) or refuses (embedded browsers), and an error only
+when both fail. a value that is fetched after the click (vault copy) is passed as a promise, so the
+copy starts inside the click as safari requires.
+
 the Google setup form checks reads and saves, keeps newer edits and offers explicit retry or
 review of saved settings after an uncertain write. browser recovery stores only the scope and
 revision, never client keys. keeping the reviewed configuration excludes delayed older writes,

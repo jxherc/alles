@@ -9,7 +9,7 @@ import { chooseBootState } from './bootstate.js';
 import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
 import { canSendMessage, getSendBlockReason, sendMessage, stopStream, hideConnBanner } from './chat.js';
 window._canRefreshAideMessages = canSendMessage;
-import { toast, closeAllModals, mdToHtml, api, appLabel, appDesc } from './util.js';
+import { toast, closeAllModals, mdToHtml, api, appLabel, appDesc, writeClipboard } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
@@ -20,7 +20,7 @@ import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
 import { openManual } from './help.js?v=2';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
-import { loadVaultView, initVault } from './vault.js?v=285';
+import { loadVaultView, initVault } from './vault.js?v=286';
 import { loadContacts, addContact } from './contacts.js';
 import { initLiveFormat } from './liveformat.js';
 import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=488';
@@ -35,7 +35,7 @@ import { closeAideRun } from './aiderun.js';
 import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=12';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=294';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=295';
 import {
   setIncognitoMode,
   isIncognitoMode,
@@ -57,7 +57,7 @@ import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import { initAideWorkspace } from './aideworkspace.js?v=281';
 import { initAideCentral } from './aidecentral.js?v=2';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=4';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=253';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=254';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
 import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=245';
@@ -983,7 +983,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=253');
+      const module = await import('./andromeda.js?v=254');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1085,7 +1085,7 @@ const showTodayView      = () => {
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=253'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=254'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
@@ -2113,7 +2113,7 @@ async function _shareSession() {
     const r = await fetch(`/api/sessions/${sid}/share`, { method: 'POST' });
     const { url } = await r.json();
     const full = location.origin + url;
-    await navigator.clipboard.writeText(full);
+    await writeClipboard(full);
     toast(t('shell.share_link_copied'), 'success');
   } catch { toast(t('shell.share_failed'), 'error'); }
 }
