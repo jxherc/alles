@@ -77,7 +77,7 @@ undo removes that exact transaction only while its saved details remain unchange
 an interrupted reply keeps a retry for the same transaction. Actual transactions,
 imports, and transfers use their existing review and deletion workflows.
 
-some things need a connection before they work. in mail, pick gmail, outlook, icloud, yahoo or fastmail and the form fills itself in; gmail signs in with google after a one-time google cloud setup that alles walks you through (download the client json and drop it in). bank sync lives under **finance → bank connections** (plaid for most banks in canada and the us, or simplefin). add a model in **settings → models** if you want to use aide; local models through ollama work too.
+some things need a connection before they work. in mail, pick gmail, outlook, icloud, yahoo or fastmail and the form fills itself in; gmail signs in with google after a one-time google cloud setup that alles walks you through (download the client json and drop it in). bank sync lives under **finance → bank connections** (plaid for most banks in canada and the us, or simplefin). to text aide from your phone, turn on telegram, imessage or discord in **settings → connections & tools**; the same page installs node, pi and aide's browser with one click. add a model in **settings → models** if you want to use aide; local models through ollama work too.
 
 the interface comes in english, français, español, 简体中文, 繁體中文, 日本語, 한국어 and العربية. pick yours in **settings → language & region**.
 

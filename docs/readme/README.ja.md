@@ -78,7 +78,7 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 
 一部の機能は、接続してから使えるようになります。メールには IMAP/SMTP アカウントを追加し、オンラインストレージや銀行には対応するサービスを接続してください。aide を使うなら **settings → models** でモデルを追加します。Ollama のローカルモデルも使えます。
 
-メールで gmail・outlook・icloud・yahoo・fastmail を選ぶとフォームが自動で埋まります。gmail は一度だけの google cloud 設定のあと google でサインインでき、alles が手順を案内します（クライアントの json をダウンロードしてドロップするだけ）。銀行の同期は **finance → bank connections** にあります（カナダと米国のほとんどの銀行は plaid、または simplefin）。
+メールで gmail・outlook・icloud・yahoo・fastmail を選ぶとフォームが自動で埋まります。gmail は一度だけの google cloud 設定のあと google でサインインでき、alles が手順を案内します（クライアントの json をダウンロードしてドロップするだけ）。銀行の同期は **finance → bank connections** にあります（カナダと米国のほとんどの銀行は plaid、または simplefin）。スマホから aide にメッセージを送るには、**settings → connections & tools** で telegram・imessage・discord をオンにします。同じページで node・pi・aide のブラウザもワンクリックで入れられます。
 
 画面の言語は english, français, español, 简体中文, 繁體中文, 日本語, 한국어、العربية から選べます。**設定 → 言語と地域** で切り替えてください。
 

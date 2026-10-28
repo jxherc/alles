@@ -78,7 +78,7 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 
 일부 기능은 먼저 연결해야 쓸 수 있습니다. 메일을 쓰려면 IMAP/SMTP 계정을 추가하고, 온라인 저장소나 은행은 해당 서비스를 연결하세요. aide를 쓰려면 **settings → models**에서 모델을 추가하세요. Ollama로 돌리는 로컬 모델도 쓸 수 있습니다.
 
-메일에서 gmail, outlook, icloud, yahoo, fastmail 중 하나를 고르면 양식이 알아서 채워져요. gmail은 한 번만 하는 google cloud 설정 뒤에 google로 로그인하고, alles가 단계별로 안내해요(클라이언트 json을 내려받아 끌어다 놓으면 돼요). 은행 동기화는 **finance → bank connections**에 있어요(캐나다와 미국 대부분 은행은 plaid, 또는 simplefin).
+메일에서 gmail, outlook, icloud, yahoo, fastmail 중 하나를 고르면 양식이 알아서 채워져요. gmail은 한 번만 하는 google cloud 설정 뒤에 google로 로그인하고, alles가 단계별로 안내해요(클라이언트 json을 내려받아 끌어다 놓으면 돼요). 은행 동기화는 **finance → bank connections**에 있어요(캐나다와 미국 대부분 은행은 plaid, 또는 simplefin). 휴대폰으로 aide에게 메시지를 보내려면 **settings → connections & tools**에서 telegram, imessage, discord를 켜면 돼요. 같은 페이지에서 node, pi, aide의 브라우저도 한 번에 설치할 수 있어요.
 
 화면 언어는 english, français, español, 简体中文, 繁體中文, 日本語, 한국어, العربية 중에서 고를 수 있습니다. **설정 → 언어 및 지역**에서 바꾸세요.
 

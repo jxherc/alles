@@ -80,7 +80,7 @@ las importaciones y las transferencias siguen sus flujos habituales de revisión
 
 algunas cosas necesitan una conexión antes de funcionar. añade tu cuenta IMAP/SMTP para el correo, conecta un servicio para el almacenamiento en línea o la banca, y añade un modelo en **settings → models** si quieres usar aide. también funcionan los modelos locales con Ollama.
 
-en correo, elige gmail, outlook, icloud, yahoo o fastmail y el formulario se rellena solo; gmail inicia sesión con google tras una configuración única de google cloud que alles te guía paso a paso (descarga el json del cliente y suéltalo). la sincronización bancaria está en **finanzas → conexiones bancarias** (plaid para la mayoría de bancos de canadá y ee. uu., o simplefin).
+en correo, elige gmail, outlook, icloud, yahoo o fastmail y el formulario se rellena solo; gmail inicia sesión con google tras una configuración única de google cloud que alles te guía paso a paso (descarga el json del cliente y suéltalo). la sincronización bancaria está en **finanzas → conexiones bancarias** (plaid para la mayoría de bancos de canadá y ee. uu., o simplefin). para escribirle a aide desde el teléfono, activa telegram, imessage o discord en **ajustes → conexiones y herramientas**; la misma página instala node, pi y el navegador de aide con un clic.
 
 la interfaz está disponible en english, français, español, 简体中文, 繁體中文, 日本語, 한국어 y العربية. elige la tuya en **ajustes → idioma y región**.
 

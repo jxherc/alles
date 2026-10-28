@@ -78,7 +78,7 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 
 有些功能要先連線才能使用。新增 IMAP/SMTP 帳戶來使用郵件，連接相應服務來使用線上儲存空間或銀行功能；想用 aide 的話，請到 **settings → models** 新增模型。也可以用 Ollama 執行本機模型。
 
-在郵件裡選擇 gmail、outlook、icloud、yahoo 或 fastmail，表單會自動填好；gmail 在完成一次 google cloud 設定後用 google 登入，alles 會一步步帶你完成（下載用戶端 json 後拖進來即可）。銀行同步在 **財務 → 銀行連線**（加拿大和美國的大多數銀行用 plaid，也可以用 simplefin）。
+在郵件裡選擇 gmail、outlook、icloud、yahoo 或 fastmail，表單會自動填好；gmail 在完成一次 google cloud 設定後用 google 登入，alles 會一步步帶你完成（下載用戶端 json 後拖進來即可）。銀行同步在 **財務 → 銀行連線**（加拿大和美國的大多數銀行用 plaid，也可以用 simplefin）。想用手機傳訊息給 aide，就在 **設定 → 連線與工具** 裡打開 telegram、imessage 或 discord；同一頁還能一鍵安裝 node、pi 和 aide 的瀏覽器。
 
 介面支援 english, français, español, 简体中文, 繁體中文, 日本語, 한국어 和 العربية。在 **設定 → 語言與地區** 裡選擇。
 

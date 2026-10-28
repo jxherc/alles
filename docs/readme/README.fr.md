@@ -80,7 +80,7 @@ les imports et les virements passent par leurs circuits habituels de vérificati
 
 certaines fonctions demandent une connexion avant de marcher. ajoutez votre compte IMAP/SMTP pour les e-mails, connectez un service pour le stockage en ligne ou les services bancaires, et ajoutez un modèle dans **settings → models** si vous voulez utiliser Aide. les modèles locaux via Ollama marchent aussi.
 
-dans e-mail, choisissez gmail, outlook, icloud, yahoo ou fastmail et le formulaire se remplit tout seul ; gmail se connecte avec google après une configuration google cloud unique qu’alles vous guide pas à pas (téléchargez le json du client et déposez-le). la synchronisation bancaire se trouve dans **finance → connexions bancaires** (plaid pour la plupart des banques au canada et aux états-unis, ou simplefin).
+dans e-mail, choisissez gmail, outlook, icloud, yahoo ou fastmail et le formulaire se remplit tout seul ; gmail se connecte avec google après une configuration google cloud unique qu’alles vous guide pas à pas (téléchargez le json du client et déposez-le). la synchronisation bancaire se trouve dans **finance → connexions bancaires** (plaid pour la plupart des banques au canada et aux états-unis, ou simplefin). pour écrire à aide depuis votre téléphone, activez telegram, imessage ou discord dans **réglages → connexions et outils** ; la même page installe node, pi et le navigateur d’aide en un clic.
 
 l’interface existe en english, français, español, 简体中文, 繁體中文, 日本語, 한국어 et العربية. choisissez la vôtre dans **réglages → langue et région**.
 

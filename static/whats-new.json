@@ -23,6 +23,26 @@
         {
           "title": "calmer details",
           "body": "fields show focus on their own edge, hover never looks like a pick, drawers slide shut, letters jump through dropdowns, and search suggests a fix for typos."
+        },
+        {
+          "title": "text aide on telegram",
+          "body": "make a bot with @BotFather, paste its token and send it a message. aide answers there, and approvals still happen inside alles."
+        },
+        {
+          "title": "mail that shows up fast",
+          "body": "a new device shows the mail alles saved last right away, and the inbox overview starts on unread with one button to summarize all of it."
+        },
+        {
+          "title": "one-click installs",
+          "body": "settings and setup list node, pi, aide's browser and searxng with their real state and an install button. setup ends with what to connect next."
+        },
+        {
+          "title": "small tools in search",
+          "body": "andromeda answers tips, percentages, bmi, loans, number bases, roman numerals, unix time, passwords, encoding, word counts and the moon without anything leaving your machine."
+        },
+        {
+          "title": "easier to find",
+          "body": "files lists your docs folder read-only, habit icons come from an emoji search, and each book has one want / reading / read row."
         }
       ]
     },
