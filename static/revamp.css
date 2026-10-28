@@ -1015,6 +1015,22 @@ html:not(#_):not(#_) .specialist-app-head .manual-context-help {
   margin-inline-end: var(--k-gutter);
 }
 
+/* header controls keep a 44px target but draw a 36px fill: a 44px fill sat 4px from the edge of the
+   52px row. the elliptical corner keeps the visible fill's corners at 8px */
+html:not(#_):not(#_) :is(.shell-navigation-toggle, .specialist-app-head .manual-context-help) {
+  border-block: var(--k-space-1) solid transparent;
+  border-radius: var(--k-radius-control) / calc(var(--k-radius-control) + var(--k-space-1));
+  background-clip: padding-box;
+}
+@media (min-width: 761px) {
+  html:not(#_):not(#_) .specialist-group-tabs [role="tab"] {
+    padding-block: var(--k-space-1);
+    border-block: var(--k-space-1) solid transparent;
+    border-radius: var(--k-radius-control) / calc(var(--k-radius-control) + var(--k-space-1));
+    background-clip: padding-box;
+  }
+}
+
 /* aide's tool pages: the head and the content carry the gutter, not the page around them */
 html:not(#_) .aide-tool-view {
   padding-inline: 0;
@@ -1682,6 +1698,44 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:
 
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search::before {
   display: none;
+}
+
+/* the idle page puts the app name where every other app has it, top left, not stacked on the search */
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"][data-state="idle"] .andromeda-page {
+  position: relative;
+}
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"][data-state="idle"] .andromeda-app-head .shell-navigation-toggle {
+  position: absolute;
+  top: var(--k-space-1);
+  inset-inline-start: var(--k-gutter);
+}
+
+/* beside the app name the search keeps a 44px entry but draws a 36px box, 8px from the row's edges
+   like the other header controls; the tall hero box is for the idle page only */
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="idle"]) .andromeda-search {
+  min-height: var(--k-control);
+  isolation: isolate;
+  overflow: visible;
+}
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="idle"]) .andromeda-search:is(:hover, :focus-within, [data-keyboard-focus]) {
+  background: transparent;
+  box-shadow: none;
+}
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="idle"]) .andromeda-search::before {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: var(--k-space-1) 0;
+  z-index: -1;
+  width: auto;
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+  box-shadow: 0 0 0 1px var(--k-line);
+  transition: box-shadow 200ms var(--k-ease-out), background-color 200ms var(--k-ease-out);
+}
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="idle"]) .andromeda-search:is(:hover, :focus-within, [data-keyboard-focus])::before {
+  background: var(--k-raised);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 50%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 12%, transparent);
 }
 
 

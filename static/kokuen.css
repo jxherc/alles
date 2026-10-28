@@ -3160,11 +3160,11 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-page {
-  padding-inline: clamp(var(--k-space-4), 2vw, var(--k-space-5));
+  padding-inline: var(--k-gutter, 24px);
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-app-head {
-  min-height: 64px;
+  min-height: var(--k-app-header);
 }
 
 #andromeda-view[data-kokuen-surface="andromeda"] .shell-navigation-toggle {
