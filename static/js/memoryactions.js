@@ -33,9 +33,6 @@ export function contextProvenanceElement(provenance = {}) {
   details.className = 'context-provenance';
   details.dataset.labels = labels.join(' · ');
   const memories = Array.isArray(provenance.memories) ? provenance.memories : [];
-  // with nothing but the model to show, opening it would only repeat the label
-  if (!memories.length && !provenance.owner_instructions && !provenance.project_instructions
-    && !provenance.persona?.name && !provenance.document?.path) details.dataset.onlyModel = '1';
   details.innerHTML = `
     <summary>${safe(t('aide.prov_context', { labels: labels.join(' · ') }))}</summary>
     <div class="context-provenance-body">
@@ -64,6 +61,9 @@ export function contextProvenanceElement(provenance = {}) {
     snapshot.append(label, note, open, content);
     details.querySelector('.context-provenance-body').append(snapshot);
   }
+  // with nothing but the model line inside, opening it would only repeat the label
+  const body = details.querySelector('.context-provenance-body');
+  if (provenance.model && body.children.length === 1 && labels.length === 1) details.dataset.onlyModel = '1';
   return details;
 }
 

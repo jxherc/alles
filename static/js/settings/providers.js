@@ -2,7 +2,7 @@ import { createSettingsPane } from './pane.js';
 import { toast, plainError } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { loadModels, addEndpoint, renderModelList } from '../models.js?v=216';
-import { initCustomDropdowns, getDropdownValue, populateDropdown } from '../dropdown.js?v=213';
+import { initCustomDropdowns, getDropdownValue, populateDropdown } from '../dropdown.js?v=214';
 import { _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 import { API_TYPES, authFor, mountProviderPicker } from '../model_providers.js';
 import { wireChoiceGroup } from '../kokuen.js?v=4';

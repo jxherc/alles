@@ -5,7 +5,7 @@ import { _patchSettings, _bindSwitch, _esc } from './shared.js';
 import { onModelRoles, roleOptions, setModelRole } from './model_roles.js';
 import { toast, plainError } from '../util.js';
 import { confirm as confirmDialog } from '../dialog.js';
-import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=213';
+import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=214';
 import { t, tp } from '../i18n.js';
 
 export const ANDROMEDA_SETTINGS_EVENT = 'alles:andromeda-settings';

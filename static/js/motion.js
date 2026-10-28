@@ -191,3 +191,15 @@ if (page) {
   document.fonts?.ready.then(placePills);
   placePills();
 }
+
+// a drawer that closes is hidden and inert at once; this class keeps it drawn while the css slides
+// it away (revamp.css drawer-out), then goes. reduced motion closes instantly
+export function closeWithSlide(target, className = 'is-closing', ms = 240) {
+  if (!target || reduce.matches) return;
+  target.classList.add(className);
+  // children's own animations bubble here too, so only the slide itself ends it
+  const onEnd = event => { if (event.animationName === 'drawer-out' || event.animationName === 'scrim-out') done(); };
+  const done = () => { clearTimeout(timer); target.removeEventListener('animationend', onEnd); target.classList.remove(className); };
+  const timer = setTimeout(done, ms + 80);
+  target.addEventListener('animationend', onEnd);
+}

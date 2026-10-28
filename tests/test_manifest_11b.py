@@ -139,7 +139,7 @@ class ManifestTests(ApiTest):
         self.assertIn(kokuen_url.group(1), urls)
         for module in (
             "models.js?v=216",
-            "dropdown.js?v=213",
+            "dropdown.js?v=214",
             "specialist_groups.js?v=12",
             "kokuen.js?v=4",
             "andromeda.js?v=254",

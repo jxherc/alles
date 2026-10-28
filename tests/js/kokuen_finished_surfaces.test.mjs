@@ -197,7 +197,7 @@ function archiveHarness({ width = 1440, stored = null } = {}) {
     _pendingDocumentScope: { kind: 'vault_document', path: 'primary.md', expected_hash: 'owned' }, _closeAideTools() {} };
   const location = { href: 'http://isolated.test/?view=chat#primary' };
   const context = vm.createContext({ window, document, location,
-    CustomEvent: class {}, $: get, setAideToolsMenu() {}, closeContext() {},
+    CustomEvent: class {}, $: get, setAideToolsMenu() {}, closeContext() {}, closeWithSlide() {},
     localStorage: { getItem: name => storage.get(name) ?? null, setItem: (name, value) => storage.set(name, value) },
   });
   vm.runInContext(`let archiveInert = []; const menu = { close() {} };

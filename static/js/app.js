@@ -11,6 +11,7 @@ import { canSendMessage, getSendBlockReason, sendMessage, stopStream, hideConnBa
 window._canRefreshAideMessages = canSendMessage;
 import { toast, closeAllModals, mdToHtml, api, appLabel, appDesc, writeClipboard } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
+import { closeWithSlide } from './motion.js';
 import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
@@ -1556,6 +1557,8 @@ function openAppDrawer() {
   const drawer = document.getElementById('app-drawer');
   const scrim = document.getElementById('app-drawer-scrim');
   if (!drawer || !scrim) return;
+  drawer.classList.remove('is-closing');
+  scrim.classList.remove('is-closing');
   drawer.hidden = false;
   scrim.hidden = false;
   document.body.classList.add('app-drawer-open');
@@ -1574,6 +1577,8 @@ function closeAppDrawer() {
   if (!drawer || drawer.hidden) return;
   drawer.hidden = true;
   if (scrim) scrim.hidden = true;
+  closeWithSlide(drawer);
+  closeWithSlide(scrim);
   document.body.classList.remove('app-drawer-open');
   document.getElementById('app-drawer-btn')?.setAttribute('aria-expanded', 'false');
   document.querySelector('.main')?.removeAttribute('inert');
@@ -1615,10 +1620,10 @@ async function _renderFirstRun() {
   catch { return; }   // never let this block Home
   if (st.setup?.completed || st.setup?.dismissed) return;
   if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
-  (await import('./setupwizard.js?v=448')).openSetupWizard({ status: st });
+  (await import('./setupwizard.js?v=449')).openSetupWizard({ status: st });
 }
 // let anything (a settings link, the command palette) re-run the wizard on demand
-window._openSetupWizard = async () => (await import('./setupwizard.js?v=448')).openSetupWizard({ resume: true });
+window._openSetupWizard = async () => (await import('./setupwizard.js?v=449')).openSetupWizard({ resume: true });
 
 // aide's tools live in the collapsible "tools" group
 const _moreViews = new Set(['gallery','brain','models','aide-reminders','subs','days']);
@@ -1647,8 +1652,11 @@ let _eventsBound = false;
 function setAideSidebarHidden(hidden, { restoreFocus = false, persist = false } = {}) {
   const hadSidebarFocus = !!document.activeElement?.closest('.sidebar');
   const trigger = document.getElementById('sidebar-toggle-btn');
+  const wasHidden = document.body.classList.contains('sidebar-hidden');
   document.body.classList.toggle('sidebar-hidden', hidden);
   document.getElementById('aide-sidebar')?.toggleAttribute('inert', hidden);
+  if (!hidden) document.body.classList.toggle('sidebar-closing', false);
+  else if (!wasHidden) closeWithSlide(document.body, 'sidebar-closing');
   trigger?.setAttribute('aria-expanded', String(!hidden));
   if (persist) localStorage.setItem('aide-sidebar-hidden', hidden ? '1' : '');
   window._aideArchiveVisibility?.(!hidden, { restoreFocus });

@@ -754,7 +754,7 @@ body:is(
 }
 
 .plan-board-drag::before {
-  content: "⠿";
+  content: ''; --glyph: var(--ic-drag);
   font-size: 0.8125rem;
 }
 
@@ -4037,11 +4037,11 @@ textarea[data-kokuen-entry="autogrow"] {
 
 #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after {
   color: var(--k-muted);
-  content: "⌄";
+  content: ''; --glyph: var(--ic-chevron-down);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger[aria-expanded="true"]::after {
-  content: "⌃";
+  content: ''; --glyph: var(--ic-chevron-up);
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-choice-menu {
@@ -7506,3 +7506,19 @@ html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch
    files and the gallery keep the full width their work needs */
 .specialist-group-overview > .specialist-workbench { width: 100%; margin-inline: auto; }
 body.afterlife-aide-projects[data-space="aide"] :is(.aide-tool-head, .aide-tool-content, .aide-scheduled-head, .aide-scheduled-tabs, .aide-schedule-form, .aide-scheduled-content) { margin-inline: auto; }
+
+/* one hover for every segmented choice (owner, 2026-10-27: "this hovering is not universal"). the
+   filled pill means picked, so hovering an option that isn't picked only brightens its label;
+   before, hover painted a box that looked the same as the pill */
+html:not(#_):not(#_)[data-kokuen-version="5"] :is(
+  .specialist-group-tabs [role="tab"],
+  .seg-opt,
+  .specialist-choice-group button,
+  .aide-mode-nav button,
+  .tasks-tab,
+  .te-seg button,
+  .theme-mode-btn
+):not(.active, [aria-selected="true"], [aria-pressed="true"]):hover {
+  color: var(--k-text);
+  background: transparent;
+}

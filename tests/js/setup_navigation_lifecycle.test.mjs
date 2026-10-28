@@ -13,6 +13,7 @@ const providersSource = readFileSync(new URL('../../static/js/model_providers.js
   .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];\r?\n/g, '')
   .replace(/^export /gm, '');
 const tick = () => new Promise(resolve => setImmediate(resolve));
+let nextPick = null;
 function deferred() {
   let resolve, reject;
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
@@ -104,7 +105,7 @@ function harness(code = source) {
   const requests = [], notices = [];
   const context = vm.createContext({ t: i18nT, tp: i18nTp,
     document, HTMLElement: Element, navigator: { language: 'en-US' }, Intl,
-    resolvedTimeZone: () => 'UTC', regionName: code => code, pick: async () => null, visible: node => node.isConnected,
+    resolvedTimeZone: () => 'UTC', regionName: code => code, pick: async () => nextPick, icon: () => '', visible: node => node.isConnected,
     setControlState() {}, toast: (...args) => notices.push(args),
     requestWithRecentOwner: (fetcher, ...args) => fetcher(...args),
     addEndpoint: async () => { throw new Error('unexpected endpoint creation'); },
@@ -212,16 +213,27 @@ test('Files intermediate save replaces old controls and focuses a connected cont
   assert.equal(h.$('sw-save').disabled, false);
 });
 
-test('click and End on selected SearXNG preserve its draft; changing choice still works', async () => {
-  const h = harness(); h.update({ search_provider: 'searxng', searxng_url: 'https://saved.invalid' }); h.render(3);
-  const field = h.$('sw-searxng-url'); field.value = 'https://draft.invalid';
-  const group = h.$('sw-search'), selected = group.querySelector('[data-value="searxng"]');
-  await selected.click(); assert.equal(h.$('sw-searxng-url'), field);
-  await selected.emit('keydown', { key: 'End' }); await tick();
-  assert.equal(h.$('sw-searxng-url'), field); assert.equal(field.value, 'https://draft.invalid');
-  await group.querySelector('[data-value="duckduckgo"]').click();
+test('the web search picker lists every engine and shows only the fields the pick needs', async () => {
+  const h = harness();
+  h.update({
+    search_provider: 'searxng', searxng_url: 'https://saved.invalid',
+    search_engines: [
+      { id: 'duckduckgo', label: 'free search', extra: [] },
+      { id: 'exa', label: 'Exa', key_setting: 'exa_api_key', configured: false, extra: [], signup: 'https://dashboard.exa.ai' },
+      { id: 'searxng', label: 'SearXNG', extra: ['searxng_url'] },
+    ],
+  });
+  h.render(3);
+  assert.equal(h.$('sw-searxng-url').value, 'https://saved.invalid');
+  assert.equal(h.$('sw-search-trigger-label').textContent, 'SearXNG');
+  nextPick = 'exa'; await h.$('sw-search-trigger').click(); await tick();
   assert.equal(h.$('sw-searxng-url'), null);
-  await selected.click(); assert.ok(h.$('sw-searxng-url'));
+  assert.ok(h.$('sw-search-key'));
+  assert.equal(h.$('sw-search-trigger-label').textContent, 'Exa');
+  nextPick = null; await h.$('sw-search-trigger').click(); await tick();
+  assert.ok(h.$('sw-search-key'), 'a closed picker changes nothing');
+  nextPick = 'duckduckgo'; await h.$('sw-search-trigger').click(); await tick();
+  assert.equal(h.$('sw-search-key'), null);
 });
 
 test('reselecting Public access preserves all unsaved policy fields', async () => {

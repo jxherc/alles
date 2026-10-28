@@ -408,6 +408,19 @@ class ResumableSetupApiTest(ApiTest):
         self.assertEqual(settings["search_provider"], "searxng")
         self.assertEqual(settings["searxng_url"], "https://search.example.com")
 
+    def test_search_step_offers_every_engine_and_saves_its_key(self):
+        status = self.client.get("/api/setup/status").json()["setup"]
+        offered = {row["id"] for row in status["search_engines"]}
+        self.assertTrue({"duckduckgo", "exa", "brave", "searxng", "tavily"} <= offered)
+        accepted = self._step(
+            "ai_search", {"search_provider": "exa", "search_api_key": "synthetic-exa-key"}
+        )
+        self.assertEqual(accepted.status_code, 200, accepted.text)
+        settings = core.settings.load_settings()
+        self.assertEqual(settings["search_provider"], "exa")
+        self.assertEqual(settings["exa_api_key"], "synthetic-exa-key")
+        self.assertEqual(self._step("ai_search", {"search_provider": "nope"}).status_code, 400)
+
     def test_searxng_search_step_preserves_ipv6_loopback_brackets(self):
         accepted = self._step(
             "ai_search",

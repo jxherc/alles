@@ -2415,11 +2415,30 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
 }
 
 /* drawers slide in from their edge and the app list follows a beat behind. no spring here: a
-   bounce would open a gap at the screen edge. closing stays instant, so a drawer that is closing
-   never still looks open to the next tap or check */
+   bounce would open a gap at the screen edge. closing slides back out (owner, 2026-10-27): the
+   drawer is hidden, inert and takes no taps at once, and a short closing class keeps it drawn
+   while it slides away, so a closing drawer never catches the next tap */
 @media (prefers-reduced-motion: no-preference) {
   html:not(#_) :is(#app-drawer, body.aide-central[data-space="aide"] .sidebar) {
     transition: translate 380ms var(--k-ease-out), opacity 200ms var(--k-ease-out);
+  }
+
+  html:not(#_) :is(#app-drawer.is-closing, body.aide-central[data-space="aide"].sidebar-closing .sidebar) {
+    pointer-events: none;
+    animation: drawer-out 240ms var(--k-ease-out) both;
+  }
+
+  html:not(#_) #app-drawer.is-closing { display: block !important; }
+  html:not(#_) body.aide-central[data-space="aide"].sidebar-closing .sidebar { display: flex !important; }
+
+  html:not(#_) :is(#app-drawer-scrim, body.aide-central[data-space="aide"] .nav-backdrop) {
+    transition: opacity 260ms var(--k-ease-out);
+  }
+
+  html:not(#_) #app-drawer-scrim.is-closing {
+    display: block !important;
+    pointer-events: none;
+    animation: scrim-out 240ms var(--k-ease-out) both;
   }
 
   @starting-style {
@@ -2427,10 +2446,6 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
       translate: -100% 0;
       opacity: 0;
     }
-  }
-
-  html:not(#_) :is(#app-drawer-scrim, body.aide-central[data-space="aide"] .nav-backdrop) {
-    transition: opacity 260ms var(--k-ease-out);
   }
 
   @starting-style {
@@ -2452,6 +2467,14 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
 
 @keyframes drawer-rise {
   from { opacity: 0; translate: -14px 0; }
+}
+
+@keyframes drawer-out {
+  to { opacity: 0; translate: -100% 0; }
+}
+
+@keyframes scrim-out {
+  to { opacity: 0; }
 }
 
 #ask-panel .ask-panel-head {

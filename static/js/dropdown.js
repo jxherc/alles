@@ -85,6 +85,13 @@ export function initCustomDropdown(el) {
     } else if (e.key === 'Escape' && _open?.el === el) {
       e.stopPropagation();
       _close();
+    } else if (e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // type-ahead like a native select: closed, a letter picks the next match; open, it moves there
+      const index = _typeAhead(el, opts, e.key);
+      if (index < 0) return;
+      e.preventDefault();
+      if (_open?.el === el) { _open.activeIndex = index; _renderPanel(el); }
+      else _choose(el, index);
     }
   });
 }
@@ -129,6 +136,25 @@ function _readOptions(el) {
       const label = labelParts.join('|') || value;
       return { value, label: key ? _optionLabel(key) : label };
     });
+}
+
+// letters typed within 700ms build one prefix ("ca" finds canada); the same letter again
+// steps through the options that start with it
+function _typeAhead(el, opts, key) {
+  const now = Date.now();
+  const state = el._typeAhead && now - el._typeAhead.at < 700 ? el._typeAhead : { text: '', at: now };
+  state.text = (state.text + key).toLowerCase();
+  state.at = now;
+  el._typeAhead = state;
+  const current = _open?.el === el ? _open.activeIndex : _activeIndex(el);
+  const repeat = [...state.text].every(char => char === state.text[0]);
+  const prefix = repeat ? state.text[0] : state.text;
+  const start = repeat ? current + 1 : current;
+  for (let step = 0; step < opts.length; step++) {
+    const index = (start + step) % opts.length;
+    if (String(opts[index].label).trim().toLowerCase().startsWith(prefix)) return index;
+  }
+  return -1;
 }
 
 function _activeIndex(el) {

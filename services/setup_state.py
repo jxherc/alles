@@ -13,6 +13,7 @@ from services.automatic_backup import (
     AutomaticBackupError,
     validate_automatic_backup_destination,
 )
+from services.research import engines as _engines
 
 VERSION = 1
 STEPS = ("basics", "access", "files", "ai_search", "protection")
@@ -85,6 +86,8 @@ def public_state() -> dict:
         "username": str(settings.get("username") or ""),
         "search_provider": str(settings.get("search_provider") or "duckduckgo"),
         "searxng_url": str(settings.get("searxng_url") or ""),
+        # the ai and search step lists every built-in engine without its own request
+        "search_engines": [row for row in _engines.listing(settings) if not row.get("custom")],
         "automatic_backup_enabled": bool(settings.get("automatic_backup_enabled", False)),
         "automatic_backup_dir": str(
             Path(
@@ -273,19 +276,20 @@ def _save_files(values: dict) -> None:
 
 
 def _save_ai_search(values: dict) -> None:
+    from services.research.engines import BY_ID
+
     provider = _text(values, "search_provider", maximum=40).lower() or "duckduckgo"
-    if provider not in {
-        "duckduckgo",
-        "searxng",
-        "tavily",
-        "brave",
-        "google_pse",
-        "serper",
-        "exa",
-        "disabled",
-    }:
+    if provider not in BY_ID and provider != "disabled":
         raise SetupStateError("search provider is not supported")
     patch = {"search_provider": provider}
+    engine = BY_ID.get(provider)
+    # setup offers every built-in engine, so it takes the key and extra fields it needs
+    key = _text(values, "search_api_key", maximum=500)
+    if engine is not None and engine.key and key:
+        patch[engine.key] = key
+    for extra in engine.extra if engine is not None else ():
+        if extra != "searxng_url":
+            patch[extra] = _text(values, extra, maximum=500)
     if provider == "searxng":
         raw = _text(values, "searxng_url", maximum=500).rstrip("/")
         try:

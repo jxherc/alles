@@ -53,8 +53,9 @@ assert.match(
 );
 assert.match(wizard, /_filesSaved = Boolean\(_state\.files_companion_pending\)/);
 assert.match(wizard, /companion_reviewed: advance/);
-assert.match(wizard, /selectedSearch = \['duckduckgo', 'searxng'\]\.includes\(_state\.search_provider\)/);
-assert.match(wizard, /searchFields\(selectedSearch\)/);
+// setup lists every built-in engine (from the setup status), labeled for what it powers (oct 27)
+assert.match(wizard, /const engines = _state\.search_engines \|\| \[\]/);
+assert.match(wizard, /t\('setup\.web_search_for'\)/);
 assert.match(wizard, /function _renderAiSearch\(body\) \{\s*_pickedModel = null/);
 assert.doesNotMatch(wizard, /id="sw-region"/);
 assert.match(wizard, /new Intl\.Locale\(locale\)\.region/);

@@ -907,12 +907,12 @@ html[data-kokuen-version="5"] .user-actions > .memory-confirm button[data-kokuen
 }
 .thinking-block summary::-webkit-details-marker { display: none; }
 .thinking-block summary::before {
-  content: '+';
+  content: ''; --glyph: var(--ic-plus);
   color: var(--muted);
   display: inline-block;
   margin-right: 0.35rem;
 }
-.thinking-block[open] summary::before { content: '-'; }
+.thinking-block[open] summary::before { content: ''; --glyph: var(--ic-minus); }
 .thinking-content { margin-top: 0.35rem; white-space: pre-wrap; }
 .steps-open-label { display: none; }
 .agent-steps[open] .steps-closed-label { display: none; }
@@ -1033,12 +1033,12 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 .run-revert:hover { background: var(--error); color: var(--bg); }
 .agent-steps summary::-webkit-details-marker { display: none; }
 .agent-steps summary::before {
-  content: '+';
+  content: ''; --glyph: var(--ic-plus);
   color: var(--muted);
   display: inline-block;
   margin-right: 0.35rem;
 }
-.agent-steps[open] summary::before { content: '-'; }
+.agent-steps[open] summary::before { content: ''; --glyph: var(--ic-minus); }
 .agent-step-list {
   display: flex;
   flex-direction: column;
@@ -1134,8 +1134,8 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 .agent-step-args-wrap { margin: 0.3rem 0 0; }
 .agent-step-args-wrap summary { cursor: pointer; color: var(--muted); font-size: 0.8125rem; letter-spacing: 0.04em; list-style: none; }
 .agent-step-args-wrap summary::-webkit-details-marker { display: none; }
-.agent-step-args-wrap summary::before { content: '▸ '; }
-.agent-step-args-wrap[open] summary::before { content: '▾ '; }
+.agent-step-args-wrap summary::before { content: ''; --glyph: var(--ic-chevron-right); }
+.agent-step-args-wrap[open] summary::before { content: ''; --glyph: var(--ic-chevron-down); }
 .agent-step-args-wrap .agent-step-args { margin-top: 0.2rem; }
 .agent-step-args,
 .agent-step-output {
@@ -5465,8 +5465,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   #money-view .ms-retry { grid-column: 1; justify-self: start; }
 }
 #money-view .money-section-toggle { display: flex; align-items: center; width: 100%; min-height: 44px; margin-bottom: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) 0; border: 0; background: transparent; color: var(--k-ink, var(--text)); font: inherit; font-size: 0.875rem; text-align: left; cursor: pointer; }
-#money-view .money-section-toggle::before { content: '+'; flex: 0 0 20px; color: var(--k-ink-muted, var(--muted)); }
-#money-view .money-section-toggle[aria-expanded="true"]::before { content: '−'; }
+#money-view .money-section-toggle::before { content: ''; --glyph: var(--ic-plus); flex: 0 0 20px; color: var(--k-ink-muted, var(--muted)); }
+#money-view .money-section-toggle[aria-expanded="true"]::before { content: ''; --glyph: var(--ic-minus); }
 #money-view .money-section-toggle:focus-visible { outline: 2px solid var(--k-focus); outline-offset: var(--k-focus-offset, -2px); }
 #money-view .money-section-toggle:disabled { cursor: default; }
 #money-view .money-section .money-grid[hidden] { display: none; }
@@ -5646,6 +5646,15 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-choice-group strong { font-size: 0.8125rem; font-weight: 560; }
 .setup-choice-group small { color: var(--muted); font-size: 0.8125rem; font-weight: 400; line-height: 1.35; }
 .setup-section-label { margin: 18px 0 8px; color: var(--muted); font-size: 0.8125rem; }
+/* a choice that opens: the trigger shows what's picked, the list opens under it and closes on a pick */
+.setup-picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--k-radius-control); background: var(--k-field, var(--panel)); box-shadow: inset 0 0 0 1px var(--k-line, var(--faint)); color: var(--text); font: inherit; font-size: 0.875rem; text-align: start; cursor: pointer; }
+.setup-picker:hover { box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--muted)); }
+.setup-picker:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.setup-picker .ic { width: 16px; height: 16px; color: var(--muted); flex: 0 0 auto; transition: rotate 0.2s ease; }
+.setup-picker[aria-expanded="true"] .ic { rotate: 180deg; }
+.setup-picker-pop { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.setup-picker-pop[hidden] { display: none; }
+.setup-picker-pop .model-provider-list { max-height: min(40dvh, 320px); overflow-y: auto; overscroll-behavior: contain; }
 .setup-provider-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-bottom: 12px; }
 .setup-provider { min-height: 44px; padding: 0 8px; border: 0; border-radius: var(--k-radius-control); background: var(--panel); color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer; }
 .setup-provider:hover { color: var(--text); }
@@ -5902,7 +5911,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   text-align: left;
 }
 #aide-schedule-project:focus-visible { border-color: var(--text); outline: 0; }
-#aide-schedule-project::after { content: '⌄'; float: right; color: var(--muted); }
+#aide-schedule-project::after { content: ''; --glyph: var(--ic-chevron-down); float: right; color: var(--muted); }
 .aide-schedule-project-menu {
   position: absolute;
   z-index: 20;
@@ -6021,8 +6030,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   font-size: 0.8125rem; cursor: pointer; list-style: none;
 }
 .aide-goal-memory summary::-webkit-details-marker { display: none; }
-.aide-goal-memory summary::after { content: '⌄'; margin-left: 4px; }
-.aide-goal-memory[open] summary::after { content: '⌃'; }
+.aide-goal-memory summary::after { content: ''; --glyph: var(--ic-chevron-down); margin-left: 4px; }
+.aide-goal-memory[open] summary::after { content: ''; --glyph: var(--ic-chevron-up); }
 .aide-goal-memory summary:hover, .aide-goal-memory summary:focus-visible { color: var(--text); outline: 0; }
 .aide-goal-memory p { margin: 0 0 8px; color: var(--soft); font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 68ch; }
 .aide-goal-memory .aide-goal-last-label { margin-top: 12px; color: var(--muted); font-size: 0.8125rem; }
@@ -9418,14 +9427,14 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .custom-disclosure > .custom-details { display: none; }
 .custom-disclosure.open > .custom-details { display: block; }
 .thinking-block .custom-summary { cursor: pointer; color: var(--muted); font-style: normal; display: flex; align-items: center; user-select: none; }
-.thinking-block .custom-summary::before { content: '+'; color: var(--muted); display: inline-block; margin-right: 0.35rem; }
-.thinking-block.open .custom-summary::before { content: '-'; }
+.thinking-block .custom-summary::before { content: ''; --glyph: var(--ic-plus); color: var(--muted); display: inline-block; margin-right: 0.35rem; }
+.thinking-block.open .custom-summary::before { content: ''; --glyph: var(--ic-minus); }
 .agent-steps .custom-summary { cursor: pointer; color: var(--muted); display: flex; align-items: center; user-select: none; }
-.agent-steps .custom-summary::before { content: '+'; color: var(--muted); display: inline-block; margin-right: 0.35rem; }
-.agent-steps.open .custom-summary::before { content: '-'; }
+.agent-steps .custom-summary::before { content: ''; --glyph: var(--ic-plus); color: var(--muted); display: inline-block; margin-right: 0.35rem; }
+.agent-steps.open .custom-summary::before { content: ''; --glyph: var(--ic-minus); }
 .agent-step-args-wrap .custom-summary { cursor: pointer; color: var(--muted); font-size: 0.8125rem; letter-spacing: 0.04em; user-select: none; display: flex; }
-.agent-step-args-wrap .custom-summary::before { content: '▸ '; }
-.agent-step-args-wrap.open .custom-summary::before { content: '▾ '; }
+.agent-step-args-wrap .custom-summary::before { content: ''; --glyph: var(--ic-chevron-right); }
+.agent-step-args-wrap.open .custom-summary::before { content: ''; --glyph: var(--ic-chevron-down); }
 
 /* ── Afterlife Andromeda: answer first, web second ───────────────────────── */
 body.afterlife-shell[data-space="andromeda"] .sidebar,
@@ -11545,7 +11554,7 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 #messages .agent-step.running .agent-step-status { font-size: 0; }
 #messages .agent-step.running .agent-step-status::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--k-line-strong, var(--faint)); border-top-color: var(--k-text, var(--text)); animation: aide-turn 700ms linear infinite; }
 #messages .agent-step:not(.running):not(.error) .agent-step-status { font-size: 0; }
-#messages .agent-step:not(.running):not(.error) .agent-step-status::before { content: "✓"; font-size: 0.8125rem; color: var(--k-success, var(--green)); animation: aide-pop 260ms ease-out; }
+#messages .agent-step:not(.running):not(.error) .agent-step-status::before { content: ''; --glyph: var(--ic-check); font-size: 0.8125rem; color: var(--k-success, var(--green)); animation: aide-pop 260ms ease-out; }
 #messages .agent-step.error .agent-step-status { color: var(--k-danger, var(--error)); }
 .agent-step-time { color: var(--k-muted, var(--muted)); font-size: 0.8125rem; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 #messages .agent-step :is(.agent-step-args-wrap, .agent-step-output, .agent-step-diff, .agent-perm, .agent-step-shot) { margin: 0 var(--k-space-3) var(--k-space-3); }
@@ -11693,4 +11702,46 @@ body.aide-working .composer-box::after {
   #wiki-view .docs-reader-head .wiki-current { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
   #wiki-view .docs-reader-head .docs-reader-actions { margin-left: 0; }
   #wiki-view .docs-reader-head .docs-save-state:not(:empty) { order: 3; padding: 0 var(--k-space-2) var(--k-space-1); }
+}
+
+/* glyphs drawn as text (⌄ ▸ ✓ ⠿ + −) were icons in disguise: they now use the same svg
+   shapes as icons.js, masked so they take the text color (owner, 2026-10-27) */
+:root {
+  --ic-plus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='12' y1='5' x2='12' y2='19'/%3E%3Cline x1='5' y1='12' x2='19' y2='12'/%3E%3C/svg%3E");
+  --ic-minus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='5' y1='12' x2='19' y2='12'/%3E%3C/svg%3E");
+  --ic-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 12.5 9.5 18 20 6.5'/%3E%3C/svg%3E");
+  --ic-chevron-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9.5 5 16 12 9.5 19'/%3E%3C/svg%3E");
+  --ic-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='5 9.5 12 16 19 9.5'/%3E%3C/svg%3E");
+  --ic-chevron-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='5 14.5 12 8 19 14.5'/%3E%3C/svg%3E");
+  --ic-drag: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg fill='black'%3E%3Ccircle cx='9' cy='6' r='1.3'/%3E%3Ccircle cx='15' cy='6' r='1.3'/%3E%3Ccircle cx='9' cy='12' r='1.3'/%3E%3Ccircle cx='15' cy='12' r='1.3'/%3E%3Ccircle cx='9' cy='18' r='1.3'/%3E%3Ccircle cx='15' cy='18' r='1.3'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+#aide-schedule-project::after,
+#messages .agent-step:not(.running):not(.error) .agent-step-status::before,
+#money-view .money-section-toggle::before,
+#money-view .money-section-toggle[aria-expanded="true"]::before,
+#settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after,
+#settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger[aria-expanded="true"]::after,
+.agent-step-args-wrap .custom-summary::before,
+.agent-step-args-wrap summary::before,
+.agent-step-args-wrap.open .custom-summary::before,
+.agent-step-args-wrap[open] summary::before,
+.agent-steps .custom-summary::before,
+.agent-steps summary::before,
+.agent-steps.open .custom-summary::before,
+.agent-steps[open] summary::before,
+.aide-goal-memory summary::after,
+.aide-goal-memory[open] summary::after,
+.plan-board-drag::before,
+.thinking-block .custom-summary::before,
+.thinking-block summary::before,
+.thinking-block.open .custom-summary::before,
+.thinking-block[open] summary::before {
+  display: inline-block;
+  width: 0.875em;
+  height: 0.875em;
+  vertical-align: -0.125em;
+  background-color: currentColor;
+  -webkit-mask: var(--glyph) center / contain no-repeat;
+  mask: var(--glyph) center / contain no-repeat;
 }

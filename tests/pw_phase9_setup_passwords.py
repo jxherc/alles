@@ -308,18 +308,16 @@ def run() -> None:
         page.locator("#sw-save").click()
         expect(page.locator("#setup-dots")).to_contain_text("4 / 5")
 
-        search = page.locator('#sw-search [role="radio"]').first
-        search.focus()
-        page.keyboard.press("ArrowRight")
+        page.locator("#sw-search-trigger").click()
+        page.locator(".dialog-pick-search").fill("searx")
+        page.keyboard.press("Enter")
         expect(page.locator("#sw-searxng-url")).to_be_visible()
         page.locator("#sw-searxng-url").fill("https://search.example.com")
         page.locator("#sw-save").click()
         expect(page.locator("#setup-dots")).to_contain_text("5 / 5")
         page.locator("#sw-back").click()
         expect(page.locator("#setup-dots")).to_contain_text("4 / 5")
-        expect(page.locator('#sw-search [data-value="searxng"]')).to_have_attribute(
-            "aria-checked", "true"
-        )
+        expect(page.locator("#sw-search-trigger-label")).to_have_text("SearXNG")
         expect(page.locator("#sw-searxng-url")).to_have_value("https://search.example.com")
         page.locator("#sw-save").click()
         expect(page.locator("#setup-dots")).to_contain_text("5 / 5")

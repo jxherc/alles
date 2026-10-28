@@ -4,6 +4,7 @@ import { requestWithRecentOwner } from './recent_owner.js';
 import { addEndpoint } from './models.js?v=216';
 import { regionName, resolvedTimeZone, t } from './i18n.js';
 import { pick } from './dialog.js';
+import { icon } from './icons.js';
 import { wireChoiceGroup } from './kokuen.js?v=4';
 import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';
 const STEPS = ['basics', 'access', 'files', 'ai_search', 'protection'];
@@ -476,23 +477,40 @@ function _renderObsidianChoice() {
 
 function _renderAiSearch(body) {
   _pickedModel = null;
-  const selectedSearch = ['duckduckgo', 'searxng'].includes(_state.search_provider)
-    ? _state.search_provider : 'duckduckgo';
+  let search = _state.search_provider || 'duckduckgo';
+  const engines = _state.search_engines || [];
   body.innerHTML = `
     <div class="setup-title" id="setup-title">${esc(t('setup.ai_title'))}</div>
     <div class="setup-sub">${esc(t('setup.ai_hint'))}</div>
-    <div class="setup-section-label">${esc(t('setup.ai_model_label'))}</div>
-    <div class="model-provider-list" id="sw-models" aria-label="${esc(t('setup.model_providers'))}"></div>
+    <div class="setup-section-label" id="sw-model-label">${esc(t('setup.ai_model_label'))}</div>
+    <button type="button" class="setup-picker" id="sw-model-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="sw-models-pop" aria-labelledby="sw-model-label sw-model-trigger-label"><span id="sw-model-trigger-label">${esc(t('setup.choose_provider'))}</span>${icon('chevron-down')}</button>
+    <div class="setup-picker-pop" id="sw-models-pop" hidden>
+      <input class="settings-input setup-input" id="sw-model-filter" type="search" autocomplete="off" spellcheck="false" placeholder="${esc(t('setup.search_providers'))}" aria-label="${esc(t('setup.search_providers'))}">
+      <div class="model-provider-list" id="sw-models" aria-label="${esc(t('setup.model_providers'))}"></div>
+    </div>
     <div id="sw-model-fields"></div>
-    <div class="setup-section-label">${esc(t('setup.web_search'))}</div>
-    ${_choiceGroup('sw-search', [
-      { value: 'duckduckgo', label: 'DuckDuckGo', note: t('setup.ddg_note') },
-      { value: 'searxng', label: 'SearXNG', note: t('setup.searxng_note') },
-    ], selectedSearch)}
+    <div class="setup-section-label" id="sw-search-label">${esc(t('setup.web_search_for'))}</div>
+    <button type="button" class="setup-picker" id="sw-search-trigger" aria-haspopup="dialog" aria-labelledby="sw-search-label sw-search-trigger-label"><span id="sw-search-trigger-label"></span>${icon('chevron-down')}</button>
     <div id="sw-search-fields"></div>
     ${_actions()}`;
+  // the provider list opens under its trigger and closes on a pick, instead of a long list always open
+  const pop = $('sw-models-pop'), trigger = $('sw-model-trigger');
+  const setPop = open => {
+    pop.hidden = !open;
+    trigger.setAttribute('aria-expanded', String(open));
+    if (open) $('sw-model-filter').focus();
+  };
+  trigger.addEventListener('click', () => setPop(pop.hidden));
+  pop.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault(); event.stopPropagation();
+    setPop(false); trigger.focus();
+  });
   mountProviderPicker($('sw-models'), {
+    filter: $('sw-model-filter'),
     onPick: provider => {
+      setPop(false);
+      $('sw-model-trigger-label').textContent = provider.label;
       if (_pickedModel === provider) return;
       _pickedModel = provider;
       $('sw-model-fields').innerHTML = `
@@ -504,12 +522,28 @@ function _renderAiSearch(body) {
       ($('sw-model-name') || $('sw-model-key') || $('sw-model-url')).focus();
     },
   });
-  const searchFields = value => {
-    $('sw-search-fields').innerHTML = value === 'searxng' ? `
-      <label class="setup-field"><span>SearXNG URL</span><input class="settings-input setup-input" id="sw-searxng-url" placeholder="https://search.example.com" value="${esc(_state.searxng_url || '')}"></label>` : '';
+  // every engine alles can search with, not two: a key field shows when the engine needs one
+  const engineById = id => engines.find(engine => engine.id === id);
+  const searchFields = () => {
+    const engine = engineById(search);
+    $('sw-search-trigger-label').textContent = engine?.label || search;
+    const needsKey = engine?.key_setting && !engine.configured;
+    $('sw-search-fields').innerHTML = `
+      ${search === 'searxng' ? `<label class="setup-field"><span>SearXNG URL</span><input class="settings-input setup-input" id="sw-searxng-url" placeholder="https://search.example.com" value="${esc(_state.searxng_url || '')}"></label>` : ''}
+      ${needsKey ? `<label class="setup-field"><span>${esc(t('setup.search_key', { engine: engine.label }))}</span><input class="settings-input setup-input" id="sw-search-key" type="password" autocomplete="off"></label>` : ''}
+      ${(engine?.extra || []).filter(name => name !== 'searxng_url').map(name => `<label class="setup-field"><span>${esc(name)}</span><input class="settings-input setup-input" data-search-extra="${esc(name)}" autocomplete="off"></label>`).join('')}
+      ${needsKey && engine.signup ? `<p class="setup-note"><a href="${esc(engine.signup)}" target="_blank" rel="noopener noreferrer">${esc(t('setup.search_get_key', { engine: engine.label }))}</a></p>` : ''}`;
   };
-  searchFields(selectedSearch);
-  _bindChoiceGroup('sw-search', searchFields);
+  $('sw-search-trigger').addEventListener('click', async () => {
+    if (!engines.length) return;
+    const chosen = await pick(t('setup.web_search_for'), engines.map(engine => ({
+      value: engine.id, label: engine.label, hint: engine.note || '',
+    })), { value: search });
+    if (!chosen) return;
+    search = chosen;
+    searchFields();
+  });
+  searchFields();
   _bindActions(async () => {
     const current = _formIsCurrent();
     const button = $('sw-save'); _busy(button, true, t('setup.connecting'));
@@ -532,10 +566,13 @@ function _renderAiSearch(body) {
         if (!current()) return;
         _pickedModel = null;
       }
-      const provider = $('sw-search').querySelector('[aria-checked="true"]')?.dataset.value || 'duckduckgo';
+      const extras = Object.fromEntries([...document.querySelectorAll('[data-search-extra]')]
+        .map(input => [input.dataset.searchExtra, input.value.trim()]));
       await _saveStep('ai_search', {
-        search_provider: provider,
+        search_provider: search,
         searxng_url: $('sw-searxng-url')?.value.trim() || '',
+        search_api_key: $('sw-search-key')?.value.trim() || '',
+        ...extras,
       }, current);
       if (!current()) return;
       _setStep(4);

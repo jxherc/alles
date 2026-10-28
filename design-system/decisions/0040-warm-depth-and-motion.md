@@ -48,7 +48,9 @@ density. They took the recommended "ember" palette by asking to start building.
   opens (opacity only), money's totals count up, app glyphs and everyday icons move on hover.
   Drawers (the app list, Aide's archive) slide in from their edge in 380ms with no overshoot, since
   a bounce opens a gap at the screen edge; the app list's groups follow about 30ms apart. Closing
-  stays instant, so a closing drawer never still looks open to the next tap (2026-10-26).
+  slides back out in 240ms (owner, 2026-10-27): the drawer is hidden, inert and ignores pointers
+  from the first frame, and a short `is-closing` / `sidebar-closing` class keeps it drawn while
+  it slides, so a closing drawer still never takes the next tap. Reduced motion closes instantly.
   Easing `cubic-bezier(.23,1,.32,1)`; springs as css `linear()` from Open Props (MIT). This widens
   MOTION.md's "motion only for feedback" by the owner's direction, as 0036 began for Aide. All of
   it stops under reduced motion, and automated browsers get final numbers at once.
