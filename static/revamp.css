@@ -1136,8 +1136,7 @@ html:not(#_) .empty-state .btn {
 /* the server monitor fills the width; the cpu graph is a band, not half the screen, and cards
    in a row keep their own height */
 html:not(#_) #system-body,
-html:not(#_) #sys-shell,
-html:not(#_) .btop-grid {
+html:not(#_) #sys-shell {
   box-sizing: border-box;
   width: 100%;
   max-width: none;
@@ -1159,14 +1158,6 @@ html:not(#_) #system-view[data-kokuen-surface="system"] #system-body {
   padding-top: var(--k-space-3);
 }
 
-/* cards in the resource row share a bottom edge; the graph in each grows into the room left, so
-   the extra height is more history instead of a blank band */
-@media (min-width: 860px) {
-  html:not(#_) .btop-cols { align-items: stretch; }
-  html:not(#_) .btop-cols > .btop-box,
-  html:not(#_) .btop-cols .btop-left > .btop-box { display: flex; flex-direction: column; }
-  html:not(#_) :is(#mem-graph, #net-dn-graph, #net-up-graph, #disk-graph) { flex: 1 1 auto; min-height: 50px; }
-}
 
 
 /* ── aide conversation: steps are lines, not cards ──────────────────────────
@@ -3680,9 +3671,9 @@ html:not(#_) :is(.agent-step-args-wrap[open] summary, .agent-step-args-wrap.open
 html:not(#_) :is(#aide-schedule-project, .aide-goal-memory summary)::after { -webkit-mask-image: var(--ic-chev-down); mask-image: var(--ic-chev-down); }
 html:not(#_) .aide-goal-memory[open] summary::after { -webkit-mask-image: var(--ic-chev-up); mask-image: var(--ic-chev-up); }
 html:not(#_) #messages .agent-step:not(.running):not(.error) .agent-step-status::before { -webkit-mask-image: var(--ic-check); mask-image: var(--ic-check); }
-/* the live cursor only while live: loading, unavailable and static (no live monitoring) draw none */
+/* the live dot only while live: loading, unavailable and static (no live monitoring) draw none */
 html:not(#_) #system-host:not([data-state="live"])::after { display: none; }
-html:not(#_) #system-host[data-state="live"]::after { content: ""; display: inline-block; width: 0.45em; height: 0.9em; vertical-align: -0.1em; background: var(--accent); }
+html:not(#_) #system-host[data-state="live"]::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-inline-start: 8px; border-radius: 50%; vertical-align: 0.15em; background: var(--k-success, var(--green)); }
 html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after {
   content: ""; display: inline-block; width: 1em; height: 1em; vertical-align: -0.15em; background: currentColor;
   -webkit-mask: var(--ic-chev-down) center / contain no-repeat; mask: var(--ic-chev-down) center / contain no-repeat;
@@ -3724,7 +3715,7 @@ html:not(#_)[dir="rtl"] :is([data-kokuen-icon="chevron-left"], [data-kokuen-icon
 }
 
 /* numbers with units ("17.5 GB", "2.45 MiB/s") keep their order inside arabic rows */
-html:not(#_)[dir="rtl"] :is(.bx-meta, .bx-rate, .bx-tag, .p-name, .p-mem, .nf-val) {
+html:not(#_)[dir="rtl"] :is(.srv-vital-sub, .srv-sub, .srv-row dd, .srv-meter-head, .srv-proc-name, .srv-table td) {
   unicode-bidi: plaintext;
 }
 

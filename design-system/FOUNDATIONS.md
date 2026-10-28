@@ -29,7 +29,7 @@ Machine-readable values live in `tokens/`. This document explains how to use the
 | info | link | link | neutral notices |
 | categorical | blue `#6fa3f2`, teal `#45b8ac`, amber `#d6a440`, pink `#e07aae`, violet `#a98bf0`, green `#86b86a` | `#2b5bb5`, `#0d6e65`, `#865700`, `#a6386f`, `#6e4cc2`, `#3a6b22` | telling data apart: money categories, chart series, weather marks |
 
-The server system monitor holds a scoped palette exception for its meter and glyph colors; see `decisions/0010-server-monitor-aesthetic.md`.
+The server overview has no palette of its own any more: its lines, bars and numbers use these roles, and only a value past 90% takes the danger color (`decisions/0048-server-overview-at-a-glance.md`).
 
 At runtime the focus ring renders brighter than the strong-line value above (a faint/text mix): at the documented values the ring falls under the 3:1 non-text contrast that WCAG 2.4.11 asks of focus indicators, so visibility wins over token purity.
 

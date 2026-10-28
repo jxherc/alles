@@ -962,8 +962,8 @@ def _system(browser: Browser, errors: list[str]) -> None:
             )
             == 52
         )
-        page.wait_for_selector("#system-body .nf-logo")
-        assert root.locator(".btop-box").first.evaluate(
+        page.wait_for_selector("#system-body .srv-vitals")
+        assert root.locator(".srv-card").first.evaluate(
             "el => getComputedStyle(el).boxShadow === 'none'"
         )
         _assert_no_overflow(page)

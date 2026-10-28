@@ -7,12 +7,12 @@ import { test } from 'node:test';
 
 import {
   browserClientInfo,
+  diskFullness,
   graphCols,
   HIST,
-  logoFor,
-  logoGrid,
-  logoPlatform,
-  procCpuLabel,
+  pct,
+  procCpu,
+  storageVolumes,
 } from '../../static/js/system.js';
 
 const SYSTEM_CSS = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
@@ -67,10 +67,43 @@ test('full fill: a buffer of HIST samples covers every column (no permanent dead
   }
 });
 
-test('process cpu label tolerates missing samples', () => {
-  assert.equal(procCpuLabel(null), '  —');
-  assert.equal(procCpuLabel(undefined), '  —');
-  assert.equal(procCpuLabel(7.4), '  7');
+test('process cpu tolerates missing samples', () => {
+  assert.equal(procCpu(null), '—');
+  assert.equal(procCpu(undefined), '—');
+  assert.equal(procCpu(7.4), '7%');
+});
+
+test('percent values keep one decimal only under 10', () => {
+  assert.equal(pct(null), '—');
+  assert.equal(pct(0), '0%');
+  assert.equal(pct(7.34), '7.3%');
+  assert.equal(pct(66.8), '67%');
+});
+
+// macOS lists its sealed system volumes beside /, all on one apfs container
+const APFS = [
+  { mount: '/', total_gb: 494.4, used_gb: 13.7, free_gb: 60.8, percent: 18.3, fstype: 'apfs' },
+  { mount: '/System/Volumes/VM', total_gb: 494.4, used_gb: 7.5, free_gb: 60.8, percent: 11, fstype: 'apfs' },
+  { mount: '/System/Volumes/xarts', total_gb: 0.5, used_gb: 0, free_gb: 0.5, percent: 1.2, fstype: 'apfs' },
+  { mount: '/Volumes/Backup', total_gb: 2000, used_gb: 500, free_gb: 1500, percent: 25, fstype: 'apfs' },
+];
+
+test('storage shows one row per container and none of apple\'s internal volumes', () => {
+  assert.deepEqual(storageVolumes(APFS).map(d => d.mount), ['/', '/Volumes/Backup']);
+  const linux = [
+    { mount: '/', total_gb: 100, free_gb: 40 },
+    { mount: '/home', total_gb: 100, free_gb: 40 },
+    { mount: '/data', total_gb: 900, free_gb: 100 },
+  ];
+  assert.deepEqual(storageVolumes(linux).map(d => d.mount), ['/', '/data']);
+  assert.deepEqual(storageVolumes(undefined), []);
+});
+
+test('a disk is as full as everything that is not free', () => {
+  // psutil said 18% for an apfs / whose container had 60.8 of 494.4 GB free
+  assert.equal(Math.round(diskFullness(APFS[0])), 88);
+  assert.equal(diskFullness({ percent: 42 }), 42);
+  assert.equal(diskFullness({}), null);
 });
 
 test('browser identity stays explicitly client-side across major platforms', () => {
@@ -88,39 +121,13 @@ test('browser identity stays explicitly client-side across major platforms', () 
   }
 });
 
-test('darwin uses the macOS logo instead of matching the win suffix', () => {
-  assert.match(logoFor('Darwin'), /KMMMMMMMMMMNWMMMMMMMMMM0/);
-  assert.doesNotMatch(logoFor('Darwin'), /cllllllllllllllllll/);
-});
-
-test('linux gets the tux logo and an exact linux platform key', () => {
-  assert.equal(logoPlatform('Linux'), 'linux');
-  assert.match(logoFor('Linux'), /_nnnn_/);
-  assert.doesNotMatch(logoFor('Linux'), /#####/);
-});
-
-test('logo grids measure the printed neofetch columns and rows', () => {
-  assert.deepEqual(logoGrid('Darwin'), {
-    columns: 30,
-    rows: 17,
-    rowHeightCh: 30 / 17,
-  });
-  assert.equal(logoFor('Darwin').split('\n')[0], "                    c.'");
-  assert.equal(logoFor('Darwin').split('\n').at(-1), '       "cooc*"    "*coo\'');
-});
-
-test('system logos render in a square stage and square art canvas', () => {
-  assert.match(SYSTEM_CSS, /\.nf-logo\s*\{[^}]*aspect-ratio:\s*1\s*;/s);
-  assert.match(SYSTEM_CSS, /\.nf-logo-art\s*\{[^}]*aspect-ratio:\s*1\s*;/s);
-  assert.doesNotMatch(SYSTEM_CSS, /\.nf-logo::before/);
-});
-
-// motion is for feedback, never decoration alone (principle 17): the logo, the live mark and a
-// hot value hold still instead of looping forever
-test('the server monitor has no decorative loop', () => {
-  assert.match(SYSTEM_CSS, /\.nf-logo-glyphs\s*\{[^}]*color:\s*var\(--accent\)/s);
-  assert.doesNotMatch(SYSTEM_CSS, /logo-cycle|logo-pulse|logo-shimmer|sys-blink|hot-pulse/);
-  assert.doesNotMatch(SYSTEM_CSS, /\.nf-logo-glyphs\s*\{[^}]*(animation|will-change|background-clip)/s);
+// the overview reads like the rest of alles: the shared type, tabular figures, no terminal
+// glyphs, and nothing that moves on its own (principle 17)
+test('the server overview uses the shared type and has no decorative loop', () => {
+  assert.doesNotMatch(SYSTEM_CSS, /logo-cycle|logo-pulse|logo-shimmer|sys-blink|hot-pulse|\.nf-logo|\.btop-/);
+  assert.match(SYSTEM_CSS, /#system-body \.srv \{[^}]*font-family: var\(--k-font\)/);
+  assert.doesNotMatch(SYSTEM_SOURCE, /[░█├└]/);
+  assert.match(SYSTEM_SOURCE, /role="meter"/);
 });
 
 test('system refreshes keep using the scoped specialist fetcher', () => {

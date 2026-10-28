@@ -3563,7 +3563,7 @@ textarea[data-kokuen-entry="autogrow"] {
   padding: var(--k-space-4) clamp(var(--k-space-4), 3vw, var(--k-space-6)) var(--k-space-6);
 }
 
-/* System: shared shell outside, monospace only where the data earns it. */
+/* System: the shared shell and the shared type; numbers line up with tabular figures. */
 #system-view[data-kokuen-surface="system"] {
   background: var(--k-page);
 }
@@ -3587,27 +3587,14 @@ textarea[data-kokuen-entry="autogrow"] {
   width: min(100%, 1080px);
   margin-inline: 0;
   padding: var(--k-space-5) var(--k-space-5) var(--k-space-6);
-  font-family: var(--k-mono);
+  font-family: var(--k-font);
 }
 
-#system-view[data-kokuen-surface="system"] :where(.sys-note, .btop-box) {
+#system-view[data-kokuen-surface="system"] .sys-note {
   border-color: var(--k-line);
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
   box-shadow: none;
-}
-
-#system-view[data-kokuen-surface="system"] .btop-box:hover {
-  border-color: var(--k-line-strong);
-}
-
-#system-view[data-kokuen-surface="system"] .btop-box::after {
-  display: none;
-}
-
-#system-view[data-kokuen-surface="system"] .btop-box::before,
-#system-view[data-kokuen-surface="system"] .bx-pct.hot {
-  text-shadow: none;
 }
 
 /* Shared Settings: one readable control room for every finished surface. */

@@ -265,7 +265,7 @@ def run(device: str, theme: str) -> None:
                             page.locator('#files-list [data-path="surface-proof.txt"]')
                         ).to_be_visible()
                     if name == "server":
-                        expect(page.locator("#system-body .nf-logo")).to_be_visible()
+                        expect(page.locator("#system-body .srv-vitals")).to_be_visible()
                     row.update(assert_surface(page, root, root.locator(primary_selector).first))
                     row["shared_visual_grammar"] = assert_shared_visual_grammar(page, name, root)
                     page.screenshot(path=str(output / f"{key}.png"), full_page=True)

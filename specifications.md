@@ -426,7 +426,8 @@ related apps now open together without merging their records.
 - **finance** combines money, subscriptions, reviewed imports, and visible managed-actual state
 - **vault** keeps passwords, passkeys, pairing, watchtower, reauthentication, and recovery within the
   existing encrypted boundary
-- **server** combines the original neofetch/btop monitor with alles-owned services, search/model
+- **server** opens on an overview of the machine (cpu, memory, storage and network at a glance, the
+  busiest processes, cores, memory and storage bars) beside alles-owned services, search/model
   configuration, backups/storage, updates, logs, activity, watch, and the bounded access-policy editor
 - **aide scheduled → news** manages tested rss/atom sources, source health, a daily brief schedule,
   home delivery, and optional discord delivery. saving an article to library is always explicit
@@ -912,9 +913,10 @@ an address book, and one the ai can read and use (e.g. when drafting mail).
 ### system
 a live look at how hard your computer is working: like task manager / activity monitor, built in.
 
-- **ring gauges** for cpu and memory, a per-core bar strip, and **cpu/ram history sparklines** that fill in as you watch; refreshing every couple seconds
-- disk-usage bars per drive, plus a card with your gpu, vram, cpu model, backend, and uptime
-- the gauges go from accent → amber → red as a number heats up, so a pegged core or a full disk is obvious at a glance
+- four vitals up top, **cpu, memory, storage and network**, each a number you read at a glance with a two-minute line under it (storage gets a bar); refreshing every couple seconds
+- **cores, memory and storage as bars**. storage shows one row per disk container, filled by everything that isn't free, and leaves out macOS's own system volumes
+- the **busiest processes** as a table (program, cpu, memory, threads, user, pid), then this machine (host, os, chip, gpu, memory, uptime, python, backend) and this browser
+- one quiet color for everything; a value at 90% or more turns red, so a pegged core or a full disk stands out
 - *under the hood:* `get /api/system/stats` ([`services/sysmon.py`](services/sysmon.py)) uses [psutil](https://github.com/giampaolo/psutil) for live cpu%/per-core/uptime/disks. cpu is the load since the previous poll (the first read waits 0.3s to open its window), and under 10% it shows one decimal, so an idle machine reads 0.4% instead of 0; without it, it still shows ram + disk from the static hardware readout (`shutil` + the `hwfit` probe), just no live cpu%. all the gauges are hand-drawn svg; no chart library.
 
 <p align="center"><img src="docs/screenshots/system.png" width="760" alt="system: a built-in live system monitor"></p>
