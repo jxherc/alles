@@ -43,6 +43,10 @@
         {
           "title": "easier to find",
           "body": "files lists your docs folder read-only, habit icons come from an emoji search, and each book has one want / reading / read row."
+        },
+        {
+          "title": "habits with their own logs",
+          "body": "pick from 55 habits like workout, reading, water or running. each one logs what fits it: sets and weights, pages, glasses, distance or minutes. custom habits stay a simple check."
         }
       ]
     },

@@ -7929,6 +7929,8 @@ const BUILTIN_ENGLISH = {
     "whatsnew.2026_10_28.item1.title": "bank sync you can find",
     "whatsnew.2026_10_28.item10.body": "files lists your docs folder read-only, habit icons come from an emoji search, and each book has one want / reading / read row.",
     "whatsnew.2026_10_28.item10.title": "easier to find",
+    "whatsnew.2026_10_28.item11.body": "pick from 55 habits like workout, reading, water or running. each one logs what fits it: sets and weights, pages, glasses, distance or minutes. custom habits stay a simple check.",
+    "whatsnew.2026_10_28.item11.title": "habits with their own logs",
     "whatsnew.2026_10_28.item2.body": "pick gmail in mail. after a one-time google setup that alles walks you through, signing in is one button.",
     "whatsnew.2026_10_28.item2.title": "gmail in one tap",
     "whatsnew.2026_10_28.item3.body": "copy buttons work when alles is opened over plain http on your network, and vault copy works in safari.",
