@@ -1,5 +1,7 @@
 # alles
 
+se pronuncia "AH-luss" (/ˈaləs/), como la palabra alemana que significa "todo".
+
 > traducción revisada el 27 de octubre de 2026 · fuente canónica: `README.md` · revisión:
 > `davinci-canonical-2026-10-27`
 

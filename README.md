@@ -1,5 +1,7 @@
 # alles
 
+said "AH-luss" (/ˈaləs/), like the german word for "everything".
+
 alles is a private replacement for the google ecosystem. your mail, calendar, docs, files, photos, contacts, tasks, money and passwords live in one app on a machine you control, instead of on someone else's servers.
 
 it's built for one person. your main data lives in a folder you control, and you decide which outside services to connect. there's also aide, an ai assistant that can work with the apps when you approve its actions. use it if it's helpful; the local tools work without an ai model.

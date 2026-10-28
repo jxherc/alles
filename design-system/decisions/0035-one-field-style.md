@@ -15,8 +15,8 @@ underlines in the new transaction, transfer, rule and schedule forms.
   `--muted` on hover or while open. This is the `.settings-input` style the shared text field and
   custom select already had, and the one form footers already forced on the date picker.
 - `.date-input` itself is now that field, with no inner padding, so its text starts on the same edge
-  as the fields beside it. It takes the shared inset bottom focus line from decision 0030 instead of
-  a ring; forced colors keep the Highlight outline.
+  as the fields beside it. On focus its own bottom border turns the field-focus color (decision 0045
+  replaced 0030's painted line); forced colors keep the Highlight outline.
 - Money's text inputs drop their box in the transaction, transfer, rule and schedule forms.
 - Long-form editors (Calendar's description, Memory's instructions) keep their workspace boundary,
   as decision 0026 says. Search fields are their own one-field forms and are not changed here.
