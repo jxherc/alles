@@ -373,7 +373,7 @@ def run(context_factory=None, cases=None):
                             "session": session,
                             "message": message,
                         }
-                        button = reply.locator('button[title="review this reply as a plan task"]')
+                        button = reply.locator('button[data-msg-act="task"]')
                         history_reads = []
                         if case == "source":
                             # a confirmed stop reads the stream to its end: the saved reply,

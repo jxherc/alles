@@ -70,6 +70,8 @@ Do not mark a design or implementation complete until every applicable item pass
 
 ## final anti-slop pass
 
+- [ ] every rule in `ANTI-SLOP.md` holds on the rendered screen
+
 - [ ] every visual choice serves this product and could not be pasted unchanged into an unrelated app
 - [ ] one unnecessary flourish was removed
 - [ ] content is visible by default without waiting for animation

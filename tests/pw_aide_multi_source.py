@@ -412,7 +412,7 @@ def run():
                                     "session": session,
                                     "message": history["id"],
                                 }
-                                save = reply.locator('button[title="save this reply as a note"]')
+                                save = reply.locator('button[data-msg-act="note"]')
                                 note_writes = []
                                 page.on(
                                     "request",
@@ -547,7 +547,7 @@ def run():
                                     first_line
                                 )
                             if case in ("success", "save-lost", "literal", "citation-labels"):
-                                save = reply.locator('button[title="save this reply as a note"]')
+                                save = reply.locator('button[data-msg-act="note"]')
                                 if case == "save-lost":
 
                                     def lost(route):

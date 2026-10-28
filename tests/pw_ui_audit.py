@@ -663,6 +663,62 @@ def focus_pass(page, audit, where, scope=None) -> None:
             )
 
 
+# rendered spacing, not token values (owner, 2026-10-27: the old audit scored 100% while buttons
+# touched row dividers, a hint sat flush on its field and header buttons hugged the top edge)
+SPACING = r"""
+() => {
+  const vis = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && !el.closest('[hidden],[inert],[aria-hidden="true"]'); };
+  const sig = el => (el.id ? '#' + el.id : el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '')).slice(0, 80);
+  const out = [];
+  const controls = [...document.querySelectorAll('button, a.btn, [role="button"], input:not([type="hidden"]), textarea, [role="combobox"]')].filter(vis);
+  // a control inside a row whose bottom divider it touches
+  for (const el of controls) {
+    let row = el.parentElement;
+    for (let i = 0; row && i < 3; i++, row = row.parentElement) {
+      const s = getComputedStyle(row);
+      if (parseFloat(s.borderBottomWidth) >= 1 && s.borderBottomStyle !== 'none' && !['INPUT', 'TEXTAREA'].includes(row.tagName)) {
+        const gap = row.getBoundingClientRect().bottom - parseFloat(s.borderBottomWidth) - el.getBoundingClientRect().bottom;
+        const tight = row.getBoundingClientRect().height <= el.getBoundingClientRect().height + 1;
+        if (gap >= 0 && gap < 2 && tight)
+          out.push(['spacing-control-on-divider', sig(el) + ' in ' + sig(row), Math.round(gap) + 'px']);
+        break;
+      }
+    }
+  }
+  // a hint or label line flush on the field under it
+  for (const field of controls.filter(el => ['INPUT', 'TEXTAREA'].includes(el.tagName))) {
+    const prev = field.previousElementSibling || field.parentElement?.previousElementSibling;
+    if (!prev || !vis(prev) || prev.matches('label, .setup-field, .s-field')) continue;
+    if (!/^(P|SMALL|SPAN|DIV)$/.test(prev.tagName) || !(prev.textContent || '').trim() || prev.querySelector('button, a, input')) continue;
+    // an underline-only field has no top edge for the hint to touch
+    const fs = getComputedStyle(field);
+    const edge = parseFloat(fs.borderTopWidth) > 0 || /inset/.test(fs.boxShadow) || !/rgba\(0, 0, 0, 0\)|transparent/.test(fs.backgroundColor);
+    if (!edge) continue;
+    const gap = field.getBoundingClientRect().top - prev.getBoundingClientRect().bottom;
+    if (gap >= 0 && gap < 4) out.push(['spacing-hint-on-field', sig(prev) + ' over ' + sig(field), Math.round(gap) + 'px']);
+  }
+  // a header control pressed against the top of the page
+  for (const el of controls) {
+    const r = el.getBoundingClientRect();
+    if (r.top >= 0 && r.top < 2 && r.height < 52 && el.closest('header, [class*="head"]')) {
+      const fill = getComputedStyle(el).backgroundColor;
+      if (fill && !/rgba\(0, 0, 0, 0\)|transparent/.test(fill)) out.push(['spacing-control-on-edge', sig(el), Math.round(r.top) + 'px']);
+    }
+  }
+  return out.slice(0, 40);
+}
+"""
+
+
+def spacing_pass(page, audit, where) -> None:
+    found = page.evaluate(SPACING)
+    for check, sig, detail in found:
+        audit.add("kokuen", check, False, sig, detail, where)
+    if not found:
+        audit.add("kokuen", "spacing-rendered", True, "page", "", where)
+
+
 def raw_text_pass(page, audit, sig, where) -> None:
     found = page.evaluate(RAW_TEXT)
     audit.add("kokuen", "plain-words", not found, sig, " | ".join(found), where)
@@ -851,6 +907,7 @@ def main() -> int:
                 audit.merge(res, where)
                 if cfg.get("only") != "layout":
                     raw_text_pass(page, audit, route, where)
+                    spacing_pass(page, audit, where)
                     focus_pass(page, audit, where)
                     grid_pass(page, audit, where)
                     # surfaces already open on arrival (settings is a modal) get their own pass
