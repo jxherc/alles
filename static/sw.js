@@ -1,8 +1,8 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v446';   // oct 28 overnight: telegram, mail digest, one-click installs, andromeda tools, habit emoji, setup connect list.
+const VERSION = 'v447';   // oct 28 overnight: habit catalog with day logs on top of telegram, mail digest, installs and andromeda tools.
 const BUILD = '__ALLES_BUILD__';   // the server swaps in a hash of static/, so any change is a new worker
 const CACHE = `alles-${VERSION}-${BUILD}`;
-const STAMP = '599';   // keep in sync with index.html ?v=
+const STAMP = '600';   // keep in sync with index.html ?v=
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
 // page -> whether its html came from this same build. a same-build page reads its code straight
 // from the cache: nothing there can be from another build. a restarted worker forgets and asks the network
