@@ -38,6 +38,7 @@
     "static/js/emoji_picker.js": "health.logs-and-habits",
     "static/js/filesphase7.js": "files-photos.locations-and-media",
     "static/js/gallery.js": "files-photos.locations-and-media",
+    "static/js/habit_loggers.js": "health.logs-and-habits",
     "static/js/habits.js": "health.logs-and-habits",
     "static/js/health.js": "health.logs-and-habits",
     "static/js/help.js": "cross-feature.shared-shell",
