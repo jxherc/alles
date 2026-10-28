@@ -60,6 +60,15 @@ class RecoveryPreflightIntegrationTest(unittest.TestCase):
             self.assertNotEqual(proc.returncode, 0)
             self.assertFalse((live / "aide.db").exists())
 
+    def test_a_lan_install_passes_the_loopback_boot_check(self):
+        # the box shares alles on the lan; its update check boots on loopback with auth off
+        with tempfile.TemporaryDirectory() as tmp:
+            live = Path(tmp) / "data"
+            live.mkdir()
+            (live / "settings.json").write_text(json.dumps({"access_profile": "lan"}), "utf-8")
+            with mock.patch.dict(os.environ, {"ALLES_ACCESS_PROFILE": ""}):
+                self.assertTrue(cli._run_recovery_probe(live, passes=1))
+
     def test_real_app_migrates_and_health_checks_twice_in_isolated_staging(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)

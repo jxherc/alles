@@ -2791,6 +2791,9 @@ def _recovery_probe_once(
             "ALLES_DATA": str(candidate),
             "ALLES_DB": str(candidate / "aide.db"),
             "ALLES_HOST": "127.0.0.1",
+            # the check listens on loopback only, so a lan or public install's password rule
+            # doesn't apply; without this every shared install failed its update check
+            "ALLES_ACCESS_PROFILE": "device",
             "ALLES_RECOVERY_PREFLIGHT": "1",
             "AUTH_ENABLED": "false",
             "PORT": str(port),
