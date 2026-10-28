@@ -184,6 +184,8 @@ with sync_playwright() as pw:
                 page.locator("#mail-add-acct").click()
 
             def inputs():
+                # the box holds its final layout while it loads, but only a loaded one is live
+                expect(page.locator("#ma-oauth")).not_to_have_attribute("aria-busy", "true")
                 if configured:
                     disclosure = page.locator("#ma-oauth-toggle")
                     disclosure.scroll_into_view_if_needed()

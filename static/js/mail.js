@@ -3307,6 +3307,7 @@ function acctForm(acct, presetKey = '') {
 }
 
 const oauthKey = scope => 'alles-mail-oauth-pending:' + scope;
+let _oauthSeenConfigured = false;
 const _oauthRecovery = { scopes: [], pending: null, attempt: null, confirmed: false, error: '', notice: '', write: null };
 function validOauthStatus(value) {
   return value && typeof value.configured === 'boolean' && typeof value.client_secret_configured === 'boolean' &&
@@ -3385,7 +3386,40 @@ async function renderOauthBox(acct, editor) {
   const box = editor.root.querySelector('#ma-oauth'), state = _oauthRecovery;
   const current = () => box.isConnected && _accountEditor === editor;
   const el = id => box.querySelector('#' + id);
-  box.innerHTML = `<p role="status">${t('mail.loading_google')}</p>`;
+  // google only sends you back to https or localhost, so a fresh setup starts from the address alles is open at
+  const originOk = location.protocol === 'https:' || /(^|\.)localhost$|^127\.0\.0\.1$|^\[::1\]$/.test(location.hostname);
+  const link = (href, label) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+  // the loading box has the final layout (an unconfigured guess, or what was seen last), so nothing below it jumps.
+  // the hidden span holds the status line's space, since it can wrap to two lines. ids are dropped
+  // while loading so an #ma-* control only exists once it is live
+  const shell = (saved, busy = false) => {
+    const base = saved.redirect_base || (!saved.configured && location.protocol === 'https:' ? location.origin : '');
+    return `
+      <p id="ma-oauth-saved"${busy ? ' role="status" class="mail-oauth-pending"' : ''}>${busy ? `<span>${t('mail.loading_google')}</span><span aria-hidden="true">${t(saved.configured ? 'mail.google_keys_saved' : 'mail.google_not_configured')}</span>` : ''}</p>
+      <a class="btn primary mail-google-btn" id="ma-google-start" href="/api/mail/oauth/google/start"${saved.configured ? '' : ' hidden'}>${acct?.auth_type === 'oauth' ? t('mail.google_reconnect') : t('mail.google_signin')}</a>
+      <button type="button" class="btn mail-oauth-toggle" id="ma-oauth-toggle" aria-expanded="${!saved.configured}" aria-controls="ma-oauth-steps">${saved.configured ? t('mail.google_edit') : t('mail.google_setup')}</button>
+      <div class="mail-oauth-steps" id="ma-oauth-steps"${saved.configured ? ' hidden' : ''}>
+        <p>${t('mail.google_intro')}</p>
+        <p class="mail-oauth-warn" id="ma-oauth-https"${originOk || saved.configured ? ' hidden' : ''}>${t('mail.google_needs_https')}</p>
+        <ol class="mail-oauth-list">
+          <li>${t('mail.google_step_api', { link: link('https://console.cloud.google.com/flows/enableapi?apiid=gmail.googleapis.com', t('mail.google_step_api_link')) })}</li>
+          <li>${t('mail.google_step_consent', { link: link('https://console.cloud.google.com/auth/overview', t('mail.google_step_consent_link')) })}</li>
+          <li>${t('mail.google_step_client', { link: link('https://console.cloud.google.com/auth/clients/create', t('mail.google_step_client_link')) })}
+            <span class="mail-redirect-row"><code class="mail-redirect" id="ma-oauth-redirect"></code><button type="button" class="btn" id="ma-oauth-copy">${t('common.copy')}</button></span></li>
+          <li>${t('mail.google_step_keys')}
+            <span class="mail-redirect-row"><button type="button" class="btn" id="ma-oauth-json">${t('mail.google_choose_json')}</button><input type="file" id="ma-oauth-file" accept=".json,application/json" hidden></span></li>
+        </ol>
+        <label class="mail-account-field"><span>${t('mail.google_client_id')}</span><input class="settings-input" id="ma-cid" value="${esc(saved.client_id)}" autocomplete="off" spellcheck="false"></label>
+        <label class="mail-account-field"><span>${t('mail.google_client_secret')}</span><input class="settings-input" type="password" id="ma-csec" autocomplete="new-password" placeholder="${esc(saved.client_secret_configured ? t('mail.google_secret_keep') : t('mail.google_secret_paste'))}"></label>
+        <label class="mail-account-field"><span>${t('mail.google_redirect_base')}</span><input class="settings-input" id="ma-rbase" value="${esc(base)}" placeholder="${esc(t('mail.google_redirect_ph'))}" spellcheck="false"></label>
+        <button type="button" class="btn primary" id="ma-oauth-save">${t('mail.google_save_keys')}</button>
+        <p class="mail-oauth-note">${t('mail.google_unverified')}</p>
+      </div>
+      <div class="mail-saved-status"><p id="ma-oauth-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="ma-oauth-actions"></div></div>
+      <div class="mail-or">${t('mail.or_by_hand')}</div>`;
+  };
+  box.inert = true; box.setAttribute('aria-busy', 'true');
+  box.innerHTML = shell({ configured: _oauthSeenConfigured, client_id: '', client_secret_configured: false, redirect_base: '' }, true).replace(/ id="[^"]*"/g, '');
   if (state.write) await state.write.catch(() => {});
   if (!current()) return;
   let saved;
@@ -3393,39 +3427,16 @@ async function renderOauthBox(acct, editor) {
     saved = await readOauthStatus();
     if (!current()) return;
     readOauthRecovery(saved.recovery_scopes);
+    _oauthSeenConfigured = saved.configured;
   } catch (error) {
     if (!current()) return;
+    box.inert = false; box.removeAttribute('aria-busy');
     box.innerHTML = `<p role="alert">${esc(t('mail.google_load_failed', { reason: error.message || t('mail.check_connection_short') }))}</p><button type="button" class="btn">${t('mail.retry_google')}</button>`;
     box.querySelector('button').addEventListener('click', () => renderOauthBox(acct, editor));
     return;
   }
-  // google only sends you back to https or localhost, so a fresh setup starts from the address alles is open at
-  const originOk = location.protocol === 'https:' || /(^|\.)localhost$|^127\.0\.0\.1$|^\[::1\]$/.test(location.hostname);
-  const base = saved.redirect_base || (!saved.configured && location.protocol === 'https:' ? location.origin : '');
-  const link = (href, label) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
-  box.innerHTML = `
-    <p id="ma-oauth-saved"></p>
-    <a class="btn primary mail-google-btn" id="ma-google-start" href="/api/mail/oauth/google/start">${acct?.auth_type === 'oauth' ? t('mail.google_reconnect') : t('mail.google_signin')}</a>
-    <button type="button" class="btn mail-oauth-toggle" id="ma-oauth-toggle" aria-expanded="${!saved.configured}" aria-controls="ma-oauth-steps">${saved.configured ? t('mail.google_edit') : t('mail.google_setup')}</button>
-    <div class="mail-oauth-steps" id="ma-oauth-steps"${saved.configured ? ' hidden' : ''}>
-      <p>${t('mail.google_intro')}</p>
-      <p class="mail-oauth-warn" id="ma-oauth-https"${originOk || saved.configured ? ' hidden' : ''}>${t('mail.google_needs_https')}</p>
-      <ol class="mail-oauth-list">
-        <li>${t('mail.google_step_api', { link: link('https://console.cloud.google.com/flows/enableapi?apiid=gmail.googleapis.com', t('mail.google_step_api_link')) })}</li>
-        <li>${t('mail.google_step_consent', { link: link('https://console.cloud.google.com/auth/overview', t('mail.google_step_consent_link')) })}</li>
-        <li>${t('mail.google_step_client', { link: link('https://console.cloud.google.com/auth/clients/create', t('mail.google_step_client_link')) })}
-          <span class="mail-redirect-row"><code class="mail-redirect" id="ma-oauth-redirect"></code><button type="button" class="btn" id="ma-oauth-copy">${t('common.copy')}</button></span></li>
-        <li>${t('mail.google_step_keys')}
-          <span class="mail-redirect-row"><button type="button" class="btn" id="ma-oauth-json">${t('mail.google_choose_json')}</button><input type="file" id="ma-oauth-file" accept=".json,application/json" hidden></span></li>
-      </ol>
-      <label class="mail-account-field"><span>${t('mail.google_client_id')}</span><input class="settings-input" id="ma-cid" value="${esc(saved.client_id)}" autocomplete="off" spellcheck="false"></label>
-      <label class="mail-account-field"><span>${t('mail.google_client_secret')}</span><input class="settings-input" type="password" id="ma-csec" autocomplete="new-password" placeholder="${esc(saved.client_secret_configured ? t('mail.google_secret_keep') : t('mail.google_secret_paste'))}"></label>
-      <label class="mail-account-field"><span>${t('mail.google_redirect_base')}</span><input class="settings-input" id="ma-rbase" value="${esc(base)}" placeholder="${esc(t('mail.google_redirect_ph'))}" spellcheck="false"></label>
-      <button type="button" class="btn primary" id="ma-oauth-save">${t('mail.google_save_keys')}</button>
-      <p class="mail-oauth-note">${t('mail.google_unverified')}</p>
-    </div>
-    <div class="mail-saved-status"><p id="ma-oauth-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="ma-oauth-actions"></div></div>
-    <div class="mail-or">${t('mail.or_by_hand')}</div>`;
+  box.innerHTML = shell(saved);
+  box.inert = false; box.removeAttribute('aria-busy');
   const showRedirect = () => {
     const typed = el('ma-rbase').value.trim().replace(/\/+$/, '');
     el('ma-oauth-redirect').textContent = typed ? typed + '/api/mail/oauth/google/callback' : saved.redirect_uri;

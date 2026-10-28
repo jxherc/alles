@@ -440,7 +440,11 @@ def run():
                             listing = page.locator("#mail-list").bounding_box()
                             assert sidebar["x"] + sidebar["width"] <= listing["x"] + 1
                             assert listing["x"] + listing["width"] <= main["x"] + 1
-                        visible_content(page.locator(".mail-pane-back"))
+                        # beside the list there is nothing to go back to, so the button is gone
+                        if compact:
+                            visible_content(page.locator(".mail-pane-back"))
+                        else:
+                            expect(page.locator(".mail-pane-back")).to_be_hidden()
                         return {"compact": compact, "main": main}
 
                     def draft_viewport(stage):
@@ -509,8 +513,11 @@ def run():
 
                     def back_to(opener):
                         button = page.locator(".mail-pane-back")
-                        keyboard_to(button, reverse=True)
-                        page.keyboard.press("Enter")
+                        if button.is_visible():
+                            keyboard_to(button, reverse=True)
+                            page.keyboard.press("Enter")
+                        else:
+                            page.keyboard.press("Escape")
                         expect(page.locator("#mail-main")).to_be_empty()
                         expect(page.locator("#mail-list")).to_be_visible()
                         expect(opener).to_be_focused()

@@ -4087,6 +4087,9 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .mail-redirect-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.25rem; }
 .mail-redirect-row .mail-redirect { flex: 1 1 14rem; min-width: 0; }
 .mail-oauth-warn { color: var(--warn, var(--text)); }
+.mail-oauth-pending { display: grid; color: var(--muted); }
+.mail-oauth-pending > * { grid-area: 1 / 1; }
+.mail-oauth-pending > :last-child { visibility: hidden; }
 .mail-oauth-steps a { color: var(--text); border-bottom: 1px solid var(--faint); text-decoration: none; }
 .mail-oauth-steps .settings-input { width: 100%; }
 .mail-redirect { display: block; font-family: monospace; font-size: 0.8125rem; word-break: break-all; background: var(--bg); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.35rem 0.45rem; color: var(--text); }
@@ -8457,6 +8460,8 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 }
 .mail-compose .mail-pane-nav { padding: 0; }
 .mail-pane-nav button, .mail-pane-nav summary { min-height: var(--ui-control-height, 44px); }
+/* beside the list there is nothing to go back to (compact layout starts at 1100px). compose keeps its close */
+@media (min-width: 1101px) { #mail-main > :not(.mail-compose) > .mail-pane-nav { display: none; } }
 .mail-pane-warning { display: none; color: var(--error); overflow-wrap: anywhere; }
 .mail-pane-warning summary { cursor: pointer; align-content: center; }
 .mail-pane-warning p { margin: var(--k-space-2, 8px) 0; }
