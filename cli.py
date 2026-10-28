@@ -982,6 +982,7 @@ def _stage_update_data(
             live,
             app_root=code_root,
             python_path=python_path,
+            keep_outside_vault=True,
         )
         return rollback, preflight, encrypted
     except (RecoveryError, RuntimeError, OSError) as exc:
@@ -2894,9 +2895,11 @@ def _prepare_staged_candidate(
     *,
     app_root: Path | None = None,
     python_path: Path | None = None,
+    keep_outside_vault: bool = False,
 ) -> None:
     """Remap configured file roots into staging, boot twice, then set final paths."""
     import json
+    import shutil
 
     settings_path = staged.data_dir / "settings.json"
     if settings_path.is_symlink():
@@ -2918,6 +2921,7 @@ def _prepare_staged_candidate(
     keys = {"vault": "vault_dir", "files": "files_dir", "photos": "photos_dir"}
     isolated = dict(original)
     final = dict(original)
+    outside_copy = None
     for role, key in keys.items():
         location = locations.get(role, {})
         if location.get("included") and location.get("storage") == "data":
@@ -2925,7 +2929,11 @@ def _prepare_staged_candidate(
             if not isinstance(subpath, str) or not subpath:
                 raise RuntimeError(f"included {role} location is invalid")
             isolated[key] = str((staged.data_dir / subpath).resolve())
-            if key in original:
+            # an update never writes to an outside vault, so it stays the live one and the
+            # backup's copy is only for the boot check (a restore uses the copy instead)
+            if keep_outside_vault and location.get("policy") == "external-captured":
+                outside_copy = staged.data_dir / subpath
+            elif key in original:
                 final[key] = str((live_root / subpath).resolve())
         else:
             isolated.pop(key, None)
@@ -2959,6 +2967,8 @@ def _prepare_staged_candidate(
         _atomic_private_bytes(settings_path, original_bytes)
         raise
     _atomic_private_bytes(settings_path, final_bytes)
+    if outside_copy is not None:
+        shutil.rmtree(outside_copy)
 
 
 def _restore_server_state() -> bool:

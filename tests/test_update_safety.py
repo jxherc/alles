@@ -1,3 +1,4 @@
+import json
 import subprocess
 import tempfile
 import unittest
@@ -203,6 +204,30 @@ class UpdateMaintenanceTest(unittest.TestCase):
         staged = stage_recovery_archive(decrypted, disaster_target)
         self.assertEqual(load_recovery_key(recovery_key_path(staged.data_dir)), live_key)
         verify_staged_recovery(disaster_target, staged.restore_id)
+
+    def test_update_leaves_an_outside_vault_where_it_is(self):
+        # the box lost its docs folder this way: the update moved the backup's copy of
+        # ~/Alles/Vault into the data folder and pointed vault_dir at that copy
+        live = self.root / "outside-vault-data"
+        (live / "files").mkdir(parents=True)
+        outside = self.root / "Alles" / "Vault"
+        outside.mkdir(parents=True)
+        (outside / "note.md").write_text("owner note", "utf-8")
+        settings = json.dumps({"vault_dir": str(outside)})
+        (live / "settings.json").write_text(settings, "utf-8")
+        self.assertTrue(cli._run_recovery_probe(live, passes=1))
+        update_dir = self.root / "outside-vault-updates"
+        update_dir.mkdir()
+
+        rollback, candidate, _ = cli._stage_update_data(live, cli.ROOT, update_dir)
+
+        self.assertEqual((candidate.data_dir / "settings.json").read_text("utf-8"), settings)
+        self.assertFalse((candidate.data_dir / "external-vault").exists())
+        self.assertEqual((outside / "note.md").read_text("utf-8"), "owner note")
+        self.assertEqual(
+            (rollback.data_dir / "external-vault" / "note.md").read_text("utf-8"),
+            "owner note",
+        )
 
     def test_update_rollback_never_accepts_an_unrelated_restore_recovery(self):
         live = self.root / "unrelated-live"
