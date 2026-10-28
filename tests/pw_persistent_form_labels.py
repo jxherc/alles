@@ -180,11 +180,17 @@ def run():
                                 assert api.delete(base + "/api/books/" + book_rows[0]["id"]).ok
                             else:
                                 page.locator("#habits-add-toggle").press("Enter")
+                                page.locator(".dialog-pick-action").press("Enter")
                                 form = page.locator(".habit-add")
                                 name = "read & rest " + label
                                 form.locator('[data-f="name"]').fill(name)
                                 labelled(form.locator('[data-f="name"]'), "habit name")
-                                labelled(form.locator('[data-f="icon"]'), "icon")
+                                # the icon is a picker button: a visible "icon" over it, and a name
+                                icon_field = form.locator(".habit-icon-field")
+                                expect(icon_field.locator("span").first).to_have_text("icon")
+                                expect(icon_field.locator("button")).to_have_accessible_name(
+                                    "choose icon"
+                                )
                                 cadence = form.locator('[data-f="cadence"]')
                                 label_id = cadence.get_attribute("aria-labelledby")
                                 assert label_id and page.locator("#" + label_id).is_visible()
