@@ -1800,7 +1800,7 @@ def _cmd_native_update_locked(layout) -> bool:
                 }
             )
             _write_update_state(state_path, state)
-            issues = _coverage_issues(rollback)
+            issues = _update_coverage_issues(rollback)
             if issues:
                 raise RuntimeError(
                     "automatic native update cannot roll back external data roots: "
@@ -2053,7 +2053,7 @@ def cmd_update(args=()):
                 update_dir,
                 artifact_callback=persist_staged_artifact,
             )
-            issues = _coverage_issues(rollback)
+            issues = _update_coverage_issues(rollback)
             if issues:
                 joined = ", ".join(issues)
                 raise RuntimeError(
@@ -2860,6 +2860,12 @@ def _run_recovery_probe(
         _recovery_probe_once(candidate, app_root=app_root, python_path=python_path)
         for _ in range(passes)
     )
+
+
+def _update_coverage_issues(staged) -> list[str]:
+    """an update swaps the data folder and never writes to an outside files folder, so it can
+    roll back without a copy of it (owner's call, oct 28). a restore keeps the full check."""
+    return [role for role in _coverage_issues(staged) if role != "files"]
 
 
 def _coverage_issues(staged) -> list[str]:

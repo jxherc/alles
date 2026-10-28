@@ -931,3 +931,26 @@ class NativeUpdateCliTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UpdateCoverageTest(unittest.TestCase):
+    def staged(self, tmp, *, vault_included=True):
+        data = Path(tmp)
+        (data / "aide.db").touch()
+        locations = [
+            {"role": "vault", "included": vault_included},
+            {"role": "files", "included": False, "policy": "external-not-selected"},
+            {"role": "photos", "included": False},
+        ]
+        return SimpleNamespace(data_dir=data, manifest={"locations": locations})
+
+    def test_an_outside_files_folder_blocks_a_restore_but_not_an_update(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = self.staged(tmp)
+            self.assertEqual(cli._coverage_issues(staged), ["files"])
+            self.assertEqual(cli._update_coverage_issues(staged), [])
+
+    def test_a_vault_missing_from_the_rollback_still_blocks_an_update(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = self.staged(tmp, vault_included=False)
+            self.assertEqual(cli._update_coverage_issues(staged), ["vault"])
