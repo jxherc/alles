@@ -536,6 +536,52 @@ class CliSafetyTest(unittest.TestCase):
         self.assertEqual(final["files_dir"], str((final_root / "files").resolve()))
         self.assertEqual(final["photos_dir"], "/external/photos")
 
+    def test_outside_vault_copy_is_live_after_restore_but_not_after_update(self):
+        # a restore can't trust the old outside folder; an update never touched it
+        for keep, expected_dir, copy_stays in (
+            (False, None, True),
+            (True, "/home/owner/Alles/Vault", False),
+        ):
+            with self.subTest(keep_outside_vault=keep):
+                candidate = self.root / f"outside-{keep}"
+                (candidate / "external-vault").mkdir(parents=True)
+                (candidate / "external-vault" / "note.md").write_text("note", "utf-8")
+                settings = candidate / "settings.json"
+                settings.write_text(json.dumps({"vault_dir": "/home/owner/Alles/Vault"}), "utf-8")
+                staged = SimpleNamespace(
+                    data_dir=candidate,
+                    manifest={
+                        "database": {"applied_migrations": [{"version": 17, "name": "x"}]},
+                        "locations": [
+                            {
+                                "role": "vault",
+                                "included": True,
+                                "storage": "data",
+                                "subpath": "external-vault",
+                                "policy": "external-captured",
+                            },
+                        ],
+                    },
+                )
+
+                def inspect_probe(path, *, passes):
+                    current = json.loads((path / "settings.json").read_text("utf-8"))
+                    self.assertEqual(
+                        current["vault_dir"], str((candidate / "external-vault").resolve())
+                    )
+                    return True
+
+                final_root = self.root / f"final-{keep}"
+                with mock.patch.object(cli, "_run_recovery_probe", side_effect=inspect_probe):
+                    cli._prepare_staged_candidate(staged, final_root, keep_outside_vault=keep)
+
+                final = json.loads(settings.read_text("utf-8"))
+                self.assertEqual(
+                    final["vault_dir"],
+                    expected_dir or str((final_root / "external-vault").resolve()),
+                )
+                self.assertEqual((candidate / "external-vault").exists(), copy_stays)
+
 
 if __name__ == "__main__":
     unittest.main()
