@@ -1,4 +1,4 @@
-import { plainError, toast } from './util.js';
+import { plainError, toast, writeClipboard } from './util.js';
 import { replaceLinkedRecord } from './recordlinks.js';
 import { initCustomDropdown } from './dropdown.js?v=213';
 import { initDatePickers } from './datepick.js';
@@ -728,7 +728,7 @@ async function renderBookingPages() {
     const b = _bookingPages.find(x => x.id === row.dataset.id);
     row.querySelector('[data-act="copy"]').addEventListener('click', async () => {
       const url = location.origin + b.url;
-      try { await navigator.clipboard.writeText(url); toast(tr('calendar.booking_link_copied'), 'success'); }
+      try { await writeClipboard(url); toast(tr('calendar.booking_link_copied'), 'success'); }
       catch { toast(url, ''); }
     });
     row.querySelector('[data-act="del"]').addEventListener('click', async () => {

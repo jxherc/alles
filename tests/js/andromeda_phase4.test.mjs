@@ -273,7 +273,7 @@ test('normal results expose one keyboard-accessible contextual action surface', 
   assert.match(source, /dataResultAction|dataset\.resultAction/);
   assert.match(source, /\['m', 's', 'c'\]/);
   assert.match(source, /key === 'j' \|\| key === 'k'/);
-  assert.match(source, /navigator\.clipboard\.writeText/);
+  assert.match(source, /writeClipboard\(/);
   assert.match(source, /results: \[result\]/);
   assert.match(source, /stopResultSummary/);
   assert.match(source, /confirmed_endpoint_id = preview\.endpoint_id/);

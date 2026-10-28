@@ -1,4 +1,4 @@
-import { plainError } from './util.js';
+import { plainError, writeClipboard } from './util.js';
 import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=213';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
@@ -705,7 +705,7 @@ async function copyResultLink(result, message) {
   const url = resultSaveUrl(result.url);
   if (!url) { message.textContent = tr('andromeda.x_link_uncopyable'); return; }
   try {
-    await navigator.clipboard.writeText(url);
+    await writeClipboard(url);
     message.textContent = tr('andromeda.x_link_copied');
   } catch {
     message.textContent = tr('andromeda.x_link_copy_failed');

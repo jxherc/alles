@@ -66,6 +66,8 @@ function harness(kind = 'settings') {
     },
     window: {}, localStorage: { getItem: () => null },
     navigator: { clipboard: { writeText(value) { copied.push(value); return copy(value); } } },
+    // util.js's writeClipboard goes straight to the clipboard api in a secure context
+    writeClipboard: value => context.navigator.clipboard.writeText(value),
     fetch, toast: (message, kind) => toasts.push({ message, kind }),
     _endpointJson: async response => { const data = await response.json(); if (!response.ok) throw new Error(data.detail || 'request failed'); return data; },
     _patchSettings: value => { patches.push(value); return Promise.resolve(value); },

@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { toast, writeClipboard } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=213';
 import { initDatePicker } from './datepick.js';
@@ -1361,7 +1361,7 @@ async function shareAlbum() {
     const d = await r.json();
     if (!r.ok || !d.url) throw 0;
     const url = location.origin + d.url;
-    try { await navigator.clipboard.writeText(url); toast(t('photos.album_link_copied'), 'success'); }
+    try { await writeClipboard(url); toast(t('photos.album_link_copied'), 'success'); }
     catch { toast(url, ''); }
   } catch { toast(t('photos.share_failed'), 'error'); }
 }

@@ -1,4 +1,4 @@
-import { mdToHtml, plainError, toast } from './util.js';
+import { mdToHtml, plainError, toast, writeClipboard } from './util.js';
 import { canRevertTool, docReceipt, piDocReceipts, stepKind, stepMark } from './agentview.js';
 import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown, wireMessageActions, rereadActiveSession,
@@ -60,7 +60,7 @@ window._mdToHtml = mdToHtml;
 // copy button for ai messages — global
 window.copyMsg = function(btn) {
   const body = btn.closest('.ai-wrap').querySelector('.ai-content');
-  navigator.clipboard.writeText(body?.innerText || '').then(() => {
+  writeClipboard(body?.innerText || '').then(() => {
     btn.textContent = t('common.copied');
     setTimeout(() => btn.textContent = t('common.copy'), 1500);
   });

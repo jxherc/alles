@@ -5,6 +5,7 @@
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=213';
 import { formatDate, formatDateParts, formatTime, resolvedTimeZone, t, tp } from './i18n.js';
 import { wireChoiceGroup } from './kokuen.js?v=4';
+import { writeClipboard } from './util.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 export const make = (tag, className = '', text = '') => {
@@ -130,7 +131,7 @@ export const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis'
 
 export async function copyText(text, statusNode) {
   try {
-    await navigator.clipboard.writeText(text);
+    await writeClipboard(text);
     if (statusNode) statusNode.textContent = t('common.copied');
   } catch {
     if (statusNode) statusNode.textContent = t('andromeda.tool_copy_blocked');

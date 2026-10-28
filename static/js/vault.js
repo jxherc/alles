@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { toast, writeClipboard } from './util.js';
 import { confirm } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=213';
 import { formatDateTime, formatNumber, t, tp } from './i18n.js';
@@ -1248,7 +1248,7 @@ async function _copyShare(ov) {
   const token = _token, value = ov.querySelector('#vf-share-url').value;
   if (!_sameForm(ov, token) || !value) return;
   try {
-    await navigator.clipboard.writeText(value);
+    await writeClipboard(value);
     if (_sameForm(ov, token)) toast(t('vault.share_link_copied'), 'success');
   } catch {
     if (_sameForm(ov, token)) _formError(ov, t('vault.clipboard_share'));
@@ -1510,7 +1510,7 @@ function _renderFields(defs, values = {}) {
     const input = box.querySelector('#' + b.dataset.copy);
     const value = input.value === input._vaultOriginal?.rendered ? input._vaultOriginal.value : input.value;
     try {
-      await navigator.clipboard.writeText(value);
+      await writeClipboard(value);
       if (_sameForm(ov, token)) toast(t('common.copied'), 'success');
     } catch {
       if (_sameForm(ov, token)) {
@@ -1948,18 +1948,23 @@ window._vaultCopy = async id => {
   const token = _token, vaultId = _vaultId, modal = _modalEl;
   const generation = ++_revealGeneration;
   const current = () => _sameVault(token, vaultId) && generation === _revealGeneration && _modalEl === modal && $('vault-view')?.offsetParent;
-  try {
+  let revealError = null;
+  const reveal = (async () => {
     const response = await _checkedVault(`/api/vault/${id}/reveal`);
     const data = await response.json();
-    if (!current()) return;
+    if (!current()) throw new Error('stale reveal');
     if (!data.fields || typeof data.fields !== 'object' || Array.isArray(data.fields)) throw new Error('invalid reveal');
     const value = _primarySecret(data);
     if (typeof value !== 'string') throw new Error('invalid value');
-    await navigator.clipboard.writeText(value);
+    return value;
+  })().catch(error => { revealError = error; throw error; });
+  try {
+    // the copy starts inside the click, before the secret arrives
+    await writeClipboard(reveal);
     if (current()) toast(t('common.copied'), 'success');
   } catch (error) {
     if (!current()) return;
-    if (error.status === 403) await _doLock();
+    if ((revealError || error).status === 403) await _doLock();
     toast(t('vault.could_not_copy_unlock_if_needed'), 'error');
   }
 };

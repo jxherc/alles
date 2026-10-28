@@ -1,6 +1,7 @@
 // per-app settings — a gear in an app's header opens a small popover of just that
 // app's options, saved to settings.json. custom controls only (no native selects).
 import { t } from './i18n.js';
+import { writeClipboard } from './util.js';
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -87,7 +88,7 @@ async function _openInObsidian() {
 async function _copyVaultPath() {
   const loc = await _vaultLoc();
   if (!loc?.path) return;
-  try { await navigator.clipboard.writeText(loc.path); } catch {}
+  try { await writeClipboard(loc.path); } catch {}
   import('./util.js').then(m => m.toast?.(t('settings.app_vault_path_copied'), 'success')).catch(() => {});
 }
 function _downloadPlugin() { location.href = '/api/download/obsidian-plugin'; }

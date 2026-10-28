@@ -354,7 +354,7 @@ export async function shareResource(kind, ref, level = 'view') {
   if (!r.ok) { toast(t('shell.share_failed'), 'error'); return null; }
   const j = await r.json();
   const url = location.origin + j.url;
-  try { await navigator.clipboard.writeText(url); toast(t('shell.public_link_copied'), ''); }
+  try { await writeClipboard(url); toast(t('shell.public_link_copied'), ''); }
   catch { toast(url, ''); }   // clipboard blocked (insecure ctx) — at least show it
   return j;
 }
@@ -428,6 +428,37 @@ export function sandboxFrame(html, className, opts = {}) {
   return frame;
 }
 
+// navigator.clipboard only exists on https or localhost; plain http on a lan falls back to a
+// hidden textarea copy so copy buttons still work there. pass a promise when the value is fetched
+// after the click: safari only allows a copy that starts inside the click itself
+export async function writeClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      if (typeof text !== 'string' && window.ClipboardItem && navigator.clipboard.write) {
+        const blob = Promise.resolve(text).then(value => new Blob([value], { type: 'text/plain' }));
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+      } else {
+        await navigator.clipboard.writeText(await text);
+      }
+      return;
+    } catch {}  // refused (embedded views, permissions): the textarea copy below may still work
+  }
+  text = await text;
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.cssText = 'position:fixed;inset-block-start:0;inset-inline-start:0;width:1px;height:1px;opacity:0;pointer-events:none';
+  const prior = document.activeElement;
+  document.body.append(area);
+  area.select();
+  let done = false;
+  try { done = document.execCommand('copy'); } finally {
+    area.remove();
+    if (prior?.focus) prior.focus({ preventScroll: true });
+  }
+  if (!done) throw new Error('copy blocked');
+}
+
 // code block buttons arrive inside markdown html, so one listener runs them (no inline onclick)
 if (typeof document !== 'undefined') document.addEventListener?.('click', e => {
   const btn = e.target.closest?.('.code-block .code-copy, .code-block .code-run');
@@ -438,7 +469,7 @@ if (typeof document !== 'undefined') document.addEventListener?.('click', e => {
 
 _g.copyCode = function(btn) {
   const pre = btn.closest('.code-block').querySelector('pre');
-  navigator.clipboard.writeText(pre.innerText).then(() => {
+  writeClipboard(pre.innerText).then(() => {
     btn.textContent = t('shell.copied');
     setTimeout(() => btn.textContent = t('shell.copy'), 1500);
   });

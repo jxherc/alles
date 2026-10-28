@@ -1,6 +1,6 @@
 // standing goals: things Aide keeps working on and only speaks up about when there's news.
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { toast, plainError } from './util.js';
+import { toast, plainError, writeClipboard } from './util.js';
 import { formatDateTime, t, tp } from './i18n.js';
 
 const $ = id => document.getElementById(id);
@@ -221,7 +221,7 @@ function showHook(goalId, token) {
   const copy = el('button', '', t('common.copy'));
   copy.type = 'button';
   copy.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(link.value); copy.textContent = t('common.copied'); }
+    try { await writeClipboard(link.value); copy.textContent = t('common.copied'); }
     catch { link.select(); copy.textContent = t('aide.goal_press_shortcut', { shortcut: '⌘C' }); }
   });
   const close = el('button', '', t('common.done'));

@@ -56,6 +56,8 @@ def run():
                 )
                 context.add_init_script(
                     "window._copies=[];Object.defineProperty(navigator,'clipboard',{value:{writeText:async value=>{if(window._denyCopy)throw new Error('synthetic clipboard denied');window._copies.push(value);}}});"
+                    # a denied copy also blocks the textarea fallback
+                    "const _exec=document.execCommand.bind(document);document.execCommand=(...args)=>args[0]==='copy'&&window._denyCopy?false:_exec(...args);"
                 )
                 page = context.new_page()
                 page.set_default_timeout(6000)

@@ -10,7 +10,7 @@ import { connectionsPane } from './settings/connections.js';
 export { _mergeHomeShortcutOrder } from './settings/home.js';
 export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFromResponse, normalizeS3BackupConfig, s3BackupConfigPayload, s3BackupsFromResponse } from './settings/backups.js';
 export { loadMcpServers, loadConnections, loadDiscordConnection } from './settings/connections.js';
-import { toast } from './util.js';
+import { toast, writeClipboard } from './util.js';
 import { confirm as _dlgConfirm } from './dialog.js';
 import { initCustomDropdowns, closeCustomDropdowns, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=213';
 import { initMemoryPanel } from './memory.js';
@@ -1215,7 +1215,7 @@ async function _sharePersona() {
     const r = await response.json();
     if (typeof r.url !== 'string' || !r.url) { toast(t('settings.persona_share_failed'), 'error'); return; }
     const url = location.origin + r.url;
-    try { await navigator.clipboard.writeText(url); toast(t('settings.persona_share_copied'), 'success'); }
+    try { await writeClipboard(url); toast(t('settings.persona_share_copied'), 'success'); }
     catch { toast(url, ''); }
   } catch { toast(t('settings.persona_share_failed'), 'error'); }
 }
@@ -1507,7 +1507,7 @@ async function _copySettingsValue(target, copiedMessage) {
   _settingsCopies.add(target);
   target.setAttribute('aria-busy', 'true');
   try {
-    await navigator.clipboard.writeText(value);
+    await writeClipboard(value);
     if (isCurrent()) toast(copiedMessage, 'success');
   } catch {
     if (isCurrent()) toast(t('settings.copy_failed'), 'error');
