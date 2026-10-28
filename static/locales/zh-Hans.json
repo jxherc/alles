@@ -3206,7 +3206,7 @@
     "groups.mailboxes": "邮箱",
     "groups.measurement": "测量",
     "groups.measurements_unavailable": "测量不可用",
-    "groups.next_seven_days": "未来七天",
+    "groups.next_seven_days": "未来 7 天",
     "groups.no_commitments_unavailable": "可用来源中没有待办事项 · {sources} 不可用",
     "groups.no_date": "无日期",
     "groups.no_entries": "没有条目",

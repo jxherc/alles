@@ -29,8 +29,9 @@
   --quiet:  #8f877d;
   --faint:  #322d28;
   --line-strong: #463f39;
-  /* kept brighter than the documented strong line so the ring clears WCAG 2.4.11 (3:1) on --bg */
-  --focus:  color-mix(in srgb, var(--faint) 72%, var(--text) 28%);
+  /* brighter than the documented strong line so the ring clears 3:1 (wcag 1.4.11) on the page and
+     on raised and hover fills too; at 28% text it fell to 2.3:1 on a raised button */
+  --focus:  color-mix(in srgb, var(--faint) 60%, var(--text) 40%);
   --accent: #aaa6ff;
   --error:  #f2897f;
   --green:  #8cc79d;
@@ -6654,12 +6655,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .cal-task {
   font-size: 0.8125rem; color: var(--muted); display: flex; align-items: center; gap: 3px;
   padding: 1px 3px; border-radius: var(--k-radius-small); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  border-left: 2px solid var(--green);
 }
 .cal-task:hover { background: var(--panel); color: var(--text); }
 /* a task toggle that's a real button keeps the chip look; in the week/day all-day row it gets the
    full 44px target (month cells keep their compact chips) */
-button.cal-task { width: 100%; margin: 0; padding-inline-start: 6px; border: 0; border-left: 2px solid var(--green); background: none; font: inherit; font-size: 0.8125rem; text-align: left; }
+button.cal-task { width: 100%; margin: 0; padding-inline-start: 6px; border: 0; background: none; font: inherit; font-size: 0.8125rem; text-align: left; }
 .cal-tg-allday .cal-task { min-height: 44px; }
 .cal-task-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* a chip or all-day row is a 44px touch target: two lines of title fit it, so the title wraps
@@ -9323,8 +9323,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-move-btn { background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--muted); font-size: 0.8125rem; padding: 0.12rem 0.4rem; cursor: pointer; }
 .book-move-btn:hover { color: var(--text); border-color: var(--muted); }
 .book-move .book-move-btn[aria-checked="true"] { color: var(--text); border-color: var(--k-line-strong, var(--line-strong)); background: none; -webkit-text-stroke: 0.35px currentColor; }
-.book-move .book-move-btn[aria-checked="true"][data-move="reading"] { background: var(--k-switch-on-track); border-color: var(--k-switch-on-line); }
-.book-move .book-move-btn[aria-checked="true"][data-move="done"] { background: color-mix(in srgb, var(--k-accent) 14%, var(--k-raised)); border-color: color-mix(in srgb, var(--k-accent) 32%, var(--k-line)); color: var(--muted); }
+/* every picked shelf looks the same: a status is not a reason for its own purple fill */
 .book-notes { display: block; width: 100%; border: 0; padding: 0; background: none; text-align: left; overflow-wrap: anywhere; font-size: 0.8125rem; color: var(--muted); margin-top: 0.45rem; line-height: 1.4; white-space: pre-wrap; cursor: pointer; }
 .book-add-note { background: none; border: none; color: var(--muted); font-size: 0.8125rem; cursor: pointer; margin-top: 0.4rem; padding: 0; }
 .book-add-note:hover { color: var(--text); }

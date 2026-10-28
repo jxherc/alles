@@ -28,7 +28,11 @@ class ShellIdentityTests(unittest.TestCase):
         self.assertIn(".crumb-app {", CSS)
 
     def test_app_name_navigates_via_href_not_intercepted(self):
-        self.assertIn("appA.href = urlForApp(appSub)", APP)
+        # still a real link; on one origin it stays on it (plan.<ip> is no host at all)
+        self.assertIn(
+            "appA.href = singleHost() ? `/?view=${encodeURIComponent(appForSub(appSub).primary)}` : urlForApp(appSub)",
+            APP,
+        )
         self.assertNotIn("navigateTo(appForSub(s).primary)", APP)
 
 

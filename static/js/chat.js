@@ -1115,6 +1115,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       }
       contentEl.innerHTML = mdToHtml(stripEmojis(cleanText));
       applyResponsePrivacy(contentEl);
+      announceReply(contentEl);
     }
 
     // Retry a definite refusal before the turn is accepted, or a finished provider failure.
@@ -1332,6 +1333,15 @@ function showConnBanner() {
 export function hideConnBanner() {
   const b = document.getElementById('conn-banner');
   if (b) b.style.display = 'none';
+}
+
+// a reader hears a reply once, when it's done. #messages itself can't be live: every streamed
+// word would be read out as it arrived
+function announceReply(content) {
+  const region = document.getElementById?.('aide-reply-announce');
+  const text = content?.textContent?.trim();
+  if (!region || !text) return;
+  region.textContent = text.length > 400 ? `${text.slice(0, 400)}…` : text;
 }
 
 function setStreaming(val, stoppable = true) {

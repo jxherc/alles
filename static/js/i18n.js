@@ -3210,7 +3210,7 @@ const BUILTIN_ENGLISH = {
     "groups.mailboxes": "mailboxes",
     "groups.measurement": "measurement",
     "groups.measurements_unavailable": "measurements unavailable",
-    "groups.next_seven_days": "next seven days",
+    "groups.next_seven_days": "next 7 days",
     "groups.no_commitments_unavailable": "no commitments from available sources · {sources} unavailable",
     "groups.no_date": "no date",
     "groups.no_entries": "no entries",

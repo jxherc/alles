@@ -3206,7 +3206,7 @@
     "groups.mailboxes": "boîtes aux lettres",
     "groups.measurement": "mesure",
     "groups.measurements_unavailable": "mesures indisponibles",
-    "groups.next_seven_days": "les sept prochains jours",
+    "groups.next_seven_days": "les 7 prochains jours",
     "groups.no_commitments_unavailable": "aucun engagement dans les sources disponibles · {sources} indisponible(s)",
     "groups.no_date": "sans date",
     "groups.no_entries": "aucune entrée",

@@ -1132,7 +1132,8 @@ function renderYear(lbl) {
 }
 
 // a tint of the calendar's color with a bar of it at the start, like the week view's blocks
-const chipStyle = o => `background:color-mix(in srgb, ${evHex(o)} 22%, transparent);color:var(--text);box-shadow:inset 3px 0 0 ${evHex(o)}`;
+// the tint carries the calendar's color; a stripe down one side as well was decoration
+const chipStyle = o => `background:color-mix(in srgb, ${evHex(o)} 22%, transparent);color:var(--text)`;
 const chipTitle = o => `${esc(o.title)}${o.location ? ' · ' + esc(o.location) : ''}${o._recur ? ` ${esc(tr('calendar.repeats_paren'))}` : ''}`;
 
 // 4a — birthdays keyed by "MM-DD" (year-agnostic), and a lookup for a given Date

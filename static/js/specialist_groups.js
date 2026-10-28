@@ -209,7 +209,13 @@ function _partialAvailability(failures) {
 function _sectionJump(group, section, label, className = '') {
   const button = _el('button', className, label);
   button.type = 'button';
-  button.addEventListener('click', () => window._navigateSpecialistSection?.(group, section));
+  button.addEventListener('click', async () => {
+    await window._navigateSpecialistSection?.(group, section);
+    // a section that doesn't take focus itself leaves it on the page: start from its own tab
+    if (!document.activeElement || document.activeElement === document.body) {
+      document.getElementById(`${group}-tab-${section}`)?.focus();
+    }
+  });
   return button;
 }
 
@@ -444,6 +450,7 @@ async function _renderPlan(target, request, section = 'overview') {
     button.disabled = true;
     captureMessage.hidden = true;
     captureMessage.textContent = '';
+    captureMessage.classList.remove('sr-only');   // an error after a spoken "task added" is seen
     try {
       try {
         await _json(request, '/api/tasks', {
@@ -464,6 +471,14 @@ async function _renderPlan(target, request, section = 'overview') {
         captureMessage.textContent = t('groups.task_saved_no_refresh', { error: error?.message || t('groups.refresh_failed') });
         captureMessage.hidden = false;
       }
+      // the refresh rebuilt the bar, so focus went to the page: back to the new field, and a
+      // reader hears that the task went in (unseen, so nothing on screen moves)
+      const next = document.querySelector('#plan-view .specialist-group-capture');
+      if (next && next !== capture) {
+        next.querySelector('input')?.focus();
+        const said = next.querySelector('.specialist-group-capture-status');
+        if (said) { said.classList.add('sr-only'); said.textContent = t('home.task_added'); said.hidden = false; }
+      } else input.focus();
     } finally { button.disabled = false; }
   });
 

@@ -3206,7 +3206,7 @@
     "groups.mailboxes": "buzones",
     "groups.measurement": "medición",
     "groups.measurements_unavailable": "mediciones no disponibles",
-    "groups.next_seven_days": "próximos siete días",
+    "groups.next_seven_days": "próximos 7 días",
     "groups.no_commitments_unavailable": "no hay compromisos en las fuentes disponibles · {sources} no disponibles",
     "groups.no_date": "sin fecha",
     "groups.no_entries": "sin entradas",

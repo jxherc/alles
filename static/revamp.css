@@ -3107,9 +3107,11 @@ html:not(#_):not(#_) .habit-day:hover:not(.done) {
   background: var(--k-btn-fill-hover);
 }
 
+/* page-colored words on the habit's color: theme text sat at 2-2.9:1 on every hue */
 html:not(#_):not(#_) .habit-day.done {
   border-color: transparent;
   background: var(--habit-accent);
+  color: var(--k-page);
 }
 
 /* money totals: the figure leads; "currency not set" stays visible (0040) as a small line under it */
@@ -3889,4 +3891,16 @@ html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-select
 
 html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-selection .files-phase7-selection-actions > button {
   flex: none;
+}
+
+/* a filled accent button draws its focus ring outside its fill, on the page: inside, the gray ring
+   on purple sat at 1.3-2.7:1. the capture bar's add button keeps a 6px clear border, so its ring
+   sits in that gap instead of over the bar's own edge */
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button, #aide-coding-workspace .acw-primary):focus-visible {
+  outline-offset: 2px;
+}
+
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > button:focus-visible {
+  outline: 2px solid var(--k-focus, var(--focus));
+  outline-offset: -4px;
 }
