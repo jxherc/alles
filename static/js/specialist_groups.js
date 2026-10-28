@@ -413,11 +413,17 @@ async function _renderPlan(target, request, section = 'overview') {
   input.autocomplete = 'off';
   const button = _el('button', '', t('groups.add_task'));
   button.type = 'submit';
+  // a due day right where the task is typed; blank stays unscheduled
+  const due = _el('div', 'date-input specialist-capture-due');
+  due.dataset.type = 'date';
+  due.dataset.phKey = 'groups.capture_due';
+  due.setAttribute('aria-label', t('groups.capture_due'));
+  initDatePicker(due);
   const captureMessage = _el('p', 'specialist-group-capture-status');
   captureMessage.setAttribute('role', 'status');
   captureMessage.setAttribute('aria-live', 'polite');
   captureMessage.hidden = true;
-  capture.append(input, button, captureMessage);
+  capture.append(input, due, button, captureMessage);
   capture.addEventListener('submit', async event => {
     event.preventDefault();
     const title = input.value.trim();
@@ -428,7 +434,8 @@ async function _renderPlan(target, request, section = 'overview') {
     try {
       try {
         await _json(request, '/api/tasks', {
-          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title }),
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(due.value ? { title, due_date: due.value } : { title }),
         });
       } catch (error) {
         captureMessage.textContent = error?.message || t('groups.task_not_added');
@@ -437,6 +444,7 @@ async function _renderPlan(target, request, section = 'overview') {
         return;
       }
       input.value = '';
+      due.value = '';
       try {
         await _refresh('plan');
       } catch (error) {

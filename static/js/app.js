@@ -21,7 +21,7 @@ import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
 import { openManual } from './help.js?v=2';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
-import { loadVaultView, initVault } from './vault.js?v=287';
+import { loadVaultView, initVault } from './vault.js?v=288';
 import { loadContacts, addContact } from './contacts.js';
 import { initLiveFormat } from './liveformat.js';
 import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=488';
@@ -33,7 +33,7 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=12';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=13';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
 import { openSettings, closeSettings, applyVis } from './settings.js?v=296';

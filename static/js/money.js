@@ -11,7 +11,7 @@ import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';
 import { tickNumbers } from './motion.js';
 import { formatDecimal } from './liveformat.js';
-import { amountIn, excludedNotes, totalsCurrency, wireCurrency } from './money_currency.js';
+import { amountIn, currencySymbol, excludedNotes, totalsCurrency, wireCurrency } from './money_currency.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 // one hue per category for everything on screen: the chart's categories pick first so its bars
@@ -820,7 +820,7 @@ function restoreMoneyDrafts(body, retained) {
   const currency = body.querySelector('#af-currency');
   if (currency && _currencyCodes.length) {
     populateDropdown(currency,
-      [{ value: '', label: t('money.choose_currency') }, ..._currencyCodes.map(value => ({ value, label: value }))],
+      _currencyOptions(),
       getDropdownValue(currency));
   }
   const create = $('recurring-create');
@@ -1574,8 +1574,18 @@ function _initControls() {
 }
 
 // ── wiring ──────────────────────────────────────────────────────────────────
+// each code shows its sign ($, €, ¥) beside it, so the list reads like money, not three letters
+function _currencyOptions() {
+  return [{ value: '', label: t('money.choose_currency') }, ..._currencyCodes.map(value => {
+    const sign = currencySymbol(value);
+    return { value, label: value, iconHtml: `<span class="cur-sym" aria-hidden="true">${sign === value ? '' : esc(sign)}</span>` };
+  })];
+}
+
 function _wireAccountForm() {
   _initControls();
+  const currency = $('af-currency');
+  if (currency && _currencyCodes.length) populateDropdown(currency, _currencyOptions(), getDropdownValue(currency));
   $('af-add')?.addEventListener('click', addAccount);
   $('af-currency-retry')?.addEventListener('click', retryCurrencyChoices);
   $('af-currency')?.addEventListener('change', () => {

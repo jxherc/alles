@@ -771,7 +771,7 @@ html:not(#_):not(#_) .specialist-workbench-plan > .specialist-workbench-main {
 /* the quick capture reads as the same soft composer as home's */
 html:not(#_):not(#_) .specialist-workbench .specialist-group-capture {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0;
   padding: 0;
@@ -808,6 +808,26 @@ html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > button {
   background-clip: padding-box;
   background-color: var(--k-accent);
   color: var(--k-on-accent);
+}
+
+/* the due day sits quietly in the bar: no line of its own, the box already has one */
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > .specialist-capture-due {
+  min-height: 44px;
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  box-shadow: none;
+  color: var(--k-muted);
+  white-space: nowrap;
+}
+
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > .specialist-capture-due:hover {
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > .specialist-capture-due[data-value]:not([data-value=""]) {
+  color: var(--k-text);
 }
 
 html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > button:hover {

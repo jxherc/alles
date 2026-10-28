@@ -108,6 +108,7 @@ function harness(data = fixtures()) {
   const context = vm.createContext({
     document: { createElement: tag => new Element(tag), getElementById: id => elements.find(el => el.id === id) },
     window, location, recordTarget, t, tp, formatCalendarDate, formatClock, formatDateParts, formatDateTime, chosenTimeZone,
+    initDatePicker() {},
     calendarDateKey: value => value === undefined ? today : calendarDateKey(value),
     disposePlanBoard() {},
   });

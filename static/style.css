@@ -5116,6 +5116,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .money-empty-title { font-size: 1.125rem; color: var(--text); margin-bottom: 0.3rem; }
 :where(#money-view) .money-empty-sub { font-size: 0.8125rem; margin-bottom: 1.2rem; }
 :where(#money-view) .money-empty-bank { margin-bottom: 1.5rem; }
+.cur-sym { display: inline-block; width: 1.75em; overflow: hidden; color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
 :where(#money-view) .money-empty-sm { font-size: 0.8125rem; color: var(--muted); padding: 0.6rem 0; }
 :where(#money-view) .money-history-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); }
 

@@ -105,7 +105,7 @@ function harness() {
     formatCalendarDate: () => 'october 2026',
     sessionStorage: { getItem: () => null, setItem() {} },
     fetch() { unexpected.push('raw fetch'); throw new Error('raw fetch forbidden'); },
-    toast() {}, getDropdownValue: element => element?.dataset.value || '',
+    toast() {}, getDropdownValue: element => element?.dataset.value || '', currencySymbol: code => code,
     populateDropdown(element, options, value) {
       element.dataset.options = options.map(option => `${option.value}|${option.label}`).join(';');
       element.dataset.value = value;

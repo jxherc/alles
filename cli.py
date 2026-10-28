@@ -5,6 +5,7 @@ alles CLI
   alles install        install alles as a background service (macos/linux)
   alles access lan     let your phone and other computers open it (asks for a password)
   alles access device  only this computer can open it again
+  alles password       set or change the owner password (optional for this computer only)
   alles config         edit the settings file  (alles config path prints where it is)
   alles start          start the server in the background
   alles stop           stop it
@@ -2457,6 +2458,9 @@ def cmd_install(args=()):
     ui.say()
     ui.rows(list(_EVERYDAY))
     ui.say()
+    # the owner's order: installed first, then a password if they want one, then other devices
+    if _ask(ui, "set a password for alles? it's optional while only this computer opens it"):
+        subprocess.call([str(layout.launcher), "password"])
     if _ask(ui, "open alles from your phone or another computer too?"):
         subprocess.call([str(layout.launcher), "access", "lan"])
     return True
@@ -2511,6 +2515,53 @@ def _restart_for_settings(native) -> bool:
     return False
 
 
+def _prompt_owner_password(ui, width) -> bool:
+    """ask for the owner password twice in the terminal and turn the lock on"""
+    import getpass
+
+    from core.auth import MIN_OWNER_PASSWORD_LENGTH, hash_password
+    from core.settings import save_settings
+
+    if not sys.stdin.isatty():
+        ui.check(False, "owner password", "run this in a terminal so it can ask for one", width)
+        return False
+    ui.say(ui.dim(f"  choose an owner password, {MIN_OWNER_PASSWORD_LENGTH} characters or more"))
+    while True:
+        try:
+            first = getpass.getpass("  password: ")
+            second = getpass.getpass("  again:    ")
+        except (EOFError, KeyboardInterrupt):
+            ui.say()
+            return False
+        if len(first) < MIN_OWNER_PASSWORD_LENGTH:
+            ui.say(ui.warn(f"  too short: {MIN_OWNER_PASSWORD_LENGTH} characters or more"))
+        elif first != second:
+            ui.say(ui.warn("  those didn't match, try again"))
+        else:
+            break
+    save_settings({"auth_password_hash": hash_password(first), "auth_enabled": True})
+    ui.check(True, "owner password", "set", width)
+    return True
+
+
+def cmd_password(args=()):
+    """Set or change the owner password. it's optional while only this computer opens alles."""
+    from services import cli_ui
+
+    ui = cli_ui.Style()
+    ui.header("password")
+    try:
+        ok = _prompt_owner_password(ui, 24)
+    except ImportError:
+        ui.say(
+            "  run this with the installed alles command, or inside the alles python environment"
+        )
+        return False
+    if ok:
+        _restart_for_settings(_native_layout())
+    return ok
+
+
 def cmd_access(args=()):
     """alles access lan | device: who can open alles."""
     from services import cli_ui
@@ -2535,7 +2586,6 @@ def cmd_access(args=()):
         ui.say()
         return not args
     try:
-        from core.auth import MIN_OWNER_PASSWORD_LENGTH, hash_password
         from core.settings import auth_enabled, load_settings, save_settings
     except ImportError:
         ui.say(
@@ -2550,33 +2600,11 @@ def cmd_access(args=()):
             save_settings({"auth_enabled": True})
             ui.check(True, "owner password", "turned back on", width)
         else:
-            import getpass
-
-            if not sys.stdin.isatty():
-                ui.check(
-                    False, "owner password", "run this in a terminal so it can ask for one", width
-                )
-                return False
             ui.say(
-                ui.dim(
-                    f"  choose an owner password, {MIN_OWNER_PASSWORD_LENGTH} characters or more"
-                )
+                ui.dim("  other devices need a password, so anyone on the network can't open it")
             )
-            while True:
-                try:
-                    first = getpass.getpass("  password: ")
-                    second = getpass.getpass("  again:    ")
-                except (EOFError, KeyboardInterrupt):
-                    ui.say()
-                    return False
-                if len(first) < MIN_OWNER_PASSWORD_LENGTH:
-                    ui.say(ui.warn(f"  too short: {MIN_OWNER_PASSWORD_LENGTH} characters or more"))
-                elif first != second:
-                    ui.say(ui.warn("  those didn't match, try again"))
-                else:
-                    break
-            save_settings({"auth_password_hash": hash_password(first), "auth_enabled": True})
-            ui.check(True, "owner password", "set", width)
+            if not _prompt_owner_password(ui, width):
+                return False
     save_settings(
         {
             "access_profile": choice,
@@ -3239,6 +3267,7 @@ COMMANDS = {
     "install": cmd_install,
     "uninstall": cmd_uninstall,
     "access": cmd_access,
+    "password": cmd_password,
     "config": cmd_config,
     "test": cmd_test,
 }

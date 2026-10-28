@@ -1,8 +1,8 @@
 // totals in one currency: the picker, the saved rates, and the note for what a total leaves out.
 // money and subscriptions share it, so both say the same thing the same way
 import { api, toast } from './util.js';
-import { formatNumber, t } from './i18n.js';
-import { choose as dlgChoose, confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
+import { formatNumber, localeTag, t } from './i18n.js';
+import { confirm as dlgConfirm, pick as dlgPick, prompt as dlgPrompt } from './dialog.js';
 
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -64,6 +64,18 @@ export function rateJump(previous, next) {
   return ratio > 10 ? t('money.rate_jump_up', { n: Math.round(ratio) }) : t('money.rate_jump_down', { n: Math.round(1 / ratio) });
 }
 
+// "$", "€", "CA$": the sign a person reads, from the browser's own locale data
+export function currencySymbol(code) {
+  try {
+    return new Intl.NumberFormat(localeTag(), { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
+      .formatToParts(0).find(part => part.type === 'currency')?.value || code;
+  } catch { return code; }
+}
+
+export function currencyName(code) {
+  try { return new Intl.DisplayNames([localeTag()], { type: 'currency' }).of(code) || code; } catch { return code; }
+}
+
 async function chooseBase(current) {
   let codes = [];
   try { codes = (await api('/api/money/currencies')).codes || []; } catch { codes = []; }
@@ -71,8 +83,9 @@ async function chooseBase(current) {
   // the ones already in use come first: picking a base is nearly always one of them
   const inUse = [...document.querySelectorAll('[data-totals-rate]')].flatMap(el => el.dataset.totalsRate.split(':'));
   const first = [...new Set([current, ...inUse])].filter(code => codes.includes(code));
-  const options = [...first, ...codes.filter(code => !first.includes(code))].map(value => ({ value, label: value }));
-  return dlgChoose(t('money.show_totals_in'), options);
+  const options = [...first, ...codes.filter(code => !first.includes(code))]
+    .map(value => ({ value, label: `${value} · ${currencyName(value)}`, hint: currencySymbol(value) }));
+  return dlgPick(t('money.show_totals_in'), options, { value: current });
 }
 
 async function enterRate(from, to, current) {

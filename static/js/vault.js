@@ -1,5 +1,6 @@
 import { toast, writeClipboard } from './util.js';
-import { confirm } from './dialog.js';
+import { confirm, pick } from './dialog.js';
+import { MODEL_PROVIDERS } from './model_providers.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=214';
 import { formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=4';
@@ -57,6 +58,7 @@ const _fieldDefs = () => ({
   expiry:         { label: t('vault.expiry'),            kind: 'text', placeholder: 'MM/YY', half: true },
   cvv:            { label: t('vault.cvv'),               kind: 'secret', placeholder: '123', half: true },
   address:        { label: t('vault.billing_address'),   kind: 'textarea' },
+  service:        { label: t('vault.used_for'),        kind: 'service', placeholder: t('vault.used_for_placeholder') },
   apikey:         { label: t('vault.api_key_token'),   kind: 'secret', placeholder: 'sk-…' },
   endpoint:       { label: t('vault.endpoint'),          kind: 'text', placeholder: 'https://api.…' },
   fullname:       { label: t('vault.full_name'),         kind: 'text' },
@@ -78,7 +80,7 @@ const _fieldDefs = () => ({
 // the item types. selecting one decides which fields the form shows.
 const _builtinTypes = () => [
   { key: 'login',    label: t('vault.login'),            fields: ['username', 'password', 'totp', 'url', 'notes'] },
-  { key: 'apikey',   label: t('vault.api_key'),          fields: ['apikey', 'endpoint', 'totp', 'notes'] },
+  { key: 'apikey',   label: t('vault.api_key'),          fields: ['service', 'apikey', 'endpoint', 'totp', 'notes'] },
   { key: 'card',     label: t('vault.credit_card'),      fields: ['cardholder', 'number', 'expiry', 'cvv', 'address', 'notes'] },
   { key: 'note',     label: t('vault.secure_note'),      fields: ['notes'] },
   { key: 'identity', label: t('vault.identity'),         fields: ['fullname', 'email', 'phone', 'home_address', 'notes'] },
@@ -1442,9 +1444,41 @@ function _currentFields() {
   return keys.map(k => _defOf(k, tk));
 }
 
+// what an api key is for: every ai provider alles knows, the usual other services, or anything typed
+const _SERVICES = [
+  ['GitHub', 'https://api.github.com'], ['GitLab', 'https://gitlab.com/api/v4'], ['Stripe', 'https://api.stripe.com'],
+  ['Cloudflare', 'https://api.cloudflare.com'], ['AWS', ''], ['Google Cloud', ''], ['Vercel', 'https://api.vercel.com'],
+  ['Netlify', 'https://api.netlify.com'], ['Supabase', ''], ['Twilio', 'https://api.twilio.com'], ['SendGrid', 'https://api.sendgrid.com'],
+  ['Resend', 'https://api.resend.com'], ['Mailgun', 'https://api.mailgun.net'], ['Notion', 'https://api.notion.com'],
+  ['Slack', 'https://slack.com/api'], ['Discord', 'https://discord.com/api'], ['Telegram', 'https://api.telegram.org'],
+  ['Plaid', 'https://production.plaid.com'], ['Exa', 'https://api.exa.ai'], ['Brave Search', 'https://api.search.brave.com'],
+  ['Tavily', 'https://api.tavily.com'], ['Serper', 'https://google.serper.dev'], ['Hugging Face', 'https://huggingface.co'],
+  ['Replicate', 'https://api.replicate.com'], ['ElevenLabs', 'https://api.elevenlabs.io'], ['Spotify', 'https://api.spotify.com'],
+];
+
+async function _pickService(box) {
+  const field = box.querySelector('#vf-f-service'), endpoint = box.querySelector('#vf-f-endpoint');
+  const options = [
+    ...MODEL_PROVIDERS.filter(item => !item.custom).map(item => ({ value: item.label, label: item.label, hint: t('vault.service_ai'), url: item.url })),
+    ..._SERVICES.map(([label, url]) => ({ value: label, label, hint: '', url })),
+  ];
+  const chosen = await pick(t('vault.used_for'), options, { value: field.value });
+  if (!chosen) return;
+  field.value = chosen;
+  const url = options.find(item => item.value === chosen)?.url;
+  // a known service fills in its api address, unless one was typed already
+  if (endpoint && url && !endpoint.value.trim()) endpoint.value = url;
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+  field.focus();
+}
+
 function _fieldHtml(def) {
   const id = 'vf-f-' + def.key;
   const ph = def.placeholder || '';
+  if (def.kind === 'service')
+    return `<div class="vform-field"><label for="${id}">${_esc(def.label)}</label>
+      <div class="vform-pw"><input id="${id}" type="text" class="settings-input vform-input" autocomplete="off" placeholder="${_esc(ph)}">
+        <button type="button" class="btn" data-service-pick>${_esc(t('vault.choose_service'))}</button></div></div>`;
   if (def.kind === 'textarea')
     return `<div class="vform-field"><label for="${id}">${_esc(def.label)}</label>
       <textarea id="${id}" class="settings-input vform-input" rows="2" placeholder="${_esc(ph)}"></textarea></div>`;
@@ -1496,6 +1530,7 @@ function _renderFields(defs, values = {}) {
     }
   }
   box.querySelector('#vf-gen')?.addEventListener('click', _genFormPw);
+  box.querySelector('[data-service-pick]')?.addEventListener('click', () => _pickService(box));
   box.querySelectorAll('[data-reveal]').forEach(b => b.onclick = () => {
     const inp = box.querySelector('#' + b.dataset.reveal);
     const secretArea = inp.tagName === 'TEXTAREA';

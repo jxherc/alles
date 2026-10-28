@@ -318,6 +318,33 @@ class CliInstallHelpersTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
 
+class PasswordCommandTest(unittest.TestCase):
+    def test_password_takes_eight_characters_and_turns_the_lock_on(self):
+        saved = []
+        with (
+            mock.patch("core.settings.save_settings", side_effect=saved.append),
+            mock.patch("core.auth.hash_password", side_effect=lambda pw: f"hashed:{pw}"),
+            mock.patch(
+                "getpass.getpass", side_effect=["seven77", "seven77", "eight888", "eight888"]
+            ),
+            mock.patch.object(cli.sys.stdin, "isatty", return_value=True),
+            mock.patch.object(cli, "_native_layout", return_value=None),
+            mock.patch.object(cli, "_restart_for_settings", return_value=True) as restart,
+            mock.patch("sys.stdout", new_callable=io.StringIO) as output,
+        ):
+            ok = cli.cmd_password([])
+        self.assertTrue(ok)
+        self.assertEqual(saved, [{"auth_password_hash": "hashed:eight888", "auth_enabled": True}])
+        self.assertIn("too short", output.getvalue())
+        restart.assert_called_once()
+        self.assertIs(cli.COMMANDS["password"], cli.cmd_password)
+
+    def test_install_asks_for_a_password_before_other_devices(self):
+        source = Path(cli.__file__).read_text("utf-8")
+        tail = source[source.index("def cmd_install(") : source.index("def _reachable_addresses(")]
+        self.assertLess(tail.index('"password"]'), tail.index('"access", "lan"]'))
+
+
 class AccessCommandTest(unittest.TestCase):
     def _run(self, choice, *, settings, auth=False, passwords=()):
         saved = []
