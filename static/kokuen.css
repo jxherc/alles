@@ -2957,7 +2957,7 @@ html[data-kokuen-version="5"] [data-kokuen-state="loading"] {
 /* tabs show selection with tone and weight only (COMPONENTS.md tabs). anything with its own mark
    (a radio dot, a tick) lets the mark show the state; a box behind it as well is just noise.
    activity sources start all on, so "on" is tone and "off" is struck through instead */
-html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch, [role="tab"], .news-choice, .cal-chk-row, .ie-chk, .token-scope, .act-chip, :has(> .radio-mark, > .chk, > .token-scope-mark))) {
+html[data-kokuen-version="5"] [data-kokuen-state="selected"]:not(:where(.s-switch, .andromeda-switch, .home-settings-switch, .news-switch, [role="tab"], .news-choice, .cal-chk-row, .ie-chk, .token-scope, .act-chip, .book-star, :has(> .radio-mark, > .chk, > .token-scope-mark))) {
   color: var(--k-text);
   background: var(--k-raised);
 }

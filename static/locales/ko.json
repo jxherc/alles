@@ -1952,6 +1952,7 @@
     "books.searching": "검색 중…",
     "books.set_goal": "+ 독서 목표",
     "books.shelf_done": "읽음",
+    "books.shelf_for": "{title} 서가",
     "books.shelf_label": "책장",
     "books.shelf_reading": "읽는 중",
     "books.shelf_want": "읽고 싶음",

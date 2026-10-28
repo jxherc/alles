@@ -1952,6 +1952,7 @@
     "books.searching": "recherche…",
     "books.set_goal": "+ objectif de lecture",
     "books.shelf_done": "lu",
+    "books.shelf_for": "étagère de {title}",
     "books.shelf_label": "étagère de livres",
     "books.shelf_reading": "en cours de lecture",
     "books.shelf_want": "à lire",

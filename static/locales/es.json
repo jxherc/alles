@@ -1952,6 +1952,7 @@
     "books.searching": "buscando…",
     "books.set_goal": "+ objetivo de lectura",
     "books.shelf_done": "leído",
+    "books.shelf_for": "estante de {title}",
     "books.shelf_label": "estantería de libros",
     "books.shelf_reading": "leyendo",
     "books.shelf_want": "por leer",

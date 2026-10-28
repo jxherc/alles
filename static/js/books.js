@@ -42,6 +42,8 @@ let _loadState = { state: 'resting', message: '' };
 
 // labels are catalog keys, translated at render
 const SHELVES = [['reading', 'books.shelf_reading'], ['want', 'books.shelf_want'], ['done', 'books.shelf_done']];
+// the card's status row reads in reading order, not the shelf order above
+const MOVE_ORDER = ['want', 'reading', 'done'];
 const _moveLabel = k => t(k === 'done' ? 'books.move_done' : k === 'reading' ? 'books.move_reading' : 'books.move_want');
 
 export function initBooks(fetcher = fetch) {
@@ -137,7 +139,6 @@ function _undoControls(book) {
 }
 
 function _card(b) {
-  const others = SHELVES.map(([k]) => k).filter(k => k !== b.status);
   return `
     <div class="book-card" data-id="${b.id}" role="group" aria-label="${esc(t('books.card_label', { title: b.title }))}" tabindex="-1">
       ${_cover(b)}
@@ -146,7 +147,7 @@ function _card(b) {
         <div class="book-author">${esc(b.author || '')}${b.year ? ` · ${b.year}` : ''}</div>
         ${_stars(b)}
         ${_bookErrors.has(b.id) ? `<p class="book-notes-error book-write-error" role="alert">${esc(_bookErrors.get(b.id))}</p>` : ''}
-        <div class="book-move">${others.map(k => `<button class="book-move-btn" data-move="${k}">${_moveLabel(k)}</button>`).join('')}</div>
+        <div class="book-move" role="radiogroup" aria-label="${esc(t('books.shelf_for', { title: b.title }))}">${MOVE_ORDER.map(k => `<button type="button" role="radio" aria-checked="${k === b.status}" class="book-move-btn" data-move="${k}">${_moveLabel(k)}</button>`).join('')}</div>
         ${b.id === _editingNotes
           ? `<div class="book-notes-edit"><textarea class="settings-input" data-f="notes" rows="3" placeholder="${esc(t('books.notes_placeholder'))}">${esc(_noteDrafts.get(b.id) ?? b.notes)}</textarea>${_noteErrors.has(b.id) ? `<p class="book-notes-error" role="alert">${esc(_noteErrors.get(b.id))}</p>` : ''}<div class="book-notes-actions"><button class="btn primary" data-act="save-notes">${t('common.save')}</button><button class="btn" data-act="cancel-notes">${t('common.cancel')}</button></div></div>`
           : (b.notes ? `<button type="button" class="book-notes" data-act="notes" aria-label="${esc(t('books.edit_notes_for', { title: b.title }))}">${esc(b.notes)}</button>` : `<button class="book-add-note" data-act="notes">${t('books.add_note')}</button>`)}
@@ -343,6 +344,7 @@ async function _changeBook(card, options, valid, message, onSaved = () => {}) {
       notice.textContent = message;
       const book = Object.values(_data.shelves).flat().find(item => item.id === id);
       current.querySelectorAll('[data-rate]').forEach(radio => { radio.setAttribute('aria-checked', String(+radio.dataset.rate === book?.rating)); });
+      current.querySelectorAll('[data-move]').forEach(radio => { radio.setAttribute('aria-checked', String(radio.dataset.move === book?.status)); });
     }
     toast(message, 'error');
   } finally {
@@ -355,13 +357,15 @@ async function _changeBook(card, options, valid, message, onSaved = () => {}) {
       current.querySelectorAll('button, textarea').forEach(control => { control.disabled = false; });
     }
     if ($('books-body')?.getClientRects().length && document.activeElement === document.body) {
-      (trigger?.isConnected ? trigger : current || $('books-add-toggle'))?.focus();
+      // a moved book re-renders in its new shelf, so its status radio is found again by value
+      const again = trigger?.dataset?.move && current?.querySelector(`[data-move="${trigger.dataset.move}"]`);
+      (trigger?.isConnected ? trigger : again || current || $('books-add-toggle'))?.focus();
     }
   }
 }
 
 function _wire(body) {
-  body.querySelectorAll('.book-stars, #book-status').forEach(group => wireChoiceGroup(group));
+  body.querySelectorAll('.book-stars, .book-move, #book-status').forEach(group => wireChoiceGroup(group));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadBooks());
   const toggleForm = () => { _adding = !_adding; ++_lookupGeneration; _lookupBusy = false; _lookup = []; _lookupMessage = ''; _render(); if (_adding) $('book-title')?.focus(); };
   $('books-add-toggle')?.addEventListener('click', toggleForm);
@@ -467,6 +471,7 @@ function _wire(body) {
       });
     }));
     card.querySelectorAll('[data-move]').forEach(btn => btn.addEventListener('click', async () => {
+      if (btn.dataset.move === Object.values(_data.shelves).flat().find(book => book.id === id)?.status) return;
       await _changeBook(card, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: btn.dataset.move }) }, result => result?.id === id && result.status === btn.dataset.move, t(btn.dataset.move === 'done' ? 'books.moved_done' : btn.dataset.move === 'reading' ? 'books.moved_reading' : 'books.moved_want'));
     }));
     card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {

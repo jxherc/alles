@@ -9257,12 +9257,21 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 /* no author still keeps its line, or the stars ride up under remove and the 5th star's target hides */
 .book-author:empty { min-height: 1lh; }
 .book-stars { display: inline-flex; gap: 1px; margin-bottom: 0.4rem; }
-.book-star { background: none; border: none; padding: 0; cursor: pointer; color: var(--muted); display: flex; }
+/* the 44px target stays, but only the star itself reacts: the picked-state square and the hover tint
+   would draw that whole target as a box */
+.book-star { background: none; border: none; padding: 0; cursor: pointer; color: var(--muted); display: flex; border-radius: 50%; }
 .book-star svg { width: 14px; height: 14px; }
 .book-star.on { color: var(--cat-amber); }
+.book-star:hover:not(.on) { color: var(--cat-amber); }
+.book-star:active { opacity: 0.7; }
+/* want / reading / read: one row, the picked one carries its own tone. want is a plain outline,
+   reading the accent shade, read the same shade dimmed */
 .book-move { display: flex; gap: 0.25rem; flex-wrap: wrap; }
 .book-move-btn { background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--muted); font-size: 0.8125rem; padding: 0.12rem 0.4rem; cursor: pointer; }
 .book-move-btn:hover { color: var(--text); border-color: var(--muted); }
+.book-move .book-move-btn[aria-checked="true"] { color: var(--text); border-color: var(--k-line-strong, var(--line-strong)); background: none; -webkit-text-stroke: 0.35px currentColor; }
+.book-move .book-move-btn[aria-checked="true"][data-move="reading"] { background: var(--k-switch-on-track); border-color: var(--k-switch-on-line); }
+.book-move .book-move-btn[aria-checked="true"][data-move="done"] { background: color-mix(in srgb, var(--k-accent) 14%, var(--k-raised)); border-color: color-mix(in srgb, var(--k-accent) 32%, var(--k-line)); color: var(--muted); }
 .book-notes { display: block; width: 100%; border: 0; padding: 0; background: none; text-align: left; overflow-wrap: anywhere; font-size: 0.8125rem; color: var(--muted); margin-top: 0.45rem; line-height: 1.4; white-space: pre-wrap; cursor: pointer; }
 .book-add-note { background: none; border: none; color: var(--muted); font-size: 0.8125rem; cursor: pointer; margin-top: 0.4rem; padding: 0; }
 .book-add-note:hover { color: var(--text); }
@@ -9280,8 +9289,9 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-add-row { display: flex; gap: 0.4rem; align-items: center; }
 .book-add-row .settings-input { flex: 1; min-width: 0; }
 .book-add-row .book-field { flex: 1; }
-.book-lookup { display: flex; flex-direction: column; gap: 0.2rem; max-height: 240px; overflow-y: auto; border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.3rem; }
-.book-lookup-item { display: flex; gap: 0.5rem; align-items: center; background: none; border: none; cursor: pointer; padding: 0.3rem; border-radius: var(--k-radius-control); text-align: left; }
+/* rows sit 4px inside a 1px border, so their corner is the list's corner minus 5px */
+.book-lookup { display: flex; flex-direction: column; gap: 0.2rem; max-height: 240px; overflow-y: auto; border: 1px solid var(--faint); border-radius: var(--k-radius-surface); padding: var(--k-space-1); }
+.book-lookup-item { display: flex; gap: 0.5rem; align-items: center; background: none; border: none; cursor: pointer; padding: 0.3rem; border-radius: calc(var(--k-radius-surface) - var(--k-space-1) - 1px); text-align: left; }
 .book-lookup-item:hover { background: var(--bg); }
 .book-lookup-item img, .book-lk-ph { width: 28px; height: 40px; object-fit: cover; border-radius: var(--k-radius-small); background: var(--bg); flex-shrink: 0; border: 1px solid var(--faint); }
 .book-lookup-item span { display: flex; flex-direction: column; min-width: 0; }

@@ -1952,6 +1952,7 @@
     "books.searching": "جارٍ البحث…",
     "books.set_goal": "+ هدف القراءة",
     "books.shelf_done": "مقروءة",
+    "books.shelf_for": "رف {title}",
     "books.shelf_label": "رف الكتب",
     "books.shelf_reading": "قيد القراءة",
     "books.shelf_want": "أرغب بقراءتها",

@@ -1952,6 +1952,7 @@
     "books.searching": "検索中…",
     "books.set_goal": "+ 読書目標",
     "books.shelf_done": "読了",
+    "books.shelf_for": "{title} の本棚",
     "books.shelf_label": "本棚",
     "books.shelf_reading": "読書中",
     "books.shelf_want": "読みたい",

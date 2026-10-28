@@ -1952,6 +1952,7 @@
     "books.searching": "搜尋中…",
     "books.set_goal": "+ 閱讀目標",
     "books.shelf_done": "已讀",
+    "books.shelf_for": "《{title}》的書架",
     "books.shelf_label": "書架",
     "books.shelf_reading": "閱讀中",
     "books.shelf_want": "想讀",

@@ -21,7 +21,9 @@ test('Library and Health choices use the shared KOKUEN radio model', () => {
   assert.match(read, /id="read-feeds-btn" aria-pressed="\$\{_showFeeds\}"/);
   assert.match(health, /class="health-ranges" role="radiogroup" aria-label="\$\{esc\(t\('health\.history_range'\)\)\}"/);
   assert.match(health, /role="radio" aria-checked="\$\{_days === d\}"/);
-  assert.match(books, /querySelectorAll\('\.book-stars, #book-status'\)\.forEach\(group => wireChoiceGroup\(group\)\)/);
+  assert.match(books, /class="book-move" role="radiogroup" aria-label="\$\{esc\(t\('books\.shelf_for', \{ title: b\.title \}\)\)\}"/);
+  assert.match(books, /role="radio" aria-checked="\$\{k === b\.status\}"/);
+  assert.match(books, /querySelectorAll\('\.book-stars, \.book-move, #book-status'\)\.forEach\(group => wireChoiceGroup\(group\)\)/);
   assert.match(read, /wireChoiceGroup\(body\.querySelector\('\.read-filter-choices'\)\)/);
   assert.match(health, /wireChoiceGroup\(body\.querySelector\('\.health-ranges'\)\)/);
 });

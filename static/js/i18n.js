@@ -1956,6 +1956,7 @@ const BUILTIN_ENGLISH = {
     "books.searching": "searching…",
     "books.set_goal": "+ reading goal",
     "books.shelf_done": "read",
+    "books.shelf_for": "shelf for {title}",
     "books.shelf_label": "book shelf",
     "books.shelf_reading": "reading",
     "books.shelf_want": "want to read",
