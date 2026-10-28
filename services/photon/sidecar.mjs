@@ -43,10 +43,13 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
       out({ type: "sent", id: command.id || "", message: sent?.id || "" });
     } else if (command.type === "typing") {
       if (command.on && !typing.has(command.space)) {
-        let stop;
-        const done = new Promise((resolve) => { stop = resolve; });
-        typing.set(command.space, stop);
-        space.responding(() => done).catch(() => {});
+        // imessage drops the bubble after about a minute, and aide often takes longer: keep it up
+        const refresh = setInterval(() => space.startTyping().catch(() => {}), 25000);
+        typing.set(command.space, () => {
+          clearInterval(refresh);
+          space.stopTyping().catch(() => {});
+        });
+        await space.startTyping();
       } else if (!command.on && typing.has(command.space)) {
         typing.get(command.space)();
         typing.delete(command.space);
