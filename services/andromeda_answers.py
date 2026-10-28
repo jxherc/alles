@@ -442,8 +442,9 @@ def _tool(low: str) -> dict | None:
     if re.fullmatch(rf"(?:spell ?check(?:er)?|spelling(?: check(?:er)?)?){_TOOL_SUFFIX}", plain):
         return {"kind": "spell", "word": ""}
     if re.fullmatch(
-        r"(?:the )?(?:interactive )?(?:periodic table(?: of(?: the)? elements)?|periodic chart|"
-        r"(?:the )?table of(?: the)? elements|elements table|chemical elements)",
+        r"(?:an? |the )?(?:interactive |chemistry |chemical )?(?:periodic tables?(?: of(?: the)?"
+        r" elements| elements| online)?|periodic chart|ptable|"
+        r"(?:the )?table of(?: the)? elements|elements? table|chemical elements)",
         plain,
     ):
         return {"kind": "periodic"}
