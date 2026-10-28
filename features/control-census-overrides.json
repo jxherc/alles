@@ -30,6 +30,7 @@
     "static/js/cookbook.js": "library.reading-and-news",
     "static/js/datepick.js": "plan.tasks-calendar",
     "static/js/days.js": "plan.tasks-calendar",
+    "static/js/dependencies.js": "cross-feature.settings",
     "static/js/dialog.js": "accessibility.interface-contract",
     "static/js/docs.js": "docs.documents-and-journal",
     "static/js/docs_import.js": "docs.documents-and-journal",

@@ -5,6 +5,7 @@ import { addEndpoint } from './models.js?v=216';
 import { regionName, resolvedTimeZone, t } from './i18n.js';
 import { pick } from './dialog.js';
 import { icon } from './icons.js';
+import { mountDependencies } from './dependencies.js';
 import { wireChoiceGroup } from './kokuen.js?v=4';
 import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';
 const STEPS = ['basics', 'access', 'files', 'ai_search', 'protection'];
@@ -492,7 +493,10 @@ function _renderAiSearch(body) {
     <div class="setup-section-label" id="sw-search-label">${esc(t('setup.web_search_for'))}</div>
     <button type="button" class="setup-picker" id="sw-search-trigger" aria-haspopup="dialog" aria-labelledby="sw-search-label sw-search-trigger-label"><span id="sw-search-trigger-label"></span>${icon('chevron-down')}</button>
     <div id="sw-search-fields"></div>
+    <div class="setup-section-label" id="sw-deps-label">${esc(t('dependencies.title'))}</div>
+    <div id="sw-deps" role="group" aria-labelledby="sw-deps-label"></div>
     ${_actions()}`;
+  mountDependencies($('sw-deps')).reload();
   // the provider list opens under its trigger and closes on a pick, instead of a long list always open
   const pop = $('sw-models-pop'), trigger = $('sw-model-trigger');
   const setPop = open => {

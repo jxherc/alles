@@ -2016,6 +2016,21 @@ body.is-aide.is-incognito .incognito-bar {
 }
 :where(#s-pane-tools) .jarvis-discord-status { margin-bottom: 0.75rem; }
 
+/* what Aide can use: settings and the setup wizard share these rows */
+.dep-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3, 12px);
+  min-height: 44px; border-top: 1px solid var(--faint);
+}
+.dep-row:last-child { border-bottom: 1px solid var(--faint); }
+.dep-copy { display: grid; gap: 2px; min-width: 0; padding: var(--k-space-2, 8px) 0; }
+.dep-name { color: var(--text); font-size: 0.875rem; font-weight: 520; }
+.dep-meta { color: var(--muted); font-size: 0.8125rem; line-height: 1.4; overflow-wrap: anywhere; }
+.dep-meta[data-state="failed"] { color: var(--error); }
+.dep-meta a { color: inherit; text-decoration: underline; padding-block: 12px; }
+.dep-row .btn { flex: none; min-width: 7rem; min-height: 44px; }
+.dep-row .btn[hidden] { display: none; }
+.dep-row .btn[aria-disabled="true"] { opacity: 0.55; cursor: wait; }
+
 /* signing in to sites in Aide's errand browser */
 #browser-signin-card .browser-signin-note { margin: 0 0 var(--k-space-3, 12px); color: var(--muted); font-size: 0.8125rem; line-height: 1.45; }
 #browser-signin-card .browser-sites { margin-bottom: var(--k-space-3, 12px); }

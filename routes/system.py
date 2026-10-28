@@ -12,6 +12,7 @@ from core.server_config import access_profile
 from core.settings import auth_enabled
 from services import (
     audit,
+    dependencies,
     managed_companion_clients,
     managed_companions,
     managed_searxng,
@@ -445,6 +446,26 @@ def control_host_service(
         actor=actor,
         target=f"{manager}:{service_id}",
         details={"manager": manager},
+    )
+    return result
+
+
+@router.get("/dependencies", dependencies=[Depends(require_auth)])
+async def dependency_list():
+    return await dependencies.list_all()
+
+
+@router.post("/dependencies/{dep_id}/install", dependencies=[Depends(require_recent_owner)])
+async def dependency_install(
+    dep_id: Literal["node", "pi", "browser", "searxng"],
+    request: Request,
+):
+    result = await dependencies.install(dep_id)
+    audit.record(
+        action=f"dependency.{dep_id}.install",
+        outcome="started",
+        actor=observability.actor_kind(dict(request.scope.get("headers") or [])),
+        target=dep_id,
     )
     return result
 

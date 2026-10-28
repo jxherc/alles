@@ -5,6 +5,7 @@ import { confirm as _dlgConfirm } from '../dialog.js';
 import { parsePrivateLines } from '../mcp-config.js';
 import { formatPhone } from '../liveformat.js';
 import { formatDate, formatList, resolvedTimeZone, t, tp } from '../i18n.js';
+import { mountDependencies } from '../dependencies.js';
 import { _setSwitch, _bindSwitch, _patchSetting, _patchSettings, _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -1255,7 +1256,14 @@ async function _openSignin(event) {
       body: JSON.stringify({ url, width, height }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || t('connections.signin_open_failed'));
+    if (!response.ok) {
+      // the install button is in the card at the top of this pane
+      if (data.code === 'browser_missing') {
+        void _dependencies?.reload();
+        document.getElementById('deps-card')?.scrollIntoView({ block: 'start' });
+      }
+      throw new Error(data.detail || t('connections.signin_open_failed'));
+    }
     _signinOpen = true;
     if (_signinLeft) { void _finishSignin({ quiet: true }); return; }  // settings closed meanwhile
     live.hidden = false;
@@ -1457,6 +1465,14 @@ export async function loadBrowserSignin(isCurrent = () => true) {
 }
 
 let _connectionsLoaded = Promise.resolve();
+let _dependencies = null;
+
+async function loadDependencies() {
+  const host = document.getElementById('deps-list');
+  if (!host) return;
+  _dependencies ||= mountDependencies(host);
+  await _dependencies.reload();
+}
 
 export async function focusBrowserSignin() {
   const card = _signinEl('browser-signin-card');
@@ -1479,7 +1495,7 @@ export const connectionsPane = createSettingsPane({
   load: isCurrent => (_connectionsLoaded = Promise.all([
     loadAgentStatus(isCurrent), loadMcpServers(isCurrent), loadConnections(isCurrent),
     loadDiscordConnection(isCurrent), loadPermRules(isCurrent), loadMacosStatus(isCurrent),
-    loadPhoton(isCurrent), loadTelegram(isCurrent), loadBrowserSignin(isCurrent),
+    loadPhoton(isCurrent), loadTelegram(isCurrent), loadBrowserSignin(isCurrent), loadDependencies(),
   ])),
   dispose() {
     // leaving the pane ends the live view, so Aide isn't kept waiting on a page nobody watches
@@ -1487,5 +1503,6 @@ export const connectionsPane = createSettingsPane({
     void _finishSignin({ quiet: true });
     for (const [name, generation] of _connectionLoads) _connectionLoads.set(name, generation + 1);
     _discordGeneration += 1;
+    _dependencies?.stop();
   },
 });

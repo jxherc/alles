@@ -34,9 +34,17 @@ def _nvm_bin(home: Path) -> Path | None:
     return max(chosen or installed, key=lambda entry: _version_key(entry.name)) / "bin"
 
 
+def cache_dir(home: Path | None = None) -> Path:
+    """alles's reinstallable downloads (pi, node, Aide's browser); never in data that backups copy"""
+    home = home or Path.home()
+    return Path(os.environ.get("XDG_CACHE_HOME") or home / ".cache") / "alles"
+
+
 def tool_dirs(home: Path) -> tuple[list[Path], list[Path]]:
     """per-user folders go first (the user picked them), system folders last."""
     user = [
+        # the node alles installed itself: only exists because the owner's own was missing or old
+        cache_dir(home) / "node" / "bin",
         _nvm_bin(home),
         home / ".volta" / "bin",
         home / ".bun" / "bin",

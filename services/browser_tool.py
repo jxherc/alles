@@ -182,16 +182,25 @@ class _Browser:
     async def _ensure(self):
         if self._page and not self._page.is_closed():
             return
-        from playwright.async_api import async_playwright
-
         from core.settings import data_dir
+        from services.dependencies import prepare_browser
+
+        prepare_browser()
+        from playwright.async_api import async_playwright
 
         profile = data_dir() / "browser" / "profile"
         profile.mkdir(parents=True, exist_ok=True)
         self._pw = await async_playwright().start()
-        self._context = await self._pw.chromium.launch_persistent_context(
-            str(profile), headless=True, viewport=_VIEWPORT
-        )
+        try:
+            self._context = await self._pw.chromium.launch_persistent_context(
+                str(profile), headless=True, viewport=_VIEWPORT
+            )
+        except Exception as exc:
+            await self._pw.stop()
+            if "Executable doesn't exist" in str(exc):
+                # the python package is there but chromium was never downloaded
+                raise ImportError("Aide's browser isn't installed on this server") from exc
+            raise
         await self._context.route("**/*", self._guard)
         self._page = (
             self._context.pages[0] if self._context.pages else await self._context.new_page()
