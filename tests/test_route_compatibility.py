@@ -141,6 +141,9 @@ _API_DOCS_ADDITIONS = {"GET /docs", "GET /docs/oauth2-redirect", "GET /openapi.j
 # settings asks the owner's telegram bot for their chat id
 _TELEGRAM_CHAT_ADDITIONS = {"POST /api/settings/telegram/find-chat"}
 
+# the search palette asks the chat model to fix a typo when nothing local is close
+_SPELLFIX_ADDITIONS = {"POST /api/search/spellfix"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -158,6 +161,7 @@ def _route_rows():
         | _TOTALS_CURRENCY_ADDITIONS
         | _API_DOCS_ADDITIONS
         | _TELEGRAM_CHAT_ADDITIONS
+        | _SPELLFIX_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -290,6 +294,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _TOTALS_CURRENCY_ADDITIONS
                 - _API_DOCS_ADDITIONS
                 - _TELEGRAM_CHAT_ADDITIONS
+                - _SPELLFIX_ADDITIONS
             ),
             960,
         )
@@ -331,6 +336,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _TOTALS_CURRENCY_ADDITIONS
                 - _API_DOCS_ADDITIONS
                 - _TELEGRAM_CHAT_ADDITIONS
+                - _SPELLFIX_ADDITIONS
             ),
             974,
         )
@@ -356,11 +362,14 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_telegram_chat_route_is_additive(self):
         self.assertTrue(_TELEGRAM_CHAT_ADDITIONS <= set(_current_rows()))
 
+    def test_spellfix_route_is_additive(self):
+        self.assertTrue(_SPELLFIX_ADDITIONS <= set(_current_rows()))
+
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 997)
-        self.assertEqual(digest, "fcb4d816497b1d79de34352444e693aa744a7aa82c72f05ec0b56369e090d3ea")
+        self.assertEqual(len(rows), 998)
+        self.assertEqual(digest, "e78616a0083858d2c4460207866a436181f965a883bb84db75646d367d5dcdd8")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -369,7 +378,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 971, "v1": 2, "public": 24})
+        self.assertEqual(groups, {"api": 972, "v1": 2, "public": 24})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

@@ -1,7 +1,12 @@
+import difflib
+import re
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session as DbSession
 
+from core.api_errors import ApiError
 from core.database import (
     Book,
     CalendarEvent,
@@ -353,4 +358,80 @@ def search(
     )
     res["watch"] = [{"id": m.id, "name": m.name, "url": m.url} for m in mons]
 
+    if not any(isinstance(value, list) and value for value in res.values()):
+        suggestion = _did_you_mean(db, q)
+        if suggestion:
+            res["suggestion"] = suggestion
     return res
+
+
+_WORD = re.compile(r"[^\W_]{3,}", re.UNICODE)
+
+
+def _did_you_mean(db: DbSession, q: str) -> str:
+    """a typo like "vauls" finds nothing with LIKE, so each word is checked against the words in
+    the owner's own titles and names; returns the corrected query or ''"""
+    words = q.lower().split()
+    if not words or len(words) > 6:
+        return ""
+    vocabulary: set[str] = set()
+    for column in (
+        Task.title,
+        CalendarEvent.title,
+        Contact.name,
+        Book.title,
+        Habit.name,
+        Session.name,
+        ReadItem.title,
+    ):
+        for (value,) in db.query(column).limit(2000).all():
+            vocabulary.update(match.lower() for match in _WORD.findall(value or ""))
+    changed, fixed = False, []
+    for word in words:
+        if word in vocabulary or len(word) < 3:
+            fixed.append(word)
+            continue
+        close = difflib.get_close_matches(word, vocabulary, n=1, cutoff=0.75)
+        fixed.append(close[0] if close else word)
+        changed = changed or bool(close)
+    return " ".join(fixed) if changed else ""
+
+
+class SpellFix(BaseModel):
+    q: str
+
+
+@router.post("/search/spellfix")
+async def spellfix(body: SpellFix):
+    """when nothing local is close, ask the chat model to fix the spelling of the query"""
+    from core.database import SessionLocal
+    from services.llm import simple_complete
+    from services.model_resolver import ModelResolutionError, resolve_model
+
+    query = body.q.strip()[:200]
+    if not query:
+        return {"query": ""}
+    db = SessionLocal()
+    try:
+        try:
+            selected = resolve_model(db, "aide_chat")
+        except ModelResolutionError as exc:
+            raise ApiError(400, exc.code, str(exc)) from exc
+        endpoint, model = selected.endpoint, selected.model
+        base_url, api_key = endpoint.base_url, endpoint.api_key
+    finally:
+        db.close()
+    prompt = [
+        {
+            "role": "system",
+            "content": (
+                "Fix the spelling of a search query typed into a personal app. "
+                "Reply with only the corrected query, nothing else. "
+                "If it is already correct, reply with it unchanged."
+            ),
+        },
+        {"role": "user", "content": query},
+    ]
+    raw = await simple_complete(prompt, base_url, api_key, model, max_tokens=40, thinking=False)
+    fixed = raw.strip().strip('"').splitlines()[0][:200] if raw.strip() else ""
+    return {"query": fixed if fixed and fixed.lower() != query.lower() else ""}

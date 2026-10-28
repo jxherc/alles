@@ -1675,9 +1675,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 997 http method/path pairs
-- 971 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
-- sha-256: `fcb4d816497b1d79de34352444e693aa744a7aa82c72f05ec0b56369e090d3ea`
+- 998 http method/path pairs
+- 972 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
+- sha-256: `e78616a0083858d2c4460207866a436181f965a883bb84db75646d367d5dcdd8`
 
 <details>
 <summary>app.py · 10 operations</summary>
@@ -3111,7 +3111,7 @@ retrieve full article text from each entry's publisher.
 </details>
 
 <details>
-<summary>routes/search.py · 3 operations</summary>
+<summary>routes/search.py · 4 operations</summary>
 
 [source](routes/search.py)
 
@@ -3120,6 +3120,7 @@ retrieve full article text from each entry's publisher.
 | `GET` | `/api/search` | `search` |
 | `GET` | `/api/search/finance` | `finance_search` |
 | `GET` | `/api/search/fts` | `fts_search` |
+| `POST` | `/api/search/spellfix` | `spellfix` |
 
 </details>
 

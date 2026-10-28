@@ -8194,10 +8194,12 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 .vault-switcher .custom-select-chevron { right: 0.5rem; }
 #vault-view #vault-manage-btn { margin-left: 0; }
 .mv-row .chip.ic-btn-lbl .ic { width: 12px; height: 12px; }
+.mv-row .chip.ic-btn-lbl { gap: 6px; min-height: 44px; }
 #vf-gen .ic { width: 12px; height: 12px; }
+/* the 44px buttons get room above and below, so the divider never touches them */
 .vault-entry {
   display: flex; align-items: center; gap: 0.5rem;
-  padding: 0 1rem; border-bottom: 1px solid var(--faint);
+  padding: 4px 4px 4px 1rem; border-bottom: 1px solid var(--faint);
   font-size: 0.8125rem;
 }
 .vault-entry:hover, .vault-entry:focus-within { background: var(--panel); }
@@ -8209,24 +8211,26 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 .vault-entry-grow { flex: 1; }
 .vault-entry-user { color: var(--muted); font-size: 0.8125rem; }
 .vault-entry-user::before { content: '· '; color: var(--muted); }
-.vault-entry-cat { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.1rem 0.3rem; flex-shrink: 0; }
+.vault-entry-cat { font-size: 0.8125rem; color: var(--muted); flex-shrink: 0; }
+.vault-entry-cat::before { content: '· '; }
 .vault-entry-value { font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace; font-size: 0.8125rem; color: var(--muted); flex-shrink: 0; }
 .vault-load-error { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 1rem; }
 .vault-load-error p { flex: 1 1 18rem; margin: 0; color: var(--muted); }
 
 /* 9c — vaults manage modal + travel toggle */
 .btn.active { border-color: var(--line-strong); color: var(--text); }
-.mv-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0; border-bottom: 1px solid var(--faint); font-size: 0.8125rem; }
+/* a vault row wraps its buttons under the name instead of scrolling the window sideways */
+.mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--faint); font-size: 0.8125rem; }
 .mv-row:last-child { border-bottom: none; }
 .mv-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mv-cur { font-size: 0.8125rem; color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--k-radius-control); padding: 0 0.25rem; margin-left: 0.3rem; }
+.mv-cur { font-size: 0.8125rem; color: var(--muted); }
 .mv-entries { font-size: 0.8125rem; color: var(--muted); flex-shrink: 0; }
 /* 8b — main badge, inline rename, change-password help */
 .mv-name[data-rename] { cursor: text; border-bottom: 1px dashed transparent; }
 .mv-name[data-rename]:hover { border-bottom-color: var(--muted); }
 .mv-rename-input { font-size: 0.8125rem; padding: 0.1rem 0.3rem; max-width: 160px; }
-.mv-badge { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0 0.28rem; flex-shrink: 0; }
-.mv-badge.mv-main { color: var(--text); border-color: var(--line-strong); }
+.mv-badge { font-size: 0.8125rem; color: var(--muted); flex-shrink: 0; }
+.mv-badge.mv-main { color: var(--text); }
 .mv-help { font-size: 0.8125rem; color: var(--muted); line-height: 1.5; padding: 0.6rem 0 0.2rem; }
 .np-err { font-size: 0.8125rem; color: var(--error); min-height: 1em; }
 /* 8c — TOTP / 2FA panel */
@@ -8269,7 +8273,8 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 .mv-browser-state { color: var(--muted); font-size: 0.8125rem; white-space: nowrap; }
 .mv-browser-state.active { color: var(--success); }
 .mv-browser-empty { margin: 0; padding: 0.8rem 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.45; }
-.mv-browser-install { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-top: 0.8rem; }
+/* the steps get the full width and the download sits under them; side by side squeezed them to a few words a line */
+.mv-browser-install { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; margin-top: 0.75rem; }
 .mv-browser-install code { color: var(--text); font-family: ui-monospace, monospace; font-size: 0.8125rem; }
 @media (max-width: 560px) {
   .mv-browser-head, .mv-browser-install { align-items: stretch; flex-direction: column; gap: 0.45rem; }

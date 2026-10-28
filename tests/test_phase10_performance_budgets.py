@@ -56,7 +56,9 @@ class Phase10PerformanceBudgetTests(ApiTest):
         localization = self.client.get("/api/settings/localization/options")
         self.assertLess(len(root.content), 350_000)
         self.assertLess(len(credits.content), 500_000)
-        self.assertLess(len(localization.content), 25_000)
+        # every iso region, the whole tz database and every finance currency (about 41k); the old
+        # 25k fit seven regions, five zones and six currencies, which left canada out entirely
+        self.assertLess(len(localization.content), 48_000)
         self.assertTrue(
             all("license_texts" not in entry for entry in credits.json()["entries"]),
             "the metadata list must not eagerly load license bodies",

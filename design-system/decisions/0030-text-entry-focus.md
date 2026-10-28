@@ -1,5 +1,7 @@
 # form-field focus
 
+replaced by 0045: the field's own border brightens instead of a bottom line.
+
 ## context
 
 The shared primitive outline overrode the login and Settings fields' existing

@@ -175,9 +175,9 @@ html[data-theme="light"] #search-modal[data-kokuen-surface="command"] {
   color: var(--ui-muted);
 }
 
+/* typing focus is the line under the input getting brighter, not a second box inside the card */
 #search-modal[data-kokuen-surface="command"] .search-command-head:has(> .search-prompt-input:focus-visible) {
-  outline: 2px solid var(--ui-focus);
-  outline-offset: -2px;
+  border-bottom-color: var(--ui-focus);
 }
 
 #search-modal[data-kokuen-surface="command"] .search-command-close {
@@ -2750,22 +2750,29 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
   outline-offset: var(--k-focus-offset, -2px);
 }
 
-/* Text entry and form dropdowns keep their boundary and gain one bottom edge.
-   This shared rule must win over legacy page-specific input outlines; actions,
-   choices, sliders and color controls retain their normal rings. Date pickers are underline
-   fields with no padding, so a ring sat on the date; they take the bottom line like the fields
-   beside them.
-   Color swatches use readonly text inputs with role=button, not text entry. */
+/* Text entry and form dropdowns show focus with their own edge turning brighter (decision 0045).
+   fields draw that edge as a 1px inset ring (or a border), so focus recolors the same ring; the
+   old 2px bottom line replaced it and curved into the rounded corners like a second border.
+   This shared rule must win over legacy page-specific input outlines; actions, choices,
+   sliders and color controls retain their normal rings. Underline fields (date pickers, rails)
+   brighten the one line they have, below. Color swatches use readonly text inputs with
+   role=button, not text entry. */
 html[data-kokuen-version="5"] :where(
   input:not([type]),
   input:is([type="text"], [type="search"], [type="email"], [type="url"], [type="tel"], [type="password"], [type="number"]),
   textarea,
   .custom-select[role="combobox"],
   .locale-choice-trigger[aria-haspopup="listbox"]
-):not([role="button"]):focus-visible,
-html[data-kokuen-version="5"] .date-input:focus-visible {
+):not([role="button"]):focus-visible {
   outline: none !important;
-  box-shadow: inset 0 -2px 0 var(--k-field-focus, var(--muted)) !important;
+  box-shadow: inset 0 0 0 1px var(--k-field-focus, var(--muted)) !important;
+  border-color: var(--k-field-focus, var(--muted)) !important;
+}
+
+html[data-kokuen-version="5"] :is(.date-input, .cal-quick, .act-search, .cal-side-search):focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-bottom-color: var(--k-field-focus, var(--muted)) !important;
 }
 
 /* Legacy search and quick-entry fields use the compact rail, like Docs and Plan

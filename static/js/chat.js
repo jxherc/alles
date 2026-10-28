@@ -15,7 +15,7 @@ import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.
 import { saveAnswerNote } from './answer_note.js';
 import { saveAnswerTask } from './answer_task.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=2';
-import { compactResponseActions } from './response_actions.js?v=3';
+import { compactResponseActions } from './response_actions.js?v=4';
 
 // tools that change state / reach out — flagged in the agent panel + permission cards
 const DESTRUCTIVE_TOOLS = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',

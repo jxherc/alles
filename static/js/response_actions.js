@@ -15,11 +15,17 @@ function tuckProvenance(actions) {
   const summary = details.querySelector('summary');
   if (summary && !summary.dataset.full) {
     const full = summary.textContent.trim();
-    const detail = details.dataset.labels || full.replace(/^context\s*·\s*/, '');
     const model = full.split('·').pop().split('/').pop().trim();
     summary.dataset.full = full;
-    summary.title = t('aide.context_used', { detail });
     summary.textContent = model ? t('aide.context_model', { model }) : full;
+    if (details.dataset.onlyModel && model) {
+      const plain = document.createElement('span');
+      plain.className = 'context-model';
+      plain.textContent = model;
+      actions.append(plain);
+      details.remove();
+      return;
+    }
   }
   details.classList.add('is-tucked');
   actions.append(details);

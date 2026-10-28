@@ -144,8 +144,8 @@ test('the finished surfaces share the documented rhythm and safe motion', () => 
     legacyCss,
     /\.photos-person:hover\s+\.photos-person-av\s*\{[^}]*transform\s*:/,
   );
-  // No decorative shadows. The shared form-field bottom edge is a focus
-  // indicator, restricted to focus-visible; wrapper-owned inputs suppress it.
+  // No decorative shadows. The only shadow is the shared text-field focus: the field's own 1px
+  // edge recolored (decision 0045), never a line painted inside the box.
   for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const shadow = match[2].match(/box-shadow:\s*([^;]+);/)?.[1].trim().replace(/\s*!important$/, '');
     if (!shadow || shadow === 'none') continue;
@@ -154,7 +154,7 @@ test('the finished surfaces share the documented rhythm and safe motion', () => 
     assert.match(match[1], /input:not\(\[type\]\)/);
     assert.match(match[1], /textarea/);
     assert.match(match[1], /\.custom-select\[role="combobox"\]/);
-    assert.equal(shadow, 'inset 0 -2px 0 var(--k-field-focus, var(--muted))');
+    assert.equal(shadow, 'inset 0 0 0 1px var(--k-field-focus, var(--muted))');
   }
 });
 

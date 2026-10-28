@@ -642,8 +642,8 @@ def focus_pass(page, audit, where, scope=None) -> None:
                 "wcag", "1.4.11-focus-contrast", r["oc"] >= 3, r["sig"], f"{r['oc']:.2f}:1", where
             )
         if r["isText"]:
-            # the text field rule (decision 0030): one bottom line, no box
-            box = bool(r["outline"]) or r["ring"] or r["borderBox"]
+            # the text field rule (decision 0045): its own 1px edge brightens; no outline
+            box = bool(r["outline"])
             audit.add(
                 "kokuen",
                 "field-focus-no-box",

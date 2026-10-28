@@ -23,6 +23,8 @@
 #aide-coding-workspace .acw-primary { color: var(--k-text); font-weight: 560; }
 #aide-coding-workspace .acw-primary:disabled { color: var(--k-muted); font-weight: 400; }
 #aide-coding-workspace .acw-muted { color: var(--k-muted); font-size: 0.8125rem; line-height: 1.5; }
+/* the hint is its own line above the box, not glued to it */
+#aide-coding-workspace #aide-code-hint { margin: 0 0 var(--k-space-2); }
 #aide-coding-workspace .acw-path { color: var(--k-muted); font: 400 0.8125rem/1.5 var(--k-mono); overflow-wrap: anywhere; }
 .acw-path:empty { display: none; }
 

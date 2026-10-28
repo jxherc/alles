@@ -1,5 +1,6 @@
 import { filterCommands } from './palette.js';
 import { chosenTimeZone, t } from './i18n.js';
+import { plainError } from './util.js';
 
 let _debounce = null;
 let _financeDebounce = null;
@@ -121,7 +122,36 @@ function _invokeOption(option) {
     window._askInChat?.(_lastQ, true);
     return;
   }
+  if (option.dataset.act === 'suggest') { _searchFor(option.dataset.query); return; }
+  if (option.dataset.act === 'spellfix') { void _spellfix(option); return; }
   _go(option);
+}
+
+function _searchFor(query) {
+  const input = _input();
+  if (!input || !query) return;
+  input.value = query;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
+}
+
+// nothing local is close: the chat model fixes the spelling, then the search runs again
+async function _spellfix(option) {
+  const asked = _lastQ;
+  option.setAttribute('aria-disabled', 'true');
+  option.querySelector('span').textContent = t('common.search_fixing_spelling');
+  try {
+    const response = await fetch('/api/search/spellfix', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ q: asked }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (asked !== _lastQ || !option.isConnected) return;
+    if (!response.ok) throw new Error(data.detail || t('common.search_fix_failed'));
+    if (data.query) { _searchFor(data.query); return; }
+    option.querySelector('span').textContent = t('common.search_spelling_fine');
+  } catch (error) {
+    if (option.isConnected) option.querySelector('span').textContent = plainError(error.message);
+  }
 }
 
 function _trapDialogFocus(event) {
@@ -301,10 +331,40 @@ function _row(attrs, name, snippet) {
   `);
 }
 
-function _actionRail(query) {
+// optimal string alignment distance: one typo, swap or missing letter costs 1
+function _typoDistance(a, b) {
+  const rows = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) rows[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      rows[i][j] = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1, rows[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) rows[i][j] = Math.min(rows[i][j], rows[i - 2][j - 2] + 1);
+    }
+  }
+  return rows[a.length][b.length];
+}
+
+// "vauls" → "vault": the closest app or place name, close enough to be a typo
+function _navSuggestion(query) {
+  const typed = query.trim().toLowerCase();
+  if (typed.length < 3) return '';
+  const allowed = typed.length <= 5 ? 1 : 2;
+  let best = '', bestDistance = allowed + 1;
+  for (const command of window._navCommands || []) {
+    const label = String(command.label || '').toLowerCase();
+    const distance = _typoDistance(typed, label);
+    if (distance < bestDistance && label !== typed) { best = label; bestDistance = distance; }
+  }
+  return best;
+}
+
+function _actionRail(query, suggestion = '', canFix = false) {
   if (!query) return '';
   return `<div class="search-group-label" role="presentation">${_esc(t('common.search_actions'))}</div>
     <div class="search-actions" role="presentation">
+      ${suggestion ? _option('search-act', `data-act="suggest" data-query="${_esc(suggestion)}"`, `<span>${t('common.search_did_you_mean', { query: `<b>${_esc(suggestion)}</b>` })}</span>`) : ''}
+      ${canFix ? _option('search-act', 'data-act="spellfix"', `<span>${_esc(t('common.search_fix_spelling'))}</span>`) : ''}
       ${_option('search-act', 'data-act="ask"', `<span><b>${_esc(t('common.search_ask_aide'))}</b> ${_esc(t('common.search_about', { query: query.slice(0, 40) }))}</span>`)}
       ${_option('search-act', 'data-act="web"', `<span>${_esc(t('common.search_web'))}</span>`)}
     </div>`;
@@ -352,7 +412,9 @@ function _renderResults(data, query, status = null, preserveSelection = false) {
       ? `<div class="search-state search-state--empty" role="status">${_esc(t('common.search_no_matches'))}</div>`
       : '';
   container.setAttribute('aria-busy', 'false');
-  container.innerHTML = state + _actionRail(query) + matches;
+  const nothing = !status && !matches && query.trim().length >= 3;
+  const suggestion = nothing ? (data?.suggestion || _navSuggestion(query)) : '';
+  container.innerHTML = state + _actionRail(query, suggestion, nothing && !suggestion) + matches;
   if (openError) container.prepend(openError);
   const options = _availableOptions();
   const selectedIndex = selectedKey === null ? -1 : options.findIndex(option =>
