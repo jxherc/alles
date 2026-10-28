@@ -60,6 +60,51 @@ def ensure_default_local(db) -> StorageLocation:
     return row
 
 
+DOCS_LOCATION_ID = "docs"
+
+
+def ensure_docs_location(db) -> StorageLocation | None:
+    """the docs folder shows up in files, read only, so what you wrote is findable next to your
+    files (owner, oct 27: "i cant find what i wrote"). docs keeps owning its saves, so files
+    can open and download notes but never edits them behind docs' back"""
+    from services import files_store, vault_md
+
+    docs = vault_md.vault_dir()
+    files_root = files_store.root_dir().expanduser().resolve()
+    # docs already inside the files root are visible there; a second copy would repeat them
+    if docs == files_root or files_root in docs.parents:
+        row = db.get(StorageLocation, DOCS_LOCATION_ID)
+        if row is not None:
+            db.delete(row)
+            db.commit()
+        return None
+    row = db.get(StorageLocation, DOCS_LOCATION_ID)
+    if row is None:
+        db.execute(
+            sqlite_insert(StorageLocation)
+            .values(
+                id=DOCS_LOCATION_ID,
+                name="docs",
+                kind="local",
+                access="read_only",
+                root_path=str(docs),
+                enabled=True,
+                is_default=False,
+            )
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
+        db.commit()
+        db.expire_all()
+        return db.get(StorageLocation, DOCS_LOCATION_ID)
+    if row.root_path != str(docs) or row.access != "read_only":
+        # the docs folder moved in settings; follow it
+        row.root_path = str(docs)
+        row.access = "read_only"
+        db.commit()
+        db.refresh(row)
+    return row
+
+
 def get_location(db, location_id: str | None = None) -> StorageLocation | None:
     if not location_id or location_id == DEFAULT_LOCAL_STORAGE_LOCATION_ID:
         return ensure_default_local(db)

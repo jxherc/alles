@@ -2444,6 +2444,7 @@ const BUILTIN_ENGLISH = {
     "contacts.birthday": "birthday (march 3 or 1990-03-03)",
     "contacts.carddav_help": "two-way sync with iCloud, Google, or any CardDAV address book. enter your server URL + an app-specific password to connect.",
     "contacts.carddav_sync": "CardDAV sync",
+    "contacts.change_photo": "change photo",
     "contacts.company": "company",
     "contacts.connect": "connect",
     "contacts.connect_title": "connect to CardDAV",

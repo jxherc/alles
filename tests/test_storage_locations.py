@@ -33,12 +33,46 @@ class StorageLocationApiTests(ApiTest):
         response = self.client.get("/api/storage-locations")
         self.assertEqual(response.status_code, 200)
         rows = response.json()["locations"]
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["id"], "default-local")
+        # one default location, plus docs shown read only so notes are findable in files
+        self.assertEqual([row["id"] for row in rows], ["default-local", "docs"])
         self.assertEqual(rows[0]["kind"], "local")
         self.assertTrue(rows[0]["is_default"])
-        self.assertNotIn("secret", rows[0])
-        self.assertNotIn("credentials", rows[0])
+        self.assertEqual(rows[1]["access"], "read_only")
+        for row in rows:
+            self.assertNotIn("secret", row)
+            self.assertNotIn("credentials", row)
+
+    def test_docs_show_in_files_read_only_and_follow_the_docs_folder(self):
+        docs = Path(tempfile.mkdtemp())
+        (docs / "essay.md").write_text("what i wrote")
+        with mock.patch("services.vault_md.vault_dir", return_value=docs.resolve()):
+            rows = self.client.get("/api/storage-locations").json()["locations"]
+        row = next(row for row in rows if row["id"] == "docs")
+        self.assertEqual(row["root_path"], str(docs.resolve()))
+        self.assertEqual(row["access"], "read_only")
+        moved = Path(tempfile.mkdtemp()).resolve()
+        with mock.patch("services.vault_md.vault_dir", return_value=moved):
+            rows = self.client.get("/api/storage-locations").json()["locations"]
+        self.assertEqual(next(r for r in rows if r["id"] == "docs")["root_path"], str(moved))
+
+    def test_docs_location_stays_read_only_and_cannot_be_removed(self):
+        self.client.get("/api/storage-locations")
+        writable = self.client.patch("/api/storage-locations/docs", json={"access": "managed"})
+        removed = self.client.delete("/api/storage-locations/docs")
+        self.assertEqual(writable.status_code, 409, writable.text)
+        self.assertEqual(removed.status_code, 409, removed.text)
+        db = self.db()
+        self.assertEqual(db.get(StorageLocation, "docs").access, "read_only")
+        db.close()
+
+    def test_docs_inside_the_files_root_are_not_listed_twice(self):
+        from services import files_store
+
+        inside = files_store.root_dir().expanduser().resolve() / "Docs"
+        inside.mkdir(parents=True, exist_ok=True)
+        with mock.patch("services.vault_md.vault_dir", return_value=inside):
+            rows = self.client.get("/api/storage-locations").json()["locations"]
+        self.assertNotIn("docs", [row["id"] for row in rows])
 
     def test_concurrent_first_access_creates_one_default_location(self):
         engine = create_engine(

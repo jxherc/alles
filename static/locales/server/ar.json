@@ -1950,6 +1950,8 @@
     "the default local location cannot be removed": "لا يمكن إزالة الموقع المحلي الافتراضي",
     "the default vault must remain travel-safe": "يجب أن تبقى الخزنة الافتراضية آمنة للسفر",
     "the device access profile accepts loopback hosts only": "ملف وصول الجهاز يقبل مضيفي loopback فقط",
+    "the docs location cannot be removed": "لا يمكن إزالة موقع docs",
+    "the docs location stays read only; edit notes in docs": "يبقى موقع docs للقراءة فقط؛ عدّل الملاحظات في docs",
     "the download did not match its published checksum": "التنزيل لا يطابق مجموعه الاختباري المنشور",
     "the edited Actual transaction is no longer present": "معاملة Actual المعدّلة لم تعد موجودة",
     "the edited recurring schedule could not be read back": "تعذّرت قراءة الجدول المتكرر المعدّل للتحقق منه",

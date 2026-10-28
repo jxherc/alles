@@ -1950,6 +1950,8 @@
     "the default local location cannot be removed": "デフォルトのローカルの場所は削除できません",
     "the default vault must remain travel-safe": "デフォルトの Vault は、旅行中も安全な設定のままにしてください",
     "the device access profile accepts loopback hosts only": "デバイスのアクセスプロファイルでは、ループバックのホストのみ使えます",
+    "the docs location cannot be removed": "docs の場所は削除できません",
+    "the docs location stays read only; edit notes in docs": "docs の場所は読み取り専用のままです。メモは docs で編集してください",
     "the download did not match its published checksum": "ダウンロードしたファイルが、公開されているチェックサムと一致しませんでした",
     "the edited Actual transaction is no longer present": "編集した Actual の取引が、もう存在しません",
     "the edited recurring schedule could not be read back": "編集した定期スケジュールを読み戻せませんでした",

@@ -2440,6 +2440,7 @@
     "contacts.birthday": "cumpleaños (3 de marzo o 1990-03-03)",
     "contacts.carddav_help": "sincronización bidireccional con iCloud, Google o cualquier libreta de direcciones CardDAV. introduce la URL de tu servidor y una contraseña específica de la aplicación para conectar.",
     "contacts.carddav_sync": "sincronización CardDAV",
+    "contacts.change_photo": "cambiar foto",
     "contacts.company": "empresa",
     "contacts.connect": "conectar",
     "contacts.connect_title": "conectar con CardDAV",

@@ -39,6 +39,7 @@ class LocationUpdate(BaseModel):
 @router.get("")
 def list_locations(db: DbSession = Depends(get_db)):
     storage_locations.ensure_default_local(db)
+    storage_locations.ensure_docs_location(db)
     rows = (
         db.query(StorageLocation)
         .order_by(StorageLocation.is_default.desc(), StorageLocation.name)
@@ -120,6 +121,8 @@ def update_location(location_id: str, body: LocationUpdate, db: DbSession = Depe
         current_config = json.loads(row.config or "{}")
         if config != current_config:
             raise HTTPException(409, "storage coordinates cannot be changed; add a new location")
+    if row.id == storage_locations.DOCS_LOCATION_ID and clean["access"] != row.access:
+        raise HTTPException(409, "the docs location stays read only; edit notes in docs")
     row.name = clean["name"]
     row.access = clean["access"]
     if body.credentials is not None:
@@ -144,6 +147,8 @@ def remove_location(location_id: str, db: DbSession = Depends(get_db)):
         raise HTTPException(404, "storage location not found")
     if row.is_default:
         raise HTTPException(409, "the default local location cannot be removed")
+    if row.id == storage_locations.DOCS_LOCATION_ID:
+        raise HTTPException(409, "the docs location cannot be removed")
     if storage_index.is_active(location_id):
         raise HTTPException(409, "storage location is being indexed")
     if storage_locations.has_references(db, location_id):

@@ -2440,6 +2440,7 @@
     "contacts.birthday": "생일 (3월 3일 또는 1990-03-03)",
     "contacts.carddav_help": "iCloud, Google 또는 모든 CardDAV 주소록과 양방향 동기화합니다. 연결하려면 서버 URL과 앱 전용 비밀번호를 입력하세요.",
     "contacts.carddav_sync": "CardDAV 동기화",
+    "contacts.change_photo": "사진 바꾸기",
     "contacts.company": "회사",
     "contacts.connect": "연결",
     "contacts.connect_title": "CardDAV에 연결",

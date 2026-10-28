@@ -1950,6 +1950,8 @@
     "the default local location cannot be removed": "l’emplacement local par défaut ne peut pas être retiré",
     "the default vault must remain travel-safe": "le coffre par défaut doit rester sûr en voyage",
     "the device access profile accepts loopback hosts only": "le profil d’accès device n’accepte que les hôtes loopback",
+    "the docs location cannot be removed": "l'emplacement docs ne peut pas être supprimé",
+    "the docs location stays read only; edit notes in docs": "l'emplacement docs reste en lecture seule ; modifiez les notes dans docs",
     "the download did not match its published checksum": "le téléchargement ne correspondait pas à sa somme de contrôle publiée",
     "the edited Actual transaction is no longer present": "la transaction Actual modifiée n’est plus présente",
     "the edited recurring schedule could not be read back": "l’échéancier récurrent modifié n’a pas pu être relu",

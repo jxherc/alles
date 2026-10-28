@@ -1950,6 +1950,8 @@
     "the default local location cannot be removed",
     "the default vault must remain travel-safe",
     "the device access profile accepts loopback hosts only",
+    "the docs location cannot be removed",
+    "the docs location stays read only; edit notes in docs",
     "the download did not match its published checksum",
     "the edited Actual transaction is no longer present",
     "the edited recurring schedule could not be read back",

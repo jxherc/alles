@@ -184,7 +184,7 @@ async function openContact(id) {
     <div class="contact-detail">
       <div class="contact-detail-head">
         <button class="btn ic-btn-lbl" id="cd-back">${_si('chevron-left')} ${t('contacts.back')}</button>
-        <label class="contact-av-up" title="${_esc(t('contacts.set_photo'))}">${_avatarHtml(c, true)}<input type="file" id="cd-avatar" accept="image/*" hidden></label>
+        <button type="button" class="contact-av-up" id="cd-avatar-btn" aria-label="${_esc(c.avatar ? t('contacts.change_photo') : t('contacts.set_photo'))}">${_avatarHtml(c, true)}<span class="contact-av-mark" aria-hidden="true">${_si('image')}</span></button><input type="file" id="cd-avatar" accept="image/*" hidden>
         <label class="contact-detail-name cd-field"><span>${t('contacts.name')}</span><input class="settings-input" id="cd-name" value="${_esc(c.name)}"></label>
         <button type="button" class="btn ic-btn-lbl" id="cd-me" aria-pressed="${!!c.is_me}">${c.is_me ? `${_si('check')} ${t('contacts.this_is_me')}` : t('contacts.set_as_me')}</button>
       </div>
@@ -217,6 +217,8 @@ async function openContact(id) {
     await fetch(`/api/contacts/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ is_me: !c.is_me }) });
     openContact(id);
   });
+  // the photo is a real button, so it's reachable by keyboard and looks like something to press
+  document.getElementById('cd-avatar-btn').addEventListener('click', () => document.getElementById('cd-avatar').click());
   document.getElementById('cd-avatar').addEventListener('change', async e => {
     const f = e.target.files[0]; if (!f) return;
     const fd = new FormData(); fd.append('file', f);

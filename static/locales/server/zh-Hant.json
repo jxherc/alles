@@ -1950,6 +1950,8 @@
     "the default local location cannot be removed": "預設的本機位置無法移除",
     "the default vault must remain travel-safe": "預設保險庫必須維持旅行安全",
     "the device access profile accepts loopback hosts only": "裝置存取設定檔只接受回送主機",
+    "the docs location cannot be removed": "docs 位置不能移除",
+    "the docs location stays read only; edit notes in docs": "docs 位置保持唯讀；請在 docs 中編輯筆記",
     "the download did not match its published checksum": "下載內容與其公布的檢查碼不符",
     "the edited Actual transaction is no longer present": "編輯後的 Actual 交易已不存在",
     "the edited recurring schedule could not be read back": "無法讀回編輯後的定期排程",

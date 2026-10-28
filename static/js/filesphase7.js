@@ -296,9 +296,9 @@ function renderLocationStatus(message) {
   indexButton.disabled = indexing;
   indexButton.textContent = index.state === 'completed' ? t('files.refresh_index') : t('files.index_for_search');
   const access = host.querySelector('[data-location-action="access"]');
-  access.hidden = location.is_default;
+  access.hidden = fixedLocation(location);
   access.textContent = location.access === 'managed' ? t('files.make_read_only') : t('files.allow_changes');
-  host.querySelector('[data-location-action="remove"]').hidden = location.is_default;
+  host.querySelector('[data-location-action="remove"]').hidden = fixedLocation(location);
 }
 
 async function loadIndexStatus(requestedLocationId = state.locationId, fetcher = fetch) {
@@ -1507,9 +1507,14 @@ async function testLocation() {
   }
 }
 
+// the default location and the docs folder stay put: docs owns its own saves
+function fixedLocation(location) {
+  return location.is_default || location.id === 'docs';
+}
+
 async function changeLocationAccess() {
   const location = currentLocation();
-  if (!location || location.is_default) return;
+  if (!location || fixedLocation(location)) return;
   const access = location.access === 'managed' ? 'read_only' : 'managed';
   try {
     await request(`/api/storage-locations/${encodeURIComponent(location.id)}`, jsonOptions('PATCH', { access }));
@@ -1522,7 +1527,7 @@ async function changeLocationAccess() {
 
 async function removeLocation() {
   const location = currentLocation();
-  if (!location || location.is_default) return;
+  if (!location || fixedLocation(location)) return;
   const locationId = location.id;
   const ok = await dlgConfirm(t('files.remove_location_confirm', { name: location.name }));
   if (!ok) return;

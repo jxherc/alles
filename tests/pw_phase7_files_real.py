@@ -198,8 +198,9 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
         page.locator('#files-view input[type="checkbox"], #files-view input[type="radio"]').count()
         == 0
     )
-    assert page.locator("#files-location-list .files-location-button").count() == 1
-    assert page.locator("#files-location-list").is_hidden()
+    # the default location plus docs, read only, so notes are findable here
+    assert page.locator("#files-location-list .files-location-button").count() == 2
+    assert page.locator('.files-location-button:has-text("docs")').is_visible()
     assert page.locator("#files-list .file-row").count() >= 3
     header_box = page.locator(".files-phase7-table-head").bounding_box()
     first_row_box = page.locator("#files-list .file-row").first.bounding_box()
@@ -446,7 +447,7 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
 
     _add_location(page, "work archive", second, True)
     _add_location(page, "reference", read_only, False)
-    assert page.locator("#files-location-list .files-location-button").count() == 3
+    assert page.locator("#files-location-list .files-location-button").count() == 4
 
     # The read-only location states why changes are unavailable.
     page.locator('.files-location-button:has-text("reference")').click()
@@ -474,7 +475,7 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     assert page.locator('.dialog-overlay [role="alertdialog"]').is_visible()
     page.locator(".dialog-overlay [data-dialog-confirm]").click()
     page.wait_for_function(
-        "document.querySelectorAll('#files-location-list .files-location-button').length === 2"
+        "document.querySelectorAll('#files-location-list .files-location-button').length === 3"
     )
 
     assert page.locator("#files-settings-dialog").is_hidden()

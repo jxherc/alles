@@ -2440,6 +2440,7 @@
     "contacts.birthday": "生日（3月3日 或 1990-03-03）",
     "contacts.carddav_help": "与 iCloud、Google 或任何 CardDAV 通讯录双向同步。输入服务器网址和应用专用密码即可连接。",
     "contacts.carddav_sync": "CardDAV 同步",
+    "contacts.change_photo": "更换照片",
     "contacts.company": "公司",
     "contacts.connect": "连接",
     "contacts.connect_title": "连接到 CardDAV",

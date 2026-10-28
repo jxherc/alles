@@ -864,6 +864,7 @@ a file browser over any folder you point it at: browse, upload, preview, organiz
 - browse folders, upload, rename, delete, and **search**: by filename *and* inside text files, with a snippet of where the match was
 - **inline preview** without downloading: images, **pdfs** (in a real pdf viewer), **video**, **audio**, and text/markdown
 - download anything with one click
+- **docs location**: when the docs folder sits outside the files root, files lists it as a read-only `docs` location, so notes written in docs show up next to everything else (`ensure_docs_location` in [services/storage_locations.py](services/storage_locations.py))
 - **smart folders** (recent / images / documents / large / starred / recently-deleted) and a storage bar showing real disk usage, free space, and what the vault itself takes up
 
 <p align="center"><img src="docs/screenshots/files.png" width="760" alt="files: smart folders, search, and a storage bar with real free/used disk space"></p>

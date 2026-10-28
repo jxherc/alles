@@ -2440,6 +2440,7 @@
     "contacts.birthday": "تاريخ الميلاد (3 مارس أو 1990-03-03)",
     "contacts.carddav_help": "مزامنة ثنائية الاتجاه مع iCloud أو Google أو أي دفتر عناوين CardDAV. أدخل رابط الخادم وكلمة مرور خاصة بالتطبيق للاتصال.",
     "contacts.carddav_sync": "مزامنة CardDAV",
+    "contacts.change_photo": "غيّر الصورة",
     "contacts.company": "الشركة",
     "contacts.connect": "اتصال",
     "contacts.connect_title": "الاتصال بـ CardDAV",
