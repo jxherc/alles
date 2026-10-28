@@ -5672,6 +5672,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-connect-text > span:first-child { color: var(--text); font-size: 0.875rem; }
 .setup-connect-note { color: var(--muted); font-size: 0.8125rem; }
 .setup-connect-row .btn { flex: none; }
+.specialist-mail-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.specialist-mail-tools .specialist-choice-group { display: flex; gap: 8px; }
+.specialist-mail-digest { margin: 0 0 16px; color: var(--text); font-size: 0.875rem; line-height: 1.55; white-space: pre-line; }
+.specialist-mail-digest.is-error { color: var(--error); }
 .setup-status { flex: 1; min-width: 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.4; text-align: right; }
 .setup-status[data-state="error"] { color: var(--error); }
 .setup-actions { min-height: 44px; display: flex; align-items: center; gap: 12px; margin-top: 16px; }

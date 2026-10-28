@@ -585,6 +585,48 @@ async function _renderInbox(target, request) {
   const detail = _el('aside', 'specialist-workbench-detail');
   let selectedAccount = '';
   let selectedMessage = null;
+  const unread = () => messages.filter(message => !message.seen && (!selectedAccount || message.account_id === selectedAccount));
+  let shown = unread().length ? 'unread' : 'all';
+  const tools = _el('div', 'specialist-mail-tools');
+  const digest = _el('p', 'specialist-mail-digest');
+  digest.hidden = true;
+  digest.setAttribute('aria-live', 'polite');
+  const summarize = _el('button', 'btn', t('groups.summarize_unread'));
+  summarize.type = 'button';
+  summarize.addEventListener('click', async () => {
+    const rows = unread();
+    if (!rows.length) return;
+    _setAsyncControlBusy(summarize, true);
+    digest.hidden = false;
+    digest.classList.remove('is-error');
+    digest.textContent = t('groups.summarizing');
+    // headers and previews only; the model never gets full bodies from here
+    const body = rows.slice(0, 60).map(message => [
+      `from: ${sender(message) || message.account_name || ''}`,
+      `subject: ${message.subject || ''}`,
+      `preview: ${(message.snippet || message.preview || '').slice(0, 240)}`,
+    ].join('\n')).join('\n\n');
+    try {
+      const result = await _json(request, '/api/mail/summarize', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'digest', body }),
+      });
+      digest.textContent = result.summary;
+    } catch (error) {
+      digest.classList.add('is-error');
+      digest.textContent = t('groups.digest_failed', { reason: error.message });
+    } finally {
+      _setAsyncControlBusy(summarize, false);
+      summarize.disabled = !unread().length;
+    }
+  });
+  const drawTools = () => {
+    const count = unread().length;
+    tools.replaceChildren(_choiceButtons(t('groups.mail_shown'), [
+      { value: 'unread', label: t('groups.unread_count', { count }) },
+      { value: 'all', label: t('groups.all_count', { count: messages.filter(m => !selectedAccount || m.account_id === selectedAccount).length }) },
+    ], shown, value => { shown = value; drawMessages(); }), summarize);
+    summarize.disabled = !count;
+  };
   const emptyMailboxCopy = accountsError
     ? t('groups.mail_accounts_unavailable')
     : cachedFailures.length
@@ -620,10 +662,10 @@ async function _renderInbox(target, request) {
   };
   const drawMessages = () => {
     messageList.replaceChildren();
-    const visible = messages.filter(message => !selectedAccount || message.account_id === selectedAccount);
+    const visible = messages.filter(message => (!selectedAccount || message.account_id === selectedAccount) && (shown === 'all' || !message.seen));
     if (!visible.length) {
       selectedMessage = null;
-      messageList.append(_el('p', 'specialist-workbench-empty', emptyMailboxCopy));
+      messageList.append(_el('p', 'specialist-workbench-empty', shown === 'unread' && messages.length ? t('groups.nothing_unread') : emptyMailboxCopy));
       drawDetail(null);
       return;
     }
@@ -652,16 +694,18 @@ async function _renderInbox(target, request) {
   }))];
   rail.append(_choiceButtons(t('groups.inbox_account'), mailboxChoices, selectedAccount, value => {
     selectedAccount = value;
+    drawTools();
     drawMessages();
   }), _el('h2', '', t('groups.people')));
   const people = _el('div', 'specialist-workbench-jumps');
   people.append(_sectionJump('inbox', 'contacts', t('groups.all_contacts', { count: contacts.length })));
   rail.append(people);
-  main.append(head, messageList);
+  main.append(head, tools, digest, messageList);
   workbench.append(rail, main, detail);
   const partial = _partialAvailability(failures);
   if (partial) target.append(partial);
   target.append(workbench);
+  drawTools();
   drawMessages();
 }
 

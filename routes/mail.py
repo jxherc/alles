@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -1631,11 +1632,21 @@ def send(aid: str, body: SendBody, db: DbSession = Depends(get_db)):
 class SummarizeBody(BaseModel):
     subject: str = ""
     body: str = ""
+    # "digest": body lists many unread mails (sender, subject, preview); one overview of all
+    kind: Literal["mail", "digest"] = "mail"
+
+
+_DIGEST_PROMPT = (
+    "These are the user's unread emails, one per block: sender, subject and a preview. "
+    "Write one short overview for them. First what needs a reply or an action, naming the "
+    "sender. Then anything else worth knowing. End with one line that lumps newsletters, "
+    "promotions and notifications together. Plain text, at most 8 short lines, no headings."
+)
 
 
 @router.post("/summarize")
 async def summarize_mail(body: SummarizeBody, db: DbSession = Depends(get_db)):
-    """AI summary of a mail — bullets + any action items."""
+    """AI summary of a mail (bullets + action items), or one overview of many unread mails."""
     from core.database import ModelEndpoint
     from services.llm import simple_complete
 
@@ -1645,17 +1656,24 @@ async def summarize_mail(body: SummarizeBody, db: DbSession = Depends(get_db)):
     model = ep.models_list()[0] if ep.models_list() else ""
     if not model:
         raise HTTPException(400, "no model available")
-    prompt = [
-        {
-            "role": "system",
-            "content": (
-                "Summarize the email in 2-4 short bullet points, then if there are any "
-                "action items add a final line starting with 'todo:'. Be terse, plain text only."
-            ),
-        },
-        {"role": "user", "content": f"Subject: {body.subject}\n\n{body.body[:8000]}"},
-    ]
-    text = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=400)
+    if body.kind == "digest":
+        prompt = [
+            {"role": "system", "content": _DIGEST_PROMPT},
+            {"role": "user", "content": body.body[:16000]},
+        ]
+    else:
+        prompt = [
+            {
+                "role": "system",
+                "content": (
+                    "Summarize the email in 2-4 short bullet points, then if there are any "
+                    "action items add a final line starting with 'todo:'. Be terse, plain text only."
+                ),
+            },
+            {"role": "user", "content": f"Subject: {body.subject}\n\n{body.body[:8000]}"},
+        ]
+    tokens = 600 if body.kind == "digest" else 400
+    text = await simple_complete(prompt, ep.base_url, ep.api_key, model, max_tokens=tokens)
     if not text:
         raise HTTPException(502, "model returned nothing — try again")
     return {"summary": text}
