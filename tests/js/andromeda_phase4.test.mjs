@@ -292,12 +292,9 @@ test('news results require an explicit save action before entering Library', () 
 
 test('automatic search keeps the configured provider fallback chain active', () => {
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  const loader = source.slice(source.indexOf('async function loadProviderChoices('), source.indexOf('async function explainResults()'));
-  assert.match(loader, /\{ value: '', label: tr\('andromeda\.x_automatic'\) \}/);
-  assert.match(loader, /providerValue\('andromeda-provider'\)/);
-  assert.match(loader, /options\.some\(option => option\.value === selectedProvider\)/);
-  assert.match(loader, /populateDropdown\(control, options, preservedProvider\)/);
-  assert.match(loader, /catch \(error\)[\s\S]*status\(error\.message[\s\S]*return;/);
+  const request = source.slice(source.indexOf('const request = {'), source.indexOf('_state.request = {'));
+  assert.doesNotMatch(request, /provider:/);
+  assert.doesNotMatch(source, /loadProviderChoices|andromeda-provider/);
   assert.doesNotMatch(source, /selected\s*=\s*response\.selected/);
 });
 
@@ -313,17 +310,16 @@ test('result explanation uses the opaque Aide handoff instead of a query payload
   assert.match(app, /if \(projectId && window\._currentSession\?\.project_id !== projectId\) \{\s*if \(newChat\(\{ projectId \}\) === false\) return false;\s*\}/);
 });
 
-test('search and overview requests read the custom dropdown state and the saved preferences', () => {
+test('search and overview requests read the saved preferences', () => {
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
-  assert.match(source, /provider: providerValue\('andromeda-provider'\)/);
   assert.match(source, /normal_results: _prefs\.normalResults/);
   assert.match(source, /&& _prefs\.overview/);
   assert.match(source, /band: _prefs\.band/);
-  assert.match(source, /_modelChoices\.get\(providerValue\('andromeda-exact-model'\)\)/);
+  assert.doesNotMatch(source, /_modelChoices|andromeda-exact-model/);
   assert.doesNotMatch(source, /el\('andromeda-(?:provider|band|exact-model)'\)\?\.value/);
 });
 
-test('the page keeps only per-search choices; every saved setting lives in the settings screen', () => {
+test('the page has no engine, model or saved-search block; every setting lives in the settings screen', () => {
   const html = readFileSync(new URL('../../static/index.html', import.meta.url), 'utf8');
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   assert.doesNotMatch(html, /andromeda-settings-panel/);
@@ -332,8 +328,8 @@ test('the page keeps only per-search choices; every saved setting lives in the s
     'andromeda-primary-provider', 'andromeda-fallback-provider', 'andromeda-result-count',
     'andromeda-verifier-mode', 'andromeda-band', 'andromeda-searxng-status', 'andromeda-provider-order',
   ]) assert.doesNotMatch(html, new RegExp(`id="${id}"`), id);
-  for (const id of ['andromeda-provider', 'andromeda-exact-model', 'andromeda-saved-list']) {
-    assert.match(html, new RegExp(`id="${id}"`), id);
+  for (const id of ['andromeda-provider', 'andromeda-exact-model', 'andromeda-model', 'andromeda-saved', 'andromeda-saved-list']) {
+    assert.doesNotMatch(html, new RegExp(`id="${id}"`), id);
   }
   assert.doesNotMatch(html, /id="andromeda-settings-button"[^>]*aria-controls/);
   assert.match(source, /window\._openSettings\?\.\('andromeda'\)/);

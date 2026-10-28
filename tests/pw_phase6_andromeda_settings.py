@@ -129,13 +129,17 @@ def run() -> None:
                 "#s-andromeda-overview",
                 "#s-andromeda-band",
                 "#s-andromeda-answer-model",
-                # per-search choices and the saved list stay on the page
-                "#andromeda-provider",
-                "#andromeda-exact-model",
-                "#andromeda-saved-list",
             )
             for selector in required:
                 assert page.locator(selector).count() == 1, f"{label}: missing {selector}"
+            for selector in (
+                "#andromeda-provider",
+                "#andromeda-exact-model",
+                "#andromeda-saved-list",
+            ):
+                assert page.locator(selector).count() == 0, (
+                    f"{label}: {selector} is back on the page"
+                )
             for name in (
                 "normal results",
                 "ai overview",

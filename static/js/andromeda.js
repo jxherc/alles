@@ -1,5 +1,5 @@
 import { plainError, writeClipboard } from './util.js';
-import { initCustomDropdowns, populateDropdown, setDropdownValue } from './dropdown.js?v=214';
+import { initCustomDropdowns } from './dropdown.js?v=214';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
@@ -13,7 +13,6 @@ let _searchAbort = null;
 let _verificationJobId = '';
 let _verificationPollTimer = 0;
 let _searchGeneration = 0;
-let _modelChoices = new Map();
 // what settings say about answers; the settings screen owns them, this page only reads them
 let _prefs = { resultCount: 8, normalResults: true, overview: true, band: 'standard' };
 let _state = freshState();
@@ -640,13 +639,11 @@ async function startResultSummary(result, refs) {
       confirmation.confirmed_endpoint_id = preview.endpoint_id;
       confirmation.confirmed_model = preview.model;
     }
-    const exact = selectedExactModel();
     const response = await fetch('/api/andromeda/overview', {
       method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal,
       body: JSON.stringify({
         query: _state.query || result.title || 'summarize this page', results: [result],
-        band: _prefs.band, endpoint_id: exact.endpoint_id || '',
-        model: exact.model || '', ...confirmation,
+        band: _prefs.band, ...confirmation,
       }),
     });
     if (!current()) { await response.body?.cancel(); return; }
@@ -1743,17 +1740,8 @@ export function parseSseFrames(buffer) {
   return { frames, rest };
 }
 
-function selectedExactModel() {
-  return _modelChoices.get(providerValue('andromeda-exact-model')) || {};
-}
-
 async function previewOverview(signal) {
   const params = new URLSearchParams({ band: _prefs.band });
-  const exact = selectedExactModel();
-  if (exact.endpoint_id) {
-    params.set('endpoint_id', exact.endpoint_id);
-    params.set('model', exact.model);
-  }
   return jsonRequest(`/api/andromeda/overview/preview?${params}`, { signal });
 }
 
@@ -1798,7 +1786,6 @@ async function startOverview(query, results, searchGeneration, options = {}) {
     }
     if (!current()) return;
     _state.model = preview;
-    text('andromeda-model', `${preview.model} · ${preview.endpoint} · ${preview.privacy_class}`);
     const confirmation = {};
     if (preview.privacy_class === 'remote' && !preview.confirm_each_search) {
       // the owner picked this model; it is named in the overview line instead of a prompt
@@ -1816,14 +1803,13 @@ async function startOverview(query, results, searchGeneration, options = {}) {
       confirmation.confirmed_endpoint_id = preview.endpoint_id;
       confirmation.confirmed_model = preview.model;
     }
-    const exact = selectedExactModel();
     const response = await fetch('/api/andromeda/overview', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
         query, results, band: _prefs.band,
-        endpoint_id: exact.endpoint_id || '', model: exact.model || '', ...confirmation,
+        ...confirmation,
         context: _state.context || [], depth: options.deep ? 'deep' : 'standard',
         allow_skip: options.allowSkip !== false,
       }),
@@ -2031,7 +2017,6 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   const request = {
     query,
     category: currentCategory,
-    provider: providerValue('andromeda-provider'),
     normal_results: _prefs.normalResults,
     overview: wantsOverview,
     max_results: pageSize(currentCategory),
@@ -2337,7 +2322,6 @@ function reopen(saved) {
     el('andromeda-query').value = _state.query;
   }
   setCategory(savedCategory, { search: false });
-  setDropdownValue(el('andromeda-provider'), saved.request?.provider || '');
   renderAndromedaResults(_state.results, _state.results.length ? 'ready' : 'empty', savedCategory, true);
   updateMoreResults();
   renderEvidence(_state.evidence);
@@ -2345,7 +2329,6 @@ function reopen(saved) {
   if (_state.overview?.status) renderCompleteOverview(_state.overview);
   if (Object.keys(_state.verification).length) renderVerification(_state.verification, { saved: true });
   else clearVerificationView();
-  text('andromeda-model', [_state.model.model, _state.model.endpoint].filter(Boolean).join(' · '));
   text('andromeda-result-meta', tr('andromeda.saved_checked', { date: shortDate(saved.checked_at) || saved.checked_at || '' }));
   status(tr('andromeda.saved_reopened'));
   _openedSaved = { id: saved.id, checked_at: saved.checked_at, payload: JSON.stringify(searchSnapshot()) };
@@ -2393,81 +2376,20 @@ async function openSavedSearch(id) {
   }
 }
 
+// the saved list has no block on the page for now; this keeps the save state and recovery scopes fresh
 async function loadSaved() {
-  const list = el('andromeda-saved-list');
-  if (!list) return;
   const generation = ++_savedListGeneration;
   try {
     const { searches, recovery_scopes } = await jsonRequest('/api/andromeda/saved', { cache: 'no-store' });
     if (generation !== _savedListGeneration) return;
     if (!Array.isArray(searches)) throw new Error(tr('andromeda.x_saved_load_failed'));
     readSaveRecovery(recovery_scopes);
-    list.replaceChildren();
-    if (!searches.length) { list.textContent = tr('andromeda.nothing_saved'); return; }
-    for (const item of searches) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'andromeda-saved-row';
-      const name = document.createElement('span');
-      name.textContent = item.query;
-      button.append(name);
-      const watch = item.watch || {};
-      const meta = [watch.new_count ? tr('andromeda.x_new_count', { count: watch.new_count }) : '', watch.every_hours ? WATCH_LABELS[watch.every_hours]?.() : ''].filter(Boolean).join(' · ');
-      if (meta) {
-        const small = document.createElement('small');
-        small.textContent = meta;
-        button.append(small);
-      }
-      button.title = tr('andromeda.checked_on', { date: shortDate(item.checked_at) || item.checked_at });
-      button.addEventListener('click', () => openSavedSearch(item.id));
-      list.appendChild(button);
-    }
   } catch (error) {
     if (generation !== _savedListGeneration) return;
     _saveReady = false; _saveMessage = error.message;
-    list.textContent = tr('andromeda.saved_unavailable');
   } finally {
     if (generation === _savedListGeneration) renderSaveRecovery();
   }
-}
-
-async function loadModelChoices() {
-  const control = el('andromeda-exact-model');
-  if (!control) return;
-  const options = [{ value: '', label: tr('andromeda.x_band_default') }];
-  _modelChoices = new Map();
-  try {
-    const endpoints = await jsonRequest('/api/models');
-    let index = 0;
-    for (const endpoint of endpoints) {
-      for (const model of endpoint.models || []) {
-        const key = String(++index);
-        _modelChoices.set(key, { endpoint_id: endpoint.id, model });
-        options.push({ value: key, label: `${model} · ${endpoint.name}` });
-      }
-    }
-  } catch {}
-  populateDropdown(control, options, '');
-}
-
-async function loadProviderChoices() {
-  const control = el('andromeda-provider');
-  if (!control) return;
-  const selectedProvider = providerValue('andromeda-provider');
-  const options = [{ value: '', label: tr('andromeda.x_automatic') }];
-  try {
-    const response = await jsonRequest('/api/andromeda/providers');
-    for (const provider of response.providers || []) {
-      if (provider.available) options.push({ value: provider.value, label: provider.label });
-    }
-  } catch (error) {
-    status(error.message || tr('andromeda.x_providers_unavailable'));
-    return;
-  }
-  const preservedProvider = options.some(option => option.value === selectedProvider)
-    ? selectedProvider
-    : '';
-  populateDropdown(control, options, preservedProvider);
 }
 
 export function savedSearchUrl(id, href) {
@@ -2616,10 +2538,6 @@ function bindRecovery() {
     if (action === 'edit') el('andromeda-query')?.focus();
     if (action === 'results') el('andromeda-results-title')?.scrollIntoView({ block: 'start' });
   });
-}
-
-function providerValue(id, fallback = '') {
-  return el(id)?.value || el(id)?.dataset?.value || fallback;
 }
 
 // settings live in the one settings screen, in its andromeda section
@@ -2822,7 +2740,6 @@ function bindOnce() {
   // the settings screen changed something: follow it now, and refresh the engines that can run
   window.addEventListener('alles:andromeda-settings', event => {
     if (event.detail) applyPrefs(event.detail);
-    void loadProviderChoices();
   });
   window.addEventListener('alles:localization-change', () => {
     renderAndromedaResults(_state.results, _state.resultStatus, category());
@@ -2832,8 +2749,8 @@ function bindOnce() {
 
 export async function initAndromeda() {
   bindOnce();
-  // one round trip instead of four: on a relayed phone or tablet each one is felt
-  await Promise.allSettled([loadProviderChoices(), loadModelChoices(), loadPrefs(), loadSaved()]);
+  // one round trip instead of two: on a relayed phone or tablet each one is felt
+  await Promise.allSettled([loadPrefs(), loadSaved()]);
   const params = new URLSearchParams(location.search);
   const saved = params.get('saved');
   if (saved && (saved !== _openedSaved?.id || _openedSaved.payload !== JSON.stringify(searchSnapshot()))) {

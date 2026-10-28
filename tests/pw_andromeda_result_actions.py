@@ -242,7 +242,7 @@ async def run_profile(browser, base, output, device, theme, record):
         assert (await api.post(base + "/api/setup/dismiss", max_redirects=0)).ok
         assert (await api.put(base + "/api/appearance", data=from_legacy(theme, None))).ok
         await page.goto(base + "/?view=andromeda", wait_until="networkidle")
-        await expect(page.locator("#andromeda-saved-list")).to_have_text("nothing saved yet")
+        await expect(page.locator("#andromeda-query")).to_be_focused()
         form = page.locator("#andromeda-form")
         query = page.locator("#andromeda-query")
 

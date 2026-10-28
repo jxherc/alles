@@ -316,9 +316,9 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     assert page.locator("#andromeda-settings-panel").count() == 0
     page.keyboard.press("Escape")
     assert page.locator("#settings-modal").is_hidden()
-    # the per-search engine sits beside the results, so the first search sets it directly
-    page.evaluate("document.getElementById('andromeda-provider').value = 'searxng'")
-    assert page.locator("#andromeda-provider").get_attribute("data-value") == "searxng"
+    assert (
+        page.locator("#andromeda-provider, #andromeda-exact-model, #andromeda-saved").count() == 0
+    )
 
     page.locator("#andromeda-query").fill("current search release")
     page.locator("#andromeda-form").press("Enter")
@@ -338,7 +338,7 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     assert abs(search_box["x"] - result_box["x"]) <= 1
     assert abs(search_box["width"] - result_box["width"]) <= 1
     assert requests[-1]["category"] == "all"
-    assert requests[-1]["provider"] == "searxng"
+    assert "provider" not in requests[-1]
     assert page.locator("#andromeda-overview").is_visible()
     assert page.locator("#andromeda-results-title").is_visible()
     overview_box = page.locator("#andromeda-overview").bounding_box()

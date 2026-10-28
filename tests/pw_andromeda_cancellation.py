@@ -191,7 +191,7 @@ async def run_profile(browser, base, output, profile, record):
         await page.locator('.app-drawer-item[data-view="andromeda"]').click()
         await expect(page.locator("#andromeda-view")).to_be_visible()
         # Visibility and a previous network-idle event precede async app setup.
-        await expect(page.locator("#andromeda-saved-list")).to_have_text("nothing saved yet")
+        await expect(page.locator("#andromeda-query")).to_be_focused()
         transport.hold()
         await search("current search release")
         await asyncio.wait_for(transport.pending.wait(), timeout=5)

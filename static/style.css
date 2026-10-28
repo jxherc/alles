@@ -255,7 +255,6 @@ body.sidebar-hidden .sidebar { display: none; }
 .andromeda-option.active { color: var(--text); border-color: var(--muted); }
 .andromeda-option.active::before { content: '• '; color: var(--text); }
 .andromeda-band { color: var(--text); }
-.andromeda-model { margin-left: auto; overflow-wrap: anywhere; }
 .andromeda-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 220px;
@@ -334,23 +333,6 @@ body.sidebar-hidden .sidebar { display: none; }
 }
 .andromeda-empty { border-top: 1px solid var(--faint); padding: 1rem 0; color: var(--muted); font-size: 0.8125rem; }
 .andromeda-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 1rem; }
-.andromeda-saved { min-width: 0; border-left: 1px solid var(--faint); padding-left: 1rem; }
-.andromeda-saved-list { display: grid; gap: 0.3rem; }
-.andromeda-saved-row {
-  width: 100%;
-  border: 0;
-  border-bottom: 1px solid var(--faint);
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  font: inherit;
-  font-size: 0.8125rem;
-  padding: 0.55rem 0.1rem;
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.andromeda-saved-row:hover { color: var(--text); }
 .andromeda-band-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
 .andromeda-band-settings label { display: grid; gap: 0.28rem; color: var(--muted); font-size: 0.8125rem; }
 .server-service-card {
@@ -370,8 +352,6 @@ body.sidebar-hidden .sidebar { display: none; }
 @media (max-width: 760px) {
   .andromeda-shell { width: min(100% - 1.25rem, 680px); padding-top: 1.2rem; }
   .andromeda-layout { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
-  .andromeda-saved { border-left: 0; border-top: 1px solid var(--faint); padding: 1rem 0 0; }
-  .andromeda-model { width: 100%; margin-left: 0; }
   .andromeda-search { grid-template-columns: minmax(0, 1fr); }
   .andromeda-search button { width: 100%; }
   .andromeda-band-settings { grid-template-columns: minmax(0, 1fr); }
@@ -9996,9 +9976,6 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
 .andromeda-view .andromeda-watch-new li { display: grid; }
 .andromeda-view .andromeda-watch-new a { display: inline-flex; align-items: center; min-height: 44px; color: var(--link); font-size: 0.875rem; text-underline-offset: 0.2em; }
 .andromeda-view .andromeda-watch-new small { color: var(--muted); font-size: 0.8125rem; }
-.andromeda-view .andromeda-saved-row { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; }
-.andromeda-view .andromeda-saved-row > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.andromeda-view .andromeda-saved-row small { color: var(--muted); font-size: 0.8125rem; }
 .andromeda-view .andromeda-blocked-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; margin-top: 16px; color: var(--muted); font-size: 0.8125rem; }
 .andromeda-evidence-toggle { margin-top: 16px; }
 .andromeda-evidence { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--andromeda-line); }
@@ -10259,8 +10236,6 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
 #andromeda-view .andromeda-settings-section > h3,
 #andromeda-view .andromeda-settings-section-head { padding: 16px 16px 4px; }
 #andromeda-view .andromeda-settings-section-head { align-items: center; }
-#andromeda-view .andromeda-saved { padding: 16px; border-left: 0; }
-#andromeda-view .andromeda-saved h3 { margin: 0 0 8px; padding: 0; border: 0; color: var(--muted); font-size: 0.8125rem; font-weight: 560; }
 #andromeda-view :is(.andromeda-settings-section-head .andromeda-text-action, .andromeda-searxng-actions button, .andromeda-setting-clear, .andromeda-manage-engines) {
   min-width: 0; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--k-radius-small); background: transparent;
   color: var(--muted); font: 0.8125rem/1 var(--font-family, sans-serif); white-space: nowrap; cursor: pointer;
@@ -10286,15 +10261,6 @@ html[data-theme="light"] .andromeda-source-mark:has(img.loaded) { border-color: 
 @media (prefers-reduced-motion: reduce) {
   .s-switch::after, .andromeda-switch span { transition: none; }
 }
-.andromeda-model { padding: 10px 16px; color: var(--muted); font-size: 0.8125rem; overflow-wrap: anywhere; }
-.andromeda-model:empty { display: none; }
-/* the model line sits on the result column edges, not 16px inside them */
-#andromeda-view .andromeda-model { padding-inline: 0; }
-.andromeda-saved { padding: 14px 16px 16px; border-top: 1px solid var(--andromeda-line); }
-.andromeda-saved h3 { margin: 0 0 8px; color: var(--muted); font-size: 0.8125rem; font-weight: 520; }
-.andromeda-saved-list { display: grid; gap: 2px; color: var(--muted); font-size: 0.8125rem; }
-.andromeda-saved-row { width: 100%; min-height: 34px; padding: 0 7px; overflow: hidden; border: 0; border-radius: var(--k-radius-control); background: transparent; color: var(--muted); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.andromeda-saved-row:hover { background: var(--panel); color: var(--text); }
 .andromeda-idle-footer { display: none; }
 
 .andromeda-view[data-state="idle"] { overflow-x: hidden; overflow-y: auto; }

@@ -21,7 +21,6 @@ CASES = (
     "bounded-accept",
     "cross-retry",
     "busy-handoff",
-    "origin-deleted",
     "saved-modified",
     "empty-excerpts",
     "empty-evidence",
@@ -185,7 +184,7 @@ def run(context_factory=None):
                             ],
                         },
                     }
-                    if case.startswith("bounded") or case == "origin-deleted":
+                    if case.startswith("bounded"):
                         payload["results"] = [
                             {
                                 **result,
@@ -264,9 +263,7 @@ def run(context_factory=None):
                                 route.continue_()
                         elif parsed.path == saved_path:
                             opens.append(parsed.path)
-                            if case == "origin-deleted" and len(opens) == 2:
-                                held.append(route)
-                            elif case == "saved-retry" and len(opens) == 1:
+                            if case == "saved-retry" and len(opens) == 1:
                                 route.fulfill(
                                     status=503, json={"detail": "owned saved-search outage"}
                                 )
@@ -407,12 +404,6 @@ def run(context_factory=None):
                                 assert len(opens) == 2
                                 record["status"] = "passed"
                                 continue
-                            if case == "origin-deleted":
-                                # the saved list is on the page itself
-                                page.locator("#andromeda-saved-list").get_by_role(
-                                    "button", name=query, exact=True
-                                ).click()
-                                assert len(held) == 1
                             ask.focus()
                             ask.press("Enter")
                             if case.startswith("empty-"):
@@ -427,21 +418,6 @@ def run(context_factory=None):
                                     assert stored[field] == payload[field]
                                 assert not errors and not forbidden
                                 assert not [line for line in console if "status of 400" not in line]
-                                record["status"] = "passed"
-                                continue
-                            if case == "origin-deleted":
-                                dialog = page.get_by_role("alertdialog")
-                                expect(dialog).to_be_visible()
-                                api("DELETE", saved_path)
-                                held.pop().continue_()
-                                expect(page.locator("#andromeda-save-message")).to_contain_text(
-                                    "not found"
-                                )
-                                dialog.get_by_role("button", name="confirm", exact=True).click()
-                                expect(page.locator("#andromeda-status")).to_contain_text(
-                                    "saved search changed"
-                                )
-                                assert not chats
                                 record["status"] = "passed"
                                 continue
                             if case.startswith("bounded"):

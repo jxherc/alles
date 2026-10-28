@@ -586,8 +586,6 @@ def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> Non
             label,
             "Andromeda overview state",
             page.locator("#andromeda-overview-state").inner_text(),
-            "model",
-            page.locator("#andromeda-model").inner_text(),
             "overview html",
             page.locator("#andromeda-overview").inner_html(),
             "console errors",
@@ -604,12 +602,8 @@ def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> Non
         page.locator(".andromeda-citation").count() == 1
         and page.locator("#andromeda-evidence-details").is_visible()
     )
-    results[f"{label}_model_provider_visible"] = (
-        "phase4-local" in page.locator("#andromeda-model").inner_text()
-    )
     page.locator("#andromeda-save").click()
-    page.wait_for_selector(".andromeda-saved-row", timeout=5_000)
-    results[f"{label}_saved_search_visible"] = page.locator(".andromeda-saved-row").is_visible()
+    page.wait_for_selector("#andromeda-save-open", state="visible", timeout=5_000)
 
     page.locator("#andromeda-query").fill("cancel overview")
     page.locator("#andromeda-query").press("Enter")
@@ -695,8 +689,6 @@ def check_andromeda(browser, viewport: dict, mobile: bool, results: dict) -> Non
     results[f"{label}_labels"] = (
         page.locator("#andromeda-query").get_attribute("aria-label") is None
         and page.locator('label[for="andromeda-query"]').count() == 1
-        and page.locator("#andromeda-exact-model").get_attribute("aria-label")
-        == "exact overview model"
     )
     results[f"{label}_reduced_motion"] = page.evaluate(
         "matchMedia('(prefers-reduced-motion: reduce)').matches"
