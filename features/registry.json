@@ -65,7 +65,8 @@
           "uninstall",
           "doctor",
           "access",
-          "config"
+          "config",
+          "password"
         ],
         "jobs": [],
         "automation_actions": [],

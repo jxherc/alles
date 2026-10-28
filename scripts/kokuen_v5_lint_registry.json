@@ -659,11 +659,11 @@
   {
     "rule": "focus-suppression",
     "message": "outline suppressed in html[data-kokuen-version=\"5\"] :where( input:not([type]), input:is([type=\"text\"], [type=\"search\"], [type=\"email\"], [type=; prove one replacement geometry",
-    "css_block_sha256": "c51cd0e9b70c65ed8e768f536cf8494d80e55dd2721f6ec878c4f98716a236db",
+    "css_block_sha256": "2f103038578c077530f88add838c5e33133302e655913eb2f83de8712b9adccb",
     "path": "static/kokuen.css",
-    "selector": "html[data-kokuen-version=\"5\"] :where( input:not([type]), input:is([type=\"text\"], [type=\"search\"], [type=\"email\"], [type=\"url\"], [type=\"tel\"], [type=\"password\"], [type=\"number\"]), textarea, .custom-select[role=\"combobox\"], .locale-choice-trigger[aria-haspopup=\"listbox\"] ):not([role=\"button\"]):focus-visible, html[data-kokuen-version=\"5\"] .date-input:focus-visible",
-    "job": "single form-field focus line",
-    "reason": "Text-like inputs, textareas and custom-select combobox and locale-choice dropdown triggers replace the generic rectangle with a two-pixel inset bottom indicator using the neutral field-focus token. Invalid fields retain a danger indicator. Forced colors restores a Highlight outline for independent fields; action, choice, slider and color-control rings remain. Inputs acting as buttons keep their full control outline. Date pickers are underline fields with no padding for a ring, so they take the same bottom line (decision 0035)."
+    "selector": "html[data-kokuen-version=\"5\"] :where( input:not([type]), input:is([type=\"text\"], [type=\"search\"], [type=\"email\"], [type=\"url\"], [type=\"tel\"], [type=\"password\"], [type=\"number\"]), textarea, .custom-select[role=\"combobox\"], .locale-choice-trigger[aria-haspopup=\"listbox\"] ):not([role=\"button\"]):focus-visible",
+    "job": "single form-field focus edge",
+    "reason": "Text-like inputs, textareas and custom-select combobox and locale-choice dropdown triggers replace the generic rectangle by brightening their own border with the neutral field-focus token (decision 0045), so there is one edge, not a line drawn over it. Invalid fields retain a danger indicator. Forced colors restores a Highlight outline for independent fields; action, choice, slider and color-control rings remain. Inputs acting as buttons keep their full control outline. Underline fields such as date pickers recolor their bottom border in a separate rule."
   },
   {
     "rule": "focus-suppression",

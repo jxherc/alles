@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import { t, tp } from '../../static/js/i18n.js';
 
 const source = readFileSync(new URL('../../static/js/filesphase7.js', import.meta.url), 'utf8');
-const functions = ['renderAppStatus', 'renderLocationStatus', 'startIndexing', 'loadIndexStatus'].map(name => {
+const functions = ['fixedLocation', 'renderAppStatus', 'renderLocationStatus', 'startIndexing', 'loadIndexStatus'].map(name => {
   const signature = source.indexOf(`function ${name}(`);
   return source.slice(source.lastIndexOf('\n', signature) + 1, source.indexOf('\n}', signature) + 2);
 }).join('\n');
