@@ -1082,6 +1082,80 @@ export async function loadPhoton(isCurrent = () => true) {
 }
 
 
+// ── texting Aide on telegram, through the owner's own bot ──
+
+let _telegramBound = false;
+let _telegramEnabled = false;
+
+function _renderTelegram(data) {
+  _telegramEnabled = !!data.enabled;
+  _setSwitch(document.getElementById('telegram-enabled'), _telegramEnabled);
+  document.getElementById('telegram-head-state').textContent = {
+    ready: t('common.connected'),
+    error: t('connections.photon_state_problem'),
+    off: t('connections.photon_state_off'),
+  }[data.state] || t('connections.state_connecting');
+  const detail = document.getElementById('telegram-detail');
+  if (data.state === 'error' && data.error) detail.textContent = data.error;
+  else if (data.state === 'ready') {
+    detail.textContent = data.ignored
+      ? tp('connections.photon_handled_ignored', data.ignored, { handled: data.handled || 0 })
+      : tp('connections.photon_handled', data.handled || 0);
+  } else detail.textContent = t('connections.telegram_detail');
+  // the steps are for getting there; once it runs they're noise
+  document.getElementById('telegram-steps').hidden = data.state === 'ready';
+  document.getElementById('telegram-token-note').textContent = data.has_token
+    ? t('connections.telegram_token_saved')
+    : t('shell.settings_tools.encrypted_and_never_shown_again');
+  const open = document.getElementById('telegram-open-bot');
+  open.hidden = !data.bot;
+  if (data.bot) {
+    open.href = `https://t.me/${encodeURIComponent(data.bot)}`;
+    open.textContent = t('connections.telegram_open_bot', { name: data.bot });
+  }
+}
+
+async function _saveTelegram(enabled) {
+  const toggle = document.getElementById('telegram-enabled');
+  const token = document.getElementById('telegram-token');
+  toggle.disabled = true;
+  try {
+    const response = await _fetchWithRecentOwner('/api/aide/channels/telegram', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ enabled, token: token.value.trim() }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || data.detail || t('connections.telegram_save_failed'));
+    token.value = '';
+    _renderTelegram(data);
+    toast(enabled ? t('connections.telegram_on') : t('common.saved'));
+    // the bot's name and the first poll land a moment later
+    if (enabled) setTimeout(() => loadTelegram(), 2500);
+  } catch (error) {
+    _setSwitch(toggle, _telegramEnabled);
+    toast(error.message, 'error');
+  } finally { toggle.disabled = false; }
+}
+
+export async function loadTelegram(isCurrent = () => true) {
+  if (!document.getElementById('telegram-card')) return;
+  if (!_telegramBound) {
+    _telegramBound = true;
+    document.getElementById('telegram-enabled').addEventListener('click', () => _saveTelegram(!_telegramEnabled));
+    document.getElementById('telegram-token').addEventListener('keydown', event => {
+      if (event.key === 'Enter') { event.preventDefault(); _saveTelegram(true); }
+    });
+  }
+  try {
+    const data = await fetch('/api/aide/channels/telegram').then(r => (r.ok ? r.json() : Promise.reject()));
+    if (isCurrent()) _renderTelegram(data);
+  } catch {
+    if (isCurrent()) document.getElementById('telegram-head-state').textContent = t('common.unavailable');
+  }
+}
+
+
 // ── signing in to sites in Aide's errand browser ──
 // the owner drives the headless page through screenshots. typed text goes straight to the page.
 
@@ -1405,7 +1479,7 @@ export const connectionsPane = createSettingsPane({
   load: isCurrent => (_connectionsLoaded = Promise.all([
     loadAgentStatus(isCurrent), loadMcpServers(isCurrent), loadConnections(isCurrent),
     loadDiscordConnection(isCurrent), loadPermRules(isCurrent), loadMacosStatus(isCurrent),
-    loadPhoton(isCurrent), loadBrowserSignin(isCurrent),
+    loadPhoton(isCurrent), loadTelegram(isCurrent), loadBrowserSignin(isCurrent),
   ])),
   dispose() {
     // leaving the pane ends the live view, so Aide isn't kept waiting on a page nobody watches

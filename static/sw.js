@@ -1,8 +1,8 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v444';   // a photo button on contacts, and the docs folder as a read-only location in files.
+const VERSION = 'v445';   // text Aide on Telegram through your own bot.
 const BUILD = '__ALLES_BUILD__';   // the server swaps in a hash of static/, so any change is a new worker
 const CACHE = `alles-${VERSION}-${BUILD}`;
-const STAMP = '597';   // keep in sync with index.html ?v=
+const STAMP = '598';   // keep in sync with index.html ?v=
 const NETWORK_FIRST_STATIC = ['.js', '.mjs', '.css', '.json'];   // json: release notes must be the live ones
 // page -> whether its html came from this same build. a same-build page reads its code straight
 // from the cache: nothing there can be from another build. a restarted worker forgets and asks the network

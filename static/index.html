@@ -7,7 +7,7 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=597">
+<link rel="stylesheet" href="/static/style.css?v=598">
   <link rel="stylesheet" href="/static/kokuen.css?v=86">
 <link rel="stylesheet" href="/static/aidecentral.css?v=17">
 <link rel="stylesheet" href="/static/aidecoding.css?v=25">
@@ -23,7 +23,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=597">
+<link rel="modulepreload" href="/static/js/app.js?v=598">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=216">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -2502,6 +2502,26 @@
               <button class="btn" type="button" id="photon-save" style="width:100%" data-i18n="common.save">save</button>
             </div>
           </div>
+          <div class="s-card" id="telegram-card">
+            <div class="s-card-head">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 4 3 11l6 2.5M21 4l-4 16-8-6.5M21 4 9 13.5V19l3-3.5"/></svg>
+              <span data-i18n="connections.telegram_title">text Aide on Telegram</span>
+              <span class="jarvis-discord-head-state" id="telegram-head-state" data-i18n="connections.photon_state_off">off</span>
+            </div>
+            <div class="s-card-body">
+              <div class="jarvis-discord-status">
+                <div><div class="s-toggle-label" data-i18n="connections.telegram_label">Aide on Telegram</div><div class="s-toggle-desc" id="telegram-detail" data-i18n="connections.telegram_detail">your own bot. Telegram's servers carry the messages, so approvals still happen only inside alles.</div></div>
+                <button class="s-switch" type="button" id="telegram-enabled" role="switch" aria-checked="false" aria-label="text Aide on Telegram" data-i18n-aria-label="connections.telegram_title"></button>
+              </div>
+              <ol class="finance-bank-steps telegram-steps" id="telegram-steps">
+                <li><a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>: <span data-i18n="connections.telegram_step_bot">send /newbot, then copy the token it gives you</span></li>
+                <li data-i18n="connections.telegram_step_paste">paste it below and send your new bot any message</li>
+                <li data-i18n="connections.telegram_step_on">turn on the switch above</li>
+              </ol>
+              <div class="s-field"><label for="telegram-token"><span data-i18n="connections.telegram_token">bot token</span> <span class="s-field-note" id="telegram-token-note" data-i18n="shell.settings_tools.encrypted_and_never_shown_again">encrypted and never shown again</span></label><input type="password" class="settings-input" id="telegram-token" autocomplete="off" spellcheck="false" placeholder="paste the bot token" style="width:100%" data-i18n-placeholder="shell.settings_tools.paste_the_bot_token"></div>
+              <a class="btn conn-token-link" id="telegram-open-bot" target="_blank" rel="noopener noreferrer" hidden></a>
+            </div>
+          </div>
           <div class="s-card" id="browser-signin-card">
             <div class="s-card-head">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
@@ -3102,6 +3122,6 @@
   </div><!-- /s-modal -->
 </div>
 
-<script type="module" src="/static/js/app.js?v=597"></script>
+<script type="module" src="/static/js/app.js?v=598"></script>
 </body>
 </html>

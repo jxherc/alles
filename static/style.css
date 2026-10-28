@@ -563,6 +563,7 @@ body[data-app="files"] .dialog-msg { overflow-wrap: anywhere; }
 .finance-bank-steps { margin: 8px 0 0; padding-inline-start: 20px; color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
 .finance-bank-steps li + li { margin-top: 4px; }
 .finance-bank-steps a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+.telegram-steps { margin: 0 0 12px; }
 .finance-bank-environments .active { color: var(--text); background: var(--faint); }
 @media (max-width: 620px) {
   .finance-bank-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }

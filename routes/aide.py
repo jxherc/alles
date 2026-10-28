@@ -220,6 +220,11 @@ class CodeSettingsBody(BaseModel):
     guard: bool = True
 
 
+class TelegramChatBody(BaseModel):
+    enabled: bool = False
+    token: str = Field(default="", max_length=200)  # blank keeps the saved one
+
+
 class PhotonBody(BaseModel):
     enabled: bool = False
     project_id: str = Field(default="", max_length=200)
@@ -396,6 +401,38 @@ async def photon_settings(body: PhotonBody):
         await photon_channel.register_numbers()
     await photon_channel.restart()
     return photon_channel.public()
+
+
+@router.get("/channels/telegram")
+def telegram_status():
+    from services import telegram_channel
+
+    return telegram_channel.public()
+
+
+@router.put("/channels/telegram", dependencies=[Depends(require_recent_owner)])
+async def telegram_settings(body: TelegramChatBody):
+    """turn texting Aide on Telegram on or off. the bot token and chat id are the ones telegram
+    notifications use; turning it on finds the chat when none is saved yet."""
+    from core.settings import save_settings
+    from services import telegram_channel
+
+    patch: dict = {"telegram_chat_enabled": body.enabled}
+    token = body.token.strip() or telegram_channel.settings()["token"]
+    if body.token.strip():
+        if not telegram_channel.TOKEN_RE.fullmatch(token):
+            raise ApiError(
+                400, "telegram_token_missing", "paste the bot token from BotFather first"
+            )
+        patch["notify_telegram_token"] = token
+    if body.enabled and (body.token.strip() or not telegram_channel.settings()["chat_id"]):
+        try:
+            patch["notify_telegram_chat_id"] = telegram_channel.find_chat(token)["chat_id"]
+        except telegram_channel.TelegramError as exc:
+            raise ApiError(exc.status, exc.code, exc.message) from exc
+    save_settings(patch)
+    await telegram_channel.restart()
+    return telegram_channel.public()
 
 
 @router.post("/channels/photon/connect", dependencies=[Depends(require_recent_owner)])

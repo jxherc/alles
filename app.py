@@ -877,6 +877,7 @@ async def lifespan(app: FastAPI):
     connectivity_task = None
     discord_task = None
     photon_task = None
+    telegram_task = None
     try:
         init_db()
         if preflight:
@@ -1047,6 +1048,9 @@ async def lifespan(app: FastAPI):
 
         # imessage through photon; idles until it's turned on in settings
         photon_task = asyncio.create_task(run_photon(), name="photon")
+        from services.telegram_channel import run_forever as run_telegram
+
+        telegram_task = asyncio.create_task(run_telegram(), name="telegram")
         connectivity_task = asyncio.create_task(
             _connectivity_selftest()
         )  # fire-and-forget, logs a warning if outbound is dead
@@ -1057,6 +1061,8 @@ async def lifespan(app: FastAPI):
         from services.pi_agent import close_all as close_pi_chats
 
         await close_pi_chats()
+        if telegram_task is not None:
+            telegram_task.cancel()
         if photon_task is not None:
             from services.photon_channel import restart as drop_photon
 

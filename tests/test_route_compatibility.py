@@ -144,6 +144,9 @@ _TELEGRAM_CHAT_ADDITIONS = {"POST /api/settings/telegram/find-chat"}
 # the search palette asks the chat model to fix a typo when nothing local is close
 _SPELLFIX_ADDITIONS = {"POST /api/search/spellfix"}
 
+# texting Aide on telegram through the owner's own bot
+_TELEGRAM_CHANNEL_ADDITIONS = {"GET /api/aide/channels/telegram", "PUT /api/aide/channels/telegram"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -162,6 +165,7 @@ def _route_rows():
         | _API_DOCS_ADDITIONS
         | _TELEGRAM_CHAT_ADDITIONS
         | _SPELLFIX_ADDITIONS
+        | _TELEGRAM_CHANNEL_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -295,6 +299,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _API_DOCS_ADDITIONS
                 - _TELEGRAM_CHAT_ADDITIONS
                 - _SPELLFIX_ADDITIONS
+                - _TELEGRAM_CHANNEL_ADDITIONS
             ),
             960,
         )
@@ -337,6 +342,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _API_DOCS_ADDITIONS
                 - _TELEGRAM_CHAT_ADDITIONS
                 - _SPELLFIX_ADDITIONS
+                - _TELEGRAM_CHANNEL_ADDITIONS
             ),
             974,
         )
@@ -368,8 +374,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 998)
-        self.assertEqual(digest, "e78616a0083858d2c4460207866a436181f965a883bb84db75646d367d5dcdd8")
+        self.assertEqual(len(rows), 1000)
+        self.assertEqual(digest, "d89afa3b4d2fadd8d443d6ea49e8493ab91fd7757aa5ed23b70786d9f25998d9")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -378,7 +384,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 972, "v1": 2, "public": 24})
+        self.assertEqual(groups, {"api": 974, "v1": 2, "public": 24})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

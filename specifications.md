@@ -258,6 +258,7 @@ what it supports:
 - **what alles adds to pi**: pi starts with alles's own short system prompt (`<agent-dir>/SYSTEM.md`, a few hundred tokens instead of pi's default prompt) and `--no-skills`, so skills found elsewhere on the machine aren't sent with every request. a bundled extension (`services/pi_ext/alles.ts`) adds three things. secrets: anything the owner wraps in `||double bars||`, plus known key shapes (openai, anthropic, github, gitlab, aws, google, slack, stripe, hugging face, npm, jwts, private keys and random `api_key=…` values), is swapped for `{{secret:NAME}}` before pi sees the message; the extension puts the real value back only inside the tool call that uses it and hides it again in tool output, and the values are kept per chat, sealed with alles's key, in `<data>/pi/secrets`. a guard: risky shell commands (recursive deletes of broad paths, force pushes, hard resets, `sudo`, disk tools, piping downloads into a shell, dropping tables) wait for the owner's yes (`coding_guard`). web tools: `web_search` and `web_fetch` call back into alles at `/pi-bridge/*` with the chat's own random token, from this machine only, using the owner's search engines and the ssrf-safe fetcher.
 - **other harnesses**: pi is the default (`coding_harness`). oh-my-pi (omp, a pi fork with 60+ built-in providers and an ask-before-commands mode, `coding_approval`) runs through the same driver. under more harnesses, alles lists the public [ACP registry](https://agentclientprotocol.com/registry) plus popular ones it doesn't carry (DeepSeek Harness, Kimi Code, MiniMax Code, Codewhale, Kode, Neovate, Nanocoder, Strands, OpenHands, QwenPaw, Open Interpreter, gptme, Hermes), each marked open or closed source; installing one puts its pinned package or checksum-verified binary in `~/.cache/alles/harness`, and its chats connect over ACP with the harness's own sign-in, models and permission prompts. alles keeps a plain log of those chats to show them again.
 - **text Aide from your phone**: settings → connections & tools → text Aide over iMessage connects Aide to [photon](https://photon.codes)'s shared imessage line through the open-source `spectrum-ts` sdk (12.11.0, installed on first use into `~/.cache/alles/photon-12.11.0` with install scripts off). a small node helper keeps the line open. only texts from the owner's own numbers or emails are answered; others are counted and ignored. a text becomes background work in the one main conversation, and the result comes back as a text. questions with choices can be answered by replying with a number or the option. approvals never happen over text, because photon's servers relay every message: Aide says the action is waiting in alles instead. the project secret is sealed with the other credentials and never returned. photon's shared line only lets a text through when its sender is a registered user of the project, so whenever imessage is on alles registers each owner phone number with photon (skipping ones it already knows, using the project id and secret) and shows the line that number should text. "connect with Photon" skips copying keys: a device login, approved once in the browser, lets alles find or create its `alles` project, mint the project secret, save it, and register the owner's numbers; the dashboard token is sealed with the other credentials. this follows hermes-agent's photon setup.
+- **text Aide on telegram**: settings → connections & tools → text Aide on Telegram uses the owner's own bot (made once with @BotFather) and the same token and chat id as telegram notifications ([services/telegram_channel.py](services/telegram_channel.py)). alles long-polls the bot, so no public address is needed. turning it on with a new token finds the owner's private chat from the newest message to the bot. only that chat is answered; other chats and groups are counted and ignored, and messages older than 15 minutes (sent while alles was down) get no late answer. it shares [services/channel_runs.py](services/channel_runs.py) with imessage: a text becomes background work in the main conversation, choices can be answered by number, approvals stay inside alles, and the answer comes back split under telegram's 4096-character limit.
 - **web errands**: Aide's browser (playwright chromium, headless) keeps one profile under `<data>/browser/profile`, so sign-ins carry over. pages come back as text plus numbered elements, and `browse_click`, `browse_type`, `browse_select`, `browse_scroll` and `browse_back` act on those numbers. private, local and tailnet addresses are refused, including alles itself. checkout and payment requests are blocked in the browser, so Aide stops before paying. password and card fields are never filled by Aide. clicks and submits that look like sending, booking, buying or confirming ask the owner first, even in full auto. the owner signs in to sites from settings → connections & tools → sign in to a site (or Aide's ⋯ menu): alles opens the page in that same browser and streams screenshots, and the owner's clicks and keys go straight to the page. what they type is never logged, kept or shown to Aide, and a snapshot never reads a password or card field's value. Aide's browse tools wait while the view is open (it closes on done, on leaving the pane, or after two idle minutes, and leaves a blank page). the private-address and payment blocks still apply. sites that kept cookies are listed under `<data>/browser/signins.json` with a sign-out (clears that site's cookies and stored data) and a forget-everything button that deletes the whole profile. opening a site, signing out and forgetting need a recent owner sign-in; api tokens can't reach any of it.
 - **app actions from plain chat**: just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm"). reads can run directly; changes and sends follow the configured permission rules
 - **conclusion-first work**: successful answers lead with the result. exact steps, sources, diffs, and revert controls stay available under one accessible control after reload
@@ -1676,9 +1677,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 998 http method/path pairs
-- 972 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
-- sha-256: `e78616a0083858d2c4460207866a436181f965a883bb84db75646d367d5dcdd8`
+- 1000 http method/path pairs
+- 974 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
+- sha-256: `d89afa3b4d2fadd8d443d6ea49e8493ab91fd7757aa5ed23b70786d9f25998d9`
 
 <details>
 <summary>app.py · 10 operations</summary>
@@ -1718,7 +1719,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/aide.py · 32 operations</summary>
+<summary>routes/aide.py · 34 operations</summary>
 
 [source](routes/aide.py)
 
@@ -1733,6 +1734,8 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/api/aide/channels/photon` | `photon_status` |
 | `PUT` | `/api/aide/channels/photon` | `photon_settings` |
 | `POST` | `/api/aide/channels/photon/connect` | `photon_connect` |
+| `GET` | `/api/aide/channels/telegram` | `telegram_status` |
+| `PUT` | `/api/aide/channels/telegram` | `telegram_settings` |
 | `GET` | `/api/aide/code/folders` | `code_folders` |
 | `GET` | `/api/aide/code/harnesses` | `code_harnesses` |
 | `POST` | `/api/aide/code/harnesses/{harness_id}/install` | `code_install_harness` |
