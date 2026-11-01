@@ -8046,6 +8046,7 @@ const BUILTIN_ENGLISH = {
     "server.activity_ev_renewed": "{name} renewed",
     "server.activity_ev_journaled": "journaled · {date}",
     "server.activity_ev_agent_run": "agent run · {status}",
+    "server.activity_kinds": "what to show",
     "settings.opt_current_facts": "current facts",
     "settings.opt_only_when_asked": "only when asked",
     "settings.opt_send_message_to_ai": "send message to AI",

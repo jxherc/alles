@@ -8307,6 +8307,7 @@
     "read.stats_unread": {"one": "{count} sin leer", "many": "{count} sin leer", "other": "{count} sin leer"},
     "server.activity_available_events": {"one": "{count} eventos disponibles", "many": "{count} eventos disponibles", "other": "{count} eventos disponibles"},
     "server.activity_events": {"one": "{count} evento", "many": "{count} eventos", "other": "{count} eventos"},
+    "server.activity_kinds": "qué mostrar",
     "server.system_json_passed": {"one": "búsqueda json superada · {count} resultado", "many": "búsqueda json superada · {count} resultados", "other": "búsqueda json superada · {count} resultados"},
     "server.system_live_procs": {"one": "en directo · {count} proceso", "many": "en directo · {count} procesos", "other": "en directo · {count} procesos"},
     "server.overview_cpu_cores": {"one": "{count} núcleo", "many": "{count} núcleos", "other": "{count} núcleos"},

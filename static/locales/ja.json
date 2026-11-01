@@ -8307,6 +8307,7 @@
     "read.stats_unread": {"other": "未読 {count} 件"},
     "server.activity_available_events": {"other": "利用可能なイベント {count} 件"},
     "server.activity_events": {"other": "{count} 件のイベント"},
+    "server.activity_kinds": "表示するもの",
     "server.system_json_passed": {"other": "JSON 検索に成功 · {count} 件"},
     "server.system_live_procs": {"other": "稼働中 · {count} プロセス"},
     "server.overview_cpu_cores": {"other": "{count} コア"},

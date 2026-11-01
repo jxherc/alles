@@ -8307,6 +8307,7 @@
     "read.stats_unread": {"one": "{count} non lu", "many": "{count} non lus", "other": "{count} non lus"},
     "server.activity_available_events": {"one": "{count} événement disponible", "many": "{count} de événements disponibles", "other": "{count} événements disponibles"},
     "server.activity_events": {"one": "{count} événement", "many": "{count} de événements", "other": "{count} événements"},
+    "server.activity_kinds": "quoi afficher",
     "server.system_json_passed": {"one": "recherche json réussie · {count} résultat", "many": "recherche json réussie · {count} de résultats", "other": "recherche json réussie · {count} résultats"},
     "server.system_live_procs": {"one": "actif · {count} processus", "many": "actif · {count} processus", "other": "actif · {count} processus"},
     "server.overview_cpu_cores": {"one": "{count} cœur", "many": "{count} cœurs", "other": "{count} cœurs"},

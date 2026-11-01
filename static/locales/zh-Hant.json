@@ -8307,6 +8307,7 @@
     "read.stats_unread": {"other": "{count} 個未讀"},
     "server.activity_available_events": {"other": "{count} 個可用事件"},
     "server.activity_events": {"other": "{count} 個事件"},
+    "server.activity_kinds": "顯示內容",
     "server.system_json_passed": {"other": "json 搜尋通過 · {count} 筆結果"},
     "server.system_live_procs": {"other": "運作中 · {count} 個處理程序"},
     "server.overview_cpu_cores": {"other": "{count} 核"},

@@ -8307,6 +8307,7 @@
     "read.stats_unread": {"other": "읽지 않음 {count}개"},
     "server.activity_available_events": {"other": "사용 가능한 이벤트 {count}개"},
     "server.activity_events": {"other": "이벤트 {count}개"},
+    "server.activity_kinds": "표시할 항목",
     "server.system_json_passed": {"other": "json 검색 성공 · 결과 {count}개"},
     "server.system_live_procs": {"other": "실행 중 · 프로세스 {count}개"},
     "server.overview_cpu_cores": {"other": "{count}코어"},

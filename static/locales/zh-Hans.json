@@ -8307,6 +8307,7 @@
     "read.stats_unread": {"other": "{count} 篇未读"},
     "server.activity_available_events": {"other": "{count} 个可用事件"},
     "server.activity_events": {"other": "{count} 个事件"},
+    "server.activity_kinds": "显示内容",
     "server.system_json_passed": {"other": "json 搜索通过 · {count} 条结果"},
     "server.system_live_procs": {"other": "运行中 · {count} 个进程"},
     "server.overview_cpu_cores": {"other": "{count} 核"},

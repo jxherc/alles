@@ -8307,6 +8307,7 @@
     "read.stats_unread": {"one": "{count} unread", "other": "{count} unread"},
     "server.activity_available_events": {"one": "{count} available events", "other": "{count} available events"},
     "server.activity_events": {"one": "{count} event", "other": "{count} events"},
+    "server.activity_kinds": "what to show",
     "server.system_json_passed": {"one": "json search passed · {count} result", "other": "json search passed · {count} results"},
     "server.system_live_procs": {"one": "live · {count} process", "other": "live · {count} processes"},
     "server.overview_cpu_cores": {"one": "{count} core", "other": "{count} cores"},

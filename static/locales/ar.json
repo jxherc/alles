@@ -8042,6 +8042,7 @@
     "server.activity_ev_renewed": "تم تجديد {name}",
     "server.activity_ev_journaled": "يوميات · {date}",
     "server.activity_ev_agent_run": "تشغيل الوكيل · {status}",
+    "server.activity_kinds": "ما يُعرض",
     "settings.opt_current_facts": "المعلومات الحالية",
     "settings.opt_only_when_asked": "عند الطلب فقط",
     "settings.opt_send_message_to_ai": "إرسال رسالة إلى الذكاء الاصطناعي",

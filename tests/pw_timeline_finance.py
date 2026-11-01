@@ -142,7 +142,8 @@ def run():
             assert page.evaluate("window.__activityNav") in {"tasks", "money"}
 
             state["mode"] = "error"
-            page.locator('.act-seg .seg-opt[data-d="7"]').click()
+            page.locator("#activity-filters .act-range").click()
+            page.get_by_role("option", name="7d", exact=True).click()
             expect(page.locator("#activity-body .activity-status")).to_contain_text(
                 "couldn’t load activity"
             )
