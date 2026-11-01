@@ -1,6 +1,6 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
-import { closeCustomDropdowns, populateDropdown } from '../dropdown.js?v=216';
+import { closeCustomDropdowns, populateDropdown } from '../dropdown.js?v=217';
 import { formatDateForLocale, formatTimeForLocale, prepareLocalization, regionName, t } from '../i18n.js';
 
 // ── Phase 10 locale Settings ─────────────────────────────────────────────────
