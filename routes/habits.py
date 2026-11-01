@@ -431,6 +431,30 @@ def toggle(hid: str, body: ToggleBody, db: DbSession = Depends(get_db)):
     return {"done": done, "date": day}
 
 
+@router.get("/habits/{hid}/exercise")
+def exercise_history(
+    hid: str, name: str, setup: str = "", date_q: str = "", db: DbSession = Depends(get_db)
+):
+    """one exercise's last time, records and next step hint, matched by exact name and setup
+    (setup is json, for example {"basis": "per_side", "grip": "overhand"})."""
+    import json
+
+    h = db.get(Habit, hid)
+    if not h:
+        raise HTTPException(404)
+    try:
+        today = _d(date_q).isoformat() if date_q else date.today().isoformat()
+        wanted = json.loads(setup) if setup else {}
+    except ValueError:
+        raise HTTPException(400, "date_q must be ISO and setup json") from None
+    if not isinstance(wanted, dict):
+        raise HTTPException(400, "date_q must be ISO and setup json")
+    logs = Days(db.query(HabitLog.date, HabitLog.data).filter(HabitLog.habit_id == hid).all())
+    return habit_logs.exercise_history(
+        logs.logs.items(), name, wanted, today, habit_kinds.load_fields(h.fields)
+    )
+
+
 # ── workout log import (preview, apply, undo) ──────────────────────────────────
 class ImportBody(BaseModel):
     text: str = ""

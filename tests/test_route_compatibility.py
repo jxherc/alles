@@ -168,6 +168,7 @@ _SIGNIN_ADDITIONS = {
 # habit logs with every detail: the kinds' fields, the workout log import and the body profile
 _HABIT_LOG_ADDITIONS = {
     "GET /api/habits/kinds",
+    "GET /api/habits/{hid}/exercise",
     "POST /api/habits/{hid}/import",
     "POST /api/habits/{hid}/import/preview",
     "POST /api/habits/{hid}/import/{batch}/undo",
@@ -430,8 +431,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1020)
-        self.assertEqual(digest, "238aa61fbba11b65d3aa73e5336697b9ff81de45d094f158d14adb2a552e842d")
+        self.assertEqual(len(rows), 1021)
+        self.assertEqual(digest, "1369693a85c461c85fb22d7027da1046801b004b9c51322f06af042f6f030491")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -440,7 +441,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 994, "v1": 2, "public": 24})
+        self.assertEqual(groups, {"api": 995, "v1": 2, "public": 24})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

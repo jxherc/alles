@@ -2498,7 +2498,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/habits.py · 11 operations</summary>
+<summary>routes/habits.py · 12 operations</summary>
 
 [source](routes/habits.py)
 
@@ -2510,6 +2510,7 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/api/habits/requests/{request_id}` | `recover_habit` |
 | `DELETE` | `/api/habits/{hid}` | `delete_habit` |
 | `PATCH` | `/api/habits/{hid}` | `update_habit` |
+| `GET` | `/api/habits/{hid}/exercise` | `exercise_history` |
 | `POST` | `/api/habits/{hid}/import` | `import_apply` |
 | `POST` | `/api/habits/{hid}/import/preview` | `import_preview` |
 | `POST` | `/api/habits/{hid}/import/{batch}/undo` | `import_undo` |
