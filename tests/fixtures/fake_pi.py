@@ -97,7 +97,7 @@ def run(text):
             "role": "assistant",
             "content": [],
             "stopReason": "error",
-            "errorMessage": "401 invalid api key",
+            "errorMessage": '401: {"message":"invalid api key","type":"auth"}',
             "usage": {"output": 0},
         }
         out({"type": "message_end", "message": failed})
