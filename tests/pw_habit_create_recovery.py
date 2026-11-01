@@ -8,6 +8,9 @@ from pathlib import Path
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
+# the day button also carries habit-today, so match the done class on its own
+DONE = re.compile(r"(^|\s)done(\s|$)")
+
 
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
@@ -125,10 +128,12 @@ def run():
                         keyboard(form.locator('[data-act="create"]'))
                         expect(form).to_have_count(0)
                         saved = next(row for row in rows() if row["name"] == name)
-                        card = page.locator(f'.habit-card[data-id="{saved["id"]}"]')
+                        # an opened habit nests its edit card, so the outer card is the first match
+                        card = page.locator(f'.habit-card[data-id="{saved["id"]}"]').first
                         keyboard(card.locator(".habit-day").last)
-                        expect(card.locator(".habit-day").last).to_have_class("habit-day done")
+                        expect(card.locator(".habit-day").last).to_have_class(DONE)
                         history = rows()[0]["grid"]
+                        keyboard(card.locator('[data-act="open"]'))
                         keyboard(card.locator('[data-act="edit"]'))
                         keyboard(card.locator('[data-act="archive"]'))
                         expect(card).to_have_count(0)
@@ -158,10 +163,10 @@ def run():
                         keyboard(card.locator('[data-act="restore"]'))
                         expect(card).to_have_count(0)
                         keyboard(page.locator('[data-act="archive-view"]'))
-                        expect(card.locator(".habit-day").last).to_have_class("habit-day done")
+                        expect(card.locator(".habit-day").last).to_have_class(DONE)
                         assert rows()[0]["grid"] == history
                         keyboard(card.locator(".habit-day").last)
-                        expect(card.locator(".habit-day").last).to_have_class("habit-day")
+                        expect(card.locator(".habit-day").last).not_to_have_class(DONE)
                         keyboard(page.locator('[data-act="archive-view"]'))
                         page.evaluate("window._navigateTo('today')")
                         keyboard(

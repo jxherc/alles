@@ -113,13 +113,14 @@ def _history(db, hid) -> Days:
     return Days(db.query(HabitLog.date, HabitLog.data).filter(HabitLog.habit_id == hid).all())
 
 
-def _fmt(h: Habit, days: Days | None = None, today: date | None = None) -> dict:
+def _fmt(h: Habit, days: Days | None = None, today: date | None = None, log_day: str = "") -> dict:
     today = today or date.today()
     days = days or Days()
     dates, logs = days.done, days.logs
     kind = h.kind or "check"
     first = (today - timedelta(days=LOG_DAYS - 1)).isoformat()
-    recent = {d: v for d, v in logs.items() if first <= d <= today.isoformat()}
+    # an older day the screen paged back to comes along with the last two weeks
+    recent = {d: v for d, v in logs.items() if first <= d <= today.isoformat() or d == log_day}
     return {
         "id": h.id,
         "name": h.name,
@@ -177,9 +178,19 @@ def habit_kinds_list():
 
 
 @router.get("/habits/overview")
-def overview(date_q: str = "", db: DbSession = Depends(get_db), archived: bool = False):
+def overview(
+    date_q: str = "",
+    db: DbSession = Depends(get_db),
+    archived: bool = False,
+    log_day: str = "",
+):
     from services import life_stats
 
+    if log_day:
+        try:
+            log_day = _d(log_day).isoformat()
+        except ValueError:
+            raise HTTPException(400, "log_day must be ISO (YYYY-MM-DD)")
     if date_q:
         try:
             today = _d(date_q)  # same junk-date guard as toggle, else 500 on bad input
@@ -201,7 +212,7 @@ def overview(date_q: str = "", db: DbSession = Depends(get_db), archived: bool =
     for h in habits:
         days = Days(by_habit.get(h.id, []))
         done = days.done
-        card = _fmt(h, days, today)
+        card = _fmt(h, days, today, log_day)
         if card["kind"] in WEIGHT_KINDS:
             card["body_weight"] = habit_logs.body_weight(db, today.isoformat())
         risk = life_stats.habit_failure_risk(done, today)
@@ -429,6 +440,30 @@ def toggle(hid: str, body: ToggleBody, db: DbSession = Depends(get_db)):
         return {"done": True, "date": day, "data": data}
     done, day = habit_logs.toggle(db, hid, day, done=body.done)
     return {"done": done, "date": day}
+
+
+@router.get("/habits/{hid}/exercise")
+def exercise_history(
+    hid: str, name: str, setup: str = "", date_q: str = "", db: DbSession = Depends(get_db)
+):
+    """one exercise's last time, records and next step hint, matched by exact name and setup
+    (setup is json, for example {"basis": "per_side", "grip": "overhand"})."""
+    import json
+
+    h = db.get(Habit, hid)
+    if not h:
+        raise HTTPException(404)
+    try:
+        today = _d(date_q).isoformat() if date_q else date.today().isoformat()
+        wanted = json.loads(setup) if setup else {}
+    except ValueError:
+        raise HTTPException(400, "date_q must be ISO and setup json") from None
+    if not isinstance(wanted, dict):
+        raise HTTPException(400, "date_q must be ISO and setup json")
+    logs = Days(db.query(HabitLog.date, HabitLog.data).filter(HabitLog.habit_id == hid).all())
+    return habit_logs.exercise_history(
+        logs.logs.items(), name, wanted, today, habit_kinds.load_fields(h.fields)
+    )
 
 
 # ── workout log import (preview, apply, undo) ──────────────────────────────────

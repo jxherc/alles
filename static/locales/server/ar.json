@@ -686,6 +686,8 @@
     "date must be an ISO date (YYYY-MM-DD)": "يجب أن يكون التاريخ بصيغة ISO (YYYY-MM-DD)",
     "date_q and days must form a valid date range": "يجب أن يشكّل date_q وdays نطاق تواريخ صالحًا",
     "date_q must be ISO (YYYY-MM-DD)": "يجب أن يكون date_q بصيغة ISO (YYYY-MM-DD)",
+    "log_day must be ISO (YYYY-MM-DD)": "يجب أن يكون log_day بصيغة ISO ‏(YYYY-MM-DD)",
+    "date_q must be ISO and setup json": "يجب أن يكون date_q بصيغة ISO و setup بصيغة json",
     "decision must be duplicate or new": "يجب أن يكون القرار duplicate أو new",
     "decision must be keep or delete": "يجب أن يكون القرار keep أو delete",
     "decryption failed": "فشل فك التشفير",

@@ -686,6 +686,8 @@
     "date must be an ISO date (YYYY-MM-DD)": "la date doit être une date ISO (AAAA-MM-JJ)",
     "date_q and days must form a valid date range": "date_q et days doivent former une plage de dates valide",
     "date_q must be ISO (YYYY-MM-DD)": "date_q doit être au format ISO (AAAA-MM-JJ)",
+    "log_day must be ISO (YYYY-MM-DD)": "log_day doit être au format ISO (YYYY-MM-DD)",
+    "date_q must be ISO and setup json": "date_q doit être au format ISO et setup en json",
     "decision must be duplicate or new": "la décision doit être duplicate ou new",
     "decision must be keep or delete": "la décision doit être keep ou delete",
     "decryption failed": "le déchiffrement a échoué",
