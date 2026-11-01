@@ -2,6 +2,7 @@ import { toast } from './util.js';
 import { t, tp } from './i18n.js';
 import { confirm as confirmDialog, fields as fieldsDialog } from './dialog.js';
 import { categoryHue } from './color.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 
 let _memories = [];
 let _searchTimeout = null;
@@ -346,7 +347,7 @@ function _renderPolicy() {
 }
 
 async function _requestJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetchWithRecentOwner(url, options);
   let data = {};
   try { data = await response.json(); } catch {}
   if (!response.ok) throw new Error(data.detail || t('aide.mem_request_failed'));

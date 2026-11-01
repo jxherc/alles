@@ -2,6 +2,7 @@ import { toast, escapeHtml } from './util.js';
 import { exportActiveSessionMarkdown, getActiveId } from './sessions.js';
 import { formatTime, t } from './i18n.js';
 import { confirm } from './dialog.js';
+import { openWithRecentOwner } from './recent_owner.js';
 import { loadShortcuts } from './shortcuts.js';
 import { createFocusBoundary } from './kokuen.js?v=4';
 
@@ -548,7 +549,7 @@ export async function tryExecuteSlashCommand(text) {
     }
 
     case 'backup':
-      window.location = '/api/backup';
+      await openWithRecentOwner('/api/backup');
       return true;
 
     case 'compact':

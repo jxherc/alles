@@ -100,7 +100,7 @@ async function setMode(mode, { focus = false, restore = false } = {}) {
   closeContext({ restoreFocus: false });
   menu?.close({ restoreFocus: false });
   if (mode !== 'call' && !$('aide-call-workspace').hidden) {
-    const voice = await import('./livevoice.js?v=3');
+    const voice = await import('./livevoice.js?v=4');
     voice.closeLiveVoiceSurface();
   }
   if (mode === 'coding') {

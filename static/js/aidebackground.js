@@ -3,6 +3,7 @@ import { createStreamingAiRow, scrollDown } from './sessions.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { t as tr } from './i18n.js';
 import { requestId } from './request_id.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 
 const TERMINAL = new Set(['succeeded', 'failed', 'cancelled', 'interrupted', 'uncertain']);
 const timers = new Map();
@@ -222,7 +223,7 @@ export async function startBackgroundWork({
     }
     let run;
     try {
-      run = await readJson(await fetch('/api/jarvis/handoffs', {
+      run = await readJson(await fetchWithRecentOwner('/api/jarvis/handoffs', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

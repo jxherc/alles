@@ -1,5 +1,5 @@
 import { toast } from '../util.js';
-import { prompt as _dlgPrompt } from '../dialog.js';
+import { confirmRecentOwner, fetchWithRecentOwner } from '../recent_owner.js';
 import { t } from '../i18n.js';
 
 // ── switch helpers ────────────────────────────────────────────────────────────
@@ -95,22 +95,13 @@ export function _escAttr(s = '') {
   return _esc(s).replace(/"/g,'&quot;');
 }
 
+// the one password prompt lives in recent_owner.js; these keep the names settings code uses
 export async function _confirmRecentOwner() {
-  const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
-  if (me && me.enabled === false) return true;
-  const password = await _dlgPrompt(t('settings.reauth_prompt'), '', { secret: true });
-  if (password == null) return false;
-  const r = await fetch('/api/auth/reauth', {
-    method: 'POST', headers: {'content-type':'application/json'},
-    body: JSON.stringify({ password }),
-  });
-  if (!r.ok) { toast(t('settings.reauth_failed'), 'error'); return false; }
-  return true;
+  try { return await confirmRecentOwner(); }
+  catch (error) { toast(error.message || t('settings.reauth_failed'), 'error'); return false; }
 }
 
-export async function _fetchWithRecentOwner(input, init) {
-  let r = await fetch(input, init);
-  if (r.status === 403 && await _confirmRecentOwner()) r = await fetch(input, init);
-  return r;
+export function _fetchWithRecentOwner(input, init) {
+  return fetchWithRecentOwner(input, init);
 }
 window._fetchWithRecentOwner = _fetchWithRecentOwner;

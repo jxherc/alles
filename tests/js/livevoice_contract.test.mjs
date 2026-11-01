@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { t as i18nT, tp as i18nTp } from '../../static/js/i18n.js';
+import { confirmRecentOwner, requestWithRecentOwner } from '../../static/js/recent_owner.js';
 
 const source = readFileSync(new URL('../../static/js/livevoice.js', import.meta.url), 'utf8');
 const style = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
@@ -102,6 +103,15 @@ function fixture({ available = true, browserReady = true, microphone, fetchOverr
       return response({});
     },
     requestId: () => '00000000-0000-4000-8000-000000000000',
+    // the real shared password flow, with this test's own password box and toast
+    requestWithRecentOwner: (request, input, init, options = {}) => requestWithRecentOwner(request, input, init, {
+      confirmOwner: (asked, asking) => confirmRecentOwner(asked, { ...asking, ask: prompt }),
+      notify: (...args) => notices.push(args),
+      ...options,
+    }),
+    fetchWithRecentOwner: (input, init, options = {}) => context.requestWithRecentOwner(
+      (...args) => context.fetch(...args), input, init, { onRefused: 'response', ...options },
+    ),
     toast: (...args) => notices.push(args),
     dlgPrompt: prompt,
     escapeHtml: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'),

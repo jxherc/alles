@@ -321,7 +321,10 @@ def preview_handoff(
 
 
 @router.post("/handoffs")
-async def add_handoff(body: HandoffBody, db: DbSession = Depends(get_db)):
+async def add_handoff(body: HandoffBody, request: Request, db: DbSession = Depends(get_db)):
+    # background work in full access runs without asking, the same as a turn in the chat
+    if body.permission_mode == "full_access":
+        require_recent_owner(request)
     session = db.get(Session, body.session_id)
     if not session:
         raise HTTPException(404, "session not found")

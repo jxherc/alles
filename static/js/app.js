@@ -15,16 +15,16 @@ import { closeWithSlide } from './motion.js';
 import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
-import { initSlash, tryExecuteSlashCommand } from './slash.js?v=400';
+import { initSlash, tryExecuteSlashCommand } from './slash.js?v=401';
 import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=254';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
 import { openManual } from './help.js?v=2';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
-import { loadVaultView, initVault } from './vault.js?v=290';
+import { loadVaultView, initVault } from './vault.js?v=291';
 import { loadContacts, addContact } from './contacts.js';
 import { initLiveFormat } from './liveformat.js';
-import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=490';
+import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=491';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos, closeLightbox } from './photos.js';
@@ -42,6 +42,7 @@ import {
   isIncognitoMode,
   getPermMode,
   setPermMode,
+  requestPermMode,
   getEffort,
   setEffort,
   getReasoningMode,
@@ -51,11 +52,11 @@ import {
   permLabel,
   effortLabel,
   modelSupport,
-} from './modes.js?v=258';
+} from './modes.js?v=259';
 import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
 import { wireAutosizeTextarea } from './text_entry.js?v=1';
-import { initAideWorkspace } from './aideworkspace.js?v=281';
+import { initAideWorkspace } from './aideworkspace.js?v=282';
 import { initAideCentral } from './aidecentral.js?v=2';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=4';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=255';
@@ -424,14 +425,14 @@ async function _boot({ reachable = true } = {}) {
   initSync();
   bindEvents();
   initAskPanel();
-  import('./livevoice.js?v=3').then(module => module.initLiveVoice()).catch(() => {});
+  import('./livevoice.js?v=4').then(module => module.initLiveVoice()).catch(() => {});
   // per-app settings gears (header cogs) + the reload hooks they call after saving
   initAppCogs();
   window._reloadFiles = () => loadFiles('');   // jump to the (possibly new) root
   window._reloadPhotos = loadPhotos;
   window._reloadCalendar = () => loadCalendar();
   window._reloadMail = startMailPoll;
-  window._reloadSystem = () => import('./system.js?v=270').then(m => m.initSystem());
+  window._reloadSystem = () => import('./system.js?v=271').then(m => m.initSystem());
   applySubdomainScope(initialRoute);
   const sourceMessage = new URLSearchParams(location.search).get('message');
   if (sourceMessage && document.body.classList.contains('is-aide') && !focusSessionMessage(sourceMessage)) {
@@ -1071,7 +1072,7 @@ const showMoneyView      = () => showView('money-view',     'money',     (track,
 const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=6'), module => module.initDaysPanel(request)));
 const showJournalView    = () => showWikiView('journal');
 const showActivityView   = () => showView('activity-view',  'activity',  (track, request) => trackedImport(track, request, () => import('./activity.js'), module => module.initActivity(request)));
-const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=270'), module => module.initSystem(request)));
+const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=271'), module => module.initSystem(request)));
 const showWatchView      = () => showView('watch-view',     'watch',     (track, request) => trackedImport(track, request, () => import('./watch.js'), module => module.initWatch(request)));
 const showHabitsView     = () => showView('habits-view',    'habits',    (track, request) => trackedImport(track, request, () => import('./habits.js'), module => module.initHabits(request)));
 const showReadView       = () => showView('read-view',      'read',      (track, request) => trackedImport(track, request, () => import('./read.js'), module => module.initRead(request)));
@@ -1093,7 +1094,7 @@ const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showV
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
-  () => import('./aidescheduled.js?v=248'),
+  () => import('./aidescheduled.js?v=249'),
   module => module.initAideScheduled(request),
 ));
 
@@ -1114,7 +1115,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
-  if (group === 'server' && section === 'overview') return import('./system.js?v=270').then(module => module.initSystem(request));
+  if (group === 'server' && section === 'overview') return import('./system.js?v=271').then(module => module.initSystem(request));
   if (group === 'server' && section === 'activity') return import('./activity.js').then(module => module.initActivity(request));
   if (group === 'server' && section === 'watch') return import('./watch.js').then(module => module.initWatch(request));
 }
@@ -2480,7 +2481,12 @@ function _openPermMenu(anchor) {
   menu.style.bottom = `${window.innerHeight - r.top + 6}px`;
   anchor.setAttribute('aria-expanded', 'true');
   const items = [...menu.querySelectorAll('.perm-menu-item')];
-  items.forEach(it => it.addEventListener('click', () => { setPermMode(it.dataset.v); closePermMenu(true); }));
+  items.forEach(it => it.addEventListener('click', async () => {
+    // closes first: the password box needs the screen, and a refused switch leaves the old mode
+    const mode = it.dataset.v;
+    closePermMenu(true);
+    await requestPermMode(mode);
+  }));
   menu.addEventListener('keydown', event => {
     const index = items.indexOf(document.activeElement);
     if (event.key === 'Escape') {

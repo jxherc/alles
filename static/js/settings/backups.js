@@ -3,7 +3,8 @@ import { toast, plainError } from '../util.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
 import { populateDropdown } from '../dropdown.js?v=215';
 import { formatDateTime, formatNumber, t } from '../i18n.js';
-import { _confirmRecentOwner, _fetchWithRecentOwner } from './shared.js';
+import { _fetchWithRecentOwner } from './shared.js';
+import { fetchWithRecentOwner, openWithRecentOwner } from '../recent_owner.js';
 
 // ── webdav backup ────────────────────────────────────────────────────────────
 let _webdavConfigured = false;
@@ -869,10 +870,10 @@ function _wireBackupsPane(closeSettings) {
     window._openSetupWizard?.({ resume: true });
   });
   document.getElementById('backup-export-btn')?.addEventListener('click', async () => {
-    if (await _confirmRecentOwner()) window.location = '/api/backup';
+    await openWithRecentOwner('/api/backup');
   });
   document.getElementById('backup-key-export-btn')?.addEventListener('click', async () => {
-    if (await _confirmRecentOwner()) window.location = '/api/backup/recovery-key';
+    await openWithRecentOwner('/api/backup/recovery-key');
   });
   const restoreInput = document.getElementById('backup-restore-input');
   const restoreButton = document.getElementById('backup-restore-btn');
@@ -901,22 +902,18 @@ function _wireBackupsPane(closeSettings) {
     const fd = new FormData(); fd.append('file', file);
     if (keyInput?.files[0]) fd.append('recovery_key', keyInput.files[0]);
     const send = async () => {
-      const response = await fetch('/api/backup/restore', { method: 'POST', body: fd });
+      const response = await fetchWithRecentOwner('/api/backup/restore', { method: 'POST', body: fd });
       let data;
       try { data = await response.json(); }
       catch { throw new Error(t('backups.read_response_failed')); }
       return { response, data };
     };
     try {
-      let { response, data } = await send();
+      const { response, data } = await send();
       if (response.status === 403 && data?.code === 'recent_auth_required') {
-        showStatus(t('backups.confirm_password'));
-        if (!await _confirmRecentOwner()) {
-          showStatus(t('backups.check_canceled'));
-          return;
-        }
-        showStatus(t('backups.checking_backup'));
-        ({ response, data } = await send());
+        // the shared prompt already asked; the password was cancelled or wrong
+        showStatus(t('backups.check_canceled'));
+        return;
       }
       if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : t('backups.check_failed'));
       if (data?.status !== 'staged' || !/^[0-9a-f]{32}$/.test(data?.restore_id || '')) {

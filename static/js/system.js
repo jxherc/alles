@@ -3,6 +3,7 @@
 // live; the lines are one neutral color and only a value past 90% turns to the danger color.
 import { plainError } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 import { resolvedTimeZone, t, tp } from './i18n.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -212,7 +213,7 @@ async function manageSearxng(action, button) {
   if (statusEl) statusEl.textContent = t('server.system_in_progress', { action: t(`server.system_act_${action}`) });
   const path = `/api/system/searxng/${action}`;
   try {
-    const response = await fetch(path, { method: 'POST' });
+    const response = await fetchWithRecentOwner(path, { method: 'POST' });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.detail || t('server.system_action_failed', { action: t(`server.system_act_${action}`) }));
     if (statusEl && action === 'test') statusEl.textContent = tp('server.system_json_passed', body.results);

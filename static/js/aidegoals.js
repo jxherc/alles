@@ -1,5 +1,6 @@
 // standing goals: things Aide keeps working on and only speaks up about when there's news.
-import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
+import { confirm as dlgConfirm } from './dialog.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 import { toast, plainError, writeClipboard } from './util.js';
 import { formatDateTime, t, tp } from './i18n.js';
 
@@ -30,15 +31,8 @@ function el(tag, className = '', text = '') {
   return node;
 }
 
-async function ownerFetch(url, init = {}) {
-  const response = await fetch(url, init);
-  if (response.status !== 403) return response;
-  const error = await response.clone().json().catch(() => ({}));
-  if (error.code !== 'recent_auth_required') return response;
-  const password = await dlgPrompt(t('aide.goal_reauth_prompt'), '', { secret: true });
-  if (password == null) return response;
-  const ok = await fetch('/api/auth/reauth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) });
-  return ok.ok ? fetch(url, init) : response;
+function ownerFetch(url, init = {}) {
+  return fetchWithRecentOwner(url, init, { prompt: t('aide.goal_reauth_prompt') });
 }
 async function api(url, init = {}) {
   const response = await ownerFetch(url, init);

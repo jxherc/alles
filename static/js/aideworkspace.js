@@ -1,7 +1,8 @@
 import { getProjects, loadProjects } from './projects.js';
 import { createSession, getActiveId, markActive } from './sessions.js';
 import { getCurrentEndpoint, getSelected } from './models.js?v=216';
-import { prompt as dlgPrompt } from './dialog.js';
+import { fetchWithRecentOwner as sharedFetchWithRecentOwner } from './recent_owner.js';
+import { requestId } from './request_id.js';
 import { toast, plainError } from './util.js';
 import { t, tp } from './i18n.js';
 import { initAideCoding, openAideCoding } from './aidecoding.js';
@@ -153,23 +154,8 @@ function openProjectMenu() {
   menu.querySelector('[aria-checked="true"]')?.focus();
 }
 
-async function fetchWithRecentOwner(input, init, reason = t('aide.reauth_reason_folder')) {
-  let response = await fetch(input, init);
-  if (response.status !== 403) return response;
-  const me = await fetch('/api/auth/me').then(result => result.json()).catch(() => null);
-  if (me?.enabled === false) return response;
-  const password = await dlgPrompt(t('aide.reauth_prompt', { reason }), '', { secret: true });
-  if (password == null) return response;
-  const confirmed = await fetch('/api/auth/reauth', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ password }),
-  });
-  if (!confirmed.ok) {
-    toast(t('aide.password_failed'), 'error');
-    return response;
-  }
-  return fetch(input, init);
+function fetchWithRecentOwner(input, init, reason = t('aide.reauth_reason_folder')) {
+  return sharedFetchWithRecentOwner(input, init, { prompt: t('aide.reauth_prompt', { reason }) });
 }
 
 function syncBranchButton() {
@@ -728,7 +714,7 @@ function rebuildRail() {
   }
   const ticks = [...track.children];
   const keys = rows.map(row => {
-    if (!row._aideRailKey) row._aideRailKey = row.dataset.msgId || crypto.randomUUID();
+    if (!row._aideRailKey) row._aideRailKey = row.dataset.msgId || requestId();
     return row._aideRailKey;
   });
   const stable = ticks.length === rows.length

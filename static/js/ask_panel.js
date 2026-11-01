@@ -6,6 +6,7 @@ import { mdToHtml, appLabel } from './util.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
 import { singleHost, urlForApp } from './subdomain.js?v=237';
 import { t } from './i18n.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 
 const SESSION_KEY = 'alles-ask-session';
 const SCREEN_LIMIT = 3000;
@@ -193,7 +194,9 @@ async function ensureSession(question) {
 async function failure(res) {
   let body = {};
   try { body = await res.json(); } catch { /* not json */ }
-  const err = new Error(body.detail || t('shell.aide_answered', { status: res.status }));
+  const err = new Error(body.code === 'recent_auth_required'
+    ? t('aide.full_access_needs_password')
+    : body.detail || t('shell.aide_answered', { status: res.status }));
   err.code = body.code || '';
   return err;
 }
@@ -219,12 +222,12 @@ async function send() {
   let text = '';
   try {
     const id = await ensureSession(question);
-    const res = await fetch('/api/chat', {
+    const res = await fetchWithRecentOwner('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: id, message: compose(question), simple: true, turn_token: turnToken }),
       signal: controller.signal,
-    });
+    }, { prompt: t('aide.reauth_prompt', { reason: t('aide.reauth_reason_full_access') }) });
     if (!res.ok || !res.body) throw await failure(res);
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
