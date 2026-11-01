@@ -686,6 +686,8 @@
     "date must be an ISO date (YYYY-MM-DD)": "日期必須是 ISO 日期（YYYY-MM-DD）",
     "date_q and days must form a valid date range": "date_q 與 days 必須構成有效的日期範圍",
     "date_q must be ISO (YYYY-MM-DD)": "date_q 必須是 ISO 格式（YYYY-MM-DD）",
+    "log_day must be ISO (YYYY-MM-DD)": "log_day 必須是 ISO 格式（YYYY-MM-DD）",
+    "date_q must be ISO and setup json": "date_q 必須是 ISO 格式，setup 必須是 json",
     "decision must be duplicate or new": "決定必須是 duplicate 或 new",
     "decision must be keep or delete": "決定必須是 keep 或 delete",
     "decryption failed": "解密失敗",

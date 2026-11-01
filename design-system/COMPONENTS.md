@@ -77,6 +77,18 @@ options or a model list is a dropdown, 2 or 3 a pill switch (28.29).
   numbers, end words centered under the number they name, a readout naming the pick, two rows of
   5 under 520px. listen for its bubbling `change` event (`detail.value`).
 
+## stepper
+
+A number a thumb nudges more than it types (weight, reps, glasses, minutes) is a stepper
+(decision 0058, `static/js/stepper.js`): one 52px field with its own edge, a 44px minus inside the
+start and plus inside the end, the value centered at role 22 semibold with tabular numbers.
+`stepperHtml({ name, value, step, min, max })` builds it; `wireSteppers(root)` makes every
+`data-kokuen-stepper="auto"` one step itself (buttons, arrow up and down in the field) and fire a
+bubbling `change` (`detail.value`). Minus is off at the floor, plus at the ceiling; empty and "?"
+count from the floor. Focus shows on the stepper's own edge only. A logger that keeps its own model
+(the gym set logger) uses the markup with `auto: false`. A plain number with no common step is a
+field with the numeric keypad, not a stepper.
+
 ## tabs
 
 Use for sibling views of the same data, not navigation to unrelated apps. Follow the ARIA tabs pattern. Keep labels visible, use type and tone for the selected state, and avoid decorative underlines or dots.

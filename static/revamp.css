@@ -4092,3 +4092,418 @@ html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > button:fo
   outline: 2px solid var(--k-focus, var(--focus));
   outline-offset: -4px;
 }
+
+/* ── habits as compact rows (u.08) and an opened habit ──────────────────────────────────────────
+   one row per habit on the shared row list (4px apart, 8px radius, hover fill). the name side
+   opens the habit; today's check or log sits on the right. colours stay quiet: done is the
+   neutral picked fill with a tick, not the habit's own bright colour */
+/* one 720px column, centred on wide screens like the owner's set logger shots, so the list and
+   an opened habit sit in the same place */
+html:not(#_):not(#_) #habits-body > * {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+html:not(#_):not(#_) .habits-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--k-row-gap);
+  max-width: 720px;
+}
+
+html:not(#_):not(#_) .habit-card.habit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--k-control-gap);
+  min-height: 56px;
+  padding: var(--k-space-1);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+}
+
+html:not(#_):not(#_) .habit-card.habit-row:hover { background: var(--k-hover); }
+html:not(#_):not(#_) .habit-card.habit-row.at-risk { border: 0; }
+
+html:not(#_):not(#_) .habit-row-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--k-space-3);
+  min-width: 0;
+  min-height: var(--k-control);
+  padding: 0 var(--k-space-2);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+html:not(#_):not(#_) .habit-row .habit-icon {
+  flex: none;
+  width: 24px;
+  font-size: 1.125rem;
+  text-align: center;
+}
+
+html:not(#_):not(#_) .habit-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+html:not(#_):not(#_) .habit-row .habit-name {
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html:not(#_):not(#_) .habit-row-sub {
+  overflow: hidden;
+  color: var(--k-muted);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html:not(#_):not(#_) .habit-row-sub.habit-slip {
+  padding: 0;
+  border: 0;
+  color: var(--k-muted);
+  font-weight: 400;
+  cursor: inherit;
+}
+
+html:not(#_):not(#_) .habit-dots {
+  display: inline-grid;
+  flex: none;
+  grid-template-columns: repeat(7, 8px);
+  gap: var(--k-space-1);
+}
+
+html:not(#_):not(#_) .habit-dots > i {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--k-radius-pill);
+  background: var(--k-line);
+}
+
+html:not(#_):not(#_) .habit-dots > i.on { background: var(--k-soft); }
+html:not(#_):not(#_) .habit-dots > i.today { outline: 1px solid var(--k-muted); outline-offset: 1px; }
+
+html:not(#_):not(#_) .habit-row .habit-streak {
+  flex: none;
+  min-width: 40px;
+  justify-content: flex-end;
+}
+
+html:not(#_):not(#_) .habit-day.habit-today {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--k-control);
+  height: var(--k-control);
+  padding: 0;
+  border: 0;
+  border-radius: var(--k-radius-pill);
+  background: var(--k-field);
+  outline: 1px solid var(--k-field-ring);
+  outline-offset: -1px;
+  color: var(--k-muted);
+}
+
+html:not(#_):not(#_) .habit-day.habit-today.done,
+html:not(#_):not(#_) .habit-detail .habit-day.done {
+  background: var(--k-selected-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) .habit-day.habit-today:hover { color: var(--k-text); background: var(--k-btn-fill-hover); }
+html:not(#_):not(#_) .habit-day.habit-today svg { width: 18px; height: 18px; }
+
+html:not(#_):not(#_) .habit-gone { justify-content: space-between; padding-inline-start: var(--k-space-3); }
+
+/* the opened habit */
+html:not(#_):not(#_) .habit-card.habit-detail {
+  display: grid;
+  gap: var(--k-space-4);
+  max-width: 720px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+html:not(#_):not(#_) .habit-detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--k-control-gap);
+}
+
+html:not(#_):not(#_) .habit-detail-head .habit-name {
+  flex: 1;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 620;
+}
+
+html:not(#_):not(#_) .habit-detail-head .habit-icon { font-size: 1.25rem; }
+html:not(#_):not(#_) .habit-stats { margin: 0; color: var(--k-muted); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+html:not(#_):not(#_) .habit-detail .habit-week { margin: 0; }
+/* which week the strip shows, and the arrows that page it; the arrows sit on the strip's end */
+html:not(#_):not(#_) .habit-week-head {
+  display: flex;
+  align-items: center;
+  gap: var(--k-control-gap);
+  margin-block-end: calc(-1 * var(--k-space-2));
+}
+html:not(#_):not(#_) .habit-week-range { flex: 1; color: var(--k-muted); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+html:not(#_):not(#_) .habit-detail .habit-day { min-height: 56px; }
+html:not(#_):not(#_) .habit-day.today b { font-weight: 700; color: var(--k-text); }
+html:not(#_):not(#_) .habit-day.picked { outline: 1px solid var(--k-muted); outline-offset: -1px; }
+html:not(#_):not(#_) .habit-detail .habit-card.editing { max-width: 460px; }
+
+html:not(#_):not(#_) .habit-year { display: grid; gap: var(--k-space-1); max-width: 100%; overflow-x: auto; }
+
+html:not(#_):not(#_) .habit-year-months {
+  display: grid;
+  grid-template-columns: repeat(var(--weeks), 12px);
+  column-gap: 3px;
+  color: var(--k-muted);
+  font-size: 0.8125rem;
+}
+
+html:not(#_):not(#_) .habit-year-months > span { white-space: nowrap; }
+html:not(#_):not(#_) .habit-year .habit-heat { margin: 0; overflow: visible; }
+html:not(#_):not(#_) .habit-heat > i.on { background: var(--k-soft); opacity: 1; }
+html:not(#_):not(#_) .habit-heat > i.today { outline: 1px solid var(--k-muted); outline-offset: 1px; }
+
+/* ── the gym logger (E3): the owner's set logger screens. labels on the left of one grid on
+   wide screens, on top on a phone; left and right steppers in two columns under one head ── */
+html:not(#_):not(#_) .gym { display: grid; gap: var(--k-space-5); --gym-label: 176px; --gym-h: 52px; }
+html:not(#_):not(#_) .gym-ex { display: grid; gap: var(--k-space-4); }
+html:not(#_):not(#_) .gym-ex-head { display: grid; gap: var(--k-space-1); }
+html:not(#_):not(#_) .gym-ex-head p { margin: 0; }
+html:not(#_):not(#_) .gym-ex-name { margin: 0; font-size: 1.25rem; font-weight: 620; line-height: 1.3; }
+html:not(#_):not(#_) .gym-ex-meta { color: var(--k-muted); font-size: 0.875rem; }
+html:not(#_):not(#_) .gym-prev { display: flex; flex-wrap: wrap; gap: var(--k-space-1) var(--k-space-3); margin-top: var(--k-space-3); font-size: 0.875rem; }
+html:not(#_):not(#_) .gym-prev[hidden], html:not(#_):not(#_) .gym-best[hidden], html:not(#_):not(#_) .gym-hint[hidden] { display: none; }
+html:not(#_):not(#_) .gym-prev-when, html:not(#_):not(#_) .gym-best { color: var(--k-muted); font-size: 0.875rem; }
+html:not(#_):not(#_) .gym-prev-vals { color: var(--k-soft); font-variant-numeric: tabular-nums; }
+html:not(#_):not(#_) .gym-hint { display: flex; align-items: center; gap: var(--k-control-gap); color: var(--k-soft); font-size: 0.875rem; }
+
+html:not(#_):not(#_) .gym-sets { display: grid; gap: var(--k-row-gap); margin: 0; padding: 0; list-style: none; }
+
+html:not(#_):not(#_) .gym-set {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--k-space-3);
+  min-height: 52px;
+  padding: var(--k-space-1) 0 var(--k-space-1) var(--k-space-3);
+  border-radius: var(--k-radius-control);
+}
+
+html:not(#_):not(#_) .gym-set:hover, html:not(#_):not(#_) .gym-set.is-editing { background: var(--k-hover); }
+html:not(#_):not(#_) .gym-set-n { color: var(--k-muted); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+html:not(#_):not(#_) .gym-set-vals { display: grid; min-width: 0; }
+html:not(#_):not(#_) .gym-set-text { font-size: 1.0625rem; font-weight: 560; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+html:not(#_):not(#_) .gym-set-meta { color: var(--k-muted); font-size: 0.8125rem; overflow-wrap: anywhere; }
+html:not(#_):not(#_) .gym-set-raw { color: var(--k-quiet); font-size: 0.8125rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+html:not(#_):not(#_) .gym-editor {
+  display: grid;
+  gap: var(--k-space-4);
+  padding: var(--k-space-5);
+  border-radius: var(--k-radius-surface);
+  background: var(--k-panel);
+}
+
+html:not(#_):not(#_) .gym-ed-head { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3); min-height: var(--k-control); }
+html:not(#_):not(#_) .gym-ed-head h4 { margin: 0; font-size: 1rem; font-weight: 620; }
+html:not(#_):not(#_) .gym-editing { color: var(--k-muted); font-weight: 400; }
+
+html:not(#_):not(#_) .gym-rest {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-1);
+  padding: var(--k-space-1) var(--k-space-1) var(--k-space-1) var(--k-space-3);
+  border-radius: var(--k-radius-control);
+  background: var(--k-field);
+}
+
+html:not(#_):not(#_) .gym-rest[hidden] { display: none; }
+html:not(#_):not(#_) .gym-rest-label { color: var(--k-muted); font-size: 0.875rem; }
+html:not(#_):not(#_) .gym-rest-time { margin: 0 auto 0 var(--k-space-2); font-size: 1.25rem; font-weight: 560; font-variant-numeric: tabular-nums; }
+
+html:not(#_):not(#_) .gym-fields { display: grid; gap: var(--k-space-4); }
+html:not(#_):not(#_) .gym-frow { display: grid; grid-template-columns: var(--gym-label) minmax(0, 1fr); align-items: start; gap: var(--k-space-3); }
+
+html:not(#_):not(#_) .gym-flabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-2);
+  min-height: var(--gym-h);
+  color: var(--k-muted);
+  font-size: 0.875rem;
+}
+
+html:not(#_):not(#_) .gym-cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k-space-3); }
+html:not(#_):not(#_) .gym-colhead { margin-bottom: calc(-1 * var(--k-space-2)); }
+html:not(#_):not(#_) .gym-colhead .gym-flabel, html:not(#_):not(#_) .gym-colhead > span { min-height: 0; }
+html:not(#_):not(#_) .gym-colhead .gym-cells > span { color: var(--k-muted); font-size: 0.8125rem; text-align: center; }
+html:not(#_):not(#_) .gym-editor[data-sides="same"] .gym-cells { grid-template-columns: minmax(0, 1fr); }
+html:not(#_):not(#_) .gym-editor[data-sides="same"] :is(.gym-cell[data-side="R"], .gym-colhead) { display: none; }
+html:not(#_):not(#_) .gym-cell-label { display: none; }
+
+/* the stepper (kit, decision 0058, static/js/stepper.js): one field, one edge; minus and plus sit
+   inside it. 52px tall so a sweaty thumb hits it, 44px buttons */
+html:not(#_):not(#_) .k-stepper {
+  display: grid;
+  grid-template-columns: var(--k-control) minmax(0, 1fr) var(--k-control);
+  align-items: center;
+  height: var(--gym-h, 52px);
+  border-radius: var(--k-radius-control);
+  background: var(--k-field);
+  outline: 1px solid var(--k-field-ring);
+  outline-offset: -1px;
+}
+
+html:not(#_):not(#_) .k-stepper:focus-within { outline-color: var(--k-field-focus); }
+
+html:not(#_):not(#_) .k-stepper button {
+  display: grid;
+  place-items: center;
+  width: var(--k-control);
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-muted);
+  cursor: pointer;
+}
+
+html:not(#_):not(#_) .k-stepper button:hover:not(:disabled) { background: var(--k-hover); color: var(--k-text); }
+html:not(#_):not(#_) .k-stepper button:focus-visible { outline: 1px solid var(--k-field-focus); outline-offset: -1px; }
+html:not(#_):not(#_) .k-stepper button:disabled { opacity: 0.4; cursor: default; }
+
+html:not(#_):not(#_) .k-stepper input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--k-space-1);
+  border: 0;
+  background: transparent;
+  /* the stepper's own edge shows focus (focus-within); the kit field ring (kokuen.css, important)
+     would draw a second box inside it */
+  box-shadow: none !important;
+  outline: none;
+  color: var(--k-text);
+  font: inherit;
+  /* role 22, semibold, as in the owner's set logger shots. important: the app-wide control size
+     floors (style.css "[data-specialist-app] input", revamp "[data-specialist-app] :is(button,
+     input...)") are important too and would shrink the value to role 13 (checked in webkit) */
+  font-size: 1.375rem !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+html:not(#_):not(#_) .k-stepper input::placeholder { color: var(--k-muted); font-weight: 400; }
+html:not(#_):not(#_) .k-stepper:has(input:disabled) { opacity: 0.5; }
+html:not(#_):not(#_) .k-stepper:has(input:disabled) button:disabled { opacity: 1; }
+html:not(#_):not(#_) .k-stepper input:disabled { cursor: default; }
+html:not(#_):not(#_) .gym-editor :is(.custom-select, .gym-tempo, .gym-note) { min-height: var(--gym-h); }
+html:not(#_):not(#_) .gym-note { height: auto; padding-block: 13px; resize: none; overflow: hidden; line-height: 1.6; }
+html:not(#_):not(#_) .gym-tempo { font-variant-numeric: tabular-nums; }
+
+html:not(#_):not(#_) .gym-more {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: var(--k-space-2);
+  min-height: var(--k-control);
+  margin-inline-start: calc(-1 * var(--k-space-3));
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-soft);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+html:not(#_):not(#_) .gym-more:hover { background: var(--k-hover); color: var(--k-text); }
+html:not(#_):not(#_) .gym-more svg { width: 16px; height: 16px; transition: transform 160ms ease; }
+html:not(#_):not(#_) .gym-more[aria-expanded="true"] svg { transform: rotate(180deg); }
+html:not(#_):not(#_) .gym-details[hidden] { display: none; }
+
+html:not(#_):not(#_) .gym-actions { display: flex; gap: var(--k-control-gap); margin-top: var(--k-space-2); }
+html:not(#_):not(#_) .gym-log-btn { flex: 1; min-height: var(--gym-h); font-size: 1rem; font-weight: 600; }
+html:not(#_):not(#_) .gym-ex-open { justify-self: start; }
+html:not(#_):not(#_) .gym-empty { margin: 0; color: var(--k-muted); font-size: 0.875rem; }
+
+@media (max-width: 560px) {
+  html:not(#_):not(#_) .gym-editor { padding: var(--k-space-4); }
+  html:not(#_):not(#_) .gym-frow { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2); }
+  html:not(#_):not(#_) .gym-flabel { min-height: 0; }
+  html:not(#_):not(#_) .gym-flabel:has(.k-pill-switch) { min-height: var(--k-control); }
+  html:not(#_):not(#_) .gym-colhead { display: none; }
+  html:not(#_):not(#_) .gym-editor[data-sides="split"] .gym-frow:is([data-key="weight"], [data-key="partial"]) .gym-cell-label {
+    display: block;
+    margin-bottom: var(--k-space-1);
+    color: var(--k-muted);
+    font-size: 0.8125rem;
+    text-align: center;
+  }
+  html:not(#_):not(#_) .habit-dots { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not(#_):not(#_) .gym-more svg { transition: none; }
+}
+
+/* plain text actions in the gym log (+15 s, skip, undo, use): words, no fill, a 44px target */
+html:not(#_):not(#_) .gym-text-btn {
+  min-height: var(--k-control);
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-soft);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+html:not(#_):not(#_) .gym-text-btn:hover { background: var(--k-hover); color: var(--k-text); }
+html:not(#_):not(#_) .gym-text-btn:focus-visible { outline: 1px solid var(--k-field-focus); outline-offset: -1px; }
+
+/* reps left: six values stay one row (6 x 44px fits a phone) in a round track, the end words
+   under 0 and 5+ on the same grid */
+html:not(#_):not(#_) .gym .k-number-row-scale,
+html:not(#_):not(#_) .gym .k-number-row[data-wrap="true"] .k-number-row-scale {
+  grid-template-columns: repeat(var(--k-n), var(--k-control));
+  padding: var(--k-space-1);
+  border-radius: var(--k-radius-pill);
+  background: var(--k-field);
+  outline: 1px solid var(--k-field-ring);
+  outline-offset: -1px;
+}
+
+html:not(#_):not(#_) .gym .k-number-row-words,
+html:not(#_):not(#_) .gym .k-number-row[data-wrap="true"] .k-number-row-words {
+  display: grid;
+  padding: 0 var(--k-space-1);
+}

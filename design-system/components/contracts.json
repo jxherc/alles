@@ -332,6 +332,81 @@
       "responsive_modes": ["desktop", "phone", "200-percent-zoom", "forced-colors", "long-content"],
       "fixtures": ["kit-number-row"],
       "exceptions": []
+    },
+    {
+      "id": "kokuen.stepper",
+      "status": "stable",
+      "user_job": "Nudge a number by a set step (weight, reps, glasses, minutes) or type it.",
+      "code_paths": [
+        "static/js/stepper.js",
+        "static/revamp.css"
+      ],
+      "figma": {
+        "status": "not_requested",
+        "key": null
+      },
+      "anatomy": [
+        "one 52px field with its own edge",
+        "44px minus inside the start",
+        "centered role 22 value",
+        "44px plus inside the end"
+      ],
+      "variants": [
+        "steps itself (data-kokuen-stepper=auto)",
+        "owned by its logger (markup only)"
+      ],
+      "states": [
+        "resting",
+        "hover",
+        "pressed",
+        "disabled",
+        "empty"
+      ],
+      "tokens": [
+        "--k-control",
+        "--k-field",
+        "--k-field-ring",
+        "--k-field-focus",
+        "--k-radius-control",
+        "--k-hover"
+      ],
+      "boundary_rationale": "One edge for the whole stepper; focus brightens that edge and the field ring never draws inside it (decision 0058).",
+      "width_behavior": "Fills its cell; the value shrinks to the space between the two 44px buttons and never overflows.",
+      "pointer_touch": "One tap per step; minus is off at the floor, plus at the ceiling; tapping the value selects it for typing.",
+      "disabled_loading_repeat": "A disabled stepper fades as one piece; an empty or unknown value can only go up.",
+      "accessibility": {
+        "role": "textbox with two buttons",
+        "name": "aria-label on the field; the buttons read \"less, weight\" and \"more, weight\"",
+        "relationships": [
+          "inputmode decimal or numeric"
+        ],
+        "focus": "One ring: the stepper's own edge while anything in it has focus"
+      },
+      "keyboard": {
+        "entry": "Tab",
+        "keys": [
+          "ArrowUp",
+          "ArrowDown",
+          "Tab"
+        ],
+        "exit": "Tab",
+        "restore": "The field keeps the typed value"
+      },
+      "content_constraints": [
+        "Numbers and times only",
+        "\"?\" is a valid unknown value"
+      ],
+      "responsive_modes": [
+        "desktop",
+        "phone",
+        "200-percent-zoom",
+        "forced-colors",
+        "long-content"
+      ],
+      "fixtures": [
+        "kit-stepper"
+      ],
+      "exceptions": []
     }
   ]
 }

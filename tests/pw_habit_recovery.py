@@ -8,6 +8,9 @@ from pathlib import Path
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
+# the day button also carries habit-today, so match the done class on its own
+DONE = re.compile(r"(^|\s)done(\s|$)")
+
 
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
@@ -89,7 +92,13 @@ def run():
                         if case == "create-during-load"
                         else "networkidle",
                     )
-                    card = page.locator(f'.habit-card[data-id="{item["id"]}"]')
+                    # an opened habit nests its edit card, so the outer card is the first match
+                    card = page.locator(f'.habit-card[data-id="{item["id"]}"]').first
+
+                    def open_editor():
+                        card.locator('[data-act="open"]').click()
+                        card.locator('[data-act="edit"]').click()
+
                     if case == "create-during-load":
                         expect(page.locator('#habits-body [role="status"]')).to_contain_text(
                             "loading"
@@ -158,7 +167,7 @@ def run():
                         expect(draft).to_have_value("keyboard draft after refresh")
                     elif case.startswith("load"):
                         if case == "load-draft":
-                            card.locator('[data-act="edit"]').click()
+                            open_editor()
                             card.locator('[data-f="name"]').fill("retained draft")
                             page.route(overview_route, reject)
                             page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
@@ -185,8 +194,8 @@ def run():
                             card.locator('[data-act="save"]').click()
                             expect(card.locator(".habit-name")).to_have_text("retained draft")
                     else:
-                        if case in {"archive", "save"}:
-                            card.locator('[data-act="edit"]').click()
+                        if case in {"archive", "save", "delete"}:
+                            open_editor()
                             if case == "save":
                                 card.locator('[data-f="name"]').fill("retained edit")
                         if case == "create":
@@ -210,10 +219,19 @@ def run():
                         def click_action():
                             action.click()
                             if case == "delete":
-                                page.locator(".dialog-overlay [data-dialog-confirm]").click()
+                                # delete waits 8s with undo in the habit's own row, then writes
+                                expect(
+                                    page.locator('.habit-gone [data-act="undo-del"]')
+                                ).to_be_focused()
 
                         click_action()
-                        expect(page.locator(".toast.error").last).to_be_visible()
+                        expect(page.locator(".toast.error").last).to_be_visible(
+                            timeout=15000 if case == "delete" else 5000
+                        )
+                        if case == "delete":
+                            # the failed delete puts the habit back as a row; reopen its editor
+                            expect(card.locator('[data-act="open"]')).to_be_visible()
+                            open_editor()
                         expect(action).to_be_enabled()
                         if case == "save":
                             expect(card.locator('[data-f="name"]')).to_have_value("retained edit")
@@ -227,7 +245,7 @@ def run():
                                 for row in context.request.get(overview).json()["habits"]
                             )
                         elif case.startswith("toggle"):
-                            expect(action).not_to_have_class("habit-day done")
+                            expect(action).not_to_have_class(DONE)
                             assert next(row for row in stored()["grid"] if row["date"] == day)[
                                 "done"
                             ] == (case == "toggle-lost")
@@ -239,15 +257,15 @@ def run():
                         page.unroute(pattern)
                         click_action()
                         if case in {"archive", "delete"}:
-                            expect(card).to_have_count(0)
+                            expect(card).to_have_count(0, timeout=15000)
                             assert stored() is None
                         elif case.startswith("toggle"):
-                            expect(action).to_have_class("habit-day done")
+                            expect(action).to_have_class(DONE)
                             assert next(row for row in stored()["grid"] if row["date"] == day)[
                                 "done"
                             ]
                             action.click()
-                            expect(action).to_have_class("habit-day")
+                            expect(action).not_to_have_class(DONE)
                         elif case == "save":
                             expect(card.locator(".habit-name")).to_have_text("retained edit")
                         else:
