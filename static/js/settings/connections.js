@@ -6,6 +6,7 @@ import { parsePrivateLines } from '../mcp-config.js';
 import { formatPhone } from '../liveformat.js';
 import { formatDate, formatList, resolvedTimeZone, t, tp } from '../i18n.js';
 import { mountDependencies } from '../dependencies.js';
+import { catalogByGroup, mountSignin } from '../signin.js';
 import { _setSwitch, _bindSwitch, _patchSetting, _patchSettings, _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -388,10 +389,99 @@ window._rmMcp = async btn => {
 };
 
 // ── connections (github etc) ────────────────────────────────────────────────
+// oauth first (owner, oct 29): github signs in by button; a pasted token is the quiet fallback
+let _githubSignin = null;
+function _mountGithubSignin() {
+  const host = document.getElementById('conn-github-signin');
+  if (!host) return;
+  if (_githubSignin) { _githubSignin.refresh(); return; }
+  _githubSignin = mountSignin(host, {
+    use: 'github',
+    provider: 'github',
+    fallback: { label: t('signin.fallback_token'), reason: t('signin.why_github'), onClick: _showTokenForm },
+    onDone: () => loadConnections(),
+  });
+}
+
+function _showTokenForm() {
+  const form = document.getElementById('conn-token-form');
+  if (!form) return;
+  form.hidden = false;
+  document.getElementById('conn-token')?.focus();
+}
+
+// the signed in accounts are drawn by the sign in block, so the token list leaves them out
+async function _signinAccountIds() {
+  try {
+    const response = await fetch('/api/signin/accounts');
+    if (!response.ok) return new Set();
+    const body = await response.json();
+    return new Set((body.accounts || []).map(a => String(a.id)));
+  } catch { return new Set(); }
+}
+
+// every connection alles can make, in one list (27.57, a catalog like hermes's platforms).
+// each row says how you give access and opens the screen where it's set up
+const _CATALOG_TARGET = {
+  mail: { href: '/?view=mail' },
+  calendar: { href: '/?view=calendar#sync' },
+  finance: { href: '/?view=money' },
+  models: { pane: 'models', anchor: '#s-ep-signin' },
+  github: { anchor: '#conn-github-signin' },
+  imessage: { anchor: '#photon-card' },
+  telegram: { anchor: '#telegram-card' },
+  discord: { anchor: '#jarvis-discord-card' },
+  mcp: { anchor: '#mcp-server-list' },
+};
+const _catalogTarget = row => _CATALOG_TARGET[row.id] || _CATALOG_TARGET[row.group] || {};
+const _catalogRows = () => catalogByGroup().flatMap(group => group.rows);
+
+function _catalogOpen(row) {
+  const target = _catalogTarget(row);
+  const label = _escAttr(t('connections.catalog_open_named', { name: row.name }));
+  return target.href
+    ? `<a class="btn" href="${_escAttr(target.href)}" aria-label="${label}">${_esc(t('connections.catalog_open'))}</a>`
+    : `<button class="btn" type="button" data-catalog="${_escAttr(row.id)}" aria-label="${label}">${_esc(t('connections.catalog_open'))}</button>`;
+}
+
+function _goToCatalogTarget(target) {
+  const go = () => {
+    const node = document.querySelector(target.anchor);
+    const card = node?.closest('.s-card') || node;
+    if (!card) return;
+    card.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    card.querySelector('button:not([disabled]), a[href], input, textarea')?.focus({ preventScroll: true });
+  };
+  if (!target.pane) { go(); return; }
+  document.querySelector(`.s-nav-item[data-pane="${CSS.escape(target.pane)}"]`)?.click();
+  setTimeout(go, 300);
+}
+
+function _renderCatalog() {
+  const host = document.getElementById('conn-catalog');
+  if (!host || host.dataset.ready === '1') return;
+  host.dataset.ready = '1';
+  host.innerHTML = catalogByGroup().map(({ group, rows }) => `
+    <section class="conn-catalog-group" aria-labelledby="conn-cat-${group}">
+      <h3 class="conn-catalog-head" id="conn-cat-${group}">${_esc(t(`connections.group_${group}`))}</h3>
+      <ul class="conn-catalog-list">${rows.map(row => {
+        const how = row.how === 'signin' ? t('connections.how_signin') : t(`connections.why_${row.id.replace(/-/g, '_')}`);
+        return `<li class="conn-catalog-row"><span class="conn-catalog-who"><strong>${_esc(row.name)}</strong><span>${_esc(how)}</span></span>${_catalogOpen(row)}</li>`;
+      }).join('')}</ul>
+    </section>`).join('');
+  host.addEventListener('click', event => {
+    const button = event.target.closest('[data-catalog]');
+    const row = button && _catalogRows().find(r => r.id === button.dataset.catalog);
+    if (row) _goToCatalogTarget(_catalogTarget(row));
+  });
+}
+
 export async function loadConnections(isCurrent = () => true) {
   const current = _connectionRead('connections', isCurrent);
   const el = document.getElementById('conn-list');
   if (!el) return;
+  _renderCatalog();
+  _mountGithubSignin();
   // custom-service field toggle (bind once)
   const sel = document.getElementById('conn-service');
   if (sel && !sel.dataset.bound) {
@@ -403,13 +493,16 @@ export async function loadConnections(isCurrent = () => true) {
     document.getElementById('conn-add-btn')?.addEventListener('click', addConnection);
   }
   try {
-    const response = await fetch('/api/connections');
+    const [response, signedIn] = await Promise.all([fetch('/api/connections'), _signinAccountIds()]);
     if (!response.ok) throw new Error();
-    const conns = await response.json();
+    const all = await response.json();
     if (!current() || _connectionPending.size) return;
     _connectionServices.clear();
-    conns.forEach(connection => _connectionServices.set(connection.id, connection.service.trim().toLowerCase()));
-    if (!conns.length) { el.innerHTML = `<div class="settings-row-empty">${_esc(t('connections.nothing_connected'))}</div>`; return; }
+    all.forEach(connection => _connectionServices.set(connection.id, connection.service.trim().toLowerCase()));
+    const conns = all.filter(connection => !signedIn.has(String(connection.id)));
+    // a token already pasted keeps its form open, so its row has its context
+    if (conns.length) document.getElementById('conn-token-form').hidden = false;
+    if (!conns.length) { el.innerHTML = ''; return; }
     el.innerHTML = conns.map(c => `
       <div class="settings-list-row">
         <span class="status-dot" style="background:${c.connected ? 'var(--green)' : 'var(--faint)'}"></span>
@@ -934,6 +1027,7 @@ async function _delPermRule(rule) {
 
 let _photonBound = false;
 let _photonEnabled = false;
+let _photonReceipts = true;
 let _photonPoll = 0;
 
 function _renderPhotonLogin(data) {
@@ -1016,7 +1110,9 @@ async function _connectPhoton() {
 
 function _renderPhoton(data) {
   _photonEnabled = !!data.enabled;
+  _photonReceipts = data.read_receipts !== false;
   _setSwitch(document.getElementById('photon-enabled'), _photonEnabled);
+  _setSwitch(document.getElementById('photon-read-receipts'), _photonReceipts);
   const head = {
     ready: t('common.connected'),
     connecting: t('connections.state_connecting'),
@@ -1041,7 +1137,7 @@ function _renderPhoton(data) {
   _renderPhotonLine(data);
 }
 
-async function _savePhoton(enabled) {
+async function _savePhoton(enabled, receipts = _photonReceipts) {
   const button = document.getElementById('photon-save');
   button.disabled = true;
   try {
@@ -1053,6 +1149,7 @@ async function _savePhoton(enabled) {
         project_id: document.getElementById('photon-project-id').value.trim(),
         project_secret: document.getElementById('photon-project-secret').value,
         owner_handles: document.getElementById('photon-owner').value.split('\n').map(v => v.trim()).filter(Boolean),
+        read_receipts: receipts,
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -1062,6 +1159,7 @@ async function _savePhoton(enabled) {
     toast(enabled ? t('connections.imessage_on') : t('common.saved'));
   } catch (error) {
     _setSwitch(document.getElementById('photon-enabled'), _photonEnabled);
+    _setSwitch(document.getElementById('photon-read-receipts'), _photonReceipts);
     toast(error.message, 'error');
   } finally { button.disabled = false; }
 }
@@ -1072,6 +1170,11 @@ export async function loadPhoton(isCurrent = () => true) {
     _photonBound = true;
     document.getElementById('photon-save').addEventListener('click', () => _savePhoton(_photonEnabled));
     document.getElementById('photon-enabled').addEventListener('click', () => _savePhoton(!_photonEnabled));
+    // read receipts like hermes (PHOTON_READ_RECEIPTS): on by default, applies at once
+    document.getElementById('photon-read-receipts').addEventListener('click', () => {
+      _setSwitch(document.getElementById('photon-read-receipts'), !_photonReceipts);
+      _savePhoton(_photonEnabled, !_photonReceipts);
+    });
     document.getElementById('photon-connect-btn').addEventListener('click', _connectPhoton);
   }
   try {

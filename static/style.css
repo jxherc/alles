@@ -8552,38 +8552,7 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   grid-template-columns: minmax(0, 1fr) 96px;
   gap: 0.5rem;
 }
-.mail-service-links,
-.mail-provider-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-/* provider shortcuts are text actions: bare at rest, tone on hover */
-.mail-service-link,
-.mail-provider-btn {
-  align-items: center;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--k-radius-control);
-  color: var(--soft, var(--muted));
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8125rem;
-  line-height: 1;
-  display: inline-flex;
-  min-height: var(--ui-control-height, 44px);
-  padding: 0 12px;
-  text-decoration: none;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-}
-/* labels start on the panel's text edge (padding + border pulled back) */
-.mail-accounts .mail-service-links { margin-inline-start: calc(-12px - 1px); }
 .mail-accounts .mail-empty { padding-inline: 0; }
-.mail-service-link:hover,
-.mail-provider-btn:hover {
-  color: var(--text);
-  background: var(--hover, var(--panel));
-}
 .mail-provider-note {
   border-left: 1px solid var(--faint);
   color: var(--muted);
@@ -11649,3 +11618,32 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
   -webkit-mask: var(--glyph) center / contain no-repeat;
   mask: var(--glyph) center / contain no-repeat;
 }
+
+/* sign in placed on the connection screens (c.06): the component draws itself (signin.css); these
+   only give it room in each screen. scale steps only (0 4 8 12 16 24) */
+.conn-signin, .s-ep-signin, .mail-signin { margin-block-end: var(--k-space-4); }
+.mail-signin { margin-block-start: var(--k-space-3); }
+.conn-token-form { display: flex; flex-direction: column; gap: var(--k-space-2); margin-block-end: var(--k-space-3); }
+.conn-token-form[hidden] { display: none; }
+.photon-receipts { margin-block: var(--k-space-2); }
+
+/* the connection catalog (27.57): one row per thing alles can connect to, grouped */
+.conn-catalog { display: flex; flex-direction: column; gap: var(--k-space-4); }
+.conn-catalog-head { margin: 0 0 var(--k-space-1); font-size: 0.8125rem; font-weight: 520; color: var(--muted); }
+.conn-catalog-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--k-row-gap); }
+.conn-catalog-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--k-space-3); min-height: var(--k-row, 44px); }
+.conn-catalog-who { display: flex; flex-direction: column; min-width: 0; font-size: 0.875rem; line-height: 1.35; }
+.conn-catalog-who strong { font-weight: 520; color: var(--text); }
+.conn-catalog-who span { font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+.conn-catalog-row .btn { min-height: var(--k-control, 44px); display: inline-flex; align-items: center; text-decoration: none; }
+
+/* calendar sync: sign in first, the caldav form as the fallback */
+.cal-sync-panel { max-width: 520px; display: flex; flex-direction: column; gap: var(--k-space-3); }
+.cal-sync-head { display: flex; align-items: center; gap: var(--k-space-3); }
+.cal-sync-title { margin: 0; font-size: 1rem; font-weight: 560; color: var(--text); }
+.cal-sync-form { display: flex; flex-direction: column; gap: var(--k-space-1); }
+.cal-sync-form[hidden] { display: none; }
+.cal-sync-form .settings-input { width: 100%; min-height: var(--k-control, 44px); }
+.cal-sync-form .cal-flabel { margin: var(--k-space-2) 0 0; }
+.cal-sync-line { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: var(--muted); }
+.cal-sync-line[data-tone="warn"] { color: var(--warn); }
