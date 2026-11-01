@@ -706,14 +706,14 @@ def run():
                             mutations=3,
                         )
                         tab("backups")
-                        expect(
-                            card("webdav").get_by_role("button", name="run encrypted backup")
-                        ).to_be_disabled()
-                        expect(
-                            card("s3-compatible storage").get_by_role(
-                                "button", name="run encrypted backup"
-                            )
-                        ).to_be_disabled()
+                        # 28.32: an unset target says what it does and offers only "set up"
+                        for name in ("webdav", "s3-compatible storage"):
+                            unset = card(name)
+                            expect(unset.get_by_role("button", name="set up")).to_be_visible()
+                            expect(
+                                unset.get_by_role("button", name="run encrypted backup")
+                            ).to_have_count(0)
+                            expect(unset).to_contain_text("only alles can read it")
                         save_record(
                             "server.unconfigured-backup-disabled",
                             source="real empty owned configuration",

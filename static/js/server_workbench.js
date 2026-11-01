@@ -829,7 +829,9 @@ async function renderBackups(target, request, completed = null) {
   if (settingsResult.status === 'rejected') local.append(statusLine(settingsResult.reason.message, 'error'));
   else {
     const settings = settingsResult.value;
-    local.append(
+    if (!settings.automatic_backup_enabled && !settings.automatic_backup_dir && !settings.automatic_backup_last_success) {
+      local.append(action(t('server.wb_set_up'), () => { window._openSettings?.('backup'); }, 'is-primary'));
+    } else local.append(
       fact(t('server.wb_enabled'), settings.automatic_backup_enabled ? t('server.wb_yes') : t('server.wb_no')),
       fact(t('server.wb_destination'), settings.automatic_backup_dir || t('server.wb_not_configured')),
       fact(t('server.wb_last_success'), settings.automatic_backup_last_success || t('server.wb_never')),
@@ -844,6 +846,8 @@ async function renderBackups(target, request, completed = null) {
     if (!locations.length) storage.append(el('p', 'server-workbench-empty', t('server.wb_no_storage')));
     for (const location of locations) storage.append(fact(location.name || t('server.wb_location'), `${location.kind} · ${location.enabled ? t('server.wb_enabled') : t('server.wb_disabled')} · ${location.access}`));
   }
+  // 28.32: an unset target says what it does and offers one "set up"; status rows only once
+  // there is something to report
   const appendDestination = (title, type, result) => {
     const section = card(title);
     if (result.status === 'rejected') {
@@ -851,6 +855,14 @@ async function renderBackups(target, request, completed = null) {
       return section;
     }
     const value = result.value;
+    if (!value.configured) {
+      section.append(el('p', 'server-workbench-copy', t(`server.wb_${type}_unset`)));
+      section.append(action(t('server.wb_set_up'), () => {
+        window._openSettings?.('backup');
+        requestAnimationFrame(() => document.getElementById(`${type}-backup-card`)?.scrollIntoView({ block: 'start' }));
+      }, 'is-primary'));
+      return section;
+    }
     section.append(
       fact(t('server.wb_configured'), value.configured ? t('server.wb_yes') : t('server.wb_no')),
       fact(t('server.wb_last_backup'), value.last_backup_at || t('server.wb_never')),
