@@ -97,7 +97,7 @@ test('specialist partial status uses the module detail and retry label without c
 });
 
 test('vault entry type reads the KOKUEN dropdown state', () => {
-  assert.match(vault, /import \{ getDropdownValue, populateDropdown \}/);
+  assert.match(vault, /import \{ getDropdownValue, populateDropdown, initCustomDropdown \}/);
   assert.match(vault, /getDropdownValue\(_modalEl\.querySelector\('#vf-type'\)\)/);
   assert.match(vault, /getDropdownValue\(ov\.querySelector\('#vf-type'\)\)/);
   assert.doesNotMatch(vault, /querySelector\('#vf-type'\)\.value/);

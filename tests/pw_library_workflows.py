@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
@@ -298,66 +297,55 @@ def run():
                 expect(page.locator(".legacy-load-note")).to_have_count(0)
                 passed()
                 begin("library.read-selection")
-                filters = page.locator('.read-filter-choices [role="radio"]')
+                filter_box = page.locator("#read-filter")
                 feeds = page.locator("#read-feeds-btn")
-                expect(filters.first).to_have_attribute("aria-checked", "true")
-                filters.nth(3).click()
-                expect(filters.nth(3)).to_have_attribute("aria-checked", "true")
+                expect(filter_box).to_have_attribute("role", "combobox")
+                expect(filter_box).to_have_attribute("data-value", "all")
+                filter_box.click()
+                page.locator(".custom-dropdown-option", has_text="archive").click()
+                expect(filter_box).to_have_attribute("data-value", "archived")
                 feeds.click()
                 expect(feeds).to_have_attribute("aria-pressed", "true")
-                expect(filters.nth(3)).to_have_attribute("aria-checked", "true")
-                # the feeds click redraws the filter row; motion.js puts the pill back on its next pass
-                expect(page.locator(".read-filter-choices")).to_have_class(
-                    re.compile(r"\bhas-pill\b")
-                )
+                expect(filter_box).to_have_attribute("data-value", "archived")
                 visual = page.evaluate("""() => {
-                    const radio = document.querySelector('.read-filter-choices [role="radio"][aria-checked="true"]');
                     const feeds = document.querySelector('#read-feeds-btn');
                     const token = name => {
                         const probe = document.createElement('span');
                         probe.style.color = `var(${name})`;
-                        radio.parentElement.append(probe);
+                        feeds.parentElement.append(probe);
                         const color = getComputedStyle(probe).color;
                         probe.remove();
                         return color;
                     };
-                    const style = node => {
-                        const value = getComputedStyle(node);
-                        return {color: value.color, background: value.backgroundColor,
-                                border: value.borderTopColor};
-                    };
-                    const group = radio.parentElement;
-                    return {radio: style(radio), feeds: style(feeds),
-                            pill: getComputedStyle(group, '::before').backgroundColor,
-                            pillGroup: group.classList.contains('has-pill'),
+                    const value = getComputedStyle(feeds);
+                    return {feeds: {color: value.color, background: value.backgroundColor,
+                                    border: value.borderTopColor},
                             text: token('--k-text'), fill: token('--k-selected-fill'),
                             accent: token('--k-accent')};
                 }""")
-                # decision 0041: picked choices read in full text on the see-through selected fill;
-                # inside a pill group the fill is the shared pill sliding under the pick
-                for name in ("radio", "feeds"):
-                    assert visual[name]["color"] == visual["text"], visual
-                    assert visual[name]["border"] != visual["accent"], visual
+                # decision 0041: a picked toggle reads in full text on the see-through selected fill
+                assert visual["feeds"]["color"] == visual["text"], visual
+                assert visual["feeds"]["border"] != visual["accent"], visual
                 assert visual["feeds"]["background"] == visual["fill"], visual
-                assert visual["pillGroup"] and visual["pill"] == visual["fill"], visual
-                for control in (filters.nth(3), feeds):
+                for control in (filter_box, feeds):
                     box = control.bounding_box()
                     assert box and box["width"] >= 44 and box["height"] >= 44, box
                 shot("read-feeds-selected")
                 feeds.focus()
                 feeds.press("Enter")
                 expect(feeds).to_have_attribute("aria-pressed", "false")
-                expect(filters.nth(3)).to_have_attribute("aria-checked", "true")
+                expect(filter_box).to_have_attribute("data-value", "archived")
                 if profile == "desktop":
                     page.evaluate("document.documentElement.style.zoom = '2'")
                     assert page.evaluate(
                         "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                     )
-                    expect(filters.nth(3)).to_be_visible()
+                    expect(filter_box).to_be_visible()
                     expect(feeds).to_be_visible()
                     page.evaluate("document.documentElement.style.zoom = ''")
-                filters.first.click()
-                expect(filters.first).to_have_attribute("aria-checked", "true")
+                filter_box.click()
+                page.locator(".custom-dropdown-option", has_text="all").first.click()
+                expect(filter_box).to_have_attribute("data-value", "all")
                 shot("read-selection")
                 passed()
                 begin("library.saved-url-recovery")

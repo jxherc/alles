@@ -3,7 +3,7 @@
 // list + reader views; mirrors the watch/habits panel conventions.
 import { toast, _safeUrl } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
-import { wireChoiceGroup } from './kokuen.js?v=5';
+import { initCustomDropdown } from './dropdown.js?v=215';
 import { readingPlace } from './reading_place.js';
 import { loadReadingNoteRecovery, takeReadingNote } from './reading_note.js';
 import { clearLinkedRecord } from './recordlinks.js';
@@ -14,6 +14,7 @@ const $ = id => document.getElementById(id);
 let _items = [];
 let _stats = null;
 let _filter = 'all';
+let _refocus = '';
 let _q = '';
 let _tag = '';
 let _urlDraft = '';
@@ -277,9 +278,9 @@ function _render() {
   const editing = !_saving && body.contains(active) && ['read-url', 'read-q', 'feed-url'].includes(active.id)
     ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
   if (editing?.id === 'read-url' && !active.disabled) _urlDraft = active.value;
-  // a filter or feeds pick re-renders the toolbar; keep the keyboard on the chip that was pressed
-  const chip = body.contains(active) && active.classList.contains('read-chip')
-    ? (active.id ? `#${active.id}` : `.read-chip[data-filter="${active.dataset.filter}"]`) : null;
+  // a filter or feeds pick re-renders the toolbar; keep the keyboard on the control that was used
+  const chip = _refocus || (body.contains(active) && (active.classList.contains('read-chip') || active.id === 'read-filter') ? `#${active.id}` : null);
+  _refocus = '';
   body.innerHTML = `
     <div class="read-add">
       <input type="text" id="read-url" class="settings-input" aria-label="${esc(t('read.url_label'))}" aria-describedby="read-save-error" placeholder="${esc(t('read.url_placeholder'))}" spellcheck="false" value="${esc(_pendingSave?.url ?? _urlDraft)}" ${_saving || _pendingSave ? 'disabled' : ''}>
@@ -290,7 +291,7 @@ function _render() {
     ${_pendingSave || _unreadableSave ? `<div class="read-save-recovery"><p role="status">${t('read.save_pending')}</p><div class="capture-actions">${_pendingSave ? `<button type="button" class="btn" id="read-save-check" ${_saving ? 'disabled' : ''}>${t('read.check_saved_item')}</button>` : ''}<button type="button" class="btn" id="read-save-discard" ${_saving ? 'disabled' : ''}>${t('read.discard_pending')}</button></div></div>` : ''}
     ${_savedURL ? `<div class="read-save-result"><p role="status">${esc(t('read.saved_named', { name: _savedURL.title || _savedURL.url }))}</p><button type="button" class="btn" id="read-save-open">${t('read.open_saved_item')}</button></div>` : ''}
     <div class="read-toolbar">
-      <div class="read-filters"><span class="read-filter-choices" role="radiogroup" aria-label="${esc(t('read.filter_label'))}">${FILTERS.map(([k, l]) => `<button type="button" role="radio" aria-checked="${_filter === k}" class="read-chip${_filter === k ? ' active' : ''}" data-filter="${k}">${t(l)}</button>`).join('')}</span><button type="button" class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" aria-pressed="${_showFeeds}" title="${esc(t('read.feeds_title'))}">${t('read.feeds')}</button></div>
+      <div class="read-filters"><div class="settings-input custom-select read-filter" id="read-filter" data-value="${_filter}" data-options="${FILTERS.map(([k]) => `${k}|${k}`).join(';')}" data-i18n-options="${FILTERS.map(([, l]) => l).join(';')}" aria-label="${esc(t('read.filter_label'))}"></div><button type="button" class="read-chip${_showFeeds ? ' active' : ''}" id="read-feeds-btn" aria-pressed="${_showFeeds}" title="${esc(t('read.feeds_title'))}">${t('read.feeds')}</button></div>
       <div class="read-search"><input type="text" id="read-q" aria-label="${esc(t('read.search_label'))}" class="settings-input" placeholder="${esc(t('read.search_placeholder'))}" value="${esc(_q)}" spellcheck="false"></div>
     </div>
     ${_loadNotice()}
@@ -595,7 +596,6 @@ function _wire(body) {
   $('read-save-discard')?.addEventListener('click', _discardUrlSave);
   $('read-save-check')?.addEventListener('click', () => _save(true));
   $('read-save-open')?.addEventListener('click', () => openReadItem(_savedURL.id));
-  wireChoiceGroup(body.querySelector('.read-filter-choices'));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadRead());
   const save = () => _save();
   $('read-save')?.addEventListener('click', save);
@@ -659,7 +659,10 @@ function _wire(body) {
     let t = null;
     qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { _q = qEl.value.trim(); loadRead(); }, 300); });
   }
-  body.querySelectorAll('.read-filter-choices .read-chip').forEach(c => c.addEventListener('click', () => { _filter = c.dataset.filter; loadRead(); }));
+  const filter = $('read-filter');
+  initCustomDropdown(filter);
+  // the dropdown still holds focus when loadRead redraws, so name the control to give it back to
+  filter?.addEventListener('change', () => { _filter = filter.value; _refocus = '#read-filter'; loadRead(); });
 
   // click a tag to filter by it; stop the click bubbling up to the card-open handler
   body.querySelectorAll('.read-card .read-tag').forEach(t => t.addEventListener('click', e => {

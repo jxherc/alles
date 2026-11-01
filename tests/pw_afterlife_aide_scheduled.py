@@ -52,18 +52,16 @@ def run() -> None:
                 page.locator("#aide-schedule-prompt").fill("prepare a short morning plan")
                 page.locator("#aide-schedule-value").fill("09:00")
 
-                daily = page.locator('[data-schedule-kind="schedule"]')
-                daily.focus()
-                page.keyboard.press("ArrowRight")
-                assert (
-                    page.locator('[data-schedule-kind="once"]').get_attribute("aria-checked")
-                    == "true"
-                )
-                page.keyboard.press("ArrowLeft")
-                assert (
-                    page.locator('[data-schedule-kind="schedule"]').get_attribute("aria-checked")
-                    == "true"
-                )
+                kind = page.locator("#aide-schedule-kind")
+                assert kind.get_attribute("role") == "combobox"
+                assert kind.get_attribute("data-value") == "schedule"
+                kind.focus()
+                page.keyboard.press("ArrowDown")
+                page.keyboard.press("Enter")
+                assert kind.get_attribute("data-value") == "once"
+                kind.click()
+                page.locator(".custom-dropdown-option", has_text="daily").click()
+                assert kind.get_attribute("data-value") == "schedule"
                 page.locator("#aide-schedule-value").fill("09:00")
 
                 page.locator("#aide-schedule-project").click()
@@ -86,7 +84,8 @@ def run() -> None:
                 assert page.locator("#aide-schedule-name").input_value() == "morning plan"
                 assert page.locator("#aide-schedule-value").input_value() == "09:00"
                 page.locator("#aide-schedule-name").fill("morning notes")
-                page.locator('[data-schedule-kind="interval"]').click()
+                page.locator("#aide-schedule-kind").click()
+                page.locator(".custom-dropdown-option", has_text="interval").click()
                 page.locator("#aide-schedule-value").fill("2")
                 page.locator('[data-schedule-unit="hours"]').click()
                 page.get_by_role("button", name="save changes").click()

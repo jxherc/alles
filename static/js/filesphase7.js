@@ -3,6 +3,7 @@ import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { formatDate, t, tp } from './i18n.js';
 import { pushRouteUrl, replaceRouteUrl } from './route_history.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
+import { initCustomDropdown, getDropdownValue, setDropdownValue, populateDropdown } from './dropdown.js?v=215';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '')
@@ -1146,15 +1147,17 @@ function openTransferDialog(action) {
   if (!dialog || !title) return;
   title.textContent = action === 'move' ? t('files.move_selected') : t('files.copy_selected');
   const destinations = state.locations.filter(location => location.enabled && location.access === 'managed');
-  $('files-transfer-locations').innerHTML = destinations.map(location => `
-    <button type="button" role="radio" aria-checked="false" data-value="${esc(location.id)}">${esc(location.name)}</button>`).join('');
+  populateDropdown($('files-transfer-locations'), [
+    { value: '', label: t('files.choose_destination') },
+    ...destinations.map(location => ({ value: location.id, label: location.name })),
+  ], '');
   $('files-transfer-path').value = '';
   $('files-transfer-error').textContent = '';
-  openFilesDialog('transfer', '[role="radio"]');
+  openFilesDialog('transfer', '#files-transfer-locations');
 }
 
 async function submitTransfer() {
-  const locationId = $('files-transfer-locations').querySelector('[role="radio"][aria-checked="true"]')?.dataset.value;
+  const locationId = getDropdownValue($('files-transfer-locations'));
   const folder = $('files-transfer-path').value.trim();
   if (!locationId) {
     $('files-transfer-error').textContent = t('files.choose_destination');
@@ -1388,10 +1391,12 @@ function resetVaultReview() {
 }
 
 function chosen(host) {
+  if (host?.classList.contains('custom-select')) return getDropdownValue(host);
   return host?.querySelector('[role="radio"][aria-checked="true"]')?.dataset.value || '';
 }
 
 function choose(host, value) {
+  if (host?.classList.contains('custom-select')) { setDropdownValue(host, value); return; }
   host?.querySelectorAll('[role="radio"]').forEach(button => {
     const selected = button.dataset.value === value;
     button.setAttribute('aria-checked', String(selected));
@@ -1824,6 +1829,11 @@ async function uploadFiles(files) {
 }
 
 function wireChoiceGroup(host, onChange) {
+  if (host?.classList.contains('custom-select')) {
+    initCustomDropdown(host);
+    host.addEventListener('change', () => onChange?.(getDropdownValue(host)));
+    return;
+  }
   host?.addEventListener('click', event => {
     const button = event.target.closest('[role="radio"]');
     if (!button) return;
@@ -2071,7 +2081,7 @@ function bindEvents() {
   wireChoiceGroup($('files-location-kind'), renderLocationFields);
   wireChoiceGroup($('files-location-access'), resetVaultReview);
   wireChoiceGroup($('files-vault-workflow'), resetVaultReview);
-  wireChoiceGroup($('files-transfer-locations'));
+  initCustomDropdown($('files-transfer-locations'));
   document.addEventListener('keydown', event => {
     if (event.defaultPrevented || event.target.closest?.('.dialog-overlay')) return;
     const previewModal = $('files-preview-modal');

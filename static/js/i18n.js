@@ -7683,6 +7683,7 @@ const BUILTIN_ENGLISH = {
     "vault.watchtower": "watchtower",
     "vault.watchtower_scans_your_saved": "Watchtower scans your saved passwords for problems: known data-breach exposure, the same password reused across logins, and weak/short passwords.",
     "vault.website": "website",
+    "vault.width": "width",
     "vault.width_full": "full",
     "vault.width_half": "half",
     "vault.width_third": "third",

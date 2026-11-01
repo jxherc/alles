@@ -7679,6 +7679,7 @@
     "vault.watchtower": "watchtower",
     "vault.watchtower_scans_your_saved": "Watchtower 会扫描你保存的密码是否存在问题：已知的数据泄露、多个登录使用同一密码，以及弱密码或过短的密码。",
     "vault.website": "网站",
+    "vault.width": "宽度",
     "vault.width_full": "整行",
     "vault.width_half": "半行",
     "vault.width_third": "三分之一",

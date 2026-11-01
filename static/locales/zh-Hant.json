@@ -7679,6 +7679,7 @@
     "vault.watchtower": "watchtower",
     "vault.watchtower_scans_your_saved": "Watchtower 會掃描你儲存的密碼是否有問題：已知資料外洩暴露、多個登入重複使用相同密碼，以及過弱或過短的密碼。",
     "vault.website": "網站",
+    "vault.width": "寬度",
     "vault.width_full": "全寬",
     "vault.width_half": "半寬",
     "vault.width_third": "三分之一寬",

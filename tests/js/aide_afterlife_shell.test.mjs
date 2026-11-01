@@ -401,7 +401,7 @@ test('scheduled work uses custom controls rather than native choice controls', (
   assert.ok(view);
   assert.doesNotMatch(view, /<select\b/i);
   assert.doesNotMatch(view, /type="(?:checkbox|radio)"/i);
-  assert.match(view, /role="radiogroup"/);
+  assert.match(view.match(/<div[^>]*id="aide-schedule-kind"[^>]*>/)[0], /class="settings-input custom-select"/);
 });
 
 test('Discord is only an owner-scoped way to reach Aide', () => {

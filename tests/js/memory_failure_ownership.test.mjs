@@ -101,6 +101,8 @@ function harness() {
     promptDialog: (_title, initial, options) => openDialog('prompt', initial, options),
     fieldsDialog: (_title, defs, options) => openDialog('fields', defs[0].value, options),
     confirmDialog: async () => true, categoryHue,
+    // the dropdown keeps its pick in data-value; this stands in for its trigger in the synthetic DOM
+    getDropdownValue: el => el?.dataset.value || '', setDropdownValue(el, value) { if (el) el.dataset.value = String(value); },
     setTimeout(fn, delay) { timers.set(++nextTimer, { fn, delay }); return nextTimer; }, clearTimeout: id => timers.delete(id),
   });
   vm.runInContext(source + '\nglobalThis.subject = { initMemoryPanel, loadMemories };', context);
@@ -114,7 +116,7 @@ function harness() {
     async init() { context.subject.initMemoryPanel(); await tick(); },
     async search(value) { elements.get('mem-search').value = value; await elements.get('mem-search').fire('input'); },
     async debounce() { const pending = [...timers].filter(([, item]) => item.delay === 300); pending.forEach(([id]) => timers.delete(id)); await Promise.all(pending.map(([, item]) => item.fn())); },
-    async category(value) { await elements.get('mem-category-filter').querySelectorAll('.mem-cat-btn').find(btn => btn.dataset.cat === value).click(); },
+    async category(value) { const filter = elements.get('mem-category-filter'); filter.dataset.value = value; await filter.fire('change'); },
   };
 }
 

@@ -7679,6 +7679,7 @@
     "vault.watchtower": "Watchtower",
     "vault.watchtower_scans_your_saved": "Watchtower は、保存したパスワードの問題を調べます。既知のデータ漏えいへの露出、複数のログインでの同じパスワードの使い回し、弱い/短いパスワードです。",
     "vault.website": "ウェブサイト",
+    "vault.width": "幅",
     "vault.width_full": "全幅",
     "vault.width_half": "半幅",
     "vault.width_third": "3 分の 1",

@@ -5874,13 +5874,11 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 .aide-schedule-form input::placeholder,
 .aide-schedule-form textarea::placeholder { color: var(--muted); opacity: 1; }
-.aide-schedule-choices,
 .aide-schedule-unit-choices {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
-.aide-schedule-choices button,
 .aide-schedule-unit-choices button,
 #aide-schedule-project {
   min-height: 34px;
@@ -5888,11 +5886,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   border: 1px solid transparent;
   font-size: 0.8125rem;
 }
-.aide-schedule-choices button:hover,
 .aide-schedule-unit-choices button:hover,
-.aide-schedule-choices button:focus-visible,
 .aide-schedule-unit-choices button:focus-visible { color: var(--text); outline: 0; }
-.aide-schedule-choices button[aria-checked="true"],
 .aide-schedule-unit-choices button[aria-checked="true"] {
   border-color: var(--faint);
   background: var(--panel);
@@ -5900,6 +5895,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 }
 .aide-schedule-interval { display: grid; grid-template-columns: minmax(100px, 1fr) auto; gap: 8px; }
 .aide-schedule-project-wrap { position: relative; width: min(100%, 360px); }
+.aide-schedule-field > .custom-select { width: min(100%, 360px); }
 #aide-schedule-project {
   width: 100%;
   border-color: var(--faint);
@@ -8149,8 +8145,10 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 .vt-form { border: 1px solid var(--faint); border-radius: var(--k-radius-surface); padding: 0.7rem; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .vt-fields { display: flex; flex-direction: column; gap: 0.45rem; }
 .vt-field { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.vt-flabel { flex: 1; min-width: 110px; font-size: 0.8125rem; }
-.vt-field .seg-sm { flex-shrink: 0; }
+/* the name and remove button fill the first line; the width switch and type dropdown take the second */
+.vt-flabel { flex: 1 1 calc(100% - 52px); min-width: 110px; font-size: 0.8125rem; }
+.vt-field :is(.vt-width, .vt-kind) { flex-shrink: 0; }
+.vt-kind { width: 150px; }
 .vt-field .vt-rmf .ic { width: 12px; height: 12px; }
 .vt-form-actions { display: flex; align-items: center; gap: var(--k-control-gap); }
 .mv-row [data-travel] {
@@ -8236,16 +8234,7 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 .doc-item-meta { font-size: 0.8125rem; color: var(--muted); margin-top: 2px; }
 
 /* ── memory category filter ── */
-.mem-cat-filter {
-  display: flex; gap: 0.3rem; padding: 0.4rem 0.75rem 0; flex-wrap: wrap; flex-shrink: 0;
-}
-.mem-cat-btn {
-  background: none; border: 1px solid var(--faint); color: var(--muted);
-  font: inherit; font-size: 0.8125rem; padding: 0.15rem 0.5rem; border-radius: var(--k-radius-control);
-  cursor: pointer; transition: color 0.15s, border-color 0.15s;
-}
-.mem-cat-btn:hover { color: var(--text); border-color: var(--muted); }
-.mem-cat-btn.active { color: var(--text); border-color: var(--line-strong); }
+.mem-cat-filter { width: 220px; max-width: 100%; margin-bottom: 0.55rem; }
 
 /* ── reminders ── */
 .reminder-add-form {
@@ -9094,10 +9083,9 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .read-feed-row .icon-btn { margin-left: auto; flex-shrink: 0; }
 .read-feeds-empty { font-size: 0.8125rem; color: var(--muted); }
 .read-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
-/* bare until picked. the picked chip is a box, so the row stays on the column edge (0043). feeds is
-   a toggle, not one of the four, so it sits a step apart */
+/* feeds is a toggle, not one of the filters, so it sits a step apart */
 .read-filters { display: flex; flex-wrap: wrap; gap: 0 var(--k-space-3); }
-.read-filter-choices { display: flex; flex-wrap: wrap; }
+.read-filter { width: 140px; }
 .read-chip { background: none; border: 1px solid transparent; border-radius: var(--k-radius-control); color: var(--muted); padding: 0 12px; font-size: 0.8125rem; cursor: pointer; }
 .read-chip:hover { color: var(--text); background: var(--k-hover, var(--panel)); }
 .read-chip.active { background: var(--raised); border-color: var(--line-strong); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
@@ -9921,13 +9909,7 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
 .andromeda-view .andromeda-watch { margin-top: 16px; padding: 12px 0; border-top: 1px solid var(--andromeda-line); border-bottom: 1px solid var(--andromeda-line); }
 .andromeda-view .andromeda-watch-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
 .andromeda-view .andromeda-watch-head h2 { margin: 0; color: var(--muted); font-size: 0.8125rem; font-weight: 560; }
-.andromeda-view .andromeda-watch-choices { display: flex; flex-wrap: wrap; gap: 4px; }
-.andromeda-view .andromeda-watch-choices [role="radio"] {
-  min-height: 44px; padding: 0 12px; border: 1px solid transparent; border-radius: var(--k-radius-small);
-  background: transparent; color: var(--muted); font: inherit; font-size: 0.8125rem; white-space: nowrap; cursor: pointer;
-}
-.andromeda-view .andromeda-watch-choices [role="radio"]:hover { color: var(--text); background: var(--k-hover, var(--panel)); }
-.andromeda-view .andromeda-watch-choices [role="radio"][aria-checked="true"] { border-color: var(--andromeda-strong-line); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
+.andromeda-view .andromeda-watch-select { width: 180px; max-width: 100%; }
 .andromeda-view .andromeda-watch-state { color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
 .andromeda-view .andromeda-watch-state[data-state="error"] { color: var(--error); }
 .andromeda-view .andromeda-watch-new { margin-top: 12px; }

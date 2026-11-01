@@ -46,16 +46,14 @@ async function showCardDav() {
         ${st.connected ? `<button class="btn danger" id="cdav-disconnect">${t('contacts.disconnect')}</button>` : ''}
       </div>
       <div class="carddav-field">
-        <label>${t('contacts.auto_sync')}</label>
-        <div class="seg seg-sm" id="cdav-interval">${IV.map(([v, l]) => `<button type="button" class="seg-opt${ival === v ? ' active' : ''}" data-val="${v}">${l}</button>`).join('')}</div>
+        <label id="cdav-interval-label">${t('contacts.auto_sync')}</label>
+        <div class="k-pill-switch" data-kokuen-choice="switch" id="cdav-interval" aria-labelledby="cdav-interval-label">${IV.map(([v, l]) => `<button data-value="${v}" aria-checked="${ival === v}">${l}</button>`).join('')}</div>
       </div>
       <div class="carddav-result" id="cdav-result"></div>
     </div>`;
-  document.getElementById('cdav-interval').querySelectorAll('.seg-opt').forEach(o =>
-    o.addEventListener('click', async () => {
-      document.querySelectorAll('#cdav-interval .seg-opt').forEach(x => x.classList.toggle('active', x === o));
-      await fetch('/api/carddav/interval', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ interval: o.dataset.val }) });
-    }));
+  document.getElementById('cdav-interval').addEventListener('change', async e => {
+    await fetch('/api/carddav/interval', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ interval: e.detail.value }) });
+  });
   document.getElementById('cdav-back').addEventListener('click', () => loadContacts());
   document.getElementById('cdav-connect').addEventListener('click', async () => {
     const res = await _dlgFields(t('contacts.connect_title'), [

@@ -1,9 +1,9 @@
 import { plainError, writeClipboard } from './util.js';
-import { initCustomDropdowns } from './dropdown.js?v=215';
+import { initCustomDropdowns, setDropdownValue } from './dropdown.js?v=215';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
-import { createMenuController, wireChoiceGroup } from './kokuen.js?v=5';
+import { createMenuController } from './kokuen.js?v=5';
 import { replaceRouteUrl } from './route_history.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -337,11 +337,7 @@ function watchStateText(watch = {}) {
 }
 
 function setWatchChoice(every) {
-  el('andromeda-watch-choices')?.querySelectorAll('[role="radio"]').forEach(choice => {
-    const on = Number(choice.dataset.every) === Number(every);
-    choice.setAttribute('aria-checked', String(on));
-    choice.tabIndex = on ? 0 : -1;
-  });
+  setDropdownValue(el('andromeda-watch-choices'), every);
 }
 
 function renderWatch(saved, fresh = []) {
@@ -2662,14 +2658,7 @@ function bindOnce() {
   wireSearchFocusPresentation();
   // 28.08: no follow-up field here; the answer goes on in aide, with the question, answer and sources
   el('andromeda-continue-aide')?.addEventListener('click', event => void explainResults(event.currentTarget));
-  const watchChoices = el('andromeda-watch-choices');
-  if (watchChoices) {
-    watchChoices.addEventListener('click', event => {
-      const choice = event.target.closest('[role="radio"]');
-      if (choice) void changeWatch(choice.dataset.every);
-    });
-    wireChoiceGroup(watchChoices);
-  }
+  el('andromeda-watch-choices')?.addEventListener('change', event => void changeWatch(event.currentTarget.value));
   el('andromeda-blocked-undo')?.addEventListener('click', () => void undoHideSite());
   el('andromeda-form')?.addEventListener('submit', event => {
     event.preventDefault();

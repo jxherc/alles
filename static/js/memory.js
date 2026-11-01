@@ -3,6 +3,7 @@ import { t, tp } from './i18n.js';
 import { confirm as confirmDialog, fields as fieldsDialog } from './dialog.js';
 import { categoryHue } from './color.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
+import { getDropdownValue, setDropdownValue } from './dropdown.js?v=215';
 
 let _memories = [];
 let _searchTimeout = null;
@@ -175,19 +176,9 @@ function _renderPending() {
   }
 }
 
+// the options are static in index.html; this only keeps the shown pick in step with _activeCategory
 function _renderCategoryFilter() {
-  const el = document.getElementById('mem-category-filter');
-  if (!el) return;
-  el.innerHTML = CATEGORIES.map(c =>
-    `<button type="button" class="mem-cat-btn${c === _activeCategory ? ' active' : ''}" data-cat="${c}" aria-pressed="${c === _activeCategory}">${escHtml(categoryLabel(c))}</button>`
-  ).join('');
-  el.querySelectorAll('.mem-cat-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _activeCategory = btn.dataset.cat;
-      _renderCategoryFilter();
-      _renderCurrentMemories();
-    });
-  });
+  setDropdownValue(document.getElementById('mem-category-filter'), _activeCategory);
 }
 
 function renderMemories(mems) {
@@ -404,6 +395,12 @@ export function initMemoryPanel() {
       await loadMemories();
     } catch (error) { toast(error.message, 'error'); }
   }));
+
+  const categoryFilter = document.getElementById('mem-category-filter');
+  categoryFilter?.addEventListener('change', () => {
+    _activeCategory = getDropdownValue(categoryFilter);
+    _renderCurrentMemories();
+  });
 
   // add memory form
   // category cycle button

@@ -577,12 +577,12 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view :where(.files-choice-row, .files-transfer-locations) button; check for nested bezels",
-    "css_block_sha256": "4585828af8b6daa9147feba4463496d92001ade77db8587a0bed085115998b33",
+    "message": "descendant draws a boundary in body[data-app=\"files\"] #files-view .files-choice-row button; check for nested bezels",
+    "css_block_sha256": "2bb3ccdcd6a7327adb6a49295de74c844ac5238daa2367ba931e3a6789589da7",
     "path": "static/kokuen.css",
-    "selector": "body[data-app=\"files\"] #files-view :where(.files-choice-row, .files-transfer-locations) button",
+    "selector": "body[data-app=\"files\"] #files-view .files-choice-row button",
     "job": "control-bezel",
-    "reason": "Location kind/access/workflow choice button perimeter. Transfer destination choice button perimeter."
+    "reason": "Location access/workflow choice button perimeter."
   },
   {
     "rule": "nested-boundary",
@@ -676,10 +676,10 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in html[data-kokuen-version=\"5\"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn); check for nested bezels",
-    "css_block_sha256": "2fa82dd69c4524e5a714699817df3e17c8b445e0da9a562238e0446532ad5261",
+    "message": "descendant draws a boundary in html[data-kokuen-version=\"5\"] :is(.btn, .act-btn, .act-chip); check for nested bezels",
+    "css_block_sha256": "a1bc018f3e478404def7accab6d3a2bbf549887bfc7a8b4facf2e1037d335774",
     "path": "static/kokuen.css",
-    "selector": "html[data-kokuen-version=\"5\"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn)",
+    "selector": "html[data-kokuen-version=\"5\"] :is(.btn, .act-btn, .act-chip)",
     "job": "control-bezel",
     "reason": "A transparent 1px border keeps text actions and the primary the same size; only the primary or a selected chip paints it."
   },

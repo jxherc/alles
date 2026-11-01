@@ -367,8 +367,9 @@ test('Files rows use the same full browser width as the table header', () => {
 
 test('copy and move require an explicit destination instead of selecting the source by default', () => {
   const open = files.match(/function openTransferDialog\(action\)[\s\S]*?\n}\n\nasync function submitTransfer/)?.[0] || '';
-  assert.match(open, /aria-checked="false"/);
-  assert.doesNotMatch(open, /aria-checked="\$\{index === 0\}"/);
+  assert.match(open, /\{ value: '', label: t\('files\.choose_destination'\) \}/);
+  assert.match(open, /\], ''\);/);
+  assert.doesNotMatch(open, /index === 0/);
 });
 
 test('operation refreshes reload filtered Starred and Offline backing collections', () => {

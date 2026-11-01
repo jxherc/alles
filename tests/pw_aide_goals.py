@@ -63,12 +63,13 @@ with sync_playwright() as pw:
         aim = page.locator("#aide-goal-aim")
         expect(aim).to_be_focused()
         aim.fill("keep an eye on my open tasks: tell me when a new one shows up")
-        every = page.locator('[role="radiogroup"][aria-label="check every"]')
-        every.locator('[aria-checked="true"]').focus()
-        page.keyboard.press("ArrowLeft")
-        expect(every.locator('[data-value="six_hours"]')).to_have_attribute("aria-checked", "true")
-        page.keyboard.press("ArrowLeft")
-        expect(every.locator('[data-value="hour"]')).to_have_attribute("aria-checked", "true")
+        every = page.locator('[role="combobox"][aria-label="check every"]')
+        expect(every).to_have_attribute("data-value", "day")
+        every.focus()
+        page.keyboard.press("ArrowUp")
+        page.keyboard.press("ArrowUp")
+        page.keyboard.press("Enter")
+        expect(every).to_have_attribute("data-value", "hour")
         page.locator(
             '[role="radiogroup"][aria-label="when it wants to change something"] [data-value="act"]'
         ).click()
@@ -96,7 +97,8 @@ with sync_playwright() as pw:
         expect(page.locator("#aide-goal-aim")).to_have_value(
             "keep an eye on my open tasks: tell me when a new one shows up"
         )
-        page.locator('[role="radiogroup"][aria-label="check every"] [data-value="week"]').click()
+        page.locator('[role="combobox"][aria-label="check every"]').click()
+        page.locator(".custom-dropdown-option", has_text="week").click()
         page.locator("#aide-goal-form button[type=submit]").click()
         expect(row.locator(".aide-goal-meta")).to_contain_text("every week")
         assert not small_targets(page), small_targets(page)

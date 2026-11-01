@@ -7679,6 +7679,7 @@
     "vault.watchtower": "watchtower",
     "vault.watchtower_scans_your_saved": "Watchtower analiza tus contraseñas guardadas en busca de problemas: exposición en filtraciones de datos conocidas, la misma contraseña reutilizada en varios inicios de sesión y contraseñas débiles o cortas.",
     "vault.website": "sitio web",
+    "vault.width": "ancho",
     "vault.width_full": "completo",
     "vault.width_half": "mitad",
     "vault.width_third": "tercio",

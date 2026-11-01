@@ -135,11 +135,9 @@ def _read(page: Page) -> None:
     assert response.ok, response.text()
     page.evaluate("window._navigateTo('read')")
     page.locator("#read-view").wait_for(state="visible")
-    filters = page.locator('.read-filter-choices [role="radio"]')
-    assert filters.count() == 4
-    assert page.locator(".read-filter-choices").get_attribute("role") == "radiogroup"
-    for index in range(filters.count()):
-        _assert_target(filters.nth(index))
+    filter_box = page.locator("#read-filter")
+    assert filter_box.get_attribute("role") == "combobox"
+    _assert_target(filter_box)
     page.locator("#read-feeds-btn").click()
     page.wait_for_function(
         "document.querySelector('#read-feeds-btn')?.getAttribute('aria-pressed') === 'true'"
@@ -154,10 +152,11 @@ def _read(page: Page) -> None:
     card.wait_for()
     card.locator("[data-act='archive']").click()
     card.wait_for(state="detached")
-    filters.first.focus()
+    filter_box.focus()
     page.keyboard.press("End")
+    page.keyboard.press("Enter")
     page.wait_for_function(
-        "document.querySelector('.read-filter-choices [role=radio]:nth-child(4)')?.getAttribute('aria-checked') === 'true'"
+        "document.querySelector('#read-filter')?.getAttribute('data-value') === 'archived'"
     )
     archived = page.locator('.read-card:has-text("KOKUEN saved reading")')
     archived.wait_for()
@@ -222,9 +221,10 @@ def _degraded_loads(page: Page) -> None:
     page.unroute(books_url, books_failure)
 
     page.evaluate("window._navigateTo('read')")
-    page.locator(".read-filter-choices [role='radio']").first.click()
+    page.locator("#read-filter").click()
+    page.locator(".custom-dropdown-option", has_text="all").first.click()
     page.wait_for_function(
-        "document.querySelector('.read-filter-choices [role=radio]')?.getAttribute('aria-checked') === 'true'"
+        "document.querySelector('#read-filter')?.getAttribute('data-value') === 'all'"
     )
     saved = page.request.post(
         f"{BASE}/api/read/save-news",

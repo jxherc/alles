@@ -7679,6 +7679,7 @@
     "vault.watchtower": "watchtower",
     "vault.watchtower_scans_your_saved": "Watchtower analyse tes mots de passe enregistrés à la recherche de problèmes : exposition connue à des fuites de données, même mot de passe réutilisé sur plusieurs connexions, et mots de passe faibles ou courts.",
     "vault.website": "site web",
+    "vault.width": "largeur",
     "vault.width_full": "pleine",
     "vault.width_half": "demi",
     "vault.width_third": "tiers",

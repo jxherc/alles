@@ -7679,6 +7679,7 @@
     "vault.watchtower": "Watchtower",
     "vault.watchtower_scans_your_saved": "Watchtower는 저장된 비밀번호의 문제를 검사합니다. 알려진 데이터 유출 노출, 여러 로그인에서 재사용된 같은 비밀번호, 약하거나 짧은 비밀번호가 해당합니다.",
     "vault.website": "웹사이트",
+    "vault.width": "너비",
     "vault.width_full": "전체",
     "vault.width_half": "절반",
     "vault.width_third": "3분의 1",

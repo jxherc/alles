@@ -113,7 +113,8 @@ with sync_playwright() as pw:
                 page.get_by_role("button", name="new schedule", exact=True).click()
                 page.locator("#aide-schedule-name").fill(name)
                 page.locator("#aide-schedule-prompt").fill("review synthetic local tasks")
-                page.locator("[data-schedule-kind=once]").press("Space")
+                page.locator("#aide-schedule-kind").click()
+                page.locator(".custom-dropdown-option", has_text="once").click()
                 page.locator("#aide-schedule-value").fill(value)
                 if offset == 0:
                     reject = True

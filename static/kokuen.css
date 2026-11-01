@@ -2854,7 +2854,7 @@ body[data-app="files"] #files-view :is(.file-row, .file-row > .files-check):focu
 /* One button grammar for the legacy action classes (decision 0031).
    Text action: no box at rest, tone on hover. Primary: the same, plus one
    strong line. Filter chips: bare until selected, then raised + strong line. */
-html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn) {
+html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2876,11 +2876,11 @@ html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn) {
 
 /* the display above beat the hidden attribute: reminders and vault showed retry buttons with
    nothing to retry */
-html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn)[hidden] {
+html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip)[hidden] {
   display: none;
 }
 
-html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn):hover {
+html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip):hover {
   border-color: transparent;
   background: var(--k-hover);
   color: var(--k-text);
@@ -2900,7 +2900,7 @@ html[data-kokuen-version="5"] :is(.btn.danger, .btn.danger:hover) {
   color: var(--k-danger);
 }
 
-html[data-kokuen-version="5"] :is(.mem-cat-btn[aria-pressed="true"], .btn.active) {
+html[data-kokuen-version="5"] :is(.btn.active) {
   border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
@@ -6782,6 +6782,11 @@ body[data-app="files"] #files-view .files-phase7-dialog-layer[hidden] {
   display: none;
 }
 
+/* a dropdown opened inside a files dialog sits on the page body, so it must float above the dialog layer */
+body[data-app="files"] .custom-dropdown-panel[data-kokuen-surface="files"] {
+  z-index: 1300;
+}
+
 body[data-app="files"] #files-view .files-phase7-dialog {
   width: min(440px, 100%);
   max-height: min(720px, calc(100dvh - 32px));
@@ -6832,7 +6837,7 @@ body[data-app="files"] #files-view .files-phase7-dialog input {
   font-size: 0.8125rem;
 }
 
-body[data-app="files"] #files-view :where(.files-choice-row, .files-transfer-locations) {
+body[data-app="files"] #files-view .files-choice-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--k-space-1);
@@ -6842,11 +6847,7 @@ body[data-app="files"] #files-view .files-choice-row[aria-label="location access
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-body[data-app="files"] #files-view #files-location-kind {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-body[data-app="files"] #files-view :where(.files-choice-row, .files-transfer-locations) button {
+body[data-app="files"] #files-view .files-choice-row button {
   min-height: var(--k-control);
   border: 1px solid var(--k-line);
   border-radius: var(--k-radius-control);
@@ -6856,7 +6857,7 @@ body[data-app="files"] #files-view :where(.files-choice-row, .files-transfer-loc
   cursor: pointer;
 }
 
-body[data-app="files"] #files-view :where(.files-choice-row, .files-transfer-locations) button:is(:hover, :focus-visible, [aria-checked="true"]) {
+body[data-app="files"] #files-view .files-choice-row button:is(:hover, :focus-visible, [aria-checked="true"]) {
   border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
