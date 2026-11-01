@@ -175,6 +175,13 @@ _HABIT_LOG_ADDITIONS = {
     "PUT /api/health/units",
 }
 
+# vault security: the activity log, the password-protected export and its import
+_VAULT_SECURITY_ADDITIONS = {
+    "GET /api/vault/audit",
+    "POST /api/vault/export",
+    "POST /api/vault/import",
+}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -197,6 +204,7 @@ def _route_rows():
         | _DEPENDENCY_ADDITIONS
         | _SIGNIN_ADDITIONS
         | _HABIT_LOG_ADDITIONS
+        | _VAULT_SECURITY_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -334,6 +342,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _DEPENDENCY_ADDITIONS
                 - _SIGNIN_ADDITIONS
                 - _HABIT_LOG_ADDITIONS
+                - _VAULT_SECURITY_ADDITIONS
             ),
             960,
         )
@@ -380,12 +389,16 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _DEPENDENCY_ADDITIONS
                 - _SIGNIN_ADDITIONS
                 - _HABIT_LOG_ADDITIONS
+                - _VAULT_SECURITY_ADDITIONS
             ),
             974,
         )
 
     def test_habit_log_routes_are_additive(self):
         self.assertTrue(_HABIT_LOG_ADDITIONS <= set(_current_rows()))
+
+    def test_vault_security_routes_are_added(self):
+        self.assertTrue(_VAULT_SECURITY_ADDITIONS <= set(_current_rows()))
 
     def test_photon_setup_route_is_additive(self):
         self.assertTrue(_PHOTON_SETUP_ADDITIONS <= set(_current_rows()))
@@ -417,8 +430,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1017)
-        self.assertEqual(digest, "1b85a40ecbd5ef0a1a8a5a44c9ca799f88e1930013cbff3cf0147401ffb66475")
+        self.assertEqual(len(rows), 1020)
+        self.assertEqual(digest, "238aa61fbba11b65d3aa73e5336697b9ff81de45d094f158d14adb2a552e842d")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -427,7 +440,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 991, "v1": 2, "public": 24})
+        self.assertEqual(groups, {"api": 994, "v1": 2, "public": 24})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

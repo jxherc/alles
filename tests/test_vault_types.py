@@ -102,7 +102,10 @@ class VaultTypedTests(ApiTest):
         d.commit()
         eid = e.id
         d.close()
-        f = self.client.get(f"/api/vault/{eid}/reveal", headers=self.h).json()["fields"]
+        # v1 ciphertext from before wrapped keys: the next unlock upgrades it
+        tok = self.client.post("/api/vault/unlock", json={"password": "master-password-1"})
+        h = {"X-Vault-Token": tok.json()["token"]}
+        f = self.client.get(f"/api/vault/{eid}/reveal", headers=h).json()["fields"]
         self.assertEqual(f["password"], "barevalue")
 
     def test_value_encrypted_is_ciphertext(self):

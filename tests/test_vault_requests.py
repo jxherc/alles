@@ -15,7 +15,6 @@ from core import settings
 from core.database import Base, Vault, VaultCreateReceipt, VaultEntry
 from core.migrations import m0050_vault_create_receipts
 from routes import vault
-from services.crypto import make_verifier
 from tests._client import ApiTest
 
 
@@ -33,6 +32,7 @@ class VaultRequestTests(ApiTest):
         response = self.client.post("/api/vault/unlock", json={"password": self.password})
         self.assertEqual(response.status_code, 200)
         self.headers = {"X-Vault-Token": response.json()["token"]}
+        self.key = vault._unlock_tokens[response.json()["token"]][1]
 
     def tearDown(self):
         vault._unlock_tokens.clear()
@@ -106,7 +106,7 @@ class VaultRequestTests(ApiTest):
         first = self.create(body).json()
         changed = self.client.post(
             "/api/vault/vaults/password",
-            json={"new_password": str(uuid.uuid4())},
+            json={"new_password": str(uuid.uuid4()), "current_password": self.password},
             headers=self.headers,
         )
         self.assertEqual(changed.status_code, 200)
@@ -186,7 +186,7 @@ class VaultRequestTests(ApiTest):
         with self.db() as db:
             with mock.patch.object(db, "commit", side_effect=RuntimeError("commit rejected")):
                 with self.assertRaisesRegex(RuntimeError, "commit rejected"):
-                    vault.create_entry(body, db, (self.password, "default"))
+                    vault.create_entry(body, db, (self.key, "default"))
             db.rollback()
         with self.db() as db:
             self.assertEqual(db.query(VaultEntry).count(), 0)
@@ -202,15 +202,13 @@ class VaultRequestTests(ApiTest):
             barrier = threading.Barrier(2)
             try:
                 with sessions() as db:
-                    db.add(
-                        Vault(id="default", name="fixture", verifier=make_verifier(self.password))
-                    )
+                    db.add(Vault(id="default", name="fixture", verifier=self.key.verifier))
                     db.commit()
 
                 def save():
                     with sessions() as db:
                         barrier.wait(timeout=10)
-                        return vault.create_entry(body, db, (self.password, "default"))
+                        return vault.create_entry(body, db, (self.key, "default"))
 
                 # Separate server processes cannot share this in-memory lock.
                 with mock.patch.object(vault, "recovery_consistency_lock", nullcontext()):
@@ -221,7 +219,7 @@ class VaultRequestTests(ApiTest):
                 engine.dispose()
                 with sessions() as db:
                     self.assertEqual(
-                        vault.create_entry(body, db, (self.password, "default")), results[0]
+                        vault.create_entry(body, db, (self.key, "default")), results[0]
                     )
                     self.assertEqual(db.query(VaultEntry).count(), 1)
                     self.assertEqual(db.query(VaultCreateReceipt).count(), 1)
