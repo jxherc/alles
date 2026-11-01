@@ -46,6 +46,39 @@ def reschedule_date(when: str, today: date | None = None) -> str:
     raise ValueError("unknown reschedule target")
 
 
+_REQUEST_LEAD = re.compile(
+    r"^\s*(?:please\s+)?(?:(?:add|put)\s+(?:a\s+|an\s+)?(?:new\s+)?(?:(?:task|todo|to-do)\s*(?:called|named|to|:)?\s*)?"
+    r"|remind\s+me\s+to\s+|(?:todo|task)\s*:\s*)",
+    re.I,
+)
+_REQUEST_TAIL = re.compile(
+    r"\s+(?:(?:to|on|in|onto|into)\s+(?:my|the)\s+(?:to-?do|todo|tasks?)(?:\s+list)?"
+    r"|as\s+a\s+(?:task|todo))(?=[\s.!,]|$)",
+    re.I,
+)
+
+
+def strip_task_request(text: str) -> str | None:
+    """ "add study for chem to my todo" -> "study for chem". None when the words aren't asking
+    for a task (no add/remind lead and no "to my todo" phrase)."""
+    body = text or ""
+    lead = _REQUEST_LEAD.match(body)
+    if lead:
+        body = body[lead.end() :]
+    body, tails = _REQUEST_TAIL.subn(" ", body, count=1)
+    body = re.sub(r"\s+", " ", body).strip(" .!,")
+    return body if (lead or tails) and body else None
+
+
+def parse_message_task(text: str, **kwargs) -> tuple[dict, bool]:
+    """a chat message read as a task. understood when it asks for one ("add ... to my todo") or
+    names a day, a time, a repeat, a tag or a priority the quick add parser takes"""
+    inner = strip_task_request(text)
+    parsed = parse_task(inner if inner is not None else text, **kwargs)
+    found = any(parsed[key] for key in ("due_date", "due_time", "repeat", "tags", "priority"))
+    return parsed, inner is not None or found
+
+
 def _owner_clock(today: date):
     """the owner's clock while `today` is the owner's today. a day picked by hand has no now"""
     from services.calendar_events import owner_now
@@ -67,7 +100,7 @@ def parse_task(
     from services.localized_input import normalize_quick_add
 
     today = today or (now.date() if now else date.today())
-    out = {"title": "", "due_date": None, "repeat": "", "priority": 0, "tags": ""}
+    out = {"title": "", "due_date": None, "due_time": None, "repeat": "", "priority": 0, "tags": ""}
     t = f" {normalize_quick_add(text, language)} "
     if strict:
         check_dates(t, today)
@@ -124,6 +157,25 @@ def parse_task(
     # one-off due date phrases (only if recurrence didn't already set one)
     if not out["due_date"]:
         out["due_date"], t = _extract_date(t, today, same_day=ahead)
+
+    # a time next to a day is when the task is due: "dentist tomorrow 9am" is due 09:00 tomorrow.
+    # a time with no day stays in the title, there is no day for it to be on
+    if out["due_date"]:
+        from services.event_nl import _extract_time, _extract_time_range
+
+        # "at 9am" and "@ 9:30" are the time with its own word
+        said = re.sub(
+            r"(?:\bat|@)\s*(?=(?:noon|midday|midnight|\d{1,2}(?:[:.]\d{2})?\s*[ap]\.?m\b|\d{1,2}:\d{2}))",
+            " ",
+            t,
+            flags=re.I,
+        )
+        clock, _, rest = _extract_time_range(said)
+        if clock is None:
+            clock, rest = _extract_time(said)
+        if clock is not None:
+            out["due_time"] = clock.strftime("%H:%M")
+            t = rest
 
     # "On Monday: standup" leaves a stray colon once the day is taken out
     out["title"] = re.sub(r"\s+", " ", t).strip(" -,:;") or text.strip()

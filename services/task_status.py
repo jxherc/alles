@@ -54,6 +54,7 @@ def apply_status(
                 title=task.title,
                 priority=task.priority,
                 due_date=due,
+                due_time=task.due_time,
                 repeat=task.repeat,
                 anchor_day=anchor,
                 tags=task.tags,

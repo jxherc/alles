@@ -13,7 +13,8 @@ from core.database import DB_PATH, Task, get_db
 from core.settings import load_settings
 from services.commitment_requests import create_request
 from services.commitment_sources import TaskSource, capture_source, source_dict, source_json
-from services.task_nl import NotADate, parse_task, reschedule_date
+from services.task_due import clean_clock, is_overdue, sort_key, split_due
+from services.task_nl import NotADate, parse_message_task, parse_task, reschedule_date
 from services.task_status import TASK_STAGES, apply_status
 from services.task_status import normalize_stage as _stage
 
@@ -28,6 +29,8 @@ def _validate_stage(value) -> str:
 
 
 def _fmt(t: Task) -> dict:
+    from services.calendar_events import owner_now
+
     return {
         "id": t.id,
         "title": t.title,
@@ -35,6 +38,8 @@ def _fmt(t: Task) -> dict:
         "stage": _stage(getattr(t, "stage", ""), bool(t.done)),
         "priority": t.priority,
         "due_date": t.due_date,
+        "due_time": t.due_time or None,
+        "overdue": (not t.done) and is_overdue(t.due_date, t.due_time, owner_now()),
         "parent_id": t.parent_id,
         "tags": [x for x in (t.tags or "").split(",") if x],
         "repeat": t.repeat or "",
@@ -53,7 +58,7 @@ def _ordered(rows):
         key=lambda t: (
             t.sort_order or 0,
             -(t.priority or 0),
-            t.due_date or "9999",
+            sort_key(t.due_date, t.due_time),
             t.created_at.isoformat(),
         ),
     )
@@ -85,6 +90,7 @@ _TASK_FIELDS = {
     "title",
     "priority",
     "due_date",
+    "due_time",
     "tags",
     "repeat",
     "notes",
@@ -114,12 +120,34 @@ def _due(value):
     return text
 
 
+_KEEP = object()
+
+
+def _moment(day, clock=_KEEP, keep_clock=None):
+    """the due day and clock to store. a day can carry its own time ("2026-10-20T09:30"); a
+    time without a day has nothing to be on, so it is refused. when no clock was sent, keep_clock
+    (the one the task already has) stays, so moving a task to another day keeps its time. a sent
+    clock of null or "" clears it"""
+    day = _due(day)
+    day, inside = split_due(day) if day else (None, None)
+    if clock is _KEEP:
+        clock = (inside or keep_clock) if day else None
+    else:
+        try:
+            clock = clean_clock(clock)
+        except ValueError:
+            raise HTTPException(400, "use a time like 09:30") from None
+    if clock and not day:
+        raise HTTPException(400, "a time needs a day")
+    return day, (clock or None) if day else None
+
+
 def _expected_value(field: str, value):
     if field in {"priority", "sort_order"}:
         valid = type(value) is int
     elif field == "done":
         valid = type(value) is bool
-    elif field in {"due_date", "parent_id", "completed_at"}:
+    elif field in {"due_date", "due_time", "parent_id", "completed_at"}:
         valid = value is None or isinstance(value, str)
     else:
         valid = isinstance(value, str)
@@ -129,7 +157,7 @@ def _expected_value(field: str, value):
         return ",".join(part.strip() for part in value.split(",") if part.strip())
     if field in {"title", "project", "repeat"}:
         return value.strip()
-    if field in {"due_date", "parent_id"}:
+    if field in {"due_date", "due_time", "parent_id"}:
         return value.strip() or None if value is not None else None
     return value
 
@@ -140,7 +168,7 @@ def _current_value(task: Task, field: str):
         return _stage(value, bool(task.done))
     if field == "completed_at":
         return value.isoformat() if value else None
-    if value is None and field not in {"due_date", "parent_id"}:
+    if value is None and field not in {"due_date", "due_time", "parent_id"}:
         value = 0 if field in {"priority", "sort_order"} else False if field == "done" else ""
     return _expected_value(field, value)
 
@@ -250,6 +278,7 @@ class TaskBody(BaseModel):
     title: str
     priority: int = 0
     due_date: Optional[str] = None
+    due_time: Optional[str] = None
     parent_id: Optional[str] = None
     tags: str = ""
     repeat: str = ""
@@ -273,10 +302,14 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
         if not title:
             raise HTTPException(400, "empty title")
         stage = _validate_stage(body.stage)
+        due_date, due_time = _moment(
+            body.due_date, _KEEP if body.due_time is None else body.due_time
+        )
         fields = dict(
             title=title,
             priority=body.priority,
-            due_date=_due(body.due_date),
+            due_date=due_date,
+            due_time=due_time,
             parent_id=body.parent_id,
             tags=body.tags,
             repeat=body.repeat,
@@ -293,17 +326,14 @@ def create_task(body: TaskBody, db: DbSession = Depends(get_db)):
             p = parse_task(title, language=load_settings().get("language", "en"), now=owner_now())
             fields["title"] = p["title"]
             fields["priority"] = max(body.priority, p["priority"])
-            fields["due_date"] = body.due_date or p["due_date"]
+            if not body.due_date:
+                fields["due_date"] = p["due_date"]
+                fields["due_time"] = due_time or p["due_time"] if p["due_date"] else None
             fields["repeat"] = body.repeat or p["repeat"]
             fields["tags"] = body.tags or p["tags"]
-        if (
-            fields.get("repeat")
-            and (fields.get("due_date") or "")[:10]
-            and len(fields["due_date"]) >= 10
-        ):
-            fields["anchor_day"] = int(
-                fields["due_date"][8:10]
-            )  # pin the day so monthly/yearly don't drift
+        if fields.get("repeat") and fields.get("due_date"):
+            # pin the day so monthly/yearly don't drift
+            fields["anchor_day"] = int(fields["due_date"][8:10])
         t = Task(**fields)
         db.add(t)
         if receipt is not None:
@@ -325,6 +355,8 @@ class QuickBody(BaseModel):
     project: str = ""
     preview: bool = False
     today: date | None = None
+    # the text is a chat message ("add study for chem to my todo"), not a quick add line
+    from_message: bool = False
 
 
 @router.post("/tasks/quick")
@@ -334,27 +366,34 @@ def quick_add(body: QuickBody, db: DbSession = Depends(get_db)):
         raise HTTPException(400, "empty")
     if body.preview and len(body.text) > 6000:
         raise HTTPException(400, "capture must be at most 6000 characters")
+    understood = True
     try:
-        p = parse_task(
+        parse = parse_message_task if body.from_message else parse_task
+        out = parse(
             body.text,
             today=body.today or _owner_today(),
             language=load_settings().get("language", "en"),
             strict=True,
         )
+        p, understood = out if body.from_message else (out, True)
     except NotADate as error:
         raise HTTPException(400, str(error)) from None
     if body.preview:
         return {
             "preview": True,
             "kind": "task",
+            **({"understood": understood} if body.from_message else {}),
             "candidate": {**p, "project": body.project},
             "source": capture_source(body.text),
         }
+    if not understood:
+        raise HTTPException(400, "that doesn't read as a task")
     _due = p["due_date"] or ""
     t = Task(
         title=p["title"],
         priority=p["priority"],
         due_date=p["due_date"],
+        due_time=p["due_time"] if p["due_date"] else None,
         repeat=p["repeat"],
         anchor_day=(int(_due[8:10]) if p["repeat"] and len(_due) >= 10 else None),
         tags=p["tags"],
@@ -488,12 +527,19 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
                 body[numf] = int(body[numf])
             except (TypeError, ValueError):
                 raise HTTPException(400, f"{numf} must be an integer")
-    if "due_date" in body:
-        body["due_date"] = _due(body["due_date"])
+    if "due_date" in body or "due_time" in body:
+        # moving a task to another day keeps its time; clearing the day clears the time too
+        day, clock = _moment(
+            body["due_date"] if "due_date" in body else t.due_date,
+            body["due_time"] if "due_time" in body else _KEEP,
+            t.due_time,
+        )
+        body["due_date"], body["due_time"] = day, clock
     for f in (
         "title",
         "priority",
         "due_date",
+        "due_time",
         "tags",
         "repeat",
         "notes",
@@ -505,9 +551,7 @@ def update_task(tid: str, body: dict, db: DbSession = Depends(get_db)):
             setattr(t, f, body[f])
     # keep the drift anchor in sync if the due date was edited on a repeating task
     if "due_date" in body or "repeat" in body:
-        t.anchor_day = (
-            int(t.due_date[8:10]) if (t.repeat and t.due_date and len(t.due_date) >= 10) else None
-        )
+        t.anchor_day = int(t.due_date[8:10]) if (t.repeat and t.due_date) else None
     db.commit()
     db.refresh(t)
     out = _fmt(t)

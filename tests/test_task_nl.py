@@ -214,7 +214,7 @@ class WeekdayPlacementTests(unittest.TestCase):
             ("sat exam prep", "exam prep", "2026-10-24"),  # the first word is where a day goes
             ("meet on sat", "meet", "2026-10-24"),
             ("call mom fri", "call mom", "2026-10-30"),
-            ("wed 9am dentist", "9am dentist", "2026-10-28"),
+            ("wed 9am dentist", "dentist", "2026-10-28"),
             ("submit report by friday", "submit report", "2026-10-30"),
             ("call mom this friday", "call mom", "2026-10-30"),
             ("water plants every sun", "water plants", "2026-10-25"),
@@ -262,11 +262,11 @@ class SameDayWeekdayTests(unittest.TestCase):
     def test_a_time_still_ahead_keeps_todays_weekday_today(self):
         morning, evening = datetime(2026, 10, 23, 9, 30), datetime(2026, 10, 23, 16, 0)
         for text, now, due, title in (
-            ("call mom friday 3pm", morning, "2026-10-23", "call mom 3pm"),
-            ("call mom friday 3pm", evening, "2026-10-30", "call mom 3pm"),
-            ("standup every friday 3pm", morning, "2026-10-23", "standup 3pm"),
-            ("standup every friday 3pm", evening, "2026-10-30", "standup 3pm"),
-            ("call next friday 3pm", morning, "2026-10-30", "call 3pm"),
+            ("call mom friday 3pm", morning, "2026-10-23", "call mom"),
+            ("call mom friday 3pm", evening, "2026-10-30", "call mom"),
+            ("standup every friday 3pm", morning, "2026-10-23", "standup"),
+            ("standup every friday 3pm", evening, "2026-10-30", "standup"),
+            ("call next friday 3pm", morning, "2026-10-30", "call"),
             # no time: still next friday
             ("call mom friday", morning, "2026-10-30", "call mom"),
         ):

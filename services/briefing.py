@@ -30,7 +30,10 @@ def compose_briefing(db, today=None) -> dict:
         lines.append(f"{len(evs)} event{'s' if len(evs) != 1 else ''} today — {names}{more}")
 
     # tasks - due/overdue first, else fall back to any open task
-    due = sorted((s["data"] for s in g.get("task", [])), key=lambda d: (d["due"], d["title"]))
+    due = sorted(
+        (s["data"] for s in g.get("task", [])),
+        key=lambda d: (d["due"], d.get("due_time") or "99:99", d["title"]),
+    )
     if due:
         names = ", ".join(d["title"] for d in due[:4])
         lines.append(f"{len(due)} due task{'s' if len(due) != 1 else ''} — {names}")

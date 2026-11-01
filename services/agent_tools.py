@@ -2027,7 +2027,7 @@ async def execute(name: str, args: dict) -> dict:
     if name == "goal_list":
         return await _goal_list()
     if name == "task_add":
-        return await _task_add(args.get("title", ""))
+        return await _task_add(args)
     if name == "task_done":
         done = args.get("done", True)
         if not isinstance(done, bool):
@@ -2219,7 +2219,11 @@ async def _task_list(include_done):
         if not include_done:
             q = q.filter(Task.done == False)  # noqa: E712
         rows = q.order_by(Task.created_at.desc()).all()
-        out = [f"- [{'x' if t.done else ' '}] ({t.id[:8]}) {t.title}" for t in rows]
+        out = [
+            f"- [{'x' if t.done else ' '}] ({t.id[:8]}) {t.title}"
+            + (f" (due {t.due_date}{' ' + t.due_time if t.due_time else ''})" if t.due_date else "")
+            for t in rows
+        ]
         return {"output": "\n".join(out) if out else "no tasks"}
     finally:
         db.close()
@@ -2377,19 +2381,58 @@ async def _goal_list() -> dict:
         db.close()
 
 
-async def _task_add(title):
-    from core.database import SessionLocal, Task
+async def _task_add(args):
+    """one step: a task with an optional day and time. words like "tomorrow 9am" left in the
+    title count when no day was given, the same as the tasks quick add"""
+    from datetime import date
 
+    from core.database import SessionLocal, Task
+    from core.settings import load_settings
+    from services.calendar_events import owner_now
+    from services.task_due import clean_clock
+    from services.task_nl import parse_task
+
+    args = args if isinstance(args, dict) else {"title": args}
+    title = args.get("title")
     if not isinstance(title, str) or not title.strip():
         return {"output": "title required", "error": True}
     title = title.strip()
+    day = str(args.get("due_date") or "").strip() or None
+    priority = 0
+    repeat = ""
+    tags = ""
+    try:
+        clock = clean_clock(args.get("due_time"))
+        if day:
+            date.fromisoformat(day)
+    except ValueError:
+        return {
+            "output": "use due_date like 2026-10-20 and due_time like 09:30",
+            "error": True,
+        }
+    if not day:
+        if clock:
+            return {"output": "due_time needs a due_date", "error": True}
+        parsed = parse_task(title, language=load_settings().get("language", "en"), now=owner_now())
+        title = parsed["title"] or title
+        day, clock = parsed["due_date"], parsed["due_time"]
+        priority, repeat, tags = parsed["priority"], parsed["repeat"], parsed["tags"]
     db = SessionLocal()
     try:
-        t = Task(title=title)
+        t = Task(
+            title=title,
+            due_date=day,
+            due_time=clock,
+            priority=priority,
+            repeat=repeat,
+            tags=tags,
+            anchor_day=int(day[8:10]) if repeat and day else None,
+        )
         db.add(t)
         db.commit()
         db.refresh(t)
-        return {"output": f"added task {t.id} — {title}"}
+        when = f" (due {day}{' ' + clock if clock else ''})" if day else ""
+        return {"output": f"added task {t.id} — {title}{when}"}
     finally:
         db.close()
 
@@ -4122,7 +4165,17 @@ APP_TOOL_DEFS = [
         ["aim"],
     ),
     _tool("goal_list", "List the owner's standing goals and their latest news.", {}),
-    _tool("task_add", "Add a task / todo.", {"title": {"type": "string"}}, ["title"]),
+    _tool(
+        "task_add",
+        "Add a task / todo. due_date is a day like 2026-10-20 and due_time a clock like 09:30 "
+        "(only with a due_date); leave both out when the owner gave no day or time.",
+        {
+            "title": {"type": "string"},
+            "due_date": {"type": "string"},
+            "due_time": {"type": "string"},
+        },
+        ["title"],
+    ),
     _tool(
         "task_done",
         "Mark a task done or not done.",

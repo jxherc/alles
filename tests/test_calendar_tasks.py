@@ -49,7 +49,7 @@ class CalendarTasksTests(ApiTest):
     def test_shape(self):
         rows = self._get(start="2026-06-20", end="2026-06-20")
         t = rows[0]
-        self.assertEqual(set(t), {"id", "title", "date", "done"})
+        self.assertEqual(set(t), {"id", "title", "date", "time", "done"})
         self.assertEqual(t["date"], "2026-06-20")
 
     def test_no_range_returns_all_dated(self):
