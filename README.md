@@ -63,7 +63,7 @@ this keeps access limited to your device and saves your data in the `alles-data`
 | --- | --- |
 | home | see your day, open your apps, and capture a task |
 | aide | chat with a configured model and approve actions in your workspace |
-| andromeda | search the web and optionally get a cited overview |
+| andromeda | search the web and optionally get a cited overview; it can be your browser's search too |
 | plan | keep a calendar, tasks, reminders, and countdowns |
 | inbox | read mail and manage contacts after connecting your account |
 | docs | write markdown notes and journal entries |
@@ -71,7 +71,7 @@ this keeps access limited to your device and saves your data in the `alles-data`
 | library | save articles and reading lists |
 | health | track habits and health records |
 | finance | track accounts, transactions, budgets, and subscriptions |
-| vault | store encrypted secrets, passwords, and passkeys |
+| vault | store encrypted secrets, passwords, and passkeys, and fill logins, cards and addresses in chrome with the alles extension |
 | server | check health, access settings, backups, and updates |
 
 new manual transactions saved in the local finance ledger have an undo action.

@@ -59,6 +59,7 @@
     "static/js/photos.js": "files-photos.locations-and-media",
     "static/js/projects.js": "aide.conversation-and-execution",
     "static/js/projectview.js": "aide.conversation-and-execution",
+    "static/js/rail_resize.js": "accessibility.interface-contract",
     "static/js/read.js": "library.reading-and-news",
     "static/js/reading_note.js": "library.reading-and-news",
     "static/js/reminders.js": "plan.tasks-calendar",

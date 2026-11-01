@@ -5,11 +5,18 @@ Run only against a server using an owned throwaway ``ALLES_DATA`` root.
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 import tempfile
+import zipfile
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from playwright.sync_api import Page, expect, sync_playwright
 
 PORT = os.environ.get("PORT", "8059")
@@ -366,8 +373,34 @@ def run() -> None:
         extension = playwright.request.new_context(
             base_url=BASE, extra_http_headers={"Origin": EXTENSION_ORIGIN}
         )
+        # the extension's key pair; fills come back sealed to it (extension/seal.js)
+        browser_key = ec.generate_private_key(ec.SECP256R1())
+        public_key = (
+            base64.urlsafe_b64encode(
+                browser_key.public_key().public_bytes(
+                    serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
+                )
+            )
+            .rstrip(b"=")
+            .decode()
+        )
+
+        def unseal(response, connection_id):
+            sealed = response.json()["sealed"]
+            unb64 = lambda text: base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))  # noqa: E731
+            epk = unb64(sealed["epk"])
+            shared = browser_key.exchange(
+                ec.ECDH(), ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), epk)
+            )
+            key = HKDF(
+                algorithm=hashes.SHA256(), length=32, salt=epk, info=b"alles browser fill v1"
+            ).derive(shared)
+            aad = f"alles-fill|{connection_id}|https://accounts.example.test:443".encode()
+            return json.loads(AESGCM(key).decrypt(unb64(sealed["iv"]), unb64(sealed["ct"]), aad))
+
         pairing_response = extension.post(
-            "/api/auth/browser/pair/start", data={"name": "phase 9 chromium"}
+            "/api/auth/browser/pair/start",
+            data={"name": "phase 9 chromium", "public_key": public_key},
         )
         assert pairing_response.ok
         pairing = pairing_response.json()
@@ -397,6 +430,12 @@ def run() -> None:
         download = download_info.value
         assert download.suggested_filename == "alles-passwords-extension.zip"
         download.save_as(OUTPUT / download.suggested_filename)
+        with zipfile.ZipFile(OUTPUT / download.suggested_filename) as archive:
+            # the download points itself at the alles it came from and offers andromeda
+            assert json.loads(archive.read("config.json")) == {"origin": BASE}
+            manifest = json.loads(archive.read("manifest.json"))
+            provider = manifest["chrome_settings_overrides"]["search_provider"]
+            assert provider["search_url"] == f"{BASE}/?app=andromeda&q={{searchTerms}}"
 
         pairing_button = page.locator(f'[data-browser-pair="{pairing["pairing_id"]}"]')
         pairing_button.click()
@@ -445,7 +484,7 @@ def run() -> None:
             "frame_url": "https://accounts.example.test/login",
         }
         matches = extension.post("/api/auth/browser/match", data=page_body)
-        assert matches.ok and matches.json()["matches"] == [
+        assert matches.ok and unseal(matches, connection["connection_id"])["logins"] == [
             {
                 "id": created.json()["id"],
                 "name": "Example account",
@@ -457,7 +496,11 @@ def run() -> None:
             "/api/auth/browser/release",
             data={**page_body, "entry_id": created.json()["id"]},
         )
-        assert release.ok and release.json()["password"] == "one selected secret"
+        assert "one selected secret" not in release.text()
+        assert (
+            release.ok
+            and unseal(release, connection["connection_id"])["password"] == "one selected secret"
+        )
 
         page.locator(f'[data-browser-lock="{connection["connection_id"]}"]').click()
         expect(page.locator(".mv-browser-state")).to_have_text("locked")

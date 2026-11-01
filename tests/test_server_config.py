@@ -29,7 +29,6 @@ class ServerBindConfigTest(unittest.TestCase):
             ".env.example": "PORT=6769",
             "Dockerfile": "EXPOSE 6769",
             "README.md": "http://localhost:6769",
-            "extension/popup.js": "http://localhost:6769",
             "mobile/capacitor.config.json": "http://192.168.1.10:6769",
             "static/js/settings.js": "location.port || '6769'",
             "static/plugins/obsidian-alles/main.js": "http://localhost:6769",

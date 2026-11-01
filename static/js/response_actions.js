@@ -57,7 +57,6 @@ export function compactResponseActions(actions) {
     trigger.type = 'button';
     trigger.className = 'act-btn msg-more-trigger';
     trigger.innerHTML = icon('more');
-    trigger.title = t('aide.more_reply_actions');
     trigger.setAttribute('aria-label', t('aide.more_reply_actions'));
     trigger.setAttribute('aria-haspopup', 'menu');
     trigger.setAttribute('aria-expanded', 'false');

@@ -2544,6 +2544,8 @@
     "chromium is downloaded but doesn't start: alles tools install browser": "chromium est téléchargé mais ne démarre pas : alles tools install browser",
     "node needs the libatomic1 package: sudo apt install libatomic1": "node a besoin du paquet libatomic1 : sudo apt install libatomic1",
     "the Files folder can't be the document folder or sit inside it": "le dossier Fichiers ne peut pas être le dossier du document ni se trouver à l’intérieur",
-    "inside-Alles documents need to sit directly in the Files folder": "les documents dans Alles doivent se trouver directement dans le dossier Fichiers"
+    "inside-Alles documents need to sit directly in the Files folder": "les documents dans Alles doivent se trouver directement dans le dossier Fichiers",
+    "pair this browser again to keep fills encrypted": "associez à nouveau ce navigateur pour que les remplissages restent chiffrés",
+    "the browser's public key is invalid": "la clé publique du navigateur n’est pas valide"
   }
 }

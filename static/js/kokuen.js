@@ -141,9 +141,24 @@ function primitiveFor(element) {
   return 'action';
 }
 
+// 27.35, 27.51: no native title tooltips on controls (the browser's own box covers what's under it and
+// can't be styled). a title that is a control's only name becomes its aria-label, then goes
+function dropNativeTooltip(element) {
+  const title = element.getAttribute('title');
+  if (title == null) return;
+  const named = element.getAttribute('aria-label') || element.getAttribute('aria-labelledby')
+    || (!element.matches('input, textarea') && (element.textContent || '').trim());
+  if (!named && title.trim()) {
+    element.setAttribute('aria-label', title);
+    if (element.dataset.i18nTitle && !element.dataset.i18nAriaLabel) element.dataset.i18nAriaLabel = element.dataset.i18nTitle;
+  }
+  element.removeAttribute('title');
+}
+
 function decorateControl(element) {
   if (!(element instanceof HTMLElement)) return;
   decorateIconControl(element);
+  if (element.matches(CONTROL_SELECTOR)) dropNativeTooltip(element);
   if (!element.dataset.kokuenPrimitive) element.dataset.kokuenPrimitive = primitiveFor(element);
   if (!element.dataset.kokuenState) element.dataset.kokuenState = 'resting';
 
@@ -304,7 +319,7 @@ export function initKokuenPrimitives(root = document) {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['disabled', 'aria-disabled', 'aria-busy', 'aria-invalid', 'aria-checked', 'aria-selected', 'aria-pressed', 'data-kokuen-icon'],
+    attributeFilter: ['disabled', 'aria-disabled', 'aria-busy', 'aria-invalid', 'aria-checked', 'aria-selected', 'aria-pressed', 'data-kokuen-icon', 'title'],
   });
 }
 

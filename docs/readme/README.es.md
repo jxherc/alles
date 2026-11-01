@@ -64,7 +64,7 @@ así el acceso queda limitado a tu dispositivo y tus datos se guardan en el volu
 | --- | --- |
 | home | ver tu día, abrir tus apps y apuntar una tarea al vuelo |
 | aide | chatear con un modelo configurado y aprobar acciones en tu espacio de trabajo |
-| andromeda | buscar en la web y, si quieres, obtener un resumen con fuentes |
+| andromeda | buscar en la web y, si quieres, obtener un resumen con fuentes; también puede ser el buscador de tu navegador |
 | plan | llevar un calendario, tareas, recordatorios y cuentas atrás |
 | inbox | leer el correo y gestionar contactos después de conectar tu cuenta |
 | docs | escribir notas en Markdown y entradas de diario |
@@ -72,7 +72,7 @@ así el acceso queda limitado a tu dispositivo y tus datos se guardan en el volu
 | library | guardar artículos y listas de lectura |
 | health | registrar hábitos y datos de salud |
 | finance | controlar cuentas, transacciones, presupuestos y suscripciones |
-| vault | guardar secretos, contraseñas y llaves de acceso cifrados |
+| vault | guardar secretos, contraseñas y llaves de acceso cifrados, y rellenar inicios de sesión, tarjetas y direcciones en chrome con la extensión de alles |
 | server | revisar el estado, los ajustes de acceso, las copias de seguridad y las actualizaciones |
 
 las transacciones manuales nuevas que guardas en el registro financiero local se pueden deshacer.

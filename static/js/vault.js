@@ -652,7 +652,7 @@ async function _browserOwnerMutation(url, opts, success) {
 async function _downloadBrowserExtension(button) {
   button.disabled = true;
   try {
-    const response = await _vfetchRecentOwner('/api/vault/browsers/extension');
+    const response = await _vfetchRecentOwner('/api/vault/browsers/extension?origin=' + encodeURIComponent(location.origin));
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       throw new Error(payload.message || payload.detail || t('vault.extension_download_failed'));

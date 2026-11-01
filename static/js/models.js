@@ -501,7 +501,7 @@ export function renderEndpointList() {
         <span class="provider-dot" style="background:${color}"></span>
         <span class="mm-ep-name" style="font-weight:500">${escHtml(ep.name)}</span>
         <span class="mm-ep-count" style="font-size:0.8125rem;color:var(--muted)">${escHtml(tp('models.models_count', ep.models.length))}</span>
-        <div class="mm-ep-actions" style="margin-left:auto;display:flex;gap:0.25rem">
+        <div class="mm-ep-actions">
           <button class="btn mm-test-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.test_completion'))}" ${!ep.models.length ? 'disabled' : ''}>${escHtml(t('models.test'))}</button>
           <button class="btn mm-probe-btn" type="button" data-id="${ep.id}" title="${escAttr(t('models.probe_models'))}">${escHtml(t('models.probe'))}</button>
           <button class="act-btn mm-del-btn" type="button" data-id="${ep.id}" aria-label="${escAttr(t('models.remove_endpoint', { name: ep.name }))}">×</button>

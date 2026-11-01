@@ -4,7 +4,7 @@ import { reconcileSourceReply } from './answer_note.js';
 import { t } from './i18n.js';
 import { refreshScrollFollow } from './scrollfollow.js';
 import { sha256Hex } from './sha256.js';
-import { dismissAfter } from './notice.js';
+import { dismissAfter, errorNotice } from './notice.js';
 
 const identity = /^[a-zA-Z0-9_-]{1,160}$/;
 let preparation = 0;
@@ -13,7 +13,7 @@ function taskSaved(saved, kind, focus = false) {
   const host = document.getElementById('aide-task-saved');
   if (!host) return;
   document.getElementById('aide-task-recovery')
-    ?.querySelectorAll(':scope > [role="status"]').forEach(node => node.remove());
+    ?.querySelectorAll(':scope > :is([role="status"], .notice-error)').forEach(node => node.remove());
   const status = document.createElement('p'); status.setAttribute('role', 'status');
   status.textContent = t('aide.task_saved_in_plan', { title: saved.title });
   const open = document.createElement('button');
@@ -79,10 +79,9 @@ export async function saveAnswerTask(button) {
     if (!current()) return;
     const host = document.getElementById('aide-task-recovery');
     if (host) {
-      const status = document.createElement('p'); status.setAttribute('role', 'status');
-      status.textContent = plainError(error.message || t('aide.task_prepare_failed'));
-      host.replaceChildren(status);
+      host.replaceChildren();
       await loadAnswerTaskRecovery();
+      errorNotice(host, plainError(error.message || t('aide.task_prepare_failed')));
     }
   } finally {
     button.removeAttribute('aria-disabled');

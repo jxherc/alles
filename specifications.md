@@ -445,6 +445,10 @@ related apps now open together without merging their records.
   with an error until the save can be retried
 - **files** keeps storage and gallery under one identity, with explicit gallery-to-files and browser
   back paths on desktop and phone
+- **every sidebar resizes** (aide's archive, aide code's projects, docs, settings, files, mail,
+  calendar, photos): drag its edge with a mouse or a finger, or focus the edge and use the arrow keys;
+  double click goes back to the app's width. the width is remembered in this browser. phones and
+  stacked tablet layouts have no handle
 - **library** combines books and saved reading; andromeda news enters only when you explicitly save it
 - **books** retain entered details while changing shelves, rating other books, or closing and reopening
   the add form. optional title lookup distinguishes no matches from an unavailable service; manual
@@ -965,6 +969,9 @@ a file browser over any folder you point it at: browse, upload, preview, organiz
 a local photo library that feels like icloud/google photos, minus the company.
 
 - your photos grouped into date "moments," plus albums and favorites
+- **photo size**: − and + in the header (or a pinch on touch, ctrl+scroll or a trackpad pinch) step
+  through 4 row heights; rows stay justified so no picture is cropped, and the size is remembered in
+  this browser
 - **search** by filename, camera (from exif), or date: "june 2026", a `2026-06` prefix, or just a year
 - reads **exif** (the camera/date info baked into a photo) and makes thumbnails automatically
 - **folder + apple photos sync**: point `/api/photos/sync` at an icloud drive / photos-export / dropbox folder, or use the gallery's macos-only apple photos action for confirmed, permission-gated batches of up to 500 visible items (hidden stays excluded); stable source identity prevents repeat imports from duplicating the library while local hidden/favorite choices remain local
@@ -1021,6 +1028,22 @@ ordinary-entry receipts.
 - sharing uses the saved entry. the form provides a copyable link when clipboard access fails,
   plus revocation for existing links. revocation prevents future access; it cannot erase a copy
   someone already read
+- the browser extension (`extension/`, chrome and other chromium browsers, loaded unpacked) fills
+  logins, cards and addresses. vault settings, connected browsers, downloads a copy that already
+  points at the address it was downloaded from; the owner clicks connect, approves the browser in
+  alles after matching a 6 digit code, and approves each 5 minute unlock the same way. nothing is
+  typed into the extension. at pairing it makes an ecdh p-256 key pair (the private half can't be
+  exported) and sends the public half; every list and fill comes back sealed to it (a fresh server
+  key per answer, hkdf-sha256, aes-256-gcm, the page's exact origin and the browser as associated
+  data), so a proxy that reads the https stream sees only ciphertext. a browser paired before this
+  is asked to pair again. logins show only on their saved site's exact origin; cards and addresses
+  show on any https (or localhost) page, top frame only, and fill the fields their autocomplete
+  names (or common names) point at. every fill is logged as `browser_filled`
+- andromeda as the browser's search: alles serves an opensearch description (`/opensearch.xml`,
+  linked from the page head), so chrome and firefox can add andromeda from the address bar and make
+  it the default in their search settings. the downloaded extension also sets andromeda as chrome's
+  default search (chrome asks to keep it or change it back), and `al` plus a space in the address
+  bar searches andromeda from any copy of the extension
 - *under the hood:* each vault has its own random 256-bit key, and each entry and file is sealed with **aes-256-gcm** (a strong authenticated encryption) under it. your master password only unwraps that key, through **argon2id** (64 mib, 3 passes, 4 lanes: a deliberately slow, memory-hungry key-stretch so guessing the password is expensive). the server keeps the unwrapped key **in memory only**, never the password, and drops it after 10 idle minutes; the page locks itself on the same clock. changing the password asks for the current one and rewraps the key. wrong passwords get 5 free tries, then waits that double up to 5 minutes. a vault made before this upgrades itself on the next unlock. copied secrets clear from the clipboard after 90 seconds while alles has focus. vault settings has a password-protected export (argon2id + aes-gcm json, current password asked first) with import, and an activity log of unlocks, failed tries, opens, exports and security changes (`data/vault-audit.jsonl`, no secrets). a passkey holds its own wrap of the key: under its webauthn prf output when the authenticator has prf, otherwise under a device key the server keeps. threat model and audit: the owner's life vault, `alles vault threat model` and `alles vault audit`.
 
 <p align="center">
@@ -1101,7 +1124,7 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **when it answers on its own.** questions (what, how, why, is, can…, a trailing ?), comparisons and
   searches of five words or more answer automatically. site names, links, `site:` style operators and
   errands (login, download, near me, lyrics) get no overview. anything else offers "write one". this
-  follows blackout for startpage's rules. to dig further, ask a follow-up under the answer.
+  follows blackout for startpage's rules. to dig further, tap a suggested follow-up or "continue in aide" under the answer.
 - **independent background verification** applies to saved older overviews made of checked claims;
   the instant answer is not re-verified, its sources are one tap away instead.
 - **compact answer, separate links.** search, the cited answer, and results share one readable axis. the
@@ -1181,8 +1204,9 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   choosing one opens a card in place with the exact supporting quote, the page title as a link, the
   page date when the evidence has one, and the source type for docs, release notes, repositories and
   registries. escape closes it and returns focus to the source.
-- **follow-ups.** a ready overview offers up to three model-written follow-up questions and a follow-up
-  field. a follow-up keeps up to three earlier questions and answers as context for the overview, shown
+- **follow-ups.** a ready overview offers up to three model-written follow-up questions and "continue in
+  aide", which hands the question, the answer and its sources to aide (the same handoff as "ask aide about
+  these results"); there's no follow-up field. a follow-up keeps up to three earlier questions and answers as context for the overview, shown
   as a "following up on" trail; a vague follow-up (three words or fewer, or one that leans on "it",
   "they", "this") searches together with the earlier question. earlier turns are context, never evidence.
 - **watched searches.** a saved search can be watched every 6 hours, daily or weekly. the
@@ -1710,7 +1734,7 @@ the main app runs on python 3.11 or newer with fastapi, uvicorn, sqlalchemy, and
 
 the optional actual integration is a separate node bridge pinned through [integrations/actual/package.json](integrations/actual/package.json) and its lockfile. it requires node 22.12.0 or newer and uses the official actual api, cli, and sync server at the versions recorded there.
 
-[mobile/](mobile) contains a capacitor wrapper with its own dependencies and platform build steps. it wraps the server-backed app; the fastapi backend still runs on the host. the chromium password companion has its own manifest and pairing boundary under [extension/](extension).
+[mobile/](mobile) contains a capacitor wrapper with its own dependencies and platform build steps. it wraps the server-backed app; the fastapi backend still runs on the host. the chromium extension (logins, cards, addresses, andromeda search) has its own manifest and pairing boundary under [extension/](extension); what it receives is sealed to a key only it holds. `/opensearch.xml` is public like the pwa manifest: it names only the server's own address.
 
 ## project layout
 
@@ -1818,12 +1842,12 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1021 http method/path pairs
-- 995 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
-- sha-256: `1369693a85c461c85fb22d7027da1046801b004b9c51322f06af042f6f030491`
+- 1022 http method/path pairs
+- 995 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
+- sha-256: `7fa91cad1c8a008e433647c94254fd797814ef0eedb554e3baec31d86012b5f6`
 
 <details>
-<summary>app.py · 10 operations</summary>
+<summary>app.py · 11 operations</summary>
 
 [source](app.py)
 
@@ -1837,6 +1861,7 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/health` | `health` |
 | `GET` | `/manifest.json` | `manifest` |
 | `GET` | `/openapi.json` | `api_schema` |
+| `GET` | `/opensearch.xml` | `opensearch` |
 | `GET` | `/redoc` | `api_redoc` |
 | `GET` | `/sw.js` | `service_worker` |
 

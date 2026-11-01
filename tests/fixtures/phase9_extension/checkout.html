@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>checkout fixture</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; margin: 40px; }
+    form { display: grid; gap: 12px; max-width: 360px; }
+    label { display: grid; gap: 4px; }
+    input, select, button { min-height: 44px; font: inherit; }
+  </style>
+</head>
+<body>
+  <!-- a shipping form named the way many shops do it, and a card form with select boxes for the expiry -->
+  <form id="ship">
+    <label>Full name <input id="ship-name" autocomplete="shipping name"></label>
+    <label>Email <input id="ship-email" type="email" name="email"></label>
+    <label>Phone <input id="ship-phone" type="tel" name="phone"></label>
+    <label>Address <input id="ship-line1" autocomplete="shipping address-line1"></label>
+    <label>Apt, suite <input id="ship-line2" autocomplete="shipping address-line2"></label>
+    <label>City <input id="ship-city" name="city"></label>
+    <label>Province
+      <select id="ship-region" autocomplete="shipping address-level1">
+        <option value="">choose</option><option value="ON">Ontario</option><option value="QC">Quebec</option>
+      </select>
+    </label>
+    <label>Postal code <input id="ship-postal" name="postalCode"></label>
+    <label>Country <input id="ship-country" autocomplete="shipping country-name"></label>
+  </form>
+  <form id="pay">
+    <label>Name on card <input id="card-name" name="nameOnCard"></label>
+    <label>Card number <input id="card-number" autocomplete="cc-number" inputmode="numeric"></label>
+    <label>Month
+      <select id="card-month" autocomplete="cc-exp-month">
+        <option value="">mm</option><option>01</option><option>02</option><option>03</option><option>04</option>
+        <option>05</option><option>06</option><option>07</option><option>08</option><option>09</option>
+        <option>10</option><option>11</option><option>12</option>
+      </select>
+    </label>
+    <label>Year
+      <select id="card-year" autocomplete="cc-exp-year">
+        <option value="">yyyy</option><option>2027</option><option>2028</option><option>2029</option><option>2030</option>
+      </select>
+    </label>
+    <label>CVC <input id="card-cvc" name="cvc" inputmode="numeric"></label>
+  </form>
+</body>
+</html>

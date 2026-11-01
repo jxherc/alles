@@ -183,6 +183,9 @@ _VAULT_SECURITY_ADDITIONS = {
     "POST /api/vault/import",
 }
 
+# browsers can add andromeda as a search engine from this description
+_OPENSEARCH_ADDITIONS = {"GET /opensearch.xml"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -206,6 +209,7 @@ def _route_rows():
         | _SIGNIN_ADDITIONS
         | _HABIT_LOG_ADDITIONS
         | _VAULT_SECURITY_ADDITIONS
+        | _OPENSEARCH_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -344,6 +348,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _SIGNIN_ADDITIONS
                 - _HABIT_LOG_ADDITIONS
                 - _VAULT_SECURITY_ADDITIONS
+                - _OPENSEARCH_ADDITIONS
             ),
             960,
         )
@@ -391,12 +396,16 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _SIGNIN_ADDITIONS
                 - _HABIT_LOG_ADDITIONS
                 - _VAULT_SECURITY_ADDITIONS
+                - _OPENSEARCH_ADDITIONS
             ),
             974,
         )
 
     def test_habit_log_routes_are_additive(self):
         self.assertTrue(_HABIT_LOG_ADDITIONS <= set(_current_rows()))
+
+    def test_opensearch_route_is_added(self):
+        self.assertTrue(_OPENSEARCH_ADDITIONS <= set(_current_rows()))
 
     def test_vault_security_routes_are_added(self):
         self.assertTrue(_VAULT_SECURITY_ADDITIONS <= set(_current_rows()))
@@ -431,8 +440,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1021)
-        self.assertEqual(digest, "1369693a85c461c85fb22d7027da1046801b004b9c51322f06af042f6f030491")
+        self.assertEqual(len(rows), 1022)
+        self.assertEqual(digest, "7fa91cad1c8a008e433647c94254fd797814ef0eedb554e3baec31d86012b5f6")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -441,7 +450,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 995, "v1": 2, "public": 24})
+        self.assertEqual(groups, {"api": 995, "v1": 2, "public": 25})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

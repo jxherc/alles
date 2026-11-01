@@ -20,6 +20,8 @@ PORT = os.environ.get("PORT", "8059")
 FIXTURE_PORT = os.environ.get("FIXTURE_PORT", "8060")
 BASE = f"http://127.0.0.1:{PORT}"
 LOGIN_URL = f"http://127.0.0.1:{FIXTURE_PORT}/login.html"
+CHECKOUT_URL = f"http://127.0.0.1:{FIXTURE_PORT}/checkout.html"
+FIXTURE_HOST = f"127.0.0.1:{FIXTURE_PORT}"
 DATA = Path(os.environ.get("ALLES_DATA", "")).expanduser().resolve()
 RUN_ID = os.environ.get("ALLES_TEST_RUN_ID", "")
 ROOT = Path(__file__).resolve().parents[1]
@@ -153,8 +155,45 @@ def run() -> None:
             },
         )
         assert created.ok, created.text()
+        for item in (
+            {
+                "name": "visa",
+                "type": "card",
+                "fields": {
+                    "cardholder": "eric hou",
+                    "number": "4242 4242 4242 4242",
+                    "expiry": "08/29",
+                    "cvv": "123",
+                },
+            },
+            {
+                "name": "home",
+                "type": "identity",
+                "fields": {
+                    "fullname": "eric hou",
+                    "email": "eric@example.test",
+                    "phone": "416 555 0100",
+                    "home_address": "1 king st w\nsuite 400\ntoronto, on m5h 1a1\ncanada",
+                },
+            },
+        ):
+            added = owner.post("/api/vault", headers={"X-Vault-Token": owner_token}, data=item)
+            assert added.ok, added.text()
 
         context = _launch(playwright, profile, runtime_extension)
+        sealed_seen: list = []
+
+        def _watch(response):
+            if (
+                "/api/auth/browser/match" in response.url
+                or "/api/auth/browser/release" in response.url
+            ):
+                try:
+                    sealed_seen.append(response.json())
+                except Exception:  # a refused request has its own assertions
+                    pass
+
+        context.on("response", _watch)
         worker = _worker(context)
         extension_id = worker.url.split("/")[2]
         extension_origin = f"chrome-extension://{extension_id}"
@@ -175,13 +214,13 @@ def run() -> None:
                 errors.append(f"popup: {message.text}") if message.type == "error" else None
             ),
         )
-        expect(popup.locator("h1")).to_have_text("connect this browser")
+        expect(popup.locator("h1")).to_have_text("connect to alles")
         assert popup.locator('select, input[type="checkbox"], input[type="radio"]').count() == 0
         _assert_targets(popup)
         popup.screenshot(path=str(OUTPUT / "extension-connect.png"), full_page=True)
         popup.locator("#origin").fill(BASE)
         popup.locator("#pair").click()
-        expect(popup.locator("h1")).to_have_text("approve in Passwords", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text("approve in alles", timeout=10_000)
         pair_code = popup.locator(".code").inner_text()
         popup.screenshot(path=str(OUTPUT / "extension-pairing.png"), full_page=True)
         assert _owner_state(owner, owner_token)["pairings"][0]["code"] == pair_code
@@ -190,7 +229,7 @@ def run() -> None:
         worker.evaluate("chrome.storage.session.remove('pairing')")
         assert not worker.evaluate("chrome.storage.session.get('pairing')").get("pairing")
         _approve_pair(owner, owner_token)
-        expect(popup.locator("h1")).to_have_text("browser locked", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text("locked", timeout=10_000)
 
         stored = worker.evaluate(
             "chrome.storage.local.get(['allesOrigin', 'connectionId', 'deviceSecret'])"
@@ -202,19 +241,22 @@ def run() -> None:
         assert any(origin.startswith("http://127.0.0.1/") for origin in permissions["origins"])
 
         popup.locator("#unlock").click()
-        expect(popup.locator("h1")).to_have_text("approve short access", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text("approve in alles", timeout=10_000)
         unlock_code = popup.locator(".code").inner_text()
         assert _owner_state(owner, owner_token)["unlock_requests"][0]["code"] == unlock_code
         login.bring_to_front()
         _approve_unlock(owner, owner_token)
-        expect(popup.locator("h1")).to_have_text("choose one login", timeout=10_000)
-        expect(popup.locator(".site")).to_have_text(f"http://127.0.0.1:{FIXTURE_PORT}")
-        expect(popup.locator(".credential")).to_have_count(1)
-        expect(popup.locator(".credential")).to_contain_text("fixture account")
-        expect(popup.locator(".credential")).to_contain_text("owner@example.test")
+        expect(popup.locator("h1")).to_have_text(FIXTURE_HOST, timeout=10_000)
+        logins = popup.locator('.item[data-kind="logins"]')
+        expect(logins).to_have_count(1)
+        expect(logins).to_contain_text("fixture account")
+        expect(logins).to_contain_text("owner@example.test")
+        # the card and the address show on every secure page, the login only on its own site
+        expect(popup.locator('.item[data-kind="cards"]')).to_contain_text("•••• 4242")
+        expect(popup.locator('.item[data-kind="addresses"]')).to_contain_text("1 king st w")
         _assert_targets(popup)
         popup.screenshot(path=str(OUTPUT / "extension-matches.png"), full_page=True)
-        popup.locator(".credential").click()
+        popup.locator('.item[data-kind="logins"]').click()
         expect(login.locator("#login-email")).to_have_value("owner@example.test")
         expect(login.locator("#login-password")).to_have_value("phase9 selected secret")
         assert login.evaluate("window.submitCount") == 0
@@ -226,7 +268,7 @@ def run() -> None:
         popup = _popup_page(context, extension_id)
         login.bring_to_front()
         popup.evaluate("loadMatches()")
-        expect(popup.locator("h1")).to_have_text("choose one login", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text(FIXTURE_HOST, timeout=10_000)
         login.locator("#login-email").fill("")
         login.locator("#login-password").fill("")
         popup.evaluate(
@@ -256,19 +298,19 @@ def run() -> None:
               };
             }"""
         )
-        popup.locator(".credential").click()
+        popup.locator('.item[data-kind="logins"]').click()
         expect(popup.locator("body")).to_have_attribute(
             "data-held-release-ready", "true", timeout=10_000
         )
         popup.locator("#lock").click()
-        expect(popup.locator("h1")).to_have_text("browser locked", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text("locked", timeout=10_000)
         assert not worker.evaluate("chrome.storage.session.get('sessionToken')").get("sessionToken")
         assert _owner_state(owner, owner_token)["connections"][0]["locked"] is True
         popup.evaluate("window.__releaseHeldRelease()")
         expect(popup.locator("body")).to_have_attribute(
             "data-held-release-done", "true", timeout=10_000
         )
-        expect(popup.locator("h1")).to_have_text("browser locked")
+        expect(popup.locator("h1")).to_have_text("locked")
         expect(popup.locator("#unlock")).to_be_visible()
         expect(login.locator("#login-email")).to_have_value("")
         expect(login.locator("#login-password")).to_have_value("")
@@ -277,14 +319,14 @@ def run() -> None:
         # Restore a short session before racing a stale match render against
         # the extension's own local and server lock boundary.
         popup.locator("#unlock").click()
-        expect(popup.locator("h1")).to_have_text("approve short access", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text("approve in alles", timeout=10_000)
         login.bring_to_front()
         _approve_unlock(owner, owner_token)
-        expect(popup.locator("h1")).to_have_text("choose one login", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text(FIXTURE_HOST, timeout=10_000)
         popup = _popup_page(context, extension_id)
         login.bring_to_front()
         popup.evaluate("loadMatches()")
-        expect(popup.locator("h1")).to_have_text("choose one login", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text(FIXTURE_HOST, timeout=10_000)
         # Hold one already-successful match response across explicit lock, and
         # hold the lock response after the server has applied it. The locked
         # transition must own the view and finish server authority before it
@@ -336,17 +378,59 @@ def run() -> None:
         )
         expect(popup.locator("#lock")).to_have_attribute("aria-busy", "true")
         popup.evaluate("window.__releaseHeldLock()")
-        expect(popup.locator("h1")).to_have_text("browser locked")
+        expect(popup.locator("h1")).to_have_text("locked")
         state = _owner_state(owner, owner_token)
         assert state["connections"][0]["locked"] is True
 
         # Restore a short session, then prove a real browser restart drops it
         # while retaining the persistent paired-device secret.
         popup.locator("#unlock").click()
-        expect(popup.locator("h1")).to_have_text("approve short access", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text("approve in alles", timeout=10_000)
         login.bring_to_front()
         _approve_unlock(owner, owner_token)
-        expect(popup.locator("h1")).to_have_text("choose one login", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text(FIXTURE_HOST, timeout=10_000)
+        # cards and addresses on a checkout page: sealed to this browser, filled into the forms
+        checkout = context.new_page()
+        checkout.goto(CHECKOUT_URL, wait_until="domcontentloaded")
+        popup = _popup_page(context, extension_id)
+        checkout.bring_to_front()
+        popup.evaluate("loadMatches()")
+        expect(popup.locator("h1")).to_have_text(FIXTURE_HOST, timeout=10_000)
+        expect(popup.locator('.item[data-kind="logins"]')).to_have_count(1)
+        popup.locator('.item[data-kind="addresses"]').click()
+        expect(checkout.locator("#ship-name")).to_have_value("eric hou")
+        expect(checkout.locator("#ship-email")).to_have_value("eric@example.test")
+        expect(checkout.locator("#ship-phone")).to_have_value("416 555 0100")
+        expect(checkout.locator("#ship-line1")).to_have_value("1 king st w")
+        expect(checkout.locator("#ship-line2")).to_have_value("suite 400")
+        expect(checkout.locator("#ship-city")).to_have_value("toronto")
+        expect(checkout.locator("#ship-region")).to_have_value("ON")
+        expect(checkout.locator("#ship-postal")).to_have_value("m5h 1a1")
+        expect(checkout.locator("#ship-country")).to_have_value("canada")
+        popup = _popup_page(context, extension_id)
+        checkout.bring_to_front()
+        popup.evaluate("loadMatches()")
+        expect(popup.locator('.item[data-kind="cards"]')).to_have_count(1, timeout=10_000)
+        popup.locator('.item[data-kind="cards"]').click()
+        expect(checkout.locator("#card-name")).to_have_value("eric hou")
+        expect(checkout.locator("#card-number")).to_have_value("4242424242424242")
+        expect(checkout.locator("#card-month")).to_have_value("08")
+        expect(checkout.locator("#card-year")).to_have_value("2029")
+        expect(checkout.locator("#card-cvc")).to_have_value("123")
+        checkout.screenshot(path=str(OUTPUT / "extension-checkout-filled.png"), full_page=True)
+        # what crossed the wire was sealed: the network log holds no card number or password
+        assert "4242424242424242" not in json.dumps(sealed_seen)
+        assert sealed_seen and all(set(body) == {"sealed"} for body in sealed_seen), sealed_seen
+
+        # "al <words>" in the address bar runs andromeda on the paired alles
+        worker.evaluate("searchAndromeda('black holes', 'newForegroundTab')")
+        search = context.wait_for_event(
+            "page", predicate=lambda page: "app=andromeda" in page.url, timeout=10_000
+        )
+        assert search.url.startswith(f"{BASE}/?app=andromeda&q=black%20holes"), search.url
+        search.close()
+        login.bring_to_front()
+
         persistent_before = worker.evaluate(
             "chrome.storage.local.get(['connectionId', 'deviceSecret'])"
         )
@@ -364,7 +448,7 @@ def run() -> None:
         assert persistent_after == persistent_before
         assert not session_after.get("sessionToken")
         popup = _popup_page(context, extension_id)
-        expect(popup.locator("h1")).to_have_text("browser locked", timeout=10_000)
+        expect(popup.locator("h1")).to_have_text("locked", timeout=10_000)
         popup.screenshot(path=str(OUTPUT / "extension-locked-after-restart.png"), full_page=True)
 
         connection_id = _owner_state(owner, owner_token)["connections"][0]["id"]

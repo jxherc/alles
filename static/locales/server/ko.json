@@ -2544,6 +2544,8 @@
     "chromium is downloaded but doesn't start: alles tools install browser": "chromium은 내려받았지만 시작되지 않습니다: alles tools install browser",
     "node needs the libatomic1 package: sudo apt install libatomic1": "node에는 libatomic1 패키지가 필요합니다: sudo apt install libatomic1",
     "the Files folder can't be the document folder or sit inside it": "파일 폴더는 문서 폴더가 되거나 그 안에 있을 수 없습니다",
-    "inside-Alles documents need to sit directly in the Files folder": "Alles 안의 문서는 파일 폴더 바로 안에 있어야 합니다"
+    "inside-Alles documents need to sit directly in the Files folder": "Alles 안의 문서는 파일 폴더 바로 안에 있어야 합니다",
+    "pair this browser again to keep fills encrypted": "자동 입력을 계속 암호화하려면 이 브라우저를 다시 페어링하세요",
+    "the browser's public key is invalid": "브라우저의 공개 키가 올바르지 않습니다"
   }
 }
