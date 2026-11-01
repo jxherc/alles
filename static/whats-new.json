@@ -5,36 +5,69 @@
       "date": "november 1, 2026",
       "items": [
         {
+          "key": "vault_key",
           "title": "a safer password vault",
           "body": "your vault now has its own random key, unlocked by your master password through argon2id, and the server never keeps the password. it locks after 10 idle minutes, clears copied passwords after 90 seconds, slows down wrong guesses, and asks for your current password before a password change or an export. vault settings has an encrypted export with import, and an activity list. your existing vault upgrades itself the next time you unlock it."
         },
         {
+          "key": "one_folder",
           "title": "one folder for your stuff",
           "body": "docs and files now live together in ~/Alles, with docs in ~/Alles/Docs, so files shows everything you wrote. backups moved out of view, next to the data. an older install moves over when you accept the update, or with alles folders move."
         },
         {
-          "title": "aide in the terminal",
-          "body": "alles ask answers one question right in the terminal and alles chat keeps a whole conversation. both land in aide's history like any other chat."
+          "key": "task_time",
+          "title": "tasks with a time",
+          "body": "give a task a time as well as a day. it goes overdue at that time, and typing 'chem test tomorrow 9am' sets both."
         },
         {
-          "title": "a terminal that tells you more",
-          "body": "alles logs filters by level, time and a word, alles backup writes the same encrypted backup as the backup page, and alles dump prints a summary for a bug report with no secrets in it."
+          "key": "quick_things",
+          "title": "quick things stay with aide",
+          "body": "adding a task, an event, a habit log or a note line happens right in aide. pi keeps code and longer jobs, and says plainly when it can't finish."
         },
         {
-          "title": "updates that explain themselves",
-          "body": "a new release now prepares its own update. status names each release by its short commit, a failed update shows the real error and where its log is, and a release that failed isn't called ready."
+          "key": "aide_start",
+          "title": "aide starts from your day",
+          "body": "the empty screen offers your overdue tasks, your next event and habits you haven't logged. with no model set, 'add study for chem to my todo' can still be kept as a task."
         },
         {
-          "title": "aide's tools on linux",
-          "body": "alles install adds node, and alles tools says what a bare linux box is missing, with the command that fixes it."
+          "key": "gym_sets",
+          "title": "gym sets by text",
+          "body": "tell aide '70x10' or 'left 60x12 right 70x10' between sets and it logs the set in your workout habit right away, with your words kept. pounds and 10 reps unless you say otherwise, 'next 85' is planned, and a side said twice gets one quick question."
         },
         {
+          "key": "one_password",
+          "title": "one password box",
+          "body": "full access asks for your password when you switch it on, and the same box shows up anywhere else alles needs it. a message in full access no longer dies with an error."
+        },
+        {
+          "key": "phone_read",
           "title": "typing and read on your phone",
           "body": "a text you send aide over imessage turns read as soon as it arrives, and the typing bubble stays up while aide works. telegram and discord keep their typing up the same way. a setting turns read receipts off."
         },
         {
+          "key": "plaid_check",
           "title": "plaid keys checked when you save",
           "body": "alles checks your plaid keys right away, trims stray spaces, switches to the right plaid setup when the keys belong to the other one, and shows plaid's own message when they don't work."
+        },
+        {
+          "key": "update_notes",
+          "title": "updates that explain themselves",
+          "body": "a new release now prepares its own update. status names each release by its short commit, a failed update shows the real error and where its log is, and a release that failed isn't called ready."
+        },
+        {
+          "key": "cli_chat",
+          "title": "aide in the terminal",
+          "body": "alles ask answers one question right in the terminal and alles chat keeps a whole conversation. both land in aide's history like any other chat."
+        },
+        {
+          "key": "cli_tools",
+          "title": "a terminal that tells you more",
+          "body": "alles logs filters by level, time and a word, alles backup writes the same encrypted backup as the backup page, and alles dump prints a summary for a bug report with no secrets in it."
+        },
+        {
+          "key": "linux_tools",
+          "title": "aide's tools on linux",
+          "body": "alles install adds node, and alles tools says what a bare linux box is missing, with the command that fixes it."
         }
       ]
     },
@@ -42,26 +75,6 @@
       "id": "2026-10-28",
       "date": "october 28, 2026",
       "items": [
-        {
-          "title": "tasks with a time",
-          "body": "give a task a time as well as a day. it goes overdue at that time, and typing 'chem test tomorrow 9am' sets both."
-        },
-        {
-          "title": "one password box",
-          "body": "full access asks for your password when you switch it on, and the same box shows up anywhere else alles needs it. a message in full access no longer dies with an error."
-        },
-        {
-          "title": "quick things stay with aide",
-          "body": "adding a task, an event, a habit log or a note line happens right in aide. pi keeps code and longer jobs, and says plainly when it can't finish."
-        },
-        {
-          "title": "gym sets by text",
-          "body": "tell aide '70x10' or 'left 60x12 right 70x10' between sets and it logs the set in your workout habit right away, with your words kept. pounds and 10 reps unless you say otherwise, 'next 85' is planned, and a side said twice gets one quick question."
-        },
-        {
-          "title": "aide starts from your day",
-          "body": "the empty screen offers your overdue tasks, your next event and habits you haven't logged. with no model set, 'add study for chem to my todo' can still be kept as a task."
-        },
         {
           "title": "bank sync you can find",
           "body": "finance shows bank connections on its overview and when you have no accounts yet. plaid comes first with its sign-up steps, and it now links over the tailnet."
