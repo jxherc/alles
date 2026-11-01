@@ -8,6 +8,10 @@ import { t } from './i18n.js';
 // a note without a catalog entry (a release added before its translations) shows its own text
 const tr = (key, fallback) => { const text = t(key); return text === key ? fallback : text; };
 
+// an item with a key keeps its translations under that key whatever its place in the list, so
+// a new item can go in front without moving the others. older items (no key) use their position
+export const itemKey = (slug, item, n) => `whatsnew.${slug}.${item.key || `item${n + 1}`}`;
+
 const SEEN = 'alles.whatsNewSeen';
 
 // each app has its own address (aide., plan., ...), so browser storage alone would show the
@@ -94,8 +98,8 @@ function open(show, { first, latest }) {
     overlay.querySelector('.whats-new-date').textContent = release.date ? tr(`whatsnew.${slug}.date`, release.date) : '';
     list.innerHTML = (release.items || []).map((item, n) => `
       <li class="whats-new-item" style="--n:${n}">
-        <h3>${escapeHtml(tr(`whatsnew.${slug}.item${n + 1}.title`, item.title || ''))}</h3>
-        <p>${escapeHtml(tr(`whatsnew.${slug}.item${n + 1}.body`, item.body || ''))}</p>
+        <h3>${escapeHtml(tr(`${itemKey(slug, item, n)}.title`, item.title || ''))}</h3>
+        <p>${escapeHtml(tr(`${itemKey(slug, item, n)}.body`, item.body || ''))}</p>
         ${item.try ? `<p class="whats-new-try">${escapeHtml(t('common.whatsnew_try'))} <kbd>${escapeHtml(item.try)}</kbd></p>` : ''}
       </li>`).join('');
     list.classList.remove('is-in'); void list.offsetWidth; list.classList.add('is-in');
