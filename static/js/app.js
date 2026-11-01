@@ -965,6 +965,14 @@ async function prepareHomeDayDraft(prompt) {
   }
 }
 
+// empty the composer once aide has taken this text; text typed since then stays
+function clearSentComposer(ta, text) {
+  if (ta.value.trim() !== text.trim()) return false;
+  ta.value = ''; ta.style.height = 'auto';
+  ta.dispatchEvent(new Event('input'));
+  return true;
+}
+
 window._askInChat = async (
   q,
   web = false,
@@ -1045,7 +1053,10 @@ window._askInChat = async (
     }
     window._setAideDocumentScope?.(documentScope);
     ta.value = q; ta.dispatchEvent(new Event('input', { bubbles: true }));
-    await sendMessage(q);
+    // a handoff is sent like a typed message, so the box empties once aide takes it
+    await sendMessage(q, sessionId => {
+      if (getActiveId() === sessionId) clearSentComposer(ta, q);
+    });
     return true;
   } else {    // from another subapp — store private context behind a one-time opaque code
     const target = new URL(urlForApp('aide'));

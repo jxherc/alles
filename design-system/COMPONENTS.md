@@ -34,7 +34,7 @@ Use when the label is clearer than an icon. It has no visible container at rest.
 
 ## icon action
 
-Use only for a widely understood action. Keep the SVG bare. The invisible hit area is 44px at every viewport. Add an accessible name and tooltip only when it adds meaning. No hover box, lift, or glow.
+Use only for a widely understood action. Keep the SVG bare. The invisible hit area is 44px at every viewport. Add an accessible name and tooltip only when it adds meaning. No lift or glow. A bare icon action changes tone on hover; an icon button (`.icon-btn`, such as an app's header gear) also takes the hover fill (`--k-hover`), the same feedback as the calendar arrows and files' icon buttons.
 
 Set `data-kokuen-icon` to a name from `static/js/icons.js`; the shared runtime centers the 16px mark and preserves the owning control's accessible name. The runtime also upgrades legacy single-glyph close, delete, move, and send controls so dynamically rendered features do not fall back to mismatched text glyphs.
 

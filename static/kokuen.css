@@ -2523,6 +2523,14 @@ html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-koku
   background: transparent;
 }
 
+/* an icon button (.icon-btn: header gears, toolbar icons) keeps the kit's icon button hover, the
+   hover fill under a lifted tone, like the calendar arrows and files' icon buttons. the bare icon
+   rule above flattened it to tone only once the button took a shared icon */
+html[data-kokuen-version="5"] .icon-btn[data-kokuen-icon]:hover {
+  color: var(--k-text, var(--text));
+  background: var(--k-hover, var(--panel));
+}
+
 /* an app's header gear rests muted, so hover has a tone to lift to (the rest rule's inherit made
    the gears in contacts, journal, mail and system full text with no hover change) */
 html[data-kokuen-version="5"] .app-cog[data-kokuen-icon]:not(:hover) {
@@ -6716,11 +6724,6 @@ body[data-app="files"] #files-view .files-phase7-dialog-layer {
 
 body[data-app="files"] #files-view .files-phase7-dialog-layer[hidden] {
   display: none;
-}
-
-/* a dropdown opened inside a files dialog sits on the page body, so it must float above the dialog layer */
-body[data-app="files"] .custom-dropdown-panel[data-kokuen-surface="files"] {
-  z-index: 1300;
 }
 
 body[data-app="files"] #files-view .files-phase7-dialog {
