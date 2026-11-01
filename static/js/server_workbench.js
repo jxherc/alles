@@ -922,9 +922,10 @@ async function renderLogs(target, request) {
   target.replaceChildren(append(t('server.wb_runtime_logs'), logsResult), append(t('server.wb_audit'), auditResult));
 }
 
+// 28.35: the policy is a choice, not a file to hand edit. a missing file is "not set up", with one
+// action that writes the safe default; widening to host services picks them from what was found
 async function renderPolicy(target, request) {
   const section = card(t('server.wb_policy_title'), t('server.wb_policy_copy'));
-  section.append(el('p', 'server-workbench-copy', t('server.wb_policy_file_copy')));
   const message = statusLine();
   let current;
   try { current = await json(request, '/api/system/policy'); }
@@ -933,68 +934,93 @@ async function renderPolicy(target, request) {
     target.replaceChildren(section);
     return;
   }
-  const effectiveState = fact(t('server.wb_effective_state'), current.valid ? current.policy.control_mode : t('server.wb_host_unavailable'));
-  const policyError = current.valid ? null : statusLine(t('server.wb_policy_error', { error: current.error }), 'error');
-  section.append(fact(t('server.wb_file'), current.path), effectiveState, fact(t('server.wb_local_device'), current.local_device ? t('server.wb_yes') : t('server.wb_no')));
-  if (policyError) section.append(policyError);
-  const label = el('label', 'server-workbench-field');
-  label.append(el('span', '', t('server.wb_policy_json')));
-  const editor = el('textarea');
-  editor.rows = 12;
-  editor.spellcheck = false;
-  editor.value = current.canonical;
-  label.append(editor);
-  section.append(label);
-  const diff = el('pre', 'server-workbench-diff', t('server.wb_no_changes'));
+  const rerender = () => renderPolicy(target, request);
+  const put = (policy, confirmation = '') => json(request, '/api/system/policy', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ policy: JSON.stringify(policy), confirmation }),
+  });
+  const ownedOnly = { control_mode: 'owned_only', host_services: [] };
+  const actions = el('div', 'server-workbench-actions');
+
+  if (!current.valid) {
+    const missing = current.error_code === 'policy_missing';
+    section.append(missing
+      ? el('p', 'server-workbench-copy', t('server.wb_policy_unset'))
+      : statusLine(t('server.wb_policy_error', { error: current.error }), 'error'));
+    actions.append(action(missing ? t('server.wb_policy_keep_owned') : t('server.wb_policy_reset_owned'), async () => {
+      await put(ownedOnly);
+      await rerender();
+    }, 'is-primary'), message);
+    section.append(actions);
+    target.replaceChildren(section);
+    return;
+  }
+
+  const chosen = current.policy.host_services.map(item => ({ ...item }));
+  const widened = current.policy.control_mode === 'allowlisted_host';
+  const mode = choice(t('server.wb_policy_mode'), [
+    { value: 'owned_only', label: t('server.wb_policy_mode_owned') },
+    { value: 'allowlisted_host', label: t('server.wb_policy_mode_host') },
+  ], current.policy.control_mode, async value => {
+    if (value === 'owned_only') {
+      await put(ownedOnly);
+      await rerender();
+      return;
+    }
+    if (!current.local_device) throw new Error(t('server.wb_policy_local_only'));
+    picker.hidden = false;
+  });
+  section.append(mode);
+
+  const picker = el('div', 'server-workbench-policy-hosts');
+  picker.hidden = !widened;
+  const list = el('div', 'server-managed-list');
+  const drawList = () => {
+    list.replaceChildren(...(chosen.length ? chosen.map((item, index) => {
+      const row = el('div', 'server-managed-row');
+      row.append(el('span', '', `${item.id} · ${item.manager}`));
+      const remove = el('button', '', t('server.wb_policy_remove'));
+      remove.type = 'button';
+      remove.addEventListener('click', () => { chosen.splice(index, 1); drawList(); });
+      row.append(remove);
+      return row;
+    }) : [el('p', 'server-workbench-copy', t('server.wb_policy_none_chosen'))]));
+  };
+  drawList();
+  picker.append(list);
+  const detected = (current.detected || []);
+  if (detected.length) {
+    const options = detected.map(item => ({ value: `${item.manager}:${item.id}`, label: item.id }));
+    picker.append(choice(t('server.wb_policy_add'), options, '', async value => {
+      const [manager, ...rest] = value.split(':');
+      const id = rest.join(':');
+      if (!chosen.some(item => item.manager === manager && item.id === id)) chosen.push({ manager, id });
+      drawList();
+    }, { list: true }));
+  } else {
+    picker.append(el('p', 'server-workbench-copy', t('server.wb_policy_none_found')));
+  }
   const confirmation = el('label', 'server-workbench-field');
-  confirmation.hidden = true;
   confirmation.append(el('span', '', t('server.wb_type_allow', { phrase: current.confirmation_phrase })));
   const confirmInput = el('input');
   confirmInput.type = 'text';
   confirmInput.autocomplete = 'off';
   confirmation.append(confirmInput);
-  const actions = el('div', 'server-workbench-actions');
-  const inspect = async () => {
-    const result = await json(request, '/api/system/policy/diff', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ policy: editor.value }),
-    });
-    diff.textContent = result.diff.length ? result.diff.join('\n') : t('server.wb_no_changes');
-    confirmation.hidden = result.policy.control_mode !== 'allowlisted_host';
-    message.classList.remove('is-error');
-    message.textContent = t('server.wb_policy_valid');
-    return result;
-  };
-  actions.append(
-    action(t('server.wb_validate'), async () => {
-      try { await inspect(); } catch (error) { message.textContent = plainError(error.message); message.classList.add('is-error'); }
-    }),
-    action(t('server.wb_save_policy'), async () => {
-      try {
-        const candidate = await inspect();
-        const saved = await json(request, '/api/system/policy', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ policy: editor.value, confirmation: candidate.policy.control_mode === 'allowlisted_host' ? confirmInput.value : '' }),
-        });
-        editor.value = saved.canonical;
-        effectiveState.querySelector('strong').textContent = saved.policy.control_mode;
-        // emptied, not removed: its line stays reserved so the actions do not jump
-        if (policyError) {
-          policyError.style.minHeight = `${policyError.offsetHeight}px`;
-          policyError.textContent = '';
-          policyError.classList.remove('is-error');
-        }
-        message.classList.remove('is-error');
-        message.textContent = t('server.wb_policy_saved');
-        confirmation.hidden = saved.policy.control_mode !== 'allowlisted_host';
-      } catch (error) {
-        message.textContent = plainError(error.message);
-        message.classList.add('is-error');
-      }
-    }, 'is-primary'),
-    message,
-  );
-  section.append(actions, confirmation, diff);
+  picker.append(confirmation);
+  actions.append(action(t('server.wb_save_policy'), async () => {
+    try {
+      await put({ control_mode: 'allowlisted_host', host_services: chosen }, confirmInput.value);
+      await rerender();
+      target.querySelector('.server-workbench-status')?.replaceChildren(t('server.wb_policy_saved'));
+    } catch (error) {
+      message.textContent = plainError(error.message);
+      message.classList.add('is-error');
+    }
+  }, 'is-primary'), message);
+  picker.append(actions);
+  section.append(picker);
+  if (!widened) section.append(message);
   target.replaceChildren(section);
 }
 

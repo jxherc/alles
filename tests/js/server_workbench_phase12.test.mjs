@@ -18,8 +18,13 @@ test('Server workbench exposes the approved management sections without native c
 
 test('Server policy editor is schema-bound to the one policy API', () => {
   assert.match(source, /json\(request, '\/api\/system\/policy'/);
-  assert.match(source, /json\(request, '\/api\/system\/policy\/diff'/);
   assert.match(source, /t\('server\.wb_type_allow', \{ phrase: current\.confirmation_phrase \}\)/);
+  // 28.35: a missing file gets one action that writes the safe default; nothing is hand edited
+  const policy = source.slice(source.indexOf('async function renderPolicy('), source.indexOf('export async function renderServerSection'));
+  assert.match(policy, /current\.error_code === 'policy_missing'/);
+  assert.match(policy, /control_mode: 'owned_only', host_services: \[\]/);
+  assert.match(policy, /current\.detected/);
+  assert.doesNotMatch(policy, /textarea/);
   assert.doesNotMatch(source, /showOpenFilePicker|webkitdirectory|type\s*=\s*['"]file['"]/);
   assert.doesNotMatch(source, /\/api\/(?:shell|exec|command)/);
 });

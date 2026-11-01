@@ -347,6 +347,8 @@ def get_server_policy(request: Request):
         server_policy.is_loopback_client(host) and access_profile() == "device"
     )
     result["confirmation_phrase"] = server_policy.CONFIRMATION_PHRASE
+    result["default"] = server_policy._canonical(server_policy.DEFAULT_POLICY)
+    result["detected"] = server_policy.detect_host_services() if result["local_device"] else []
     return result
 
 
