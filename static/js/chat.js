@@ -222,12 +222,48 @@ function restoreDocumentScope(scope) {
 }
 
 
+async function offerTaskAdd(text) {
+  const button = document.getElementById('composer-send-task');
+  const message = String(text || '').trim();
+  if (!button || !message) return;
+  const ask = preview => fetch('/api/tasks/quick', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text: message, preview, from_message: true }),
+  });
+  try {
+    const checked = await ask(true);
+    const read = await checked.json().catch(() => ({}));
+    // the words moved on while it was checked: the offer would be for something else
+    if (!checked.ok || !read.understood || document.getElementById('composer-ta')?.value.trim() !== message) return;
+    button.hidden = false;
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        const added = await ask(false);
+        const task = await added.json().catch(() => ({}));
+        if (!added.ok) throw new Error(task.detail || '');
+        toast(t('aide.send_task_added', { title: task.title }), 'success');
+        button.hidden = true;
+      } catch {
+        toast(t('aide.send_task_add_failed'), 'error');
+      } finally {
+        button.disabled = false;
+      }
+    };
+  } catch { /* choosing a model is still on offer */ }
+}
+
 function showSendIssue(message, chooseModel = false) {
   const recovery = document.getElementById('composer-send-recovery');
   if (!recovery) { toast(message, 'error'); return; }
   recovery.hidden = false;
   recovery.querySelector('p').textContent = message;
   recovery.querySelector('button').hidden = !chooseModel;
+  // no model to answer with: a message that reads as a task can still be kept as one
+  const addTask = document.getElementById('composer-send-task');
+  if (addTask) addTask.hidden = true;
+  if (chooseModel) void offerTaskAdd(document.getElementById('composer-ta')?.value);
   const composer = document.getElementById('composer-ta');
   if (composer?.getClientRects().length && ['composer-ta', 'send-btn'].includes(document.activeElement?.id)) composer.focus();
 }

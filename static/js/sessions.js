@@ -3,14 +3,14 @@ import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
 import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
-import { isIncognitoMode } from './modes.js?v=258';
+import { isIncognitoMode } from './modes.js?v=259';
 import { scrollToLatest } from './scrollfollow.js';
 import {
   modelOverrideForNewSession,
   restoreSessionModel,
   selectAideDefault,
 } from './models.js?v=216';
-import { t, tp } from './i18n.js';
+import { formatClock, t, tp } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { loadAnswerNoteRecovery, reconcileAnswerNote } from './answer_note.js';
 import { loadAnswerTaskRecovery } from './answer_task.js';
@@ -1272,9 +1272,75 @@ const STARTS = () => [
   [t('aide.start_search_label'), t('aide.start_search_text')],
   [t('aide.start_can_label'), t('aide.start_can_text')],
 ];
+// up to four starts from the owner's own day, with the real names in them. none today (or no
+// answer) leaves the generic ones above
+const DAY_STARTS_FRESH_MS = 60_000;
+let _dayStarts = null;
+const cut = (text, max = 28) => {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  return clean.length > max ? `${clean.slice(0, max - 1).trimEnd()}…` : clean;
+};
+
+export function dayStartsFrom(today = {}) {
+  const starts = [];
+  const overdue = today.tasks?.overdue || [];
+  if (overdue.length === 1) {
+    starts.push([
+      t('aide.start_overdue_one_label', { title: cut(overdue[0].title) }),
+      t('aide.start_overdue_one_text', { title: overdue[0].title }),
+    ]);
+  } else if (overdue.length > 1) {
+    starts.push([t('aide.start_overdue_many_label', { count: overdue.length }), t('aide.start_overdue_many_text')]);
+  }
+  // the next one still ahead today, not one that has already gone by
+  const clock = new Date().toTimeString().slice(0, 5);
+  const next = (today.events || []).find(event => event.title && (event.all_day || !event.time || event.time >= clock));
+  if (next) {
+    const when = next.all_day || !next.time ? '' : formatClock(next.time);
+    starts.push([
+      t('aide.start_event_label', { title: cut(next.title) }),
+      when ? t('aide.start_event_text', { title: next.title, time: when }) : t('aide.start_event_text_all_day', { title: next.title }),
+    ]);
+  }
+  const habit = (today.habits || []).find(item => item.name);
+  if (habit) {
+    starts.push([t('aide.start_habit_label', { name: cut(habit.name) }), t('aide.start_habit_text', { name: habit.name })]);
+  }
+  const due = today.tasks?.due_today || [];
+  if (due.length) starts.push([t('aide.start_due_label', { count: due.length }), t('aide.start_due_text')]);
+  return starts.slice(0, 4);
+}
+
+async function loadDayStarts() {
+  if (_dayStarts && Date.now() - _dayStarts.at < DAY_STARTS_FRESH_MS) return _dayStarts.list;
+  try {
+    const response = await fetch('/api/today');
+    if (!response.ok) return [];
+    const list = dayStartsFrom(await response.json());
+    _dayStarts = { at: Date.now(), list };
+    return list;
+  } catch { return []; }
+}
+
+function startButtons(list) {
+  return (list.length ? list : STARTS()).map(([label, text], n) =>
+    `<button type="button" class="welcome-start" role="listitem" style="--n:${n}" data-start="${_escName(text)}">${_escName(label)}</button>`).join('');
+}
+
 function welcomeStarts() {
-  return `<div class="welcome-starts" role="list">${STARTS().map(([label, text], n) =>
-    `<button type="button" class="welcome-start" role="listitem" style="--n:${n}" data-start="${_escName(text)}">${_escName(label)}</button>`).join('')}</div>`;
+  // a fresh answer is drawn at once; otherwise the row is filled the moment it arrives, so it
+  // never swaps from generic to real in front of the reader
+  const known = _dayStarts && Date.now() - _dayStarts.at < DAY_STARTS_FRESH_MS;
+  return `<div class="welcome-starts" role="list" data-ready="${known ? 'yes' : 'no'}">${known ? startButtons(_dayStarts.list) : ''}</div>`;
+}
+
+async function fillWelcomeStarts() {
+  const row = document.querySelector('.welcome-starts[data-ready="no"]');
+  if (!row) return;
+  const list = await loadDayStarts();
+  if (!row.isConnected || row.dataset.ready !== 'no') return;
+  row.innerHTML = startButtons(list);
+  row.dataset.ready = 'yes';
 }
 if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
   document.addEventListener('click', event => {
@@ -1303,6 +1369,7 @@ export function showWelcome() {
     document.getElementById('messages').style.display = 'none';
   } else if (welcomeEnabled()) {
     if (g) g.innerHTML = greetingHtml() + welcomeStarts();
+    void fillWelcomeStarts();
     document.getElementById('welcome').style.display = 'flex';
     document.getElementById('messages').style.display = 'none';
   } else {
