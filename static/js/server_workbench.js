@@ -476,57 +476,48 @@ function companionCard(service, request, rerender) {
   const username = inputField(t('server.wb_admin_username'), 'text', 'admin');
   const password = inputField(t('server.wb_new_admin_password'), 'password');
   password.input.minLength = 12;
-  const confirmation = inputField(t('server.wb_type_activate', { phrase: service.confirmation_phrase }), 'text');
   const results = el('div', 'server-companion-checks');
   results.setAttribute('role', 'status');
   results.setAttribute('aria-live', 'polite');
   const formActions = el('div', 'server-workbench-actions');
-  let verifiedSignature = '';
   const values = () => ({
     bind: bind.input.value.trim(),
     ports: Object.fromEntries(Object.entries(portFields).map(([name, input]) => [name, Number(input.value)])),
   });
-  const signature = () => JSON.stringify(values());
-  const activateButton = action(t('server.wb_activate'), async () => {
-    if (signature() !== verifiedSignature) throw new Error(t('server.wb_preflight_again'));
+  // one action (28.27): the checks run first and the start only follows when they pass. pressing
+  // the named button is the consent, so the phrase the server wants goes with it
+  formActions.append(action(t('server.wb_set_up_companion', { name: service.name }), async () => {
+    message.textContent = t('server.wb_checking_ports');
+    const result = await json(request, `/api/system/companions/${encodeURIComponent(service.service_id)}/preflight`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values()),
+    });
+    results.replaceChildren(...result.checks.filter(check => !check.ok).map(check => el('p', 'is-error', t('server.wb_check_blocked', { name: check.name }))));
+    if (!result.ok) { message.textContent = t('server.wb_setup_blocked'); return; }
     message.textContent = t('server.wb_starting_companion');
     await json(request, `/api/system/companions/${encodeURIComponent(service.service_id)}/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...values(),
-        admin_username: username.input.value.trim(),
-        admin_password: password.input.value,
-        confirmation: confirmation.input.value.trim(),
+        admin_username: service.admin_setup === 'alles_managed' ? username.input.value.trim() : '',
+        admin_password: service.admin_setup === 'alles_managed' ? password.input.value : '',
+        confirmation: service.confirmation_phrase,
       }),
     });
     password.input.value = '';
     await rerender();
-  }, 'is-primary');
-  activateButton.disabled = true;
-  const invalidate = () => { verifiedSignature = ''; activateButton.disabled = true; results.replaceChildren(); };
-  bind.input.addEventListener('input', invalidate);
-  Object.values(portFields).forEach(input => input.addEventListener('input', invalidate));
-  formActions.append(
-    action(t('server.wb_preflight'), async () => {
-      const result = await json(request, `/api/system/companions/${encodeURIComponent(service.service_id)}/preflight`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values()),
-      });
-      results.replaceChildren(...result.checks.map(check => el('p', check.ok ? 'is-ok' : 'is-error', t(check.ok ? 'server.wb_check_pass' : 'server.wb_check_blocked', { name: check.name }))));
-      verifiedSignature = result.ok ? signature() : '';
-      activateButton.disabled = !result.ok;
-    }),
-    activateButton,
-  );
+  }, 'is-primary'));
   form.append(bind.field, portGrid);
-  if (service.admin_setup === 'private_wizard') {
+  if (service.admin_setup === 'alles_generated') {
+    form.append(el('p', 'server-workbench-copy', t('server.wb_npm_login_made')));
+  } else if (service.admin_setup === 'private_wizard') {
     form.append(el('p', 'server-workbench-copy', t('server.wb_npm_wizard_copy')));
   } else {
     form.append(username.field, password.field);
   }
-  form.append(confirmation.field, results, formActions);
+  form.append(results, formActions);
   panel.append(form);
   if (service.healthy) {
     const admin = el('a', 'server-workbench-admin', t('server.wb_open_admin'));

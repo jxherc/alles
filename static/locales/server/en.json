@@ -561,6 +561,7 @@
     "comment not found",
     "companion credential file is unsafe",
     "companion did not start",
+    "companion did not start: {reason}",
     "companion health probe failed",
     "companion review state must be true or false",
     "complete Plaid Link before syncing",

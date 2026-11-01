@@ -2548,6 +2548,7 @@
     "inside-Alles documents need to sit directly in the Files folder": "يجب أن تكون المستندات داخل Alles مباشرة في مجلد الملفات",
     "pair this browser again to keep fills encrypted": "أعد إقران هذا المتصفح حتى تبقى البيانات المعبأة مشفرة",
     "the browser's public key is invalid": "المفتاح العام للمتصفح غير صالح",
-    "Alles is busy for a moment. Try again.": "Alles مشغول للحظة. حاول مرة أخرى."
+    "Alles is busy for a moment. Try again.": "Alles مشغول للحظة. حاول مرة أخرى.",
+    "companion did not start: {reason}": "لم يبدأ الملحق: {reason}"
   }
 }

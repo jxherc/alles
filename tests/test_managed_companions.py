@@ -136,6 +136,7 @@ class ManagedCompanionTests(unittest.TestCase):
                 runner=self.runner,
                 port_free=lambda *_args: True,
                 probe=lambda _service: False,
+                wait=0,
             )
         self.assertEqual(env.read_text("utf-8"), before)
         self.assertTrue(any(command[-1] == "down" for command in self.runner.commands))
@@ -152,12 +153,106 @@ class ManagedCompanionTests(unittest.TestCase):
             runner=self.runner,
             port_free=lambda *_args: True,
             probe=lambda _service: True,
+            npm_admin=lambda *_args: {"created": True},
         )
         env = (managed_companions.root_dir("nginx-proxy-manager") / ".env").read_text("utf-8")
         self.assertNotIn("owner@example.test", env)
         self.assertNotIn("correct horse", env)
         self.assertNotIn("INITIAL_ADMIN", env)
-        self.assertEqual(result["admin_setup"], "private_wizard")
+        self.assertEqual(result["admin_setup"], "alles_generated")
+
+    def activate_npm(self, **extra):
+        values = {
+            "bind": "127.0.0.1",
+            "ports": {"http": 8080, "https": 8443},
+            "admin_username": "",
+            "admin_password": "",
+            "confirmation": "activate nginx proxy",
+            "runner": self.runner,
+            "port_free": lambda *_args: True,
+            "probe": lambda _service: True,
+        }
+        values.update(extra)
+        return managed_companions.activate("nginx-proxy-manager", **values)
+
+    def test_nginx_activation_generates_the_first_admin_when_none_is_given(self):
+        self.prepare("nginx-proxy-manager")
+        made = []
+        self.activate_npm(npm_admin=lambda email, password: made.append((email, password)))
+        self.assertEqual(made[0][0], "admin@alles.local")
+        self.assertGreaterEqual(len(made[0][1]), 18)
+        manifest = (managed_companions.root_dir("nginx-proxy-manager") / "manifest.json").read_text(
+            "utf-8"
+        )
+        self.assertNotIn(made[0][1], manifest)
+
+    def test_nginx_activation_uses_the_admin_the_owner_typed(self):
+        self.prepare("nginx-proxy-manager")
+        made = []
+        self.activate_npm(
+            admin_username="owner@example.test",
+            admin_password="correct horse battery staple",
+            npm_admin=lambda email, password: made.append((email, password)),
+        )
+        self.assertEqual(made, [("owner@example.test", "correct horse battery staple")])
+
+    def test_nginx_activation_refuses_a_short_password_before_starting(self):
+        self.prepare("nginx-proxy-manager")
+        with self.assertRaisesRegex(managed_companions.ManagedCompanionError, "12 characters"):
+            self.activate_npm(admin_password="short")
+        self.assertFalse(any("up" in command for command in self.runner.commands))
+
+    def test_nginx_stays_up_when_the_admin_setup_call_fails(self):
+        self.prepare("nginx-proxy-manager")
+
+        def broken(*_args):
+            raise managed_companions.managed_companion_clients.CompanionClientError("nope")
+
+        result = self.activate_npm(npm_admin=broken)
+        self.assertTrue(result["activated"])
+
+    def test_health_wait_retries_until_the_admin_api_answers(self):
+        answers = iter([False, False, True])
+        waits = []
+        ok = managed_companions._wait_healthy(
+            "nginx-proxy-manager", lambda _service: next(answers), 60, sleep=waits.append
+        )
+        self.assertTrue(ok)
+        self.assertEqual(len(waits), 2)
+
+    def test_health_wait_gives_up_after_the_limit(self):
+        self.assertFalse(
+            managed_companions._wait_healthy(
+                "nginx-proxy-manager", lambda _service: False, 0, sleep=lambda _s: None
+            )
+        )
+
+    def test_nginx_probe_asks_the_api_not_the_page(self):
+        calls = []
+
+        def get(url, **_kwargs):
+            calls.append(url)
+            return mock.Mock(status_code=200)
+
+        with mock.patch("services.managed_companions.httpx.get", get):
+            self.assertTrue(managed_companions._probe("nginx-proxy-manager"))
+        self.assertEqual(calls, ["http://127.0.0.1:8181/api/"])
+
+    def test_start_failure_says_why(self):
+        self.prepare("nginx-proxy-manager")
+
+        def run(command, timeout=120):
+            if command[-2:] == ["up", "-d"]:
+                return Result(
+                    1,
+                    stderr="Creating\nBind for 127.0.0.1:8181 failed: port is already allocated\n",
+                )
+            return self.runner(command, timeout)
+
+        with self.assertRaisesRegex(
+            managed_companions.ManagedCompanionError, "port is already allocated"
+        ):
+            self.activate_npm(runner=run)
 
     def test_preflight_refuses_tampered_ownership(self):
         self.prepare()
