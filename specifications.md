@@ -1818,9 +1818,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1020 http method/path pairs
-- 994 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
-- sha-256: `238aa61fbba11b65d3aa73e5336697b9ff81de45d094f158d14adb2a552e842d`
+- 1021 http method/path pairs
+- 995 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
+- sha-256: `1369693a85c461c85fb22d7027da1046801b004b9c51322f06af042f6f030491`
 
 <details>
 <summary>app.py · 10 operations</summary>

@@ -702,6 +702,7 @@
     "date must be an ISO date (YYYY-MM-DD)",
     "date_q and days must form a valid date range",
     "date_q must be ISO (YYYY-MM-DD)",
+    "date_q must be ISO and setup json",
     "decision must be duplicate or new",
     "decision must be keep or delete",
     "decryption failed",

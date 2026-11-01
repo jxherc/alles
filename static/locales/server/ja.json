@@ -686,6 +686,7 @@
     "date must be an ISO date (YYYY-MM-DD)": "日付は ISO 形式の日付（YYYY-MM-DD）にしてください",
     "date_q and days must form a valid date range": "date_q と days は有効な日付範囲になっている必要があります",
     "date_q must be ISO (YYYY-MM-DD)": "date_q は ISO 形式（YYYY-MM-DD）にしてください",
+    "date_q must be ISO and setup json": "date_q は ISO 形式、setup は json にしてください",
     "decision must be duplicate or new": "decision は duplicate か new にしてください",
     "decision must be keep or delete": "decision は keep か delete にしてください",
     "decryption failed": "復号に失敗しました",
