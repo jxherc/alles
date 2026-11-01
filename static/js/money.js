@@ -6,7 +6,7 @@ import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdo
 import { initDatePicker, calendarDateParts } from './datepick.js';
 import { calendarDateKey, currencySymbol, formatCalendarDate, formatDate, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=4';
-import { bankRequest as _ownerFetch, openPlaidLink } from './finance_plaid.js';
+import { bankRequest as _ownerFetch, openPlaidLink, plaidNotice } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';
 import { tickNumbers } from './motion.js';
@@ -572,12 +572,13 @@ export async function openBankConnections() {
     });
     updateBusy();
   };
-  const finishLink = async connection => {
+  const finishLink = async (connection, notice = '') => {
+    const say = text => setStatus(notice ? `${notice} ${text}` : text);
     controller.signal.throwIfAborted();
-    setStatus(t('finance.opening_link'));
+    say(t('finance.opening_link'));
     try {
       const result = await openPlaidLink(connection, { signal: controller.signal });
-      setStatus(result.cancelled ? t('finance.link_closed') : t('finance.link_connected'));
+      say(result.cancelled ? t('finance.link_closed') : t('finance.link_connected'));
     } finally {
       // Configuration is already saved even if Link was cancelled or could not load.
       if (overlay.isConnected) await refresh();
@@ -603,7 +604,7 @@ export async function openBankConnections() {
     const connection = _confirmedConnection(await _ownerFetch('/api/finance/connections/plaid', { method: 'POST', body: { client_id: clientId.value.trim(), secret: submittedSecret, environment } }), 'plaid');
     if (secret.value === submittedSecret) secret.value = '';
     controller.signal.throwIfAborted();
-    await finishLink(connection);
+    await finishLink(connection, plaidNotice(connection));
   }));
   updateBusy();
   try { await refresh(); } catch (error) { setStatus(error.message, true); }
