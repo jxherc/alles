@@ -2545,6 +2545,7 @@
     "the Files folder can't be the document folder or sit inside it": "le dossier Fichiers ne peut pas être le dossier du document ni se trouver à l’intérieur",
     "inside-Alles documents need to sit directly in the Files folder": "les documents dans Alles doivent se trouver directement dans le dossier Fichiers",
     "pair this browser again to keep fills encrypted": "associez à nouveau ce navigateur pour que les remplissages restent chiffrés",
-    "the browser's public key is invalid": "la clé publique du navigateur n’est pas valide"
+    "the browser's public key is invalid": "la clé publique du navigateur n’est pas valide",
+    "Alles is busy for a moment. Try again.": "Alles est occupé un instant. Réessayez."
   }
 }

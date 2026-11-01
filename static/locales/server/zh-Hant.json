@@ -2545,6 +2545,7 @@
     "the Files folder can't be the document folder or sit inside it": "檔案資料夾不能是文件資料夾，也不能位於其中",
     "inside-Alles documents need to sit directly in the Files folder": "Alles 內部的文件需要直接位於檔案資料夾中",
     "pair this browser again to keep fills encrypted": "請重新配對這個瀏覽器，讓填入的內容保持加密",
-    "the browser's public key is invalid": "瀏覽器的公鑰無效"
+    "the browser's public key is invalid": "瀏覽器的公鑰無效",
+    "Alles is busy for a moment. Try again.": "Alles 正忙，請稍後再試。"
   }
 }

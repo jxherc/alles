@@ -2545,6 +2545,7 @@
     "the Files folder can't be the document folder or sit inside it": "ファイルフォルダーをドキュメントフォルダーにすることも、その中に置くこともできません",
     "inside-Alles documents need to sit directly in the Files folder": "Alles 内のドキュメントはファイルフォルダーの直下に置く必要があります",
     "pair this browser again to keep fills encrypted": "入力内容を暗号化したままにするため、このブラウザをもう一度ペアリングしてください",
-    "the browser's public key is invalid": "ブラウザの公開鍵が無効です"
+    "the browser's public key is invalid": "ブラウザの公開鍵が無効です",
+    "Alles is busy for a moment. Try again.": "Alles は少しの間ビジーです。もう一度お試しください。"
   }
 }

@@ -80,6 +80,7 @@
     "Alles data already uses the reserved path: {external_vault_subpath}",
     "Alles data directory cannot be a link",
     "Alles data directory does not exist",
+    "Alles is busy for a moment. Try again.",
     "Alles ledger changed after staging; stage and verify again",
     "Andromeda is not enabled",
     "Apple Photos could not export a media resource",
