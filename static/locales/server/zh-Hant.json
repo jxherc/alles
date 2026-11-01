@@ -2501,6 +2501,8 @@
     "the configured release branch could not be resolved exactly": "無法準確解析設定的發布分支",
     "the configured release branch returned an invalid commit": "設定的發布分支傳回了無效的提交",
     "the configured release source could not be checked": "無法檢查設定的發布來源",
-    "this install has no release source to check": "此安裝沒有可檢查的發布來源"
+    "this install has no release source to check": "此安裝沒有可檢查的發布來源",
+    "chromium is downloaded but doesn't start: alles tools install browser": "chromium 已下載，但無法啟動：alles tools install browser",
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node 需要 libatomic1 套件：sudo apt install libatomic1"
   }
 }

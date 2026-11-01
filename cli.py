@@ -3869,6 +3869,7 @@ def _install_tool(dep_id: str) -> None:
 def cmd_tools(args=()):
     """alles tools: what aide can use and whether each is ready. alles tools install [name|all]."""
     import asyncio
+    import shlex
 
     from services import cli_ui, dependencies
 
@@ -3897,9 +3898,23 @@ def cmd_tools(args=()):
             continue
         steps.start(dep_id, row.get("detail", ""))
         try:
-            _install_tool(dep_id)
+            try:
+                _install_tool(dep_id)
+            except dependencies.DependencyError as exc:
+                # a missing system package needs root: say the command, run it only on a yes
+                if not (exc.fix and sys.stdin.isatty()):
+                    raise
+                steps.finish(None, dep_id, str(exc).split(":")[0])
+                ui.say(f"    {ui.dim(shlex.join(exc.fix))}")
+                if not _ask(ui, "run it now?") or subprocess.call(exc.fix) != 0:
+                    ok = False
+                    continue
+                steps.start(dep_id, "again")
+                _install_tool(dep_id)
         except Exception as exc:  # noqa: BLE001 - each tool says its own sentence
             steps.finish(False, dep_id, str(exc).splitlines()[0][:160])
+            if getattr(exc, "fix", None):
+                ui.say(f"    {ui.dim(shlex.join(exc.fix))}")
             ok = False
             continue
         row = asyncio.run(dependencies.state(dep_id))

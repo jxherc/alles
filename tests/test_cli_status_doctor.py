@@ -217,6 +217,43 @@ class ToolsAndCompletionTest(unittest.TestCase):
             self.assertTrue(cli.cmd_tools(["install", "all"]))
         self.assertEqual(installed, ["pi", "browser"])
 
+    def _install_needing(self, fix, *, tty, answer="y", runs=0):
+        from services import dependencies
+
+        calls = []
+
+        def install(dep_id):
+            calls.append(dep_id)
+            if len(calls) == 1:
+                raise dependencies.DependencyError("node needs the libatomic1 package", fix=fix)
+
+        with (
+            mock.patch("services.dependencies.state", side_effect=self._state(set())),
+            mock.patch.object(cli, "_install_tool", side_effect=install),
+            mock.patch("sys.stdin.isatty", return_value=tty),
+            mock.patch("builtins.input", return_value=answer),
+            mock.patch.object(cli.subprocess, "call", return_value=runs) as call,
+            mock.patch("sys.stdout", new_callable=io.StringIO) as out,
+        ):
+            cli.cmd_tools(["install", "node"])
+        return calls, call, out.getvalue()
+
+    def test_a_system_package_is_named_and_run_only_on_a_yes(self):
+        fix = ["sudo", "apt-get", "install", "-y", "libatomic1"]
+        calls, call, out = self._install_needing(fix, tty=True)
+        call.assert_called_once_with(fix)
+        self.assertEqual(calls, ["node", "node"])
+        self.assertEqual(out.count("sudo apt-get install -y libatomic1"), 1)
+        calls, call, _ = self._install_needing(fix, tty=True, answer="n")
+        call.assert_not_called()
+        self.assertEqual(calls, ["node"])
+
+    def test_without_a_keyboard_the_command_is_printed_not_run(self):
+        fix = ["sudo", "apt-get", "install", "-y", "libatomic1"]
+        calls, call, out = self._install_needing(fix, tty=False)
+        call.assert_not_called()
+        self.assertEqual(out.count("sudo apt-get install -y libatomic1"), 1)
+
     def test_completion_offers_every_command(self):
         with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
             self.assertTrue(cli.cmd_completion(["bash"]))

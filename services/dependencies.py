@@ -39,7 +39,13 @@ DOCKER_URL = "https://docs.docker.com/engine/install/"
 
 
 class DependencyError(RuntimeError):
-    """the plain sentence the panel shows under the row"""
+    """the plain sentence the panel shows under the row; `fix` is the system command that would
+    fix it (it needs root, so alles only ever offers it), `output` all the tool printed"""
+
+    def __init__(self, message: str, *, fix: list[str] | None = None, output: str = ""):
+        super().__init__(message)
+        self.fix = fix
+        self.output = output
 
 
 # ── helpers ──
@@ -60,7 +66,12 @@ def _run(command: list[str], what: str, timeout: int, env: dict | None = None) -
     except OSError as exc:
         raise DependencyError(f"could not run {what}: {exc.strerror or exc}") from exc
     if done.returncode != 0:
-        raise DependencyError(_tail(done.stderr) or _tail(done.stdout) or f"{what} failed")
+        # the last line is the sentence; the whole output stays for callers that look for a cause
+        # (nov 1, debian 13: chromium's missing library sat 10 lines above the last one)
+        raise DependencyError(
+            _tail(done.stderr) or _tail(done.stdout) or f"{what} failed",
+            output=f"{done.stdout}\n{done.stderr}",
+        )
     return f"{done.stdout}\n{done.stderr}"
 
 
@@ -151,6 +162,12 @@ def install_node() -> str:
         try:
             ran = _run([str(unpacked / "bin" / "node"), "-v"], "the new node", 30).strip()
         except DependencyError as exc:
+            # nodejs.org's linux builds need libatomic, which a bare debian 13 doesn't have
+            if "libatomic" in f"{exc} {exc.output}" and shutil.which("apt-get"):
+                raise DependencyError(
+                    "node needs the libatomic1 package: sudo apt install libatomic1",
+                    fix=["sudo", "apt-get", "install", "-y", "libatomic1"],
+                ) from exc
             raise DependencyError(f"the downloaded node doesn't run here: {exc}") from exc
         if ran.splitlines()[0] != version:
             raise DependencyError("the downloaded node reports the wrong version")
@@ -251,6 +268,13 @@ def _browser_state() -> dict:
     prepare_browser()
     package = importlib.util.find_spec("playwright") is not None
     folder = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or _default_browsers())
+    if package and _has_chromium(folder) and (folder / LAUNCH_FAILED).is_file():
+        # downloaded, but it didn't start (nov 1, debian 13 said "installed" with libraries missing)
+        return {
+            "state": "missing",
+            "detail": "chromium is downloaded but doesn't start: alles tools install browser",
+            "can_install": True,
+        }
     if package and _has_chromium(folder):
         try:
             version = importlib.metadata.version("playwright")
@@ -312,6 +336,17 @@ def _pip_command(target: Path) -> list[str]:
     raise DependencyError("pip isn't available in alles's python environment")
 
 
+LAUNCH_FAILED = ".alles-launch-failed"
+
+
+def _note(path: Path, text: str) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text[:300], "utf-8")
+    except OSError:
+        pass
+
+
 _LAUNCH_CHECK = (
     "from playwright.sync_api import sync_playwright\n"
     "with sync_playwright() as p:\n"
@@ -338,17 +373,23 @@ def install_browser() -> None:
         1200,
         env,
     )
+    failed = browsers_dir() / LAUNCH_FAILED
     try:
         _run([sys.executable, "-c", _LAUNCH_CHECK], "starting chromium", 120, env)
     except DependencyError as exc:
-        if re.search(r"missing dependencies|shared librar|libnss|libgbm", str(exc), re.I):
-            fix = f"{shlex.quote(sys.executable)} -m playwright install-deps chromium"
+        _note(failed, str(exc))
+        found = f"{exc} {exc.output}"
+        if re.search(r"missing dependencies|shared librar|libnss|libgbm", found, re.I):
+            command = [sys.executable, "-m", "playwright", "install-deps", "chromium"]
             if env.get("PYTHONPATH"):
-                fix = f"env PYTHONPATH={shlex.quote(env['PYTHONPATH'])} {fix}"
+                command = ["env", f"PYTHONPATH={env['PYTHONPATH']}", *command]
+            fix = shlex.join(command)
             raise DependencyError(
-                f"chromium needs system libraries. run this in a terminal, then try again: sudo {fix}"
+                f"chromium needs system libraries. run this in a terminal, then try again: sudo {fix}",
+                fix=["sudo", *command],
             ) from exc
         raise
+    failed.unlink(missing_ok=True)
     prepare_browser()
 
 

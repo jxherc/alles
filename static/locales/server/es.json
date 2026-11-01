@@ -2501,6 +2501,8 @@
     "the configured release branch could not be resolved exactly": "no se pudo resolver con exactitud la rama de versiones configurada",
     "the configured release branch returned an invalid commit": "la rama de versiones configurada devolvió un commit no válido",
     "the configured release source could not be checked": "no se pudo consultar la fuente de versiones configurada",
-    "this install has no release source to check": "esta instalación no tiene una fuente de versiones que consultar"
+    "this install has no release source to check": "esta instalación no tiene una fuente de versiones que consultar",
+    "chromium is downloaded but doesn't start: alles tools install browser": "chromium está descargado pero no arranca: alles tools install browser",
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node necesita el paquete libatomic1: sudo apt install libatomic1"
   }
 }

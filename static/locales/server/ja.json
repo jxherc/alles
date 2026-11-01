@@ -2501,6 +2501,8 @@
     "the configured release branch could not be resolved exactly": "設定されたリリースブランチを正確に解決できませんでした",
     "the configured release branch returned an invalid commit": "設定されたリリースブランチが無効なコミットを返しました",
     "the configured release source could not be checked": "設定されたリリース元を確認できませんでした",
-    "this install has no release source to check": "このインストールには確認するリリース元がありません"
+    "this install has no release source to check": "このインストールには確認するリリース元がありません",
+    "chromium is downloaded but doesn't start: alles tools install browser": "chromium はダウンロード済みですが起動しません：alles tools install browser",
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node には libatomic1 パッケージが必要です：sudo apt install libatomic1"
   }
 }
