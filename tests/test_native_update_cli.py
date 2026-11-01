@@ -25,6 +25,7 @@ class NativeUpdateCliTest(unittest.TestCase):
             data_root=self.data,
             releases=self.releases,
             previous_release=self.previous,
+            runtime_root=self.root / "runtime",
         )
         self.old = "a" * 40
         self.new = "b" * 40

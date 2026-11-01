@@ -1928,6 +1928,19 @@ def update_check(
     }
 
 
+def remember_latest(layout: NativeLayout, latest: str) -> None:
+    """`alles update` just asked the source; keep its answer so status doesn't repeat stale news."""
+    import time
+
+    try:
+        _atomic_json(
+            layout.runtime_root / UPDATE_CHECK_FILE,
+            {"checked_at": time.time(), "latest": latest, "error": None},
+        )
+    except OSError:
+        pass
+
+
 def running_release() -> dict:
     """For the update screen: the release as its short commit, and a newer one when it waits.
 

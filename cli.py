@@ -1888,6 +1888,7 @@ def _cmd_native_update_locked(layout) -> bool:
         source_checkout, target = _fetch_native_update_source(
             manifest, update_dir, progress=steps.handle
         )
+        native_install.remember_latest(layout, target)
         if source_checkout is None:
             steps.finish(True, "check", f"{old_short} is the newest, nothing to do")
             return True
