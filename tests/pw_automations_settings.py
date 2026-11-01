@@ -59,6 +59,10 @@ def main():
         pg.wait_for_selector("#s-pane-rules.active #rule-add-btn", timeout=8000)
         wait_js(pg, "document.getElementById('rule-trigger')?.dataset.populated === '1'")
         r["rules_pane_opens"] = pg.is_visible("#s-pane-rules.active")
+        # the list renders after its own read; under load it can still be empty here
+        wait_js(
+            pg, "document.querySelector('#rules-list .settings-row-empty, #rules-list .rule-row')"
+        )
         r["empty_state_shows"] = "no rules yet" in (pg.text_content("#rules-list") or "")
 
         # use the local-only push preset; no external channel or model call
