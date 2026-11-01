@@ -2543,6 +2543,8 @@
     "chromium is downloaded but doesn't start: alles tools install browser": "chromium 已下载，但无法启动：alles tools install browser",
     "node needs the libatomic1 package: sudo apt install libatomic1": "node 需要 libatomic1 软件包：sudo apt install libatomic1",
     "the Files folder can't be the document folder or sit inside it": "文件文件夹不能是文档文件夹，也不能位于其中",
-    "inside-Alles documents need to sit directly in the Files folder": "Alles 内部的文档需要直接位于文件文件夹中"
+    "inside-Alles documents need to sit directly in the Files folder": "Alles 内部的文档需要直接位于文件文件夹中",
+    "pair this browser again to keep fills encrypted": "请重新配对这个浏览器，让填写的内容保持加密",
+    "the browser's public key is invalid": "浏览器的公钥无效"
   }
 }
