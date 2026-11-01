@@ -548,7 +548,9 @@ class CalendarWallTimeMigrationTest(ApiTest):
             e for g in agenda if g["date"] == d for e in g["events"] if e["title"] == "old weekly"
         ]
         self.assertEqual(old[0]["start_dt"], local.isoformat())
-        self.assertIn({"start": f"{d}T{busy_to}", "end": f"{d}T18:00"}, free)
+        # in winter time the old meeting ends at 10:00, but the 09:30 to 10:30 local event runs on
+        free_from = max(busy_to, "10:30")
+        self.assertIn({"start": f"{d}T{free_from}", "end": f"{d}T18:00"}, free)
         for slot in slots:
             self.assertFalse(slot["start"] < busy_to and slot["end"] > busy_from, (slot, busy_from))
         # 14:00Z is 09:00 or 10:00 in toronto, so it overlaps the 09:30 local event
