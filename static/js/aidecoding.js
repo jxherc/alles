@@ -7,29 +7,22 @@ import { wireAutosizeTextarea, autosizeTextarea } from './text_entry.js?v=1';
 import { createMenuController } from './kokuen.js?v=5';
 import { formatDate, t, tp } from './i18n.js';
 import { makeResizableRail } from './rail_resize.js?v=1';
+import { icon as sharedIcon } from './icons.js';
 
 const $ = id => document.getElementById(id);
+// one drawing per icon (28.11): a name icons.js has is drawn by icons.js; the rest are aide code's own
+const SHARED_ICONS = {
+  back: 'chevron-left', plus: 'plus', chevron: 'chevron-down', folder: 'folder', more: 'more', up: 'arrow-up',
+  stop: 'stop', file: 'file', pencil: 'edit', search: 'search', list: 'list', check: 'check', cross: 'close',
+  down: 'arrow-down', columns: 'columns',
+};
 const icons = {
-  back: '<path d="m14 6-6 6 6 6"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  chevron: '<path d="m8 10 4 4 4-4"/>',
-  folder: '<path d="M3.5 7.5V6h6l2 2h9v10.5h-17Z"/>',
-  more: '<path d="M6 12h.01M12 12h.01M18 12h.01"/>',
-  up: '<path d="M12 19V5m-6 6 6-6 6 6"/>',
-  stop: '<path d="M8 8h8v8H8Z"/>',
-  file: '<path d="M6 3.5h8l4 4v13H6Z"/><path d="M14 3.5v4h4"/>',
-  pencil: '<path d="m4 20 1-4L16 5l3 3L8 19Z"/><path d="m14 7 3 3"/>',
   plusfile: '<path d="M6 3.5h8l4 4v13H6Z"/><path d="M12 11v6m-3-3h6"/>',
   terminal: '<path d="M3.5 5.5h17v13h-17Z"/><path d="m7 10 2.5 2L7 14m4.5 0H15"/>',
-  search: '<path d="M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Zm4.5-1.5 5 5"/>',
-  list: '<path d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01"/>',
   tool: '<path d="M14.5 6.5a4 4 0 0 0-5.4 5.1L4 16.7 7.3 20l5.1-5.1a4 4 0 0 0 5.1-5.4l-2.4 2.4-2.6-.6-.6-2.6Z"/>',
-  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
-  cross: '<path d="m6.5 6.5 11 11m0-11-11 11"/>',
-  down: '<path d="M12 5v14m-6-6 6 6 6-6"/>',
-  columns: '<path d="M4.5 5.5h15v13h-15Z"/><path d="M9.5 5.5v13"/>',
 };
-const icon = name => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || '') + '</svg>';
+const icon = name => SHARED_ICONS[name] ? sharedIcon(SHARED_ICONS[name])
+  : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name] || '') + '</svg>';
 
 let host = null, opening = null;
 let projects = [], chats = new Map(), expanded = new Set();

@@ -71,6 +71,50 @@ class BusyEdgeTests(unittest.TestCase):
         self.assertNotRegex(ALL_CSS, r"agent-step\.destructive\s*\{[^}]*(border-left|inset 2px)")
 
 
+MENUS = (
+    ".ctx-menu", ".aide-central-menu", ".msg-actions-menu", ".aide-sidebar-menu",
+    ".aide-project-context-menu", ".aide-schedule-project-menu", ".docs-action-menu",
+    ".plan-board-menu", ".perm-menu", ".photos-albmenu", ".jrnl-lockmenu", ".acw-menu",
+    ".mention-menu", ".slash-popup", ".custom-dropdown-panel",
+)  # fmt: skip
+
+
+class MenuTests(unittest.TestCase):
+    """u4, 28.19: every hand rolled menu floats with one look."""
+
+    def test_every_menu_takes_the_one_menu_look(self):
+        rule = re.search(
+            r"html:not\(#_\):not\(#_\) :is\(([^)]*)\)\s*\{([^}]*)\}", css("revamp.css")
+        )
+        names, body = rule.group(1), rule.group(2)
+        for menu in MENUS:
+            self.assertIn(menu, names)
+        self.assertIn("border-radius: var(--k-radius-surface)", body)
+        self.assertIn("box-shadow: var(--k-float)", body)
+        self.assertIn("--k-radius-surface: 12px;", css("kokuen.css"))
+        self.assertIn("--k-radius-control: 8px;", css("kokuen.css"))
+
+    def test_components_has_no_stale_menu_radius(self):
+        doc = (ROOT / "design-system/COMPONENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("4px outer radius", doc)
+        self.assertIn("12px surface radius, 8px row radius", doc)
+
+    def test_run_controls_reach_the_real_steps_head(self):
+        # the steps head is a div.custom-summary; rules written for <summary> only never matched
+        style = css("style.css")
+        self.assertNotRegex(style, r"#messages \.agent-steps > summary [:.]")
+        self.assertIn(
+            "#messages .agent-steps > :is(summary, .custom-summary) :is(.agent-sources-btn", style
+        )
+
+
+class ReaderFocusTests(unittest.TestCase):
+    def test_the_docs_reader_draws_no_box_when_it_takes_focus(self):
+        # 28.40: the reader is focused when a doc opens; a keyboard open drew a ring round the page
+        rule = re.search(r"#wiki-preview:focus-visible\s*\{([^}]*)\}", css("kokuen.css")).group(1)
+        self.assertIn("outline: none", rule)
+
+
 class ChoiceTests(unittest.TestCase):
     def test_former_chip_walls_are_dropdowns(self):
         models = (STATIC / "js/models.js").read_text(encoding="utf-8")
@@ -81,6 +125,105 @@ class ChoiceTests(unittest.TestCase):
         server = (STATIC / "js/server_workbench.js").read_text(encoding="utf-8")
         self.assertIn("options.length > 3", server)
         self.assertIn("{ list: true }", server)
+
+    def test_no_group_of_more_than_3_text_choices(self):
+        """28.14: 2 or 3 text choices are a pill switch, 4 or more (or a list that can grow) the
+        dropdown. a group listed in CHOICE_EXCEPTIONS keeps its look for the reason given; a group in
+        CHOICE_TO_CONVERT is a known wall still waiting for its dropdown, so a new one fails here."""
+        found = set(_choice_groups())
+        listed = set(CHOICE_EXCEPTIONS) | set(CHOICE_TO_CONVERT)
+        self.assertEqual(sorted(found - listed), [], "a new text choice wall; use the dropdown")
+        self.assertEqual(sorted(listed - found), [], "gone or renamed; drop it from the lists")
+
+
+# a button that picks one of several values (radio, pressed, checked or a seg option); switches
+# and menu rows are not choice groups
+_CHOICE = re.compile(r'role="radio"|aria-pressed|aria-checked|class="[^"]*\bseg-opt')
+_NOT_CHOICE = re.compile(r'role="(switch|menuitem\w*|tab)"')
+_TAG = re.compile(r"<(/?)([a-z][\w-]*)\b([^<>]*?)(/?)>", re.S)
+_VOID = {"br", "img", "input", "meta", "link", "hr", "source", "wbr", "path", "circle", "line",
+         "rect", "polyline", "polygon", "use", "ellipse", "span", "strong", "small", "svg"}  # fmt: skip
+
+
+def _choice_groups():
+    """index.html and kit.html: an element with more than 3 choice buttons as children, named by
+    its id or first class. js: a .map() that renders choice buttons (its size isn't known
+    statically), named by the button's first class or data attribute."""
+    for page in ("index.html", "kit.html"):
+        stack = []
+        for m in _TAG.finditer((STATIC / page).read_text(encoding="utf-8")):
+            close, tag, attrs, selfclose = m.groups()
+            if tag in _VOID or selfclose:
+                continue
+            if not close:
+                if (
+                    tag == "button"
+                    and stack
+                    and _CHOICE.search(attrs)
+                    and not _NOT_CHOICE.search(attrs)
+                ):
+                    stack[-1][1] += 1
+                stack.append([attrs, 0, tag])
+                continue
+            while stack:
+                attrs_, n, tag_ = stack.pop()
+                if n > 3:
+                    name = re.search(r'\bid="([^"]+)"', attrs_) or re.search(
+                        r'class="([\w-]+)', attrs_
+                    )
+                    yield f"{page}:{name.group(1)}"
+                if tag_ == tag:
+                    break
+    for path in sorted((STATIC / "js").rglob("*.js")):
+        text = path.read_text(encoding="utf-8")
+        for m in re.finditer(
+            r"\.map\(\s*\(?[\w\s,{}\[\]]*\)?\s*=>\s*`[^`]*?<button\b([^>]*)>", text
+        ):
+            attrs = m.group(1)
+            if _CHOICE.search(attrs) and not _NOT_CHOICE.search(attrs):
+                name = re.search(r'class="([\w-]+)', attrs) or re.search(r"(data-[\w-]+)=", attrs)
+                yield f"{path.relative_to(STATIC).as_posix()}:{name.group(1)}"
+
+
+CHOICE_EXCEPTIONS = {
+    # you pick a color by seeing it; a menu would hide it (u4)
+    "js/calendar.js:cal-sw": "color swatches",
+    "js/habits.js:habit-sw": "color swatches",
+    # a rating is a row of every value (owner's pick, ux laws)
+    "js/journal.js:jrnl-mood": "mood rating",
+    # toggles that each turn one thing on, not one pick from a list
+    "js/calendar.js:cal-dow-b": "weekday toggles, like every calendar's repeat editor",
+    "js/calendar.js:cal-rem": "reminder toggles, several at once",
+    "js/activity.js:act-chip": "filter toggles, several at once",
+    "index.html:token-scopes": "token powers, several at once, each with a mark",
+    # navigation, not a value: the open view or place, like every calendar and files app
+    "index.html:cal-view": "calendar view switch",
+    "js/filesphase7.js:files-location-button": "rail rows, the open place is pressed",
+    # 2 or 3 fixed options: already the size of a pill switch
+    "js/books.js:book-move-btn": "3 shelves",
+    "js/books.js:te-seg-opt": "3 shelves",
+    "js/settings/providers.js:data-value": "2 sign in kinds",
+    "js/setupwizard.js:data-value": "2 or 3 choices per step",
+}
+# known walls still waiting for the dropdown (listed in the s4b part 3 report)
+CHOICE_TO_CONVERT = {
+    "index.html:andromeda-watch-choices": "4 intervals",
+    "index.html:tasks-tabs": "5 task views",
+    "index.html:aide-schedule-choices": "4 schedule kinds",
+    "index.html:files-location-kind": "4 location kinds",
+    "index.html:locale-language-list": "8 languages",
+    "js/activity.js:seg-opt": "activity time ranges",
+    "js/appsettings.js:seg-opt": "app setting choices of any length",
+    "js/habit_loggers.js:seg-opt": "habit field choices of any length",
+    "js/filesphase7.js:data-value": "every files location",
+    "js/memory.js:mem-cat-btn": "memory categories, a list that grows",
+    "js/read.js:read-chip": "4 reading filters",
+    "js/health.js:health-chip": "4 history ranges",
+    "js/theme.js:te-seg-opt": "harmony and background pattern have more than 3",
+    "js/vault.js:seg-opt": "4 field kinds (widths are 3)",
+    "js/contacts.js:seg-opt": "sync intervals",
+    "js/money.js:btn": "money plan tasks",
+}
 
 
 def _svg_body(s):
@@ -121,6 +264,30 @@ class IconTests(unittest.TestCase):
                     name,
                     f"{page}:{line} draws its own {name}; use data-kokuen-icon or <svg data-ic>",
                 )
+
+    def test_no_js_template_redraws_an_icons_js_name(self):
+        # aide code kept its own back, plus, more, stop and chevrons until s4b part 3
+        pending = {"js/dropdown.js:chevron-down"}  # dropdown.js is s5b's this wave
+        found = set()
+        pat = (
+            r"<svg\b[^>]*>(.*?)</svg>|(['\"`])(<(?:path|circle|line|polyline|rect)\b[^'\"`]*?/>)\2"
+        )
+        for path in sorted((STATIC / "js").rglob("*.js")):
+            if path.name == "icons.js":
+                continue
+            text = path.read_text(encoding="utf-8")
+            for m in re.finditer(pat, text, re.S):
+                body = _svg_body(m.group(1) or m.group(3) or "")
+                if not body or "${" in body:
+                    continue
+                name = ICON_BODIES.get(body) or next(
+                    (k for k, r in ICON_COPIES.items() if re.search(r, body)), None
+                )
+                if name:
+                    found.add(f"{path.relative_to(STATIC).as_posix()}:{name}")
+        self.assertEqual(sorted(found - pending), [], "use icon() from icons.js")
+        self.assertEqual(sorted(pending - found), [], "fixed; drop it from pending")
+        self.assertIn("import { icon as sharedIcon } from './icons.js'", js("aidecoding.js"))
 
     def test_every_settings_gear_is_the_shared_one(self):
         self.assertEqual(len(re.findall(r'data-kokuen-icon="gear"', HTML)), 7)

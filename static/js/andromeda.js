@@ -254,7 +254,15 @@ function clearOverview(message = '') {
   closeSourceCard();
   const follow = el('andromeda-follow');
   if (follow) follow.hidden = true;
+  syncAskAide();
   renderThread();
+}
+
+// an answer ends in "continue in aide"; "ask aide about these results" is the same handoff, so it
+// only shows when there is no answer to continue from (28.08)
+function syncAskAide(currentCategory = category()) {
+  const ask = el('andromeda-explain');
+  if (ask) ask.hidden = currentCategory !== 'all' || el('andromeda-follow')?.hidden === false;
 }
 
 // ── follow-ups ──
@@ -272,6 +280,7 @@ function renderFollowUps(questions = []) {
   }));
   chips.hidden = !chips.children.length;
   follow.hidden = false;
+  syncAskAide();
 }
 
 function renderThread() {
@@ -751,7 +760,7 @@ function resultNode(result, savedItems = null, index = 0) {
   trigger.type = 'button';
   trigger.className = 'andromeda-result-actions-trigger';
   trigger.dataset.resultAction = 'menu';
-  trigger.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="19" cy="12" r="1.4"></circle></svg>';
+  trigger.innerHTML = _si('more');
   trigger.setAttribute('aria-label', tr('andromeda.x_actions_for', { name: result.title || sourceName.textContent }));
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.setAttribute('aria-expanded', 'false');
@@ -1051,7 +1060,7 @@ export function renderAndromedaResults(results, state = 'ready', currentCategory
   }
   const actions = el('andromeda-actions');
   if (actions) actions.hidden = !_state.rawQuery;
-  if (el('andromeda-explain')) el('andromeda-explain').hidden = currentCategory !== 'all';
+  syncAskAide(currentCategory);
   const tail = el('andromeda-results-tail');
   if (tail) tail.hidden = true;
 }
