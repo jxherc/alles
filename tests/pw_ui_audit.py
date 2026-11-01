@@ -695,7 +695,9 @@ SPACING = r"""
   // a hint or label line flush on the field under it
   for (const field of controls.filter(el => ['INPUT', 'TEXTAREA'].includes(el.tagName))) {
     const prev = field.previousElementSibling || field.parentElement?.previousElementSibling;
-    if (!prev || !vis(prev) || prev.matches('label, .setup-field, .s-field')) continue;
+    // a control above (a dropdown trigger in a stacked entry row, split by the row's divider) is
+    // a field next to a field, not a hint
+    if (!prev || !vis(prev) || prev.matches('label, .setup-field, .s-field, [role=combobox], [role=button], [tabindex]')) continue;
     if (!/^(P|SMALL|SPAN|DIV)$/.test(prev.tagName) || !(prev.textContent || '').trim() || prev.querySelector('button, a, input')) continue;
     // an underline-only field has no top edge for the hint to touch
     const fs = getComputedStyle(field);

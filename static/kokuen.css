@@ -2519,6 +2519,12 @@ html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-koku
   background: transparent;
 }
 
+/* an app's header gear rests muted, so hover has a tone to lift to (the rest rule's inherit made
+   the gears in contacts, journal, mail and system full text with no hover change) */
+html[data-kokuen-version="5"] .app-cog[data-kokuen-icon]:not(:hover) {
+  color: var(--k-muted, var(--muted));
+}
+
 html[data-kokuen-version="5"] .shell-navigation-toggle:is(:hover, [aria-expanded="true"]) {
   color: var(--k-text, var(--text));
   background: var(--k-hover, var(--panel));
@@ -7647,16 +7653,21 @@ html[data-kokuen-version="5"] .k-number-row-readout {
 
 /* resizable rail (decision 0054): a 12px strip on a sidebar's trailing edge (rail_resize.js). its
    ::before widens the grab to 32px for a finger, and a 2px line shows where it is when pointed at,
-   dragged or focused. a rail the user sized takes its width from --k-rail-w; phones get no strip */
-:is(.k-rail-resize, .acw-rail-resize) { position: absolute; z-index: 3; width: 12px; cursor: col-resize; touch-action: none; }
+   dragged or focused. the line is the strip's own fill, clipped between 5px clear borders, so focus
+   shows on the element itself and at once. a rail the user sized takes its width
+   from --k-rail-w; phones get no strip */
+:is(.k-rail-resize, .acw-rail-resize) {
+  position: absolute; z-index: 3; box-sizing: border-box; width: 12px;
+  border: 0 solid transparent; border-inline-width: 5px;
+  background: transparent content-box; transition: background-color 140ms ease;
+  cursor: col-resize; touch-action: none;
+}
 .k-rail-resize { top: 0; translate: -50% 0; }
 .k-rail-resize[data-inside] { right: 0; bottom: 0; translate: none; }
 .k-rail-resize[hidden] { display: none; }
-:is(.k-rail-resize, .acw-rail-resize)::before { content: ""; position: absolute; top: 0; bottom: 0; left: -10px; right: -10px; }
-:is(.k-rail-resize, .acw-rail-resize)::after { content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; background: transparent; transition: background-color 140ms ease; }
-:is(.k-rail-resize, .acw-rail-resize):is(:hover, [data-active])::after { background: var(--k-line-strong); }
-:is(.k-rail-resize, .acw-rail-resize):focus-visible { outline: none; }
-:is(.k-rail-resize, .acw-rail-resize):focus-visible::after { background: var(--k-focus); }
+:is(.k-rail-resize, .acw-rail-resize)::before { content: ""; position: absolute; top: 0; bottom: 0; left: -15px; right: -15px; }
+:is(.k-rail-resize, .acw-rail-resize):is(:hover, [data-active]) { background-color: var(--k-line-strong); }
+:is(.k-rail-resize, .acw-rail-resize):focus-visible { outline: none; background-color: var(--k-focus); transition: none; }
 html[data-rail-resizing] { cursor: col-resize; user-select: none; -webkit-user-select: none; }
 :where([data-k-rail-inside]) { position: relative; }
 html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
@@ -7666,4 +7677,4 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
   flex: 0 0 var(--k-rail-w);
 }
 @media (max-width: 620px) { .k-rail-resize { display: none; } }
-@media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize)::after { transition: none; } }
+@media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize) { transition: none; } }

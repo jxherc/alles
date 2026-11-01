@@ -11,7 +11,9 @@ aide it should be adjustable everywhere" (28.05), and later "resizable bars: eve
   12px `role="separator"` strip on the rail's trailing edge (32px grab for a finger), pointer drag
   (mouse, pen, touch), arrow keys step 1rem (shift 3), home and end, double click goes back to the
   app's own width. `aria-valuenow` in rem, `aria-valuetext` in px. one look in `kokuen.css`
-  (`.k-rail-resize`): a 2px line shows on hover, drag and focus.
+  (`.k-rail-resize`): a 2px line shows on hover, drag and focus. the line is the strip's own fill
+  between 5px clear borders, not a pseudo element, so keyboard focus shows on the separator itself
+  and at once (no fade); the ui audit's focus check reads it there.
 - the width is in rem (it grows with the type) and saved per browser under `alles-rail-<app>`.
 - used by aide chat's archive, docs, settings, files, mail, calendar and photos (wired in `app.js`),
   and aide code's projects rail.
