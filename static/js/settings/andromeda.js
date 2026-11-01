@@ -6,7 +6,7 @@ import { onModelRoles, roleOptions, setModelRole } from './model_roles.js';
 import { toast, plainError } from '../util.js';
 import { confirm as confirmDialog } from '../dialog.js';
 import { fetchWithRecentOwner } from '../recent_owner.js';
-import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=215';
+import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=216';
 import { t, tp } from '../i18n.js';
 
 export const ANDROMEDA_SETTINGS_EVENT = 'alles:andromeda-settings';
