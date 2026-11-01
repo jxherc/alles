@@ -50,7 +50,12 @@ class BusyEdgeTests(unittest.TestCase):
         kokuen = css("kokuen.css")
         self.assertIn("@property --k-busy-turn", kokuen)
         edge = re.search(r"\.k-busy\[data-busy=\"true\"\]\)::before\s*\{([^}]*)\}", kokuen).group(1)
-        for part in ("inset: 0", "border-radius: inherit", "border: 1px solid transparent", "pointer-events: none"):
+        for part in (
+            "inset: 0",
+            "border-radius: inherit",
+            "border: 1px solid transparent",
+            "pointer-events: none",
+        ):
             self.assertIn(part, edge)
         self.assertNotRegex(edge, r"blur|box-shadow")
         self.assertRegex(
@@ -84,7 +89,9 @@ def _svg_body(s):
 
 
 ICONS_JS = (STATIC / "js/icons.js").read_text(encoding="utf-8")
-ICON_BODIES = {_svg_body(v): k for k, v in re.findall(r"^\s+'?([\w-]+)'?: '(.*?)',$", ICONS_JS, re.M)}
+ICON_BODIES = {
+    _svg_body(v): k for k, v in re.findall(r"^\s+'?([\w-]+)'?: '(.*?)',$", ICONS_JS, re.M)
+}
 # hand drawn copies of a shared icon: the feather and andromeda gears, the 6.5 glass, the feather x
 ICON_COPIES = {
     "gear": r"M19\.4 15a1\.7|M19 12a7 7 0 0 0-\.08",
@@ -106,9 +113,14 @@ class IconTests(unittest.TestCase):
                 body = _svg_body(m.group(1))
                 if not body:
                     continue
-                name = ICON_BODIES.get(body) or next((k for k, r in ICON_COPIES.items() if re.search(r, body)), None)
+                name = ICON_BODIES.get(body) or next(
+                    (k for k, r in ICON_COPIES.items() if re.search(r, body)), None
+                )
                 line = text[: m.start()].count("\n") + 1
-                self.assertIsNone(name, f"{page}:{line} draws its own {name}; use data-kokuen-icon or <svg data-ic>")
+                self.assertIsNone(
+                    name,
+                    f"{page}:{line} draws its own {name}; use data-kokuen-icon or <svg data-ic>",
+                )
 
     def test_every_settings_gear_is_the_shared_one(self):
         self.assertEqual(len(re.findall(r'data-kokuen-icon="gear"', HTML)), 7)
@@ -126,8 +138,15 @@ class RailTests(unittest.TestCase):
 
     def test_every_sidebar_uses_the_shared_handle(self):
         app = js("app.js")
-        for sel in ("#aide-sidebar", "#docs-nav-panel", ".s-navigation", ".files-phase7-location-panel",
-                    "#mail-sidebar", "#cal-sidebar", "#photos-sidebar"):
+        for sel in (
+            "#aide-sidebar",
+            "#docs-nav-panel",
+            ".s-navigation",
+            ".files-phase7-location-panel",
+            "#mail-sidebar",
+            "#cal-sidebar",
+            "#photos-sidebar",
+        ):
             self.assertIn(sel, app)
         self.assertIn("makeResizableRail({ rail,", app)
         self.assertIn("makeResizableRail({", js("aidecoding.js"))
@@ -135,12 +154,25 @@ class RailTests(unittest.TestCase):
 
     def test_the_handle_is_a_full_separator(self):
         mod = js("rail_resize.js")
-        for part in ("'separator'", "aria-valuetext", "aria-valuenow", "ArrowLeft", "Home", "dblclick",
-                     "localStorage.setItem", "pointerdown"):
+        for part in (
+            "'separator'",
+            "aria-valuetext",
+            "aria-valuenow",
+            "ArrowLeft",
+            "Home",
+            "dblclick",
+            "localStorage.setItem",
+            "pointerdown",
+        ):
             self.assertIn(part, mod)
-        self.assertIn('"static/js/rail_resize.js"', (ROOT / "features/control-census-overrides.json").read_text())
+        self.assertIn(
+            '"static/js/rail_resize.js"',
+            (ROOT / "features/control-census-overrides.json").read_text(),
+        )
         kokuen = css("kokuen.css")
-        self.assertRegex(kokuen, r"@media \(max-width: 620px\) \{ \.k-rail-resize \{ display: none; \} \}")
+        self.assertRegex(
+            kokuen, r"@media \(max-width: 620px\) \{ \.k-rail-resize \{ display: none; \} \}"
+        )
         self.assertIn("var(--k-rail-w, 244px)", css("revamp.css"))
 
 
@@ -176,7 +208,10 @@ class FollowUpAndPhotoTests(unittest.TestCase):
     def test_andromeda_hands_the_answer_to_aide(self):
         self.assertNotIn("andromeda-follow-input", HTML)
         self.assertIn('id="andromeda-continue-aide"', HTML)
-        self.assertIn("el('andromeda-continue-aide')?.addEventListener('click', event => void explainResults(", js("andromeda.js"))
+        self.assertIn(
+            "el('andromeda-continue-aide')?.addEventListener('click', event => void explainResults(",
+            js("andromeda.js"),
+        )
 
     def test_photo_size_has_four_remembered_steps(self):
         photos = js("photos.js")

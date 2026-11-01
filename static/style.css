@@ -1863,7 +1863,7 @@ body.is-aide.is-incognito .incognito-bar {
 #model-modal .mm-ep-card-head { flex-wrap: wrap; row-gap: var(--k-space-1, 4px); }
 #model-modal .mm-ep-name { flex: 1 1 8rem; min-width: 0; overflow-wrap: anywhere; }
 #model-modal .mm-ep-count { white-space: nowrap; }
-#model-modal .mm-ep-actions { flex: 0 0 auto; }
+#model-modal .mm-ep-actions { flex: 0 0 auto; margin-left: auto; display: flex; gap: var(--k-control-gap); }
 /* the list and the add form scroll as one, so a second endpoint is never hidden under the form */
 #model-modal #mm-panel-endpoints { overflow-y: auto; }
 #model-modal .mm-ep-list { flex: none; overflow: visible; padding-bottom: 0; }
