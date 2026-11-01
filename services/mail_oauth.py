@@ -229,6 +229,11 @@ def xoauth2(email: str, access_token: str) -> str:
 def ensure_access_token(acct: dict) -> str:
     """return a valid access token for an oauth acct dict, refreshing + persisting it
     when it's expired (or about to be). raises on refresh failure."""
+    if (acct.get("oauth_provider") or "").strip().lower() == "microsoft":
+        # microsoft rotates its refresh token, so this path persists both tokens
+        from services import signin
+
+        return signin.ensure_microsoft_mail_token(acct)
     tok = acct.get("oauth_access_token", "")
     exp = float(acct.get("oauth_expires_at") or 0)
     if tok and exp - 60 > time.time():

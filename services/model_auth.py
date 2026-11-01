@@ -1,8 +1,10 @@
 """Legitimate model-provider authentication metadata and Gemini OAuth.
 
-Alles never imports consumer-chat sessions. API-key providers stay API-key
-providers; the only first-party OAuth flow here is Google's documented Gemini
-desktop-client flow using owner-created credentials.
+API-key providers stay API-key providers. The first-party OAuth flows here are
+Google's documented Gemini desktop-client flow using owner-created credentials,
+and - an explicit owner decision on oct 28 - the Anthropic and OpenAI
+subscription sign ins in services/signin.py. Every other consumer-chat session
+stays out of alles.
 """
 
 from __future__ import annotations
@@ -149,7 +151,10 @@ def validate_auth(provider_id: str, auth_type: str, base_url: str) -> tuple[str,
     if auth_type not in AUTH_TYPES or auth_type not in PROFILES[provider_id].auth_types:
         raise ValueError(f"{PROFILES[provider_id].label} does not support that authentication type")
     if auth_type == "oauth" and provider_id != "gemini":
-        raise ValueError("only the documented Gemini OAuth flow is supported")
+        # the owner accepted these providers' terms for their own subscription sign in
+        # (oct 28). this is the only exception to "no consumer chat sessions": anthropic
+        # and openai are connected through services/signin.py, not through this validator.
+        raise ValueError("only the documented Gemini OAuth flow is supported here")
     if auth_type == "none" and not is_loopback_url(base_url):
         raise ValueError("credential-free model endpoints must use loopback")
     return provider_id, auth_type
@@ -379,4 +384,10 @@ async def refresh_all_oauth_endpoints() -> int:
         db.commit()
     finally:
         db.close()
+    try:
+        from services import signin
+
+        await signin.refresh_due_accounts()
+    except Exception:
+        pass
     return refreshed

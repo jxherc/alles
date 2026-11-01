@@ -7,11 +7,14 @@ crashes the app, it returns {"error": ...} strings the UI can show. Config is
 stored in data/caldav.json (gitignored, like the rest of data/).
 """
 
+import json
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from core.settings import data_dir
 from services.config_secrets import load_secret_config, migrate_secret_config, save_secret_config
+from services.secretstore import seal, unseal
 
 
 def _ics_esc(s) -> str:
@@ -43,14 +46,35 @@ def available() -> bool:
 
 
 def load_cfg() -> dict:
-    return load_secret_config(_cfg_path(), "caldav.password")
+    cfg = load_secret_config(_cfg_path(), "caldav.password")
+    raw = cfg.get("oauth_tokens")
+    if isinstance(raw, str) and raw:
+        try:
+            tokens = json.loads(unseal(raw, "caldav.oauth"))
+        except Exception:
+            tokens = {}
+        cfg["oauth_tokens"] = tokens if isinstance(tokens, dict) else {}
+    elif not isinstance(raw, dict):
+        cfg.pop("oauth_tokens", None)
+    return cfg
 
 
-def save_cfg(cfg: dict):
+def oauth_tokens(cfg: dict) -> dict:
+    tokens = (cfg or {}).get("oauth_tokens")
+    return tokens if isinstance(tokens, dict) else {}
+
+
+def save_cfg(cfg: dict, *, keep_password: bool = True):
+    cfg = dict(cfg or {})
     cur = load_cfg()
+    if cfg.get("auth") == "oauth":
+        cfg["password"] = ""
     # keep the existing password if a blank one is sent (UI doesn't echo it back)
-    if not cfg.get("password") and cur.get("password"):
+    elif keep_password and not cfg.get("password") and cur.get("password"):
         cfg["password"] = cur["password"]
+    tokens = cfg.get("oauth_tokens")
+    if isinstance(tokens, dict):
+        cfg["oauth_tokens"] = seal(json.dumps(tokens, separators=(",", ":")), "caldav.oauth")
     save_secret_config(_cfg_path(), cfg, "caldav.password")
 
 
@@ -60,11 +84,17 @@ def migrate_cfg_secrets() -> int:
 
 def status() -> dict:
     cfg = load_cfg()
+    oauth = cfg.get("auth") == "oauth"
+    connected = bool(cfg.get("url") and cfg.get("username")) and bool(
+        oauth_tokens(cfg).get("refresh_token") if oauth else cfg.get("password")
+    )
     return {
         "available": available(),
-        "connected": bool(cfg.get("url") and cfg.get("username") and cfg.get("password")),
+        "connected": connected,
         "url": cfg.get("url", ""),
         "username": cfg.get("username", ""),
+        "auth": "oauth" if oauth else "password",
+        "provider": cfg.get("provider", ""),
     }
 
 
@@ -158,10 +188,41 @@ def sync() -> dict:
     except Exception as e:
         return {"error": f"caldav import failed: {e}"}
 
+    if cfg.get("auth") == "oauth":
+        # google caldav refuses basic auth; it wants "Authorization: Bearer <token>".
+        # https://developers.google.com/workspace/calendar/caldav/v2/guide
+        tokens = oauth_tokens(cfg)
+        access = str(tokens.get("access_token") or "")
+        if not access or float(tokens.get("expires_at") or 0) - 60 < time.time():
+            refresh = str(tokens.get("refresh_token") or "")
+            if not refresh:
+                return {"error": "the google calendar sign in expired - sign in again"}
+            try:
+                from services import mail_oauth
+
+                fresh = mail_oauth.refresh_access(refresh)
+            except Exception:
+                return {"error": "could not refresh the google calendar sign in - sign in again"}
+            tokens["access_token"] = str(fresh.get("access_token") or "")
+            if fresh.get("refresh_token"):
+                tokens["refresh_token"] = str(fresh["refresh_token"])
+            tokens["expires_at"] = time.time() + int(fresh.get("expires_in") or 3600)
+            save_cfg({**cfg, "oauth_tokens": tokens}, keep_password=False)
+            access = tokens["access_token"]
     try:
-        client = caldav.DAVClient(
-            url=cfg["url"], username=cfg["username"], password=cfg.get("password", "")
-        )
+        if cfg.get("auth") == "oauth":
+            try:
+                client = caldav.DAVClient(
+                    url=cfg["url"], headers={"Authorization": f"Bearer {access}"}
+                )
+            except TypeError:
+                return {
+                    "error": "the installed caldav package can't use a bearer token - update it"
+                }
+        else:
+            client = caldav.DAVClient(
+                url=cfg["url"], username=cfg["username"], password=cfg.get("password", "")
+            )
         principal = client.principal()
         cals = principal.calendars()
     except Exception as e:

@@ -454,6 +454,8 @@ class SettingsPatch(BaseModel):
     mail_oauth_client_id: str | None = None
     mail_oauth_client_secret: str | None = None
     mail_oauth_redirect_base: str | None = None
+    signin_github_client_id: str | None = None
+    signin_microsoft_client_id: str | None = None
 
 
 @router.patch("/settings")
