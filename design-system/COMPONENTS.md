@@ -49,7 +49,10 @@ In Alles the primary is the text action's shape plus one `--k-line-strong` line,
 - `role="menu"` with `menuitem` children;
 - Up/Down moves, Home/End jumps, Enter/Space activates, Escape closes;
 - focus moves into the menu and returns to its trigger;
-- 12px surface radius, 8px row radius (12 minus the 4px inset), 44px minimum row;
+- 12px surface radius, 8px row radius (12 minus the 4px inset), 44px minimum row, the raised fill
+  and one float shadow (`--k-float`). every hand rolled menu takes this look from one rule in
+  `revamp.css` ("one action menu look"); a new menu joins its lists. the picked row shows with text
+  weight, never a second fill;
 - disabled rows stay discoverable and cannot activate;
 - never use a visible native select or context menu.
 
@@ -59,8 +62,10 @@ Use buttons with `role="radio"` and `aria-checked`, or independent buttons with 
 
 Which control does which job (owner, oct 28, decision 0050): 2 or 3 options flipped often are a
 pill switch; a rating is a number row; 4 or more options, or a list that can grow, is the
-dropdown (`dropdown.js`). Never a wall of chips or buttons for text choices: more than 5 text
-choices is always a dropdown with type to jump (28.14). Quick fills (model providers, rule presets)
+dropdown (`dropdown.js`). Never a wall of chips or buttons for text choices: more than 3 text
+choices is always a dropdown with type to jump (28.14). `tests/test_kit_part_two.py` lists every
+group that keeps its look and why (color swatches, a rating, toggles that turn several things on,
+navigation) and the walls still waiting for their dropdown; a new group fails it. Quick fills (model providers, rule presets)
 are a dropdown with a placeholder that fills the form on pick; a server setting with more than 3
 options or a model list is a dropdown, 2 or 3 a pill switch (28.29).
 

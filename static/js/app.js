@@ -2503,7 +2503,7 @@ function _openPermMenu(anchor) {
      </button>`).join('');
   document.body.appendChild(menu);
   const r = anchor.getBoundingClientRect();
-  menu.style.left = `${Math.min(r.left, window.innerWidth - menu.offsetWidth - 12)}px`;
+  menu.style.left = `${Math.max(12, Math.min(r.left, window.innerWidth - menu.offsetWidth - 12))}px`;
   menu.style.bottom = `${window.innerHeight - r.top + 6}px`;
   anchor.setAttribute('aria-expanded', 'true');
   const items = [...menu.querySelectorAll('.perm-menu-item')];

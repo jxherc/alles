@@ -78,6 +78,26 @@
           "key": "search_default",
           "title": "andromeda as your search",
           "body": "chrome and firefox can now add andromeda as a search engine straight from alles, and the extension makes it chrome's default (chrome asks you to keep it). type al and a space in the address bar to search andromeda from any copy of the extension."
+        },
+        {
+          "key": "resize_sidebars",
+          "title": "sidebars you can resize",
+          "body": "drag the edge of a sidebar in aide, docs, files, mail, calendar, photos or settings to make it wider or narrower, and it keeps that width. arrow keys work too, and a double click puts it back."
+        },
+        {
+          "key": "photo_size",
+          "title": "photo size steps",
+          "body": "the - and + in photos, a pinch, or ctrl and scroll change the picture size in 4 steps. rows keep each picture's shape, and the size is remembered."
+        },
+        {
+          "key": "continue_in_aide",
+          "title": "andromeda answers continue in aide",
+          "body": "an andromeda answer ends with continue in aide, which takes the question, the answer and its sources into aide, instead of a box for another question."
+        },
+        {
+          "key": "errors_stay",
+          "title": "errors stay until you close them",
+          "body": "an error stays on screen with a close button until you close it, so you can read it. confirmations still go away on their own."
         }
       ]
     },
