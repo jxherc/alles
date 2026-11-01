@@ -8090,6 +8090,8 @@
     "whatsnew.2026_11_01.phone_read.title": "手機上的正在輸入和已讀",
     "whatsnew.2026_11_01.photo_size.body": "照片裡的 - 和 +、雙指縮放或按住 ctrl 捲動，可以分 4 段調整圖片大小。每列保持每張圖片原本的比例，大小會被記住。",
     "whatsnew.2026_11_01.photo_size.title": "分段調整照片大小",
+    "whatsnew.2026_11_01.pick_lists.body": "andromeda 的監看間隔、aide 的排程類型、檔案的位置類型和目標、記憶分類、閱讀篩選和保險庫欄位類型，現在都是一個下拉選單，輸入字母就能跳到對應項。兩三個選項的，例如聯絡人同步和保險庫欄位寬度，是膠囊開關。",
+    "whatsnew.2026_11_01.pick_lists.title": "要選的清單都是選單",
     "whatsnew.2026_11_01.plaid_check.body": "alles 會立刻檢查你的 plaid 金鑰，去掉多餘的空格；金鑰屬於另一套 plaid 環境時會自動切換，金鑰無效時會顯示 plaid 自己的提示。",
     "whatsnew.2026_11_01.plaid_check.title": "儲存時檢查 plaid 金鑰",
     "whatsnew.2026_11_01.quick_things.body": "新增任務、行程、習慣紀錄或筆記裡的一行，都直接在 aide 裡完成。pi 負責程式碼和較長的工作，做不完時會明確說出來。",

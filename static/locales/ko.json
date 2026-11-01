@@ -8090,6 +8090,8 @@
     "whatsnew.2026_11_01.phone_read.title": "폰에서 입력 중과 읽음 표시",
     "whatsnew.2026_11_01.photo_size.body": "사진의 - 와 +, 핀치, 또는 ctrl을 누른 채 스크롤로 사진 크기를 4단계로 바꿀 수 있어요. 줄마다 사진 모양은 그대로이고 크기는 기억돼요.",
     "whatsnew.2026_11_01.photo_size.title": "사진 크기 단계",
+    "whatsnew.2026_11_01.pick_lists.body": "andromeda 감시 간격, aide 예약 종류, 파일 위치 종류와 대상, 메모리 카테고리, 읽기 필터, 보관함 항목 종류가 이제 하나의 드롭다운이며, 글자를 입력하면 그 항목으로 이동합니다. 연락처 동기화나 보관함 항목 너비처럼 선택지가 두세 개면 알약 스위치입니다.",
+    "whatsnew.2026_11_01.pick_lists.title": "고르는 목록은 메뉴로",
     "whatsnew.2026_11_01.plaid_check.body": "alles가 plaid 키를 바로 확인하고, 불필요한 공백을 지우고, 키가 다른 plaid 환경 것이면 알맞은 환경으로 바꾸고, 쓸 수 없으면 plaid가 보낸 메시지를 그대로 보여줘요.",
     "whatsnew.2026_11_01.plaid_check.title": "저장할 때 plaid 키 확인",
     "whatsnew.2026_11_01.quick_things.body": "작업, 일정, 습관 기록, 노트 한 줄 추가는 aide 안에서 바로 돼요. 코드와 긴 작업은 pi가 맡고, 끝내지 못하면 분명하게 알려 줘요.",

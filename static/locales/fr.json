@@ -8090,6 +8090,8 @@
     "whatsnew.2026_11_01.phone_read.title": "écrit et lu sur votre téléphone",
     "whatsnew.2026_11_01.photo_size.body": "le - et le + de photos, un pincement, ou ctrl et la molette changent la taille des photos en 4 crans. les rangées gardent la forme de chaque photo, et la taille est retenue.",
     "whatsnew.2026_11_01.photo_size.title": "des tailles de photo",
+    "whatsnew.2026_11_01.pick_lists.body": "l'intervalle de veille d'andromeda, le type de planification d'aide, le type d'emplacement et la destination de fichiers, les catégories de mémoire, les filtres de lecture et les types de champ du coffre sont maintenant un menu déroulant, et taper une lettre y saute. deux ou trois options, comme la synchro des contacts et la largeur des champs du coffre, sont un interrupteur en pilule.",
+    "whatsnew.2026_11_01.pick_lists.title": "les listes à choisir sont des menus",
     "whatsnew.2026_11_01.plaid_check.body": "alles vérifie tout de suite vos clés plaid, retire les espaces en trop, passe à la bonne configuration plaid quand les clés appartiennent à l'autre, et affiche le message de plaid quand elles ne marchent pas.",
     "whatsnew.2026_11_01.plaid_check.title": "clés plaid vérifiées à l'enregistrement",
     "whatsnew.2026_11_01.quick_things.body": "ajouter une tâche, un événement, une entrée d'habitude ou une ligne de note se fait directement dans aide. pi garde le code et les travaux plus longs, et dit clairement quand il n'arrive pas au bout.",

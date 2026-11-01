@@ -98,6 +98,11 @@
           "key": "errors_stay",
           "title": "errors stay until you close them",
           "body": "an error stays on screen with a close button until you close it, so you can read it. confirmations still go away on their own."
+        },
+        {
+          "key": "pick_lists",
+          "title": "lists you pick from are menus",
+          "body": "andromeda's watch interval, aide's schedule kind, files' location kind and destination, memory categories, read filters and vault field kinds are now one dropdown, and typing a letter jumps to it. two or three options, like contacts sync and vault field width, are a pill switch."
         }
       ]
     },

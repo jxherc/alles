@@ -8090,6 +8090,8 @@
     "whatsnew.2026_11_01.phone_read.title": "typing and read on your phone",
     "whatsnew.2026_11_01.photo_size.body": "the - and + in photos, a pinch, or ctrl and scroll change the picture size in 4 steps. rows keep each picture's shape, and the size is remembered.",
     "whatsnew.2026_11_01.photo_size.title": "photo size steps",
+    "whatsnew.2026_11_01.pick_lists.body": "andromeda's watch interval, aide's schedule kind, files' location kind and destination, memory categories, read filters and vault field kinds are now one dropdown, and typing a letter jumps to it. two or three options, like contacts sync and vault field width, are a pill switch.",
+    "whatsnew.2026_11_01.pick_lists.title": "lists you pick from are menus",
     "whatsnew.2026_11_01.plaid_check.body": "alles checks your plaid keys right away, trims stray spaces, switches to the right plaid setup when the keys belong to the other one, and shows plaid's own message when they don't work.",
     "whatsnew.2026_11_01.plaid_check.title": "plaid keys checked when you save",
     "whatsnew.2026_11_01.quick_things.body": "adding a task, an event, a habit log or a note line happens right in aide. pi keeps code and longer jobs, and says plainly when it can't finish.",
