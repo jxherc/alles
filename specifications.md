@@ -444,6 +444,10 @@ related apps now open together without merging their records.
   with an error until the save can be retried
 - **files** keeps storage and gallery under one identity, with explicit gallery-to-files and browser
   back paths on desktop and phone
+- **every sidebar resizes** (aide's archive, aide code's projects, docs, settings, files, mail,
+  calendar, photos): drag its edge with a mouse or a finger, or focus the edge and use the arrow keys;
+  double click goes back to the app's width. the width is remembered in this browser. phones and
+  stacked tablet layouts have no handle
 - **library** combines books and saved reading; andromeda news enters only when you explicitly save it
 - **books** retain entered details while changing shelves, rating other books, or closing and reopening
   the add form. optional title lookup distinguishes no matches from an unavailable service; manual
@@ -959,6 +963,9 @@ a file browser over any folder you point it at: browse, upload, preview, organiz
 a local photo library that feels like icloud/google photos, minus the company.
 
 - your photos grouped into date "moments," plus albums and favorites
+- **photo size**: − and + in the header (or a pinch on touch, ctrl+scroll or a trackpad pinch) step
+  through 4 row heights; rows stay justified so no picture is cropped, and the size is remembered in
+  this browser
 - **search** by filename, camera (from exif), or date: "june 2026", a `2026-06` prefix, or just a year
 - reads **exif** (the camera/date info baked into a photo) and makes thumbnails automatically
 - **folder + apple photos sync**: point `/api/photos/sync` at an icloud drive / photos-export / dropbox folder, or use the gallery's macos-only apple photos action for confirmed, permission-gated batches of up to 500 visible items (hidden stays excluded); stable source identity prevents repeat imports from duplicating the library while local hidden/favorite choices remain local
@@ -1095,7 +1102,7 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **when it answers on its own.** questions (what, how, why, is, can…, a trailing ?), comparisons and
   searches of five words or more answer automatically. site names, links, `site:` style operators and
   errands (login, download, near me, lyrics) get no overview. anything else offers "write one". this
-  follows blackout for startpage's rules. to dig further, ask a follow-up under the answer.
+  follows blackout for startpage's rules. to dig further, tap a suggested follow-up or "continue in aide" under the answer.
 - **independent background verification** applies to saved older overviews made of checked claims;
   the instant answer is not re-verified, its sources are one tap away instead.
 - **compact answer, separate links.** search, the cited answer, and results share one readable axis. the
@@ -1175,8 +1182,9 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   choosing one opens a card in place with the exact supporting quote, the page title as a link, the
   page date when the evidence has one, and the source type for docs, release notes, repositories and
   registries. escape closes it and returns focus to the source.
-- **follow-ups.** a ready overview offers up to three model-written follow-up questions and a follow-up
-  field. a follow-up keeps up to three earlier questions and answers as context for the overview, shown
+- **follow-ups.** a ready overview offers up to three model-written follow-up questions and "continue in
+  aide", which hands the question, the answer and its sources to aide (the same handoff as "ask aide about
+  these results"); there's no follow-up field. a follow-up keeps up to three earlier questions and answers as context for the overview, shown
   as a "following up on" trail; a vague follow-up (three words or fewer, or one that leans on "it",
   "they", "this") searches together with the earlier question. earlier turns are context, never evidence.
 - **watched searches.** a saved search can be watched every 6 hours, daily or weekly. the

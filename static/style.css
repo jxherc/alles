@@ -4133,7 +4133,11 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .photos-nav-add { color: var(--muted); opacity: 0.85; }
 
 .photos-scroll { flex: 1; min-width: 0; overflow-y: auto; padding: 0.2rem clamp(0.6rem, 2vw, 1.4rem) 1.5rem; }
-.photos-grid { display: flex; flex-direction: column; gap: 1.1rem; }
+.photos-grid { display: flex; flex-direction: column; gap: 1.1rem; touch-action: pan-x pan-y; }
+/* photo size: − and +, square 44px buttons a control gap apart */
+.photos-zoom { display: flex; gap: var(--k-control-gap); flex: 0 0 auto; }
+.photos-zoom .photos-zoom-btn { width: 44px; min-width: 44px; padding: 0; display: inline-grid; place-items: center; }
+.photos-zoom .photos-zoom-btn .ic { width: 16px; height: 16px; }
 .photos-moment-label { position: sticky; top: 0; z-index: 2; background: var(--bg); font-size: 0.8125rem; color: var(--text); font-weight: 500; letter-spacing: 0.01em; padding: 0.5rem 0 0.45rem; }
 .photos-rows { display: flex; flex-direction: column; gap: 3px; }
 .photos-row { display: flex; gap: 3px; }
@@ -9532,15 +9536,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
   background: transparent; color: var(--text); font: inherit; font-size: 0.8125rem; text-align: start; cursor: pointer;
 }
 .andromeda-view .andromeda-follow-chip:hover { border-color: var(--andromeda-strong-line); background: var(--k-hover, var(--panel)); }
-.andromeda-view .andromeda-follow-form { display: flex; align-items: center; gap: 8px; max-width: 68ch; }
-.andromeda-view .andromeda-follow-form input {
-  flex: 1; min-width: 0; min-height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--andromeda-line);
-  background: transparent; color: var(--text); font: inherit; font-size: 0.875rem;
-}
-.andromeda-view .andromeda-follow-form button {
-  min-height: 44px; padding: 0 12px; border: 1px solid var(--andromeda-strong-line); border-radius: var(--k-radius-small);
-  background: transparent; color: var(--text); font: inherit; font-size: 0.8125rem; cursor: pointer;
-}
+.andromeda-view .andromeda-follow .andromeda-continue-aide { justify-self: start; min-height: 44px; font-size: 0.8125rem; }
 /* special answers: one quiet card above the overview */
 .andromeda-view .andromeda-answer { display: grid; gap: 12px; margin-top: 16px; padding: 16px 0 20px; border-bottom: 1px solid var(--andromeda-line); }
 .andromeda-view .andromeda-answer[hidden] { display: none; }
@@ -10746,6 +10742,8 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 /* a saved confirmation sits on one line: what happened, its action, and a close button at the end */
 :is(.aide-note-recovery, .aide-task-saved):has(> .notice-close) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 :is(.aide-note-recovery, .aide-task-saved):has(> .notice-close) > p { margin: 0; flex: 1 1 12rem; }
+.notice-error { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; color: var(--k-danger, var(--danger)); }
+.notice-error > p { margin: 0; flex: 1 1 auto; }
 .notice-close { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: var(--k-radius-control); background: none; color: var(--muted); cursor: pointer; }
 .notice-close:hover { color: var(--text); background: var(--hover, var(--panel)); }
 .notice-close:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }

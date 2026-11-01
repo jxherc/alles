@@ -271,8 +271,6 @@ function renderFollowUps(questions = []) {
     return chip;
   }));
   chips.hidden = !chips.children.length;
-  const input = el('andromeda-follow-input');
-  if (input) input.value = '';
   follow.hidden = false;
 }
 
@@ -2477,7 +2475,7 @@ export function buildAideSearchContext(state, origin = null, limit = 20_000) {
   return { request: render(), coverage: counts, partial };
 }
 
-async function explainResults() {
+async function explainResults(button = el('andromeda-explain')) {
   if (_explainBusy || _state.resultStatus === 'loading') return;
   if (!_state.results.length && !_state.evidence.length) { status(tr('andromeda.no_web_results')); return; }
   if (typeof window._askInChat !== 'function') {
@@ -2485,7 +2483,6 @@ async function explainResults() {
     return;
   }
   const generation = _searchGeneration;
-  const button = el('andromeda-explain');
   _explainBusy = true;
   button?.setAttribute('aria-disabled', 'true');
   try {
@@ -2654,10 +2651,8 @@ function bindOnce() {
   }, true);
   initCustomDropdowns(el('andromeda-view'));
   wireSearchFocusPresentation();
-  el('andromeda-follow-form')?.addEventListener('submit', event => {
-    event.preventDefault();
-    askFollowUp(el('andromeda-follow-input')?.value);
-  });
+  // 28.08: no follow-up field here; the answer goes on in aide, with the question, answer and sources
+  el('andromeda-continue-aide')?.addEventListener('click', event => void explainResults(event.currentTarget));
   const watchChoices = el('andromeda-watch-choices');
   if (watchChoices) {
     watchChoices.addEventListener('click', event => {
@@ -2720,7 +2715,7 @@ function bindOnce() {
   el('andromeda-saved-retry')?.addEventListener('click', () => {
     if (!_savedOpenBusy && !_saveBusy && _savedOpenRetry) void openSavedSearch(_savedOpenRetry);
   });
-  el('andromeda-explain')?.addEventListener('click', explainResults);
+  el('andromeda-explain')?.addEventListener('click', () => void explainResults());
   el('andromeda-more-results')?.addEventListener('click', loadMoreResults);
   el('andromeda-home')?.addEventListener('click', resetToLanding);
   for (const id of ['andromeda-go-home', 'andromeda-idle-home']) {

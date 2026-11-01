@@ -31,15 +31,8 @@
 .acw-body { display: grid; grid-template-columns: var(--acw-rail-w, 17rem) minmax(0, 1fr); flex: 1; min-height: 0; }
 #aide-coding-workspace[data-rail="hidden"] .acw-body { grid-template-columns: 0 minmax(0, 1fr); }
 #aide-coding-workspace[data-rail="hidden"] .acw-rail { visibility: hidden; overflow: hidden; }
-/* the rail's edge: a strip you can drag (12px, its ::before widens the grab to 32px for a finger) and
-   a 2px line that shows where it is when pointed at */
-.acw-rail-resize { position: absolute; top: 0; right: -6px; bottom: 0; z-index: 3; width: 12px; cursor: col-resize; touch-action: none; }
-.acw-rail-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; background: transparent; transition: background-color 140ms ease; }
-.acw-rail-resize::before { content: ""; position: absolute; top: 0; bottom: 0; left: -10px; right: -10px; }
-.acw-rail-resize:hover::after, #aide-coding-workspace[data-resizing] .acw-rail-resize::after { background: var(--k-line-strong); }
-.acw-rail-resize:focus-visible { outline: none; }
-.acw-rail-resize:focus-visible::after { background: var(--k-focus); }
-#aide-coding-workspace[data-resizing] { cursor: col-resize; user-select: none; }
+/* the rail's edge: the shared resize strip (kokuen.css, decision 0054), centered on the edge */
+.acw-rail-resize { top: 0; right: -6px; bottom: 0; }
 #aide-coding-workspace .acw-rail-toggle { flex: 0 0 auto; }
 
 /* rail */

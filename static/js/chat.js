@@ -1115,7 +1115,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         const sb = document.createElement('button');
         sb.className = 'agent-sources-btn';
         sb.textContent = t('aide.step_sources');
-        sb.title = t('aide.step_sources_touched_title');
+        sb.setAttribute('aria-description', t('aide.step_sources_touched_title'));
         let panel = null;
         sb.addEventListener('click', async (e) => {
           e.preventDefault(); e.stopPropagation();
@@ -1142,7 +1142,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         const rb = document.createElement('button');
         rb.className = 'agent-revert-btn';
         rb.textContent = t('aide.step_revert');
-        rb.title = t('aide.step_revert_title');
+        rb.setAttribute('aria-description', t('aide.step_revert_title'));
         rb.addEventListener('click', async (e) => {
           e.preventDefault(); e.stopPropagation();
           rb.disabled = true; rb.textContent = t('aide.run_reverting');
@@ -1232,7 +1232,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         html += `<button class="act-btn" data-msg-act="artifact">${t('aide.open_artifact')}</button>`;
       }
       // the same buttons a reload draws, so regenerate and branch work right away
-      if (!privateReply) html += `<button class="act-btn msg-branch-btn" title="${t('aide.branch_title')}">${t('aide.branch_button')}</button>`;
+      if (!privateReply) html += `<button class="act-btn msg-branch-btn" aria-description="${t('aide.branch_title')}">${t('aide.branch_button')}</button>`;
       actions.innerHTML = html;
       wrap.appendChild(actions);
       compactResponseActions(actions);
@@ -1404,7 +1404,6 @@ function setStreaming(val, stoppable = true) {
   // a new turn, or the end of one, ends any "stopping…"
   stop.removeAttribute?.('aria-disabled');
   stop.setAttribute?.('aria-label', t('common.stop'));
-  stop.title = '';
   const stopHadFocus = stop.contains(document.activeElement);
   stop.classList.toggle('visible', val && stoppable);
   // the composer's moving light while Aide works
@@ -1434,7 +1433,6 @@ export function stopStream() {
   const stop = document.getElementById('stop-btn');
   stop.setAttribute('aria-disabled', 'true');
   stop.setAttribute('aria-label', t('aide.stopping'));
-  stop.title = t('aide.stopping');
   _chatStopping?.();
   if (unfocused) focusAfterReply();
   if (!sid) { ctrl.abort(); return; }

@@ -1426,12 +1426,12 @@ const _msgRow = (m, indent = false) => {
       </div>
       <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || t('mail.no_subject'))}</button>${(m.labels || []).map(l => `<button type="button" class="mail-label-chip" data-labelfilter="${esc(l)}" style="--cat:var(--cat-${categoryHue(l)})">${esc(l)}</button>`).join('')}</div>
       <span class="mail-row-acts">
-        ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" title="${esc(t('mail.unsubscribe'))}">${_si('x-circle')}</button>` : ''}
-        <button class="mail-act" data-label title="${esc(t('mail.add_label'))}">${_si('tag')}</button>
-        <button class="mail-act" data-snooze data-snoozed="${snoozed}" title="${esc(snoozed ? t('mail.end_snooze') : t('mail.snooze_tomorrow'))}">${_si('snooze')}</button>
-        <button class="mail-act" data-mute data-muted="${Boolean(m.muted)}" title="${esc(m.muted ? t('mail.unmute_thread') : t('mail.mute_thread'))}">${_si('mute')}</button>
-        <button class="mail-act" data-archive title="${esc(t('mail.archive'))}">${_si('archive')}</button>
-        <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag title="${esc(t('mail.flag'))}">${_si(m.flagged ? 'star-fill' : 'star')}</button>
+        ${unsub ? `<button class="mail-act" data-unsub="${esc(unsub)}" aria-label="${esc(t('mail.unsubscribe'))}">${_si('x-circle')}</button>` : ''}
+        <button class="mail-act" data-label aria-label="${esc(t('mail.add_label'))}">${_si('tag')}</button>
+        <button class="mail-act" data-snooze data-snoozed="${snoozed}" aria-label="${esc(snoozed ? t('mail.end_snooze') : t('mail.snooze_tomorrow'))}">${_si('snooze')}</button>
+        <button class="mail-act" data-mute data-muted="${Boolean(m.muted)}" aria-label="${esc(m.muted ? t('mail.unmute_thread') : t('mail.mute_thread'))}">${_si('mute')}</button>
+        <button class="mail-act" data-archive aria-label="${esc(t('mail.archive'))}">${_si('archive')}</button>
+        <button class="mail-flag${m.flagged ? ' on' : ''}" data-flag aria-label="${esc(t('mail.flag'))}">${_si(m.flagged ? 'star-fill' : 'star')}</button>
       </span>
       ${_active === 'all' ? `<div class="mail-account-badge">${esc(m.account_name || acctName(m.account_id))}</div>` : ''}
     </div>`;

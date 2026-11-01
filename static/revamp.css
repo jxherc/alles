@@ -1877,7 +1877,7 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-shortcut:hover {
    one toolbar on the sidebar's top line: where you are on the left, what you can do on the right ── */
 @media (min-width: 761px) {
   html:not(#_):not(#_) #files-view .files-phase7-workbench {
-    grid-template-columns: 244px minmax(0, 1fr) auto;
+    grid-template-columns: var(--k-rail-w, 244px) minmax(0, 1fr) auto;
   }
 
   html:not(#_):not(#_) #files-view .files-phase7-location-panel {
@@ -2220,7 +2220,7 @@ html:not(#_):not(#_) :is(
   .settings-input, .settings-textarea, .date-input, .cal-quick, .act-search, .cal-side-search,
   [data-specialist-app] input[type="search"],
   .modal-search input, .mm-add-form input, .andromeda-tool-field :is(input, textarea),
-  .andromeda-follow-form input, :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
+  :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
   .docs-nav-search, .docs-notes-actions input, .docs-dialog-field input, .docs-ask-panel input,
   .jrnl-tags, .jrnl-migration-confirm input, .plan-board-search, .shell-input,
   .gallery-prompt-input, .aide-schedule-form :is(input, textarea), .aide-goal-hook-row input,
@@ -2282,7 +2282,7 @@ html:not(#_):not(#_) :is(
   .settings-input, .settings-textarea, .date-input, .cal-quick, .act-search, .cal-side-search,
   [data-specialist-app] input[type="search"],
   .modal-search input, .mm-add-form input, .andromeda-tool-field :is(input, textarea),
-  .andromeda-follow-form input, :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
+  :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
   .docs-nav-search, .docs-notes-actions input, .docs-dialog-field input, .docs-ask-panel input,
   .jrnl-tags, .jrnl-migration-confirm input, .plan-board-search, .shell-input,
   .gallery-prompt-input, .aide-schedule-form :is(input, textarea), .aide-goal-hook-row input,
