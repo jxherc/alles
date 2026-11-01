@@ -1424,8 +1424,27 @@ app.include_router(proactive_routes.router)
 
 
 # static code may be kept privately, but every use must validate freshness.
+# the sign in test page and its fake server exist only for a run with throwaway test data
+_TEST_ONLY_STATIC = {
+    "signin-test.html",
+    "signin-test.css",
+    "js/signin_test_page.js",
+    "js/signin_fake.js",
+}
+
+
 class NoCacheStatic(StaticFiles):
     async def get_response(self, path, scope):
+        if path in _TEST_ONLY_STATIC and os.environ.get(
+            "ALLES_TEST_DATA", ""
+        ).strip().lower() not in {
+            "1",
+            "true",
+            "yes",
+        }:
+            from starlette.exceptions import HTTPException as StarletteHTTPException
+
+            raise StarletteHTTPException(status_code=404)
         resp = await super().get_response(path, scope)
         ext = Path(path).suffix.lower()
         if ext in (".js", ".css"):

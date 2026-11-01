@@ -19,6 +19,14 @@
         {
           "title": "aide's tools on linux",
           "body": "alles install adds node, and alles tools says what a bare linux box is missing, with the command that fixes it."
+        },
+        {
+          "title": "typing and read on your phone",
+          "body": "a text you send aide over imessage turns read as soon as it arrives, and the typing bubble stays up while aide works. telegram and discord keep their typing up the same way. a setting turns read receipts off."
+        },
+        {
+          "title": "plaid keys checked when you save",
+          "body": "alles checks your plaid keys right away, trims stray spaces, switches to the right plaid setup when the keys belong to the other one, and shows plaid's own message when they don't work."
         }
       ]
     },
