@@ -31,7 +31,6 @@ state = {"state": "off", "error": "", "handled": 0, "ignored": 0, "bot": ""}
 _runs: dict[str, dict] = {}
 _seen: list[str] = []
 _told_text_only: dict[str, float] = {}
-_typing_at: dict[str, float] = {}
 _client: httpx.AsyncClient | None = None
 _poller: asyncio.Task | None = None
 
@@ -117,13 +116,16 @@ async def reply(space: str, text: str) -> None:
 
 
 async def _typing(space: str, on: bool) -> None:
-    # telegram's typing status ends by itself after ~5 seconds or at the next message
+    # telegram's typing status ends by itself after ~5 seconds or at the next message, so there
+    # is no "stop" to send. bots can't send read receipts; the bot api has nothing for it.
     if on:
-        _typing_at[space] = time.monotonic()
         with contextlib.suppress(Exception):
             await _call("sendChatAction", chat_id=space, action="typing")
-    else:
-        _typing_at.pop(space, None)
+
+
+# a status that lasts 5s is sent again every 4s (hermes keeps it up the same way: its keep-typing
+# loop in gateway/platforms/base.py:3350 and plugins/platforms/telegram/adapter.py:619)
+_presence = channel_runs.Presence(lambda space, on: _typing(space, on), every=4.0)
 
 
 async def handle_update(update: dict) -> None:
@@ -154,7 +156,7 @@ async def handle_update(update: dict) -> None:
 
     run_id = channel_runs.start_work("telegram", space, message_id, text)
     _runs[run_id] = {"space": space, "told": set()}
-    await _typing(space, True)
+    await _presence(space, True)
     jarvis_handoff.launch(run_id)
 
 
@@ -163,11 +165,8 @@ async def _watch_runs() -> None:
         await asyncio.sleep(POLL_SECONDS)
         if not _runs:
             continue
-        await channel_runs.watch_once(_runs, reply, _typing, log)
-        # keep "typing..." up while Aide works
-        for space in {info["space"] for info in _runs.values()}:
-            if space in _typing_at and time.monotonic() - _typing_at[space] > 4:
-                await _typing(space, True)
+        await channel_runs.watch_once(_runs, reply, _presence, log)
+        await _presence.tick(_runs)
 
 
 async def _poll() -> None:

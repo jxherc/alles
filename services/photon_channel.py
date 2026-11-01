@@ -66,6 +66,7 @@ def settings() -> dict:
         "project_id": str(saved.get("photon_project_id") or ""),
         "has_secret": bool(saved.get("photon_project_secret")),
         "owner_handles": [str(h) for h in handles if str(h).strip()],
+        "read_receipts": saved.get("photon_read_receipts", True) is not False,
     }
 
 
@@ -161,6 +162,20 @@ async def _typing(space: str, on: bool) -> None:
     await _send({"type": "typing", "space": space, "on": on})
 
 
+# imessage's bubble lapses after ~5s (hermes gateway/platforms/base.py:3350). hermes ticks every 2s
+# and drops a send within 5s of the last (plugins/platforms/photon/adapter.py:81), which with 2s
+# ticks means a gap of 6s, longer than the bubble lives. so the shortest gap here is 4s: sends go
+# out at 0, 4, 8... seconds, still one signal per chat every few seconds.
+_presence = channel_runs.Presence(lambda space, on: _typing(space, on), every=4.0)
+
+
+async def _mark_read(space: str, message_id: str) -> None:
+    # hermes marks every inbound message read once it has reached the agent (sidecar/index.mjs:619-640)
+    # and lets PHOTON_READ_RECEIPTS=false turn that off; here the setting is `photon_read_receipts`
+    if settings()["read_receipts"]:
+        await _send({"type": "read", "space": space, "id": message_id})
+
+
 async def _connect() -> None:
     global _proc
     from core.settings import load_settings
@@ -240,13 +255,14 @@ async def handle_message(record: dict) -> None:
             await reply(space, "I can only read text here for now.")
         return
     state["handled"] += 1
+    await _mark_read(space, message_id)
     if await _maybe_answer(space, text):
         return
     from services import jarvis_handoff
 
     run_id = channel_runs.start_work("photon", space, message_id, text)
     _runs[run_id] = {"space": space, "told": set()}
-    await _typing(space, True)
+    await _presence(space, True)
     jarvis_handoff.launch(run_id)
 
 
@@ -258,7 +274,8 @@ async def _watch_runs() -> None:
     while True:
         await asyncio.sleep(POLL_SECONDS)
         if _runs:
-            await channel_runs.watch_once(_runs, reply, _typing, log)
+            await channel_runs.watch_once(_runs, reply, _presence, log)
+            await _presence.tick(_runs)
 
 
 async def run_forever() -> None:
