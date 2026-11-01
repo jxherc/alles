@@ -27,7 +27,7 @@
 .signin-fallback:hover > span:first-child { color: var(--text); }
 .signin-reason { font-size: 0.8125rem; color: var(--muted); line-height: 1.4; }
 /* signed in accounts: one row per account, mark, who, then the actions at the end */
-.signin-accounts { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: var(--k-space-1, 4px); }
+.signin-accounts { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: var(--k-row-gap, 4px); }
 .signin-account { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--k-space-3, 12px); min-height: var(--k-row, 44px); padding: var(--k-space-1, 4px) 0; }
 .signin-mark { display: inline-flex; width: 16px; color: var(--success, var(--text)); }
 .signin-account[data-state="needs_sign_in"] .signin-mark { color: var(--warning, var(--permission, var(--text))); }
