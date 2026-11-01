@@ -23,7 +23,20 @@ from services.health_entries import (
 
 router = APIRouter(prefix="/api")
 
-KINDS = ("weight", "sleep", "workout", "med", "custom")
+# body profile kinds (E2): height, body fat and measurements ("waist", "arm left", ...)
+KINDS = ("weight", "sleep", "workout", "med", "custom", "height", "body_fat", "measurement")
+LABEL_CHARS = 40
+
+
+def _unit(kind: str, unit) -> str:
+    """the entry's unit by its real name (lb, kg, cm, in); a body value needs one that fits."""
+    from core.settings import load_settings
+    from services import units
+
+    try:
+        return units.body_unit(kind, unit, load_settings().get("units"))
+    except units.UnitError as exc:
+        raise HTTPException(400, str(exc)) from None
 
 
 # ── pure logic ──────────────────────────────────────────────────────────────────
@@ -147,6 +160,57 @@ class TargetBody(BaseModel):
     value: float = 0
 
 
+@router.get("/health/profile")
+def body_profile(db: DbSession = Depends(get_db)):
+    """the body at a glance: the unit choices and the latest height, weight, body fat and each
+    measurement, each with its own unit as entered."""
+    from core.settings import load_settings
+    from services import units
+
+    rows = (
+        db.query(HealthEntry)
+        .filter(HealthEntry.kind.in_(("weight", "height", "body_fat", "measurement")))
+        .order_by(HealthEntry.id.asc())
+        .all()
+    )
+    latest = latest_per_kind(rows, key=lambda e: (e.kind, e.label or ""))
+
+    def one(entry):
+        return {"date": entry.date, "value": entry.value, "unit": entry.unit} if entry else None
+
+    return {
+        "units": units.preferences(load_settings().get("units")),
+        "height": one(latest.get(("height", ""))),
+        "weight": one(latest.get(("weight", ""))),
+        "body_fat": one(latest.get(("body_fat", ""))),
+        "measurements": {
+            label: one(entry)
+            for (kind, label), entry in sorted(latest.items())
+            if kind == "measurement" and label
+        },
+    }
+
+
+class UnitsBody(BaseModel):
+    units: dict
+
+
+@router.put("/health/units")
+def set_units(body: UnitsBody):
+    """the owner's display units (weight lb or kg, height cm or ft and in, ...). stored values
+    keep the unit they were entered in; this only changes how they show."""
+    from core.settings import load_settings, save_settings
+    from services import units
+
+    try:
+        changes = units.check_preferences(body.units)
+    except units.UnitError as exc:
+        raise HTTPException(400, str(exc)) from None
+    saved = dict(load_settings().get("units") or {}) | changes
+    save_settings({"units": saved})
+    return {"units": units.preferences(saved)}
+
+
 @router.put("/health/target")
 def set_target(body: TargetBody):
     from core.settings import load_settings, save_settings
@@ -202,12 +266,14 @@ class EntryBody(BaseModel):
 def create_entry(body: EntryBody, db: DbSession = Depends(get_db)):
     if body.kind not in KINDS:
         raise HTTPException(400, f"kind must be one of {', '.join(KINDS)}")
+    if body.kind == "measurement" and not 0 < len(body.label.strip()) <= LABEL_CHARS:
+        raise HTTPException(400, "name what was measured, like waist or arm left")
     try:
         e = save_entry(
             db,
             kind=body.kind,
             value=body.value,
-            unit=body.unit,
+            unit=_unit(body.kind, body.unit),
             note=body.note,
             label=body.label,
             entry_date=body.date,
@@ -257,6 +323,8 @@ def update_entry(eid: int, body: EntryPatch, db: DbSession = Depends(get_db)):
         v = getattr(body, f)
         if v is not None:
             changes[f] = v.strip() if isinstance(v, str) else v
+    if body.unit is not None:
+        changes["unit"] = _unit(e.kind, body.unit)
     target = db.query(HealthEntry).filter_by(id=eid, record_id=record_id)
     if identity:
         target = target.filter(

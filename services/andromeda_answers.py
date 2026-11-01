@@ -19,6 +19,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo, available_timezones
 
 from services.elements import BY_NAME, BY_SYMBOL, CATEGORY_LABELS, ELEMENTS
+from services.units import ALIASES, UNITS, convert, find
 
 # ── calculator ──
 _BIN = {
@@ -91,140 +92,8 @@ def _number(value: float) -> str:
     return f"{value:,.6g}" if abs(value) >= 1e-4 else f"{value:.4g}"
 
 
-# ── units ──
-_UNITS = {
-    # length, in metres
-    "mm": ("length", 0.001, "millimetres"),
-    "cm": ("length", 0.01, "centimetres"),
-    "m": ("length", 1, "metres"),
-    "km": ("length", 1000, "kilometres"),
-    "in": ("length", 0.0254, "inches"),
-    "ft": ("length", 0.3048, "feet"),
-    "yd": ("length", 0.9144, "yards"),
-    "mi": ("length", 1609.344, "miles"),
-    # mass, in grams
-    "mg": ("mass", 0.001, "milligrams"),
-    "g": ("mass", 1, "grams"),
-    "kg": ("mass", 1000, "kilograms"),
-    "oz": ("mass", 28.349523125, "ounces"),
-    "lb": ("mass", 453.59237, "pounds"),
-    "st": ("mass", 6350.29318, "stone"),
-    "t": ("mass", 1_000_000, "tonnes"),
-    # volume, in litres
-    "ml": ("volume", 0.001, "millilitres"),
-    "l": ("volume", 1, "litres"),
-    "tsp": ("volume", 0.00492892, "teaspoons"),
-    "tbsp": ("volume", 0.0147868, "tablespoons"),
-    "floz": ("volume", 0.0295735, "fluid ounces"),
-    "cup": ("volume", 0.236588, "cups"),
-    "qt": ("volume", 0.946353, "quarts"),
-    "gal": ("volume", 3.78541, "gallons"),
-    # speed, in metres per second
-    "kmh": ("speed", 1 / 3.6, "km/h"),
-    "mph": ("speed", 0.44704, "mph"),
-    "ms": ("speed", 1, "m/s"),
-    "kn": ("speed", 0.514444, "knots"),
-    # data, in bytes
-    "b": ("data", 1, "bytes"),
-    "kb": ("data", 1000, "kilobytes"),
-    "mb": ("data", 1e6, "megabytes"),
-    "gb": ("data", 1e9, "gigabytes"),
-    "tb": ("data", 1e12, "terabytes"),
-    # time, in seconds
-    "s": ("time", 1, "seconds"),
-    "min": ("time", 60, "minutes"),
-    "h": ("time", 3600, "hours"),
-    "day": ("time", 86400, "days"),
-    "week": ("time", 604800, "weeks"),
-    # temperature is special
-    "c": ("temperature", None, "°C"),
-    "f": ("temperature", None, "°F"),
-    "k": ("temperature", None, "kelvin"),
-}
-_ALIASES = {
-    "millimeter": "mm",
-    "millimetre": "mm",
-    "centimeter": "cm",
-    "centimetre": "cm",
-    "meter": "m",
-    "metre": "m",
-    "kilometer": "km",
-    "kilometre": "km",
-    "inch": "in",
-    "inches": "in",
-    "foot": "ft",
-    "feet": "ft",
-    "yard": "yd",
-    "mile": "mi",
-    "gram": "g",
-    "kilogram": "kg",
-    "kilo": "kg",
-    "ounce": "oz",
-    "pound": "lb",
-    "lbs": "lb",
-    "tonne": "t",
-    "ton": "t",
-    "milliliter": "ml",
-    "millilitre": "ml",
-    "liter": "l",
-    "litre": "l",
-    "teaspoon": "tsp",
-    "tablespoon": "tbsp",
-    "fl oz": "floz",
-    "fluid ounce": "floz",
-    "quart": "qt",
-    "gallon": "gal",
-    "km/h": "kmh",
-    "kph": "kmh",
-    "m/s": "ms",
-    "knot": "kn",
-    "knots": "kn",
-    "byte": "b",
-    "kilobyte": "kb",
-    "megabyte": "mb",
-    "gigabyte": "gb",
-    "terabyte": "tb",
-    "second": "s",
-    "sec": "s",
-    "minute": "min",
-    "hour": "h",
-    "hr": "h",
-    "days": "day",
-    "weeks": "week",
-    "celsius": "c",
-    "°c": "c",
-    "fahrenheit": "f",
-    "°f": "f",
-    "kelvin": "k",
-}
-
-
-def _unit(word: str) -> str | None:
-    word = word.strip().lower().rstrip(".")
-    for candidate in (word, word.rstrip("s") if len(word) > 3 else word):
-        if candidate in _UNITS:
-            return candidate
-        if candidate in _ALIASES:
-            return _ALIASES[candidate]
-    return None
-
-
-def _to_kelvin(value: float, unit: str) -> float:
-    return {"c": value + 273.15, "f": (value - 32) * 5 / 9 + 273.15, "k": value}[unit]
-
-
-def _from_kelvin(value: float, unit: str) -> float:
-    return {"c": value - 273.15, "f": (value - 273.15) * 9 / 5 + 32, "k": value}[unit]
-
-
-def convert(amount: float, source: str, target: str):
-    kind, factor, _ = _UNITS[source]
-    other_kind, other_factor, _ = _UNITS[target]
-    if kind != other_kind:
-        return None
-    if kind == "temperature":
-        return _from_kelvin(_to_kelvin(amount, source), target)
-    return amount * factor / other_factor
+# ── units (the tables live in services/units.py, shared with habits and health) ──
+_UNITS, _ALIASES, _unit = UNITS, ALIASES, find
 
 
 # ── time ──

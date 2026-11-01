@@ -2542,9 +2542,15 @@ async def _books_list(a):
 
 async def _health_log(a):
     from core.database import SessionLocal
+    from core.settings import load_settings
+    from services import units
     from services.health_entries import HealthInputError, save_entry
 
     kind = (a.get("kind") or "custom").strip() or "custom"
+    try:
+        unit = units.body_unit(kind, a.get("unit"), load_settings().get("units"))
+    except units.UnitError as exc:
+        return {"output": str(exc), "error": True}
     db = SessionLocal()
     try:
         try:
@@ -2552,7 +2558,7 @@ async def _health_log(a):
                 db,
                 kind=kind,
                 value=a.get("value"),
-                unit=a.get("unit") or "",
+                unit=unit,
                 note=a.get("note") or "",
             )
         except HealthInputError as exc:
@@ -2637,11 +2643,73 @@ async def _habit_log(a):
                 }
             h = matches[0]
         today = date.today().isoformat()
+        if (a.get("sets") or "").strip():
+            return _habit_log_sets(db, h, today, a)
         if not habit_logs.mark(db, h.id, today):
             return {"output": f"'{h.name}' is already marked done today"}
         return {"output": f"marked '{h.name}' done for today"}
     finally:
         db.close()
+
+
+SET_KINDS = ("workout", "pushups", "squats", "pullups")
+
+
+def _habit_log_sets(db, h, day, a):
+    """one reported set, logged live as the owner said it (vault skill workout-logging): the
+    set goes onto today's log at once, the words stay with it, and a side reported twice gets
+    one yes or no question instead of a guess."""
+    from core.database import HabitLog
+    from services import habit_kinds, habit_logs, workout_text
+
+    kind = h.kind or "check"
+    if kind not in SET_KINDS:
+        return {"output": f"'{h.name}' doesn't log sets", "error": True}
+    name = " ".join(str(a.get("exercise") or "").split())
+    if kind == "workout" and not name:
+        return {"output": "which exercise?", "question": True}
+    try:
+        parsed = workout_text.parse(a["sets"])
+    except workout_text.Unclear as unclear:
+        return {"output": str(unclear), "question": True}
+    sets = parsed["sets"]
+    sets[0]["raw"] = parsed["raw"][:200]
+    stored = habit_logs.stored(db, h.id, day)
+    if stored is not None and not habit_kinds.is_v2(stored):
+        stored = habit_kinds.clean_log(kind, stored)
+    doc = stored or {"v": 2, "entries": []}
+    if not doc["entries"]:
+        doc["entries"].append({"values": {}})
+    values = doc["entries"][0].setdefault("values", {})
+    label, created = h.name, False
+    if kind == "workout":
+        exercises = values.setdefault("exercises", [])
+        exercise = next((e for e in exercises if e["name"].lower() == name.lower()), None)
+        if exercise is None:
+            history = habit_kinds.exercise_names(
+                (log.date, habit_kinds.load(log.data))
+                for log in db.query(HabitLog).filter(HabitLog.habit_id == h.id).all()
+            )
+            exercise = {"name": name, "sets": []}
+            if name.lower() not in {old.lower() for old in history}:
+                exercise["first_time"] = created = True
+            exercises.append(exercise)
+        label = exercise["name"]
+        if parsed.get("basis") and not exercise.get("setup", {}).get("basis"):
+            exercise.setdefault("setup", {})["basis"] = parsed["basis"]
+        target = exercise["sets"]
+    else:
+        target = values.setdefault("sets", [])
+    target.extend(sets)
+    try:
+        clean = habit_kinds.clean_log(kind, doc, habit_kinds.load_fields(h.fields))
+    except habit_kinds.HabitLogError as error:
+        return {"output": str(error), "error": True}
+    habit_logs.save_log(db, h.id, day, habit_kinds.dump(clean))
+    plain = sum(s.get("count", 1) for s in target if not s.get("side"))
+    sided = max((sum(s.get("count", 1) for s in target if s.get("side") == x) for x in "LR"))
+    first = " (new, first time)" if created else ""
+    return {"output": f"{label} set {plain + sided}: {workout_text.describe(sets)}.{first}"}
 
 
 async def _habits_list(a):
@@ -4375,8 +4443,18 @@ APP_TOOL_DEFS = [
     ),
     _tool(
         "habit_log",
-        "Mark an active habit done today by unique name or exact id. If names repeat, use habits_list for ids.",
-        {"name": {"type": "string"}, "id": {"type": "string"}},
+        "Mark an active habit done today by unique name or exact id. If names repeat, use habits_list for ids. "
+        "For a gym set reported live, also pass exercise (the exact name the user used, never a similar "
+        "movement) and sets: the user's own words for that set, unchanged ('70x10', 'left 60x12 right 70x10', "
+        "'next 85'). Pounds unless stated, reps default to 10, 'next' or 'i'll try' is planned. Log each set as "
+        "soon as it is reported. If the reply is a question, ask exactly that and nothing else. Confirm in one "
+        "short line and don't ask what's next.",
+        {
+            "name": {"type": "string"},
+            "id": {"type": "string"},
+            "exercise": {"type": "string"},
+            "sets": {"type": "string"},
+        },
     ),
     _tool("habits_list", "List active habits and today's status; repeated names include ids.", {}),
     _tool(
