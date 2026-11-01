@@ -466,6 +466,96 @@ html:not(#_) :is(.custom-dropdown-panel, [data-kokuen-surface] [role="menu"]) {
   box-shadow: var(--k-float);
 }
 
+/* one action menu look (u4, 28.19): every hand rolled menu floats like the dropdown. 12px surface,
+   4px inset, 8px rows (12 minus 4), 44px rows, one float shadow. two ids so app rules
+   (aide's flat panel, aide code's #workspace rows) can't pull a menu back to its own look.
+   a new menu joins both lists */
+html:not(#_):not(#_) :is(
+  .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu, .aide-project-context-menu,
+  .aide-schedule-project-menu, .docs-action-menu, .plan-board-menu, .perm-menu, .photos-albmenu,
+  .jrnl-lockmenu, .acw-menu, .mention-menu, .slash-popup, .custom-dropdown-panel
+) {
+  gap: 0;
+  border: 1px solid transparent;
+  border-radius: var(--k-radius-surface);
+  background: var(--k-raised);
+  box-shadow: var(--k-float);
+}
+
+html:not(#_):not(#_) :is(
+  .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu,
+  .aide-project-context-menu:not(.folder-mode), .aide-schedule-project-menu, .docs-action-menu,
+  .plan-board-menu, .perm-menu, .photos-albmenu, .jrnl-lockmenu, .acw-menu, .mention-menu, .slash-popup,
+  .custom-dropdown-panel
+) {
+  padding: var(--k-space-1);
+}
+
+html:not(#_):not(#_) :is(
+  .ctx-item, .aide-central-menu button, .msg-actions-menu > .act-btn, .aide-sidebar-menu > button,
+  .aide-project-context-menu:not(.folder-mode) button, .aide-schedule-project-menu button,
+  .docs-action-menu button, .plan-board-menu-item, .perm-menu-item, .photos-albmenu-item,
+  .jrnl-lockmenu .btn, .acw-menu button, .mention-item, .slash-item, .custom-dropdown-option
+) {
+  min-height: var(--k-control, 44px);
+  margin: 0;
+  padding-inline: var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  box-shadow: none;
+  background: transparent;
+}
+
+/* one line rows center their text; two line rows (perm, aide code) keep their stack */
+html:not(#_):not(#_) :is(
+  .ctx-item, .aide-central-menu button, .aide-sidebar-menu > button,
+  .aide-project-context-menu:not(.folder-mode) button, .aide-schedule-project-menu button,
+  .docs-action-menu button, .plan-board-menu-item, .photos-albmenu-item, .jrnl-lockmenu .btn
+) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding-block: 0;
+  text-align: left;
+}
+
+html:not(#_):not(#_) :is(.perm-menu-item, .acw-menu button) { padding-block: var(--k-space-2); }
+
+/* a text overflow ellipsis needs a block box, so the file row centers by line height */
+html:not(#_):not(#_) .mention-item {
+  padding-block: var(--k-space-2);
+  line-height: calc(var(--k-control, 44px) - 2 * var(--k-space-2));
+}
+
+html:not(#_):not(#_) :is(
+  .ctx-item, .aide-central-menu button, .msg-actions-menu > .act-btn, .aide-sidebar-menu > button,
+  .aide-project-context-menu:not(.folder-mode) button, .aide-schedule-project-menu button,
+  .docs-action-menu button, .plan-board-menu-item, .perm-menu-item, .photos-albmenu-item,
+  .jrnl-lockmenu .btn, .acw-menu button, .mention-item, .slash-item, .custom-dropdown-option
+):is(:hover, :focus-visible, .custom-dropdown-option.active, .mention-item.active, .slash-item.selected) {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+/* the picked row says so with text, not a second fill, so it never touches the hovered one */
+html:not(#_):not(#_):not(#_) :is(
+  .aide-project-context-menu, .aide-schedule-project-menu, .plan-board-menu, .acw-menu
+) [aria-checked="true"]:not(:hover, :focus-visible),
+html:not(#_):not(#_):not(#_) .perm-menu-item.active:not(:hover, :focus-visible),
+html:not(#_):not(#_):not(#_) .custom-dropdown-option.selected:not(:hover, .active) {
+  background: transparent;
+  color: var(--k-text);
+  font-weight: 560;
+}
+
+html:not(#_):not(#_) :is(.ctx-item.danger, .jrnl-lockmenu .btn.danger, #wiki-delete-btn):is(:hover, :focus-visible) {
+  color: var(--k-danger, var(--error));
+}
+
+html:not(#_):not(#_) :is(.ctx-label, .slash-cat-label) { padding-inline: var(--k-space-3); }
+html:not(#_):not(#_) :is(.ctx-sep, .aide-project-context-divider) { margin: var(--k-space-1) var(--k-space-3); }
+
 html:not(#_) :is(.dialog-overlay, .modal-overlay) [role="dialog"],
 html:not(#_) .dialog-overlay [role="alertdialog"],
 html:not(#_) #settings-modal .modal {

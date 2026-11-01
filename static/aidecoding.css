@@ -293,7 +293,7 @@
 .acw-menu-up { bottom: 100%; left: 0; max-height: 320px; overflow-y: auto; min-width: 16rem; }
 .acw-stats { color: var(--k-muted); font-size: 0.8125rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #aide-code-status { flex: 1; min-width: 0; font-size: 0.8125rem; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#aide-code-stop svg path { fill: currentColor; }
+#aide-code-stop svg :is(path, rect) { fill: currentColor; }
 
 /* the / menu sits on the composer, like a terminal's: name, what it does, where it comes from */
 .acw-composer { position: relative; }

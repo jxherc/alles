@@ -1,13 +1,27 @@
-"""settings automations UI smoke. :8897."""
+"""settings automations UI smoke on an owned server (PORT, default 8897)."""
 
+import os
 import sys
+import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-AIDE = "http://aide.localhost:8897"
-EVID = Path(__file__).resolve().parent.parent / "docs" / "evidence" / "automations"
+AIDE = f"http://aide.localhost:{os.environ.get('PORT', '8897')}"
+EVID = Path(
+    os.environ.get("ALLES_BROWSER_ARTIFACTS")
+    or Path(__file__).resolve().parent.parent / "docs" / "evidence" / "automations"
+)
 IGNORE = ("Failed to load resource", "net::", "ERR_", "favicon", "401", "Load failed")
+
+
+def wait_js(pg, expr, timeout=8.0):
+    # the app's csp has no unsafe-eval, so wait_for_function with a string can't run; poll instead
+    end = time.monotonic() + timeout
+    while not pg.evaluate(f"() => Boolean({expr})"):
+        if time.monotonic() > end:
+            raise TimeoutError(expr)
+        pg.wait_for_timeout(100)
 
 
 def main():
@@ -32,7 +46,7 @@ def main():
 
         pg.goto(f"{AIDE}/", wait_until="domcontentloaded")
         pg.wait_for_selector(".app", timeout=15000)
-        pg.wait_for_function("typeof window._openSettings === 'function'")
+        wait_js(pg, "typeof window._openSettings === 'function'")
         pg.evaluate(
             """async () => {
                 const rules = await fetch('/api/automations').then(r => r.json());
@@ -43,16 +57,17 @@ def main():
         pg.evaluate("window._openSettings('rules')")
         pg.wait_for_selector("#settings-modal .s-modal", timeout=8000)
         pg.wait_for_selector("#s-pane-rules.active #rule-add-btn", timeout=8000)
-        pg.wait_for_function("document.getElementById('rule-trigger')?.dataset.populated === '1'")
+        wait_js(pg, "document.getElementById('rule-trigger')?.dataset.populated === '1'")
         r["rules_pane_opens"] = pg.is_visible("#s-pane-rules.active")
         r["empty_state_shows"] = "no rules yet" in (pg.text_content("#rules-list") or "")
 
         # use the local-only push preset; no external channel or model call
         pg.click(".rule-preset-pick")
         pg.click('.custom-dropdown-option[data-index="3"]')
-        pg.wait_for_function(
+        wait_js(
+            pg,
             "document.getElementById('rule-trigger')?.dataset.value === 'sub_renewing' && "
-            "document.getElementById('rule-action')?.dataset.value === 'push'"
+            "document.getElementById('rule-action')?.dataset.value === 'push'",
         )
         r["preset_prefills"] = pg.input_value(
             "#rule-trigger-arg"
@@ -60,15 +75,17 @@ def main():
 
         pg.fill("#rule-name", "audit renewal reminder")
         pg.click("#rule-add-btn")
-        pg.wait_for_function(
-            "document.querySelector('#rules-list')?.textContent.includes('audit renewal reminder')"
+        wait_js(
+            pg,
+            "document.querySelector('#rules-list')?.textContent.includes('audit renewal reminder')",
         )
         r["rule_add_lists"] = pg.query_selector("#rules-list .rule-row") is not None
 
         pg.click("#rules-list .rule-row [data-act='test']")
-        pg.wait_for_function(
+        wait_js(
+            pg,
             "[...document.querySelectorAll('.toast')].some(t => "
-            "t.textContent.includes('rule fired'))"
+            "t.textContent.includes('rule fired'))",
         )
         r["test_button_fires"] = pg.evaluate(
             "[...document.querySelectorAll('.toast')].some(t => "
@@ -79,19 +96,16 @@ def main():
         pg.wait_for_selector("#rules-list .rule-row.off", timeout=5000)
         r["pause_marks_off"] = pg.query_selector("#rules-list .rule-row.off") is not None
         pg.click("#rules-list .rule-row.off [data-act='toggle']")
-        pg.wait_for_function(
-            "!document.querySelector('#rules-list .rule-row')?.classList.contains('off')"
-        )
+        wait_js(pg, "!document.querySelector('#rules-list .rule-row')?.classList.contains('off')")
         r["resume_marks_on"] = pg.query_selector("#rules-list .rule-row.off") is None
 
         pg.click("#rules-list .rule-row-main")
-        pg.wait_for_function(
-            "document.getElementById('rule-add-btn')?.textContent.includes('save')"
-        )
+        wait_js(pg, "document.getElementById('rule-add-btn')?.textContent.includes('save')")
         pg.fill("#rule-name", "audit renewal edited")
         pg.click("#rule-add-btn")
-        pg.wait_for_function(
-            "document.querySelector('#rules-list')?.textContent.includes('audit renewal edited')"
+        wait_js(
+            pg,
+            "document.querySelector('#rules-list')?.textContent.includes('audit renewal edited')",
         )
         r["edit_updates_row"] = "audit renewal edited" in (pg.text_content("#rules-list") or "")
         pg.screenshot(path=str(EVID / "automation-rules.png"))
