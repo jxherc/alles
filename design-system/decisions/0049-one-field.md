@@ -28,7 +28,9 @@ times (27.04, 28.13, 28.40) and picked the focus color after a demo (c.02): dim 
 - wrapper-owned entries (composer, command search, mail chips, home capture, andromeda search,
   the specialist capture, page footer rows, plan board add, reminder add, the ask panel, aide
   code entry) keep their fields bare; the wrapper's own edge shows focus with the same dim
-  neutral ring, no accent, no outer bloom.
+  neutral ring, no accent, no outer bloom. andromeda's search kept an accent ring with a 5px
+  halo in `revamp.css` (two outlines, 28.01) after the first pass; it now draws the same one
+  ring, on the hero box and on the header box's `::before`.
 - long form editors are surfaces, not fields: the docs source editor, the note title and body,
   and the journal text take no box. the caret is their focus.
 - the accent override in `revamp.css` and its stale comment are gone. dead field css

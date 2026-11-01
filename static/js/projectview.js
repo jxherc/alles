@@ -63,7 +63,7 @@ export async function renderProject(pid) {
           <div class="s-card-head">files<span class="pj-hint">: the Project's server folder</span></div>
           <div class="s-card-body">
             <div class="settings-row-empty" id="pj-folder-state">${esc(projectFolderMessage(proj.folder_state))}</div>
-            <div style="display:flex;gap:0.45rem;margin-bottom:0.55rem">
+            <div style="display:flex;gap:var(--k-control-gap);margin-bottom:0.55rem">
               <input class="settings-input" id="pj-wd" aria-label="Project server folder" placeholder="absolute folder path on this server" value="${esc(proj.working_dir || '')}" style="min-width:0;flex:1">
               <button class="btn" id="pj-relink">${proj.folder_state === 'available' ? 'change folder' : 'relink folder'}</button>
             </div>

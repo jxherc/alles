@@ -102,6 +102,16 @@ class KitPageTests(unittest.TestCase):
                             value = decl.split(":", 1)[1]
                             self.assertNotIn("accent", value)
 
+    def test_wrapper_focus_is_one_neutral_ring(self):
+        # 28.01: andromeda's search kept an accent ring plus a 5px halo after the field pass
+        for name, selector, body in css_rules():
+            if ":focus-within" not in selector or "box-shadow" not in body:
+                continue
+            shadow = body.split("box-shadow", 1)[1].split(";", 1)[0]
+            with self.subTest(file=name, selector=selector[:90]):
+                self.assertNotIn("accent", shadow)
+                self.assertNotRegex(shadow, r"0 0 0 [2-9]px")
+
     def test_no_text_field_has_zero_side_padding(self):
         # a field's focus ring is its own edge, so text at 0px sits on the ring (28.13). a field
         # with zero side padding must be in the one field list (it wins), a wrapper-owned entry

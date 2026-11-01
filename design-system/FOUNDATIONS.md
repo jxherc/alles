@@ -87,6 +87,9 @@ any list or sidebar, so a hovered row never touches the picked one, and `--k-con
 between separate controls, across and down. 0 only inside one shared track (a tablist, a
 radiogroup, a segmented control, a pill switch, a number row). One boundary per edge: rows part
 by space, a section by one line or by space, and a row never draws a line where its card does.
+A group of buttons or fields (an action bar, a form row, a dialog's buttons) sets
+`gap: var(--k-control-gap)`, never its own number. A dropdown trigger's chevron ends 12px from
+the trigger's end, the same as its text starts.
 
 Fixed structural sizes are separate tokens: 52px app header, 44px product controls
 and interactive rows, and 36px only for noninteractive dense data. Do not invent a spacing value to

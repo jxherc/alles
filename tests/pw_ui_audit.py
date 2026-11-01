@@ -725,6 +725,7 @@ SPACING = r"""
 #   pill-clipped        a picked pill pokes out of a clipping parent while its tab is in view
 #   pill-not-round      a picked pill in a row of tabs or segments isn't fully round
 #   controls-touch      two separate painted controls sit under 8px apart, across or down
+#   chevron-inset       a dropdown's chevron ends further from the end than its text starts
 #   stacked-lines       two parallel lines under 24px apart with nothing between them
 KIT_RULES = r"""
 () => {
@@ -821,6 +822,14 @@ KIT_RULES = r"""
       else if (hOverlap > Math.min(a.width, b.width) / 2) gap = Math.max(b.top - a.bottom, a.top - b.bottom);
       if (gap !== null && gap > -0.5 && gap < 7.5) out.push(['controls-touch', sig(kids[i]) + ' + ' + sig(kids[j]), gap.toFixed(1) + 'px']);
     }
+  }
+
+  // dropdowns: the chevron ends as far from the end as the label starts from the start (28.02)
+  for (const el of document.querySelectorAll('.custom-select[role="combobox"]')) {
+    const lab = el.querySelector('.custom-select-label'), ch = el.querySelector('.custom-select-chevron');
+    if (!vis(el) || !lab || !ch || !vis(ch)) continue;
+    const r = el.getBoundingClientRect(), text = lab.getBoundingClientRect().left - r.left, end = r.right - ch.getBoundingClientRect().right;
+    if (Math.abs(text - end) > 1) out.push(['chevron-inset', sig(el), 'text ' + text.toFixed(1) + 'px, chevron ' + end.toFixed(1) + 'px']);
   }
 
   // lines: horizontal borders and 1px inset shadows, paired when nothing sits between them
