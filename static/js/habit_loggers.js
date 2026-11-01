@@ -135,6 +135,7 @@ function rowHtml(row, first) {
   </div>`;
 }
 
+// an empty day starts from the last logged day's values, so "same as last time" is open and save
 function fieldsHtml(habit, data, recent) {
   const id = `hlog-${++_sequence}`;
   if (habit.kind === 'workout') {
@@ -144,21 +145,21 @@ function fieldsHtml(habit, data, recent) {
   }
   if (habit.kind === 'reading') {
     const unit = data?.unit || recent?.unit || 'pages';
-    return `<div class="hlog-inline">${numberField('amount', t('habits.amount'), data?.amount, { id: `${id}-amount` })}
+    return `<div class="hlog-inline">${numberField('amount', t('habits.amount'), data?.amount ?? recent?.amount, { id: `${id}-amount` })}
       ${choiceField('unit', t('habits.unit'), [['pages', t('habits.u_pages')], ['chapters', t('habits.u_chapters')]], unit, `${id}-unit`)}</div>
       <div class="hlog-f"><label for="${id}-book">${esc(t('habits.book'))}</label>
         <input class="settings-input dialog-input" id="${id}-book" data-k="book" autocomplete="off" value="${esc(data?.book ?? recent?.book ?? '')}"></div>`;
   }
   if (habit.kind === 'count') {
     const label = UNITS.has(habit.unit) ? t(`habits.u_${habit.unit}`) : (habit.unit || t('habits.amount'));
-    return numberField('amount', label, data?.amount, { id: `${id}-amount` });
+    return numberField('amount', label, data?.amount ?? recent?.amount, { id: `${id}-amount` });
   }
-  if (habit.kind === 'duration') return numberField('minutes', t('habits.minutes'), data?.minutes, { decimal: false, id: `${id}-minutes` });
+  if (habit.kind === 'duration') return numberField('minutes', t('habits.minutes'), data?.minutes ?? recent?.minutes, { decimal: false, id: `${id}-minutes` });
   if (habit.kind === 'distance') {
     const unit = data?.unit || recent?.unit || habit.unit || 'km';
-    return `<div class="hlog-inline">${numberField('distance', t('habits.distance'), data?.distance, { id: `${id}-distance` })}
+    return `<div class="hlog-inline">${numberField('distance', t('habits.distance'), data?.distance ?? recent?.distance, { id: `${id}-distance` })}
       ${choiceField('unit', t('habits.unit'), [['km', 'km'], ['mi', 'mi']], unit, `${id}-unit`)}</div>
-      ${numberField('minutes', t('habits.minutes'), data?.minutes, { decimal: false, id: `${id}-minutes` })}`;
+      ${numberField('minutes', t('habits.minutes'), data?.minutes ?? recent?.minutes, { decimal: false, id: `${id}-minutes` })}`;
   }
   return '';
 }
