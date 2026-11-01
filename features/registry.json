@@ -251,7 +251,10 @@
           "#usage-view",
           "#aide-work-panel"
         ],
-        "cli_commands": [],
+        "cli_commands": [
+          "ask",
+          "chat"
+        ],
         "jobs": [
           "user_model",
           "insights",
@@ -908,7 +911,8 @@
           "restart",
           "status",
           "logs",
-          "open"
+          "open",
+          "dump"
         ],
         "jobs": [
           "watch"
@@ -1386,7 +1390,8 @@
         "control_roots": [],
         "cli_commands": [
           "update",
-          "restore"
+          "restore",
+          "backup"
         ],
         "jobs": [
           "automatic_backup"

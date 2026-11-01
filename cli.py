@@ -11,9 +11,18 @@ alles CLI
   alles stop           stop it
   alles restart        restart it (after changing settings)
   alles status         running or stopped, health, address and access
+  alles ask "question" one answer from aide, right here
+  alles chat           talk with aide until ctrl-d
   alles logs [N]       print the last N log lines (default 60)
   alles logs -f        follow the log live (ctrl-c to stop)
+  alles logs --level warn --since 1h --grep text
+                       only what matters: a level floor, a time window, a word
+  alles logs boot      the newest startup check log, from a failed update or restore
+  alles logs list      every log file and its size
   alles logs --clear   truncate the log file
+  alles backup [-o file] [--photos]
+                       an encrypted backup of everything (restore stage reads it)
+  alles dump           a plain summary of this install for a bug report, no secrets
   alles update         get the newest release; it checks itself and keeps a rollback
   alles update accept  keep an update once it works
   alles update rollback
@@ -404,6 +413,10 @@ def _native_update_lines(native) -> list[tuple[bool | None, str, str]]:
     check = native_install.update_check(native, timeout=5)
     if check.get("waiting"):
         lines.append((None, "new release", f"{check['latest'][:7]} is ready: alles update"))
+    elif check.get("failed"):
+        lines.append(
+            (None, "new release", f"{check['failed'][:7]} failed its checks: alles logs boot")
+        )
     return lines
 
 
@@ -503,42 +516,124 @@ def cmd_home(args=()):
     return True
 
 
-def cmd_logs(args=()):
-    args = list(args)
+def _log_files() -> list[tuple[str, Path]]:
+    """The service log first, then the boot check logs a failed update or restore kept, newest first."""
+    from core.settings import data_dir
+
     native = _native_layout()
-    log_file = native.data_root / "alles-service.log" if native is not None else LOG_FILE
+    main = native.data_root / "alles-service.log" if native is not None else LOG_FILE
+    boot = _boot_log_dir(data_dir().expanduser().resolve())
+    found = sorted(boot.glob("*.log"), key=lambda p: p.stat().st_mtime) if boot.is_dir() else []
+    return [("service", main), *((p.stem, p) for p in reversed(found))]
+
+
+def _logs_options(args: list[str]) -> dict | None:
+    """`alles logs` flags the way hermes's `hermes logs` takes them (-n, -f, --level, --since)."""
+    opts = {"count": "60", "follow": False, "level": None, "since": None, "grep": None}
+    opts["name"] = None
+    takes = {"-n": "count", "--lines": "count", "--level": "level", "--since": "since"}
+    takes |= {"--grep": "grep", "-g": "grep"}
+    items = iter(args)
+    for arg in items:
+        key, eq, inline = arg.partition("=")
+        if key in takes:
+            value = inline if eq else next(items, None)
+            if value is None:
+                print(f"alles logs: {key} needs a value", file=sys.stderr)
+                return None
+            opts[takes[key]] = value
+        elif arg in ("-f", "--follow"):
+            opts["follow"] = True
+        elif arg.isdigit():
+            opts["count"] = arg
+        elif not arg.startswith("-") and opts["name"] is None:
+            opts["name"] = arg
+        else:
+            print(f"alles logs: unknown option '{arg}'", file=sys.stderr)
+            return None
+    if not str(opts["count"]).isdigit():
+        print("alles logs: -n takes a number", file=sys.stderr)
+        return None
+    opts["count"] = int(opts["count"])
+    return opts
+
+
+def cmd_logs(args=()):
+    """alles logs [N] [-f] [--level warn] [--since 1h] [--grep text] | boot | list | --clear"""
+    from services import cli_logs
+    from services.cli_ui import Style, short_path
+
+    args = list(args)
+    files = _log_files()
+    log_file = files[0][1]
     if "--clear" in args:
         log_file.write_text("")
         print("log cleared")
-        return
+        return True
+    opts = _logs_options(args)
+    if opts is None:
+        return False
+    ui = Style()
+    if opts["name"] == "list":
+        sizes = [
+            (name, f"{path.stat().st_size / 1024:.0f} KB  {short_path(path)}")
+            for name, path in files
+            if path.is_file()
+        ]
+        if sizes:
+            ui.rows(sizes)
+        else:
+            print("no logs yet: run  alles start  first")
+        return True
+    if opts["name"] == "boot":
+        if len(files) < 2:
+            print("no boot check logs: every update and restore so far started fine")
+            return True
+        log_file = files[1][1]
+        print(ui.dim(short_path(log_file)))
+    elif opts["name"] is not None:
+        print(f"alles logs: no log named '{opts['name']}' (see: alles logs list)", file=sys.stderr)
+        return False
     if not log_file.exists():
-        print("no log file yet — run  alles start  first")
-        return
-    if "-f" in args or "--follow" in args:
-        _follow_logs(log_file)
-        return
-    n = next((int(a) for a in args if a.isdigit()), 60)
-    if native is not None:
-        print("\n".join(log_file.read_text(errors="replace").splitlines()[-n:]))
+        print("no log yet: run  alles start  first")
+        return True
+    try:
+        keep = cli_logs.LineFilter(level=opts["level"], since=opts["since"], grep=opts["grep"])
+    except cli_logs.FilterError as exc:
+        print(f"alles logs: {exc}", file=sys.stderr)
+        return False
+    # a terminal gets one readable line per record; a pipe keeps the raw json lines for jq or grep
+    if ui.tty:
+
+        def show(line):
+            return cli_logs.render(line, ui)
     else:
-        print("\n".join(_tail(n)))
 
+        def show(line):
+            return line
 
-def _follow_logs(log_file: Path = LOG_FILE):
-    with log_file.open("r", errors="replace") as f:
-        for ln in f.readlines()[-40:]:
-            sys.stdout.write(ln)
+    with log_file.open("r", errors="replace") as handle:
+        lines = (line.rstrip("\n") for line in handle)
+        for line in cli_logs.last_lines(lines, 40 if opts["follow"] else opts["count"], keep):
+            print(show(line))
         sys.stdout.flush()
-        try:
-            while True:
-                ln = f.readline()
-                if ln:
-                    sys.stdout.write(ln)
-                    sys.stdout.flush()
-                else:
-                    time.sleep(0.3)
-        except KeyboardInterrupt:
-            print()
+        if opts["follow"]:
+            _follow_logs(handle, keep, show)
+    return True
+
+
+def _follow_logs(handle, keep, show):
+    try:
+        while True:
+            line = handle.readline()
+            if not line:
+                time.sleep(0.3)
+                continue
+            line = line.rstrip("\n")
+            if keep(line):
+                print(show(line), flush=True)
+    except KeyboardInterrupt:
+        print()
 
 
 def _git(args, *, capture=True):
@@ -1884,7 +1979,8 @@ def _cmd_native_update_locked(layout) -> bool:
             steps.style.check(None, "update", "the last one waits: alles update accept", 12)
             steps.style.say(f"    {' ' * 12}{steps.style.dim('or alles update rollback')}")
             return False
-        steps.start("check", "asking github")
+        kind = (manifest.get("source") or {}).get("kind")
+        steps.start("check", "asking github" if kind == "archive" else "asking the release source")
         source_checkout, target = _fetch_native_update_source(
             manifest, update_dir, progress=steps.handle
         )
@@ -1931,7 +2027,9 @@ def _cmd_native_update_locked(layout) -> bool:
                 return True
             left = _load_native_update_state(state_path)
             if not (left and left.get("update_id") == update_id):
-                return False  # the new release already put everything back and said why
+                # the new release already put everything back and said why
+                native_install.remember_failed(layout, manifest["source"]["commit"], target)
+                return False
             raise RuntimeError("the new release stopped before it finished its update")
         return _native_apply_update(
             layout, state, state_path, release, python, update_dir, steps=steps
@@ -1980,6 +2078,13 @@ def _native_update_failed(
         steps.fail(f"update stopped: {exc}")
     else:
         print(f"native update stopped: {exc}")
+    if target:
+        try:
+            current = native_install.verify_install(layout)["source"]["commit"]
+        except (native_install.NativeInstallError, KeyError, TypeError):
+            current = None
+        if current:
+            native_install.remember_failed(layout, current, target)
     try:
         state = _load_native_update_state(state_path)
     except RuntimeError:
@@ -3839,6 +3944,211 @@ def cmd_completion(args=()):
     return True
 
 
+def _server_url() -> str:
+    return f"http://127.0.0.1:{6769 if _native_layout() is not None else _port()}"
+
+
+def _chat_client():
+    from services import cli_chat
+
+    def ask_password():
+        if not sys.stdin.isatty():
+            return None
+        import getpass
+
+        return getpass.getpass("  owner password: ")
+
+    return cli_chat.Client(_server_url(), ask_password)
+
+
+def cmd_ask(args=()):
+    """alles ask "question": one answer from aide, streamed, then back to the shell.
+
+    hermes does this with `hermes chat -q` (hermes-agent 0.22.2+1885.g20acba0); alles gives it
+    its own short word. A piped stdin is the question when no words are given.
+    """
+    from services import cli_chat, cli_ui
+
+    question = " ".join(args).strip()
+    if not question and not sys.stdin.isatty():
+        question = sys.stdin.read().strip()
+    if not question:
+        print('usage:  alles ask "what is on my calendar today"', file=sys.stderr)
+        return False
+    ui = cli_ui.Style()
+    client = _chat_client()
+    printer = cli_chat.Printer(ui)
+    session = None
+    try:
+        session = client.new_session(question[:60])
+        client.turn(session, question, printer)
+    except cli_chat.ChatError as exc:
+        if session and not printer.wrote:
+            client.drop(session)
+        print(f"  {ui.bad(str(exc))}", file=sys.stderr)
+        return False
+    return True
+
+
+def cmd_chat(args=()):
+    """alles chat: talk with aide in one conversation until ctrl-d or /exit."""
+    from services import cli_chat, cli_ui
+
+    if not sys.stdin.isatty():
+        return cmd_ask(args)
+    ui = cli_ui.Style()
+    ui.header("chat", (ui.dim("ctrl-d or /exit to leave"),))
+    client = _chat_client()
+    session = None
+    prompt = f"{ui.accent('›')} "
+    while True:
+        try:
+            line = input(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return True
+        if line in ("/exit", "/quit", "exit", "quit"):
+            return True
+        if not line:
+            continue
+        printer = cli_chat.Printer(ui)
+        fresh = session is None
+        try:
+            if fresh:
+                session = client.new_session(line[:60])
+            print()
+            client.turn(session, line, printer)
+            print()
+        except KeyboardInterrupt:
+            print()
+        except cli_chat.ChatError as exc:
+            if fresh and session and not printer.wrote:
+                client.drop(session)  # nothing answered yet: no empty conversation left behind
+                session = None
+            ui.say(f"  {ui.bad(str(exc))}")
+
+
+def cmd_backup(args=()):
+    """alles backup [-o file] [--photos]: an encrypted backup of everything, like the backup page.
+
+    hermes has `hermes backup` (hermes_cli/subcommands/backup.py, 0.22.2+1885.g20acba0); this one
+    writes the same encrypted file the backup page downloads, so `alles restore stage` reads it.
+    """
+    from datetime import datetime
+
+    from core.settings import data_dir
+    from services import cli_ui
+    from services.backup_recovery import RecoveryError
+    from services.encrypted_backup import create_encrypted_backup
+
+    args = list(args)
+    photos = "--photos" in args
+    output = None
+    for flag in ("-o", "--output"):
+        if flag in args:
+            index = args.index(flag)
+            if index + 1 >= len(args):
+                print("usage:  alles backup [-o file] [--photos]", file=sys.stderr)
+                return False
+            output = Path(args[index + 1]).expanduser()
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    name = f"alles-backup-{stamp}.alles-backup"
+    if output is None:
+        output = Path.home() / name
+    elif output.is_dir():
+        output = output / name
+    ui = cli_ui.Style()
+    ui.header("backup")
+    steps = cli_ui.Steps({"backup": "backup"}, ui)
+    steps.start("backup", "with photos" if photos else "")
+    try:
+        create_encrypted_backup(data_dir().expanduser().resolve(), output, include_photos=photos)
+    except (RecoveryError, OSError) as exc:
+        steps.fail(f"backup stopped: {exc}")
+        return False
+    finally:
+        steps.close()
+    size = output.stat().st_size / 1_048_576
+    steps.finish(True, "backup", f"{size:.1f} MB")
+    ui.say()
+    ui.rows(
+        [
+            ("file", cli_ui.short_path(output)),
+            ("restore", "alles restore stage <file>"),
+            ("elsewhere", "add --key <recovery key>: settings › backup shows it"),
+        ],
+        dim_value=True,
+    )
+    return True
+
+
+def _dump_lines() -> list[tuple[str, str]]:
+    """Facts about this install for a bug report. Names only: no keys, passwords or messages."""
+    import platform
+
+    from core.settings import auth_enabled, data_dir, load_settings
+
+    native = _native_layout()
+    rows: list[tuple[str, str]] = []
+    if native is not None:
+        from services import native_install
+
+        summary = native_install.release_summary(native)
+        rows.append(("release", f"{summary['short']} (native, {native.manager})"))
+    else:
+        commit = _git_value(["rev-parse", "--short", "HEAD"]) if (ROOT / ".git").exists() else None
+        rows.append(("release", f"{commit or 'unknown'} (source checkout)"))
+    rows.append(("os", f"{platform.system()} {platform.release()} {platform.machine()}"))
+    rows.append(("python", platform.python_version()))
+    try:
+        settings = load_settings()
+    except Exception as exc:  # the broken file is the finding
+        settings = {}
+        rows.append(("settings", f"can't be read: {type(exc).__name__}"))
+    rows.append(("access", _access_label() or "unknown"))
+    rows.append(("password", "on" if auth_enabled() else "off"))
+    rows.append(("data", str(data_dir())))
+    for key, label in (("vault_dir", "docs folder"), ("files_dir", "files folder")):
+        rows.append((label, str(settings.get(key) or "default")))
+    try:
+        from core.database import ModelEndpoint, SessionLocal
+
+        with SessionLocal() as db:  # the provider column only: keys stay encrypted and unread
+            found = db.query(ModelEndpoint.provider_id).filter(ModelEndpoint.enabled.is_(True))
+            kinds = sorted({provider or "custom" for (provider,) in found})
+        rows.append(("providers", ", ".join(kinds) or "none"))
+    except Exception as exc:
+        rows.append(("providers", f"can't be read: {type(exc).__name__}"))
+    port = 6769 if native is not None else _port()
+    rows.append(("server", "answering" if _health_ok(port) else "not answering"))
+    try:
+        import asyncio
+
+        from services import dependencies
+
+        for dep_id in dependencies.IDS:
+            state = asyncio.run(dependencies.state(dep_id))
+            rows.append((dependencies.NAMES[dep_id], str(state.get("detail") or state["state"])))
+    except Exception as exc:
+        rows.append(("tools", f"can't be read: {type(exc).__name__}"))
+    return rows
+
+
+def cmd_dump(args=()):
+    """alles dump: a plain summary of this install to paste into a bug report.
+
+    Same idea as `hermes dump` (hermes_cli/dump.py, 0.22.2+1885.g20acba0): plain text even in a
+    terminal, so it pastes cleanly, and nothing secret in it.
+    """
+    rows = _dump_lines()
+    width = max(len(key) for key, _ in rows) + 2
+    print("--- alles dump ---")
+    for key, value in rows:
+        print(f"{key.ljust(width)}{value}")
+    print("--- end dump ---")
+    return True
+
+
 COMMANDS = {
     "start": cmd_start,
     "stop": cmd_stop,
@@ -3858,6 +4168,10 @@ COMMANDS = {
     "tools": cmd_tools,
     "version": cmd_version,
     "completion": cmd_completion,
+    "ask": cmd_ask,
+    "chat": cmd_chat,
+    "backup": cmd_backup,
+    "dump": cmd_dump,
 }
 
 

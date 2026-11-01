@@ -1385,8 +1385,20 @@ alles stop          stop it
 alles restart       restart it
 alles status        running or stopped, /health, the release (short commit, install time),
                     an update waiting for accept or rollback, a newer release, paths
-alles logs [n]      print the last n log lines (default 60)
+alles logs [n]      print the last n log lines (default 60); a terminal gets one readable line
+                    per record (time, level, logger, message), a pipe the raw json lines
 alles logs -f       follow the log live
+alles logs --level warn --since 1h --grep text
+                    a level floor, a time window (30m, 1h, 2d) and a word; a traceback line
+                    goes with the record above it
+alles logs boot     the newest boot check log a failed update or restore kept
+alles logs list     the service log and the boot check logs with their sizes
+alles ask "..."     one answer from aide in a new conversation, streamed; piped stdin works
+alles chat          one conversation with aide until ctrl-d or /exit
+alles backup [-o file] [--photos]
+                    the same encrypted backup the backup page downloads (default ~/)
+alles dump          a plain summary for a bug report: release, os, folders, providers by name,
+                    tools; never a key, password or message
 alles update        fetch the newest release, hand off to it: it backs up, checks a copy
                     of the data, switches and health-checks itself; rollback stays here
 alles update rollback
@@ -1409,7 +1421,9 @@ alles completion zsh|bash|fish
 
 since nov 1 an installed release only fetches and builds the next one, then runs `cli.py update handoff <id>` from the new release: the new release's own code makes the encrypted rollback backup, migrates and boots a copy of the data twice, swaps it in, switches the release pointer and health-checks it, so a fix to that step works in the same update that ships it. the installed release keeps the rollback: when the new one exits without finishing, it rolls the release and data back itself. a release without the `NATIVE_UPDATE_HANDOFF` line is updated the old way. a failed boot check prints the traceback's last line and the path of its full output (`<data parent>/.data-recovery/logs/boot-check-*.log`).
 
-a release is named by its short commit everywhere: `alles status`, `alles version` and the server panel's release card (`GET /api/system/build` → `release`). a native install asks its release source for the branch's newest commit at most every 6 hours (`runtime/update-check.json`, shared by the cli and the server) and says when a newer release waits; installing still waits for `alles update`.
+a release is named by its short commit everywhere: `alles status`, `alles version` and the server panel's release card (`GET /api/system/build` → `release`). a native install asks its release source for the branch's newest commit at most every 6 hours (`runtime/update-check.json`, shared by the cli and the server) and says when a newer release waits; installing still waits for `alles update`. a release that `alles update` tried and that failed its checks is remembered there too (`failed`), so status says "failed its checks: alles logs boot" instead of calling it ready, until the source moves past it.
+
+a clone install records its git source only when the clone is clean; untracked python caches (`__pycache__`, `.pyc`) don't count, since running `cli.py install` writes them before the check and the copy skips them anyway.
 
 an install made by install.sh records a github archive source (repository, branch, commit) and
 updates by downloading the branch's newest archive the same way; a clone install records its git

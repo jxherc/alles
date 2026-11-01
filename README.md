@@ -95,7 +95,7 @@ alles checks a backup and prepares the restore before applying it. stop the app,
 
 ## updating and removing
 
-`alles update` gets the newest version and keeps the previous one, so `alles update rollback` can return to it with your data. `alles status` names the release by its short commit and says when a newer one is out. `alles tools` shows what aide can use (node, pi, its browser) and `alles tools install` adds them. `alles uninstall` removes alles and keeps your personal data. `alles help` lists every command.
+`alles update` gets the newest version and keeps the previous one, so `alles update rollback` can return to it with your data. `alles status` names the release by its short commit and says when a newer one is out. `alles tools` shows what aide can use (node, pi, its browser) and `alles tools install` adds them. `alles uninstall` removes alles and keeps your personal data. `alles help` lists every command. `alles ask` and `alles chat` talk to aide right in the terminal, `alles logs --level warn --since 1h` cuts the log down to what matters, `alles backup` writes an encrypted backup and `alles dump` prints a summary for a bug report with no secrets in it.
 
 it's built with fastapi, sqlite, vanilla javascript, and css. there's no frontend build step. the technical details are in [specifications.md](specifications.md).
 

@@ -246,6 +246,10 @@ def source_metadata(source: Path) -> dict:
     commit = (_git_text(source, ["rev-parse", "HEAD"]) or "").lower()
     upstream = _git_text(source, ["rev-parse", "--abbrev-ref", "@{upstream}"]) or ""
     dirty = _git_text(source, ["status", "--porcelain"])
+    if dirty is not None:
+        # running cli.py from a clone writes __pycache__ before this check, and the repo has no
+        # tracked .gitignore, so leave out what the copy skips anyway (found on debian 13, nov 1)
+        dirty = [line for line in dirty.splitlines() if not _skipped_untracked(line)]
     if dirty is None or dirty or not re.fullmatch(r"[0-9a-f]{40}", commit) or "/" not in upstream:
         return {"kind": "unavailable"}
     remote, branch = upstream.split("/", 1)
@@ -280,6 +284,17 @@ def _copy_ignore(_directory: str, names: list[str]) -> set[str]:
         "node_modules",
     }
     return {name for name in names if name in blocked or name.endswith(".pyc")}
+
+
+def _skipped_untracked(line: str) -> bool:
+    """An untracked `git status --porcelain` entry that only holds python's own cache."""
+    if not line.startswith("?? "):
+        return False
+    parts = [part for part in line[3:].strip().strip('"').split("/") if part]
+    return bool(parts) and (
+        any(part in {"__pycache__", ".pytest_cache", ".ruff_cache"} for part in parts)
+        or parts[-1].endswith(".pyc")
+    )
 
 
 # the app runs from the rest. .gitattributes keeps these same paths out of github's archives, which
@@ -1904,30 +1919,54 @@ def update_check(
         cached = json.loads(path.read_text("utf-8"))
     except (OSError, ValueError):
         cached = {}
-    checked = cached.get("checked_at") if isinstance(cached, dict) else None
+    if not isinstance(cached, dict):
+        cached = {}
+    checked = cached.get("checked_at")
     # an answer about another release (before an update, accept or rollback) is stale
-    fresh = (
-        isinstance(checked, (int, float))
-        and 0 <= now - checked < UPDATE_CHECK_EVERY
-        and cached.get("current") == current
-    )
-    if refresh or not fresh:
+    same_release = cached.get("current") == current
+    fresh = isinstance(checked, (int, float)) and 0 <= now - checked < UPDATE_CHECK_EVERY
+    failed = cached.get("failed") if same_release else None
+    if refresh or not (fresh and same_release):
         cached = {"checked_at": now, "current": current, "latest": None, "error": None}
         try:
             cached["latest"] = latest_release_commit(manifest.get("source") or {}, timeout=timeout)
         except NativeInstallError as exc:
             cached["error"] = str(exc)
+        if failed and failed == cached["latest"]:
+            cached["failed"] = failed
         try:
             _atomic_json(path, cached)
         except OSError:
             pass
     latest = cached.get("latest")
+    # nov 1, debian 13: a release that just failed its startup check was called "ready"
+    failed = latest if latest and cached.get("failed") == latest else None
     return {
         "checked_at": cached.get("checked_at"),
         "latest": latest,
-        "waiting": bool(latest and current and latest != current),
+        "waiting": bool(latest and current and latest != current and not failed),
+        "failed": failed,
         "error": cached.get("error"),
     }
+
+
+def remember_failed(layout: NativeLayout, current: str, target: str) -> None:
+    """`alles update` tried `target` and it didn't pass: status says so instead of "ready"."""
+    import time
+
+    try:
+        _atomic_json(
+            layout.runtime_root / UPDATE_CHECK_FILE,
+            {
+                "checked_at": time.time(),
+                "current": current,
+                "latest": target,
+                "failed": target,
+                "error": None,
+            },
+        )
+    except OSError:
+        pass
 
 
 def remember_latest(layout: NativeLayout, current: str, latest: str) -> None:
