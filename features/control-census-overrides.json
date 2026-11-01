@@ -66,6 +66,8 @@
     "static/js/response_actions.js": "aide.conversation-and-execution",
     "static/js/search.js": "andromeda.cited-search",
     "static/js/sessions.js": "aide.conversation-and-execution",
+    "static/js/signin.js": "cross-feature.settings",
+    "static/js/signin_test_page.js": "cross-feature.settings",
     "static/js/settings.js": "cross-feature.settings",
     "static/js/settings/andromeda.js": "cross-feature.settings",
     "static/js/settings/backups.js": "cross-feature.settings",

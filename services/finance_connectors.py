@@ -154,24 +154,71 @@ def connect_simplefin(
     return public_dict(row)
 
 
-def configure_plaid(db, *, client_id: str, secret: str, environment: str) -> dict:
+def _plaid_keys_rejected(env: str, client_id: str, secret: str, client) -> dict | None:
+    """ask plaid if it takes these keys in this environment. None means it does.
+
+    plaid checks the keys before anything else, so any answer that isn't INVALID_API_KEYS (an
+    unfinished product setup, say) still means the keys are good. INVALID_API_KEYS is also what a
+    sandbox secret gets in production and the other way round
+    (https://plaid.com/docs/errors/invalid-input/#invalid_api_keys).
+    """
+    try:
+        response = client.post(
+            f"{PLAID_BASES[env]}/institutions/get",
+            json={
+                "client_id": client_id,
+                "secret": secret,
+                "count": 1,
+                "offset": 0,
+                "country_codes": ["US", "CA"],
+            },
+            timeout=20,
+        )
+        data = response.json()
+    except Exception as exc:
+        raise FinanceConnectorError("Alles could not reach Plaid to check the keys") from exc
+    if isinstance(data, dict) and data.get("error_code") == "INVALID_API_KEYS":
+        return data
+    return None
+
+
+def configure_plaid(db, *, client_id: str, secret: str, environment: str, client=httpx) -> dict:
     env = str(environment or "").strip().lower()
     if env not in PLAID_BASES:
         raise FinanceConnectorError("Plaid environment must be sandbox or production")
-    if not str(client_id or "").strip() or not str(secret or "").strip():
+    # a pasted key often carries a space or a line break at either end, or one in the middle
+    client_id, secret = "".join(str(client_id or "").split()), "".join(str(secret or "").split())
+    if not client_id or not secret:
         raise FinanceConnectorError("Plaid client ID and secret are required")
+    switched = False
+    rejected = _plaid_keys_rejected(env, client_id, secret, client)
+    if rejected:
+        other = "production" if env == "sandbox" else "sandbox"
+        if _plaid_keys_rejected(other, client_id, secret, client):
+            real = str(rejected.get("error_message") or "invalid client_id or secret provided")
+            raise FinanceConnectorError(
+                f"Plaid says: {real}. Use the client ID and the secret from the same Plaid account."
+            )
+        env, switched = other, True
     row = FinanceConnection(
         provider="plaid",
         label="Plaid",
         environment=env,
         status="link_required",
-        client_id=str(client_id).strip(),
-        client_secret=str(secret).strip(),
+        client_id=client_id,
+        client_secret=secret,
     )
     db.add(row)
     db.commit()
     db.refresh(row)
-    return public_dict(row)
+    public = public_dict(row)
+    if switched:
+        # the keys were for the other environment; the screen shows this beside the next step
+        return {
+            **public,
+            "message": f"These keys belong to Plaid's {env} setup, so Alles switched to it.",
+        }
+    return public
 
 
 def _plaid_post(row: FinanceConnection, path: str, payload: dict, *, client=httpx) -> dict:
@@ -185,12 +232,14 @@ def _plaid_post(row: FinanceConnection, path: str, payload: dict, *, client=http
     except Exception as exc:
         raise FinanceConnectorError("Plaid request failed") from exc
     if response.status_code >= 400 or not isinstance(data, dict):
-        message = (
-            str(data.get("error_message") or "Plaid request failed")
-            if isinstance(data, dict)
-            else "Plaid request failed"
-        )
-        raise FinanceConnectorError(message[:500])
+        if not isinstance(data, dict):
+            raise FinanceConnectorError("Plaid request failed")
+        # plaid's own words, with its error code so the owner can search for it
+        message = str(data.get("error_message") or data.get("display_message") or "")
+        code = str(data.get("error_code") or "")
+        if message and code:
+            message = f"{message} ({code})"
+        raise FinanceConnectorError((message or "Plaid request failed")[:500])
     return data
 
 

@@ -1,0 +1,62 @@
+/* the sign in component (static/js/signin.js). tokens only: spacing on the 0 4 8 12 16 24 32 scale,
+   type on the rem roles, 44px targets, state by tone and wording, never by color alone. */
+.signin { display: flex; flex-direction: column; gap: var(--k-space-4, 16px); min-width: 0; }
+.signin-provider { display: flex; flex-direction: column; align-items: flex-start; gap: var(--k-space-2, 8px); min-width: 0; }
+.signin-provider > * { max-width: 100%; }
+
+.signin-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* a line of words: state, reason, error. quiet by default, tone only where it means something */
+.signin-line { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+.signin-line[data-tone="bad"] { color: var(--danger, var(--error)); }
+.signin-line[data-tone="good"] { color: var(--success, var(--text)); }
+.signin-line[data-tone="quiet"] { color: var(--muted); }
+
+.signin-start { display: flex; flex-direction: column; align-items: flex-start; gap: var(--k-space-1, 4px); }
+.signin-button { min-height: var(--k-control, 44px); padding-inline: var(--k-space-4, 16px); }
+.signin-button[disabled] { opacity: 1; color: var(--muted); border-color: var(--faint); cursor: not-allowed; }
+.signin-panel .btn, .signin-start .btn { min-height: var(--k-control, 44px); display: inline-flex; align-items: center; justify-content: center; }
+
+/* quiet text action: no container at rest, a 44px target around the words */
+.signin-act { background: none; border: 0; padding: 0 var(--k-space-2, 8px); min-height: var(--k-control, 44px); display: inline-flex; align-items: center; gap: var(--k-space-1, 4px); font: inherit; font-size: 0.8125rem; color: var(--muted); cursor: pointer; text-decoration: none; border-radius: var(--k-radius-control, 8px); }
+.signin-act:hover { color: var(--text); }
+.signin-act[disabled] { color: var(--muted); opacity: .6; cursor: default; }
+.signin-act.primary { color: var(--text); font-weight: 560; }
+.signin-fallback { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: var(--k-space-2, 8px); margin-inline-start: calc(-1 * var(--k-space-2, 8px)); text-align: start; }
+.signin-fallback > span:first-child { color: var(--muted); }
+.signin-fallback:hover > span:first-child { color: var(--text); }
+.signin-reason { font-size: 0.8125rem; color: var(--muted); line-height: 1.4; }
+/* signed in accounts: one row per account, mark, who, then the actions at the end */
+.signin-accounts { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: var(--k-row-gap, 4px); }
+.signin-account { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--k-space-3, 12px); min-height: var(--k-row, 44px); padding: var(--k-space-1, 4px) 0; }
+.signin-mark { display: inline-flex; width: 16px; color: var(--success, var(--text)); }
+.signin-account[data-state="needs_sign_in"] .signin-mark { color: var(--warning, var(--permission, var(--text))); }
+.signin-account[data-state="error"] .signin-mark { color: var(--danger, var(--error)); }
+.signin-mark .ic { width: 16px; height: 16px; }
+.signin-who { display: flex; flex-direction: column; min-width: 0; font-size: 0.875rem; line-height: 1.35; }
+.signin-who strong { font-weight: 520; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.signin-who span { font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+.signin-who em { font-style: normal; color: var(--danger, var(--error)); }
+.signin-acts { display: inline-flex; align-items: center; gap: var(--k-space-1, 4px); flex-wrap: wrap; justify-content: flex-end; }
+
+/* the device step: the code first and large, then what to do with it, then the live wait */
+.signin-device { display: flex; flex-direction: column; align-items: flex-start; gap: var(--k-space-3, 12px); max-width: 100%; }
+.signin-code { font-family: var(--k-mono, ui-monospace, monospace); font-size: 1.75rem; line-height: 1.2; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; color: var(--text); user-select: all; padding: var(--k-space-2, 8px) 0; overflow-wrap: anywhere; }
+.signin-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); max-width: 100%; }
+.signin-wait { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2, 8px); font-size: 0.8125rem; color: var(--muted); }
+.signin-left { font-variant-numeric: tabular-nums; color: var(--text); min-width: 7ch; }
+.signin-spin { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--faint); border-top-color: var(--text); animation: signin-spin 1s linear infinite; }
+@keyframes signin-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .signin-spin { animation: none; border-top-color: var(--faint); border-style: dotted; } }
+
+.signin-label { font-size: 0.8125rem; color: var(--muted); }
+.signin-input { flex: 1 1 14rem; min-width: 0; min-height: var(--k-control, 44px); font-size: 1rem; }
+.signin-done { display: flex; align-items: center; gap: var(--k-space-2, 8px); }
+.signin-done .ic { width: 16px; height: 16px; }
+.signin-done .signin-act { padding-inline: var(--k-space-1, 4px); }
+
+@media (max-width: 520px) {
+  .signin-account { grid-template-columns: auto minmax(0, 1fr); row-gap: var(--k-space-1, 4px); }
+  .signin-acts { grid-column: 2; justify-content: flex-start; margin-inline-start: calc(-1 * var(--k-space-2, 8px)); }
+  .signin-code { font-size: 1.5rem; }
+}

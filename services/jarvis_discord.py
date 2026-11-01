@@ -56,7 +56,10 @@ NOTICE_STATES = TERMINAL_STATES | {"waiting_input", "waiting_approval"}
 _restart_event = asyncio.Event()
 _runtime_loop: asyncio.AbstractEventLoop | None = None
 _stream_messages: dict[str, dict] = {}
-_TYPING_REFRESH_SECONDS = 7.0
+# discord's typing status lasts ~10s, so it goes out again every 8s. the notice loop runs every
+# 1.5s, so the gap is 8 to 9.5s. hermes keeps a typing loop per channel
+# (plugins/platforms/discord/adapter.py:4331-4366, every 12s). bots can't send read receipts.
+_TYPING_REFRESH_SECONDS = 8.0
 
 
 def _utcnow() -> datetime:

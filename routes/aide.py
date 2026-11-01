@@ -230,6 +230,7 @@ class PhotonBody(BaseModel):
     project_id: str = Field(default="", max_length=200)
     project_secret: str = Field(default="", max_length=500)  # blank keeps the saved one
     owner_handles: list[str] = Field(default_factory=list, max_length=10)
+    read_receipts: bool | None = None  # left out keeps the saved choice (on by default)
 
 
 class SignInOpenBody(BaseModel):
@@ -393,6 +394,8 @@ async def photon_settings(body: PhotonBody):
         "photon_project_id": body.project_id.strip(),
         "photon_owner_handles": handles,
     }
+    if body.read_receipts is not None:
+        patch["photon_read_receipts"] = body.read_receipts
     if body.project_secret.strip():
         patch["photon_project_secret"] = body.project_secret.strip()
     save_settings(patch)

@@ -6,14 +6,55 @@ servers relay every message and a relay must not be able to say yes for the owne
 sent when the run ends.
 
 each channel keeps its own `runs` dict (run id -> {"space", "told"}) and passes its own `reply`
-and `typing` coroutines.
+and `typing` coroutines. a channel wraps its typing coroutine in one `Presence`, so "typing..."
+shows at once, is sent again before the chat app lets it lapse, stops on the answer or an error,
+and stays off while a question waits for the owner.
 """
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import time
 
 DONE = {"succeeded", "failed", "cancelled", "interrupted", "uncertain"}
+
+
+class Presence:
+    """the "typing..." bubble for one channel, copied from hermes (v0.22.2+canary 20acba0).
+
+    hermes's `_keep_typing` (gateway/platforms/base.py:3350) calls `send_typing` every 2s because
+    a chat app's bubble lapses after about 5s, skips a chat while an approval waits
+    (`_typing_paused`), and its photon adapter drops a send that comes within 5s of the last one
+    (plugins/platforms/photon/adapter.py:81 `_TYPING_COOLDOWN_SECONDS`). here the channel's watch
+    loop ticks every ~2s and `every` is the shortest gap between two sends: imessage and telegram
+    4s (the bubble lasts 5s; a 5s gap on a 2s tick would really be 6s). discord has its own
+    refresh in services/jarvis_discord.py (8s).
+
+    `send(space, on)` is the channel's own coroutine. a failed send is dropped: presence is
+    polish and must never break the run watcher.
+    """
+
+    def __init__(self, send, every: float, clock=time.monotonic):
+        self._send = send
+        self.every = every
+        self._clock = clock
+        self.last: dict[str, float] = {}
+
+    async def __call__(self, space: str, on: bool) -> None:
+        if on:
+            self.last[space] = self._clock()
+        else:
+            self.last.pop(space, None)
+        with contextlib.suppress(Exception):
+            await self._send(space, on)
+
+    async def tick(self, runs: dict) -> None:
+        """send "typing" again for every chat with a run that is working (not waiting on the owner)."""
+        now = self._clock()
+        for space in {i["space"] for i in runs.values() if not i.get("paused")}:
+            if now - self.last.get(space, float("-inf")) >= self.every:
+                await self(space, True)
 
 
 def start_work(kind: str, space: str, message_id: str, text: str) -> str:
@@ -90,9 +131,11 @@ async def watch_once(runs: dict, reply, typing, log: logging.Logger) -> None:
         for run_id, info in list(runs.items()):
             run = db.get(JarvisRun, run_id)
             if run is None:
+                await typing(info["space"], False)
                 runs.pop(run_id, None)
                 continue
-            for prompt in db.query(JarvisRunPrompt).filter_by(run_id=run_id, state="pending").all():
+            waiting = db.query(JarvisRunPrompt).filter_by(run_id=run_id, state="pending").all()
+            for prompt in waiting:
                 if prompt.id in info["told"]:
                     continue
                 info["told"].add(prompt.id)
@@ -112,7 +155,7 @@ async def watch_once(runs: dict, reply, typing, log: logging.Logger) -> None:
                     )
             # tool approvals (shell, file writes...) wait on the conversation, not as a run
             # prompt, so look for them by the run's conversation too
-            for action in (
+            approvals = (
                 db.query(DelegatedAction)
                 .filter(
                     DelegatedAction.session_id == run.session_id,
@@ -120,7 +163,10 @@ async def watch_once(runs: dict, reply, typing, log: logging.Logger) -> None:
                     DelegatedAction.created_at >= run.created_at,
                 )
                 .all()
-            ):
+            )
+            # no typing bubble while the run waits on the owner (hermes `_typing_paused`)
+            info["paused"] = bool(waiting or approvals)
+            for action in approvals:
                 if action.id in info["told"]:
                     continue
                 info["told"].add(action.id)

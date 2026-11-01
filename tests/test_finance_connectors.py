@@ -116,7 +116,11 @@ class FinanceConnectorTests(ApiTest):
         db = self.db()
         try:
             public = finance_connectors.configure_plaid(
-                db, client_id="client", secret="secret", environment="sandbox"
+                db,
+                client_id="client",
+                secret="secret",
+                environment="sandbox",
+                client=Client(Response({"institutions": []})),
             )
             row = db.get(FinanceConnection, public["id"])
             link_client = Client(
@@ -164,6 +168,130 @@ class FinanceConnectorTests(ApiTest):
             self.assertEqual(db.query(Transaction).one().amount, -7.25)
             request = sync_client.calls[0][2]["json"]
             self.assertNotIn("cursor", request)
+        finally:
+            db.close()
+
+    def plaid_answers(self, **by_environment):
+        """a fake plaid: each environment answers with the payload given for it."""
+
+        class Plaid:
+            def __init__(self):
+                self.calls = []
+
+            def post(self, url, **kwargs):
+                self.calls.append((url, kwargs["json"]))
+                name = "sandbox" if "sandbox." in url else "production"
+                payload = by_environment[name]
+                return Response(payload, status=400 if "error_code" in payload else 200)
+
+        return Plaid()
+
+    WRONG_KEYS = {
+        "error_type": "INVALID_INPUT",
+        "error_code": "INVALID_API_KEYS",
+        "error_message": "invalid client_id or secret provided",
+        "display_message": None,
+    }
+
+    def test_plaid_keys_are_trimmed_and_checked_when_saved(self):
+        plaid = self.plaid_answers(production={"institutions": []}, sandbox=self.WRONG_KEYS)
+        db = self.db()
+        try:
+            public = finance_connectors.configure_plaid(
+                db,
+                client_id=" abc \n",
+                secret="  s3 cr\net\n",
+                environment="production",
+                client=plaid,
+            )
+            row = db.get(FinanceConnection, public["id"])
+            self.assertEqual((row.client_id, row.client_secret), ("abc", "s3cret"))
+            self.assertEqual(plaid.calls[0][1]["client_id"], "abc")
+            self.assertEqual(plaid.calls[0][1]["secret"], "s3cret")
+            self.assertEqual(public["environment"], "production")
+            self.assertNotIn("message", public)
+            self.assertEqual(len(plaid.calls), 1)
+        finally:
+            db.close()
+
+    def test_keys_from_the_other_environment_switch_it_and_say_so(self):
+        plaid = self.plaid_answers(production=self.WRONG_KEYS, sandbox={"institutions": []})
+        db = self.db()
+        try:
+            public = finance_connectors.configure_plaid(
+                db,
+                client_id="abc",
+                secret="sandbox-secret",
+                environment="production",
+                client=plaid,
+            )
+            self.assertEqual(public["environment"], "sandbox")
+            self.assertIn("sandbox", public["message"])
+            self.assertEqual(db.get(FinanceConnection, public["id"]).environment, "sandbox")
+        finally:
+            db.close()
+
+    def test_keys_neither_environment_takes_show_plaids_own_error_and_save_nothing(self):
+        plaid = self.plaid_answers(production=self.WRONG_KEYS, sandbox=self.WRONG_KEYS)
+        db = self.db()
+        try:
+            with self.assertRaises(finance_connectors.FinanceConnectorError) as raised:
+                finance_connectors.configure_plaid(
+                    db, client_id="abc", secret="nope", environment="sandbox", client=plaid
+                )
+            self.assertIn("invalid client_id or secret provided", str(raised.exception))
+            self.assertEqual(db.query(FinanceConnection).count(), 0)
+        finally:
+            db.close()
+
+    def test_a_plaid_answer_that_is_not_about_the_keys_still_saves_them(self):
+        # plaid checks the keys first, so a product setup error means the keys were accepted
+        other = {"error_code": "INVALID_PRODUCT", "error_message": "not enabled"}
+        plaid = self.plaid_answers(production=other, sandbox=self.WRONG_KEYS)
+        db = self.db()
+        try:
+            public = finance_connectors.configure_plaid(
+                db, client_id="abc", secret="s", environment="production", client=plaid
+            )
+            self.assertEqual(public["environment"], "production")
+        finally:
+            db.close()
+
+    def test_an_unreachable_plaid_says_so_instead_of_blaming_the_keys(self):
+        class Down:
+            def post(self, *args, **kwargs):
+                raise OSError("no route")
+
+        db = self.db()
+        try:
+            with self.assertRaisesRegex(finance_connectors.FinanceConnectorError, "reach Plaid"):
+                finance_connectors.configure_plaid(
+                    db, client_id="abc", secret="s", environment="sandbox", client=Down()
+                )
+            self.assertEqual(db.query(FinanceConnection).count(), 0)
+        finally:
+            db.close()
+
+    def test_a_failing_plaid_call_shows_plaids_message_and_code(self):
+        db = self.db()
+        try:
+            row = FinanceConnection(
+                provider="plaid",
+                label="Plaid",
+                environment="production",
+                status="link_required",
+                client_id="c",
+                client_secret="s",
+            )
+            db.add(row)
+            db.commit()
+            with self.assertRaises(finance_connectors.FinanceConnectorError) as raised:
+                finance_connectors.plaid_link_token(
+                    db, row.id, client=Client(Response(self.WRONG_KEYS, status=400))
+                )
+            self.assertEqual(
+                str(raised.exception), "invalid client_id or secret provided (INVALID_API_KEYS)"
+            )
         finally:
             db.close()
 

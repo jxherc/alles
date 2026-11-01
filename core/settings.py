@@ -140,6 +140,8 @@ _defaults = {
     "photon_project_secret": "",
     "photon_access_token": "",
     "photon_owner_handles": [],
+    # mark the owner's texts read when they reach alles (hermes: PHOTON_READ_RECEIPTS)
+    "photon_read_receipts": True,
     "andromeda_confirm_remote": False,
     "andromeda_fast_overview": True,
     # libretranslate for the translator; empty means this machine, http://127.0.0.1:5000

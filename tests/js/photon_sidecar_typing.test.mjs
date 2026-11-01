@@ -5,54 +5,76 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-// a stand-in spectrum-ts: one inbound text, and every typing call written to a log file
+// a stand-in spectrum-ts: one inbound text, and every typing and read call written to a log with
+// the time it happened, the way the real sdk would see it (typing is the content builder sent with
+// space.send, read is message.read(); hermes's sidecar uses both, see services/photon/sidecar.mjs)
 const FAKE = `
 import { appendFileSync } from 'node:fs';
-const log = (line) => appendFileSync(process.env.TYPING_LOG, line + '\\n');
+const log = (entry) => appendFileSync(process.env.CALL_LOG, JSON.stringify({ ...entry, t: Date.now() }) + '\\n');
+export const typing = (state = 'start') => ({ type: 'typing', state });
 const space = {
   id: 'chat-1',
-  send: async () => ({ id: 'sent-1' }),
-  startTyping: async () => log('start'),
-  stopTyping: async () => log('stop'),
+  send: async (content) => { log({ call: 'send', type: content.type, state: content.state }); return { id: 'sent-1' }; },
+  startTyping: async () => log({ call: 'startTyping' }),
+  stopTyping: async () => log({ call: 'stopTyping' }),
+};
+const message = {
+  direction: 'inbound', id: 'm1', content: { type: 'text', text: 'hi' }, sender: { id: '+15550100199' },
+  read: async () => log({ call: 'read', id: 'm1' }),
 };
 export async function Spectrum() {
-  return {
-    messages: (async function* () {
-      yield [space, { direction: 'inbound', id: 'm1', content: { type: 'text', text: 'hi' }, sender: { id: '+15550100199' } }];
-      await new Promise(() => {});
-    })(),
-  };
+  return { messages: (async function* () { yield [space, message]; await new Promise(() => {}); })() };
 }
 `;
 
-test('imessage typing starts, is refreshed while aide works, and stops', async () => {
+function start() {
   const dir = mkdtempSync(join(tmpdir(), 'photon-sidecar-'));
   const pkg = join(dir, 'node_modules', 'spectrum-ts');
   mkdirSync(join(pkg, 'providers'), { recursive: true });
   writeFileSync(join(pkg, 'package.json'), JSON.stringify({ name: 'spectrum-ts', type: 'module', exports: { '.': './index.js', './providers/imessage': './providers/imessage.js' } }));
   writeFileSync(join(pkg, 'index.js'), FAKE);
   writeFileSync(join(pkg, 'providers', 'imessage.js'), 'export const imessage = { config: () => ({}) };');
-  // the refresh is 25s in production; the copy runs it every 50ms
-  const source = readFileSync(new URL('../../services/photon/sidecar.mjs', import.meta.url), 'utf8');
-  assert.match(source, /setInterval\(\(\) => space\.startTyping\(\)\.catch\(\(\) => \{\}\), 25000\)/);
-  writeFileSync(join(dir, 'sidecar.mjs'), source.replace('25000)', '50)'));
-  const log = join(dir, 'typing.log');
+  copyFileSync(new URL('../../services/photon/sidecar.mjs', import.meta.url), join(dir, 'sidecar.mjs'));
+  const log = join(dir, 'calls.log');
   writeFileSync(log, '');
-  const child = spawn(process.execPath, [join(dir, 'sidecar.mjs')], { env: { ...process.env, TYPING_LOG: log }, stdio: ['pipe', 'pipe', 'inherit'] });
+  const child = spawn(process.execPath, [join(dir, 'sidecar.mjs')], { env: { ...process.env, CALL_LOG: log }, stdio: ['pipe', 'pipe', 'inherit'] });
   let out = '';
   child.stdout.on('data', chunk => { out += chunk; });
-  const until = async (check) => { for (let i = 0; i < 100 && !check(); i++) await new Promise(r => setTimeout(r, 20)); };
-  await until(() => out.includes('"type":"message"'));
-  child.stdin.write(JSON.stringify({ type: 'typing', space: 'chat-1', on: true }) + '\n');
-  await new Promise(r => setTimeout(r, 180));
-  child.stdin.write(JSON.stringify({ type: 'typing', space: 'chat-1', on: false }) + '\n');
-  await new Promise(r => setTimeout(r, 120));
-  child.kill();
-  const calls = readFileSync(log, 'utf8').trim().split('\n');
-  assert.equal(calls[0], 'start');
-  assert.ok(calls.filter(c => c === 'start').length >= 3, calls.join(','));
-  assert.equal(calls.at(-1), 'stop');
-  const after = calls.length;
-  await new Promise(r => setTimeout(r, 120));
-  assert.equal(readFileSync(log, 'utf8').trim().split('\n').length, after);
+  const send = command => child.stdin.write(JSON.stringify(command) + '\n');
+  const calls = () => readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+  const until = async check => { for (let i = 0; i < 150 && !check(); i++) await new Promise(r => setTimeout(r, 20)); };
+  const ready = until(() => out.includes('"type":"message"'));
+  return { child, send, calls, ready, wait: ms => new Promise(r => setTimeout(r, ms)), out: () => out, until };
+}
+
+test('imessage typing is the typing builder, sent once per command, with no timer in the sidecar', async () => {
+  const s = start();
+  await s.ready;
+  s.send({ type: 'typing', space: 'chat-1', on: true });
+  await s.until(() => s.calls().length >= 1);
+  await s.wait(300); // the old sidecar refreshed itself on a timer; this one only sends what alles asks for
+  assert.deepEqual(s.calls().map(c => [c.call, c.type, c.state]), [['send', 'typing', 'start']]);
+  s.send({ type: 'typing', space: 'chat-1', on: true });
+  s.send({ type: 'typing', space: 'chat-1', on: false });
+  await s.until(() => s.calls().length >= 3);
+  s.child.kill();
+  assert.deepEqual(s.calls().map(c => c.state), ['start', 'start', 'stop']);
+  assert.ok(!s.calls().some(c => c.call === 'startTyping' || c.call === 'stopTyping'));
+});
+
+test('a read command marks that message read, and an unknown message is ignored quietly', async () => {
+  const s = start();
+  await s.ready;
+  s.send({ type: 'read', space: 'chat-1', id: 'm1' });
+  s.send({ type: 'read', space: 'chat-1', id: 'nope' });
+  await s.until(() => s.calls().length >= 1);
+  await s.wait(100);
+  s.child.kill();
+  assert.deepEqual(s.calls().map(c => [c.call, c.id]), [['read', 'm1']]);
+  assert.ok(!s.out().includes('"type":"error"'));
+});
+
+test('the sidecar source has no refresh timer and no 25 second refresh', () => {
+  const source = readFileSync(new URL('../../services/photon/sidecar.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /setInterval|25000|startTyping/);
 });

@@ -1,5 +1,5 @@
 import { requestWithRecentOwner } from './recent_owner.js';
-import { t } from './i18n.js';
+import { serverText, t } from './i18n.js';
 
 const RETURN_PATH = '/api/finance/connections/plaid/return';
 const SESSION_KEY = 'alles:finance-plaid-link';
@@ -13,11 +13,16 @@ export async function bankRequest(path, options = {}) {
   }
   const response = await requestWithRecentOwner(fetch, path, init);
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(payload?.detail?.message || payload?.detail || t('finance.request_failed_status', { status: response.status }));
+  if (!response.ok) throw new Error(serverText(payload?.detail?.message || payload?.detail) || t('finance.request_failed_status', { status: response.status }));
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new Error(t('finance.bank_response_unconfirmed'));
   }
   return payload;
+}
+
+// saving keys can switch the environment (plaid's keys differ per environment); the server says so
+export function plaidNotice(connection) {
+  return typeof connection?.message === 'string' ? serverText(connection.message) : '';
 }
 
 export function plaidSdk() {
