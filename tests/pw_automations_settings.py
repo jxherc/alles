@@ -81,23 +81,30 @@ def main():
         )
         r["rule_add_lists"] = pg.query_selector("#rules-list .rule-row") is not None
 
-        pg.click("#rules-list .rule-row [data-act='test']")
-        wait_js(
-            pg,
-            "[...document.querySelectorAll('.toast')].some(t => "
-            "t.textContent.includes('rule fired'))",
+        # since the afterlife 2e migration (ccdda121) a new rule becomes an aide scheduled workflow
+        # that waits for review: it stays off, and the server refuses to fire it (409, pinned by
+        # test_automations and test_jarvis_events_automation). the pane must not claim it fired.
+        saved = pg.evaluate("fetch('/api/automations').then(r => r.json()).then(l => l[0])")
+        r["new_rule_waits_for_review"] = (
+            saved["migration_state"] == "needs_review"
+            and saved["enabled"] is False
+            and pg.query_selector("#rules-list .rule-row.off") is not None
         )
-        r["test_button_fires"] = pg.evaluate(
+        with pg.expect_response(lambda res: res.url.endswith("/test")) as fired:
+            pg.click("#rules-list .rule-row [data-act='test']")
+        answer = fired.value
+        wait_js(pg, "document.querySelector('.toast')")
+        r["test_refused_for_review"] = (
+            answer.status == 409 and "reviewed in Aide scheduled" in answer.text()
+        )
+        r["test_never_claims_fired"] = not pg.evaluate(
             "[...document.querySelectorAll('.toast')].some(t => "
             "t.textContent.includes('rule fired'))"
         )
-
-        pg.click("#rules-list .rule-row [data-act='toggle']")
-        pg.wait_for_selector("#rules-list .rule-row.off", timeout=5000)
-        r["pause_marks_off"] = pg.query_selector("#rules-list .rule-row.off") is not None
-        pg.click("#rules-list .rule-row.off [data-act='toggle']")
-        wait_js(pg, "!document.querySelector('#rules-list .rule-row')?.classList.contains('off')")
-        r["resume_marks_on"] = pg.query_selector("#rules-list .rule-row.off") is None
+        attempts = pg.evaluate(
+            f"fetch('/api/automations/{saved['id']}/attempts').then(r => r.json())"
+        )
+        r["refused_test_records_no_attempt"] = attempts == []
 
         pg.click("#rules-list .rule-row-main")
         wait_js(pg, "document.getElementById('rule-add-btn')?.textContent.includes('save')")
