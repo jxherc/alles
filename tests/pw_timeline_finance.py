@@ -160,7 +160,7 @@ def run():
             )
             assert (
                 page.evaluate("getComputedStyle(document.body).backgroundColor")
-                == "rgb(244, 243, 240)"
+                == "rgb(248, 246, 243)"
             )
             page.screenshot(path=str(artifacts / f"activity-recovered-{device}-light.png"))
             if device == "desktop":
