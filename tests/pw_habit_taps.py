@@ -20,6 +20,7 @@ def run():
     output = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     today = date.today()
     yesterday = (today - timedelta(days=1)).isoformat()
+    old_day = (today - timedelta(days=20)).isoformat()  # the strip two weeks back
     rows = []
     with sync_playwright() as pw:
         browser = pw.webkit.launch()
@@ -54,7 +55,16 @@ def run():
                             "v": 2,
                             "entries": [{"values": {"exercises": [{"name": "row", "sets": sets}]}}],
                         },
-                    )
+                    ),
+                    (
+                        old_day,
+                        {
+                            "v": 2,
+                            "entries": [
+                                {"values": {"exercises": [{"name": "old press", "sets": sets}]}}
+                            ],
+                        },
+                    ),
                 ],
             )
             loggers = {
@@ -140,6 +150,18 @@ def run():
                 for s in x["sets"]
             ]
             assert weights == [60, 60, 65], weights
+
+            # an older session opens from the strip's earlier week arrow, never typed
+            def old_session():
+                later = page.locator('[data-week="-1"]')
+                expect(later).to_be_disabled()
+                for _ in range(2):
+                    tap(page.locator('[data-week="1"]'))
+                expect(later).to_be_enabled()
+                tap(page.locator(f'.habit-day[data-toggle="{old_day}"]'))
+                expect(page.locator(".gym-host")).to_contain_text("old press")
+
+            counted("gym, a session 20 days back", old_session, 3)
             page.locator('[data-act="back"]').click()
 
             for kind, item in loggers.items():

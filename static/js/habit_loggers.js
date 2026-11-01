@@ -858,14 +858,15 @@ function wireGym(host, names) {
 
 // the workout habit's log for one day, drawn into host. save(doc) stores the day (null clears it)
 export function renderGym(host, habit, day, { save }) {
-  const same = _gym && _gym.habit.id === habit.id && _gym.day === day;
+  // the same day again keeps the draft, unless its details only just arrived (an older day)
   const doc = habit.days?.[day];
+  const same = _gym && _gym.habit.id === habit.id && _gym.day === day && !(doc && !_gym.doc && !_gym.exercises.length);
   const entry = doc?.entries?.find(one => one.values?.exercises) || doc?.entries?.[0] || null;
   let more = true;
   try { more = localStorage.getItem('alles-gym-more') !== '0'; } catch { /* stays open */ }
   if (!same && _gym) { clearInterval(_gym.restTimer); clearTimeout(_gym.undoTimer); }
-  const g = same ? Object.assign(_gym, { host, habit, save, entry }) : {
-    host, habit, day, save, entry, more,
+  const g = same ? Object.assign(_gym, { host, habit, save, entry, doc }) : {
+    host, habit, day, save, entry, doc, more,
     exercises: structuredClone(entry?.values?.exercises || []),
     history: new Map(), editing: null, undo: null, rest: null, touched: false,
   };

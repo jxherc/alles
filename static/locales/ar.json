@@ -3292,6 +3292,8 @@
     "habits.active_habits": "العادات النشطة",
     "habits.add_habit": "إضافة عادة",
     "habits.add_set": "إضافة مجموعة",
+    "habits.earlier_week": "الأسبوع السابق",
+    "habits.later_week": "الأسبوع التالي",
     "habits.add_exercise": "إضافة",
     "habits.add_exercise_placeholder": "أضف تمرينًا",
     "habits.all_habits": "كل العادات",

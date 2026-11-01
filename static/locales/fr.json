@@ -3292,6 +3292,8 @@
     "habits.active_habits": "habitudes actives",
     "habits.add_habit": "ajouter une habitude",
     "habits.add_set": "ajouter une série",
+    "habits.earlier_week": "semaine précédente",
+    "habits.later_week": "semaine suivante",
     "habits.add_exercise": "ajouter",
     "habits.add_exercise_placeholder": "ajouter un exercice",
     "habits.all_habits": "toutes les habitudes",

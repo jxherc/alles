@@ -3292,6 +3292,8 @@
     "habits.active_habits": "有効な習慣",
     "habits.add_habit": "習慣を追加",
     "habits.add_set": "セットを追加",
+    "habits.earlier_week": "前の週",
+    "habits.later_week": "次の週",
     "habits.add_exercise": "追加",
     "habits.add_exercise_placeholder": "種目を追加",
     "habits.all_habits": "すべての習慣",

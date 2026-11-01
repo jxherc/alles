@@ -3292,6 +3292,8 @@
     "habits.active_habits": "進行中的習慣",
     "habits.add_habit": "新增習慣",
     "habits.add_set": "加一組",
+    "habits.earlier_week": "上一週",
+    "habits.later_week": "下一週",
     "habits.add_exercise": "新增",
     "habits.add_exercise_placeholder": "新增一個動作",
     "habits.all_habits": "全部習慣",

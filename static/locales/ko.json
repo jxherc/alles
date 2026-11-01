@@ -3292,6 +3292,8 @@
     "habits.active_habits": "활성 습관",
     "habits.add_habit": "습관 추가",
     "habits.add_set": "세트 추가",
+    "habits.earlier_week": "이전 주",
+    "habits.later_week": "다음 주",
     "habits.add_exercise": "추가",
     "habits.add_exercise_placeholder": "운동 추가",
     "habits.all_habits": "모든 습관",

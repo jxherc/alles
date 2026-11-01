@@ -251,7 +251,9 @@ suggested from that habit's past logs; `reading` {amount, pages or chapters, boo
 text ("lat pulldown 70 × 10 · 3 sets"), and any day in the week strip opens its log to view, edit
 or remove. [services/habit_kinds.py](services/habit_kinds.py) checks every log on the server
 (types, ranges, at most 50 workout rows, text caps) and refuses an unknown type or details sent to
-a check habit. the overview returns the last 14 days of details and, for a workout, every exercise
+a check habit. the overview returns the last 14 days of details (plus `log_day` when an opened habit
+has paged its week strip further back: the arrows over the strip go back as far as the year grid)
+and, for a workout, every exercise
 name used. migration 76 adds the columns; existing habits become checks.
 
 **habit logs with every detail (v2).** each of the 60 catalog habits (the 55 above plus protein,

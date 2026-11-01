@@ -3296,6 +3296,8 @@ const BUILTIN_ENGLISH = {
     "habits.active_habits": "active habits",
     "habits.add_habit": "add habit",
     "habits.add_set": "add set",
+    "habits.earlier_week": "earlier week",
+    "habits.later_week": "later week",
     "habits.add_exercise": "add",
     "habits.add_exercise_placeholder": "add an exercise",
     "habits.all_habits": "all habits",

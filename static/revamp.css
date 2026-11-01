@@ -4168,6 +4168,14 @@ html:not(#_):not(#_) .habit-detail-head .habit-name {
 html:not(#_):not(#_) .habit-detail-head .habit-icon { font-size: 1.25rem; }
 html:not(#_):not(#_) .habit-stats { margin: 0; color: var(--k-muted); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
 html:not(#_):not(#_) .habit-detail .habit-week { margin: 0; }
+/* which week the strip shows, and the arrows that page it; the arrows sit on the strip's end */
+html:not(#_):not(#_) .habit-week-head {
+  display: flex;
+  align-items: center;
+  gap: var(--k-control-gap);
+  margin-block-end: calc(-1 * var(--k-space-2));
+}
+html:not(#_):not(#_) .habit-week-range { flex: 1; color: var(--k-muted); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
 html:not(#_):not(#_) .habit-detail .habit-day { min-height: 56px; }
 html:not(#_):not(#_) .habit-day.today b { font-weight: 700; color: var(--k-text); }
 html:not(#_):not(#_) .habit-day.picked { outline: 1px solid var(--k-muted); outline-offset: -1px; }

@@ -3292,6 +3292,8 @@
     "habits.active_habits": "hábitos activos",
     "habits.add_habit": "añadir hábito",
     "habits.add_set": "añadir serie",
+    "habits.earlier_week": "semana anterior",
+    "habits.later_week": "semana siguiente",
     "habits.add_exercise": "añadir",
     "habits.add_exercise_placeholder": "añadir un ejercicio",
     "habits.all_habits": "todos los hábitos",

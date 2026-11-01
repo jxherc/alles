@@ -30,6 +30,7 @@ let _day = calendarDateKey();
 let _open = null;      // the habit opened from its row
 let _logDay = _day;    // the day the gym log shows
 let _gone = null;      // { habit, timer }: deleted, still undoable
+let _weeksBack = 0;    // which week an opened habit's strip shows
 const UNDO_MS = 8000;
 
 function newRequestId() {
@@ -44,7 +45,7 @@ function newRequestId() {
 
 export function initHabits(fetcher = fetch) {
   ++_navigation;
-  _open = null;
+  _open = null; _weeksBack = 0;
   // A fresh navigation (including a Home record link) opens active habits.
   if (_showArchived) { _showArchived = false; _habits = []; _hasLoaded = false; }
   if (!_inited) {
@@ -61,7 +62,9 @@ export async function loadHabits(fetcher = fetch) {
   const day = calendarDateKey();
   _loading = true; _loadError = ''; _render();
   try {
-    const data = await api('/api/habits/overview?date_q=' + day + (_showArchived ? '&archived=true' : ''), {}, fetcher);
+    // an opened habit paged back past the last two weeks asks for that day's details too
+    const older = _open && _logDay !== _day ? '&log_day=' + _logDay : '';
+    const data = await api('/api/habits/overview?date_q=' + day + (_showArchived ? '&archived=true' : '') + older, {}, fetcher);
     if (!Array.isArray(data.habits)) throw new Error('invalid habit response');
     if (generation !== _generation) return false;
     _habits = data.habits; _hasLoaded = true;
@@ -80,7 +83,7 @@ function setBusy() {
   const body = $('habits-body');
   body?.setAttribute('aria-busy', String(_saving || _loading));
   body?.querySelectorAll('button, input, .custom-select').forEach(el => {
-    el.disabled = _saving || (el.dataset.act === 'create' && !!_creation?.deleted);
+    el.disabled = _saving || el.dataset.off === '1' || (el.dataset.act === 'create' && !!_creation?.deleted);
   });
 }
 
@@ -157,10 +160,10 @@ async function closeAdd() {
   return navigation === _navigation;
 }
 
-function _localDays(n) {
+function _localDays(n, weeksBack = 0) {
   const out = [];
   const [year, month, day] = _day.split('-').map(Number);
-  const t = new Date(year, month - 1, day);
+  const t = new Date(year, month - 1, day - weeksBack * 7);
   for (let i = n - 1; i >= 0; i--) { const d = new Date(t); d.setDate(t.getDate() - i); out.push(d); }
   return out;
 }
@@ -225,12 +228,17 @@ function _heat(grid) {
   const weeks = [];
   for (let at = 0; at < grid.length; at += 7) weeks.push(grid.slice(at, at + 7));
   let month = '';
-  const heads = weeks.map(week => {
+  const names = weeks.map(week => {
     const name = formatCalendarDate(week[0].date, { month: 'short' }).toLowerCase();
     const head = name !== month ? name : '';
     month = name;
-    return `<span>${esc(head)}</span>`;
-  }).join('');
+    return head;
+  });
+  // a name is about 3 weeks wide: one that a later name would start on top of is left out
+  names.forEach((name, at) => {
+    if (name && names.slice(at + 1, at + 3).some(Boolean)) names[at] = '';
+  });
+  const heads = names.map(name => `<span>${esc(name)}</span>`).join('');
   return `<div class="habit-year" aria-hidden="true"><div class="habit-year-months" style="--weeks:${weeks.length}">${heads}</div>
     <div class="habit-heat" style="--weeks:${weeks.length}">${grid.map(g =>
     `<i class="${g.done ? 'on' : ''}${g.date === _day ? ' today' : ''}" title="${g.date}"></i>`).join('')}</div></div>`;
@@ -238,7 +246,14 @@ function _heat(grid) {
 
 function _weekStrip(h, picked = '') {
   const done = new Set(h.grid.filter(g => g.done).map(g => g.date));
-  return `<div class="habit-week">${_localDays(7).map(d => {
+  const days = _localDays(7, _weeksBack);
+  // earlier weeks page back as far as the year grid goes, so any past day can be opened
+  const oldest = Math.floor(h.grid.length / 7) - 1;
+  const range = `${formatCalendarDate(_iso(days[0]), { month: 'short', day: 'numeric' })} – ${formatCalendarDate(_iso(days[6]), { month: 'short', day: 'numeric' })}`;
+  const head = `<div class="habit-week-head"><span class="habit-week-range" aria-live="polite">${esc(range.toLowerCase())}</span>
+    <button type="button" class="icon-btn" data-week="1" aria-label="${esc(t('habits.earlier_week'))}"${_weeksBack >= oldest ? ' disabled data-off="1"' : ''}>${_si('chevron-left')}</button>
+    <button type="button" class="icon-btn" data-week="-1" aria-label="${esc(t('habits.later_week'))}"${_weeksBack ? '' : ' disabled data-off="1"'}>${_si('chevron-right')}</button></div>`;
+  return `${head}<div class="habit-week">${days.map(d => {
     const iso = _iso(d);
     const completed = done.has(iso);
     const date = formatCalendarDate(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -470,11 +485,20 @@ function _wire(body) {
     });
   }
 
+  body.querySelectorAll('[data-week]').forEach(btn => btn.addEventListener('click', () => {
+    _weeksBack = Math.max(0, _weeksBack + Number(btn.dataset.week));
+    _render();
+    // keep focus on the same arrow, or the other one when this end is reached
+    const again = $('habits-body')?.querySelector(`[data-week="${btn.dataset.week}"]`);
+    (again && !again.disabled ? again : $('habits-body')?.querySelector('[data-week]:not(:disabled)'))?.focus();
+  }));
+
   body.querySelectorAll('.habit-day[data-toggle]').forEach(btn => btn.addEventListener('click', () => {
     const habit = _habits.find(h => h.id === btn.closest('.habit-card').dataset.id);
     // the gym log lives in the habit: a day picks which session it shows
     if (habit?.kind === 'workout') {
       _open = habit.id; _logDay = btn.dataset.toggle; _render();
+      if (btn.classList.contains('done') && !habit.days?.[_logDay]) loadHabits().then(() => $('habits-body')?.querySelector('.habit-day.picked')?.focus());
       $('habits-body')?.querySelector('.habit-day.picked')?.focus();
       return;
     }
@@ -536,7 +560,7 @@ function _wireCards(body) {
       if (_saving) return;
       if (act === 'open') {
         if (!await closeAdd()) return;
-        _open = id; _logDay = _day; _editing = null; _render();
+        _open = id; _logDay = _day; _weeksBack = 0; _editing = null; _render();
         $('habits-body')?.querySelector('[data-act="back"]')?.focus();
         return;
       }

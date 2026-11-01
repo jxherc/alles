@@ -686,6 +686,7 @@
     "date must be an ISO date (YYYY-MM-DD)": "la fecha debe ser una fecha ISO (YYYY-MM-DD)",
     "date_q and days must form a valid date range": "date_q y days deben formar un rango de fechas válido",
     "date_q must be ISO (YYYY-MM-DD)": "date_q debe ser ISO (YYYY-MM-DD)",
+    "log_day must be ISO (YYYY-MM-DD)": "log_day debe ser ISO (YYYY-MM-DD)",
     "date_q must be ISO and setup json": "date_q debe ser ISO y setup debe ser json",
     "decision must be duplicate or new": "la decisión debe ser duplicate o new",
     "decision must be keep or delete": "la decisión debe ser keep o delete",

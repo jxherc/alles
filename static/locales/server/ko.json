@@ -686,6 +686,7 @@
     "date must be an ISO date (YYYY-MM-DD)": "날짜는 ISO 날짜(YYYY-MM-DD)여야 합니다",
     "date_q and days must form a valid date range": "date_q와 days가 올바른 날짜 범위를 이루어야 합니다",
     "date_q must be ISO (YYYY-MM-DD)": "date_q는 ISO 형식(YYYY-MM-DD)이어야 합니다",
+    "log_day must be ISO (YYYY-MM-DD)": "log_day는 ISO 형식(YYYY-MM-DD)이어야 합니다",
     "date_q must be ISO and setup json": "date_q는 ISO 형식, setup은 json이어야 합니다",
     "decision must be duplicate or new": "결정은 duplicate 또는 new여야 합니다",
     "decision must be keep or delete": "결정은 keep 또는 delete여야 합니다",
