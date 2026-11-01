@@ -1,7 +1,7 @@
 // project workspace page — open a project to see its chats, its files (working dir),
 // standing instructions, and notes. notebook-lm-ish: a home base per project.
 import { toast } from './util.js';
-import { prompt as dlgPrompt } from './dialog.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 import { getProjects, loadProjects } from './projects.js';
 import { projectFolderMessage } from './projectenv.js';
 import { selectSession, loadSessions } from './sessions.js';
@@ -11,23 +11,13 @@ import { categoryHue } from './color.js';
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function _patch(pid, body) {
-  return fetch(`/api/projects/${pid}`, {
+  return _fetchWithRecentOwner(`/api/projects/${pid}`, {
     method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
   }).catch(() => {});
 }
 
-async function _fetchWithRecentOwner(input, init) {
-  let response = await fetch(input, init);
-  if (response.status !== 403) return response;
-  const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
-  if (me?.enabled === false) return response;
-  const password = await dlgPrompt('enter your Alles password to change the Project folder', '', { secret: true });
-  if (password == null) return response;
-  const confirmed = await fetch('/api/auth/reauth', {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }),
-  });
-  if (!confirmed.ok) { toast('password confirmation failed', 'error'); return response; }
-  return fetch(input, init);
+function _fetchWithRecentOwner(input, init) {
+  return fetchWithRecentOwner(input, init, { prompt: t('aide.reauth_prompt', { reason: t('aide.reauth_reason_folder') }) });
 }
 
 export async function renderProject(pid) {

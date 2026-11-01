@@ -663,10 +663,23 @@ class PiDoesTheWorkTest(unittest.TestCase):
             kept = names(agent_tools.build_tool_defs({"aide_pi_does_work": False}))
         with mock.patch.object(agent_tools, "_pi_ready", return_value=False):
             no_pi = names(agent_tools.build_tool_defs({"aide_pi_does_work": True}))
-        for name in ("docs_write", "task_add", "shell", "edit_file"):
+        for name in ("docs_write", "note_write", "shell", "edit_file"):
             self.assertNotIn(name, handed)
             self.assertIn(name, kept)
             self.assertIn(name, no_pi)  # without pi, Aide still does it
+        # one-step actions are Aide's own, with pi or without it
+        for name in (
+            "task_add",
+            "task_done",
+            "calendar_create",
+            "calendar_delete",
+            "habit_add",
+            "habit_log",
+            "note_append",
+            "contact_add",
+            "book_add",
+        ):
+            self.assertIn(name, handed)
         for name in ("pi_run", "docs_read", "mail_send", "memory_add", "web_search"):
             self.assertIn(name, handed)
 
@@ -684,6 +697,73 @@ class HandoffDisplayTest(PiTest):
             saved["items"][0], {"kind": "user", "text": "make a packing list", "from_aide": True}
         )
         self.assertEqual(pi_agent.split_handoff("plain words"), ("plain words", False))
+
+
+class FailedHandoffTest(PiTest):
+    """work handed to pi that breaks ends in a plain message and an error result. never an
+    exception, never "pi finished without a reply" as if it had worked"""
+
+    def hand_over(self, task, **kw):
+        from services import agent_tools
+
+        return asyncio.run(agent_tools._pi_run(task, wait_seconds=30, **kw))
+
+    def test_a_provider_error_is_reported_as_the_reason(self):
+        self.add_endpoint()
+        result = self.hand_over("broken provider please")
+        self.assertTrue(result["error"])
+        self.assertIn("401 invalid api key", result["output"])
+        self.assertIn("pi could not finish this", result["output"])
+        self.assertNotIn("without a reply", result["output"])
+
+    def test_pi_dying_mid_task_is_reported(self):
+        self.add_endpoint()
+        result = self.hand_over("crash now")
+        self.assertTrue(result["error"])
+        self.assertIn("pi stopped unexpectedly", result["output"])
+
+    def test_pi_that_never_starts_is_reported_and_leaves_nothing_running(self):
+        self.add_endpoint()
+        dead = Path(self.tmp.name) / "dead-pi"
+        dead.write_text("#!/bin/sh\nexit 1\n")
+        dead.chmod(dead.stat().st_mode | stat.S_IEXEC)
+        with mock.patch.dict(os.environ, {"ALLES_PI_BIN": str(dead)}):
+            result = self.hand_over("write a plan")
+        self.assertTrue(result["error"])
+        self.assertTrue(result["output"].startswith("pi could not do this:"), result["output"])
+        self.assertIn("nothing was changed", result["output"])
+        self.assertEqual([c for c in pi_agent._chats.values() if c.alive], [])
+
+    def test_a_folder_pi_cannot_use_is_reported(self):
+        from services import agent_tools
+
+        self.add_endpoint()
+        denied = PermissionError(13, "Permission denied", "/home/box/Alles/Aide")
+        with mock.patch.object(agent_tools, "_pi_workspace", side_effect=denied):
+            result = self.hand_over("write a plan")
+        self.assertTrue(result["error"])
+        self.assertIn("cannot write pi's work folder", result["output"])
+
+    def test_the_streaming_path_ends_with_the_error_result_too(self):
+        from services import agent_tools
+
+        async def run():
+            events = []
+            with mock.patch.object(agent_tools, "_pi_workspace", side_effect=OSError("disk full")):
+                async for event in agent_tools.stream_execute("pi_run", {"task": "x"}):
+                    events.append(event)
+            return events
+
+        events = asyncio.run(run())
+        self.assertEqual(events[-1]["type"], "result")
+        self.assertTrue(events[-1]["result"]["error"])
+        self.assertIn("disk full", events[-1]["result"]["output"])
+
+    def test_a_good_handoff_is_still_not_an_error(self):
+        self.add_endpoint()
+        result = self.hand_over("make a packing list")
+        self.assertFalse(result.get("error"))
+        self.assertIn("done with", result["output"])
 
 
 class ChatSummaryRaceTest(unittest.TestCase):

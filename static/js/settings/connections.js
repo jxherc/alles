@@ -1209,7 +1209,7 @@ function _signinPost(path, body) {
 
 async function _signinSend(path, body) {
   if (!_signinOpen) return null;
-  const response = await fetch(`/api/aide/browser/signin${path}`, {
+  const response = await _fetchWithRecentOwner(`/api/aide/browser/signin${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body || {}),

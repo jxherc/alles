@@ -1,6 +1,7 @@
 // Aide code: pi coding chats in folders on the machine that hosts alles.
 // projects and their chats sit in the rail, the open chat fills the rest.
-import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
+import { confirm as dlgConfirm } from './dialog.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 import { toast, mdToHtml } from './util.js';
 import { wireAutosizeTextarea, autosizeTextarea } from './text_entry.js?v=1';
 import { createMenuController } from './kokuen.js?v=4';
@@ -61,20 +62,8 @@ const builtins = () => [
 const harnessName = id => native.find(h => h.harness === id)?.name || catalogRows.find(h => h.id === id)?.name || id;
 const isNative = id => native.some(h => h.harness === id);
 
-async function ownerFetch(input, init = {}) {
-  const response = await fetch(input, init);
-  if (response.status !== 403) return response;
-  const error = await response.clone().json().catch(() => ({}));
-  if (error.code !== 'recent_auth_required') return response;
-  const me = await fetch('/api/auth/me').then(result => result.json()).catch(() => null);
-  if (me?.enabled === false) return response;
-  const password = await dlgPrompt(t('aide.code_password_prompt'), '', { secret: true });
-  if (password == null) return response;
-  const confirmed = await fetch('/api/auth/reauth', {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }),
-  });
-  if (!confirmed.ok) { toast(t('aide.code_password_failed'), 'error'); return response; }
-  return fetch(input, init);
+function ownerFetch(input, init = {}) {
+  return fetchWithRecentOwner(input, init, { prompt: t('aide.code_password_prompt') });
 }
 async function api(path, init = {}) {
   const response = await ownerFetch(path, init);

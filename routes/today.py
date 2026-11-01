@@ -171,9 +171,16 @@ def today_view(
 
     overdue, due_today = [], []
     for d in (s["data"] for s in g.get("task", [])):
-        item = {"id": d["id"], "title": d["title"], "due": d["due"], "priority": d["priority"]}
+        item = {
+            "id": d["id"],
+            "title": d["title"],
+            "due": d["due"],
+            "due_time": d.get("due_time"),
+            "priority": d["priority"],
+        }
         (overdue if d["overdue"] else due_today).append(item)
-    overdue.sort(key=lambda x: x["due"])
+    overdue.sort(key=lambda x: (x["due"], x["due_time"] or "99:99"))
+    due_today.sort(key=lambda x: x["due_time"] or "99:99")
 
     reminders = [
         {"id": d["id"], "text": d["text"], "at": d["at"], "trigger_at": d["trigger_at"]}

@@ -1,6 +1,7 @@
 import { toast, plainError } from './util.js';
 import { formatDateTime, resolvedTimeZone, t } from './i18n.js';
 import { initAideNews } from './aidenews.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 
 let initialized = false;
 let scheduleKind = 'schedule';
@@ -27,7 +28,7 @@ function safeMessage(value) {
   return (value ? plainError(value) : t('aide.sched_went_wrong')).replace(/jarvis/gi, 'Aide');
 }
 
-async function requestJson(url, options = {}, fetcher = fetch) {
+async function requestJson(url, options = {}, fetcher = fetchWithRecentOwner) {
   const response = await fetcher(url, options);
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {

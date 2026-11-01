@@ -345,6 +345,7 @@ class Task(Base):
     stage = Column(String, default="backlog")  # backlog | next | doing | waiting | done
     priority = Column(Integer, default=0)  # 0 normal, 1 high
     due_date = Column(String, nullable=True)
+    due_time = Column(String, nullable=True)  # "HH:MM" on the due day; null = any time that day
     parent_id = Column(String, nullable=True)  # subtasks point at their parent
     tags = Column(String, default="")  # comma-separated
     repeat = Column(String, default="")  # ''|daily|weekly|monthly|yearly

@@ -2,6 +2,7 @@ import { toast, plainError } from './util.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm } from './dialog.js';
 import { formatDate, t, tp } from './i18n.js';
 import { pushRouteUrl, replaceRouteUrl } from './route_history.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '')
@@ -126,7 +127,7 @@ function query(values = {}) {
   return text ? `?${text}` : '';
 }
 
-async function request(url, options = {}, fetcher = fetch) {
+async function request(url, options = {}, fetcher = fetchWithRecentOwner) {
   const response = await fetcher(url, options);
   const type = response.headers.get('content-type') || '';
   const data = type.includes('application/json') ? await response.json() : await response.text();

@@ -49,7 +49,7 @@ test('remote background work requires owner confirmation before any request or f
   assert.match(background, /import \{ confirm as confirmDialog \} from '.\/dialog\.js'/);
   assert.match(start, /preview\.privacy_class === 'remote'/);
   assert.match(start, /await confirmDialog\(/);
-  assert.ok(start.indexOf('await confirmDialog(') < start.indexOf("fetch('/api/jarvis/handoffs'"));
+  assert.ok(start.indexOf('await confirmDialog(') < start.indexOf("fetchWithRecentOwner('/api/jarvis/handoffs'"));
   assert.match(start, /confirmation\.confirmed_endpoint_id = preview\.endpoint_id/);
   assert.match(start, /confirmation\.confirmed_model = preview\.model/);
   assert.match(start, /\.\.\.confirmation/);

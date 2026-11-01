@@ -3,6 +3,7 @@ import { toast, mdToHtml, plainError } from './util.js';
 import { formatCalendarDate, formatTime, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=4';
 import { replaceRouteUrl } from './route_history.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 // labels resolve at render so a language switch shows on the next build
@@ -99,7 +100,7 @@ function wireProductNavigation() {
 
 async function migrationRequest(url, options = {}) {
   const headers = _authHeaders(options.headers || {});
-  const response = await fetch(url, { ...options, headers });
+  const response = await fetchWithRecentOwner(url, { ...options, headers });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(data.detail || t('journal.copy_could_not_continue'));

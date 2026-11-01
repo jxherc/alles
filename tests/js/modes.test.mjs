@@ -20,6 +20,7 @@ const {
   permLabel,
   getPermMode,
   setPermMode,
+  requestPermMode,
   EFFORTS,
   getEffort,
   setEffort,
@@ -182,3 +183,29 @@ test('modelSupport reads the selected model from the catalog', () => {
   }
 });
 
+
+test('full access asks for the password when it is switched on, and stays off when refused', async () => {
+  setPermMode('approve');
+  let asked = 0;
+  assert.equal(await requestPermMode('full_auto', { confirmOwner: async () => { asked += 1; return true; } }), true);
+  assert.equal(getPermMode(), 'full_auto');
+  assert.equal(asked, 0, 'only full access asks');
+
+  assert.equal(await requestPermMode('full_access', { confirmOwner: async () => { asked += 1; return false; } }), false);
+  assert.equal(getPermMode(), 'full_auto');
+  assert.equal(asked, 1);
+
+  // a wrong password throws from the shared prompt: the mode still doesn't change
+  const toasts = [];
+  const wrong = { confirmOwner: async () => { throw new Error('nope'); }, notify: (...args) => toasts.push(args) };
+  assert.equal(await requestPermMode('full_access', wrong), false);
+  assert.equal(getPermMode(), 'full_auto');
+  assert.deepEqual(toasts, [['nope', 'error']]);
+
+  assert.equal(await requestPermMode('full_access', { confirmOwner: async () => true }), true);
+  assert.equal(getPermMode(), 'full_access');
+  // already in full access: choosing it again does not ask a second time
+  asked = 0;
+  assert.equal(await requestPermMode('full_access', { confirmOwner: async () => { asked += 1; return false; } }), true);
+  assert.equal(asked, 0);
+});

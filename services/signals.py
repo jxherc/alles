@@ -98,26 +98,34 @@ def _event_occurs_on(e: CalendarEvent, day: date, zone=None) -> bool:
 # -- collectors: one family each, returning a list of signals -----------------
 
 
-def _tasks(db, today):
+def _tasks(db, today, *, timezone_name=None):
+    from services.task_due import is_overdue
+
     iso = today.isoformat()
+    # a task due at a time is overdue once that time has gone by, on the owner's own today
+    now = datetime.now(UTC).astimezone(calendar_zone(timezone_name)).replace(tzinfo=None)
+    if now.date() != today:
+        now = datetime.combine(today, datetime.min.time())
     out = []
     for t in db.query(Task).filter(Task.done == False).all():  # noqa: E712
         if not t.due_date:
             continue
         d = str(t.due_date)[:10]
-        if d < iso:
+        clock = t.due_time or None
+        if d < iso or (d == iso and is_overdue(d, clock, now)):
             out.append(
                 _sig(
                     "task",
                     f"task_overdue:{t.id}",
                     70 + (15 if t.priority else 0),
                     t.title,
-                    f"overdue since {d}",
+                    f"overdue since {d} {clock}" if clock else f"overdue since {d}",
                     "tasks",
                     {
                         "id": t.id,
                         "title": t.title,
                         "due": d,
+                        "due_time": clock,
                         "priority": t.priority,
                         "overdue": True,
                     },
@@ -130,12 +138,13 @@ def _tasks(db, today):
                     f"task_due:{t.id}",
                     50 + (15 if t.priority else 0),
                     t.title,
-                    "due today",
+                    f"due today at {clock}" if clock else "due today",
                     "tasks",
                     {
                         "id": t.id,
                         "title": t.title,
                         "due": d,
+                        "due_time": clock,
                         "priority": t.priority,
                         "overdue": False,
                     },
@@ -644,6 +653,8 @@ def gather(db, today=None, *, categories=None, timezone_name=None, unavailable=N
                 out.extend(_reminders(db, today, timezone_name=timezone_name))
             elif name == "event":
                 out.extend(_events(db, today, timezone_name=timezone_name))
+            elif name == "task":
+                out.extend(_tasks(db, today, timezone_name=timezone_name))
             else:
                 out.extend(_COLLECTORS[name](db, today))
     out.sort(key=lambda s: -s["urgency"])

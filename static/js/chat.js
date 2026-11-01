@@ -7,12 +7,13 @@ import {
 import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=216';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
 import { getAttachments, hasPendingAttachments, clearAttachments } from './uploads.js?v=254';
-import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort, modelSupport } from './modes.js?v=258';
+import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort, modelSupport } from './modes.js?v=259';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { shouldRunInBackground } from './aidebackgroundpolicy.js';
 import { formatNumber, t, tp, t as tr } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { saveAnswerNote } from './answer_note.js';
+import { fetchWithRecentOwner } from './recent_owner.js';
 import { saveAnswerTask } from './answer_task.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=2';
 import { compactResponseActions } from './response_actions.js?v=5';
@@ -221,12 +222,48 @@ function restoreDocumentScope(scope) {
 }
 
 
+async function offerTaskAdd(text) {
+  const button = document.getElementById('composer-send-task');
+  const message = String(text || '').trim();
+  if (!button || !message) return;
+  const ask = preview => fetch('/api/tasks/quick', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text: message, preview, from_message: true }),
+  });
+  try {
+    const checked = await ask(true);
+    const read = await checked.json().catch(() => ({}));
+    // the words moved on while it was checked: the offer would be for something else
+    if (!checked.ok || !read.understood || document.getElementById('composer-ta')?.value.trim() !== message) return;
+    button.hidden = false;
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        const added = await ask(false);
+        const task = await added.json().catch(() => ({}));
+        if (!added.ok) throw new Error(task.detail || '');
+        toast(t('aide.send_task_added', { title: task.title }), 'success');
+        button.hidden = true;
+      } catch {
+        toast(t('aide.send_task_add_failed'), 'error');
+      } finally {
+        button.disabled = false;
+      }
+    };
+  } catch { /* choosing a model is still on offer */ }
+}
+
 function showSendIssue(message, chooseModel = false) {
   const recovery = document.getElementById('composer-send-recovery');
   if (!recovery) { toast(message, 'error'); return; }
   recovery.hidden = false;
   recovery.querySelector('p').textContent = message;
   recovery.querySelector('button').hidden = !chooseModel;
+  // no model to answer with: a message that reads as a task can still be kept as one
+  const addTask = document.getElementById('composer-send-task');
+  if (addTask) addTask.hidden = true;
+  if (chooseModel) void offerTaskAdd(document.getElementById('composer-ta')?.value);
   const composer = document.getElementById('composer-ta');
   if (composer?.getClientRects().length && ['composer-ta', 'send-btn'].includes(document.activeElement?.id)) composer.focus();
 }
@@ -367,7 +404,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
     scrollDown();
     let run = null;
     try {
-      const { startBackgroundWork } = await import('./aidebackground.js?v=247');
+      const { startBackgroundWork } = await import('./aidebackground.js?v=248');
       run = await startBackgroundWork({
         sessionId,
         request: text,
@@ -461,6 +498,7 @@ function resendRefusal(status, error) {
   // the owner's own stop got there first: nothing was cut, the history is just re-read
   if (error.code === 'turn_stopped') return { reason: 'stopped' };
   if (status === 404) return { reason: 'gone' };
+  if (error.code === 'recent_auth_required') return { reason: 'refused', words: t('aide.full_access_needs_password') };
   const detail = typeof error.detail === 'string' ? error.detail : error.detail?.message;
   return { reason: 'refused', words: plainError(detail || t('aide.resend_failed')) };
 }
@@ -537,6 +575,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   let streamEnded = false;
   let toolActivity = false;
   let rejectedBeforeStart = false;
+  // full access wants a recent password; the shared prompt asked and it was cancelled or wrong
+  let refusedForPassword = false;
   const progressEl = document.createElement('div');
   progressEl.className = 'aide-run-progress';
   progressEl.setAttribute('role', 'status');
@@ -602,12 +642,12 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   };
 
   try {
-    const r = await fetch('/api/chat', {
+    const r = await fetchWithRecentOwner('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ...request, turn_token: turnToken }),
       signal: ctrl.signal,
-    });
+    }, { prompt: t('aide.reauth_prompt', { reason: t('aide.reauth_reason_full_access') }) });
 
     if (!r.ok && resend) {
       // refused before anything was cut: the history stays as it was
@@ -627,11 +667,14 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         row.dataset.unsaved = '1';
         throw new DOMException('stopped before it started', 'AbortError');
       }
-      rejectedBeforeStart = r.status === 409 && error.code === 'turn_in_progress';
+      refusedForPassword = r.status === 403 && error.code === 'recent_auth_required';
+      rejectedBeforeStart = refusedForPassword || (r.status === 409 && error.code === 'turn_in_progress');
       // never stored: an edit sends its words as a new message instead of cutting after it
       if (userRow && !userRow.dataset.msgId) userRow.dataset.unsaved = '1';
       row.dataset.unsaved = '1';
-      const message = typeof error.detail === 'string' ? error.detail : error.detail?.message || t('aide.answer_start_failed');
+      const message = refusedForPassword
+        ? t('aide.full_access_needs_password')
+        : typeof error.detail === 'string' ? error.detail : error.detail?.message || t('aide.answer_start_failed');
       const chat = document.getElementById('chat');
       const followedReply = chat && chat.scrollHeight - chat.scrollTop - chat.clientHeight < 96;
       body.innerHTML = rejectedBeforeStart
@@ -878,11 +921,17 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
             step.appendChild(card);
             const decide = async (allow) => {
               card.querySelectorAll('button').forEach(b => b.disabled = true);
-              await fetch(`/api/agent/permission/${t.request_id}`, {
+              const sent = await fetchWithRecentOwner(`/api/agent/permission/${t.request_id}`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ allow }),
-              }).catch(() => {});
+              }).catch(() => null);
+              if (!sent?.ok) {
+                // the server did not take the answer: the card must not say it did
+                card.querySelectorAll('button').forEach(b => { b.disabled = false; });
+                toast(tr('common.request_failed'), 'error');
+                return;
+              }
               card.classList.add(allow ? 'approved' : 'denied');
               card.querySelector('.agent-perm-msg').textContent = allow ? tr('aide.perm_approved') : tr('aide.perm_denied');
             };
@@ -940,6 +989,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
             if (status) status.textContent = t.completed === false ? tr('aide.step_no_final_result') : t.error ? tr('aide.run_status_error') : tr('aide.run_status_done');
             const out = step.querySelector('.agent-step-output');
             if (out && !out.textContent) out.textContent = t.output || tr('aide.step_no_output');
+            // a failed step ends with why it failed, even after it streamed some progress
+            else if (out && t.error && t.output && !out.textContent.includes(t.output)) out.textContent += `\n${t.output}`;
           }
           scrollDown();
         }
@@ -1134,7 +1185,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         if (restoreFocus) focusAfterReply();
       });
       body.querySelector('.error-msg')?.appendChild(retry);
-      if (rejectedBeforeStart) {
+      if (rejectedBeforeStart && !refusedForPassword) {
         // retry can't win while that work waits on you, so offer the way out too
         const stop = document.createElement('button');
         stop.type = 'button'; stop.className = 'btn aide-retry-response'; stop.textContent = t('aide.stop_that_work');

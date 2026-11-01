@@ -114,7 +114,7 @@ test('engine choices refresh after credentials and managed SearXNG lifecycle cha
   assert.match(managed, /finally \{[\s\S]*await loadSearxng\(\)[\s\S]*await refreshEngines\(\)/);
   assert.match(managed, /await refreshEngines\(\)[\s\S]*status\.textContent = message/);
   assert.match(managed, /state = 'error'/);
-  assert.match(section, /fetch\(url, options\)/);
+  assert.match(section, /fetchWithRecentOwner\(url, options\)/);
   assert.match(section, /json\('\/api\/system\/searxng'\)/);
   assert.match(section, /`\/api\/system\/searxng\/\$\{action\}`/);
 });

@@ -8,7 +8,9 @@ class TaskDueDateTests(ApiTest):
             with self.subTest(good=good):
                 r = self.client.patch(f"/api/tasks/{tid}", json={"due_date": good})
                 self.assertEqual(r.status_code, 200, r.text)
-                self.assertEqual(r.json()["due_date"], good)
+                # a day that carries a time is saved as the day plus its time
+                self.assertEqual(r.json()["due_date"], good[:10])
+                self.assertEqual(r.json()["due_time"], good[11:16] or None)
         # fromisoformat takes these, but every string compare on due_date misreads them
         for bad in ("20261020", "2026-W43-1", "20261020T0900", "1020-", "2026-13-40"):
             with self.subTest(bad=bad):

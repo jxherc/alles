@@ -1,4 +1,6 @@
 import { t } from './i18n.js';
+import { confirmRecentOwner } from './recent_owner.js';
+import { toast } from './util.js';
 
 let _incognitoMode = false;
 let _incognitoSidebarWasHidden = false;
@@ -47,6 +49,25 @@ export function setPermMode(m) {
     btn.setAttribute('aria-label', t('aide.perm_aria_label', { mode: permLabel(m) }));
     btn.setAttribute('aria-expanded', 'false');
   }
+}
+
+// the picker's way in. full access runs without asking, so the password is asked right when it
+// is switched on (the server wants a recent one on every turn in that mode), not on a later send.
+// returns whether the mode changed
+export async function requestPermMode(m, { confirmOwner = confirmRecentOwner, notify = toast } = {}) {
+  if (m === 'full_access' && _perm !== 'full_access') {
+    let confirmed = false;
+    try {
+      confirmed = await confirmOwner(fetch, {
+        prompt: t('aide.reauth_prompt', { reason: t('aide.reauth_reason_full_access') }),
+      });
+    } catch (error) {
+      notify(error.message || t('settings.reauth_failed'), 'error');
+    }
+    if (!confirmed) return false;
+  }
+  setPermMode(m);
+  return true;
 }
 
 // ── reasoning effort (PER MODEL) ────────────────────────────────────────────

@@ -982,7 +982,6 @@ async def chat_background(body: ChatRequest, request: Request, db: DbSession = D
     _apply_run_controls(settings, body, ep.base_url, model, metadata_for(ep, model))
     # Detached work has no client available to answer approval prompts.
     settings["agent_permission_mode"] = "full_auto"
-    _require_turn_authority(request, settings)
     settings["agent_detached"] = True
     _p = _resolve_persona(s, db)
     if _p and _p.temperature is not None:

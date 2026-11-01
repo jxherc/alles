@@ -97,7 +97,7 @@ function harness() {
   }
   const context = vm.createContext({ t, tp, tr: t, trp: tp,
     document, window: { _currentSession: { id: 'synthetic-session', project_id: 'synthetic-project' } },
-    fetch: fetcher, toast: (message, kind) => toasts.push({ message, kind }),
+    fetch: fetcher, fetchWithRecentOwner: fetcher, toast: (message, kind) => toasts.push({ message, kind }),
     promptDialog: (_title, initial, options) => openDialog('prompt', initial, options),
     fieldsDialog: (_title, defs, options) => openDialog('fields', defs[0].value, options),
     confirmDialog: async () => true, categoryHue,

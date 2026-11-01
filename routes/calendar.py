@@ -126,8 +126,17 @@ def calendar_tasks(start: str = "", end: str = "", db: DbSession = Depends(get_d
         q = q.filter(Task.due_date >= start)
     if end:
         q = q.filter(Task.due_date <= end)
-    rows = q.order_by(Task.due_date.asc()).all()
-    return [{"id": t.id, "title": t.title, "date": t.due_date, "done": t.done} for t in rows]
+    rows = q.order_by(Task.due_date.asc(), Task.due_time.asc()).all()
+    return [
+        {
+            "id": t.id,
+            "title": t.title,
+            "date": t.due_date,
+            "time": t.due_time or None,
+            "done": t.done,
+        }
+        for t in rows
+    ]
 
 
 @router.get("/calendar/birthdays")
@@ -294,11 +303,22 @@ def agenda(days: int = 30, db: DbSession = Depends(get_db), zone=Depends(_read_z
         db.query(Task)
         .filter(Task.done == False, Task.due_date != None, Task.due_date != "")  # noqa: E711, E712
         .filter(Task.due_date < (until + timedelta(days=1)).isoformat())
-        .order_by(Task.due_date.asc())
+        .order_by(Task.due_date.asc(), Task.due_time.asc())
     )
+    from services.task_due import is_overdue
+
+    now = calendar_events.owner_now(zone)
     for t in rows:
-        item = {"id": t.id, "title": t.title, "due": str(t.due_date)[:10], "priority": t.priority}
-        if item["due"] < today.isoformat():
+        item = {
+            "id": t.id,
+            "title": t.title,
+            "due": str(t.due_date)[:10],
+            "due_time": t.due_time or None,
+            "priority": t.priority,
+        }
+        if item["due"] < today.isoformat() or (
+            item["due"] == today.isoformat() and is_overdue(item["due"], item["due_time"], now)
+        ):
             overdue.append(item)
         else:
             tasks.setdefault(item["due"], []).append(item)

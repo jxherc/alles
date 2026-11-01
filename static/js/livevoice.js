@@ -1,7 +1,7 @@
 import { requestId } from './request_id.js';
 import { escapeHtml, toast } from './util.js';
 import { icon } from './icons.js';
-import { prompt as dlgPrompt } from './dialog.js';
+import { fetchWithRecentOwner, requestWithRecentOwner } from './recent_owner.js';
 import { t } from './i18n.js';
 
 let active = null;
@@ -258,7 +258,7 @@ async function startBackgroundTask(call, event) {
   if (preview.privacy_class === 'remote') {
     return { ok: false, error: t('call.confirm_remote') };
   }
-  const run = await json(await fetch('/api/jarvis/handoffs', {
+  const run = await json(await fetchWithRecentOwner('/api/jarvis/handoffs', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -358,24 +358,19 @@ function observeConnection(current) {
 }
 
 async function negotiateWithOwner(current, offer) {
-  const send = () => fetch(`/api/aide/calls/${encodeURIComponent(current.call.id)}/offer`, {
-    method: 'POST', headers: { 'content-type': 'application/sdp' }, body: offer.sdp,
-  });
-  const response = await send();
-  if (current.closed || response.status !== 403) return response;
-  const error = await response.clone().json().catch(() => ({}));
-  if (error.code !== 'recent_auth_required') return response;
-  const password = await dlgPrompt(t('call.password_prompt'), '', { secret: true });
-  if (current.closed) return response;
-  if (password == null) throw new Error(t('call.cancelled_before'));
-  const confirmed = await fetch('/api/auth/reauth', {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }),
-  });
-  if (current.closed) return response;
-  if (!confirmed.ok) throw new Error(t('call.password_failed'));
+  const options = { method: 'POST', headers: { 'content-type': 'application/sdp' }, body: offer.sdp };
   // Only this explicit pre-provider rejection is safe to resend. A timeout or
   // lost answer may have started provider work and must never be replayed here.
-  return send();
+  return requestWithRecentOwner(
+    (url, init) => fetch(url, init),
+    `/api/aide/calls/${encodeURIComponent(current.call.id)}/offer`,
+    options,
+    {
+      prompt: t('call.password_prompt'),
+      stillWanted: () => !current.closed,
+      onRefused: why => new Error(t(why === 'cancelled' ? 'call.cancelled_before' : 'call.password_failed')),
+    },
+  );
 }
 
 export async function startLiveVoice() {

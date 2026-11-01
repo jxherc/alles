@@ -4,6 +4,7 @@ import { MODEL_PROVIDERS } from './model_providers.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=215';
 import { formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=4';
+import { requestWithRecentOwner } from './recent_owner.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -176,32 +177,11 @@ function _activateTemporaryModal(overlay, source, initialFocus, close) {
   return boundary;
 }
 
-async function _confirmRecentOwner() {
-  const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
-  if (me?.enabled === false) return true;
-  const password = await _promptPw(t('vault.confirm_alles_password'), {
-    placeholder: t('vault.alles_password'),
-    action: 'confirm',
-  });
-  if (password == null) return false;
-  const response = await fetch('/api/auth/reauth', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ password }),
-  });
-  if (!response.ok) toast(t('vault.password_confirmation_failed'), 'error');
-  return response.ok;
-}
-
 async function _vfetchRecentOwner(url, opts = {}) {
   if (Object.prototype.hasOwnProperty.call(opts, 'body')) {
     throw new TypeError('recent-owner retry only supports bodyless requests');
   }
-  let response = await _vfetch(url, opts);
-  if (response.status !== 403) return response;
-  const payload = await response.clone().json().catch(() => ({}));
-  if (payload.code !== 'recent_auth_required' || !await _confirmRecentOwner()) return response;
-  return _vfetch(url, opts);
+  return requestWithRecentOwner(_vfetch, url, opts, { onRefused: 'response' });
 }
 
 export async function loadVaultView(fetcher = fetch) {

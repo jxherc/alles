@@ -5,6 +5,7 @@ import { _patchSettings, _bindSwitch, _esc } from './shared.js';
 import { onModelRoles, roleOptions, setModelRole } from './model_roles.js';
 import { toast, plainError } from '../util.js';
 import { confirm as confirmDialog } from '../dialog.js';
+import { fetchWithRecentOwner } from '../recent_owner.js';
 import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=215';
 import { t, tp } from '../i18n.js';
 
@@ -54,7 +55,7 @@ const labelOf = id => id === 'disabled' ? t('settings.search_disabled')
   : id === 'none' ? t('common.none') : (engineById(id) ? engineName(engineById(id)) : id);
 
 async function json(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetchWithRecentOwner(url, options);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(typeof data?.detail === 'string' && data.detail ? data.detail : t('common.request_failed'));
   return data;

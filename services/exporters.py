@@ -67,6 +67,7 @@ def _tasks(db):
             "title": t.title,
             "done": bool(t.done),
             "due_date": t.due_date or "",
+            "due_time": t.due_time or "",
             "priority": t.priority,
             "project": t.project or "",
             "tags": t.tags or "",
