@@ -98,7 +98,7 @@ alles comprueba la copia y prepara la restauración antes de aplicarla. detén l
 
 ## actualizar y desinstalar
 
-`alles update` instala la versión más reciente y guarda la anterior, para que `alles update rollback` pueda volver a ella con tus datos. `alles uninstall` quita alles y conserva tus datos personales. `alles help` muestra todos los comandos.
+`alles update` instala la versión más reciente y guarda la anterior, para que `alles update rollback` pueda volver a ella con tus datos. `alles uninstall` quita alles y conserva tus datos personales. `alles help` muestra todos los comandos. `alles status` nombra la versión por su commit corto y avisa cuando hay una más nueva. `alles tools` muestra lo que aide puede usar (node, pi, su navegador) y `alles tools install` lo instala. `alles ask` y `alles chat` hablan con aide desde la terminal, `alles logs --level warn --since 1h` deja solo lo importante del registro, `alles backup` crea una copia de seguridad cifrada y `alles dump` imprime un resumen sin secretos para reportar un error.
 
 está hecho con FastAPI, SQLite, JavaScript vanilla y CSS. no hay paso de compilación del frontend. los detalles técnicos están en [specifications.md](../../specifications.md).
 

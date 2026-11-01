@@ -1799,7 +1799,6 @@
     "staged database migrations no longer match": "ステージされたデータベースの移行が、もう一致しません",
     "staged preflight did not reach the current schema": "ステージの事前チェックが、現在のスキーマに到達しませんでした",
     "staged release contains an unsupported file type": "ステージされたリリースに、対応していないファイルの種類が含まれています",
-    "staged release health probe failed": "ステージされたリリースのヘルスプローブに失敗しました",
     "staged release notices are incomplete": "ステージされたリリースのお知らせが不完全です",
     "staged restore changed during operation": "操作中にステージされた復元が変更されました",
     "staged restore checksum does not match: {relative}": "ステージされた復元のチェックサムが一致しません: {relative}",
@@ -2500,6 +2499,12 @@
     "the provider refused the sign in": "プロバイダーがサインインを拒否しました",
     "the sign in was denied": "サインインは拒否されました",
     "this sign in already finished": "このサインインはすでに完了しています",
-    "this sign in attempt is gone; start again": "このサインイン試行はなくなりました。もう一度始めてください"
+    "this sign in attempt is gone; start again": "このサインイン試行はなくなりました。もう一度始めてください",
+    "the configured release branch could not be resolved exactly": "設定されたリリースブランチを正確に解決できませんでした",
+    "the configured release branch returned an invalid commit": "設定されたリリースブランチが無効なコミットを返しました",
+    "the configured release source could not be checked": "設定されたリリース元を確認できませんでした",
+    "this install has no release source to check": "このインストールには確認するリリース元がありません",
+    "chromium is downloaded but doesn't start: alles tools install browser": "chromium はダウンロード済みですが起動しません：alles tools install browser",
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node には libatomic1 パッケージが必要です：sudo apt install libatomic1"
   }
 }

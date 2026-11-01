@@ -1799,7 +1799,6 @@
     "staged database migrations no longer match": "las migraciones de la base de datos preparada ya no coinciden",
     "staged preflight did not reach the current schema": "la comprobación previa preparada no llegó al esquema actual",
     "staged release contains an unsupported file type": "la versión preparada contiene un tipo de archivo no admitido",
-    "staged release health probe failed": "falló la sonda de estado de la versión preparada",
     "staged release notices are incomplete": "los avisos de la versión preparada están incompletos",
     "staged restore changed during operation": "la restauración preparada cambió durante la operación",
     "staged restore checksum does not match: {relative}": "la suma de comprobación de la restauración preparada no coincide: {relative}",
@@ -2500,6 +2499,12 @@
     "the provider refused the sign in": "el proveedor rechazó el inicio de sesión",
     "the sign in was denied": "se denegó el inicio de sesión",
     "this sign in already finished": "este inicio de sesión ya terminó",
-    "this sign in attempt is gone; start again": "este intento de inicio de sesión ya no existe; empieza de nuevo"
+    "this sign in attempt is gone; start again": "este intento de inicio de sesión ya no existe; empieza de nuevo",
+    "the configured release branch could not be resolved exactly": "no se pudo resolver con exactitud la rama de versiones configurada",
+    "the configured release branch returned an invalid commit": "la rama de versiones configurada devolvió un commit no válido",
+    "the configured release source could not be checked": "no se pudo consultar la fuente de versiones configurada",
+    "this install has no release source to check": "esta instalación no tiene una fuente de versiones que consultar",
+    "chromium is downloaded but doesn't start: alles tools install browser": "chromium está descargado pero no arranca: alles tools install browser",
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node necesita el paquete libatomic1: sudo apt install libatomic1"
   }
 }

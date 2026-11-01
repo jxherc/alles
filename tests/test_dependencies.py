@@ -94,6 +94,28 @@ class NodeInstallTests(Cache):
             self.run_install(tarball=out.getvalue())
         self.assertFalse((self.root / "node").exists())
 
+    def test_a_missing_libatomic_names_the_debian_package(self):
+        # nov 1, debian 13 arm64: nodejs.org's build stops at libatomic.so.1
+        error = dependencies.DependencyError(
+            "node: error while loading shared libraries: libatomic.so.1: cannot open shared object"
+        )
+        real_run = dependencies._run
+
+        def fake_run(command, what, timeout, env=None):
+            if what == "the new node":
+                raise error
+            return real_run(command, what, timeout, env)
+
+        with (
+            mock.patch.object(dependencies, "_run", side_effect=fake_run),
+            mock.patch.object(dependencies.shutil, "which", return_value="/usr/bin/apt-get"),
+        ):
+            with self.assertRaises(dependencies.DependencyError) as caught:
+                self.run_install()
+        self.assertIn("sudo apt install libatomic1", str(caught.exception))
+        self.assertEqual(caught.exception.fix, ["sudo", "apt-get", "install", "-y", "libatomic1"])
+        self.assertFalse((self.root / "node").exists())
+
     def test_a_newer_install_replaces_the_old_one(self):
         old = self.root / "node-v22.0.0"
         (old / "bin").mkdir(parents=True)
@@ -261,6 +283,45 @@ class BrowserTests(Cache):
         message = str(caught.exception)
         self.assertIn("sudo", message)
         self.assertIn("-m playwright install-deps chromium", message)
+
+    def test_the_missing_library_is_found_above_the_last_line(self):
+        # nov 1, debian 13: playwright's last line is "<gracefully close end>"; the cause is above
+        output = (
+            "  - [pid=1][err] chrome-headless-shell: error while loading shared libraries: "
+            "libglib-2.0.so.0: cannot open shared object file\n  - [pid=1] <gracefully close end>"
+        )
+
+        def fake_run(command, what, timeout, env=None):
+            if command[1] == "-c":
+                raise dependencies.DependencyError(
+                    "- [pid=1] <gracefully close end>", output=output
+                )
+            return ""
+
+        with (
+            mock.patch.object(dependencies, "_run", side_effect=fake_run),
+            mock.patch.object(dependencies, "prepare_browser"),
+            mock.patch.object(dependencies.importlib.util, "find_spec", return_value=object()),
+        ):
+            with self.assertRaises(dependencies.DependencyError) as caught:
+                dependencies.install_browser()
+        self.assertIn("needs system libraries", str(caught.exception))
+        self.assertEqual(caught.exception.fix[0], "sudo")
+        self.assertEqual(caught.exception.fix[-3:], ["playwright", "install-deps", "chromium"])
+
+    def test_a_chromium_that_did_not_start_is_not_called_installed(self):
+        browsers = self.root / "browser-browsers"
+        (browsers / "chromium-1200").mkdir(parents=True)
+        (browsers / "chromium-1200" / "INSTALLATION_COMPLETE").write_text("")
+        (browsers / dependencies.LAUNCH_FAILED).write_text("libglib missing")
+        with (
+            mock.patch.dict(os.environ, {"PLAYWRIGHT_BROWSERS_PATH": str(browsers)}),
+            mock.patch.object(dependencies, "prepare_browser"),
+            mock.patch.object(dependencies.importlib.util, "find_spec", return_value=object()),
+        ):
+            state = dependencies._browser_state()
+        self.assertEqual(state["state"], "missing")
+        self.assertIn("doesn't start", state["detail"])
 
     def test_a_failed_pip_leaves_no_half_installed_packages(self):
         def fake_run(command, what, timeout, env=None):

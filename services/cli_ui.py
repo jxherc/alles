@@ -20,8 +20,14 @@ class Style:
             os.environ.get("TERM") != "dumb"
         )
         self.color = self.tty and "NO_COLOR" not in os.environ
+        # the app icon's own colors (static/favicon.svg): #0a0a0a square, #818cf8 dot;
+        # 256 color terminals get the nearest cells (232 and 105)
+        truecolor = os.environ.get("COLORTERM", "").lower() in ("truecolor", "24bit")
+        self.purple = "38;2;129;140;248" if truecolor else "38;5;105"
+        self.square = "48;2;10;10;10" if truecolor else "48;5;232"
         encoding = (getattr(self.stream, "encoding", "") or "").lower()
         fancy = "utf" in encoding
+        self.fancy = fancy
         self.mark_ok = "✓" if fancy else "+"
         self.mark_bad = "✗" if fancy else "x"
         self.mark_warn = "!"
@@ -32,7 +38,7 @@ class Style:
         return f"\033[{code}m{text}\033[0m" if self.color else text
 
     def accent(self, text: str) -> str:
-        return self._paint(text, "1;38;5;147")  # alles purple
+        return self._paint(text, f"1;{self.purple}")
 
     def good(self, text: str) -> str:
         return self._paint(text, "32")
@@ -53,14 +59,58 @@ class Style:
         self.stream.write(text + "\n")
         self.stream.flush()
 
-    def header(self, title: str) -> None:
+    def logo(self) -> list[str]:
+        """The app icon as three rows: a dark square with the purple dot in its middle."""
+        if not (self.color and self.fancy):
+            return []
+        cell = f"\033[{self.square};{self.purple}m"
+        return [f"{cell}{row}\033[0m" for row in ("      ", "  ▄▄  ", "  ▀▀  ")]
+
+    def header(self, title: str, lines: tuple[str, ...] = ()) -> None:
+        """The logo with the title and up to two short lines beside it; plain text when piped."""
         self.say()
-        self.say(f"  {self.accent('alles')}  {title}")
+        art = self.logo()
+        text = [f"{self.accent('alles')}  {title}", *lines]
+        if art:
+            for index, row in enumerate(art):
+                self.say(f"  {row}   {text[index] if index < len(text) else ''}".rstrip())
+            for extra in text[len(art) :]:
+                self.say(f"  {' ' * 6}   {extra}")
+        else:
+            for line in text:
+                self.say(f"  {line}")
         self.say()
+
+    def width(self) -> int:
+        import shutil
+
+        return shutil.get_terminal_size((80, 24)).columns if self.tty else 10_000
+
+    def fit(self, text: str, room: int, *, middle: bool = False) -> str:
+        """Cut text so its line never wraps in a narrow terminal; piped output stays whole.
+
+        middle keeps both ends, for paths: the folder it starts in and the file it ends with.
+        """
+        if room <= 1 or len(text) <= room:
+            return text
+        cut = "…" if self.fancy else "~"
+        if middle:
+            head = (room - 1) // 2
+            return text[:head] + cut + text[len(text) - (room - 1 - head) :]
+        return text[: room - 1] + cut
+
+    def bar(self, fraction: float, size: int = 20) -> str:
+        """A progress bar: purple filled part, dim rest; [####----] when piped or plain."""
+        fraction = min(max(fraction, 0.0), 1.0)
+        filled = round(fraction * size)
+        if self.fancy:
+            return self.accent("━" * filled) + self.dim("━" * (size - filled))
+        return "[" + "#" * filled + "-" * (size - filled) + "]"
 
     def rows(self, pairs: list[tuple[str, str]], *, dim_value: bool = False) -> None:
         width = max((len(key) for key, _ in pairs), default=0) + 2
         for key, value in pairs:
+            value = self.fit(value, self.width() - 2 - width, middle=True)
             self.say(f"  {key.ljust(width)}{self.dim(value) if dim_value else value}")
 
     def check(self, ok: bool | None, label: str, detail: str = "", width: int = 22) -> None:
@@ -69,6 +119,7 @@ class Style:
             mark = self.warn(self.mark_warn)
         else:
             mark = self.good(self.mark_ok) if ok else self.bad(self.mark_bad)
+        detail = self.fit(detail, self.width() - 5 - max(width, len(label)))
         tail = self.dim(detail) if detail else ""
         self.say(f"  {mark} {label.ljust(width)}{tail}".rstrip())
 
@@ -127,6 +178,7 @@ class Steps:
         tail = " · ".join(
             part for part in (self.detail, _clock(time.monotonic() - self.started)) if part
         )
+        tail = self.style.fit(tail, self.style.width() - 5 - self.width)
         return f"  {self.style.accent(frame)} {label.ljust(self.width)}{self.style.dim(tail)}"
 
     def _spin(self) -> None:
@@ -164,7 +216,11 @@ class Steps:
                 self.current = None
         self.close()
         self.style.say()
-        self.style.say(f"  {self.style.bad(message)}")
+        first, *rest = message.splitlines() or [""]
+        self.style.say(f"  {self.style.bad(first)}")
+        for line in rest:  # the real error stays loud; where its log is and what to run stay quiet
+            quiet = line.startswith(("full log:", "its log:", "run:"))
+            self.style.say(f"  {self.style.dim(line) if quiet else self.style.bad(line)}")
         if self.log:
             self.style.say()
             for line in self.log.splitlines()[-12:]:

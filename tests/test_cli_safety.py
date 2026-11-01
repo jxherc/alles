@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import cli
+from services import native_install
 
 
 class CliSafetyTest(unittest.TestCase):
@@ -168,7 +169,7 @@ class CliSafetyTest(unittest.TestCase):
         control.assert_not_called()
 
     def test_native_status_fails_when_the_owned_service_is_stopped(self):
-        layout = SimpleNamespace(data_root=self.root, manager="launchd")
+        layout = native_install.platform_layout("Linux", home=self.root)
         with (
             mock.patch.object(cli, "_native_layout", return_value=layout),
             mock.patch(
@@ -519,7 +520,7 @@ class CliSafetyTest(unittest.TestCase):
             },
         )
 
-        def inspect_probe(path, *, passes):
+        def inspect_probe(path, *, passes, log_dir=None):
             current = json.loads((path / "settings.json").read_text("utf-8"))
             self.assertTrue(Path(current["vault_dir"]).is_relative_to(candidate.resolve()))
             self.assertTrue(Path(current["files_dir"]).is_relative_to(candidate.resolve()))
@@ -564,7 +565,7 @@ class CliSafetyTest(unittest.TestCase):
                     },
                 )
 
-                def inspect_probe(path, *, passes):
+                def inspect_probe(path, *, passes, log_dir=None):
                     current = json.loads((path / "settings.json").read_text("utf-8"))
                     self.assertEqual(
                         current["vault_dir"], str((candidate / "external-vault").resolve())

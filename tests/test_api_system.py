@@ -167,7 +167,11 @@ class BuildInfoTest(ApiTest):
                 "recovery_compatibility",
                 "migration_head",
                 "feature_flags",
+                "release",
             },
+        )
+        self.assertEqual(
+            set(body["release"]), {"short", "installed_at", "update_waiting", "checked_at"}
         )
         self.assertEqual(body["name"], "alles")
         self.assertEqual(body["version"], "1.2.3")

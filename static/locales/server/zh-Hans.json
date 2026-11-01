@@ -1799,7 +1799,6 @@
     "staged database migrations no longer match": "暂存的数据库迁移已不再一致",
     "staged preflight did not reach the current schema": "暂存预检没有达到当前架构",
     "staged release contains an unsupported file type": "暂存的版本包含不支持的文件类型",
-    "staged release health probe failed": "暂存版本的健康探测失败",
     "staged release notices are incomplete": "暂存版本的声明不完整",
     "staged restore changed during operation": "操作期间暂存的恢复数据发生了变化",
     "staged restore checksum does not match: {relative}": "暂存恢复的校验和不匹配：{relative}",
@@ -2500,6 +2499,12 @@
     "the provider refused the sign in": "提供方拒绝了登录",
     "the sign in was denied": "登录被拒绝",
     "this sign in already finished": "此登录已完成",
-    "this sign in attempt is gone; start again": "此登录尝试已不存在；请重新开始"
+    "this sign in attempt is gone; start again": "此登录尝试已不存在；请重新开始",
+    "the configured release branch could not be resolved exactly": "无法准确解析配置的发布分支",
+    "the configured release branch returned an invalid commit": "配置的发布分支返回了无效的提交",
+    "the configured release source could not be checked": "无法检查配置的发布来源",
+    "this install has no release source to check": "此安装没有可检查的发布来源",
+    "chromium is downloaded but doesn't start: alles tools install browser": "chromium 已下载，但无法启动：alles tools install browser",
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node 需要 libatomic1 软件包：sudo apt install libatomic1"
   }
 }

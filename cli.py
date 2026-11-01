@@ -11,14 +11,30 @@ alles CLI
   alles stop           stop it
   alles restart        restart it (after changing settings)
   alles status         running or stopped, health, address and access
+  alles ask "question" one answer from aide, right here
+  alles chat           talk with aide until ctrl-d
   alles logs [N]       print the last N log lines (default 60)
   alles logs -f        follow the log live (ctrl-c to stop)
+  alles logs --level warn --since 1h --grep text
+                       only what matters: a level floor, a time window, a word
+  alles logs boot      the newest startup check log, from a failed update or restore
+  alles logs list      every log file and its size
   alles logs --clear   truncate the log file
-  alles update         stage, verify, switch, health-check, and keep rollback
+  alles backup [-o file] [--photos]
+                       an encrypted backup of everything (restore stage reads it)
+  alles dump           a plain summary of this install for a bug report, no secrets
+  alles update         get the newest release; it checks itself and keeps a rollback
+  alles update accept  keep an update once it works
   alles update rollback
                        restore the previous verified code and data
+  alles tools          what aide can use (node, pi, its browser, searxng) and if it's ready
+  alles tools install [name|all]
+                       install them (node comes with alles install)
+  alles version        the release, by its short commit
+  alles completion zsh|bash|fish
+                       tab completion: eval "$(alles completion zsh)"
   alles open           open the browser
-  alles doctor         check the install is ready (deps, data dir, provider)
+  alles doctor         check the install is ready (deps, folders, provider)
   alles restore apply <id> [--allow-partial]
                        verify, migrate, and atomically apply a staged backup
   alles restore stage <backup> [--key <recovery-key>]
@@ -361,15 +377,70 @@ def _settings_path(native) -> Path:
     return ROOT / ".env"
 
 
+def _local_time(iso: str | None) -> str:
+    from datetime import datetime
+
+    if not iso:
+        return ""
+    try:
+        return datetime.fromisoformat(iso).astimezone().strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return ""
+
+
+def _native_update_lines(native) -> list[tuple[bool | None, str, str]]:
+    """Pending accept or rollback, and a newer release waiting, each with the command to run."""
+    from services import native_install
+
+    lines: list[tuple[bool | None, str, str]] = []
+    try:
+        state = _load_native_update_state(_native_update_state_path(native.data_root.resolve()))
+    except RuntimeError:
+        state = {"phase": "invalid"}
+    if state and state.get("phase") == "applied":
+        lines.append(
+            (None, "update", f"{state['new_commit'][:7]} waits for your ok: alles update accept")
+        )
+        lines.append(
+            (None, "", f"or alles update rollback to go back to {state['old_commit'][:7]}")
+        )
+    elif state and state.get("phase") == "rolled_back":
+        lines.append((None, "update", "a rollback needs one more step: alles update rollback"))
+    elif state:
+        lines.append((False, "update", "an update stopped halfway: alles update rollback"))
+    elif native.previous_release.is_file():
+        lines.append((None, "update", "the last update isn't kept yet: alles update accept"))
+    check = native_install.update_check(native, timeout=5)
+    if check.get("waiting"):
+        lines.append((None, "new release", f"{check['latest'][:7]} is ready: alles update"))
+    elif check.get("failed"):
+        lines.append(
+            (None, "new release", f"{check['failed'][:7]} failed its checks: alles logs boot")
+        )
+    return lines
+
+
 def cmd_status(args=()):
     from services import cli_ui
 
     ui = cli_ui.Style()
     native = _native_layout()
-    ui.header("status")
     port = 6769 if native is not None else _port()
     url = f"http://localhost:{port}"
-    width = 10
+    release = None
+    if native is not None:
+        from services import native_install
+
+        release = native_install.release_summary(native)
+    elif (ROOT / ".git").exists():
+        commit = _git_value(["rev-parse", "HEAD"])
+        release = {"short": commit[:7], "installed_at": None} if commit else None
+    title = ()
+    if release and release.get("short"):
+        when = _local_time(release.get("installed_at"))
+        title = (f"release {release['short']}" + (f" · installed {when}" if when else ""),)
+    ui.header("status", title)
+    width = 13
     if native is not None:
         from services import service_manager
 
@@ -399,7 +470,18 @@ def cmd_status(args=()):
         ui.check(healthy, "health", "ok" if healthy else "not answering yet: alles logs", width)
     else:
         ui.check(False, "stopped", "start it with: alles start", width)
+    if native is not None:
+        for ok, label, detail in _native_update_lines(native):
+            if label:
+                ui.check(ok, label, detail, width)
+            else:
+                ui.say(f"    {' ' * width}{ui.dim(detail)}")
     rows = []
+    if release and release.get("short"):
+        source = " ".join(
+            part for part in (release.get("repository"), release.get("branch")) if part
+        )
+        rows.append(("release", release["short"] + (f"  ({source})" if source else "")))
     access = _access_label()
     if access:
         rows.append(("access", access))
@@ -434,42 +516,124 @@ def cmd_home(args=()):
     return True
 
 
-def cmd_logs(args=()):
-    args = list(args)
+def _log_files() -> list[tuple[str, Path]]:
+    """The service log first, then the boot check logs a failed update or restore kept, newest first."""
+    from core.settings import data_dir
+
     native = _native_layout()
-    log_file = native.data_root / "alles-service.log" if native is not None else LOG_FILE
+    main = native.data_root / "alles-service.log" if native is not None else LOG_FILE
+    boot = _boot_log_dir(data_dir().expanduser().resolve())
+    found = sorted(boot.glob("*.log"), key=lambda p: p.stat().st_mtime) if boot.is_dir() else []
+    return [("service", main), *((p.stem, p) for p in reversed(found))]
+
+
+def _logs_options(args: list[str]) -> dict | None:
+    """`alles logs` flags the way hermes's `hermes logs` takes them (-n, -f, --level, --since)."""
+    opts = {"count": "60", "follow": False, "level": None, "since": None, "grep": None}
+    opts["name"] = None
+    takes = {"-n": "count", "--lines": "count", "--level": "level", "--since": "since"}
+    takes |= {"--grep": "grep", "-g": "grep"}
+    items = iter(args)
+    for arg in items:
+        key, eq, inline = arg.partition("=")
+        if key in takes:
+            value = inline if eq else next(items, None)
+            if value is None:
+                print(f"alles logs: {key} needs a value", file=sys.stderr)
+                return None
+            opts[takes[key]] = value
+        elif arg in ("-f", "--follow"):
+            opts["follow"] = True
+        elif arg.isdigit():
+            opts["count"] = arg
+        elif not arg.startswith("-") and opts["name"] is None:
+            opts["name"] = arg
+        else:
+            print(f"alles logs: unknown option '{arg}'", file=sys.stderr)
+            return None
+    if not str(opts["count"]).isdigit():
+        print("alles logs: -n takes a number", file=sys.stderr)
+        return None
+    opts["count"] = int(opts["count"])
+    return opts
+
+
+def cmd_logs(args=()):
+    """alles logs [N] [-f] [--level warn] [--since 1h] [--grep text] | boot | list | --clear"""
+    from services import cli_logs
+    from services.cli_ui import Style, short_path
+
+    args = list(args)
+    files = _log_files()
+    log_file = files[0][1]
     if "--clear" in args:
         log_file.write_text("")
         print("log cleared")
-        return
+        return True
+    opts = _logs_options(args)
+    if opts is None:
+        return False
+    ui = Style()
+    if opts["name"] == "list":
+        sizes = [
+            (name, f"{path.stat().st_size / 1024:.0f} KB  {short_path(path)}")
+            for name, path in files
+            if path.is_file()
+        ]
+        if sizes:
+            ui.rows(sizes)
+        else:
+            print("no logs yet: run  alles start  first")
+        return True
+    if opts["name"] == "boot":
+        if len(files) < 2:
+            print("no boot check logs: every update and restore so far started fine")
+            return True
+        log_file = files[1][1]
+        print(ui.dim(short_path(log_file)))
+    elif opts["name"] is not None:
+        print(f"alles logs: no log named '{opts['name']}' (see: alles logs list)", file=sys.stderr)
+        return False
     if not log_file.exists():
-        print("no log file yet — run  alles start  first")
-        return
-    if "-f" in args or "--follow" in args:
-        _follow_logs(log_file)
-        return
-    n = next((int(a) for a in args if a.isdigit()), 60)
-    if native is not None:
-        print("\n".join(log_file.read_text(errors="replace").splitlines()[-n:]))
+        print("no log yet: run  alles start  first")
+        return True
+    try:
+        keep = cli_logs.LineFilter(level=opts["level"], since=opts["since"], grep=opts["grep"])
+    except cli_logs.FilterError as exc:
+        print(f"alles logs: {exc}", file=sys.stderr)
+        return False
+    # a terminal gets one readable line per record; a pipe keeps the raw json lines for jq or grep
+    if ui.tty:
+
+        def show(line):
+            return cli_logs.render(line, ui)
     else:
-        print("\n".join(_tail(n)))
 
+        def show(line):
+            return line
 
-def _follow_logs(log_file: Path = LOG_FILE):
-    with log_file.open("r", errors="replace") as f:
-        for ln in f.readlines()[-40:]:
-            sys.stdout.write(ln)
+    with log_file.open("r", errors="replace") as handle:
+        lines = (line.rstrip("\n") for line in handle)
+        for line in cli_logs.last_lines(lines, 40 if opts["follow"] else opts["count"], keep):
+            print(show(line))
         sys.stdout.flush()
-        try:
-            while True:
-                ln = f.readline()
-                if ln:
-                    sys.stdout.write(ln)
-                    sys.stdout.flush()
-                else:
-                    time.sleep(0.3)
-        except KeyboardInterrupt:
-            print()
+        if opts["follow"]:
+            _follow_logs(handle, keep, show)
+    return True
+
+
+def _follow_logs(handle, keep, show):
+    try:
+        while True:
+            line = handle.readline()
+            if not line:
+                time.sleep(0.3)
+                continue
+            line = line.rstrip("\n")
+            if keep(line):
+                print(show(line), flush=True)
+    except KeyboardInterrupt:
+        print()
 
 
 def _git(args, *, capture=True):
@@ -487,6 +651,19 @@ def _git_value(args) -> str | None:
         return None
     value = result.stdout.strip()
     return value or None
+
+
+def _short_path(path) -> str:
+    from services.cli_ui import short_path
+
+    return short_path(path)
+
+
+def _boot_log_dir(live: Path) -> Path:
+    """Boot check logs sit beside the data folder, so a data swap or rollback never drops them."""
+    from services.backup_recovery import staging_root
+
+    return staging_root(live) / "logs"
 
 
 def _update_paths(live: Path) -> tuple[Path, Path]:
@@ -930,8 +1107,10 @@ def _stage_update_data(
     *,
     python_path: Path | None = None,
     artifact_callback=None,
+    progress=None,
 ):
     """Create the encrypted rollback backup and test the new code on a second staged copy."""
+    progress = progress or (lambda *_args: None)
     import uuid
     from datetime import datetime
 
@@ -961,6 +1140,7 @@ def _stage_update_data(
                 restore_id=rollback_id,
                 candidate_id=candidate_id,
             )
+        progress("backup", "start")
         recovery_key = load_or_create_recovery_key(live)
         # The key must exist before the snapshot so the installed candidate and
         # retained encrypted backup keep the same recoverable key on first use.
@@ -975,6 +1155,8 @@ def _stage_update_data(
             encrypted.chmod(0o600)
         except OSError:
             pass
+        progress("backup", "done", f"{encrypted.stat().st_size / 1_048_576:.1f} MB, encrypted")
+        progress("data", "start", "a copy of your data on the new release")
         rollback = stage_recovery_archive(plaintext, live, restore_id=rollback_id)
         preflight = stage_recovery_archive(plaintext, live, restore_id=candidate_id)
         _prepare_staged_candidate(
@@ -984,6 +1166,7 @@ def _stage_update_data(
             python_path=python_path,
             keep_outside_vault=True,
         )
+        progress("data", "done", "migrated and started twice")
         return rollback, preflight, encrypted
     except (RecoveryError, RuntimeError, OSError) as exc:
         if preflight is not None:
@@ -1099,38 +1282,24 @@ def _load_native_update_state(path: Path) -> dict | None:
     return state
 
 
-def _fetch_native_update_source(manifest: dict, update_dir: Path) -> tuple[Path | None, str]:
+def _fetch_native_update_source(
+    manifest: dict, update_dir: Path, *, progress=None
+) -> tuple[Path | None, str]:
     """Fetch one exact commit from the source pinned by the install manifest."""
-    import re
     import shutil
     import uuid
 
     source = manifest.get("source") or {}
     if source.get("kind") == "archive":
-        return _fetch_archive_update_source(source, update_dir)
+        return _fetch_archive_update_source(source, update_dir, progress=progress)
     if source.get("kind") != "git":
         raise RuntimeError(
             "this install has no verified Git update source; reinstall from a tracked release"
         )
+    from services.native_install import latest_release_commit
+
     url = source["url"]
-    branch = source["branch"]
-    ref = f"refs/heads/{branch}"
-    try:
-        remote = subprocess.run(
-            ["git", "ls-remote", "--exit-code", "--refs", url, ref],
-            capture_output=True,
-            text=True,
-            timeout=90,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise RuntimeError("the configured release source could not be checked") from exc
-    rows = [line.split() for line in (remote.stdout or "").splitlines() if line.strip()]
-    if remote.returncode != 0 or len(rows) != 1 or len(rows[0]) != 2 or rows[0][1] != ref:
-        raise RuntimeError("the configured release branch could not be resolved exactly")
-    target = rows[0][0].lower()
-    if not re.fullmatch(r"[0-9a-f]{40}", target):
-        raise RuntimeError("the configured release branch returned an invalid commit")
+    target = latest_release_commit(source)
     if target == source["commit"]:
         return None, target
 
@@ -1186,27 +1355,36 @@ def _fetch_native_update_source(manifest: dict, update_dir: Path) -> tuple[Path 
         raise
 
 
-def _fetch_archive_update_source(source: dict, update_dir: Path) -> tuple[Path | None, str]:
+def _copy_with_progress(response, out, progress) -> None:
+    """Copy a download, telling `progress` how far it got (a bar when the size is known)."""
+    from services.cli_ui import Style
+
+    total = int(response.headers.get("Content-Length") or 0) if progress else 0
+    done = 0
+    ui = Style()
+    while chunk := response.read(256 * 1024):
+        out.write(chunk)
+        done += len(chunk)
+        if progress is not None:
+            size = f"{done / 1_048_576:.1f} MB"
+            detail = f"{ui.bar(done / total, 16)} {size}" if total else f"downloading {size}"
+            progress("check", "update", detail)
+
+
+def _fetch_archive_update_source(
+    source: dict, update_dir: Path, *, progress=None
+) -> tuple[Path | None, str]:
     """Resolve the branch's newest commit on github and unpack exactly that archive."""
-    import re
     import shutil
     import tarfile
     import tempfile
     import urllib.request
     import uuid
 
-    repository, branch = source["repository"], source["branch"]
-    headers = {"Accept": "application/vnd.github.sha", "User-Agent": "alles-update"}
-    try:
-        request = urllib.request.Request(
-            f"https://api.github.com/repos/{repository}/commits/{branch}", headers=headers
-        )
-        with urllib.request.urlopen(request, timeout=60) as response:
-            target = response.read().decode("ascii", "replace").strip().lower()
-    except Exception as exc:
-        raise RuntimeError("the configured release source could not be checked") from exc
-    if not re.fullmatch(r"[0-9a-f]{40}", target):
-        raise RuntimeError("the configured release branch returned an invalid commit")
+    from services.native_install import latest_release_commit
+
+    repository = source["repository"]
+    target = latest_release_commit(source)
     if target == source["commit"]:
         return None, target
 
@@ -1220,7 +1398,7 @@ def _fetch_archive_update_source(source: dict, update_dir: Path) -> tuple[Path |
             headers={"User-Agent": "alles-update"},
         )
         with urllib.request.urlopen(request, timeout=300) as response, archive.open("wb") as out:
-            shutil.copyfileobj(response, out)
+            _copy_with_progress(response, out, progress)
         with tarfile.open(archive) as bundle:
             if bundle.pax_headers.get("comment", target).lower() != target:
                 raise RuntimeError("the downloaded release did not match the resolved commit")
@@ -1708,19 +1886,80 @@ def _cmd_native_update(layout) -> bool:
         command_lock.release()
 
 
+# Bump only when the hand-off arguments change; an installed release reads this line from the
+# release it downloaded and runs the old in-process path when it is missing.
+NATIVE_UPDATE_HANDOFF = 1
+
+
+def _native_handoff_version(release: Path) -> int:
+    """Read the hand-off protocol a staged release speaks, without running it."""
+    import re
+
+    try:
+        text = (release / "cli.py").read_text("utf-8")
+    except (OSError, UnicodeError):
+        return 0
+    found = re.search(r"^NATIVE_UPDATE_HANDOFF = (\d+)$", text, re.MULTILINE)
+    return int(found.group(1)) if found else 0
+
+
+def _native_run_handoff(release: Path, python: Path, update_id: str) -> bool:
+    """Let the downloaded release prepare, check and switch to itself; we wait for its answer."""
+    env = os.environ.copy()
+    # a published release is checked file by file; bytecode would change it
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env.pop("ALLES_UPDATE_TOKEN", None)
+    try:
+        result = subprocess.run(
+            [str(python), "-B", str(release / "cli.py"), "update", "handoff", update_id],
+            cwd=release,
+            env=env,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(f"the new release could not be started: {exc}") from exc
+    return result.returncode == 0
+
+
+_UPDATE_STEPS = {
+    "check": "new release",
+    "copy": "app files",
+    "environment": "python environment",
+    "packages": "python packages",
+    "startup": "startup check",
+    "backup": "backup",
+    "data": "data check",
+    "switch": "switch",
+    "health": "health check",
+    "service": "background service",
+}
+
+
+def _update_steps():
+    from services import cli_ui
+
+    return cli_ui.Steps(_UPDATE_STEPS, cli_ui.Style())
+
+
+def _timed_step(steps, step: str, work, *args, **kwargs):
+    """Run one piece of work under a live step line; the step is marked done when it returns."""
+    if steps is None:
+        return work(*args, **kwargs)
+    steps.start(step)
+    result = work(*args, **kwargs)
+    if result:
+        steps.finish(True, step)
+    return result
+
+
 def _cmd_native_update_locked(layout) -> bool:
     import shutil
     import uuid
 
     from services import native_install
-    from services.instance_lock import InstanceLock, InstanceLockError
-    from services.restore_apply import (
-        RestoreApplyError,
-        begin_restore_operation,
-        complete_restore_operation,
-        swap_in_staged,
-    )
-    from services.update_safety import UpdateSafetyError, begin_update, finish_update
+    from services.instance_lock import InstanceLockError
+    from services.restore_apply import RestoreApplyError
+    from services.update_safety import UpdateSafetyError, begin_update
 
     live = layout.data_root.resolve()
     update_dir, _ = _update_paths(live)
@@ -1730,16 +1969,26 @@ def _cmd_native_update_locked(layout) -> bool:
     update_id = None
     update_started = False
     state_published = False
+    steps = _update_steps()
     try:
         manifest = native_install.verify_install(layout)
+        old_short = manifest["source"].get("commit", manifest["release_id"])[:7]
+        steps.style.header("update", (f"release {old_short}",))
         existing = _load_native_update_state(state_path)
         if existing or layout.previous_release.exists():
-            print("a native update is awaiting rollback or acceptance")
+            steps.style.check(None, "update", "the last one waits: alles update accept", 12)
+            steps.style.say(f"    {' ' * 12}{steps.style.dim('or alles update rollback')}")
             return False
-        source_checkout, target = _fetch_native_update_source(manifest, update_dir)
+        kind = (manifest.get("source") or {}).get("kind")
+        steps.start("check", "asking github" if kind == "archive" else "asking the release source")
+        source_checkout, target = _fetch_native_update_source(
+            manifest, update_dir, progress=steps.handle
+        )
+        native_install.remember_latest(layout, manifest["source"]["commit"], target)
         if source_checkout is None:
-            print("alles is already up to date")
+            steps.finish(True, "check", f"{old_short} is the newest, nothing to do")
             return True
+        steps.finish(True, "check", f"{old_short} → {target[:7]}")
         update_id = uuid.uuid4().hex
         was_running = _native_service_running()
         state = {
@@ -1760,84 +2009,31 @@ def _cmd_native_update_locked(layout) -> bool:
             source_checkout,
             layout,
             release_id=target,
-            release_probe=_native_install_probe,
+            release_builder=lambda source, stage: native_install.build_release(
+                source, stage, progress=steps.handle
+            ),
+            release_probe=lambda stage, python: _timed_step(
+                steps, "startup", _native_install_probe, stage, python
+            ),
         )
         python = release / ".venv" / "bin" / "python"
         if not _native_candidate_control_plane_ok(release, python, update_dir):
             raise RuntimeError("the staged native release cannot run the rollback control plane")
-
-        state["phase"] = "stopping_service"
-        _write_update_state(state_path, state)
-        _native_stop_service(layout)
-        state["phase"] = "service_stopped"
-        _write_update_state(state_path, state)
-
-        lock = InstanceLock(live)
-        acquired = False
-        operation = None
-        rollback = candidate = None
-        encrypted = None
-        try:
-            lock.acquire()
-            acquired = True
-
-            def persist_staged_artifact(**artifact):
-                state.update(artifact)
-                _write_update_state(state_path, state)
-
-            rollback, candidate, encrypted = _stage_update_data(
-                live,
-                release,
-                update_dir,
-                python_path=python,
-                artifact_callback=persist_staged_artifact,
-            )
-            state.update(
-                {
-                    "phase": "data_staged",
-                    "restore_id": rollback.restore_id,
-                    "candidate_id": candidate.restore_id,
-                    "backup": str(encrypted),
-                }
-            )
-            _write_update_state(state_path, state)
-            issues = _update_coverage_issues(rollback)
-            if issues:
-                raise RuntimeError(
-                    "automatic native update cannot roll back external data roots: "
-                    + ", ".join(issues)
-                )
-            operation = begin_restore_operation(live, candidate.restore_id)
-            state.update({"phase": "data_swapping", "operation_id": operation.operation_id})
-            _write_update_state(state_path, state)
-            swap_in_staged(operation, candidate.data_dir)
-            state["phase"] = "data_swapped"
-            _write_update_state(state_path, state)
-            native_install.activate_release(layout, target, source_commit=target)
-            state["phase"] = "release_switched"
-            _write_update_state(state_path, state)
-        finally:
-            if acquired:
-                lock.release()
-
-        healthy = _run_recovery_probe(
-            live,
-            passes=1,
-            app_root=release,
-            python_path=python,
+        if _native_handoff_version(release) == NATIVE_UPDATE_HANDOFF:
+            # the new release prepares and checks its own data (oct 28: a fix to that step used
+            # to reach the box one release late); this one only fetched it and keeps the rollback
+            steps.close()
+            if _native_run_handoff(release, python, update_id):
+                return True
+            left = _load_native_update_state(state_path)
+            if not (left and left.get("update_id") == update_id):
+                # the new release already put everything back and said why
+                native_install.remember_failed(layout, manifest["source"]["commit"], target)
+                return False
+            raise RuntimeError("the new release stopped before it finished its update")
+        return _native_apply_update(
+            layout, state, state_path, release, python, update_dir, steps=steps
         )
-        if not healthy:
-            raise RuntimeError("the native release failed its final-location health check")
-        complete_restore_operation(operation)
-        state["phase"] = "applied"
-        _write_update_state(state_path, state)
-        if was_running and not _native_start_service_healthy(layout, token=update_id):
-            raise RuntimeError("the native release failed normal service startup")
-        finish_update(live, update_id)
-        print(f"alles updated safely to native release {target[:12]}")
-        print(f"rollback backup kept at: {encrypted}")
-        print("rollback command:  alles update rollback")
-        return True
     except (
         native_install.NativeInstallError,
         UpdateSafetyError,
@@ -1846,37 +2042,269 @@ def _cmd_native_update_locked(layout) -> bool:
         RuntimeError,
         OSError,
     ) as exc:
-        print(f"native update stopped: {exc}")
-        try:
-            state = _load_native_update_state(state_path)
-        except RuntimeError:
-            state = None
-        owned_state = bool(state and update_id and state.get("update_id") == update_id)
-        if owned_state and (update_started or state.get("phase") != "preparing"):
-            if _native_finish_rollback(layout, state, state_path):
-                print("the previous native release and data were restored")
-            else:
-                print("run:  alles update rollback")
-        else:
-            if owned_state and state_published:
-                try:
-                    _write_update_state(state_path, None)
-                except OSError:
-                    print("the native update recovery state still needs cleanup")
-            if update_started and update_id:
-                try:
-                    finish_update(live, update_id)
-                except UpdateSafetyError:
-                    print("the native update maintenance marker still needs recovery")
-            if update_started and target and (layout.releases / target).exists():
-                try:
-                    native_install.discard_inactive_release(layout, target)
-                except native_install.NativeInstallError:
-                    pass
+        _native_update_failed(
+            layout,
+            exc,
+            state_path=state_path,
+            update_id=update_id,
+            target=target,
+            update_started=update_started,
+            state_published=state_published,
+            steps=steps,
+        )
         return False
     finally:
+        steps.close()
         if source_checkout is not None:
             shutil.rmtree(source_checkout, ignore_errors=True)
+
+
+def _native_update_failed(
+    layout,
+    exc: Exception,
+    *,
+    state_path: Path,
+    update_id: str | None,
+    target: str | None,
+    update_started: bool,
+    state_published: bool,
+    steps=None,
+) -> None:
+    from services import native_install
+    from services.update_safety import UpdateSafetyError, finish_update
+
+    live = layout.data_root.resolve()
+    if steps is not None:
+        steps.fail(f"update stopped: {exc}")
+    else:
+        print(f"native update stopped: {exc}")
+    if target:
+        try:
+            current = native_install.verify_install(layout)["source"]["commit"]
+        except (native_install.NativeInstallError, KeyError, TypeError):
+            current = None
+        if current:
+            native_install.remember_failed(layout, current, target)
+    try:
+        state = _load_native_update_state(state_path)
+    except RuntimeError:
+        state = None
+    owned_state = bool(state and update_id and state.get("update_id") == update_id)
+    if owned_state and (update_started or state.get("phase") != "preparing"):
+        if _native_finish_rollback(layout, state, state_path):
+            print()
+            print(f"  your data and release {state['old_commit'][:7]} are back as they were")
+        else:
+            print("run:  alles update rollback")
+        return
+    if owned_state and state_published:
+        try:
+            _write_update_state(state_path, None)
+        except OSError:
+            print("the native update recovery state still needs cleanup")
+    if update_started and update_id:
+        try:
+            finish_update(live, update_id)
+        except UpdateSafetyError:
+            print("the native update maintenance marker still needs recovery")
+    if update_started and target and (layout.releases / target).exists():
+        try:
+            native_install.discard_inactive_release(layout, target)
+        except native_install.NativeInstallError:
+            pass
+
+
+def _native_apply_update(
+    layout,
+    state: dict,
+    state_path: Path,
+    release: Path,
+    python: Path,
+    update_dir: Path,
+    *,
+    steps=None,
+) -> bool:
+    """Back up, migrate a copy with `release`'s code, swap it in and switch. Raises on failure."""
+    from services import native_install
+    from services.instance_lock import InstanceLock
+    from services.restore_apply import (
+        begin_restore_operation,
+        complete_restore_operation,
+        swap_in_staged,
+    )
+    from services.update_safety import finish_update
+
+    live = layout.data_root.resolve()
+    update_id, target = state["update_id"], state["new_release"]
+    state["phase"] = "stopping_service"
+    _write_update_state(state_path, state)
+    _native_stop_service(layout)
+    state["phase"] = "service_stopped"
+    _write_update_state(state_path, state)
+
+    lock = InstanceLock(live)
+    acquired = False
+    operation = None
+    encrypted = None
+    try:
+        lock.acquire()
+        acquired = True
+
+        def persist_staged_artifact(**artifact):
+            state.update(artifact)
+            _write_update_state(state_path, state)
+
+        rollback, candidate, encrypted = _stage_update_data(
+            live,
+            release,
+            update_dir,
+            python_path=python,
+            artifact_callback=persist_staged_artifact,
+            **({"progress": steps.handle} if steps is not None else {}),
+        )
+        state.update(
+            {
+                "phase": "data_staged",
+                "restore_id": rollback.restore_id,
+                "candidate_id": candidate.restore_id,
+                "backup": str(encrypted),
+            }
+        )
+        _write_update_state(state_path, state)
+        issues = _update_coverage_issues(rollback)
+        if issues:
+            raise RuntimeError(
+                "automatic native update cannot roll back external data roots: " + ", ".join(issues)
+            )
+        operation = begin_restore_operation(live, candidate.restore_id)
+        if steps is not None:
+            steps.start("switch")
+        state.update({"phase": "data_swapping", "operation_id": operation.operation_id})
+        _write_update_state(state_path, state)
+        swap_in_staged(operation, candidate.data_dir)
+        state["phase"] = "data_swapped"
+        _write_update_state(state_path, state)
+        native_install.activate_release(layout, target, source_commit=state["new_commit"])
+        state["phase"] = "release_switched"
+        _write_update_state(state_path, state)
+        if steps is not None:
+            steps.finish(True, "switch", f"release {target[:7]}")
+    finally:
+        if acquired:
+            lock.release()
+
+    healthy = _timed_step(
+        steps,
+        "health",
+        _run_recovery_probe,
+        live,
+        passes=1,
+        app_root=release,
+        python_path=python,
+        log_dir=_boot_log_dir(live),
+    )
+    if not healthy:
+        raise RuntimeError(_probe_failure(healthy, "the new release failed its health check"))
+    complete_restore_operation(operation)
+    state["phase"] = "applied"
+    _write_update_state(state_path, state)
+    if state["was_running"] and not _timed_step(
+        steps, "service", _native_start_service_healthy, layout, token=update_id
+    ):
+        raise RuntimeError(
+            "the new release did not start as a service\nits log: "
+            + _short_path(layout.data_root / "alles-service.log")
+        )
+    finish_update(live, update_id)
+    if steps is None:
+        print(f"alles updated safely to native release {target[:12]}")
+        print(f"rollback backup kept at: {encrypted}")
+        print("rollback command:  alles update rollback")
+        return True
+    ui = steps.style
+    steps.close()
+    ui.say()
+    ui.say(f"  {ui.good(ui.mark_ok)} {ui.bold(f'alles is on release {target[:7]}')}")
+    ui.say()
+    ui.rows(
+        [
+            ("keep it", "alles update accept"),
+            ("go back", "alles update rollback"),
+            ("backup", _short_path(encrypted)),
+        ],
+    )
+    ui.say()
+    return True
+
+
+def _cmd_native_update_handoff(layout, update_id: str) -> bool:
+    """Runs inside the downloaded release: the installed one fetched it and holds the lock."""
+    import re
+
+    from services import native_install
+    from services.instance_lock import InstanceLockError
+    from services.restore_apply import RestoreApplyError
+    from services.update_safety import UpdateCommandLock, UpdateSafetyError
+
+    if not re.fullmatch(r"[0-9a-f]{32}", update_id or ""):
+        print("usage:  alles update")
+        return False
+    probe_lock = UpdateCommandLock(layout.data_root)
+    try:
+        probe_lock.acquire()
+    except UpdateSafetyError:
+        pass  # held by the installed release that started this one, as it should be
+    else:
+        probe_lock.release()
+        print("this step only runs from  alles update")
+        return False
+    live = layout.data_root.resolve()
+    update_dir, _ = _update_paths(live)
+    state_path = _native_update_state_path(live)
+    try:
+        state = _load_native_update_state(state_path)
+    except RuntimeError as exc:
+        print(f"native update stopped: {exc}")
+        return False
+    if not state or state.get("update_id") != update_id or state.get("phase") != "preparing":
+        print("native update stopped: no update is waiting for this release")
+        return False
+    release = layout.releases / state["new_release"]
+    if ROOT.resolve() != release.resolve():
+        print("native update stopped: only the downloaded release can prepare itself")
+        return False
+    steps = _update_steps()
+    try:
+        return _native_apply_update(
+            layout,
+            state,
+            state_path,
+            release,
+            release / ".venv" / "bin" / "python",
+            update_dir,
+            steps=steps,
+        )
+    except (
+        native_install.NativeInstallError,
+        UpdateSafetyError,
+        InstanceLockError,
+        RestoreApplyError,
+        RuntimeError,
+        OSError,
+    ) as exc:
+        _native_update_failed(
+            layout,
+            exc,
+            state_path=state_path,
+            update_id=update_id,
+            target=state["new_release"],
+            update_started=True,
+            state_published=True,
+            steps=steps,
+        )
+        return False
+    finally:
+        steps.close()
 
 
 def cmd_update(args=()):
@@ -1894,6 +2322,8 @@ def cmd_update(args=()):
             if native is not None:
                 return _cmd_native_update_accept(native)
             return _cmd_update_accept()
+        if len(args) == 2 and args[0] == "handoff" and native is not None:
+            return _cmd_native_update_handoff(native, args[1])
         print("usage:  alles update  |  alles update rollback  |  alles update accept")
         return False
     if native is not None:
@@ -2119,14 +2549,15 @@ def cmd_update(args=()):
         previous_token = os.environ.get("ALLES_UPDATE_TOKEN")
         os.environ["ALLES_UPDATE_TOKEN"] = update_id
         try:
-            healthy = _run_recovery_probe(live, passes=1)
+            healthy = _run_recovery_probe(live, passes=1, log_dir=_boot_log_dir(live))
         finally:
             if previous_token is None:
                 os.environ.pop("ALLES_UPDATE_TOKEN", None)
             else:
                 os.environ["ALLES_UPDATE_TOKEN"] = previous_token
         if not healthy:
-            print("updated version failed its final-location health check — rolling back…")
+            print(_probe_failure(healthy, "the new version failed its health check"))
+            print("rolling back…")
             if _rollback_update(state, state_path):
                 if _clear_active_update(live, state_path, state):
                     if _restart_original_if_needed(was_running):
@@ -2193,6 +2624,58 @@ def cmd_open(args=()):
     print(f"opening {_url()}")
 
 
+def _folder_checks() -> list[tuple[bool | None, str, str]]:
+    """Where the docs and files folders point, that they exist and take writes, and no update copy.
+
+    oct 28: doctor said "ready" while the docs folder pointed at an update's copy inside data/.
+    """
+    import uuid
+
+    from core.settings import data_dir, load_settings
+    from services.backup_recovery import EXTERNAL_VAULT_SUBPATH
+    from services.cli_ui import short_path
+
+    data = data_dir().expanduser().resolve()
+    try:
+        settings = load_settings()
+    except Exception as exc:  # a broken settings file is itself the finding
+        return [(False, "settings", f"can't be read: {exc}")]
+    copy = data / EXTERNAL_VAULT_SUBPATH
+    out = []
+    for key, label, default in (
+        ("vault_dir", "docs folder", data / "vault"),
+        ("files_dir", "files folder", data / "files"),
+    ):
+        path = Path(settings.get(key) or default).expanduser()
+        if not path.is_absolute():
+            path = ROOT / path  # how files_store anchors a relative folder
+        path = path.resolve()
+        shown = short_path(path)
+        if path == copy or copy in path.parents:
+            out.append((False, label, f"{shown} is an update's copy: point it back to your folder"))
+            continue
+        if not path.is_dir():
+            out.append((False, label, f"{shown} is missing"))
+            continue
+        probe = path / f".alles-doctor-{uuid.uuid4().hex}"
+        try:
+            probe.write_bytes(b"")
+            probe.unlink()
+        except OSError:
+            out.append((False, label, f"{shown} can't be written"))
+            continue
+        out.append((True, label, shown))
+    if copy.exists():
+        out.append(
+            (
+                False,
+                "leftover copy",
+                f"{short_path(copy)} blocks the next update: keep what you need, then delete it",
+            )
+        )
+    return out
+
+
 def cmd_doctor(args=()):
     """fresh-install readiness check: deps, data dir, encryption key, provider, and the server."""
     from services import cli_ui
@@ -2205,12 +2688,15 @@ def cmd_doctor(args=()):
         ui.check(False, "checks", f"couldn't load: {e}")
         return False
     checks = doctor.run_all()
-    width = max(len(c["label"]) for c in checks) + 2
+    folders = _folder_checks()
+    width = max([len(c["label"]) for c in checks] + [len(f[1]) for f in folders]) + 2
     for c in checks:
         # a missing optional piece is a note, not a failure
         ok = True if c["ok"] else (False if c["label"] in doctor._HARD else None)
         detail = (str(c["detail"]).splitlines() or [""])[0]
         ui.check(ok, c["label"], detail[:140], width)
+    for ok, label, detail in folders:
+        ui.check(ok, label, detail, width)
     native = _native_layout()
     port = 6769 if native is not None else _port()
     if native is not None or _port_open(port):
@@ -2219,6 +2705,7 @@ def cmd_doctor(args=()):
             healthy, "server", "answering" if healthy else "not answering: alles status", width
         )
     hard_fail = [c for c in checks if not c["ok"] and c["label"] in doctor._HARD]
+    hard_fail += [f for f in folders if f[0] is False]
     ui.say()
     if hard_fail:
         ui.say(f"  {ui.bad('not ready')}: fix the {ui.mark_bad} lines, then run alles doctor again")
@@ -2281,15 +2768,22 @@ def _cmd_install_launcher():
     return True
 
 
-def _native_install_probe(release: Path, python: Path) -> bool:
+def _native_install_probe(release: Path, python: Path) -> "ProbeResult":
     import tempfile
 
+    from services import native_install
+
+    try:
+        log_dir = _boot_log_dir(native_install.platform_layout().data_root)
+    except native_install.NativeInstallError:
+        log_dir = None
     with tempfile.TemporaryDirectory(prefix="alles-native-install-probe-") as directory:
         return _run_recovery_probe(
             Path(directory),
             passes=2,
             app_root=release,
             python_path=python,
+            log_dir=log_dir,
         )
 
 
@@ -2372,6 +2866,18 @@ def _ask(ui, question: str) -> bool:
         ui.say()
         return False
     return answer.strip().lower() in {"y", "yes"}
+
+
+def _offer_aide_tools(ui, launcher: Path) -> None:
+    """oct 27: node comes with alles; pi and aide's browser are offered here and in alles tools."""
+    try:
+        subprocess.call([str(launcher), "tools", "install", "node"])
+        if _ask(ui, "install pi (aide's coding helper) and aide's browser too? about 300 MB"):
+            subprocess.call([str(launcher), "tools", "install", "pi", "browser"])
+            return
+    except OSError as exc:
+        ui.check(None, "aide's tools", f"not installed: {exc}")
+    ui.say(ui.dim("  later: alles tools install"))
 
 
 def cmd_install(args=()):
@@ -2459,6 +2965,7 @@ def cmd_install(args=()):
     ui.say()
     ui.rows(list(_EVERYDAY))
     ui.say()
+    _offer_aide_tools(ui, layout.launcher)
     # the owner's order: installed first, then a password if they want one, then other devices
     if _ask(ui, "set a password for alles? it's optional while only this computer opens it"):
         subprocess.call([str(layout.launcher), "password"])
@@ -2761,13 +3268,55 @@ def _atomic_private_bytes(path: Path, content: bytes | None) -> None:
 RECOVERY_PROBE_TIMEOUT_SECONDS = 120.0
 
 
+class ProbeResult:
+    """A boot check's answer: truthy when healthy, else the real error and where its log went."""
+
+    def __init__(self, ok: bool, error: str = "", log: Path | None = None):
+        self.ok, self.error, self.log = ok, error, log
+
+    def __bool__(self) -> bool:
+        return self.ok
+
+    def explain(self, what: str) -> str:
+        text = what + (f"\n{self.error}" if self.error else "")
+        return text + (f"\nfull log: {_short_path(self.log)}" if self.log else "")
+
+
+def _probe_error(output: str, exit_code: int | None, timeout: float) -> str:
+    """The line that says why: a traceback's last line, else the last thing it printed."""
+    import re
+
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    for line in reversed(lines):
+        if re.match(r"^[A-Za-z_][\w.]*(Error|Exception|Exit|Interrupt)\b.*", line):
+            return line[:300]
+    if exit_code is None:
+        return f"no healthy answer within {int(timeout)}s"
+    tail = lines[-1][:300] if lines else "no output"
+    return f"exited with code {exit_code}: {tail}"
+
+
+def _save_probe_log(log_dir: Path, output: bytes) -> Path | None:
+    from datetime import datetime
+
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        path = log_dir / f"boot-check-{datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
+        path.write_bytes(output)
+        path.chmod(0o600)
+        return path
+    except OSError:
+        return None
+
+
 def _recovery_probe_once(
     candidate: Path,
     *,
     timeout: float = RECOVERY_PROBE_TIMEOUT_SECONDS,
     app_root: Path | None = None,
     python_path: Path | None = None,
-) -> bool:
+    log_dir: Path | None = None,
+) -> ProbeResult:
     """Boot only init/migrations + /health against isolated candidate data.
 
     Recovery can include every pending migration on a cold disk. Keep the
@@ -2785,7 +3334,7 @@ def _recovery_probe_once(
 
     code_root = (app_root or ROOT).expanduser().resolve()
     if not (code_root / "app.py").is_file():
-        return False
+        return ProbeResult(False, f"{code_root / 'app.py'} is missing")
     env = os.environ.copy()
     env.update(
         {
@@ -2840,14 +3389,21 @@ def _recovery_probe_once(
                     pass
                 time.sleep(0.2)
         finally:
-            if proc.poll() is None:
+            exit_code = proc.poll()
+            if exit_code is None:
                 proc.terminate()
                 try:
                     proc.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     proc.kill()
                     proc.wait(timeout=2)
-        return healthy
+        if healthy:
+            return ProbeResult(True)
+        log.seek(0)
+        output = log.read()
+    error = _probe_error(output.decode("utf-8", "replace"), exit_code, timeout)
+    saved = _save_probe_log(log_dir, output) if log_dir is not None else None
+    return ProbeResult(False, error, saved)
 
 
 def _run_recovery_probe(
@@ -2856,11 +3412,22 @@ def _run_recovery_probe(
     passes: int,
     app_root: Path | None = None,
     python_path: Path | None = None,
-) -> bool:
-    return all(
-        _recovery_probe_once(candidate, app_root=app_root, python_path=python_path)
-        for _ in range(passes)
-    )
+    log_dir: Path | None = None,
+) -> ProbeResult:
+    result = ProbeResult(True)
+    for _ in range(passes):
+        result = _recovery_probe_once(
+            candidate, app_root=app_root, python_path=python_path, log_dir=log_dir
+        )
+        if not result:
+            break
+    return result
+
+
+def _probe_failure(result, what: str) -> str:
+    """Works for a ProbeResult and for a plain False from older callers and test doubles."""
+    explain = getattr(result, "explain", None)
+    return explain(what) if explain else what
 
 
 def _update_coverage_issues(staged) -> list[str]:
@@ -2952,17 +3519,21 @@ def _prepare_staged_candidate(
         )
     _atomic_private_bytes(settings_path, isolated_bytes)
     try:
+        log_dir = _boot_log_dir(live_root)
         if app_root is None:
-            healthy = _run_recovery_probe(staged.data_dir, passes=2)
+            healthy = _run_recovery_probe(staged.data_dir, passes=2, log_dir=log_dir)
         else:
             healthy = _run_recovery_probe(
                 staged.data_dir,
                 passes=2,
                 app_root=app_root,
                 python_path=python_path,
+                log_dir=log_dir,
             )
         if not healthy:
-            raise RuntimeError("staged Alles failed its migration/boot check")
+            raise RuntimeError(
+                _probe_failure(healthy, "a copy of your data failed its migration and boot check")
+            )
     except Exception:
         _atomic_private_bytes(settings_path, original_bytes)
         raise
@@ -3062,8 +3633,10 @@ def _apply_staged_restore(restore_id: str, *, allow_partial: bool) -> bool:
         return False
     owner_lock.release()
 
-    if not _run_recovery_probe(live, passes=1):
-        print("installed copy failed its health check — restoring the original data…")
+    probe = _run_recovery_probe(live, passes=1, log_dir=_boot_log_dir(live))
+    if not probe:
+        print(_probe_failure(probe, "the restored copy failed its health check"))
+        print("restoring the original data…")
         try:
             owner_lock.acquire()
             rollback_restore_operation(operation, reason="installed-health-check-failed")
@@ -3273,6 +3846,324 @@ def cmd_test(args=()):
     sys.exit(1 if rc else 0)
 
 
+_AIDE_TOOLS = ("node", "pi", "browser")  # node first: pi needs it
+
+
+def _install_tool(dep_id: str) -> None:
+    """Install one of aide's tools in this process (the server does the same in the background)."""
+    import asyncio
+
+    from services import dependencies
+
+    if dep_id == "pi":
+        from services import pi_agent
+
+        asyncio.run(pi_agent._run_install("pi"))
+        error = pi_agent._install["pi"].get("error")
+        if error:
+            raise dependencies.DependencyError(error)
+        return
+    dependencies._installers[dep_id]()
+
+
+def cmd_tools(args=()):
+    """alles tools: what aide can use and whether each is ready. alles tools install [name|all]."""
+    import asyncio
+    import shlex
+
+    from services import cli_ui, dependencies
+
+    ui = cli_ui.Style()
+    args = list(args)
+    installing = args[:1] == ["install"]
+    wanted = [name for name in args[1:] if name != "all"] or list(_AIDE_TOOLS)
+    unknown = [name for name in wanted if name not in dependencies.IDS]
+    if unknown or (args and not installing):
+        ui.say("usage:  alles tools  |  alles tools install [node|pi|browser|searxng|all]")
+        return False
+    ui.header("tools" if not installing else "tools install")
+    steps = cli_ui.Steps({dep_id: dependencies.NAMES[dep_id] for dep_id in dependencies.IDS}, ui)
+    ok = True
+    missing = []
+    for dep_id in dependencies.IDS if not installing else wanted:
+        row = asyncio.run(dependencies.state(dep_id))
+        ready = row["state"] == "ready"
+        if not ready and dep_id in _AIDE_TOOLS:
+            missing.append(dep_id)
+        if not installing or ready or not row.get("can_install"):
+            # not asked to install, already there, or it needs something first (pi needs node)
+            mark = True if ready else (False if installing else None)
+            ui.check(mark, row["name"], row.get("detail") or row["state"], steps.width)
+            ok = ok and (ready or not installing)
+            continue
+        steps.start(dep_id, row.get("detail", ""))
+        try:
+            try:
+                _install_tool(dep_id)
+            except dependencies.DependencyError as exc:
+                # a missing system package needs root: say the command, run it only on a yes
+                if not (exc.fix and sys.stdin.isatty()):
+                    raise
+                steps.finish(None, dep_id, str(exc).split(":")[0])
+                ui.say(f"    {ui.dim(shlex.join(exc.fix))}")
+                if not _ask(ui, "run it now?") or subprocess.call(exc.fix) != 0:
+                    ok = False
+                    continue
+                steps.start(dep_id, "again")
+                _install_tool(dep_id)
+        except Exception as exc:  # noqa: BLE001 - each tool says its own sentence
+            steps.finish(False, dep_id, str(exc).splitlines()[0][:160])
+            if getattr(exc, "fix", None):
+                ui.say(f"    {ui.dim(shlex.join(exc.fix))}")
+            ok = False
+            continue
+        row = asyncio.run(dependencies.state(dep_id))
+        steps.finish(row["state"] == "ready", dep_id, row.get("detail") or row.get("error", ""))
+        ok = ok and row["state"] == "ready"
+    steps.close()
+    if not installing:
+        if missing:
+            ui.say()
+            ui.say(f"  {ui.dim('install them:')} alles tools install {' '.join(missing)}")
+    ui.say()
+    return ok
+
+
+def cmd_version(args=()):
+    """The release as its short commit, the same name the update screen and status use."""
+    native = _native_layout()
+    if native is not None:
+        from services import native_install
+
+        release = native_install.release_summary(native)
+        short, when = release.get("short"), _local_time(release.get("installed_at"))
+    else:
+        short, when = (_git_value(["rev-parse", "HEAD"]) or "")[:7] or None, ""
+    print(f"alles {short or 'unknown'}" + (f" (installed {when})" if when else ""))
+    return True
+
+
+def cmd_completion(args=()):
+    """Tab completion for alles: eval "$(alles completion zsh)" in .zshrc (bash and fish too)."""
+    shell = (list(args) or [Path(os.environ.get("SHELL", "zsh")).name])[0]
+    names = " ".join(sorted(COMMANDS))
+    scripts = {
+        "zsh": f"#compdef alles\n_alles() {{ compadd {names} }}\ncompdef _alles alles",
+        "bash": f"complete -W '{names}' alles",
+        "fish": f"complete -c alles -f -n __fish_use_subcommand -a '{names}'",
+    }
+    if shell not in scripts:
+        print("usage:  alles completion zsh|bash|fish")
+        return False
+    print(scripts[shell])
+    return True
+
+
+def _server_url() -> str:
+    return f"http://127.0.0.1:{6769 if _native_layout() is not None else _port()}"
+
+
+def _chat_client():
+    from services import cli_chat
+
+    def ask_password():
+        if not sys.stdin.isatty():
+            return None
+        import getpass
+
+        return getpass.getpass("  owner password: ")
+
+    return cli_chat.Client(_server_url(), ask_password)
+
+
+def cmd_ask(args=()):
+    """alles ask "question": one answer from aide, streamed, then back to the shell.
+
+    hermes does this with `hermes chat -q` (hermes-agent 0.22.2+1885.g20acba0); alles gives it
+    its own short word. A piped stdin is the question when no words are given.
+    """
+    from services import cli_chat, cli_ui
+
+    question = " ".join(args).strip()
+    if not question and not sys.stdin.isatty():
+        question = sys.stdin.read().strip()
+    if not question:
+        print('usage:  alles ask "what is on my calendar today"', file=sys.stderr)
+        return False
+    ui = cli_ui.Style()
+    client = _chat_client()
+    printer = cli_chat.Printer(ui)
+    session = None
+    try:
+        session = client.new_session(question[:60])
+        client.turn(session, question, printer)
+    except cli_chat.ChatError as exc:
+        if session and not printer.wrote:
+            client.drop(session)
+        print(f"  {ui.bad(str(exc))}", file=sys.stderr)
+        return False
+    return True
+
+
+def cmd_chat(args=()):
+    """alles chat: talk with aide in one conversation until ctrl-d or /exit."""
+    from services import cli_chat, cli_ui
+
+    if not sys.stdin.isatty():
+        return cmd_ask(args)
+    ui = cli_ui.Style()
+    ui.header("chat", (ui.dim("ctrl-d or /exit to leave"),))
+    client = _chat_client()
+    session = None
+    prompt = f"{ui.accent('›')} "
+    while True:
+        try:
+            line = input(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return True
+        if line in ("/exit", "/quit", "exit", "quit"):
+            return True
+        if not line:
+            continue
+        printer = cli_chat.Printer(ui)
+        fresh = session is None
+        try:
+            if fresh:
+                session = client.new_session(line[:60])
+            print()
+            client.turn(session, line, printer)
+            print()
+        except KeyboardInterrupt:
+            print()
+        except cli_chat.ChatError as exc:
+            if fresh and session and not printer.wrote:
+                client.drop(session)  # nothing answered yet: no empty conversation left behind
+                session = None
+            ui.say(f"  {ui.bad(str(exc))}")
+
+
+def cmd_backup(args=()):
+    """alles backup [-o file] [--photos]: an encrypted backup of everything, like the backup page.
+
+    hermes has `hermes backup` (hermes_cli/subcommands/backup.py, 0.22.2+1885.g20acba0); this one
+    writes the same encrypted file the backup page downloads, so `alles restore stage` reads it.
+    """
+    from datetime import datetime
+
+    from core.settings import data_dir
+    from services import cli_ui
+    from services.backup_recovery import RecoveryError
+    from services.encrypted_backup import create_encrypted_backup
+
+    args = list(args)
+    photos = "--photos" in args
+    output = None
+    for flag in ("-o", "--output"):
+        if flag in args:
+            index = args.index(flag)
+            if index + 1 >= len(args):
+                print("usage:  alles backup [-o file] [--photos]", file=sys.stderr)
+                return False
+            output = Path(args[index + 1]).expanduser()
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    name = f"alles-backup-{stamp}.alles-backup"
+    if output is None:
+        output = Path.home() / name
+    elif output.is_dir():
+        output = output / name
+    ui = cli_ui.Style()
+    ui.header("backup")
+    steps = cli_ui.Steps({"backup": "backup"}, ui)
+    steps.start("backup", "with photos" if photos else "")
+    try:
+        create_encrypted_backup(data_dir().expanduser().resolve(), output, include_photos=photos)
+    except (RecoveryError, OSError) as exc:
+        steps.fail(f"backup stopped: {exc}")
+        return False
+    finally:
+        steps.close()
+    size = output.stat().st_size / 1_048_576
+    steps.finish(True, "backup", f"{size:.1f} MB")
+    ui.say()
+    ui.rows(
+        [
+            ("file", cli_ui.short_path(output)),
+            ("restore", "alles restore stage <file>"),
+            ("elsewhere", "add --key <recovery key>: settings › backup shows it"),
+        ],
+        dim_value=True,
+    )
+    return True
+
+
+def _dump_lines() -> list[tuple[str, str]]:
+    """Facts about this install for a bug report. Names only: no keys, passwords or messages."""
+    import platform
+
+    from core.settings import auth_enabled, data_dir, load_settings
+
+    native = _native_layout()
+    rows: list[tuple[str, str]] = []
+    if native is not None:
+        from services import native_install
+
+        summary = native_install.release_summary(native)
+        rows.append(("release", f"{summary['short']} (native, {native.manager})"))
+    else:
+        commit = _git_value(["rev-parse", "--short", "HEAD"]) if (ROOT / ".git").exists() else None
+        rows.append(("release", f"{commit or 'unknown'} (source checkout)"))
+    rows.append(("os", f"{platform.system()} {platform.release()} {platform.machine()}"))
+    rows.append(("python", platform.python_version()))
+    try:
+        settings = load_settings()
+    except Exception as exc:  # the broken file is the finding
+        settings = {}
+        rows.append(("settings", f"can't be read: {type(exc).__name__}"))
+    rows.append(("access", _access_label() or "unknown"))
+    rows.append(("password", "on" if auth_enabled() else "off"))
+    rows.append(("data", str(data_dir())))
+    for key, label in (("vault_dir", "docs folder"), ("files_dir", "files folder")):
+        rows.append((label, str(settings.get(key) or "default")))
+    try:
+        from core.database import ModelEndpoint, SessionLocal
+
+        with SessionLocal() as db:  # the provider column only: keys stay encrypted and unread
+            found = db.query(ModelEndpoint.provider_id).filter(ModelEndpoint.enabled.is_(True))
+            kinds = sorted({provider or "custom" for (provider,) in found})
+        rows.append(("providers", ", ".join(kinds) or "none"))
+    except Exception as exc:
+        rows.append(("providers", f"can't be read: {type(exc).__name__}"))
+    port = 6769 if native is not None else _port()
+    rows.append(("server", "answering" if _health_ok(port) else "not answering"))
+    try:
+        import asyncio
+
+        from services import dependencies
+
+        for dep_id in dependencies.IDS:
+            state = asyncio.run(dependencies.state(dep_id))
+            rows.append((dependencies.NAMES[dep_id], str(state.get("detail") or state["state"])))
+    except Exception as exc:
+        rows.append(("tools", f"can't be read: {type(exc).__name__}"))
+    return rows
+
+
+def cmd_dump(args=()):
+    """alles dump: a plain summary of this install to paste into a bug report.
+
+    Same idea as `hermes dump` (hermes_cli/dump.py, 0.22.2+1885.g20acba0): plain text even in a
+    terminal, so it pastes cleanly, and nothing secret in it.
+    """
+    rows = _dump_lines()
+    width = max(len(key) for key, _ in rows) + 2
+    print("--- alles dump ---")
+    for key, value in rows:
+        print(f"{key.ljust(width)}{value}")
+    print("--- end dump ---")
+    return True
+
+
 COMMANDS = {
     "start": cmd_start,
     "stop": cmd_stop,
@@ -3289,6 +4180,13 @@ COMMANDS = {
     "password": cmd_password,
     "config": cmd_config,
     "test": cmd_test,
+    "tools": cmd_tools,
+    "version": cmd_version,
+    "completion": cmd_completion,
+    "ask": cmd_ask,
+    "chat": cmd_chat,
+    "backup": cmd_backup,
+    "dump": cmd_dump,
 }
 
 
