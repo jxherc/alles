@@ -25,17 +25,32 @@ class SetupStateError(ValueError):
     pass
 
 
-def _visible_defaults() -> tuple[Path, Path]:
-    root = Path.home() / "Alles"
+def _native():
     try:
         from services.native_install import current_layout
 
-        native = current_layout()
+        return current_layout()
     except Exception:
-        native = None
+        return None
+
+
+def _visible_defaults() -> tuple[Path, Path]:
+    native = _native()
     if native is not None:
         return native.vault_default, native.files_default
-    return root / "Vault", root / "Files"
+    # one visible folder (oct 27): ~/Alles is the files root and docs sit inside it
+    root = Path.home() / "Alles"
+    return root / "Docs", root
+
+
+def _backup_default() -> Path:
+    """Automatic backups stay out of the visible folder: beside the data, never inside it."""
+    from services.folder_layout import backups_dir
+
+    native = _native()
+    if native is not None:
+        return backups_dir(native.support_root)
+    return Path.home() / ".alles" / "backups"
 
 
 def _stored() -> dict:
@@ -90,9 +105,7 @@ def public_state() -> dict:
         "search_engines": [row for row in _engines.listing(settings) if not row.get("custom")],
         "automatic_backup_enabled": bool(settings.get("automatic_backup_enabled", False)),
         "automatic_backup_dir": str(
-            Path(
-                settings.get("automatic_backup_dir") or (Path.home() / "Alles" / "Backups")
-            ).expanduser()
+            Path(settings.get("automatic_backup_dir") or _backup_default()).expanduser()
         ),
         "automatic_backup_last_success": str(settings.get("automatic_backup_last_success") or ""),
         "automatic_backup_last_error": str(settings.get("automatic_backup_last_error") or ""),
@@ -260,12 +273,11 @@ def _save_files(values: dict) -> None:
         raise SetupStateError("document and Files paths are required")
     vault = _safe_folder(vault_raw, create=keep)
     files = _safe_folder(files_raw, create=keep)
-    if vault == files or vault in files.parents or files in vault.parents:
-        raise SetupStateError(
-            "documents and Files need separate folders that do not contain each other"
-        )
-    if keep and vault.parent != files.parent:
-        raise SetupStateError("inside-Alles document and Files paths need the same Alles folder")
+    # docs may sit inside the files root (that's how files shows them); not the other way round
+    if vault == files or vault in files.parents:
+        raise SetupStateError("the Files folder can't be the document folder or sit inside it")
+    if keep and vault.parent != files:
+        raise SetupStateError("inside-Alles documents need to sit directly in the Files folder")
     save_settings(
         {
             "keep_vault_inside_alles": keep,
@@ -331,7 +343,7 @@ def _save_protection(values: dict) -> None:
                 raise SetupStateError(str(exc)) from exc
         destination = _safe_folder(backup_dir, create=True)
     else:
-        destination = Path.home() / "Alles" / "Backups"
+        destination = _backup_default()
     save_settings(
         {
             "automatic_backup_enabled": automatic,

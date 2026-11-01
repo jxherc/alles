@@ -27,6 +27,8 @@ alles CLI
   alles update accept  keep an update once it works
   alles update rollback
                        restore the previous verified code and data
+  alles folders        where docs, files and backups are
+  alles folders move   put an older install's folders into one ~/Alles folder
   alles tools          what aide can use (node, pi, its browser, searxng) and if it's ready
   alles tools install [name|all]
                        install them (node comes with alles install)
@@ -485,6 +487,14 @@ def cmd_status(args=()):
     access = _access_label()
     if access:
         rows.append(("access", access))
+    if native is not None:
+        from services import folder_layout
+
+        ok, text = folder_layout.describe(native)
+        if ok:
+            rows.append(("folders", text.removeprefix("one folder: ")))
+        else:
+            ui.check(ok, "folders", text, width)
     rows.append(("settings", cli_ui.short_path(_settings_path(native))))
     rows.append(
         ("data", cli_ui.short_path(native.data_root if native is not None else _runtime_dir()))
@@ -1868,7 +1878,97 @@ def _cmd_native_update_accept_locked(layout) -> bool:
         print(f"native update acceptance stopped safely: {exc}")
         return False
     print("native update accepted; its encrypted pre-update backup was kept")
+    # the one folder move runs here, in the new release, once the old one can't roll back to a
+    # layout it doesn't know (an older installed release runs the whole update itself)
+    _folders_move(layout, quiet_when_nothing=True)
     return True
+
+
+def _folders_move(layout, *, quiet_when_nothing: bool = False) -> bool:
+    """Stop the service, put the folders in one place (or finish a half move), start it again."""
+    from services import cli_ui, folder_layout
+    from services.instance_lock import InstanceLock, InstanceLockError
+
+    ui = cli_ui.Style()
+    try:
+        found = folder_layout.plan(layout)
+    except (folder_layout.FolderMoveError, OSError) as exc:
+        ui.check(False, "folders", f"can't be read: {exc}", 12)
+        return False
+    if found["state"] not in {"move", "unfinished"}:
+        if not quiet_when_nothing:
+            ok, text = folder_layout.describe(layout)
+            ui.check(ok, "folders", text, 12)
+        return found["state"] in {"one-folder", "inside-data"}
+    try:
+        was_running = _native_service_running()
+        _native_stop_service(layout)
+    except RuntimeError as exc:
+        ui.check(False, "folders", f"not moved: {exc}", 12)
+        return False
+    lock = InstanceLock(layout.data_root)
+    try:
+        lock.acquire()
+    except InstanceLockError as exc:
+        ui.check(False, "folders", f"not moved: {exc}", 12)
+        return False
+    try:
+        result = folder_layout.move(layout)
+    except (folder_layout.FolderMoveError, OSError) as exc:
+        result = {"state": "failed", "why": str(exc)}
+    finally:
+        lock.release()
+    if result["state"] == "done":
+        ui.check(True, "folders", "docs and files are in ~/Alles, backups beside the data", 12)
+    elif result["state"] == "rolled_back":
+        ui.check(None, "folders", f"put back as they were: {result.get('why', 'it stopped')}", 12)
+    else:
+        ui.check(False, "folders", f"not moved: {result.get('why', result['state'])}", 12)
+    if was_running and not _native_start_service_healthy(layout):
+        ui.check(False, "service", "did not start again: alles logs", 12)
+        return False
+    return result["state"] == "done"
+
+
+def cmd_folders(args=()):
+    """alles folders [move]: where docs, files and backups are, and the one folder move."""
+    from services import cli_ui, folder_layout
+    from services.update_safety import UpdateCommandLock, UpdateSafetyError
+
+    native = _native_layout()
+    ui = cli_ui.Style()
+    if native is None:
+        ui.check(None, "folders", "only an installed alles (alles install) moves its folders", 12)
+        return not args
+    if tuple(args) == ("move",):
+        command_lock = UpdateCommandLock(native.data_root)
+        try:
+            command_lock.acquire()
+        except UpdateSafetyError as exc:
+            ui.check(False, "folders", f"not now: {exc}", 12)
+            return False
+        try:
+            return _folders_move(native)
+        finally:
+            command_lock.release()
+    if args:
+        print("usage:  alles folders  |  alles folders move")
+        return False
+    from core.settings import load_settings
+
+    settings = load_settings()
+    ok, text = folder_layout.describe(native)
+    ui.check(ok, "folders", text, 12)
+    ui.rows(
+        [
+            ("docs", cli_ui.short_path(settings.get("vault_dir") or native.data_root / "vault")),
+            ("files", cli_ui.short_path(settings.get("files_dir") or native.data_root / "files")),
+            ("backups", cli_ui.short_path(settings.get("automatic_backup_dir") or "not set")),
+            ("data", cli_ui.short_path(native.data_root)),
+        ],
+        dim_value=True,
+    )
+    return ok is not False
 
 
 def _cmd_native_update(layout) -> bool:
@@ -2665,6 +2765,12 @@ def _folder_checks() -> list[tuple[bool | None, str, str]]:
             out.append((False, label, f"{shown} can't be written"))
             continue
         out.append((True, label, shown))
+    native = _native_layout()
+    if native is not None:
+        from services import folder_layout
+
+        ok, text = folder_layout.describe(native)
+        out.append((ok, "folders", text))
     if copy.exists():
         out.append(
             (
@@ -4187,6 +4293,7 @@ COMMANDS = {
     "chat": cmd_chat,
     "backup": cmd_backup,
     "dump": cmd_dump,
+    "folders": cmd_folders,
 }
 
 

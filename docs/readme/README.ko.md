@@ -90,6 +90,8 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 
 설치한 alles는 데이터베이스와 관리하는 파일을 Linux에서는 `~/.local/share/alles/data`, macOS에서는 `~/Library/Application Support/Alles/data`에 둡니다. 위치는 `alles status`로 확인할 수 있습니다. 소스에서 실행하면 `data/`를 쓰고, `ALLES_DATA`를 설정했다면 그 위치를 씁니다. 이 폴더는 비공개로 두고 꼭 백업하세요. 외부 제공자는 각 연결을 통해 보낸 요청을 받습니다.
 
+문서와 파일은 눈에 보이는 폴더 하나 `~/Alles`에 있고 문서는 `~/Alles/Docs`에 있어서, 쓴 것은 모두 파일에서 찾을 수 있습니다. 매일 백업은 데이터 폴더 옆, 보이지 않는 곳에 저장됩니다. 11월 이전 설치는 `alles update accept`(또는 `alles folders move`)를 실행하면 이 구성으로 옮겨집니다. 직접 고른 폴더나 다른 디스크에 있는 폴더는 그대로 두고, `alles doctor`가 이유를 알려 줍니다.
+
 **settings → backup**을 열면 암호화된 백업을 내려받을 수 있습니다. 기존 HTTPS WebDAV 폴더나 S3 호환 버킷으로 직접 보낼 수도 있고, 처음 설정할 때 매일 로컬 백업을 켜 둘 수도 있습니다. 앱이 작동하지 않을 때도 꺼낼 수 있도록 복구 키는 alles 밖에 보관하세요.
 
 alles는 백업을 확인하고 복원을 준비한 뒤에 적용합니다. 앱을 멈춘 다음 안내되는 명령을 따르세요. 기존 설치를 옮기기 전에 [백업과 복원 상세 내용](../../specifications.md#your-data-where-everything-lives)을 읽어 보세요.

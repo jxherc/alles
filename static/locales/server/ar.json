@@ -716,7 +716,6 @@
     "document is not valid UTF-8; open it externally or restore a UTF-8 copy": "المستند ليس بترميز UTF-8 صالح؛ افتحه خارجيًا أو استعد نسخة UTF-8",
     "document is not valid UTF-8; the original file was left unchanged": "المستند ليس بترميز UTF-8 صالح؛ بقي الملف الأصلي دون تغيير",
     "document not found": "لم يتم العثور على المستند",
-    "documents and Files need separate folders that do not contain each other": "المستندات والملفات تحتاج إلى مجلدين منفصلين لا يحتوي أحدهما الآخر",
     "download size did not match": "حجم التنزيل لا يطابق",
     "download verification failed": "فشل التحقق من التنزيل",
     "draft changed before it could be deleted": "تغيّرت المسودة قبل حذفها",
@@ -865,7 +864,6 @@
     "incomplete upload private artifacts cannot be released safely": "لا يمكن تحرير العناصر الخاصة للرفع غير المكتمل بأمان",
     "incomplete upload recovery state is invalid": "حالة استرداد الرفع غير المكتمل غير صالحة",
     "incomplete upload still has data or private artifacts that cannot be released safely": "الرفع غير المكتمل ما زال فيه بيانات أو عناصر خاصة لا يمكن تحريرها بأمان",
-    "inside-Alles document and Files paths need the same Alles folder": "مسارا المستندات والملفات داخل Alles يحتاجان إلى مجلد Alles نفسه",
     "install and verify the local voice runtime first": "ثبّت بيئة الصوت المحلية وتحقق منها أولًا",
     "install icalBuddy (`brew install ical-buddy`) or wire pyobjc EventKit": "ثبّت icalBuddy (`brew install ical-buddy`) أو اربط pyobjc EventKit",
     "install path contains an unsupported character": "يحتوي مسار التثبيت على حرف غير مدعوم",
@@ -2519,6 +2517,8 @@
     "the configured release source could not be checked": "تعذّر فحص مصدر الإصدارات المضبوط",
     "this install has no release source to check": "لا يوجد لهذا التثبيت مصدر إصدارات لفحصه",
     "chromium is downloaded but doesn't start: alles tools install browser": "تم تنزيل chromium لكنه لا يبدأ: alles tools install browser",
-    "node needs the libatomic1 package: sudo apt install libatomic1": "يحتاج node إلى الحزمة libatomic1: sudo apt install libatomic1"
+    "node needs the libatomic1 package: sudo apt install libatomic1": "يحتاج node إلى الحزمة libatomic1: sudo apt install libatomic1",
+    "the Files folder can't be the document folder or sit inside it": "لا يمكن أن يكون مجلد الملفات هو مجلد المستندات أو أن يقع داخله",
+    "inside-Alles documents need to sit directly in the Files folder": "يجب أن تكون المستندات داخل Alles مباشرة في مجلد الملفات"
   }
 }

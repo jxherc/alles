@@ -89,6 +89,8 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 
 安装后，alles 会把数据库和它管理的文件放在 `~/.local/share/alles/data`（Linux）或 `~/Library/Application Support/Alles/data`（macOS）；`alles status` 会显示具体位置。从源码运行时使用 `data/`，设置了 `ALLES_DATA` 就用它指定的位置。这个文件夹不要公开，并记得备份。外部服务商会收到你通过它们的连接发出的请求。
 
+你的文档和文件都在一个看得见的文件夹 `~/Alles` 里，文档在 `~/Alles/Docs`，所以在文件里能找到你写的所有东西。每日备份放在数据文件夹旁边，不在视线里。十一月之前的安装在你运行 `alles update accept`（或 `alles folders move`）时换成这种布局；你自己选的文件夹或在另一块磁盘上的文件夹保持原样，`alles doctor` 会说明原因。
+
 打开 **settings → backup** 可以下载加密备份。你也可以手动把备份发送到现有的 HTTPS WebDAV 文件夹或兼容 S3 的存储桶，或者在初始设置时开启每日本地备份。请把恢复密钥存放在 alles 之外的地方，这样即使应用无法运行，你也能找到它。
 
 alles 会先检查备份并准备好恢复，然后才应用。请先停止应用，再按照它给出的命令操作。迁移现有安装之前，请阅读[备份与恢复详情](../../specifications.md#your-data-where-everything-lives)。

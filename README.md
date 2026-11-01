@@ -89,6 +89,8 @@ the interface comes in english, français, español, 简体中文, 繁體中文,
 
 an installed alles keeps your database and the files it manages in `~/.local/share/alles/data` on linux or `~/Library/Application Support/Alles/data` on macos; `alles status` shows where. a source run uses `data/`, or `ALLES_DATA` if you set it. keep that folder private and back it up. outside providers receive the requests you send them through their connections.
 
+your docs and files sit in one folder you can open and see, `~/Alles`, with docs in `~/Alles/Docs`, so files shows everything you wrote. daily backups go next to the data folder, out of view. an install from before november moves into this layout when you run `alles update accept` (or `alles folders move`); folders you picked yourself or that sit on another disk stay where they are, and `alles doctor` says why.
+
 open **settings → backup** to download an encrypted backup. you can also send one manually to an existing https webdav folder or s3-compatible bucket, or set up daily local backups during the initial setup. keep your recovery key somewhere outside alles so you can still get to it if the app stops working.
 
 alles checks a backup and prepares the restore before applying it. stop the app, then follow the command it gives you. read [the backup and restore details](specifications.md#your-data-where-everything-lives) before moving an existing installation.

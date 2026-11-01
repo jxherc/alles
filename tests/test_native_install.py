@@ -30,8 +30,9 @@ class NativeInstallLayoutTest(unittest.TestCase):
             layout.data_root,
             self.home / "Library" / "Application Support" / "Alles" / "data",
         )
-        self.assertEqual(layout.vault_default, self.home / "Alles" / "Vault")
-        self.assertEqual(layout.files_default, self.home / "Alles" / "Files")
+        # one visible folder: ~/Alles is the files root, docs sit inside it
+        self.assertEqual(layout.vault_default, self.home / "Alles" / "Docs")
+        self.assertEqual(layout.files_default, self.home / "Alles")
         self.assertEqual(layout.manager, "launchd")
         self.assertEqual(layout.unit, "app.alles.server")
 
@@ -311,8 +312,18 @@ class NativeInstallLifecycleTest(unittest.TestCase):
         self.assertTrue(self.layout.launcher.is_file())
         self.assertTrue(self.layout.service_definition.is_file())
         self.assertTrue((self.layout.service_root / ".alles-owned-service.json").is_file())
-        self.assertFalse(self.layout.vault_default.exists())
-        self.assertFalse(self.layout.files_default.exists())
+        # a new install starts in one folder, with backups beside the data, out of view
+        self.assertTrue(self.layout.vault_default.is_dir())
+        self.assertEqual(self.layout.vault_default.parent, self.layout.files_default)
+        settings = json.loads((self.layout.data_root / "settings.json").read_text("utf-8"))
+        self.assertEqual(
+            settings,
+            {
+                "automatic_backup_dir": str(self.layout.support_root / "backups"),
+                "files_dir": str(self.layout.files_default),
+                "vault_dir": str(self.layout.vault_default),
+            },
+        )
         self.assertIn(
             ["systemctl", "--user", "enable", "--now", "alles-server.service"],
             self.commands,
@@ -705,7 +716,7 @@ class NativeInstallLifecycleTest(unittest.TestCase):
             )
             private = self.layout.data_root / "private.txt"
             private.write_text("keep", "utf-8")
-            self.layout.vault_default.mkdir(parents=True)
+            self.layout.vault_default.mkdir(parents=True, exist_ok=True)
             (self.layout.vault_default / "note.md").write_text("keep", "utf-8")
             result = native_install.uninstall_keep_data(self.layout, runner=self._runner)
 

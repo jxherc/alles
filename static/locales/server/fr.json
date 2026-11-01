@@ -716,7 +716,6 @@
     "document is not valid UTF-8; open it externally or restore a UTF-8 copy": "le document n’est pas en UTF-8 valide ; ouvre-le ailleurs ou restaure une copie en UTF-8",
     "document is not valid UTF-8; the original file was left unchanged": "le document n’est pas en UTF-8 valide ; le fichier d’origine n’a pas été modifié",
     "document not found": "document introuvable",
-    "documents and Files need separate folders that do not contain each other": "les documents et les Fichiers ont besoin de dossiers séparés qui ne se contiennent pas l’un l’autre",
     "download size did not match": "la taille du téléchargement ne correspond pas",
     "download verification failed": "la vérification du téléchargement a échoué",
     "draft changed before it could be deleted": "le brouillon a changé avant de pouvoir être supprimé",
@@ -865,7 +864,6 @@
     "incomplete upload private artifacts cannot be released safely": "les artefacts privés du téléversement incomplet ne peuvent pas être libérés en sécurité",
     "incomplete upload recovery state is invalid": "l’état de récupération du téléversement incomplet est invalide",
     "incomplete upload still has data or private artifacts that cannot be released safely": "le téléversement incomplet a encore des données ou des artefacts privés qui ne peuvent pas être libérés en sécurité",
-    "inside-Alles document and Files paths need the same Alles folder": "les chemins du document et des Fichiers dans Alles doivent utiliser le même dossier Alles",
     "install and verify the local voice runtime first": "installe et vérifie d’abord le runtime vocal local",
     "install icalBuddy (`brew install ical-buddy`) or wire pyobjc EventKit": "installe icalBuddy (`brew install ical-buddy`) ou branche pyobjc EventKit",
     "install path contains an unsupported character": "le chemin d’installation contient un caractère non pris en charge",
@@ -2519,6 +2517,8 @@
     "the configured release source could not be checked": "la source de versions configurée n’a pas pu être consultée",
     "this install has no release source to check": "cette installation n’a pas de source de versions à consulter",
     "chromium is downloaded but doesn't start: alles tools install browser": "chromium est téléchargé mais ne démarre pas : alles tools install browser",
-    "node needs the libatomic1 package: sudo apt install libatomic1": "node a besoin du paquet libatomic1 : sudo apt install libatomic1"
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node a besoin du paquet libatomic1 : sudo apt install libatomic1",
+    "the Files folder can't be the document folder or sit inside it": "le dossier Fichiers ne peut pas être le dossier du document ni se trouver à l’intérieur",
+    "inside-Alles documents need to sit directly in the Files folder": "les documents dans Alles doivent se trouver directement dans le dossier Fichiers"
   }
 }
