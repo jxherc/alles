@@ -1504,6 +1504,36 @@ async def manifest():
     return FileResponse(str(static_dir / "manifest.json"), media_type="application/manifest+json")
 
 
+@app.get("/opensearch.xml")
+async def opensearch(request: Request):
+    # lets a browser add andromeda as a search engine without the extension. it names only this
+    # server's address, which the browser already has, so it stays public like the pwa manifest
+    from xml.sax.saxutils import escape, quoteattr
+
+    from services.browser_passwords import andromeda_search_url, own_origin
+
+    origin = own_origin(request)
+    search = quoteattr(andromeda_search_url(origin))
+    myself = quoteattr(origin + "/opensearch.xml")
+    icon = escape(origin + "/static/icons/icon-192.png")
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">\n'
+        "  <ShortName>andromeda</ShortName>\n"
+        "  <Description>search with andromeda on alles</Description>\n"
+        "  <InputEncoding>UTF-8</InputEncoding>\n"
+        f'  <Image width="192" height="192" type="image/png">{icon}</Image>\n'
+        f'  <Url type="text/html" method="get" template={search}/>\n'
+        f'  <Url type="application/opensearchdescription+xml" rel="self" template={myself}/>\n'
+        "</OpenSearchDescription>\n"
+    )
+    return Response(
+        body,
+        media_type="application/opensearchdescription+xml",
+        headers={"cache-control": "no-cache"},
+    )
+
+
 @app.get("/api/pwa/precache")
 async def pwa_precache():
     # 11b: the SW fetches this on install to precache the whole app shell so a cold offline

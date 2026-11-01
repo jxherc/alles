@@ -27,6 +27,14 @@
         {
           "title": "aide's tools on linux",
           "body": "alles install adds node, and alles tools says what a bare linux box is missing, with the command that fixes it."
+        },
+        {
+          "title": "your vault in chrome",
+          "body": "the alles extension now fills cards and addresses as well as logins. get it from passwords, settings, connected browsers: that copy already knows your alles, so you just click connect and approve it there. everything it gets is encrypted to a key only that browser holds. a browser you connected before asks to connect again once."
+        },
+        {
+          "title": "andromeda as your search",
+          "body": "chrome and firefox can now add andromeda as a search engine straight from alles, and the extension makes it chrome's default (chrome asks you to keep it). type al and a space in the address bar to search andromeda from any copy of the extension."
         }
       ]
     },

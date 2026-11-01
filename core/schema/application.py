@@ -693,6 +693,8 @@ class BrowserConnection(Base):
     name = Column(String, nullable=False, default="Browser")
     secret_hash = Column(String, nullable=False)
     extension_origin = Column(String, nullable=False)
+    # the extension's ecdh p-256 public key; fills are sealed to it (m0079)
+    public_key = Column(Text, nullable=True)
     created_at = Column(DateTime, default=_now)
     last_seen_at = Column(DateTime, nullable=True)
     revoked_at = Column(DateTime, nullable=True)

@@ -64,7 +64,7 @@ l’accès reste ainsi limité à votre appareil, et vos données sont enregistr
 | --- | --- |
 | home | voir votre journée, ouvrir vos apps et noter une tâche au vol |
 | Aide | discuter avec un modèle configuré et approuver des actions dans votre espace de travail |
-| andromeda | chercher sur le web et, si vous le voulez, obtenir une synthèse avec ses sources |
+| andromeda | chercher sur le web et, si vous le voulez, obtenir une synthèse avec ses sources ; peut aussi devenir le moteur de recherche du navigateur |
 | plan | gérer un calendrier, des tâches, des rappels et des comptes à rebours |
 | inbox | lire vos e-mails et gérer vos contacts une fois votre compte connecté |
 | docs | écrire des notes en Markdown et tenir un journal |
@@ -72,7 +72,7 @@ l’accès reste ainsi limité à votre appareil, et vos données sont enregistr
 | library | enregistrer des articles et des listes de lecture |
 | health | suivre vos habitudes et vos données de santé |
 | finance | suivre vos comptes, transactions, budgets et abonnements |
-| vault | conserver des secrets, mots de passe et clés d’accès chiffrés |
+| vault | conserver des secrets, mots de passe et clés d’accès chiffrés, et remplir identifiants, cartes et adresses dans chrome avec l’extension alles |
 | server | vérifier l’état du serveur, les réglages d’accès, les sauvegardes et les mises à jour |
 
 les nouvelles transactions saisies à la main dans le registre financier local peuvent être annulées.

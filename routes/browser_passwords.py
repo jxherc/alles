@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import zipfile
 from pathlib import Path
 
@@ -20,7 +21,20 @@ from services import browser_passwords
 extension_router = APIRouter(prefix="/api/auth/browser")
 owner_router = APIRouter(prefix="/api/vault/browsers")
 
-_EXTENSION_FILES = ("manifest.json", "popup.html", "popup.css", "popup.js", "background.js")
+_EXTENSION_FILES = (
+    "manifest.json",
+    "popup.html",
+    "popup.css",
+    "popup.js",
+    "background.js",
+    "config.json",
+    "seal.js",
+    "fill.js",
+    "icons/icon-16.png",
+    "icons/icon-32.png",
+    "icons/icon-48.png",
+    "icons/icon-128.png",
+)
 _EXTENSION_ROOT = Path(__file__).resolve().parent.parent / "extension"
 
 
@@ -34,6 +48,8 @@ def _private(response: Response) -> None:
 
 class PairStartBody(BaseModel):
     name: str = Field(default="Browser", max_length=80)
+    # the extension's ecdh p-256 public key; every fill is sealed to it
+    public_key: str = Field(min_length=80, max_length=100)
 
 
 class PairPollBody(BaseModel):
@@ -71,7 +87,7 @@ def pair_start(
     enforce_rate_limit(request, "browser-pair-start", limit=10, window_seconds=300)
     _private(response)
     try:
-        return browser_passwords.begin_pair(body.name, origin or "")
+        return browser_passwords.begin_pair(body.name, origin or "", body.public_key)
     except browser_passwords.BrowserPasswordError as exc:
         raise _error(exc) from exc
 
@@ -190,18 +206,16 @@ def match(
     enforce_rate_limit(request, "browser-match", limit=120, window_seconds=60)
     _private(response)
     try:
-        return {
-            "matches": browser_passwords.matches(
-                db,
-                body.connection_id,
-                body.device_secret,
-                body.session_token,
-                origin or "",
-                page_url=body.page_url,
-                top_url=body.top_url,
-                frame_url=body.frame_url,
-            )
-        }
+        return browser_passwords.matches(
+            db,
+            body.connection_id,
+            body.device_secret,
+            body.session_token,
+            origin or "",
+            page_url=body.page_url,
+            top_url=body.top_url,
+            frame_url=body.frame_url,
+        )
     except browser_passwords.BrowserPasswordError as exc:
         raise _error(exc) from exc
 
@@ -258,15 +272,39 @@ def owner_status(
     }
 
 
+def _bundle_file(name: str, raw: bytes, alles_origin: str) -> bytes:
+    """the download knows which alles it came from: it points the extension there and offers
+    andromeda as the browser's search (chrome asks the owner to keep or undo that)."""
+    if not alles_origin or name not in {"manifest.json", "config.json"}:
+        return raw
+    if name == "config.json":
+        return (json.dumps({"origin": alles_origin}) + "\n").encode()
+    manifest = json.loads(raw)
+    manifest["chrome_settings_overrides"] = {
+        "search_provider": {
+            "name": "andromeda",
+            "keyword": "andromeda",
+            "search_url": browser_passwords.andromeda_search_url(alles_origin),
+            "favicon_url": f"{alles_origin}/static/icons/icon-192.png",
+            "encoding": "UTF-8",
+            "is_default": True,
+        }
+    }
+    return (json.dumps(manifest, indent=2) + "\n").encode()
+
+
 @owner_router.get("/extension", dependencies=[Depends(require_recent_owner)])
 def download_extension(
     response: Response,
+    origin: str = "",
     db: DbSession = Depends(get_db),
     ctx: tuple[str, str] = Depends(_ctx),
 ):
     """Return only the reviewed extension files, never runtime state or secrets."""
     _private(response)
     _owner(db, ctx)
+    # the address the owner downloaded from; only an https (or loopback) one is baked in
+    alles_origin = browser_passwords.secure_alles_origin(origin)
     bundle = io.BytesIO()
     try:
         with zipfile.ZipFile(bundle, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -274,7 +312,7 @@ def download_extension(
                 path = _EXTENSION_ROOT / name
                 if path.is_symlink() or not path.is_file():
                     raise OSError(f"extension file is unavailable: {name}")
-                archive.writestr(name, path.read_bytes())
+                archive.writestr(name, _bundle_file(name, path.read_bytes(), alles_origin))
     except OSError as exc:
         raise ApiError(
             503,

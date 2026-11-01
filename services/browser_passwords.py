@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
+import os
 import re
 import secrets
 import threading
@@ -12,6 +14,11 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
+
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from core.database import BrowserConnection, Vault, VaultEntry
 from core.settings import load_settings
@@ -42,6 +49,7 @@ class _Pairing:
     secret_hash: str
     code: str
     expires: float
+    public_key: str = ""
     connection_id: str = ""
     device_secret: str = ""
 
@@ -106,8 +114,94 @@ def _bound(mapping: dict) -> None:
         raise BrowserPasswordError(429, "too_many_pending", "too many pending browser requests")
 
 
-def begin_pair(name: str, origin: str) -> dict:
+def _clean_origin(raw: str) -> str:
+    parsed = urlsplit(str(raw or "").strip())
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme not in {"http", "https"} or not host or parsed.username or parsed.password:
+        return ""
+    try:
+        port = parsed.port
+    except ValueError:
+        return ""
+    shown = f"[{host}]" if ":" in host else host
+    default = 443 if parsed.scheme == "https" else 80
+    return f"{parsed.scheme}://{shown}" + (f":{port}" if port and port != default else "")
+
+
+def own_origin(request) -> str:
+    """the address the owner reaches this server at: the saved public url, else the request's."""
+    saved = _clean_origin(str(load_settings().get("public_url", "") or ""))
+    return saved or _clean_origin(str(request.base_url)) or "http://localhost"
+
+
+def andromeda_search_url(origin: str) -> str:
+    return f"{origin}/?app=andromeda&q={{searchTerms}}"
+
+
+def secure_alles_origin(raw: str) -> str:
+    """an alles address the extension may talk to: https, or plain http on loopback only."""
+    origin = _clean_origin(raw)
+    host = urlsplit(origin).hostname or ""
+    if not origin or (
+        not origin.startswith("https://") and host not in {"localhost", "127.0.0.1", "::1"}
+    ):
+        return ""
+    return origin
+
+
+def _b64(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def _unb64(value: str) -> bytes:
+    value = str(value or "")
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def browser_public_key(value: str | None) -> str:
+    """the extension's ecdh p-256 public key as a raw uncompressed point, base64url."""
+    try:
+        raw = _unb64(str(value or "").strip())
+        # only an uncompressed point (0x04 + x + y) that lies on the curve
+        valid = len(raw) == 65 and raw[0] == 4
+        if valid:
+            ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), raw)
+    except (ValueError, TypeError):
+        valid = False
+    if not valid:
+        raise BrowserPasswordError(
+            400, "invalid_browser_key", "the browser's public key is invalid"
+        )
+    return _b64(raw)
+
+
+# the sealed box the extension opens in extension/seal.js. a fresh server key per response, so
+# one leaked response key opens nothing else; the page origin and connection go in as associated
+# data, so a box can't be replayed to another site or another browser.
+_SEAL_INFO = b"alles browser fill v1"
+
+
+def _aad(connection_id: str, page_origin: tuple[str, str, int]) -> bytes:
+    scheme, host, port = page_origin
+    return f"alles-fill|{connection_id}|{scheme}://{host}:{port}".encode()
+
+
+def seal(public_key: str, payload: dict, aad: bytes) -> dict:
+    peer = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), _unb64(public_key))
+    mine = ec.generate_private_key(ec.SECP256R1())
+    epk = mine.public_key().public_bytes(
+        serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
+    )
+    shared = mine.exchange(ec.ECDH(), peer)
+    key = HKDF(algorithm=hashes.SHA256(), length=32, salt=epk, info=_SEAL_INFO).derive(shared)
+    iv = os.urandom(12)
+    ct = AESGCM(key).encrypt(iv, json.dumps(payload, separators=(",", ":")).encode(), aad)
+    return {"v": 1, "epk": _b64(epk), "iv": _b64(iv), "ct": _b64(ct)}
+
+
+def begin_pair(name: str, origin: str, public_key: str = "") -> dict:
     origin = extension_origin(origin)
+    public_key = browser_public_key(public_key)
     name = re.sub(r"\s+", " ", str(name or "").strip())[:80] or "Browser"
     with _LOCK:
         _prune()
@@ -122,6 +216,7 @@ def begin_pair(name: str, origin: str) -> dict:
             secret_hash=_hash(secret),
             code=code,
             expires=time.monotonic() + _PAIR_TTL,
+            public_key=public_key,
         )
     return {
         "pairing_id": pairing_id,
@@ -196,6 +291,7 @@ def approve_pair(db, pairing_id: str, vault_id: str) -> BrowserConnection:
             name=pairing.name,
             secret_hash=_hash(device_secret),
             extension_origin=pairing.extension_origin,
+            public_key=pairing.public_key,
         )
         db.add(connection)
         db.commit()
@@ -470,6 +566,102 @@ def _entry_fields(entry: VaultEntry, password: str) -> dict:
     return value if isinstance(value, dict) else {"password": str(value)}
 
 
+# the three kinds the extension fills. logins only on their own exact site; cards and addresses
+# on any secure top-level page the owner picks them on, the way bitwarden and 1password offer them.
+_LOGIN_TYPES = ("login", "password")
+_CARD_TYPES = ("card",)
+_ADDRESS_TYPES = ("identity",)
+_GROUP = {"login": "logins", "card": "cards", "address": "addresses"}
+
+
+def _kind(entry_type: str) -> str:
+    if entry_type in _LOGIN_TYPES:
+        return "login"
+    if entry_type in _CARD_TYPES:
+        return "card"
+    if entry_type in _ADDRESS_TYPES:
+        return "address"
+    return ""
+
+
+def _text(fields: dict, key: str) -> str:
+    value = fields.get(key)
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _password(fields: dict) -> str:
+    # kept exactly as saved: a password may start or end with a space
+    value = fields.get("password")
+    return value if isinstance(value, str) else ""
+
+
+def _summary(entry: VaultEntry, fields: dict, kind: str, page_origin) -> dict | None:
+    if kind == "login":
+        try:
+            stored = _normalized_origin(_text(fields, "url"))
+        except BrowserPasswordError:
+            return None
+        if stored != page_origin or not _password(fields):
+            return None
+        return {
+            "id": entry.id,
+            "name": entry.name,
+            "username": _text(fields, "username") or str(entry.username or ""),
+        }
+    if kind == "card":
+        digits = re.sub(r"\D", "", _text(fields, "number"))
+        if len(digits) < 12:
+            return None
+        return {
+            "id": entry.id,
+            "name": entry.name,
+            "last4": digits[-4:],
+            "expiry": _text(fields, "expiry"),
+        }
+    address = _text(fields, "home_address")
+    if not (address or _text(fields, "fullname") or _text(fields, "email")):
+        return None
+    return {
+        "id": entry.id,
+        "name": entry.name,
+        "line": address.splitlines()[0] if address else _text(fields, "email"),
+    }
+
+
+def _fill(entry: VaultEntry, fields: dict, kind: str) -> dict:
+    if kind == "login":
+        return {
+            "kind": "login",
+            "username": _text(fields, "username") or str(entry.username or ""),
+            "password": _password(fields),
+        }
+    if kind == "card":
+        return {
+            "kind": "card",
+            "cardholder": _text(fields, "cardholder"),
+            "number": re.sub(r"\D", "", _text(fields, "number")),
+            "expiry": _text(fields, "expiry"),
+            "cvv": _text(fields, "cvv"),
+            "address": _text(fields, "address"),
+        }
+    return {
+        "kind": "address",
+        "fullname": _text(fields, "fullname"),
+        "email": _text(fields, "email"),
+        "phone": _text(fields, "phone"),
+        "address": _text(fields, "home_address"),
+    }
+
+
+def _sealing_key(connection: BrowserConnection) -> str:
+    if not connection.public_key:
+        # paired before fills were sealed: never send it anything in the clear
+        raise BrowserPasswordError(
+            403, "browser_needs_pairing", "pair this browser again to keep fills encrypted"
+        )
+    return connection.public_key
+
+
 def matches(
     db,
     connection_id: str,
@@ -480,39 +672,27 @@ def matches(
     page_url: str,
     top_url: str,
     frame_url: str,
-) -> list[dict]:
+) -> dict:
     connection = _connection(db, connection_id, device_secret, origin)
     session = _session(db, connection, session_token)
     page_origin = exact_page_origin(page_url, top_url, frame_url)
+    key = _sealing_key(connection)
     rows = (
         db.query(VaultEntry)
-        .filter(VaultEntry.vault_id == session.vault_id, VaultEntry.type.in_(("login", "password")))
+        .filter(
+            VaultEntry.vault_id == session.vault_id,
+            VaultEntry.type.in_(_LOGIN_TYPES + _CARD_TYPES + _ADDRESS_TYPES),
+        )
         .order_by(VaultEntry.name, VaultEntry.id)
         .yield_per(250)
     )
-    result = []
+    found = {"logins": [], "cards": [], "addresses": []}
     for entry in rows:
-        fields = _entry_fields(entry, session.password)
-        raw_url = fields.get("url")
-        if not isinstance(raw_url, str) or not raw_url.strip():
-            continue
-        try:
-            stored = _normalized_origin(raw_url)
-        except BrowserPasswordError:
-            continue
-        if (
-            stored == page_origin
-            and isinstance(fields.get("password"), str)
-            and fields.get("password")
-        ):
-            result.append(
-                {
-                    "id": entry.id,
-                    "name": entry.name,
-                    "username": str(fields.get("username") or entry.username or ""),
-                }
-            )
-    return result
+        kind = _kind(entry.type)
+        item = _summary(entry, _entry_fields(entry, session.password), kind, page_origin)
+        if item is not None:
+            found[_GROUP[kind]].append(item)
+    return {"sealed": seal(key, found, _aad(connection.id, page_origin))}
 
 
 def release(
@@ -530,27 +710,18 @@ def release(
     connection = _connection(db, connection_id, device_secret, origin)
     session = _session(db, connection, session_token)
     page_origin = exact_page_origin(page_url, top_url, frame_url)
+    key = _sealing_key(connection)
     entry = db.get(VaultEntry, entry_id)
-    if (
-        entry is None
-        or entry.vault_id != session.vault_id
-        or entry.type not in {"login", "password"}
-    ):
+    kind = _kind(entry.type or "") if entry is not None else ""
+    if entry is None or entry.vault_id != session.vault_id or not kind:
         raise BrowserPasswordError(404, "credential_not_found", "credential was not found")
     fields = _entry_fields(entry, session.password)
-    try:
-        stored_origin = _normalized_origin(str(fields.get("url") or ""))
-    except BrowserPasswordError as exc:
-        raise BrowserPasswordError(
-            404, "credential_not_found", "credential no longer matches this page"
-        ) from exc
-    password = fields.get("password")
-    if stored_origin != page_origin or not isinstance(password, str) or not password:
+    if _summary(entry, fields, kind, page_origin) is None:
         raise BrowserPasswordError(
             404, "credential_not_found", "credential no longer matches this page"
         )
     vault_audit.record(session.vault_id, "browser_filled", entry=entry.id, connection=connection.id)
-    return {"username": str(fields.get("username") or entry.username or ""), "password": password}
+    return {"sealed": seal(key, _fill(entry, fields, kind), _aad(connection.id, page_origin))}
 
 
 def reset_ephemeral_state() -> None:

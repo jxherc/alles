@@ -1015,6 +1015,22 @@ ordinary-entry receipts.
 - sharing uses the saved entry. the form provides a copyable link when clipboard access fails,
   plus revocation for existing links. revocation prevents future access; it cannot erase a copy
   someone already read
+- the browser extension (`extension/`, chrome and other chromium browsers, loaded unpacked) fills
+  logins, cards and addresses. vault settings, connected browsers, downloads a copy that already
+  points at the address it was downloaded from; the owner clicks connect, approves the browser in
+  alles after matching a 6 digit code, and approves each 5 minute unlock the same way. nothing is
+  typed into the extension. at pairing it makes an ecdh p-256 key pair (the private half can't be
+  exported) and sends the public half; every list and fill comes back sealed to it (a fresh server
+  key per answer, hkdf-sha256, aes-256-gcm, the page's exact origin and the browser as associated
+  data), so a proxy that reads the https stream sees only ciphertext. a browser paired before this
+  is asked to pair again. logins show only on their saved site's exact origin; cards and addresses
+  show on any https (or localhost) page, top frame only, and fill the fields their autocomplete
+  names (or common names) point at. every fill is logged as `browser_filled`
+- andromeda as the browser's search: alles serves an opensearch description (`/opensearch.xml`,
+  linked from the page head), so chrome and firefox can add andromeda from the address bar and make
+  it the default in their search settings. the downloaded extension also sets andromeda as chrome's
+  default search (chrome asks to keep it or change it back), and `al` plus a space in the address
+  bar searches andromeda from any copy of the extension
 - *under the hood:* each vault has its own random 256-bit key, and each entry and file is sealed with **aes-256-gcm** (a strong authenticated encryption) under it. your master password only unwraps that key, through **argon2id** (64 mib, 3 passes, 4 lanes: a deliberately slow, memory-hungry key-stretch so guessing the password is expensive). the server keeps the unwrapped key **in memory only**, never the password, and drops it after 10 idle minutes; the page locks itself on the same clock. changing the password asks for the current one and rewraps the key. wrong passwords get 5 free tries, then waits that double up to 5 minutes. a vault made before this upgrades itself on the next unlock. copied secrets clear from the clipboard after 90 seconds while alles has focus. vault settings has a password-protected export (argon2id + aes-gcm json, current password asked first) with import, and an activity log of unlocks, failed tries, opens, exports and security changes (`data/vault-audit.jsonl`, no secrets). a passkey holds its own wrap of the key: under its webauthn prf output when the authenticator has prf, otherwise under a device key the server keeps. threat model and audit: the owner's life vault, `alles vault threat model` and `alles vault audit`.
 
 <p align="center">
@@ -1704,7 +1720,7 @@ the main app runs on python 3.11 or newer with fastapi, uvicorn, sqlalchemy, and
 
 the optional actual integration is a separate node bridge pinned through [integrations/actual/package.json](integrations/actual/package.json) and its lockfile. it requires node 22.12.0 or newer and uses the official actual api, cli, and sync server at the versions recorded there.
 
-[mobile/](mobile) contains a capacitor wrapper with its own dependencies and platform build steps. it wraps the server-backed app; the fastapi backend still runs on the host. the chromium password companion has its own manifest and pairing boundary under [extension/](extension).
+[mobile/](mobile) contains a capacitor wrapper with its own dependencies and platform build steps. it wraps the server-backed app; the fastapi backend still runs on the host. the chromium extension (logins, cards, addresses, andromeda search) has its own manifest and pairing boundary under [extension/](extension); what it receives is sealed to a key only it holds. `/opensearch.xml` is public like the pwa manifest: it names only the server's own address.
 
 ## project layout
 
@@ -1812,12 +1828,12 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1020 http method/path pairs
-- 994 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
-- sha-256: `238aa61fbba11b65d3aa73e5336697b9ff81de45d094f158d14adb2a552e842d`
+- 1021 http method/path pairs
+- 994 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
+- sha-256: `8ade852f918ff3816c98441c87d6f63c38c01138d18b38695da7ab5b41d790f9`
 
 <details>
-<summary>app.py · 10 operations</summary>
+<summary>app.py · 11 operations</summary>
 
 [source](app.py)
 
@@ -1831,6 +1847,7 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/health` | `health` |
 | `GET` | `/manifest.json` | `manifest` |
 | `GET` | `/openapi.json` | `api_schema` |
+| `GET` | `/opensearch.xml` | `opensearch` |
 | `GET` | `/redoc` | `api_redoc` |
 | `GET` | `/sw.js` | `service_worker` |
 
