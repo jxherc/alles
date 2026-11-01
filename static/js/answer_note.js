@@ -5,7 +5,7 @@ import { stripArtifacts } from './artifacts.js';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { sourceCitationStatus } from './memoryactions.js';
 import { t } from './i18n.js';
-import { dismissAfter } from './notice.js';
+import { dismissAfter, errorNotice } from './notice.js';
 
 const savedAnswers = new Map();
 
@@ -108,11 +108,10 @@ export async function saveAnswerNote(button) {
   } catch (error) {
     const host = document.getElementById('aide-note-recovery');
     if (host) {
-      const status = document.createElement('p'); status.setAttribute('role', 'status'); status.textContent = plainError(error.message);
-      host.replaceChildren(status);
+      host.replaceChildren();
       await loadAnswerNoteRecovery();
-      // Checking a stopped reply may fail before a note receipt exists.
-      if (!host.contains(status)) host.prepend(status);
+      // Checking a stopped reply may fail before a note receipt exists. the error stays until closed
+      errorNotice(host, plainError(error.message));
       if (restoreFocus()) host.querySelector('.note-retry, .note-recovery-error button')?.focus();
     }
   } finally {

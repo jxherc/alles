@@ -7643,3 +7643,26 @@ html[data-kokuen-version="5"] .k-number-row-readout {
     background: var(--k-busy-tone) border-box;
   }
 }
+
+/* resizable rail (decision 0054): a 12px strip on a sidebar's trailing edge (rail_resize.js). its
+   ::before widens the grab to 32px for a finger, and a 2px line shows where it is when pointed at,
+   dragged or focused. a rail the user sized takes its width from --k-rail-w; phones get no strip */
+:is(.k-rail-resize, .acw-rail-resize) { position: absolute; z-index: 3; width: 12px; cursor: col-resize; touch-action: none; }
+.k-rail-resize { top: 0; translate: -50% 0; }
+.k-rail-resize[data-inside] { right: 0; bottom: 0; translate: none; }
+.k-rail-resize[hidden] { display: none; }
+:is(.k-rail-resize, .acw-rail-resize)::before { content: ""; position: absolute; top: 0; bottom: 0; left: -10px; right: -10px; }
+:is(.k-rail-resize, .acw-rail-resize)::after { content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; background: transparent; transition: background-color 140ms ease; }
+:is(.k-rail-resize, .acw-rail-resize):is(:hover, [data-active])::after { background: var(--k-line-strong); }
+:is(.k-rail-resize, .acw-rail-resize):focus-visible { outline: none; }
+:is(.k-rail-resize, .acw-rail-resize):focus-visible::after { background: var(--k-focus); }
+html[data-rail-resizing] { cursor: col-resize; user-select: none; -webkit-user-select: none; }
+:where([data-k-rail-inside]) { position: relative; }
+html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
+  width: var(--k-rail-w);
+  min-width: var(--k-rail-w);
+  max-width: var(--k-rail-w);
+  flex: 0 0 var(--k-rail-w);
+}
+@media (max-width: 620px) { .k-rail-resize { display: none; } }
+@media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize)::after { transition: none; } }

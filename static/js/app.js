@@ -3,8 +3,12 @@ import { loadModels, renderModelList, renderSidebarModelList, getSelected, initM
 import { icon, iconEl, ICON_NAMES, appGlyph } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
-// icon slots in the static page (<span data-ic="link">) get their svg from the shared set
-document.querySelectorAll?.('[data-ic]').forEach(slot => { slot.innerHTML = icon(slot.dataset.ic); });
+// icon slots in the static page (<span data-ic="link">, or an empty <svg data-ic="gear" class="x">
+// that becomes the shared drawing with its classes) get their svg from the shared set
+document.querySelectorAll?.('[data-ic]').forEach(slot => {
+  if (slot.localName === 'svg') slot.replaceWith(iconEl(slot.dataset.ic, { cls: slot.getAttribute('class') || '' }));
+  else slot.innerHTML = icon(slot.dataset.ic);
+});
 import { chooseBootState } from './bootstate.js';
 import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
 import { canSendMessage, getSendBlockReason, sendMessage, stopStream, hideConnBanner } from './chat.js';
@@ -67,9 +71,25 @@ import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
 import { cachedLocalizationSettings, configureLocalization, formatDateTime, prepareLocalization, t, tp } from './i18n.js';
 import { cancelRecording as cancelVoiceRecording, isRecording as isVoiceRecording } from './voice.js';
+import { makeResizableRail } from './rail_resize.js?v=1';
 
 window._mdToHtml = mdToHtml;
 initKokuenPrimitives(document);
+// every app's sidebar drags wider or narrower like aide code's projects rail. rails a module fills
+// with innerHTML keep the handle outside them (inside: false)
+for (const [sel, key, opts] of [
+  ['#aide-sidebar', 'aide', { inside: true, media: '(min-width: 621px)' }],
+  ['#docs-nav-panel', 'docs', { inside: true }],
+  ['#settings-modal .s-navigation', 'settings', { inside: true }],
+  ['#files-view .files-phase7-location-panel', 'files', { gridHost: true }],
+  ['#mail-sidebar', 'mail', {}],
+  ['#cal-sidebar', 'calendar', {}],
+  ['#photos-sidebar', 'photos', {}],
+]) {
+  const rail = document.querySelector(sel);
+  // a grid rail's width is the grid's first track, so the variable goes on the grid
+  if (rail) makeResizableRail({ rail, host: opts.gridHost ? rail.parentElement : rail, key: `alles-rail-${key}`, labelKey: 'shell.resize_sidebar', ...opts });
+}
 
 // ── init ──────────────────────────────────────────────────────────────────────
 // single sign-on: log in once at alles and every app subdomain unlocks. cookies

@@ -670,7 +670,7 @@ function renderMessages(msgs) {
         const bb = document.createElement('button');
         bb.className = 'act-btn msg-branch-btn';
         bb.textContent = t('aide.branch_button');
-        bb.title = t('aide.branch_title');
+        bb.setAttribute('aria-description', t('aide.branch_title'));
         bb.dataset.msgId = m.id;
         actions.appendChild(bb);
       }

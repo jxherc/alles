@@ -84,6 +84,62 @@ function rememberPhotoChange(photo, key, value) {
   if (_cur?.id === photo.id) _cur[key] = value;
 }
 
+// 28.09: photo size, like apple photos. − and + in the header, a pinch on touch, or ctrl+scroll and
+// a trackpad pinch step through 4 row heights; rows stay justified, so no picture is cropped.
+// the step is remembered in this browser
+const PHOTO_SIZES = [0.7, 1, 1.45, 2];
+const SIZE_KEY = 'alles-photos-size';
+let _size = (() => {
+  try { const n = Number(localStorage.getItem(SIZE_KEY) ?? 1); return Number.isInteger(n) && PHOTO_SIZES[n] ? n : 1; } catch { return 1; }
+})();
+
+function _syncSizeUI() {
+  if ($('photos-zoom-out')) $('photos-zoom-out').disabled = _size === 0;
+  if ($('photos-zoom-in')) $('photos-zoom-in').disabled = _size === PHOTO_SIZES.length - 1;
+}
+
+function _setSize(next) {
+  next = Math.min(PHOTO_SIZES.length - 1, Math.max(0, next));
+  if (next === _size) return;
+  _size = next;
+  try { localStorage.setItem(SIZE_KEY, String(next)); } catch { /* private mode */ }
+  _syncSizeUI();
+  if (_repaint) _repaint();
+}
+
+function _sizeInit() {
+  _syncSizeUI();
+  $('photos-zoom-out')?.addEventListener('click', () => _setSize(_size - 1));
+  $('photos-zoom-in')?.addEventListener('click', () => _setSize(_size + 1));
+  const grid = $('photos-grid');
+  if (!grid) return;
+  // two fingers apart or together by a quarter steps once, then measures again from there
+  let start = 0;
+  const spread = e => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  grid.addEventListener('touchstart', e => { start = e.touches.length === 2 ? spread(e) : 0; }, { passive: true });
+  grid.addEventListener('touchmove', e => {
+    if (e.touches.length !== 2 || !start) return;
+    e.preventDefault();
+    const ratio = spread(e) / start;
+    if (ratio > 1.25 || ratio < 0.8) { _setSize(_size + (ratio > 1 ? 1 : -1)); start = spread(e); }
+  }, { passive: false });
+  grid.addEventListener('touchend', e => { if (e.touches.length < 2) start = 0; }, { passive: true });
+  // a trackpad pinch arrives as ctrl+wheel (and as gesture events in safari)
+  let wheel = 0;
+  grid.addEventListener('wheel', e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    wheel += e.deltaY;
+    if (Math.abs(wheel) > 40) { _setSize(_size + (wheel < 0 ? 1 : -1)); wheel = 0; }
+  }, { passive: false });
+  let gestureAt = 1;
+  grid.addEventListener('gesturestart', e => { e.preventDefault(); gestureAt = 1; });
+  grid.addEventListener('gesturechange', e => {
+    e.preventDefault();
+    if (e.scale / gestureAt > 1.25 || e.scale / gestureAt < 0.8) { _setSize(_size + (e.scale > gestureAt ? 1 : -1)); gestureAt = e.scale; }
+  });
+}
+
 // justified (flickr-style) layout — pack a date bucket's photos into rows that fill the width,
 // aspect ratios preserved, no square cropping. run per bucket so a date header never sits mid-row.
 function _justify(items, containerW, targetH, gap) {
@@ -139,7 +195,7 @@ function _paintGroups(groups, emptyMsg) {
   _photos = [];
   if (!groups.length) { grid.innerHTML = `<div class="photos-empty">${emptyMsg}</div>`; _repaint = null; return; }
   const cw = grid.clientWidth || grid.offsetWidth || 800;
-  const targetH = cw < 560 ? 116 : (cw < 900 ? 150 : 184);
+  const targetH = (cw < 560 ? 116 : (cw < 900 ? 150 : 184)) * PHOTO_SIZES[_size];
   let html = '';
   for (const g of groups) {
     html += `<div class="photos-moment"><div class="photos-moment-label">${esc(g.label)}</div><div class="photos-rows">`;
@@ -1280,6 +1336,7 @@ export function initPhotos() {
     _applyFilters();
   });
   _scrubInit();
+  _sizeInit();
   // re-justify the current bucket layout when the window resizes (no-op on map/trash)
   let _rt;
   window.addEventListener('resize', () => { clearTimeout(_rt); _rt = setTimeout(() => { if (_repaint) _repaint(); }, 120); });

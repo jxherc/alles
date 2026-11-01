@@ -147,6 +147,10 @@ Use a dialog for a blocking decision and a side panel for continuing context. La
 
 Use short states such as `saving`, `saved`, `offline`, `partial results`, or `needs approval`. Keep status near the affected content and announce important asynchronous changes. Do not make a temporary toast the only record of important work.
 
+One notice rule (`notice.js`): a confirmation clears itself after a while (`dismissAfter`), an error stays until its close button is used (`errorNotice`). Both have a close button; neither is stuck.
+
+Controls carry no native `title` tooltip. A title that is a control's only name becomes its `aria-label` (`kokuen.js` `dropNativeTooltip`).
+
 ## state message
 
 - loading: skeletons match the final structure;
@@ -173,3 +177,10 @@ While work runs, a rounded box shows it on its own 1px edge (decision 0053): `.k
 `data-busy="true"` (the aide composer and aide code's entry are wired already). The tone turns
 slowly around the corners; reduced motion shows a steady brighter edge. Never a line laid over the
 edge, a glow outside it, or a stripe on one side.
+
+## resizable rail
+
+Every app sidebar resizes with one handle (decision 0054, `rail_resize.js` `makeResizableRail`): a
+12px `role="separator"` strip on the trailing edge with a 32px grab for a finger, drag by mouse, pen
+or touch, arrow keys (shift for 3rem), home and end, double click back to the app's width. The width
+is in rem and saved per browser; phones and stacked tablet layouts get no handle.

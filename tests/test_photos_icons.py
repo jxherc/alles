@@ -49,11 +49,11 @@ class GalleryIcons(unittest.TestCase):
         self.assertGreater(PHOTOS.count("_si("), 10)
 
     def test_header_buttons_carry_inline_icons(self):
-        # share renders an <svg class="ic"> in the static markup
+        # share carries the shared icons.js drawing as an <svg data-ic> slot (28.11, app.js fills it)
         # (generate/trash moved out of the header in phase 1 — gen dropped, trash → sidebar)
         block = _photos_block()
         i = block.index("photos-share-album-btn")
-        self.assertIn('svg class="ic"', block[i : i + 400], "share button missing inline icon")
+        self.assertIn('<svg data-ic="share"', block[i : i + 400], "share button missing its icon")
 
     def test_lightbox_actions_decorated_in_js(self):
         for name in ("edit", "download", "trash", "close", "eye-off"):

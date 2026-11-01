@@ -443,9 +443,8 @@ def run() -> None:
                     '#model-list .model-row[data-ep="deepseek-local"][data-model="deepseek-v4-pro"]'
                 ).click()
                 assert page.locator("#aide-model-choice-label").inner_text().strip() == "v4 pro"
-                assert page.locator("#aide-model-choice").get_attribute("title") == (
-                    "deepseek-v4-pro · local deepseek"
-                )
+                # no native tooltip on a control (27.35); the aria-label names the model
+                assert page.locator("#aide-model-choice").get_attribute("title") is None
                 assert page.locator("#aide-model-choice").get_attribute("aria-label") == (
                     "model deepseek-v4-pro, provider local deepseek"
                 )

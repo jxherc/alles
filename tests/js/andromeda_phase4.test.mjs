@@ -301,7 +301,7 @@ test('automatic search keeps the configured provider fallback chain active', () 
 test('result explanation uses the opaque Aide handoff instead of a query payload', () => {
   const source = readFileSync(new URL('../../static/js/andromeda.js', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
-  const explain = source.slice(source.indexOf('async function explainResults()'), source.indexOf('function bindRecovery()'));
+  const explain = source.slice(source.indexOf('async function explainResults('), source.indexOf('function bindRecovery()'));
   assert.match(explain, /validatedProjectId[\s\S]*project_id[\s\S]*await window\._askInChat\(request, false, scope, projectId\)/);
   assert.doesNotMatch(explain, /\?ask=/);
   assert.doesNotMatch(explain, /location\.href\s*=/);
