@@ -507,37 +507,29 @@ def run():
                             source="real owner audit entries plus simulated runtime-log HTTP503; tab retry recovers",
                         )
                         tab("policy")
-                        editor = card("server access policy").locator("textarea")
-                        expect(editor).to_be_visible()
-                        original = editor.input_value()
-                        editor.fill('{"invalid":true}')
-                        card("server access policy").get_by_role(
-                            "button", name="validate and show diff"
-                        ).click()
-                        expect(card("server access policy")).to_contain_text("policy accepts only")
-                        assert editor.input_value() == '{"invalid":true}'
-                        editor.fill(original)
+                        # 28.35: an unset policy is one action, behind the owner prompt
+                        policy_card = card("what alles may control")
+                        expect(policy_card).to_contain_text("not set up yet")
+                        expect(policy_card.locator("textarea")).to_have_count(0)
+                        keep = policy_card.get_by_role("button", name="keep it to alles only")
                         assert api.post("/api/test-fixture/expire-owner").ok
-                        card("server access policy").get_by_role(
-                            "button", name="save policy", exact=True
-                        ).click()
+                        keep.click()
                         dialog = page.locator(".dialog-overlay")
                         expect(dialog).to_be_visible()
                         shot("04-policy-owner-confirmation")
                         page.keyboard.press("Escape")
                         expect(dialog).to_be_hidden()
-                        expect(card("server access policy")).to_contain_text(
-                            "owner confirmation cancelled"
-                        )
-                        assert editor.input_value() == original
-                        card("server access policy").get_by_role(
-                            "button", name="save policy", exact=True
-                        ).click()
+                        expect(policy_card).to_contain_text("owner confirmation cancelled")
+                        assert not api.get("/api/system/policy").json()["valid"]
+                        keep.click()
                         expect(dialog).to_be_visible()
                         dialog.locator("input").fill(PASS)
                         page.keyboard.press("Enter")
                         expect(dialog).to_be_hidden()
-                        expect(card("server access policy")).to_contain_text("saved and verified")
+                        mode = policy_card.get_by_role("radiogroup", name="control")
+                        expect(mode.get_by_role("radio", name="alles only")).to_have_attribute(
+                            "aria-checked", "true"
+                        )
                         policy = api.get("/api/system/policy").json()
                         assert policy["valid"] and policy["policy"] == {
                             "control_mode": "owned_only",
@@ -545,87 +537,37 @@ def run():
                         }
                         assert (data / "server-policy.json").stat().st_mode & 0o777 == 0o600
                         shot("05-policy-saved")
-                        policy_message = (
-                            card("server access policy").locator(".server-workbench-status").first
-                        )
-                        assert "is-error" not in (policy_message.get_attribute("class") or "")
-                        save_record(
-                            "server.policy-success-style",
-                            message=policy_message.inner_text(),
-                            classes=policy_message.get_attribute("class"),
-                        )
+                        expect(policy_card.locator(".is-error")).to_have_count(0)
                         save_record(
                             "server.policy-recovery",
                             source="real owned backend with expired recent-owner confirmation",
                             policy=policy["policy"],
                             file_mode="0600",
-                            retained_failed_draft=True,
                             cancelled_and_retried=True,
                         )
-                        expect(card("server access policy")).not_to_contain_text("policy_missing")
-                        expect(card("server access policy")).not_to_contain_text(
-                            "server policy file is missing"
+                        expect(policy_card).not_to_contain_text("server policy file is missing")
+                        # widening shows the picker and the typed phrase, and saves nothing yet
+                        mode.get_by_role("radio", name="plus services i pick").click()
+                        policy_confirmation = policy_card.locator("label").filter(
+                            has_text="type “allow host services”"
                         )
-                        expect(
-                            card("server access policy")
-                            .locator(".server-workbench-fact")
-                            .filter(has_text="effective state")
-                        ).to_contain_text("owned_only")
-                        save_record(
-                            "server.policy-stale-permission-feedback",
-                            source="real accepted policy and0600 file",
-                            visible=card("server access policy").inner_text(),
-                            actual_policy=policy["policy"],
-                            actual_valid=policy["valid"],
-                        )
-                        policy_confirmation = (
-                            card("server access policy")
-                            .locator("label")
-                            .filter(has_text="type “allow host services”")
-                        )
-                        expect(policy_confirmation).to_be_hidden()
-                        assert policy_confirmation.evaluate(
-                            "e=>e.hidden && getComputedStyle(e).display==='none'"
-                        )
-                        keyboard_to(
-                            card("server access policy").get_by_role(
-                                "button", name="save policy", exact=True
-                            )
-                        )
-                        page.keyboard.press("Tab")
-                        assert not policy_confirmation.locator("input").evaluate(
-                            "e=>e===document.activeElement"
-                        )
-                        # Validate an allowlisted draft without saving it or invoking any host service.
-                        editor.fill(
-                            json.dumps({"control_mode": "allowlisted_host", "host_services": []})
-                        )
-                        card("server access policy").get_by_role(
-                            "button", name="validate and show diff"
-                        ).click()
                         expect(policy_confirmation).to_be_visible()
                         keyboard_to(policy_confirmation.locator("input"))
                         assert policy_confirmation.locator("input").bounding_box()["height"] >= 44
                         shot("05b-conditional-host-confirmation-keyboard")
-                        editor.fill(original)
-                        card("server access policy").get_by_role(
-                            "button", name="validate and show diff"
-                        ).click()
-                        expect(policy_confirmation).to_be_hidden()
                         assert api.get("/api/system/policy").json()["policy"] == {
                             "control_mode": "owned_only",
                             "host_services": [],
                         }
                         save_record(
                             "server.policy-hidden-confirmation",
-                            source="real owned-only saved policy; unsaved allowlisted draft only",
-                            hidden_in_owned_mode=True,
-                            reachable_for_allowlisted_draft=True,
+                            source="real owned-only saved policy; unsaved widening only",
+                            reachable_for_widening=True,
                             no_host_permission_save=True,
                         )
                         tab("updates")
                         tab("policy")
-                        expect(card("server access policy")).not_to_contain_text("policy_missing")
+                        expect(card("what alles may control")).not_to_contain_text("not set up")
                         expect(policy_confirmation).to_be_hidden()
                         shot("05c-policy-reentry")
                         # Simulated service lifecycle is intercepted before any real supervisor route.
