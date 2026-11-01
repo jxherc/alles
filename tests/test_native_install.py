@@ -424,7 +424,7 @@ class NativeInstallLifecycleTest(unittest.TestCase):
         self.layout.data_root.mkdir(parents=True)
         private = self.layout.data_root / "private.txt"
         private.write_text("keep", "utf-8")
-        with self.assertRaisesRegex(native_install.NativeInstallError, "health probe"):
+        with self.assertRaisesRegex(native_install.NativeInstallError, "startup check"):
             native_install.install(
                 self.source,
                 self.layout,
@@ -1423,7 +1423,7 @@ class NativeInstallLifecycleTest(unittest.TestCase):
                 release_probe=lambda _release, _python: True,
                 runner=self._runner,
             )
-            with self.assertRaisesRegex(native_install.NativeInstallError, "health probe"):
+            with self.assertRaisesRegex(native_install.NativeInstallError, "startup check"):
                 native_install.stage_update_release(
                     self.source,
                     self.layout,

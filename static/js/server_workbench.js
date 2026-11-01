@@ -3,7 +3,7 @@
 // an existing typed API; this UI never accepts shell commands or arbitrary paths.
 
 import { plainError } from './util.js';
-import { formatNumber, t, tp } from './i18n.js';
+import { formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { announceModelRoles, onModelRoles } from './settings/model_roles.js';
@@ -851,7 +851,7 @@ async function renderUpdates(target, request) {
     const build = await json(request, '/api/system/build');
     const release = build.release || {};
     // the release is its short commit (oct 30); version and build only said "development"
-    const installed = release.installed_at ? new Date(release.installed_at).toLocaleString() : '';
+    const installed = release.installed_at ? formatDateTime(release.installed_at) : '';
     const updates = release.update_waiting
       ? t('server.wb_update_ready', { commit: release.update_waiting })
       : release.checked_at ? t('server.wb_up_to_date') : t('server.wb_update_action_value');

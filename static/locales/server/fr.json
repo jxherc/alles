@@ -1798,7 +1798,6 @@
     "staged database migrations no longer match": "les migrations de la base préparée ne correspondent plus",
     "staged preflight did not reach the current schema": "la vérification préalable préparée n’a pas atteint le schéma actuel",
     "staged release contains an unsupported file type": "la version préparée contient un type de fichier non pris en charge",
-    "staged release health probe failed": "le contrôle de santé de la version préparée a échoué",
     "staged release notices are incomplete": "les mentions de la version préparée sont incomplètes",
     "staged restore changed during operation": "la restauration préparée a changé pendant l’opération",
     "staged restore checksum does not match: {relative}": "la somme de contrôle de la restauration préparée ne correspond pas : {relative}",
@@ -2498,6 +2497,10 @@
     "the provider refused the sign in": "le fournisseur a refusé la connexion",
     "the sign in was denied": "la connexion a été refusée",
     "this sign in already finished": "cette connexion est déjà terminée",
-    "this sign in attempt is gone; start again": "cette tentative de connexion a disparu ; recommence"
+    "this sign in attempt is gone; start again": "cette tentative de connexion a disparu ; recommence",
+    "the configured release branch could not be resolved exactly": "la branche de versions configurée n’a pas pu être résolue exactement",
+    "the configured release branch returned an invalid commit": "la branche de versions configurée a renvoyé un commit invalide",
+    "the configured release source could not be checked": "la source de versions configurée n’a pas pu être consultée",
+    "this install has no release source to check": "cette installation n’a pas de source de versions à consulter"
   }
 }

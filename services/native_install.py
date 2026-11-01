@@ -426,11 +426,8 @@ def build_release(source: Path, destination: Path, *, progress=None) -> Path:
 def _probe_message(probe) -> str:
     """The startup check's own error and log path when the probe gives them (cli.ProbeResult)."""
     explain = getattr(probe, "explain", None)
-    return (
-        explain("the new release failed its startup check")
-        if explain
-        else ("staged release health probe failed")
-    )
+    what = "the new release failed its startup check"
+    return explain(what) if explain else what
 
 
 def _verify_private_python(release: Path, python: Path) -> None:

@@ -1798,7 +1798,6 @@
     "staged database migrations no longer match": "ترحيلات قاعدة البيانات المجهّزة لم تعد تتطابق",
     "staged preflight did not reach the current schema": "لم يصل الفحص المسبق المجهّز إلى المخطط الحالي",
     "staged release contains an unsupported file type": "يحتوي الإصدار المجهّز على نوع ملف غير مدعوم",
-    "staged release health probe failed": "فشل فحص سلامة الإصدار المجهّز",
     "staged release notices are incomplete": "إشعارات الإصدار المجهّز غير مكتملة",
     "staged restore changed during operation": "تغيّرت الاستعادة المجهّزة أثناء العملية",
     "staged restore checksum does not match: {relative}": "المجموع الاختباري للاستعادة المجهّزة لا يطابق: {relative}",
@@ -2498,6 +2497,10 @@
     "the provider refused the sign in": "رفض المزوّد تسجيل الدخول",
     "the sign in was denied": "تم رفض تسجيل الدخول",
     "this sign in already finished": "تسجيل الدخول هذا انتهى بالفعل",
-    "this sign in attempt is gone; start again": "اختفت محاولة تسجيل الدخول هذه؛ ابدأ من جديد"
+    "this sign in attempt is gone; start again": "اختفت محاولة تسجيل الدخول هذه؛ ابدأ من جديد",
+    "the configured release branch could not be resolved exactly": "تعذّر تحديد فرع الإصدارات المضبوط بدقة",
+    "the configured release branch returned an invalid commit": "أعاد فرع الإصدارات المضبوط commit غير صالح",
+    "the configured release source could not be checked": "تعذّر فحص مصدر الإصدارات المضبوط",
+    "this install has no release source to check": "لا يوجد لهذا التثبيت مصدر إصدارات لفحصه"
   }
 }

@@ -66,7 +66,10 @@
           "doctor",
           "access",
           "config",
-          "password"
+          "password",
+          "tools",
+          "version",
+          "completion"
         ],
         "jobs": [],
         "automation_actions": [],

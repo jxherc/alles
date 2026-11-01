@@ -1798,7 +1798,6 @@
     "staged database migrations no longer match": "스테이징된 데이터베이스 마이그레이션이 더 이상 일치하지 않습니다",
     "staged preflight did not reach the current schema": "스테이징된 사전 점검이 현재 스키마에 도달하지 못했습니다",
     "staged release contains an unsupported file type": "스테이징된 릴리스에 지원되지 않는 파일 형식이 있습니다",
-    "staged release health probe failed": "스테이징된 릴리스 상태 확인에 실패했습니다",
     "staged release notices are incomplete": "스테이징된 릴리스 고지가 완전하지 않습니다",
     "staged restore changed during operation": "작업 중 스테이징된 복원이 변경되었습니다",
     "staged restore checksum does not match: {relative}": "스테이징된 복원 체크섬이 일치하지 않습니다: {relative}",
@@ -2498,6 +2497,10 @@
     "the provider refused the sign in": "제공자가 로그인을 거부했습니다",
     "the sign in was denied": "로그인이 거부되었습니다",
     "this sign in already finished": "이 로그인은 이미 끝났습니다",
-    "this sign in attempt is gone; start again": "이 로그인 시도가 사라졌습니다. 다시 시작하세요"
+    "this sign in attempt is gone; start again": "이 로그인 시도가 사라졌습니다. 다시 시작하세요",
+    "the configured release branch could not be resolved exactly": "설정된 릴리스 브랜치를 정확히 확인하지 못했습니다",
+    "the configured release branch returned an invalid commit": "설정된 릴리스 브랜치가 잘못된 커밋을 반환했습니다",
+    "the configured release source could not be checked": "설정된 릴리스 소스를 확인하지 못했습니다",
+    "this install has no release source to check": "이 설치에는 확인할 릴리스 소스가 없습니다"
   }
 }
