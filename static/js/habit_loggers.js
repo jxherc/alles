@@ -7,6 +7,7 @@ import { initKokuenPrimitives, wireChoiceGroup } from './kokuen.js?v=5';
 import { initCustomDropdown } from './dropdown.js?v=215';
 import { api, toast } from './util.js';
 import { formatDecimal } from './liveformat.js';
+import { stepperHtml } from './stepper.js';
 
 const LOGGED = new Set(['workout', 'reading', 'count', 'duration', 'distance']);
 const UNITS = new Set(['reps', 'steps', 'glasses', 'servings', 'words', 'cards', 'pages', 'chapters']);
@@ -330,8 +331,6 @@ const SET_TYPES = ['warmup', 'working', 'top', 'backoff', 'drop', 'failure'];
 const SET_STATUSES = ['done', 'planned', 'attempted', 'failed', 'unfinished'];
 const RIR_TOP = 5;
 const UNDO_MS = 8000;
-const ICON_MINUS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3.5 8h9"/></svg>';
-const ICON_PLUS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3.5 8h9M8 3.5v9"/></svg>';
 let _gym = null;
 
 const isNum = value => typeof value === 'number' && Number.isFinite(value);
@@ -433,19 +432,17 @@ export function draftSets(draft) {
   return [one(draft.L, { side: 'L', ...notes }), one(draft.R, { side: 'R' })];
 }
 
-function stepperHtml(key, side, label) {
+function gymStepper(key, side, label) {
   const sideWord = side ? t(side === 'L' ? 'habits.left' : 'habits.right') : '';
   const name = sideWord ? `${label}, ${sideWord}` : label;
+  // the kit stepper's markup; this logger keeps its own draft, so the stepper doesn't step itself
+  const attrs = `data-key="${key}"${side ? ` data-side="${side}"` : ''}`;
   return `<div class="gym-cell"${side ? ` data-side="${side}"` : ''}>${side ? `<span class="gym-cell-label" aria-hidden="true">${esc(sideWord)}</span>` : ''}
-    <div class="k-stepper" data-key="${key}"${side ? ` data-side="${side}"` : ''}>
-      <button type="button" data-d="-1" aria-label="${esc(t('habits.less_n', { name }))}">${ICON_MINUS}</button>
-      <input inputmode="${key === 'weight' ? 'decimal' : 'numeric'}" autocomplete="off" aria-label="${esc(name)}" placeholder="?">
-      <button type="button" data-d="1" aria-label="${esc(t('habits.more_n', { name }))}">${ICON_PLUS}</button>
-    </div></div>`;
+    ${stepperHtml({ name, auto: false, attrs, inputmode: key === 'weight' ? 'decimal' : 'numeric' })}</div>`;
 }
 
 const colHead = () => `<div class="gym-frow gym-colhead" aria-hidden="true"><span></span><div class="gym-cells"><span>${esc(t('habits.left'))}</span><span>${esc(t('habits.right'))}</span></div></div>`;
-const sidedRow = (key, label) => `<div class="gym-frow" data-key="${key}"><div class="gym-flabel"><span>${esc(label)}</span></div><div class="gym-cells">${stepperHtml(key, 'L', label)}${stepperHtml(key, 'R', label)}</div></div>`;
+const sidedRow = (key, label) => `<div class="gym-frow" data-key="${key}"><div class="gym-flabel"><span>${esc(label)}</span></div><div class="gym-cells">${gymStepper(key, 'L', label)}${gymStepper(key, 'R', label)}</div></div>`;
 const optionList = (list, prefix) => list.map(value => `${value}|${t(`habits.${prefix}_${value}`)}`).join(';');
 
 function editorHtml(g) {
@@ -464,7 +461,7 @@ function editorHtml(g) {
     <div class="gym-fields">
       ${colHead()}
       <div class="gym-frow" data-key="weight"><div class="gym-flabel"><span>${esc(load)}</span>${pills('unit', [['lb', 'lb'], ['kg', 'kg']], draft.unit, t('habits.unit'))}</div>
-        <div class="gym-cells">${stepperHtml('weight', 'L', load)}${stepperHtml('weight', 'R', load)}</div></div>
+        <div class="gym-cells">${gymStepper('weight', 'L', load)}${gymStepper('weight', 'R', load)}</div></div>
       ${sidedRow('reps', t('habits.reps'))}
       <div class="gym-frow gym-scale-row"><div class="gym-flabel"><span>${esc(t('habits.reps_left'))}</span></div>
         <div class="k-number-row" data-kokuen-choice="rating" data-gym="rir" aria-label="${esc(t('habits.reps_left'))}" data-min="0" data-max="${RIR_TOP}" data-value="${draft.rir ?? ''}" data-labels="${esc(rirLabels)}" data-words="${esc(t('habits.rir_failure'))},,,,,${esc(t('habits.rir_easy'))}"></div></div>
@@ -477,7 +474,7 @@ function editorHtml(g) {
         ${colHead()}
         ${sidedRow('partial', t('habits.partial_reps'))}
         ${sidedRow('bad', t('habits.bad_reps'))}
-        <div class="gym-frow"><div class="gym-flabel"><span>${esc(t('habits.rest_after'))}</span></div>${stepperHtml('rest', '', t('habits.rest_after'))}</div>
+        <div class="gym-frow"><div class="gym-flabel"><span>${esc(t('habits.rest_after'))}</span></div>${gymStepper('rest', '', t('habits.rest_after'))}</div>
         <div class="gym-frow"><div class="gym-flabel"><label for="gym-tempo">${esc(t('habits.tempo'))}</label></div><input class="settings-input gym-tempo" id="gym-tempo" data-gym="tempo" autocomplete="off" placeholder="3-1-1-0" value="${esc(draft.tempo)}"></div>
         <div class="gym-frow"><div class="gym-flabel"><label for="gym-note">${esc(t('habits.note'))}</label></div><textarea class="settings-input gym-note" id="gym-note" data-gym="note" rows="1" placeholder="${esc(t('habits.set_note_placeholder'))}">${esc(draft.note)}</textarea></div>
       </div>

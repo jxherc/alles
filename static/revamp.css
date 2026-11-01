@@ -4007,6 +4007,15 @@ html:not(#_):not(#_) .specialist-workbench .specialist-group-capture > button:fo
    one row per habit on the shared row list (4px apart, 8px radius, hover fill). the name side
    opens the habit; today's check or log sits on the right. colours stay quiet: done is the
    neutral picked fill with a tick, not the habit's own bright colour */
+/* one 720px column, centred on wide screens like the owner's set logger shots, so the list and
+   an opened habit sit in the same place */
+html:not(#_):not(#_) #habits-body > * {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
 html:not(#_):not(#_) .habits-list {
   display: flex;
   flex-direction: column;
@@ -4258,7 +4267,8 @@ html:not(#_):not(#_) .gym-editor[data-sides="same"] .gym-cells { grid-template-c
 html:not(#_):not(#_) .gym-editor[data-sides="same"] :is(.gym-cell[data-side="R"], .gym-colhead) { display: none; }
 html:not(#_):not(#_) .gym-cell-label { display: none; }
 
-/* the stepper: one field, one edge; minus and plus sit inside it */
+/* the stepper (kit, decision 0058, static/js/stepper.js): one field, one edge; minus and plus sit
+   inside it. 52px tall so a sweaty thumb hits it, 44px buttons */
 html:not(#_):not(#_) .k-stepper {
   display: grid;
   grid-template-columns: var(--k-control) minmax(0, 1fr) var(--k-control);
@@ -4296,17 +4306,25 @@ html:not(#_):not(#_) .k-stepper input {
   padding: 0 var(--k-space-1);
   border: 0;
   background: transparent;
-  box-shadow: none;
+  /* the stepper's own edge shows focus (focus-within); the kit field ring (kokuen.css, important)
+     would draw a second box inside it */
+  box-shadow: none !important;
   outline: none;
   color: var(--k-text);
   font: inherit;
-  font-size: 1.25rem;
-  font-weight: 560;
+  /* role 22, semibold, as in the owner's set logger shots. important: the app-wide control size
+     floors (style.css "[data-specialist-app] input", revamp "[data-specialist-app] :is(button,
+     input...)") are important too and would shrink the value to role 13 (checked in webkit) */
+  font-size: 1.375rem !important;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
 html:not(#_):not(#_) .k-stepper input::placeholder { color: var(--k-muted); font-weight: 400; }
+html:not(#_):not(#_) .k-stepper:has(input:disabled) { opacity: 0.5; }
+html:not(#_):not(#_) .k-stepper:has(input:disabled) button:disabled { opacity: 1; }
+html:not(#_):not(#_) .k-stepper input:disabled { cursor: default; }
 html:not(#_):not(#_) .gym-editor :is(.custom-select, .gym-tempo, .gym-note) { min-height: var(--gym-h); }
 html:not(#_):not(#_) .gym-note { height: auto; padding-block: 13px; resize: none; overflow: hidden; line-height: 1.6; }
 html:not(#_):not(#_) .gym-tempo { font-variant-numeric: tabular-nums; }
