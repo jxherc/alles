@@ -3,11 +3,12 @@
 // logs them: dumbbells per hand, machines per side. a set row without reps is 10, without sets 1.
 import { form } from './dialog.js';
 import { formatCalendarDate, formatNumber, t, tp } from './i18n.js';
-import { initKokuenPrimitives, wireChoiceGroup } from './kokuen.js?v=5';
+import { initKokuenPrimitives } from './kokuen.js?v=5';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { api, toast } from './util.js';
 import { formatDecimal } from './liveformat.js';
 import { stepperHtml } from './stepper.js';
+import { initDatePickers } from './datepick.js';
 
 const LOGGED = new Set(['workout', 'reading', 'count', 'duration', 'distance']);
 const UNITS = new Set(['reps', 'steps', 'glasses', 'servings', 'words', 'cards', 'pages', 'chapters']);
@@ -78,6 +79,8 @@ function numberIn(input, { whole = false, required = false, min = 0 } = {}) {
   return value;
 }
 
+// one option of a kit pill switch; kokuen gives it its role and the unpicked state
+const pillButton = (value, text, on) => `<button type="button" data-value="${esc(value)}"${on ? ' aria-checked="true"' : ''}>${esc(text)}</button>`;
 const textIn = input => String(input?.value ?? '').replace(/\s+/g, ' ').trim();
 const choiceIn = (card, key) => card.querySelector(`[data-k="${key}"] [aria-checked="true"]`)?.dataset.value;
 
@@ -111,10 +114,10 @@ function numberField(key, label, value, { decimal = true, placeholder = '', id }
     <input class="settings-input dialog-input" id="${id}" data-k="${key}" inputmode="${decimal ? 'decimal' : 'numeric'}" autocomplete="off" value="${esc(value ?? '')}" placeholder="${esc(placeholder)}"></div>`;
 }
 
+// two units (pages or chapters, km or mi): the kit pill switch
 function choiceField(key, label, options, value, id) {
   return `<div class="hlog-f"><span id="${id}-label">${esc(label)}</span>
-    <div class="seg seg-sm hlog-seg" data-k="${key}" role="radiogroup" aria-labelledby="${id}-label">${options.map(([option, text]) =>
-      `<button type="button" class="seg-opt${option === value ? ' active' : ''}" role="radio" data-value="${option}" aria-checked="${option === value}" tabindex="${option === value ? 0 : -1}">${esc(text)}</button>`).join('')}</div></div>`;
+    <div class="k-pill-switch" data-kokuen-choice="switch" data-k="${key}" aria-labelledby="${id}-label">${options.map(([option, text]) => pillButton(option, text, option === value)).join('')}</div></div>`;
 }
 
 function rowHtml(row, first) {
@@ -165,15 +168,6 @@ function fieldsHtml(habit, data, recent) {
 }
 
 // ── behavior ───────────────────────────────────────────────────────────────────
-function wireChoices(card) {
-  card.querySelectorAll('.hlog-seg').forEach(group => {
-    wireChoiceGroup(group);
-    group.addEventListener('click', () => queueMicrotask(() => group.querySelectorAll('.seg-opt')
-      .forEach(choice => choice.classList.toggle('active', choice.getAttribute('aria-checked') === 'true'))));
-    group.addEventListener('keydown', () => queueMicrotask(() => group.querySelectorAll('.seg-opt')
-      .forEach(choice => choice.classList.toggle('active', choice.getAttribute('aria-checked') === 'true'))));
-  });
-}
 
 export function matchExercises(names, query, limit = SUGGESTIONS) {
   const q = String(query || '').trim().toLowerCase();
@@ -314,7 +308,7 @@ export async function openLogger(habit, day, { save, done = false } = {}) {
     submit: async value => { saved = await save(value); },
     remove: done ? { label: t('habits.clear_log') } : null,
     wire: card => {
-      wireChoices(card);
+      initKokuenPrimitives(card);
       if (habit.kind === 'workout') { wireRows(card); wireExercises(card, habit.exercises || []); }
       card.addEventListener('input', event => event.target.removeAttribute('aria-invalid'));
     },
@@ -450,8 +444,7 @@ function editorHtml(g) {
   const { draft } = g;
   const exercise = g.exercises[g.active];
   const n = g.editing ? g.editing.group + 1 : groupSets(exercise.sets).length + 1;
-  const pills = (name, values, picked, label) => `<div class="k-pill-switch" data-kokuen-choice="switch" data-gym="${name}" aria-label="${esc(label)}">${values.map(([value, text]) =>
-    `<button data-value="${value}" aria-checked="${value === picked}">${esc(text)}</button>`).join('')}</div>`;
+  const pills = (name, values, picked, label) => `<div class="k-pill-switch" data-kokuen-choice="switch" data-gym="${name}" aria-label="${esc(label)}">${values.map(([value, text]) => pillButton(value, text, value === picked)).join('')}</div>`;
   const rirLabels = Array.from({ length: RIR_TOP + 1 }, (_, at) => t(at === 0 ? 'habits.rir_failure_n' : at === RIR_TOP ? 'habits.rir_easy_n' : 'habits.rir_n', { n: at === RIR_TOP ? `${at}+` : at })).join(',');
   const load = t(draft.assist ? 'habits.assist' : 'habits.weight');
   return `<section class="gym-editor" data-sides="${draft.sides}" aria-labelledby="gym-set-title">
@@ -507,9 +500,25 @@ function exerciseMeta(exercise, muscles) {
   return bits.filter(Boolean).join(' · ');
 }
 
+// a day can hold more than one session (back in the morning, arms later): each keeps its own
+// entry, its muscle groups and its note, and the screen shows every one of them
+const entryOf = (g, exercise) => g.doc?.entries?.[exercise._s];
+
+function sessionHead(g, slot, number) {
+  const entry = g.doc?.entries?.[slot];
+  const muscles = entry?.values?.muscles || [];
+  const name = g.slots.length > 1 ? (muscles.join(' · ') || t('habits.session_n', { n: number })) : '';
+  const note = entry?.note || '';
+  if (!name && !note) return '';
+  return `<div class="gym-session" data-slot="${slot}">${name ? `<p class="gym-session-name">${esc(name)}</p>` : ''}${note ? `<p class="gym-session-note">${esc(note)}</p>` : ''}</div>`;
+}
+
 function gymHtml(g) {
-  const muscles = g.entry?.values?.muscles;
-  const list = g.exercises.map((exercise, index) => `<article class="gym-ex${index === g.active ? ' active' : ''}" data-ex="${index}">
+  const many = g.slots.length > 1;
+  const list = g.exercises.map((exercise, index) => {
+    const muscles = many ? null : entryOf(g, exercise)?.values?.muscles;
+    const head = index === 0 || g.exercises[index - 1]._s !== exercise._s ? sessionHead(g, exercise._s, g.slots.indexOf(exercise._s) + 1) : '';
+    return `${head}<article class="gym-ex${index === g.active ? ' active' : ''}" data-ex="${index}">
       <header class="gym-ex-head">
         <h3 class="gym-ex-name">${esc(exercise.name)}</h3>
         ${exerciseMeta(exercise, muscles) ? `<p class="gym-ex-meta">${esc(exerciseMeta(exercise, muscles))}</p>` : ''}
@@ -519,8 +528,10 @@ function gymHtml(g) {
       </header>
       ${setsHtml(g, index)}
       ${index === g.active ? editorHtml(g) : `<button type="button" class="btn gym-ex-open" data-gym="activate">${esc(t('habits.log_sets_here'))}</button>`}
-    </article>`).join('');
-  return `${list || `<p class="gym-empty">${esc(t('habits.no_exercises_day'))}</p>`}
+    </article>`;
+  }).join('');
+  const empty = g.exercises.length ? '' : `${g.slots.map((slot, at) => sessionHead(g, slot, at + 1)).join('')}<p class="gym-empty">${esc(t('habits.no_exercises_day'))}</p>`;
+  return `${list || empty}
     <div class="k-entry-row gym-add">
       <input type="text" class="settings-input" data-k="exercise" role="combobox" aria-autocomplete="list" aria-expanded="false" spellcheck="false" autocomplete="off" aria-label="${esc(t('habits.exercise'))}" placeholder="${esc(t('habits.add_exercise_placeholder'))}">
       <button type="button" class="btn primary" data-gym="add">${esc(t('habits.add_exercise'))}</button>
@@ -638,12 +649,15 @@ function paint(g, focus) {
 function store(g, before, focus) {
   const day = g.day;
   const doc = structuredClone(g.habit.days?.[day] || { v: 2, entries: [] });
-  let entry = doc.entries.find(one => one.values?.exercises) || doc.entries[0];
-  if (!entry) { entry = { values: {} }; doc.entries.push(entry); }
-  const exercises = g.exercises.filter(exercise => exercise.sets.length).map(({ keep, ...exercise }) => exercise);
-  entry.values = { ...entry.values, exercises };
-  if (!exercises.length) delete entry.values.exercises;
-  const empty = doc.entries.length === 1 && !Object.keys(entry.values).length && !entry.note;
+  // every session writes back to its own entry; a session emptied out keeps its place
+  for (const slot of new Set([...g.slots, ...g.exercises.map(exercise => exercise._s)])) {
+    const entry = doc.entries[slot] || (doc.entries[slot] = { values: {} });
+    const exercises = g.exercises.filter(exercise => exercise._s === slot && exercise.sets.length).map(({ keep, _s, ...exercise }) => exercise);
+    entry.values = { ...entry.values, exercises };
+    if (!exercises.length) delete entry.values.exercises;
+  }
+  const only = doc.entries[0];
+  const empty = doc.entries.length === 1 && !Object.keys(only.values || {}).length && !only.note;
   return g.save(empty ? null : doc).then(result => {
     g.habit.days = { ...(g.habit.days || {}), [day]: result?.data };
     const strip = g.host.closest('.habit-detail')?.querySelector(`.habit-day[data-toggle="${day}"]`);
@@ -733,7 +747,14 @@ function addExercise(g) {
   if (!name) { input?.focus(); return; }
   const known = g.exercises.findIndex(exercise => exercise.name.toLowerCase() === name.toLowerCase());
   if (known >= 0) g.active = known;
-  else { g.exercises.push({ name, sets: [] }); g.active = g.exercises.length - 1; }
+  else {
+    // a new exercise joins the session in use, right after its last exercise
+    const slot = g.exercises[g.active]?._s ?? g.slots[g.slots.length - 1];
+    const last = g.exercises.map(exercise => exercise._s).lastIndexOf(slot);
+    const at = last >= 0 ? last + 1 : g.exercises.length;
+    g.exercises.splice(at, 0, { name, sets: [], _s: slot });
+    g.active = at;
+  }
   g.editing = null; g.touched = false;
   g.draft = nextDraft(g);
   paint(g, '.gym-log-btn');
@@ -861,13 +882,15 @@ export function renderGym(host, habit, day, { save }) {
   // the same day again keeps the draft, unless its details only just arrived (an older day)
   const doc = habit.days?.[day];
   const same = _gym && _gym.habit.id === habit.id && _gym.day === day && !(doc && !_gym.doc && !_gym.exercises.length);
-  const entry = doc?.entries?.find(one => one.values?.exercises) || doc?.entries?.[0] || null;
+  const entries = doc?.entries || [];
+  const workouts = entries.map((one, at) => (one.values?.exercises ? at : -1)).filter(at => at >= 0);
+  const slots = workouts.length ? workouts : [0];
   let more = true;
   try { more = localStorage.getItem('alles-gym-more') !== '0'; } catch { /* stays open */ }
   if (!same && _gym) { clearInterval(_gym.restTimer); clearTimeout(_gym.undoTimer); }
-  const g = same ? Object.assign(_gym, { host, habit, save, entry, doc }) : {
-    host, habit, day, save, entry, doc, more,
-    exercises: structuredClone(entry?.values?.exercises || []),
+  const g = same ? Object.assign(_gym, { host, habit, save, doc, slots: [...new Set([...slots, ..._gym.slots])].sort((a, b) => a - b) }) : {
+    host, habit, day, save, doc, more, slots,
+    exercises: slots.flatMap(slot => structuredClone(entries[slot]?.values?.exercises || []).map(exercise => ({ ...exercise, _s: slot }))),
     history: new Map(), editing: null, undo: null, rest: null, touched: false,
   };
   if (!same) { g.active = Math.max(0, g.exercises.length - 1); g.draft = nextDraft(g); }
@@ -877,4 +900,249 @@ export function renderGym(host, habit, day, { save }) {
   wireGym(host, habit.exercises || []);
   g.exercises.forEach(exercise => loadHistory(g, exercise));
   return g;
+}
+
+// ── every other kind (track E1): one day log built from the kind's fields ────────────────────
+// GET /api/habits/kinds names each kind's fields; a field shows when it's on by default or the
+// habit switched it on. each type takes one kit control: a number is the stepper, a rating the
+// number row, 2 or 3 options a pill switch, 4 or more the dropdown, yes or no a pill switch, a time
+// or a date the date field, words a field. one entry a day for "single" kinds, else one a session.
+const SKIP = new Set(['rows', 'files', 'exercises']);
+const MEASURE_UNITS = { distance: ['km', 'mi'], body: ['cm', 'in'], weight: ['lb', 'kg'], height: ['cm', 'in'], liquid: ['ml', 'floz', 'glasses'], temperature: ['c', 'f'] };
+const UNIT_TEXT = { floz: 'fl oz', c: '°c', f: '°f' };
+let _kinds = null;
+let _dlog = null;
+
+export const hasDayLog = habit => !!habit && habit.kind !== 'check' && habit.kind !== 'workout' && !LOGGED.has(habit.kind);
+
+export function loadKinds() {
+  _kinds ||= api('/api/habits/kinds').then(data => data.kinds).catch(error => { _kinds = null; throw error; });
+  return _kinds;
+}
+
+// a field's name: its translation, else its key in plain words
+export function fieldLabel(key) {
+  const name = `habits.field_${key}`;
+  const found = t(name);
+  return found === name ? key.replace(/_/g, ' ') : found;
+}
+function optionLabel(value) {
+  const name = `habits.option_${value}`;
+  const found = t(name);
+  return found === name ? value.replace(/_/g, ' ') : found;
+}
+
+export function shownFields(spec, habit) {
+  const config = habit.fields || {};
+  const on = new Set(config.on || []);
+  const hidden = new Set(config.hidden || []);
+  return [...(spec?.fields || []), ...(config.custom || [])]
+    .filter(field => !SKIP.has(field.type) && !hidden.has(field.key) && (field.on || on.has(field.key)));
+}
+
+// one pick: a pill switch for 2 or 3 options, the dropdown for more (ux laws: a list that can
+// grow is never a wall of buttons)
+export function choiceHtml(key, options, picked, labelledBy) {
+  if (options.length <= 3) {
+    const buttons = options.map(([value, text]) => pillButton(value, text, value === picked)).join('');
+    return `<div class="k-pill-switch" data-kokuen-choice="switch" data-f="${esc(key)}" aria-labelledby="${labelledBy}">${buttons}</div>`;
+  }
+  return `<div class="settings-input custom-select" data-f="${esc(key)}" data-value="${esc(picked ?? '')}" data-options="${esc(options.map(([value, text]) => `${value}|${text}`).join(';'))}" aria-labelledby="${labelledBy}"></div>`;
+}
+
+function fieldHtml(field, value, d) {
+  const id = `dlog-${++_sequence}`;
+  const name = field.label || fieldLabel(field.key);
+  // a measure's unit switch sits beside its name, as the gym logger's lb or kg does
+  const row = (control, type = field.type, aside = '') => `<div class="dlog-row" data-type="${type}"><div class="dlog-label"><span id="${id}">${esc(name)}</span>${aside}</div><div class="dlog-control">${control}</div></div>`;
+  const stepper = (key, shown, step = 1) => stepperHtml({ name, value: shown ?? '', step, min: field.min ?? 0, max: field.max ?? '', inputmode: field.whole || field.type === 'count' ? 'numeric' : 'decimal', attrs: `data-f="${esc(key)}"` });
+  switch (field.type) {
+    case 'number': case 'count': case 'minutes':
+      return row(stepper(field.key, value, field.type === 'minutes' ? 5 : 1));
+    case 'measure': {
+      const units = MEASURE_UNITS[field.measure] || [];
+      const unit = value?.unit || d.units?.[field.measure] || units[0];
+      return row(stepper(field.key, value?.value), field.type, units.length > 1 ? choiceHtml(`${field.key}.unit`, units.map(u => [u, UNIT_TEXT[u] || u]), unit, id) : '');
+    }
+    case 'rating':
+      return row(`<div class="k-number-row" data-kokuen-choice="rating" data-f="${esc(field.key)}" data-min="1" data-max="${field.max || d.scale || 5}" data-value="${value ?? ''}" aria-label="${esc(name)}"></div>`);
+    case 'yesno':
+      return row(choiceHtml(field.key, [['yes', t('common.yes')], ['no', t('common.no')]], value === true ? 'yes' : value === false ? 'no' : null, id));
+    case 'choice':
+      return row(choiceHtml(field.key, field.options.map(option => [option, optionLabel(option)]), value, id));
+    case 'clock':
+      return row(`<div class="date-input" data-type="due" data-f="${esc(field.key)}" data-value="${value ? `${d.day}T${value}` : ''}" aria-labelledby="${id}"></div>`);
+    case 'date':
+      return row(`<div class="date-input" data-type="date" data-f="${esc(field.key)}" data-value="${esc(value || '')}" aria-labelledby="${id}"></div>`);
+    case 'sets': {
+      const first = Array.isArray(value) ? value[0] : null;
+      const sets = stepperHtml({ name: t('habits.sets'), value: first?.count ?? 1, min: 1, max: 100, inputmode: 'numeric', attrs: `data-f="${esc(field.key)}.count"` });
+      return `${row(stepper(`${field.key}.reps`, first?.reps), 'count')}<div class="dlog-row" data-type="count"><div class="dlog-label"><span>${esc(t('habits.sets'))}</span></div><div class="dlog-control">${sets}</div></div>`;
+    }
+    default: {
+      const text = Array.isArray(value) ? value.map(item => item?.text ?? item?.item ?? item).join(', ') : value?.text ?? value ?? '';
+      return row(`<input type="text" class="settings-input" data-f="${esc(field.key)}" autocomplete="off" value="${esc(text)}" aria-labelledby="${id}">`, 'text');
+    }
+  }
+}
+
+function readNumber(host, key) {
+  const raw = formatDecimal(String(host.querySelector(`.k-stepper[data-f="${CSS.escape(key)}"] input`)?.value ?? '').trim());
+  if (!raw) return null;
+  if (raw === '?') return '?';
+  const value = Number(raw);
+  if (!Number.isFinite(value)) throw new Error(t('habits.log_bad_number'));
+  return value;
+}
+
+function pickOf(host, key) {
+  const node = host.querySelector(`[data-f="${CSS.escape(key)}"]`);
+  if (!node) return null;
+  if (node.matches('.custom-select')) return node.dataset.value || null;
+  if (node.matches('.k-number-row')) return node.querySelector('[aria-checked="true"]')?.dataset.value ?? (node.dataset.value || null);
+  return node.querySelector('[aria-checked="true"]')?.dataset.value ?? null;
+}
+
+// the values the form holds, in the shapes services/habit_kinds.py stores
+export function collectDay(host, fields) {
+  const values = {};
+  for (const field of fields) {
+    const key = field.key;
+    let value = null;
+    if (['number', 'count', 'minutes'].includes(field.type)) value = readNumber(host, key);
+    else if (field.type === 'measure') {
+      const amount = readNumber(host, key);
+      if (amount != null) value = { value: amount, unit: pickOf(host, `${key}.unit`) || (MEASURE_UNITS[field.measure] || [])[0] };
+    } else if (field.type === 'rating') { const pick = pickOf(host, key); value = pick == null ? null : Number(pick); }
+    else if (field.type === 'choice') value = pickOf(host, key);
+    else if (field.type === 'yesno') { const pick = pickOf(host, key); value = pick == null ? null : pick === 'yes'; }
+    else if (field.type === 'clock') value = (host.querySelector(`[data-f="${CSS.escape(key)}"]`)?.dataset.value || '').split('T')[1]?.slice(0, 5) || null;
+    else if (field.type === 'date') value = host.querySelector(`[data-f="${CSS.escape(key)}"]`)?.dataset.value?.slice(0, 10) || null;
+    else if (field.type === 'sets') {
+      const reps = readNumber(host, `${key}.reps`);
+      if (reps != null) value = [{ reps, count: readNumber(host, `${key}.count`) || 1, status: 'done' }];
+    } else {
+      const text = textIn(host.querySelector(`input[data-f="${CSS.escape(key)}"]`));
+      if (text) {
+        const parts = text.split(',').map(part => part.trim()).filter(Boolean);
+        value = field.type === 'tags' ? parts : field.type === 'people' ? parts.map(part => ({ text: part }))
+          : field.type === 'checklist' ? parts.map(item => ({ item, done: true })) : field.type === 'link' ? { text } : text;
+      }
+    }
+    if (value != null && value !== '') values[key] = value;
+  }
+  return values;
+}
+
+// "amount 4 · mood 4 · felt fine", read off the same fields the form shows
+export function entryText(entry, fields) {
+  const bits = [];
+  for (const field of fields) {
+    const value = entry.values?.[field.key];
+    if (value == null) continue;
+    let shown;
+    if (field.type === 'measure') shown = `${value.value === '?' ? '?' : num(value.value)} ${UNIT_TEXT[value.unit] || value.unit}`;
+    else if (field.type === 'minutes') shown = value === '?' ? '?' : durationText(value);
+    else if (field.type === 'yesno') shown = t(value ? 'common.yes' : 'common.no');
+    else if (field.type === 'choice') shown = optionLabel(value);
+    else if (field.type === 'date') shown = formatCalendarDate(value, { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase();
+    else if (field.type === 'sets') shown = value.map(one => `${num(one.reps ?? 0)}${(one.count || 1) > 1 ? ` × ${num(one.count)}` : ''}`).join(', ');
+    else if (Array.isArray(value)) shown = value.map(item => item?.text ?? item?.item ?? item).join(', ');
+    else if (typeof value === 'object') shown = value.text ?? '';
+    else shown = typeof value === 'number' ? num(value) : String(value);
+    bits.push(`${field.label || fieldLabel(field.key)} ${shown}`);
+  }
+  if (entry.note) bits.push(entry.note);
+  return bits.join(' · ');
+}
+
+function dayHtml(d) {
+  const { entries, fields, editing } = d;
+  const list = entries.length ? `<ol class="dlog-entries" aria-label="${esc(t('habits.logged_entries'))}">${entries.map((entry, at) => `<li class="dlog-entry${editing === at ? ' is-editing' : ''}" data-at="${at}">
+      <span class="dlog-entry-text">${esc(entryText(entry, fields) || t('habits.done_no_details'))}</span>
+      <button type="button" class="icon-btn" data-dlog="edit" aria-label="${esc(t('habits.edit_entry_n', { n: at + 1 }))}">${_si('edit')}</button></li>`).join('')}</ol>` : '';
+  const from = editing != null ? entries[editing] : d.single && entries.length ? entries[0] : d.prefill;
+  const noteId = `dlog-${++_sequence}`;
+  const label = editing != null || (d.single && entries.length) ? 'habits.save_entry' : 'habits.log_entry';
+  return `${list}<section class="dlog-form" aria-label="${esc(t('habits.log_details'))}">
+      ${fields.map(field => fieldHtml(field, from?.values?.[field.key], d)).join('')}
+      <div class="dlog-row" data-type="text"><div class="dlog-label"><label for="${noteId}">${esc(t('habits.note'))}</label></div><div class="dlog-control"><textarea class="settings-input dlog-note" id="${noteId}" rows="1">${esc(editing != null ? from?.note || '' : '')}</textarea></div></div>
+      <div class="dlog-actions">${editing != null ? `<button type="button" class="btn" data-dlog="cancel">${esc(t('common.cancel'))}</button>` : ''}<button type="button" class="btn primary dlog-log" data-dlog="log">${esc(t(label))}</button></div>
+    </section>`;
+}
+
+function paintDay(d, focus) {
+  if (!d.host.isConnected) return;
+  d.host.innerHTML = dayHtml(d);
+  initKokuenPrimitives(d.host);
+  d.host.querySelectorAll('.custom-select').forEach(initCustomDropdown);
+  initDatePickers(d.host);
+  if (focus) d.host.querySelector(focus)?.focus({ preventScroll: true });
+}
+
+// saved in the background like the gym logger: the list shows it at once, a failure rolls back
+function logDay(d) {
+  let values;
+  try { values = collectDay(d.host, d.fields); } catch (error) { toast(error.message, 'error'); return; }
+  const note = textIn(d.host.querySelector('.dlog-note'));
+  const before = structuredClone(d.entries);
+  const at = d.editing ?? (d.single && d.entries.length ? 0 : d.entries.length);
+  const { note: _old, ...kept } = d.entries[at] || {};
+  d.entries[at] = { ...kept, values, ...(note ? { note } : {}) };
+  d.editing = null;
+  d.prefill = d.entries[d.entries.length - 1];
+  paintDay(d, '.dlog-log');
+  announce(t('habits.entry_logged'));
+  d.save({ v: 2, entries: d.entries }).then(result => {
+    d.habit.days = { ...(d.habit.days || {}), [d.day]: result?.data };
+    const strip = d.host.closest('.habit-detail')?.querySelector(`.habit-day[data-toggle="${d.day}"]`);
+    strip?.classList.add('done');
+    strip?.setAttribute('aria-pressed', 'true');
+  }).catch(error => {
+    if (_dlog !== d) return;
+    d.entries = before;
+    paintDay(d, '.dlog-log');
+    toast(error.message === 'Failed to fetch' ? t('habits.save_offline') : (error.message || t('habits.save_failed')), 'error');
+  });
+}
+
+function wireDay(host) {
+  if (host.dataset.dlogWired === '1') return;
+  host.dataset.dlogWired = '1';
+  host.addEventListener('click', event => {
+    const d = _dlog;
+    const button = event.target.closest('[data-dlog]');
+    if (!d || d.host !== host || !button) return;
+    const act = button.dataset.dlog;
+    if (act === 'log') logDay(d);
+    else if (act === 'edit') { d.editing = Number(button.closest('.dlog-entry').dataset.at); paintDay(d, '.dlog-form input, .dlog-form [tabindex="0"]'); }
+    else if (act === 'cancel') { d.editing = null; paintDay(d, '.dlog-log'); }
+  });
+}
+
+// the newest entry on or before this day: the form starts from it, so "same as last time" is one
+// tap on log
+function lastEntry(habit, day) {
+  for (const other of Object.keys(habit.days || {}).filter(one => one <= day).sort().reverse()) {
+    const entries = habit.days[other]?.entries || [];
+    if (entries.length) return entries[entries.length - 1];
+  }
+  return null;
+}
+
+// one habit's day log drawn into host. save(doc) stores the day
+export async function renderDayLog(host, habit, day, { save }) {
+  const spec = (await loadKinds())?.[habit.kind];
+  const d = {
+    host, habit, day, save, editing: null,
+    entries: structuredClone(habit.days?.[day]?.entries || []),
+    single: !!spec?.single, scale: habit.fields?.scale, units: habit.fields?.units,
+    fields: shownFields(spec, habit),
+    prefill: lastEntry(habit, day),
+  };
+  _dlog = d;
+  host.classList.add('dlog');
+  paintDay(d);
+  wireDay(host);
+  return d;
 }

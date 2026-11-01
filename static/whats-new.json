@@ -80,6 +80,31 @@
           "body": "chrome and firefox can now add andromeda as a search engine straight from alles, and the extension makes it chrome's default (chrome asks you to keep it). type al and a space in the address bar to search andromeda from any copy of the extension."
         },
         {
+          "key": "resize_sidebars",
+          "title": "sidebars you can resize",
+          "body": "drag the edge of a sidebar in aide, docs, files, mail, calendar, photos or settings to make it wider or narrower, and it keeps that width. arrow keys work too, and a double click puts it back."
+        },
+        {
+          "key": "photo_size",
+          "title": "photo size steps",
+          "body": "the - and + in photos, a pinch, or ctrl and scroll change the picture size in 4 steps. rows keep each picture's shape, and the size is remembered."
+        },
+        {
+          "key": "continue_in_aide",
+          "title": "andromeda answers continue in aide",
+          "body": "an andromeda answer ends with continue in aide, which takes the question, the answer and its sources into aide, instead of a box for another question."
+        },
+        {
+          "key": "errors_stay",
+          "title": "errors stay until you close them",
+          "body": "an error stays on screen with a close button until you close it, so you can read it. confirmations still go away on their own."
+        },
+        {
+          "key": "habit_logs",
+          "title": "every habit logs its own details",
+          "body": "open a habit and log its day with its own fields: distance and time for a run, glasses for water, care and moisture for plants. today starts from your last entry, so the same as last time is one tap. a gym day shows every session with its note, and an imported workout log reads drop sets, slash sets and failed sets right."
+        },
+        {
           "key": "settings_layout",
           "title": "settings grouped by what you're doing",
           "body": "models, personas and voice now sit together under how aide answers, and memory, web search and personal records under what aide knows. the server has its own entry. don't like it? general, settings layout switches to by how often, by what it changes, or the classic order."

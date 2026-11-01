@@ -45,7 +45,6 @@ MONTHS = {
     for name in names
 }
 _HEADING_DATE = re.compile(r"^([a-z]+)\.?\s+(\d{1,2})(?:,?\s+(\d{4}))?$", re.IGNORECASE)
-_GROUP = re.compile(r"\s*(\d*\.?\d+)\s*(?:\(([^)]*)\))?")
 
 
 class WorkoutImportError(ValueError):
@@ -70,54 +69,175 @@ def _status(text):
 
 
 def _status_count(text):
-    """ "sets 2-3 completed" -> 2, "sets 1 and 2 planned" -> 2, anything else 1."""
+    """ "sets 2-3 completed" -> 2, "sets 1 and 2 planned" -> 2, "3 sets recorded" -> 3, else 1."""
     words = text.lower()
     found = re.search(r"sets?\s+(\d+)\s*(?:-|to|and)\s*(\d+)", words)
     if found:
         return max(1, int(found.group(2)) - int(found.group(1)) + 1)
+    found = re.match(r"^(\d+)\s+sets?\b", words.strip())  # "3 sets recorded"
+    if found:
+        return max(1, int(found.group(1)))
     return 1
 
 
+_TOKEN = re.compile(
+    r"\s*(?:(?P<none>no\s+weights?|bodyweight|bw)\b|(?P<num>\d*\.?\d+)|(?P<q>\?)"
+    r"|\((?P<br>[^)]*)\)|(?P<op>[/+,]))",
+    re.IGNORECASE,
+)
+_BARE = object()  # "no weights": a set with reps and no load
+
+
+def _groups(left):
+    """'20 (fail)/15 50 (7)+40 (5) (1)' -> groups of slash parts of drop parts, each
+    {"w": weight, "br": [bracket texts]}. a slash is the next set in the same group, a plus
+    the same set going on lighter (a drop set). None when the text has another shape."""
+    groups, part, pending, at = [], None, None, 0
+    while at < len(left):
+        match = _TOKEN.match(left, at)
+        if not match or match.end() == at:
+            return None
+        at = match.end()
+        if match.group("br") is not None:
+            if part is None:
+                return None
+            part["br"].append(match.group("br").strip())
+            continue
+        if match.group("op"):
+            if part is None or pending:
+                return None
+            pending = None if match.group("op") == "," else match.group("op")
+            continue
+        weight = _BARE if match.group("none") else "?" if match.group("q") else match.group("num")
+        part = {"w": weight, "br": []}
+        if pending == "/":
+            groups[-1].append([part])
+        elif pending == "+":
+            groups[-1][-1].append(part)
+        else:
+            groups.append([[part]])
+        pending = None
+    if pending or not groups:
+        return None
+    for group in groups:
+        # a count after a slash group counts every set in it: "55/130 (13)"
+        tail = group[-1][-1]["br"]
+        if len(group) > 1 and len(tail) == 1 and re.fullmatch(r"\d+", tail[0]):
+            for chain in group[:-1]:
+                if not any(re.fullmatch(r"\d*\.?\d+", b) for b in chain[-1]["br"]):
+                    chain[-1]["br"].append(tail[0])
+    return groups
+
+
+def _brackets(brackets, chained):
+    """what one weight's brackets say: {count, reps, status, notes}. the file's own convention:
+    a bare number is how many sets ("20 (2)"); a number before another number is the reps
+    ("50 (9) (1)"), and so is one inside a drop set ("50 (7)+40 (5)"); "(10+5)" is reps with
+    partials; "(8failed)" is 8 reps then failure; words stay as a note."""
+    out = {"count": None, "reps": None, "status": None, "notes": []}
+    numbers = [b for b in brackets if re.fullmatch(r"\d*\.?\d+", b)]
+    for index, text in enumerate(brackets):
+        lowered = text.lower()
+        later = any(re.fullmatch(r"\d*\.?\d+", b) for b in brackets[index + 1 :])
+        if re.fullmatch(r"\d+\s*\+\s*\d+", text):
+            out["reps"] = text
+        elif failed := re.fullmatch(r"(\d+)fail(?:ed)?", lowered):
+            out["reps"], out["status"] = failed.group(1), "failed"
+            out["notes"].append(f"({text})")
+        elif re.fullmatch(r"\d*\.?\d+", text):
+            number = float(text)
+            if (later or (chained and len(numbers) == 1)) and number == int(number):
+                out["reps"] = text
+            elif number == int(number) and number >= 1:
+                out["count"] = int(number)
+            else:
+                out["count"] = 1
+                out["notes"].append(f"({text})")  # a part set: kept as written, never rounded
+        else:
+            lead = re.match(r"^(\d*\.?\d+)\s*(.*)$", text)
+            if lead and out["count"] is None:
+                number = float(lead.group(1))
+                if number == int(number) and number >= 1:
+                    out["count"] = int(number)
+            out["notes"].append(f"({text})")
+            if "unfinished" in lowered:
+                out["status"] = "unfinished"
+            elif "fail" in lowered or "unsuccessful" in lowered:
+                out["status"] = "failed"
+            elif "attempt" in lowered and not re.search(r"\d", text):
+                out["status"] = "attempted"
+    return out
+
+
 def _recorded(cell):
-    """'82.5 (1) 95 (1) 97.5 (1.5 after) 100 (0.5) × 12/10/10/10+5' -> sets, or None."""
+    """'82.5 (1) 95 (1) 97.5 (1.5 after) 100 (0.5) × 12/10/10/10+5' -> sets, or None. also
+    slash sets with reps each ("10/15/20 (fail)/15 × 15/12/10/8"), drop sets
+    ("50 (7)+40 (5) (1)"), reps in brackets ("× (12)"), "no weights (3) × 12" and a total
+    after a semicolon ("5 (2); 3 sets total × 12": the set nobody wrote down stays "?")."""
     left, sep, right = cell.partition("×")
     if not sep:
         left, sep, right = cell.partition(" x ")
     if not sep:
         return None
-    groups = []
-    at = 0
-    left = left.strip()
-    while at < len(left):
-        match = _GROUP.match(left, at)
-        if not match or match.end() == at:
-            return None
-        groups.append((match.group(1), (match.group(2) or "").strip()))
-        at = match.end()
-    if not groups:
+    left, _, tail = left.partition(";")
+    groups = _groups(left.strip())
+    if groups is None:
         return None
-    reps = [part.strip() for part in right.strip().split("/") if part.strip()]
-    if len(reps) not in (1, len(groups)):
-        reps = ["?"]
-    sets = []
-    for index, (weight, qualifier) in enumerate(groups):
-        one = {"weight": workout_text._number(weight), "unit": "lb", "status": "done"}
-        try:
-            one |= workout_text._reps(reps[index] if len(reps) > 1 else reps[0])
-        except workout_text.Unclear:
-            one["reps"] = "?"  # shorthand nobody can read without guessing; raw keeps it
-        count = re.match(r"^(\d*\.?\d+)\s*(.*)$", qualifier)
-        number = float(count.group(1)) if count else 1.0
-        extra = count.group(2) if count else qualifier
-        if number == int(number) and number >= 1:
-            if number > 1:
-                one["count"] = int(number)
-        if extra or number != int(number) or number < 1:
-            # a part set or a qualifier ("1.5 after"): kept as written, never rounded
-            one["note"] = f"({qualifier})"
-        if "unfinished" in extra:
-            one["status"] = "unfinished"
-        sets.append(one)
+    right = right.strip()
+    if right.startswith("(") and right.endswith(")"):
+        right = right[1:-1]
+    reps = [part.strip() for part in right.split("/") if part.strip()] or ["?"]
+    flat = sum(len(group) for group in groups)
+
+    def mapped(group_at, slash_at, flat_at, width):
+        if len(reps) == 1:
+            return reps[0]
+        if len(reps) == flat:
+            return reps[flat_at]
+        if len(reps) == len(groups):
+            return reps[group_at]
+        if len(reps) == width:
+            return reps[slash_at]
+        return "?"
+
+    sets, flat_at = [], 0
+    for group_at, group in enumerate(groups):
+        for slash_at, chain in enumerate(group):
+            for link, part in enumerate(chain):
+                said = _brackets(part["br"], len(chain) > 1)
+                one = {"status": said["status"] or "done"}
+                if part["w"] is not _BARE:
+                    one |= {"weight": workout_text._number(part["w"]) if part["w"] != "?" else "?",
+                            "unit": "lb"}  # fmt: skip
+                if link:
+                    one["type"] = "drop"
+                try:
+                    one |= workout_text._reps(
+                        said["reps"] or mapped(group_at, slash_at, flat_at, len(group))
+                    )
+                except workout_text.Unclear:
+                    one["reps"] = "?"  # shorthand nobody can read without guessing; raw keeps it
+                if (said["count"] or 1) > 1:
+                    one["count"] = said["count"]
+                if said["notes"]:
+                    one["note"] = " ".join(said["notes"])
+                sets.append(one)
+            flat_at += 1
+    tail = tail.strip()
+    if tail:
+        total = re.fullmatch(r"(\d+)\s+sets?(?:\s+total)?", tail, re.IGNORECASE)
+        have = sum(one.get("count", 1) for one in sets if one.get("type") != "drop")
+        if total and int(total.group(1)) > have:
+            rest = {"weight": "?", "unit": "lb", "status": "done", "note": tail}
+            try:
+                rest |= workout_text._reps(reps[0] if len(reps) == 1 else "?")
+            except workout_text.Unclear:
+                rest["reps"] = "?"
+            if int(total.group(1)) - have > 1:
+                rest["count"] = int(total.group(1)) - have
+            sets.append(rest)
+        else:
+            sets[0]["note"] = "; ".join(filter(None, (sets[0].get("note"), tail)))
     return sets
 
 

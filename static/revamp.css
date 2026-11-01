@@ -466,6 +466,96 @@ html:not(#_) :is(.custom-dropdown-panel, [data-kokuen-surface] [role="menu"]) {
   box-shadow: var(--k-float);
 }
 
+/* one action menu look (u4, 28.19): every hand rolled menu floats like the dropdown. 12px surface,
+   4px inset, 8px rows (12 minus 4), 44px rows, one float shadow. two ids so app rules
+   (aide's flat panel, aide code's #workspace rows) can't pull a menu back to its own look.
+   a new menu joins both lists */
+html:not(#_):not(#_) :is(
+  .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu, .aide-project-context-menu,
+  .aide-schedule-project-menu, .docs-action-menu, .plan-board-menu, .perm-menu, .photos-albmenu,
+  .jrnl-lockmenu, .acw-menu, .mention-menu, .slash-popup, .custom-dropdown-panel
+) {
+  gap: 0;
+  border: 1px solid transparent;
+  border-radius: var(--k-radius-surface);
+  background: var(--k-raised);
+  box-shadow: var(--k-float);
+}
+
+html:not(#_):not(#_) :is(
+  .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu,
+  .aide-project-context-menu:not(.folder-mode), .aide-schedule-project-menu, .docs-action-menu,
+  .plan-board-menu, .perm-menu, .photos-albmenu, .jrnl-lockmenu, .acw-menu, .mention-menu, .slash-popup,
+  .custom-dropdown-panel
+) {
+  padding: var(--k-space-1);
+}
+
+html:not(#_):not(#_) :is(
+  .ctx-item, .aide-central-menu button, .msg-actions-menu > .act-btn, .aide-sidebar-menu > button,
+  .aide-project-context-menu:not(.folder-mode) button, .aide-schedule-project-menu button,
+  .docs-action-menu button, .plan-board-menu-item, .perm-menu-item, .photos-albmenu-item,
+  .jrnl-lockmenu .btn, .acw-menu button, .mention-item, .slash-item, .custom-dropdown-option
+) {
+  min-height: var(--k-control, 44px);
+  margin: 0;
+  padding-inline: var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  box-shadow: none;
+  background: transparent;
+}
+
+/* one line rows center their text; two line rows (perm, aide code) keep their stack */
+html:not(#_):not(#_) :is(
+  .ctx-item, .aide-central-menu button, .aide-sidebar-menu > button,
+  .aide-project-context-menu:not(.folder-mode) button, .aide-schedule-project-menu button,
+  .docs-action-menu button, .plan-board-menu-item, .photos-albmenu-item, .jrnl-lockmenu .btn
+) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding-block: 0;
+  text-align: left;
+}
+
+html:not(#_):not(#_) :is(.perm-menu-item, .acw-menu button) { padding-block: var(--k-space-2); }
+
+/* a text overflow ellipsis needs a block box, so the file row centers by line height */
+html:not(#_):not(#_) .mention-item {
+  padding-block: var(--k-space-2);
+  line-height: calc(var(--k-control, 44px) - 2 * var(--k-space-2));
+}
+
+html:not(#_):not(#_) :is(
+  .ctx-item, .aide-central-menu button, .msg-actions-menu > .act-btn, .aide-sidebar-menu > button,
+  .aide-project-context-menu:not(.folder-mode) button, .aide-schedule-project-menu button,
+  .docs-action-menu button, .plan-board-menu-item, .perm-menu-item, .photos-albmenu-item,
+  .jrnl-lockmenu .btn, .acw-menu button, .mention-item, .slash-item, .custom-dropdown-option
+):is(:hover, :focus-visible, .custom-dropdown-option.active, .mention-item.active, .slash-item.selected) {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+/* the picked row says so with text, not a second fill, so it never touches the hovered one */
+html:not(#_):not(#_):not(#_) :is(
+  .aide-project-context-menu, .aide-schedule-project-menu, .plan-board-menu, .acw-menu
+) [aria-checked="true"]:not(:hover, :focus-visible),
+html:not(#_):not(#_):not(#_) .perm-menu-item.active:not(:hover, :focus-visible),
+html:not(#_):not(#_):not(#_) .custom-dropdown-option.selected:not(:hover, .active) {
+  background: transparent;
+  color: var(--k-text);
+  font-weight: 560;
+}
+
+html:not(#_):not(#_) :is(.ctx-item.danger, .jrnl-lockmenu .btn.danger, #wiki-delete-btn):is(:hover, :focus-visible) {
+  color: var(--k-danger, var(--error));
+}
+
+html:not(#_):not(#_) :is(.ctx-label, .slash-cat-label) { padding-inline: var(--k-space-3); }
+html:not(#_):not(#_) :is(.ctx-sep, .aide-project-context-divider) { margin: var(--k-space-1) var(--k-space-3); }
+
 html:not(#_) :is(.dialog-overlay, .modal-overlay) [role="dialog"],
 html:not(#_) .dialog-overlay [role="alertdialog"],
 html:not(#_) #settings-modal .modal {
@@ -4357,8 +4447,47 @@ html:not(#_):not(#_) .gym-actions { display: flex; gap: var(--k-control-gap); ma
 html:not(#_):not(#_) .gym-log-btn { flex: 1; min-height: var(--gym-h); font-size: 1rem; font-weight: 600; }
 html:not(#_):not(#_) .gym-ex-open { justify-self: start; }
 html:not(#_):not(#_) .gym-empty { margin: 0; color: var(--k-muted); font-size: 0.875rem; }
+/* a day with more than one session: each starts with its muscle groups, and any session note
+   sits right under it, word for word */
+html:not(#_):not(#_) .gym-session { display: grid; gap: var(--k-space-1); }
+html:not(#_):not(#_) .gym-ex + .gym-session { border-top: 1px solid var(--k-line); padding-top: var(--k-space-5); }
+html:not(#_):not(#_) .gym-session-name { margin: 0; color: var(--k-muted); font-size: 0.875rem; font-weight: 620; }
+html:not(#_):not(#_) .gym-session-note { margin: 0; color: var(--k-soft); font-size: 0.9375rem; line-height: 1.45; white-space: pre-line; }
+
+/* every other kind's day log (E1): the gym logger's grid and panel, one field per row. labels
+   on the left on wide screens, on top on a phone; a measure's unit switch sits beside its stepper */
+html:not(#_):not(#_) .dlog { display: grid; gap: var(--k-space-4); --gym-label: 224px; --gym-h: 52px; }
+/* a plain 1 to 5 row has no words, so its readout would only repeat the picked number: screen
+   readers still hear it */
+html:not(#_):not(#_) .dlog .k-number-row-readout { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+html:not(#_):not(#_) .dlog-entries { display: grid; gap: var(--k-row-gap); margin: 0; padding: 0; list-style: none; }
+html:not(#_):not(#_) .dlog-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--k-space-3);
+  min-height: 52px;
+  padding: var(--k-space-1) 0 var(--k-space-1) var(--k-space-3);
+  border-radius: var(--k-radius-control);
+}
+html:not(#_):not(#_) .dlog-entry:hover, html:not(#_):not(#_) .dlog-entry.is-editing { background: var(--k-hover); }
+html:not(#_):not(#_) .dlog-entry-text { font-size: 1rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+html:not(#_):not(#_) .dlog-form { display: grid; gap: var(--k-space-4); padding: var(--k-space-5); border-radius: var(--k-radius-surface); background: var(--k-panel); }
+html:not(#_):not(#_) .dlog-row { display: grid; grid-template-columns: var(--gym-label) minmax(0, 1fr); align-items: start; gap: var(--k-space-3); }
+html:not(#_):not(#_) .dlog-label { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); min-height: var(--gym-h); color: var(--k-muted); font-size: 0.875rem; }
+html:not(#_):not(#_) .dlog-control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap); min-width: 0; min-height: var(--gym-h); }
+html:not(#_):not(#_) .dlog-control > .k-stepper { flex: 1 1 auto; }
+html:not(#_):not(#_) .dlog-control > :is(.settings-input, .date-input, .custom-select) { flex: 1 1 auto; min-width: 0; }
+html:not(#_):not(#_) .dlog-note { min-height: var(--k-control); resize: vertical; }
+html:not(#_):not(#_) .dlog-actions { display: flex; gap: var(--k-control-gap); margin-top: var(--k-space-2); }
+html:not(#_):not(#_) .dlog-log { flex: 1; min-height: var(--gym-h); font-size: 1rem; font-weight: 600; }
 
 @media (max-width: 560px) {
+  html:not(#_):not(#_) .dlog-form { padding: var(--k-space-4); }
+  html:not(#_):not(#_) .dlog-row { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2); }
+  html:not(#_):not(#_) .dlog-label { min-height: 0; }
+  html:not(#_):not(#_) .dlog-label:has(.k-pill-switch) { min-height: var(--k-control); }
+  html:not(#_):not(#_) .dlog-control { min-height: 0; }
   html:not(#_):not(#_) .gym-editor { padding: var(--k-space-4); }
   html:not(#_):not(#_) .gym-frow { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2); }
   html:not(#_):not(#_) .gym-flabel { min-height: 0; }

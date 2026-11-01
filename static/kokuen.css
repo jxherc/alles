@@ -3535,9 +3535,10 @@ textarea[data-kokuen-entry="autogrow"] {
   color: var(--k-danger);
 }
 
+/* the reader takes focus when a doc opens so keys scroll it and a screen reader starts there.
+   it is a long form surface like the source editor (28.40): no box around the whole page */
 #wiki-view #wiki-preview:focus-visible {
-  outline: 2px solid var(--k-focus);
-  outline-offset: -3px;
+  outline: none;
 }
 
 #wiki-view[data-kokuen-surface="docs"] :where(.docs-action-menu, .docs-dialog-card) {

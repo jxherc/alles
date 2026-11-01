@@ -212,7 +212,8 @@ def exercise_history(logs, name, setup=None, today=None, config=None) -> dict:
     """{last, records, hint} for one exercise from a workout habit's day logs ((day, data) pairs).
 
     last: the newest day before today with that exact name and setup, and its sets.
-    records per side ("" both, "L", "R"): heaviest, best estimated 1rm (epley), most reps at
+    records per side ("" both, "L", "R"), from days up to and including today (a past day
+    never counts a later session): heaviest, best estimated 1rm (epley), most reps at
     each weight, and the best session volume (in lb). only done sets count; warm ups only when
     the habit says so (warmups_count). weights stay in the unit they were entered in.
     hint: one tier up per side (weight_step, else 5 lb or 2.5 kg), when the last time was within
@@ -227,6 +228,8 @@ def exercise_history(logs, name, setup=None, today=None, config=None) -> dict:
     last = {"date": before[-1][0], "sets": before[-1][1]} if before else None
     return {
         "last": last,
-        "records": _records(days, bool(config.get("warmups_count"))),
+        "records": _records(
+            [item for item in days if item[0] <= today], bool(config.get("warmups_count"))
+        ),
         "hint": _hint(last, today, config),
     }
