@@ -7,11 +7,15 @@ the SAME data dir for both the server and this script:
 """
 
 import os
+import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from core.database import Habit, HabitLog, SessionLocal
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # the gate runner starts in tests/
+
+from core.database import Habit, HabitLog, SessionLocal  # noqa: E402
 
 BASE = f"http://habits.localhost:{os.environ.get('PORT', '8077')}"
 

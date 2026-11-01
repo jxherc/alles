@@ -61,7 +61,19 @@ def run():
                         {
                             "v": 2,
                             "entries": [
-                                {"values": {"exercises": [{"name": "old press", "sets": sets}]}}
+                                {
+                                    "values": {
+                                        "muscles": ["chest"],
+                                        "exercises": [{"name": "old press", "sets": sets}],
+                                    }
+                                },
+                                {
+                                    "note": "arms after a break",
+                                    "values": {
+                                        "muscles": ["arm"],
+                                        "exercises": [{"name": "old curl", "sets": sets}],
+                                    },
+                                },
                             ],
                         },
                     ),
@@ -162,6 +174,25 @@ def run():
                 expect(page.locator(".gym-host")).to_contain_text("old press")
 
             counted("gym, a session 20 days back", old_session, 3)
+            # two sessions that day: both show, with their note, and a set goes to its own one
+            host = page.locator(".gym-host")
+            expect(host).to_contain_text("old curl")
+            expect(page.locator(".gym-session-name")).to_have_text(["chest", "arm"])
+            expect(page.locator(".gym-session-note")).to_have_text("arms after a break")
+            before = listed.count()
+            log.click()  # the last exercise, old curl, is the open one
+            expect(listed).to_have_count(before + 1)
+            page.locator('.gym-ex[data-ex="0"] [data-gym="activate"]').click()
+            page.locator(".gym-log-btn").click()
+            expect(listed).to_have_count(before + 2)
+            page.wait_for_timeout(500)
+            cards = api.get(base + f"/api/habits/overview?date_q={old_day}").json()["habits"]
+            entries = next(c for c in cards if c["id"] == gym["id"])["days"][old_day]["entries"]
+            names = [
+                [(x["name"], len(x["sets"])) for x in e["values"]["exercises"]] for e in entries
+            ]
+            assert names == [[("old press", 2)], [("old curl", 2)]], names
+            assert entries[1]["note"] == "arms after a break", entries[1]
             page.locator('[data-act="back"]').click()
 
             for kind, item in loggers.items():
@@ -181,6 +212,33 @@ def run():
                 counted(f"{kind}, same as last time", prefilled, 2)
                 _, saved = logs(item)
                 assert saved.get(today.isoformat()) == saved.get(yesterday), (kind, saved)
+            # every other kind: its own day log, built from its fields. today starts from the last
+            # entry, so "same as last time" is one tap on log (open is where the logger lives)
+            if width == 1180:
+                kinds = api.get(base + "/api/habits/kinds").json()["kinds"]
+                legacy = {"check", "count", "duration", "distance", "workout", "reading"}
+                seeded = {
+                    kind: habit(
+                        {"name": kind, "kind": kind},
+                        [(yesterday, {"v": 2, "entries": [{"values": {}, "note": "as usual"}]})],
+                    )
+                    for kind in kinds
+                    if kind not in legacy
+                }
+                page.goto(base + "/?view=habits", wait_until="networkidle")
+                for kind, own in seeded.items():
+                    page.locator(f'.habit-row[data-id="{own["id"]}"] [data-act="open"]').click()
+                    expect(page.locator(".dlog-form")).to_be_visible()
+
+                    def same_as_last_time():
+                        tap(page.locator(".dlog-log"))
+                        expect(page.locator(".dlog-entry")).to_have_count(1)
+
+                    counted(f"{kind}, same as last time", same_as_last_time, 1)
+                    page.wait_for_timeout(300)
+                    days, _ = logs(own)
+                    assert days.get(today.isoformat(), {}).get("entries"), (kind, days)
+                    page.locator('[data-act="back"]').click()
             page.screenshot(path=str(output / f"taps-{width}.png"), full_page=True)
             assert not errors, errors
             context.close()

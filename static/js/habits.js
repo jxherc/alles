@@ -8,7 +8,7 @@ import { calendarDateKey, formatCalendarDate, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
 import { closeEmojiPicker, emojiFieldHtml, wireEmojiPicker } from './emoji_picker.js';
 import { catalogEntry, catalogName, catalogOptions } from './habit_catalog.js';
-import { hasLogger, logSummary, openLogger, renderGym } from './habit_loggers.js';
+import { hasDayLog, hasLogger, logSummary, openLogger, renderDayLog, renderGym } from './habit_loggers.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -207,6 +207,11 @@ function _render() {
     const day = _logDay;
     if (host) renderGym(host, opened, day, { save: data => api(`/api/habits/${opened.id}/toggle`, { method: 'POST', body: data ? { date: day, data } : { date: day, done: false } }) });
   }
+  if (opened && hasDayLog(opened) && _editing !== opened.id) {
+    const host = body.querySelector('.dlog-host');
+    const day = _logDay;
+    if (host) renderDayLog(host, opened, day, { save: data => api(`/api/habits/${opened.id}/toggle`, { method: 'POST', body: { date: day, data } }) }).catch(() => { host.textContent = t('habits.fields_failed'); });
+  }
   if (field) {
     const found = body.querySelector(`.habit-card.editing [data-f="${CSS.escape(field)}"]`);
     const input = found?.matches('.habit-icon-pick') ? found.querySelector('button') : found;
@@ -322,8 +327,9 @@ function _detail(h) {
       </div>
       ${editing ? _editCard(h) : `
       <p class="habit-stats">${esc(stats)}</p>
-      ${h.archived ? `<div class="habit-meta">${esc(t('habits.archived_kept'))}</div>` : _weekStrip(h, h.kind === 'workout' ? _logDay : '')}
+      ${h.archived ? `<div class="habit-meta">${esc(t('habits.archived_kept'))}</div>` : _weekStrip(h, h.kind === 'workout' || hasDayLog(h) ? _logDay : '')}
       ${h.kind === 'workout' && !h.archived ? '<div class="gym-host"></div>' : ''}
+      ${hasDayLog(h) && !h.archived ? '<div class="dlog-host"></div>' : ''}
       ${_heat(h.grid)}`}
     </div>`;
 }
@@ -496,7 +502,7 @@ function _wire(body) {
   body.querySelectorAll('.habit-day[data-toggle]').forEach(btn => btn.addEventListener('click', () => {
     const habit = _habits.find(h => h.id === btn.closest('.habit-card').dataset.id);
     // the gym log lives in the habit: a day picks which session it shows
-    if (habit?.kind === 'workout') {
+    if (habit?.kind === 'workout' || (hasDayLog(habit) && btn.closest('.habit-detail'))) {
       _open = habit.id; _logDay = btn.dataset.toggle; _render();
       if (btn.classList.contains('done') && !habit.days?.[_logDay]) loadHabits().then(() => $('habits-body')?.querySelector('.habit-day.picked')?.focus());
       $('habits-body')?.querySelector('.habit-day.picked')?.focus();
