@@ -1142,5 +1142,32 @@ class FolderBoundaryTests(ApiTest):
         self.assertEqual(statuses, ["stopped", "stopped", "stopped"])
 
 
+class FailingDelegateTests(ApiTest):
+    """a tool that breaks while it streams ends as a failed step the reply can report. it must
+    not cut the whole turn off (the owner saw "response interrupted" after a pi handoff broke)"""
+
+    def test_a_tool_that_raises_mid_stream_is_a_failed_step_and_the_turn_finishes(self):
+        call = {"call_id": "p1", "name": "pi_run", "args": {"task": "write a plan"}}
+
+        async def breaks(name, args):
+            yield {"type": "output", "text": "pi is working in Aide\n"}
+            raise RuntimeError("pi stopped")
+
+        with mock.patch.object(ar, "stream_execute", breaks):
+            status, _, chunks = _drive(
+                [
+                    [{"tool_call": call}, {"done": True, "usage": {}}],
+                    [{"delta": "pi failed, nothing changed."}, {"done": True, "usage": {}}],
+                ],
+                {"agent_permission_mode": "full_access"},
+            )
+        result = next(c["tool_result"] for c in chunks if "tool_result" in c)
+        self.assertTrue(result["error"])
+        self.assertIn("pi stopped", result["output"])
+        self.assertTrue(chunks[-1].get("done"))
+        self.assertEqual(status, "done")
+        self.assertIn("pi failed", "".join(c.get("delta", "") for c in chunks))
+
+
 if __name__ == "__main__":
     unittest.main()

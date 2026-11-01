@@ -90,6 +90,23 @@ def tool(call_id, name, args, output):
 def run(text):
     out({"type": "agent_start"})
     save({"role": "user", "content": [{"type": "text", "text": text}]})
+    if re.search(r"\bbroken provider\b", text):
+        # the model call failed (bad key, 429, a rejected request): pi ends the turn with an
+        # assistant message that has no words and an errorMessage
+        failed = {
+            "role": "assistant",
+            "content": [],
+            "stopReason": "error",
+            "errorMessage": "401 invalid api key",
+            "usage": {"output": 0},
+        }
+        out({"type": "message_end", "message": failed})
+        save(failed)
+        out({"type": "agent_end"})
+        out({"type": settled})
+        return
+    if re.search(r"\bcrash\b", text):
+        os._exit(1)
     tool("call-1", "read", {"path": "notes.txt"}, "hello from notes")
     # "multi" works like a real turn: read, change a file, run its tests
     if re.search(r"\bmulti\b", text):

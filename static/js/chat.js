@@ -989,6 +989,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         localStorage.setItem(k, Date.now());
         toast(t('aide.stream_buffered'), 'error');
       }
+            // a failed step ends with why it failed, even after it streamed some progress
+            else if (out && t.error && t.output && !out.textContent.includes(t.output)) out.textContent += `\n${t.output}`;
     }
 
   } catch (e) {

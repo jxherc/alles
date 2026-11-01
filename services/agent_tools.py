@@ -1323,8 +1323,32 @@ def _pi_step_line(event: dict) -> str:
     )
 
 
+def _pi_failure(error: BaseException) -> str:
+    """what the owner reads when handing work to pi broke before pi could answer"""
+    detail = str(error).strip().splitlines()[0][:200] if str(error).strip() else ""
+    if isinstance(error, TimeoutError):
+        why = "pi did not start in time"
+    elif isinstance(error, FileNotFoundError):
+        why = "pi is not installed where alles expects it"
+    elif isinstance(error, PermissionError):
+        why = f"alles cannot write pi's work folder ({detail})"
+    else:
+        why = detail or type(error).__name__
+    return f"pi could not do this: {why}. nothing was changed."
+
+
 async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
-    """hand work to pi and stream its steps; the last event is the result."""
+    """hand work to pi and stream its steps; the last event is the result. a failure at any
+    step ends as an error result the answer can report, never as an exception that cuts the
+    whole turn off"""
+    try:
+        async for event in _pi_hand_over(task, project, wait_seconds):
+            yield event
+    except Exception as exc:
+        yield {"type": "result", "result": {"output": _pi_failure(exc), "error": True}}
+
+
+async def _pi_hand_over(task: str, project: str = "", wait_seconds: int = 600):
     import asyncio
 
     from core.database import CodingProject, SessionLocal
@@ -1377,6 +1401,7 @@ async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
     queue: asyncio.Queue = asyncio.Queue()
     chat.listeners.add(queue)
     answer, tools, changed, docs = "", [], [], {}
+    failed = ""  # pi's own words for why it stopped, when the provider or the process broke
     brief = (
         f"{task}\n\n"
         "(handed over by Aide, the owner's assistant in Alles.) Use the alles_ tools for anything "
@@ -1423,8 +1448,12 @@ async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
                     + str(event.get("output") or "failed").strip().splitlines()[-1][:160]
                     + "\n",
                 }
+            elif event["kind"] == "error":
+                failed = str(event.get("text") or "pi stopped")
             elif event["kind"] == "assistant":
                 answer = event.get("text") or answer
+                if event.get("error"):
+                    failed = str(event["error"])
                 for tool in event.get("tools") or []:
                     tools.append(tool.get("name"))
                     if tool.get("name") in (
@@ -1453,6 +1482,19 @@ async def _pi_run_stream(task: str, project: str = "", wait_seconds: int = 600):
         return
     files = ", ".join(sorted({f for f in changed if f})) or "none"
     used = ", ".join(sorted(set(filter(None, tools)))) or "none"
+    if not answer and failed:
+        # the model or the process broke before pi had anything to say: that's a failure, not a
+        # finished task with a blank reply
+        yield {
+            "type": "result",
+            "result": {
+                "output": f"pi could not finish this: {failed.strip().splitlines()[0][:200]}. "
+                f"files changed: {files}.",
+                "error": True,
+                **where,
+            },
+        }
+        return
     # the saved step keeps only this output, so the doc cards come back after a reload
     saved = "".join(f"\nsaved doc: {path}" for path in dict.fromkeys(filter(None, docs.values())))
     yield {

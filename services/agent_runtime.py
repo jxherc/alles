@@ -1120,16 +1120,21 @@ async def run_agent(
                     if name in ("write_file", "edit_file", "apply_patch"):
                         capture_checkpoint(run_id, name, args)
                     result = {"output": "", "error": True, "incomplete": True}
-                    async for event in stream_execute(name, args):
-                        # A final outcome may arrive while cancellation is pending.
-                        if stop_event.is_set() and event["type"] != "result":
-                            break
-                        if event["type"] == "output":
-                            text = event.get("text", "")
-                            step["output"] = (step.get("output", "") + text)[-12000:]
-                            yield {"tool_delta": {"call_id": call_id, "text": text}}
-                        elif event["type"] == "result":
-                            result = event.get("result", result)
+                    try:
+                        async for event in stream_execute(name, args):
+                            # A final outcome may arrive while cancellation is pending.
+                            if stop_event.is_set() and event["type"] != "result":
+                                break
+                            if event["type"] == "output":
+                                text = event.get("text", "")
+                                step["output"] = (step.get("output", "") + text)[-12000:]
+                                yield {"tool_delta": {"call_id": call_id, "text": text}}
+                            elif event["type"] == "result":
+                                result = event.get("result", result)
+                    except Exception as exc:
+                        # a tool that breaks mid-stream is a failed step the model can report,
+                        # not an exception that cuts the whole reply off
+                        result = {"output": f"tool '{name}' failed: {exc}", "error": True}
                     # a stop before the result event leaves result empty — keep the streamed
                     # buffer so the partial output isn't lost (persisted step + model message)
                     result = _keep_streamed_output(result, step.get("output", ""))

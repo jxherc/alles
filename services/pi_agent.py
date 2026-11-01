@@ -732,7 +732,13 @@ class PiChat:
             limit=32 * 1024 * 1024,
         )
         self._reader = asyncio.create_task(self._read())
-        state = await self.command("get_state")
+        try:
+            state = await self.command("get_state")
+        except BaseException:
+            # a process that never answered must not be left running behind the failure
+            with contextlib.suppress(ProcessLookupError):
+                self.proc.kill()
+            raise
         self.id = str(state.get("sessionId") or "")
         if not self.id:
             await self.close()
