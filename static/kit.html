@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/static/style.css?v=605">
   <link rel="stylesheet" href="/static/kokuen.css?v=90">
 <link rel="stylesheet" href="/static/aidecentral.css?v=19">
-<link rel="stylesheet" href="/static/aidecoding.css?v=27">
+<link rel="stylesheet" href="/static/aidecoding.css?v=28">
 <link rel="stylesheet" href="/static/aidecall.css?v=3">
 <link rel="stylesheet" href="/static/help.css?v=2">
 <link rel="stylesheet" href="/static/revamp.css?v=100">
@@ -111,6 +111,21 @@ of notes</textarea></label>
       <div class="kit-cell"><span class="kit-name">rating, ten</span>
         <div class="k-number-row" data-kokuen-choice="rating" aria-label="effort" data-min="1" data-max="10" data-value="7"
           data-labels="easy,easy,easy,moderate,moderate,moderate,hard,hard,very hard,max" data-words="easy,,,,,,,,,max"></div>
+      </div>
+    </div>
+  </section>
+  <section aria-labelledby="kit-entry-title">
+    <h2 id="kit-entry-title">entry row, date field, busy edge</h2>
+    <div class="kit-grid">
+      <div class="kit-cell" style="grid-column:1/-1"><span class="kit-name">entry row</span>
+        <div class="k-entry-row">
+          <input type="text" class="settings-input" placeholder="event" aria-label="event">
+          <div class="date-input" data-type="due" data-value="2026-11-05T16:00" aria-label="due"></div>
+          <button type="button" class="btn primary">add</button>
+        </div>
+      </div>
+      <div class="kit-cell"><span class="kit-name">busy</span>
+        <div class="k-busy" data-busy="true" style="position:relative;min-height:88px;border-radius:var(--k-radius-composer,16px);background:var(--k-panel);box-shadow:inset 0 0 0 1px var(--k-line)"></div>
       </div>
     </div>
   </section>

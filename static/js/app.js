@@ -1,5 +1,5 @@
 import { initSessions, newChat, createSession, renderSidebar, downloadSession, getActiveId, saveDraft, clearDraft, selectSession, selectSessionFromRoute, focusSessionMessage } from './sessions.js';
-import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=216';
+import { loadModels, renderModelList, renderSidebarModelList, getSelected, initModelModal, restoreSessionModel, selectAideDefault, selectPersonaModel } from './models.js?v=217';
 import { icon, iconEl, ICON_NAMES, appGlyph } from './icons.js';
 // expose globally so the inline-HTML modules can call icon() without each importing it
 window.icon = icon; window.iconEl = iconEl; window.ICON_NAMES = ICON_NAMES;
@@ -36,7 +36,7 @@ import { closeAideRun } from './aiderun.js';
 import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=16';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=297';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=298';
 import {
   setIncognitoMode,
   isIncognitoMode,
@@ -1948,7 +1948,13 @@ function bindEvents() {
     if (btn.dataset.busy) return;   // a double click or a second enter adds it once
     btn.dataset.busy = '1';
     const text = taskInput.value.trim();
-    try { if (await addTask(text) && taskInput.value.trim() === text) taskInput.value = ''; }
+    const due = document.getElementById('task-add-due');
+    try {
+      if (await addTask(text, due?.value || '') && taskInput.value.trim() === text) {
+        taskInput.value = '';
+        if (due) due.value = '';
+      }
+    }
     finally { delete btn.dataset.busy; }
   });
   taskInput.addEventListener('keydown', e => {

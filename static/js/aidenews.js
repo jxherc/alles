@@ -1,5 +1,6 @@
 import { toast, plainError } from './util.js';
 import { formatDateTime, resolvedTimeZone, t, tp } from './i18n.js';
+import { getDropdownValue, populateDropdown } from './dropdown.js?v=215';
 
 let initialized = false;
 let state = null;
@@ -111,14 +112,8 @@ function editorMarkup() {
       <div class="news-editor-grid">
         <label class="wide"><span>${esc(t('aide.news_feed_url'))}</span><input id="news-source-url" type="url" value="${esc(item.url || '')}" autocomplete="off" placeholder="https://publisher.example/feed.xml"></label>
         <label><span>${esc(t('aide.news_name'))}</span><input id="news-source-name" type="text" value="${esc(item.name || '')}" maxlength="200" autocomplete="off"></label>
-        <div><span>${esc(t('aide.news_category'))}</span><div class="news-choice-group" role="radiogroup" aria-label="${esc(t('aide.news_source_category'))}">${[
-          ['technology', t('aide.news_cat_technology')], ['taiwan', t('aide.news_cat_taiwan')], ['world', t('aide.news_cat_world')], ['general', t('aide.news_cat_general')],
-        ].map(([value, label]) => radio(value, item.category || 'general', label, 'editor-category')).join('')}</div></div>
-        <div><span>${esc(t('aide.news_language'))}</span><div class="news-choice-group" role="radiogroup" aria-label="${esc(t('aide.news_source_language'))}">${[
-          ['en', t('aide.news_lang_en')], ['fr', t('aide.news_lang_fr')], ['es', t('aide.news_lang_es')], ['zh-Hans', t('aide.news_lang_zh_hans')],
-          ['zh-Hant', t('aide.news_lang_zh_hant')], ['ja', t('aide.news_lang_ja')], ['ko', t('aide.news_lang_ko')], ['ar', t('aide.news_lang_ar')],
-          ['other', t('aide.news_lang_other')],
-        ].map(([value, label]) => radio(value, item.language || 'en', label, 'editor-language')).join('')}</div></div>
+        <div><span>${esc(t('aide.news_category'))}</span><div class="settings-input custom-select" id="news-editor-category" aria-label="${esc(t('aide.news_source_category'))}"></div></div>
+        <div><span>${esc(t('aide.news_language'))}</span><div class="settings-input custom-select" id="news-editor-language" aria-label="${esc(t('aide.news_source_language'))}"></div></div>
         <div><span>${esc(t('aide.news_priority'))}</span><div class="news-choice-group" role="radiogroup" aria-label="${esc(t('aide.news_source_priority'))}">${[
           ['0', t('aide.news_pri_low')], ['1', t('aide.news_pri_normal')], ['2', t('aide.news_pri_high')],
         ].map(([value, label]) => radio(value, String(item.priority ?? 1), label, 'editor-priority')).join('')}</div></div>
@@ -150,6 +145,22 @@ function render() {
     </section>
     <aside class="news-real-preview" aria-label="${esc(t('aide.news_latest_aria'))}">${briefMarkup(state.latest_brief)}</aside>
   </div>${editorMarkup()}`;
+  if (editor) {
+    const item = editor.source || {};
+    populateDropdown(document.getElementById('news-editor-category'), [
+      ['technology', t('aide.news_cat_technology')], ['taiwan', t('aide.news_cat_taiwan')], ['world', t('aide.news_cat_world')], ['general', t('aide.news_cat_general')],
+    ].map(([value, label]) => ({ value, label })), item.category || 'general');
+    populateDropdown(document.getElementById('news-editor-language'), [
+      ['en', t('aide.news_lang_en')], ['fr', t('aide.news_lang_fr')], ['es', t('aide.news_lang_es')], ['zh-Hans', t('aide.news_lang_zh_hans')],
+      ['zh-Hant', t('aide.news_lang_zh_hant')], ['ja', t('aide.news_lang_ja')], ['ko', t('aide.news_lang_ko')], ['ar', t('aide.news_lang_ar')],
+      ['other', t('aide.news_lang_other')],
+    ].map(([value, label]) => ({ value, label })), item.language || 'en');
+    // a later render (testing the url) rebuilds the editor from editor.source, so a pick goes there
+    for (const key of ['category', 'language']) {
+      const pick = document.getElementById(`news-editor-${key}`);
+      pick.addEventListener('change', () => { editor.source = { ...editor.source, [key]: pick.value }; });
+    }
+  }
 }
 
 async function loadNews(fetcher = fetch) {
@@ -177,6 +188,8 @@ function closeEditor() {
 }
 
 function selectedValue(group) {
+  const pick = document.getElementById(`news-${group}`);
+  if (pick?.classList.contains('custom-select')) return getDropdownValue(pick);
   return root()?.querySelector(`[data-news-radio="${group}"][aria-checked="true"]`)?.dataset.value || '';
 }
 

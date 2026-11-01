@@ -1093,7 +1093,6 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 .agent-step.error .agent-step-dot { background: var(--error); }
 /* destructive ops (shell/writes/commits/…) stand out from neutral reads */
 .agent-step.destructive .agent-step-dot { background: var(--signal); }
-.agent-step.destructive { border-left: 2px solid color-mix(in srgb, var(--signal) 55%, var(--faint)); padding-left: 0.4rem; }
 .agent-step-name {
   color: var(--text);
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
@@ -1848,13 +1847,8 @@ body.is-aide.is-incognito .incognito-bar {
 }
 .mm-ep-edit input { height: 28px; font-size: 0.8125rem; }
 .mm-add-section { border-top: 1px solid var(--faint); padding: 0.5rem 0.75rem; flex-shrink: 0; }
-.mm-presets { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.4rem; align-items: center; }
-.mm-preset-btn {
-  background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control);
-  color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0.1rem 0.45rem;
-  cursor: pointer; transition: color 0.15s, border-color 0.15s;
-}
-.mm-preset-btn:hover { color: var(--text); border-color: var(--line-strong); }
+.mm-presets { display: flex; margin-bottom: var(--k-control-gap); }
+.mm-presets > .mm-preset-pick { flex: 1 1 auto; min-width: 0; }
 .mm-add-form { display: flex; gap: var(--k-control-gap); align-items: center; flex-wrap: wrap; }
 .mm-add-form input {
   height: 28px; font-size: 0.8125rem;
@@ -2269,22 +2263,27 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .dp-day:hover { background: var(--bg); }
 /* neutral selection (decision 0019): raised surface, strong line, weight */
 .dp-day.sel { background: var(--k-raised, var(--panel)); box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--muted)); color: var(--text); font-weight: 600; }
-.dp-time { display: flex; align-items: center; justify-content: center; gap: 0.15rem; margin-top: 0.55rem; }
+.dp-time { display: flex; align-items: center; justify-content: center; gap: var(--k-space-1, 4px); margin-top: var(--k-space-2, 8px); }
 .dp-tv { font-variant-numeric: tabular-nums; min-width: 1.5rem; text-align: center; }
-/* typeable hour, minute and year: plain text until focused, then one bottom line. the box is a
-   full 44px target, so the line is drawn under the digits instead of at the box edge */
+/* typeable hour, minute and year: the one field (0049), filled with its own ring, numeric keypad.
+   focus brightens that ring and nothing else */
 :is(input.dp-tv, input.dp-year) {
-  --dp-line: transparent; --dp-line-w: 2.6ch; --dp-line-h: 1px;
-  box-sizing: border-box; width: 2.6ch; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 0;
-  background: linear-gradient(var(--dp-line), var(--dp-line)) center calc(50% + 0.8em) / var(--dp-line-w) var(--dp-line-h) no-repeat;
+  box-sizing: border-box; width: 44px; min-width: 44px; min-height: 44px; padding: 0 var(--k-space-1, 4px);
+  border: 0; border-radius: var(--k-radius-control, 8px);
+  background: var(--k-field, var(--panel)); box-shadow: inset 0 0 0 1px var(--k-field-ring, var(--line));
   color: inherit; font: inherit; text-align: center;
 }
-input.dp-year { width: 4.6ch; --dp-line-w: 4.6ch; }
-:is(input.dp-tv, input.dp-year):hover { --dp-line: var(--faint); }
-:is(input.dp-tv, input.dp-year):focus { outline: none; --dp-line: var(--k-field-focus, var(--text)); --dp-line-h: 2px; }
-/* kokuen's focus line sits on the box edge, 44px down; here it moves up under the digits */
-html .date-panel input:is(.dp-tv, .dp-year):focus-visible { box-shadow: none !important; }
-.dp-colon { color: var(--muted); margin: 0 0.15rem; }
+input.dp-year { width: calc(4ch + 2 * var(--k-space-3, 12px)); padding-inline: var(--k-space-3, 12px); margin-inline-start: var(--k-space-1, 4px); }
+:is(input.dp-tv, input.dp-year):hover { box-shadow: inset 0 0 0 1px var(--k-field-ring-hover, var(--line-strong)); }
+html .date-panel input:is(.dp-tv, .dp-year):is(:focus, :focus-visible) { outline: none; box-shadow: inset 0 0 0 1px var(--k-field-focus, var(--muted)) !important; }
+.dp-colon { color: var(--muted); margin: 0; }
+/* a due date's time is optional: one plain text action adds it, another takes it away */
+:is(.dp-time-add, .dp-time-remove) {
+  white-space: nowrap; min-height: 44px; padding: 0 var(--k-space-3, 12px); border: 0; border-radius: var(--k-radius-control, 8px);
+  background: none; color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer;
+}
+:is(.dp-time-add, .dp-time-remove):hover { background: var(--k-hover, var(--panel)); color: var(--text); }
+.cal-task-time { flex-shrink: 0; color: var(--muted); font-variant-numeric: tabular-nums; margin-inline-end: var(--k-space-1, 4px); }
 .dp-foot { display: flex; justify-content: space-between; margin-top: 0.55rem; }
 .dp-clear, .dp-now {
   background: none; border: none; color: var(--muted); cursor: pointer;
@@ -4643,6 +4642,7 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 
 .te-row { display: flex; align-items: center; gap: 0.5rem; }
 .te-row label { font-size: 0.8125rem; color: var(--muted); width: 5rem; flex-shrink: 0; }
+.te-row > .date-input { flex: 1 1 auto; min-width: 0; }
 /* four quick dates in one row, or two by two on a narrow screen: never three and one left over */
 .te-resched { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.3rem; }
 .te-rs { font-size: 0.8125rem; }
@@ -5597,15 +5597,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .rule-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; cursor: pointer; }
 .rule-row-main:hover .rule-row-name { color: var(--text); }
 /* automation quick-start presets */
-.rule-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.6rem; }
-.rule-presets-label { font-size: 0.8125rem; color: var(--muted); margin-right: 0.15rem; }
-.rule-preset {
-  background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control);
-  color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0.2rem 0.6rem; cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.rule-preset:hover { border-color: var(--line-strong); color: var(--text); }
-.rule-preset.sel { border-color: var(--line-strong); color: var(--text); background: var(--raised); }
+.rule-presets { display: flex; margin-bottom: var(--k-space-3, 12px); }
+.rule-presets > .rule-preset-pick { flex: 1 1 auto; min-width: 0; max-width: 24rem; }
 
 /* ── first-run setup wizard: compact KOKUEN utility surface ── */
 .setup-card { width: 560px; max-width: calc(100vw - 32px); max-height: min(720px, calc(100dvh - 32px)); padding: 0; overflow: hidden; }
@@ -11335,7 +11328,6 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 .theme-mode-btn.active,
 .tasks-tab.active,
 .ie-tool.active,
-.rule-preset.sel,
 .setup-provider[aria-pressed="true"],
 .mem-policy-btn.active,
 .docs-sec-btn.active,
@@ -11411,10 +11403,6 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 #settings-modal .s-card-hint + :is(.s-field, .settings-textarea) { margin-top: var(--k-space-3, 12px); }
 /* rules quick start: the label sits above, so a wrapped choice lines up under the first one.
    the picked choice is a box, so the row stays on the column edge (0043) */
-.rule-presets { row-gap: 4px; }
-.rule-presets-label { flex: 0 0 100%; margin: 0; }
-.rule-preset { min-height: 44px; padding: 0 12px; border-color: transparent; }
-.rule-preset:hover { border-color: transparent; background: var(--k-hover, var(--panel)); }
 
 /* what's new: once per release. the card rises in, a line draws across its top and the items
    land one after another; with reduced motion everything is simply there */
@@ -11423,10 +11411,6 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
   max-height: calc(100dvh - 2 * var(--k-space-4)); padding: var(--k-space-5); gap: var(--k-space-4);
   border-color: var(--k-line-strong, var(--faint)); border-radius: var(--k-radius-surface, 6px); overflow: hidden;
   animation: whats-new-rise 320ms cubic-bezier(.2, .8, .2, 1);
-}
-.whats-new-card::before {
-  content: ""; position: absolute; top: 0; left: 0; height: 2px; width: 100%;
-  background: var(--accent, var(--text)); transform-origin: left; animation: whats-new-draw 700ms 120ms cubic-bezier(.6, 0, .2, 1) both;
 }
 .whats-new-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--k-space-3); }
 .whats-new-head h2 { margin: 0; font-size: 1.125rem; font-weight: 620; color: var(--text); }
@@ -11445,11 +11429,10 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .whats-new-pages { margin-right: auto; color: var(--muted); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
 .whats-new-overlay { animation: whats-new-dim 240ms ease-out; }
 @keyframes whats-new-rise { from { transform: translateY(14px) scale(.985); } to { transform: none; } }
-@keyframes whats-new-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes whats-new-land { from { transform: translateY(8px); } to { transform: none; } }
 @keyframes whats-new-dim { from { background: rgba(0, 0, 0, 0); } }
 @media (prefers-reduced-motion: reduce) {
-  .whats-new-card, .whats-new-card::before, .whats-new-list.is-in .whats-new-item, .whats-new-overlay { animation: none; }
+  .whats-new-card, .whats-new-list.is-in .whats-new-item, .whats-new-overlay { animation: none; }
 }
 
 /* Aide conversation steps, the same language as Aide code: a line with how many steps, a dot per
@@ -11473,7 +11456,7 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
   border-top: 0; padding: 0; border-radius: var(--k-radius-surface, 6px); background: var(--k-panel, var(--panel));
   animation: aide-arrive 240ms cubic-bezier(.2, .8, .2, 1);
 }
-#messages .agent-step.destructive { border-left: 0; padding-left: 0; box-shadow: inset 2px 0 0 color-mix(in srgb, var(--signal) 60%, transparent); }
+#messages .agent-step.destructive .agent-step-name { color: var(--k-danger, var(--error)); }
 #messages .agent-step-head { gap: var(--k-space-3); min-height: 40px; padding: 0 var(--k-space-3); font-size: 0.8125rem; }
 #messages .agent-step-dot { display: none; }
 .agent-step-mark { display: inline-grid; place-items: center; flex: 0 0 16px; color: var(--k-muted, var(--muted)); }
@@ -11509,17 +11492,13 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .doc-receipt-title { font-size: 0.875rem; font-weight: 560; }
 .doc-receipt-where { color: var(--k-muted, var(--muted)); font-size: 0.8125rem; }
 
-/* an answer that is still arriving ends in a caret; the box carries a moving light while Aide works */
+/* an answer that is still arriving ends in a caret; while Aide works the composer's own edge
+   carries the busy tone (the busy edge in kokuen.css, decision 0053) */
 #messages .ai-body:not(.done) .ai-content > :last-child::after {
   content: ""; display: inline-block; width: 7px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em;
   background: var(--k-text, var(--text)); animation: aide-blink 1s steps(1) infinite;
 }
 .composer-box { position: relative; }
-body.aide-working .composer-box::after {
-  content: ""; position: absolute; left: 12px; right: 12px; top: -1px; height: 1px; pointer-events: none;
-  background: linear-gradient(90deg, transparent, var(--ai), transparent); background-size: 40% 100%; background-repeat: no-repeat;
-  animation: aide-sweep 1.6s ease-in-out infinite;
-}
 #messages .user-wrap { animation: aide-arrive 200ms cubic-bezier(.2, .8, .2, 1); }
 
 @keyframes aide-arrive { from { transform: translateY(6px); } to { transform: none; } }
@@ -11528,13 +11507,11 @@ body.aide-working .composer-box::after {
 @keyframes aide-pop { from { transform: scale(.4); } to { transform: none; } }
 @keyframes aide-blink { 50% { opacity: 0; } }
 @keyframes aide-breathe { 50% { opacity: .35; } }
-@keyframes aide-sweep { from { background-position: -40% 0; } to { background-position: 140% 0; } }
 @media (prefers-reduced-motion: reduce) {
   #messages .agent-steps > summary, #messages .agent-steps > .custom-summary, #messages .agent-step, .doc-receipt, #messages .user-wrap { animation: none; }
   #messages .agent-step.running .agent-step-name { animation: none; background: none; color: var(--k-text, var(--text)); }
   #messages .agent-step.running .agent-step-status::before, .agent-steps-dots span.running, #messages .ai-body:not(.done) .ai-content > :last-child::after { animation: none; }
   #messages .agent-step:not(.running):not(.error) .agent-step-status::before { animation: none; }
-  body.aide-working .composer-box::after { animation: none; background: var(--ai); opacity: .5; left: 0; right: 0; }
 }
 .welcome-starts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--k-space-2); margin-top: var(--k-space-5); }
 .welcome-start {
@@ -11552,7 +11529,7 @@ body.aide-working .composer-box::after {
    inset like every other control on it, never a box pinned to the corner */
 #messages .agent-steps > summary .agent-run-controls { display: inline-flex; align-items: center; gap: var(--k-space-1, 4px); margin-left: auto; flex: 0 0 auto; }
 #messages .agent-steps > summary :is(.agent-sources-btn, .agent-revert-btn) {
-  float: none; margin: 0; min-height: 32px; padding: 0 var(--k-space-2, 8px); border: 0; border-radius: var(--k-radius-control, 4px);
+  float: none; margin: 0; min-height: 44px; padding: 0 var(--k-space-2, 8px); border: 0; border-radius: var(--k-radius-control, 4px);
   background: transparent; font-size: 0.8125rem; font-weight: 400;
 }
 #messages .agent-steps > summary .agent-sources-btn { color: var(--k-muted, var(--muted)); }

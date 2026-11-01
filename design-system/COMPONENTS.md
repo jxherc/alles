@@ -49,7 +49,7 @@ In Alles the primary is the text action's shape plus one `--k-line-strong` line,
 - `role="menu"` with `menuitem` children;
 - Up/Down moves, Home/End jumps, Enter/Space activates, Escape closes;
 - focus moves into the menu and returns to its trigger;
-- 4px outer radius, 2px row radius, 44px minimum row;
+- 12px surface radius, 8px row radius (12 minus the 4px inset), 44px minimum row;
 - disabled rows stay discoverable and cannot activate;
 - never use a visible native select or context menu.
 
@@ -59,7 +59,10 @@ Use buttons with `role="radio"` and `aria-checked`, or independent buttons with 
 
 Which control does which job (owner, oct 28, decision 0050): 2 or 3 options flipped often are a
 pill switch; a rating is a number row; 4 or more options, or a list that can grow, is the
-dropdown (`dropdown.js`). Never a wall of chips or buttons for text choices.
+dropdown (`dropdown.js`). Never a wall of chips or buttons for text choices: more than 5 text
+choices is always a dropdown with type to jump (28.14). Quick fills (model providers, rule presets)
+are a dropdown with a placeholder that fills the form on pick; a server setting with more than 3
+options or a model list is a dropdown, 2 or 3 a pill switch (28.29).
 
 - pill switch: `<div class="k-pill-switch" data-kokuen-choice="switch" aria-label="unit">` with 2
   or 3 `<button>`s, one with `aria-checked="true"`. kokuen.js makes it a radiogroup with arrow
@@ -92,6 +95,20 @@ Visible label first, then control, helper or error below. Placeholder text is an
 One field (decision 0049): 44px, 12px between the text and the edge, the `--k-field` fill and a 1px ring. Focus recolors the ring to the dim neutral `--k-field-focus`; nothing else draws. Add a new field to the "one field" list in `revamp.css` or give it `.k-field`; a text field with zero side padding fails `tests/test_kit_page.py`. A wrapper-owned entry joins the bounded entry list in `kokuen.css` and shows focus on its own edge with the same ring. Long-form editors (docs source, notes, journal) take no box.
 
 Use `data-kokuen-entry="compact"` for one-line search/capture entry and `data-kokuen-entry="autogrow"` plus `wireAutosizeTextarea` for short multiline capture or composition. Autogrow starts at 44px, follows content, respects its CSS maximum and viewport, and then scrolls internally. Do not apply either sizing variant to long-form editors. If a wrapper owns the field boundary, keep the inner input borderless and let `:focus-within` expose the focus state once.
+
+## entry row
+
+An add form is one entry row (decision 0052): `.k-entry-row` on the row, bare fields inside split
+by a 1px divider, then one `.btn`. 4px padding on every side; the button is 44px with an 8px radius
+and sits 4px from the top, end and bottom, 8px after the last field. No inline gaps or widths. On a
+phone two or more fields stack and the button takes the last line.
+
+## date and time field
+
+`.date-input` with `datepick.js`, never a native picker. `data-type="date"`, `"datetime"`, or
+`"due"` (a date with an optional time: "add time" in the panel, "no time" in its footer). Outside a
+row it is the one field; inside an entry row it is bare. `joinDue` and `splitDue` map a due value to
+a task's `due_date` and `due_time`.
 
 ## search field
 
@@ -149,3 +166,10 @@ lives in `static/js/kokuen.js`, with the custom single-select contract in `stati
 ## kit page
 
 `static/kit.html` shows every universal piece in its states, light and dark (`?theme=light`). It loads the same stylesheets as `index.html` in the same order (a test keeps them equal). `tests/pw_kit_rules.py` checks it, and every route, in webkit at desktop, ipad landscape, ipad portrait and phone. A new piece goes on the kit page first.
+
+## busy edge
+
+While work runs, a rounded box shows it on its own 1px edge (decision 0053): `.k-busy` with
+`data-busy="true"` (the aide composer and aide code's entry are wired already). The tone turns
+slowly around the corners; reduced motion shows a steady brighter edge. Never a line laid over the
+edge, a glow outside it, or a stripe on one side.

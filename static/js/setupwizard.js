@@ -1,7 +1,7 @@
 // server-owned first-run setup: resumable across browsers and safe to dismiss.
 import { toast, plainError } from './util.js';
 import { requestWithRecentOwner } from './recent_owner.js';
-import { addEndpoint } from './models.js?v=216';
+import { addEndpoint } from './models.js?v=217';
 import { regionName, resolvedTimeZone, t } from './i18n.js';
 import { pick } from './dialog.js';
 import { icon } from './icons.js';

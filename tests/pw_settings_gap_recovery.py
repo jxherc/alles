@@ -461,7 +461,8 @@ async def main():
             )
 
             await fresh("rules")
-            await page.locator(".rule-preset").first.click()
+            await page.locator(".rule-preset-pick").click()
+            await page.locator(".custom-dropdown-option").first.click()
             await page.locator("#rule-name").fill("synthetic rule")
             hold = asyncio.Event()
             overrides[("/api/automations", "POST")] = {

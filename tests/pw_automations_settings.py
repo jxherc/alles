@@ -48,7 +48,8 @@ def main():
         r["empty_state_shows"] = "no rules yet" in (pg.text_content("#rules-list") or "")
 
         # use the local-only push preset; no external channel or model call
-        pg.click('.rule-preset[data-i="3"]')
+        pg.click(".rule-preset-pick")
+        pg.click('.custom-dropdown-option[data-index="3"]')
         pg.wait_for_function(
             "document.getElementById('rule-trigger')?.dataset.value === 'sub_renewing' && "
             "document.getElementById('rule-action')?.dataset.value === 'push'"

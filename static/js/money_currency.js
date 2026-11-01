@@ -1,10 +1,10 @@
 // totals in one currency: the picker, the saved rates, and the note for what a total leaves out.
 // money and subscriptions share it, so both say the same thing the same way
 import { api, toast } from './util.js';
-import { currencySymbol, formatNumber, localeTag, t } from './i18n.js';
-import { confirm as dlgConfirm, pick as dlgPick, prompt as dlgPrompt } from './dialog.js';
+import { formatNumber, localeTag, t } from './i18n.js';
+import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
+import { populateDropdown } from './dropdown.js?v=215';
 
-const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const known = code => /^[A-Z]{3}$/.test(code || '') && code !== 'XXX';
 
@@ -19,7 +19,8 @@ export function currencyBar(summary) {
   const base = summary?.base_currency;
   if (!base?.code) return '';
   if (base.fixed) return `<div class="totals-currency"><span class="totals-currency-lbl">${t('money.totals_follow_actual', { code: `<span class="totals-currency-code">${esc(base.code)}</span>` })}</span></div>`;
-  const pick = `<button type="button" class="btn totals-currency-pick" data-totals-base aria-haspopup="dialog" aria-label="${t('money.totals_in_change', { code: esc(base.code) })}">${esc(base.code)}${_si('chevron-down')}</button>`;
+  // the dropdown (27.40): type a letter to jump, like a native select. wireCurrency fills the list
+  const pick = `<div class="settings-input custom-select totals-currency-pick" data-totals-base data-value="${esc(base.code)}" data-options="${esc(base.code)}|${esc(base.code)}" aria-label="${t('money.totals_in_change', { code: esc(base.code) })}"><span class="custom-select-label">${esc(base.code)}</span></div>`;
   const rates = (summary.rates || []).map(rate =>
     `<button type="button" class="btn totals-rate" data-totals-rate="${esc(rate.from)}:${esc(rate.to)}" aria-label="${t('money.rate_edit', { from: esc(rate.from), rate: esc(rate.rate), to: esc(rate.to) })}">1 ${esc(rate.from)} = ${esc(rate.rate)} ${esc(rate.to)}</button>`).join('');
   return `<div class="totals-currency" role="group" aria-label="${t('money.totals_currency')}"><span class="totals-currency-lbl">${t('money.totals_in')}</span>${pick}${rates}</div>`;
@@ -68,16 +69,15 @@ export function currencyName(code) {
   try { return new Intl.DisplayNames([localeTag()], { type: 'currency' }).of(code) || code; } catch { return code; }
 }
 
-async function chooseBase(current) {
+async function baseChoices(current) {
   let codes = [];
   try { codes = (await api('/api/money/currencies')).codes || []; } catch { codes = []; }
   if (!codes.length) { toast(t('money.currency_choices_failed'), 'error'); return null; }
   // the ones already in use come first: picking a base is nearly always one of them
   const inUse = [...document.querySelectorAll('[data-totals-rate]')].flatMap(el => el.dataset.totalsRate.split(':'));
   const first = [...new Set([current, ...inUse])].filter(code => codes.includes(code));
-  const options = [...first, ...codes.filter(code => !first.includes(code))]
-    .map(value => ({ value, label: `${value} · ${currencyName(value)}`, hint: currencySymbol(value) }));
-  return dlgPick(t('money.show_totals_in'), options, { value: current });
+  return [...first, ...codes.filter(code => !first.includes(code))]
+    .map(value => ({ value, label: `${value} · ${currencyName(value)}` }));
 }
 
 async function enterRate(from, to, current) {
@@ -128,12 +128,17 @@ export function wireCurrency(root, summary, reload) {
     if (target === place) place.tabIndex = -1;
     target?.focus();
   };
-  root.querySelectorAll?.('[data-totals-base]').forEach(button => button.addEventListener('click', async () => {
+  root.querySelectorAll?.('[data-totals-base]').forEach(async pick => {
     const current = summary.base_currency.code;
-    const code = await chooseBase(current);
-    if (!code || code === current) return;
-    await save({ base: code }, '[data-totals-base]', t('money.totals_in_code', { code }));
-  }));
+    populateDropdown(pick, [{ value: current, label: current }], current);
+    pick.addEventListener('change', async () => {
+      const code = pick.value;
+      if (!code || code === current) return;
+      await save({ base: code }, '[data-totals-base]', t('money.totals_in_code', { code }));
+    });
+    const options = await baseChoices(current);
+    if (options && pick.isConnected) populateDropdown(pick, options, current);
+  });
   root.querySelectorAll?.('[data-totals-use]').forEach(button => button.addEventListener('click', () => {
     const code = button.dataset.totalsUse;
     save({ base: code }, '[data-totals-base]', t('money.totals_in_code', { code }));

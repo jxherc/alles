@@ -89,6 +89,21 @@ class TaskDueTimeApiTests(ApiTest):
         ).json()
         self.assertEqual(pre["candidate"]["due_time"], "15:30")
 
+    def test_the_add_rows_due_field_wins_over_the_text(self):
+        r = self.client.post(
+            "/api/tasks/quick",
+            json={"text": "dentist friday 3:30pm", "due": "2026-11-05T16:00"},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        got = r.json()
+        self.assertEqual((got["due_date"], got["due_time"]), ("2026-11-05", "16:00"))
+        day_only = self.client.post(
+            "/api/tasks/quick", json={"text": "water the plants", "due": "2026-11-06"}
+        ).json()
+        self.assertEqual((day_only["due_date"], day_only["due_time"]), ("2026-11-06", None))
+        bad = self.client.post("/api/tasks/quick", json={"text": "x", "due": "2026-11-06T25:00"})
+        self.assertEqual(bad.status_code, 400)
+
     def test_moving_the_day_keeps_the_time_and_clearing_the_day_clears_it(self):
         tid = self.make(due_date="2026-10-23", due_time="09:00").json()["id"]
         moved = self.client.patch(f"/api/tasks/{tid}", json={"due_date": "2026-10-25"}).json()

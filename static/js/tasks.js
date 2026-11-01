@@ -1,6 +1,7 @@
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=215';
-import { calendarDateKey, t as tr, tp as trp } from './i18n.js';
+import { joinDue, initDatePicker, splitDue } from './datepick.js';
+import { calendarDateKey, formatTime, t as tr, tp as trp } from './i18n.js';
 import { createFocusBoundary, setControlState } from './kokuen.js?v=5';
 import { toast } from './util.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
@@ -25,6 +26,7 @@ function taskValues(task) {
     title: String(task.title || '').trim(), notes: String(task.notes || ''),
     priority: Number(task.priority) || 0, repeat: String(task.repeat || '').trim(),
     due_date: String(task.due_date || '').trim() || null,
+    due_time: String(task.due_time || '').slice(0, 5) || null,
     tags: (Array.isArray(task.tags) ? task.tags : String(task.tags || '').split(','))
       .map(value => value.trim()).filter(Boolean).join(','),
     project: String(task.project || '').trim(),
@@ -47,7 +49,8 @@ async function draftScopes() {
 function draftKey(scope, id) { return `${TASK_DRAFT_PREFIX}${scope}:${id}`; }
 function validDraftValues(value) {
   return value && ['title', 'notes', 'repeat', 'tags', 'project'].every(field => typeof value[field] === 'string')
-    && Number.isInteger(value.priority) && (value.due_date === null || typeof value.due_date === 'string');
+    && Number.isInteger(value.priority) && (value.due_date === null || typeof value.due_date === 'string')
+    && (value.due_time == null || typeof value.due_time === 'string');
 }
 function readTaskDraft(id, scopes = _draftScopes) {
   for (const scope of scopes) {
@@ -154,6 +157,7 @@ export function resetTaskFilters() {
 
 export async function loadTasks(fetcher = fetch, target = null) {
   _wireTabs();
+  initDatePicker(document.getElementById('task-add-due'));
   const generation = ++_loadGeneration;
   const tab = _tab, search = _search;
   const isTree = tab === 'active' && !search;
@@ -191,12 +195,18 @@ export async function loadTasks(fetcher = fetch, target = null) {
 
 function _todayISO() { return calendarDateKey(); }
 
-function _dueBadge(d) {
+// a timed task shows its time and goes overdue at that time (the server's overdue flag)
+function _dueBadge(d, time = null, overdue = null) {
   if (!d) return '';
   const iso = d.slice(0, 10), today = _todayISO();
-  const cls = iso < today ? 'task-due overdue' : (iso === today ? 'task-due today' : 'task-due');
-  const label = iso === today ? tr('common.today') : (iso === _shift(today, 1) ? tr('tasks.tomorrow') : iso);
-  return `<span class="${cls}">${label}</span>`;
+  const late = overdue ?? iso < today;
+  const cls = late ? 'task-due overdue' : (iso === today ? 'task-due today' : 'task-due');
+  const day = iso === today ? tr('common.today') : (iso === _shift(today, 1) ? tr('tasks.tomorrow') : iso);
+  return `<span class="${cls}">${time ? `${day} ${_clock(time)}` : day}</span>`;
+}
+function _clock(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return formatTime(new Date(Date.UTC(2000, 0, 1, h, m)), { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
 }
 function _shift(iso, n) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 
@@ -210,7 +220,7 @@ function _rowHtml(t, child, progress) {
       <button type="button" class="task-title${t.done ? ' done' : ''}" aria-label="${esc(tr('tasks.edit_named', { task: t.title }))}">${title}</button>
       <div class="task-meta">
       ${t.repeat ? `<span class="task-repeat" title="${esc(tr('tasks.repeats', { repeat: tr(`tasks.repeat.${t.repeat}`) }))}">${_si('refresh')}</span>` : ''}
-      ${_dueBadge(t.due_date)}
+      ${_dueBadge(t.due_date, t.due_time, t.overdue)}
       ${(t.tags || []).map(g => `<span class="task-tag">#${esc(g)}</span>`).join('')}
       ${t.priority ? `<span class="task-high task-p${t.priority}">${esc(tr(`tasks.priority.${['', 'low', 'medium', 'high'][t.priority] || 'high'}`))}</span>` : ''}
       ${progress && progress.total ? `<span class="task-progress">${progress.done}/${progress.total}</span>` : ''}
@@ -474,7 +484,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
     <label class="sr-only" for="te-notes">${esc(tr('tasks.notes'))}</label><textarea class="settings-input te-notes" id="te-notes" placeholder="${esc(tr('tasks.notes'))}">${esc(t.notes || '')}</textarea>
     <div class="te-row"><label id="te-prio-label">${esc(tr('tasks.priority.label'))}</label><div class="settings-input custom-select" id="te-prio" aria-labelledby="te-prio-label"></div></div>
     <div class="te-row"><label id="te-rep-label">${esc(tr('tasks.repeat.label'))}</label><div class="settings-input custom-select" id="te-rep" aria-labelledby="te-rep-label"></div></div>
-    <div class="te-row"><label for="te-due">${esc(tr('tasks.due'))}</label><input class="settings-input" id="te-due" value="${esc(t.due_date || '')}" placeholder="${esc(tr('tasks.date_placeholder'))}"></div>
+    <div class="te-row"><label id="te-due-label">${esc(tr('tasks.due'))}</label><div class="date-input" id="te-due" data-type="due" data-value="${esc(joinDue(t.due_date, t.due_time))}" data-ph-key="tasks.due_pick" aria-labelledby="te-due-label"></div></div>
     <div class="te-resched">${['today', 'tomorrow', 'next_week', 'weekend'].map(w => `<button class="btn te-rs" data-w="${w}">${esc(tr(`tasks.reschedule.${w}`))}</button>`).join('')}</div>
     <div class="te-row"><label for="te-tags">${esc(tr('tasks.tags'))}</label><input class="settings-input" id="te-tags" value="${esc((t.tags || []).join(', '))}" placeholder="${esc(tr('tasks.tags_placeholder'))}"></div>
     <div class="te-row"><label for="te-proj">${esc(tr('tasks.project'))}</label><input class="settings-input" id="te-proj" value="${esc(t.project || '')}"></div>
@@ -502,6 +512,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
   let latestConflict = null;
   let hasStoredDraft = Boolean(recovered);
   let storageFailed = false;
+  initDatePicker(ov.querySelector('#te-due'));
   const recovery = dialog.querySelector('.task-recovery');
   const message = recovery.querySelector('.task-recovery-message');
   const mine = recovery.querySelector('[data-task-recovery="mine"]');
@@ -512,7 +523,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
     notes: ov.querySelector('#te-notes').value,
     priority: parseInt(getDropdownValue(ov.querySelector('#te-prio'))) || 0,
     repeat: getDropdownValue(ov.querySelector('#te-rep')),
-    due_date: ov.querySelector('#te-due').value.trim() || null,
+    ...splitDue(ov.querySelector('#te-due').value),
     tags: ov.querySelector('#te-tags').value.split(',').map(s => s.trim()).filter(Boolean).join(','),
     project: ov.querySelector('#te-proj').value.trim(),
   });
@@ -522,9 +533,10 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
     message.textContent = text;
   }
   function putValues(next) {
-    for (const [field, selector] of Object.entries({ title: '#te-title', notes: '#te-notes', due_date: '#te-due', tags: '#te-tags', project: '#te-proj' })) {
+    for (const [field, selector] of Object.entries({ title: '#te-title', notes: '#te-notes', tags: '#te-tags', project: '#te-proj' })) {
       ov.querySelector(selector).value = next[field] ?? '';
     }
+    ov.querySelector('#te-due').value = joinDue(next.due_date, next.due_time);
     populateDropdown(ov.querySelector('#te-prio'), priorities.map(([value, label]) => ({ value, label })), next.priority);
     populateDropdown(ov.querySelector('#te-rep'), repeats.map(([value, label]) => ({ value, label })), next.repeat);
   }
@@ -588,7 +600,9 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
     }
   });
   ov.querySelectorAll('.te-rs').forEach(b => b.addEventListener('click', () => {
-    ov.querySelector('#te-due').value = _reschedDate(b.dataset.w);
+    // moving the day keeps the time
+    const due = ov.querySelector('#te-due');
+    due.value = joinDue(_reschedDate(b.dataset.w), splitDue(due.value).due_time);
     storeDraft();
   }));
   recovery.querySelector('[data-task-recovery="export"]').onclick = () => {
@@ -648,7 +662,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
       if (response.status === 409 && result.detail?.code === 'task_conflict') {
         latestConflict = result.detail.current;
         showRecovery(tr('tasks.conflict_message'));
-        conflictValues.innerHTML = result.detail.fields.map(field => `<div><strong>${esc(tr(({ title: 'tasks.title_label', notes: 'tasks.notes', priority: 'tasks.priority.label', repeat: 'tasks.repeat.label', due_date: 'tasks.due', tags: 'tasks.tags', project: 'tasks.project' })[field]))}</strong><p>${esc(tr('tasks.your_change'))}: ${esc(values[field] ?? '')}</p><p>${esc(tr('tasks.saved_value'))}: ${esc(taskValues(latestConflict)[field] ?? '')}</p></div>`).join('');
+        conflictValues.innerHTML = result.detail.fields.map(field => `<div><strong>${esc(tr(({ title: 'tasks.title_label', notes: 'tasks.notes', priority: 'tasks.priority.label', repeat: 'tasks.repeat.label', due_date: 'tasks.due', due_time: 'tasks.due', tags: 'tasks.tags', project: 'tasks.project' })[field]))}</strong><p>${esc(tr('tasks.your_change'))}: ${esc(values[field] ?? '')}</p><p>${esc(tr('tasks.saved_value'))}: ${esc(taskValues(latestConflict)[field] ?? '')}</p></div>`).join('');
         mine.hidden = useSaved.hidden = conflictValues.hidden = false;
       } else if (!response.ok) throw new Error('request failed');
       else if (result.queued) showRecovery(tr('tasks.save_queued'));
@@ -696,7 +710,7 @@ function _reschedDate(w) {
 }
 
 // true once the server kept the task, so the caller only clears the box then
-export async function addTask(title) {
+export async function addTask(title, due = '') {
   if (!title.trim()) return false;
   // natural-language quick add — parses due date / repeat / #tags / ! priority
   let r;
@@ -704,7 +718,7 @@ export async function addTask(title) {
     r = await fetch('/api/tasks/quick', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: title, today: _todayISO() }),
+      body: JSON.stringify({ text: title, today: _todayISO(), ...(due ? { due } : {}) }),
     });
   } catch {
     toast(tr('tasks.unreachable'), 'error');

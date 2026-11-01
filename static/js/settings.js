@@ -1922,10 +1922,11 @@ async function loadRulesPane() {
 function _renderRulePresets() {
   const box = document.getElementById('rule-presets');
   if (!box) return;
-  box.innerHTML = `<span class="rule-presets-label">${t('settings.rule_quick_start')}</span>` +
-    _rulePresets().map((p, i) => `<button class="rule-preset" data-i="${i}">${p.label}</button>`).join('');
-  box.querySelectorAll('.rule-preset').forEach(b =>
-    b.addEventListener('click', () => _fillRuleForm(_rulePresets()[+b.dataset.i], null)));
+  // more than 5 text choices is a dropdown (28.14), never a row of chips
+  box.innerHTML = `<div class="settings-input custom-select rule-preset-pick" data-placeholder="${t('settings.rule_pick_preset')}" aria-label="${t('settings.rule_pick_preset')}"></div>`;
+  const pick = box.firstElementChild;
+  populateDropdown(pick, _rulePresets().map((p, i) => ({ value: String(i), label: p.label })), '');
+  pick.addEventListener('change', () => { const p = _rulePresets()[+pick.value]; if (p) _fillRuleForm(p, null); });
 }
 
 // load a rule (or preset) into the form. id=null → adding/preset; id set → editing

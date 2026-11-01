@@ -79,7 +79,7 @@ with sync_playwright() as pw:
             )
             # totals in USD, picked from the bar
             page.locator("[data-totals-base]").click()
-            page.get_by_role("dialog").locator('[data-value="USD"]').click()
+            page.locator(".custom-dropdown-option", has_text="USD ·").click()
             expect(page.locator("[data-totals-base]")).to_contain_text("USD")
             expect(page.locator(".money-summary .ms-card").first).to_contain_text("USD")
             # then the EUR rate from its note

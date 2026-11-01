@@ -88,7 +88,7 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
     <div class="capture-fields">
       <label for="capture-title">${esc(t('calendar.title_label'))}</label><input class="settings-input" id="capture-title" value="${esc(candidate.title)}">
       ${kind === 'task' ? `
-        <label for="capture-due">${esc(t('home.capture_due_date'))}</label><div id="capture-due" class="date-input" data-type="date" data-value="${esc(candidate.due_date || '')}" aria-label="${esc(t('home.capture_due_date'))}"></div>
+        <label for="capture-due">${esc(t('home.capture_due_date'))}</label><div id="capture-due" class="date-input" data-type="due" data-value="${esc(candidate.due_date ? `${candidate.due_date}${candidate.due_time ? `T${candidate.due_time}` : ''}` : '')}" aria-label="${esc(t('home.capture_due_date'))}"></div>
         <label id="capture-priority-label">${esc(t('home.capture_priority'))}</label><div class="settings-input custom-select" id="capture-priority" aria-labelledby="capture-priority-label"></div>
         <label id="capture-repeat-label">${esc(t('home.capture_repeat'))}</label><div class="settings-input custom-select" id="capture-repeat" aria-labelledby="capture-repeat-label"></div>
         <label for="capture-tags">${esc(t('home.capture_tags'))}</label><input class="settings-input" id="capture-tags" value="${esc(candidate.tags || '')}">
@@ -179,7 +179,7 @@ export async function openCaptureReview(proposal, trigger, onSaved = null, isCur
         const title = el('title').value.trim();
         if (!title) { status.textContent = t('home.capture_add_title'); el('title').focus(); return; }
         const body = { ...candidate, title, source, request_id: requestId() };
-        if (kind === 'task') Object.assign(body, { due_date: el('due').value || null, priority: Number(getDropdownValue(el('priority'))), repeat: getDropdownValue(el('repeat')), tags: el('tags').value, project: el('project').value, notes: el('notes').value });
+        if (kind === 'task') Object.assign(body, { due_date: el('due').value || null, due_time: el('due').value.includes('T') ? el('due').value.slice(11, 16) : null, priority: Number(getDropdownValue(el('priority'))), repeat: getDropdownValue(el('repeat')), tags: el('tags').value, project: el('project').value, notes: el('notes').value });
         else {
           const allDay = el('all-day').getAttribute('aria-checked') === 'true';
           const start = el('start').value, end = el('end').value;

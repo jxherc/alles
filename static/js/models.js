@@ -3,6 +3,7 @@ import { confirm as _dlgConfirm } from './dialog.js';
 import { providerLogo, providerKey, brandColor } from './brandlogo.js';
 import { sortModels, filterNewest } from './modelfilter.js';
 import { t, tp } from './i18n.js';
+import { populateDropdown } from './dropdown.js?v=215';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _endpoints = [];
@@ -595,24 +596,27 @@ export function renderEndpointList() {
   });
 }
 
+// a list that can grow is one dropdown, never a wall of chips (28.14): picking a provider fills
+// the name and url below and moves on to the key
 function _renderPresets() {
   const el = document.getElementById('mm-presets');
   if (!el) return;
-  el.innerHTML = `<span style="font-size:0.8125rem;color:var(--muted);flex-shrink:0">${escHtml(t('models.quick_add'))}</span>`;
-  for (const p of PRESETS) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'mm-preset-btn';
-    btn.textContent = p.name;
-    btn.addEventListener('click', () => {
-      document.getElementById('ep-name').value = p.name;
-      document.getElementById('ep-url').value = p.url;
-      document.getElementById('ep-key').value = '';
-      document.getElementById('ep-key').placeholder = p.key || t('models.leave_blank');
-      document.getElementById('ep-key').focus();
-    });
-    el.appendChild(btn);
-  }
+  el.innerHTML = '';
+  const pick = document.createElement('div');
+  pick.className = 'settings-input custom-select mm-preset-pick';
+  pick.dataset.placeholder = t('models.add_a_provider');
+  pick.setAttribute('aria-label', t('models.add_a_provider'));
+  el.appendChild(pick);
+  populateDropdown(pick, PRESETS.map(p => ({ value: p.name, label: p.name })), '');
+  pick.addEventListener('change', () => {
+    const p = PRESETS.find(item => item.name === pick.value);
+    if (!p) return;
+    document.getElementById('ep-name').value = p.name;
+    document.getElementById('ep-url').value = p.url;
+    document.getElementById('ep-key').value = '';
+    document.getElementById('ep-key').placeholder = p.key || t('models.leave_blank');
+    document.getElementById('ep-key').focus();
+  });
 }
 
 export function initModelModal() {
