@@ -214,7 +214,7 @@ def navigation(page, api, dest, profile, records):
     open_pane(page, "general")
     page.wait_for_load_state("networkidle")
     expect(page.locator("#s-user-name")).to_have_accessible_name(re.compile(r"^greeting name"))
-    expect(page.locator("#s-username")).to_have_accessible_name(re.compile(r"^username"))
+    expect(page.locator("#s-username")).to_have_accessible_name(re.compile(r"^nickname"))
     expect(page.locator("#s-ui-font-size")).to_have_accessible_name("font size")
     for selector, label in (
         ("#s-welcome-toggle", "welcome message"),
@@ -249,12 +249,13 @@ def navigation(page, api, dest, profile, records):
         trigger = page.locator(f'[data-locale-choice="{name}"]')
         trigger.focus()
         page.keyboard.press("ArrowDown")
-        menu = page.locator(f'[data-locale-menu="{name}"]')
+        menu = page.locator(".custom-dropdown-panel")
         expect(menu).to_be_visible()
-        assert menu.evaluate("e => e.parentElement.id") == "settings-modal"
+        assert menu.evaluate("e => e.parentElement.tagName") == "BODY"
         page.keyboard.press("End")
         last = menu.locator('[role="option"]').last
-        expect(last).to_be_focused()
+        expect(last).to_have_class(re.compile(r"\bactive\b"))
+        expect(trigger).to_be_focused()
         expect(last).to_be_in_viewport(ratio=1)
         box = menu.bounding_box()
         assert box["x"] >= 8 and box["x"] + box["width"] <= page.viewport_size["width"] - 7
@@ -263,12 +264,11 @@ def navigation(page, api, dest, profile, records):
         menus.append({"name": name, "box": box, "last_option_visible": True})
         page.keyboard.press("Escape")
         expect(trigger).to_be_focused()
-        expect(menu).to_be_hidden()
-        assert menu.evaluate("e => e.parentElement.className") == "locale-choice-wrap"
+        expect(menu).to_have_count(0)
         trigger.click()
         menu.locator('[aria-selected="true"]').click()
         expect(trigger).to_be_focused()
-        expect(menu).to_be_hidden()
+        expect(menu).to_have_count(0)
     dump(
         dest / "usability.json",
         {
@@ -303,18 +303,24 @@ def navigation(page, api, dest, profile, records):
             expect(page.locator('.s-nav-item[data-pane="notifications"]')).to_be_focused()
         # every section after language & region, in the order the list shows them
         after_language = page.evaluate(
-            """() => { const panes = [...document.querySelectorAll('.s-nav-item')].map(e => e.dataset.pane);
-              return panes.slice(panes.indexOf('notifications') + 1); }"""
+            """() => { const panes = [...document.querySelectorAll('.s-nav-item')]
+                .map(e => e.dataset.pane ? `data-pane="${e.dataset.pane}"` : `data-link="${e.dataset.link}"`);
+              return panes.slice(panes.indexOf('data-pane="notifications"') + 1); }"""
         )
+        # the server entry is a link (data-link), every other entry opens a pane
         for pane in after_language:
             page.keyboard.press("Tab")
-            target = page.locator(f'.s-nav-item[data-pane="{pane}"]')
+            target = page.locator(f".s-nav-item[{pane}]")
             expect(target).to_be_focused()
             expect(target).to_be_in_viewport()
             # Focus does not select another pane or snap the strip back to it.
-            state = observe(f"{language}-focus-{pane}")
+            state = observe(f"{language}-focus-{pane.split(chr(34))[1]}")
             if pane == after_language[-1]:
                 nav_scroll = state["navScroll"]
+        if not compact:
+            # the rail's resize handle (rail_resize.js) is the stop between the list and the pane
+            page.keyboard.press("Tab")
+            expect(page.locator("#settings-modal .k-rail-resize")).to_be_focused()
         page.keyboard.press("Tab")
         expect(page.locator(f'[data-locale-language="{language}"]')).to_be_focused()
         after = observe(f"{language}-controls-hover")
@@ -323,7 +329,8 @@ def navigation(page, api, dest, profile, records):
         page.mouse.move(page.viewport_size["width"] - 1, 1)
         observe(f"{language}-controls-no-hover")
         target = settings_section_focus_target(page, "notifications")
-        assert tab_to(page, target, reverse=True) == (1 if compact else len(after_language) + 1)
+        # the extra stop on desktop is the rail resize handle
+        assert tab_to(page, target, reverse=True) == (1 if compact else len(after_language) + 2)
         observe(f"{language}-keyboard-return")
 
     # Touch switches the pane and persistent context together, without mouse hover.

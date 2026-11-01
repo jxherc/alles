@@ -1,8 +1,14 @@
 """SQLite infrastructure and the compatible model/session import interface."""
 
+import logging
 import os
+import sqlite3
+import time
+import traceback
+from pathlib import Path
 
 from sqlalchemy import create_engine, event
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from core.database_credentials import (
@@ -187,6 +193,49 @@ def _set_wal(conn, _):
     conn.execute("pragma synchronous=normal")
     conn.execute("pragma cache_size=-16000")  # ~16MB page cache (negative = KiB)
     conn.execute("pragma temp_store=memory")
+
+
+# a write that holds sqlite's lock longer than this makes every other save wait on busy_timeout;
+# log who took it so the slow writer can be found (u.13: a save failed 5s after boot)
+_LONG_WRITE_S = 2.0
+_WRITE_VERBS = ("insert", "update", "delete", "replace")
+
+
+@event.listens_for(engine, "before_cursor_execute")
+def _note_first_write(conn, _cursor, statement, _params, _context, _many):
+    if "write_started" in conn.info or not statement.lstrip()[:7].lower().startswith(_WRITE_VERBS):
+        return
+    conn.info["write_started"] = time.monotonic()
+    here = [
+        f"{Path(f.filename).parent.name}/{Path(f.filename).name}:{f.lineno} {f.name}"
+        for f in traceback.extract_stack(limit=40)
+        if "site-packages" not in f.filename
+    ]
+    conn.info["write_where"] = " < ".join(reversed(here[-4:-1]))
+
+
+def _end_write(conn):
+    started = conn.info.pop("write_started", None)
+    where = conn.info.pop("write_where", "")
+    if started is None:
+        return
+    held = time.monotonic() - started
+    if held > _LONG_WRITE_S:
+        logging.getLogger("alles.db").warning(
+            "a write held the database for %.1fs: %s",
+            held,
+            where,
+            extra={"event": "db.long_write", "held_s": round(held, 1)},
+        )
+
+
+event.listen(engine, "commit", _end_write)
+event.listen(engine, "rollback", _end_write)
+
+
+def is_locked_error(exc: BaseException) -> bool:
+    inner = getattr(exc, "orig", exc)
+    return isinstance(exc, (OperationalError, sqlite3.OperationalError)) and "locked" in str(inner)
 
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

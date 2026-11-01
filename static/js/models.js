@@ -3,7 +3,7 @@ import { confirm as _dlgConfirm } from './dialog.js';
 import { providerLogo, providerKey, brandColor } from './brandlogo.js';
 import { sortModels, filterNewest } from './modelfilter.js';
 import { t, tp } from './i18n.js';
-import { populateDropdown } from './dropdown.js?v=215';
+import { populateDropdown } from './dropdown.js?v=217';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _endpoints = [];

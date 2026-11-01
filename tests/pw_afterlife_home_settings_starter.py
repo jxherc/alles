@@ -146,7 +146,7 @@ def run() -> None:
         page.evaluate("document.documentElement.dataset.theme = 'light'")
         light_foreground = body.evaluate("el => getComputedStyle(el).color")
         light_background = body.evaluate("el => getComputedStyle(el).backgroundColor")
-        assert light_background == "rgb(244, 243, 240)"
+        assert light_background == "rgb(248, 246, 243)"
         assert _contrast(page, light_foreground, light_background) >= 7
         page.evaluate("document.documentElement.style.zoom = '2'")
         assert page.evaluate(

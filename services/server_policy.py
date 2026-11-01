@@ -252,6 +252,47 @@ def _host_command(manager: str, service_id: str, action: str) -> list[str]:
     return ["systemctl", "--user", action, service_id]
 
 
+MAX_DETECTED = 200
+
+
+def detect_host_services() -> list[dict]:
+    """the services the control commands above could reach, for the policy's add dropdown.
+    read only; the same managers and scopes _host_command uses (launchd gui domain, systemd --user)"""
+    if platform.system() == "Darwin":
+        manager, pattern = "launchd", _LAUNCHD_ID
+        command = ["launchctl", "list"]
+    elif platform.system() == "Linux":
+        manager, pattern = "systemd", _SYSTEMD_ID
+        command = [
+            "systemctl",
+            "--user",
+            "list-unit-files",
+            "--type=service",
+            "--no-legend",
+            "--no-pager",
+        ]
+    else:
+        return []
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if result.returncode != 0:
+        return []
+    found = set()
+    for line in result.stdout.splitlines():
+        # launchctl list: "PID Status Label"; systemctl: "unit state preset"
+        parts = line.split(None, 2) if manager == "launchd" else line.split()
+        if len(parts) < (3 if manager == "launchd" else 1):
+            continue
+        name = parts[2].strip() if manager == "launchd" else parts[0]
+        if name == "Label" or name.startswith("com.apple.") or "@." in name:
+            continue
+        if pattern.fullmatch(name):
+            found.add(name)
+    return [{"manager": manager, "id": name} for name in sorted(found)[:MAX_DETECTED]]
+
+
 def control_host_service(manager: str, service_id: str, action: str) -> dict:
     exact = require_allowed_host_service(manager, service_id)
     command = _host_command(manager, service_id, action)

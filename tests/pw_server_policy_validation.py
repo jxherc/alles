@@ -1,8 +1,7 @@
-"""Malformed local policy proposals retain their text and explain how to repair it."""
+"""The access policy: unset reads as unset, one action writes the safe default (28.35)."""
 
 import json
 import os
-import re
 import sys
 import traceback
 from pathlib import Path
@@ -64,53 +63,40 @@ def run():
                         root = page.locator("#server-workbench-view")
                         root.locator('[data-group-section="policy"]').press("Enter")
                         card = root.locator(".server-workbench-card").filter(
-                            has=page.get_by_role("heading", name="server access policy", exact=True)
+                            has=page.get_by_role(
+                                "heading", name="what alles may control", exact=True
+                            )
                         )
-                        editor = card.locator("textarea")
-                        expect(editor).to_be_visible()
-                        original = editor.input_value()
-                        # the validation result sits with the actions; a missing or broken file
-                        # keeps its own warning above the editor
-                        message = card.locator(".server-workbench-actions .server-workbench-status")
-                        validate = card.get_by_role(
-                            "button", name="validate and show diff", exact=True
+                        # 28.35: nothing to hand edit; a missing file is "not set up" with one action
+                        expect(card.locator("textarea")).to_have_count(0)
+                        keep = card.get_by_role("button", name="keep it to alles only", exact=True)
+                        if not before["valid"]:
+                            expect(card).to_contain_text("not set up yet")
+                            expect(card.locator(".is-error")).to_have_count(0)
+                            page.screenshot(path=str(output / f"{label}-unset.png"))
+                            keep.focus()
+                            with page.expect_response(base + "/api/system/policy") as response:
+                                page.keyboard.press("Enter")
+                            responses.append(response.value.status)
+                        mode = card.get_by_role("radiogroup", name="control")
+                        expect(mode).to_be_visible()
+                        expect(mode.get_by_role("radio", name="alles only")).to_have_attribute(
+                            "aria-checked", "true"
                         )
-                        for proposal in ("{", "", '{\n  "control_mode":\n}'):
-                            editor.fill(proposal)
-                            with page.expect_response(base + "/api/system/policy/diff") as response:
-                                validate.press("Enter")
-                            responses.append(response.value.json())
-                            expect(message).not_to_have_text("[object Object]")
-                            expect(message).to_contain_text("policy is not valid JSON")
-                            expect(message).to_contain_text(re.compile(r"line \d+, column \d+"))
-                            expect(editor).to_have_value(proposal)
-                            expect(validate).to_be_enabled()
-                            expect(validate).to_be_focused()
-                            assert api.get(base + "/api/system/policy").json() == before
-                        page.screenshot(path=str(output / f"{label}-invalid.png"))
-                        editor.fill(" " * 32769)
-                        validate.press("Enter")
-                        expect(message).to_contain_text("at most 32768 characters")
-                        expect(message).not_to_contain_text("[object Object]")
-                        expect(editor).to_have_value(" " * 32769)
-                        assert api.get(base + "/api/system/policy").json() == before
-                        editor.fill(original)
-                        validate.press("Enter")
-                        expect(message).to_have_text("policy is valid")
-                        expect(message).not_to_have_class(re.compile("is-error"))
-                        assert api.get(base + "/api/system/policy").json() == before
-                        assert editor.input_value() == original
-                        page.screenshot(path=str(output / f"{label}-recovered.png"))
+                        saved = api.get(base + "/api/system/policy").json()
+                        assert saved["valid"], saved
+                        assert saved["policy"] == {
+                            "control_mode": "owned_only",
+                            "host_services": [],
+                        }
+                        page.screenshot(path=str(output / f"{label}-saved.png"))
                         assert not errors, errors
                         assert not external, external
-                        assert all(
-                            "409 (Conflict)" in text or "422 (Unprocessable Entity)" in text
-                            for text in console
-                        ), console
+                        assert not console, console
                         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                         row.update(
                             status="passed",
-                            checks="syntax guidance, location, exact proposal retained, no policy mutation, corrected validation, keyboard focus, both themes",
+                            checks="unset state without an error, one keyboard action writes the safe default, pill switch shows alles only, no hand edited json, both themes",
                         )
                     except Exception:
                         row["error"] = traceback.format_exc()

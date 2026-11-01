@@ -4206,6 +4206,8 @@ registered intervals come from `app.py`. the current loop sleeps 30 seconds betw
 
 ## settings inventory
 
+the settings window groups its panes by what the owner is doing (decision 0057): you · how aide answers (models, personas, voice, chat display) · what aide knows (memory, web search, personal records, andromeda) · what aide does on its own (background checks, automations, patterns) · accounts and connections · safety and this alles (password, backups, a "server" entry that closes settings and opens the server app, about). general › setup › settings layout switches to "by how often", "by what it changes" or the classic grouping; the pick is kept per device (`localStorage` `alles-settings-organization`). `scripts/settings_homes.py` proves every pane, the server entry and every first run setup step has exactly one home in every layout and prints the inventory with `--table`. region, timezone and currency in language & region are the kit dropdown (type letters to jump). in the server app, a managed companion (adguard home, nginx proxy manager) starts from one "set up" button: it runs the port checks, then starts the companion and waits up to 120s for its admin api; nginx proxy manager's first admin login is made by alles and kept encrypted (`nginx-proxy-manager.admin.json`), and an expired token signs in again with it. a failed start names docker's last error line.
+
 these are source defaults in [core/settings.py](core/settings.py), not values from an owner's installation. long/nested values are abbreviated; the source and settings routes contain their complete structure and validation.
 
 <details>

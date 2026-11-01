@@ -103,6 +103,41 @@
           "key": "habit_logs",
           "title": "every habit logs its own details",
           "body": "open a habit and log its day with its own fields: distance and time for a run, glasses for water, care and moisture for plants. today starts from your last entry, so the same as last time is one tap. a gym day shows every session with its note, and an imported workout log reads drop sets, slash sets and failed sets right."
+        },
+        {
+          "key": "settings_layout",
+          "title": "settings grouped by what you're doing",
+          "body": "models, personas and voice now sit together under how aide answers, and memory, web search and personal records under what aide knows. the server has its own entry. don't like it? general, settings layout switches to by how often, by what it changes, or the classic order."
+        },
+        {
+          "key": "access_policy",
+          "title": "access policy in one tap",
+          "body": "server, access policy no longer asks you to write a file. one button keeps it to alles only, and a switch plus a list of the services alles found lets it manage others."
+        },
+        {
+          "key": "first_run",
+          "title": "a new install opens setup",
+          "body": "the first time you open alles it starts setup instead of release notes. the notes wait until you're set up."
+        },
+        {
+          "key": "backup_targets",
+          "title": "backup targets say what they do",
+          "body": "webdav and s3 backups that aren't set up show one line about what they're for and a set up button, instead of empty status rows."
+        },
+        {
+          "key": "busy_save",
+          "title": "busy instead of an error",
+          "body": "a save that lands while alles is still starting up says it's busy and to try again, instead of a raw server error."
+        },
+        {
+          "key": "pick_several",
+          "title": "pick several from one list",
+          "body": "activity's filters are one dropdown with checkmarks instead of a wall of chips. region, timezone and currency use the same dropdown as the rest of alles, and typing a few letters jumps to them."
+        },
+        {
+          "key": "proxy_setup",
+          "title": "nginx proxy manager sets itself up",
+          "body": "one set up button checks the ports and starts it, waits while it gets ready, and makes its admin login for you. if a port is taken, it says which."
         }
       ]
     },

@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 const { unseen } = await import('../../static/js/whatsnew.js');
 const list = [{ id: 'c' }, { id: 'b' }, { id: 'a' }];
 
-test('a first visit shows only the newest release', () => {
-  assert.deepEqual(unseen(list, '').map(r => r.id), ['c']);
+// u.11: a fresh install opens setup, not release notes
+test('a first visit shows no release notes', () => {
+  assert.deepEqual(unseen(list, ''), []);
 });
 
 test('a returning visit shows what came out since, and nothing once seen', () => {

@@ -108,6 +108,86 @@ class ManagedCompanionClientTests(unittest.TestCase):
         self.assertEqual(requester.calls[-1][2]["headers"]["Authorization"], "Bearer jwt-secret")
         self.assertEqual(requester.calls[-1][2]["json"]["domain_names"], ["home.example"])
 
+    def test_npm_first_admin_is_created_sealed_and_connected(self):
+        requester = Requester(
+            [
+                Response(payload={"status": "OK", "setup": False}),
+                Response(status_code=201, payload={"id": 1}),
+                Response(payload={"token": "jwt-secret", "expires": "2099-01-01T00:00:00Z"}),
+            ]
+        )
+        result = clients.setup_npm_admin(
+            "admin@alles.local", "generated-password", requester=requester
+        )
+        self.assertTrue(result["created"])
+        body = requester.calls[1][2]["json"]
+        self.assertEqual(body["roles"], ["admin"])
+        self.assertEqual(body["auth"], {"type": "password", "secret": "generated-password"})
+        stored = (self.root / "nginx-proxy-manager.admin.json").read_text("utf-8")
+        self.assertNotIn("generated-password", stored)
+        self.assertTrue((self.root / "nginx-proxy-manager.credentials.json").is_file())
+
+    def test_npm_first_admin_skipped_when_already_set_up(self):
+        requester = Requester([Response(payload={"status": "OK", "setup": True})])
+        result = clients.setup_npm_admin(
+            "admin@alles.local", "generated-password", requester=requester
+        )
+        self.assertFalse(result["created"])
+        self.assertEqual(len(requester.calls), 1)
+        self.assertFalse((self.root / "nginx-proxy-manager.admin.json").exists())
+
+    def test_npm_failed_first_admin_leaves_no_stored_password(self):
+        requester = Requester(
+            [Response(payload={"setup": False}), Response(status_code=400, payload={})]
+        )
+        with self.assertRaises(clients.CompanionClientError):
+            clients.setup_npm_admin("admin@alles.local", "generated-password", requester=requester)
+        self.assertFalse((self.root / "nginx-proxy-manager.admin.json").exists())
+
+    def test_npm_expired_token_signs_in_again_with_the_stored_admin(self):
+        clients.setup_npm_admin(
+            "admin@alles.local",
+            "generated-password",
+            requester=Requester(
+                [
+                    Response(payload={"setup": False}),
+                    Response(status_code=201, payload={"id": 1}),
+                    Response(payload={"token": "old-token", "expires": "2020-01-01T00:00:00Z"}),
+                ]
+            ),
+        )
+        requester = Requester(
+            [
+                Response(payload={"token": "new-token", "expires": "2099-01-01T00:00:00Z"}),
+                Response(payload=[]),
+                Response(payload=[]),
+            ]
+        )
+        clients.npm_dashboard(requester=requester)
+        self.assertEqual(requester.calls[0][2]["json"]["secret"], "generated-password")
+        self.assertEqual(requester.calls[1][2]["headers"]["Authorization"], "Bearer new-token")
+
+    def test_npm_expired_token_without_admin_is_left_alone(self):
+        clients.connect_npm(
+            "owner@example.test",
+            "login-password",
+            requester=Requester(
+                [Response(payload={"token": "jwt-secret", "expires": "2020-01-01T00:00:00Z"})]
+            ),
+        )
+        requester = Requester([Response(payload=[]), Response(payload=[])])
+        clients.npm_dashboard(requester=requester)
+        self.assertEqual(requester.calls[0][2]["headers"]["Authorization"], "Bearer jwt-secret")
+
+    def test_clear_credentials_keeps_generated_admin_only_on_request(self):
+        for name in ("nginx-proxy-manager.credentials.json", "nginx-proxy-manager.admin.json"):
+            (self.root / name).write_text("{}", "utf-8")
+        clients.clear_credentials("nginx-proxy-manager", keep_admin=True)
+        self.assertFalse((self.root / "nginx-proxy-manager.credentials.json").exists())
+        self.assertTrue((self.root / "nginx-proxy-manager.admin.json").exists())
+        clients.clear_credentials("nginx-proxy-manager")
+        self.assertFalse((self.root / "nginx-proxy-manager.admin.json").exists())
+
     def test_rejected_credentials_never_leak_response_body(self):
         requester = Requester([Response(status_code=401, payload={"message": "secret detail"})])
         with self.assertRaisesRegex(clients.CompanionClientError, "credentials were rejected"):

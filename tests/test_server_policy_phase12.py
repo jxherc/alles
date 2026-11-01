@@ -177,3 +177,32 @@ class ServerPolicyServiceTest(ApiTest):
         )
         with self.assertRaises(server_policy.ServerPolicyError):
             server_policy.control_host_service("launchd", "com.example.other", "restart")
+
+    def test_detected_services_are_exact_ids_the_controls_can_reach(self):
+        listing = "PID\tStatus\tLabel\n-\t0\tcom.apple.Finder\n412\t0\tcom.example.indexer\n-\t0\tbad id\n"
+        done = mock.Mock(returncode=0, stdout=listing, stderr="")
+        with (
+            mock.patch("services.server_policy.platform.system", return_value="Darwin"),
+            mock.patch("services.server_policy.subprocess.run", return_value=done),
+        ):
+            mac = server_policy.detect_host_services()
+        self.assertEqual(mac, [{"manager": "launchd", "id": "com.example.indexer"}])
+        units = "nginx.service enabled enabled\ngetty@.service static -\nweird unit\n"
+        done = mock.Mock(returncode=0, stdout=units, stderr="")
+        with (
+            mock.patch("services.server_policy.platform.system", return_value="Linux"),
+            mock.patch("services.server_policy.subprocess.run", return_value=done) as run,
+        ):
+            linux = server_policy.detect_host_services()
+        self.assertEqual(linux, [{"manager": "systemd", "id": "nginx.service"}])
+        self.assertIn("--user", run.call_args.args[0])
+
+    def test_missing_policy_reads_as_unset_with_the_safe_default_ready(self):
+        server_policy.policy_path().unlink(missing_ok=True)
+        current = server_policy.read()
+        self.assertFalse(current["valid"])
+        self.assertEqual(current["error_code"], "policy_missing")
+        saved = server_policy.save(json.dumps(server_policy.DEFAULT_POLICY))
+        self.assertTrue(saved["valid"])
+        self.assertEqual(saved["policy"], server_policy.DEFAULT_POLICY)
+        self.assertEqual(server_policy.policy_path().stat().st_mode & 0o777, 0o600)

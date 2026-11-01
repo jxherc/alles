@@ -16,3 +16,16 @@ async def api_error_handler(_request: Request, error: ApiError) -> JSONResponse:
         content={"detail": error.detail, "code": error.code},
         headers=error.headers,
     )
+
+
+async def database_busy_handler(_request: Request, error: Exception) -> JSONResponse:
+    """a write that waited out sqlite's busy_timeout answers "busy, try again", never a raw 500."""
+    from core.database import is_locked_error
+
+    if not is_locked_error(error):
+        raise error
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Alles is busy for a moment. Try again.", "code": "database_busy"},
+        headers={"Retry-After": "2"},
+    )
