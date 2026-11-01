@@ -5,6 +5,10 @@
       "date": "november 1, 2026",
       "items": [
         {
+          "title": "one folder for your stuff",
+          "body": "docs and files now live together in ~/Alles, with docs in ~/Alles/Docs, so files shows everything you wrote. backups moved out of view, next to the data. an older install moves over when you accept the update, or with alles folders move."
+        },
+        {
           "title": "aide in the terminal",
           "body": "alles ask answers one question right in the terminal and alles chat keeps a whole conversation. both land in aide's history like any other chat."
         },

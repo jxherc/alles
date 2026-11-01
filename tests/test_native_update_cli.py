@@ -26,6 +26,8 @@ class NativeUpdateCliTest(unittest.TestCase):
             releases=self.releases,
             previous_release=self.previous,
             runtime_root=self.root / "runtime",
+            home=self.root / "home",
+            support_root=self.root,
         )
         self.old = "a" * 40
         self.new = "b" * 40
@@ -870,6 +872,28 @@ class NativeUpdateCliTest(unittest.TestCase):
         accept.assert_called_once_with(self.layout, expected_previous="old-release")
         self.assertFalse(state_path.exists())
         self.assertEqual(backup.read_bytes(), b"encrypted rollback")
+
+    def test_accept_then_runs_the_one_folder_move_in_the_new_release(self):
+        state_path = self.updates / "native-latest.json"
+        backup = self.updates / "rollback.alles-backup"
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        backup.write_bytes(b"encrypted rollback")
+        cli._write_update_state(state_path, {**self._state(), "backup": str(backup)})
+        with (
+            mock.patch.object(
+                cli, "_update_paths", return_value=(self.updates, self.updates / "latest.json")
+            ),
+            mock.patch(
+                "services.native_install.verify_install", return_value={"release_id": self.new}
+            ),
+            mock.patch("services.native_install.accept_release"),
+            mock.patch("services.recovery_crypto.is_encrypted_recovery", return_value=True),
+            mock.patch.object(cli, "_folders_move", return_value=True) as folders,
+            mock.patch("sys.stdout"),
+        ):
+            self.assertTrue(cli._cmd_native_update_accept(self.layout))
+        folders.assert_called_once_with(self.layout, quiet_when_nothing=True)
+        self.assertFalse(state_path.exists())
 
     def test_accept_failure_keeps_recovery_state_for_a_safe_retry(self):
         state_path = self.updates / "native-latest.json"

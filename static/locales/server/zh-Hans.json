@@ -716,7 +716,6 @@
     "document is not valid UTF-8; open it externally or restore a UTF-8 copy": "文档不是有效的 UTF-8；请在外部打开，或恢复一份 UTF-8 副本",
     "document is not valid UTF-8; the original file was left unchanged": "文档不是有效的 UTF-8，原文件保持不变",
     "document not found": "找不到文档",
-    "documents and Files need separate folders that do not contain each other": "文档和文件需要使用互不包含的不同文件夹",
     "download size did not match": "下载大小不匹配",
     "download verification failed": "下载验证失败",
     "draft changed before it could be deleted": "草稿在删除前发生了变化",
@@ -865,7 +864,6 @@
     "incomplete upload private artifacts cannot be released safely": "未完成上传的私有产物无法安全释放",
     "incomplete upload recovery state is invalid": "未完成上传的恢复状态无效",
     "incomplete upload still has data or private artifacts that cannot be released safely": "未完成的上传仍有无法安全释放的数据或私有产物",
-    "inside-Alles document and Files paths need the same Alles folder": "Alles 内部的文档和文件路径需要使用同一个 Alles 文件夹",
     "install and verify the local voice runtime first": "请先安装并验证本地语音运行环境",
     "install icalBuddy (`brew install ical-buddy`) or wire pyobjc EventKit": "请安装 icalBuddy（`brew install ical-buddy`）或接入 pyobjc EventKit",
     "install path contains an unsupported character": "安装路径包含不支持的字符",
@@ -2523,6 +2521,8 @@
     "the configured release source could not be checked": "无法检查配置的发布来源",
     "this install has no release source to check": "此安装没有可检查的发布来源",
     "chromium is downloaded but doesn't start: alles tools install browser": "chromium 已下载，但无法启动：alles tools install browser",
-    "node needs the libatomic1 package: sudo apt install libatomic1": "node 需要 libatomic1 软件包：sudo apt install libatomic1"
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node 需要 libatomic1 软件包：sudo apt install libatomic1",
+    "the Files folder can't be the document folder or sit inside it": "文件文件夹不能是文档文件夹，也不能位于其中",
+    "inside-Alles documents need to sit directly in the Files folder": "Alles 内部的文档需要直接位于文件文件夹中"
   }
 }

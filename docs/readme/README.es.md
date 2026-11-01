@@ -92,6 +92,8 @@ la interfaz está disponible en english, français, español, 简体中文, 繁�
 
 una vez instalado, alles guarda tu base de datos y los archivos que gestiona en `~/.local/share/alles/data` en Linux o en `~/Library/Application Support/Alles/data` en macOS; `alles status` muestra dónde. si lo ejecutas desde el código fuente, usa `data/`, o `ALLES_DATA` si lo defines. mantén esa carpeta privada y haz copias de seguridad de ella. los proveedores externos reciben las solicitudes que les envías a través de sus conexiones.
 
+tus documentos y archivos están en una sola carpeta visible, `~/Alles`, con los documentos en `~/Alles/Docs`, así archivos muestra todo lo que escribiste. las copias diarias van junto a la carpeta de datos, fuera de la vista. una instalación de antes de noviembre pasa a esta organización cuando ejecutas `alles update accept` (o `alles folders move`); las carpetas que elegiste tú o que están en otro disco se quedan donde están, y `alles doctor` dice por qué.
+
 abre **settings → backup** para descargar una copia de seguridad cifrada. también puedes enviar una a mano a una carpeta WebDAV por HTTPS que ya exista o a un bucket compatible con S3, o activar copias locales diarias durante la configuración inicial. guarda tu clave de recuperación en algún lugar fuera de alles para poder acceder a ella aunque la app deje de funcionar.
 
 alles comprueba la copia y prepara la restauración antes de aplicarla. detén la app y luego sigue el comando que te indique. lee [los detalles de copia y restauración](../../specifications.md#your-data-where-everything-lives) antes de mover una instalación existente.

@@ -872,6 +872,15 @@ async def lifespan(app: FastAPI):
 
     instance_lock = InstanceLock(live_data)
     instance_lock.acquire()
+    if not preflight:
+        # a reboot in the middle of the one folder move finishes it (or puts it back) first
+        from services import folder_layout
+
+        try:
+            if folder_layout.resume_on_start(live_data):
+                log.warning("finished an interrupted folder move")
+        except (folder_layout.FolderMoveError, OSError):
+            log.exception("an interrupted folder move needs: alles folders move")
     reminder_task = None
     photo_backfill_task = None
     connectivity_task = None

@@ -6081,7 +6081,7 @@
     "setup.install_companion": "コンパニオンをインストール",
     "setup.installing_companion": "コンパニオンをインストール中…",
     "setup.keep_inside": "ドキュメントとファイルを alles の中に保存",
-    "setup.keep_inside_note": "おすすめ: ~/Alles/Vault と ~/Alles/Files",
+    "setup.keep_inside_note": "おすすめ: ~/Alles（ドキュメントは ~/Alles/Docs）",
     "setup.load_failed": "セットアップを読み込めませんでした",
     "setup.loading": "セットアップを読み込み中…",
     "setup.model_providers": "モデルプロバイダー",

@@ -26,7 +26,12 @@ PLACEHOLDER = re.compile(r"\{([a-z][a-z0-9_]*)\}")
 
 # a migration's refusals and a programming slip never reach a screen, and neither does what the
 # terminal-only helpers of the alles command print (cli.py itself isn't scanned either)
-SKIP_DIRS = ("core/migrations", "services/cli_chat.py", "services/cli_logs.py")
+SKIP_DIRS = (
+    "core/migrations",
+    "services/cli_chat.py",
+    "services/cli_logs.py",
+    "services/folder_layout.py",
+)
 SKIP_ERRORS = {"AssertionError", "NotImplementedError", "SystemExit"}
 SHOWN_FIELDS = {"detail", "error", "message", "reason"}
 

@@ -6081,7 +6081,7 @@
     "setup.install_companion": "연동 설치",
     "setup.installing_companion": "연동 설치 중…",
     "setup.keep_inside": "문서와 파일을 alles 안에 보관",
-    "setup.keep_inside_note": "권장: ~/Alles/Vault 및 ~/Alles/Files",
+    "setup.keep_inside_note": "권장: ~/Alles, 문서는 ~/Alles/Docs",
     "setup.load_failed": "설정을 불러오지 못했습니다",
     "setup.loading": "설정 불러오는 중…",
     "setup.model_providers": "모델 제공업체",
