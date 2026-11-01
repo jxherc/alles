@@ -366,11 +366,26 @@ async def stream_chat(
     # build url + headers + payload
     if provider == "anthropic":
         url = base_url.rstrip("/") + "/v1/messages"
-        headers = {
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
+        if api_key.startswith("sk-ant-oat"):
+            # the owner's Claude subscription, not an API key. anthropic wants a bearer
+            # token and the Claude Code betas; pi-anthropic-oauth's src/stream.ts does the
+            # same. https://github.com/leohenon/pi-anthropic-oauth
+            headers = {
+                "authorization": f"Bearer {api_key}",
+                "anthropic-version": "2023-06-01",
+                "anthropic-beta": (
+                    "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14"
+                ),
+                "user-agent": "claude-cli/2.1.280 (external, cli)",
+                "x-app": "cli",
+                "content-type": "application/json",
+            }
+        else:
+            headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            }
         payload = _build_anthropic_payload(messages, model, **kw)
     elif provider == "ollama":
         url = _ollama_chat_url(base_url)

@@ -170,10 +170,13 @@ http audit metadata in [services/audit.py](services/audit.py) is separate from d
 | actual | [services/actual_bridge.py](services/actual_bridge.py), [integrations/actual/bridge.mjs](integrations/actual/bridge.mjs) | pinned official node client |
 | bank aggregation | [services/finance_connectors.py](services/finance_connectors.py) | read-only simplefin/plaid, sealed credentials, stable provenance |
 | mcp | [services/mcp_registry.py](services/mcp_registry.py), [services/mcp_server.py](services/mcp_server.py) | external peers and alles tool interface |
+| sign in | [services/signin.py](services/signin.py), [services/signin_providers.py](services/signin_providers.py) | provider tokens in existing sealed columns, memory-only attempts, revocable grants |
 | discord | [services/jarvis_discord.py](services/jarvis_discord.py), [services/jarvis_outbox.py](services/jarvis_outbox.py) | pairing, persistent conversations, delivery |
 | notifications | [services/webpush.py](services/webpush.py), [services/webhook_delivery.py](services/webhook_delivery.py) | push and configured webhook delivery |
 | native helpers | [services/macos_bridge.py](services/macos_bridge.py), [services/photokit.py](services/photokit.py) | platform and permission gates |
 | service control | [services/native_install.py](services/native_install.py), [services/server_policy.py](services/server_policy.py) | verified ownership and exact allowlisted host services |
+
+**sign in with a provider:** one surface, `/api/signin`, starts and watches a sign-in for github, microsoft, google, claude or chatgpt. github and microsoft use a public device flow with a client id alles ships and no secret; google uses the owner's own web client from mail settings; claude and chatgpt use their subscription sign-in (the owner accepted those providers' terms on oct 28). the server polls the provider on the device flow's interval (adding five seconds on `slow_down`), so the browser only polls alles. a redirect returns to `/api/signin/callback/{provider}` and sends the browser to `/?signin={attempt}` on the host that started it; a paste-code flow shows a url and takes the code back. attempts live in memory, one per provider and use, and a restart forgets a waiting one. tokens land in the existing sealed columns (`connections`, `mail_accounts`, `model_endpoints`) or the sealed caldav config; refresh saves rotated tokens, a refresh that fails for good marks only that account `needs_sign_in`, and sign out deletes the stored tokens and revokes at the provider where its docs allow it without a client secret. gmail, google calendar and gemini share the owner's mail oauth client; each use asks only for its own scope. gmail and gemini sign-ins made before this work are listed too.
 
 ### model and action decisions
 
@@ -598,6 +601,7 @@ a real email client (read + send), with one-click setup for the big providers an
   queued later. ordinary cancellation of an unknown id still returns not found
 - schedule API timestamps require a valid date and time. explicit offsets normalize to UTC;
   valid timestamps without an offset retain their legacy UTC meaning. existing records are unchanged
+- **sign in instead of a password:** the accounts screen starts a microsoft device sign-in for outlook, hotmail and work mail (imap `outlook.office365.com:993`, smtp `smtp.office365.com:587`, xoauth2), or reuses the owner's google client for gmail. a rotated microsoft refresh token is saved on every refresh, and a refresh that fails for good marks the account `needs_sign_in` without breaking the other accounts.
 - **ai:** summarize a long thread, turn an email into a task, or turn an email into a calendar event (the ai reads out the date/time/title for you)
 - **fast + offline-tolerant:** a persistent header cache means the inbox opens instantly and still shows your last sync when the network's slow or down; local search over the cache is instant
 - *under the hood:* built directly on python's standard `imaplib`/`smtplib`; no third-party mail library. it pools live connections, caches what it's read, loads the inbox by range (not a slow "search everything"), and opens a message by pulling *only* its text/html body (not the attachments), so it stays fast on a weak connection.
@@ -688,7 +692,7 @@ a calendar with month / week / day views and repeating events.
   the time has passed, the clocks skip it, the page doesn't offer it, or it was just taken. free
   time, free slots and booking count events (repeats too) that started the night before and run
   into the day.
-- optional **two-way sync with caldav** (the open calendar-sync standard used by icloud and google) if you add your credentials
+- optional **two-way sync with caldav** (the open calendar-sync standard used by icloud and google) if you add your credentials. signing in with google stores a bearer-token config for `https://apidata.googleusercontent.com/caldav/v2/<calendar-id>/user` (the calendar id is the account's email for its primary calendar) and refreshes the token before it expires; the config stays in the existing sealed `caldav.json`
 
 <p align="center"><img src="docs/screenshots/calendar.png" width="760" alt="calendar: month view with events"></p>
 
@@ -1233,6 +1237,7 @@ details that matter in practice:
 - **localhost stays direct:** aide's model client bypasses environment proxies for loopback endpoints; remote endpoints use the normal proxy configuration.
 - **model lists auto-refresh:** aide periodically re-pulls each provider's available models (and on demand), so new releases show up on their own.
 - **endpoint bootstrap:** put `DEEPSEEK_API_KEY` or `ANTHROPIC_API_KEY` in `.env` and the matching endpoint is created on first boot, or add an endpoint in the interface.
+- **owner subscriptions:** a claude pro/max or chatgpt sign-in adds a model endpoint that uses that account's oauth token. anthropic requests send a bearer token with the claude-code betas (the owner's oct 28 decision, see [services/model_auth.py](services/model_auth.py)); openai stores the codex base url. api-key providers are unchanged, and every other consumer-chat session stays out of alles.
 - **adding a connection:** settings → models and first-run setup share one alphabetical provider list with nothing pre-selected or recommended. a listed provider asks only for its key (its address stays editable behind "change address"); "custom endpoint" takes a name, base url, optional key (blank only for an address on this machine), api type (openai-compatible, anthropic, gemini or ollama) and optional model ids. after a successful add, its models are offered once for aide chat. the local serving card lists only models already on the machine.
 - **aide base prompt:** a short code-owned prompt introduces alles as the owner's private system, lists its spaces, and sets tool, approval and untrusted-content rules. owner instructions follow it, and the current date in the owner's timezone comes last. the older one-line default saved by earlier installs still counts as "no owner instructions".
 
@@ -1519,6 +1524,8 @@ json errors may contain `detail` and a stable `code`; legacy handlers also use n
 
 api tokens are stored as hashes and use explicit `read`, `write`, `models`, `agent`, `secrets`, `connections`, or `admin` scopes. admin grants every scope. an invalid recognized bearer token fails instead of falling back to a cookie. [core/api_tokens.py](core/api_tokens.py) contains the exact prefix-to-scope mapping; individual dependencies can impose more requirements.
 
+`/api/signin` is the one sign-in surface: `GET providers`, `POST start`, `GET attempts/{attempt}`, `POST attempts/{attempt}/cancel`, `POST attempts/{attempt}/code`, `GET callback/{provider}`, `GET accounts`, `POST accounts/{id}/check` and `DELETE accounts/{id}`. errors use the same `detail`/`code` body; a provider that isn't set up answers 409 `not_ready`, and a provider refusal answers 502 `provider_error` with the provider's own words. not-ready reasons and attempt errors are plain `{code, text}` fields in a 200 answer. starting and signing out need a recent owner sign-in. the exact shapes are pinned by `tests/test_signin_contract.py`.
+
 chat and tool execution use server-sent events. provider output is normalized into text, reasoning, tool calls, completion, and usage. higher-level streams also emit run, approval, question, status, and error events; native streams contain more event types than the openai-compatible interface.
 
 `/api/shell/pty` is the registered websocket endpoint. it provides an interactive posix terminal in the chosen project/session environment. [routes/shell.py](routes/shell.py) checks authentication and browser origin before accepting it; binary terminal output and control messages are distinct from sse.
@@ -1584,8 +1591,8 @@ recovery can explain what the archive contains.
 
 alles is one fastapi owner process with a browser client. sqlite owns structured state; the markdown
 vault owns human-authored knowledge; configured files and photos roots own managed bytes. models,
-search, mail, calendars, contacts, mcp peers, notification providers, public links, native helpers, and
-external folders are separate trust zones. their input is data, not trusted instruction. andromeda's
+search, mail, calendars, contacts, mcp peers, notification providers, public links, native helpers, sign-in
+providers, and external folders are separate trust zones. their input is data, not trusted instruction. andromeda's
 answer tools ask a fixed list of public data hosts from the server (frankfurter, open-meteo, the free
 dictionary api, wiktionary, datamuse, jolpica-f1): only the word, place, currency pair or nothing at all
 leaves, never the owner's browser address, and text to translate goes only to the owner's answer model
@@ -1715,9 +1722,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1002 http method/path pairs
-- 976 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
-- sha-256: `29f2e804836dcb0c4bf7a27ad2f231702e2150b0a8281d56aa39b0fa07f30770`
+- 1011 http method/path pairs
+- 985 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
+- sha-256: `92e54a02f4bd976e32cee2ba3a55254caf9bd96e3a55407961d085c72d37a939`
 
 <details>
 <summary>app.py · 10 operations</summary>
@@ -2147,7 +2154,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/connections.py · 5 operations</summary>
+<summary>routes/connections.py · 14 operations</summary>
 
 [source](routes/connections.py)
 
@@ -2158,6 +2165,15 @@ the compatibility snapshot locks the registered http surface:
 | `POST` | `/api/connections/rotate-key` | `rotate_connection_key` |
 | `DELETE` | `/api/connections/{conn_id}` | `del_conn` |
 | `GET` | `/api/connections/{service}/test` | `test_conn` |
+| `DELETE` | `/api/signin/accounts/{account_id}` | `sign_out` |
+| `GET` | `/api/signin/accounts` | `accounts` |
+| `GET` | `/api/signin/attempts/{attempt}` | `attempt` |
+| `GET` | `/api/signin/callback/{provider}` | `callback` |
+| `GET` | `/api/signin/providers` | `providers` |
+| `POST` | `/api/signin/accounts/{account_id}/check` | `check` |
+| `POST` | `/api/signin/attempts/{attempt}/cancel` | `cancel` |
+| `POST` | `/api/signin/attempts/{attempt}/code` | `code` |
+| `POST` | `/api/signin/start` | `start` |
 
 </details>
 
@@ -4179,6 +4195,8 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `mail_oauth_client_secret` | `""` |
 | `mail_oauth_redirect_base` | `""` |
 | `mail_oauth_revision` | `0` |
+| `signin_github_client_id` | `""` |
+| `signin_microsoft_client_id` | `""` |
 
 </details>
 

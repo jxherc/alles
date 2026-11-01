@@ -152,6 +152,19 @@ _DEPENDENCY_ADDITIONS = {
 # texting Aide on telegram through the owner's own bot
 _TELEGRAM_CHANNEL_ADDITIONS = {"GET /api/aide/channels/telegram", "PUT /api/aide/channels/telegram"}
 
+# one sign in surface for github, microsoft, google, claude and chatgpt
+_SIGNIN_ADDITIONS = {
+    "DELETE /api/signin/accounts/{account_id}",
+    "GET /api/signin/accounts",
+    "GET /api/signin/attempts/{attempt}",
+    "GET /api/signin/callback/{provider}",
+    "GET /api/signin/providers",
+    "POST /api/signin/accounts/{account_id}/check",
+    "POST /api/signin/attempts/{attempt}/cancel",
+    "POST /api/signin/attempts/{attempt}/code",
+    "POST /api/signin/start",
+}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -172,6 +185,7 @@ def _route_rows():
         | _SPELLFIX_ADDITIONS
         | _TELEGRAM_CHANNEL_ADDITIONS
         | _DEPENDENCY_ADDITIONS
+        | _SIGNIN_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -307,6 +321,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _SPELLFIX_ADDITIONS
                 - _TELEGRAM_CHANNEL_ADDITIONS
                 - _DEPENDENCY_ADDITIONS
+                - _SIGNIN_ADDITIONS
             ),
             960,
         )
@@ -351,6 +366,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _SPELLFIX_ADDITIONS
                 - _TELEGRAM_CHANNEL_ADDITIONS
                 - _DEPENDENCY_ADDITIONS
+                - _SIGNIN_ADDITIONS
             ),
             974,
         )
@@ -385,8 +401,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1002)
-        self.assertEqual(digest, "29f2e804836dcb0c4bf7a27ad2f231702e2150b0a8281d56aa39b0fa07f30770")
+        self.assertEqual(len(rows), 1011)
+        self.assertEqual(digest, "92e54a02f4bd976e32cee2ba3a55254caf9bd96e3a55407961d085c72d37a939")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -395,7 +411,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 976, "v1": 2, "public": 24})
+        self.assertEqual(groups, {"api": 985, "v1": 2, "public": 24})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

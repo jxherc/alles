@@ -239,6 +239,9 @@ _defaults = {
     "mail_oauth_client_id": "",
     "mail_oauth_client_secret": "",
     "mail_oauth_redirect_base": "",  # blank follows the local Alles port; override for another URL
+    # sign in with a provider - the two public clients alles ships (no secret)
+    "signin_github_client_id": "",
+    "signin_microsoft_client_id": "",
 }
 
 _ARTIFACT_INSTRUCTIONS = (

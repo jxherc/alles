@@ -47,6 +47,7 @@ SETTING_CREDENTIAL_KEYS = (
 
 CONFIG_CREDENTIAL_FIELDS = (
     ("caldav.json", "password", "caldav.password"),
+    ("caldav.json", "oauth_tokens", "caldav.oauth"),
     ("carddav.json", "password", "carddav.password"),
     ("adguard-home.credentials.json", "password", "companions.adguard.password"),
     ("nginx-proxy-manager.credentials.json", "token", "companions.npm.token"),

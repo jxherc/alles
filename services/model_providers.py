@@ -171,14 +171,20 @@ async def fetch_catalog(endpoint, *, client=None) -> CatalogResult:
     try:
         if adapter == "anthropic":
             url = _url(endpoint.base_url, "/v1/models") + "?limit=100"
-            payload = await _request_json(
-                client,
-                url,
-                {
+            if (getattr(endpoint, "auth_type", "") or "") == "oauth":
+                headers = {
+                    "authorization": f"Bearer {endpoint.api_key or ''}",
+                    "anthropic-version": "2023-06-01",
+                    "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+                    "user-agent": "claude-cli/2.1.280 (external, cli)",
+                    "x-app": "cli",
+                }
+            else:
+                headers = {
                     "x-api-key": endpoint.api_key or "",
                     "anthropic-version": "2023-06-01",
-                },
-            )
+                }
+            payload = await _request_json(client, url, headers)
             items = payload.get("data")
             if not isinstance(items, list):
                 raise CatalogFetchError("invalid_response")
