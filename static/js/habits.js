@@ -177,8 +177,11 @@ function _render() {
   const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
   const opened = _open && _habits.find(h => h.id === _open);
   if (_open && !opened) _open = null;
+  // a failed refresh shows over an opened habit too (no loading line there: it would shift the page)
+  const error = _loadError ? `<div class="specialist-group-note legacy-load-note habit-load-error" role="alert"><span>${esc(_loadError)}</span><button type="button" class="btn" data-act="retry-load">${esc(t('common.retry'))}</button></div>` : '';
+  const notes = `${_loading ? `<div class="specialist-group-note" role="status">${esc(t('habits.loading'))}</div>` : ''}${error}`;
   if (opened) {
-    body.innerHTML = _detail(opened);
+    body.innerHTML = error + _detail(opened);
   } else {
     const rows = _habits.map(h => h.id === _gone?.habit.id ? _goneRow(h) : h.id === _editing ? _editCard(h) : _row(h)).join('');
     const shown = _habits.length - (_gone ? 1 : 0);
@@ -190,8 +193,7 @@ function _render() {
         ${_showArchived ? '' : `<button class="btn primary" id="habits-add-toggle">${_si('plus')} ${esc(t('habits.habit'))}</button>`}
       </div>
     </div>
-    ${_loading ? `<div class="specialist-group-note" role="status">${esc(t('habits.loading'))}</div>` : ''}
-    ${_loadError ? `<div class="specialist-group-note legacy-load-note habit-load-error" role="alert"><span>${esc(_loadError)}</span><button type="button" class="btn" data-act="retry-load">${esc(t('common.retry'))}</button></div>` : ''}
+    ${notes}
     ${_adding ? _addForm() : ''}
     ${_habits.length ? `<div class="habits-list">${rows}</div>` : (_adding || !_hasLoaded || _loading ? '' : `<div class="habits-empty">${esc(_showArchived ? t('habits.empty_archived') : t('habits.empty'))}</div>`)}`;
   }
@@ -253,6 +255,9 @@ function _dots(h) {
   return `<span class="habit-dots" aria-hidden="true">${days.map(iso => `<i class="${done.has(iso) ? 'on' : ''}${iso === _day ? ' today' : ''}"></i>`).join('')}</span>`;
 }
 
+// the habit's own colour, or a steady hue from its name
+const _accent = h => `--habit-accent:${esc(/^#[0-9a-f]{3,8}$/i.test(String(h.color || '')) ? h.color : `var(--cat-${categoryHue(h.name)})`)}`;
+
 // one compact row per habit (u.08): open on the name, today's check or log on the right
 function _row(h) {
   const slip = !h.archived && h.risk && h.risk.slipping;
@@ -265,7 +270,7 @@ function _row(h) {
     ? `<button class="btn" data-act="restore">${esc(t('habits.restore'))}</button>`
     : `<button type="button" class="habit-day habit-today${doneToday ? ' done' : ''}" data-toggle="${_day}" aria-pressed="${doneToday}"${hasLogger(h) && h.kind !== 'workout' ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(label)}">${doneToday ? _si('check') : hasLogger(h) ? _si('plus') : ''}</button>`;
   return `
-    <div class="habit-card habit-row${slip ? ' at-risk' : ''}" data-id="${h.id}">
+    <div class="habit-card habit-row${slip ? ' at-risk' : ''}" data-id="${h.id}" style="${_accent(h)}">
       <button type="button" class="habit-row-open" data-act="open" aria-label="${esc(t('habits.open_habit', { name: h.name }))}">
         <span class="habit-icon" aria-hidden="true">${esc(h.icon || '')}</span>
         <span class="habit-row-text"><span class="habit-name">${esc(h.name)}</span>${sub ? `<span class="habit-row-sub${slip ? ' habit-slip' : ''}">${esc(sub)}</span>` : ''}</span>
@@ -293,7 +298,7 @@ function _detail(h) {
     t('habits.total_n', { n: h.total_days ?? 0 }),
   ].join(' · ');
   return `
-    <div class="habit-card habit-detail" data-id="${h.id}">
+    <div class="habit-card habit-detail" data-id="${h.id}" style="${_accent(h)}">
       <div class="habit-detail-head">
         <button type="button" class="icon-btn" data-act="back" aria-label="${esc(t('habits.all_habits'))}">${_si('chevron-left')}</button>
         ${h.icon ? `<span class="habit-icon" aria-hidden="true">${esc(h.icon)}</span>` : ''}
@@ -381,7 +386,8 @@ function _wire(body) {
   body.querySelectorAll('.custom-select').forEach(initCustomDropdown);
   body.querySelectorAll('.habit-icon-pick').forEach(host => wireEmojiPicker(host, { disabled: () => _saving }));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => {
-    if (!_showArchived && typeof window._navigateTo === 'function') window._navigateTo('habits', { preserveRecord: true });
+    // a navigation would close the opened habit; retrying under it only reloads
+    if (!_showArchived && !_open && typeof window._navigateTo === 'function') window._navigateTo('habits', { preserveRecord: true });
     else loadHabits();
   });
   body.querySelector('[data-act="archive-view"]')?.addEventListener('click', async () => {

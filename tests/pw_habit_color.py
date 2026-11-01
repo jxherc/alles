@@ -4,9 +4,11 @@ needs a fresh instance: ALLES_DATA=.tmp_hc AUTH_ENABLED=false PORT=8077 python a
   PYTHONIOENCODING=utf-8 python tests/pw_habit_color.py
 """
 
+import os
+
 from playwright.sync_api import sync_playwright
 
-BASE = "http://habits.localhost:8077"
+BASE = f"http://habits.localhost:{os.environ.get('PORT', '8077')}"
 
 
 def main():
@@ -21,7 +23,13 @@ def main():
         )
         pg.reload(wait_until="domcontentloaded")
         pg.wait_for_timeout(800)
-        pg.click(f'.habit-card[data-id="{hid}"] [data-act="edit"]')
+        row_accent = pg.evaluate(
+            f"""() => document.querySelector('.habit-row[data-id="{hid}"]')?.style.getPropertyValue('--habit-accent')"""
+        )
+        assert "var(--cat-" in (row_accent or ""), row_accent
+        # edit lives inside the opened habit
+        pg.click(f'.habit-row[data-id="{hid}"] [data-act="open"]')
+        pg.click(f'.habit-detail[data-id="{hid}"] [data-act="edit"]')
         pg.wait_for_timeout(400)
         # pick the green swatch
         pg.click('.habit-colors .habit-sw[data-c="#34d399"]')
@@ -35,6 +43,11 @@ def main():
         )
         print("card accent after save:", accent)
         assert "#34d399" in (accent or ""), accent
+        pg.click(f'.habit-detail[data-id="{hid}"] [data-act="back"]')
+        row_accent = pg.evaluate(
+            f"""() => document.querySelector('.habit-row[data-id="{hid}"]')?.style.getPropertyValue('--habit-accent')"""
+        )
+        assert "#34d399" in (row_accent or ""), row_accent
         api = pg.evaluate(
             "() => fetch('/api/habits/overview').then(r=>r.json()).then(j=>j.habits[0].color)"
         )
