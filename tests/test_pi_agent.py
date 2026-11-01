@@ -712,9 +712,12 @@ class FailedHandoffTest(PiTest):
         self.add_endpoint()
         result = self.hand_over("broken provider please")
         self.assertTrue(result["error"])
-        self.assertIn("401 invalid api key", result["output"])
+        self.assertIn("refused the api key", result["output"])
+        self.assertIn("settings, models", result["output"])
         self.assertIn("pi could not finish this", result["output"])
         self.assertNotIn("without a reply", result["output"])
+        self.assertNotIn("{", result["output"])
+        self.assertNotIn("401", result["output"])
 
     def test_pi_dying_mid_task_is_reported(self):
         self.add_endpoint()
@@ -764,6 +767,64 @@ class FailedHandoffTest(PiTest):
         result = self.hand_over("make a packing list")
         self.assertFalse(result.get("error"))
         self.assertIn("done with", result["output"])
+
+
+class PiFailureWordsTest(unittest.TestCase):
+    """pi's raw failure text becomes a sentence the owner can act on, never provider json"""
+
+    def says(self, raw):
+        from services import agent_tools
+
+        return agent_tools._pi_says(raw)
+
+    def test_a_refused_key_points_at_settings(self):
+        for raw in (
+            '401: {"message":"invalid api key","type":"auth"}',
+            "403 forbidden",
+            "Incorrect API key provided",
+            "unauthorized",
+        ):
+            said = self.says(raw)
+            self.assertIn("refused the api key", said, raw)
+            self.assertIn("settings, models", said, raw)
+            self.assertNotIn("{", said, raw)
+
+    def test_a_rate_limit_says_to_wait(self):
+        for raw in (
+            '429: {"error":{"message":"slow down"}}',
+            "Too Many Requests",
+            "rate limit hit",
+        ):
+            self.assertIn("wait a minute", self.says(raw), raw)
+
+    def test_a_network_error_says_alles_could_not_reach_the_provider(self):
+        for raw in (
+            "fetch failed",
+            "getaddrinfo ENOTFOUND api.example.com",
+            "ECONNREFUSED 1.2.3.4",
+        ):
+            self.assertIn("could not reach the model provider", self.says(raw), raw)
+
+    def test_anything_else_keeps_a_short_reason_without_braces(self):
+        said = self.says('500: {"message":"model exploded","type":"server"}')
+        self.assertEqual(said, "pi could not finish this: 500: model exploded")
+        said = self.says('weird {not json "at all"} here')
+        self.assertNotRegex(said, r'[{}"]')
+        self.assertIn("not json", said)
+        self.assertEqual(self.says(""), "pi could not finish this: it stopped without saying why")
+
+    def test_the_raw_text_goes_to_the_log(self):
+        with self.assertLogs("services.agent_tools", "WARNING") as logged:
+            self.says('401: {"message":"invalid api key"}')
+        self.assertIn('{"message":"invalid api key"}', logged.output[0])
+
+    def test_a_handoff_that_raises_with_a_refused_key_reads_the_same(self):
+        from services import agent_tools
+
+        said = agent_tools._pi_failure(RuntimeError('401: {"message":"invalid api key"}'))
+        self.assertIn("refused the api key", said)
+        self.assertNotIn("{", said)
+        self.assertTrue(said.endswith("files changed: none"))
 
 
 class ChatSummaryRaceTest(unittest.TestCase):

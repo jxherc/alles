@@ -10,6 +10,7 @@ import base64
 import contextvars
 import fnmatch
 import json
+import logging
 import os
 import re
 import shlex
@@ -24,6 +25,8 @@ import httpx
 
 from core.settings import data_dir, load_settings
 from services import shell_sandbox
+
+log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).parent.parent
 CODEX_HOME = Path(os.getenv("CODEX_HOME") or Path.home() / ".codex")
@@ -1323,6 +1326,76 @@ def _pi_step_line(event: dict) -> str:
     )
 
 
+# what a provider's refusal means for the owner. each sentence is whole so a language file can
+# translate it; scripts/server_messages.py reads dict values under "message"
+_PI_CAUSES = (
+    (
+        re.compile(
+            r"\b(401|403)\b|invalid api key|incorrect api key|unauthori[sz]ed|forbidden", re.I
+        ),
+        {
+            "message": "pi could not finish this: the model provider refused the api key. "
+            "fix the key in settings, models, then try again."
+        },
+    ),
+    (
+        re.compile(r"\b429\b|rate.?limit|too many requests", re.I),
+        {
+            "message": "pi could not finish this: the model provider is limiting requests. "
+            "wait a minute, then try again."
+        },
+    ),
+    (
+        re.compile(
+            r"econn(refused|reset)|enotfound|etimedout|eai_again|fetch failed|getaddrinfo"
+            r"|socket hang up|network|connection (error|refused|reset)|timed out",
+            re.I,
+        ),
+        {
+            "message": "pi could not finish this: alles could not reach the model provider. "
+            "check the connection and the provider's address, then try again."
+        },
+    ),
+)
+
+
+def _pi_plain(raw: str) -> str:
+    """a failure's words with no json braces: a json body gives its own message"""
+    text = " ".join(str(raw).split())
+    start, end = text.find("{"), text.rfind("}")
+    if 0 <= start < end:
+        try:
+            body = json.loads(text[start : end + 1])
+        except ValueError:
+            body = None
+        found = None
+        if isinstance(body, dict):
+            found = body.get("message") or body.get("error") or body.get("detail")
+            if isinstance(found, dict):
+                found = found.get("message")
+        inner = str(found) if found else text[start + 1 : end]
+        text = text[:start] + inner + text[end + 1 :]
+    return re.sub(r"[{}\[\]\"]", "", text).strip(" :.,")[:200]
+
+
+def _pi_known(raw: str) -> str:
+    for pattern, said in _PI_CAUSES:
+        if pattern.search(str(raw)):
+            return said["message"]
+    return ""
+
+
+def _pi_says(raw: str) -> str:
+    """the plain sentence for pi's raw failure text. the raw text goes to the log, never to
+    the owner or the model"""
+    log.warning("pi failed: %s", " ".join(str(raw).split())[:500])
+    known = _pi_known(raw)
+    if known:
+        return known
+    reason = _pi_plain(raw) or "it stopped without saying why"
+    return {"message": f"pi could not finish this: {reason}"}["message"]
+
+
 def _pi_failure(error: BaseException) -> str:
     """what the owner reads when handing work to pi broke before pi could answer"""
     detail = str(error).strip().splitlines()[0][:200] if str(error).strip() else ""
@@ -1333,7 +1406,11 @@ def _pi_failure(error: BaseException) -> str:
     elif isinstance(error, PermissionError):
         why = f"alles cannot write pi's work folder ({detail})"
     else:
-        why = detail or type(error).__name__
+        known = _pi_known(detail)
+        if known:
+            log.warning("pi failed: %s", detail)
+            return f"{known}\nfiles changed: none"
+        why = _pi_plain(detail) or type(error).__name__
     return f"pi could not do this: {why}. nothing was changed."
 
 
@@ -1488,8 +1565,7 @@ async def _pi_hand_over(task: str, project: str = "", wait_seconds: int = 600):
         yield {
             "type": "result",
             "result": {
-                "output": f"pi could not finish this: {failed.strip().splitlines()[0][:200]}. "
-                f"files changed: {files}.",
+                "output": f"{_pi_says(failed)}\nfiles changed: {files}",
                 "error": True,
                 **where,
             },

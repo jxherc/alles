@@ -10,7 +10,7 @@ import { getAttachments, hasPendingAttachments, clearAttachments } from './uploa
 import { isIncognitoMode, getPermMode, getEffort, getReasoningMode, getCustomEffort, modelSupport } from './modes.js?v=259';
 import { applyResponsePrivacy, stripEmojis } from './privacy.js';
 import { shouldRunInBackground } from './aidebackgroundpolicy.js';
-import { formatNumber, t, tp, t as tr } from './i18n.js';
+import { formatNumber, serverText, t, tp, t as tr } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { saveAnswerNote } from './answer_note.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
@@ -988,9 +988,11 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
             const status = step.querySelector('.agent-step-status');
             if (status) status.textContent = t.completed === false ? tr('aide.step_no_final_result') : t.error ? tr('aide.run_status_error') : tr('aide.run_status_done');
             const out = step.querySelector('.agent-step-output');
-            if (out && !out.textContent) out.textContent = t.output || tr('aide.step_no_output');
+            // a failed step's reason is the server's own sentence: show it in the reader's language
+            const said = t.error ? String(t.output || '').split('\n').map(serverText).join('\n') : t.output;
+            if (out && !out.textContent) out.textContent = said || tr('aide.step_no_output');
             // a failed step ends with why it failed, even after it streamed some progress
-            else if (out && t.error && t.output && !out.textContent.includes(t.output)) out.textContent += `\n${t.output}`;
+            else if (out && t.error && said && !out.textContent.includes(said)) out.textContent += `\n${said}`;
           }
           scrollDown();
         }
