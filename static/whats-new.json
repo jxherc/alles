@@ -5,6 +5,22 @@
       "date": "october 28, 2026",
       "items": [
         {
+          "title": "tasks with a time",
+          "body": "give a task a time as well as a day. it goes overdue at that time, and typing 'chem test tomorrow 9am' sets both."
+        },
+        {
+          "title": "one password box",
+          "body": "full access asks for your password when you switch it on, and the same box shows up anywhere else alles needs it. a message in full access no longer dies with an error."
+        },
+        {
+          "title": "quick things stay with aide",
+          "body": "adding a task, an event, a habit log or a note line happens right in aide. pi keeps code and longer jobs, and says plainly when it can't finish."
+        },
+        {
+          "title": "aide starts from your day",
+          "body": "the empty screen offers your overdue tasks, your next event and habits you haven't logged. with no model set, 'add study for chem to my todo' can still be kept as a task."
+        },
+        {
           "title": "bank sync you can find",
           "body": "finance shows bank connections on its overview and when you have no accounts yet. plaid comes first with its sign-up steps, and it now links over the tailnet."
         },
