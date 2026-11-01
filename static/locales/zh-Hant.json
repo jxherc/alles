@@ -6081,7 +6081,7 @@
     "setup.install_companion": "安裝附屬工具",
     "setup.installing_companion": "正在安裝附屬工具…",
     "setup.keep_inside": "將文件和檔案保留在 alles 內",
-    "setup.keep_inside_note": "建議：~/Alles/Vault 和 ~/Alles/Files",
+    "setup.keep_inside_note": "建議：~/Alles，文件放在 ~/Alles/Docs",
     "setup.load_failed": "無法載入設定精靈",
     "setup.loading": "正在載入設定精靈…",
     "setup.model_providers": "模型供應商",

@@ -6081,7 +6081,7 @@
     "setup.install_companion": "installer le compagnon",
     "setup.installing_companion": "installation du compagnon…",
     "setup.keep_inside": "garde documents et fichiers dans alles",
-    "setup.keep_inside_note": "recommandé : ~/Alles/Vault et ~/Alles/Files",
+    "setup.keep_inside_note": "recommandé : ~/Alles, avec les documents dans ~/Alles/Docs",
     "setup.load_failed": "impossible de charger la configuration",
     "setup.loading": "chargement de la configuration…",
     "setup.model_providers": "fournisseurs de modèles",

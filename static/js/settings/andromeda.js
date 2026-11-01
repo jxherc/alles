@@ -127,7 +127,7 @@ function ensureEngineFields(engines) {
     const field = document.createElement('div');
     field.className = 's-field';
     field.dataset.andromedaProviderField = engine.id;
-    field.innerHTML = `<label for="${inputId}">${_esc(name)}</label><div style="display:flex;gap:0.4rem"><input id="${inputId}" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="${_esc(t('andromeda.x_not_configured'))}"><button type="button" class="btn" data-andromeda-clear-setting="${inputId}" aria-label="${_esc(t('andromeda.x_clear_named', { name }))}">${_esc(t('common.clear'))}</button></div>`;
+    field.innerHTML = `<label for="${inputId}">${_esc(name)}</label><div style="display:flex;gap:var(--k-control-gap)"><input id="${inputId}" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="${_esc(t('andromeda.x_not_configured'))}"><button type="button" class="btn" data-andromeda-clear-setting="${inputId}" aria-label="${_esc(t('andromeda.x_clear_named', { name }))}">${_esc(t('common.clear'))}</button></div>`;
     container.append(field);
     CREDENTIALS[inputId] = engine.key_setting;
     SEARCH_SECRET_SETTINGS.add(engine.key_setting);

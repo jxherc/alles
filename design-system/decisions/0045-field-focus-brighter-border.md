@@ -1,5 +1,7 @@
 # field focus: the border brightens
 
+folded into 0049 (one field), which keeps this rule and closes what it left open.
+
 replaces 0030's bottom line.
 
 ## context

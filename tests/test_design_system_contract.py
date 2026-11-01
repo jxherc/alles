@@ -155,6 +155,9 @@ class DesignSystemContractTests(unittest.TestCase):
             "kokuen.command",
             "kokuen.data-view",
             "kokuen.feedback",
+            "kokuen.row-list",
+            "kokuen.pill-switch",
+            "kokuen.number-row",
         }
         self.assertEqual(required_states, contracts["state_vocabulary"])
         self.assertEqual(required_ids, {item["id"] for item in contracts["contracts"]})

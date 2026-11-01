@@ -6085,7 +6085,7 @@ const BUILTIN_ENGLISH = {
     "setup.install_companion": "install companion",
     "setup.installing_companion": "installing companion…",
     "setup.keep_inside": "keep documents and files inside alles",
-    "setup.keep_inside_note": "recommended: ~/Alles/Vault and ~/Alles/Files",
+    "setup.keep_inside_note": "recommended: ~/Alles, with docs in ~/Alles/Docs",
     "setup.load_failed": "setup could not load",
     "setup.loading": "loading setup…",
     "setup.model_providers": "model providers",

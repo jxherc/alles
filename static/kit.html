@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" data-kokuen-version="5">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>kit</title>
+<!-- the same stylesheets as index.html, in the same order and stamps (tests/test_kit_page.py) -->
+<link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
+<link rel="stylesheet" href="/static/style.css?v=603">
+  <link rel="stylesheet" href="/static/kokuen.css?v=90">
+<link rel="stylesheet" href="/static/aidecentral.css?v=19">
+<link rel="stylesheet" href="/static/aidecoding.css?v=27">
+<link rel="stylesheet" href="/static/aidecall.css?v=3">
+<link rel="stylesheet" href="/static/help.css?v=2">
+<link rel="stylesheet" href="/static/revamp.css?v=100">
+<style>
+  /* the page's own frame; every piece inside uses the real app rules */
+  /* the app shell locks html and body to the viewport; the kit page scrolls */
+  html, body { height: auto; min-height: 100%; overflow: auto; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--k-font); }
+  .kit { display: grid; gap: var(--k-space-7); max-width: 1040px; padding: var(--k-space-6) var(--k-gutter); }
+  .kit-part { display: grid; gap: var(--k-space-4); }
+  .kit-part > h2 { margin: 0; font-size: 1rem; font-weight: 620; }
+  .kit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--k-space-5) var(--k-space-4); align-items: start; }
+  .kit-cell { display: grid; gap: var(--k-space-2); min-width: 0; }
+  .kit-cell > .kit-name { color: var(--k-muted); font-size: 0.8125rem; }
+  .kit-wide { grid-column: 1 / -1; }
+  .kit-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap); }
+  .kit-panel { padding: var(--k-space-2); border-radius: var(--k-radius-surface); background: var(--k-panel); }
+</style>
+</head>
+<body>
+<main class="kit">
+  <header class="kit-row">
+    <h1 style="margin:0;font-size:1.25rem;font-weight:620">kit</h1>
+    <div class="k-pill-switch" data-kokuen-choice="switch" aria-label="theme" id="kit-theme">
+      <button data-theme-pick="dark">dark</button>
+      <button data-theme-pick="light">light</button>
+    </div>
+  </header>
+
+  <section class="kit-part" id="kit-field" aria-labelledby="kit-field-title">
+    <h2 id="kit-field-title">field</h2>
+    <div class="kit-grid">
+      <label class="kit-cell"><span class="kit-name">rest</span><input class="settings-input" type="text" placeholder="search notes…"></label>
+      <label class="kit-cell"><span class="kit-name">filled</span><input class="settings-input" type="text" value="weekly review"></label>
+      <label class="kit-cell"><span class="kit-name">long text</span><input class="settings-input" type="text" value="a very long name that runs past the end of the field so it has to scroll sideways"></label>
+      <label class="kit-cell"><span class="kit-name">search</span><input class="k-field" type="search" placeholder="search models…"></label>
+      <label class="kit-cell"><span class="kit-name">number</span><input class="settings-input s-num-input" type="number" inputmode="decimal" value="70"></label>
+      <label class="kit-cell"><span class="kit-name">password</span><input class="settings-input" type="password" value="hunter22"></label>
+      <label class="kit-cell"><span class="kit-name">error</span><input class="settings-input" type="email" value="not an email" aria-invalid="true"></label>
+      <label class="kit-cell"><span class="kit-name">disabled</span><input class="settings-input" type="text" value="locked" disabled></label>
+      <label class="kit-cell"><span class="kit-name">text area</span><textarea class="settings-textarea" rows="3">two lines
+of notes</textarea></label>
+    </div>
+  </section>
+
+  <section class="kit-part" id="kit-rows" aria-labelledby="kit-rows-title">
+    <h2 id="kit-rows-title">rows</h2>
+    <div class="kit-grid">
+      <div class="kit-cell"><span class="kit-name">rest, picked, long text, disabled</span>
+        <nav class="k-rows kit-panel" aria-label="rows">
+          <button class="k-row" type="button">inbox</button>
+          <button class="k-row active" type="button" aria-current="page">today</button>
+          <button class="k-row" type="button">upcoming</button>
+          <button class="k-row" type="button">a very long list name that has to end in an ellipsis</button>
+          <button class="k-row" type="button" disabled>archive</button>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <section class="kit-part" id="kit-pills" aria-labelledby="kit-pills-title">
+    <h2 id="kit-pills-title">pill tabs</h2>
+    <div class="kit-grid">
+      <div class="kit-cell kit-wide"><span class="kit-name">tabs</span>
+        <div class="specialist-group-tabs" role="tablist" aria-label="sections">
+          <button role="tab" type="button" aria-selected="true">overview</button>
+          <button role="tab" type="button" aria-selected="false">money</button>
+          <button role="tab" type="button" aria-selected="false">subscriptions</button>
+          <button role="tab" type="button" aria-selected="false" disabled>imports</button>
+        </div>
+      </div>
+      <div class="kit-cell"><span class="kit-name">segments</span>
+        <div class="seg" role="group" aria-label="range">
+          <button class="seg-opt" type="button">day</button>
+          <button class="seg-opt active" type="button" aria-pressed="true">week</button>
+          <button class="seg-opt" type="button">month</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="kit-part" id="kit-choices" aria-labelledby="kit-choices-title">
+    <h2 id="kit-choices-title">pill switch and number row</h2>
+    <div class="kit-grid">
+      <div class="kit-cell"><span class="kit-name">two options</span>
+        <div class="k-pill-switch" data-kokuen-choice="switch" aria-label="unit">
+          <button aria-checked="true">lb</button><button>kg</button>
+        </div>
+      </div>
+      <div class="kit-cell"><span class="kit-name">three options</span>
+        <div class="k-pill-switch" data-kokuen-choice="switch" aria-label="side">
+          <button>left</button><button aria-checked="true">both</button><button>right</button>
+        </div>
+      </div>
+      <div class="kit-cell"><span class="kit-name">rating, five</span>
+        <div class="k-number-row" data-kokuen-choice="rating" aria-label="mood" data-min="1" data-max="5" data-value="4"
+          data-labels="awful,bad,ok,good,great" data-words="awful,,,,great"></div>
+      </div>
+      <div class="kit-cell"><span class="kit-name">rating, ten</span>
+        <div class="k-number-row" data-kokuen-choice="rating" aria-label="effort" data-min="1" data-max="10" data-value="7"
+          data-labels="easy,easy,easy,moderate,moderate,moderate,hard,hard,very hard,max" data-words="easy,,,,,,,,,max"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script type="module" src="/static/js/kit.js"></script>
+</body>
+</html>

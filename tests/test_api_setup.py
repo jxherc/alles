@@ -170,8 +170,9 @@ class ResumableSetupApiTest(ApiTest):
         self.assertEqual(state["next_step"], "basics")
         self.assertFalse(state["completed"])
         self.assertTrue(state["keep_vault_inside_alles"])
-        self.assertEqual(state["vault_preview"], str(Path.home() / "Alles" / "Vault"))
-        self.assertEqual(state["files_preview"], str(Path.home() / "Alles" / "Files"))
+        # one visible folder: ~/Alles is the files root, docs sit inside it
+        self.assertEqual(state["vault_preview"], str(Path.home() / "Alles" / "Docs"))
+        self.assertEqual(state["files_preview"], str(Path.home() / "Alles"))
 
     def test_completed_step_resumes_from_server_not_browser_storage(self):
         saved = self._step(
@@ -187,8 +188,8 @@ class ResumableSetupApiTest(ApiTest):
 
     def test_default_files_step_creates_only_visible_vault_and_files_after_save(self):
         visible = self.root / "Visible Alles"
-        vault = visible / "Vault"
-        files = visible / "Files"
+        vault = visible / "Docs"
+        files = visible
         self.assertFalse(visible.exists())
         response = self._step(
             "files",
@@ -252,21 +253,40 @@ class ResumableSetupApiTest(ApiTest):
         self.assertEqual(before, sorted(path.relative_to(vault) for path in vault.rglob("*")))
         self.assertFalse((vault / ".obsidian").exists())
 
-    def test_files_and_vault_roots_cannot_contain_each_other(self):
+    def test_docs_may_sit_inside_files_but_files_never_inside_docs(self):
         files = self.root / "Existing Files"
         vault = files / "Vault"
         vault.mkdir(parents=True)
+        inside = self._step(
+            "files",
+            {"keep_vault_inside_alles": False, "vault_path": str(vault), "files_path": str(files)},
+        )
+        self.assertEqual(inside.status_code, 200, inside.text)
+        for vault_path, files_path in ((files, vault), (files, files)):
+            response = self._step(
+                "files",
+                {
+                    "keep_vault_inside_alles": False,
+                    "vault_path": str(vault_path),
+                    "files_path": str(files_path),
+                },
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.json()["code"], "invalid_setup_step")
+            self.assertIn("can't be the document folder", response.json()["detail"])
+
+    def test_inside_alles_docs_must_sit_directly_in_the_files_root(self):
+        visible = self.root / "Alles"
         response = self._step(
             "files",
             {
-                "keep_vault_inside_alles": False,
-                "vault_path": str(vault),
-                "files_path": str(files),
+                "keep_vault_inside_alles": True,
+                "vault_path": str(visible / "Vault"),
+                "files_path": str(visible / "Files"),
             },
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["code"], "invalid_setup_step")
-        self.assertIn("do not contain each other", response.json()["detail"])
+        self.assertIn("directly in the Files folder", response.json()["detail"])
 
     def test_obsidian_companion_requires_explicit_approval(self):
         vault = self.root / "Vault"

@@ -11,7 +11,8 @@ Machine-readable values live in `tokens/`. This document explains how to use the
 | raised | `#23201c` | `#ffffff` | selected or raised state |
 | hover | `#1f1c19` | `#ebe7e2` | the stored theme role; the app draws hover as 6% text (5% light) over any surface, decision 0041 |
 | selected fill | 11% text | 8% text | picked row, picked pill (0041) |
-| field | 5% text, 12% ring | 3% text on white, 14% ring | every text field, select and date picker (0041) |
+| field | 5% text, 12% ring | 3% text on white, 14% ring | every text field, select and date picker (0041, 0049) |
+| field focus | muted | muted | the field's own ring on focus, dim neutral (0049) |
 | text | `#f3efe9` | `#1d1a17` | primary content |
 | soft text | `#cec6bc` | `#4b4540` | row titles and secondary actions |
 | muted text | `#9d948a` | `#6a625a` | supporting information |
@@ -81,6 +82,15 @@ Use 0, 4, 8, 12, 16, 24, 32, 48, and 64px. These values express relationship:
 - 48px: section separation;
 - 64px: major page-block separation.
 
+Two gaps are tokens of their own (decision 0051): `--k-row-gap` (4px) between the filled rows of
+any list or sidebar, so a hovered row never touches the picked one, and `--k-control-gap` (8px)
+between separate controls, across and down. 0 only inside one shared track (a tablist, a
+radiogroup, a segmented control, a pill switch, a number row). One boundary per edge: rows part
+by space, a section by one line or by space, and a row never draws a line where its card does.
+A group of buttons or fields (an action bar, a form row, a dialog's buttons) sets
+`gap: var(--k-control-gap)`, never its own number. A dropdown trigger's chevron ends 12px from
+the trigger's end, the same as its text starts.
+
 Fixed structural sizes are separate tokens: 52px app header, 44px product controls
 and interactive rows, and 36px only for noninteractive dense data. Do not invent a spacing value to
 repair a layout; fix the layout rule.
@@ -100,10 +110,12 @@ Balanced corners (decision 0040), through `--k-radius-*`:
 
 - 0px: tables, grids, pane seams, and structural surfaces;
 - 6px (`small`): tags, inline code, small marks;
-- 8px (`control`): buttons, fields, rows, tabs;
+- 8px (`control`): buttons, fields, rows;
 - 12px (`surface`): cards, menus, toasts;
 - 16px (`large`): composers and dialogs;
-- round: filter chips, switches, a genuine circular mark, state dot, or avatar.
+- round (`--k-radius-pill`): tabs and segments in a row (the picked pill, decision 0050), pill
+  switches, the numbers of a number row, filter chips, switches, a genuine circular mark, state
+  dot, or avatar.
 
 An inner corner is its outer corner minus the gap, so nested shapes stay concentric. No card
 lift, glow, or shape change on hover.

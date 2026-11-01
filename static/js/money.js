@@ -5,7 +5,7 @@ import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from 
 import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=215';
 import { initDatePicker, calendarDateParts } from './datepick.js';
 import { calendarDateKey, currencySymbol, formatCalendarDate, formatDate, formatNumber, t, tp } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=4';
+import { createFocusBoundary } from './kokuen.js?v=5';
 import { bankRequest as _ownerFetch, openPlaidLink, plaidNotice } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';

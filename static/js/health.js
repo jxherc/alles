@@ -3,7 +3,7 @@
 import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=215';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { wireChoiceGroup } from './kokuen.js?v=4';
+import { wireChoiceGroup } from './kokuen.js?v=5';
 import { calendarDateKey, formatList, t, tp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 

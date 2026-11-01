@@ -73,6 +73,13 @@
   --k-radius-control: 8px;
   --k-radius-surface: 12px;
   --k-radius-large: 16px;
+  /* a picked tab, segment or pill switch is fully round (decision 0050) */
+  --k-radius-pill: 999px;
+  /* filled rows in a stack sit 4px apart, so a hover never touches the picked row (0051,
+     amends 0041's 2px); separate controls sit 8px apart across and down, 0 only inside one
+     shared track (0051) */
+  --k-row-gap: var(--k-space-1);
+  --k-control-gap: var(--k-space-2);
   --k-motion-fast: 120ms;
   --k-motion-panel: 180ms;
   --k-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -1152,13 +1159,14 @@ body:is(
   min-height: 1lh;
 }
 
+/* fact rows part by space, the card draws the one line (0051): a line under every row stacked
+   on the card's own line (28.30) */
 .server-workbench-fact,
 .server-workbench-service {
   min-height: 46px;
   display: flex;
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid color-mix(in srgb, var(--k-line, var(--faint)) 74%, transparent);
 }
 
 .server-workbench-fact > span,
@@ -2769,53 +2777,44 @@ html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible {
   outline-offset: var(--k-focus-offset, -2px);
 }
 
-/* Text entry and form dropdowns show focus with their own edge turning brighter (decision 0045).
-   fields draw that edge as a 1px inset ring (or a border), so focus recolors the same ring; the
-   old 2px bottom line replaced it and curved into the rounded corners like a second border.
-   This shared rule must win over legacy page-specific input outlines; actions, choices,
-   sliders and color controls retain their normal rings. Underline fields (date pickers, rails)
-   brighten the one line they have, below. Color swatches use readonly text inputs with
-   role=button, not text entry. */
+/* one field (decision 0049): a text field, form dropdown or date field shows focus by recoloring
+   its own 1px edge to --k-field-focus, the dim neutral. the edge is the filled field's inset ring
+   (revamp.css "one field"), which keeps 12px between the text and the edge, so the ring never
+   lands on the words. long form editors (docs source, notes, journal) are surfaces, not fields:
+   they take no box, the caret is their focus. actions, choices, sliders and color controls keep
+   their normal rings. color swatches use readonly text inputs with role=button, not text entry. */
 html[data-kokuen-version="5"] :where(
   input:not([type]),
   input:is([type="text"], [type="search"], [type="email"], [type="url"], [type="tel"], [type="password"], [type="number"]),
   textarea,
   .custom-select[role="combobox"],
-  .locale-choice-trigger[aria-haspopup="listbox"]
-):not([role="button"]):focus-visible {
+  .locale-choice-trigger[aria-haspopup="listbox"],
+  .date-input
+):where(:not([role="button"]:not(.date-input))):not(.wiki-source, .note-editor-title, .note-editor-body, .jrnl-text):focus-visible {
   outline: none !important;
   box-shadow: inset 0 0 0 1px var(--k-field-focus, var(--muted)) !important;
   border-color: var(--k-field-focus, var(--muted)) !important;
 }
 
-html[data-kokuen-version="5"] :is(.date-input, .cal-quick, .act-search, .cal-side-search):focus-visible {
+html[data-kokuen-version="5"] :is(.wiki-source, .note-editor-title, .note-editor-body, .jrnl-text):focus-visible {
   outline: none !important;
-  box-shadow: none !important;
-  border-bottom-color: var(--k-field-focus, var(--muted)) !important;
 }
 
-/* Legacy search and quick-entry fields use the compact rail, like Docs and Plan
-   (decisions 0024, 0026): one bottom line at rest, the shared focus line on top. */
-html[data-kokuen-version="5"] :is(.cal-quick, .act-search, .cal-side-search) {
-  height: var(--k-control);
-  min-height: var(--k-control);
-  padding: 0 var(--k-space-2);
-  border: 0;
-  border-bottom: 1px solid var(--k-line);
-  border-radius: 0;
-  background: transparent;
-  color: var(--k-text);
-  font-size: 0.8125rem;
-}
-
-/* A bounded text entry has one focus owner. Its sibling actions keep their
-   individual indicators; focusing an action must not light the whole field. */
+/* A bounded text entry has one focus owner: the wrapper's own edge (0049). its fields stay bare.
+   Its sibling actions keep their individual indicators; focusing an action must not light the
+   whole field. A new wrapper-owned entry joins this list and its :focus-within rule. */
 html[data-kokuen-version="5"] :is(
   .composer-box > .composer-ta,
   .search-command-head > .search-prompt-input,
   .mc-chipfield > .mc-chip-input,
   .today-capture > textarea,
-  .andromeda-search > input
+  .andromeda-search > input,
+  .specialist-group-capture :is(input, textarea, .date-input),
+  .page-view-footer > :is(input, .custom-select, .date-input),
+  .plan-board-add :is(input, .date-input),
+  .reminder-add-form :is(input, .date-input),
+  .ask-panel-entry :is(input, textarea),
+  .acw-entry textarea
 ):focus-visible,
 body.afterlife-aide-projects[data-space="aide"] .search-wrap > input:focus-visible {
   outline: none !important;
@@ -7529,4 +7528,106 @@ html:not(#_):not(#_)[data-kokuen-version="5"] :is(
 ):not(.active, [aria-selected="true"], [aria-pressed="true"]):hover {
   color: var(--k-text);
   background: transparent;
+}
+
+/* ── choice controls (decision 0050, the owner's card a) ─────────────────────────
+   pill switch: 2 or 3 options flipped often (lb or kg, side, am or pm). every option shows; one
+   round track; motion.js slides the round pill to the pick. each option is a full 44px target;
+   the pill sits 4px inside it, so it shows 4px from the track's edge all round */
+html[data-kokuen-version="5"] .k-pill-switch {
+  position: relative;
+  display: inline-flex;
+  width: fit-content;
+  gap: 0;
+  padding: 0 var(--k-space-1);
+  border-radius: var(--k-radius-pill);
+  background: var(--k-field);
+  outline: 1px solid var(--k-field-ring);
+  outline-offset: -1px;
+}
+
+html[data-kokuen-version="5"] .k-pill-switch > [role="radio"] {
+  position: relative;
+  min-width: 56px;
+  min-height: var(--k-control);
+  padding: 0 var(--k-space-4);
+  border: 0;
+  border-radius: var(--k-radius-pill);
+  background: transparent;
+  color: var(--k-muted);
+  font: inherit;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+html[data-kokuen-version="5"] .k-pill-switch > [role="radio"]:is(:hover, [aria-checked="true"]) {
+  color: var(--k-text);
+}
+
+html[data-kokuen-version="5"] .k-pill-switch > [role="radio"][aria-checked="true"] {
+  -webkit-text-stroke: 0.35px currentColor;
+}
+
+/* number row: a rating (effort, mood, quality). one tap, every value shows. the end words sit
+   on the numbers' own grid, centered under the number they name; the readout names the pick.
+   ten values wrap to two rows of five on a phone, where the end words hide */
+html[data-kokuen-version="5"] .k-number-row {
+  display: grid;
+  justify-content: start;
+}
+
+html[data-kokuen-version="5"] :is(.k-number-row-scale, .k-number-row-words) {
+  display: grid;
+  grid-template-columns: repeat(var(--k-n, 5), var(--k-control));
+}
+
+html[data-kokuen-version="5"] .k-number-row-scale > [role="radio"] {
+  width: var(--k-control);
+  height: var(--k-control);
+  padding: 0;
+  border: 0;
+  border-radius: var(--k-radius-pill);
+  background: transparent;
+  color: var(--k-muted);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+html[data-kokuen-version="5"] .k-number-row-scale > [role="radio"]:hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+html[data-kokuen-version="5"] .k-number-row-scale > [role="radio"][aria-checked="true"] {
+  background: var(--k-selected-fill, var(--k-pill));
+  color: var(--k-text);
+  font-weight: 600;
+}
+
+html[data-kokuen-version="5"] .k-number-row-words {
+  color: var(--k-muted);
+  font-size: 0.8125rem;
+}
+
+html[data-kokuen-version="5"] .k-number-row-words > span {
+  justify-self: center;
+  white-space: nowrap;
+}
+
+html[data-kokuen-version="5"] .k-number-row-readout {
+  min-height: 1.25rem;
+  margin: var(--k-space-1) 0 0;
+  color: var(--k-muted);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 520px) {
+  html[data-kokuen-version="5"] .k-number-row[data-wrap="true"] .k-number-row-scale {
+    grid-template-columns: repeat(5, var(--k-control));
+  }
+  html[data-kokuen-version="5"] .k-number-row[data-wrap="true"] .k-number-row-words {
+    display: none;
+  }
 }

@@ -3,7 +3,7 @@
 // list + reader views; mirrors the watch/habits panel conventions.
 import { toast, _safeUrl } from './util.js';
 import { confirm as dlgConfirm } from './dialog.js';
-import { wireChoiceGroup } from './kokuen.js?v=4';
+import { wireChoiceGroup } from './kokuen.js?v=5';
 import { readingPlace } from './reading_place.js';
 import { loadReadingNoteRecovery, takeReadingNote } from './reading_note.js';
 import { clearLinkedRecord } from './recordlinks.js';

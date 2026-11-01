@@ -40,7 +40,7 @@ function release() {
 // ── the sliding pill ─────────────────────────────────────────────────────────
 // a group is the parent of two or more of these items with exactly one picked. the pill is the
 // group's ::before (revamp.css), moved through --pill-* so no element or class is added to items
-const ITEM = '[role="tab"], .aide-mode-nav > button, .seg-opt, .tasks-tab, .te-seg > button, .theme-mode-btn, .s-nav-item, .health-chip, .read-chip, .mem-policy-btn, .andromeda-tab';
+const ITEM = '[role="tab"], .aide-mode-nav > button, .seg-opt, .tasks-tab, .te-seg > button, .theme-mode-btn, .s-nav-item, .health-chip, .read-chip, .mem-policy-btn, .andromeda-tab, .k-pill-switch > [role="radio"], .locale-segmented > button';
 const PICKED = '[aria-selected="true"], [aria-pressed="true"], [aria-checked="true"], [aria-current="page"], [aria-current="true"], .active';
 const TINT = /chip|policy/;
 const skipped = new WeakSet();
@@ -57,6 +57,11 @@ function pillFor(group) {
     if (getComputedStyle(group).position === 'static') group.classList.add('pill-pos');
     if (TINT.test(items[0].className)) group.dataset.pill = 'tint';
   }
+  // a row of tabs or segments is a track of round pills (decision 0050); a stack of rows (the
+  // settings nav) keeps the row's 8px corner
+  const row = items[0].offsetTop === items[1].offsetTop;
+  if (row) group.dataset.pillShape = 'round';
+  else delete group.dataset.pillShape;
   const on = picked.length === 1 ? picked[0] : null;
   if (!on || !on.offsetWidth) { group.style.setProperty('--pill-o', '0'); return; }
   const s = group.style;
@@ -73,13 +78,12 @@ function pillFor(group) {
     return;
   }
   // a row of tall tabs gets a pill 4px inside the 44px target, so it reads as a tab, not a block
-  const row = items[0].offsetTop === items[1].offsetTop;
   const inset = row && on.offsetHeight >= 40 ? 4 : 0;
   s.setProperty('--pill-x', `${on.offsetLeft}px`);
   s.setProperty('--pill-y', `${on.offsetTop + inset}px`);
   s.setProperty('--pill-w', `${on.offsetWidth}px`);
   s.setProperty('--pill-h', `${on.offsetHeight - inset * 2}px`);
-  s.setProperty('--pill-r', getComputedStyle(on).borderRadius);
+  s.setProperty('--pill-r', row ? '999px' : getComputedStyle(on).borderRadius);
   s.setProperty('--pill-o', '1');
   // the first placement jumps; after that it slides
   if (!group.dataset.pillReady) requestAnimationFrame(() => { group.dataset.pillReady = '1'; });

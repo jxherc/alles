@@ -43,6 +43,7 @@ BROWSER_SUITES = {
     "finance-bank-connections": ("finance-bank-connections",),
     "finance-planning": ("finance-planning",),
     "ui-audit": ("ui-audit",),
+    "kit-rules": ("kit-rules",),
     "ownership": ("style-ownership", "settings-recovery", "settings-panes", "files-workflows"),
     "smoke": SMOKE_GATES,
     "surfaces": SURFACE_GATES,

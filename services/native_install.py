@@ -120,8 +120,9 @@ def platform_layout(
         releases=runtime / "releases",
         staging=runtime / ".staging",
         data_root=data,
-        vault_default=home / "Alles" / "Vault",
-        files_default=home / "Alles" / "Files",
+        # one visible folder (oct 27): ~/Alles is the files root and docs sit inside it
+        vault_default=home / "Alles" / "Docs",
+        files_default=home / "Alles",
         launcher=home / ".local" / "bin" / "alles",
         dispatcher=runtime / "alles-dispatch",
         manifest=runtime / "install.json",
@@ -602,6 +603,33 @@ def _write_settings_file(layout: NativeLayout) -> bool:
         mode=0o600,
     )
     return True
+
+
+def _write_folder_settings(layout: NativeLayout) -> list[Path]:
+    """A new install starts in one folder: docs and files in ~/Alles, backups hidden beside data.
+
+    Only for data without settings yet; returns what it made (the settings file, then folders)
+    so a failed install can take them back while the folders are still empty.
+    """
+    from services.folder_layout import backups_dir
+
+    settings = layout.data_root / "settings.json"
+    if settings.exists() or settings.is_symlink():
+        return []
+    made = []
+    for folder in (layout.files_default, layout.vault_default):
+        if not folder.exists():
+            folder.mkdir(parents=True, mode=0o700)
+            made.append(folder)
+    _atomic_json(
+        settings,
+        {
+            "files_dir": str(layout.files_default),
+            "vault_dir": str(layout.vault_default),
+            "automatic_backup_dir": str(backups_dir(layout.support_root)),
+        },
+    )
+    return [settings, *made]
 
 
 def _keep_running_after_logout(runner) -> bool:
@@ -1159,6 +1187,7 @@ def install(
     created_program_directories: list[Path] = []
     manifest = None
     installed = False
+    made_folders: list[Path] = []
     try:
         progress("folders", "start")
         layout.support_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -1240,6 +1269,7 @@ def install(
         )
         registered = True
         settings_created = _write_settings_file(layout)
+        made_folders = _write_folder_settings(layout)
         progress("service", "start")
         try:
             _enable_service(layout, runner, preflight=False)
@@ -1336,6 +1366,14 @@ def install(
         if stage.is_dir() and not stage.is_symlink():
             shutil.rmtree(stage, ignore_errors=True)
         if not installed:
+            for made in reversed(made_folders):
+                try:
+                    if made.is_dir():
+                        made.rmdir()  # only while still empty: nothing of the owner's goes
+                    else:
+                        made.unlink()
+                except OSError:
+                    pass
             for directory in reversed(created_program_directories):
                 try:
                     directory.rmdir()

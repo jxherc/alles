@@ -1,5 +1,5 @@
 import { getActiveId, selectSession, setPrimaryConversationUnavailable } from './sessions.js';
-import { createFocusBoundary, createMenuController } from './kokuen.js?v=4';
+import { createFocusBoundary, createMenuController } from './kokuen.js?v=5';
 import { openAideRun } from './aiderun.js';
 import { initAideCodingWorkspace, openAideCodingWorkspace, closeAideCodingWorkspace } from './aidecoding.js';
 import { t } from './i18n.js';

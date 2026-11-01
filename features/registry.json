@@ -1391,7 +1391,8 @@
         "cli_commands": [
           "update",
           "restore",
-          "backup"
+          "backup",
+          "folders"
         ],
         "jobs": [
           "automatic_backup"

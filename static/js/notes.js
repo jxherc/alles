@@ -160,7 +160,7 @@ function openEditor(note) {
         <span id="note-due-label" hidden>${t('notes.due_date')}</span>
         <div class="date-input note-edit-due" id="note-edit-due" data-type="date" data-ph="${t('notes.due_date')}" data-value="${esc(note.due || '')}" aria-labelledby="note-due-label"></div>
       </div>
-      <div style="display:flex;gap:0.4rem;justify-content:flex-end">
+      <div style="display:flex;gap:var(--k-control-gap);justify-content:flex-end">
         <button class="btn" id="note-obsidian-btn" title="${t('notes.open_in_obsidian')}">obsidian</button>
         <button class="btn" id="note-back-btn">${_si('chevron-left')} ${t('common.back')}</button>
         <button class="btn primary" id="note-save-btn">${t('common.save')}</button>

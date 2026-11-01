@@ -257,6 +257,12 @@ html:not(#_)[data-kokuen-version="5"] :is(.seg-opt, .tasks-tab, .te-seg button, 
   pointer-events: none;
 }
 
+/* a track of tabs or segments is round: the picked pill and the focus ring take the pill's
+   shape (decision 0050). a stack of rows (the settings nav) keeps its 8px row corner */
+html:not(#_):not(#_) .has-pill[data-pill-shape="round"] > * {
+  border-radius: var(--k-radius-pill);
+}
+
 .has-pill[data-pill="tint"]::before {
   background: var(--k-pill);
 }
@@ -781,7 +787,7 @@ html:not(#_):not(#_) .specialist-workbench .specialist-group-capture {
 }
 
 html:not(#_):not(#_) .specialist-workbench .specialist-group-capture:focus-within {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+  box-shadow: inset 0 0 0 1px var(--k-field-focus);
 }
 
 html:not(#_):not(#_) .specialist-workbench .specialist-group-capture input {
@@ -1562,7 +1568,7 @@ html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer {
 }
 
 html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:focus-within {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+  box-shadow: inset 0 0 0 1px var(--k-field-focus);
 }
 
 html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) {
@@ -1580,6 +1586,7 @@ html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :
 
 html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
   border-left: 1px solid var(--k-line) !important;
+  --k-chevron-end: calc(var(--k-space-3) + 1px);
 }
 
 html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > .btn.primary {
@@ -1607,7 +1614,7 @@ html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture {
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture:focus-within {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+  box-shadow: inset 0 0 0 1px var(--k-field-focus);
 }
 
 html:not(#_) #today-view[data-kokuen-surface="home"] .today-capture textarea {
@@ -1700,9 +1707,14 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search 
   transition: background-color 200ms var(--k-ease-out);
 }
 
+/* one edge, the box's own (28.01, decision 0049): hover lifts the ring a step, focus turns it the
+   dim neutral every field uses. the accent ring and the 5px halo around it read as two outlines */
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:is(:hover, :focus-within, [data-keyboard-focus]) {
   background: var(--k-raised);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 50%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 12%, transparent);
+  box-shadow: 0 0 0 1px var(--k-field-ring-hover);
+}
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:is(:focus-within, [data-keyboard-focus]) {
+  box-shadow: 0 0 0 1px var(--k-field-focus);
 }
 
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search::before {
@@ -1744,7 +1756,10 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="i
 }
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="idle"]) .andromeda-search:is(:hover, :focus-within, [data-keyboard-focus])::before {
   background: var(--k-raised);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 50%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 12%, transparent);
+  box-shadow: 0 0 0 1px var(--k-field-ring-hover);
+}
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="idle"]) .andromeda-search:is(:focus-within, [data-keyboard-focus])::before {
+  box-shadow: 0 0 0 1px var(--k-field-focus);
 }
 
 
@@ -2174,14 +2189,24 @@ html:not(#_):not(#_) .specialist-workbench-empty + .btn {
 }
 
 
-/* ── fields: one filled style (decision 0041 replaces 0035's underline) ──────────
-   a 5% fill and a faint ring, label above, 44px. the underline read as a heading rule or as
-   nothing at all on an empty screen; every product studied fills its fields */
+/* ── one field (decision 0049; 0041 filled it, 0035 and 0045 fold in) ────────────
+   a 5% fill and a faint ring, label above, 44px, 12px between the text and the edge. focus
+   recolors that ring (kokuen.css), so it never sits on the words. every text field outside a
+   wrapper-owned entry is listed here; a field with zero side padding fails the lint */
 /* the id stays outside :is(), which takes its strongest member's weight: inside, it outranked
    every bar that clears its own fields (the plan capture's due day drew a box in the box) */
 html:not(#_):not(#_) :is(
-  .settings-input, .settings-textarea, .date-input, .cal-quick,
-  [data-specialist-app] input[type="search"]
+  .settings-input, .settings-textarea, .date-input, .cal-quick, .act-search, .cal-side-search,
+  [data-specialist-app] input[type="search"],
+  .modal-search input, .mm-add-form input, .andromeda-tool-field :is(input, textarea),
+  .andromeda-follow-form input, :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
+  .docs-nav-search, .docs-notes-actions input, .docs-dialog-field input, .docs-ask-panel input,
+  .jrnl-tags, .jrnl-migration-confirm input, .plan-board-search, .shell-input,
+  .gallery-prompt-input, .aide-schedule-form :is(input, textarea), .aide-goal-hook-row input,
+  .cb-search, .cp-hex, .note-cl-text, body:not(.afterlife-aide-projects) .search-input,
+  .files-phase7-dialog :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), textarea),
+  .acw-folder-bar input, .server-workbench-field :is(input, textarea), .finance-import-conversion input,
+  .news-editor :is(input:not([type="checkbox"], [type="radio"]), textarea), .k-field
 ),
 html:not(#_):not(#_) #files-search {
   box-sizing: border-box;
@@ -2194,23 +2219,59 @@ html:not(#_):not(#_) #files-search {
   transition: background-color 120ms var(--k-ease-out);
 }
 
-html:not(#_):not(#_) :is(.settings-textarea, textarea.settings-input) {
+/* a field with a wrong value keeps the danger edge at rest, not only while focused. one more id
+   than the field rule, whose list weighs (0,2,1) */
+html:not(#_):not(#_):not(#_) :is(.settings-input, .settings-textarea, .k-field)[aria-invalid="true"] {
+  box-shadow: inset 0 0 0 1px var(--k-danger);
+}
+
+/* the shared field with no page rule of its own: the app's text size, never under 16px on touch */
+html:not(#_):not(#_) .k-field {
+  width: 100%;
+  color: var(--k-text);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+/* every dropdown trigger (28.02): the chevron's box ends as far from the end as the text starts
+   from the start, and the label stops a control gap before it. a field joined to the one before
+   it by a 1px left edge moves the chevron in by that pixel (--k-chevron-end) */
+html:not(#_):not(#_):not(#_) .custom-select[role="combobox"] {
+  padding-inline: var(--k-space-3) calc(var(--k-chevron-end, var(--k-space-3)) + 13px + var(--k-control-gap));
+}
+
+html:not(#_):not(#_):not(#_) .custom-select[role="combobox"] > .custom-select-chevron {
+  position: absolute;
+  right: var(--k-chevron-end, var(--k-space-3));
+  width: 13px;
+  height: 13px;
+}
+
+/* the settings number boxes (hours, quiet hours) are as wide as three digits */
+html:not(#_):not(#_) .settings-input.s-num-input { width: 6rem; }
+
+html:not(#_):not(#_) :is(.settings-textarea, textarea:is(.settings-input, .shell-input, .k-field),
+  .andromeda-tool-field textarea, .andromeda-translate-input textarea, .andromeda-tool-text textarea,
+  .aide-schedule-form textarea, .files-phase7-dialog textarea,
+  .server-workbench-field textarea, .news-editor textarea) {
   padding-block: var(--k-space-3);
 }
 
 html:not(#_):not(#_) :is(
-  .settings-input, .settings-textarea, .date-input, .cal-quick,
-  [data-specialist-app] input[type="search"]
+  .settings-input, .settings-textarea, .date-input, .cal-quick, .act-search, .cal-side-search,
+  [data-specialist-app] input[type="search"],
+  .modal-search input, .mm-add-form input, .andromeda-tool-field :is(input, textarea),
+  .andromeda-follow-form input, :is(.andromeda-translate-input, .andromeda-tool-text) textarea,
+  .docs-nav-search, .docs-notes-actions input, .docs-dialog-field input, .docs-ask-panel input,
+  .jrnl-tags, .jrnl-migration-confirm input, .plan-board-search, .shell-input,
+  .gallery-prompt-input, .aide-schedule-form :is(input, textarea), .aide-goal-hook-row input,
+  .cb-search, .cp-hex, .note-cl-text, body:not(.afterlife-aide-projects) .search-input,
+  .files-phase7-dialog :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), textarea),
+  .acw-folder-bar input, .server-workbench-field :is(input, textarea), .finance-import-conversion input,
+  .news-editor :is(input:not([type="checkbox"], [type="radio"]), textarea), .k-field
 ):is(:hover, .open),
 html:not(#_):not(#_) #files-search:is(:hover, .open) {
   box-shadow: inset 0 0 0 1px var(--k-field-ring-hover);
-}
-
-/* focus keeps decision 0030's single bottom line (kokuen draws it), in the accent, so a field
-   gains one edge instead of a box */
-html:not(#_),
-html:not(#_) :is(body[data-app="files"], [data-kokuen-surface]) {
-  --k-field-focus: var(--k-accent);
 }
 
 /* ── list rows: no dividers (decision 0041). rows sit 2px apart; the hover fill is the row's
@@ -2252,8 +2313,71 @@ html:not(#_):not(#_) .task-item.task-child::before {
 /* the add row's long hint ends in an ellipsis on a narrow screen instead of being cut mid-letter */
 html:not(#_):not(#_) #task-add-input { text-overflow: ellipsis; }
 
-html:not(#_):not(#_) :is(.task-item, .specialist-record-row, .activity-row) + :is(.task-item, .specialist-record-row, .activity-row) {
-  margin-top: 2px;
+/* ── row list (decision 0051, amends 0041's 2px) ─────────────────────────────────
+   every stack of filled rows keeps --k-row-gap (4px) between rows, so a hovered row never
+   touches the picked one, and rows part by space, never by a divider. one rule for every list:
+   the oct 27 fix went into docs only and the settings rows kept touching. a new row list joins
+   this list */
+html:not(#_):not(#_) :is(
+  .s-nav-item, .mail-nav-item, .photos-nav-item, .skl-rail-cat, .mail-row, .session-item,
+  .aide-tool-link, .task-item, .specialist-record-row, .activity-row, .contact-item, .vault-entry,
+  .health-row, .k-row
+) {
+  margin-block: 0;
+  border-top: 0;
+  border-bottom: 0;
+}
+
+html:not(#_):not(#_) :is(
+  .s-nav-item, .mail-nav-item, .photos-nav-item, .skl-rail-cat, .mail-row, .session-item,
+  .aide-tool-link, .task-item, .specialist-record-row, .activity-row, .contact-item, .vault-entry,
+  .health-row, .k-row
+) + :is(
+  .s-nav-item, .mail-nav-item, .photos-nav-item, .skl-rail-cat, .mail-row, .session-item,
+  .aide-tool-link, .task-item, .specialist-record-row, .activity-row, .contact-item, .vault-entry,
+  .health-row, .k-row
+) {
+  margin-top: var(--k-row-gap);
+}
+
+/* the kit's own row list: 44px rows, 8px corners, hover and picked fills */
+html:not(#_):not(#_) .k-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+html:not(#_):not(#_) .k-row {
+  display: block;
+  min-width: 0;
+  min-height: var(--k-control);
+  line-height: var(--k-control);
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-soft);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+html:not(#_):not(#_) .k-row:not(.active, :disabled):hover {
+  background: var(--k-hover);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) .k-row.active {
+  background: var(--k-selected-fill);
+  color: var(--k-text);
+}
+
+html:not(#_):not(#_) .k-row:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 html:not(#_):not(#_) :is(.task-item, .specialist-record-row, .activity-row):hover {
@@ -2353,6 +2477,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
     border-left: 0 !important;
     border-top: 1px solid var(--k-line) !important;
+    --k-chevron-end: var(--k-space-3);
   }
 
   html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) > .btn.primary {
@@ -2427,6 +2552,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   html:not(#_):not(#_) #subs-view > .page-view-footer > #sub-currency + #sub-price {
     border-left: 0 !important;
     border-top: 1px solid var(--k-line) !important;
+    --k-chevron-end: var(--k-space-3);
   }
 
   /* a task's actions sit at the end of its first line, not on a line of their own */
@@ -2647,7 +2773,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
 }
 
 #ask-panel .ask-panel-entry:focus-within {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 60%, var(--k-field-ring)), 0 0 0 3px color-mix(in srgb, var(--k-accent) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--k-field-focus);
 }
 
 #ask-panel #ask-panel-input {
@@ -2780,7 +2906,7 @@ html:not(#_):not(#_) .plan-board-add {
 }
 
 html:not(#_):not(#_) .plan-board-add:focus-within {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+  box-shadow: inset 0 0 0 1px var(--k-field-focus);
 }
 
 html:not(#_):not(#_) .plan-board-add input {
@@ -2850,7 +2976,7 @@ html:not(#_):not(#_) #reminders-view .reminder-add-form {
 }
 
 html:not(#_):not(#_) #reminders-view .reminder-add-form:focus-within {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k-accent) 55%, var(--k-line)), 0 0 0 5px color-mix(in srgb, var(--k-accent) 13%, transparent);
+  box-shadow: inset 0 0 0 1px var(--k-field-focus);
 }
 
 html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) {
@@ -2866,6 +2992,7 @@ html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-sel
 
 html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
   border-left: 1px solid var(--k-line) !important;
+  --k-chevron-end: calc(var(--k-space-3) + 1px);
 }
 
 html:not(#_):not(#_) #reminders-view .reminder-add-form > .btn.primary { margin-inline-start: var(--k-space-2); }
@@ -2876,7 +3003,7 @@ html:not(#_):not(#_) #reminders-view #reminder-status + div { margin: var(--k-sp
 @media (max-width: 760px) {
   html:not(#_):not(#_) #reminders-view .reminder-add-form { flex-direction: column; align-items: stretch; padding: 6px; }
   html:not(#_):not(#_) #reminders-view .reminder-add-form > * { width: 100% !important; }
-  html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) { border-left: 0 !important; border-top: 1px solid var(--k-line) !important; }
+  html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) { border-left: 0 !important; border-top: 1px solid var(--k-line) !important;  --k-chevron-end: var(--k-space-3); }
   html:not(#_):not(#_) #reminders-view .reminder-add-form > .btn.primary { margin: 6px 0 0; }
 }
 
@@ -3524,7 +3651,7 @@ html:not(#_):not(#_) #aide-coding-workspace .acw-suggestion {
 html:not(#_):not(#_) #aide-coding-workspace .acw-suggestion:hover { background: var(--k-btn-fill-hover); }
 
 html:not(#_):not(#_) #aide-coding-workspace .acw-entry:focus-within {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 60%, var(--k-field-ring)), 0 0 0 3px color-mix(in srgb, var(--k-accent) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--k-field-focus);
 }
 
 html:not(#_):not(#_) #aide-coding-workspace .acw-entry textarea:is(:focus, :focus-visible) {

@@ -6081,7 +6081,7 @@
     "setup.install_companion": "تثبيت الرفيق",
     "setup.installing_companion": "جارٍ تثبيت الرفيق…",
     "setup.keep_inside": "أبقِ المستندات والملفات داخل alles",
-    "setup.keep_inside_note": "موصى به: ~/Alles/Vault و~/Alles/Files",
+    "setup.keep_inside_note": "موصى به: ~/Alles، والمستندات في ~/Alles/Docs",
     "setup.load_failed": "تعذر تحميل الإعداد",
     "setup.loading": "جارٍ تحميل الإعداد…",
     "setup.model_providers": "مزوّدو النماذج",

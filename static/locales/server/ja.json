@@ -719,7 +719,6 @@
     "document is not valid UTF-8; open it externally or restore a UTF-8 copy": "ドキュメントが有効な UTF-8 ではありません。外部で開くか、UTF-8 のコピーを復元してください",
     "document is not valid UTF-8; the original file was left unchanged": "ドキュメントが有効な UTF-8 ではありません。元のファイルは変更していません",
     "document not found": "ドキュメントが見つかりません",
-    "documents and Files need separate folders that do not contain each other": "ドキュメントとファイルには、互いを含まない別々のフォルダーが必要です",
     "download size did not match": "ダウンロードのサイズが一致しませんでした",
     "download verification failed": "ダウンロードの検証に失敗しました",
     "draft changed before it could be deleted": "削除する前にドラフトが変更されました",
@@ -868,7 +867,6 @@
     "incomplete upload private artifacts cannot be released safely": "未完了のアップロードの非公開アーティファクトを安全に解放できません",
     "incomplete upload recovery state is invalid": "未完了のアップロードの復旧状態が無効です",
     "incomplete upload still has data or private artifacts that cannot be released safely": "未完了のアップロードに、安全に解放できないデータまたは非公開アーティファクトが残っています",
-    "inside-Alles document and Files paths need the same Alles folder": "Alles 内のドキュメントとファイルのパスには、同じ Alles フォルダーが必要です",
     "install and verify the local voice runtime first": "先にローカル音声ランタイムをインストールして検証してください",
     "install icalBuddy (`brew install ical-buddy`) or wire pyobjc EventKit": "icalBuddy をインストール（`brew install ical-buddy`）するか、pyobjc EventKit を接続してください",
     "install path contains an unsupported character": "インストールパスに対応していない文字が含まれています",
@@ -2526,6 +2524,8 @@
     "the configured release source could not be checked": "設定されたリリース元を確認できませんでした",
     "this install has no release source to check": "このインストールには確認するリリース元がありません",
     "chromium is downloaded but doesn't start: alles tools install browser": "chromium はダウンロード済みですが起動しません：alles tools install browser",
-    "node needs the libatomic1 package: sudo apt install libatomic1": "node には libatomic1 パッケージが必要です：sudo apt install libatomic1"
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node には libatomic1 パッケージが必要です：sudo apt install libatomic1",
+    "the Files folder can't be the document folder or sit inside it": "ファイルフォルダーをドキュメントフォルダーにすることも、その中に置くこともできません",
+    "inside-Alles documents need to sit directly in the Files folder": "Alles 内のドキュメントはファイルフォルダーの直下に置く必要があります"
   }
 }

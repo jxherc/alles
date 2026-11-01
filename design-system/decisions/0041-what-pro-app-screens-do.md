@@ -60,3 +60,8 @@ spread from 12.5 to 16px at four weights.
 - Raycast: https://raycast.com/blog/a-fresh-look-and-feel, https://developers.raycast.com/api-reference/user-interface/list
 - opencode: https://github.com/anomalyco/opencode
 - WCAG target size: https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html
+
+## amended
+
+- 2026-11-01, decision 0051: the row gap is 4px (`--k-row-gap`), not 2px. 2px isn't on the
+  spacing scale, and a hover fill 2px from the picked row read as touching (28.12).

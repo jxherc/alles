@@ -1,4 +1,4 @@
-import { createMenuController } from './kokuen.js?v=4';
+import { createMenuController } from './kokuen.js?v=5';
 import { icon } from './icons.js';
 import { t } from './i18n.js';
 

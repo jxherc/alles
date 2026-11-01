@@ -4,7 +4,7 @@ import { formatTime, t } from './i18n.js';
 import { confirm } from './dialog.js';
 import { openWithRecentOwner } from './recent_owner.js';
 import { loadShortcuts } from './shortcuts.js';
-import { createFocusBoundary } from './kokuen.js?v=4';
+import { createFocusBoundary } from './kokuen.js?v=5';
 
 let _reminderPending = null;
 let _reminderBusy = false;

@@ -719,7 +719,6 @@
     "document is not valid UTF-8; open it externally or restore a UTF-8 copy": "문서가 올바른 UTF-8이 아닙니다. 외부에서 열거나 UTF-8 사본을 복원하세요",
     "document is not valid UTF-8; the original file was left unchanged": "문서가 올바른 UTF-8이 아닙니다. 원본 파일은 그대로 두었습니다",
     "document not found": "문서를 찾을 수 없습니다",
-    "documents and Files need separate folders that do not contain each other": "문서와 파일에는 서로 포함하지 않는 별도의 폴더가 필요합니다",
     "download size did not match": "다운로드 크기가 일치하지 않았습니다",
     "download verification failed": "다운로드 확인에 실패했습니다",
     "draft changed before it could be deleted": "삭제하기 전에 초안이 변경되었습니다",
@@ -868,7 +867,6 @@
     "incomplete upload private artifacts cannot be released safely": "불완전한 업로드의 비공개 아티팩트를 안전하게 해제할 수 없습니다",
     "incomplete upload recovery state is invalid": "불완전한 업로드의 복구 상태가 올바르지 않습니다",
     "incomplete upload still has data or private artifacts that cannot be released safely": "불완전한 업로드에 안전하게 해제할 수 없는 데이터 또는 비공개 아티팩트가 남아 있습니다",
-    "inside-Alles document and Files paths need the same Alles folder": "Alles 내부 문서 경로와 파일 경로에는 같은 Alles 폴더가 필요합니다",
     "install and verify the local voice runtime first": "먼저 로컬 음성 런타임을 설치하고 확인하세요",
     "install icalBuddy (`brew install ical-buddy`) or wire pyobjc EventKit": "icalBuddy(`brew install ical-buddy`)를 설치하거나 pyobjc EventKit을 연결하세요",
     "install path contains an unsupported character": "설치 경로에 지원되지 않는 문자가 있습니다",
@@ -2526,6 +2524,8 @@
     "the configured release source could not be checked": "설정된 릴리스 소스를 확인하지 못했습니다",
     "this install has no release source to check": "이 설치에는 확인할 릴리스 소스가 없습니다",
     "chromium is downloaded but doesn't start: alles tools install browser": "chromium은 내려받았지만 시작되지 않습니다: alles tools install browser",
-    "node needs the libatomic1 package: sudo apt install libatomic1": "node에는 libatomic1 패키지가 필요합니다: sudo apt install libatomic1"
+    "node needs the libatomic1 package: sudo apt install libatomic1": "node에는 libatomic1 패키지가 필요합니다: sudo apt install libatomic1",
+    "the Files folder can't be the document folder or sit inside it": "파일 폴더는 문서 폴더가 되거나 그 안에 있을 수 없습니다",
+    "inside-Alles documents need to sit directly in the Files folder": "Alles 안의 문서는 파일 폴더 바로 안에 있어야 합니다"
   }
 }
