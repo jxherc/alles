@@ -341,6 +341,7 @@ test('Finance overview labels live canonical balances with base and keeps native
     '/api/money/accounts': [
       { name: 'migrated', currency: 'CAD', currency_code: 'USD', balance: 13.5 },
       { name: 'native', currency: 'CAD', currency_code: 'CAD', balance: 90, balance_by_currency: [{ currency: 'USD', balance: 97 }, { currency: 'XXX', balance: -7 }] },
+      { name: 'made with $', currency: '$', currency_code: 'XXX', balance: 627.46 },
     ],
     '/api/subscriptions?advance=false': { subscriptions: [] },
     '/api/finance/actual': healthyFinance,
@@ -348,7 +349,10 @@ test('Finance overview labels live canonical balances with base and keeps native
   const rows = h.target.querySelector('.finance-daily').querySelectorAll('.specialist-group-row');
   assert.equal(rows[0].children[1].textContent, 'CAD\u00a013.50');
   // one sign style: a true minus, kept on the number when there's no currency code
-  assert.equal(rows[1].children[1].textContent, 'USD\u00a097.00 · currency not set\u00a0−7.00');
+  // an unknown currency reads as money, with the sign the account was made with (u.12)
+  assert.equal(rows[1].children[1].textContent, 'USD\u00a097.00 · −7.00');
+  assert.equal(rows[2].children[1].textContent, '$627.46');
+  assert.doesNotMatch(h.target.textContent, /currency not set/);
 });
 
 test('Finance overview puts a true minus before the currency code', async () => {

@@ -1161,14 +1161,15 @@ function _renderActualStatus(value, request) {
   return panel;
 }
 
-// a true minus before the code (−USD 12.00), as Money writes it. with no currency the label
-// isn't part of the amount, so there the minus stays on the number
-function financeAmount(value, currency = '') {
+// a true minus before the code (−USD 12.00), as Money writes it. an account with no known
+// currency reads as money with the sign it was made with ("$627.46"), never "currency not set"
+// (u.12); money's own screen still offers to set it
+function financeAmount(value, currency = '', sign = '') {
   const cents = Math.round(Number(value ?? 0) * 100);
   const number = formatNumber(Math.abs(cents) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const sign = cents < 0 ? '−' : '';
-  const code = `${currency === 'XXX' ? t('finance.currency_not_set') : currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}`;
-  return currency === 'XXX' ? `${code}${sign}${number}` : `${sign}${code}${number}`;
+  const minus = cents < 0 ? '−' : '';
+  if (currency === 'XXX' || !currency) return `${minus}${/^[A-Z]{3}$/.test(sign) ? '' : sign}${number}`;
+  return `${minus}${currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}${number}`;
 }
 
 // a statement amount as the file wrote it (-12.34), in the same sign style
@@ -1193,7 +1194,7 @@ async function _renderFinance(target, request) {
   target.replaceChildren();
   const grid = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
   grid.append(
-    _list(t('finance.accounts'), accounts.map(item => ({ title: item.name, meta: item.balance_by_currency?.length ? item.balance_by_currency.map(row => financeAmount(row.balance, row.currency)).join(' · ') : financeAmount(item.balance, item.currency || item.currency_code || '') })), accountsError ? t('finance.accounts_unavailable', { error: accountsError }) : t('finance.no_accounts')),
+    _list(t('finance.accounts'), accounts.map(item => ({ title: item.name, meta: item.balance_by_currency?.length ? item.balance_by_currency.map(row => financeAmount(row.balance, row.currency, item.currency)).join(' · ') : financeAmount(item.balance, item.currency_code === 'XXX' ? 'XXX' : (item.currency || item.currency_code || ''), item.currency) })), accountsError ? t('finance.accounts_unavailable', { error: accountsError }) : t('finance.no_accounts')),
     _list(t('finance.subscriptions'), subscriptions.map(item => ({ title: item.name, meta: `${financeAmount(item.price, item.currency || '')} · ${item.cycle ? t('subs.cycle_' + item.cycle) : ''}` })), subscriptionsError ? t('finance.subscriptions_unavailable', { error: subscriptionsError }) : t('finance.no_subscriptions')),
   );
   const work = _el('div', 'finance-daily-actions');
