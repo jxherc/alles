@@ -7604,3 +7604,42 @@ html[data-kokuen-version="5"] .k-number-row-readout {
     display: none;
   }
 }
+
+/* ── busy edge (decision 0053) ──────────────────────────────────────────────────────────────
+   while work runs, a rounded box's own 1px edge shifts tone in a slow turn around its corners.
+   the ring is drawn inside the box on its edge, with the box's radius, so overflow never clips
+   it; no bloom, no blur, no line laid across the edge. it stops the moment the work ends.
+   reduced motion: a steady brighter edge */
+@property --k-busy-turn {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+:is(body.aide-working .composer-box, #aide-coding-workspace[data-busy="true"] .acw-entry, .k-busy[data-busy="true"])::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(from var(--k-busy-turn), var(--k-line-strong) 0deg, var(--k-busy-tone) 60deg, var(--k-line-strong) 140deg, var(--k-line-strong) 360deg) border-box;
+  -webkit-mask: conic-gradient(#000 0 0) padding-box, conic-gradient(#000 0 0) border-box;
+  -webkit-mask-composite: xor;
+  mask: conic-gradient(#000 0 0) padding-box exclude, conic-gradient(#000 0 0) border-box;
+  animation: k-busy-turn 2.8s linear infinite;
+}
+
+:root { --k-busy-tone: color-mix(in srgb, var(--k-text) 72%, transparent); }
+
+@keyframes k-busy-turn {
+  to { --k-busy-turn: 360deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(body.aide-working .composer-box, #aide-coding-workspace[data-busy="true"] .acw-entry, .k-busy[data-busy="true"])::before {
+    animation: none;
+    background: var(--k-busy-tone) border-box;
+  }
+}

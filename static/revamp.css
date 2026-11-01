@@ -1223,14 +1223,15 @@ html:not(#_) #messages .agent-step-args-wrap > .custom-summary {
   font-size: 0.8125rem;
 }
 
-/* the folded run: one plain line with a hairline under it, like the code view's fold */
+/* the folded run: one plain line, its actions quiet words like copy. no line under a rounded box
+   (28.07, 28.42) */
 html:not(#_) #messages .agent-steps > :is(summary, .custom-summary) {
   min-height: 44px;
   margin-inline: calc(-1 * var(--k-space-2));
   padding: 0 var(--k-space-2);
   border-radius: var(--k-radius-control);
   background: transparent;
-  box-shadow: inset 0 -1px 0 var(--k-line);
+  box-shadow: none;
 }
 
 html:not(#_) #messages .agent-steps > :is(summary, .custom-summary):hover {

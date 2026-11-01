@@ -138,7 +138,7 @@ class ManifestTests(ApiTest):
         self.assertIsNotNone(kokuen_url)
         self.assertIn(kokuen_url.group(1), urls)
         for module in (
-            "models.js?v=216",
+            "models.js?v=217",
             "dropdown.js?v=215",
             "specialist_groups.js?v=16",
             "kokuen.js?v=5",

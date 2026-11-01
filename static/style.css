@@ -1093,7 +1093,6 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 .agent-step.error .agent-step-dot { background: var(--error); }
 /* destructive ops (shell/writes/commits/…) stand out from neutral reads */
 .agent-step.destructive .agent-step-dot { background: var(--signal); }
-.agent-step.destructive { border-left: 2px solid color-mix(in srgb, var(--signal) 55%, var(--faint)); padding-left: 0.4rem; }
 .agent-step-name {
   color: var(--text);
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
@@ -11412,10 +11411,6 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
   border-color: var(--k-line-strong, var(--faint)); border-radius: var(--k-radius-surface, 6px); overflow: hidden;
   animation: whats-new-rise 320ms cubic-bezier(.2, .8, .2, 1);
 }
-.whats-new-card::before {
-  content: ""; position: absolute; top: 0; left: 0; height: 2px; width: 100%;
-  background: var(--accent, var(--text)); transform-origin: left; animation: whats-new-draw 700ms 120ms cubic-bezier(.6, 0, .2, 1) both;
-}
 .whats-new-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--k-space-3); }
 .whats-new-head h2 { margin: 0; font-size: 1.125rem; font-weight: 620; color: var(--text); }
 .whats-new-date { margin: 2px 0 0; color: var(--muted); font-size: 0.8125rem; }
@@ -11433,11 +11428,10 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .whats-new-pages { margin-right: auto; color: var(--muted); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
 .whats-new-overlay { animation: whats-new-dim 240ms ease-out; }
 @keyframes whats-new-rise { from { transform: translateY(14px) scale(.985); } to { transform: none; } }
-@keyframes whats-new-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes whats-new-land { from { transform: translateY(8px); } to { transform: none; } }
 @keyframes whats-new-dim { from { background: rgba(0, 0, 0, 0); } }
 @media (prefers-reduced-motion: reduce) {
-  .whats-new-card, .whats-new-card::before, .whats-new-list.is-in .whats-new-item, .whats-new-overlay { animation: none; }
+  .whats-new-card, .whats-new-list.is-in .whats-new-item, .whats-new-overlay { animation: none; }
 }
 
 /* Aide conversation steps, the same language as Aide code: a line with how many steps, a dot per
@@ -11461,7 +11455,7 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
   border-top: 0; padding: 0; border-radius: var(--k-radius-surface, 6px); background: var(--k-panel, var(--panel));
   animation: aide-arrive 240ms cubic-bezier(.2, .8, .2, 1);
 }
-#messages .agent-step.destructive { border-left: 0; padding-left: 0; box-shadow: inset 2px 0 0 color-mix(in srgb, var(--signal) 60%, transparent); }
+#messages .agent-step.destructive .agent-step-name { color: var(--k-danger, var(--error)); }
 #messages .agent-step-head { gap: var(--k-space-3); min-height: 40px; padding: 0 var(--k-space-3); font-size: 0.8125rem; }
 #messages .agent-step-dot { display: none; }
 .agent-step-mark { display: inline-grid; place-items: center; flex: 0 0 16px; color: var(--k-muted, var(--muted)); }
@@ -11497,17 +11491,13 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .doc-receipt-title { font-size: 0.875rem; font-weight: 560; }
 .doc-receipt-where { color: var(--k-muted, var(--muted)); font-size: 0.8125rem; }
 
-/* an answer that is still arriving ends in a caret; the box carries a moving light while Aide works */
+/* an answer that is still arriving ends in a caret; while Aide works the composer's own edge
+   carries the busy tone (the busy edge in kokuen.css, decision 0053) */
 #messages .ai-body:not(.done) .ai-content > :last-child::after {
   content: ""; display: inline-block; width: 7px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em;
   background: var(--k-text, var(--text)); animation: aide-blink 1s steps(1) infinite;
 }
 .composer-box { position: relative; }
-body.aide-working .composer-box::after {
-  content: ""; position: absolute; left: 12px; right: 12px; top: -1px; height: 1px; pointer-events: none;
-  background: linear-gradient(90deg, transparent, var(--ai), transparent); background-size: 40% 100%; background-repeat: no-repeat;
-  animation: aide-sweep 1.6s ease-in-out infinite;
-}
 #messages .user-wrap { animation: aide-arrive 200ms cubic-bezier(.2, .8, .2, 1); }
 
 @keyframes aide-arrive { from { transform: translateY(6px); } to { transform: none; } }
@@ -11516,13 +11506,11 @@ body.aide-working .composer-box::after {
 @keyframes aide-pop { from { transform: scale(.4); } to { transform: none; } }
 @keyframes aide-blink { 50% { opacity: 0; } }
 @keyframes aide-breathe { 50% { opacity: .35; } }
-@keyframes aide-sweep { from { background-position: -40% 0; } to { background-position: 140% 0; } }
 @media (prefers-reduced-motion: reduce) {
   #messages .agent-steps > summary, #messages .agent-steps > .custom-summary, #messages .agent-step, .doc-receipt, #messages .user-wrap { animation: none; }
   #messages .agent-step.running .agent-step-name { animation: none; background: none; color: var(--k-text, var(--text)); }
   #messages .agent-step.running .agent-step-status::before, .agent-steps-dots span.running, #messages .ai-body:not(.done) .ai-content > :last-child::after { animation: none; }
   #messages .agent-step:not(.running):not(.error) .agent-step-status::before { animation: none; }
-  body.aide-working .composer-box::after { animation: none; background: var(--ai); opacity: .5; left: 0; right: 0; }
 }
 .welcome-starts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--k-space-2); margin-top: var(--k-space-5); }
 .welcome-start {
@@ -11540,7 +11528,7 @@ body.aide-working .composer-box::after {
    inset like every other control on it, never a box pinned to the corner */
 #messages .agent-steps > summary .agent-run-controls { display: inline-flex; align-items: center; gap: var(--k-space-1, 4px); margin-left: auto; flex: 0 0 auto; }
 #messages .agent-steps > summary :is(.agent-sources-btn, .agent-revert-btn) {
-  float: none; margin: 0; min-height: 32px; padding: 0 var(--k-space-2, 8px); border: 0; border-radius: var(--k-radius-control, 4px);
+  float: none; margin: 0; min-height: 44px; padding: 0 var(--k-space-2, 8px); border: 0; border-radius: var(--k-radius-control, 4px);
   background: transparent; font-size: 0.8125rem; font-weight: 400;
 }
 #messages .agent-steps > summary .agent-sources-btn { color: var(--k-muted, var(--muted)); }

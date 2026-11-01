@@ -138,7 +138,7 @@
 .acw-tool[data-state="running"] summary::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--k-text) 7%, transparent), transparent);
-  background-size: 40% 100%; background-repeat: no-repeat; animation: acw-sweep 2.4s ease-in-out infinite;
+  background-size: 40% 100%; background-repeat: no-repeat; animation: k-sweep 2.4s ease-in-out infinite;
 }
 .acw-tool summary::-webkit-details-marker { display: none; }
 .acw-tool summary:hover { background: var(--k-hover); }
@@ -236,13 +236,9 @@
 .acw-ring-text { position: absolute; inset: auto 0 -10px; font-size: 0.8125rem; text-align: center; font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 120ms ease; }
 .acw-ring:hover .acw-ring-text, .acw-ring:focus-visible .acw-ring-text { opacity: 1; }
 
-/* the box breathes once when pi finishes; while it works its edge carries a moving light */
+/* the box breathes once when pi finishes; while it works its own edge carries the busy tone
+   (the busy edge in kokuen.css, decision 0053) */
 .acw-entry { position: relative; transition: border-color 160ms ease; }
-#aide-coding-workspace[data-busy="true"] .acw-entry::after {
-  content: ""; position: absolute; left: 12px; right: 12px; top: -1px; height: 1px; border-radius: 1px;
-  background: linear-gradient(90deg, transparent, var(--k-active, #aaa6ff), transparent); background-size: 40% 100%; background-repeat: no-repeat;
-  animation: acw-sweep 1.6s ease-in-out infinite;
-}
 .acw-entry.is-done { animation: acw-done 700ms ease-out; }
 /* same send as the conversation's: a 44px target with a 32px filled square in its middle */
 #aide-coding-workspace .acw-send { position: relative; isolation: isolate; }
@@ -273,13 +269,11 @@
 @keyframes acw-draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
 @keyframes acw-blink { 50% { opacity: 0; } }
 @keyframes acw-breathe { 50% { opacity: .35; } }
-@keyframes acw-sweep { from { background-position: -40% 0; } to { background-position: 140% 0; } }
 @keyframes acw-done { 0% { border-color: var(--k-success, #8cc79d); } 100% { border-color: var(--k-line); } }
 @media (prefers-reduced-motion: reduce) {
   .acw-tool, .acw-thinking, .acw-assistant, .acw-user, #aide-coding-workspace .acw-suggestion, #aide-coding-workspace .acw-jump, .acw-entry.is-done { animation: none; }
   .acw-tool[data-state="running"] .acw-tool-verb, .acw-thinking:not([data-done]) .acw-thinking-label { animation: none; background: none; color: var(--k-text); }
   .acw-spin, #aide-code-stop svg, .acw-loading span, .acw-assistant.is-streaming > :last-child::after { animation: none; }
-  #aide-coding-workspace[data-busy="true"] .acw-entry::after { animation: none; background: var(--k-active, #aaa6ff); left: 0; right: 0; opacity: .5; }
   .acw-tool[data-state="done"] .acw-tool-state svg { animation: none; }
   .acw-ring-fill { transition: none; }
 }

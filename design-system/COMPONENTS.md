@@ -166,3 +166,10 @@ lives in `static/js/kokuen.js`, with the custom single-select contract in `stati
 ## kit page
 
 `static/kit.html` shows every universal piece in its states, light and dark (`?theme=light`). It loads the same stylesheets as `index.html` in the same order (a test keeps them equal). `tests/pw_kit_rules.py` checks it, and every route, in webkit at desktop, ipad landscape, ipad portrait and phone. A new piece goes on the kit page first.
+
+## busy edge
+
+While work runs, a rounded box shows it on its own 1px edge (decision 0053): `.k-busy` with
+`data-busy="true"` (the aide composer and aide code's entry are wired already). The tone turns
+slowly around the corners; reduced motion shows a steady brighter edge. Never a line laid over the
+edge, a glow outside it, or a stripe on one side.

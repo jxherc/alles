@@ -9,7 +9,7 @@ import {
   modelOverrideForNewSession,
   restoreSessionModel,
   selectAideDefault,
-} from './models.js?v=216';
+} from './models.js?v=217';
 import { formatClock, t, tp } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { loadAnswerNoteRecovery, reconcileAnswerNote } from './answer_note.js';
