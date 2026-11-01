@@ -2,7 +2,7 @@ import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, forma
 import { autosizeTextarea, wireAutosizeTextarea } from './text_entry.js?v=1';
 import { appDesc, appLabel, toast } from './util.js';
 import { appGlyph } from './icons.js';
-import { whenDay, whenFull } from './when.js';
+import { addDays, whenDay, whenFull, whenTime } from './when.js';
 
 const SECTION_LABELS = {
   needs_you: 'needs you',
@@ -33,6 +33,8 @@ let headingGreeting = '';
 let statusTimer = null;
 let statusGeneration = 0;
 let loadGeneration = 0;
+let tomorrowDay = null;   // tomorrow's events and due tasks, read from 8 pm (u.02)
+let doneTimer = null;
 
 const HOME_GREETINGS = {
   night: ['home.greeting.night.1', 'home.greeting.night.2', 'home.greeting.night.3'],
@@ -56,7 +58,7 @@ export function homeGreetingFor(date = new Date(), random = Math.random) {
 // full text the reminders list uses goes to aide and the tooltip, and the narrow time column gets
 // it on two lines, day over time (the year only when it isn't this one)
 function reminderRow(item, date) {
-  const row = { view: 'reminders', id: item.id, meta: formatClock(item.at), title: item.text, kind: 'reminder' };
+  const row = { view: 'reminders', id: item.id, meta: whenTime(item.at), title: item.text, kind: 'reminder', time: item.at || '' };
   const day = String(item.trigger_at || '').slice(0, 10);
   if (!day || !date || day === date) return row;
   return {
@@ -68,9 +70,9 @@ function reminderRow(item, date) {
 
 export function dailyRows(day) {
   const rows = [];
-  for (const item of day?.events || []) rows.push({ view: 'calendar', id: item.id, occurrence: day.date, meta: item.time ? formatClock(item.time) : t('home.all_day'), title: item.title, kind: 'event' });
-  for (const item of day?.tasks?.overdue || []) rows.push({ view: 'tasks', id: item.id, meta: t('home.overdue'), title: item.title, urgent: true, kind: 'task' });
-  for (const item of day?.tasks?.due_today || []) rows.push({ view: 'tasks', id: item.id, meta: t('common.today'), title: item.title, kind: 'task' });
+  for (const item of day?.tasks?.overdue || []) rows.push({ view: 'tasks', id: item.id, meta: t('home.overdue'), title: item.title, urgent: true, kind: 'task', due: item.due, time: item.due_time || '' });
+  for (const item of day?.events || []) rows.push({ view: 'calendar', id: item.id, occurrence: day.date, meta: item.time ? whenTime(item.time) : t('home.all_day'), title: item.title, kind: 'event', time: item.time || '', end: item.end || '' });
+  for (const item of day?.tasks?.due_today || []) rows.push({ view: 'tasks', id: item.id, meta: item.due_time ? whenTime(item.due_time) : t('common.today'), title: item.title, kind: 'task', due: day.date, time: item.due_time || '' });
   for (const item of day?.reminders || []) rows.push(reminderRow(item, day.date));
   for (const item of day?.renewing || []) rows.push({ view: 'subs', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: `${item.name} ${t('home.renews')}`, kind: 'renewal' });
   for (const item of day?.day_events || []) rows.push({ view: 'days', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: item.name, kind: 'date' });
@@ -89,6 +91,22 @@ export function homeScheduleRows(rows, limit = 6) {
   if (hidden) out.push({ view: 'plan', id: '', meta: '', title: tp('home.more_in_plan', hidden), kind: 'more' });
   return out;
 }
+
+// home knows the time (u.02): overdue first, then what's left of the day in order with a "now"
+// line before the next timed thing, and what's over faded under "earlier today". hhmm is the
+// owner's wall clock ("23:00")
+export function homeTimeline(rows, hhmm) {
+  const over = row => (row.kind === 'event' || row.kind === 'reminder') && row.time && (row.end || row.time) <= hhmm;
+  const late = rows.filter(row => row.urgent);
+  const left = rows.filter(row => !row.urgent && !over(row));
+  const past = rows.filter(row => !row.urgent && over(row));
+  const at = left.findIndex(row => row.time && row.kind !== 'more');
+  const nowAt = past.length || at >= 0 ? (at >= 0 ? at : left.length) : -1;
+  return { late, left, past, nowAt };
+}
+
+// from 8 pm home leads with tomorrow: its events and what's due
+export const EVENING_HOUR = 20;
 
 export function homeDayRequest(sections) {
   const attention = (sections?.needs_you || []).slice(0, 5)
@@ -145,6 +163,42 @@ function dayRow(item, extra = '') {
   return `<button class="today-row${item.urgent ? ' urgent' : ''}" type="button" data-view="${esc(item.view)}" data-record="${esc(item.id || '')}" data-occurrence="${esc(item.occurrence || '')}">
     <span><b>${esc(item.title)}</b>${extra}</span>${item.lines ? `<em title="${esc(item.meta)}">${item.lines.map(esc).join('<br>')}</em>` : `<em>${esc(item.meta)}</em>`}
   </button>`;
+}
+
+// a task on home: check it off or move it to tomorrow right here (u.01); the row opens it
+function taskRow(item, { tomorrow = false } = {}) {
+  const meta = item.urgent ? `${t('home.overdue')} · ${whenDay(item.due)}${item.time ? ` ${whenTime(item.time)}` : ''}`
+    : item.time ? whenTime(item.time) : (tomorrow ? '' : t('common.today'));
+  return `<div class="today-task${item.urgent ? ' urgent' : ''}" data-task="${esc(item.id)}">
+    <button class="today-check" type="button" data-check="${esc(item.id)}" aria-label="${esc(t('tasks.mark_complete', { task: item.title }))}"></button>
+    <button class="today-row today-task-open" type="button" data-view="tasks" data-record="${esc(item.id)}"><span><b>${esc(item.title)}</b>${meta ? `<small>${esc(meta)}</small>` : ''}</span></button>
+    ${tomorrow ? '' : `<button class="today-snooze" type="button" data-snooze="${esc(item.id)}" aria-label="${esc(t('tasks.move_named', { task: item.title, day: t('tasks.reschedule.tomorrow') }))}">${esc(t('tasks.reschedule.tomorrow'))}</button>`}
+  </div>`;
+}
+
+function scheduleRow(item, options) {
+  if (item.kind === 'task' && item.id) return taskRow(item, options);
+  return dayRow(item, item.kind === 'event' ? `<small>${esc(t('calendar.title'))}</small>` : '');
+}
+
+function nowHHMM(now = new Date()) {
+  const parts = Object.fromEntries(formatDateParts(now, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', numberingSystem: 'latn' }).map(part => [part.type, part.value]));
+  return `${parts.hour}:${parts.minute}`;
+}
+
+function scheduleBody(rows, now = new Date()) {
+  const hhmm = nowHHMM(now);
+  const { late, left, past, nowAt } = homeTimeline(rows, hhmm);
+  const line = `<div class="today-now" role="presentation"><span>${esc(t('home.now'))}</span></div>`;
+  const body = [
+    ...late.map(item => scheduleRow(item)),
+    ...left.flatMap((item, index) => (index === nowAt ? [line, scheduleRow(item)] : [scheduleRow(item)])),
+    ...(nowAt === left.length ? [line] : []),
+  ];
+  if (past.length) {
+    body.push(`<div class="today-earlier"><h3>${esc(t('home.earlier_today'))}</h3>${past.map(item => scheduleRow(item)).join('')}</div>`);
+  }
+  return body.join('');
 }
 
 function attentionRow(item) {
@@ -233,6 +287,50 @@ async function useSuggestion(button, action) {
   }
 }
 
+function tomorrowRows(day) {
+  return dailyRows({ ...day, tasks: { due_today: day?.tasks?.due_today || [] }, reminders: [], renewing: [], day_events: [], habits: [] });
+}
+
+async function patchTask(id, body) {
+  const response = await fetch(`/api/tasks/${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(t('common.request_failed'));
+}
+
+// done in place: the row says so with undo for a few seconds, then home reloads
+async function checkTask(button) {
+  const row = button.closest('.today-task');
+  const title = row?.querySelector('b')?.textContent || '';
+  button.disabled = true;
+  try { await patchTask(button.dataset.check, { done: true, stage: 'done' }); }
+  catch (error) { button.disabled = false; showStatus(error.message, true); return; }
+  row.className = 'today-task today-done';
+  row.setAttribute('role', 'status');
+  row.innerHTML = `<span></span><span class="today-done-text">${esc(t('tasks.completed_named', { task: title }))}</span>
+    <button class="today-snooze" type="button" data-undo="${esc(button.dataset.check)}">${esc(t('common.undo'))}</button>`;
+  const undo = row.querySelector('[data-undo]');
+  undo.focus();
+  clearTimeout(doneTimer);
+  doneTimer = setTimeout(() => { if (row.isConnected) load(); }, 6000);
+  undo.addEventListener('click', async () => {
+    clearTimeout(doneTimer);
+    undo.disabled = true;
+    try { await patchTask(undo.dataset.undo, { done: false, stage: 'backlog' }); }
+    catch (error) { showStatus(error.message, true); }
+    await load();
+    document.querySelector(`#today-view [data-check="${CSS.escape(undo.dataset.undo)}"]`)?.focus();
+  });
+}
+
+async function snoozeTask(button) {
+  button.disabled = true;
+  try { await patchTask(button.dataset.snooze, { due_date: addDays(calendarDateKey(), 1) }); }
+  catch (error) { button.disabled = false; showStatus(error.message, true); return; }
+  showStatus(t('tasks.moved_to', { day: whenDay(addDays(calendarDateKey(), 1)) }), true);
+  await load();
+}
+
 function render() {
   const root = document.getElementById('today-sections');
   if (!root || !data) return;
@@ -256,9 +354,16 @@ function render() {
       'today',
       t('home.schedule'),
       '',
-      dayItems.map(item => dayRow(item, item.kind === 'event' ? `<small>${esc(t('calendar.title'))}</small>` : '')).join('') || `<p class="today-empty">${esc(t('home.nothing_scheduled'))}</p>`,
+      dayItems.length ? scheduleBody(dayItems) : `<p class="today-empty">${esc(t('home.nothing_scheduled'))}</p>`,
       'today-schedule',
     ),
+    tomorrow: tomorrowDay ? section(
+      'tomorrow',
+      t('home.tomorrow'),
+      whenFull(tomorrowDay.date),
+      tomorrowRows(tomorrowDay).map(item => scheduleRow(item, { tomorrow: true })).join('') || `<p class="today-empty">${esc(t('home.nothing_tomorrow'))}</p>`,
+      'today-schedule today-tomorrow',
+    ) : '',
     in_progress: section(
       'in_progress',
       t('home.in_progress'),
@@ -277,9 +382,13 @@ function render() {
   };
 
   root.classList.toggle('compact', preferences?.density === 'compact');
-  root.innerHTML = orderedVisibleHomeSections(preferences)
+  const order = orderedVisibleHomeSections(preferences);
+  if (tomorrowDay && order.includes('today')) order.splice(order.indexOf('today'), 0, 'tomorrow');
+  root.innerHTML = order
     .filter(key => (key !== 'in_progress' || running.length) && (key !== 'briefs' || briefs.length))
     .map(key => blocks[key]).filter(Boolean).join('') + suggestionSection();
+  root.querySelectorAll('[data-check]').forEach(button => button.addEventListener('click', () => checkTask(button)));
+  root.querySelectorAll('[data-snooze]').forEach(button => button.addEventListener('click', () => snoozeTask(button)));
   root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', async () => {
     if (button.dataset.record && openRecord) {
       await openRecord(button.dataset.view, button.dataset.record, button.dataset.occurrence);
@@ -348,6 +457,14 @@ async function load() {
     if (!todayResponse.ok) throw new Error(t('home.unavailable'));
     const today = await todayResponse.json();
     if (generation !== loadGeneration) return false;
+    tomorrowDay = null;
+    if (Number(nowHHMM().slice(0, 2)) >= EVENING_HOUR) {
+      try {
+        const next = await fetch(`/api/today?date=${addDays(date, 1)}&timezone=${timezone}`);
+        if (next.ok) tomorrowDay = (await next.json()).sections?.today || null;
+      } catch { /* tomorrow is extra; today still shows */ }
+      if (generation !== loadGeneration) return false;
+    }
     data = today.sections;
     let savedPreferences = {};
     let preferencesPartial = false;

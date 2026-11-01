@@ -3002,6 +3002,33 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
 :where(#today-view) .today-schedule .today-row > em { grid-column: 1; grid-row: 1; color: color-mix(in srgb, var(--text) 72%, var(--muted)); font-size: 0.875rem; }
 :where(#today-view) .today-schedule .today-row b { color: var(--text); font-size: 0.9375rem; font-weight: 530; }
 :where(#today-view) .today-schedule .today-row b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
+/* home knows the time and acts in place (u.01, u.02): a task row has its check in the time
+   column and "tomorrow" at the end; a "now" line sits before the next timed thing; what's
+   over is faded under "earlier today" */
+:where(#today-view) .today-task { display: grid; grid-template-columns: 5rem minmax(0, 1fr) auto; align-items: center; gap: 18px; }
+:where(#today-view) .today-task .today-task-open { grid-template-columns: minmax(0, 1fr); }
+:where(#today-view) .today-task .today-task-open > span { grid-column: 1; }
+:where(#today-view) .today-check { justify-self: start; width: 44px; height: 44px; margin-left: -14px; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; border-radius: var(--k-radius-control); }
+:where(#today-view) .today-check::before { content: ''; width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 50%; transition: border-color 130ms, background 130ms; }
+:where(#today-view) .today-check:hover::before { border-color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+:where(#today-view) .today-task.urgent .today-check::before { border-color: var(--signal); }
+:where(#today-view) .today-task.urgent small { color: var(--signal); }
+:where(#today-view) .today-snooze { min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--k-radius-control); background: transparent; color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer; transition: color 130ms, background 130ms; }
+:where(#today-view) .today-snooze:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+:where(#today-view) .today-done-text { color: var(--muted); font-size: 0.875rem; }
+:where(#today-view) .today-now { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 18px; align-items: center; }
+:where(#today-view) .today-now span { color: var(--signal); font-size: 0.8125rem; font-weight: 560; }
+:where(#today-view) .today-now::after { content: ''; height: 1px; background: color-mix(in srgb, var(--signal) 55%, transparent); }
+:where(#today-view) .today-earlier { display: grid; gap: 10px; margin-top: 16px; opacity: 0.55; }
+:where(#today-view) .today-earlier h3 { margin: 0; color: var(--muted); font-size: 0.8125rem; font-weight: 560; }
+@media (max-width: 560px) {
+  :where(#today-view) .today-schedule .today-row:not(.today-task-open), :where(#today-view) .today-task, :where(#today-view) .today-now { grid-template-columns: 3.5rem minmax(0, 1fr); gap: 12px; }
+  :where(#today-view) .today-task { grid-template-columns: 3.5rem minmax(0, 1fr) auto; }
+  :where(#today-view) .today-snooze { padding: 0 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(#today-view) .today-check::before, :where(#today-view) .today-snooze { transition: none; }
+}
 :where(#today-view) .today-lower { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(230px, 0.9fr); gap: clamp(44px, 8vw, 80px); }
 :where(#today-view) .today-focus .today-row { grid-template-columns: minmax(0, 1fr) auto; padding-left: 28px; position: relative; }
 :where(#today-view) .today-focus .today-row::before { content: ''; position: absolute; left: 1px; width: 13px; height: 13px; border: 1px solid var(--muted); border-radius: 50%; }
