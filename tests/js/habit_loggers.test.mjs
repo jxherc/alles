@@ -4,17 +4,19 @@ import test from 'node:test';
 import { HABIT_CATALOG, HABIT_GROUPS, catalogOptions } from '../../static/js/habit_catalog.js';
 import { durationText, hasLogger, logSummary, matchExercises } from '../../static/js/habit_loggers.js';
 
-const KINDS = ['check', 'workout', 'reading', 'count', 'duration', 'distance'];
 const LANGUAGES = ['en', 'fr', 'es', 'zh-Hans', 'zh-Hant', 'ja', 'ko', 'ar'];
 
-test('the catalog is a real choice: ~50 unique habits, every kind valid, grouped in order', () => {
+test('the catalog is a real choice: ~50 unique habits, each its own server kind, grouped in order', async () => {
+  // services/habit_kinds.py CATALOG: every catalog habit logs its own kind's fields
+  const source = await readFile(new URL('../../services/habit_kinds.py', import.meta.url), 'utf8');
+  const server = new Set(source.match(/^CATALOG = \(([\s\S]*?)\)/m)[1].match(/"(\w+)"/g).map(word => word.slice(1, -1)));
   assert.ok(HABIT_CATALOG.length >= 45, `only ${HABIT_CATALOG.length} habits`);
   assert.equal(new Set(HABIT_CATALOG.map(entry => entry.id)).size, HABIT_CATALOG.length);
   assert.equal(new Set(HABIT_CATALOG.map(entry => entry.icon)).size, HABIT_CATALOG.length);
   for (const entry of HABIT_CATALOG) {
-    assert.ok(KINDS.includes(entry.kind), entry.id);
+    assert.equal(entry.kind, entry.id);
+    assert.ok(server.has(entry.kind), entry.id);
     assert.ok(HABIT_GROUPS.includes(entry.group), entry.id);
-    assert.equal(Boolean(entry.unit), entry.kind === 'count' || entry.kind === 'distance', entry.id);
   }
   // dialog.pick() draws a heading each time the group changes, so groups must not repeat
   const order = HABIT_CATALOG.map(entry => entry.group).filter((group, at, all) => group !== all[at - 1]);

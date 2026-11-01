@@ -98,6 +98,11 @@
           "key": "errors_stay",
           "title": "errors stay until you close them",
           "body": "an error stays on screen with a close button until you close it, so you can read it. confirmations still go away on their own."
+        },
+        {
+          "key": "habit_logs",
+          "title": "every habit logs its own details",
+          "body": "open a habit and log its day with its own fields: distance and time for a run, glasses for water, care and moisture for plants. today starts from your last entry, so the same as last time is one tap. a gym day shows every session with its note, and an imported workout log reads drop sets, slash sets and failed sets right."
         }
       ]
     },

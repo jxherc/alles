@@ -212,6 +212,33 @@ def run():
                 counted(f"{kind}, same as last time", prefilled, 2)
                 _, saved = logs(item)
                 assert saved.get(today.isoformat()) == saved.get(yesterday), (kind, saved)
+            # every other kind: its own day log, built from its fields. today starts from the last
+            # entry, so "same as last time" is one tap on log (open is where the logger lives)
+            if width == 1180:
+                kinds = api.get(base + "/api/habits/kinds").json()["kinds"]
+                legacy = {"check", "count", "duration", "distance", "workout", "reading"}
+                seeded = {
+                    kind: habit(
+                        {"name": kind, "kind": kind},
+                        [(yesterday, {"v": 2, "entries": [{"values": {}, "note": "as usual"}]})],
+                    )
+                    for kind in kinds
+                    if kind not in legacy
+                }
+                page.goto(base + "/?view=habits", wait_until="networkidle")
+                for kind, own in seeded.items():
+                    page.locator(f'.habit-row[data-id="{own["id"]}"] [data-act="open"]').click()
+                    expect(page.locator(".dlog-form")).to_be_visible()
+
+                    def same_as_last_time():
+                        tap(page.locator(".dlog-log"))
+                        expect(page.locator(".dlog-entry")).to_have_count(1)
+
+                    counted(f"{kind}, same as last time", same_as_last_time, 1)
+                    page.wait_for_timeout(300)
+                    days, _ = logs(own)
+                    assert days.get(today.isoformat(), {}).get("entries"), (kind, days)
+                    page.locator('[data-act="back"]').click()
             page.screenshot(path=str(output / f"taps-{width}.png"), full_page=True)
             assert not errors, errors
             context.close()

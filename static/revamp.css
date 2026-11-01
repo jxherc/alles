@@ -4460,7 +4460,40 @@ html:not(#_):not(#_) .gym-ex + .gym-session { border-top: 1px solid var(--k-line
 html:not(#_):not(#_) .gym-session-name { margin: 0; color: var(--k-muted); font-size: 0.875rem; font-weight: 620; }
 html:not(#_):not(#_) .gym-session-note { margin: 0; color: var(--k-soft); font-size: 0.9375rem; line-height: 1.45; white-space: pre-line; }
 
+/* every other kind's day log (E1): the gym logger's grid and panel, one field per row. labels
+   on the left on wide screens, on top on a phone; a measure's unit switch sits beside its stepper */
+html:not(#_):not(#_) .dlog { display: grid; gap: var(--k-space-4); --gym-label: 224px; --gym-h: 52px; }
+/* a plain 1 to 5 row has no words, so its readout would only repeat the picked number: screen
+   readers still hear it */
+html:not(#_):not(#_) .dlog .k-number-row-readout { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+html:not(#_):not(#_) .dlog-entries { display: grid; gap: var(--k-row-gap); margin: 0; padding: 0; list-style: none; }
+html:not(#_):not(#_) .dlog-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--k-space-3);
+  min-height: 52px;
+  padding: var(--k-space-1) 0 var(--k-space-1) var(--k-space-3);
+  border-radius: var(--k-radius-control);
+}
+html:not(#_):not(#_) .dlog-entry:hover, html:not(#_):not(#_) .dlog-entry.is-editing { background: var(--k-hover); }
+html:not(#_):not(#_) .dlog-entry-text { font-size: 1rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+html:not(#_):not(#_) .dlog-form { display: grid; gap: var(--k-space-4); padding: var(--k-space-5); border-radius: var(--k-radius-surface); background: var(--k-panel); }
+html:not(#_):not(#_) .dlog-row { display: grid; grid-template-columns: var(--gym-label) minmax(0, 1fr); align-items: start; gap: var(--k-space-3); }
+html:not(#_):not(#_) .dlog-label { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); min-height: var(--gym-h); color: var(--k-muted); font-size: 0.875rem; }
+html:not(#_):not(#_) .dlog-control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap); min-width: 0; min-height: var(--gym-h); }
+html:not(#_):not(#_) .dlog-control > .k-stepper { flex: 1 1 auto; }
+html:not(#_):not(#_) .dlog-control > :is(.settings-input, .date-input, .custom-select) { flex: 1 1 auto; min-width: 0; }
+html:not(#_):not(#_) .dlog-note { min-height: var(--k-control); resize: vertical; }
+html:not(#_):not(#_) .dlog-actions { display: flex; gap: var(--k-control-gap); margin-top: var(--k-space-2); }
+html:not(#_):not(#_) .dlog-log { flex: 1; min-height: var(--gym-h); font-size: 1rem; font-weight: 600; }
+
 @media (max-width: 560px) {
+  html:not(#_):not(#_) .dlog-form { padding: var(--k-space-4); }
+  html:not(#_):not(#_) .dlog-row { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2); }
+  html:not(#_):not(#_) .dlog-label { min-height: 0; }
+  html:not(#_):not(#_) .dlog-label:has(.k-pill-switch) { min-height: var(--k-control); }
+  html:not(#_):not(#_) .dlog-control { min-height: 0; }
   html:not(#_):not(#_) .gym-editor { padding: var(--k-space-4); }
   html:not(#_):not(#_) .gym-frow { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2); }
   html:not(#_):not(#_) .gym-flabel { min-height: 0; }

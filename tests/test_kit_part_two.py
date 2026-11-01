@@ -214,8 +214,6 @@ CHOICE_TO_CONVERT = {
     "index.html:locale-language-list": "8 languages",
     "js/activity.js:seg-opt": "activity time ranges",
     "js/appsettings.js:seg-opt": "app setting choices of any length",
-    "js/habit_loggers.js:data-value": "habit field choices of any length (S5b part 3 converts)",
-    "js/habit_loggers.js:seg-opt": "habit field choices of any length (S5b part 3 converts)",
     "js/filesphase7.js:data-value": "every files location",
     "js/memory.js:mem-cat-btn": "memory categories, a list that grows",
     "js/read.js:read-chip": "4 reading filters",
