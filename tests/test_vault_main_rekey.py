@@ -1,6 +1,7 @@
-"""ui-8b — main vault (master password) vs per-vault passwords, + change-vault-password re-key.
-The main vault is the default; others have their own password. Changing a vault's password re-encrypts
-its entries (and attachments) under the new key, atomically."""
+"""ui-8b — main vault (master password) vs per-vault passwords, + change-vault-password.
+The main vault is the default; others have their own password. Changing a vault's password rewraps
+its vault key under the new password (it asks for the current one first); entries and attachments
+keep their ciphertext and keep opening."""
 
 import asyncio
 import io
@@ -87,7 +88,9 @@ class VaultMainRekey(ApiTest):
         wh = {"X-Vault-Token": self._unlock("work-password-1", wid).json()["token"]}
         eid = self._entry(wh)
         r = self.client.post(
-            "/api/vault/vaults/password", json={"new_password": "work-password-2"}, headers=wh
+            "/api/vault/vaults/password",
+            json={"new_password": "work-password-2", "current_password": "work-password-1"},
+            headers=wh,
         )
         self.assertEqual(r.status_code, 200)
         # old password no longer unlocks; new one does
@@ -107,7 +110,9 @@ class VaultMainRekey(ApiTest):
         self.assertEqual(up.status_code, 200)
         aid = up.json()["id"]
         r = self.client.post(
-            "/api/vault/vaults/password", json={"new_password": "master-password-2"}, headers=self.h
+            "/api/vault/vaults/password",
+            json={"new_password": "master-password-2", "current_password": "master-password-1"},
+            headers=self.h,
         )
         self.assertEqual(r.status_code, 200)
         ntok = self._unlock("master-password-2").json()["token"]
@@ -133,7 +138,7 @@ class VaultMainRekey(ApiTest):
         ):
             changed = self.client.post(
                 "/api/vault/vaults/password",
-                json={"new_password": "master-password-2"},
+                json={"new_password": "master-password-2", "current_password": "master-password-1"},
                 headers=self.h,
             )
 
@@ -150,7 +155,7 @@ class VaultMainRekey(ApiTest):
         second = self._unlock("master-password-1").json()["token"]
         changed = self.client.post(
             "/api/vault/vaults/password",
-            json={"new_password": "master-password-2"},
+            json={"new_password": "master-password-2", "current_password": "master-password-1"},
             headers=self.h,
         )
         self.assertEqual(changed.status_code, 200)
@@ -170,16 +175,17 @@ class VaultMainRekey(ApiTest):
 
     def test_inflight_old_password_cannot_write_after_rekey(self):
         eid = self._entry(self.h)
+        old_key = vault_routes._unlock_tokens[self.tok][1]
         changed = self.client.post(
             "/api/vault/vaults/password",
-            json={"new_password": "master-password-2"},
+            json={"new_password": "master-password-2", "current_password": "master-password-1"},
             headers=self.h,
         )
         self.assertEqual(changed.status_code, 200)
 
         db = self.db()
         try:
-            stale = ("master-password-1", "default")
+            stale = (old_key, "default")
             blocked_calls = (
                 lambda: vault_routes.create_entry(
                     vault_routes.CreateEntry(name="late entry", value="old-key-data"),
@@ -244,10 +250,12 @@ class VaultMainRekey(ApiTest):
         )
         self.assertEqual(len(self.client.get("/api/vault", headers=new_headers).json()), 1)
 
-    def test_change_password_restores_attachment_if_commit_fails(self):
+    def test_change_password_keeps_old_password_if_commit_fails(self):
         self._mk("Work", "work-password-1")
         wid = self._id_of("Work")
-        wh = {"X-Vault-Token": self._unlock("work-password-1", wid).json()["token"]}
+        work_token = self._unlock("work-password-1", wid).json()["token"]
+        wh = {"X-Vault-Token": work_token}
+        work_key = vault_routes._unlock_tokens[work_token][1]
         eid = self._entry(wh)
         blob = b"keep me readable"
         up = self.client.post(
@@ -264,9 +272,11 @@ class VaultMainRekey(ApiTest):
             with mock.patch.object(db, "commit", side_effect=RuntimeError("commit died")):
                 with self.assertRaises(HTTPException) as err:
                     vault_routes.change_vault_password(
-                        vault_routes.ChangePw(new_password="work-password-2"),
+                        vault_routes.ChangePw(
+                            new_password="work-password-2", current_password="work-password-1"
+                        ),
                         db=db,
-                        ctx=("work-password-1", wid),
+                        ctx=(work_key, wid),
                     )
             self.assertEqual(err.exception.status_code, 500)
         finally:
@@ -281,10 +291,39 @@ class VaultMainRekey(ApiTest):
 
     def test_change_default_password_changes_master(self):
         self.client.post(
-            "/api/vault/vaults/password", json={"new_password": "master-password-2"}, headers=self.h
+            "/api/vault/vaults/password",
+            json={"new_password": "master-password-2", "current_password": "master-password-1"},
+            headers=self.h,
         )
         self.assertEqual(self._unlock("master-password-1").status_code, 401)
         self.assertEqual(self._unlock("master-password-2").status_code, 200)
+
+    def test_change_password_needs_the_current_password(self):
+        for current in ("", "wrong-password-1"):
+            r = self.client.post(
+                "/api/vault/vaults/password",
+                json={"new_password": "master-password-2", "current_password": current},
+                headers=self.h,
+            )
+            self.assertEqual(r.status_code, 401, current)
+        self.assertEqual(self._unlock("master-password-1").status_code, 200)
+
+    def test_change_password_leaves_entry_ciphertext_alone(self):
+        from core.database import VaultEntry
+
+        eid = self._entry(self.h)
+        db = self.db()
+        before = db.get(VaultEntry, eid).value_encrypted
+        db.close()
+        r = self.client.post(
+            "/api/vault/vaults/password",
+            json={"new_password": "master-password-2", "current_password": "master-password-1"},
+            headers=self.h,
+        )
+        self.assertEqual(r.status_code, 200)
+        db = self.db()
+        self.assertEqual(db.get(VaultEntry, eid).value_encrypted, before)
+        db.close()
 
     def test_change_password_empty_rejected(self):
         r = self.client.post(

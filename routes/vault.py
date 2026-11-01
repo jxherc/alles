@@ -25,14 +25,25 @@ from core.database import (
     get_db,
 )
 from core.settings import load_settings, save_settings
-from services.crypto import decrypt, encrypt, make_verifier, verify_master
+from services import vault_audit, vault_keys
+from services.crypto import (
+    VaultKey,
+    decrypt,
+    encrypt,
+    is_v2,
+    new_vault_key,
+    open_vault_key,
+    rewrap,
+    verify_master,
+)
 from services.recovery_consistency import recovery_consistency_lock
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("alles.vault")
 
-# token → (expiry, plaintext_password, vault_id) — never written to disk
-_unlock_tokens: dict[str, tuple[float, str, str]] = {}
+# token → (expiry, open vault key, vault_id). never written to disk; the password itself is
+# never kept, only the key it unwrapped. a token dies after 10 idle minutes (auto lock).
+_unlock_tokens: dict[str, tuple[float, VaultKey, str]] = {}
 _TTL = 600  # 10 min
 DEFAULT_VAULT = "default"
 MIN_VAULT_PASSWORD_LENGTH = 8
@@ -46,7 +57,7 @@ def _require_new_vault_password(password: str) -> None:
         )
 
 
-def _mint(pw: str, vault_id: str, *, travel_safe: bool) -> str:
+def _mint(pw: VaultKey, vault_id: str, *, travel_safe: bool) -> str:
     with recovery_consistency_lock:
         if _travel_on() and not travel_safe:
             raise HTTPException(403, "vault unavailable in travel mode")
@@ -109,12 +120,35 @@ def _scoped_attachment(db, aid: str, vid: str) -> "VaultAttachment":
     return a
 
 
-def _require_current_vault_password(db, pw: str, vid: str) -> "Vault":
+def _require_current_vault_password(db, pw: VaultKey, vid: str) -> "Vault":
     """Reject an unlock token whose password was replaced while its request was waiting."""
     vault = db.get(Vault, vid)
-    if not vault or not vault.verifier or not verify_master(pw, vault.verifier):
+    if not vault or not isinstance(pw, VaultKey) or not pw.current_for(vault.verifier):
         raise HTTPException(403, "vault locked")
     return vault
+
+
+def _open_with_password(db, v: "Vault", password: str, *, how: str = "password") -> VaultKey:
+    """check the password (throttled) and return the open vault key, upgrading a v1 vault."""
+    wait = vault_keys.wait_left(v.id, v.verifier)
+    if wait:
+        raise HTTPException(
+            429, f"too many wrong tries, wait {wait}s", headers={"Retry-After": str(wait)}
+        )
+    opened = open_vault_key(password, v.verifier) if is_v2(v.verifier) else None
+    if opened is None and not (not is_v2(v.verifier) and verify_master(password, v.verifier)):
+        vault_keys.failed(v.id, v.verifier)
+        vault_audit.record(v.id, "unlock_failed", how=how)
+        raise HTTPException(401, "wrong master password")
+    vault_keys.succeeded(v.id, v.verifier)
+    try:
+        key = vault_keys.upgrade_vault(db, v, password, _attach_dir(), _server_key, key=opened)
+    except Exception:
+        log.exception("vault %s: key upgrade failed, nothing changed", v.id)
+        raise HTTPException(500, "vault upgrade failed; nothing was changed")
+    if v.id == DEFAULT_VAULT and load_settings().get("vault_verifier") != v.verifier:
+        save_settings({"vault_verifier": v.verifier})  # keep legacy mirror in sync
+    return key
 
 
 def _reserve_vault_write(db, pw, vid):
@@ -257,16 +291,17 @@ def vault_unlock(body: UnlockBody, db: DbSession = Depends(get_db)):
             )
         # first unlock for this vault — store only the verifier (no plaintext on disk)
         _require_new_vault_password(body.password)
-        v.verifier = make_verifier(body.password)
+        key = new_vault_key(body.password)
+        v.verifier = key.verifier
         if vid == DEFAULT_VAULT:
             save_settings({"vault_verifier": v.verifier})  # keep legacy mirror in sync
         db.commit()
+        vault_audit.record(vid, "created")
         return {
-            "token": _mint(body.password, vid, travel_safe=bool(v.travel_safe)),
+            "token": _mint(key, vid, travel_safe=bool(v.travel_safe)),
             "vault_id": vid,
         }
-    if not verify_master(body.password, v.verifier):
-        raise HTTPException(401, "wrong master password")
+    key = _open_with_password(db, v, body.password)
     # 9d / 8c — if this vault demands a second factor, withhold the token and hand back the available
     # methods: a passkey/security-key challenge and/or an authenticator-app (TOTP) prompt.
     has_key = _has_2fa_cred(db, vid)
@@ -289,8 +324,9 @@ def vault_unlock(body: UnlockBody, db: DbSession = Depends(get_db)):
         if has_totp:
             resp["methods"].append("totp")
         return resp
+    vault_audit.record(vid, "unlocked", how="password")
     return {
-        "token": _mint(body.password, vid, travel_safe=bool(v.travel_safe)),
+        "token": _mint(key, vid, travel_safe=bool(v.travel_safe)),
         "vault_id": vid,
     }
 
@@ -305,6 +341,7 @@ def vault_lock(x_vault_token: str | None = Header(None)):
             from services.browser_passwords import lock_vault
 
             lock_vault(context[2])
+            vault_audit.record(context[2], "locked")
     return {"ok": True}
 
 
@@ -384,10 +421,11 @@ def create_vault(body: VaultBody, db: DbSession = Depends(get_db), _pw: str = De
     if not name:
         raise HTTPException(400, "vault name required")
     _require_new_vault_password(body.password)
-    v = Vault(name=name, verifier=make_verifier(body.password), travel_safe=False)
+    v = Vault(name=name, verifier=new_vault_key(body.password).verifier, travel_safe=False)
     db.add(v)
     db.commit()
     db.refresh(v)
+    vault_audit.record(v.id, "created")
     return {"id": v.id, "name": v.name}
 
 
@@ -419,87 +457,49 @@ def patch_vault(
 
 class ChangePw(BaseModel):
     new_password: str
+    current_password: str = ""
 
 
 @router.post("/vault/vaults/password")
 def change_vault_password(
     body: ChangePw, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)
 ):
-    """8b — re-key the currently-unlocked vault to a new password. The main (default) vault's password
-    IS the master password, so this doubles as 'change master password'. Re-encrypts every entry +
-    attachment under the new key; computes all ciphertext first, then writes, so a mid-way failure
-    can't leave a half-re-keyed vault."""
-    from services.crypto import decrypt_bytes, encrypt_bytes
-
-    old_pw, vid = ctx
+    """8b: change the open vault's password. the main vault's password IS the master password.
+    the vault key stays the same and only its wrap changes (1password white paper, appendix
+    A.5), so entries, attachments and passkey wraps are untouched and nothing can be left half
+    re-keyed. the current password is asked again, as bitwarden and 1password both do, so an
+    open session alone can't take the vault over."""
+    key, vid = ctx
     new = body.new_password or ""
     _require_new_vault_password(new)
     with recovery_consistency_lock:
-        v = _require_current_vault_password(db, old_pw, vid)
-
-        # Freeze the whole vault view while computing the replacement ciphertext. This keeps
-        # attachment rows, blobs, and the verifier on one password generation.
-        entries = db.query(VaultEntry).filter(VaultEntry.vault_id == vid).all()
-        eids = [e.id for e in entries]
-        new_entry_blobs = {}
-        old_att_blobs = {}
+        v = _require_current_vault_password(db, key, vid)
+        current = _open_with_password(db, v, body.current_password or "", how="password change")
+        if current.key != key.key:
+            raise HTTPException(403, "vault locked")
+        fresh = rewrap(new, current)
+        v.verifier = fresh.verifier
         try:
-            for e in entries:
-                new_entry_blobs[e.id] = encrypt(new, decrypt(old_pw, e.value_encrypted))
-            atts = (
-                db.query(VaultAttachment).filter(VaultAttachment.entry_id.in_(eids)).all()
-                if eids
-                else []
-            )
-            new_att_blobs = {}
-            for a in atts:
-                p = _attach_dir() / f"{a.id}.enc"
-                if p.exists():
-                    raw = p.read_bytes()
-                    old_att_blobs[a.id] = raw
-                    new_att_blobs[a.id] = encrypt_bytes(new, decrypt_bytes(old_pw, raw))
-        except Exception:
-            raise HTTPException(500, "re-key failed — nothing changed")
-
-        # all crypto succeeded → commit the new ciphertext + verifier
-        wrote = []
-        try:
-            for e in entries:
-                e.value_encrypted = new_entry_blobs[e.id]
-            for aid, blob in new_att_blobs.items():
-                (_attach_dir() / f"{aid}.enc").write_bytes(blob)
-                wrote.append(aid)
-            v.verifier = make_verifier(new)
-            if v.biometric_blob:
-                # the blob wraps the master password under the server key — re-wrap it or a biometric
-                # unlock would keep releasing the OLD password and brick every decrypt
-                v.biometric_blob = encrypt(_server_key(), new)
             db.commit()
         except Exception:
             db.rollback()
-            for aid in wrote:
-                old_blob = old_att_blobs.get(aid)
-                if old_blob is not None:
-                    try:
-                        (_attach_dir() / f"{aid}.enc").write_bytes(old_blob)
-                    except Exception:
-                        pass
-            raise HTTPException(500, "re-key failed — nothing changed")
+            raise HTTPException(500, "password change failed; nothing changed")
         if vid == DEFAULT_VAULT:
             try:
                 save_settings({"vault_verifier": v.verifier})  # legacy master mirror
             except Exception:
                 # The database is authoritative once the default vault exists. A stale legacy
-                # mirror must not roll back already-committed ciphertext or report a false failure.
+                # mirror must not roll back the committed wrap or report a false failure.
                 log.warning("could not update the legacy default-vault verifier mirror")
-        for token, (_expires, _password, token_vid) in list(_unlock_tokens.items()):
+        for token, (_expires, _key, token_vid) in list(_unlock_tokens.items()):
             if token_vid == vid:
                 _unlock_tokens.pop(token, None)
         from services.browser_passwords import lock_vault
 
         lock_vault(vid)
-        new_token = _mint(new, vid, travel_safe=bool(v.travel_safe))
-    # the caller's token still holds the old pw — hand back a fresh one bound to the new password
+        new_token = _mint(fresh, vid, travel_safe=bool(v.travel_safe))
+    vault_audit.record(vid, "password_changed")
+    # the caller's token was bound to the old wrap; hand back a fresh one
     return {"ok": True, "token": new_token, "vault_id": vid}
 
 
@@ -861,6 +861,7 @@ def reveal_entry(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = De
         raw = decrypt(pw, e.value_encrypted)
     except Exception:
         raise HTTPException(500, "decryption failed")
+    vault_audit.record(vid, "revealed", entry=e.id)
     try:
         fields = json.loads(raw)
         if not isinstance(fields, dict):
@@ -909,6 +910,7 @@ def delete_entry(entry_id: str, db: DbSession = Depends(get_db), ctx: tuple = De
         )
         db.delete(e)
         db.commit()
+    vault_audit.record(vid, "deleted", entry=entry_id)
     return {"ok": True}
 
 
@@ -1182,6 +1184,31 @@ class WaRegister(BaseModel):
     label: str = ""
     credential_id: str
     public_key: str
+    prf: str = ""  # the passkey's PRF output for prf_salt, when the authenticator has PRF
+
+
+def _prf_salt(vault_id: str) -> str:
+    # the PRF input needn't be secret: the authenticator's own per-credential secret makes the
+    # output unique. one fixed salt per vault keeps unlock to a single get() call.
+    import base64
+    import hashlib
+
+    raw = hashlib.sha256(b"alles-vault-prf:" + vault_id.encode()).digest()
+    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def _prf_bytes(text: str) -> bytes | None:
+    import base64
+
+    if not text:
+        return None
+    try:
+        raw = base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+    except ValueError:
+        raise HTTPException(400, "bad prf output")
+    if len(raw) != 32:
+        raise HTTPException(400, "bad prf output")
+    return raw
 
 
 @router.post("/vault/webauthn/register")
@@ -1198,10 +1225,16 @@ def webauthn_register(
             public_key=body.public_key,
         )
         db.add(cred)
-        v.biometric_blob = encrypt(_server_key(), pw)  # wrap so an assertion can release it
+        prf = _prf_bytes(body.prf)
+        # the passkey gets its own wrap of the vault key: under its PRF output when it has
+        # one (the data folder alone can't open it), else under the device key
+        v.biometric_blob = vault_keys.add_wrap(
+            v.biometric_blob or "", body.credential_id, pw, prf, _server_key
+        )
         db.commit()
         db.refresh(cred)
-    return {"id": cred.id, "label": cred.label}
+    vault_audit.record(vid, "passkey_added", how="prf" if prf else "device")
+    return {"id": cred.id, "label": cred.label, "prf": bool(prf)}
 
 
 @router.get("/vault/webauthn/credentials")
@@ -1212,7 +1245,16 @@ def webauthn_credentials(db: DbSession = Depends(get_db), ctx: tuple = Depends(_
         .filter(WebAuthnCredential.vault_id == vid, WebAuthnCredential.role != "2fa")
         .all()
     )
-    return [{"id": c.id, "label": c.label, "credential_id": c.credential_id} for c in rows]
+    blob = (db.get(Vault, vid).biometric_blob or "") if db.get(Vault, vid) else ""
+    return [
+        {
+            "id": c.id,
+            "label": c.label,
+            "credential_id": c.credential_id,
+            "prf": vault_keys.wrap_kind(blob, c.credential_id) == "prf",
+        }
+        for c in rows
+    ]
 
 
 @router.delete("/vault/webauthn/credentials/{cid}")
@@ -1230,11 +1272,13 @@ def webauthn_delete(cid: str, db: DbSession = Depends(get_db), ctx: tuple = Depe
         .filter(WebAuthnCredential.vault_id == vid, WebAuthnCredential.role != "2fa")
         .count()
     )
-    if left == 0:
-        v = db.get(Vault, vid)
-        if v:
-            v.biometric_blob = ""
+    v = db.get(Vault, vid)
+    if v:
+        v.biometric_blob = (
+            "" if left == 0 else vault_keys.drop_wrap(v.biometric_blob, c.credential_id)
+        )
     db.commit()
+    vault_audit.record(vid, "passkey_removed")
     return {"ok": True}
 
 
@@ -1250,7 +1294,11 @@ def webauthn_challenge(vault_id: str = DEFAULT_VAULT, db: DbSession = Depends(ge
         .filter(WebAuthnCredential.vault_id == vault_id, WebAuthnCredential.role != "2fa")
         .all()
     )
-    return {"challenge": ch, "credentials": [c.credential_id for c in creds]}
+    return {
+        "challenge": ch,
+        "credentials": [c.credential_id for c in creds],
+        "prf_salt": _prf_salt(vault_id),
+    }
 
 
 class WaUnlock(BaseModel):
@@ -1259,6 +1307,7 @@ class WaUnlock(BaseModel):
     authenticator_data: str
     client_data_json: str
     signature: str
+    prf: str = ""
 
 
 @router.post("/vault/webauthn/unlock")
@@ -1299,13 +1348,30 @@ def webauthn_unlock(body: WaUnlock, request: Request, db: DbSession = Depends(ge
         raise HTTPException(401, "assertion failed")
     if not v.biometric_blob:
         raise HTTPException(400, "biometric not set up")
-    try:
-        pw = decrypt(_server_key(), v.biometric_blob)
-    except Exception:
-        raise HTTPException(500, "biometric unwrap failed")
     cred.sign_count = max(cred.sign_count or 0, sign_count(body.authenticator_data))
     db.commit()
-    return {"token": _mint(pw, vid, travel_safe=bool(v.travel_safe)), "vault_id": vid}
+    if vault_keys.load_wraps(v.biometric_blob) is None:
+        # a vault from before wrapped keys: the old blob still holds the password, so this
+        # unlock upgrades the vault and drops that copy
+        try:
+            legacy_pw = decrypt(_server_key(), v.biometric_blob)
+        except Exception:
+            raise HTTPException(500, "biometric unwrap failed")
+        key = _open_with_password(db, v, legacy_pw, how="passkey")
+    else:
+        if not is_v2(v.verifier):
+            raise HTTPException(409, "unlock with your password once")
+        if vault_keys.wrap_kind(v.biometric_blob, cred.credential_id) == "prf" and not body.prf:
+            raise HTTPException(400, "this passkey needs its prf output")
+        raw = vault_keys.open_wrap(
+            v.biometric_blob, cred.credential_id, _prf_bytes(body.prf), _server_key
+        )
+        if raw is None:
+            vault_audit.record(vid, "unlock_failed", how="passkey")
+            raise HTTPException(401, "passkey couldn't open the vault; unlock with your password")
+        key = VaultKey(raw, v.verifier)
+    vault_audit.record(vid, "unlocked", how="passkey")
+    return {"token": _mint(key, vid, travel_safe=bool(v.travel_safe)), "vault_id": vid}
 
 
 # ── passkey storage + use (9d) ────────────────────────────────────────────────
@@ -1503,13 +1569,15 @@ def totp_unlock(body: TotpUnlockBody, db: DbSession = Depends(get_db)):
         raise HTTPException(404, "no such vault")
     if _travel_on() and not v.travel_safe:
         raise HTTPException(403, "vault unavailable in travel mode")
-    if not verify_master(body.password, v.verifier):
-        raise HTTPException(401, "wrong master password")
+    key = _open_with_password(db, v, body.password)
     secret = _totp_map().get(vid)
     if not secret or not totp_verify(secret, body.code):
+        vault_keys.failed(vid, v.verifier)
+        vault_audit.record(vid, "unlock_failed", how="authenticator code")
         raise HTTPException(401, "wrong authenticator code")
+    vault_audit.record(vid, "unlocked", how="password and authenticator code")
     return {
-        "token": _mint(body.password, vid, travel_safe=bool(v.travel_safe)),
+        "token": _mint(key, vid, travel_safe=bool(v.travel_safe)),
         "vault_id": vid,
     }
 
@@ -1543,8 +1611,7 @@ def twofa_unlock(body: TwoFaUnlock, request: Request, db: DbSession = Depends(ge
         raise HTTPException(404, "no such vault")
     if _travel_on() and not v.travel_safe:
         raise HTTPException(403, "vault unavailable in travel mode")
-    if not verify_master(body.password, v.verifier):
-        raise HTTPException(401, "wrong master password")
+    key = _open_with_password(db, v, body.password)
     cred = (
         db.query(WebAuthnCredential)
         .filter(
@@ -1571,10 +1638,127 @@ def twofa_unlock(body: TwoFaUnlock, request: Request, db: DbSession = Depends(ge
         raise HTTPException(401, "assertion failed")
     cred.sign_count = max(cred.sign_count or 0, sign_count(body.authenticator_data))
     db.commit()
+    vault_audit.record(vid, "unlocked", how="password and security key")
     return {
-        "token": _mint(body.password, vid, travel_safe=bool(v.travel_safe)),
+        "token": _mint(key, vid, travel_safe=bool(v.travel_safe)),
         "vault_id": vid,
     }
+
+
+# ── activity log, encrypted export and import ─────────────────────────────────
+@router.get("/vault/audit")
+def vault_activity(db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
+    _key, vid = ctx
+    names = dict(db.query(VaultEntry.id, VaultEntry.name).filter(VaultEntry.vault_id == vid).all())
+    rows = vault_audit.recent(vid)
+    for row in rows:
+        if row.get("entry") in names:
+            row["entry_name"] = names[row["entry"]]
+    return rows
+
+
+class ExportBody(BaseModel):
+    vault_password: str
+    export_password: str
+
+
+@router.post("/vault/export")
+def export_vault(body: ExportBody, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
+    """a password-protected copy of the open vault (bitwarden's "password protected" export).
+    the vault password is asked again first; the file is sealed with its own Argon2id key."""
+    from datetime import UTC, datetime
+
+    from services.vault_export import seal
+
+    key, vid = ctx
+    _require_new_vault_password(body.export_password)
+    with recovery_consistency_lock:
+        v = _require_current_vault_password(db, key, vid)
+        current = _open_with_password(db, v, body.vault_password, how="export")
+        if current.key != key.key:
+            raise HTTPException(403, "vault locked")
+        rows = (
+            db.query(VaultEntry)
+            .filter(VaultEntry.vault_id == vid)
+            .order_by(VaultEntry.created_at.asc())
+            .all()
+        )
+        entries = []
+        for e in rows:
+            raw = decrypt(key, e.value_encrypted) if e.value_encrypted else "{}"
+            try:
+                fields = json.loads(raw)
+                if not isinstance(fields, dict):
+                    raise ValueError
+            except (ValueError, TypeError):
+                fields = {"password": raw}
+            entries.append(
+                {
+                    "name": e.name,
+                    "username": e.username or "",
+                    "category": e.category or "general",
+                    "type": e.type or "password",
+                    "fields": fields,
+                }
+            )
+        ids = [e.id for e in rows]
+        left_out = (
+            db.query(VaultAttachment).filter(VaultAttachment.entry_id.in_(ids)).count()
+            if ids
+            else 0
+        )
+    payload = {
+        "vault": v.name,
+        "exported_at": datetime.now(UTC).isoformat(),
+        "entries": entries,
+        "attachments_left_out": left_out,
+    }
+    vault_audit.record(vid, "exported", count=len(entries))
+    return Response(
+        seal(body.export_password, payload),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": 'attachment; filename="alles-passwords.json"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+class ImportBody(BaseModel):
+    export_password: str
+    file: str
+
+
+@router.post("/vault/import")
+def import_vault(body: ImportBody, db: DbSession = Depends(get_db), ctx: tuple = Depends(_ctx)):
+    from services.vault_export import ExportError, open_sealed
+
+    key, vid = ctx
+    try:
+        payload = open_sealed(body.export_password, body.file)
+    except ExportError as exc:
+        raise HTTPException(400, str(exc))
+    added = 0
+    with recovery_consistency_lock:
+        _reserve_vault_write(db, key, vid)
+        for item in payload.get("entries") or []:
+            if not isinstance(item, dict) or not str(item.get("name") or "").strip():
+                continue
+            fields = item.get("fields") if isinstance(item.get("fields"), dict) else {}
+            db.add(
+                VaultEntry(
+                    vault_id=vid,
+                    name=str(item["name"]).strip()[:500],
+                    username=str(item.get("username") or "")[:500],
+                    value_encrypted=encrypt(key, json.dumps(fields)),
+                    category=str(item.get("category") or "general")[:100],
+                    type=str(item.get("type") or "password")[:100],
+                )
+            )
+            added += 1
+        db.commit()
+    vault_audit.record(vid, "imported", count=added)
+    return {"imported": added}
 
 
 # ── retired browser-extension autofill compatibility route ────────────────────

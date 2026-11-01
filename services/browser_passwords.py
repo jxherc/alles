@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 
 from core.database import BrowserConnection, Vault, VaultEntry
 from core.settings import load_settings
+from services import vault_audit
 from services.crypto import decrypt
 
 _EXTENSION_ORIGIN = re.compile(r"^chrome-extension://[a-p]{32}$")
@@ -58,7 +59,7 @@ class _UnlockRequest:
 class _Session:
     connection_id: str
     vault_id: str
-    password: str
+    password: object  # the open VaultKey, never the master password
     verifier_hash: str
     expires: float
 
@@ -284,7 +285,7 @@ def approve_unlock(
     request_id: str,
     connection_id: str,
     vault_id: str,
-    password: str,
+    password,
     vault_verifier: str,
 ) -> None:
     with _LOCK:
@@ -304,6 +305,7 @@ def approve_unlock(
         )
         request.session_token = token
         request.expires = _sessions[token].expires
+    vault_audit.record(vault_id, "browser_unlocked", connection=connection_id)
 
 
 def cancel_unlock(request_id: str, connection_id: str) -> None:
@@ -547,6 +549,7 @@ def release(
         raise BrowserPasswordError(
             404, "credential_not_found", "credential no longer matches this page"
         )
+    vault_audit.record(session.vault_id, "browser_filled", entry=entry.id, connection=connection.id)
     return {"username": str(fields.get("username") or entry.username or ""), "password": password}
 
 

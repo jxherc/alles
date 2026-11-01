@@ -29,6 +29,34 @@ let _customTypes = {};     // 8e — user-defined entry types {key: {label, fiel
 
 const $ = id => document.getElementById(id);
 
+// auto lock: the server drops an unlock after 10 idle minutes; the page locks itself on the same
+// clock so a left-open tab doesn't keep showing names. clipboard: a copied secret is cleared after
+// 90 seconds (1password's default), if alles still has focus then (browsers only let a focused
+// page write the clipboard).
+export const AUTO_LOCK_MS = 10 * 60 * 1000;
+export const CLIPBOARD_CLEAR_MS = 90 * 1000;
+let _lastActive = Date.now();
+let _clipTimer = null;
+
+function _noteActivity() { _lastActive = Date.now(); }
+
+function _shouldAutoLock(unlocked, lastActive, now) {
+  return unlocked && now - lastActive >= AUTO_LOCK_MS;
+}
+
+async function _autoLockTick() {
+  if (_shouldAutoLock(_unlocked, _lastActive, Date.now())) await _doLock();
+}
+
+async function _copySecret(value) {
+  await writeClipboard(value);
+  clearTimeout(_clipTimer);
+  _clipTimer = setTimeout(() => {
+    _clipTimer = null;
+    if (document.hasFocus()) writeClipboard('').catch(() => {});
+  }, CLIPBOARD_CLEAR_MS);
+}
+
 // 9c — ArrayBuffer <-> base64 for WebAuthn blobs
 function _b64(buf) {
   const b = new Uint8Array(buf); let s = '';
@@ -275,6 +303,11 @@ function _defOf(key, typeKey) {
 }
 
 export function initVault() {
+  for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
+    document.addEventListener(type, _noteActivity, { passive: true, capture: true });
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) _autoLockTick(); });
+  setInterval(_autoLockTick, 30 * 1000);
   $('vault-unlock-btn')?.addEventListener('click', _doUnlock);
   $('vault-setup-retry')?.addEventListener('click', () => { _unlockError(''); _refreshVaultSetup(); });
   $('vault-lock-btn')?.addEventListener('click', _doLock);
@@ -678,6 +711,20 @@ async function _renderManageExtra() {
       <button class="home-settings-switch" type="button" id="mv-2fa" role="switch" aria-label="${_esc(t('vault.require_a_second_factor_to_unlock'))}" aria-checked="${st.on}"></button>
     </div>
     <p class="mv-2fa-note">${t('vault.biometric_note', { bio: `<b>${_esc(t('vault.note_biometric'))}</b>`, typing: `<i>${_esc(t('vault.note_without_typing'))}</i>`, passkey: `<b>${_esc(t('vault.note_passkey_2fa'))}</b>` })}</p>
+    <section class="mv-browser" id="vault-export" aria-labelledby="mv-export-title">
+      <div class="mv-browser-head">
+        <div><h3 id="mv-export-title">${_esc(t('vault.export_import'))}</h3></div>
+        <div class="mv-browser-actions">
+          <button class="act-btn" type="button" id="mv-export">${_esc(t('vault.export'))}</button>
+          <button class="act-btn" type="button" id="mv-import">${_esc(t('vault.import'))}</button>
+        </div>
+        <input type="file" id="mv-import-file" accept="application/json,.json" hidden>
+      </div>
+    </section>
+    <section class="mv-browser" id="vault-activity" aria-labelledby="mv-activity-title">
+      <div class="mv-browser-head"><div><h3 id="mv-activity-title">${_esc(t('vault.activity'))}</h3></div></div>
+      <div id="mv-activity-list"></div>
+    </section>
     <section class="mv-browser" id="vault-browser-access" aria-labelledby="mv-browser-title">
       <div class="mv-browser-head">
         <div><h3 id="mv-browser-title">${_esc(t('vault.connected_browsers'))}</h3><p>${_esc(t('vault.approve_each_browser_here_access'))}</p></div>
@@ -712,6 +759,10 @@ async function _renderManageExtra() {
     await _renderManageExtra();
   };
   box.querySelector('#mv-browser-download').onclick = event => _downloadBrowserExtension(event.currentTarget);
+  box.querySelector('#mv-export').onclick = () => _exportVault();
+  box.querySelector('#mv-import').onclick = () => box.querySelector('#mv-import-file').click();
+  box.querySelector('#mv-import-file').onchange = event => _importVault(event.currentTarget);
+  _renderActivity(box.querySelector('#mv-activity-list'));
   box.querySelectorAll('[data-browser-pair]').forEach(button => button.onclick = () =>
     _browserOwnerMutation(`/api/vault/browsers/pairings/${button.dataset.browserPair}/approve`, { method: 'POST' }, t('vault.browser_paired')));
   box.querySelectorAll('[data-browser-pair-deny]').forEach(button => button.onclick = () =>
@@ -863,8 +914,9 @@ async function _changeVaultPw() {
   try {
     const r = await _vfetch('/api/vault/vaults/password', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ new_password: np }),
+      body: JSON.stringify({ new_password: np.next, current_password: np.current }),
     });
+    if (r.status === 401) { toast(t('vault.wrong_current_password'), 'error'); return; }
     if (!r.ok) { toast(t('vault.change_failed'), 'error'); return; }
     _token = (await r.json()).token;   // re-bind to the new password
     toast(t('vault.password_changed'), 'success');
@@ -913,6 +965,7 @@ function _promptNewPw() {
       <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="np-title" style="max-width:340px">
         <div class="modal-head"><span class="modal-title" id="np-title">${_esc(t('vault.change_password'))}</span></div>
         <div class="vault-form">
+          <div class="vform-field"><label for="np-0">${_esc(t('vault.current_password'))}</label><input id="np-0" type="password" autocomplete="current-password" class="settings-input vform-input"></div>
           <div class="vform-field"><label for="np-1">${_esc(t('vault.new_password'))}</label><input id="np-1" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="8" placeholder="${_esc(t('vault.12_or_more_characters'))}"></div>
           <div class="vform-field"><label for="np-2">${_esc(t('vault.confirm_new_password'))}</label><input id="np-2" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="8" placeholder="${_esc(t('vault.repeat_new_password'))}"></div>
           <div class="np-err" id="np-err"></div>
@@ -933,19 +986,30 @@ function _promptNewPw() {
       const a = ov.querySelector('#np-1').value, b = ov.querySelector('#np-2').value;
       if (a.length < 8) { ov.querySelector('#np-err').textContent = t('vault.use_at_least_12_characters'); return; }
       if (a !== b) { ov.querySelector('#np-err').textContent = t('vault.passwords_don_t_match'); return; }
-      done(a);
+      const current = ov.querySelector('#np-0').value;
+      if (!current) { ov.querySelector('#np-err').textContent = t('vault.enter_current_password'); return; }
+      done({ current, next: a });
     };
     ov.querySelector('#np-cancel').onclick = () => done(null);
     ov.querySelector('#np-ok').onclick = go;
     ov.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }));
     ov.addEventListener('mousedown', e => { if (e.target === ov) done(null); });
-    focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#np-1'), done);
+    focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#np-0'), done);
   });
+}
+
+// the passkey's PRF output (webauthn level 3) wraps the vault key, so a copy of the data folder
+// can't open it. authenticators without PRF fall back to a key the server holds.
+function _prfOutput(credential) {
+  const first = credential?.getClientExtensionResults?.().prf?.results?.first;
+  return first ? _b64(first) : '';
 }
 
 async function _enableBiometric() {
   if (!window.PublicKeyCredential) { toast(t('vault.biometric_not_supported_in_this'), 'error'); return; }
   try {
+    const salt = (await fetch(`/api/vault/webauthn/challenge?vault_id=${encodeURIComponent(_vaultId)}`).then(r => r.json())).prf_salt;
+    const prf = salt ? { prf: { eval: { first: _b64ToBuf(salt) } } } : {};
     const challenge = crypto.getRandomValues(new Uint8Array(32));
     const cred = await navigator.credentials.create({ publicKey: {
       challenge,
@@ -954,13 +1018,26 @@ async function _enableBiometric() {
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }],  // ES256
       authenticatorSelection: { userVerification: 'required' },
       timeout: 60000,
+      extensions: prf,
     }});
     const pub = cred.response.getPublicKey();  // SPKI DER
     if (!pub) { toast(t('vault.this_authenticator_is_unsupported'), 'error'); return; }
+    let prfOut = _prfOutput(cred);
+    if (!prfOut && salt && cred.getClientExtensionResults?.().prf?.enabled) {
+      // most authenticators only evaluate PRF on get(), so ask once more right away
+      const check = await navigator.credentials.get({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ type: 'public-key', id: cred.rawId }],
+        userVerification: 'required',
+        timeout: 60000,
+        extensions: prf,
+      }});
+      prfOut = _prfOutput(check);
+    }
     const r = await _vfetch('/api/vault/webauthn/register', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ label: navigator.platform || 'device',
-        credential_id: _b64(cred.rawId), public_key: _b64(pub) }),
+        credential_id: _b64(cred.rawId), public_key: _b64(pub), prf: prfOut }),
     });
     if (!r.ok) { toast(t('vault.could_not_enable_biometric'), 'error'); return; }
     toast(t('vault.biometric_unlock_enabled_for_this'), 'success');
@@ -990,6 +1067,7 @@ async function _bioUnlock() {
       timeout: 60000,
       userVerification: 'required',
       allowCredentials: d.credentials.map(c => ({ type: 'public-key', id: _b64ToBuf(c) })),
+      extensions: d.prf_salt ? { prf: { eval: { first: _b64ToBuf(d.prf_salt) } } } : {},
     }});
     const r = await fetch('/api/vault/webauthn/unlock', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -999,6 +1077,7 @@ async function _bioUnlock() {
         authenticator_data: _b64(assertion.response.authenticatorData),
         client_data_json: _b64(assertion.response.clientDataJSON),
         signature: _b64(assertion.response.signature),
+        prf: _prfOutput(assertion),
       }),
     });
     if (!r.ok) { toast(t('vault.biometric_unlock_failed'), 'error'); return; }
@@ -1230,7 +1309,7 @@ async function _copyShare(ov) {
   const token = _token, value = ov.querySelector('#vf-share-url').value;
   if (!_sameForm(ov, token) || !value) return;
   try {
-    await writeClipboard(value);
+    await _copySecret(value);
     if (_sameForm(ov, token)) toast(t('vault.share_link_copied'), 'success');
   } catch {
     if (_sameForm(ov, token)) _formError(ov, t('vault.clipboard_share'));
@@ -1525,7 +1604,7 @@ function _renderFields(defs, values = {}) {
     const input = box.querySelector('#' + b.dataset.copy);
     const value = input.value === input._vaultOriginal?.rendered ? input._vaultOriginal.value : input.value;
     try {
-      await writeClipboard(value);
+      await _copySecret(value);
       if (_sameForm(ov, token)) toast(t('common.copied'), 'success');
     } catch {
       if (_sameForm(ov, token)) {
@@ -1718,7 +1797,9 @@ async function _doUnlock() {
     if (!r.ok) {
       const detail = (await r.json().catch(() => ({}))).detail;
       if (generation !== _unlockGeneration) return;
-      _unlockError(typeof detail === 'string' ? detail : t('vault.unlock_failed_try_again'));
+      const wait = r.status === 429 ? Number(r.headers.get('Retry-After')) || 0 : 0;
+      _unlockError(wait ? t('vault.too_many_tries', { seconds: wait })
+        : typeof detail === 'string' ? detail : t('vault.unlock_failed_try_again'));
       await _refreshVaultSetup();
       return;
     }
@@ -1931,7 +2012,7 @@ function _primarySecret(d) {
   return (k && f[k]) || f.password || d.value || Object.values(f).find(Boolean) || '';
 }
 
-export const _vaultInternals = { _entryFields, _typeForEntry, _primarySecret };
+export const _vaultInternals = { _entryFields, _typeForEntry, _primarySecret, _copySecret, _shouldAutoLock };
 
 window._vaultOpen = async id => {
   const row = _entries.find(e => e.id === id);
@@ -1975,7 +2056,7 @@ window._vaultCopy = async id => {
   })().catch(error => { revealError = error; throw error; });
   try {
     // the copy starts inside the click, before the secret arrives
-    await writeClipboard(reveal);
+    await _copySecret(reveal);
     if (current()) toast(t('common.copied'), 'success');
   } catch (error) {
     if (!current()) return;
@@ -2003,4 +2084,121 @@ window._vaultDel = async id => {
 
 function _esc(s = '') {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ── activity, export, import ────────────────────────────────────────────────
+const _ACTIVITY_LABELS = {
+  unlocked: 'vault.act_unlocked', unlock_failed: 'vault.act_unlock_failed', locked: 'vault.act_locked',
+  revealed: 'vault.act_revealed', deleted: 'vault.act_deleted', exported: 'vault.act_exported',
+  imported: 'vault.act_imported', password_changed: 'vault.act_password_changed',
+  passkey_added: 'vault.act_passkey_added', passkey_removed: 'vault.act_passkey_removed',
+  created: 'vault.act_created', browser_unlocked: 'vault.act_browser_unlocked',
+  browser_filled: 'vault.act_browser_filled',
+};
+
+export function activityLine(row) {
+  const key = row.action === 'unlocked' && String(row.how || '').includes('passkey')
+    ? 'vault.act_unlocked_passkey' : _ACTIVITY_LABELS[row.action];
+  return key ? t(key, { name: row.entry_name || t('vault.an_item') }) : row.action;
+}
+
+async function _renderActivity(list) {
+  if (!list) return;
+  let rows = [];
+  try {
+    const r = await _vfetch('/api/vault/audit');
+    if (r.ok) rows = await r.json();
+  } catch {}
+  if (!list.isConnected) return;
+  list.innerHTML = rows.length
+    ? rows.slice(0, 20).map(row => `
+      <div class="mv-row">
+        <span class="mv-name">${_esc(activityLine(row))}</span>
+        <span class="vault-entry-grow"></span>
+        <span class="mv-entries">${_esc(formatDateTime(new Date(row.at * 1000)))}</span>
+      </div>`).join('')
+    : `<div class="mv-help">${_esc(t('vault.no_activity'))}</div>`;
+}
+
+function _promptExport() {
+  return new Promise(resolve => {
+    const returnFocus = document.activeElement;
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay vault-modal';
+    ov.innerHTML = `
+      <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="ex-title" style="max-width:340px">
+        <div class="modal-head"><span class="modal-title" id="ex-title">${_esc(t('vault.export_title'))}</span></div>
+        <div class="vault-form">
+          <div class="vform-field"><label for="ex-0">${_esc(t('vault.current_password'))}</label><input id="ex-0" type="password" autocomplete="current-password" class="settings-input vform-input"></div>
+          <div class="vform-field"><label for="ex-1">${_esc(t('vault.export_password'))}</label><input id="ex-1" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="8"></div>
+          <div class="vform-field"><label for="ex-2">${_esc(t('vault.repeat_export_password'))}</label><input id="ex-2" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="8"></div>
+          <div class="np-err" id="ex-err"></div>
+        </div>
+        <div class="vault-form-actions">
+          <button type="button" class="btn" id="ex-cancel">${_esc(t('common.cancel'))}</button>
+          <button type="button" class="btn primary" id="ex-ok">${_esc(t('vault.export'))}</button></div>
+      </div>`;
+    document.body.appendChild(ov);
+    let focusBoundary = null;
+    const done = val => {
+      focusBoundary?.deactivate();
+      focusBoundary?.destroy();
+      ov.remove();
+      resolve(val);
+    };
+    const err = text => { ov.querySelector('#ex-err').textContent = text; };
+    const go = () => {
+      const current = ov.querySelector('#ex-0').value;
+      const a = ov.querySelector('#ex-1').value, b = ov.querySelector('#ex-2').value;
+      if (!current) { err(t('vault.enter_current_password')); return; }
+      if (a.length < 8) { err(t('vault.use_at_least_12_characters')); return; }
+      if (a !== b) { err(t('vault.passwords_don_t_match')); return; }
+      done({ current, exportPassword: a });
+    };
+    ov.querySelector('#ex-cancel').onclick = () => done(null);
+    ov.querySelector('#ex-ok').onclick = go;
+    ov.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }));
+    ov.addEventListener('mousedown', e => { if (e.target === ov) done(null); });
+    focusBoundary = _activateTemporaryModal(ov, returnFocus, ov.querySelector('#ex-0'), done);
+  });
+}
+
+async function _exportVault() {
+  const answer = await _promptExport();
+  if (!answer) return;
+  try {
+    const r = await _vfetch('/api/vault/export', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ vault_password: answer.current, export_password: answer.exportPassword }),
+    });
+    if (r.status === 401) { toast(t('vault.wrong_current_password'), 'error'); return; }
+    if (!r.ok) throw new Error('export failed');
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a');
+    a.href = url; a.download = 'alles-passwords.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast(t('vault.exported'), 'success');
+    _renderActivity(_modalEl?.querySelector('#mv-activity-list'));
+  } catch { toast(t('vault.export_failed'), 'error'); }
+}
+
+async function _importVault(input) {
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+  const password = await _promptPw(t('vault.import_password_title'), { placeholder: '', action: t('vault.import') });
+  if (password == null) return;
+  try {
+    const r = await _vfetch('/api/vault/import', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ export_password: password, file: await file.text() }),
+    });
+    if (!r.ok) { toast(t('vault.import_failed'), 'error'); return; }
+    toast(t('vault.imported', { count: (await r.json()).imported }), 'success');
+    await _loadVaults();
+    _renderManage();
+    _renderActivity(_modalEl?.querySelector('#mv-activity-list'));
+    await _loadEntries();
+  } catch { toast(t('vault.import_failed'), 'error'); }
 }

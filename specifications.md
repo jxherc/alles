@@ -1015,7 +1015,7 @@ ordinary-entry receipts.
 - sharing uses the saved entry. the form provides a copyable link when clipboard access fails,
   plus revocation for existing links. revocation prevents future access; it cannot erase a copy
   someone already read
-- *under the hood:* each entry is sealed with **aes-256-gcm** (a strong authenticated encryption) under a key derived from your master password with **pbkdf2-hmac-sha-256, 260,000 iterations** (a deliberately slow key-stretch so guessing the password is expensive). the master password is held **in memory only** and never written to disk. locked, the vault is unreadable even to someone holding a full copy of your database.
+- *under the hood:* each vault has its own random 256-bit key, and each entry and file is sealed with **aes-256-gcm** (a strong authenticated encryption) under it. your master password only unwraps that key, through **argon2id** (64 mib, 3 passes, 4 lanes: a deliberately slow, memory-hungry key-stretch so guessing the password is expensive). the server keeps the unwrapped key **in memory only**, never the password, and drops it after 10 idle minutes; the page locks itself on the same clock. changing the password asks for the current one and rewraps the key. wrong passwords get 5 free tries, then waits that double up to 5 minutes. a vault made before this upgrades itself on the next unlock. copied secrets clear from the clipboard after 90 seconds while alles has focus. vault settings has a password-protected export (argon2id + aes-gcm json, current password asked first) with import, and an activity log of unlocks, failed tries, opens, exports and security changes (`data/vault-audit.jsonl`, no secrets). a passkey holds its own wrap of the key: under its webauthn prf output when the authenticator has prf, otherwise under a device key the server keeps. threat model and audit: the owner's life vault, `alles vault threat model` and `alles vault audit`.
 
 <p align="center">
   <img src="docs/screenshots/secrets-card.png" width="680" alt="secrets: a credit-card item (cardholder, number, expiry, cvv, billing address)"><br>
@@ -1386,7 +1386,7 @@ run from a hidden aide research toggle.
   in `summary_pending`, home delivery is durable, discord retries are bounded, and library receives only
   items the owner explicitly saves.
 - **gallery / photos**: you import photos; pillow makes thumbnails and reads exif; they're grouped into date "moments." stored as plain files under `data/`.
-- **secrets**: entries sealed with aes-256-gcm under a pbkdf2-hmac-sha-256 (260k iterations) key derived from your master password, which lives in memory only.
+- **secrets**: entries sealed with aes-256-gcm under a random per-vault key, wrapped by an argon2id (64 mib, 3 passes, 4 lanes) key from your master password; the unwrapped key lives in memory only.
 - **automations & jobs**: a small background **job registry + event bus** ([`services/jobs.py`](services/jobs.py)) ticks the recurring work every 30 seconds: subscription renewals, day-event checks, scheduled reminders/messages, automation rules, and a periodic model-list refresh. rules live in the db and fire on events (mail arrived, doc saved, renewal soon, every morning). durable occurrence claims prevent duplicate work after a crash; ambiguous external results stop as `uncertain` instead of retrying blindly. new features can register their own jobs or react to events without wiring into the main loop.
 - **push notifications**: web push implemented straight from the rfcs (vapid keys + message encryption) with **no third-party library**, so reminders, renewals, and scheduled messages reach you even with every tab closed.
 
@@ -1745,7 +1745,7 @@ alles is built for **one person on their own machine.** read this before you put
 - **credentials are encrypted at rest with a local key.** model, mail, connector, mcp, dav, and sensitive settings credentials are sealed with aes-256-gcm under `data/secret.key`. this protects one database or config file if it leaks *on its own*; it does **not** protect against someone who has the whole `data/` folder, because the server must be able to decrypt unattended.
 - **new full backups fail closed on credential damage.** backup creation rejects plaintext known credentials, missing/corrupt keys, changed ciphertext, wrong field binding, and linked dependency files. historical plaintext archives can still stage so the current app can migrate them safely.
 - **full backups are encrypted before download, webdav upload, or s3-compatible upload.** the encrypted container includes the database, required application keys, selected managed files, and a hashed manifest. the recovery-key file is never printed in logs or uploaded separately or in plaintext; export it once and keep that copy away from the server. old plaintext zip backups can still be safely staged for compatibility.
-- **the password vault has its own key.** [services/crypto.py](services/crypto.py) derives a 32-byte key from the master password using pbkdf2-hmac-sha-256 with 260,000 iterations. each encrypted payload has a fresh 16-byte salt and 12-byte nonce. entries use aes-256-gcm; unlocking keeps the master password in an expiring in-memory context. the server credential key does not unlock vault entries.
+- **the password vault has its own key.** [services/crypto.py](services/crypto.py) wraps a random 32-byte vault key under an argon2id key from the master password (64 mib, 3 passes, 4 lanes, 16-byte salt); the wrap is the vault's verifier, so no password hash is stored. entries (`v2:` prefix) and attachments (`AV2` magic) use aes-256-gcm with a fresh 12-byte nonce and a purpose label as associated data. unlocking keeps only the open key in an expiring in-memory context; the password is never held. [services/vault_keys.py](services/vault_keys.py) upgrades older pbkdf2 vaults on the next password unlock (re-encrypt, read back, one commit, then file swaps), wraps the key per passkey (prf output or device key) and throttles wrong passwords. the server credential key does not unlock vault entries.
 - **network guards depend on the operation.** ordinary guarded integrations block loopback, link-local, reserved, multicast, and unspecified addresses while allowing private lan targets for self-hosted services. public-only fetches, including search images, also reject private targets. [services/net_guard.py](services/net_guard.py) contains these policies and redirect handling.
 - **the old browser-autofill token stays retired.** `/api/vault/match` revokes the exact pasted vault token and returns `410 Gone` without credential data. its replacement pairs a named browser with a hashed narrow device secret, then requires a separate unlocked-vault owner approval for each five-minute in-memory/session-storage fill session. it requests the chosen alles host plus `activeTab`, ships no permanent all-site content script, matches exact normalized scheme/host/effective port, returns metadata before one selected release, injects only frame 0, and never submits. lock, browser/server restart, computer lock, or revoke removes fill authority.
 - **protected public shares use slow password hashes.** share passwords use bcrypt and are submitted outside the url. expiry dates normalize to utc and invalid dates fail closed. ten unlock attempts per ip and share are allowed every five minutes. a correct password creates a one-hour, in-memory, httponly cookie bound to that link and password version; changing or revoking the share invalidates existing unlocks.
@@ -1812,9 +1812,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1017 http method/path pairs
-- 991 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
-- sha-256: `1b85a40ecbd5ef0a1a8a5a44c9ca799f88e1930013cbff3cf0147401ffb66475`
+- 1020 http method/path pairs
+- 994 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
+- sha-256: `238aa61fbba11b65d3aa73e5336697b9ff81de45d094f158d14adb2a552e842d`
 
 <details>
 <summary>app.py · 10 operations</summary>
@@ -3624,12 +3624,15 @@ retrieve full article text from each entry's publisher.
 | `POST` | `/api/vault/2fa/totp/setup` | `totp_setup` |
 | `DELETE` | `/api/vault/attachments/{aid}` | `delete_attachment` |
 | `GET` | `/api/vault/attachments/{aid}` | `download_attachment` |
+| `GET` | `/api/vault/audit` | `vault_activity` |
 | `GET` | `/api/vault/categories` | `vault_categories` |
 | `PUT` | `/api/vault/category-schema` | `put_category_schema` |
 | `GET` | `/api/vault/custom-types` | `get_custom_types` |
 | `DELETE` | `/api/vault/custom-types/{key}` | `delete_custom_type` |
 | `PUT` | `/api/vault/custom-types/{key}` | `put_custom_type` |
+| `POST` | `/api/vault/export` | `export_vault` |
 | `GET` | `/api/vault/generate` | `vault_generate` |
+| `POST` | `/api/vault/import` | `import_vault` |
 | `POST` | `/api/vault/lock` | `vault_lock` |
 | `GET` | `/api/vault/match` | `vault_match` |
 | `POST` | `/api/vault/passkey/new` | `passkey_new` |

@@ -18,7 +18,6 @@ from core import settings
 from core.database import Base, Vault, VaultAttachment, VaultEntry, VaultUploadReceipt
 from core.migrations import m0053_vault_upload_receipts
 from routes import vault
-from services.crypto import make_verifier
 from tests._client import ApiTest
 
 
@@ -44,6 +43,7 @@ class VaultUploadRequestTests(ApiTest):
         opened = self.client.post("/api/vault/unlock", json={"password": self.password})
         self.assertEqual(opened.status_code, 200)
         self.headers = {"X-Vault-Token": opened.json()["token"]}
+        self.key = vault._unlock_tokens[opened.json()["token"]][1]
         self.eid = self.entry()
         self.identity = str(uuid.uuid4())
         self.content = uuid.uuid4().bytes + b"\x00\xff\r\n"
@@ -114,7 +114,7 @@ class VaultUploadRequestTests(ApiTest):
         changed = self.client.post(
             "/api/vault/vaults/password",
             headers=self.headers,
-            json={"new_password": str(uuid.uuid4())},
+            json={"new_password": str(uuid.uuid4()), "current_password": self.password},
         )
         self.assertEqual(changed.status_code, 200)
         self.assertEqual(self.upload().status_code, 403)
@@ -178,7 +178,7 @@ class VaultUploadRequestTests(ApiTest):
                             self.eid,
                             UploadFile(file=io.BytesIO(self.content), filename="fixture.bin"),
                             db=db,
-                            ctx=(self.password, "default"),
+                            ctx=(self.key, "default"),
                             request_id=self.identity,
                         )
                     )
@@ -195,7 +195,7 @@ class VaultUploadRequestTests(ApiTest):
         barrier = threading.Barrier(3)
         try:
             with sessions() as db:
-                db.add(Vault(id="default", name="fixture", verifier=make_verifier(self.password)))
+                db.add(Vault(id="default", name="fixture", verifier=self.key.verifier))
                 db.add(VaultEntry(id=self.eid, vault_id="default", name="fixture"))
                 db.commit()
 
@@ -208,7 +208,7 @@ class VaultUploadRequestTests(ApiTest):
                             self.eid,
                             UploadFile(file=io.BytesIO(self.content), filename="fixture.bin"),
                             db=db,
-                            ctx=(self.password, "default"),
+                            ctx=(self.key, "default"),
                             request_id=self.identity,
                         )
                     )

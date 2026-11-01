@@ -5,6 +5,10 @@
       "date": "november 1, 2026",
       "items": [
         {
+          "title": "a safer password vault",
+          "body": "your vault now has its own random key, unlocked by your master password through argon2id, and the server never keeps the password. it locks after 10 idle minutes, clears copied passwords after 90 seconds, slows down wrong guesses, and asks for your current password before a password change or an export. vault settings has an encrypted export with import, and an activity list. your existing vault upgrades itself the next time you unlock it."
+        },
+        {
           "title": "one folder for your stuff",
           "body": "docs and files now live together in ~/Alles, with docs in ~/Alles/Docs, so files shows everything you wrote. backups moved out of view, next to the data. an older install moves over when you accept the update, or with alles folders move."
         },

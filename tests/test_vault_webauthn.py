@@ -369,25 +369,26 @@ class WebAuthnApiTests(ApiTest):
         blob = d.get(Vault, "default").biometric_blob
         d.close()
         self.assertTrue(blob)
-        self.assertNotIn(
-            b"master-password-1", base64.b64decode(blob)
-        )  # the master pw is never stored in the clear
+        # the passkey holds its own wrap of the vault key; the master password is never kept
+        self.assertNotIn("master-password-1", blob)
+        self.assertEqual(json.loads(blob)["wraps"][self.cred_id]["kind"], "device")
 
-    def test_biometric_blob_rewrapped_on_password_change(self):
-        # changing the master password must re-wrap the biometric blob, else a later
-        # biometric unlock releases the OLD password and every decrypt fails (vault bricked)
+    def test_passkey_wrap_survives_password_change(self):
+        # a password change rewraps only the password's copy of the vault key, so the
+        # passkey's own wrap still opens the same key
         self._register()
         r = self.client.post(
-            "/api/vault/vaults/password", json={"new_password": "master-password-2"}, headers=self.h
+            "/api/vault/vaults/password",
+            json={"new_password": "master-password-2", "current_password": "master-password-1"},
+            headers=self.h,
         )
         self.assertEqual(r.status_code, 200)
         from core.database import Vault
-        from routes.vault import _server_key
-        from services.crypto import decrypt
+        from routes.vault import _server_key, _unlock_tokens
+        from services import vault_keys
 
         d = self.db()
         blob = d.get(Vault, "default").biometric_blob
         d.close()
-        self.assertEqual(
-            decrypt(_server_key(), blob), "master-password-2"
-        )  # now releases the NEW password
+        opened = vault_keys.open_wrap(blob, self.cred_id, None, _server_key)
+        self.assertEqual(opened, _unlock_tokens[r.json()["token"]][1].key)

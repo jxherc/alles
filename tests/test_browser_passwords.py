@@ -256,6 +256,9 @@ class BrowserPasswordsApiTest(ApiTest):
         )
         db.commit()
         db.close()
+        # a v1 entry left over from before wrapped keys is upgraded by the next unlock
+        reopened = self.client.post("/api/vault/unlock", json={"password": "master-password"})
+        self.assertEqual(reopened.status_code, 200, reopened.text)
 
         entry_id = self._add_login()
         connection = self._pair()
@@ -465,7 +468,7 @@ class BrowserPasswordsApiTest(ApiTest):
 
         changed = self.client.post(
             "/api/vault/vaults/password",
-            json={"new_password": "new-master-password"},
+            json={"new_password": "new-master-password", "current_password": "master-password"},
             headers=self.owner_headers,
         )
         self.assertEqual(changed.status_code, 200, changed.text)

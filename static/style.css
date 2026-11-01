@@ -8169,6 +8169,7 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 .mv-browser-head h3 { margin: 0; color: var(--text); font-size: 0.8125rem; font-weight: 520; }
 .mv-browser-head p, .mv-browser-install p { max-width: 58ch; margin: 0.28rem 0 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
 .mv-browser .act-btn { min-height: 44px; flex: 0 0 auto; }
+.mv-browser-actions { display: flex; gap: var(--k-space-2); }
 .mv-browser-group { margin-top: 0.7rem; }
 .mv-browser-label { margin-bottom: 0.15rem; color: var(--muted); font-size: 0.8125rem; }
 .mv-browser-row { min-height: 52px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 0.45rem; border-bottom: 1px solid color-mix(in srgb, var(--faint) 72%, transparent); }
