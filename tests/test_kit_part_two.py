@@ -204,6 +204,7 @@ CHOICE_EXCEPTIONS = {
     "js/books.js:te-seg-opt": "3 shelves",
     "js/settings/providers.js:data-value": "2 sign in kinds",
     "js/setupwizard.js:data-value": "2 or 3 choices per step",
+    "js/habit_loggers.js:data-value": "gym set pill switches: same or split sides, lb or kg",
 }
 # known walls still waiting for the dropdown (listed in the s4b part 3 report)
 CHOICE_TO_CONVERT = {
