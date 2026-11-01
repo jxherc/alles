@@ -106,6 +106,21 @@ class StatusReleaseTest(unittest.TestCase):
         saved = json.loads((self.layout.runtime_root / "update-check.json").read_text())
         self.assertEqual(saved["latest"], "d" * 40)
 
+    def test_an_answer_about_another_release_is_asked_again(self):
+        # the install moved from a to b since the last check, which still names b's predecessor
+        native_install.remember_latest(self.layout, "9" * 40, "a" * 40)
+        with (
+            mock.patch.object(
+                native_install, "_load_manifest", return_value=self._manifest("b" * 40)
+            ),
+            mock.patch.object(
+                native_install, "latest_release_commit", return_value="b" * 40
+            ) as latest,
+        ):
+            check = native_install.update_check(self.layout)
+        latest.assert_called_once()
+        self.assertFalse(check["waiting"])
+
     def test_an_unreachable_release_source_is_reported_not_raised(self):
         with (
             mock.patch.object(native_install, "_load_manifest", return_value=self._manifest()),

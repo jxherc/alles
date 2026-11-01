@@ -1908,9 +1908,14 @@ def update_check(
     except (OSError, ValueError):
         cached = {}
     checked = cached.get("checked_at") if isinstance(cached, dict) else None
-    fresh = isinstance(checked, (int, float)) and 0 <= now - checked < UPDATE_CHECK_EVERY
+    # an answer about another release (before an update, accept or rollback) is stale
+    fresh = (
+        isinstance(checked, (int, float))
+        and 0 <= now - checked < UPDATE_CHECK_EVERY
+        and cached.get("current") == current
+    )
     if refresh or not fresh:
-        cached = {"checked_at": now, "latest": None, "error": None}
+        cached = {"checked_at": now, "current": current, "latest": None, "error": None}
         try:
             cached["latest"] = latest_release_commit(manifest.get("source") or {}, timeout=timeout)
         except NativeInstallError as exc:
@@ -1928,14 +1933,14 @@ def update_check(
     }
 
 
-def remember_latest(layout: NativeLayout, latest: str) -> None:
+def remember_latest(layout: NativeLayout, current: str, latest: str) -> None:
     """`alles update` just asked the source; keep its answer so status doesn't repeat stale news."""
     import time
 
     try:
         _atomic_json(
             layout.runtime_root / UPDATE_CHECK_FILE,
-            {"checked_at": time.time(), "latest": latest, "error": None},
+            {"checked_at": time.time(), "current": current, "latest": latest, "error": None},
         )
     except OSError:
         pass

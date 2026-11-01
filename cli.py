@@ -427,7 +427,7 @@ def cmd_status(args=()):
         when = _local_time(release.get("installed_at"))
         title = (f"release {release['short']}" + (f" · installed {when}" if when else ""),)
     ui.header("status", title)
-    width = 12
+    width = 13
     if native is not None:
         from services import service_manager
 
@@ -1888,7 +1888,7 @@ def _cmd_native_update_locked(layout) -> bool:
         source_checkout, target = _fetch_native_update_source(
             manifest, update_dir, progress=steps.handle
         )
-        native_install.remember_latest(layout, target)
+        native_install.remember_latest(layout, manifest["source"]["commit"], target)
         if source_checkout is None:
             steps.finish(True, "check", f"{old_short} is the newest, nothing to do")
             return True
@@ -3173,8 +3173,8 @@ class ProbeResult:
         return self.ok
 
     def explain(self, what: str) -> str:
-        text = what + (f": {self.error}" if self.error else "")
-        return text + (f"\nfull log: {self.log}" if self.log else "")
+        text = what + (f"\n{self.error}" if self.error else "")
+        return text + (f"\nfull log: {_short_path(self.log)}" if self.log else "")
 
 
 def _probe_error(output: str, exit_code: int | None, timeout: float) -> str:

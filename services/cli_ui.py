@@ -86,11 +86,18 @@ class Style:
 
         return shutil.get_terminal_size((80, 24)).columns if self.tty else 10_000
 
-    def fit(self, text: str, room: int) -> str:
-        """Cut a detail so its line never wraps in a narrow terminal; piped output stays whole."""
+    def fit(self, text: str, room: int, *, middle: bool = False) -> str:
+        """Cut text so its line never wraps in a narrow terminal; piped output stays whole.
+
+        middle keeps both ends, for paths: the folder it starts in and the file it ends with.
+        """
         if room <= 1 or len(text) <= room:
             return text
-        return text[: room - 1] + ("…" if self.fancy else "~")
+        cut = "…" if self.fancy else "~"
+        if middle:
+            head = (room - 1) // 2
+            return text[:head] + cut + text[len(text) - (room - 1 - head) :]
+        return text[: room - 1] + cut
 
     def bar(self, fraction: float, size: int = 20) -> str:
         """A progress bar: purple filled part, dim rest; [####----] when piped or plain."""
@@ -103,6 +110,7 @@ class Style:
     def rows(self, pairs: list[tuple[str, str]], *, dim_value: bool = False) -> None:
         width = max((len(key) for key, _ in pairs), default=0) + 2
         for key, value in pairs:
+            value = self.fit(value, self.width() - 2 - width, middle=True)
             self.say(f"  {key.ljust(width)}{self.dim(value) if dim_value else value}")
 
     def check(self, ok: bool | None, label: str, detail: str = "", width: int = 22) -> None:
@@ -210,8 +218,9 @@ class Steps:
         self.style.say()
         first, *rest = message.splitlines() or [""]
         self.style.say(f"  {self.style.bad(first)}")
-        for line in rest:  # where the full log is, the command to run
-            self.style.say(f"  {self.style.dim(line)}")
+        for line in rest:  # the real error stays loud; where its log is and what to run stay quiet
+            quiet = line.startswith(("full log:", "its log:", "run:"))
+            self.style.say(f"  {self.style.dim(line) if quiet else self.style.bad(line)}")
         if self.log:
             self.style.say()
             for line in self.log.splitlines()[-12:]:
