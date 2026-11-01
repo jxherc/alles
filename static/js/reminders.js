@@ -2,7 +2,8 @@ import { toast } from './util.js';
 import { confirm } from './dialog.js';
 import { initCustomDropdown } from './dropdown.js?v=215';
 import { initDatePicker, dateTimeParts } from './datepick.js';
-import { calendarDateKey, formatDateParts, formatDateTime, resolvedTimeZone, t } from './i18n.js';
+import { dayKey, when } from './when.js';
+import { calendarDateKey, formatDateParts, resolvedTimeZone, t } from './i18n.js';
 
 let _reminders = [];
 let _pollTimer = null;
@@ -169,14 +170,13 @@ async function _undoReminder(id, button) {
   }
 }
 
-// one time style everywhere: here with its date ("oct 24, 2026, 9:00 am"); plan's overview and
-// home show the same short time next to their day (i18n formatClock)
+// one way to write dates (when.js): "tomorrow 9:00 am", "sun 3:30 pm", "nov 12 9:00 am"
 export function reminderTimeLabel(iso, now = Date.now()) {
   if (!iso) return '';
   const d = new Date(iso + (/(Z|[+-]\d\d:\d\d)$/.test(iso) ? '' : 'Z'));
   if (Number.isNaN(d.getTime())) return '';
   if (d.getTime() < now) return t('plan.reminders_due_now');
-  return formatDateTime(d, { dateStyle: 'medium', timeStyle: 'short' });
+  return when(dayKey(d), { time: d.toISOString(), now: new Date(now) });
 }
 
 // The picker displays the configured timezone, which may differ from this browser's zone.

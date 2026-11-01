@@ -198,20 +198,21 @@ test('a reminder left over from an earlier day shows its date; today\'s keep the
     ] });
     const row = id => rows.find(item => item.id === id);
     // the full text is the reminders list's own (reminderTimeLabel); it feeds aide and the tooltip
-    assert.equal(row('old').meta, formatDateTime('2026-10-21T19:30:00-04:00', { dateStyle: 'medium', timeStyle: 'short' }));
-    assert.match(row('old').meta, /^Oct 21, 2026, 7:30\sPM$/);
-    assert.equal(row('old').lines[0], 'Oct 21');
+    // the day reads like every date (when.js), counted from the day home shows; the full date
+    // goes to aide and the tooltip
+    assert.equal(row('old').meta, 'wednesday, october 21, 2026 7:30 pm');
+    assert.equal(row('old').lines[0], '2 days ago');
     assert.match(row('old').lines[1], /^7:30\sPM$/);
     assert.match(row('now').meta, /^8:15\sAM$/);
     assert.equal(row('now').lines, undefined);
     assert.match(row('legacy').meta, /^9:00\sAM$/);
     assert.equal(row('legacy').lines, undefined);
-    assert.equal(row('last-year').lines[0], '12/30/25');
+    assert.equal(row('last-year').lines[0], 'dec 30, 2025');
     const old = { id: 'old', text: 'pay rent', at: '19:30', trigger_at: '2026-10-21T19:30:00-04:00' };
-    assert.match(homeDayRequest({ today: { date: '2026-10-23', reminders: [old] } }), /reminder: Oct 21, 2026, 7:30 PM — pay rent/);
+    assert.match(homeDayRequest({ today: { date: '2026-10-23', reminders: [old] } }), /reminder: wednesday, october 21, 2026 7:30 pm — pay rent/);
     configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '24' });
     const late = dailyRows({ date: '2026-10-23', reminders: [{ id: 'x', text: 'x', at: '23:45', trigger_at: '2026-10-22T23:45:00-04:00' }] });
-    assert.deepEqual(late[0].lines, ['Oct 22', '23:45']);
+    assert.deepEqual(late[0].lines, ['yesterday', '23:45']);
   } finally {
     configureLocalization({});
   }

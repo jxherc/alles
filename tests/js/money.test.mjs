@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
+import { whenDay, whenFull, whenHtml } from '../../static/js/when.js';
 
 const moneySource = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8');
 const styleSource = readFileSync(new URL('../../static/style.css', import.meta.url), 'utf8');
@@ -41,7 +42,7 @@ test('old Actual schedule repair chooses a category once and retries the saved c
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
   let choices = 0;
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
@@ -73,7 +74,7 @@ test('old Actual schedule repair chooses a category once and retries the saved c
 test('canonical recurring pause retries only the saved provider posting choice', async () => {
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
@@ -120,7 +121,7 @@ test('canonical recurring creation sends an exact category id and reuses its req
   element('rc-next').dataset.value = '2026-10-01';
   element('rc-category-choice').dataset.categoryId = 'housing-id';
   const calls = [], storage = new Map();
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     location: { search: '' }, URLSearchParams, crypto: webcrypto, TextEncoder,
@@ -158,7 +159,7 @@ test('canonical recurring creation sends an exact category id and reuses its req
 test('pending canonical creation offers one retry action and holds the new form', async () => {
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
@@ -189,7 +190,7 @@ test('pending canonical creation offers one retry action and holds the new form'
 test('pending recurring edit stays visible and retries only the saved edit', async () => {
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
@@ -225,7 +226,7 @@ test('canonical recurring deletion confirms its scope and retries only a saved d
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   const calls = [];
   const confirmations = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },
@@ -272,7 +273,7 @@ test('canonical recurring deletion confirms its scope and retries only a saved d
 
 test('recurring edit stays scoped to one eligible linked schedule', () => {
   const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     document: { activeElement: null, getElementById: () => null },

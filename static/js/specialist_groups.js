@@ -8,6 +8,7 @@ import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, forma
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
+import { whenDay, whenElement } from './when.js';
 
 export function mailboxAddress(value) {
   const raw = String(value || '').trim();
@@ -337,13 +338,7 @@ export function planCommitments(events, tasks, reminders) {
 }
 
 function _agendaDayLabel(key) {
-  if (!key) return t('groups.no_date');
-  const today = calendarDateKey(new Date());
-  if (key === today) return t('common.today');
-  const next = new Date(`${today}T00:00:00Z`);
-  next.setUTCDate(next.getUTCDate() + 1);
-  if (key === next.toISOString().slice(0, 10)) return t('groups.tomorrow');
-  return formatCalendarDate(key, { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase();
+  return key ? whenDay(key) : t('groups.no_date');
 }
 
 const _typeLabel = type => ({
@@ -499,7 +494,7 @@ async function _renderPlan(target, request, section = 'overview') {
   let windowName = returnTo?.windowName || (section === 'week' ? 'seven' : 'today');
   const agenda = _el('section', 'specialist-workbench-main');
   const agendaHead = _el('div', 'specialist-workbench-head');
-  agendaHead.append(_el('h2', '', t('groups.agenda')), _el('span', '', today));
+  agendaHead.append(_el('h2', '', t('groups.agenda')), _el('span', '', whenDay(today)));
   const agendaList = _el('div', 'specialist-record-list');
   const openStatus = _el('p', 'specialist-group-note plan-agenda-status');
   openStatus.setAttribute('role', 'status');
@@ -543,7 +538,7 @@ async function _renderPlan(target, request, section = 'overview') {
       rows = commitments.filter(item => item.type === 'task' && !item.date);
       empty = unscheduledEmpty;
     }
-    agendaHead.querySelector('span').textContent = value === 'today' ? today : value === 'seven' ? t('groups.next_seven_days') : t('groups.no_date');
+    agendaHead.querySelector('span').textContent = value === 'today' ? whenDay(today) : value === 'seven' ? t('groups.next_seven_days') : t('groups.no_date');
     _agendaRows(agendaList, rows, empty, openRecord);
   };
   const choices = _choiceButtons(t('groups.plan_window'), [
@@ -899,7 +894,7 @@ async function _renderHealth(target, request) {
   for (const item of health) {
     const row = _el('div', 'specialist-record-row');
     row.append(
-      _el('span', 'specialist-record-time', item.latest?.date || '--'),
+      item.latest?.date ? Object.assign(whenElement(item.latest.date), { className: 'specialist-record-time' }) : _el('span', 'specialist-record-time', '--'),
       _el('strong', 'specialist-record-title', item.label || item.kind || t('groups.measurement')),
       _el('span', 'specialist-record-meta', item.latest ? `${item.latest.value} ${item.latest.unit || ''}` : t('groups.no_entries')),
     );

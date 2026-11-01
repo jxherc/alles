@@ -2,6 +2,7 @@ import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, forma
 import { autosizeTextarea, wireAutosizeTextarea } from './text_entry.js?v=1';
 import { appDesc, appLabel, toast } from './util.js';
 import { appGlyph } from './icons.js';
+import { whenDay, whenFull } from './when.js';
 
 const SECTION_LABELS = {
   needs_you: 'needs you',
@@ -58,11 +59,10 @@ function reminderRow(item, date) {
   const row = { view: 'reminders', id: item.id, meta: formatClock(item.at), title: item.text, kind: 'reminder' };
   const day = String(item.trigger_at || '').slice(0, 10);
   if (!day || !date || day === date) return row;
-  const short = day.slice(0, 4) === date.slice(0, 4) ? { month: 'short', day: 'numeric' } : { dateStyle: 'short' };
   return {
     ...row,
-    meta: formatDateTime(item.trigger_at, { dateStyle: 'medium', timeStyle: 'short' }),
-    lines: [formatCalendarDate(day, short), row.meta],
+    meta: whenFull(day, { time: item.at }),
+    lines: [whenDay(day, { now: date }), row.meta],
   };
 }
 

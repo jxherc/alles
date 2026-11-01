@@ -1,6 +1,7 @@
 // money: accounts, transactions, budgets, and a couple of charts. plain SVG for
 // the charts (no chart lib), api() helper for the fetches.
 import { api, toast, plainError } from './util.js';
+import { whenDay, whenFull, whenHtml } from './when.js';
 import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from './dialog.js';
 import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=215';
 import { initDatePicker, calendarDateParts } from './datepick.js';
@@ -865,7 +866,7 @@ function savedTransactions() {
   const recent = item => item === current || item.id === focused || item.busy || item.state === 'uncertain';
   const receipt = item => {
     const saved = item.saved;
-    const label = saved ? `${saved.payee || saved.category || t('money.kind_transaction')} · ${signed(saved.amount, saved.undo ? saved.original_currency_code || 'XXX' : _cur)} · ${saved.date}` : t('money.saved_transaction');
+    const label = saved ? `${saved.payee || saved.category || t('money.kind_transaction')} · ${signed(saved.amount, saved.undo ? saved.original_currency_code || 'XXX' : _cur)} · ${whenDay(saved.date)}` : t('money.saved_transaction');
     const status = item.state === 'undone' ? t('money.txn_undone') : item.state === 'removed' ? t('money.txn_removed')
       : item.state === 'uncertain' ? t('money.undo_unconfirmed')
       : item.state === 'blocked' ? t('money.undo_blocked')
@@ -1365,7 +1366,7 @@ function recurringList() {
     <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending || r.create_pending || r.edit_pending || r.delete_pending || (_canonicalLedger && r.editable) ? '' : 'paused'}">
       <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
       <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? t('money.range') : t('money.varies')) : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount, accountCurrency(_accounts.find(a => a.id === r.account_id)))}`}<span class="rc-cyc">${_cycleShort()[r.cycle] || ''}</span></span>
-      <span class="rc-next" title="${r.create_pending ? t('money.creation_pending') : r.edit_pending ? t('money.edit_pending') : r.delete_pending ? t('money.deletion_pending') : r.next_date ? t('money.next_post', { date: esc(r.next_date) }) : t('money.next_date_unavailable')}">${r.create_pending || r.edit_pending || r.delete_pending ? t('money.pending') : r.active ? (r.next_date ? esc(r.next_date.slice(5)) : t('common.unknown')) : (_canonicalLedger ? t('money.inactive') : t('subs.paused'))}</span>
+      <span class="rc-next" title="${r.create_pending ? t('money.creation_pending') : r.edit_pending ? t('money.edit_pending') : r.delete_pending ? t('money.deletion_pending') : r.next_date ? t('money.next_post', { date: esc(whenFull(r.next_date)) }) : t('money.next_date_unavailable')}">${r.create_pending || r.edit_pending || r.delete_pending ? t('money.pending') : r.active ? (r.next_date ? esc(whenDay(r.next_date)) : t('common.unknown')) : (_canonicalLedger ? t('money.inactive') : t('subs.paused'))}</span>
       ${_canonicalLedger && r.manageable && !r.edit_pending && _recurringEdit?.id !== r.id ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? (r.posting_target_active ? t('money.retry_resume') : t('money.retry_pause')) : r.active ? t('subs.pause') : t('subs.resume')}</button>` : ''}
       ${_canonicalLedger && r.editable ? `<button type="button" class="btn rc-edit" data-edit-rec="${esc(r.id)}" aria-label="${t('money.edit_schedule_named', { name: esc(r.payee || t('money.recurring')) })}" aria-expanded="${_recurringEdit?.id === r.id}" ${_recurringEdit?.id === r.id && _recurringEdit.options ? 'aria-controls="rce-panel"' : ''} ${_recurringEdit && (_recurringEdit.id !== r.id || _recurringEdit.saving) ? 'disabled' : ''}>${t('common.edit')}</button>` : ''}
       ${_canonicalLedger && r.editable && !_recurringEdit ? `<button type="button" class="btn rc-delete" data-del-rec="${esc(r.id)}" aria-label="${t('money.delete_schedule_named', { name: esc(r.payee || t('money.recurring')) })}">${t('common.delete')}</button>` : ''}
@@ -1502,7 +1503,7 @@ function _renderTxnMain(txn, an) {
   </span>`;
   return `
     <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${txn.id}">
-      <span class="tx-date">${esc((txn.date || '').slice(5))}</span>
+      <span class="tx-date">${txn.date ? whenHtml(txn.date) : ''}</span>
       <span class="tx-payee">${esc(txn.payee) || '<span class="tx-dim">—</span>'}</span>
       <span class="tx-cat">${xf ? `${_si('swap')} ${t('money.transfer')}` : (txn.category ? `${catDot(txn.category)}${esc(txn.category)}` : '')}</span>
       ${xf ? '' : `<span class="tx-tags">${tags}</span>`}
@@ -2774,7 +2775,7 @@ async function addRecurring() {
     // a first date of today or earlier posts its charge right away; say so, or it looks like a
     // stray transaction (and a rent already logged by hand gets counted twice)
     toast(payload.next_date <= _today() ? t('money.schedule_added_now')
-      : t('money.schedule_added_on', { date: payload.next_date }), 'success');
+      : t('money.schedule_added_on', { date: whenDay(payload.next_date) }), 'success');
   } catch (error) {
     if (requestId) _releaseCreateRequest('recurring', requestId);
     if (_canonicalLedger) {

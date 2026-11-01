@@ -1,9 +1,10 @@
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=215';
 import { joinDue, initDatePicker, splitDue } from './datepick.js';
-import { calendarDateKey, formatTime, t as tr, tp as trp } from './i18n.js';
+import { calendarDateKey, t as tr, tp as trp } from './i18n.js';
 import { createFocusBoundary, setControlState } from './kokuen.js?v=5';
 import { toast } from './util.js';
+import { whenHtml } from './when.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 let _tasks = [];
@@ -201,12 +202,7 @@ function _dueBadge(d, time = null, overdue = null) {
   const iso = d.slice(0, 10), today = _todayISO();
   const late = overdue ?? iso < today;
   const cls = late ? 'task-due overdue' : (iso === today ? 'task-due today' : 'task-due');
-  const day = iso === today ? tr('common.today') : (iso === _shift(today, 1) ? tr('tasks.tomorrow') : iso);
-  return `<span class="${cls}">${time ? `${day} ${_clock(time)}` : day}</span>`;
-}
-function _clock(hhmm) {
-  const [h, m] = hhmm.split(':').map(Number);
-  return formatTime(new Date(Date.UTC(2000, 0, 1, h, m)), { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+  return `<span class="${cls}">${whenHtml(iso, { time: time || '' })}</span>`;
 }
 function _shift(iso, n) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 

@@ -5210,7 +5210,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .txn [data-edit-txn] { cursor: text; }
 :where(#money-view) .txn:hover [data-edit-txn] { color: var(--text); }
 :where(#money-view) .txn:last-child { border-bottom: none; }
-:where(#money-view) .tx-date { width: 44px; color: var(--muted); font-variant-numeric: tabular-nums; }
+:where(#money-view) .tx-date { min-width: 48px; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
 :where(#money-view) .tx-payee { flex: 1.4; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :where(#money-view) .tx-cat { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :where(#money-view) .tx-acct { width: 90px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
