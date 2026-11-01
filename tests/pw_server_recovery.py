@@ -737,7 +737,9 @@ def run():
                         assert api.post("/api/auth/login", data={"password": PASS}).ok
                         assert api.get("/api/system/policy").json()["canonical"] == before
                         page.goto("/?view=server-policy")
-                        expect(card("server access policy")).to_contain_text("owned_only")
+                        expect(
+                            card("what alles may control").get_by_role("radio", name="alles only")
+                        ).to_have_attribute("aria-checked", "true")
                         shot("10-after-owned-restart")
                         save_record(
                             "server.owned-restart-persistence",
@@ -800,7 +802,6 @@ def run():
                             {
                                 ("GET", "/api/system/stats", 503): state["stats_failures"],
                                 ("GET", "/api/system/logs", 503): 1,
-                                ("POST", "/api/system/policy/diff", 409): 1,
                                 ("PUT", "/api/system/policy", 403): 2,
                                 ("POST", "/api/backup/webdav/run", 503): 1,
                                 ("POST", "/api/system/services/audit-synthetic/start", 503): 1,
@@ -825,10 +826,6 @@ def run():
                                     "error",
                                     "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
                                 ): state["stats_failures"] + 3,
-                                (
-                                    "error",
-                                    "Failed to load resource: the server responded with a status of 409 (Conflict)",
-                                ): 1,
                                 (
                                     "error",
                                     "Failed to load resource: the server responded with a status of 403 (Forbidden)",

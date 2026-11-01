@@ -1340,6 +1340,7 @@ body:is(
 /* 28.35: the picked host services, the add dropdown, the phrase and save sit on one 12px rhythm */
 .server-workbench-policy-hosts { display: grid; gap: var(--k-space-3, 12px); margin-top: var(--k-space-3, 12px); }
 .server-workbench-policy-hosts > * { margin: 0; }
+.server-workbench-policy-hosts[hidden] { display: none; }
 .server-managed-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .server-managed-controls { margin-top: var(--k-space-4, 16px); }
 .server-managed-section { margin-top: var(--k-space-5, 24px); }
