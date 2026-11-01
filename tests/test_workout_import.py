@@ -9,6 +9,8 @@ from services import habit_kinds, workout_import
 from tests._client import ApiTest
 
 FIXTURE = (Path(__file__).parent / "fixtures" / "workout_log.md").read_text("utf-8")
+# the harder shapes a real log has, written fresh in the same shapes (never the owner's rows)
+SHAPES = (Path(__file__).parent / "fixtures" / "workout_log_shapes.md").read_text("utf-8")
 
 
 def table_rows(text):
@@ -19,6 +21,102 @@ def table_rows(text):
         and not line.startswith("| exercise")
         and not line.startswith("| ---")
     ]
+
+
+class ShapeTests(unittest.TestCase):
+    def setUp(self):
+        self.parsed = workout_import.parse(SHAPES)
+        self.chest = self.parsed["sessions"][0]
+
+    def sets(self, name):
+        exercise = next(e for e in self.chest["exercises"] if e["name"] == name)
+        keys = ("weight", "reps", "count", "status", "type", "partial")
+        return [tuple(one.get(k) for k in keys) for one in exercise["sets"]]
+
+    def test_every_row_reads_and_keeps_its_words(self):
+        self.assertEqual(self.parsed["problems"], [])
+        raws = [
+            one["raw"]
+            for session in self.parsed["sessions"]
+            for e in session["exercises"]
+            for one in e["sets"]
+            if "raw" in one
+        ]
+        self.assertEqual(raws, table_rows(SHAPES))
+
+    def test_commas_and_reps_in_brackets_after_a_weight(self):
+        self.assertEqual(
+            self.sets("cable fly"),
+            [
+                (30, 12, None, "attempted", None, None),
+                (20, 12, None, "done", None, None),
+                (30, 12, None, "done", None, None),
+                (35, 8, None, "done", None, 3),
+            ],
+        )
+
+    def test_slash_pairs_take_reps_by_position(self):
+        self.assertEqual(
+            [(w, r, c) for w, r, c, *_ in self.sets("hip in / out")],
+            [(25, 18, None), (60, 16, None), (30, 18, 11), (65, 16, 11), (90, 12, None)],
+        )
+
+    def test_no_weights_is_reps_with_no_load(self):
+        self.assertEqual(self.sets("back raise"), [(None, 15, 2, "done", None, None)])
+
+    def test_slash_sets_take_reps_each_and_a_fail_marks_its_set(self):
+        self.assertEqual(
+            [(w, r, st) for w, r, _, st, *_ in self.sets("incline smith")],
+            [(5, 12, "done"), (10, 10, "done"), (15, 8, "failed"), (10, 6, "done")],
+        )
+
+    def test_words_in_brackets_stay_a_note_and_the_count_still_counts(self):
+        sets = next(e for e in self.chest["exercises"] if e["name"] == "pec deck")["sets"]
+        self.assertEqual([(s["weight"], s.get("count", 1)) for s in sets], [(40, 1), (45, 2)])
+        self.assertEqual((sets[0]["status"], sets[0]["note"]), ("done", "(attempted 50)"))
+
+    def test_a_drop_set_and_reps_before_a_count(self):
+        self.assertEqual(
+            self.sets("machine press"),
+            [
+                (60, 6, None, "done", None, None),
+                (45, 4, None, "done", "drop", None),
+                (60, 8, None, "done", None, None),
+            ],
+        )
+
+    def test_reps_in_brackets(self):
+        self.assertEqual([r for _, r, *_ in self.sets("close press")], [11, 11])
+
+    def test_a_number_glued_to_fail_is_the_reps_not_a_set_count(self):
+        self.assertEqual(
+            [(w, r, c, st) for w, r, c, st, *_ in self.sets("fly press")],
+            [(40, 10, None, "done"), (50, 7, None, "failed"), (45, 6, None, "failed")],
+        )
+
+    def test_a_set_count_in_the_status_cell(self):
+        self.assertEqual(self.sets("side raise"), [("?", 15, 2, "done", None, None)])
+
+    def test_a_total_after_a_semicolon_adds_the_set_nobody_wrote_down(self):
+        exercise = next(e for e in self.chest["exercises"] if e["name"] == "curl machine")
+        self.assertEqual(
+            [(s["weight"], s["reps"], s.get("count", 1)) for s in exercise["sets"]],
+            [(15, 10, 2), ("?", 10, 1)],
+        )
+        self.assertEqual(exercise["sets"][1]["note"], "3 sets total")
+
+    def test_bad_ones_count_sets_like_one_bad(self):
+        self.assertEqual([(w, c) for w, _, c, *_ in self.sets("rope press")], [(25, 3), (20, None)])
+
+    def test_two_sessions_on_one_day_stay_two(self):
+        self.assertEqual(
+            [(s["group"], s["date"]) for s in self.parsed["sessions"]],
+            [("chest", "2025-05-02"), ("arm", "2025-05-02")],
+        )
+        self.assertEqual(self.parsed["sessions"][1]["note"], "the arm part came after a break")
+        for session in self.parsed["sessions"]:
+            doc = {"v": 2, "entries": [workout_import.entry(session, "imp-x")]}
+            self.assertTrue(habit_kinds.clean_log("workout", doc))
 
 
 class ParseTests(unittest.TestCase):

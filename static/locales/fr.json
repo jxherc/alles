@@ -3511,6 +3511,7 @@
     "habits.save_failed": "enregistrement impossible. réessaie.",
     "habits.save_offline": "enregistrement impossible. ta saisie est conservée ; réessaie une fois connecté.",
     "habits.search_habits": "rechercher des habitudes",
+    "habits.session_n": "séance {n}",
     "habits.sets": "séries",
     "habits.slipping": "en baisse",
     "habits.target_placeholder": "ex. 3",

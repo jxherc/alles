@@ -3511,6 +3511,7 @@
     "habits.save_failed": "no se pudo guardar. inténtalo de nuevo.",
     "habits.save_offline": "no se pudo guardar. se conserva lo que escribiste; reintenta cuando haya conexión.",
     "habits.search_habits": "buscar hábitos",
+    "habits.session_n": "sesión {n}",
     "habits.sets": "series",
     "habits.slipping": "a la baja",
     "habits.target_placeholder": "p. ej., 3",

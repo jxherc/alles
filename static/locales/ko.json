@@ -3511,6 +3511,7 @@
     "habits.save_failed": "저장할 수 없습니다. 다시 시도하세요.",
     "habits.save_offline": "저장할 수 없습니다. 입력한 내용은 유지됩니다. 연결되면 다시 시도하세요.",
     "habits.search_habits": "습관 검색",
+    "habits.session_n": "세션 {n}",
     "habits.sets": "세트",
     "habits.slipping": "흐트러지는 중",
     "habits.target_placeholder": "예: 3",

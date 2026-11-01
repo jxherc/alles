@@ -3511,6 +3511,7 @@
     "habits.save_failed": "تعذّر الحفظ. حاول مجددًا.",
     "habits.save_offline": "تعذّر الحفظ. مدخلاتك محفوظة؛ أعد المحاولة عند الاتصال.",
     "habits.search_habits": "ابحث عن عادة",
+    "habits.session_n": "الجلسة {n}",
     "habits.sets": "المجموعات",
     "habits.slipping": "متراجعة",
     "habits.target_placeholder": "مثل: 3",

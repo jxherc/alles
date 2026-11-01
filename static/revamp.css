@@ -4363,6 +4363,12 @@ html:not(#_):not(#_) .gym-actions { display: flex; gap: var(--k-control-gap); ma
 html:not(#_):not(#_) .gym-log-btn { flex: 1; min-height: var(--gym-h); font-size: 1rem; font-weight: 600; }
 html:not(#_):not(#_) .gym-ex-open { justify-self: start; }
 html:not(#_):not(#_) .gym-empty { margin: 0; color: var(--k-muted); font-size: 0.875rem; }
+/* a day with more than one session: each starts with its muscle groups, and any session note
+   sits right under it, word for word */
+html:not(#_):not(#_) .gym-session { display: grid; gap: var(--k-space-1); }
+html:not(#_):not(#_) .gym-ex + .gym-session { border-top: 1px solid var(--k-line); padding-top: var(--k-space-5); }
+html:not(#_):not(#_) .gym-session-name { margin: 0; color: var(--k-muted); font-size: 0.875rem; font-weight: 620; }
+html:not(#_):not(#_) .gym-session-note { margin: 0; color: var(--k-soft); font-size: 0.9375rem; line-height: 1.45; white-space: pre-line; }
 
 @media (max-width: 560px) {
   html:not(#_):not(#_) .gym-editor { padding: var(--k-space-4); }

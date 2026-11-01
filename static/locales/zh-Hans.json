@@ -3511,6 +3511,7 @@
     "habits.save_failed": "无法保存。请重试。",
     "habits.save_offline": "无法保存。你的输入已保留；连接后请重试。",
     "habits.search_habits": "搜索习惯",
+    "habits.session_n": "第 {n} 次训练",
     "habits.sets": "组数",
     "habits.slipping": "在下滑",
     "habits.target_placeholder": "例如：3",

@@ -3511,6 +3511,7 @@
     "habits.save_failed": "無法儲存，請再試一次。",
     "habits.save_offline": "無法儲存，你輸入的內容已保留，連線後請重試。",
     "habits.search_habits": "搜尋習慣",
+    "habits.session_n": "第 {n} 次訓練",
     "habits.sets": "組數",
     "habits.slipping": "正在退步",
     "habits.target_placeholder": "例如：3",

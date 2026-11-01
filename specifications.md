@@ -298,7 +298,17 @@ recorded rows, set rows and reps rows) imports into a workout habit with
 a date with no year waits for the owner's year and is never guessed; every row keeps its words in
 `raw`; shorthand nobody can read stays `?` and is listed as a problem in the preview; a session
 already imported is skipped; undo removes exactly that import's entries and the days it created.
-the file itself is only read.
+the file itself is only read. recorded rows read the file's own shorthand: `(2)` after a weight is
+two sets, a number before another bracket is the reps (`50 (9) (1)`), `10/15/20 × 15/12/10` is one
+set per slash with its own reps, `35/70 (1) × (22/20)` takes the reps by position, `50 (7)+40 (5)`
+is a drop set, `× (12)` is reps, `(8failed)` is 8 reps then failure, words in brackets stay a note,
+`no weights (3) × 12` is reps with no load, `5 (2); 3 sets total` adds the unwritten third set as
+`?`, and a status cell like "3 sets recorded" counts its sets.
+
+the gym logger shows every session of a day (two entries, say back then arms): each starts with
+its muscle groups, its note sits under it word for word, and a set saves into its own session's
+entry. "last time" and the next step hint come from days before the open day, and records
+(heaviest and the rest) only from days up to it, so a past day never counts a later session.
 
 **units and body profile.** [services/units.py](services/units.py) holds every conversion table
 (andromeda's converter reads the same one) and the owner's display choices, stored in the `units`

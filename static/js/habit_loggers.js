@@ -507,9 +507,25 @@ function exerciseMeta(exercise, muscles) {
   return bits.filter(Boolean).join(' · ');
 }
 
+// a day can hold more than one session (back in the morning, arms later): each keeps its own
+// entry, its muscle groups and its note, and the screen shows every one of them
+const entryOf = (g, exercise) => g.doc?.entries?.[exercise._s];
+
+function sessionHead(g, slot, number) {
+  const entry = g.doc?.entries?.[slot];
+  const muscles = entry?.values?.muscles || [];
+  const name = g.slots.length > 1 ? (muscles.join(' · ') || t('habits.session_n', { n: number })) : '';
+  const note = entry?.note || '';
+  if (!name && !note) return '';
+  return `<div class="gym-session" data-slot="${slot}">${name ? `<p class="gym-session-name">${esc(name)}</p>` : ''}${note ? `<p class="gym-session-note">${esc(note)}</p>` : ''}</div>`;
+}
+
 function gymHtml(g) {
-  const muscles = g.entry?.values?.muscles;
-  const list = g.exercises.map((exercise, index) => `<article class="gym-ex${index === g.active ? ' active' : ''}" data-ex="${index}">
+  const many = g.slots.length > 1;
+  const list = g.exercises.map((exercise, index) => {
+    const muscles = many ? null : entryOf(g, exercise)?.values?.muscles;
+    const head = index === 0 || g.exercises[index - 1]._s !== exercise._s ? sessionHead(g, exercise._s, g.slots.indexOf(exercise._s) + 1) : '';
+    return `${head}<article class="gym-ex${index === g.active ? ' active' : ''}" data-ex="${index}">
       <header class="gym-ex-head">
         <h3 class="gym-ex-name">${esc(exercise.name)}</h3>
         ${exerciseMeta(exercise, muscles) ? `<p class="gym-ex-meta">${esc(exerciseMeta(exercise, muscles))}</p>` : ''}
@@ -519,8 +535,10 @@ function gymHtml(g) {
       </header>
       ${setsHtml(g, index)}
       ${index === g.active ? editorHtml(g) : `<button type="button" class="btn gym-ex-open" data-gym="activate">${esc(t('habits.log_sets_here'))}</button>`}
-    </article>`).join('');
-  return `${list || `<p class="gym-empty">${esc(t('habits.no_exercises_day'))}</p>`}
+    </article>`;
+  }).join('');
+  const empty = g.exercises.length ? '' : `${g.slots.map((slot, at) => sessionHead(g, slot, at + 1)).join('')}<p class="gym-empty">${esc(t('habits.no_exercises_day'))}</p>`;
+  return `${list || empty}
     <div class="k-entry-row gym-add">
       <input type="text" class="settings-input" data-k="exercise" role="combobox" aria-autocomplete="list" aria-expanded="false" spellcheck="false" autocomplete="off" aria-label="${esc(t('habits.exercise'))}" placeholder="${esc(t('habits.add_exercise_placeholder'))}">
       <button type="button" class="btn primary" data-gym="add">${esc(t('habits.add_exercise'))}</button>
@@ -638,12 +656,15 @@ function paint(g, focus) {
 function store(g, before, focus) {
   const day = g.day;
   const doc = structuredClone(g.habit.days?.[day] || { v: 2, entries: [] });
-  let entry = doc.entries.find(one => one.values?.exercises) || doc.entries[0];
-  if (!entry) { entry = { values: {} }; doc.entries.push(entry); }
-  const exercises = g.exercises.filter(exercise => exercise.sets.length).map(({ keep, ...exercise }) => exercise);
-  entry.values = { ...entry.values, exercises };
-  if (!exercises.length) delete entry.values.exercises;
-  const empty = doc.entries.length === 1 && !Object.keys(entry.values).length && !entry.note;
+  // every session writes back to its own entry; a session emptied out keeps its place
+  for (const slot of new Set([...g.slots, ...g.exercises.map(exercise => exercise._s)])) {
+    const entry = doc.entries[slot] || (doc.entries[slot] = { values: {} });
+    const exercises = g.exercises.filter(exercise => exercise._s === slot && exercise.sets.length).map(({ keep, _s, ...exercise }) => exercise);
+    entry.values = { ...entry.values, exercises };
+    if (!exercises.length) delete entry.values.exercises;
+  }
+  const only = doc.entries[0];
+  const empty = doc.entries.length === 1 && !Object.keys(only.values || {}).length && !only.note;
   return g.save(empty ? null : doc).then(result => {
     g.habit.days = { ...(g.habit.days || {}), [day]: result?.data };
     const strip = g.host.closest('.habit-detail')?.querySelector(`.habit-day[data-toggle="${day}"]`);
@@ -733,7 +754,14 @@ function addExercise(g) {
   if (!name) { input?.focus(); return; }
   const known = g.exercises.findIndex(exercise => exercise.name.toLowerCase() === name.toLowerCase());
   if (known >= 0) g.active = known;
-  else { g.exercises.push({ name, sets: [] }); g.active = g.exercises.length - 1; }
+  else {
+    // a new exercise joins the session in use, right after its last exercise
+    const slot = g.exercises[g.active]?._s ?? g.slots[g.slots.length - 1];
+    const last = g.exercises.map(exercise => exercise._s).lastIndexOf(slot);
+    const at = last >= 0 ? last + 1 : g.exercises.length;
+    g.exercises.splice(at, 0, { name, sets: [], _s: slot });
+    g.active = at;
+  }
   g.editing = null; g.touched = false;
   g.draft = nextDraft(g);
   paint(g, '.gym-log-btn');
@@ -861,13 +889,15 @@ export function renderGym(host, habit, day, { save }) {
   // the same day again keeps the draft, unless its details only just arrived (an older day)
   const doc = habit.days?.[day];
   const same = _gym && _gym.habit.id === habit.id && _gym.day === day && !(doc && !_gym.doc && !_gym.exercises.length);
-  const entry = doc?.entries?.find(one => one.values?.exercises) || doc?.entries?.[0] || null;
+  const entries = doc?.entries || [];
+  const workouts = entries.map((one, at) => (one.values?.exercises ? at : -1)).filter(at => at >= 0);
+  const slots = workouts.length ? workouts : [0];
   let more = true;
   try { more = localStorage.getItem('alles-gym-more') !== '0'; } catch { /* stays open */ }
   if (!same && _gym) { clearInterval(_gym.restTimer); clearTimeout(_gym.undoTimer); }
-  const g = same ? Object.assign(_gym, { host, habit, save, entry, doc }) : {
-    host, habit, day, save, entry, doc, more,
-    exercises: structuredClone(entry?.values?.exercises || []),
+  const g = same ? Object.assign(_gym, { host, habit, save, doc, slots: [...new Set([...slots, ..._gym.slots])].sort((a, b) => a - b) }) : {
+    host, habit, day, save, doc, more, slots,
+    exercises: slots.flatMap(slot => structuredClone(entries[slot]?.values?.exercises || []).map(exercise => ({ ...exercise, _s: slot }))),
     history: new Map(), editing: null, undo: null, rest: null, touched: false,
   };
   if (!same) { g.active = Math.max(0, g.exercises.length - 1); g.draft = nextDraft(g); }

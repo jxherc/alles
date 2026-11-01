@@ -61,7 +61,19 @@ def run():
                         {
                             "v": 2,
                             "entries": [
-                                {"values": {"exercises": [{"name": "old press", "sets": sets}]}}
+                                {
+                                    "values": {
+                                        "muscles": ["chest"],
+                                        "exercises": [{"name": "old press", "sets": sets}],
+                                    }
+                                },
+                                {
+                                    "note": "arms after a break",
+                                    "values": {
+                                        "muscles": ["arm"],
+                                        "exercises": [{"name": "old curl", "sets": sets}],
+                                    },
+                                },
                             ],
                         },
                     ),
@@ -162,6 +174,25 @@ def run():
                 expect(page.locator(".gym-host")).to_contain_text("old press")
 
             counted("gym, a session 20 days back", old_session, 3)
+            # two sessions that day: both show, with their note, and a set goes to its own one
+            host = page.locator(".gym-host")
+            expect(host).to_contain_text("old curl")
+            expect(page.locator(".gym-session-name")).to_have_text(["chest", "arm"])
+            expect(page.locator(".gym-session-note")).to_have_text("arms after a break")
+            before = listed.count()
+            log.click()  # the last exercise, old curl, is the open one
+            expect(listed).to_have_count(before + 1)
+            page.locator('.gym-ex[data-ex="0"] [data-gym="activate"]').click()
+            page.locator(".gym-log-btn").click()
+            expect(listed).to_have_count(before + 2)
+            page.wait_for_timeout(500)
+            cards = api.get(base + f"/api/habits/overview?date_q={old_day}").json()["habits"]
+            entries = next(c for c in cards if c["id"] == gym["id"])["days"][old_day]["entries"]
+            names = [
+                [(x["name"], len(x["sets"])) for x in e["values"]["exercises"]] for e in entries
+            ]
+            assert names == [[("old press", 2)], [("old curl", 2)]], names
+            assert entries[1]["note"] == "arms after a break", entries[1]
             page.locator('[data-act="back"]').click()
 
             for kind, item in loggers.items():

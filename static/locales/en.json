@@ -3511,6 +3511,7 @@
     "habits.save_failed": "could not save. try again.",
     "habits.save_offline": "could not save. your input is kept; retry when connected.",
     "habits.search_habits": "search habits",
+    "habits.session_n": "session {n}",
     "habits.sets": "sets",
     "habits.slipping": "slipping",
     "habits.target_placeholder": "e.g. 3",

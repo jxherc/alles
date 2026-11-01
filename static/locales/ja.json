@@ -3511,6 +3511,7 @@
     "habits.save_failed": "保存できませんでした。もう一度お試しください。",
     "habits.save_offline": "保存できませんでした。入力内容は保持されています。接続したら再試行してください。",
     "habits.search_habits": "習慣を検索",
+    "habits.session_n": "セッション {n}",
     "habits.sets": "セット",
     "habits.slipping": "ペースダウン中",
     "habits.target_placeholder": "例: 3",
