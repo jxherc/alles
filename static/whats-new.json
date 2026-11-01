@@ -5,10 +5,6 @@
       "date": "november 1, 2026",
       "items": [
         {
-          "title": "due dates take a time",
-          "body": "the task editor, the tasks add row and the capture review share one date field. press add time in its picker to give a task a time; it shows on the task, in the calendar and in the agenda, and the task goes overdue at that time."
-        },
-        {
           "title": "one folder for your stuff",
           "body": "docs and files now live together in ~/Alles, with docs in ~/Alles/Docs, so files shows everything you wrote. backups moved out of view, next to the data. an older install moves over when you accept the update, or with alles folders move."
         },
@@ -27,6 +23,10 @@
         {
           "title": "aide's tools on linux",
           "body": "alles install adds node, and alles tools says what a bare linux box is missing, with the command that fixes it."
+        },
+        {
+          "title": "due dates take a time",
+          "body": "the task editor, the tasks add row and the capture review share one date field. press add time in its picker to give a task a time; it shows on the task, in the calendar and in the agenda, and the task goes overdue at that time."
         }
       ]
     },

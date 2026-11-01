@@ -1848,13 +1848,8 @@ body.is-aide.is-incognito .incognito-bar {
 }
 .mm-ep-edit input { height: 28px; font-size: 0.8125rem; }
 .mm-add-section { border-top: 1px solid var(--faint); padding: 0.5rem 0.75rem; flex-shrink: 0; }
-.mm-presets { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.4rem; align-items: center; }
-.mm-preset-btn {
-  background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control);
-  color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0.1rem 0.45rem;
-  cursor: pointer; transition: color 0.15s, border-color 0.15s;
-}
-.mm-preset-btn:hover { color: var(--text); border-color: var(--line-strong); }
+.mm-presets { display: flex; margin-bottom: var(--k-control-gap); }
+.mm-presets > .mm-preset-pick { flex: 1 1 auto; min-width: 0; }
 .mm-add-form { display: flex; gap: var(--k-control-gap); align-items: center; flex-wrap: wrap; }
 .mm-add-form input {
   height: 28px; font-size: 0.8125rem;
@@ -5603,15 +5598,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .rule-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; cursor: pointer; }
 .rule-row-main:hover .rule-row-name { color: var(--text); }
 /* automation quick-start presets */
-.rule-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.6rem; }
-.rule-presets-label { font-size: 0.8125rem; color: var(--muted); margin-right: 0.15rem; }
-.rule-preset {
-  background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control);
-  color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0.2rem 0.6rem; cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.rule-preset:hover { border-color: var(--line-strong); color: var(--text); }
-.rule-preset.sel { border-color: var(--line-strong); color: var(--text); background: var(--raised); }
+.rule-presets { display: flex; margin-bottom: var(--k-space-3, 12px); }
+.rule-presets > .rule-preset-pick { flex: 1 1 auto; min-width: 0; max-width: 24rem; }
 
 /* ── first-run setup wizard: compact KOKUEN utility surface ── */
 .setup-card { width: 560px; max-width: calc(100vw - 32px); max-height: min(720px, calc(100dvh - 32px)); padding: 0; overflow: hidden; }
@@ -11340,7 +11328,6 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 .theme-mode-btn.active,
 .tasks-tab.active,
 .ie-tool.active,
-.rule-preset.sel,
 .setup-provider[aria-pressed="true"],
 .mem-policy-btn.active,
 .docs-sec-btn.active,
@@ -11416,10 +11403,6 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 #settings-modal .s-card-hint + :is(.s-field, .settings-textarea) { margin-top: var(--k-space-3, 12px); }
 /* rules quick start: the label sits above, so a wrapped choice lines up under the first one.
    the picked choice is a box, so the row stays on the column edge (0043) */
-.rule-presets { row-gap: 4px; }
-.rule-presets-label { flex: 0 0 100%; margin: 0; }
-.rule-preset { min-height: 44px; padding: 0 12px; border-color: transparent; }
-.rule-preset:hover { border-color: transparent; background: var(--k-hover, var(--panel)); }
 
 /* what's new: once per release. the card rises in, a line draws across its top and the items
    land one after another; with reduced motion everything is simply there */

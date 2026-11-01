@@ -49,7 +49,7 @@ In Alles the primary is the text action's shape plus one `--k-line-strong` line,
 - `role="menu"` with `menuitem` children;
 - Up/Down moves, Home/End jumps, Enter/Space activates, Escape closes;
 - focus moves into the menu and returns to its trigger;
-- 4px outer radius, 2px row radius, 44px minimum row;
+- 12px surface radius, 8px row radius (12 minus the 4px inset), 44px minimum row;
 - disabled rows stay discoverable and cannot activate;
 - never use a visible native select or context menu.
 
@@ -59,7 +59,10 @@ Use buttons with `role="radio"` and `aria-checked`, or independent buttons with 
 
 Which control does which job (owner, oct 28, decision 0050): 2 or 3 options flipped often are a
 pill switch; a rating is a number row; 4 or more options, or a list that can grow, is the
-dropdown (`dropdown.js`). Never a wall of chips or buttons for text choices.
+dropdown (`dropdown.js`). Never a wall of chips or buttons for text choices: more than 5 text
+choices is always a dropdown with type to jump (28.14). Quick fills (model providers, rule presets)
+are a dropdown with a placeholder that fills the form on pick; a server setting with more than 3
+options or a model list is a dropdown, 2 or 3 a pill switch (28.29).
 
 - pill switch: `<div class="k-pill-switch" data-kokuen-choice="switch" aria-label="unit">` with 2
   or 3 `<button>`s, one with `aria-checked="true"`. kokuen.js makes it a radiogroup with arrow

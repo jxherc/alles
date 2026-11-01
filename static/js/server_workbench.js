@@ -3,6 +3,7 @@
 // an existing typed API; this UI never accepts shell commands or arbitrary paths.
 
 import { plainError } from './util.js';
+import { populateDropdown } from './dropdown.js?v=215';
 import { formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { requestWithRecentOwner } from './recent_owner.js';
@@ -116,10 +117,13 @@ function serviceAction(subject, verb, run) {
   return destructiveAction(verbLabel(verb), consequence, run);
 }
 
-function choice(label, options, selected, onChange) {
+// one control per job (decision 0050, 28.29): a list that can grow or more than 3 options is the
+// dropdown, 2 or 3 options are a pill switch. no local button groups
+function choice(label, options, selected, onChange, { list: growing = false } = {}) {
+  if (growing || options.length > 3) return choiceMenu(label, options, selected, onChange);
   const field = el('fieldset', 'server-workbench-choice');
   field.append(el('legend', '', label));
-  const list = el('div', 'server-workbench-choice-list');
+  const list = el('div', 'server-workbench-choice-list k-pill-switch');
   list.setAttribute('role', 'radiogroup');
   list.setAttribute('aria-label', label);
   let choiceBusy = false;
@@ -181,6 +185,31 @@ function choice(label, options, selected, onChange) {
     return button;
   });
   field.append(list);
+  return field;
+}
+
+function choiceMenu(label, options, selected, onChange) {
+  const field = el('div', 'server-workbench-choice');
+  const name = el('span', 'server-workbench-choice-label', label);
+  name.id = `swc-${Math.random().toString(36).slice(2, 9)}`;
+  const pick = el('div', 'settings-input custom-select');
+  pick.setAttribute('aria-labelledby', name.id);
+  field.append(name, pick);
+  populateDropdown(pick, options, selected);
+  let current = selected;
+  pick.addEventListener('change', async () => {
+    const value = pick.value;
+    if (value === current) return;
+    pick.disabled = true;
+    try { await onChange(value); current = value; }
+    catch (error) {
+      pick.value = current;
+      const owner = field.closest('.server-workbench-card');
+      let region = owner?.querySelector('.server-workbench-status');
+      if (!region && owner) { region = statusLine(); owner.append(region); }
+      if (region) { region.textContent = plainError(error.message || t('server.wb_setting_failed')); region.classList.add('is-error'); }
+    } finally { pick.disabled = false; }
+  });
   return field;
 }
 
@@ -772,7 +801,7 @@ async function renderSearch(target, request) {
         }
         const saved = await save({ model_roles: nextRoles });
         announceModelRoles(saved?.model_roles || nextRoles, 'server');
-      }));
+      }, { list: true }));
       models.append(fact(role === 'andromeda_answer' ? t('server.wb_answer_status') : t('server.wb_verifier_status'), roles[role]?.status || t('common.unavailable')));
     }
   }

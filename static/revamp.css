@@ -1365,6 +1365,8 @@ html:not(#_):not(#_) .totals-currency {
 }
 
 html:not(#_):not(#_) .totals-currency-pick {
+  width: auto;
+  min-width: 7rem;
   gap: var(--k-space-1);
 }
 

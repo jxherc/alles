@@ -1236,12 +1236,14 @@ body:is(
 }
 
 .server-workbench-choice legend,
+.server-workbench-choice-label,
 .server-workbench-field > span {
   margin-bottom: var(--k-space-2, 8px);
   color: var(--k-muted, var(--muted));
   font-size: 0.8125rem;
 }
 
+.server-workbench-choice-label { display: block; }
 .server-workbench-choice-list { display: flex; flex-wrap: wrap; gap: var(--k-space-1, 4px) 0; }
 .server-workbench-choice-list button[aria-checked="true"] {
   color: var(--k-text, var(--text));
