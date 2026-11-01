@@ -75,12 +75,29 @@ def _assert_targets(page: Page, selector: str) -> None:
 def _assert_setup_clears_shell(page: Page) -> None:
     setup_box = page.locator("#setup-wizard").bounding_box()
     card_box = page.locator("#setup-wizard .setup-card").bounding_box()
-    assert setup_box is not None and setup_box["x"] >= 51.5, setup_box
+    # the left rail is gone (navigation lives in the app headers), so the dialog layer owns the
+    # whole viewport and nothing of the shell may sit on top of the card
+    viewport = page.viewport_size
+    assert setup_box is not None and viewport is not None, setup_box
+    assert setup_box["x"] >= 0 and setup_box["width"] <= viewport["width"] + 1, setup_box
     assert card_box is not None and card_box["x"] >= setup_box["x"], {
         "setup": setup_box,
         "card": card_box,
     }
     assert card_box["x"] + card_box["width"] <= setup_box["x"] + setup_box["width"] + 1
+    covered = page.evaluate(
+        """() => {
+          const card = document.querySelector('#setup-wizard .setup-card').getBoundingClientRect();
+          const points = [[card.left + 4, card.top + 4], [card.right - 4, card.top + 4],
+            [card.left + 4, card.bottom - 4], [card.right - 4, card.bottom - 4],
+            [card.left + card.width / 2, card.top + card.height / 2]];
+          return points.filter(([x, y]) => {
+            const hit = document.elementFromPoint(x, y);
+            return !hit || !hit.closest('#setup-wizard');
+          });
+        }"""
+    )
+    assert not covered, covered
     gutters = page.locator("#setup-wizard .setup-body").evaluate(
         """element => {
           const style = getComputedStyle(element);
@@ -91,20 +108,19 @@ def _assert_setup_clears_shell(page: Page) -> None:
 
 
 def _set_light_theme(page: Page) -> None:
+    # apply the app's own light preset (every derived role included), not a hand-made palette
     page.evaluate(
-        """() => {
-          const colors = {
-            bg: '#f5f4f1', text: '#111111', panel: '#efede9',
-            faint: '#d4d2ce', accent: '#737bd9', muted: '#626262',
+        """async () => {
+          const { PRESETS, applyAppearance } = await import('/static/js/theme.js');
+          const appearance = {
+            preset: 'light', colors: { ...PRESETS.light.colors }, font: 'sans',
+            density: 'comfortable', bgPattern: 'none', frosted: false,
           };
-          const root = document.documentElement;
-          Object.entries(colors).forEach(([name, value]) => root.style.setProperty(`--${name}`, value));
-          root.dataset.theme = 'light';
-          localStorage.setItem('alles-appearance', JSON.stringify({
-            preset: 'light', colors, font: 'sans', density: 'comfortable', bgPattern: 'none', frosted: false,
-          }));
+          localStorage.setItem('alles-appearance', JSON.stringify(appearance));
+          applyAppearance(appearance);
         }"""
     )
+    assert page.evaluate("document.documentElement.dataset.theme") == "light"
 
 
 def _contrast(page: Page, foreground: str, background: str) -> float:
@@ -125,10 +141,24 @@ def _contrast(page: Page, foreground: str, background: str) -> float:
     )
 
 
+def _assert_sub_contrast(page: Page) -> None:
+    # setup shows more than one .setup-sub line (region, hint); every one must read
+    background = page.locator(".setup-card").evaluate("el => getComputedStyle(el).backgroundColor")
+    colors = page.locator(".setup-sub").evaluate_all(
+        "elements => elements.map(el => getComputedStyle(el).color)"
+    )
+    assert colors
+    for color in colors:
+        assert _contrast(page, color, background) >= 4.5, (color, background)
+
+
 def _unlock_passwords(page: Page, password: str) -> None:
     page.evaluate("window._navigateTo('vault')")
     expect(page.locator("#vault-view")).to_be_visible()
     page.locator("#vault-pw-input").fill(password)
+    # a first visit makes the vault: the same button, with the password typed twice
+    if page.locator("#vault-confirm-field").is_visible():
+        page.locator("#vault-pw-confirm").fill(password)
     page.locator("#vault-unlock-btn").click()
     expect(page.locator("#vault-unlocked")).to_be_visible()
 
@@ -140,9 +170,11 @@ def run() -> None:
     OUTPUT = Path(tempfile.mkdtemp(prefix="phase9-browser-artifacts-", dir=DATA))
     errors: list[str] = []
     vault_password = "phase9-browser-master"
-    vault_path = DATA / "visible" / "Vault"
+    # with "keep documents and files inside alles" on, docs sit directly inside the files folder
     files_path = DATA / "visible" / "Files"
+    vault_path = files_path / "Docs"
     revised_files_path = DATA / "visible" / "Files revised"
+    revised_vault_path = revised_files_path / "Docs"
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
@@ -161,16 +193,9 @@ def run() -> None:
         expect(page.locator("#setup-dots")).to_contain_text("1 / 5")
         assert page.locator("#sw-region").count() == 0
         expect(page.locator("#sw-region-status")).to_contain_text(
-            "region TW is detected automatically"
+            "region Taiwan is detected automatically"
         )
-        assert (
-            _contrast(
-                page,
-                page.locator(".setup-sub").evaluate("el => getComputedStyle(el).color"),
-                page.locator(".setup-card").evaluate("el => getComputedStyle(el).backgroundColor"),
-            )
-            >= 4.5
-        )
+        _assert_sub_contrast(page)
         assert setup.locator('select, input[type="checkbox"], input[type="radio"]').count() == 0
         _assert_setup_clears_shell(page)
         _assert_targets(page, "#setup-wizard button:visible, #setup-wizard input:visible")
@@ -195,20 +220,9 @@ def run() -> None:
         expect(basics_mobile_page.locator("#setup-dots")).to_contain_text("1 / 5")
         assert basics_mobile_page.locator("#sw-region").count() == 0
         expect(basics_mobile_page.locator("#sw-region-status")).to_contain_text(
-            "region TW is detected automatically"
+            "region Taiwan is detected automatically"
         )
-        assert (
-            _contrast(
-                basics_mobile_page,
-                basics_mobile_page.locator(".setup-sub").evaluate(
-                    "el => getComputedStyle(el).color"
-                ),
-                basics_mobile_page.locator(".setup-card").evaluate(
-                    "el => getComputedStyle(el).backgroundColor"
-                ),
-            )
-            >= 4.5
-        )
+        _assert_sub_contrast(basics_mobile_page)
         _assert_no_page_overflow(basics_mobile_page)
         _assert_setup_clears_shell(basics_mobile_page)
         _assert_targets(
@@ -305,6 +319,7 @@ def run() -> None:
         page.locator("#sw-save").click()
         expect(page.locator("#sw-obsidian")).to_contain_text("nothing was added automatically")
         assert not (vault_path / ".obsidian").exists()
+        page.locator("#sw-vault").fill(str(revised_vault_path))
         page.locator("#sw-files").fill(str(revised_files_path))
         page.locator("#sw-save").click()
         expect(page.locator("#setup-dots")).to_contain_text("3 / 5")
