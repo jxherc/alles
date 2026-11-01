@@ -65,6 +65,7 @@ INLINE_ACTION_TAG_RE = re.compile(
     re.I | re.S,
 )
 CREATE_RE = re.compile(r"createElement\(\s*['\"](?P<tag>button|a|input|textarea|select)['\"]\s*\)")
+DOWNLOAD_LINK_RE = re.compile(r"\.download\s*=[^;\n]*;[\s\S]{0,200}?\.click\(\)")
 EVENT_RE = re.compile(r"addEventListener\(\s*['\"](?P<event>[A-Za-z]+)['\"]")
 FUNCTION_RE = re.compile(
     r"(?m)^(?:export\s+)?(?:async\s+)?function\s+(?P<name>[A-Za-z_$][\w$]*)\s*\(|^(?:export\s+)?(?:const|let|var)\s+(?P<assigned>[A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:\([^\n]*?\)|[A-Za-z_$][\w$]*)\s*=>"
@@ -646,6 +647,11 @@ def _dynamic_templates(overrides: dict[str, Any]) -> list[dict[str, Any]]:
                     (match.start(), tag.lower(), _attrs(match.group("attrs")), "markup-template")
                 )
         for match in CREATE_RE.finditer(text):
+            # a link made only to start a file download is clicked by code and never shown
+            if match.group("tag") == "a" and DOWNLOAD_LINK_RE.search(
+                text, match.end(), match.end() + 300
+            ):
+                continue
             matches.append((match.start(), match.group("tag").lower(), {}, "create-element"))
         # Some modules build controls through small, explicitly declared DOM factories.
         # Inspect their literal call sites rather than dropping those actions from scope.

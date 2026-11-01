@@ -63,6 +63,21 @@ class ControlCensusTraversalTest(unittest.TestCase):
                     control_census._created_text(source, source.index("createElement")), expected
                 )
 
+    def test_a_link_made_only_to_download_a_file_is_not_a_control(self):
+        downloads = [
+            "const a = document.createElement('a'); a.href = url; a.download = 'x.json'; a.click();",
+            "const a = document.createElement('a');\na.href = url; a.download = name;\ndocument.body.appendChild(a); a.click(); a.remove();",
+        ]
+        for source in downloads:
+            with self.subTest(source=source):
+                start = source.index("createElement") + len("createElement('a')")
+                self.assertIsNotNone(
+                    control_census.DOWNLOAD_LINK_RE.search(source, start, start + 300)
+                )
+        shown = "const a = document.createElement('a'); a.href = url; a.textContent = 'open'; row.append(a);"
+        start = shown.index("createElement") + len("createElement('a')")
+        self.assertIsNone(control_census.DOWNLOAD_LINK_RE.search(shown, start, start + 300))
+
     def test_nested_modules_keep_controls_listener_provenance_and_event_counts(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
