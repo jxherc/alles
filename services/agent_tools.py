@@ -3707,8 +3707,10 @@ TOOL_DEFS = [
         "Hand work to pi, the agent that does multi-step work on the machine running Alles. pi "
         "reads, writes and runs code and files, searches the web, and uses Alles itself (Docs, "
         "tasks, calendar, reminders, memory, contacts, habits, reading). Use it for anything that "
-        "takes more than one or two steps: making or editing documents, research written up, "
-        "planning across apps, code changes. Without a project pi works in its own Aide folder; "
+        "takes several steps: making or editing documents, research written up, planning across "
+        "apps, code changes. Never for a one-step action (add a task, add an event, log a habit, "
+        "add a line to a note): do those yourself with their own tools. Without a project pi "
+        "works in its own Aide folder; "
         "name a project for code in one of the owner's Aide code projects. Its steps show live.",
         {
             "task": {
@@ -3938,6 +3940,8 @@ def workspace_files(cwd: str = "", q: str = "", limit: int = 30) -> list[str]:
     return out[:limit]
 
 
+# code and multi-step work. one-step actions (add a task, an event, a habit log, a note line, a
+# contact, a book) stay Aide's own: a tool call that takes one step never waits on a second agent
 PI_OWNS = {
     "shell",
     "write_file",
@@ -3951,18 +3955,6 @@ PI_OWNS = {
     "spawn_agents",
     "docs_write",
     "note_write",
-    "note_append",
-    "task_add",
-    "task_done",
-    "calendar_create",
-    "calendar_delete",
-    "contact_add",
-    "book_add",
-    "health_log",
-    "habit_add",
-    "habit_log",
-    "read_save",
-    "watch_add",
 }
 
 

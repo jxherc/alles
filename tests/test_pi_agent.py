@@ -663,10 +663,23 @@ class PiDoesTheWorkTest(unittest.TestCase):
             kept = names(agent_tools.build_tool_defs({"aide_pi_does_work": False}))
         with mock.patch.object(agent_tools, "_pi_ready", return_value=False):
             no_pi = names(agent_tools.build_tool_defs({"aide_pi_does_work": True}))
-        for name in ("docs_write", "task_add", "shell", "edit_file"):
+        for name in ("docs_write", "note_write", "shell", "edit_file"):
             self.assertNotIn(name, handed)
             self.assertIn(name, kept)
             self.assertIn(name, no_pi)  # without pi, Aide still does it
+        # one-step actions are Aide's own, with pi or without it
+        for name in (
+            "task_add",
+            "task_done",
+            "calendar_create",
+            "calendar_delete",
+            "habit_add",
+            "habit_log",
+            "note_append",
+            "contact_add",
+            "book_add",
+        ):
+            self.assertIn(name, handed)
         for name in ("pi_run", "docs_read", "mail_send", "memory_add", "web_search"):
             self.assertIn(name, handed)
 
