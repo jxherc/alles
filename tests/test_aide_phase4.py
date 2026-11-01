@@ -38,14 +38,11 @@ class AideConversationPhase4Test(ApiTest):
         self.assertIn(assignment, background)
         self.assertIn('settings["agent_detached"] = True', background)
         self.assertIn("_require_turn_authority(request, settings)", foreground)
-        self.assertIn("_require_turn_authority(request, settings)", background)
+        # the detached run forces auto mode first, so the full access check could never fire
+        self.assertNotIn("_require_turn_authority", background)
         self.assertLess(
             foreground.index("_apply_run_controls(settings"),
             foreground.index("_require_turn_authority(request, settings)"),
-        )
-        self.assertLess(
-            background.index(assignment),
-            background.index("_require_turn_authority(request, settings)"),
         )
 
     def test_chat_behavior_and_jarvis_mode_roundtrip(self):

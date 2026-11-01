@@ -32,7 +32,9 @@ class ApiTokenUiTest(unittest.TestCase):
         self.assertIn("t.scopes || []", self.js)
 
     def test_sensitive_token_actions_can_request_recent_owner_auth(self):
-        self.assertIn("/api/auth/reauth", self.shared_js)
+        # settings keeps its names, and the password goes to reauth from the one shared prompt
+        self.assertIn("recent_owner.js", self.shared_js)
+        self.assertIn("/api/auth/reauth", (ROOT / "static/js/recent_owner.js").read_text("utf-8"))
         self.assertIn(
             "options.secret ? 'password'", (ROOT / "static/js/dialog.js").read_text("utf-8")
         )
