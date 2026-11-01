@@ -114,7 +114,7 @@ docker run -p 127.0.0.1:6769:6769 -v alles-data:/app/data alles
 
 ## التحديث والإزالة
 
-يجلب `alles update` أحدث إصدار ويحتفظ بالإصدار السابق، لذا يستطيع `alles update rollback` العودة إليه مع بياناتك. ويزيل `alles uninstall` برنامج alles ويحتفظ ببياناتك الشخصية. ويعرض `alles help` جميع الأوامر.
+يجلب `alles update` أحدث إصدار ويحتفظ بالإصدار السابق، لذا يستطيع `alles update rollback` العودة إليه مع بياناتك. ويزيل `alles uninstall` برنامج alles ويحتفظ ببياناتك الشخصية. ويعرض `alles help` جميع الأوامر. يسمّي `alles status` الإصدار باختصار الـ commit الخاص به ويخبرك عند صدور إصدار أحدث. ويعرض `alles tools` ما يستطيع aide استخدامه (node وpi ومتصفحه)، ويثبّتها `alles tools install`.
 
 بُني alles باستخدام FastAPI وSQLite وJavaScript الخالصة وCSS، ولا توجد خطوة بناء للواجهة الأمامية. التفاصيل التقنية موجودة في [specifications.md](../../specifications.md).
 

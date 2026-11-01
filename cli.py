@@ -14,11 +14,18 @@ alles CLI
   alles logs [N]       print the last N log lines (default 60)
   alles logs -f        follow the log live (ctrl-c to stop)
   alles logs --clear   truncate the log file
-  alles update         stage, verify, switch, health-check, and keep rollback
+  alles update         get the newest release; it checks itself and keeps a rollback
+  alles update accept  keep an update once it works
   alles update rollback
                        restore the previous verified code and data
+  alles tools          what aide can use (node, pi, its browser, searxng) and if it's ready
+  alles tools install [name|all]
+                       install them (node comes with alles install)
+  alles version        the release, by its short commit
+  alles completion zsh|bash|fish
+                       tab completion: eval "$(alles completion zsh)"
   alles open           open the browser
-  alles doctor         check the install is ready (deps, data dir, provider)
+  alles doctor         check the install is ready (deps, folders, provider)
   alles restore apply <id> [--allow-partial]
                        verify, migrate, and atomically apply a staged backup
   alles restore stage <backup> [--key <recovery-key>]
@@ -2755,6 +2762,18 @@ def _ask(ui, question: str) -> bool:
     return answer.strip().lower() in {"y", "yes"}
 
 
+def _offer_aide_tools(ui, launcher: Path) -> None:
+    """oct 27: node comes with alles; pi and aide's browser are offered here and in alles tools."""
+    try:
+        subprocess.call([str(launcher), "tools", "install", "node"])
+        if _ask(ui, "install pi (aide's coding helper) and aide's browser too? about 300 MB"):
+            subprocess.call([str(launcher), "tools", "install", "pi", "browser"])
+            return
+    except OSError as exc:
+        ui.check(None, "aide's tools", f"not installed: {exc}")
+    ui.say(ui.dim("  later: alles tools install"))
+
+
 def cmd_install(args=()):
     """Install alles as a background service on macOS or Linux, one step per line."""
     args = tuple(args)
@@ -2840,6 +2859,7 @@ def cmd_install(args=()):
     ui.say()
     ui.rows(list(_EVERYDAY))
     ui.say()
+    _offer_aide_tools(ui, layout.launcher)
     # the owner's order: installed first, then a password if they want one, then other devices
     if _ask(ui, "set a password for alles? it's optional while only this computer opens it"):
         subprocess.call([str(layout.launcher), "password"])
@@ -3720,6 +3740,104 @@ def cmd_test(args=()):
     sys.exit(1 if rc else 0)
 
 
+_AIDE_TOOLS = ("node", "pi", "browser")  # node first: pi needs it
+
+
+def _install_tool(dep_id: str) -> None:
+    """Install one of aide's tools in this process (the server does the same in the background)."""
+    import asyncio
+
+    from services import dependencies
+
+    if dep_id == "pi":
+        from services import pi_agent
+
+        asyncio.run(pi_agent._run_install("pi"))
+        error = pi_agent._install["pi"].get("error")
+        if error:
+            raise dependencies.DependencyError(error)
+        return
+    dependencies._installers[dep_id]()
+
+
+def cmd_tools(args=()):
+    """alles tools: what aide can use and whether each is ready. alles tools install [name|all]."""
+    import asyncio
+
+    from services import cli_ui, dependencies
+
+    ui = cli_ui.Style()
+    args = list(args)
+    installing = args[:1] == ["install"]
+    wanted = [name for name in args[1:] if name != "all"] or list(_AIDE_TOOLS)
+    unknown = [name for name in wanted if name not in dependencies.IDS]
+    if unknown or (args and not installing):
+        ui.say("usage:  alles tools  |  alles tools install [node|pi|browser|searxng|all]")
+        return False
+    ui.header("tools" if not installing else "tools install")
+    steps = cli_ui.Steps({dep_id: dependencies.NAMES[dep_id] for dep_id in dependencies.IDS}, ui)
+    ok = True
+    missing = []
+    for dep_id in dependencies.IDS if not installing else wanted:
+        row = asyncio.run(dependencies.state(dep_id))
+        ready = row["state"] == "ready"
+        if not ready and dep_id in _AIDE_TOOLS:
+            missing.append(dep_id)
+        if not installing or ready or not row.get("can_install"):
+            # not asked to install, already there, or it needs something first (pi needs node)
+            mark = True if ready else (False if installing else None)
+            ui.check(mark, row["name"], row.get("detail") or row["state"], steps.width)
+            ok = ok and (ready or not installing)
+            continue
+        steps.start(dep_id, row.get("detail", ""))
+        try:
+            _install_tool(dep_id)
+        except Exception as exc:  # noqa: BLE001 - each tool says its own sentence
+            steps.finish(False, dep_id, str(exc).splitlines()[0][:160])
+            ok = False
+            continue
+        row = asyncio.run(dependencies.state(dep_id))
+        steps.finish(row["state"] == "ready", dep_id, row.get("detail") or row.get("error", ""))
+        ok = ok and row["state"] == "ready"
+    steps.close()
+    if not installing:
+        if missing:
+            ui.say()
+            ui.say(f"  {ui.dim('install them:')} alles tools install {' '.join(missing)}")
+    ui.say()
+    return ok
+
+
+def cmd_version(args=()):
+    """The release as its short commit, the same name the update screen and status use."""
+    native = _native_layout()
+    if native is not None:
+        from services import native_install
+
+        release = native_install.release_summary(native)
+        short, when = release.get("short"), _local_time(release.get("installed_at"))
+    else:
+        short, when = (_git_value(["rev-parse", "HEAD"]) or "")[:7] or None, ""
+    print(f"alles {short or 'unknown'}" + (f" (installed {when})" if when else ""))
+    return True
+
+
+def cmd_completion(args=()):
+    """Tab completion for alles: eval "$(alles completion zsh)" in .zshrc (bash and fish too)."""
+    shell = (list(args) or [Path(os.environ.get("SHELL", "zsh")).name])[0]
+    names = " ".join(sorted(COMMANDS))
+    scripts = {
+        "zsh": f"#compdef alles\n_alles() {{ compadd {names} }}\ncompdef _alles alles",
+        "bash": f"complete -W '{names}' alles",
+        "fish": f"complete -c alles -f -n __fish_use_subcommand -a '{names}'",
+    }
+    if shell not in scripts:
+        print("usage:  alles completion zsh|bash|fish")
+        return False
+    print(scripts[shell])
+    return True
+
+
 COMMANDS = {
     "start": cmd_start,
     "stop": cmd_stop,
@@ -3736,6 +3854,9 @@ COMMANDS = {
     "password": cmd_password,
     "config": cmd_config,
     "test": cmd_test,
+    "tools": cmd_tools,
+    "version": cmd_version,
+    "completion": cmd_completion,
 }
 
 

@@ -1926,3 +1926,25 @@ def update_check(
         "waiting": bool(latest and current and latest != current),
         "error": cached.get("error"),
     }
+
+
+def running_release() -> dict:
+    """For the update screen: the release as its short commit, and a newer one when it waits.
+
+    A native install answers from its manifest and the shared 6 hour check; a source checkout
+    answers with its git commit and never checks.
+    """
+    layout = current_layout()
+    if layout is not None:
+        summary = release_summary(layout)
+        check = update_check(layout, timeout=5)
+        waiting = (check.get("latest") or "")[:7] if check.get("waiting") else None
+        return {
+            "short": summary["short"],
+            "installed_at": summary["installed_at"],
+            "update_waiting": waiting,
+            "checked_at": check.get("checked_at"),
+        }
+    root = Path(__file__).resolve().parent.parent
+    commit = (_git_text(root, ["rev-parse", "HEAD"]) or "")[:7] or None
+    return {"short": commit, "installed_at": None, "update_waiting": None, "checked_at": None}

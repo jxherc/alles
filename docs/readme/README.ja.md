@@ -96,7 +96,7 @@ alles はバックアップを確認し、復元の準備をしてから適用�
 
 ## 更新と削除
 
-`alles update` は最新版を入れ、前のバージョンも残すので、`alles update rollback` でデータごと前の状態に戻せます。`alles uninstall` は alles を削除しますが、個人データは残します。`alles help` ですべてのコマンドを表示できます。
+`alles update` は最新版を入れ、前のバージョンも残すので、`alles update rollback` でデータごと前の状態に戻せます。`alles uninstall` は alles を削除しますが、個人データは残します。`alles help` ですべてのコマンドを表示できます。 `alles status` はリリースを短いコミットで示し、新しいリリースが出ていれば知らせます。`alles tools` は aide が使えるもの (node、pi、aide のブラウザ) を表示し、`alles tools install` で入れられます。
 
 alles は FastAPI、SQLite、素の JavaScript、CSS で作られています。フロントエンドのビルド手順はありません。技術的な詳細は [specifications.md](../../specifications.md) にあります。
 

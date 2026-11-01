@@ -96,7 +96,7 @@ alles는 백업을 확인하고 복원을 준비한 뒤에 적용합니다. 앱�
 
 ## 업데이트와 제거
 
-`alles update`는 최신 버전을 설치하고 이전 버전을 남겨 두므로, `alles update rollback`으로 데이터와 함께 이전 상태로 되돌릴 수 있습니다. `alles uninstall`은 alles를 제거하지만 개인 데이터는 남겨 둡니다. `alles help`로 모든 명령을 볼 수 있습니다.
+`alles update`는 최신 버전을 설치하고 이전 버전을 남겨 두므로, `alles update rollback`으로 데이터와 함께 이전 상태로 되돌릴 수 있습니다. `alles uninstall`은 alles를 제거하지만 개인 데이터는 남겨 둡니다. `alles help`로 모든 명령을 볼 수 있습니다. `alles status`는 릴리스를 짧은 커밋으로 보여 주고 새 릴리스가 나오면 알려 줍니다. `alles tools`는 aide가 쓸 수 있는 것(node, pi, aide의 브라우저)을 보여 주고 `alles tools install`로 설치합니다.
 
 alles는 FastAPI, SQLite, 순수 JavaScript, CSS로 만들었습니다. 프런트엔드 빌드 단계는 없습니다. 기술적인 내용은 [specifications.md](../../specifications.md)에 있습니다.
 

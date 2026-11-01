@@ -39,7 +39,9 @@ class CompanionActivationBody(CompanionPreflightBody):
 @router.get("/build", dependencies=[Depends(require_auth)])
 def build():
     """Public release markers and read-only gates for unfinished UI."""
-    return runtime_info()
+    from services.native_install import running_release
+
+    return {**runtime_info(), "release": running_release()}
 
 
 @router.get("/stats")

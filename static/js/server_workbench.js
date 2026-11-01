@@ -849,11 +849,16 @@ async function renderUpdates(target, request) {
   const section = card(t('server.wb_release'), t('server.wb_release_copy'));
   try {
     const build = await json(request, '/api/system/build');
+    const release = build.release || {};
+    // the release is its short commit (oct 30); version and build only said "development"
+    const installed = release.installed_at ? new Date(release.installed_at).toLocaleString() : '';
+    const updates = release.update_waiting
+      ? t('server.wb_update_ready', { commit: release.update_waiting })
+      : release.checked_at ? t('server.wb_up_to_date') : t('server.wb_update_action_value');
     section.append(
-      fact(t('server.wb_version'), build.version),
-      fact(t('server.wb_build'), build.build_id),
+      fact(t('server.wb_release_commit'), release.short && (installed ? t('server.wb_release_value', { commit: release.short, date: installed }) : release.short)),
+      fact(t('server.wb_updates'), updates),
       fact(t('server.wb_migration_head'), build.migration_head),
-      fact(t('server.wb_update_action'), t('server.wb_update_action_value')),
     );
   } catch (error) {
     section.append(statusLine(error.message, 'error'));

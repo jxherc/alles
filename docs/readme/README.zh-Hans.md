@@ -95,7 +95,7 @@ alles 会先检查备份并准备好恢复，然后才应用。请先停止应�
 
 ## 更新与卸载
 
-`alles update` 会安装最新版本并保留上一个版本，所以 `alles update rollback` 可以连同你的数据一起回到上一个版本。`alles uninstall` 会移除 alles，但保留你的个人数据。`alles help` 会列出所有命令。
+`alles update` 会安装最新版本并保留上一个版本，所以 `alles update rollback` 可以连同你的数据一起回到上一个版本。`alles uninstall` 会移除 alles，但保留你的个人数据。`alles help` 会列出所有命令。 `alles status` 用短提交号标出当前版本，有新版本时会提示。`alles tools` 列出 aide 能用的工具（node、pi、aide 的浏览器），`alles tools install` 负责安装。
 
 alles 用 FastAPI、SQLite、原生 JavaScript 和 CSS 构建，前端没有构建步骤。技术细节见 [specifications.md](../../specifications.md)。
 

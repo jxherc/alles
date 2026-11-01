@@ -162,6 +162,53 @@ class DoctorFolderTest(unittest.TestCase):
         self.assertIn("missing", checks["docs folder"][1])
 
 
+class ToolsAndCompletionTest(unittest.TestCase):
+    def _state(self, ready):
+        async def state(dep_id):
+            done = dep_id in ready
+            return {
+                "id": dep_id,
+                "name": dep_id,
+                "state": "ready" if done else "missing",
+                "detail": f"{dep_id} ok" if done else f"{dep_id} isn't installed",
+                "error": "",
+                "can_install": not done,
+            }
+
+        return state
+
+    def test_tools_lists_each_and_names_the_install_command_for_the_missing(self):
+        with (
+            mock.patch("services.dependencies.state", side_effect=self._state({"node"})),
+            mock.patch("sys.stdout", new_callable=io.StringIO) as out,
+        ):
+            self.assertTrue(cli.cmd_tools())
+        self.assertIn("node ok", out.getvalue())
+        self.assertIn("install them: alles tools install pi browser", out.getvalue())
+
+    def test_tools_install_installs_only_what_is_missing_node_first(self):
+        installed = []
+        ready = {"node"}
+
+        def install(dep_id):
+            installed.append(dep_id)
+            ready.add(dep_id)
+
+        with (
+            mock.patch("services.dependencies.state", side_effect=self._state(ready)),
+            mock.patch.object(cli, "_install_tool", side_effect=install),
+            mock.patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            self.assertTrue(cli.cmd_tools(["install", "all"]))
+        self.assertEqual(installed, ["pi", "browser"])
+
+    def test_completion_offers_every_command(self):
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            self.assertTrue(cli.cmd_completion(["bash"]))
+        for name in cli.COMMANDS:
+            self.assertIn(name, out.getvalue())
+
+
 class StyleTest(unittest.TestCase):
     def test_piped_output_has_no_logo_or_escape_codes(self):
         out = io.StringIO()

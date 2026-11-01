@@ -98,7 +98,7 @@ alles vérifie la sauvegarde et prépare la restauration avant de l’appliquer.
 
 ## mettre à jour et désinstaller
 
-`alles update` installe la dernière version et garde la précédente, pour que `alles update rollback` puisse y revenir avec vos données. `alles uninstall` retire alles et conserve vos données personnelles. `alles help` liste toutes les commandes.
+`alles update` installe la dernière version et garde la précédente, pour que `alles update rollback` puisse y revenir avec vos données. `alles uninstall` retire alles et conserve vos données personnelles. `alles help` liste toutes les commandes. `alles status` nomme la version par son commit court et signale quand une plus récente est sortie. `alles tools` montre ce qu'aide peut utiliser (node, pi, son navigateur) et `alles tools install` les ajoute.
 
 alles est construit avec FastAPI, SQLite, du JavaScript vanilla et du CSS. il n’y a pas d’étape de build pour le frontend. les détails techniques sont dans [specifications.md](../../specifications.md).
 

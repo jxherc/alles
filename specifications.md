@@ -1383,20 +1383,33 @@ alles config        open the settings file in $EDITOR (alles config path prints 
 alles start         start in the background (waits until it's actually up)
 alles stop          stop it
 alles restart       restart it
-alles status        running or stopped, /health, address, access, settings and data paths
+alles status        running or stopped, /health, the release (short commit, install time),
+                    an update waiting for accept or rollback, a newer release, paths
 alles logs [n]      print the last n log lines (default 60)
 alles logs -f       follow the log live
-alles update        stage + verify a fast-forward release, then health-check it
+alles update        fetch the newest release, hand off to it: it backs up, checks a copy
+                    of the data, switches and health-checks itself; rollback stays here
 alles update rollback
                     restore the previous verified code and data
 alles update accept accept a healthy update, keep its encrypted backup, and remove temp copies
 alles install       build a private versioned runtime and user service (macos/linux)
 alles uninstall     remove verified program files and keep personal data
 alles open          open the browser
-alles doctor        check the install is ready (deps, data dir, provider, the server's /health)
+alles doctor        check the install is ready (deps, data dir, docs and files folders,
+                    provider, the server's /health)
+alles tools         node, pi, aide's browser and searxng, each ready or not
+alles tools install [name|all]
+                    install them into the user's cache (alles install adds node itself)
+alles version       the release by its short commit
+alles completion zsh|bash|fish
+                    a tab completion script
 ```
 
-`alles doctor` is the first thing to run on a fresh checkout; it reports your python version, which required/optional deps are present, whether the data dir is writable, and whether an ai provider is configured yet, then tells you if you're good to `start`.
+`alles doctor` is the first thing to run on a fresh checkout; it reports your python version, which required/optional deps are present, whether the data dir is writable, and whether an ai provider is configured yet, then tells you if you're good to `start`. it also checks that the docs and files folders exist where settings point and take writes, and fails when the docs folder points at an update's `external-vault` copy inside the data folder or such a copy is left over (it blocks the next update).
+
+since nov 1 an installed release only fetches and builds the next one, then runs `cli.py update handoff <id>` from the new release: the new release's own code makes the encrypted rollback backup, migrates and boots a copy of the data twice, swaps it in, switches the release pointer and health-checks it, so a fix to that step works in the same update that ships it. the installed release keeps the rollback: when the new one exits without finishing, it rolls the release and data back itself. a release without the `NATIVE_UPDATE_HANDOFF` line is updated the old way. a failed boot check prints the traceback's last line and the path of its full output (`<data parent>/.data-recovery/logs/boot-check-*.log`).
+
+a release is named by its short commit everywhere: `alles status`, `alles version` and the server panel's release card (`GET /api/system/build` → `release`). a native install asks its release source for the branch's newest commit at most every 6 hours (`runtime/update-check.json`, shared by the cli and the server) and says when a newer release waits; installing still waits for `alles update`.
 
 an install made by install.sh records a github archive source (repository, branch, commit) and
 updates by downloading the branch's newest archive the same way; a clone install records its git
