@@ -17,6 +17,10 @@
           "body": "adding a task, an event, a habit log or a note line happens right in aide. pi keeps code and longer jobs, and says plainly when it can't finish."
         },
         {
+          "title": "gym sets by text",
+          "body": "tell aide '70x10' or 'left 60x12 right 70x10' between sets and it logs the set in your workout habit right away, with your words kept. pounds and 10 reps unless you say otherwise, 'next 85' is planned, and a side said twice gets one quick question."
+        },
+        {
           "title": "aide starts from your day",
           "body": "the empty screen offers your overdue tasks, your next event and habits you haven't logged. with no model set, 'add study for chem to my todo' can still be kept as a task."
         },

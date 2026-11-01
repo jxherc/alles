@@ -7,13 +7,18 @@ from sqlalchemy import create_engine, text
 from core.database import HabitLog
 from core.migrations import m0076_habit_kinds
 from services import habit_kinds
-from services.habit_kinds import HabitLogError, clean_log, exercise_names
+from services.habit_kinds import HabitLogError, clean_log, exercise_names, legacy_view
 from tests._client import ApiTest
+
+
+def v1(kind, data):
+    """a v1 save as the old screens read it back: v1 -> stored v2 -> v1."""
+    return legacy_view(kind, clean_log(kind, data))
 
 
 class CleanLogTests(unittest.TestCase):
     def test_workout_rows_fill_owner_defaults(self):
-        data = clean_log(
+        data = v1(
             "workout",
             {
                 "rows": [
@@ -35,6 +40,7 @@ class CleanLogTests(unittest.TestCase):
 
     def test_empty_workout_is_just_done(self):
         self.assertIsNone(clean_log("workout", {"rows": []}))
+        self.assertIsNone(v1("workout", {"rows": []}))
 
     def test_workout_refuses_bad_rows(self):
         for rows in (
@@ -55,17 +61,17 @@ class CleanLogTests(unittest.TestCase):
 
     def test_each_kind_keeps_only_its_fields(self):
         self.assertEqual(
-            clean_log("reading", {"amount": 24, "book": "dune", "extra": 1}),
+            v1("reading", {"amount": 24, "book": "dune", "extra": 1}),
             {"amount": 24, "unit": "pages", "book": "dune"},
         )
         self.assertEqual(
-            clean_log("reading", {"amount": "2", "unit": "chapters"}),
+            v1("reading", {"amount": "2", "unit": "chapters"}),
             {"amount": 2, "unit": "chapters", "book": ""},
         )
-        self.assertEqual(clean_log("count", {"amount": 6}), {"amount": 6})
-        self.assertEqual(clean_log("duration", {"minutes": 45}), {"minutes": 45})
+        self.assertEqual(v1("count", {"amount": 6}), {"amount": 6})
+        self.assertEqual(v1("duration", {"minutes": 45}), {"minutes": 45})
         self.assertEqual(
-            clean_log("distance", {"distance": 5.25, "unit": "mi", "minutes": ""}),
+            v1("distance", {"distance": 5.25, "unit": "mi", "minutes": ""}),
             {"distance": 5.25, "unit": "mi", "minutes": None},
         )
 
@@ -146,7 +152,8 @@ class HabitKindApiTests(ApiTest):
         )
         self.assertEqual(saved.status_code, 200, saved.text)
         self.assertEqual(saved.json()["done"], True)
-        self.assertEqual(saved.json()["data"]["rows"][0]["reps"], 10)
+        exercise = saved.json()["data"]["entries"][0]["values"]["exercises"][0]
+        self.assertEqual(exercise["sets"][0]["reps"], 10)
         card = self.overview_card(habit["id"], day)
         self.assertTrue(card["done_today"])
         self.assertEqual(card["logs"][day]["rows"][0]["exercise"], "lat pulldown")
@@ -157,7 +164,9 @@ class HabitKindApiTests(ApiTest):
         with self.db() as db:
             rows = db.query(HabitLog).filter_by(habit_id=habit["id"]).all()
             self.assertEqual(len(rows), 1)
-            self.assertEqual(json.loads(rows[0].data)["rows"][0]["exercise"], "squat")
+            stored = json.loads(rows[0].data)
+            self.assertEqual(stored["v"], 2)
+            self.assertEqual(stored["entries"][0]["values"]["exercises"][0]["name"], "squat")
 
         # un-marking the day drops its details
         off = self.log(habit["id"], day, done=False)

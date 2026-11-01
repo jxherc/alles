@@ -252,8 +252,63 @@ text ("lat pulldown 70 × 10 · 3 sets"), and any day in the week strip opens it
 or remove. [services/habit_kinds.py](services/habit_kinds.py) checks every log on the server
 (types, ranges, at most 50 workout rows, text caps) and refuses an unknown type or details sent to
 a check habit. the overview returns the last 14 days of details and, for a workout, every exercise
-name used. aide's habit tools still mark a day done without details. migration 76 adds the
-columns; existing habits become checks.
+name used. migration 76 adds the columns; existing habits become checks.
+
+**habit logs with every detail (v2).** each of the 60 catalog habits (the 55 above plus protein,
+symptoms, labs, body measurements and a quit habit for any substance) now has a kind of its own
+with the fields from the habit logging spec: run has distance, minutes, effort, laps, shoes and race
+fields; sleep has the consensus sleep diary fields; plants has the plant, the care type and
+moisture; and so on. `GET /api/habits/kinds` lists every kind's fields (type, limits, options,
+which show by default). a day log is `{"v": 2, "entries": [...]}`: several entries a day, each with
+a time, its values, a note, tags, photos (files), the original words (`raw`, kept exactly as
+written) and, for quit habits, `slip` (the day is recorded but not clean; total days and the best
+streak survive it). a planned `skip` carries the streak over. every number and time can be `?`
+(unknown, never guessed). measures are stored with the unit they were entered in
+(`{"value": 8, "unit": "floz"}`) and a number without its unit is refused. `habits.fields` holds a
+habit's field setup: which fields show (`on`), defaults, up to 30 custom fields (number, count,
+minutes, time, measure, rating, yes or no, choice, text, link), targets per field (min, max, period),
+a 5 or 10 rating scale, unit overrides, hidden metrics, sensitive, and the quit model's mode
+(zero, limit, own rules), baseline, taper and "why". cards add `best_streak`, `total_days`,
+`last_30`, `days` (the v2 logs), `skips`, `slips` and, for set based habits, that day's
+`body_weight` from health. `logs` keeps the old one-object view for the screens built before v2,
+and a save from those screens keeps the full detail of every row it didn't change. a habit's kind
+can change when every stored log fits the new kind (409 otherwise).
+
+the gym logger's shape: an entry's `exercises` hold a name, a setup (equipment, load basis per
+hand, per side, stack, total, assist or bodyweight, grip, stance, angle, seat, pin, machine),
+unilateral, superset, rest, note, raw and `first_time`; each set has a type (working, warmup,
+top, backoff, drop, failure), a status (done, planned, attempted, failed, unfinished), an optional
+side (L or R, so each side has its own weights and set count), a count of identical sets, weight
+and unit, reps, partial and bad reps, about (`approx`), RIR, RPE, assistance, rest, tempo, hold
+seconds, distance, note and raw. pushups, squats and pullups use the same sets.
+
+aide logs a gym set live through `habit_log` with `exercise` and `sets` in the owner's own words
+([services/workout_text.py](services/workout_text.py)): pounds unless stated, a bare weight is a
+done set, reps default to 10, "next" or "i'll try" is planned, "left 60x12 right 70x10" splits by
+side, "15 per hand × left 12, right 10" shares the weight, "10+5" is partials, "30 assistance × 8"
+is help, not load. a side reported twice gets one yes or no question and nothing is written. an
+exercise with no history gets "(new, first time)". it stays a one-step aide action.
+
+a workout log in markdown (the owner's workout.md format: muscle group headings, session dates,
+recorded rows, set rows and reps rows) imports into a workout habit with
+`POST /api/habits/{hid}/import/preview` (nothing saved), `POST /api/habits/{hid}/import` and
+`POST /api/habits/{hid}/import/{batch}/undo` ([services/workout_import.py](services/workout_import.py)).
+a date with no year waits for the owner's year and is never guessed; every row keeps its words in
+`raw`; shorthand nobody can read stays `?` and is listed as a problem in the preview; a session
+already imported is skipped; undo removes exactly that import's entries and the days it created.
+the file itself is only read.
+
+**units and body profile.** [services/units.py](services/units.py) holds every conversion table
+(andromeda's converter reads the same one) and the owner's display choices, stored in the `units`
+setting: weight lb or kg (lb by default, the owner's rule), height cm or ft and in, distance km or
+mi, liquid ml, fl oz or glasses, body measurements cm or in, temperature c or f. values keep their
+own unit and are converted only to show or count. `PUT /api/health/units` changes the choices.
+health adds `height`, `body_fat` (always %) and `measurement` entries (label names the part,
+"waist" or "arm left"); a weight, height or measurement needs a unit of the right kind and an
+empty one takes the owner's choice. `GET /api/health/profile` returns the choices and the latest
+height, weight, body fat and each measurement. migration 78 adds `habits.fields`, rewrites every
+v1 day log as v2 (a value the old checks would refuse stays exactly as stored) and gives old body
+weights their real unit ("lbs" -> "lb", empty -> "lb").
 
 [services/personal_index.py](services/personal_index.py) indexes supported records for recall. [services/journal_migration.py](services/journal_migration.py) stages verified markdown copies while the database remains authoritative; [services/journal_vault.py](services/journal_vault.py) provides the optional unlocked mirror. locked content is not copied to plaintext implicitly.
 
@@ -1725,9 +1780,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1011 http method/path pairs
-- 985 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
-- sha-256: `92e54a02f4bd976e32cee2ba3a55254caf9bd96e3a55407961d085c72d37a939`
+- 1017 http method/path pairs
+- 991 `/api/*`, 2 `/v1/*`, and 24 non-api shell/public pairs
+- sha-256: `1b85a40ecbd5ef0a1a8a5a44c9ca799f88e1930013cbff3cf0147401ffb66475`
 
 <details>
 <summary>app.py · 10 operations</summary>
@@ -2405,24 +2460,28 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/habits.py · 7 operations</summary>
+<summary>routes/habits.py · 11 operations</summary>
 
 [source](routes/habits.py)
 
 | method | path | handler |
 | --- | --- | --- |
 | `POST` | `/api/habits` | `create_habit` |
+| `GET` | `/api/habits/kinds` | `habit_kinds_list` |
 | `GET` | `/api/habits/overview` | `overview` |
 | `GET` | `/api/habits/requests/{request_id}` | `recover_habit` |
 | `DELETE` | `/api/habits/{hid}` | `delete_habit` |
 | `PATCH` | `/api/habits/{hid}` | `update_habit` |
+| `POST` | `/api/habits/{hid}/import` | `import_apply` |
+| `POST` | `/api/habits/{hid}/import/preview` | `import_preview` |
+| `POST` | `/api/habits/{hid}/import/{batch}/undo` | `import_undo` |
 | `GET` | `/api/habits/{hid}/risk` | `habit_risk` |
 | `POST` | `/api/habits/{hid}/toggle` | `toggle` |
 
 </details>
 
 <details>
-<summary>routes/health.py · 8 operations</summary>
+<summary>routes/health.py · 11 operations</summary>
 
 [source](routes/health.py)
 
@@ -2433,7 +2492,9 @@ the compatibility snapshot locks the registered http surface:
 | `POST` | `/api/health` | `create_entry` |
 | `POST` | `/api/health/import` | `import_health` |
 | `GET` | `/api/health/overview` | `overview` |
+| `GET` | `/api/health/profile` | `body_profile` |
 | `PUT` | `/api/health/target` | `set_target` |
+| `PUT` | `/api/health/units` | `set_units` |
 | `DELETE` | `/api/health/{eid}` | `delete_entry` |
 | `PATCH` | `/api/health/{eid}` | `update_entry` |
 | `GET` | `/api/health/{kind}/anomalies` | `health_anomalies` |
@@ -3734,7 +3795,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `gallery_images` | `id: VARCHAR pk`, `filename: VARCHAR`, `prompt: TEXT ?`, `tags: TEXT ?`, `source: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `habit_create_receipts` | `id: VARCHAR pk`, `habit_id: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `habit_logs` | `id: INTEGER pk`, `habit_id: VARCHAR ?`, `date: VARCHAR ?`, `created_at: DATETIME ?`, `data: TEXT ?` | — |
-| `habits` | `id: VARCHAR pk`, `name: VARCHAR`, `icon: VARCHAR ?`, `color: VARCHAR ?`, `cadence: VARCHAR ?`, `target: INTEGER ?`, `created_at: DATETIME ?`, `archived: BOOLEAN ?`, `kind: VARCHAR ?`, `unit: VARCHAR ?` | — |
+| `habits` | `id: VARCHAR pk`, `name: VARCHAR`, `icon: VARCHAR ?`, `color: VARCHAR ?`, `cadence: VARCHAR ?`, `target: INTEGER ?`, `created_at: DATETIME ?`, `archived: BOOLEAN ?`, `kind: VARCHAR ?`, `unit: VARCHAR ?`, `fields: TEXT ?` | — |
 | `health_create_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR(64)`, `entry_id: INTEGER ?`, `created_at: DATETIME ?` | — |
 | `health_entries` | `id: INTEGER pk`, `record_id: VARCHAR`, `kind: VARCHAR ?`, `date: VARCHAR ?`, `value: FLOAT ?`, `unit: VARCHAR ?`, `note: VARCHAR ?`, `label: VARCHAR ?`, `created_at: DATETIME ?` | — |
 | `health_import_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR(64)`, `imported: INTEGER`, `skipped: INTEGER`, `created_at: DATETIME ?` | — |
@@ -3906,6 +3967,7 @@ known versions run in ascending order.
 | 74 | `calendar_wall_times` | [m0074_calendar_wall_times.py](core/migrations/m0074_calendar_wall_times.py) |
 | 76 | `habit_kinds` | [m0076_habit_kinds.py](core/migrations/m0076_habit_kinds.py) |
 | 77 | `task_due_time` | [m0077_task_due_time.py](core/migrations/m0077_task_due_time.py) |
+| 78 | `habit_fields` | [m0078_habit_fields.py](core/migrations/m0078_habit_fields.py) |
 
 </details>
 

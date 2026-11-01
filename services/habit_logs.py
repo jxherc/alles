@@ -53,6 +53,28 @@ def toggle(
     return True, day
 
 
+def body_weight(db: Session, day: str):
+    """the body weight logged in health on or before the day, for bodyweight and assisted
+    movements: {date, value, unit} as entered, or None."""
+    from core.database import HealthEntry
+
+    entry = (
+        db.query(HealthEntry)
+        .filter(HealthEntry.kind == "weight", HealthEntry.date <= day)
+        .order_by(HealthEntry.date.desc(), HealthEntry.id.desc())
+        .first()
+    )
+    return {"date": entry.date, "value": entry.value, "unit": entry.unit} if entry else None
+
+
+def stored(db: Session, habit_id: str, raw_date: str):
+    """the day's stored details as json data, or None."""
+    from services.habit_kinds import load
+
+    matches = _rows_on_day(db, habit_id, canonical_day(raw_date))
+    return load(matches[0].data) if matches else None
+
+
 def save_log(db: Session, habit_id: str, raw_date: str, data: str | None) -> str:
     """mark the day done and store its details (json text, or None for none). one row stays."""
     day = canonical_day(raw_date)
