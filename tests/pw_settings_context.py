@@ -303,16 +303,18 @@ def navigation(page, api, dest, profile, records):
             expect(page.locator('.s-nav-item[data-pane="notifications"]')).to_be_focused()
         # every section after language & region, in the order the list shows them
         after_language = page.evaluate(
-            """() => { const panes = [...document.querySelectorAll('.s-nav-item')].map(e => e.dataset.pane);
-              return panes.slice(panes.indexOf('notifications') + 1); }"""
+            """() => { const panes = [...document.querySelectorAll('.s-nav-item')]
+                .map(e => e.dataset.pane ? `data-pane="${e.dataset.pane}"` : `data-link="${e.dataset.link}"`);
+              return panes.slice(panes.indexOf('data-pane="notifications"') + 1); }"""
         )
+        # the server entry is a link (data-link), every other entry opens a pane
         for pane in after_language:
             page.keyboard.press("Tab")
-            target = page.locator(f'.s-nav-item[data-pane="{pane}"]')
+            target = page.locator(f".s-nav-item[{pane}]")
             expect(target).to_be_focused()
             expect(target).to_be_in_viewport()
             # Focus does not select another pane or snap the strip back to it.
-            state = observe(f"{language}-focus-{pane}")
+            state = observe(f"{language}-focus-{pane.split(chr(34))[1]}")
             if pane == after_language[-1]:
                 nav_scroll = state["navScroll"]
         if not compact:
