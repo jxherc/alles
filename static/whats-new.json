@@ -1,6 +1,28 @@
 {
   "releases": [
     {
+      "id": "2026-11-01",
+      "date": "november 1, 2026",
+      "items": [
+        {
+          "title": "aide in the terminal",
+          "body": "alles ask answers one question right in the terminal and alles chat keeps a whole conversation. both land in aide's history like any other chat."
+        },
+        {
+          "title": "a terminal that tells you more",
+          "body": "alles logs filters by level, time and a word, alles backup writes the same encrypted backup as the backup page, and alles dump prints a summary for a bug report with no secrets in it."
+        },
+        {
+          "title": "updates that explain themselves",
+          "body": "a new release now prepares its own update. status names each release by its short commit, a failed update shows the real error and where its log is, and a release that failed isn't called ready."
+        },
+        {
+          "title": "aide's tools on linux",
+          "body": "alles install adds node, and alles tools says what a bare linux box is missing, with the command that fixes it."
+        }
+      ]
+    },
+    {
       "id": "2026-10-28",
       "date": "october 28, 2026",
       "items": [
