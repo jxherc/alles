@@ -1,7 +1,7 @@
 // journal — one entry per day. mood + tags + prompt + streak + on-this-day + AI reflect.
 import { toast, mdToHtml, plainError } from './util.js';
 import { formatCalendarDate, formatTime, t, tp } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=4';
+import { createFocusBoundary } from './kokuen.js?v=5';
 import { replaceRouteUrl } from './route_history.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe

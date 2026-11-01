@@ -4,7 +4,7 @@
 // patterns are ported from odysseus; the editor UI + apply engine are alles-native.
 import { initColorPickers } from './colorpicker.js';
 import { generateHarmony, lum as _lum, mix as _mix, mutedFor as _mutedFor } from './color.js';
-import { wireChoiceGroup } from './kokuen.js?v=4';
+import { wireChoiceGroup } from './kokuen.js?v=5';
 import { toast } from './util.js';
 import { t, tp } from './i18n.js';
 export { generateHarmony };

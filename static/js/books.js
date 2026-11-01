@@ -2,7 +2,7 @@
 // notes, and a keyless OpenLibrary lookup to autofill. mirrors the panel conventions.
 import { toast } from './util.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { wireChoiceGroup } from './kokuen.js?v=4';
+import { wireChoiceGroup } from './kokuen.js?v=5';
 import { t, tp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 

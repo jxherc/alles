@@ -2591,14 +2591,9 @@ html .date-panel input:is(.dp-tv, .dp-year):focus-visible { box-shadow: none !im
    plain text + a hairline separator between inactive tabs, no dead left gutter */
 .wiki-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.12rem; padding: 0.18rem 0.8rem 0; }
 .wiki-tabs:empty { display: none; }
-.wiki-tab { position: relative; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8125rem; border: 1px solid transparent; border-radius: var(--k-radius-control); padding: 0.25rem 0.6rem; cursor: pointer; color: var(--muted); }
-.wiki-tab:hover { color: var(--text); }
-.wiki-tab.active { color: var(--text); border-color: var(--line-strong); background: var(--raised); }
 /* short separator only between two adjacent inactive tabs */
-.wiki-tab:not(.active) + .wiki-tab:not(.active)::before { content: ''; position: absolute; left: -0.07rem; top: 50%; transform: translateY(-50%); width: 1px; height: 0.92em; background: var(--faint); }
 .wiki-tab-name { cursor: pointer; }
 .wiki-tab-close { cursor: pointer; opacity: 0; transition: opacity 0.12s; font-size: 0.85em; }
-.wiki-tab:hover .wiki-tab-close, .wiki-tab.active .wiki-tab-close { opacity: 0.55; }
 .wiki-tab-close:hover { opacity: 1 !important; color: var(--error); }
 #wiki-view.split-on .wiki-edit-wrap { display: flex; align-items: stretch; }
 /* split view (3o): editor + draggable divider + a picked doc, ~50/50 by default */
@@ -2611,8 +2606,6 @@ html .date-panel input:is(.dp-tv, .dp-year):focus-visible { box-shadow: none !im
 .wiki-split-pick:hover { color: var(--text); border-color: var(--line-strong); }
 .split-picker { min-width: 220px; max-height: 360px; padding: 0.45rem; gap: 0.35rem; }
 .split-picker .sp-scope { display: flex; gap: 0.3rem; }
-.split-picker .sp-tab { flex: 1; background: var(--bg); border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0.25rem; cursor: pointer; }
-.split-picker .sp-tab.on { color: var(--text); border-color: var(--line-strong); background: var(--raised); }
 .split-picker .sp-list { display: flex; flex-direction: column; max-height: 280px; overflow-y: auto; margin-top: 0.2rem; }
 .split-picker .sp-item { background: none; border: none; border-radius: var(--k-radius-control); color: var(--text); font: inherit; font-size: 0.8125rem; text-align: left; padding: 0.34rem 0.5rem; cursor: pointer; }
 .split-picker .sp-item:hover { background: var(--raised); }
@@ -3122,8 +3115,6 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
   .app-drawer { padding-inline: 18px; }
   .app-drawer-content { padding-top: 34px; }
   .app-drawer-grid { grid-template-columns: 1fr; gap: 30px; margin-top: 38px; }
-}
-@media (prefers-reduced-motion: reduce) {
 }
 
 /* ── Afterlife Aide: one compact assistant surface ───────────────────── */
@@ -4711,9 +4702,6 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .wt-clean { font-size: 0.8125rem; color: var(--green); padding: 0.25rem 0; display: inline-flex; align-items: center; gap: 0.3rem; }
 .wt-clean .ic { width: 13px; height: 13px; }
 #vault-watchtower-btn.active { color: var(--text); border-color: var(--line-strong); }
-.vault-type-seg { display: inline-flex; border: 1px solid var(--faint); border-radius: var(--k-radius-control); overflow: hidden; flex-shrink: 0; }
-.vault-type-seg .vts-btn { background: none; border: none; color: var(--muted); font-size: 0.8125rem; padding: 0.25rem 0.5rem; cursor: pointer; border-right: 1px solid var(--faint); }
-.vault-type-seg .vts-btn:last-child { border-right: none; }
 /* new-category field picker — custom toggle chips (no native checkboxes) */
 .vault-schema-pick { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
 .vault-strength-bar { flex: 0 0 120px; height: 5px; background: var(--faint); border-radius: var(--k-radius-control); overflow: hidden; }
@@ -5536,7 +5524,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #finance-view .finance-actual-toggle:focus-visible { outline: 2px solid var(--k-focus); outline-offset: var(--k-focus-offset, -2px); }
 #finance-view .finance-actual-toggle:disabled { color: var(--k-ink-muted, var(--muted)); cursor: wait; }
 
-
 .days-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
@@ -6123,39 +6110,12 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   display: flex; align-items: center; gap: 0.75rem;
   flex-shrink: 0;
 }
-.mem-view-search-wrap {
-  flex: 1;
-  border-bottom: 1px solid var(--faint);
-  transition: border-color 0.2s;
-}
-.mem-view-search-wrap:focus-within { border-color: var(--muted); }
-.mem-view-search-wrap input {
-  width: 100%; background: none; border: none; outline: none;
-  color: var(--text); font-family: inherit; font-size: 0.8125rem;
-  padding: 0.3rem 0;
-}
-.mem-view-search-wrap input::placeholder { color: var(--muted); }
 
 .mem-view-list {
   flex: 1; overflow-y: auto;
   max-width: 760px; width: 100%; margin: 0 auto;
   padding: 0.5rem 1.5rem;
 }
-
-.mem-view-footer {
-  max-width: 760px; width: 100%; margin: 0 auto;
-  padding: 0.75rem 1.5rem 1.4rem;
-  display: flex; gap: 0.5rem; align-items: center;
-  border-top: 1px solid var(--faint);
-  flex-shrink: 0;
-}
-.mem-view-footer input {
-  flex: 1; background: none; border: none; border-bottom: 1px solid var(--faint);
-  color: var(--text); font-family: inherit; font-size: 0.875rem;
-  padding: 0.3rem 0; outline: none;
-  transition: border-color 0.2s;
-}
-.mem-view-footer input::placeholder { color: var(--muted); }
 
 /* ── memory panel ── */
 
@@ -7625,10 +7585,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   width: min(540px, 90vw); background: var(--panel); border: 1px solid var(--faint);
   border-radius: var(--k-radius-control); box-shadow: 0 16px 48px rgba(0,0,0,0.5); overflow: hidden;
 }
-.wiki-qs-input {
-  width: 100%; background: none; border: none; outline: none; color: var(--text);
-  font: inherit; font-size: 0.9375rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--faint);
-}
 .wiki-qs-list { max-height: 50vh; overflow-y: auto; padding: 0.3rem; }
 .wiki-qs-item { padding: 0.4rem 0.65rem; border-radius: var(--k-radius-control); font-size: 0.8125rem; cursor: pointer; }
 .wiki-qs-item.active, .wiki-qs-item:hover { background: var(--raised); }
@@ -7679,8 +7635,7 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 #wiki-view.no-note .docs-editor-head { display: none; }
 #wiki-view.no-note .wiki-main { flex: 1; }
 #wiki-view.no-note .wiki-edit-wrap,
-#wiki-view.no-note .wiki-backlinks,
-#wiki-view.no-note .doc-ai-bar { display: none; }
+#wiki-view.no-note .wiki-backlinks { display: none; }
 
 #wiki-view.no-note .wiki-empty-state { display: flex; }
 #wiki-view.no-note #wiki-mode-toggle,
@@ -7708,7 +7663,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 #wiki-view.notes-mode .docs-editor-head,
 #wiki-view.notes-mode .wiki-edit-wrap,
 #wiki-view.notes-mode .wiki-backlinks,
-#wiki-view.notes-mode .doc-ai-bar,
 #wiki-view.notes-mode #docs-toolbar,
 #wiki-view.notes-mode #wiki-tabs,
 #wiki-view.notes-mode #wiki-tree,
@@ -8000,17 +7954,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   flex: 1; padding: 1rem; overflow-y: auto;
   font-size: 0.8125rem; line-height: 1.65;
 }
-.doc-ai-bar {
-  display: none; gap: 0.4rem; padding: 0.55rem clamp(1rem, 4vw, 3.4rem);
-  border-top: 1px solid var(--faint); flex-shrink: 0;
-}
-#wiki-view.ai-open .doc-ai-bar { display: flex; }
-.doc-ai-bar input {
-  flex: 1; background: none; border: none;
-  border-bottom: 1px solid var(--faint); color: var(--text);
-  font: inherit; font-size: 0.8125rem; padding: 0.25rem 0; outline: none;
-  transition: border-color 0.2s;
-}
 
 @media (max-width: 760px) {
   #wiki-view { flex-direction: column; }
@@ -8020,7 +7963,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   .docs-rail-actions { grid-template-columns: 1fr 1fr; }
   .docs-editor-head { padding: 0.65rem 0.85rem; flex-wrap: wrap; }
   .wiki-source, .wiki-preview { padding: 1.2rem 0.9rem; }
-  .doc-ai-bar { padding: 0.55rem 0.85rem; }
 }
 
 /* ── model compare ── */
@@ -8308,7 +8250,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 }
 .mem-cat-btn:hover { color: var(--text); border-color: var(--muted); }
 .mem-cat-btn.active { color: var(--text); border-color: var(--line-strong); }
-.mem-view-footer { gap: 0.4rem; }
 
 /* ── reminders ── */
 .reminder-add-form {
@@ -8355,15 +8296,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   min-width: 44px;
 }
 .mail-tabs { display: inline-flex; gap: 0.1rem; flex-shrink: 0; }
-.mail-tab {
-  background: none; border: none; cursor: pointer;
-  color: var(--muted); font: inherit; font-size: 0.8125rem;
-  letter-spacing: 0.02em; text-transform: lowercase;
-  padding: 0.28rem 0.55rem; border-radius: var(--k-radius-control);
-  transition: color 0.18s ease, background 0.18s ease;
-}
-.mail-tab:hover { color: var(--text); }
-.mail-tab.active { color: var(--text); background: var(--panel); }
 
 .mail-account-select {
   width: min(220px, 30vw);
@@ -9538,9 +9470,6 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 }
 .andromeda-tab:hover,
 .andromeda-tab.active { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
-.andromeda-tab.active::after {
-  content: ""; position: absolute; right: 12px; bottom: 3px; left: 12px; height: 1px; background: var(--text);
-}
 .andromeda-result-meta { color: var(--muted); font-size: 0.8125rem; white-space: nowrap; }
 .andromeda-status { min-height: 0; padding-top: 4px; color: var(--muted); font-size: 0.8125rem; }
 .andromeda-status:empty { display: none; }
@@ -11366,10 +11295,8 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
   }
 }
 
-
 /* ordinary choices everywhere (decision 0019, finished): no purple fill for a plain "on".
    on = raised surface, strong edge, full text tone and a little weight; off = quiet text */
-.vault-type-seg .vts-btn.active,
 .cal-dow-b.on,
 .cal-rem.on,
 .te-seg-opt.active {
@@ -11406,8 +11333,6 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
    (status dots, links, data colors, the switch track tint). menus and lists highlight with raised */
 :where(#settings-modal) .s-behavior-options button.active,
 .theme-mode-btn.active,
-.wiki-tab.active,
-.split-picker .sp-tab.on,
 .tasks-tab.active,
 .ie-tool.active,
 .rule-preset.sel,

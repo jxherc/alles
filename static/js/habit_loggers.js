@@ -3,7 +3,7 @@
 // logs them: dumbbells per hand, machines per side. a set row without reps is 10, without sets 1.
 import { form } from './dialog.js';
 import { formatCalendarDate, formatNumber, t, tp } from './i18n.js';
-import { wireChoiceGroup } from './kokuen.js?v=4';
+import { wireChoiceGroup } from './kokuen.js?v=5';
 import { formatDecimal } from './liveformat.js';
 
 const LOGGED = new Set(['workout', 'reading', 'count', 'duration', 'distance']);

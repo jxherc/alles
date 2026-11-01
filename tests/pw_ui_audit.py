@@ -40,7 +40,7 @@ ROUTES = [
     "server-logs", "server-activity", "server-watch", "server-policy",
     "memory", "compare", "brain", "models", "cookbook", "usage", "skills", "scheduled",
     "aide-reminders", "gallery",
-    "settings", "setup",
+    "settings", "setup", "kit",
 ]  # fmt: skip
 
 PROFILES = {
@@ -576,12 +576,18 @@ class Audit:
         return out
 
 
+# the kit page takes its theme from the url, not from the app's appearance setting
+KIT_THEME = {"now": "dark"}
+
+
 def goto(page, base, route) -> None:
     if route == "setup":
         page.goto(base + "/", wait_until="domcontentloaded")
         page.wait_for_function("typeof window._openSetupWizard === 'function'")
         page.evaluate("window._openSetupWizard()")
         page.locator("#setup-wizard").wait_for(state="visible")
+    elif route == "kit":
+        page.goto(f"{base}/static/kit.html?theme={KIT_THEME['now']}", wait_until="domcontentloaded")
     elif route == "settings":
         page.goto(base + "/", wait_until="domcontentloaded")
         page.locator("#today-settings").wait_for(state="visible")
@@ -709,6 +715,156 @@ SPACING = r"""
   return out.slice(0, 40);
 }
 """
+
+
+# the kit rules (decisions 0049 to 0051), measured on the rendered page. each came back once
+# after a fix that only covered one screen, so they are checked on every route:
+#   field-text-on-ring  a focused field's text sits under 8px from the edge that lights up
+#   field-two-owners    a focused field and a wrapper around it both light up
+#   rows-touch          a filled (picked) row has a clickable neighbor under 4px away
+#   pill-clipped        a picked pill pokes out of a clipping parent while its tab is in view
+#   pill-not-round      a picked pill in a row of tabs or segments isn't fully round
+#   controls-touch      two separate painted controls sit under 8px apart, across or down
+#   stacked-lines       two parallel lines under 24px apart with nothing between them
+KIT_RULES = r"""
+() => {
+  const out = [];
+  const vis = el => { if (!el.isConnected) return false; const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && +s.opacity > 0 && !el.closest('[hidden],[inert],[aria-hidden="true"]'); };
+  const sig = el => { let s = el.tagName.toLowerCase(); if (el.id) return s + '#' + el.id;
+    const c = typeof el.className === 'string' ? el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''; if (c) s += '.' + c;
+    let p = el.parentElement, hops = 0; while (p && !p.id && hops < 6) { p = p.parentElement; hops++; }
+    return (p && p.id ? '#' + p.id + ' ' : '') + s; };
+  const alpha = c => { const m = (c || '').match(/rgba?\(([^)]+)\)|color\(srgb ([^)]+)\)/); if (!m) return c && c !== 'transparent' ? 1 : 0;
+    const p = (m[1] || m[2]).split(/[ ,/]+/).filter(Boolean).map(parseFloat); return p.length > 3 ? p[3] : 1; };
+  const px = v => parseFloat(v) || 0;
+  // what a person sees change: a 0px border's color or a 'none' outline's color shows nothing
+  const look = el => { const s = getComputedStyle(el);
+    return [s.boxShadow, s.outlineStyle === 'none' ? '' : s.outlineStyle + s.outlineColor + s.outlineWidth,
+      px(s.borderTopWidth) ? s.borderTopColor : '', px(s.borderBottomWidth) ? s.borderBottomColor : '', s.backgroundColor].join('|'); };
+  const painted = el => { const s = getComputedStyle(el);
+    return alpha(s.backgroundColor) > 0.02 || /inset/.test(s.boxShadow) || (px(s.borderTopWidth) > 0 && s.borderTopStyle !== 'none' && alpha(s.borderTopColor) > 0); };
+
+  // fields: focus each one, compare its look and its wrappers' looks before and after
+  const fields = [...document.querySelectorAll('input:not([type]), input:is([type="text"],[type="search"],[type="email"],[type="url"],[type="tel"],[type="password"],[type="number"]), textarea, .custom-select[role="combobox"], .date-input')]
+    .filter(el => vis(el) && !el.disabled && !el.readOnly && el.getAttribute('role') !== 'button' || (el.classList.contains('date-input') && vis(el))).slice(0, 80);
+  for (const el of fields) {
+    const chain = []; for (let p = el.parentElement, i = 0; p && i < 4 && p !== document.body; p = p.parentElement, i++) chain.push(p);
+    const before = [look(el), ...chain.map(look)];
+    el.focus({ preventScroll: true });
+    if (document.activeElement !== el) continue;
+    const after = [look(el), ...chain.map(look)];
+    const own = before[0] !== after[0];
+    const wrapper = chain.findIndex((p, i) => before[i + 1] !== after[i + 1]);
+    const s = getComputedStyle(el);
+    const inset = Math.min(px(s.paddingLeft) + px(s.borderLeftWidth), px(s.paddingRight) + px(s.borderRightWidth));
+    if (own && inset < 8) out.push(['field-text-on-ring', sig(el), inset + 'px']);
+    if (own && wrapper >= 0) out.push(['field-two-owners', sig(el), 'and ' + sig(chain[wrapper])]);
+    el.blur();
+  }
+
+  // rows: a picked, filled row and its clickable neighbors
+  const ROW = 'button, a[href], [role="button"], [role="option"], [role="treeitem"], [role="menuitem"], [role="link"], [tabindex="0"]';
+  const rowish = r => r.height >= 30 && r.height <= 72 && r.width >= 100;
+  for (const el of document.querySelectorAll('.active, [aria-current="page"], [aria-current="true"], [aria-selected="true"]')) {
+    if (!vis(el) || !el.matches(ROW) || !painted(el)) continue;
+    const r = el.getBoundingClientRect(); if (!rowish(r)) continue;
+    for (const n of [el.previousElementSibling, el.nextElementSibling]) {
+      if (!n || !vis(n) || !n.matches(ROW)) continue;
+      const q = n.getBoundingClientRect();
+      if (!rowish(q) || Math.abs(q.left - r.left) > 2 || Math.abs(q.width - r.width) > 2) continue;
+      const gap = q.top > r.top ? q.top - r.bottom : r.top - q.bottom;
+      if (gap > -1 && gap < 3.5) out.push(['rows-touch', sig(n.parentElement) + ' > ' + sig(n), gap.toFixed(1) + 'px']);
+    }
+  }
+
+  // pills: the group's ::before, placed by motion.js through --pill-*
+  for (const g of document.querySelectorAll('.has-pill')) {
+    if (!vis(g)) continue;
+    const st = getComputedStyle(g);
+    if (st.getPropertyValue('--pill-o').trim() !== '1' || g.dataset.pill === 'line') continue;
+    const on = [...g.children].find(c => c.matches('[aria-selected="true"], [aria-pressed="true"], [aria-checked="true"], [aria-current="page"], [aria-current="true"], .active'));
+    if (!on || !vis(on)) continue;
+    const gr = g.getBoundingClientRect();
+    const x = gr.left + g.clientLeft + px(st.getPropertyValue('--pill-x')) - g.scrollLeft;
+    const y = gr.top + g.clientTop + px(st.getPropertyValue('--pill-y')) - g.scrollTop;
+    const pill = { left: x, top: y, right: x + px(st.getPropertyValue('--pill-w')), bottom: y + px(st.getPropertyValue('--pill-h')) };
+    const onr = on.getBoundingClientRect();
+    for (let p = g; p && p !== document.documentElement; p = p.parentElement) {
+      const ps = getComputedStyle(p);
+      if (ps.overflowX === 'visible' && ps.overflowY === 'visible') continue;
+      const pr = p.getBoundingClientRect();
+      const box = { left: pr.left + p.clientLeft, top: pr.top + p.clientTop, right: pr.left + p.clientLeft + p.clientWidth, bottom: pr.top + p.clientTop + p.clientHeight };
+      // a tab scrolled out of a strip is the strip's job, not a clipped pill
+      if (onr.left < box.left - 0.5 || onr.right > box.right + 0.5) break;
+      if (pill.left < box.left - 0.5 || pill.right > box.right + 0.5 || pill.top < box.top - 0.5 || pill.bottom > box.bottom + 0.5)
+        out.push(['pill-clipped', sig(g), 'by ' + sig(p)]);
+    }
+    if (g.dataset.pillShape === 'round' && px(getComputedStyle(g, '::before').borderTopLeftRadius) < (pill.bottom - pill.top) / 2 - 0.5)
+      out.push(['pill-not-round', sig(g), getComputedStyle(g, '::before').borderTopLeftRadius]);
+  }
+
+  // controls: painted siblings in one parent, outside one shared track
+  const CTRL = 'button, a.btn, [role="button"], input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, [role="combobox"]';
+  // one shared track or one entry row (fields joined by dividers in one box) may sit at 0
+  const TRACK = '[role="tablist"], [role="radiogroup"], .has-pill, .seg, .k-pill-switch, .k-number-row-scale, .btn-group, [role="toolbar"][data-joined], .page-view-footer, .reminder-add-form, .specialist-group-capture, .plan-board-add, .today-capture, .composer-box';
+  const parents = new Set([...document.querySelectorAll(CTRL)].filter(vis).map(el => el.parentElement));
+  for (const p of parents) {
+    if (!p || p.matches(TRACK)) continue;
+    const kids = [...p.children].filter(c => c.matches(CTRL) && vis(c) && painted(c));
+    for (let i = 0; i < kids.length; i++) for (let j = i + 1; j < kids.length; j++) {
+      const a = kids[i].getBoundingClientRect(), b = kids[j].getBoundingClientRect();
+      const vOverlap = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      const hOverlap = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      let gap = null;
+      if (vOverlap > Math.min(a.height, b.height) / 2) gap = Math.max(b.left - a.right, a.left - b.right);
+      else if (hOverlap > Math.min(a.width, b.width) / 2) gap = Math.max(b.top - a.bottom, a.top - b.bottom);
+      if (gap !== null && gap > -0.5 && gap < 7.5) out.push(['controls-touch', sig(kids[i]) + ' + ' + sig(kids[j]), gap.toFixed(1) + 'px']);
+    }
+  }
+
+  // lines: horizontal borders and 1px inset shadows, paired when nothing sits between them
+  const lines = [];
+  for (const el of document.querySelectorAll('body *')) {
+    if (lines.length > 600) break;
+    const s = getComputedStyle(el);
+    if (s.display === 'none') continue;
+    const tb = px(s.borderTopWidth) && s.borderTopStyle !== 'none' && alpha(s.borderTopColor) > 0.05;
+    const bb = px(s.borderBottomWidth) && s.borderBottomStyle !== 'none' && alpha(s.borderBottomColor) > 0.05;
+    const sh = /inset/.test(s.boxShadow) ? s.boxShadow.match(/0px (-?1)px 0px 0px inset|inset 0px (-?1)px 0px 0px/) : null;
+    if (!tb && !bb && !sh) continue;
+    // a boxed card's edge is a box, not a divider: two cards 16px apart are fine
+    if (px(s.borderLeftWidth) && px(s.borderRightWidth) && s.borderLeftStyle !== 'none') continue;
+    if (!vis(el)) continue;
+    const r = el.getBoundingClientRect(); if (r.width < 40) continue;
+    if (tb) lines.push({ el, y: r.top, l: r.left, r: r.right });
+    if (bb) lines.push({ el, y: r.bottom, l: r.left, r: r.right });
+    if (sh) lines.push({ el, y: (sh[1] || sh[2]) === '-1' ? r.bottom : r.top, l: r.left, r: r.right });
+  }
+  const content = [...document.querySelectorAll('body *')].filter(el => (el.matches('input, textarea, button, img, svg, select, [role="button"]') ||
+    [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) && vis(el)).map(el => el.getBoundingClientRect());
+  for (let i = 0; i < lines.length; i++) for (let j = i + 1; j < lines.length; j++) {
+    const a = lines[i], b = lines[j];
+    const dy = Math.abs(a.y - b.y); if (dy < 1 || dy > 24) continue;
+    const l = Math.max(a.l, b.l), r = Math.min(a.r, b.r);
+    if (r - l < Math.min(a.r - a.l, b.r - b.l) * 0.5) continue;
+    const top = Math.min(a.y, b.y), bottom = Math.max(a.y, b.y);
+    const between = content.some(c => c.bottom > top + 0.5 && c.top < bottom - 0.5 && c.right > l && c.left < r);
+    if (!between) out.push(['stacked-lines', sig(a.el) + ' / ' + sig(b.el), dy.toFixed(1) + 'px']);
+  }
+  return out.slice(0, 80);
+}
+"""
+
+
+def kit_rules_pass(page, audit, where) -> list:
+    page.keyboard.press("Shift")  # keyboard modality, so :focus-visible matches
+    found = page.evaluate(KIT_RULES)
+    for check, sig, detail in found:
+        audit.add("kokuen", check, False, sig, detail, where)
+    if not found:
+        audit.add("kokuen", "kit-rules", True, "page", "", where)
+    return found
 
 
 def spacing_pass(page, audit, where) -> None:
@@ -863,6 +1019,7 @@ def main() -> int:
                 service_workers="block",
             )
             set_theme(ctx.request, base, cfg["theme"])
+            KIT_THEME["now"] = cfg["theme"]
             page = ctx.new_page()
             page.set_default_timeout(8000)
             page.on("dialog", lambda d: d.dismiss())
@@ -908,6 +1065,7 @@ def main() -> int:
                 if cfg.get("only") != "layout":
                     raw_text_pass(page, audit, route, where)
                     spacing_pass(page, audit, where)
+                    kit_rules_pass(page, audit, where)
                     focus_pass(page, audit, where)
                     grid_pass(page, audit, where)
                     # surfaces already open on arrival (settings is a modal) get their own pass

@@ -57,9 +57,23 @@ In Alles the primary is the text action's shape plus one `--k-line-strong` line,
 
 Use buttons with `role="radio"` and `aria-checked`, or independent buttons with `aria-pressed`. Arrow keys move within radio groups. A checked state uses tone, type, and a small state mark, never color alone.
 
+Which control does which job (owner, oct 28, decision 0050): 2 or 3 options flipped often are a
+pill switch; a rating is a number row; 4 or more options, or a list that can grow, is the
+dropdown (`dropdown.js`). Never a wall of chips or buttons for text choices.
+
+- pill switch: `<div class="k-pill-switch" data-kokuen-choice="switch" aria-label="unit">` with 2
+  or 3 `<button>`s, one with `aria-checked="true"`. kokuen.js makes it a radiogroup with arrow
+  keys; motion.js slides the round pill to the pick. 44px options, the pill 4px inside.
+- number row: `<div class="k-number-row" data-kokuen-choice="rating" data-min="1" data-max="10"
+  data-labels="easy,...,max" data-words="easy,,,,,,,,,max" aria-label="effort">`. 44px round
+  numbers, end words centered under the number they name, a readout naming the pick, two rows of
+  5 under 520px. listen for its bubbling `change` event (`detail.value`).
+
 ## tabs
 
 Use for sibling views of the same data, not navigation to unrelated apps. Follow the ARIA tabs pattern. Keep labels visible, use type and tone for the selected state, and avoid decorative underlines or dots.
+
+The picked tab is one round pill that slides (decision 0050): a group of `[role="tab"]`, `.seg-opt` and the other items in motion.js's `ITEM` list gets `.has-pill`, and a row of them gets `data-pill-shape="round"`. The pill sits 4px inside the 44px target and is never clipped by a scrolling strip. A stack of rows (the settings nav) keeps the 8px row corner.
 
 ## toggle
 
@@ -74,6 +88,8 @@ same geometry; reduced motion removes the knob transition.
 ## field
 
 Visible label first, then control, helper or error below. Placeholder text is an example, never the label. Validation occurs at a useful time, preserves input, connects the error with `aria-describedby`, and says how to recover.
+
+One field (decision 0049): 44px, 12px between the text and the edge, the `--k-field` fill and a 1px ring. Focus recolors the ring to the dim neutral `--k-field-focus`; nothing else draws. Add a new field to the "one field" list in `revamp.css` or give it `.k-field`; a text field with zero side padding fails `tests/test_kit_page.py`. A wrapper-owned entry joins the bounded entry list in `kokuen.css` and shows focus on its own edge with the same ring. Long-form editors (docs source, notes, journal) take no box.
 
 Use `data-kokuen-entry="compact"` for one-line search/capture entry and `data-kokuen-entry="autogrow"` plus `wireAutosizeTextarea` for short multiline capture or composition. Autogrow starts at 44px, follows content, respects its CSS maximum and viewport, and then scrolls internally. Do not apply either sizing variant to long-form editors. If a wrapper owns the field boundary, keep the inner input borderless and let `:focus-within` expose the focus state once.
 
@@ -100,7 +116,7 @@ Height: 52px. Align the title, filters, context, and one primary action on one b
 
 ## data row
 
-Interactive rows are at least 44px. A 36px visual row is allowed only for noninteractive dense data. Use a stable grid so titles, metadata, status, and values align across long and missing content. Hover changes surface tone only. Selected state uses raised surface plus semantic state.
+Filled rows in a list or sidebar sit `--k-row-gap` (4px) apart and part by space, never by a divider (decision 0051). A new row list joins the "row list" rule in `revamp.css`; `.k-rows` / `.k-row` is the kit's own. Interactive rows are at least 44px. A 36px visual row is allowed only for noninteractive dense data. Use a stable grid so titles, metadata, status, and values align across long and missing content. Hover changes surface tone only. Selected state uses raised surface plus semantic state.
 
 ## local panel
 
@@ -129,3 +145,7 @@ Document purpose, when to use, when not to use, anatomy, properties, variants, a
 
 The machine-readable source for stable v5 contracts is `components/contracts.json`. Runtime behavior
 lives in `static/js/kokuen.js`, with the custom single-select contract in `static/js/dropdown.js`.
+
+## kit page
+
+`static/kit.html` shows every universal piece in its states, light and dark (`?theme=light`). It loads the same stylesheets as `index.html` in the same order (a test keeps them equal). `tests/pw_kit_rules.py` checks it, and every route, in webkit at desktop, ipad landscape, ipad portrait and phone. A new piece goes on the kit page first.

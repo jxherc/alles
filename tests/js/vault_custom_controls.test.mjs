@@ -119,7 +119,7 @@ test('recent-owner retries are limited to bodyless browser-access requests', () 
 });
 
 test('Vault dialogs use the shared focus boundary and return to their invoking control', () => {
-  assert.match(vault, /import \{ createFocusBoundary \} from '\.\/kokuen\.js\?v=4'/);
+  assert.match(vault, /import \{ createFocusBoundary \} from '\.\/kokuen\.js\?v=5'/);
   assert.match(vault, /function _activateManagedModal/);
   assert.match(vault, /function _activateTemporaryModal/);
   assert.match(vault, /_modalFocusBoundary\?\.deactivate\(\)/);

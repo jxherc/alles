@@ -7,13 +7,13 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=602">
-  <link rel="stylesheet" href="/static/kokuen.css?v=89">
+<link rel="stylesheet" href="/static/style.css?v=603">
+  <link rel="stylesheet" href="/static/kokuen.css?v=90">
 <link rel="stylesheet" href="/static/aidecentral.css?v=19">
 <link rel="stylesheet" href="/static/aidecoding.css?v=27">
 <link rel="stylesheet" href="/static/aidecall.css?v=3">
 <link rel="stylesheet" href="/static/help.css?v=2">
-<link rel="stylesheet" href="/static/revamp.css?v=99">
+<link rel="stylesheet" href="/static/revamp.css?v=100">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#12100e">
@@ -23,7 +23,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=602">
+<link rel="modulepreload" href="/static/js/app.js?v=603">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=216">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -36,13 +36,13 @@
 <link rel="modulepreload" href="/static/js/tasks.js">
 <link rel="modulepreload" href="/static/js/calendar.js">
 <link rel="modulepreload" href="/static/js/gallery.js">
-<link rel="modulepreload" href="/static/js/slash.js?v=400">
+<link rel="modulepreload" href="/static/js/slash.js?v=401">
 <link rel="modulepreload" href="/static/js/uploads.js?v=254">
 <link rel="modulepreload" href="/static/js/projects.js">
 <link rel="modulepreload" href="/static/js/search.js">
-<link rel="modulepreload" href="/static/js/help.js?v=2">
+<link rel="modulepreload" href="/static/js/help.js?v=3">
 <link rel="modulepreload" href="/static/js/compare.js">
-<link rel="modulepreload" href="/static/js/vault.js?v=290">
+<link rel="modulepreload" href="/static/js/vault.js?v=291">
 <link rel="modulepreload" href="/static/js/contacts.js">
 <link rel="modulepreload" href="/static/js/liveformat.js">
 <link rel="modulepreload" href="/static/js/filesphase7.js?v=490">
@@ -63,9 +63,9 @@
 <link rel="modulepreload" href="/static/js/scrollfollow.js">
 <link rel="modulepreload" href="/static/js/text_entry.js?v=1">
 <link rel="modulepreload" href="/static/js/aideworkspace.js?v=281">
-<link rel="modulepreload" href="/static/js/aidecentral.js?v=2">
-<link rel="modulepreload" href="/static/js/kokuen.js?v=4">
-<link rel="modulepreload" href="/static/js/andromeda.js?v=255">
+<link rel="modulepreload" href="/static/js/aidecentral.js?v=3">
+<link rel="modulepreload" href="/static/js/kokuen.js?v=5">
+<link rel="modulepreload" href="/static/js/andromeda.js?v=256">
 <link rel="modulepreload" href="/static/js/shortcuts.js">
 <link rel="modulepreload" href="/static/js/ask_panel.js">
 <link rel="modulepreload" href="/static/js/reminders.js?v=246">
@@ -77,7 +77,7 @@
 <link rel="modulepreload" href="/static/js/memoryactions.js">
 <link rel="modulepreload" href="/static/js/answer_note.js">
 <link rel="modulepreload" href="/static/js/answer_task.js">
-<link rel="modulepreload" href="/static/js/response_actions.js?v=5">
+<link rel="modulepreload" href="/static/js/response_actions.js?v=6">
 <link rel="modulepreload" href="/static/js/brandlogo.js">
 <link rel="modulepreload" href="/static/js/modelfilter.js">
 <link rel="modulepreload" href="/static/js/artifacts.js">
@@ -3087,14 +3087,14 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.journal_stale_nudge">journal (stale nudge)</div></div><div class="s-switch" id="s-prox-cat-journal"></div></div>
               <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.7rem;font-size:0.8125rem;color:var(--muted)">
                 <span data-i18n="shell.settings_proactive.run_every">run every</span>
-                <input type="number" min="1" max="168" id="s-prox-hours" aria-label="background check interval in hours" style="width:4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.8125rem" data-i18n-aria-label="shell.settings_proactive.background_check_interval_in_hours">
+                <input type="number" class="settings-input s-num-input" min="1" max="168" id="s-prox-hours" aria-label="background check interval in hours" data-i18n-aria-label="shell.settings_proactive.background_check_interval_in_hours">
                 <span data-i18n="shell.settings_proactive.hours">hours</span>
               </div>
               <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem;font-size:0.8125rem;color:var(--muted)">
                 <span data-i18n="common.quiet_hours">quiet hours</span>
-                <input type="number" min="0" max="23" id="s-prox-qstart" aria-label="quiet hours start" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.8125rem" data-i18n-aria-label="shell.settings_proactive.quiet_hours_start">
+                <input type="number" class="settings-input s-num-input" min="0" max="23" id="s-prox-qstart" aria-label="quiet hours start" data-i18n-aria-label="shell.settings_proactive.quiet_hours_start">
                 <span data-i18n="common.to">to</span>
-                <input type="number" min="0" max="23" id="s-prox-qend" aria-label="quiet hours end" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.8125rem" data-i18n-aria-label="shell.settings_proactive.quiet_hours_end">
+                <input type="number" class="settings-input s-num-input" min="0" max="23" id="s-prox-qend" aria-label="quiet hours end" data-i18n-aria-label="shell.settings_proactive.quiet_hours_end">
               </div>
               <div class="s-toggle-row" style="margin-top:0.5rem"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.send_push_for_urgent">send push for urgent</div><div class="s-toggle-desc" data-i18n="shell.settings_proactive.web_push_high_priority_cards_needs">web-push high-priority cards (needs notifications on)</div></div><div class="s-switch" id="s-prox-push"></div></div>
               <div id="s-prox-status" style="font-size:0.8125rem;color:var(--muted);margin:0.6rem 0"></div>
@@ -3129,6 +3129,6 @@
   </div><!-- /s-modal -->
 </div>
 
-<script type="module" src="/static/js/app.js?v=602"></script>
+<script type="module" src="/static/js/app.js?v=603"></script>
 </body>
 </html>

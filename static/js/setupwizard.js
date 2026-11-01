@@ -6,7 +6,7 @@ import { regionName, resolvedTimeZone, t } from './i18n.js';
 import { pick } from './dialog.js';
 import { icon } from './icons.js';
 import { mountDependencies } from './dependencies.js';
-import { wireChoiceGroup } from './kokuen.js?v=4';
+import { wireChoiceGroup } from './kokuen.js?v=5';
 import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';
 const STEPS = ['basics', 'access', 'files', 'ai_search', 'protection'];
 const _titles = () => ({ basics: t('setup.step_basics'), access: t('setup.step_access'), files: t('common.files'), ai_search: t('setup.step_ai_search'), protection: t('setup.step_protection') });

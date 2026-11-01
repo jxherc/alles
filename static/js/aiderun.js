@@ -1,5 +1,5 @@
 import { plainError } from './util.js';
-import { createFocusBoundary } from './kokuen.js?v=4';
+import { createFocusBoundary } from './kokuen.js?v=5';
 import { renderAideQuestion } from './aidequestions.js?v=2';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { replaceRouteUrl } from './route_history.js';
