@@ -18,7 +18,9 @@ test('repeat tooltip localizes the selected cadence', () => {
 test('populated task rows expose named keyboard controls and repeat-safe mutations', () => {
   assert.match(tasks, /class="task-check[^`]+aria-label="\$\{checkLabel\}"/s);
   assert.match(tasks, /class="task-title[^`]+aria-label="\$\{esc\(tr\('tasks\.edit_named'/s);
-  assert.match(tasks, /class="task-del[^`]+tasks\.delete_named/s);
+  // delete sits in the row's more menu, named by the task (u.10)
+  assert.match(tasks, /class="icon-btn task-more"[^`]+tasks\.more_named/s);
+  assert.match(tasks, /class="ctx-item danger task-del" role="menuitem"/);
   assert.match(tasks, /if \(btn\.getAttribute\('aria-busy'\) === 'true'\) return/);
   assert.match(tasks, /setControlState\(button, 'error'/);
 });

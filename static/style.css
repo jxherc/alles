@@ -4770,12 +4770,24 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 .ie-hint { font-size: 0.8125rem; color: var(--muted); line-height: 1.5; }
-.task-del {
-  background: none; border: none; cursor: pointer; color: var(--muted);
-  font-size: 0.8125rem; padding: 0.1rem 0.3rem;
-  transition: color 0.15s;
+/* a task row's actions (u.01, u.03, u.10): "tomorrow" on what's due or late, everything else
+   (other days, a subtask, delete) behind the row's more menu, so delete is never one tap away */
+.task-actions { position: relative; }
+.task-snooze {
+  background: none; border: 0; border-radius: var(--k-radius-control); cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0 8px;
+  transition: color 0.15s, background 0.15s;
 }
-.task-del:hover { color: var(--error); }
+.task-snooze:hover { color: var(--text); background: var(--hover); }
+.task-more { color: var(--muted); }
+.task-more svg { width: 16px; height: 16px; }
+.task-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 180px; }
+.task-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: 44px; }
+.task-group-late { border-bottom: 1px solid var(--faint); margin-bottom: 8px; }
+.task-group-late .task-item:last-child { border-bottom: none; }
+.task-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.task-group-head h3 { margin: 0; font-size: 0.8125rem; font-weight: 600; color: var(--error); }
+.task-gone-text { color: var(--muted); font-size: 0.8125rem; }
 
 /* ── subscriptions ── */
 .sub-item {
