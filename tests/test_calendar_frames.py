@@ -213,7 +213,13 @@ class FrameWritesTest(ApiTest):
         return next(e for e in self.client.get("/api/calendar").json() if e["id"] == eid)
 
     def walls(self, eid, headers):
-        days = self.client.get("/api/calendar/agenda", params={"days": 220}, headers=headers).json()
+        # the agenda starts at today, and the series use fixed dates, so pin today before them all
+        with mock.patch.object(
+            calendar_events, "owner_now", lambda zone=None: datetime(2026, 10, 20, 12, 0)
+        ):
+            days = self.client.get(
+                "/api/calendar/agenda", params={"days": 220}, headers=headers
+            ).json()
         return [e["start_dt"][:16] for d in days["days"] for e in d["events"] if e["id"] == eid]
 
     def test_skipping_a_day_names_the_frames_day_and_keeps_the_series(self):
