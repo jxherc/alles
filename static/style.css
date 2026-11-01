@@ -11626,8 +11626,6 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 #messages .agent-step:not(.running):not(.error) .agent-step-status::before,
 #money-view .money-section-toggle::before,
 #money-view .money-section-toggle[aria-expanded="true"]::before,
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after,
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger[aria-expanded="true"]::after,
 .agent-step-args-wrap .custom-summary::before,
 .agent-step-args-wrap summary::before,
 .agent-step-args-wrap.open .custom-summary::before,

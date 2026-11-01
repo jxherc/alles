@@ -2751,17 +2751,11 @@
                 <div class="locale-format-list">
                   <div class="locale-format-row">
                     <div><strong data-i18n="locale.region">region</strong><small id="s-region-detected" data-i18n="locale.detecting_browser">detecting this browser…</small></div>
-                    <div class="locale-choice-wrap">
-                      <button class="locale-choice-trigger" id="s-region-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-locale-choice="region" data-value="" data-i18n="common.automatic">automatic</button>
-                      <div class="locale-choice-menu" id="s-region-menu" role="listbox" aria-label="region" data-i18n-aria-label="locale.region" data-locale-menu="region" hidden></div>
-                    </div>
+                    <div class="custom-select" id="s-region-trigger" aria-label="region" data-i18n-aria-label="locale.region" data-locale-choice="region" data-value="" data-options="|automatic"></div>
                   </div>
                   <div class="locale-format-row">
                     <div><strong data-i18n="locale.timezone">timezone</strong><small id="s-timezone-detected" data-i18n="locale.detecting_browser">detecting this browser…</small></div>
-                    <div class="locale-choice-wrap">
-                      <button class="locale-choice-trigger" id="s-timezone-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-locale-choice="timezone" data-value="" data-i18n="common.automatic">automatic</button>
-                      <div class="locale-choice-menu" id="s-timezone-menu" role="listbox" aria-label="timezone" data-i18n-aria-label="locale.timezone" data-locale-menu="timezone" hidden></div>
-                    </div>
+                    <div class="custom-select" id="s-timezone-trigger" aria-label="timezone" data-i18n-aria-label="locale.timezone" data-locale-choice="timezone" data-value="" data-options="|automatic"></div>
                   </div>
                   <div class="locale-format-row">
                     <div><strong data-i18n="locale.clock">clock</strong><small data-i18n="locale.stored_event_help">Does not change stored event times.</small></div>
@@ -2781,10 +2775,7 @@
                   </div>
                   <div class="locale-format-row">
                     <div><strong data-i18n="locale.currency">currency</strong><small data-i18n="locale.currency_help">Used for locale-sensitive money display.</small></div>
-                    <div class="locale-choice-wrap">
-                      <button class="locale-choice-trigger" id="s-currency-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-locale-choice="currency" data-value="" data-i18n="common.automatic">automatic</button>
-                      <div class="locale-choice-menu" id="s-currency-menu" role="listbox" aria-label="currency" data-i18n-aria-label="locale.currency" data-locale-menu="currency" hidden></div>
-                    </div>
+                    <div class="custom-select" id="s-currency-trigger" aria-label="currency" data-i18n-aria-label="locale.currency" data-locale-choice="currency" data-value="" data-options="|automatic"></div>
                   </div>
                 </div>
               </section>

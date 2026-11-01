@@ -84,9 +84,9 @@ test('approved Phase 10 language and Credits workbenches use honest custom contr
   assert.match(source, /row\.setAttribute\('aria-disabled', String\(!language\.available\)\)/);
   assert.match(source, /focusTarget\.focus\(\{ preventScroll: true \}\)/);
   assert.match(localePane, /data-locale-language="en"/);
-  assert.match(localePane, /id="s-region-trigger"[^>]*aria-haspopup="listbox"[^>]*data-value=""/);
-  assert.match(localePane, /id="s-timezone-trigger"[^>]*aria-haspopup="listbox"[^>]*data-value=""/);
-  assert.match(localePane, /id="s-currency-trigger"[^>]*aria-haspopup="listbox"[^>]*data-value=""/);
+  assert.match(localePane, /class="custom-select" id="s-region-trigger"[^>]*data-value=""/);
+  assert.match(localePane, /class="custom-select" id="s-timezone-trigger"[^>]*data-value=""/);
+  assert.match(localePane, /class="custom-select" id="s-currency-trigger"[^>]*data-value=""/);
   assert.doesNotMatch(localePane, /<select|type="(?:checkbox|radio)"|<input[^>]+id="s-(?:region|timezone|currency)"/);
   assert.match(localePane, /data-locale-format="clock_format"/);
   assert.match(localePane, /data-locale-format="week_start"/);
@@ -105,7 +105,8 @@ test('approved Phase 10 language and Credits workbenches use honest custom contr
   assert.match(source, /clock_format: _localeRadioValue\('clock_format'\)/);
   assert.match(source, /week_start: _localeRadioValue\('week_start'\)/);
   assert.match(source, /currency: document\.getElementById\('s-currency-trigger'\)/);
-  assert.match(source, /if \(event\.key === 'Escape'\)[\s\S]{0,180}_closeLocaleChoice\(true\)/);
+  // region, timezone and currency are the kit dropdown, which owns escape and focus return
+  assert.match(source, /populateDropdown\(trigger, options/);
   assert.match(source, /t\('locale\.language_unavailable'/);
   assert.match(source, /tp\('credits\.gap_remaining', gapCount\)/);
   assert.match(localePane, /id="locale-preview-path"[^>]*>alles\/data · 14:30<\/code>/);
