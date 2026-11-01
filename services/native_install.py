@@ -423,6 +423,16 @@ def build_release(source: Path, destination: Path, *, progress=None) -> Path:
     return python
 
 
+def _probe_message(probe) -> str:
+    """The startup check's own error and log path when the probe gives them (cli.ProbeResult)."""
+    explain = getattr(probe, "explain", None)
+    return (
+        explain("the new release failed its startup check")
+        if explain
+        else ("staged release health probe failed")
+    )
+
+
 def _verify_private_python(release: Path, python: Path) -> None:
     expected = release / ".venv" / "bin" / "python"
     config = release / ".venv" / "pyvenv.cfg"
@@ -1157,8 +1167,9 @@ def install(
             python = release_builder(source, stage)
         _verify_private_python(stage, python)
         progress("check", "start")
-        if not release_probe(stage, python):
-            raise NativeInstallError("staged release health probe failed")
+        probe = release_probe(stage, python)
+        if not probe:
+            raise NativeInstallError(_probe_message(probe))
         progress("check", "done")
         _atomic_json(
             stage / _RELEASE_MARKER,
@@ -1608,8 +1619,9 @@ def stage_update_release(
     try:
         python = release_builder(source.expanduser().resolve(), stage)
         _verify_private_python(stage, python)
-        if not release_probe(stage, python):
-            raise NativeInstallError("staged release health probe failed")
+        probe = release_probe(stage, python)
+        if not probe:
+            raise NativeInstallError(_probe_message(probe))
         _atomic_json(
             stage / _RELEASE_MARKER,
             {"installation_id": manifest["installation_id"], "release_id": release_id},
@@ -1794,4 +1806,123 @@ def public_layout(layout: NativeLayout) -> dict:
     return {
         key: str(value) if isinstance(value, Path) else value
         for key, value in asdict(layout).items()
+    }
+
+
+def release_summary(layout: NativeLayout) -> dict:
+    """The running release named by its short commit, for `alles status` and the update screen.
+
+    Read only and never raises: a broken install shows nothing here instead of hiding the rest.
+    """
+    from datetime import datetime, timezone
+
+    summary = dict.fromkeys(
+        ("release", "commit", "short", "installed_at", "previous", "repository", "branch")
+    )
+    try:
+        manifest = _load_manifest(layout)
+        current = _read_release_pointer(layout.current_release, "current")
+    except NativeInstallError:
+        return summary
+    commit = manifest.get("release_commits", {}).get(current) or ""
+    summary.update(release=current, commit=commit or None, short=(commit or current)[:7])
+    try:
+        stamp = (layout.releases / current / _RELEASE_MARKER).stat().st_mtime
+        summary["installed_at"] = datetime.fromtimestamp(stamp, timezone.utc).isoformat()
+    except OSError:
+        pass
+    if layout.previous_release.is_file():
+        try:
+            summary["previous"] = _read_release_pointer(layout.previous_release, "previous")
+        except NativeInstallError:
+            pass
+    source = manifest.get("source") or {}
+    if source.get("kind") == "archive":
+        summary.update(repository=source["repository"], branch=source["branch"])
+    elif source.get("kind") == "git":
+        summary["branch"] = source["branch"]
+    return summary
+
+
+def latest_release_commit(source: dict, *, timeout: float = 60) -> str:
+    """The newest commit on the install's release branch, read without downloading anything."""
+    import urllib.request
+
+    if source.get("kind") == "archive":
+        repository, branch = source["repository"], source["branch"]
+        request = urllib.request.Request(
+            f"https://api.github.com/repos/{repository}/commits/{branch}",
+            headers={"Accept": "application/vnd.github.sha", "User-Agent": "alles-update"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                target = response.read().decode("ascii", "replace").strip().lower()
+        except Exception as exc:
+            raise NativeInstallError("the configured release source could not be checked") from exc
+    elif source.get("kind") == "git":
+        ref = f"refs/heads/{source['branch']}"
+        try:
+            remote = subprocess.run(
+                ["git", "ls-remote", "--exit-code", "--refs", source["url"], ref],
+                capture_output=True,
+                text=True,
+                timeout=timeout * 1.5,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise NativeInstallError("the configured release source could not be checked") from exc
+        rows = [line.split() for line in (remote.stdout or "").splitlines() if line.strip()]
+        if remote.returncode != 0 or len(rows) != 1 or len(rows[0]) != 2 or rows[0][1] != ref:
+            raise NativeInstallError("the configured release branch could not be resolved exactly")
+        target = rows[0][0].lower()
+    else:
+        raise NativeInstallError("this install has no release source to check")
+    if not re.fullmatch(r"[0-9a-f]{40}", target):
+        raise NativeInstallError("the configured release branch returned an invalid commit")
+    return target
+
+
+UPDATE_CHECK_FILE = "update-check.json"
+UPDATE_CHECK_EVERY = 6 * 3600
+
+
+def update_check(
+    layout: NativeLayout, *, refresh: bool = False, now: float | None = None, timeout: float = 60
+) -> dict:
+    """Is a newer release waiting? Asks the release source at most every 6 hours.
+
+    Only reads: installing still waits for `alles update`. The answer is kept in the runtime
+    folder so `alles status`, the update screen and the server share one check.
+    """
+    import time
+
+    now = time.time() if now is None else now
+    path = layout.runtime_root / UPDATE_CHECK_FILE
+    try:
+        manifest = _load_manifest(layout)
+    except NativeInstallError:
+        return {"checked_at": None, "latest": None, "waiting": False, "error": None}
+    current = (manifest.get("source") or {}).get("commit")
+    try:
+        cached = json.loads(path.read_text("utf-8"))
+    except (OSError, ValueError):
+        cached = {}
+    checked = cached.get("checked_at") if isinstance(cached, dict) else None
+    fresh = isinstance(checked, (int, float)) and 0 <= now - checked < UPDATE_CHECK_EVERY
+    if refresh or not fresh:
+        cached = {"checked_at": now, "latest": None, "error": None}
+        try:
+            cached["latest"] = latest_release_commit(manifest.get("source") or {}, timeout=timeout)
+        except NativeInstallError as exc:
+            cached["error"] = str(exc)
+        try:
+            _atomic_json(path, cached)
+        except OSError:
+            pass
+    latest = cached.get("latest")
+    return {
+        "checked_at": cached.get("checked_at"),
+        "latest": latest,
+        "waiting": bool(latest and current and latest != current),
+        "error": cached.get("error"),
     }

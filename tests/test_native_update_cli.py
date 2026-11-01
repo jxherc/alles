@@ -200,11 +200,16 @@ class NativeUpdateCliTest(unittest.TestCase):
             self.updates,
             python_path=self.python,
             artifact_callback=mock.ANY,
+            progress=mock.ANY,
         )
         swap.assert_called_once_with(operation, candidate.data_dir)
         activate.assert_called_once_with(self.layout, self.new, source_commit=self.new)
         probe.assert_called_once_with(
-            self.data.resolve(), passes=1, app_root=self.release, python_path=self.python
+            self.data.resolve(),
+            passes=1,
+            app_root=self.release,
+            python_path=self.python,
+            log_dir=staging_root(self.data.resolve()) / "logs",
         )
         complete.assert_called_once_with(operation)
         start.assert_called_once_with(self.layout, token=mock.ANY)
@@ -317,7 +322,9 @@ class NativeUpdateCliTest(unittest.TestCase):
         _rollback, _candidate, _operation, _lock, patches = self._patches(healthy=True)
         backup = self.updates / "owned-run" / "pre-update.alles-backup"
 
-        def interrupted_stage(_live, _release, _updates, *, python_path, artifact_callback):
+        def interrupted_stage(
+            _live, _release, _updates, *, python_path, artifact_callback, progress=None
+        ):
             self.assertEqual(python_path, self.python)
             artifact_callback(backup=str(backup))
             artifact_callback(restore_id="c" * 32)
@@ -928,9 +935,116 @@ class NativeUpdateCliTest(unittest.TestCase):
         self.assertFalse(state_path.exists())
         self.assertEqual(backup.read_bytes(), b"encrypted rollback")
 
+    def test_a_release_that_speaks_the_handoff_prepares_its_own_update(self):
+        (self.release / "cli.py").write_text(
+            f"NATIVE_UPDATE_HANDOFF = {cli.NATIVE_UPDATE_HANDOFF}\n", "utf-8"
+        )
+        _rollback, _candidate, _operation, _lock, patches = self._patches(healthy=True)
+        with ExitStack() as stack:
+            entered = [stack.enter_context(patch) for patch in patches]
+            handoff = stack.enter_context(
+                mock.patch.object(cli, "_native_run_handoff", return_value=True)
+            )
+            result = cli._cmd_native_update(self.layout)
 
-if __name__ == "__main__":
-    unittest.main()
+        self.assertTrue(result)
+        handoff.assert_called_once_with(self.release, self.python, mock.ANY)
+        entered[8].assert_not_called()  # the installed code never stages the data itself
+        entered[4].assert_not_called()  # nor switches the release
+
+    def test_a_handoff_that_dies_midway_is_rolled_back_by_the_installed_release(self):
+        (self.release / "cli.py").write_text("NATIVE_UPDATE_HANDOFF = 1\n", "utf-8")
+        _rollback, _candidate, _operation, _lock, patches = self._patches(healthy=True)
+        with ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            stack.enter_context(mock.patch.object(cli, "_native_run_handoff", return_value=False))
+            rollback = stack.enter_context(
+                mock.patch.object(cli, "_native_finish_rollback", return_value=True)
+            )
+            result = cli._cmd_native_update(self.layout)
+
+        self.assertFalse(result)
+        rollback.assert_called_once()
+        self.assertEqual(rollback.call_args.args[1]["phase"], "preparing")
+
+    def test_a_handoff_that_rolled_itself_back_is_not_rolled_back_twice(self):
+        (self.release / "cli.py").write_text("NATIVE_UPDATE_HANDOFF = 1\n", "utf-8")
+        state_path = self.updates / "native-latest.json"
+        _rollback, _candidate, _operation, _lock, patches = self._patches(healthy=True)
+        with ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            stack.enter_context(
+                mock.patch.object(
+                    cli,
+                    "_native_run_handoff",
+                    side_effect=lambda *_a: cli._write_update_state(state_path, None) or False,
+                )
+            )
+            rollback = stack.enter_context(mock.patch.object(cli, "_native_finish_rollback"))
+            result = cli._cmd_native_update(self.layout)
+
+        self.assertFalse(result)
+        rollback.assert_not_called()
+
+    def test_an_older_release_without_the_handoff_is_still_updated_in_place(self):
+        (self.release / "cli.py").write_text("print('old')\n", "utf-8")
+        self.assertEqual(cli._native_handoff_version(self.release), 0)
+        self.assertEqual(cli._native_handoff_version(Path(cli.__file__).parent), 1)
+
+    def test_the_handoff_step_refuses_to_run_without_the_installed_release_holding_the_lock(self):
+        state_path = self.updates / "native-latest.json"
+        self.updates.mkdir(parents=True, exist_ok=True)
+        cli._write_update_state(state_path, self._state("preparing"))
+        with (
+            mock.patch.object(
+                cli, "_update_paths", return_value=(self.updates, self.updates / "latest.json")
+            ),
+            mock.patch.object(cli, "_native_apply_update") as apply,
+            mock.patch("sys.stdout"),
+        ):
+            self.assertFalse(cli._cmd_native_update_handoff(self.layout, "e" * 32))
+            held = update_safety.UpdateCommandLock(self.data).acquire()
+            try:
+                # the lock is held, but this process is not the downloaded release
+                self.assertFalse(cli._cmd_native_update_handoff(self.layout, "e" * 32))
+                with mock.patch.object(cli, "ROOT", self.release):
+                    self.assertFalse(cli._cmd_native_update_handoff(self.layout, "f" * 32))
+                    self.assertTrue(cli._cmd_native_update_handoff(self.layout, "e" * 32))
+            finally:
+                held.release()
+        apply.assert_called_once()
+        self.assertEqual(apply.call_args.args[3], self.release)
+
+
+class BootCheckErrorTest(unittest.TestCase):
+    def test_a_failed_boot_check_keeps_the_real_error_and_its_log(self):
+        with tempfile.TemporaryDirectory(prefix="alles-boot-check-") as tmp:
+            root = Path(tmp)
+            app = root / "app"
+            app.mkdir()
+            (app / "app.py").write_text(
+                "print('starting')\n"
+                "raise RuntimeError('migration m0099 failed: no such column: due_time')\n",
+                "utf-8",
+            )
+            logs = root / "logs"
+            result = cli._run_recovery_probe(
+                root / "candidate", passes=2, app_root=app, log_dir=logs
+            )
+
+            self.assertFalse(result)
+            self.assertEqual(
+                result.error, "RuntimeError: migration m0099 failed: no such column: due_time"
+            )
+            self.assertTrue(result.log.is_file())
+            self.assertEqual(result.log.parent, logs)
+            self.assertIn("starting", result.log.read_text("utf-8"))
+            message = cli._probe_failure(result, "the new release failed its health check")
+            self.assertIn("no such column: due_time", message)
+            self.assertIn(str(result.log), message)
+        self.assertEqual(cli._probe_failure(False, "check failed"), "check failed")
 
 
 class UpdateCoverageTest(unittest.TestCase):
@@ -954,3 +1068,7 @@ class UpdateCoverageTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             staged = self.staged(tmp, vault_included=False)
             self.assertEqual(cli._update_coverage_issues(staged), ["vault"])
+
+
+if __name__ == "__main__":
+    unittest.main()
