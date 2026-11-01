@@ -1048,8 +1048,13 @@ function render() {
 
 // an open task in the agenda reads like home and plan: an overdue one leads today, the rest sit
 // on their due day. every agenda row is a 44px button, so the keyboard opens it too
+// a task's due time ("16:00") in the owner's clock style
+const _taskClock = hhmm => {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return formatTime(new Date(Date.UTC(2000, 0, 1, h, m)), { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+};
 const _agendaTask = (task, overdue) => {
-  const label = overdue ? tr('home.overdue') : tr('tasks.due');
+  const label = overdue ? tr('home.overdue') : task.due_time ? _taskClock(task.due_time) : tr('tasks.due');
   return `<button type="button" class="cal-agenda-ev cal-agenda-task${overdue ? ' overdue' : ''}" data-task="${esc(task.id)}" aria-label="${esc(overdue ? tr('calendar.open_task_overdue', { title: task.title, due: task.due }) : tr('calendar.open_task_due', { title: task.title }))}" title="${esc(tr('calendar.task_title', { title: task.title }))}"><span class="cal-agenda-dot" aria-hidden="true"></span><span class="cal-agenda-time">${esc(label)}</span><span class="cal-agenda-title">${esc(task.title)}</span></button>`;
 };
 export const agendaDays = d => {
@@ -1152,11 +1157,11 @@ const _bdayChips = (map, d) => (map[_bdayKey(d)] || [])
 // in a month cell a task line opens its day instead of completing it: the lines are packed
 // tight there and a stray tap shouldn't tick a task off. the day's 44px toggle completes it
 const _taskChip = t =>
-  `<button type="button" class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" aria-label="${esc(t.done ? tr('calendar.task_done', { title: t.title }) : t.title)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span><span class="cal-task-title">${esc(t.title)}</span></button>`;
+  `<button type="button" class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" aria-label="${esc(t.done ? tr('calendar.task_done', { title: t.title }) : t.title)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span>${t.time ? `<span class="cal-task-time">${esc(_taskClock(t.time))}</span>` : ''}<span class="cal-task-title">${esc(t.title)}</span></button>`;
 // the day/week all-day row has room for a real control: a 44px button you can tab to and toggle
 // with enter or space. month cells keep the compact chip
 const _taskToggle = t =>
-  `<button type="button" class="cal-task${t.done ? ' done' : ''}" role="checkbox" aria-checked="${t.done ? 'true' : 'false'}" data-task="${esc(t.id)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span><span class="cal-task-title">${esc(t.title)}</span></button>`;
+  `<button type="button" class="cal-task${t.done ? ' done' : ''}" role="checkbox" aria-checked="${t.done ? 'true' : 'false'}" data-task="${esc(t.id)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span>${t.time ? `<span class="cal-task-time">${esc(_taskClock(t.time))}</span>` : ''}<span class="cal-task-title">${esc(t.title)}</span></button>`;
 const _tasksByDay = () => {
   const out = {};
   for (const t of _tasks) (out[t.date] = out[t.date] || []).push(t);

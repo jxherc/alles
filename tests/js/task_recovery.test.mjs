@@ -17,7 +17,7 @@ function harness(storage = new Map()) {
   };
   const context = vm.createContext({
     document: { querySelectorAll: () => [], getElementById: id => id === 'tasks-list' ? list : id === 'tasks-search' ? search : null, querySelector: () => null },
-    window: { addEventListener() {} }, sessionStorage, console,
+    window: { addEventListener() {} }, sessionStorage, console, initDatePicker() {},
     tr: key => key, setTimeout: fn => { timers.set(++nextTimer, fn); return nextTimer; }, clearTimeout: id => timers.delete(id),
     fetch: async () => ({ ok: true, json: async () => [] }),
   });

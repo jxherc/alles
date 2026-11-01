@@ -2269,22 +2269,27 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .dp-day:hover { background: var(--bg); }
 /* neutral selection (decision 0019): raised surface, strong line, weight */
 .dp-day.sel { background: var(--k-raised, var(--panel)); box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--muted)); color: var(--text); font-weight: 600; }
-.dp-time { display: flex; align-items: center; justify-content: center; gap: 0.15rem; margin-top: 0.55rem; }
+.dp-time { display: flex; align-items: center; justify-content: center; gap: var(--k-space-1, 4px); margin-top: var(--k-space-2, 8px); }
 .dp-tv { font-variant-numeric: tabular-nums; min-width: 1.5rem; text-align: center; }
-/* typeable hour, minute and year: plain text until focused, then one bottom line. the box is a
-   full 44px target, so the line is drawn under the digits instead of at the box edge */
+/* typeable hour, minute and year: the one field (0049), filled with its own ring, numeric keypad.
+   focus brightens that ring and nothing else */
 :is(input.dp-tv, input.dp-year) {
-  --dp-line: transparent; --dp-line-w: 2.6ch; --dp-line-h: 1px;
-  box-sizing: border-box; width: 2.6ch; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 0;
-  background: linear-gradient(var(--dp-line), var(--dp-line)) center calc(50% + 0.8em) / var(--dp-line-w) var(--dp-line-h) no-repeat;
+  box-sizing: border-box; width: 44px; min-width: 44px; min-height: 44px; padding: 0 var(--k-space-1, 4px);
+  border: 0; border-radius: var(--k-radius-control, 8px);
+  background: var(--k-field, var(--panel)); box-shadow: inset 0 0 0 1px var(--k-field-ring, var(--line));
   color: inherit; font: inherit; text-align: center;
 }
-input.dp-year { width: 4.6ch; --dp-line-w: 4.6ch; }
-:is(input.dp-tv, input.dp-year):hover { --dp-line: var(--faint); }
-:is(input.dp-tv, input.dp-year):focus { outline: none; --dp-line: var(--k-field-focus, var(--text)); --dp-line-h: 2px; }
-/* kokuen's focus line sits on the box edge, 44px down; here it moves up under the digits */
-html .date-panel input:is(.dp-tv, .dp-year):focus-visible { box-shadow: none !important; }
-.dp-colon { color: var(--muted); margin: 0 0.15rem; }
+input.dp-year { width: calc(4ch + 2 * var(--k-space-3, 12px)); padding-inline: var(--k-space-3, 12px); margin-inline-start: var(--k-space-1, 4px); }
+:is(input.dp-tv, input.dp-year):hover { box-shadow: inset 0 0 0 1px var(--k-field-ring-hover, var(--line-strong)); }
+html .date-panel input:is(.dp-tv, .dp-year):is(:focus, :focus-visible) { outline: none; box-shadow: inset 0 0 0 1px var(--k-field-focus, var(--muted)) !important; }
+.dp-colon { color: var(--muted); margin: 0; }
+/* a due date's time is optional: one plain text action adds it, another takes it away */
+:is(.dp-time-add, .dp-time-remove) {
+  white-space: nowrap; min-height: 44px; padding: 0 var(--k-space-3, 12px); border: 0; border-radius: var(--k-radius-control, 8px);
+  background: none; color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer;
+}
+:is(.dp-time-add, .dp-time-remove):hover { background: var(--k-hover, var(--panel)); color: var(--text); }
+.cal-task-time { flex-shrink: 0; color: var(--muted); font-variant-numeric: tabular-nums; margin-inline-end: var(--k-space-1, 4px); }
 .dp-foot { display: flex; justify-content: space-between; margin-top: 0.55rem; }
 .dp-clear, .dp-now {
   background: none; border: none; color: var(--muted); cursor: pointer;
@@ -4643,6 +4648,7 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 
 .te-row { display: flex; align-items: center; gap: 0.5rem; }
 .te-row label { font-size: 0.8125rem; color: var(--muted); width: 5rem; flex-shrink: 0; }
+.te-row > .date-input { flex: 1 1 auto; min-width: 0; }
 /* four quick dates in one row, or two by two on a narrow screen: never three and one left over */
 .te-resched { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.3rem; }
 .te-rs { font-size: 0.8125rem; }

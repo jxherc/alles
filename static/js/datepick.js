@@ -1,6 +1,7 @@
 // custom date / datetime picker — replaces native <input type=datetime-local|date>.
-// a .date-input div carries data-type="date|datetime" and data-value; .value
+// a .date-input div carries data-type="date|datetime|due" and data-value; .value
 // reads/writes the same strings the backend expects (YYYY-MM-DD / YYYY-MM-DDTHH:MM).
+// "due" is a date with an optional time: YYYY-MM-DD until a time is added, then YYYY-MM-DDTHH:MM.
 import {
   formatCalendarDate,
   formatDate,
@@ -48,6 +49,16 @@ export function initDatePicker(el) {
 
 
 const _isDate = el => el.dataset.type === 'date';
+const _isDue = el => el.dataset.type === 'due';
+// a due value without a time reads and writes like a plain date
+const _dateOnly = el => _isDate(el) || (_isDue(el) && !(_open?.el === el ? _open.sel.timed : String(el.dataset.value || '').includes('T')));
+
+// a task's due_date and due_time as one due field value, and back
+export function joinDue(date, time) { return date ? (time ? `${date}T${String(time).slice(0, 5)}` : date) : ''; }
+export function splitDue(value) {
+  const [date, time] = String(value || '').split('T');
+  return { due_date: date || null, due_time: date && time ? time.slice(0, 5) : null };
+}
 const _z = n => String(n).padStart(2, '0');
 const SUNDAY_FIRST_REGIONS = new Set(['AG', 'AS', 'BD', 'BR', 'BS', 'BT', 'BW', 'BZ', 'CA', 'CN', 'CO', 'DM', 'DO', 'ET', 'GT', 'GU', 'HK', 'HN', 'ID', 'IL', 'IN', 'JM', 'JP', 'KE', 'KH', 'KR', 'LA', 'MH', 'MM', 'MO', 'MT', 'MX', 'MZ', 'NI', 'NP', 'PA', 'PE', 'PH', 'PK', 'PR', 'PT', 'PY', 'SA', 'SG', 'SV', 'TH', 'TT', 'TW', 'UM', 'US', 'VE', 'VI', 'WS', 'YE', 'ZA', 'ZW']);
 
@@ -105,6 +116,12 @@ function _currentParts(value = new Date()) {
 }
 function _parse(el) {
   const v = el.dataset.value;
+  if (_isDue(el)) {
+    const timed = dateTimeParts(v);
+    if (timed) return { ...timed, timed: true };
+    const day = calendarDateParts(v) || _currentParts();
+    return { ...day, h: 9, mi: 0, timed: false };
+  }
   const literal = _isDate(el) ? calendarDateParts(v) : dateTimeParts(v);
   if (literal) return literal;
   const dt = v ? new Date(v) : new Date();
@@ -128,7 +145,7 @@ function _display(v, isDate) {
 }
 function _trigger(el) {
   const v = el.dataset.value;
-  el.innerHTML = `<span class="date-input-label${v ? '' : ' ph'}">${v ? _display(v, _isDate(el)) : _placeholder(el)}</span>` +
+  el.innerHTML = `<span class="date-input-label${v ? '' : ' ph'}">${v ? _display(v, _isDate(el) || (_isDue(el) && !v.includes('T'))) : _placeholder(el)}</span>` +
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
 }
 
@@ -171,13 +188,17 @@ function _render(el) {
   const active = panel.contains(document.activeElement) ? document.activeElement : null;
   const focusKey = active?.dataset.d ? `[data-d="${active.dataset.d}"]` : active?.dataset.step ? `[data-step="${active.dataset.step}"]` : active?.dataset.nav ? `[data-nav="${active.dataset.nav}"]`
     : active?.dataset.part ? `[data-part="${active.dataset.part}"]` : active?.classList.contains('dp-year') ? '.dp-year'
-    : active?.classList.contains('dp-now') ? '.dp-now' : null;
-  const isDate = _isDate(el);
+    : active?.classList.contains('dp-now') ? '.dp-now'
+    : active?.classList.contains('dp-time-add') ? '[data-part="h"]' : active?.classList.contains('dp-time-remove') ? '.dp-time-add' : null;
+  const isDate = _dateOnly(el);
+  const due = _isDue(el);
   const monthName = formatCalendarDate(
     `${view.y}-${_z(view.mo + 1)}-01`,
     { month: 'long' },
   );
-  const time = isDate ? '' : `
+  const time = due && !sel.timed
+    ? `<div class="dp-time"><button type="button" class="dp-time-add">${t('common.datepick_add_time')}</button></div>`
+    : isDate ? '' : `
     <div class="dp-time">
       <button type="button" class="dp-step" data-step="h-1" aria-label="${t('common.datepick_prev_hour')}">‹</button><input class="dp-tv" data-part="h" inputmode="numeric" maxlength="2" aria-label="${t('common.datepick_hour')}" value="${_z(sel.h)}"><button type="button" class="dp-step" data-step="h1" aria-label="${t('common.datepick_next_hour')}">›</button>
       <span class="dp-colon">:</span>
@@ -186,7 +207,7 @@ function _render(el) {
   panel.innerHTML = `
     <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="${t('calendar.previous_month')}">‹</button><span>${monthName} <input class="dp-year" inputmode="numeric" maxlength="4" aria-label="${t('common.datepick_year')}" value="${view.y}"></span><button type="button" class="dp-nav" data-nav="1" aria-label="${t('calendar.next_month')}">›</button></div>
     <div class="dp-grid">${_grid(view, sel)}</div>${time}
-    <div class="dp-foot"><button type="button" class="dp-clear">${t('common.datepick_clear')}</button><button type="button" class="dp-now">${t('common.datepick_now')}</button></div>`;
+    <div class="dp-foot"><button type="button" class="dp-clear">${t('common.datepick_clear')}</button>${due && sel.timed ? `<button type="button" class="dp-time-remove">${t('common.datepick_no_time')}</button>` : ''}<button type="button" class="dp-now">${t('common.datepick_now')}</button></div>`;
 
   // safari doesn't focus a clicked button, so focus would sit on <body>: the rebuild couldn't
   // put it back and escape stopped closing the picker. focus what was clicked first
@@ -254,11 +275,24 @@ function _render(el) {
     _render(el);
     panel.querySelector(`.dp-day[data-d="${next.getDate()}"]`)?.focus();
   });
+  // a due date takes a time only when asked; taking it away keeps the day
+  panel.querySelector('.dp-time-add')?.addEventListener('click', e => {
+    e.stopPropagation();
+    hold(e.currentTarget);
+    sel.timed = true;
+    _commit(el); _render(el);
+  });
+  panel.querySelector('.dp-time-remove')?.addEventListener('click', e => {
+    e.stopPropagation();
+    hold(e.currentTarget);
+    sel.timed = false;
+    _commit(el); _render(el);
+  });
   panel.querySelector('.dp-clear').addEventListener('click', e => { e.stopPropagation(); el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })); _close(); });
   panel.querySelector('.dp-now').addEventListener('click', e => {
     e.stopPropagation();
     hold(e.currentTarget);
-    Object.assign(sel, _currentParts());
+    Object.assign(sel, due && !sel.timed ? { ..._currentParts(), h: sel.h, mi: sel.mi } : _currentParts());
     view.y = sel.y; view.mo = sel.mo;
     _commit(el);
     if (isDate) _close(); else _render(el);
@@ -284,7 +318,7 @@ function _grid(view, sel) {
 }
 
 function _commit(el) {
-  el.dataset.value = _fmt(_open.sel, _isDate(el));
+  el.dataset.value = _fmt(_open.sel, _dateOnly(el));
   _trigger(el);
   el.dispatchEvent(new Event('change', { bubbles: true }));
 }

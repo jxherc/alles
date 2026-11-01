@@ -1948,7 +1948,13 @@ function bindEvents() {
     if (btn.dataset.busy) return;   // a double click or a second enter adds it once
     btn.dataset.busy = '1';
     const text = taskInput.value.trim();
-    try { if (await addTask(text) && taskInput.value.trim() === text) taskInput.value = ''; }
+    const due = document.getElementById('task-add-due');
+    try {
+      if (await addTask(text, due?.value || '') && taskInput.value.trim() === text) {
+        taskInput.value = '';
+        if (due) due.value = '';
+      }
+    }
     finally { delete btn.dataset.busy; }
   });
   taskInput.addEventListener('keydown', e => {

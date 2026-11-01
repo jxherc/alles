@@ -357,6 +357,8 @@ class QuickBody(BaseModel):
     today: date | None = None
     # the text is a chat message ("add study for chem to my todo"), not a quick add line
     from_message: bool = False
+    # the add row's own due field ("2026-11-03" or "2026-11-03T16:00"); wins over a date in the text
+    due: str | None = None
 
 
 @router.post("/tasks/quick")
@@ -388,6 +390,8 @@ def quick_add(body: QuickBody, db: DbSession = Depends(get_db)):
         }
     if not understood:
         raise HTTPException(400, "that doesn't read as a task")
+    if body.due:
+        p["due_date"], p["due_time"] = _moment(body.due)
     _due = p["due_date"] or ""
     t = Task(
         title=p["title"],

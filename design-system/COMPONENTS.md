@@ -93,6 +93,20 @@ One field (decision 0049): 44px, 12px between the text and the edge, the `--k-fi
 
 Use `data-kokuen-entry="compact"` for one-line search/capture entry and `data-kokuen-entry="autogrow"` plus `wireAutosizeTextarea` for short multiline capture or composition. Autogrow starts at 44px, follows content, respects its CSS maximum and viewport, and then scrolls internally. Do not apply either sizing variant to long-form editors. If a wrapper owns the field boundary, keep the inner input borderless and let `:focus-within` expose the focus state once.
 
+## entry row
+
+An add form is one entry row (decision 0052): `.k-entry-row` on the row, bare fields inside split
+by a 1px divider, then one `.btn`. 4px padding on every side; the button is 44px with an 8px radius
+and sits 4px from the top, end and bottom, 8px after the last field. No inline gaps or widths. On a
+phone two or more fields stack and the button takes the last line.
+
+## date and time field
+
+`.date-input` with `datepick.js`, never a native picker. `data-type="date"`, `"datetime"`, or
+`"due"` (a date with an optional time: "add time" in the panel, "no time" in its footer). Outside a
+row it is the one field; inside an entry row it is bare. `joinDue` and `splitDue` map a due value to
+a task's `due_date` and `due_time`.
+
 ## search field
 
 Use a real search input with a visible or accessible label. Search may expand only with transform or width behavior that does not repaint the surrounding layout. Escape restores the previous state and focus.

@@ -1550,28 +1550,37 @@ html:not(#_) .page-view > .page-view-head { order: -1; }
 html:not(#_) .page-view > .page-view-footer { order: 0; }
 html:not(#_) .page-view > .page-view-body { order: 1; }
 
-/* an add form is one filled row, like home's capture: the box says "type here", the fields
-   inside drop their own lines and split with a quiet divider, and add sits 6px from the edge.
-   loose fields under a title read as column headings (contacts' name / email / phone did) */
-html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer {
+
+
+/* one entry row (decision 0052): a filled row whose fields drop their own lines and split with a
+   quiet divider. 4px of padding on every side, so add (44px tall, 8px radius: 12 minus 4) sits 4px
+   from the top, end and bottom, and 8px after the last field like any two separate controls.
+   tasks, contacts, countdown, subscriptions and reminders use it */
+html:not(#_):not(#_) .k-entry-row {
   box-sizing: border-box;
-  width: auto;
-  align-self: stretch;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0;
-  margin: var(--k-space-2) var(--k-gutter) var(--k-rhythm);
-  padding: 6px 6px 6px var(--k-space-2);
+  padding: var(--k-space-1);
   border: 0;
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
   box-shadow: 0 0 0 1px var(--k-line);
 }
 
-html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:focus-within {
+html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer.k-entry-row {
+  width: auto;
+  align-self: stretch;
+  margin: var(--k-space-2) var(--k-gutter) var(--k-rhythm);
+}
+
+html:not(#_):not(#_) .k-entry-row:focus-within {
   box-shadow: inset 0 0 0 1px var(--k-field-focus);
 }
 
-html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) {
+html:not(#_):not(#_) .k-entry-row > :is(input, .custom-select, .date-input) {
+  box-sizing: border-box;
   min-height: 44px;
   padding-inline: var(--k-space-3);
   border: 0 !important;
@@ -1580,20 +1589,29 @@ html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :
   box-shadow: none !important;
 }
 
-html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input):hover {
+html:not(#_):not(#_) .k-entry-row > input { flex: 1 1 8rem; min-width: 0; }
+html:not(#_):not(#_) .k-entry-row > :is(.custom-select, .date-input) { flex: 0 0 auto; width: auto; min-width: 9rem; }
+/* the page gutter rule pads page parts sideways; the entry row keeps its 4px */
+html:not(#_):not(#_):not(#_) .k-entry-row { padding: var(--k-space-1); }
+
+html:not(#_):not(#_) .k-entry-row > :is(input, .custom-select, .date-input):hover {
   background: var(--k-hover) !important;
 }
 
-html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
+html:not(#_):not(#_) .k-entry-row > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
   border-left: 1px solid var(--k-line) !important;
   --k-chevron-end: calc(var(--k-space-3) + 1px);
 }
 
-html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > .btn.primary {
-  margin-inline-start: var(--k-space-2);
+html:not(#_):not(#_) .k-entry-row > .btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  margin: 0 0 0 var(--k-control-gap);
+  padding-inline: var(--k-space-3);
+  border-radius: var(--k-radius-control);
 }
 
-html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(p, .specialist-group-note, .contact-error) {
+html:not(#_):not(#_) .k-entry-row > :is(p, .specialist-group-note, .contact-error) {
   flex-basis: 100%;
   margin: 0;
   padding: var(--k-space-2) var(--k-space-3) var(--k-space-1);
@@ -2458,30 +2476,27 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   html:not(#_):not(#_) #cal-mini { display: none; }
 }
 
-/* phone: an add form with two or more fields stacks them, one per line split by a quiet rule,
-   and add takes the last line at full width. a single field keeps add beside it */
+/* phone: an entry row with two or more fields stacks them, one per line split by a quiet rule,
+   and add takes the last line at full width, 8px under the fields. a single field keeps add beside it */
 @media (max-width: 760px) {
-  html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) {
-    display: flex;
+  html:not(#_):not(#_) .k-entry-row:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) {
     flex-direction: column;
-    flex-wrap: nowrap !important;
     align-items: stretch;
-    padding: 6px;
   }
 
-  html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) > :is(input, .custom-select, .date-input) {
+  html:not(#_):not(#_) .k-entry-row:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) > :is(input, .custom-select, .date-input) {
     width: 100% !important;
     flex: 0 0 auto !important;
   }
 
-  html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
+  html:not(#_):not(#_) .k-entry-row > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
     border-left: 0 !important;
     border-top: 1px solid var(--k-line) !important;
     --k-chevron-end: var(--k-space-3);
   }
 
-  html:not(#_):not(#_) .specialist-group-slot > .page-view > .page-view-footer:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) > .btn.primary {
-    margin: 6px 0 0;
+  html:not(#_):not(#_) .k-entry-row:has(> :is(input, .custom-select, .date-input) ~ :is(input, .custom-select, .date-input)) > .btn {
+    margin: var(--k-control-gap) 0 0;
     width: 100%;
   }
 
@@ -2499,7 +2514,6 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
     flex-direction: column;
     flex-wrap: nowrap !important;
     align-items: stretch;
-    padding: 6px;
   }
 
   html:not(#_):not(#_) #subs-view > .page-view-footer > * {
@@ -2508,7 +2522,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
   }
 
   html:not(#_):not(#_) #subs-view > .page-view-footer > .btn.primary {
-    margin: 6px 0 0;
+    margin: var(--k-control-gap) 0 0;
   }
 
   /* the add form took ~45% of a phone and stayed put while the list scrolled under it. it folds
@@ -2964,48 +2978,11 @@ html:not(#_):not(#_) #reminders-view > .page-view-body {
   flex-direction: column;
 }
 
-html:not(#_):not(#_) #reminders-view .reminder-add-form {
-  order: -2;
-  box-sizing: border-box;
-  align-items: center;
-  gap: 0;
-  padding: 6px 6px 6px var(--k-space-2);
-  border-radius: var(--k-radius-surface);
-  background: var(--k-panel);
-  box-shadow: 0 0 0 1px var(--k-line);
-}
-
-html:not(#_):not(#_) #reminders-view .reminder-add-form:focus-within {
-  box-shadow: inset 0 0 0 1px var(--k-field-focus);
-}
-
-html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) {
-  border: 0 !important;
-  border-radius: 0;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input):hover {
-  background: var(--k-hover) !important;
-}
-
-html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) {
-  border-left: 1px solid var(--k-line) !important;
-  --k-chevron-end: calc(var(--k-space-3) + 1px);
-}
-
-html:not(#_):not(#_) #reminders-view .reminder-add-form > .btn.primary { margin-inline-start: var(--k-space-2); }
+html:not(#_):not(#_) #reminders-view .reminder-add-form { order: -2; }
 html:not(#_):not(#_) #reminders-view :is(#reminder-status, #reminder-status + div) { order: -1; }
 html:not(#_):not(#_) #reminders-view #reminder-status:empty { display: none; }
 html:not(#_):not(#_) #reminders-view #reminder-status + div { margin: var(--k-space-2) 0 var(--k-rhythm) !important; }
 
-@media (max-width: 760px) {
-  html:not(#_):not(#_) #reminders-view .reminder-add-form { flex-direction: column; align-items: stretch; padding: 6px; }
-  html:not(#_):not(#_) #reminders-view .reminder-add-form > * { width: 100% !important; }
-  html:not(#_):not(#_) #reminders-view .reminder-add-form > :is(input, .custom-select, .date-input) + :is(input, .custom-select, .date-input) { border-left: 0 !important; border-top: 1px solid var(--k-line) !important;  --k-chevron-end: var(--k-space-3); }
-  html:not(#_):not(#_) #reminders-view .reminder-add-form > .btn.primary { margin: 6px 0 0; }
-}
 
 /* ── mail with an account: files' frame. the folders run from the top as a round panel, the
    toolbar sits over the list and the reading pane, rows are compact with their actions on hover

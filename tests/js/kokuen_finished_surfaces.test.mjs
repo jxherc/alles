@@ -136,10 +136,8 @@ test('the finished surfaces share the documented rhythm and safe motion', () => 
     css,
     /#settings-modal\[data-kokuen-surface="settings"\]\s*\{[\s\S]*?animation:\s*none;[\s\S]*?opacity:\s*1;/,
   );
-  assert.match(
-    css,
-    /@media\s*\(max-width:\s*620px\)[\s\S]*?#reminders-view\s+\.reminder-add-form[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/,
-  );
+  // reminders' add row is the one entry row (0052): no phone grid of its own here
+  assert.doesNotMatch(css, /#reminders-view\s+\.reminder-add-form\s*\{[^}]*grid-template-columns/);
   assert.doesNotMatch(
     legacyCss,
     /\.photos-person:hover\s+\.photos-person-av\s*\{[^}]*transform\s*:/,

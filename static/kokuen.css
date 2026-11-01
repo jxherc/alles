@@ -5906,35 +5906,6 @@ body[data-app="files"] :where(.files-preview-pre) {
   padding-inline: var(--ui-page-gutter);
 }
 
-@media (max-width: 620px) {
-  body.afterlife-aide-projects[data-space="aide"] #reminders-view .reminder-add-form,
-  #plan-view #reminders-view .reminder-add-form {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--k-space-2);
-    align-items: center;
-  }
-
-  body.afterlife-aide-projects[data-space="aide"] #reminders-view :where(#reminder-text, #reminder-time),
-  #plan-view #reminders-view :where(#reminder-text, #reminder-time) {
-    width: 100% !important;
-    min-width: 0;
-    grid-column: 1 / -1;
-    box-sizing: border-box;
-  }
-
-  body.afterlife-aide-projects[data-space="aide"] #reminders-view #reminder-type-select,
-  #plan-view #reminders-view #reminder-type-select {
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-
-  body.afterlife-aide-projects[data-space="aide"] #reminders-view #reminder-add-btn,
-  #plan-view #reminders-view #reminder-add-btn {
-    min-width: var(--k-control);
-    min-height: var(--k-control-dense);
-  }
-}
 
 @media (max-width: 760px) {
   #settings-modal[data-kokuen-surface="settings"] .credits-row {
