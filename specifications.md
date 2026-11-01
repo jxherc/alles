@@ -1861,9 +1861,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1022 http method/path pairs
-- 995 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
-- sha-256: `7fa91cad1c8a008e433647c94254fd797814ef0eedb554e3baec31d86012b5f6`
+- 1023 http method/path pairs
+- 996 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
+- sha-256: `d832e4e9ecdbd0990fe26198eed8cd44d6054a10f1690a95e36e90c993d75fb2`
 
 <details>
 <summary>app.py · 11 operations</summary>
@@ -3395,13 +3395,14 @@ retrieve full article text from each entry's publisher.
 </details>
 
 <details>
-<summary>routes/setup.py · 7 operations</summary>
+<summary>routes/setup.py · 8 operations</summary>
 
 [source](routes/setup.py)
 
 | method | path | handler |
 | --- | --- | --- |
 | `POST` | `/api/setup/complete` | `complete` |
+| `POST` | `/api/setup/detect` | `detect` |
 | `POST` | `/api/setup/dismiss` | `dismiss` |
 | `GET` | `/api/setup/obsidian` | `obsidian_status` |
 | `POST` | `/api/setup/obsidian` | `install_obsidian` |
