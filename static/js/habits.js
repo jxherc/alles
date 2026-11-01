@@ -8,7 +8,7 @@ import { calendarDateKey, formatCalendarDate, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
 import { closeEmojiPicker, emojiFieldHtml, wireEmojiPicker } from './emoji_picker.js';
 import { catalogEntry, catalogName, catalogOptions } from './habit_catalog.js';
-import { hasLogger, logSummary, openLogger } from './habit_loggers.js';
+import { hasLogger, logSummary, openLogger, renderGym } from './habit_loggers.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -27,6 +27,11 @@ let _creation = null;
 let _showArchived = false;
 let _navigation = 0;
 let _day = calendarDateKey();
+let _open = null;      // the habit opened from its row
+let _logDay = _day;    // the day the gym log shows
+let _gone = null;      // { habit, timer }: deleted, still undoable
+let _weeksBack = 0;    // which week an opened habit's strip shows
+const UNDO_MS = 8000;
 
 function newRequestId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -40,6 +45,7 @@ function newRequestId() {
 
 export function initHabits(fetcher = fetch) {
   ++_navigation;
+  _open = null; _weeksBack = 0;
   // A fresh navigation (including a Home record link) opens active habits.
   if (_showArchived) { _showArchived = false; _habits = []; _hasLoaded = false; }
   if (!_inited) {
@@ -56,10 +62,14 @@ export async function loadHabits(fetcher = fetch) {
   const day = calendarDateKey();
   _loading = true; _loadError = ''; _render();
   try {
-    const data = await api('/api/habits/overview?date_q=' + day + (_showArchived ? '&archived=true' : ''), {}, fetcher);
+    // an opened habit paged back past the last two weeks asks for that day's details too
+    const older = _open && _logDay !== _day ? '&log_day=' + _logDay : '';
+    const data = await api('/api/habits/overview?date_q=' + day + (_showArchived ? '&archived=true' : '') + older, {}, fetcher);
     if (!Array.isArray(data.habits)) throw new Error('invalid habit response');
     if (generation !== _generation) return false;
-    _habits = data.habits; _hasLoaded = true; _day = day;
+    _habits = data.habits; _hasLoaded = true;
+    if (_logDay === _day || _logDay > day) _logDay = day;
+    _day = day;
   } catch {
     if (generation !== _generation) return false;
     _loadError = t(_hasLoaded ? 'habits.load_failed_shown' : 'habits.load_failed_retry');
@@ -73,7 +83,7 @@ function setBusy() {
   const body = $('habits-body');
   body?.setAttribute('aria-busy', String(_saving || _loading));
   body?.querySelectorAll('button, input, .custom-select').forEach(el => {
-    el.disabled = _saving || (el.dataset.act === 'create' && !!_creation?.deleted);
+    el.disabled = _saving || el.dataset.off === '1' || (el.dataset.act === 'create' && !!_creation?.deleted);
   });
 }
 
@@ -150,10 +160,10 @@ async function closeAdd() {
   return navigation === _navigation;
 }
 
-function _localDays(n) {
+function _localDays(n, weeksBack = 0) {
   const out = [];
   const [year, month, day] = _day.split('-').map(Number);
-  const t = new Date(year, month - 1, day);
+  const t = new Date(year, month - 1, day - weeksBack * 7);
   for (let i = n - 1; i >= 0; i--) { const d = new Date(t); d.setDate(t.getDate() - i); out.push(d); }
   return out;
 }
@@ -168,21 +178,35 @@ function _render() {
   const toolbarFocus = active?.closest('.habits-bar') ? (active.id ? `#${CSS.escape(active.id)}` : `[data-act="${CSS.escape(active.dataset.act)}"]`) : null;
   const focusedRecord = active?.matches('.habit-card.record-target') ? active.dataset.id : null;
   const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
-  const cards = _habits.map(h => h.id === _editing ? _editCard(h) : _card(h)).join('');
-  body.innerHTML = `
+  const opened = _open && _habits.find(h => h.id === _open);
+  if (_open && !opened) _open = null;
+  // a failed refresh shows over an opened habit too (no loading line there: it would shift the page)
+  const error = _loadError ? `<div class="specialist-group-note legacy-load-note habit-load-error" role="alert"><span>${esc(_loadError)}</span><button type="button" class="btn" data-act="retry-load">${esc(t('common.retry'))}</button></div>` : '';
+  const notes = `${_loading ? `<div class="specialist-group-note" role="status">${esc(t('habits.loading'))}</div>` : ''}${error}`;
+  if (opened) {
+    body.innerHTML = error + _detail(opened);
+  } else {
+    const rows = _habits.map(h => h.id === _gone?.habit.id ? _goneRow(h) : h.id === _editing ? _editCard(h) : _row(h)).join('');
+    const shown = _habits.length - (_gone ? 1 : 0);
+    body.innerHTML = `
     <div class="habits-bar">
-      <div class="habits-summary">${_habits.length ? esc(tp(_showArchived ? 'habits.archived_count' : 'habits.count', _habits.length)) : ''}</div>
+      <div class="habits-summary">${shown ? esc(tp(_showArchived ? 'habits.archived_count' : 'habits.count', shown)) : ''}</div>
       <div class="habit-actions">
         <button class="btn" data-act="archive-view" aria-pressed="${_showArchived}">${esc(_showArchived ? t('habits.active_habits') : t('habits.archived_habits'))}</button>
         ${_showArchived ? '' : `<button class="btn primary" id="habits-add-toggle">${_si('plus')} ${esc(t('habits.habit'))}</button>`}
       </div>
     </div>
-    ${_loading ? `<div class="specialist-group-note" role="status">${esc(t('habits.loading'))}</div>` : ''}
-    ${_loadError ? `<div class="specialist-group-note legacy-load-note habit-load-error" role="alert"><span>${esc(_loadError)}</span><button type="button" class="btn" data-act="retry-load">${esc(t('common.retry'))}</button></div>` : ''}
+    ${notes}
     ${_adding ? _addForm() : ''}
-    ${_habits.length ? `<div class="habits-list">${cards}</div>` : (_adding || !_hasLoaded || _loading ? '' : `<div class="habits-empty">${esc(_showArchived ? t('habits.empty_archived') : t('habits.empty'))}</div>`)}`;
+    ${_habits.length ? `<div class="habits-list">${rows}</div>` : (_adding || !_hasLoaded || _loading ? '' : `<div class="habits-empty">${esc(_showArchived ? t('habits.empty_archived') : t('habits.empty'))}</div>`)}`;
+  }
   _wire(body);
   setBusy();
+  if (opened && opened.kind === 'workout' && _editing !== opened.id) {
+    const host = body.querySelector('.gym-host');
+    const day = _logDay;
+    if (host) renderGym(host, opened, day, { save: data => api(`/api/habits/${opened.id}/toggle`, { method: 'POST', body: data ? { date: day, data } : { date: day, done: false } }) });
+  }
   if (field) {
     const found = body.querySelector(`.habit-card.editing [data-f="${CSS.escape(field)}"]`);
     const input = found?.matches('.habit-icon-pick') ? found.querySelector('button') : found;
@@ -199,46 +223,108 @@ function _render() {
   }
 }
 
+// the year grid, a week per column, with the month written over the week it starts in
 function _heat(grid) {
-  // grid is oldest→newest; render as 7-row columns (weeks)
-  return `<div class="habit-heat">${grid.map(g =>
-    `<i class="${g.done ? 'on' : ''}" title="${g.date}"></i>`).join('')}</div>`;
+  const weeks = [];
+  for (let at = 0; at < grid.length; at += 7) weeks.push(grid.slice(at, at + 7));
+  let month = '';
+  const names = weeks.map(week => {
+    const name = formatCalendarDate(week[0].date, { month: 'short' }).toLowerCase();
+    const head = name !== month ? name : '';
+    month = name;
+    return head;
+  });
+  // a name is about 3 weeks wide: one that a later name would start on top of is left out
+  names.forEach((name, at) => {
+    if (name && names.slice(at + 1, at + 3).some(Boolean)) names[at] = '';
+  });
+  const heads = names.map(name => `<span>${esc(name)}</span>`).join('');
+  return `<div class="habit-year" aria-hidden="true"><div class="habit-year-months" style="--weeks:${weeks.length}">${heads}</div>
+    <div class="habit-heat" style="--weeks:${weeks.length}">${grid.map(g =>
+    `<i class="${g.done ? 'on' : ''}${g.date === _day ? ' today' : ''}" title="${g.date}"></i>`).join('')}</div></div>`;
 }
 
-function _weekStrip(h) {
+function _weekStrip(h, picked = '') {
   const done = new Set(h.grid.filter(g => g.done).map(g => g.date));
-  return `<div class="habit-week">${_localDays(7).map(d => {
+  const days = _localDays(7, _weeksBack);
+  // earlier weeks page back as far as the year grid goes, so any past day can be opened
+  const oldest = Math.floor(h.grid.length / 7) - 1;
+  const range = `${formatCalendarDate(_iso(days[0]), { month: 'short', day: 'numeric' })} – ${formatCalendarDate(_iso(days[6]), { month: 'short', day: 'numeric' })}`;
+  const head = `<div class="habit-week-head"><span class="habit-week-range" aria-live="polite">${esc(range.toLowerCase())}</span>
+    <button type="button" class="icon-btn" data-week="1" aria-label="${esc(t('habits.earlier_week'))}"${_weeksBack >= oldest ? ' disabled data-off="1"' : ''}>${_si('chevron-left')}</button>
+    <button type="button" class="icon-btn" data-week="-1" aria-label="${esc(t('habits.later_week'))}"${_weeksBack ? '' : ' disabled data-off="1"'}>${_si('chevron-right')}</button></div>`;
+  return `${head}<div class="habit-week">${days.map(d => {
     const iso = _iso(d);
     const completed = done.has(iso);
     const date = formatCalendarDate(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const letter = formatCalendarDate(iso, { weekday: 'narrow' });
-    return `<button type="button" class="habit-day${completed ? ' done' : ''}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}"${hasLogger(h) ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(t(completed ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date }))}"><span>${esc(letter)}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
+    const marks = `${iso === _day ? ' today' : ''}${iso === picked ? ' picked' : ''}`;
+    return `<button type="button" class="habit-day${completed ? ' done' : ''}${marks}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}"${iso === _day ? ' aria-current="date"' : ''}${hasLogger(h) && h.kind !== 'workout' ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(t(completed ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date }))}"><span>${esc(letter)}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
   }).join('')}</div>`;
 }
 
-function _card(h) {
-  // a habit without a picked color still gets its own steady hue
-  // only a real hex goes into style="…"; anything else falls back to the name's colour
-  const accent = /^#[0-9a-f]{3,8}$/i.test(String(h.color || '')) ? h.color : `var(--cat-${categoryHue(h.name)})`;
-  const slip = !h.archived && h.risk && h.risk.slipping
-    ? `<span class="habit-slip" title="${esc(h.risk.reason)}">${esc(t('habits.slipping'))}</span>` : '';
+// the week as small dots: today ringed. the row says the same in words for screen readers
+function _dots(h) {
+  const done = new Set(h.grid.filter(g => g.done).map(g => g.date));
+  const days = _localDays(7).map(_iso);
+  return `<span class="habit-dots" aria-hidden="true">${days.map(iso => `<i class="${done.has(iso) ? 'on' : ''}${iso === _day ? ' today' : ''}"></i>`).join('')}</span>`;
+}
+
+// the habit's own colour, or a steady hue from its name
+const _accent = h => `--habit-accent:${esc(/^#[0-9a-f]{3,8}$/i.test(String(h.color || '')) ? h.color : `var(--cat-${categoryHue(h.name)})`)}`;
+
+// one compact row per habit (u.08): open on the name, today's check or log on the right
+function _row(h) {
+  const slip = !h.archived && h.risk && h.risk.slipping;
   const today = h.archived ? '' : logSummary(h, h.logs?.[_day]);
+  const week = h.cadence === 'weekly' ? t('habits.week_progress', { done: h.week_done, target: h.target }) : t('habits.days_progress', { done: h.week_done });
+  const sub = [today, slip ? t('habits.slipping') : '', today ? '' : week].filter(Boolean).join(' · ');
+  const doneToday = !!h.done_today;
+  const label = t(doneToday ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date: t('habits.today') });
+  const action = h.archived
+    ? `<button class="btn" data-act="restore">${esc(t('habits.restore'))}</button>`
+    : `<button type="button" class="habit-day habit-today${doneToday ? ' done' : ''}" data-toggle="${_day}" aria-pressed="${doneToday}"${hasLogger(h) && h.kind !== 'workout' ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(label)}">${doneToday ? _si('check') : hasLogger(h) ? _si('plus') : ''}</button>`;
   return `
-    <div class="habit-card${slip ? ' at-risk' : ''}" data-id="${h.id}" style="--habit-accent:${esc(accent)}">
-      <div class="habit-top">
-        ${h.icon ? `<span class="habit-icon">${esc(h.icon)}</span>` : ''}
-        <div class="habit-name">${esc(h.name)}</div>
-        ${slip}
+    <div class="habit-card habit-row${slip ? ' at-risk' : ''}" data-id="${h.id}" style="${_accent(h)}">
+      <button type="button" class="habit-row-open" data-act="open" aria-label="${esc(t('habits.open_habit', { name: h.name }))}">
+        <span class="habit-icon" aria-hidden="true">${esc(h.icon || '')}</span>
+        <span class="habit-row-text"><span class="habit-name">${esc(h.name)}</span>${sub ? `<span class="habit-row-sub${slip ? ' habit-slip' : ''}">${esc(sub)}</span>` : ''}</span>
+        ${h.archived ? '' : _dots(h)}
         <span class="habit-streak${h.streak > 0 ? ' on' : ''}" title="${esc(t('habits.current_streak'))}">${h.streak}${_si('fire')}</span>
-        <div class="habit-actions">
-          ${h.archived ? `<button class="btn" data-act="restore">${esc(t('habits.restore'))}</button>` : `<button class="icon-btn" data-act="edit" title="${esc(t('common.edit'))}">${_si('edit')}</button>`}
-          <button class="icon-btn danger" data-act="del" title="${esc(t('common.delete'))}">${_si('trash')}</button>
-        </div>
+      </button>
+      ${action}
+    </div>`;
+}
+
+// a deleted habit keeps its row for a few seconds, with undo where the change happened (u.10)
+function _goneRow(h) {
+  return `<div class="habit-card habit-row habit-gone" data-id="${h.id}" role="status">
+    <span class="habit-row-text"><span class="habit-row-sub">${esc(t('habits.deleted_named', { name: h.name }))}</span></span>
+    <button type="button" class="btn" data-act="undo-del">${esc(t('habits.undo'))}</button></div>`;
+}
+
+// a habit opened from its row: the week to log any day, stats, the log, the year
+function _detail(h) {
+  const editing = _editing === h.id;
+  const stats = [
+    t('habits.streak_n', { n: h.streak }),
+    t('habits.best_n', { n: h.best_streak ?? h.streak }),
+    t('habits.last_30_n', { n: h.last_30 ?? 0 }),
+    t('habits.total_n', { n: h.total_days ?? 0 }),
+  ].join(' · ');
+  return `
+    <div class="habit-card habit-detail" data-id="${h.id}" style="${_accent(h)}">
+      <div class="habit-detail-head">
+        <button type="button" class="icon-btn" data-act="back" aria-label="${esc(t('habits.all_habits'))}">${_si('chevron-left')}</button>
+        ${h.icon ? `<span class="habit-icon" aria-hidden="true">${esc(h.icon)}</span>` : ''}
+        <h2 class="habit-name">${esc(h.name)}</h2>
+        ${h.archived ? `<button class="btn" data-act="restore">${esc(t('habits.restore'))}</button>` : editing ? '' : `<button class="icon-btn" data-act="edit" aria-label="${esc(t('common.edit'))}" title="${esc(t('common.edit'))}">${_si('edit')}</button>`}
       </div>
-      ${today ? `<div class="habit-log-sum">${esc(today)}</div>` : ''}
-      ${h.archived ? `<div class="habit-meta">${esc(t('habits.archived_kept'))}</div>` : _weekStrip(h)}
-      ${_heat(h.grid)}
-      <div class="habit-meta">${esc(h.cadence === 'weekly' ? t('habits.week_progress', { done: h.week_done, target: h.target }) : t('habits.days_progress', { done: h.week_done }))} · ${h.pct}%</div>
+      ${editing ? _editCard(h) : `
+      <p class="habit-stats">${esc(stats)}</p>
+      ${h.archived ? `<div class="habit-meta">${esc(t('habits.archived_kept'))}</div>` : _weekStrip(h, h.kind === 'workout' ? _logDay : '')}
+      ${h.kind === 'workout' && !h.archived ? '<div class="gym-host"></div>' : ''}
+      ${_heat(h.grid)}`}
     </div>`;
 }
 
@@ -291,6 +377,7 @@ function _editCard(h) {
         <button class="btn primary" data-act="save">${esc(t('common.save'))}</button>
         <button class="btn" data-act="cancel">${esc(t('common.cancel'))}</button>
         <button class="btn" data-act="archive">${esc(t('habits.archive'))}</button>
+        <button class="btn danger" data-act="del">${esc(t('common.delete'))}</button>
       </div>
     </div>`;
 }
@@ -314,7 +401,8 @@ function _wire(body) {
   body.querySelectorAll('.custom-select').forEach(initCustomDropdown);
   body.querySelectorAll('.habit-icon-pick').forEach(host => wireEmojiPicker(host, { disabled: () => _saving }));
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => {
-    if (!_showArchived && typeof window._navigateTo === 'function') window._navigateTo('habits', { preserveRecord: true });
+    // a navigation would close the opened habit; retrying under it only reloads
+    if (!_showArchived && !_open && typeof window._navigateTo === 'function') window._navigateTo('habits', { preserveRecord: true });
     else loadHabits();
   });
   body.querySelector('[data-act="archive-view"]')?.addEventListener('click', async () => {
@@ -397,8 +485,23 @@ function _wire(body) {
     });
   }
 
+  body.querySelectorAll('[data-week]').forEach(btn => btn.addEventListener('click', () => {
+    _weeksBack = Math.max(0, _weeksBack + Number(btn.dataset.week));
+    _render();
+    // keep focus on the same arrow, or the other one when this end is reached
+    const again = $('habits-body')?.querySelector(`[data-week="${btn.dataset.week}"]`);
+    (again && !again.disabled ? again : $('habits-body')?.querySelector('[data-week]:not(:disabled)'))?.focus();
+  }));
+
   body.querySelectorAll('.habit-day[data-toggle]').forEach(btn => btn.addEventListener('click', () => {
     const habit = _habits.find(h => h.id === btn.closest('.habit-card').dataset.id);
+    // the gym log lives in the habit: a day picks which session it shows
+    if (habit?.kind === 'workout') {
+      _open = habit.id; _logDay = btn.dataset.toggle; _render();
+      if (btn.classList.contains('done') && !habit.days?.[_logDay]) loadHabits().then(() => $('habits-body')?.querySelector('.habit-day.picked')?.focus());
+      $('habits-body')?.querySelector('.habit-day.picked')?.focus();
+      return;
+    }
     return hasLogger(habit) ? _openDayLog(habit, btn.dataset.toggle) : _toggleDay(btn);
   }));
 
@@ -450,23 +553,29 @@ function _toggleDay(btn) {
 function _wireCards(body) {
   body.querySelectorAll('.habit-card[data-id]').forEach(card => {
     const id = card.dataset.id;
-    card.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
+    // the edit card sits inside an opened habit: each button belongs to its nearest card
+    [...card.querySelectorAll('[data-act]')].filter(btn => btn.closest('.habit-card') === card).forEach(btn => btn.addEventListener('click', async () => {
       const act = btn.dataset.act;
+      if (act === 'undo-del') { _undoDelete(); return; }
       if (_saving) return;
+      if (act === 'open') {
+        if (!await closeAdd()) return;
+        _open = id; _logDay = _day; _weeksBack = 0; _editing = null; _render();
+        $('habits-body')?.querySelector('[data-act="back"]')?.focus();
+        return;
+      }
+      if (act === 'back') {
+        _open = null; _editing = null; _draft = null; _render();
+        $('habits-body')?.querySelector(`.habit-card[data-id="${CSS.escape(id)}"] .habit-row-open`)?.focus();
+        return;
+      }
+      if (act === 'del') { _deleteLater(id); return; }
       // the card is rebuilt under the button: put focus where the next step is
       const inCard = selector => $('habits-body')?.querySelector(`.habit-card[data-id="${CSS.escape(id)}"] ${selector}`);
       if (act === 'edit') { if (!await closeAdd()) return; _editing = id; _draft = null; _render(); inCard('[data-f="name"]')?.focus(); return; }
       if (act === 'cancel') { _editing = null; _draft = null; _render(); inCard('[data-act="edit"]')?.focus(); return; }
-      if (act === 'del') {
-        const h = _habits.find(x => x.id === id);
-        if (!await dlgConfirm(h?.name ? t('habits.delete_confirm', { name: h.name }) : t('habits.delete_confirm_this'))) return;
-      }
       await writeHabit(async () => {
-        if (act === 'del') {
-          await api(`/api/habits/${id}`, { method: 'DELETE' });
-          _habits = _habits.filter(h => h.id !== id);
-          toast(t('habits.deleted'), 'success');
-        } else if (act === 'archive' || act === 'restore' || act === 'save') {
+        if (act === 'archive' || act === 'restore' || act === 'save') {
           const saved = await api(`/api/habits/${id}`, { method: 'PATCH', body: act === 'save' ? formPayload(card) : { archived: act === 'archive' } });
           upsertHabit(saved);
           toast(act === 'archive' ? t('habits.archived') : act === 'restore' ? t('habits.restored') : t('common.saved'), 'success');
@@ -476,4 +585,40 @@ function _wireCards(body) {
       });
     }));
   });
+}
+
+// delete waits UNDO_MS with undo in the habit's own row, then reaches the server (u.10)
+function _deleteLater(id) {
+  if (_gone) _deleteNow();
+  const habit = _habits.find(h => h.id === id);
+  if (!habit) return;
+  _gone = { habit, timer: setTimeout(_deleteNow, UNDO_MS) };
+  _open = null; _editing = null; _draft = null;
+  _render();
+  $('habits-body')?.querySelector('[data-act="undo-del"]')?.focus();
+}
+
+async function _deleteNow() {
+  const gone = _gone;
+  if (!gone) return;
+  clearTimeout(gone.timer);
+  _gone = null;
+  const hadFocus = document.activeElement?.dataset?.act === 'undo-del';
+  _habits = _habits.filter(h => h.id !== gone.habit.id);
+  _render();
+  if (hadFocus) $('habits-add-toggle')?.focus();
+  try { await api(`/api/habits/${gone.habit.id}`, { method: 'DELETE' }); }
+  catch (error) {
+    toast(error.message || t('habits.save_failed'), 'error');
+    await loadHabits();
+  }
+}
+
+function _undoDelete() {
+  if (!_gone) return;
+  clearTimeout(_gone.timer);
+  const id = _gone.habit.id;
+  _gone = null;
+  _render();
+  $('habits-body')?.querySelector(`.habit-card[data-id="${CSS.escape(id)}"] .habit-row-open`)?.focus();
 }

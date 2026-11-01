@@ -251,7 +251,9 @@ suggested from that habit's past logs; `reading` {amount, pages or chapters, boo
 text ("lat pulldown 70 × 10 · 3 sets"), and any day in the week strip opens its log to view, edit
 or remove. [services/habit_kinds.py](services/habit_kinds.py) checks every log on the server
 (types, ranges, at most 50 workout rows, text caps) and refuses an unknown type or details sent to
-a check habit. the overview returns the last 14 days of details and, for a workout, every exercise
+a check habit. the overview returns the last 14 days of details (plus `log_day` when an opened habit
+has paged its week strip further back: the arrows over the strip go back as far as the year grid)
+and, for a workout, every exercise
 name used. migration 76 adds the columns; existing habits become checks.
 
 **habit logs with every detail (v2).** each of the 60 catalog habits (the 55 above plus protein,
@@ -1842,9 +1844,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1021 http method/path pairs
-- 994 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
-- sha-256: `8ade852f918ff3816c98441c87d6f63c38c01138d18b38695da7ab5b41d790f9`
+- 1022 http method/path pairs
+- 995 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
+- sha-256: `7fa91cad1c8a008e433647c94254fd797814ef0eedb554e3baec31d86012b5f6`
 
 <details>
 <summary>app.py · 11 operations</summary>
@@ -2523,7 +2525,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/habits.py · 11 operations</summary>
+<summary>routes/habits.py · 12 operations</summary>
 
 [source](routes/habits.py)
 
@@ -2535,6 +2537,7 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/api/habits/requests/{request_id}` | `recover_habit` |
 | `DELETE` | `/api/habits/{hid}` | `delete_habit` |
 | `PATCH` | `/api/habits/{hid}` | `update_habit` |
+| `GET` | `/api/habits/{hid}/exercise` | `exercise_history` |
 | `POST` | `/api/habits/{hid}/import` | `import_apply` |
 | `POST` | `/api/habits/{hid}/import/preview` | `import_preview` |
 | `POST` | `/api/habits/{hid}/import/{batch}/undo` | `import_undo` |

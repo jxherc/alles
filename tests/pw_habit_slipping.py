@@ -13,7 +13,7 @@ from playwright.sync_api import sync_playwright
 
 from core.database import Habit, HabitLog, SessionLocal
 
-BASE = "http://habits.localhost:8077"
+BASE = f"http://habits.localhost:{os.environ.get('PORT', '8077')}"
 
 
 def seed():

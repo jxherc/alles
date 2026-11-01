@@ -81,6 +81,7 @@ test('shared primitive contracts cover every required control family', () => {
     'kokuen.row-list',
     'kokuen.pill-switch',
     'kokuen.number-row',
+    'kokuen.stepper',
   ]);
   for (const contract of contracts.contracts) {
     assert.equal(contract.status, 'stable', contract.id);

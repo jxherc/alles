@@ -85,6 +85,7 @@
     "static/js/setupwizard.js": "setup-security.owner-setup",
     "static/js/skills.js": "aide.conversation-and-execution",
     "static/js/slash.js": "aide.conversation-and-execution",
+    "static/js/stepper.js": "accessibility.interface-contract",
     "static/js/subs.js": "finance.actual-ledger",
     "static/js/sync.js": "extension-mobile.pwa-and-extension",
     "static/js/system.js": "server.management",

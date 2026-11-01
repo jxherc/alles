@@ -396,6 +396,20 @@ class HabitApiV2Tests(ApiTest):
         cards = self.client.get(f"/api/habits/overview?date_q={day}").json()["habits"]
         return next(card for card in cards if card["id"] == hid)
 
+    def test_an_older_day_comes_along_when_asked(self):
+        habit = self.create(name="workout", kind="workout")
+        today = date.today()
+        old = (today - timedelta(days=40)).isoformat()
+        sets = [{"weight": 60, "unit": "lb", "reps": 10, "status": "done", "count": 1}]
+        doc = {"v": 2, "entries": [{"values": {"exercises": [{"name": "row", "sets": sets}]}}]}
+        self.assertEqual(self.log(habit["id"], old, doc).status_code, 200)
+        self.assertNotIn(old, self.card(habit["id"], today.isoformat())["days"])
+        url = f"/api/habits/overview?date_q={today.isoformat()}&log_day={old}"
+        card = next(c for c in self.client.get(url).json()["habits"] if c["id"] == habit["id"])
+        self.assertEqual(card["days"][old]["entries"][0]["values"]["exercises"][0]["name"], "row")
+        bad = self.client.get("/api/habits/overview?log_day=soon")
+        self.assertEqual(bad.status_code, 400)
+
     def test_kinds_route_lists_every_kind(self):
         kinds = self.client.get("/api/habits/kinds").json()["kinds"]
         self.assertEqual(set(kinds), set(habit_kinds.KINDS))
