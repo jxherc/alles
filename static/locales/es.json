@@ -8101,6 +8101,8 @@
     "whatsnew.2026_11_01.gym_sets.title": "series de gimnasio por texto",
     "whatsnew.2026_11_01.habit_logs.body": "abre un hábito y registra su día con sus propios campos: distancia y tiempo para correr, vasos para el agua, cuidado y humedad para las plantas. hoy empieza desde tu última entrada, así que repetir lo de la última vez es un toque. un día de gimnasio muestra cada sesión con su nota, y un registro de entrenamiento importado lee bien las series descendentes, las series con barra y las fallidas.",
     "whatsnew.2026_11_01.habit_logs.title": "cada hábito registra sus propios detalles",
+    "whatsnew.2026_11_01.home_time.title": "inicio sabe la hora y las tareas se hacen ahí mismo",
+    "whatsnew.2026_11_01.home_time.body": "las fechas se leen igual en todas partes: hoy, mañana, dom, en 9 días, 12 nov. inicio pone primero las tareas vencidas, atenúa lo que ya pasó y empieza por mañana después de las 8 pm. marca una tarea o muévela a mañana desde inicio o la lista, mueve todas las vencidas a hoy con un toque y deshaz un borrado.",
     "whatsnew.2026_11_01.linux_tools.body": "alles install añade node, y alles tools dice lo que le falta a un equipo linux recién instalado, con el comando que lo arregla.",
     "whatsnew.2026_11_01.linux_tools.title": "las herramientas de aide en linux",
     "whatsnew.2026_11_01.one_folder.body": "docs y archivos ahora viven juntos en ~/Alles, con docs en ~/Alles/Docs, así que archivos muestra todo lo que escribiste. las copias de seguridad salieron de la vista, junto a los datos. una instalación anterior se mueve al aceptar la actualización, o con alles folders move.",

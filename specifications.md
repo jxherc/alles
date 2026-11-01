@@ -526,6 +526,11 @@ your whole day on one screen the moment you open alles.
   handoffs can be retried; a retained request identity confirms the same child after a lost reply.
   uncertain outcomes require inspection and cannot be retried from this view
 - **today** combines events, due work, reminders, habits, renewals, and important dates
+- **home knows the time**: overdue tasks lead the schedule, then what's left of the day in order with a
+  "now" line before the next timed thing; events and reminders that are over fade under "earlier today"
+  (an event is over at its end, `end` in `/api/today`). from 8 pm a **tomorrow** section comes first with
+  tomorrow's events and due tasks. a task row checks off in place (undo in the row for 6 seconds) and has
+  "tomorrow" on its right
 - **in progress** shows active background aide work; **briefs** holds completed reports
 - **pinned apps** opens the app destinations selected in **settings → home**
 - **suggestions** appears only when aide has saved proactive cards. it stays separate from needs you;
@@ -778,6 +783,13 @@ a calendar with month / week / day views and repeating events.
 ### tasks
 a real to-do list: type tasks in plain english, with recurring ones and smart views.
 
+- **overdue on top**: every task view draws overdue tasks first in their own group with "move all to today";
+  a task due today or earlier has "tomorrow" on its row. other days, add subtask and delete sit in the row's
+  more menu. delete turns the row into "deleted" with undo for 6 seconds, then reaches the server
+- **dates read one way** (`static/js/when.js`): today, tomorrow, yesterday, the weekday inside the next week,
+  "in 9 days" or "3 days ago" inside two weeks, then the short date ("nov 12", with the year when it isn't
+  this one). times follow the 12/24 hour setting, lowercase. the full date is the title on hover and shows in
+  place on a long press. used by tasks, plan's agenda and board, reminders, home, health's overview and money
 - **natural-language quick-add**: "pay rent every 1st !" or "call mom tomorrow #home" parses the due date, repeat, `#tags` and `!` priority for you (deterministic, no deps, all local)
 - **due times**: a task has a due day (`due_date`, `2026-10-20`) and an optional time (`due_time`, `09:30`; migration 77). a time needs a day. moving a task to another day keeps its time, clearing the day clears it, and a day sent as `2026-10-20T09:30` is split into the two. the quick add reads a time next to a day ("dentist tomorrow 9am" is due 09:00 and the time leaves the title; a time with no day stays in the title). a task due at a time goes overdue at that time, not at midnight (`overdue` on every task row, home and the agenda's overdue lists, the signals); with no time it is overdue after its day. lists sort by day, then time, with untimed tasks after timed ones. the calendar's task overlay and agenda carry the time, a repeat keeps it, exports have a `due_time` column, and Aide's `task_add` tool takes `due_date` and `due_time` (words like "tomorrow 9am" left in its title count when no day is given). on screen the due field is one date field with an optional time (`datepick.js` type `due`): the task editor, the tasks add row (its `due` goes to `/api/tasks/quick` and wins over a day in the text) and the capture review all use it; "add time" in its panel adds a time and "no time" takes it away. a timed task's row shows the time, and so do its calendar chip and agenda line.
 - **a chat message as a task**: `POST /api/tasks/quick` with `from_message: true` reads "add study for chem to my todo" the way a person says it (a lead such as add, put, remind me to or todo: and a "to my todo" phrase come off). with `preview: true` the answer says whether it `understood` the message; without preview a message that does not read as a task is a 400. Aide offers it as "add as a task" in one tap when there is no model to answer, and the typed message stays in the box.

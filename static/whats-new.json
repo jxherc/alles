@@ -103,6 +103,11 @@
           "key": "habit_logs",
           "title": "every habit logs its own details",
           "body": "open a habit and log its day with its own fields: distance and time for a run, glasses for water, care and moisture for plants. today starts from your last entry, so the same as last time is one tap. a gym day shows every session with its note, and an imported workout log reads drop sets, slash sets and failed sets right."
+        },
+        {
+          "key": "home_time",
+          "title": "home knows the time, tasks act in place",
+          "body": "dates read the same everywhere: today, tomorrow, sun, in 9 days, nov 12. home puts overdue tasks first, fades what's over and leads with tomorrow after 8 pm. check a task off or move it to tomorrow right from home or the task list, move every overdue task to today in one tap, and undo a delete."
         }
       ]
     },

@@ -8101,6 +8101,8 @@
     "whatsnew.2026_11_01.gym_sets.title": "用文字記錄健身組數",
     "whatsnew.2026_11_01.habit_logs.body": "打開一個習慣，用它自己的欄位記錄這一天：跑步記距離和用時，喝水記杯數，植物記照料和濕度。今天的記錄從你上一條開始，和上次一樣只要點一下。健身的日子會顯示每一次訓練和它的備註，匯入的訓練日誌也能正確讀出遞減組、斜線組和失敗的組。",
     "whatsnew.2026_11_01.habit_logs.title": "每個習慣都記錄自己的細節",
+    "whatsnew.2026_11_01.home_time.title": "首頁知道時間，任務就地處理",
+    "whatsnew.2026_11_01.home_time.body": "日期到處都一樣寫：今天、明天、週日、9 天後、11月12日。首頁把逾期任務放在最前，淡化已經結束的事，晚上 8 點後先顯示明天。在首頁或任務列表裡直接完成任務或移到明天，一下把所有逾期任務移到今天，刪除也能復原。",
     "whatsnew.2026_11_01.linux_tools.body": "alles install 會裝好 node，alles tools 會說明一台全新的 linux 機器缺什麼，並給出修復指令。",
     "whatsnew.2026_11_01.linux_tools.title": "linux 上的 aide 工具",
     "whatsnew.2026_11_01.one_folder.body": "文件和檔案現在都放在 ~/Alles 裡，文件在 ~/Alles/Docs，所以檔案裡能看到你寫的所有東西。備份移到了看不到的地方，就在資料旁邊。舊的安裝會在你接受更新時搬過去，也可以用 alles folders move。",
