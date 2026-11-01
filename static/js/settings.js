@@ -7,6 +7,7 @@ import { providersPane, _endpointJson } from './settings/providers.js';
 import { andromedaPane } from './settings/andromeda.js';
 import { loadSearchEngines, wireSearchEngines } from './settings/search_engines.js';
 import { connectionsPane } from './settings/connections.js';
+import { applyOrganization, saveOrganization, savedOrganization } from './settings/organization.js';
 export { _mergeHomeShortcutOrder } from './settings/home.js';
 export { normalizeWebdavBackupConfig, webdavBackupConfigPayload, webdavBackupsFromResponse, normalizeS3BackupConfig, s3BackupConfigPayload, s3BackupsFromResponse } from './settings/backups.js';
 export { loadMcpServers, loadConnections, loadDiscordConnection } from './settings/connections.js';
@@ -221,11 +222,28 @@ function _initSettings() {
     if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) _closeSectionPicker(false);
   });
 
+  // the nav's groups follow the layout picked in general › settings layout (decision 0057)
+  const sectionList = document.getElementById('settings-section-list');
+  applyOrganization(sectionList);
+  const layoutPicker = document.getElementById('s-settings-layout');
+  if (layoutPicker) {
+    setDropdownValue(layoutPicker, savedOrganization());
+    layoutPicker.addEventListener('change', () => {
+      saveOrganization(layoutPicker.value);
+      applyOrganization(sectionList, layoutPicker.value);
+    });
+  }
+
   // nav clicks
   document.querySelectorAll('.s-nav-item').forEach(n => {
     n.setAttribute('role', 'button');
     n.tabIndex = 0;
-    n.addEventListener('click', () => _switchPane(n.dataset.pane));
+    // a link entry (the server) leaves settings for the app that owns those panels
+    const go = () => {
+      if (n.dataset.link) { closeSettings(); window._navigateTo?.(n.dataset.link); return; }
+      _switchPane(n.dataset.pane);
+    };
+    n.addEventListener('click', go);
     n.addEventListener('keydown', event => {
       if (sectionTrigger?.offsetParent !== null && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault();
@@ -238,7 +256,7 @@ function _initSettings() {
       }
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
-      _switchPane(n.dataset.pane);
+      go();
     });
   });
 

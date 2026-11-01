@@ -1723,6 +1723,7 @@
         <div class="s-nav-group" data-i18n="shell.settings.this_alles">this alles</div>
         <button class="s-nav-item" type="button" data-pane="security" data-i18n="shell.settings.privacy_password">privacy &amp; password</button>
         <button class="s-nav-item" type="button" data-pane="backup" data-i18n="shell.settings.backup_restore">backup &amp; restore</button>
+        <button class="s-nav-item" type="button" data-link="server" data-i18n="settings.org_server">server</button>
         <button class="s-nav-item" type="button" data-pane="credits" data-i18n="shell.settings.about_credits">about &amp; credits</button>
       </nav>
       </div>
@@ -2182,6 +2183,10 @@
             <div class="s-card-body">
               <p class="s-card-hint" data-i18n="shell.settings_general.finish_setup_or_review_your_saved">finish setup or review your saved choices.</p>
               <button class="btn" id="general-setup-btn" type="button" data-i18n="shell.settings_general.open_setup">open setup</button>
+              <div class="s-field">
+                <label id="s-settings-layout-label" data-i18n="settings.org_layout">settings layout</label>
+                <div class="settings-input custom-select" id="s-settings-layout" aria-labelledby="s-settings-layout-label" data-value="jobs" data-options="jobs|by what you're doing;often|by how often;things|by what it changes;classic|classic" data-i18n-options="settings.org_by_job;settings.org_by_often;settings.org_by_thing;settings.org_classic"></div>
+              </div>
             </div>
           </div>
           <div class="s-card">
