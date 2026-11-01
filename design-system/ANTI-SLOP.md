@@ -1,14 +1,15 @@
 # anti-slop rules
 
 what makes a screen read as generated without thought, and what alles does instead. sources: the
-owner's oct 27 bug list, paralect's "signs of ai slop in design" and uxdesign.cc's "how to
-de-slopify your designs" (2026-09-29). check every rule before calling a ui change done; the qa
+owner's oct 27 bug list, paralect's "signs of ai slop in design", uxdesign.cc's "how to
+de-slopify your designs" (2026-09-29) and the r/SaaS thread "how to break away from ai slop
+design" (read through its .rss feed on 2026-11-01). check every rule before calling a ui change done; the qa
 checklist's final pass points here.
 
 ## the owner's own calls (oct 27)
 
 - one indicator per state. a focus line drawn over a field's border, or a hover that looks like
-  the picked option, is two signals fighting. focus recolors the field's own edge (0045); hover
+  the picked option, is two signals fighting. focus recolors the field's own edge (0049); hover
   only brightens a label, the pill alone means picked.
 - notices that confirm something finish on their own: they clear after a few seconds and have a
   close button. only a notice that needs an action stays.
@@ -41,9 +42,14 @@ checklist's final pass points here.
 | placeholder initials, grey boxes, empty frames | real content or nothing |
 | headings that describe a product category | short names of the thing or a verb |
 | numbers written as words | digits |
+| icons from mixed sets, at mixed sizes and stroke widths | one set (`icons.js`), one 16px grid, one stroke width; a missing icon is drawn to match, never borrowed |
+| a new variant made for every screen (a field, a tab strip, a row list of its own) | one small kit used everywhere (`static/kit.html`); a screen that needs something new adds it to the kit first |
+| the default look: a white page of bordered cards in a top-50 color | surfaces part by tone and space (decision 0041), color only with meaning (0034) |
 
 ## how to check
 
+- open a real reference (an app the owner names, or a screenshot of one) before building, and
+  compare the rendered screen with it at the same size.
 - name each tell you can find on the screen before changing anything; "it looks off" is not a
   finding.
 - remove first, then decide color, type and icons on purpose.

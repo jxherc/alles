@@ -4,7 +4,7 @@ import { _esc } from './shared.js';
 import { toast, plainError } from '../util.js';
 import { t } from '../i18n.js';
 import { confirm as _dlgConfirm } from '../dialog.js';
-import { wireChoiceGroup } from '../kokuen.js?v=4';
+import { wireChoiceGroup } from '../kokuen.js?v=5';
 
 let _engines = [];
 let _editing = null; // custom engine id being edited, '' for a new one

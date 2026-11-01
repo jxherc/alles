@@ -1,6 +1,6 @@
 // what's new: shows once on the first visit and once after each release, then stays shut until
 // the next one. releases live in /static/whats-new.json, newest first.
-import { createFocusBoundary } from './kokuen.js?v=4';
+import { createFocusBoundary } from './kokuen.js?v=5';
 import { escapeHtml } from './util.js';
 import { parseHost, singleHost } from './subdomain.js?v=237';
 import { t } from './i18n.js';

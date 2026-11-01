@@ -3,7 +3,7 @@ import { initCustomDropdowns } from './dropdown.js?v=215';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
-import { createMenuController, wireChoiceGroup } from './kokuen.js?v=4';
+import { createMenuController, wireChoiceGroup } from './kokuen.js?v=5';
 import { replaceRouteUrl } from './route_history.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 

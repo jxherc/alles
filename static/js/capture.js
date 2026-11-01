@@ -1,5 +1,5 @@
 import { confirm as confirmDialog } from './dialog.js';
-import { createFocusBoundary } from './kokuen.js?v=4';
+import { createFocusBoundary } from './kokuen.js?v=5';
 import { initDatePickers } from './datepick.js';
 import { populateDropdown, getDropdownValue } from './dropdown.js?v=215';
 import { chosenTimeZone, resolvedTimeZone, t } from './i18n.js';

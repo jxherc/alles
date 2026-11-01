@@ -1687,7 +1687,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
       <div class="mail-reader-subject">${esc(m.subject)}</div>
       <div class="mail-reader-meta"><b>${esc(fromName(m.from))}</b> &lt;${esc((/<([^>]+)>/.exec(m.from) || [, m.from])[1])}&gt;</div>
       <div class="mail-reader-meta">${esc(t('mail.to_line', { to: m.to }))} · ${esc(readerDate(m.date))}</div>
-      <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+      <div style="display:flex;gap:var(--k-control-gap);flex-wrap:wrap">
         <button class="btn" id="mail-reply">${t('mail.reply')}</button>
         <button class="btn" id="mail-unread" title="${esc(t('mail.mark_unread'))}">${t('mail.nav_unread')}</button>
         <button class="btn" id="mail-vip" title="${esc(t('mail.vip_sender'))}" aria-label="${esc(t('mail.vip_sender'))}">${_si('plus')} ${t('mail.vip')}</button>

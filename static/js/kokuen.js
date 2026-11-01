@@ -187,9 +187,85 @@ function syncControlState(element) {
   else if (['disabled', 'busy', 'invalid', 'selected'].includes(current)) element.dataset.kokuenState = 'resting';
 }
 
+// choice controls (decision 0050, the owner's card a): 2 or 3 options flipped often are a pill
+// switch, a rating is a number row. both are radiogroups wired by wireChoiceGroup below.
+function initPillSwitch(group) {
+  if (group.dataset.kokuenChoiceReady === '1') return;
+  for (const option of group.querySelectorAll(':scope > button')) {
+    option.type = 'button';
+    option.setAttribute('role', 'radio');
+    if (!option.hasAttribute('aria-checked')) option.setAttribute('aria-checked', 'false');
+  }
+  wireChoiceGroup(group);
+  // after wireChoiceGroup's own click handler, so aria-checked is already the new pick
+  group.addEventListener('click', event => {
+    const option = event.target.closest?.('[role="radio"]');
+    if (!option || !group.contains(option)) return;
+    const value = option.dataset.value ?? option.textContent.trim();
+    group.dispatchEvent(new CustomEvent('change', { bubbles: true, detail: { value } }));
+  });
+}
+
+// <div data-kokuen-choice="rating" data-min="1" data-max="10" data-words="easy,,,,,,,,,max"
+//   data-labels="easy,easy,easy,moderate,..." aria-label="effort">. the end words sit on the
+// numbers' own grid, each centered under its number; the readout names the pick ("7, hard")
+function initNumberRow(row) {
+  if (row.dataset.kokuenChoiceReady === '1') return;
+  const min = Number(row.dataset.min || 1);
+  const max = Number(row.dataset.max || 5);
+  const labels = (row.dataset.labels || '').split(',');
+  const words = (row.dataset.words || '').split(',');
+  const count = max - min + 1;
+  const scale = document.createElement('div');
+  scale.className = 'k-number-row-scale';
+  scale.setAttribute('role', 'radiogroup');
+  scale.setAttribute('aria-label', row.getAttribute('aria-label') || '');
+  row.removeAttribute('aria-label');
+  row.style.setProperty('--k-n', String(count));
+  if (count > 5) row.dataset.wrap = 'true';
+  for (let value = min; value <= max; value++) {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(String(value) === row.dataset.value));
+    option.dataset.value = String(value);
+    option.textContent = String(value);
+    const label = labels[value - min];
+    if (label) option.setAttribute('aria-label', `${value}, ${label}`);
+    scale.append(option);
+  }
+  const ends = document.createElement('div');
+  ends.className = 'k-number-row-words';
+  ends.setAttribute('aria-hidden', 'true');
+  words.forEach((word, index) => {
+    if (!word) return;
+    const span = document.createElement('span');
+    span.textContent = word;
+    span.style.gridColumn = String(index + 1);
+    ends.append(span);
+  });
+  const readout = document.createElement('p');
+  readout.className = 'k-number-row-readout';
+  readout.setAttribute('aria-live', 'polite');
+  row.replaceChildren(scale, ends, readout);
+  const show = option => {
+    if (!option) return;
+    row.dataset.value = option.dataset.value;
+    readout.textContent = option.getAttribute('aria-label') || option.dataset.value;
+    row.dispatchEvent(new CustomEvent('change', { bubbles: true, detail: { value: Number(option.dataset.value) } }));
+  };
+  scale.addEventListener('click', event => show(event.target.closest?.('[role="radio"]')));
+  wireChoiceGroup(scale);
+  row.dataset.kokuenChoiceReady = '1';
+  const picked = scale.querySelector('[aria-checked="true"]');
+  if (picked) readout.textContent = picked.getAttribute('aria-label') || picked.dataset.value;
+}
+
 function decorateRoot(root) {
   if (root instanceof HTMLElement && root.matches(CONTROL_SELECTOR)) decorateControl(root);
   root.querySelectorAll?.(CONTROL_SELECTOR).forEach(decorateControl);
+  root.querySelectorAll?.('[data-kokuen-choice="switch"]').forEach(initPillSwitch);
+  root.querySelectorAll?.('[data-kokuen-choice="rating"]').forEach(initNumberRow);
   root.querySelectorAll?.('[data-kokuen-surface]').forEach(surface => {
     surface.dataset.kokuenVersion = '5';
     if (!surface.dataset.state) surface.dataset.state = 'resting';

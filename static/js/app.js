@@ -19,7 +19,7 @@ import { initSlash, tryExecuteSlashCommand } from './slash.js?v=401';
 import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=254';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
-import { openManual } from './help.js?v=2';
+import { openManual } from './help.js?v=3';
 import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './compare.js';
 import { loadVaultView, initVault } from './vault.js?v=291';
 import { loadContacts, addContact } from './contacts.js';
@@ -57,9 +57,9 @@ import { initPrivacyHandlers } from './privacy.js';
 import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
 import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import { initAideWorkspace } from './aideworkspace.js?v=282';
-import { initAideCentral } from './aidecentral.js?v=2';
-import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=4';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=255';
+import { initAideCentral } from './aidecentral.js?v=3';
+import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=5';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=256';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
 import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=246';
@@ -988,7 +988,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=255');
+      const module = await import('./andromeda.js?v=256');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1090,7 +1090,7 @@ const showTodayView      = () => {
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=255'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=256'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
@@ -1624,10 +1624,10 @@ async function _renderFirstRun() {
   catch { return; }   // never let this block Home
   if (st.setup?.completed || st.setup?.dismissed) return;
   if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
-  (await import('./setupwizard.js?v=450')).openSetupWizard({ status: st });
+  (await import('./setupwizard.js?v=451')).openSetupWizard({ status: st });
 }
 // let anything (a settings link, the command palette) re-run the wizard on demand
-window._openSetupWizard = async () => (await import('./setupwizard.js?v=450')).openSetupWizard({ resume: true });
+window._openSetupWizard = async () => (await import('./setupwizard.js?v=451')).openSetupWizard({ resume: true });
 
 // aide's tools live in the collapsible "tools" group
 const _moreViews = new Set(['gallery','brain','models','aide-reminders','subs','days']);

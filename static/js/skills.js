@@ -3,7 +3,7 @@
 // editor in a right slide-over drawer. library is just a mode of the same surface.
 import { toast } from './util.js';
 import { t, tp } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=4';
+import { createFocusBoundary } from './kokuen.js?v=5';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 

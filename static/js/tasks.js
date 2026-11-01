@@ -1,7 +1,7 @@
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=215';
 import { calendarDateKey, t as tr, tp as trp } from './i18n.js';
-import { createFocusBoundary, setControlState } from './kokuen.js?v=4';
+import { createFocusBoundary, setControlState } from './kokuen.js?v=5';
 import { toast } from './util.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 

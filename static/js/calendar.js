@@ -3,7 +3,7 @@ import { replaceLinkedRecord } from './recordlinks.js';
 import { initCustomDropdown } from './dropdown.js?v=215';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
-import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=4';
+import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=5';
 import { openAppSettings } from './appsettings.js';
 import { wireGridNav, WEEK_ROWS } from './grid_nav.js';
 import { chosenTimeZone, formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';

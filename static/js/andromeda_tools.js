@@ -4,7 +4,7 @@
 // and nothing more; "timer" opens a stopped timer, "5 minute timer" starts one.
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=215';
 import { formatDate, formatDateParts, formatTime, resolvedTimeZone, t, tp } from './i18n.js';
-import { wireChoiceGroup } from './kokuen.js?v=4';
+import { wireChoiceGroup } from './kokuen.js?v=5';
 import { writeClipboard } from './util.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 

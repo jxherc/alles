@@ -4,7 +4,7 @@ import { confirm as dlgConfirm } from './dialog.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
 import { toast, mdToHtml } from './util.js';
 import { wireAutosizeTextarea, autosizeTextarea } from './text_entry.js?v=1';
-import { createMenuController } from './kokuen.js?v=4';
+import { createMenuController } from './kokuen.js?v=5';
 import { formatDate, t, tp } from './i18n.js';
 
 const $ = id => document.getElementById(id);

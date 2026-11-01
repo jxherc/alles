@@ -8,12 +8,12 @@
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
 <link rel="stylesheet" href="/static/style.css?v=603">
-  <link rel="stylesheet" href="/static/kokuen.css?v=89">
+  <link rel="stylesheet" href="/static/kokuen.css?v=90">
 <link rel="stylesheet" href="/static/aidecentral.css?v=19">
 <link rel="stylesheet" href="/static/aidecoding.css?v=27">
 <link rel="stylesheet" href="/static/aidecall.css?v=3">
 <link rel="stylesheet" href="/static/help.css?v=2">
-<link rel="stylesheet" href="/static/revamp.css?v=99">
+<link rel="stylesheet" href="/static/revamp.css?v=100">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#12100e">
@@ -40,7 +40,7 @@
 <link rel="modulepreload" href="/static/js/uploads.js?v=254">
 <link rel="modulepreload" href="/static/js/projects.js">
 <link rel="modulepreload" href="/static/js/search.js">
-<link rel="modulepreload" href="/static/js/help.js?v=2">
+<link rel="modulepreload" href="/static/js/help.js?v=3">
 <link rel="modulepreload" href="/static/js/compare.js">
 <link rel="modulepreload" href="/static/js/vault.js?v=291">
 <link rel="modulepreload" href="/static/js/contacts.js">
@@ -63,9 +63,9 @@
 <link rel="modulepreload" href="/static/js/scrollfollow.js">
 <link rel="modulepreload" href="/static/js/text_entry.js?v=1">
 <link rel="modulepreload" href="/static/js/aideworkspace.js?v=282">
-<link rel="modulepreload" href="/static/js/aidecentral.js?v=2">
-<link rel="modulepreload" href="/static/js/kokuen.js?v=4">
-<link rel="modulepreload" href="/static/js/andromeda.js?v=255">
+<link rel="modulepreload" href="/static/js/aidecentral.js?v=3">
+<link rel="modulepreload" href="/static/js/kokuen.js?v=5">
+<link rel="modulepreload" href="/static/js/andromeda.js?v=256">
 <link rel="modulepreload" href="/static/js/shortcuts.js">
 <link rel="modulepreload" href="/static/js/ask_panel.js">
 <link rel="modulepreload" href="/static/js/reminders.js?v=246">
@@ -77,7 +77,7 @@
 <link rel="modulepreload" href="/static/js/memoryactions.js">
 <link rel="modulepreload" href="/static/js/answer_note.js">
 <link rel="modulepreload" href="/static/js/answer_task.js">
-<link rel="modulepreload" href="/static/js/response_actions.js?v=5">
+<link rel="modulepreload" href="/static/js/response_actions.js?v=6">
 <link rel="modulepreload" href="/static/js/brandlogo.js">
 <link rel="modulepreload" href="/static/js/modelfilter.js">
 <link rel="modulepreload" href="/static/js/artifacts.js">
@@ -835,7 +835,7 @@
         <span id="subs-summary" style="font-size:0.8125rem;color:var(--muted);margin-left:auto"></span>
       </div>
       <div class="page-view-body" id="subs-list"></div>
-      <div class="page-view-footer" style="flex-wrap:wrap;gap:0.4rem">
+      <div class="page-view-footer" style="flex-wrap:wrap;gap:var(--k-control-gap)">
         <p id="sub-required" aria-live="polite" class="specialist-group-note" style="flex-basis:100%;margin:0" data-i18n="shell.subs.enter_a_name_and_choose_the">enter a name and choose the next billing date.</p>
         <input type="text" id="sub-name" aria-label="subscription name" aria-required="true" aria-describedby="sub-required" class="settings-input" placeholder="name (e.g. netflix)" style="flex:2;min-width:130px" data-i18n-aria-label="shell.subs.subscription_name" data-i18n-placeholder="shell.subs.name_e_g_netflix">
         <input type="text" id="sub-price" aria-label="price" class="settings-input" placeholder="price" style="width:75px" inputmode="decimal" data-i18n-aria-label="shell.subs.price" data-i18n-placeholder="shell.subs.price">
@@ -878,7 +878,7 @@
       <div class="page-view-body">
         <div id="days-grid" class="days-grid"></div>
       </div>
-      <div class="page-view-footer" style="flex-wrap:wrap;gap:0.4rem">
+      <div class="page-view-footer" style="flex-wrap:wrap;gap:var(--k-control-gap)">
         <input type="text" id="day-name" aria-label="event name" class="settings-input" placeholder="event (e.g. trip to japan, quit smoking)" style="flex:2;min-width:170px" data-i18n-aria-label="shell.days.event_name" data-i18n-placeholder="shell.days.event_e_g_trip_to_japan">
         <div class="date-input" id="day-date" data-type="date" data-ph="date" data-ph-key="plan.days_date" style="width:135px"></div>
         <div id="day-repeat" class="settings-input custom-select" data-value="none" data-options="none|one-time;yearly|every year;monthly|every month" data-i18n-options="plan.days_one_time;plan.days_every_year;plan.days_every_month" style="width:auto;min-width:115px"></div>
@@ -1920,12 +1920,12 @@
               <div id="s-local-hw" style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.65rem"></div>
               <div id="s-local-presets" class="settings-list"></div>
               <div class="s-field" style="margin-top:0.65rem"><label for="s-local-custom" data-i18n="shell.settings_models.pull_any_model">pull any model</label>
-                <div style="display:flex;gap:0.4rem">
+                <div style="display:flex;gap:var(--k-control-gap)">
                   <input type="text" class="settings-input" id="s-local-custom" aria-label="model to pull" spellcheck="false" style="flex:1" data-i18n-aria-label="shell.settings_models.model_to_pull">
                   <button type="button" class="btn" id="s-local-pull-btn" data-i18n="shell.settings_models.pull">pull</button>
                 </div>
               </div>
-              <div style="display:flex;gap:0.4rem;margin-top:0.4rem;flex-wrap:wrap">
+              <div style="display:flex;gap:var(--k-control-gap);margin-top:0.4rem;flex-wrap:wrap">
                 <button type="button" class="btn" id="s-local-refresh-btn" data-i18n="common.refresh">refresh</button>
                 <button type="button" class="btn" id="s-local-start-btn" data-i18n="shell.settings_models.start_ollama">start Ollama</button>
               </div>
@@ -2028,7 +2028,7 @@
               <input type="text" id="mem-search" aria-label="search memories" class="settings-input" placeholder="search memories…" style="width:100%;margin-bottom:0.55rem" data-i18n-aria-label="shell.settings_memory.search_memories_2" data-i18n-placeholder="shell.settings_memory.search_memories">
               <div id="mem-category-filter" class="mem-cat-filter"></div>
               <div class="mem-view-list" id="memory-list"></div>
-              <div style="display:flex;gap:0.4rem;margin-top:0.6rem">
+              <div style="display:flex;gap:var(--k-control-gap);margin-top:0.6rem">
                 <input type="text" id="mem-add-input" aria-label="add a memory" class="settings-input" placeholder="add a memory…" style="flex:1" data-i18n-aria-label="shell.settings_memory.add_a_memory_2" data-i18n-placeholder="shell.settings_memory.add_a_memory">
                 <button type="button" class="btn mem-cat-cycle" id="mem-cat-cycle-btn" data-val="general" data-i18n="common.general">general</button>
                 <button type="button" class="btn primary" id="mem-add-btn" data-i18n="shell.settings_memory.remember">remember</button>
@@ -2089,7 +2089,7 @@
             <div class="s-card-body">
               <div class="s-field">
                 <label id="s-andromeda-primary-label" data-i18n="shell.andromeda_settings.primary_provider">primary provider</label>
-                <div style="display:flex;gap:0.4rem;align-items:center">
+                <div style="display:flex;gap:var(--k-control-gap);align-items:center">
                   <div class="settings-input custom-select" id="s-andromeda-primary" style="flex:1" data-value="duckduckgo" data-options="duckduckgo|free search;disabled|disabled" data-i18n-options="andromeda.x_free_search;andromeda.x_disabled" aria-labelledby="s-andromeda-primary-label"></div>
                   <button type="button" class="btn" id="s-andromeda-test" style="flex-shrink:0" data-i18n="shell.settings_search.test">test</button>
                 </div>
@@ -2103,13 +2103,13 @@
                 <div class="settings-input custom-select" id="s-andromeda-count" style="width:100px" data-value="8" data-options="3|3;5|5;8|8;10|10;20|20" aria-labelledby="s-andromeda-count-label"></div>
               </div>
               <div id="s-andromeda-provider-fields" hidden>
-                <div class="s-field" hidden data-andromeda-provider-field="tavily"><label for="s-andromeda-tavily-key" data-i18n="shell.andromeda_settings.tavily_api_key">tavily api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-tavily-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-tavily-key" aria-label="clear tavily api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_tavily_api_key">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="brave"><label for="s-andromeda-brave-key" data-i18n="shell.andromeda_settings.brave_api_key">brave api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-brave-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-brave-key" aria-label="clear brave api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_brave_api_key">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="searxng"><label for="s-andromeda-searxng-url" data-i18n="shell.andromeda_settings.external_searxng_url">external searxng url</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-searxng-url" type="url" class="settings-input" style="flex:1" inputmode="url" autocomplete="off" placeholder="https://search.example.com"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-searxng-url" aria-label="clear external searxng url" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_external_searxng_url">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="google_pse"><label for="s-andromeda-google-key" data-i18n="common.google_pse_api_key">google pse api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-google-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-google-key" aria-label="clear google pse api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_api_key">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="google_pse"><label for="s-andromeda-google-cx" data-i18n="shell.andromeda_settings.google_pse_cx">google pse cx</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-google-cx" type="text" class="settings-input" style="flex:1" autocomplete="off" placeholder="search engine id" data-i18n-placeholder="shell.andromeda_settings.search_engine_id"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-google-cx" aria-label="clear google pse cx" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_cx">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="serper"><label for="s-andromeda-serper-key" data-i18n="shell.andromeda_settings.serper_api_key">serper api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-serper-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-serper-key" aria-label="clear serper api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_serper_api_key">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="exa"><label for="s-andromeda-exa-key" data-i18n="shell.andromeda_settings.exa_api_key">exa api key</label><div style="display:flex;gap:0.4rem"><input id="s-andromeda-exa-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-exa-key" aria-label="clear exa api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_exa_api_key">clear</button></div></div>
+                <div class="s-field" hidden data-andromeda-provider-field="tavily"><label for="s-andromeda-tavily-key" data-i18n="shell.andromeda_settings.tavily_api_key">tavily api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-tavily-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-tavily-key" aria-label="clear tavily api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_tavily_api_key">clear</button></div></div>
+                <div class="s-field" hidden data-andromeda-provider-field="brave"><label for="s-andromeda-brave-key" data-i18n="shell.andromeda_settings.brave_api_key">brave api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-brave-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-brave-key" aria-label="clear brave api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_brave_api_key">clear</button></div></div>
+                <div class="s-field" hidden data-andromeda-provider-field="searxng"><label for="s-andromeda-searxng-url" data-i18n="shell.andromeda_settings.external_searxng_url">external searxng url</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-searxng-url" type="url" class="settings-input" style="flex:1" inputmode="url" autocomplete="off" placeholder="https://search.example.com"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-searxng-url" aria-label="clear external searxng url" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_external_searxng_url">clear</button></div></div>
+                <div class="s-field" hidden data-andromeda-provider-field="google_pse"><label for="s-andromeda-google-key" data-i18n="common.google_pse_api_key">google pse api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-google-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-google-key" aria-label="clear google pse api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_api_key">clear</button></div></div>
+                <div class="s-field" hidden data-andromeda-provider-field="google_pse"><label for="s-andromeda-google-cx" data-i18n="shell.andromeda_settings.google_pse_cx">google pse cx</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-google-cx" type="text" class="settings-input" style="flex:1" autocomplete="off" placeholder="search engine id" data-i18n-placeholder="shell.andromeda_settings.search_engine_id"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-google-cx" aria-label="clear google pse cx" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_cx">clear</button></div></div>
+                <div class="s-field" hidden data-andromeda-provider-field="serper"><label for="s-andromeda-serper-key" data-i18n="shell.andromeda_settings.serper_api_key">serper api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-serper-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-serper-key" aria-label="clear serper api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_serper_api_key">clear</button></div></div>
+                <div class="s-field" hidden data-andromeda-provider-field="exa"><label for="s-andromeda-exa-key" data-i18n="shell.andromeda_settings.exa_api_key">exa api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-exa-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-exa-key" aria-label="clear exa api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_exa_api_key">clear</button></div></div>
               </div>
               <div id="s-andromeda-search-status" class="s-search-status" role="status" aria-live="polite"></div>
             </div>
@@ -2122,7 +2122,7 @@
             <div class="s-card-body">
               <div class="s-search-status" id="s-andromeda-searxng-status" role="status" aria-live="polite">checking local search…</div>
               <div class="s-card-hint" id="s-andromeda-searxng-meta"></div>
-              <div id="s-andromeda-searxng-actions" style="display:flex;flex-wrap:wrap;gap:0.4rem" role="group" aria-label="managed searxng actions" data-i18n-aria-label="shell.andromeda_settings.managed_searxng_actions"></div>
+              <div id="s-andromeda-searxng-actions" style="display:flex;flex-wrap:wrap;gap:var(--k-control-gap)" role="group" aria-label="managed searxng actions" data-i18n-aria-label="shell.andromeda_settings.managed_searxng_actions"></div>
             </div>
           </div>
           <div class="s-card" role="region" aria-labelledby="s-andromeda-answer-head">
@@ -2401,7 +2401,7 @@
               <div id="persona-extra" hidden style="margin-top:0.85rem;border-top:1px solid var(--faint);padding-top:0.85rem">
                 <div class="s-field"><label><span data-i18n="shell.settings_personas.knowledge_files">knowledge files</span><span style="color:var(--muted);font-weight:400" data-i18n="shell.settings_personas.this_assistant_answers_from_these">: this assistant answers from these</span></label>
                   <div id="persona-docs" class="persona-docs"></div>
-                  <div style="display:flex;gap:.4rem;margin-top:.4rem">
+                  <div style="display:flex;gap:var(--k-control-gap);margin-top:.4rem">
                     <input type="text" class="settings-input" id="persona-doc-title" aria-label="knowledge file title" placeholder="title" style="flex:0 0 30%" data-i18n-aria-label="shell.settings_personas.knowledge_file_title" data-i18n-placeholder="shell.settings_personas.title">
                     <input type="text" class="settings-input" id="persona-doc-content" aria-label="knowledge file content" placeholder="paste knowledge text…" style="flex:1" data-i18n-aria-label="shell.settings_personas.knowledge_file_content" data-i18n-placeholder="shell.settings_personas.paste_knowledge_text">
                     <button type="button" class="btn" id="persona-doc-add" data-i18n="common.add">add</button>
@@ -2418,7 +2418,7 @@
             </div>
             <div class="s-card-body">
               <div id="cookbook-list" style="margin-bottom:0.75rem"></div>
-              <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+              <div style="display:flex;gap:var(--k-control-gap);flex-wrap:wrap">
                 <div class="s-field" style="flex:1;min-width:80px"><label for="cookbook-name" data-i18n="common.name">name</label><input type="text" class="settings-input" id="cookbook-name"></div>
                 <div class="s-field" style="flex:1;min-width:100px"><label for="cookbook-desc" data-i18n="shell.settings_personas.description">description</label><input type="text" class="settings-input" id="cookbook-desc"></div>
               </div>
@@ -2599,7 +2599,7 @@
             <div class="s-card-body">
               <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0.6rem" data-i18n-code="settings.tools_rules_note">fine-grained control over what the agent does without asking. layered over the mode, last matching rule wins. tool + path accept globs (<code>*</code> <code>?</code>); a plain path is a "contains" match. e.g. allow <code>git_status</code>, ask on <code>git_commit</code>, deny <code>write_file</code> on <code>.env</code>.</p>
               <div id="perm-rules-list" style="margin-bottom:0.7rem"></div>
-              <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.45rem">
+              <div style="display:flex;gap:var(--k-control-gap);flex-wrap:wrap;margin-bottom:0.45rem">
                 <input type="text" id="perm-rule-tool" aria-label="permission rule tool" class="settings-input" placeholder="tool (git_* / shell / *)" style="flex:1;min-width:120px" data-i18n-aria-label="shell.settings_tools.permission_rule_tool" data-i18n-placeholder="shell.settings_tools.tool_git_shell">
                 <input type="text" id="perm-rule-path" aria-label="permission rule path or command match" class="settings-input" placeholder="path or command match (optional)" style="flex:1.4;min-width:140px" data-i18n-aria-label="shell.settings_tools.permission_rule_path_or_command_match" data-i18n-placeholder="shell.settings_tools.path_or_command_match_optional">
                 <div id="perm-rule-action" class="settings-input custom-select" data-value="ask" data-options="allow|allow;ask|ask;deny|deny" data-i18n-options="connections.perm_allow;connections.perm_ask;connections.perm_deny" style="width:88px;flex-shrink:0"></div>
@@ -2673,7 +2673,7 @@
             </div>
             <div class="s-card-body">
               <div id="token-list" style="margin-bottom:0.75rem"></div>
-              <div style="display:flex;gap:0.4rem">
+              <div style="display:flex;gap:var(--k-control-gap)">
                 <input type="text" class="settings-input" id="token-name" aria-label="token name" placeholder="token name" style="flex:1" data-i18n-aria-label="shell.settings_developer.token_name" data-i18n-placeholder="shell.settings_developer.token_name">
                 <button type="button" class="btn primary" id="token-add-btn" data-i18n="common.generate">generate</button>
               </div>
@@ -2874,15 +2874,15 @@
               <div id="rules-list" style="margin-bottom:0.85rem"></div>
               <div class="rule-presets" id="rule-presets"></div>
               <div class="rules-form">
-                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.4rem">
+                <div style="display:flex;gap:var(--k-control-gap);flex-wrap:wrap;margin-bottom:0.4rem">
                   <div id="rule-trigger" class="settings-input custom-select" style="flex:1;min-width:170px"></div>
                   <input type="text" id="rule-trigger-arg" aria-label="rule trigger value" class="settings-input" placeholder="…" style="flex:1;min-width:140px" data-i18n-aria-label="shell.settings_rules.rule_trigger_value">
                 </div>
-                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.4rem">
+                <div style="display:flex;gap:var(--k-control-gap);flex-wrap:wrap;margin-bottom:0.4rem">
                   <div id="rule-action" class="settings-input custom-select" style="flex:1;min-width:170px"></div>
                   <input type="text" id="rule-action-arg" aria-label="rule action value" class="settings-input" placeholder="…" style="flex:1;min-width:140px" data-i18n-aria-label="shell.settings_rules.rule_action_value">
                 </div>
-                <div style="display:flex;gap:0.4rem">
+                <div style="display:flex;gap:var(--k-control-gap)">
                   <input type="text" id="rule-name" aria-label="rule name" class="settings-input" placeholder="rule name (optional)" style="flex:1" data-i18n-aria-label="shell.settings_rules.rule_name" data-i18n-placeholder="shell.settings_rules.rule_name_optional">
                   <button type="button" class="btn" id="rule-cancel-btn" style="display:none" data-i18n="common.cancel">cancel</button>
                   <button type="button" class="btn primary" id="rule-add-btn" data-i18n="common.add_rule">add rule</button>
@@ -3088,14 +3088,14 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.journal_stale_nudge">journal (stale nudge)</div></div><div class="s-switch" id="s-prox-cat-journal"></div></div>
               <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.7rem;font-size:0.8125rem;color:var(--muted)">
                 <span data-i18n="shell.settings_proactive.run_every">run every</span>
-                <input type="number" min="1" max="168" id="s-prox-hours" aria-label="background check interval in hours" style="width:4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.8125rem" data-i18n-aria-label="shell.settings_proactive.background_check_interval_in_hours">
+                <input type="number" class="settings-input s-num-input" min="1" max="168" id="s-prox-hours" aria-label="background check interval in hours" data-i18n-aria-label="shell.settings_proactive.background_check_interval_in_hours">
                 <span data-i18n="shell.settings_proactive.hours">hours</span>
               </div>
               <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem;font-size:0.8125rem;color:var(--muted)">
                 <span data-i18n="common.quiet_hours">quiet hours</span>
-                <input type="number" min="0" max="23" id="s-prox-qstart" aria-label="quiet hours start" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.8125rem" data-i18n-aria-label="shell.settings_proactive.quiet_hours_start">
+                <input type="number" class="settings-input s-num-input" min="0" max="23" id="s-prox-qstart" aria-label="quiet hours start" data-i18n-aria-label="shell.settings_proactive.quiet_hours_start">
                 <span data-i18n="common.to">to</span>
-                <input type="number" min="0" max="23" id="s-prox-qend" aria-label="quiet hours end" style="width:3.4rem;background:var(--panel);border:1px solid var(--faint);color:var(--text);border-radius:3px;padding:0.2rem 0.3rem;font-size:0.8125rem" data-i18n-aria-label="shell.settings_proactive.quiet_hours_end">
+                <input type="number" class="settings-input s-num-input" min="0" max="23" id="s-prox-qend" aria-label="quiet hours end" data-i18n-aria-label="shell.settings_proactive.quiet_hours_end">
               </div>
               <div class="s-toggle-row" style="margin-top:0.5rem"><div><div class="s-toggle-label" data-i18n="shell.settings_proactive.send_push_for_urgent">send push for urgent</div><div class="s-toggle-desc" data-i18n="shell.settings_proactive.web_push_high_priority_cards_needs">web-push high-priority cards (needs notifications on)</div></div><div class="s-switch" id="s-prox-push"></div></div>
               <div id="s-prox-status" style="font-size:0.8125rem;color:var(--muted);margin:0.6rem 0"></div>
@@ -3117,7 +3117,7 @@
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.next_steps">suggest next steps</div><div class="s-toggle-desc" data-i18n="shell.settings_intelligence.predicted_next_step_chips_above_the">predicted next-step chips above the message box</div></div><div class="s-switch" id="s-intel-suggest"></div></div>
               <div class="s-toggle-row"><div><div class="s-toggle-label" data-i18n="settings.conversation_topic">keep the conversation topic</div><div class="s-toggle-desc" data-i18n="shell.settings_intelligence.keep_aide_aware_of_the_current">keep aide aware of the current topic across turns</div></div><div class="s-switch" id="s-intel-session"></div></div>
               <div id="s-intel-status" style="font-size:0.8125rem;color:var(--muted);margin:0.6rem 0"></div>
-              <div style="display:flex;gap:0.4rem">
+              <div style="display:flex;gap:var(--k-control-gap)">
                 <button type="button" class="btn" id="s-intel-insights-run" data-i18n="settings.find_patterns">find patterns across apps</button>
                 <button type="button" class="btn" id="s-intel-distill-run" data-i18n="settings.learn_now">learn from activity</button>
               </div>

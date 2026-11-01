@@ -5,7 +5,7 @@ import { loadModels, addEndpoint, renderModelList } from '../models.js?v=216';
 import { initCustomDropdowns, getDropdownValue, populateDropdown } from '../dropdown.js?v=215';
 import { _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 import { API_TYPES, authFor, mountProviderPicker } from '../model_providers.js';
-import { wireChoiceGroup } from '../kokuen.js?v=4';
+import { wireChoiceGroup } from '../kokuen.js?v=5';
 import { t, tp } from '../i18n.js';
 import { roleOptions as _roleOptionData, setModelRole, announceModelRoles, onModelRoles } from './model_roles.js';
 
