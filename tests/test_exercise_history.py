@@ -70,6 +70,19 @@ class ExerciseHistoryTests(unittest.TestCase):
             records["volume"]["lb"], round(20 * 2.20462262 * 10 * 3, 1), places=0
         )
 
+    def test_a_past_day_never_counts_a_later_session(self):
+        logs = [
+            ("2026-10-12", day(ex([s(55, 10)]))),
+            ("2026-10-19", day(ex([s(60, 10)]))),
+            ("2026-10-26", day(ex([s(90, 8)]))),
+        ]
+        out = exercise_history(logs, PULLDOWN, {}, "2026-10-19")
+        self.assertEqual(out["last"]["date"], "2026-10-12")
+        self.assertEqual(out["records"][""]["heaviest"]["weight"], 60)  # the day itself counts
+        self.assertEqual(out["records"][""]["volume"]["date"], "2026-10-19")
+        self.assertEqual([h["to"] for h in out["hint"]], [60])  # from 55, not from 90
+        self.assertEqual(exercise_history(logs, PULLDOWN, {}, "2026-10-11")["records"], {})
+
     def test_hint_only_within_about_a_week_with_every_rep_done(self):
         good = [
             (

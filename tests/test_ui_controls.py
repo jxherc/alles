@@ -71,9 +71,11 @@ class SegmentedControlTests(unittest.TestCase):
     def test_seg_sm_variant_exists(self):
         self.assertIn(".seg.seg-sm", CSS)
 
-    def test_activity_uses_shared_seg(self):
-        self.assertIn('class="seg seg-sm act-seg"', ACTIVITY)
-        self.assertIn(".act-seg .seg-opt", ACTIVITY)
+    def test_activity_filters_use_the_kit_dropdown(self):
+        # 4 ranges and 9 sources are lists: the dropdown, the sources as pick several
+        self.assertIn("populateDropdown(range,", ACTIVITY)
+        self.assertIn("populateMultiDropdown(kinds,", ACTIVITY)
+        self.assertNotIn("act-chip", ACTIVITY)
 
     def test_no_divergent_act_range_left(self):
         # the old, visually-inconsistent variant is fully gone

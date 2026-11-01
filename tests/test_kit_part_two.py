@@ -194,7 +194,6 @@ CHOICE_EXCEPTIONS = {
     # toggles that each turn one thing on, not one pick from a list
     "js/calendar.js:cal-dow-b": "weekday toggles, like every calendar's repeat editor",
     "js/calendar.js:cal-rem": "reminder toggles, several at once",
-    "js/activity.js:act-chip": "filter toggles, several at once",
     "index.html:token-scopes": "token powers, several at once, each with a mark",
     # navigation, not a value: the open view or place, like every calendar and files app
     "index.html:cal-view": "calendar view switch",
@@ -204,7 +203,6 @@ CHOICE_EXCEPTIONS = {
     "js/books.js:te-seg-opt": "3 shelves",
     "js/settings/providers.js:data-value": "2 sign in kinds",
     "js/setupwizard.js:data-value": "2 or 3 choices per step",
-    "js/habit_loggers.js:data-value": "gym set pill switches: same or split sides, lb or kg",
     "js/contacts.js:data-value": "3 sync intervals: manual, hourly, daily",
     "js/vault.js:data-value": "3 field widths",
 }
@@ -212,9 +210,7 @@ CHOICE_EXCEPTIONS = {
 CHOICE_TO_CONVERT = {
     "index.html:tasks-tabs": "5 task views",
     "index.html:locale-language-list": "8 languages",
-    "js/activity.js:seg-opt": "activity time ranges",
     "js/appsettings.js:seg-opt": "app setting choices of any length",
-    "js/habit_loggers.js:seg-opt": "habit field choices of any length",
     "js/health.js:health-chip": "4 history ranges",
     "js/theme.js:te-seg-opt": "harmony and background pattern have more than 3",
     "js/money.js:btn": "money plan tasks",

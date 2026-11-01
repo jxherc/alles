@@ -5,6 +5,7 @@ import { calendarDateKey, formatCalendarDate, formatTime, t, tp } from './i18n.j
 import { replaceRouteUrl } from './route_history.js';
 import { toast } from './util.js';
 import { icon } from './icons.js';
+import { populateDropdown, populateMultiDropdown } from './dropdown.js?v=217';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -61,31 +62,42 @@ export function initActivity(fetcher = fetch) {
 
 const RANGES = [[7, 'health.range_7d'], [30, 'health.range_30d'], [90, 'health.range_90d'], [365, 'health.range_1y']];
 
+// what to show is "pick several" and the range is "pick one": both dropdowns (ux laws: no chip
+// walls, 4 or more options are the dropdown)
 function renderFilters() {
   const wrap = $('activity-filters');
   if (!wrap) return;
-  const chips = TYPES.map(item =>
-    `<button type="button" class="act-chip${_off.has(item.key) ? ' off' : ''}" data-k="${item.key}" aria-pressed="${!_off.has(item.key)}">${glyph(item.key)} ${esc(t(item.label))}</button>`).join('');
-  const ranges = `<span class="seg seg-sm act-seg" role="group" aria-label="${esc(t('server.activity_time_range'))}">${RANGES.map(([d, l]) =>
-    `<button type="button" class="seg-opt${d === _days ? ' active' : ''}" data-d="${d}" aria-pressed="${d === _days}">${esc(t(l))}</button>`).join('')}</span>`;
-  const search = `<input type="text" id="act-search" class="act-search" placeholder="${esc(t('server.activity_search'))}" aria-label="${esc(t('server.activity_search_label'))}" value="${esc(_q)}">`;
-  wrap.innerHTML = chips + ranges + search;
-  wrap.querySelectorAll('.act-chip').forEach(b => b.addEventListener('click', () => {
-    const k = b.dataset.k;
-    if (_off.has(k)) _off.delete(k); else _off.add(k);
-    b.classList.toggle('off');
-    b.setAttribute('aria-pressed', String(!_off.has(k)));
-    localStorage.setItem(_hk, JSON.stringify([..._off]));
+  const kinds = document.createElement('div');
+  kinds.className = 'settings-input custom-select act-kinds';
+  kinds.setAttribute('aria-label', t('server.activity_kinds'));
+  kinds.dataset.placeholder = t('server.activity_kinds');
+  populateMultiDropdown(kinds, TYPES.map(item => ({ value: item.key, label: t(item.label) })),
+    TYPES.map(item => item.key).filter(k => !_off.has(k)));
+  const range = document.createElement('div');
+  range.className = 'settings-input custom-select act-range';
+  range.setAttribute('aria-label', t('server.activity_time_range'));
+  populateDropdown(range, RANGES.map(([d, l]) => ({ value: String(d), label: t(l) })), String(_days));
+  const search = document.createElement('input');
+  search.type = 'text';
+  search.id = 'act-search';
+  search.className = 'act-search';
+  search.placeholder = t('server.activity_search');
+  search.setAttribute('aria-label', t('server.activity_search_label'));
+  search.value = _q;
+  wrap.replaceChildren(kinds, range, search);
+  kinds.addEventListener('change', () => {
+    const shown = new Set(kinds.values);
+    _off = new Set(TYPES.map(item => item.key).filter(k => !shown.has(k)));
+    try { localStorage.setItem(_hk, JSON.stringify([..._off])); } catch {}
     _writeUrl();
     load();
-  }));
-  wrap.querySelectorAll('.act-seg .seg-opt').forEach(b => b.addEventListener('click', () => {
-    _days = +b.dataset.d || 30;
-    wrap.querySelectorAll('.act-seg .seg-opt').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+  });
+  range.addEventListener('change', () => {
+    _days = +range.value || 30;
     _writeUrl();
     load();
-  }));
-  $('act-search')?.addEventListener('input', e => {
+  });
+  search.addEventListener('input', e => {
     _q = e.target.value;
     clearTimeout(_qTimer);
     _qTimer = setTimeout(() => { _writeUrl(); load(); }, 220);

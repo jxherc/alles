@@ -1,4 +1,4 @@
-// what's new: shows once on the first visit and once after each release, then stays shut until
+// what's new: shows once after each update (never on a first visit), then stays shut until
 // the next one. releases live in /static/whats-new.json, newest first.
 import { createFocusBoundary } from './kokuen.js?v=5';
 import { escapeHtml } from './util.js';
@@ -44,10 +44,10 @@ async function releases() {
   } catch { return []; }
 }
 
-// which releases to show: everything newer than the last one seen; the newest one on a first visit
+// which releases to show: everything newer than the last one seen. a first visit shows none:
+// a fresh install opens setup, and notes only mean something after an update (u.11)
 export function unseen(list, seen) {
-  if (!list.length || list[0].id === seen) return [];
-  if (!seen) return list.slice(0, 1);
+  if (!list.length || !seen || list[0].id === seen) return [];
   const at = list.findIndex(release => release.id === seen);
   return (at === -1 ? list : list.slice(0, at)).slice(0, 3);
 }
@@ -56,12 +56,13 @@ export async function maybeShowWhatsNew() {
   // a test browser or other automation never needs release notes over the screen it drives
   if (navigator.webdriver) return;
   const list = await releases();
+  if (list.length && !read()) { mark(list[0].id); return; }
   const show = unseen(list, read());
   if (!show.length) return;
   // never on top of something the owner already has open
   const busy = [...document.querySelectorAll('.dialog-overlay, [role="dialog"], [role="alertdialog"]')].some(node => node.getClientRects().length);
   if (busy) { setTimeout(maybeShowWhatsNew, 4000); return; }
-  open(show, { first: !read(), latest: list[0].id });
+  open(show, { first: false, latest: list[0].id });
 }
 
 export async function openWhatsNew() {

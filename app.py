@@ -14,7 +14,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.access_middleware import HostGuardMiddleware, PublicHttpsMiddleware
-from core.api_errors import ApiError, api_error_handler
+from sqlalchemy.exc import OperationalError
+
+from core.api_errors import ApiError, api_error_handler, database_busy_handler
 from core.database import ModelEndpoint, SessionLocal, init_db
 from core.observability_middleware import ObservabilityMiddleware
 from core.sse_flush import SseFlushMiddleware
@@ -1119,6 +1121,7 @@ validate_access_config()
 # ALLES_API_DOCS is on, and only to the signed-in owner when auth is on
 app = FastAPI(title="alles", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.add_exception_handler(ApiError, api_error_handler)
+app.add_exception_handler(OperationalError, database_busy_handler)
 
 app.add_middleware(
     CORSMiddleware,

@@ -181,24 +181,6 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-trigger; check for nested bezels",
-    "css_block_sha256": "3c4b49cae0c2891ab9b687911224bcfbeca46b73ddb4294d41349d38de20197b",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-trigger",
-    "job": "control-bezel",
-    "reason": "The locale-choice trigger has its own select-like button outline inside a format row."
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-menu; check for nested bezels",
-    "css_block_sha256": "14928fa743779226536fa55dcfb901b1323918ac6d7344807e234a0034e313d6",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-choice-menu",
-    "job": "distinct-region",
-    "reason": "floating format choice menu boundary. one open choice menu per preference"
-  },
-  {
-    "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-segmented button; check for nested bezels",
     "css_block_sha256": "52a588ccd486e53389bc203c63fbceda48c07957a3de5ba3827752a1f6f01a7b",
     "path": "static/kokuen.css",
@@ -749,11 +731,11 @@
   {
     "rule": "focus-suppression",
     "message": "outline suppressed in html[data-kokuen-version=\"5\"] :where( input:not([type]), input:is([type=\"text\"], [type=\"search\"], [type=\"email\"], [type=; prove one replacement geometry",
-    "css_block_sha256": "a87799addf4ec713db3f2054194f9d3dda8efc40030784539447d1d501e4f152",
+    "css_block_sha256": "89ec6dbf543c06484bf0b01be99e38f1da8e2f3710550e207fc1446d1f0fffc6",
     "path": "static/kokuen.css",
-    "selector": "html[data-kokuen-version=\"5\"] :where( input:not([type]), input:is([type=\"text\"], [type=\"search\"], [type=\"email\"], [type=\"url\"], [type=\"tel\"], [type=\"password\"], [type=\"number\"]), textarea, .custom-select[role=\"combobox\"], .locale-choice-trigger[aria-haspopup=\"listbox\"], .date-input ):where(:not([role=\"button\"]:not(.date-input))):not(.wiki-source, .note-editor-title, .note-editor-body, .jrnl-text):focus-visible",
+    "selector": "html[data-kokuen-version=\"5\"] :where( input:not([type]), input:is([type=\"text\"], [type=\"search\"], [type=\"email\"], [type=\"url\"], [type=\"tel\"], [type=\"password\"], [type=\"number\"]), textarea, .custom-select[role=\"combobox\"], .date-input ):where(:not([role=\"button\"]:not(.date-input))):not(.wiki-source, .note-editor-title, .note-editor-body, .jrnl-text):focus-visible",
     "job": "single form-field focus edge",
-    "reason": "One field (decision 0049): text-like inputs, textareas, custom-select combobox and locale-choice triggers and date fields replace the generic rectangle by recoloring their own 1px inset ring to the dim neutral field-focus token, with 12px between the text and that edge (revamp.css one field). Invalid fields retain a danger indicator. Long form editors (docs source, notes, journal) are excluded: they take no box and the caret is their focus. Forced colors restores a Highlight outline for independent fields; action, choice, slider and color-control rings remain. Inputs acting as buttons keep their full control outline."
+    "reason": "One field (decision 0049): text-like inputs, textareas, custom-select combobox triggers and date fields replace the generic rectangle by recoloring their own 1px inset ring to the dim neutral field-focus token, with 12px between the text and that edge (revamp.css one field). Invalid fields retain a danger indicator. Long form editors (docs source, notes, journal) are excluded: they take no box and the caret is their focus. Forced colors restores a Highlight outline for independent fields; action, choice, slider and color-control rings remain. Inputs acting as buttons keep their full control outline."
   },
   {
     "rule": "focus-suppression",

@@ -1,6 +1,6 @@
 import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
-import { pick } from '../dialog.js';
+import { closeCustomDropdowns, populateDropdown } from '../dropdown.js?v=217';
 import { formatDateForLocale, formatTimeForLocale, prepareLocalization, regionName, t } from '../i18n.js';
 
 // ── Phase 10 locale Settings ─────────────────────────────────────────────────
@@ -39,8 +39,6 @@ let _localeSettingsBusy = false;
 let _localeSettingsSaving = false;
 let _localeLoadGeneration = 0;
 let _localeSettingsDirty = false;
-let _localeOpenMenu = '';
-let _localeMenuHome = null;
 
 function _browserRegion() {
   const locale = globalThis.navigator?.language || 'en';
@@ -72,110 +70,25 @@ function _localeChoiceLabel(name, value) {
   return item ? _optionText(name, item) : value;
 }
 
+// region, timezone and currency use the kit dropdown (dropdown.js): type to jump, the list on
+// document.body, the same look as every other pick in alles
 function _renderLocaleChoiceMenu(name) {
-  const menu = document.querySelector(`[data-locale-menu="${name}"]`);
-  if (!menu) return;
   const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
-  const value = trigger?.dataset.value || '';
-  menu.replaceChildren(..._localeChoiceOptions(name).map(item => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'locale-choice-option';
-    button.setAttribute('role', 'option');
-    button.setAttribute('aria-selected', String(item.value === value));
-    button.tabIndex = item.value === value ? 0 : -1;
-    button.dataset.value = item.value;
-    button.textContent = item.value ? _optionText(name, item) : t('common.automatic');
-    return button;
+  if (!trigger) return;
+  const options = _localeChoiceOptions(name).map(item => ({
+    value: item.value,
+    label: item.value ? _optionText(name, item) : t('common.automatic'),
   }));
+  populateDropdown(trigger, options, trigger.dataset.value || '');
 }
 
 function _setLocaleChoiceValue(name, value, dirty = false) {
   const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
   const valid = _localeChoiceOptions(name).some(item => item.value === value) ? value : '';
-  if (trigger) {
-    trigger.dataset.value = valid;
-    trigger.textContent = _localeChoiceLabel(name, valid);
-  }
+  if (trigger) trigger.dataset.value = valid;
   _renderLocaleChoiceMenu(name);
   if (dirty) _markLocaleSettingsChanged();
   _updateLocalePreview();
-}
-
-function _closeLocaleChoice(returnFocus = false) {
-  if (!_localeOpenMenu) return;
-  const name = _localeOpenMenu;
-  const menu = document.querySelector(`[data-locale-menu="${name}"]`);
-  const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
-  if (menu) {
-    menu.hidden = true;
-    _localeMenuHome?.append(menu);
-    menu.removeAttribute('style');
-  }
-  _localeMenuHome = null;
-  window.removeEventListener('resize', _positionLocaleChoice);
-  window.removeEventListener('scroll', _positionLocaleChoice, true);
-  if (trigger) trigger.setAttribute('aria-expanded', 'false');
-  _localeOpenMenu = '';
-  if (returnFocus) trigger?.focus();
-}
-
-function _positionLocaleChoice() {
-  if (!_localeOpenMenu) return;
-  const menu = document.querySelector(`[data-locale-menu="${_localeOpenMenu}"]`);
-  const trigger = document.querySelector(`[data-locale-choice="${_localeOpenMenu}"]`);
-  if (!menu || !trigger) return;
-  const rect = trigger.getBoundingClientRect();
-  const below = innerHeight - rect.bottom - 12;
-  const above = rect.top - 12;
-  const height = Math.min(264, menu.scrollHeight, Math.max(below, above));
-  const width = Math.min(Math.max(rect.width, 180), innerWidth - 16);
-  menu.style.width = `${width}px`;
-  menu.style.maxHeight = `${Math.max(44, height)}px`;
-  menu.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - width - 8))}px`;
-  menu.style.top = `${below >= height || below >= above ? rect.bottom + 4 : Math.max(8, rect.top - height - 4)}px`;
-}
-
-// regions, timezones and currencies run to hundreds, so they open a list you can type into
-async function _pickLocaleChoice(name, trigger) {
-  const options = _localeChoiceOptions(name).map(item => ({
-    value: item.value,
-    label: item.value ? _optionText(name, item) : t('common.automatic'),
-    hint: name === 'region' && item.value ? item.value : '',
-  }));
-  const label = trigger.closest('.s-field')?.querySelector('label')?.textContent?.trim() || '';
-  const chosen = await pick(label, options, { value: trigger.dataset.value || '' });
-  if (chosen !== null && chosen !== undefined) _setLocaleChoiceValue(name, chosen, true);
-}
-
-function _openLocaleChoice(name, edge = '') {
-  _closeLocaleChoice(false);
-  const menu = document.querySelector(`[data-locale-menu="${name}"]`);
-  const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
-  if (!menu || !trigger) return;
-  if (_localeChoiceOptions(name).length > 12) { void _pickLocaleChoice(name, trigger); return; }
-  _renderLocaleChoiceMenu(name);
-  _localeMenuHome = menu.parentElement;
-  document.getElementById('settings-modal')?.append(menu);
-  menu.hidden = false;
-  trigger.setAttribute('aria-expanded', 'true');
-  _localeOpenMenu = name;
-  _positionLocaleChoice();
-  window.addEventListener('resize', _positionLocaleChoice);
-  window.addEventListener('scroll', _positionLocaleChoice, true);
-  const options = [...menu.querySelectorAll('[role="option"]')];
-  const target = edge === 'last'
-    ? options.at(-1)
-    : edge === 'first'
-      ? options[0]
-      : menu.querySelector('[aria-selected="true"]') || options[0];
-  target?.focus();
-}
-
-function _chooseLocaleOption(name, option) {
-  if (!option) return;
-  _setLocaleChoiceValue(name, option.dataset.value || '', true);
-  _closeLocaleChoice(true);
 }
 
 function _setLocaleRadioValue(name, value, dirty = false) {
@@ -395,53 +308,14 @@ async function _saveLocaleSettings() {
   }
 }
 
-function _handleLocaleOptionKey(event) {
-  const option = event.target.closest('[role="option"]');
-  if (option) {
-    const menu = option.closest('[data-locale-menu]');
-    const options = [...menu.querySelectorAll('[role="option"]')];
-    const index = options.indexOf(option);
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      _closeLocaleChoice(true);
-      return;
-    }
-    if (event.key === 'Tab') {
-      _closeLocaleChoice(true);
-      return;
-    }
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      _chooseLocaleOption(menu.dataset.localeMenu, option);
-      return;
-    }
-    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-      event.preventDefault();
-      let next = index;
-      if (event.key === 'ArrowDown') next = (index + 1) % options.length;
-      if (event.key === 'ArrowUp') next = (index - 1 + options.length) % options.length;
-      if (event.key === 'Home') next = 0;
-      if (event.key === 'End') next = options.length - 1;
-      option.tabIndex = -1;
-      options[next].tabIndex = 0;
-      options[next].focus();
-      return;
-    }
-  }
-}
 
 
 function _wireLocaleSettingsPane() {
   const pane = document.getElementById('s-pane-notifications');
   if (!pane || pane.dataset.localeBound) return;
   pane.dataset.localeBound = '1';
-  pane.querySelectorAll('[data-locale-menu]').forEach(menu => {
-    menu.addEventListener('click', event => {
-      const option = event.target.closest('[role="option"]');
-      if (option) _chooseLocaleOption(menu.dataset.localeMenu, option);
-    });
-    menu.addEventListener('keydown', _handleLocaleOptionKey);
+  pane.querySelectorAll('[data-locale-choice]').forEach(trigger => {
+    trigger.addEventListener('change', () => _setLocaleChoiceValue(trigger.dataset.localeChoice, trigger.dataset.value || '', true));
   });
   pane.addEventListener('click', event => {
     const language = event.target.closest('[data-locale-language]');
@@ -454,13 +328,6 @@ function _wireLocaleSettingsPane() {
       }
       _setLocaleLanguage(language.dataset.localeLanguage);
       _markLocaleSettingsChanged();
-      return;
-    }
-    const trigger = event.target.closest('[data-locale-choice]');
-    if (trigger) {
-      const name = trigger.dataset.localeChoice;
-      if (_localeOpenMenu === name) _closeLocaleChoice(true);
-      else _openLocaleChoice(name);
       return;
     }
     const format = event.target.closest('[data-locale-format]');
@@ -485,13 +352,6 @@ function _wireLocaleSettingsPane() {
       choices[next].focus();
       return;
     }
-    const trigger = event.target.closest('[data-locale-choice]');
-    if (trigger && ['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) {
-      event.preventDefault();
-      event.stopPropagation();
-      _openLocaleChoice(trigger.dataset.localeChoice, event.key === 'ArrowUp' ? 'last' : 'first');
-      return;
-    }
     const format = event.target.closest('[data-locale-format]');
     if (format && ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
@@ -506,12 +366,6 @@ function _wireLocaleSettingsPane() {
       choices[next].focus();
     }
   });
-  document.addEventListener('pointerdown', event => {
-    if (!_localeOpenMenu) return;
-    const wrap = document.querySelector(`[data-locale-choice="${_localeOpenMenu}"]`)?.closest('.locale-choice-wrap');
-    const menu = document.querySelector(`[data-locale-menu="${_localeOpenMenu}"]`);
-    if (wrap && !wrap.contains(event.target) && !menu?.contains(event.target)) _closeLocaleChoice(false);
-  }, true);
   document.getElementById('s-locale-save')?.addEventListener('click', _saveLocaleSettings);
 }
 
@@ -520,7 +374,7 @@ export const languagePane = createSettingsPane({
   init: _wireLocaleSettingsPane,
   load: loadLocaleSettingsPane,
   dispose() {
-    _closeLocaleChoice(false);
+    closeCustomDropdowns(document.getElementById('s-pane-notifications'));
     _localeLoadGeneration += 1;
     if (!_localeSettingsSaving) _setLocaleSettingsBusy(false);
   },

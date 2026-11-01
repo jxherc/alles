@@ -3,7 +3,7 @@ import { confirm as dlgConfirm } from './dialog.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
 import { toast, plainError, writeClipboard } from './util.js';
 import { formatDateTime, t, tp } from './i18n.js';
-import { populateDropdown } from './dropdown.js?v=215';
+import { populateDropdown } from './dropdown.js?v=217';
 
 const $ = id => document.getElementById(id);
 const EVERY = () => [['hour', t('aide.goal_rhythm_hour')], ['six_hours', t('aide.goal_rhythm_six_hours')], ['day', t('aide.goal_rhythm_day')], ['week', t('aide.goal_rhythm_week')]];

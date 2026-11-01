@@ -9,8 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import secrets
 import socket
 import subprocess
+import time
 import uuid
 from pathlib import Path
 
@@ -29,6 +31,7 @@ DEFINITIONS = {
         "project": "alles-adguard-home",
         "compose_service": "adguard-home",
         "admin_port": 3000,
+        "probe_path": "/",
         "network_ports": (53,),
         "confirmation": "activate adguard dns",
     },
@@ -40,6 +43,7 @@ DEFINITIONS = {
         "project": "alles-nginx-proxy-manager",
         "compose_service": "nginx-proxy-manager",
         "admin_port": 8181,
+        "probe_path": "/api/",
         "network_ports": (80, 443),
         "confirmation": "activate nginx proxy",
     },
@@ -300,8 +304,8 @@ def _activation_env(
         return (
             f"ADGUARD_ADMIN_PORT=3000\nADGUARD_DNS_BIND={bind}\nADGUARD_DNS_PORT={ports['dns']}\n"
         )
-    # NPM 2.15.1 prints INITIAL_ADMIN_PASSWORD during its legacy automated setup.
-    # Keep credentials out of Docker environment and logs; its private loopback UI owns setup.
+    # NPM 2.15.1 prints INITIAL_ADMIN_PASSWORD during its legacy automated setup, so the first
+    # admin is created through its setup api after start instead (see activate).
     return f"NPM_ADMIN_PORT=8181\nNPM_HTTP_BIND={bind}\nNPM_HTTP_PORT={ports['http']}\nNPM_HTTPS_BIND={bind}\nNPM_HTTPS_PORT={ports['https']}\n"
 
 
@@ -329,10 +333,14 @@ def activate(
     runner=_runner,
     port_free=_port_free,
     probe=None,
+    wait: float = 120,
+    npm_admin=managed_companion_clients.setup_npm_admin,
 ) -> dict:
     d = _definition(service_id)
     if str(confirmation or "").strip() != d["confirmation"]:
         raise ManagedCompanionError("activation confirmation phrase does not match")
+    if service_id == "nginx-proxy-manager" and admin_password and len(admin_password) < 12:
+        raise ManagedCompanionError("admin password must be at least 12 characters")
     check = preflight(service_id, bind=bind, ports=ports, runner=runner, port_free=port_free)
     if not check["ok"]:
         raise ManagedCompanionError("network preflight did not pass")
@@ -361,9 +369,11 @@ def activate(
         )
         result = runner(_compose_command(service_id, "up", "-d"), timeout=180)
         if result.returncode != 0:
+            reason = _why(result)
+            if reason:
+                raise ManagedCompanionError(f"companion did not start: {reason}")
             raise ManagedCompanionError("companion did not start")
-        healthy = probe(service_id) if probe else _probe(service_id)
-        if not healthy:
+        if not _wait_healthy(service_id, probe, wait):
             raise ManagedCompanionError("companion health probe failed")
     except Exception:
         _atomic(env_path, previous_env)
@@ -374,6 +384,14 @@ def activate(
                 config.unlink(missing_ok=True)
         runner(_compose_command(service_id, "down"), timeout=90)
         raise
+    if service_id == "nginx-proxy-manager":
+        # alles makes the first admin itself (email and password given, else generated) so there
+        # is no setup wizard. if that fails the companion still runs and NPM's own wizard works
+        email = admin_username.strip() if "@" in admin_username else "admin@alles.local"
+        try:
+            npm_admin(email, admin_password or secrets.token_urlsafe(18))
+        except managed_companion_clients.CompanionClientError:
+            pass
     manifest["activated"] = True
     manifest["activation"] = {"bind": check["bind"], "ports": check["ports"]}
     manifest["rollback"] = {
@@ -400,12 +418,33 @@ def activate(
 
 
 def _probe(service_id: str) -> bool:
-    port = _definition(service_id)["admin_port"]
+    d = _definition(service_id)
     try:
-        response = httpx.get(f"http://127.0.0.1:{port}/", timeout=4, follow_redirects=False)
+        response = httpx.get(
+            f"http://127.0.0.1:{d['admin_port']}{d['probe_path']}",
+            timeout=4,
+            follow_redirects=False,
+        )
         return response.status_code < 500
     except Exception:
         return False
+
+
+def _wait_healthy(service_id: str, probe, wait: float, sleep=time.sleep) -> bool:
+    # a fresh NPM runs its database migrations before the admin api answers, so one probe
+    # right after `up -d` always fails
+    deadline = time.monotonic() + wait
+    while True:
+        if probe(service_id) if probe else _probe(service_id):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        sleep(2)
+
+
+def _why(result) -> str:
+    lines = [line.strip() for line in (result.stderr or "").splitlines() if line.strip()]
+    return lines[-1][:200] if lines else ""
 
 
 def status(service_id: str, *, runner=_runner, probe=None) -> dict:
@@ -436,7 +475,9 @@ def status(service_id: str, *, runner=_runner, probe=None) -> dict:
         "activation": manifest.get("activation") or {},
         "confirmation_phrase": d["confirmation"],
         "network_mutation": service_id == "adguard-home",
-        "admin_setup": "private_wizard" if service_id == "nginx-proxy-manager" else "alles_managed",
+        "admin_setup": "alles_generated"
+        if service_id == "nginx-proxy-manager"
+        else "alles_managed",
     }
 
 
@@ -468,7 +509,7 @@ def rollback(service_id: str, *, runner=_runner) -> dict:
     manifest["activated"] = False
     manifest["activation"] = {}
     _atomic(_manifest_path(service_id), json.dumps(manifest, sort_keys=True, indent=2) + "\n")
-    managed_companion_clients.clear_credentials(service_id)
+    managed_companion_clients.clear_credentials(service_id, keep_admin=True)
     return status(service_id, runner=runner)
 
 

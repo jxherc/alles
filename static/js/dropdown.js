@@ -31,7 +31,7 @@ export function initCustomDropdown(el) {
   el.setAttribute('aria-expanded', 'false');
   if (!el.hasAttribute('tabindex')) el.tabIndex = 0;
 
-  if (!el.dataset.value) el.dataset.value = _readOptions(el)[0]?.value || '';
+  if (!el.dataset.value && !_isMulti(el)) el.dataset.value = _readOptions(el)[0]?.value || '';
 
   Object.defineProperty(el, 'value', {
     configurable: true,
@@ -39,10 +39,18 @@ export function initCustomDropdown(el) {
     set(next) {
       const opts = _readOptions(el);
       const idx = opts.findIndex(o => o.value === String(next));
-      el.dataset.value = idx >= 0 ? opts[idx].value : String(next ?? '');
+      if (_isMulti(el)) {
+        const wanted = new Set(String(next ?? '').split(';'));
+        el.dataset.value = opts.filter(o => wanted.has(o.value)).map(o => o.value).join(';');
+      } else el.dataset.value = idx >= 0 ? opts[idx].value : String(next ?? '');
       _renderTrigger(el);
       if (_open?.el === el) _renderPanel(el);
     },
+  });
+  Object.defineProperty(el, 'values', {
+    configurable: true,
+    get() { return _picked(el); },
+    set(next) { el.value = (next || []).join(';'); },
   });
   Object.defineProperty(el, 'disabled', {
     configurable: true,
@@ -90,6 +98,7 @@ export function initCustomDropdown(el) {
       const index = _typeAhead(el, opts, e.key);
       if (index < 0) return;
       e.preventDefault();
+      if (_open?.el !== el && _isMulti(el)) _openDropdown(el);
       if (_open?.el === el) { _open.activeIndex = index; _renderPanel(el); }
       else _choose(el, index);
     }
@@ -97,6 +106,20 @@ export function initCustomDropdown(el) {
 }
 
 export function getDropdownValue(el) { return el?.dataset?.value || ''; }
+
+// pick several (ux laws: muscle groups, tags, filters): data-multiple="true", checkmarks in the
+// list, the picks as text in the trigger. dataset.value holds the picked values joined by ";"
+// (the option format already reserves ";"), el.values reads and writes them as an array
+const _isMulti = el => el?.dataset?.multiple === 'true';
+const _picked = el => (el.dataset.value || '').split(';').filter(Boolean);
+
+export function getDropdownValues(el) { return el ? _picked(el) : []; }
+
+export function populateMultiDropdown(el, options, values = []) {
+  if (!el) return;
+  el.dataset.multiple = 'true';
+  populateDropdown(el, options, values.join(';'));
+}
 
 export function setDropdownValue(el, value) {
   if (!el) return;
@@ -164,9 +187,13 @@ function _activeIndex(el) {
 
 function _renderTrigger(el) {
   const opts = _readOptions(el);
-  const label = opts.find(o => o.value === el.dataset.value)?.label || el.dataset.placeholder || t('calendar.select');
+  const multi = _isMulti(el);
+  const picked = multi ? new Set(_picked(el)) : null;
+  const label = (multi
+    ? opts.filter(o => picked.has(o.value)).map(o => o.label).join(', ')
+    : opts.find(o => o.value === el.dataset.value)?.label) || el.dataset.placeholder || t('calendar.select');
   el.innerHTML = `
-    <span class="custom-select-label">${_iconFor(el, el.dataset.value)}${_esc(label)}</span>
+    <span class="custom-select-label">${multi ? '' : _iconFor(el, el.dataset.value)}${_esc(label)}</span>
     <svg class="custom-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
   `;
 }
@@ -184,6 +211,7 @@ function _openDropdown(el) {
   const surface = el.closest('[data-kokuen-surface]')?.dataset.kokuenSurface;
   if (surface) panel.dataset.kokuenSurface = surface;
   panel.setAttribute('role', 'listbox');
+  if (_isMulti(el)) panel.setAttribute('aria-multiselectable', 'true');
   panel.setAttribute('aria-label', el.getAttribute('aria-label') || t('shell.choices'));
   document.body.appendChild(panel);
   _open = { el, panel, activeIndex: _activeIndex(el) };
@@ -201,26 +229,59 @@ function _renderPanel(el) {
   const panel = _open?.panel;
   if (!panel) return;
   const opts = _readOptions(el);
+  const multi = _isMulti(el);
+  const picked = new Set(multi ? _picked(el) : [el.dataset.value]);
+  // moving through a long list (hundreds of timezones) only moves the active mark; rebuilding
+  // every option per key made typed letters arrive too slowly to join one prefix
+  const signature = `${el.dataset.options}\n${el.dataset.value}`;
+  if (panel._signature === signature) {
+    panel.querySelector('.custom-dropdown-option.active')?.classList.remove('active');
+    _showActive(el, panel, panel.querySelectorAll('.custom-dropdown-option')[_open.activeIndex]);
+    return;
+  }
+  panel._signature = signature;
+  const check = '<svg class="custom-dropdown-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 12 10 17 19 7"/></svg>';
   panel.innerHTML = opts.map((opt, idx) => `
-    <button type="button" tabindex="-1" id="${panel.id}-option-${idx}" class="custom-dropdown-option${opt.value === el.dataset.value ? ' selected' : ''}${idx === _open.activeIndex ? ' active' : ''}" data-index="${idx}" role="option" aria-selected="${opt.value === el.dataset.value}">
-      ${_iconFor(el, opt.value)}${_esc(opt.label)}
+    <button type="button" tabindex="-1" id="${panel.id}-option-${idx}" class="custom-dropdown-option${multi ? ' is-multi' : ''}${picked.has(opt.value) ? ' selected' : ''}${idx === _open.activeIndex ? ' active' : ''}" data-index="${idx}" role="option" aria-selected="${picked.has(opt.value)}">
+      ${multi ? check : _iconFor(el, opt.value)}${_esc(opt.label)}
     </button>
   `).join('');
-  const active = panel.querySelector('.active');
-  if (active) el.setAttribute('aria-activedescendant', active.id);
   panel.querySelectorAll('.custom-dropdown-option').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       _choose(el, Number(btn.dataset.index));
     });
   });
-  active?.scrollIntoView({ block: 'nearest' });
+  _showActive(el, panel, panel.querySelector('.active'));
+}
+
+function _showActive(el, panel, active) {
+  if (!active) return;
+  active.classList.add('active');
+  el.setAttribute('aria-activedescendant', active.id);
+  active.scrollIntoView({ block: 'nearest' });
+  // the panel's rem padding is a fraction of a pixel and scrollTop is whole, so the ends snap
+  // fully into view instead of stopping a fraction short
+  if (!active.nextElementSibling) panel.scrollTop = panel.scrollHeight;
+  if (!active.previousElementSibling) panel.scrollTop = 0;
 }
 
 function _choose(el, index) {
   const opts = _readOptions(el);
   const opt = opts[index];
   if (!opt) return;
+  if (_isMulti(el)) {
+    // toggles one pick and stays open, so several can be picked in a row
+    const picked = new Set(_picked(el));
+    if (picked.has(opt.value)) picked.delete(opt.value);
+    else picked.add(opt.value);
+    el.dataset.value = opts.filter(o => picked.has(o.value)).map(o => o.value).join(';');
+    _renderTrigger(el);
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    if (_open?.el === el) { _open.activeIndex = index; _renderPanel(el); }
+    el.focus?.();
+    return;
+  }
   el.dataset.value = opt.value;
   _renderTrigger(el);
   el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -231,7 +292,9 @@ function _choose(el, index) {
 function _positionPanel(el, panel) {
   const rect = el.getBoundingClientRect();
   const margin = 8;
-  panel.style.minWidth = `${rect.width}px`;
+  // never wider than the screen less a margin on each side (a wide trigger on a phone)
+  panel.style.maxWidth = `${window.innerWidth - margin * 2}px`;
+  panel.style.minWidth = `${Math.min(rect.width, window.innerWidth - margin * 2)}px`;
 
   // measure the natural height (uncapped), then cap to the CSS max and viewport
   panel.style.maxHeight = '';
@@ -247,13 +310,14 @@ function _positionPanel(el, panel) {
     maxH = Math.min(desired, spaceAbove);               // tight below → flip up
     top = rect.top - maxH - 4;
   }
-  panel.style.maxHeight = `${Math.max(80, maxH)}px`;
-  panel.style.top = `${Math.max(margin, top)}px`;
+  // whole pixels, so the panel's edges don't land between device pixels
+  panel.style.maxHeight = `${Math.floor(Math.max(80, maxH))}px`;
+  panel.style.top = `${Math.round(Math.max(margin, top))}px`;
 
   // keep it inside the viewport horizontally too
   const width = panel.offsetWidth || rect.width;
   const left = Math.min(rect.left, window.innerWidth - width - margin);
-  panel.style.left = `${Math.max(margin, left)}px`;
+  panel.style.left = `${Math.round(Math.max(margin, left))}px`;
 }
 
 function _repositionOpen() {

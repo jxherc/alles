@@ -3,7 +3,7 @@ import { t, tp } from './i18n.js';
 import { confirm as confirmDialog, fields as fieldsDialog } from './dialog.js';
 import { categoryHue } from './color.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
-import { getDropdownValue, setDropdownValue } from './dropdown.js?v=215';
+import { getDropdownValue, setDropdownValue } from './dropdown.js?v=217';
 
 let _memories = [];
 let _searchTimeout = null;

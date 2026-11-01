@@ -7,13 +7,13 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=605">
-  <link rel="stylesheet" href="/static/kokuen.css?v=90">
+<link rel="stylesheet" href="/static/style.css?v=607">
+  <link rel="stylesheet" href="/static/kokuen.css?v=92">
 <link rel="stylesheet" href="/static/aidecentral.css?v=19">
 <link rel="stylesheet" href="/static/aidecoding.css?v=28">
 <link rel="stylesheet" href="/static/aidecall.css?v=3">
 <link rel="stylesheet" href="/static/help.css?v=2">
-<link rel="stylesheet" href="/static/revamp.css?v=101">
+<link rel="stylesheet" href="/static/revamp.css?v=102">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <link rel="search" type="application/opensearchdescription+xml" title="andromeda" href="/opensearch.xml">
@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=605">
+<link rel="modulepreload" href="/static/js/app.js?v=607">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=217">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -58,7 +58,7 @@
 <link rel="modulepreload" href="/static/js/specialist_groups.js?v=16">
 <link rel="modulepreload" href="/static/js/sso-state.js">
 <link rel="modulepreload" href="/static/js/brain.js?v=242">
-<link rel="modulepreload" href="/static/js/settings.js?v=298">
+<link rel="modulepreload" href="/static/js/settings.js?v=299">
 <link rel="modulepreload" href="/static/js/modes.js?v=259">
 <link rel="modulepreload" href="/static/js/privacy.js">
 <link rel="modulepreload" href="/static/js/scrollfollow.js">
@@ -82,7 +82,7 @@
 <link rel="modulepreload" href="/static/js/response_actions.js?v=6">
 <link rel="modulepreload" href="/static/js/brandlogo.js">
 <link rel="modulepreload" href="/static/js/modelfilter.js">
-<link rel="modulepreload" href="/static/js/dropdown.js?v=215">
+<link rel="modulepreload" href="/static/js/dropdown.js?v=217">
 <link rel="modulepreload" href="/static/js/artifacts.js">
 <link rel="modulepreload" href="/static/js/aidebackgroundpolicy.js">
 <link rel="modulepreload" href="/static/js/recent_owner.js">
@@ -105,6 +105,7 @@
 <link rel="modulepreload" href="/static/js/settings/andromeda.js">
 <link rel="modulepreload" href="/static/js/settings/search_engines.js">
 <link rel="modulepreload" href="/static/js/settings/connections.js">
+<link rel="modulepreload" href="/static/js/settings/organization.js">
 <link rel="modulepreload" href="/static/js/memory.js">
 <link rel="modulepreload" href="/static/js/theme.js">
 <link rel="modulepreload" href="/static/js/aidecoding.js">
@@ -1708,6 +1709,7 @@
         <div class="s-nav-group" data-i18n="shell.settings.this_alles">this alles</div>
         <button class="s-nav-item" type="button" data-pane="security" data-i18n="shell.settings.privacy_password">privacy &amp; password</button>
         <button class="s-nav-item" type="button" data-pane="backup" data-i18n="shell.settings.backup_restore">backup &amp; restore</button>
+        <button class="s-nav-item" type="button" data-link="server" data-i18n="settings.org_server">server</button>
         <button class="s-nav-item" type="button" data-pane="credits" data-i18n="shell.settings.about_credits">about &amp; credits</button>
       </nav>
       </div>
@@ -2167,6 +2169,10 @@
             <div class="s-card-body">
               <p class="s-card-hint" data-i18n="shell.settings_general.finish_setup_or_review_your_saved">finish setup or review your saved choices.</p>
               <button class="btn" id="general-setup-btn" type="button" data-i18n="shell.settings_general.open_setup">open setup</button>
+              <div class="s-field">
+                <label id="s-settings-layout-label" data-i18n="settings.org_layout">settings layout</label>
+                <div class="settings-input custom-select" id="s-settings-layout" aria-labelledby="s-settings-layout-label" data-value="jobs" data-options="jobs|by what you're doing;often|by how often;things|by what it changes;classic|classic" data-i18n-options="settings.org_by_job;settings.org_by_often;settings.org_by_thing;settings.org_classic"></div>
+              </div>
             </div>
           </div>
           <div class="s-card">
@@ -2736,17 +2742,11 @@
                 <div class="locale-format-list">
                   <div class="locale-format-row">
                     <div><strong data-i18n="locale.region">region</strong><small id="s-region-detected" data-i18n="locale.detecting_browser">detecting this browser…</small></div>
-                    <div class="locale-choice-wrap">
-                      <button class="locale-choice-trigger" id="s-region-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-locale-choice="region" data-value="" data-i18n="common.automatic">automatic</button>
-                      <div class="locale-choice-menu" id="s-region-menu" role="listbox" aria-label="region" data-i18n-aria-label="locale.region" data-locale-menu="region" hidden></div>
-                    </div>
+                    <div class="custom-select" id="s-region-trigger" aria-label="region" data-i18n-aria-label="locale.region" data-locale-choice="region" data-value="" data-options="|automatic"></div>
                   </div>
                   <div class="locale-format-row">
                     <div><strong data-i18n="locale.timezone">timezone</strong><small id="s-timezone-detected" data-i18n="locale.detecting_browser">detecting this browser…</small></div>
-                    <div class="locale-choice-wrap">
-                      <button class="locale-choice-trigger" id="s-timezone-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-locale-choice="timezone" data-value="" data-i18n="common.automatic">automatic</button>
-                      <div class="locale-choice-menu" id="s-timezone-menu" role="listbox" aria-label="timezone" data-i18n-aria-label="locale.timezone" data-locale-menu="timezone" hidden></div>
-                    </div>
+                    <div class="custom-select" id="s-timezone-trigger" aria-label="timezone" data-i18n-aria-label="locale.timezone" data-locale-choice="timezone" data-value="" data-options="|automatic"></div>
                   </div>
                   <div class="locale-format-row">
                     <div><strong data-i18n="locale.clock">clock</strong><small data-i18n="locale.stored_event_help">Does not change stored event times.</small></div>
@@ -2766,10 +2766,7 @@
                   </div>
                   <div class="locale-format-row">
                     <div><strong data-i18n="locale.currency">currency</strong><small data-i18n="locale.currency_help">Used for locale-sensitive money display.</small></div>
-                    <div class="locale-choice-wrap">
-                      <button class="locale-choice-trigger" id="s-currency-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-locale-choice="currency" data-value="" data-i18n="common.automatic">automatic</button>
-                      <div class="locale-choice-menu" id="s-currency-menu" role="listbox" aria-label="currency" data-i18n-aria-label="locale.currency" data-locale-menu="currency" hidden></div>
-                    </div>
+                    <div class="custom-select" id="s-currency-trigger" aria-label="currency" data-i18n-aria-label="locale.currency" data-locale-choice="currency" data-value="" data-options="|automatic"></div>
                   </div>
                 </div>
               </section>
@@ -3103,6 +3100,6 @@
   </div><!-- /s-modal -->
 </div>
 
-<script type="module" src="/static/js/app.js?v=605"></script>
+<script type="module" src="/static/js/app.js?v=607"></script>
 </body>
 </html>

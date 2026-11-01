@@ -1,5 +1,5 @@
 import { plainError, writeClipboard } from './util.js';
-import { initCustomDropdowns, setDropdownValue } from './dropdown.js?v=215';
+import { initCustomDropdowns, setDropdownValue } from './dropdown.js?v=217';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
