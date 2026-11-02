@@ -908,7 +908,7 @@ async function renderBackups(target, request, completed = null) {
 }
 
 async function renderUpdates(target, request) {
-  const section = card(t('server.wb_release'), t('server.wb_release_copy'));
+  const section = card(t('server.wb_release'));
   try {
     const build = await json(request, '/api/system/build');
     const release = build.release || {};

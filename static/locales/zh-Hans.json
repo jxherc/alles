@@ -6311,7 +6311,6 @@
     "server.wb_queries_today": "今日查询",
     "server.wb_recent_dns": "最近的 DNS 活动",
     "server.wb_release": "版本与更新状态",
-    "server.wb_release_copy": "此页面显示正在运行的构建。安装更新仍需通过原生守护程序或命令行完成，因为此浏览器进程无法安全地替换自身。",
     "server.wb_release_commit": "版本",
     "server.wb_release_value": "{commit} · 安装于 {date}",
     "server.wb_updates": "更新",

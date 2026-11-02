@@ -6310,7 +6310,6 @@
     "server.wb_queries_today": "الاستعلامات اليوم",
     "server.wb_recent_dns": "نشاط DNS الأخير",
     "server.wb_release": "حالة الإصدار والتحديث",
-    "server.wb_release_copy": "تعرض هذه الصفحة النسخة قيد التشغيل. يبقى تثبيت التحديث إجراءً من المشرف الأصلي أو سطر الأوامر لأن عملية المتصفح هذه لا تستطيع استبدال نفسها بأمان.",
     "server.wb_release_commit": "الإصدار",
     "server.wb_release_value": "{commit} · ثُبّت في {date}",
     "server.wb_updates": "التحديثات",
