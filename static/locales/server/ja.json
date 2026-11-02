@@ -2566,6 +2566,10 @@
     "only a bank email row can be left out": "除外できるのは銀行メールの行だけです",
     "only bank alert emails are read from mail": "メールから読み込めるのは銀行通知メールだけです",
     "the email list could not be read": "メールの一覧を読み込めませんでした",
-    "the email names more than one amount": "このメールには金額が複数あります"
+    "the email names more than one amount": "このメールには金額が複数あります",
+    "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME にはフルパスが必要です（例: /Volumes/External/Alles）",
+    "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT には 1024 から 65535 までの数字が必要です",
+    "the drive {drive} isn't connected. plug it in, then run the install again": "ドライブ {drive} が接続されていません。接続してから、もう一度インストールしてください",
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "フォルダ {folder} がありません。そのドライブを接続するか作成してから、もう一度インストールしてください"
   }
 }

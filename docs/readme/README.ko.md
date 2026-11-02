@@ -27,6 +27,14 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
 
 기본적으로 alles는 이 기기에서만 접근할 수 있고 비밀번호 없이 시작합니다. **네트워크에 올리기 전에** 비밀번호를 정하고 누가 열 수 있는지 고르세요. `alles access lan`이 둘 다 해 줍니다. 로컬 네트워크 접근과 공개 접근은 요구 사항이 다르니 먼저 [보안](../../specifications.md#security--read-before-exposing-it) 내용을 읽어 보세요. 설치 직후에 비밀번호를 설정할지(8자 이상, 나중에 `alles password`로 설정하거나 바꿀 수 있어요), 다른 기기에서도 열 수 있게 할지 물어봐요.
 
+### 다른 드라이브에 설치하기
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
+```
+
+그러면 alles는 모든 것을 이 폴더에 둡니다. 문서와 파일은 보이는 곳에, 데이터베이스, 앱, 백업, 설정은 그 안의 숨김 폴더 `.alles`에 들어갑니다. 이 컴퓨터에는 `alles` 명령과 서비스를 시작하는 작은 파일만 남고, 이후의 모든 명령(`alles update` 포함)은 폴더를 알아서 찾습니다. 드라이브가 연결되어 있지 않으면 설치는 아무것도 만들기 전에 멈추고, `alles`는 드라이브가 없다고 알려 주며, 서비스는 빈 상태로 시작하지 않고 드라이브를 기다립니다. `ALLES_PORT=8000`으로 같은 방식으로 포트도 바꿀 수 있습니다.
+
 ### 다른 기기에서 사용하기
 
 ```bash

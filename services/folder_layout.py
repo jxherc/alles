@@ -29,21 +29,18 @@ class FolderMoveError(RuntimeError):
     pass
 
 
-def visible_root(home: Path) -> Path:
-    return home / "Alles"
-
-
 def backups_dir(support_root: Path) -> Path:
     return support_root / "backups"
 
 
 def _targets(layout) -> dict:
-    root = visible_root(layout.home)
+    # ~/Alles, or ALLES_HOME itself when the install lives somewhere else
+    root = layout.files_default
     return {"root": root, "docs": root / "Docs", "backups": backups_dir(layout.support_root)}
 
 
 def _legacy(layout) -> dict:
-    root = visible_root(layout.home)
+    root = layout.files_default
     return {"vault": root / "Vault", "files": root / "Files", "backups": root / "Backups"}
 
 
@@ -465,7 +462,12 @@ def describe(layout) -> tuple[bool | None, str]:
         found = plan(layout)
     except (FolderMoveError, OSError) as exc:
         return False, f"can't be read: {exc}"
-    root = "~/" + visible_root(layout.home).relative_to(layout.home).as_posix()
+    root = layout.files_default
+    root = (
+        "~/" + root.relative_to(layout.home).as_posix()
+        if layout.home in root.parents
+        else str(root)
+    )
     state = found["state"]
     if state == "one-folder":
         return True, f"one folder: {root}"

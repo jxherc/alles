@@ -27,6 +27,14 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
 
 標準では、alles にはこのデバイスからしかアクセスできず、パスワードなしで起動します。**ネットワークに公開する前に**、パスワードを設定し、誰が開けるかを決めてください。`alles access lan` で両方できます。ローカルネットワークでの利用と公開アクセスでは条件が異なります。先に[セキュリティ](../../specifications.md#security--read-before-exposing-it)を読んでください。インストール直後に、パスワードを設定するか（8 文字以上。あとから `alles password` で設定・変更できます）と、ほかのデバイスからも開けるようにするかを尋ねます。
 
+### 別のドライブに入れる
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
+```
+
+こうすると alles はすべてをこのフォルダーに置きます。ドキュメントとファイルは見える場所に、データベース、アプリ、バックアップ、設定はその中の隠しフォルダー `.alles` に入ります。このコンピューターに残るのは `alles` コマンドとサービスを起動する小さなファイルだけで、以降のコマンド（`alles update` も）はフォルダーを自分で見つけます。ドライブがつながっていないと、インストールは何も作らずに止まり、`alles` はドライブがないと伝え、サービスは空のまま起動せずにドライブを待ちます。`ALLES_PORT=8000` で同じようにポートも変えられます。
+
 ### ほかのデバイスから使う
 
 ```bash

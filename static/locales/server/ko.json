@@ -2566,6 +2566,10 @@
     "only a bank email row can be left out": "은행 메일 행만 제외할 수 있습니다",
     "only bank alert emails are read from mail": "메일에서는 은행 알림 메일만 읽습니다",
     "the email list could not be read": "메일 목록을 읽지 못했습니다",
-    "the email names more than one amount": "메일에 금액이 둘 이상 있습니다"
+    "the email names more than one amount": "메일에 금액이 둘 이상 있습니다",
+    "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME에는 /Volumes/External/Alles 같은 전체 경로가 필요합니다",
+    "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT에는 1024부터 65535까지의 숫자가 필요합니다",
+    "the drive {drive} isn't connected. plug it in, then run the install again": "드라이브 {drive}가 연결되어 있지 않습니다. 연결한 다음 설치를 다시 실행하세요",
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "폴더 {folder}가 없습니다. 해당 드라이브를 연결하거나 폴더를 만든 다음 다시 설치하세요"
   }
 }

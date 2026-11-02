@@ -28,6 +28,9 @@ class NativeUpdateCliTest(unittest.TestCase):
             runtime_root=self.root / "runtime",
             home=self.root / "home",
             support_root=self.root,
+            files_default=self.root / "home" / "Alles",
+            install_home=None,
+            port=6769,
         )
         self.old = "a" * 40
         self.new = "b" * 40
@@ -58,6 +61,8 @@ class NativeUpdateCliTest(unittest.TestCase):
             launcher=self.root / "bin" / "alles",
             manager="systemd-user",
             data_root=self.root / "owned-data",
+            install_home=None,
+            port=6769,
         )
         seen_data = []
         installed = {

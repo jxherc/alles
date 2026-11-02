@@ -26,6 +26,14 @@ después abre [http://localhost:6769](http://localhost:6769) y sigue la configur
 
 por defecto, solo se puede acceder a alles desde este dispositivo y arranca sin contraseña. **antes de ponerlo en tu red**, ponle una contraseña y elige quién puede abrirlo: `alles access lan` hace ambas cosas. el acceso en la red local y el acceso público tienen requisitos distintos; lee primero la sección de [seguridad](../../specifications.md#security--read-before-exposing-it). justo después de instalarlo, pregunta si quieres una contraseña (8 caracteres o más; `alles password` la crea o la cambia después) y si tus otros dispositivos deben poder abrirlo.
 
+### instalarlo en otro disco
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
+```
+
+alles guarda entonces todo en esa carpeta: tus documentos y archivos a la vista, y la base de datos, la app, las copias de seguridad y los ajustes en una carpeta oculta `.alles` dentro de ella. solo el comando `alles` y el pequeño archivo que arranca el servicio se quedan en este ordenador, y cada comando posterior (también `alles update`) encuentra la carpeta solo. si el disco no está conectado, la instalación se detiene antes de crear nada, `alles` dice que falta el disco y el servicio espera al disco en lugar de arrancar vacío. `ALLES_PORT=8000` elige otro puerto de la misma forma.
+
 ### usarlo desde otro dispositivo
 
 ```bash

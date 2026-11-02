@@ -32,6 +32,7 @@ _RELEASE_TRANSACTION = "release-transaction.json"
 _RELEASE_REMOVAL = "release-removal.json"
 # sources pinned to one exact commit: a git checkout, or a github archive (the one-line install)
 _COMMIT_SOURCES = frozenset({"git", "archive"})
+DEFAULT_PORT = 6769
 
 
 class NativeInstallError(RuntimeError):
@@ -65,6 +66,28 @@ class NativeLayout:
     manager: str
     unit: str
     config_file: Path | None = None
+    # ALLES_HOME: the whole install lives in this one folder (an external drive, say)
+    install_home: Path | None = None
+    port: int = DEFAULT_PORT
+
+
+def _install_home_from_env() -> Path | None:
+    raw = os.environ.get("ALLES_HOME", "").strip()
+    if not raw:
+        return None
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        raise NativeInstallError("ALLES_HOME needs a full path, like /Volumes/External/Alles")
+    return path
+
+
+def _port_from_env() -> int:
+    raw = os.environ.get("ALLES_PORT", "").strip()
+    if not raw:
+        return DEFAULT_PORT
+    if not raw.isdigit() or not 1024 <= int(raw) <= 65535:
+        raise NativeInstallError("ALLES_PORT needs a number from 1024 to 65535")
+    return int(raw)
 
 
 def platform_layout(
@@ -73,10 +96,18 @@ def platform_layout(
     home: Path | None = None,
     xdg_data_home: Path | None = None,
     xdg_config_home: Path | None = None,
+    install_home: Path | None = None,
+    port: int | None = None,
 ) -> NativeLayout:
     system = system or platform.system()
     home_was_explicit = home is not None
     home = (home or Path.home()).expanduser().resolve()
+    if not home_was_explicit:
+        # set by the owner at install, then by the dispatcher for every later command
+        install_home = install_home or _install_home_from_env()
+        port = port or _port_from_env()
+    if install_home is not None:
+        install_home = install_home.expanduser().resolve()
     if system == "Darwin":
         support = home / "Library" / "Application Support" / "Alles"
         definition = home / "Library" / "LaunchAgents" / "app.alles.server.plist"
@@ -109,6 +140,11 @@ def platform_layout(
         config = config_home / "alles" / "alles.env"
     else:
         raise NativeInstallError("the native installer supports macOS and Linux")
+    # ALLES_HOME is the visible files root itself, with the hidden support folder inside it
+    files = install_home or home / "Alles"
+    if install_home is not None:
+        support = install_home / ".alles"
+        config = support / "alles.env"
 
     runtime = support / "runtime"
     data = support / "data"
@@ -121,8 +157,8 @@ def platform_layout(
         staging=runtime / ".staging",
         data_root=data,
         # one visible folder (oct 27): ~/Alles is the files root and docs sit inside it
-        vault_default=home / "Alles" / "Docs",
-        files_default=home / "Alles",
+        vault_default=files / "Docs",
+        files_default=files,
         launcher=home / ".local" / "bin" / "alles",
         dispatcher=runtime / "alles-dispatch",
         manifest=runtime / "install.json",
@@ -133,6 +169,8 @@ def platform_layout(
         manager=manager,
         unit=unit,
         config_file=config,
+        install_home=install_home,
+        port=port or DEFAULT_PORT,
     )
 
 
@@ -465,14 +503,25 @@ def _dispatcher_source(layout: NativeLayout) -> bytes:
     xdg_environment = ""
     if layout.system == "Linux":
         xdg_environment = (
-            f"export XDG_DATA_HOME={shlex.quote(str(layout.support_root.parent))}\n"
-            f"export XDG_CONFIG_HOME={shlex.quote(str(layout.service_definition.parents[2]))}\n"
-        )
+            ""
+            if layout.install_home is not None
+            else f"export XDG_DATA_HOME={shlex.quote(str(layout.support_root.parent))}\n"
+        ) + f"export XDG_CONFIG_HOME={shlex.quote(str(layout.service_definition.parents[2]))}\n"
     config = (
         f"export ALLES_CONFIG={shlex.quote(str(layout.config_file))}\n"
         if layout.config_file is not None
         else ""
     )
+    # every command and the service run through here, so the install's location sticks
+    location = ""
+    if layout.install_home is not None:
+        location = (
+            f"export ALLES_HOME={shlex.quote(str(layout.install_home))}\n"
+            # node, pi and aide's browser go on the same drive as everything else
+            f"export XDG_CACHE_HOME={shlex.quote(str(layout.support_root / 'cache'))}\n"
+        )
+    if layout.port != DEFAULT_PORT:
+        location += f"export ALLES_PORT={layout.port}\n"
     return (
         "#!/bin/sh\n"
         "set -eu\n"
@@ -480,6 +529,7 @@ def _dispatcher_source(layout: NativeLayout) -> bytes:
         f"export ALLES_DATA={data}\n"
         f"export ALLES_NATIVE_ROOT={runtime}\n"
         f"{config}"
+        f"{location}"
         f"{xdg_environment}"
         'release="$(sed -n \'1p\' "$runtime/current-release")"\n'
         'case "$release" in (*[!a-z0-9._-]*|"") echo "alles: invalid installed release" >&2; exit 1;; esac\n'
@@ -488,14 +538,34 @@ def _dispatcher_source(layout: NativeLayout) -> bytes:
         'if [ ! -x "$python" ] || [ ! -f "$root/cli.py" ] || [ ! -f "$root/app.py" ]; then\n'
         '  echo "alles: installed release is incomplete" >&2; exit 1\n'
         "fi\n"
-        'if [ "${1:-}" = "__serve__" ]; then shift; export PORT=6769; cd "$root"; exec "$python" -B "$root/app.py" "$@"; fi\n'
+        f'if [ "${{1:-}}" = "__serve__" ]; then shift; export PORT={layout.port}; cd "$root"; exec "$python" -B "$root/app.py" "$@"; fi\n'
         'exec "$python" -B "$root/cli.py" "$@"\n'
     ).encode("utf-8")
 
 
 def _launcher_source(layout: NativeLayout) -> bytes:
     dispatcher = shlex.quote(str(layout.dispatcher))
-    return f'#!/bin/sh\nexec {dispatcher} "$@"\n'.encode("utf-8")
+    if layout.install_home is None:
+        return f'#!/bin/sh\nexec {dispatcher} "$@"\n'.encode("utf-8")
+    # the launcher stays on this computer while the rest may sit on a drive that isn't plugged
+    # in: a command says so, and the service waits for the drive instead of starting on nothing.
+    # the service log is opened here: launchd ends a job with EX_CONFIG and makes nothing when its
+    # program or log folder is missing (checked on macos, nov 2), so neither may sit on the drive
+    return (
+        "#!/bin/sh\n"
+        f"home={shlex.quote(str(layout.install_home))}\n"
+        f"dispatcher={dispatcher}\n"
+        f"data={shlex.quote(str(layout.data_root))}\n"
+        'if [ ! -x "$dispatcher" ] || [ ! -d "$data" ]; then\n'
+        '  if [ "${1:-}" != "__serve__" ]; then\n'
+        "    echo \"alles: $home isn't there. if it's on a drive, plug the drive in and try again\" >&2\n"
+        "    exit 1\n"
+        "  fi\n"
+        '  while [ ! -x "$dispatcher" ] || [ ! -d "$data" ]; do sleep 10; done\n'
+        "fi\n"
+        'if [ "${1:-}" = "__serve__" ]; then exec >>"$data/alles-service.log" 2>&1; fi\n'
+        'exec "$dispatcher" "$@"\n'
+    ).encode("utf-8")
 
 
 def _xml(value: str) -> str:
@@ -523,9 +593,17 @@ def _systemd_path(value: Path) -> str:
 
 
 def _service_source(layout: NativeLayout) -> bytes:
+    log = layout.data_root / "alles-service.log"
+    # with ALLES_HOME the service starts the launcher, which waits for the drive and opens the log
+    elsewhere = layout.install_home is not None
+    program = layout.launcher if elsewhere else layout.dispatcher
     if layout.manager == "launchd":
-        args = "".join(
-            f"<string>{_xml(value)}</string>" for value in (str(layout.dispatcher), "__serve__")
+        args = "".join(f"<string>{_xml(value)}</string>" for value in (str(program), "__serve__"))
+        log_paths = (
+            ""
+            if elsewhere
+            else f"<key>StandardOutPath</key><string>{_xml(str(log))}</string>\n"
+            f"<key>StandardErrorPath</key><string>{_xml(str(log))}</string>\n"
         )
         content = (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -534,7 +612,7 @@ def _service_source(layout: NativeLayout) -> bytes:
             '<plist version="1.0"><dict>\n'
             f"<key>Label</key><string>{_xml(layout.unit)}</string>\n"
             f"<key>ProgramArguments</key><array>{args}</array>\n"
-            "<key>EnvironmentVariables</key><dict><key>PORT</key><string>6769</string>"
+            f"<key>EnvironmentVariables</key><dict><key>PORT</key><string>{layout.port}</string>"
             + (
                 f"<key>ALLES_CONFIG</key><string>{_xml(str(layout.config_file))}</string>"
                 if layout.config_file is not None
@@ -543,16 +621,15 @@ def _service_source(layout: NativeLayout) -> bytes:
             + "</dict>\n"
             "<key>RunAtLoad</key><true/>\n"
             "<key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>\n"
-            f"<key>StandardOutPath</key><string>{_xml(str(layout.data_root / 'alles-service.log'))}</string>\n"
-            f"<key>StandardErrorPath</key><string>{_xml(str(layout.data_root / 'alles-service.log'))}</string>\n"
+            f"{log_paths}"
             "</dict></plist>\n"
         )
     else:
         content = (
             "[Unit]\nDescription=Alles personal server\nAfter=network-online.target\n\n"
             "[Service]\nType=simple\n"
-            f"ExecStart={_systemd_quote(layout.dispatcher)} __serve__\n"
-            "Environment=PORT=6769\n"
+            f"ExecStart={_systemd_quote(program)} __serve__\n"
+            f"Environment=PORT={layout.port}\n"
             f"Environment=ALLES_DATA={_systemd_quote(layout.data_root)}\n"
             f"Environment=ALLES_NATIVE_ROOT={_systemd_quote(layout.runtime_root)}\n"
             + (
@@ -560,12 +637,16 @@ def _service_source(layout: NativeLayout) -> bytes:
                 if layout.config_file is not None
                 else ""
             )
-            + f"Environment=XDG_DATA_HOME={_systemd_quote(layout.support_root.parent)}\n"
-            f"Environment=XDG_CONFIG_HOME={_systemd_quote(layout.service_definition.parents[2])}\n"
+            + (
+                ""
+                if elsewhere
+                else f"Environment=XDG_DATA_HOME={_systemd_quote(layout.support_root.parent)}\n"
+            )
+            + f"Environment=XDG_CONFIG_HOME={_systemd_quote(layout.service_definition.parents[2])}\n"
             # systemd takes this path as written: quotes would make it "not absolute"
-            f"StandardOutput=append:{_systemd_path(layout.data_root / 'alles-service.log')}\n"
-            "StandardError=inherit\n"
-            "Restart=on-failure\nRestartSec=2\n\n"
+            + ("" if elsewhere else f"StandardOutput=append:{_systemd_path(log)}\n")
+            + ("" if elsewhere else "StandardError=inherit\n")
+            + "Restart=on-failure\nRestartSec=2\n\n"
             "[Install]\nWantedBy=default.target\n"
         )
     return content.encode("utf-8")
@@ -1122,6 +1203,25 @@ def _remove_owned_release(path: Path, *, retain_journal: bool = False) -> None:
     _reconcile_release_removal(runtime_root, retain_journal=retain_journal)
 
 
+def check_install_home(layout: NativeLayout) -> None:
+    """ALLES_HOME's drive must be there: mkdir -p would quietly make it on the startup disk."""
+    home = layout.install_home
+    if home is None:
+        return
+    if layout.system == "Darwin" and len(home.parts) >= 3 and home.parts[1] == "Volumes":
+        drive = Path(*home.parts[:3])
+        # a drive that isn't mounted can leave an empty folder of its name behind in /Volumes
+        if not os.path.ismount(drive):
+            raise NativeInstallError(
+                f"the drive {drive} isn't connected. plug it in, then run the install again"
+            )
+    folder = home.parent
+    if not folder.is_dir():
+        raise NativeInstallError(
+            f"the folder {folder} doesn't exist. plug in its drive or make it, then install again"
+        )
+
+
 def _verify_release(path: Path, *, installation_id: str, release_id: str) -> None:
     marker_path = path / _RELEASE_MARKER
     if path.is_symlink() or not marker_path.is_file() or marker_path.is_symlink():
@@ -1148,6 +1248,7 @@ def install(
 ) -> dict:
     """Create a clean native install. Existing or unowned destinations fail closed."""
     progress = progress or _no_progress
+    check_install_home(layout)
     source = source.expanduser().resolve()
     recorded_source = _validated_source_metadata(
         dict(install_source) if install_source is not None else source_metadata(source),

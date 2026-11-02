@@ -2566,6 +2566,10 @@
     "only a bank email row can be left out": "يمكن استبعاد صف رسالة البنك فقط",
     "only bank alert emails are read from mail": "تُقرأ رسائل تنبيه البنك فقط من البريد",
     "the email list could not be read": "تعذّرت قراءة قائمة الرسائل",
-    "the email names more than one amount": "تذكر الرسالة أكثر من مبلغ"
+    "the email names more than one amount": "تذكر الرسالة أكثر من مبلغ",
+    "ALLES_HOME needs a full path, like /Volumes/External/Alles": "يحتاج ALLES_HOME إلى مسار كامل، مثل /Volumes/External/Alles",
+    "ALLES_PORT needs a number from 1024 to 65535": "يحتاج ALLES_PORT إلى رقم من 1024 إلى 65535",
+    "the drive {drive} isn't connected. plug it in, then run the install again": "القرص {drive} غير متصل. وصّله، ثم شغّل التثبيت مرة أخرى",
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "المجلد {folder} غير موجود. وصّل القرص الذي عليه أو أنشئه، ثم ثبّت مرة أخرى"
   }
 }

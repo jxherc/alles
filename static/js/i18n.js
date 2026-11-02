@@ -8788,6 +8788,8 @@ const BUILTIN_ENGLISH = {
     "whatsnew.2026_11_01.delete_menus.body": "skills, subscriptions, health entries, contacts, books and transactions keep delete in the row's more menu. a deleted row waits six seconds with undo, then it's gone.",
     "whatsnew.2026_11_01.money_menus.title": "delete sits in a menu in money too",
     "whatsnew.2026_11_01.money_menus.body": "goals, holdings, spending caps, rules, accounts and schedules keep delete in the row's more menu, with six seconds to undo. a schedule linked to your budget still asks first. on the smallest phones a transaction's edit, cleared, split and receipt move into that menu too.",
+    "whatsnew.2026_11_01.own_drive.title": "alles on its own drive",
+    "whatsnew.2026_11_01.own_drive.body": "install with ALLES_HOME=/Volumes/External/Alles and everything alles keeps lives in that folder, docs and files included. when the drive isn't plugged in, alles says so and waits for it instead of starting empty.",
     "settings.example_display_name": "e.g. eric",
     "settings.example_username": "e.g. jxh",
     "settings.example_stt_language": "e.g. en-US, zh-CN, fr-FR",
