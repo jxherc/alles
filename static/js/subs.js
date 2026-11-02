@@ -1,6 +1,7 @@
 // subscriptions — recurring costs with billing cycles and renewal reminders
 import { api, toast } from './util.js';
 import { calendarDateKey, formatNumber, t, tp } from './i18n.js';
+import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 import { whenDay } from './when.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { initDatePicker } from './datepick.js';
@@ -361,9 +362,9 @@ function _render() {
   const writeErrors = [..._errors].map(([id, message]) => `<div class="specialist-group-note" role="alert">${esc(_subs.find(s => s.id === id)?.name || t('subs.subscription'))}: ${esc(message)} <button class="btn" data-refresh-subs>${t('subs.refresh')}</button>${_paidRequests.has(id) ? ` <button class="btn" data-retry-paid="${esc(id)}">${t('subs.retry_payment')}</button>` : ''}</div>`).join('');
   list.innerHTML = notice + writeErrors + (_loading ? `<div class="specialist-group-note" role="status">${t('subs.loading')}</div>` : '') + _detectedHtml()
     + (_subs.length ? _currencyHtml() + _upcomingHtml(_upcoming) + _forecastHtml(_forecast) + _chartHtml(_analytics)
-      + _subs.map(s => _editing === s.id ? _editRow(_draft?.id === s.id ? { ...s, ..._draft } : s) : _row(s)).join('')
+      + _subs.map(s => _editing === s.id ? _editRow(_draft?.id === s.id ? { ...s, ..._draft } : s) : _undo.is(s.id) ? _goneRow(s) : _row(s)).join('')
       : (!_loaded || _loading || _loadError || _creation?.uncertain ? '' : `<div class="specialist-group-note">${t('subs.empty')}</div>`));
-  _wireRows(list); _wireDetected(list);
+  _wireRows(list); _wireDetected(list); wireMoreMenus(list);
   wireCurrency(list, _summary, () => loadSubs(fetch, { clearErrors: true }));
   list.querySelectorAll('[data-refresh-subs]').forEach(button => button.addEventListener('click', () => loadSubs(fetch, { clearErrors: true })));
   list.querySelectorAll('[data-retry-paid]').forEach(button => button.addEventListener('click', () => paySubscription(button.dataset.retryPaid)));
@@ -431,10 +432,34 @@ function _row(s) {
         ${s.paid_count ? `<button class="btn" data-act="history" title="${t('subs.history_title')}" aria-label="${t('subs.history_label', { count: s.paid_count })}">${_si('history')} ${s.paid_count}</button>` : ''}
         <button class="btn" data-act="toggle">${s.active ? t('subs.pause') : t('subs.resume')}</button>
         <button class="btn" data-act="edit">${t('common.edit')}</button>
-        <button class="btn danger" data-act="del">×</button>
+        ${moreMenuHtml('sub', s.id, s.name, deleteItemHtml('data-act="del"'))}
       </span>
     </div>`;
 }
+
+// delete waits in the row with undo for a few seconds, then goes to the server (u.10)
+function _goneRow(s) {
+  return `
+    <div class="sub-item sub-gone" data-id="${s.id}" role="status">
+      <div class="sub-main">${goneTextHtml(s.name)}</div>
+      <span class="sub-actions">${undoButtonHtml(s.id)}</span>
+    </div>`;
+}
+
+const _undo = createUndoDelete({
+  key: 'sub',
+  render: () => _render(),
+  remove: async id => {
+    if (_busy) throw new Error('another change is saving');
+    await writeSubscription(id, 'del', async () => {
+      await api(`/api/subscriptions/${id}`, { method: 'DELETE' });
+      _subs = _subs.filter(s => s.id !== id); _paidRequests.delete(id);
+      if (_history?.id === id) _history = null;
+    });
+  },
+  // writeSubscription keeps a failed delete's message in the row's own notice; only a busy view lands here
+  failed: id => { _errors.set(id, t('subs.change_unconfirmed')); _render(); },
+});
 
 function _editRow(s) {
   return `
@@ -480,21 +505,18 @@ function _wireRows(list) {
     for (const event of ['input', 'change']) row.addEventListener(event, captureDraft);
     const cycle = row.querySelector('[data-f="cycle"]');
     cycle?.addEventListener('change', () => { row.querySelector('[data-f="cycle_days"]').style.display = cycle.value === 'custom' ? '' : 'none'; });
+    row.querySelector('[data-undo-del]')?.addEventListener('click', () => _undo.undo());
     row.querySelectorAll('[data-act]').forEach(button => button.addEventListener('click', async () => {
       const action = button.dataset.act;
       if (_busy) return;
+      if (action === 'del') { _undo.later(id); return; }
       if (action === 'history') { await showHistory(id); return; }
       if (action === 'edit') { _history = null; _editing = id; _draft = null; _render(); $('subs-list').querySelector('.editing [data-f="name"]')?.focus(); return; }
       if (action === 'cancel') { _editing = null; _draft = null; _render(); return; }
       if (action === 'paid') { await paySubscription(id); return; }
       const sub = _subs.find(s => s.id === id);
-      if (action === 'del' && !await dlgConfirm(sub?.name ? t('subs.stop_tracking', { name: sub.name }) : t('subs.stop_tracking_this'))) return;
       await writeSubscription(id, action, async () => {
-        if (action === 'del') {
-          await api(`/api/subscriptions/${id}`, { method: 'DELETE' });
-          _subs = _subs.filter(s => s.id !== id); _paidRequests.delete(id);
-          if (_history?.id === id) _history = null;
-        } else if (action === 'toggle') {
+        if (action === 'toggle') {
           await api(`/api/subscriptions/${id}`, { method: 'PATCH', body: { active: !sub.active } });
         } else if (action === 'save') {
           const value = field => _draft?.[field];

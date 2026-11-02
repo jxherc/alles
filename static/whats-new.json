@@ -188,6 +188,11 @@
           "key": "numbers_change",
           "title": "numbers show change",
           "body": "health's measurements and every account balance say how they moved since last week or month, with a small line of the last 30 days. finance leads with what you spent this month against last month."
+        },
+        {
+          "key": "delete_menus",
+          "title": "delete sits in a menu",
+          "body": "skills, subscriptions, health entries, contacts, books and transactions keep delete in the row's more menu. a deleted row waits six seconds with undo, then it's gone."
         }
       ]
     },

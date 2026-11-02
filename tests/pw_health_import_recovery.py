@@ -101,10 +101,11 @@ def run():
                     )
 
                 def confirm_delete(item):
-                    page.locator(
-                        f'.health-row[data-record-id="{item["record_id"]}"] [data-act="del"]'
-                    ).click()
-                    page.locator(".dialog-overlay [data-dialog-confirm]").press("Enter")
+                    # delete waits in the row with undo for six seconds, then goes to the server (u.10)
+                    row = page.locator(f'.health-row[data-record-id="{item["record_id"]}"]')
+                    row.locator(".row-more").click()
+                    row.locator('[data-act="del"]').click()
+                    page.wait_for_timeout(6500)
 
                 def replace(item):
                     assert context.request.delete(base + f"/api/health/{item['id']}").ok
@@ -277,12 +278,12 @@ def run():
                             assert rows() == [replacement]
                             page.locator("#health-cancel").press("Enter")
                         elif case == "delete-stale":
-                            page.locator(
-                                f'.health-row[data-id="{item["id"]}"] [data-act="del"]'
-                            ).click()
+                            stale_row = page.locator(f'.health-row[data-id="{item["id"]}"]')
+                            stale_row.locator(".row-more").click()
+                            stale_row.locator('[data-act="del"]').click()
                             replacement = replace(item)
                             expected_status.append("409")
-                            page.locator(".dialog-overlay [data-dialog-confirm]").press("Enter")
+                            page.wait_for_timeout(6500)
                             expect(page.locator("#health-write-error")).to_contain_text(
                                 "reading changed"
                             )

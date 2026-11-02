@@ -7,6 +7,7 @@ import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdo
 import { initDatePicker, calendarDateParts } from './datepick.js';
 import { calendarDateKey, currencySymbol, formatCalendarDate, formatDate, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=5';
+import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 import { bankRequest as _ownerFetch, openPlaidLink, plaidNotice } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';
@@ -1507,7 +1508,15 @@ function txnList() {
   }
   if (!rows.length) return banner + `<div class="money-empty-sm">${(_searchResults !== null || _tagFilter) ? t('money.no_matches') : t('money.no_transactions')}</div>`;
   const an = {}; _accounts.forEach(a => an[a.id] = a.name);
+  const goneShown = new Set();
   return banner + `<div class="txns">` + rows.map(txn => {
+    const goneId = txn.transfer_id || txn.id;
+    if (_txnUndo.is(goneId)) {
+      // a transfer's two legs share one "deleted" row
+      if (goneShown.has(goneId)) return '';
+      goneShown.add(goneId);
+      return _goneTxnRow(txn);
+    }
     const main = _renderTxnMain(txn, an);
     return main + (_splitTxn === txn.id ? splitEditorRow(txn) : '');
   }).join('') + `</div>`;
@@ -1522,7 +1531,8 @@ function _renderTxnMain(txn, an) {
     .map(tg => `<button type="button" class="tx-tag" data-tag="${esc(tg)}" aria-label="${t('money.filter_by', { name: esc(tg) })}">${esc(tg)}</button>`).join('');
   const canSplit = (txn.amount || 0) < 0;  // only an expense divides across categories (matches the api)
   const currency = transactionCurrency(txn);
-  const label = esc(t('money.txn_label', { payee: txn.payee || t('money.kind_transaction'), date: txn.date || t('money.undated'), amount: signed(txn.amount, currency), account: an[txn.account_id] || t('money.kind_account') }));
+  const labelText = t('money.txn_label', { payee: txn.payee || t('money.kind_transaction'), date: txn.date || t('money.undated'), amount: signed(txn.amount, currency), account: an[txn.account_id] || t('money.kind_account') });
+  const label = esc(labelText);
   const actions = xf ? '' : `<span class="tx-actions">
     <button type="button" class="tx-edit" data-edit-txn="${txn.id}" aria-label="${t('money.edit_named', { label })}">${t('common.edit')}</button>
     <button class="tx-clear ${txn.cleared ? 'on' : ''}" data-clear-txn="${txn.id}" aria-label="${t('money.cleared_named', { label })}" aria-pressed="${!!txn.cleared}"><span aria-hidden="true">${_si(txn.cleared ? 'check-circle' : 'circle')}</span> ${t('money.cleared')}</button>
@@ -1532,7 +1542,7 @@ function _renderTxnMain(txn, an) {
       : `<button class="tx-receipt-btn" data-receipt-txn="${txn.id}" aria-label="${t('money.attach_receipt_to', { label })}" title="${t('money.attach_receipt')}"><span aria-hidden="true">${_si('paperclip')}</span><span class="tx-receipt-label">${t('money.attach_receipt')}</span></button>`}
   </span>`;
   return `
-    <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${txn.id}">
+    <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${txn.id}"${xf ? ` data-transfer="${esc(txn.transfer_id)}"` : ''}>
       <span class="tx-date">${txn.date ? whenHtml(txn.date) : ''}</span>
       <span class="tx-payee">${esc(txn.payee) || '<span class="tx-dim">—</span>'}</span>
       <span class="tx-cat">${xf ? `${_si('swap')} ${t('money.transfer')}` : (txn.category ? `${catDot(txn.category)}${esc(txn.category)}` : '')}</span>
@@ -1541,8 +1551,18 @@ function _renderTxnMain(txn, an) {
       <span class="tx-amt ${txn.amount >= 0 ? 'pos' : 'neg'}">${signed(txn.amount, currency)}</span>
       ${actions}
       ${xf
-        ? `<button class="tx-del" data-del-transfer="${txn.transfer_id}" aria-label="${t('money.delete_transfer_named', { label })}" title="${t('money.delete_transfer_title')}">${t('money.delete_transfer')}</button>`
-        : `<button class="tx-del" data-del-txn="${txn.id}" aria-label="${t('money.delete_named', { label })}" title="${t('common.delete')}">${t('common.delete')}</button>`}
+        ? moreMenuHtml('txn', txn.id, labelText, deleteItemHtml(`data-del-transfer="${txn.transfer_id}" aria-label="${t('money.delete_transfer_named', { label })}"`, t('money.delete_transfer')), 'tx-more')
+        : moreMenuHtml('txn', txn.id, labelText, deleteItemHtml(`data-del-txn="${txn.id}" aria-label="${t('money.delete_named', { label })}"`), 'tx-more')}
+    </div>`;
+}
+
+// delete waits in the row with undo for a few seconds, then goes to the server (u.10)
+function _goneTxnRow(txn) {
+  const name = txn.transfer_id ? t('money.transfer') : (txn.payee || t('money.kind_transaction'));
+  return `
+    <div class="txn txn-gone" data-id="${txn.id}" role="status">
+      <span class="tx-payee">${goneTextHtml(name)}</span>
+      ${undoButtonHtml(txn.transfer_id || txn.id)}
     </div>`;
 }
 
@@ -1955,8 +1975,10 @@ function _wireTxnRows() {
   const root = $('txn-rows'); if (!root) return;
   root.querySelectorAll('.txn-edit .custom-select').forEach(initCustomDropdown);
   root.querySelectorAll('.txn-edit .date-input').forEach(initDatePicker);
-  root.querySelectorAll('[data-del-transfer]').forEach(b => b.addEventListener('click', () => delTransfer(b.dataset.delTransfer)));
-  root.querySelectorAll('[data-del-txn]').forEach(b => b.addEventListener('click', () => delTxn(b.dataset.delTxn)));
+  wireMoreMenus(root);
+  root.querySelectorAll('[data-del-transfer]').forEach(b => b.addEventListener('click', () => _deleteTxnLater(b.dataset.delTransfer, true)));
+  root.querySelectorAll('[data-del-txn]').forEach(b => b.addEventListener('click', () => _deleteTxnLater(b.dataset.delTxn, false)));
+  root.querySelectorAll('[data-undo-del]').forEach(b => b.addEventListener('click', () => _txnUndo.undo()));
   root.querySelectorAll('[data-edit-txn]').forEach(el => el.addEventListener('click', () => {
     _editTxn = el.dataset.editTxn; render(true);
     $('txn-rows').querySelector(`.txn-edit[data-id="${CSS.escape(_editTxn)}"] [data-f="payee"]`)?.focus();
@@ -2229,17 +2251,26 @@ function transactionEntrySnapshot() {
   return JSON.stringify(['tx-payee', 'tx-cat', 'tx-amt', 'tx-tags', 'tx-acct', 'tx-sign', 'tx-date',
     'tr-from', 'tr-to', 'tr-amt', 'tr-date', 'tr-notes'].map(id => [$(id)?.value, $(id)?.dataset?.value]));
 }
-async function delTxn(id) {
-  if (!await dlgConfirm(t('money.delete_transaction_confirm'))) return;
-  const next = _rowAfter(id), focusVersion = _moneyFocusChange;
-  try { await api(`/api/money/transactions/${id}`, { method: 'DELETE' }); }
-  catch { toast(t('money.delete_failed'), 'error'); return; }
-  // gone at once, even if the refresh fails. load(fetch, true) keeps an active search (load()
-  // alone drops back to the month); then focus lands on the next row
-  _dropRows(row => row.id === id);
-  await load(fetch, true);
-  _focusAfterRowDelete(next, focusVersion);
+// a transaction, or a transfer (both legs, by its transfer id)
+function _deleteTxnLater(id, transfer) {
+  _txnUndo.later(id, { transfer, next: _rowAfter(id), focusVersion: _moneyFocusChange });
 }
+
+const _txnUndo = createUndoDelete({
+  key: 'txn',
+  render: () => renderTxns(),
+  focusBack: id => $('txn-rows')?.querySelector(`.txn[data-id="${CSS.escape(id)}"] .row-more`)
+    || $('txn-rows')?.querySelector(`.txn[data-transfer="${CSS.escape(id)}"] .row-more`),
+  remove: (id, gone) => api(gone.transfer ? `/api/money/transfer/${id}` : `/api/money/transactions/${id}`, { method: 'DELETE' }),
+  failed: () => toast(t('money.delete_failed'), 'error'),
+  after: async (gone, ok) => {
+    // gone at once, even if the refresh fails. load(fetch, true) keeps an active search (load()
+    // alone drops back to the month); then focus lands on the next row
+    if (ok) _dropRows(row => (gone.transfer ? row.transfer_id === gone.id : row.id === gone.id));
+    await load(fetch, true);
+    _focusAfterRowDelete(gone.next, gone.focusVersion);
+  },
+});
 
 // take deleted rows out of what's on screen, so the redraw before the fresh read doesn't bring
 // them back (and hand focus to a row that's gone)
@@ -2261,7 +2292,7 @@ function _rowAfter(id) {
 function _focusAfterRowDelete(next, focusVersion) {
   if (focusVersion !== _moneyFocusChange || (document.activeElement && document.activeElement !== document.body)) return;
   const rows = $('txn-rows');
-  (next && rows?.querySelector(`.txn[data-id="${CSS.escape(next)}"] .tx-del`) || $('txn-search'))?.focus();
+  (next && rows?.querySelector(`.txn[data-id="${CSS.escape(next)}"] .row-more`) || $('txn-search'))?.focus();
 }
 
 // ── 4a: splits, tags, receipts, cleared, reconcile ────────────────────────────
@@ -2397,15 +2428,6 @@ async function doTransfer() {
   } finally {
     _transferBusy = false;
   }
-}
-async function delTransfer(tid) {
-  if (!await dlgConfirm(t('money.delete_transfer_confirm'))) return;
-  const next = _rowAfter(tid), focusVersion = _moneyFocusChange;
-  try { await api(`/api/money/transfer/${tid}`, { method: 'DELETE' }); }
-  catch { toast(t('money.delete_failed'), 'error'); return; }
-  _dropRows(row => row.transfer_id === tid);
-  await load(fetch, true);
-  _focusAfterRowDelete(next, focusVersion);
 }
 async function saveTxn(id) {
   const row = $('money-body').querySelector(`.txn-edit[data-id="${id}"]`);

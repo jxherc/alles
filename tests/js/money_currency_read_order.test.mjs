@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { t, tp } from '../../static/js/i18n.js';
+import { undoGlobals } from './helpers/undo_globals.mjs';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -97,7 +98,7 @@ function harness() {
     if (!codes.length) node('af-currency-retry');
     if (preserve) subject.restore(body);
   }
-  const context = vm.createContext({
+  const context = vm.createContext({ ...undoGlobals,
     t, tp,
     document, api, renderModel, URL, URLSearchParams, clearTimeout,
     location: { search: '?m=2026-10', href: 'http://owned.invalid/?m=2026-10' },

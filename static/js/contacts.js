@@ -1,8 +1,9 @@
 import { toast } from './util.js';
-import { confirm as _dlgConfirm, prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
+import { prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
 import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=217';
 import { formatCalendarDate, formatDate, formatTime, t, tp } from './i18n.js';
 import { pushRouteUrl, routeHistoryPosition } from './route_history.js';
+import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 
 // 4a - typed relationship kinds (mirrors services/contacts_graph _INVERSE)
 const REL_KINDS = ['friend', 'colleague', 'spouse', 'partner', 'sibling', 'parent', 'child', 'manager', 'report', 'mentor', 'mentee'];
@@ -117,26 +118,8 @@ export async function loadContacts(q = '', fetcher = fetch) {
     if (load !== _contactsLoad) return;
     if (_contactEntry !== null && routeHistoryPosition() < _contactEntry) _contactEntry = null;
     if (!contacts.length) { list.innerHTML = `<div class="page-empty">${_favOnly ? t('contacts.no_favorites') : t('contacts.no_contacts')}</div>`; return; }
-    list.innerHTML = contacts.map(c => `
-      <div class="contact-item" data-id="${c.id}">
-        <button class="contact-star${c.favorite ? ' on' : ''}" data-id="${c.id}" title="${_esc(t('contacts.favorite'))}">${_si(c.favorite ? 'star-fill' : 'star')}</button>
-        ${_avatarHtml(c)}
-        <div class="contact-rowmain">
-          <span class="row-name">${_esc(c.name)}${c.is_me ? ` <span class="contact-me-badge">${t('contacts.me')}</span>` : ''}</span>
-          <span class="row-meta">${_esc(c.email || c.phone || '')}${c.company ? ' · ' + _esc(c.company) : ''}</span>
-        </div>
-        <div class="contact-rowacts">
-          <button class="act-btn" data-open="${c.id}">${t('common.open')}</button>
-          <button class="act-btn danger" data-del="${c.id}">${t('contacts.del')}</button>
-        </div>
-      </div>`).join('');
-    list.querySelectorAll('.contact-star').forEach(s => s.addEventListener('click', async () => {
-      const on = !s.classList.contains('on');
-      await fetch(`/api/contacts/${s.dataset.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: on }) });
-      loadContacts(document.getElementById('contacts-search')?.value || '');
-    }));
-    list.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openContact(b.dataset.open)));
-    list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => delContact(b.dataset.del)));
+    _shown = contacts;
+    _drawContacts(list);
     if (_returnTo && (!document.activeElement || document.activeElement === document.body)) list.querySelector(`[data-open="${CSS.escape(_returnTo)}"]`)?.focus();
     _returnTo = null;
   } catch {
@@ -146,11 +129,63 @@ export async function loadContacts(q = '', fetcher = fetch) {
   }
 }
 
-async function delContact(id) {
-  if (!await _dlgConfirm(t('contacts.delete_confirm'))) return;
-  await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
-  loadContacts();
+let _shown = [];   // the contacts the list shows, so a delete waiting for undo can redraw without a fetch
+
+function _contactRow(c) {
+  if (_undo.is(c.id)) {
+    return `
+      <div class="contact-item contact-gone" data-id="${c.id}" role="status">
+        <div class="contact-rowmain">${goneTextHtml(c.name)}</div>
+        <div class="contact-rowacts">${undoButtonHtml(c.id, 'act-btn')}</div>
+      </div>`;
+  }
+  return `
+      <div class="contact-item" data-id="${c.id}">
+        <button class="contact-star${c.favorite ? ' on' : ''}" data-id="${c.id}" title="${_esc(t('contacts.favorite'))}">${_si(c.favorite ? 'star-fill' : 'star')}</button>
+        ${_avatarHtml(c)}
+        <div class="contact-rowmain">
+          <span class="row-name">${_esc(c.name)}${c.is_me ? ` <span class="contact-me-badge">${t('contacts.me')}</span>` : ''}</span>
+          <span class="row-meta">${_esc(c.email || c.phone || '')}${c.company ? ' · ' + _esc(c.company) : ''}</span>
+        </div>
+        <div class="contact-rowacts">
+          <button class="act-btn" data-open="${c.id}">${t('common.open')}</button>
+          ${moreMenuHtml('contact', c.id, c.name, deleteItemHtml(`data-del="${c.id}"`))}
+        </div>
+      </div>`;
 }
+
+function _drawContacts(list) {
+  list.innerHTML = _shown.map(_contactRow).join('');
+  wireMoreMenus(list);
+  list.querySelectorAll('.contact-star').forEach(s => s.addEventListener('click', async () => {
+    const on = !s.classList.contains('on');
+    await fetch(`/api/contacts/${s.dataset.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: on }) });
+    loadContacts(document.getElementById('contacts-search')?.value || '');
+  }));
+  list.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openContact(b.dataset.open)));
+  list.querySelectorAll('.row-menu [data-del]').forEach(b => b.addEventListener('click', () => _undo.later(b.dataset.del)));
+  list.querySelectorAll('[data-undo-del]').forEach(b => b.addEventListener('click', () => _undo.undo()));
+}
+
+// delete waits in the row with undo for a few seconds, then goes to the server (u.10)
+const _undo = createUndoDelete({
+  key: 'contact',
+  render: () => {
+    const list = document.getElementById('contacts-list');
+    if (list?.querySelector('.contact-item')) _drawContacts(list);
+  },
+  remove: async id => {
+    const response = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) throw new Error('contact not deleted');
+  },
+  failed: () => toast(t('contacts.delete_failed'), 'error'),
+  after: async (gone, ok, hadFocus) => {
+    const list = document.getElementById('contacts-list');
+    if (!list || list.querySelector('.contact-detail')) return;
+    await loadContacts(document.getElementById('contacts-search')?.value || '');
+    if (hadFocus && document.activeElement === document.body) list.querySelector('[data-open]')?.focus();
+  },
+});
 
 // on the contact's own entry, leaving is a real Back (the shell redraws the list), so the
 // browser's Back never has to step over a list that's already showing
@@ -466,7 +501,6 @@ export async function addContact() {
   }
 }
 
-window._delContact = delContact;
 window._editContact = openContact;
 
 // a birthday is month and day (the year is the person's business, and may be missing)
