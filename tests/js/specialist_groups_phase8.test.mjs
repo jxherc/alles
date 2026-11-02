@@ -335,24 +335,25 @@ test('Finance overview keeps ledger setup off the page: one link, no panel, grou
   }));
   assert.equal(h.target.querySelector('.finance-actual-panel'), null);
   assert.equal(h.target.querySelector('.finance-actual-toggle'), null);
-  const link = h.target.querySelector('.finance-daily-actions').querySelectorAll('button').find(button => button.textContent === 'ledger setup');
+  const link = h.target.querySelector('.finance-daily-actions').querySelectorAll('.specialist-inline-action').find(item => item.textContent === 'ledger setup');
   assert.ok(link, 'the ledger setup is one plain link');
+  assert.equal(link.tagName, 'a');
   assert.doesNotMatch(h.target.textContent, /show ledger setup|writes to Alles|Alles active/);
   const grid = h.target.querySelector('.finance-daily');
   assert.equal(valueOf(grid.querySelector('.specialist-group-row')), 'CAD 12,345,678.90');
 });
 
-test('Finance overview opens the ledger setup in a dialog from its link', async () => {
-  const h = financeHarness();
+test('Finance overview links the ledger setup to its home in settings', async () => {
+  const opened = [];
+  const h = financeHarness({ _openSettingsAt: id => { opened.push(id); return true; } });
   await h.render(h.target, financePaths({ '/api/money/accounts': [] }));
-  const link = h.target.querySelector('.finance-daily-actions').querySelectorAll('button').find(button => button.textContent === 'ledger setup');
-  await link.events.click();
-  const overlay = h.body.children.at(-1);
-  assert.match(overlay.className, /finance-ledger-overlay/);
-  const panel = overlay.querySelector('.finance-actual-panel');
-  assert.ok(panel, 'the full ledger panel is in the dialog');
-  assert.equal(panel.querySelector('.finance-actual-content').hidden, undefined);
-  assert.equal(panel.querySelector('.finance-actual-toggle'), null);
+  const link = h.target.querySelector('.finance-daily-actions').querySelectorAll('.specialist-inline-action').find(item => item.textContent === 'ledger setup');
+  assert.equal(link.href, '/?view=settings#s-ledger');
+  let prevented = false;
+  await link.events.click({ button: 0, preventDefault() { prevented = true; } });
+  assert.deepEqual(opened, ['s-ledger']);
+  assert.ok(prevented, 'settings opens in place, the page does not reload');
+  assert.equal(h.body.children.some(child => /finance-ledger/.test(child.className)), false, 'no dialog of its own');
 });
 
 test('Finance overview leads with what was spent this month against last month', async () => {

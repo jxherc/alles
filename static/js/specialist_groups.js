@@ -4,7 +4,6 @@
 import { confirm as confirmDialog } from './dialog.js';
 import { initDatePicker } from './datepick.js';
 import { iconEl } from './icons.js';
-import { createFocusBoundary } from './kokuen.js?v=5';
 import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDateParts, formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { balanceOn, balanceSeries, lastThirtyDays, monthBefore, signedFigure, sparkSvg, weekChange, weekChangeText } from './numbers.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
@@ -1059,7 +1058,7 @@ function _actualConfirmation(panel, action, trigger, runAction) {
   confirmation.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
-    // only the confirmation closes: the ledger dialog around it stays
+    // only the confirmation closes: the ledger panel around it stays
     event.stopPropagation();
     close();
   });
@@ -1274,44 +1273,16 @@ function _spentCard(summary, accounts) {
   return card;
 }
 
-// the Actual ledger's setup is not working-page content: it opens from one link, in a dialog
-async function _openLedgerSetup(request, trigger) {
-  const overlay = _el('div', 'dialog-overlay finance-ledger-overlay');
-  const dialog = _el('section', 'dialog-card finance-ledger-dialog');
-  dialog.setAttribute('role', 'dialog');
-  dialog.setAttribute('aria-modal', 'true');
-  dialog.setAttribute('aria-labelledby', 'finance-ledger-title');
-  const head = _el('header', 'finance-ledger-head');
-  const title = _el('h2', '', t('finance.ledger_setup'));
-  title.id = 'finance-ledger-title';
-  const closeButton = _el('button', 'btn', t('common.close'));
-  closeButton.type = 'button';
-  head.append(title, closeButton);
-  const body = _el('div', 'finance-ledger-body');
-  dialog.append(head, body);
-  overlay.append(dialog);
-  let focusBoundary = null;
-  const close = () => {
-    focusBoundary?.deactivate();
-    focusBoundary?.destroy();
-    overlay.remove();
-  };
-  closeButton.addEventListener('click', close);
-  overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
-  const show = async () => {
-    let status = null;
-    try { status = await _json(request, '/api/finance/actual'); } catch (error) {
-      body.replaceChildren(_el('p', 'specialist-group-error', t('finance.actual_status_unavailable', { error: error?.message || t('finance.err_actual') })));
-      return;
-    }
-    body.replaceChildren(_renderActualStatus(status, request, {
-      onChanged: async () => { await show(); await _refresh('finance'); },
-    }));
-  };
-  document.body.append(overlay);
-  focusBoundary = createFocusBoundary(dialog, { trigger, onEscape: close });
-  focusBoundary.activate({ source: trigger, focus: closeButton });
-  await show();
+// the Actual ledger's setup is not working-page content: its home is settings (s-ledger) and the
+// overview links there. a real link, so a new tab or a reload still lands on it
+function _ledgerLink() {
+  const link = _el('a', 'specialist-inline-action', t('finance.ledger_setup'));
+  link.href = '/?view=settings#s-ledger';
+  link.addEventListener('click', event => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button) return;
+    if (globalThis._openSettingsAt?.('s-ledger')) event.preventDefault();
+  });
+  return link;
 }
 
 async function _renderFinance(target, request) {
@@ -1375,10 +1346,7 @@ async function _renderFinance(target, request) {
   const banks = _el('button', 'specialist-inline-action', t('finance.bank_connections'));
   banks.type = 'button';
   banks.addEventListener('click', async () => (await import('./money.js')).openBankConnections());
-  const ledger = _el('button', 'specialist-inline-action', t('finance.ledger_setup'));
-  ledger.type = 'button';
-  ledger.addEventListener('click', () => _openLedgerSetup(request, ledger));
-  work.append(_sectionJump('finance', 'money', t('finance.open_transactions'), 'specialist-inline-action'), banks, ledger);
+  work.append(_sectionJump('finance', 'money', t('finance.open_transactions'), 'specialist-inline-action'), banks, _ledgerLink());
 
   // the ledger in use and not well is not setup: it stays where it can't be missed
   const urgent = financeActualPresentation(actual).state === 'canonical-unhealthy' || !!actualError;
@@ -2202,6 +2170,6 @@ export async function initSpecialistGroup(group, { section = 'overview', request
 }
 
 // settings › connections and tools is the ledger setup's home (u.05): it draws the same panel
-export function renderLedgerSetup(value, request = fetch) {
-  return _renderActualStatus(value, request);
+export function renderLedgerSetup(value, request = fetch, options = {}) {
+  return _renderActualStatus(value, request, options);
 }

@@ -353,14 +353,14 @@ def _open_finance(page: Page) -> None:
 
 
 def _open_ledger_setup(page: Page) -> None:
-    """The Actual ledger's setup is not on the overview: one button opens it in a dialog."""
-    page.get_by_role("button", name="ledger setup", exact=True).click()
-    page.locator(".finance-ledger-dialog .finance-actual-panel").wait_for(state="visible")
+    """The Actual ledger's setup is not on the overview: one link opens its home in settings."""
+    page.get_by_role("link", name="ledger setup", exact=True).click()
+    page.locator("#s-ledger .finance-actual-panel").wait_for(state="visible")
 
 
 def _close_ledger_setup(page: Page) -> None:
-    page.locator(".finance-ledger-dialog").get_by_role("button", name="close", exact=True).click()
-    page.locator(".finance-ledger-overlay").wait_for(state="detached")
+    page.locator("#settings-modal").press("Escape")
+    page.locator("#settings-modal").wait_for(state="hidden")
 
 
 def _exercise_case(
