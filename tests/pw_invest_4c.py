@@ -78,9 +78,12 @@ def main():
         r["holding_gain_colored"] = pg.query_selector(".hold-row .hold-gain.pos") is not None
 
         # ---- holdings remove ----
+        pg.click(".hold-row .row-more")
         pg.click(".hold-row [data-del-hold]")
-        pg.wait_for_timeout(900)
-        r["holding_remove"] = pg.query_selector(".hold-row") is None
+        pg.wait_for_timeout(6900)
+        r["holding_remove"] = (
+            pg.query_selector(".hold-row") is None and pg.query_selector(".money-row-gone") is None
+        )
 
         # ---- dashboard hide persists ----
         pg.hover('[data-card="accounts"]')

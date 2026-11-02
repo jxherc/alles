@@ -228,6 +228,11 @@
           "key": "delete_menus",
           "title": "delete sits in a menu",
           "body": "skills, subscriptions, health entries, contacts, books and transactions keep delete in the row's more menu. a deleted row waits six seconds with undo, then it's gone."
+        },
+        {
+          "key": "money_menus",
+          "title": "delete sits in a menu in money too",
+          "body": "goals, holdings, spending caps, rules, accounts and schedules keep delete in the row's more menu, with six seconds to undo. a schedule linked to your budget still asks first. on the smallest phones a transaction's edit, cleared, split and receipt move into that menu too."
         }
       ]
     },

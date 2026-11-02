@@ -21,7 +21,12 @@ export const deleteItemHtml = (attrs = '', label = t('common.delete')) =>
   `<button type="button" class="ctx-item danger" role="menuitem" ${attrs}>${esc(label)}</button>`;
 
 export function wireMoreMenus(root) {
-  root?.querySelectorAll('.row-more').forEach(button => wireActionMenu(button, document.getElementById(button.getAttribute('aria-controls'))));
+  root?.querySelectorAll('.row-more').forEach(button => {
+    const menu = document.getElementById(button.getAttribute('aria-controls'));
+    wireActionMenu(button, menu);
+    // a long menu on a row near the bottom would run under the phone's app bar: scroll it into view
+    button.addEventListener('click', () => { if (!menu.hidden) menu.scrollIntoView({ block: 'nearest' }); });
+  });
 }
 
 export const moreButton = (key, id) => document.getElementById(`more-${key}-${part(id)}`);

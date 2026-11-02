@@ -4,8 +4,8 @@ opens every app on seeded data (home, plan's views, health, habits, finance and 
 files, inbox, library, vault, aide) at ipad landscape and phone, with the pointer parked, and
 fails when a delete control (a trash icon, an aria-label, title, action or text that says
 delete, remove or trash, `.task-del` and the like) is visible outside an open menu, a dialog or
-an edit panel. every find prints its app, view, size and selector. ALLOWED names each real
-exception with its reason.
+an edit panel. money's shut sections are opened and its plan tasks walked first. every find
+prints its app, view, size and selector. ALLOWED names each real exception with its reason.
 
 run through the gate runner, which owns the server and its throwaway data. DELETE_SHOTS=<dir>
 also saves a screenshot of every find there (before and after evidence).
@@ -19,6 +19,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import sync_playwright
+from pw_finance_helpers import pick_money_task
 
 SIZES = {"ipad-landscape": (1180, 820), "phone": (390, 844)}
 
@@ -201,6 +202,13 @@ def seed(api, base):
             {"account_id": aid, "date": day(n), "amount": amount, "category": cat, "payee": payee},
         )
     call("POST", "/api/money/budgets", {"category": "groceries", "limit_amt": 300})
+    call("POST", "/api/money/holdings", {"symbol": "VFV", "qty": 12, "price": 118.4})
+    call("POST", "/api/money/rules", {"match": "tim hortons", "category": "eating out"})
+    call(
+        "POST",
+        "/api/money/recurring",
+        {"account_id": aid, "amount": -11.99, "payee": "spotify", "next_date": day(9)},
+    )
     call(
         "POST",
         "/api/money/goals",
@@ -273,6 +281,30 @@ def detect(page):
     page.mouse.move(0, 0)
     page.wait_for_timeout(350)
     return page.evaluate(FIND)
+
+
+def open_money(page, scan, view):
+    """money keeps accounts, caps, schedules, goals, holdings and rules in sections that start
+    shut: open both, walk the four plan tasks, and bring each card to the top of the screen
+    before scanning, since a control scrolled out of its panel doesn't count as shown."""
+    for name in ("plans", "analytics"):
+        toggle = page.locator(f'[data-money-section="{name}"]')
+        if toggle.count() and toggle.get_attribute("aria-expanded") == "false":
+            toggle.click()
+    page.wait_for_timeout(400)
+
+    def cards(label):
+        shown = page.locator("#money-view .money-card:visible")
+        for n in range(shown.count()):
+            card = shown.nth(n)
+            card.evaluate("e => e.scrollIntoView({ block: 'start' })")
+            page.wait_for_timeout(120)
+            scan(f"{view}>{label}>{card.get_attribute('data-card') or 'card'}")
+
+    for task in ("accounts", "budgets", "schedules", "goals"):
+        pick_money_task(page, task)
+        page.wait_for_timeout(300)
+        cards(task)
 
 
 def views(page, sub, base):
@@ -354,6 +386,8 @@ def run():
                                 page.screenshot(path=str(shot_dir / f"{name}-{size}.png"))
 
                     scan(view or "-")
+                    if app == "finance" and view == "money":
+                        open_money(page, scan, view)
                     # tabs inside the view (money's plan tabs, tasks' lists, calendar's modes)
                     inner = page.locator(INNER_TABS)
                     names = [

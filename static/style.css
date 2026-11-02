@@ -5162,9 +5162,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .money-acct.arch { opacity: 0.5; }
 :where(#money-view) .ma-top { display: flex; align-items: center; justify-content: space-between; }
 :where(#money-view) .ma-name { font-size: 0.8125rem; color: var(--text); }
-:where(#money-view) .ma-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9375rem; opacity: 0.62; transition: opacity 0.15s; }
-:where(#money-view) .money-acct:hover .ma-del, :where(#money-view) .money-acct:focus-within .ma-del, :where(#money-view) .ma-del:focus-visible { opacity: 1; }
-:where(#money-view) .ma-del:hover { color: var(--error); }
 :where(#money-view) .ma-bal { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 0.15rem; }
 :where(#money-view) .ma-bal.neg { color: var(--error); }
 :where(#money-view) .ma-kind { font-size: 0.8125rem; color: var(--muted); text-transform: lowercase; }
@@ -5192,8 +5189,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .cat-dot { display: inline-block; width: 8px; height: 8px; margin-inline-end: 6px; border-radius: 50%; background: var(--cat); vertical-align: 0.02em; }
 :where(#money-view) .bg-nums { color: var(--muted); font-variant-numeric: tabular-nums; }
 :where(#money-view) .bg-nums.over { color: var(--error); }
-:where(#money-view) .bg-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.875rem; }
-:where(#money-view) .bg-del:hover { color: var(--error); }
 :where(#money-view) .bg-bar-wrap { height: 6px; background: var(--bg); border-radius: var(--k-radius-control); overflow: hidden; }
 :where(#money-view) .bg-bar { height: 100%; background: var(--cat, var(--muted)); border-radius: var(--k-radius-control); }
 :where(#money-view) .bg-bar.over { background: var(--error); }
@@ -5223,9 +5218,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .tx-amt { width: 100px; text-align: right; font-variant-numeric: tabular-nums; }
 :where(#money-view) .tx-amt.pos { color: var(--green); } :where(#money-view) .tx-amt.neg { color: var(--text); }
 :where(#money-view) .tx-dim { color: var(--muted); }
-:where(#money-view) .tx-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9375rem; opacity: 1; transition: opacity 0.15s; }
-:where(#money-view) .txn:hover .tx-del, :where(#money-view) .txn:focus-within .tx-del, :where(#money-view) .tx-del:focus-visible { opacity: 1; }
-:where(#money-view) .tx-del:hover { color: var(--error); }
 
 /* 4a — tags, splits, receipts, cleared, reconcile */
 :where(#money-view) .tx-tags { display: flex; gap: 0.25rem; flex-wrap: wrap; max-width: 150px; overflow: hidden; }
@@ -5252,7 +5244,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .goal-name { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 :where(#money-view) .goal-kind { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-surface); padding: 0 0.35rem; white-space: nowrap; }
 :where(#money-view) .goal-nums { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-:where(#money-view) .goal-head > .tx-del { margin-inline-start: auto; }
+:where(#money-view) .goal-head > .row-more-wrap { margin-inline-start: auto; }
 :where(#money-view) .goal-bar-wrap { height: 7px; background: var(--bg); border-radius: var(--k-radius-surface); overflow: hidden; margin: 0.25rem 0; }
 :where(#money-view) .goal-bar { height: 100%; background: var(--green); }
 :where(#money-view) .goal-eta { font-size: 0.8125rem; color: var(--muted); }
@@ -5272,7 +5264,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .nw-svg { width: 100%; height: 110px; }
 :where(#money-view) .nw-now { font-size: 0.8125rem; color: var(--muted); margin-top: 0.3rem; }
 :where(#money-view) .holds { display: flex; flex-direction: column; gap: 0.25rem; }
-:where(#money-view) .hold-row { display: grid; grid-template-columns: 52px 1fr auto auto 18px; gap: 0.4rem; align-items: center; font-size: 0.8125rem; }
+:where(#money-view) .hold-row { display: grid; grid-template-columns: 52px 1fr auto auto auto; gap: 0.4rem; align-items: center; font-size: 0.8125rem; }
 :where(#money-view) .hold-sym { font-weight: 500; }
 :where(#money-view) .hold-qty { color: var(--muted); font-size: 0.8125rem; }
 :where(#money-view) .hold-val { text-align: right; font-variant-numeric: tabular-nums; }
@@ -5382,7 +5374,6 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .rc-cyc { color: var(--muted); font-size: 0.8125rem; margin-left: 0.15rem; }
 :where(#money-view) .rc-next { min-width: 3.5rem; text-align: right; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
 :where(#money-view) .rc-toggle { font-size: 0.8125rem; padding: 0.1rem 0.4rem; min-height: 44px; }
-:where(#money-view) .rc-delete { min-height: 44px; }
 :where(#money-view) .money-recurring-note { color: var(--muted); font-size: 0.8125rem; margin: var(--k-space-2, 8px) 0 0; }
 :where(#money-view) #money-save-results { padding: var(--k-space-2, 8px); }
 :where(#money-view) #money-save-results:empty { display: none; }
@@ -5445,14 +5436,15 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   /* the receipt action keeps its paperclip and drops its words on a phone, so the row's actions
      stay on one line at the touch type size (0044); its aria-label still names it */
   @media (max-width: 720px) { #money-view .txn .tx-receipt-label { display: none; } }
-  /* at 320 (a small phone) edit, cleared, split and the paperclip still ran onto a second line
-     beside delete's cell; "cleared" keeps its circle or tick there, and its aria-label, and the
-     gap steps down to 4px (each word still has its 10px inside the target) */
+  :where(#money-view) .txn .tx-more { grid-column: 2; grid-row: 5; justify-self: end; }
+  /* at 320 (a small phone) edit, cleared, split and the receipt live in the row's more menu, so
+     the row loses its fifth line: the menu button takes the end of the category line, which keeps
+     the payee and account their full width (money.js narrowMoney) */
+  :where(#money-view) .tx-more .menu-mark { margin-inline-start: auto; display: inline-flex; color: var(--green); }
   @media (max-width: 360px) {
-    #money-view .txn .tx-clear-label { display: none; }
-    #money-view .txn .tx-actions { gap: var(--k-space-1, 4px); }
+    :where(#money-view) .txn .tx-cat { grid-column: 1; }
+    :where(#money-view) .txn .tx-more { grid-column: 2; grid-row: 3; }
   }
-  :where(#money-view) .txn .tx-del, :where(#money-view) .txn .tx-more { grid-column: 2; grid-row: 5; justify-self: end; }
 
 #money-view .money-entry-action { min-height: 44px; }
 @media (max-width: 720px) {
@@ -5477,8 +5469,10 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view #money-section-plans { grid-template-columns: minmax(0, 1fr); }
 #money-view .money-task-pick { width: min(14rem, 100%); margin-bottom: var(--k-space-3, 12px); }
 #money-view .money-task { margin-bottom: 0; }
-#money-view .txn :is(.tx-del, .tx-more) { align-self: start; }
+#money-view .txn .tx-more { align-self: start; }
 :where(#money-view) .txn-gone > [data-undo-del] { grid-column: 2; grid-row: 1; }
+/* a goal, holding, cap, rule, account or schedule waiting for undo (u.10) */
+:where(#money-view) .money-row-gone { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); min-height: 44px; }
 :where(#money-view) .txn-gone .tx-payee { color: var(--muted); }
 #money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .split-row) { align-items: end; }
 #money-view .money-field { display: grid; gap: var(--k-space-1, 4px); height: auto; min-width: 0; max-width: 100%; box-sizing: border-box; text-align: start; } /* the empty state centers its text; a label still starts where its field does */

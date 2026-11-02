@@ -126,9 +126,12 @@ with sync_playwright() as pw:
                 plans.click()
             pick_money_task(page, "goals")
             expect(page.locator('[data-card="goals"]')).to_contain_text("Emergency Fund")
+            page.locator(".goal-row .row-more").click()
             page.locator(".goal-row [data-del-goal]").click()
-            page.get_by_role("alertdialog").locator("[data-dialog-confirm]").click()
             expect(page.locator(".goal-row")).to_have_count(0)
+            # the row waits six seconds for undo, then the goal is gone for good
+            expect(page.locator(".money-row-gone")).to_have_count(0, timeout=9000)
+            assert api.get(base + "/api/money/goals").json()["goals"] == []
             assert page.evaluate("() => document.documentElement.scrollWidth <= innerWidth + 1")
             assert not errors and not blocked, (errors, blocked)
             record["status"] = "passed"

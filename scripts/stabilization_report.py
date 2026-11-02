@@ -45,6 +45,7 @@ BROWSER_SUITES = {
     "ui-audit": ("ui-audit",),
     "kit-rules": ("kit-rules", "dropdown-layers"),
     "delete-controls": ("delete-controls",),
+    "money-row-menus": ("money-row-menus",),
     "habits": (
         "habit-recovery",
         "habit-create-recovery",
@@ -512,6 +513,7 @@ BROWSER_SUITES = {
         "pwa-storage",
         "pwa-rejection",
         "delete-controls",
+        "money-row-menus",
         *SURFACE_GATES,
     ),
 }

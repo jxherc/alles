@@ -25,6 +25,35 @@ def receipt_label(name, status):
     return re.compile("^" + re.escape(f"{name} · {status}") + "( · |$)")
 
 
+def toggle_cleared(row):
+    clear = row.locator(".tx-clear")
+    if clear.count():
+        clear.click()
+    else:
+        # on a 320px phone the row's cleared action is in its more menu
+        row.locator(".row-more").click()
+        row.locator("[data-clear-txn]").click()
+
+
+def expect_cleared(row, on):
+    clear = row.locator(".tx-clear")
+    if clear.count():
+        if on:
+            expect(clear).to_have_class("tx-clear on")
+        else:
+            expect(clear).not_to_have_class(re.compile(r"\bon\b"))
+        return
+    row.locator(".row-more").click()
+    expect(row.locator("[data-clear-txn]")).to_have_attribute(
+        "aria-label", re.compile(r", on$" if on else r", off$")
+    )
+    page_of(row).keyboard.press("Escape")
+
+
+def page_of(locator):
+    return locator.page
+
+
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
     require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -355,8 +384,8 @@ def run():
                 page.goto(base + "/?view=money", wait_until="networkidle")
                 show_money_sections(page)
                 row = page.locator(f'.txn[data-id="{transaction["id"]}"]')
-                row.locator(".tx-clear").click()
-                expect(row.locator(".tx-clear")).to_have_class("tx-clear on")
+                toggle_cleared(row)
+                expect_cleared(row, True)
                 page.locator(f'[data-rc-acct="{aid}"]').click()
                 statement = page.locator(f"#rc-stmt-{aid}")
                 statement.fill("82.66")
@@ -375,8 +404,8 @@ def run():
 
                 record = begin("failed-undo-retry-preserves-unrelated")
                 page.goto(base + "/?view=money", wait_until="networkidle")
-                row.locator(".tx-clear").click()
-                expect(row.locator(".tx-clear")).not_to_have_class(re.compile(r"\bon\b"))
+                toggle_cleared(row)
+                expect_cleared(row, False)
                 page.locator("#money-manage-toggle").click()
                 page.locator("#money-import").click()
                 page.get_by_role("button", name=receipt_label(name, "applied")).click()

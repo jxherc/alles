@@ -897,6 +897,13 @@ imports, with an optional gated move to an alles-managed actual budget core.
 
 - **accounts** (checking / savings / cash / credit / investment) with live balances + a net-worth roll-up
 - **transactions**: log income/expenses with a category + payee, browse by month, quick-add, **use edit on its row**, delete
+- delete is never on show (u.10): a transaction, transfer, goal, holding, spending cap, rule, account or
+  schedule keeps delete in its row's more menu, and the row turns into "deleted" with undo for 6 seconds
+  before the server call (`static/js/undo_delete.js`). an account still asks first (it takes its
+  transactions with it), and a schedule linked to the actual budget keeps its confirm and saved-deletion
+  recovery with no undo. on a 320px phone (max-width 360px) a transaction's edit, cleared, split and
+  receipt are in that menu too, so the payee and amount keep the row. `tests/pw_delete_controls.py`
+  opens money's shut sections and walks its four plan tasks to check it
 - manual amounts validate the entire decimal input; grouped numbers or trailing text keep the draft and show an error
 - local account, transaction and transfer creates accept an optional canonical uuid `request_id`.
   retrying identical values returns the saved result; reusing the id with changed values returns
