@@ -373,7 +373,7 @@ test('Docs library groups are independently collapsible and remember their state
   assert.match(docs, /DOCS_NAV_STATE_KEY/);
   assert.match(docs, /localStorage\.setItem\(DOCS_NAV_STATE_KEY/);
   assert.match(docs, /aria-expanded/);
-  assert.match(css, /\.docs-nav-group-content\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+  assert.match(fs.readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8'), /^\[hidden\] \{\n  display: none !important;\n\}/m);
 });
 
 test('Journal is a section of the shared Docs shell instead of a second page view', () => {

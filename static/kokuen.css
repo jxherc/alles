@@ -133,6 +133,14 @@
   overscroll-behavior-y: contain;
 }
 
+/* hidden always hides. a class that set display beat the browser's own [hidden], so
+   el.hidden = true showed things anyway (mail's add account, retry buttons with nothing to retry)
+   and 124 one-off patches grew. something that must stay laid out while hidden (a closing slide,
+   an error's held line) outranks this with its own !important rule beside it */
+[hidden] {
+  display: none !important;
+}
+
 /* Universal command: one quiet dialog, one input, one listbox. The input
    retains DOM focus while aria-activedescendant tracks the active result. */
 #search-modal[data-kokuen-surface="command"] {
@@ -417,7 +425,6 @@ body:is(
   min-width: 0;
   padding-inline: var(--k-space-3, 12px);
 }
-html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { display: none; }
 @media (max-width: 760px) {
   #plan-view .specialist-view-strip { flex-wrap: wrap; }
   #plan-view .plan-subviews { flex: 1 0 100%; flex-wrap: wrap; padding-block: 0 var(--k-space-2, 8px); }
@@ -434,7 +441,6 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   cursor: pointer;
 }
 
-.specialist-view-scroll[hidden] { display: none; }
 .specialist-view-scroll[aria-disabled="true"] { color: var(--k-ink-muted, var(--muted)); cursor: default; }
 .specialist-view-scroll:focus-visible { outline: 2px solid var(--k-focus); outline-offset: -2px; }
 [dir="rtl"] .specialist-view-scroll { transform: scaleX(-1); }
@@ -626,10 +632,6 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   background: var(--k-panel-raised, var(--panel));
 }
 
-.plan-board-menu[hidden] {
-  display: none;
-}
-
 .plan-board-menu-item {
   width: 100%;
   min-height: var(--k-control, 44px);
@@ -675,10 +677,6 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   color: var(--k-ink-muted, var(--muted));
   background: var(--k-panel, var(--panel));
   font-size: 0.8125rem;
-}
-
-.plan-board-status[hidden] {
-  display: none;
 }
 
 .plan-board-status[data-tone="danger"] {
@@ -762,8 +760,6 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   background: var(--k-raised, var(--panel));
   color: var(--k-soft, var(--text));
 }
-
-.plan-board-card[hidden] { display: none; }
 
 .plan-board-card:hover,
 .plan-board-card[aria-selected="true"] {
@@ -1023,7 +1019,6 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
 .specialist-group-note { color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; line-height: 1.5; }
 .specialist-group-note { max-width: 62rem; margin: 0 0 var(--k-space-5, 24px); }
 
-.finance-bank-dialog [hidden] { display: none !important; }
 .finance-bank-dialog a.btn {
   display: inline-flex;
   align-items: center;
@@ -1289,7 +1284,6 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
 }
 
 .server-workbench-field { min-width: 0; display: grid; margin-top: var(--k-space-4, 16px); }
-.server-workbench-field[hidden] { display: none; }
 .server-workbench-field :where(input, textarea) {
   width: 100%;
   min-height: 44px;
@@ -1335,7 +1329,6 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   background: color-mix(in srgb, var(--k-panel, var(--panel)) 76%, transparent);
 }
 
-.server-companion-form[hidden] { display: none; }
 .server-companion-ports { margin-top: 0; }
 .server-companion-checks { display: grid; gap: var(--k-space-1, 4px); margin-top: var(--k-space-4, 16px); }
 .server-companion-checks p { margin: 0; font-size: 0.8125rem; line-height: 1.5; }
@@ -1357,7 +1350,6 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
 /* 28.35: the picked host services, the add dropdown, the phrase and save sit on one 12px rhythm */
 .server-workbench-policy-hosts { display: grid; gap: var(--k-space-3, 12px); margin-top: var(--k-space-3, 12px); }
 .server-workbench-policy-hosts > * { margin: 0; }
-.server-workbench-policy-hosts[hidden] { display: none; }
 .server-managed-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .server-managed-controls { margin-top: var(--k-space-4, 16px); }
 .server-managed-section { margin-top: var(--k-space-5, 24px); }
@@ -1847,8 +1839,6 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
 :where(#finance-view) .finance-import-selected { display: block; overflow-wrap: anywhere; margin-bottom: var(--k-space-2); }
 :where(#finance-view) .finance-import-picker { display: grid; gap: var(--k-space-2); margin-top: var(--k-space-3); }
 :where(#finance-view) .finance-import-choice button { font-size: 0.8125rem; }
-:where(#finance-view) .finance-import-picker[hidden],
-:where(#finance-view) .finance-import-picker [hidden] { display: none; }
 
 :where(#finance-view) .finance-import-choice legend {
   padding: 0 var(--k-space-1);
@@ -2495,7 +2485,6 @@ html[data-theme="light"] :where(
 }
 
 /* One app-name switcher moves between the visible app headers. */
-html[data-kokuen-version="5"] .shell-navigation-toggle[hidden] { display: none; }
 
 html[data-kokuen-version="5"] .shell-navigation-toggle {
   min-width: var(--k-control, 44px);
@@ -2538,12 +2527,6 @@ html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-koku
   line-height: 1;
 }
 
-/* the icon layout outranks a plain [hidden] rule, so it must not show a control its owner hid
-   (the plan strip's ‹ › once showed with nothing to scroll) */
-html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-kokuen-icon][hidden] {
-  display: none;
-}
-
 /* kokuen-lint-disable-next-line target-size: the SVG is a glyph; its owning control keeps a 44px target. */
 html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-kokuen-icon] > svg.ic {
   width: 16px;
@@ -2556,6 +2539,20 @@ html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-koku
 html[data-kokuen-version="5"] :where(button, a[href], [role="button"])[data-kokuen-icon]:hover {
   color: var(--k-text, var(--text));
   background: transparent;
+}
+
+/* an icon button (.icon-btn: header gears, toolbar icons) keeps the kit's icon button hover, the
+   hover fill under a lifted tone, like the calendar arrows and files' icon buttons. the bare icon
+   rule above flattened it to tone only once the button took a shared icon */
+html[data-kokuen-version="5"] .icon-btn[data-kokuen-icon]:hover {
+  color: var(--k-text, var(--text));
+  background: var(--k-hover, var(--panel));
+}
+
+/* an app's header gear rests muted, so hover has a tone to lift to (the rest rule's inherit made
+   the gears in contacts, journal, mail and system full text with no hover change) */
+html[data-kokuen-version="5"] .app-cog[data-kokuen-icon]:not(:hover) {
+  color: var(--k-muted, var(--muted));
 }
 
 html[data-kokuen-version="5"] .shell-navigation-toggle:is(:hover, [aria-expanded="true"]) {
@@ -2885,7 +2882,7 @@ body[data-app="files"] #files-view :is(.file-row, .file-row > .files-check):focu
 /* One button grammar for the legacy action classes (decision 0031).
    Text action: no box at rest, tone on hover. Primary: the same, plus one
    strong line. Filter chips: bare until selected, then raised + strong line. */
-html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn) {
+html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2905,13 +2902,7 @@ html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn) {
   transition: color var(--k-motion-fast) var(--k-ease), background-color var(--k-motion-fast) var(--k-ease);
 }
 
-/* the display above beat the hidden attribute: reminders and vault showed retry buttons with
-   nothing to retry */
-html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn)[hidden] {
-  display: none;
-}
-
-html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip, .mem-cat-btn):hover {
+html[data-kokuen-version="5"] :is(.btn, .act-btn, .act-chip):hover {
   border-color: transparent;
   background: var(--k-hover);
   color: var(--k-text);
@@ -2931,7 +2922,7 @@ html[data-kokuen-version="5"] :is(.btn.danger, .btn.danger:hover) {
   color: var(--k-danger);
 }
 
-html[data-kokuen-version="5"] :is(.mem-cat-btn[aria-pressed="true"], .btn.active) {
+html[data-kokuen-version="5"] :is(.btn.active) {
   border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
@@ -3656,10 +3647,6 @@ textarea[data-kokuen-entry="autogrow"] {
   #settings-modal[data-kokuen-surface="settings"] {
     padding-top: var(--k-space-2);
   }
-}
-
-#settings-modal[data-kokuen-surface="settings"] [hidden] {
-  display: none;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-header {
@@ -6200,10 +6187,6 @@ body[data-app="files"] #files-view .files-phase7-views {
   border-top: 1px solid var(--k-line);
 }
 
-body[data-app="files"] #files-view :is(#files-location-list, #files-locations-label, .files-location-settings, .files-location-controls button)[hidden] {
-  display: none;
-}
-
 body[data-app="files"] #files-view .files-location-settings {
   display: grid;
   gap: var(--k-space-2);
@@ -6374,10 +6357,6 @@ body[data-app="files"] #files-view .files-phase7-selection {
   color: var(--k-text);
   font-size: 0.8125rem;
   border-bottom: 1px solid var(--k-line);
-}
-
-body[data-app="files"] #files-view .files-phase7-selection[hidden] {
-  display: none;
 }
 
 body[data-app="files"] #files-view .files-phase7-notice {
@@ -6551,10 +6530,6 @@ body[data-app="files"] #files-view .files-phase7-detail-panel {
   padding: var(--k-space-3);
 }
 
-body[data-app="files"] #files-view .files-phase7-detail-panel[hidden] {
-  display: none;
-}
-
 body[data-app="files"] #files-view .files-detail-name {
   margin: var(--k-space-4) var(--k-space-2) var(--k-space-2);
   color: var(--k-text);
@@ -6582,10 +6557,6 @@ body[data-app="files"] #files-view .files-photo-import-feedback {
   color: var(--k-muted);
   font-size: 0.875rem;
   overflow-wrap: anywhere;
-}
-
-body[data-app="files"] #files-view .files-photo-import-feedback[hidden] {
-  display: none;
 }
 
 body[data-app="files"] #files-view .files-photo-import-feedback p {
@@ -6629,10 +6600,6 @@ body[data-app="files"] #files-view .files-phase7-operation-dock {
   border: 1px solid var(--k-line-strong);
   border-radius: var(--k-radius-surface);
   background: var(--k-panel);
-}
-
-body[data-app="files"] #files-view .files-phase7-operation-dock[hidden] {
-  display: none;
 }
 
 body[data-app="files"]:has(#files-operation-dock:not([hidden])) .toast-container {
@@ -6744,10 +6711,6 @@ body[data-app="files"] #files-view .files-phase7-dialog-layer {
   background: color-mix(in srgb, var(--k-page) 82%, transparent);
 }
 
-body[data-app="files"] #files-view .files-phase7-dialog-layer[hidden] {
-  display: none;
-}
-
 body[data-app="files"] #files-view .files-phase7-dialog {
   width: min(440px, 100%);
   max-height: min(720px, calc(100dvh - 32px));
@@ -6784,8 +6747,6 @@ body[data-app="files"] #files-view .files-choice-field {
   font-size: 0.8125rem;
 }
 
-body[data-app="files"] #files-view .files-choice-field[hidden] { display: none; }
-
 body[data-app="files"] #files-view .files-phase7-dialog input {
   width: 100%;
   min-height: var(--k-control);
@@ -6798,7 +6759,7 @@ body[data-app="files"] #files-view .files-phase7-dialog input {
   font-size: 0.8125rem;
 }
 
-body[data-app="files"] #files-view :where(.files-choice-row, .files-transfer-locations) {
+body[data-app="files"] #files-view .files-choice-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--k-space-1);
@@ -6808,11 +6769,7 @@ body[data-app="files"] #files-view .files-choice-row[aria-label="location access
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-body[data-app="files"] #files-view #files-location-kind {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-body[data-app="files"] #files-view :where(.files-choice-row, .files-transfer-locations) button {
+body[data-app="files"] #files-view .files-choice-row button {
   min-height: var(--k-control);
   border: 1px solid var(--k-line);
   border-radius: var(--k-radius-control);
@@ -6822,7 +6779,7 @@ body[data-app="files"] #files-view :where(.files-choice-row, .files-transfer-loc
   cursor: pointer;
 }
 
-body[data-app="files"] #files-view :where(.files-choice-row, .files-transfer-locations) button:is(:hover, :focus-visible, [aria-checked="true"]) {
+body[data-app="files"] #files-view .files-choice-row button:is(:hover, :focus-visible, [aria-checked="true"]) {
   border-color: var(--k-line-strong);
   background: var(--k-raised);
   color: var(--k-text);
@@ -6858,7 +6815,6 @@ body[data-app="files"] #files-view .files-vault-review {
   line-height: 1.5;
 }
 
-body[data-app="files"] #files-view .files-vault-review[hidden] { display: none; }
 body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-text); font-weight: 560; }
 
 @media (max-width: 980px) {
@@ -7292,10 +7248,6 @@ html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch
   font-weight: 600;
 }
 
-.model-provider-option[hidden] {
-  display: none;
-}
-
 .model-provider-note {
   color: var(--k-muted);
   font-size: 0.8125rem;
@@ -7392,10 +7344,6 @@ html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch
   margin-top: var(--k-space-4);
   padding-top: var(--k-space-4);
   border-top: 1px solid var(--k-line);
-}
-
-.s-custom-search-form[hidden] {
-  display: none;
 }
 
 .s-cse-pair {
@@ -7619,16 +7567,20 @@ html[data-kokuen-version="5"] .k-number-row-readout {
 
 /* resizable rail (decision 0054): a 12px strip on a sidebar's trailing edge (rail_resize.js). its
    ::before widens the grab to 32px for a finger, and a 2px line shows where it is when pointed at,
-   dragged or focused. a rail the user sized takes its width from --k-rail-w; phones get no strip */
-:is(.k-rail-resize, .acw-rail-resize) { position: absolute; z-index: 3; width: 12px; cursor: col-resize; touch-action: none; }
+   dragged or focused. the line is the strip's own fill, clipped between 5px clear borders, so focus
+   shows on the element itself and at once. a rail the user sized takes its width
+   from --k-rail-w; phones get no strip */
+:is(.k-rail-resize, .acw-rail-resize) {
+  position: absolute; z-index: 3; box-sizing: border-box; width: 12px;
+  border: 0 solid transparent; border-inline-width: 5px;
+  background: transparent content-box; transition: background-color 140ms ease;
+  cursor: col-resize; touch-action: none;
+}
 .k-rail-resize { top: 0; translate: -50% 0; }
 .k-rail-resize[data-inside] { right: 0; bottom: 0; translate: none; }
-.k-rail-resize[hidden] { display: none; }
-:is(.k-rail-resize, .acw-rail-resize)::before { content: ""; position: absolute; top: 0; bottom: 0; left: -10px; right: -10px; }
-:is(.k-rail-resize, .acw-rail-resize)::after { content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; background: transparent; transition: background-color 140ms ease; }
-:is(.k-rail-resize, .acw-rail-resize):is(:hover, [data-active])::after { background: var(--k-line-strong); }
-:is(.k-rail-resize, .acw-rail-resize):focus-visible { outline: none; }
-:is(.k-rail-resize, .acw-rail-resize):focus-visible::after { background: var(--k-focus); }
+:is(.k-rail-resize, .acw-rail-resize)::before { content: ""; position: absolute; top: 0; bottom: 0; left: -15px; right: -15px; }
+:is(.k-rail-resize, .acw-rail-resize):is(:hover, [data-active]) { background-color: var(--k-line-strong); }
+:is(.k-rail-resize, .acw-rail-resize):focus-visible { outline: none; background-color: var(--k-focus); transition: none; }
 html[data-rail-resizing] { cursor: col-resize; user-select: none; -webkit-user-select: none; }
 :where([data-k-rail-inside]) { position: relative; }
 html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
@@ -7697,3 +7649,4 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
   body.afterlife-shell .app-rail-item[data-wide] { display: none; }
   body.app-drawer-open .app-rail { visibility: hidden; }
 }
+@media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize) { transition: none; } }

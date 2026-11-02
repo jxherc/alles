@@ -305,7 +305,7 @@ test('Files exposes the reviewed external Obsidian vault workflow', () => {
   assert.match(files, /t\('files\.vault_links_unchanged'\)/);
   assert.equal(t('files.vault_links_unchanged'), 'relative links and file bytes stay unchanged');
   assert.match(files, /preview\.required_bytes/);
-  assert.match(css, /\.files-choice-field\[hidden\] \{ display: none; \}/);
+  assert.match(readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8'), /^\[hidden\] \{\n  display: none !important;\n\}/m);
   assert.doesNotMatch(view, /type="(?:checkbox|radio)"/i);
 });
 
@@ -367,8 +367,9 @@ test('Files rows use the same full browser width as the table header', () => {
 
 test('copy and move require an explicit destination instead of selecting the source by default', () => {
   const open = files.match(/function openTransferDialog\(action\)[\s\S]*?\n}\n\nasync function submitTransfer/)?.[0] || '';
-  assert.match(open, /aria-checked="false"/);
-  assert.doesNotMatch(open, /aria-checked="\$\{index === 0\}"/);
+  assert.match(open, /\{ value: '', label: t\('files\.choose_destination'\) \}/);
+  assert.match(open, /\], ''\);/);
+  assert.doesNotMatch(open, /index === 0/);
 });
 
 test('operation refreshes reload filtered Starred and Offline backing collections', () => {

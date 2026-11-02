@@ -9,11 +9,11 @@
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
 <link rel="stylesheet" href="/static/style.css?v=610">
   <link rel="stylesheet" href="/static/kokuen.css?v=94">
-<link rel="stylesheet" href="/static/aidecentral.css?v=19">
-<link rel="stylesheet" href="/static/aidecoding.css?v=28">
-<link rel="stylesheet" href="/static/aidecall.css?v=3">
-<link rel="stylesheet" href="/static/help.css?v=2">
-<link rel="stylesheet" href="/static/revamp.css?v=103">
+<link rel="stylesheet" href="/static/aidecentral.css?v=20">
+<link rel="stylesheet" href="/static/aidecoding.css?v=29">
+<link rel="stylesheet" href="/static/aidecall.css?v=4">
+<link rel="stylesheet" href="/static/help.css?v=3">
+<link rel="stylesheet" href="/static/revamp.css?v=104">
 <link rel="stylesheet" href="/static/signin.css?v=1">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -407,12 +407,7 @@
           <section class="andromeda-watch" id="andromeda-watch" aria-labelledby="andromeda-watch-title" hidden>
             <div class="andromeda-watch-head">
               <h2 id="andromeda-watch-title" data-i18n="shell.andromeda.watch_for_new_links">watch for new links</h2>
-              <div class="andromeda-watch-choices" id="andromeda-watch-choices" role="radiogroup" aria-labelledby="andromeda-watch-title">
-                <button type="button" role="radio" aria-checked="true" data-every="0" data-i18n="common.off">off</button>
-                <button type="button" role="radio" aria-checked="false" data-every="6" data-i18n="shell.andromeda.every_6_hours">every 6 hours</button>
-                <button type="button" role="radio" aria-checked="false" data-every="24" data-i18n="common.daily">daily</button>
-                <button type="button" role="radio" aria-checked="false" data-every="168" data-i18n="shell.andromeda.weekly">weekly</button>
-              </div>
+              <div class="settings-input custom-select andromeda-watch-select" id="andromeda-watch-choices" aria-labelledby="andromeda-watch-title" data-value="0" data-options="0|off;6|every 6 hours;24|daily;168|weekly" data-i18n-options="common.off;shell.andromeda.every_6_hours;common.daily;shell.andromeda.weekly"></div>
             </div>
             <div class="andromeda-watch-state" id="andromeda-watch-state" role="status" aria-live="polite"></div>
             <div class="andromeda-watch-new" id="andromeda-watch-new" hidden>
@@ -706,12 +701,7 @@
 
         <div class="aide-schedule-field">
           <span data-i18n="shell.aide_scheduled.when">when</span>
-          <div class="aide-schedule-choices" role="radiogroup" aria-label="schedule type" data-i18n-aria-label="shell.aide_scheduled.schedule_type">
-            <button type="button" role="radio" aria-checked="true" data-schedule-kind="schedule" data-i18n="common.daily">daily</button>
-            <button type="button" role="radio" aria-checked="false" data-schedule-kind="once" data-i18n="shell.aide_scheduled.once">once</button>
-            <button type="button" role="radio" aria-checked="false" data-schedule-kind="interval" data-i18n="shell.aide_scheduled.interval">interval</button>
-            <button type="button" role="radio" aria-checked="false" data-schedule-kind="heartbeat" data-i18n="shell.aide_scheduled.heartbeat">heartbeat</button>
-          </div>
+          <div class="settings-input custom-select" id="aide-schedule-kind" data-value="schedule" data-options="schedule|daily;once|once;interval|interval;heartbeat|heartbeat" data-i18n-options="common.daily;shell.aide_scheduled.once;shell.aide_scheduled.interval;shell.aide_scheduled.heartbeat" aria-label="schedule type" data-i18n-aria-label="shell.aide_scheduled.schedule_type"></div>
         </div>
 
         <div class="aide-schedule-timing" id="aide-schedule-timing"></div>
@@ -1267,12 +1257,7 @@
           <label><span data-i18n="common.name">name</span><input id="files-location-name" autocomplete="off" required></label>
           <fieldset class="files-choice-field">
             <legend data-i18n="shell.files_location.kind">kind</legend>
-            <div class="files-choice-row" id="files-location-kind" role="radiogroup" aria-label="location kind" data-i18n-aria-label="shell.files_location.location_kind">
-              <button type="button" role="radio" aria-checked="true" tabindex="0" data-value="local" data-i18n="shell.files_location.local_folder">local folder</button>
-              <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="obsidian" data-i18n="shell.files_location.obsidian_vault">Obsidian vault</button>
-              <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="webdav">WebDAV</button>
-              <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="s3">S3</button>
-            </div>
+            <div class="settings-input custom-select" id="files-location-kind" data-value="local" data-options="local|local folder;obsidian|Obsidian vault;webdav|WebDAV;s3|S3" data-i18n-options="shell.files_location.local_folder;shell.files_location.obsidian_vault;;" aria-label="location kind" data-i18n-aria-label="shell.files_location.location_kind"></div>
           </fieldset>
           <fieldset class="files-choice-field" id="files-location-access-field">
             <legend data-i18n="shell.files_location.access">access</legend>
@@ -1307,7 +1292,7 @@
           </div>
           <fieldset class="files-choice-field">
             <legend data-i18n="shell.files_transfer.destination">destination</legend>
-            <div class="files-transfer-locations" id="files-transfer-locations" role="radiogroup" aria-label="destination location" data-i18n-aria-label="shell.files_transfer.destination_location"></div>
+            <div class="settings-input custom-select" id="files-transfer-locations" data-value="" data-options="|choose a destination" data-i18n-options="files.choose_destination" aria-label="destination location" data-i18n-aria-label="shell.files_transfer.destination_location"></div>
           </fieldset>
           <label><span data-i18n="shell.files_transfer.folder">folder</span><input id="files-transfer-path" autocomplete="off" placeholder="leave blank for root" data-i18n-placeholder="shell.files_transfer.leave_blank_for_root"></label>
           <div class="files-phase7-form-error" id="files-transfer-error" role="alert"></div>
@@ -2022,7 +2007,7 @@
                 <div class="s-switch" id="s-memory-inject-toggle" role="switch" aria-checked="false"></div>
               </div>
               <input type="text" id="mem-search" aria-label="search memories" class="settings-input" placeholder="search memories…" style="width:100%;margin-bottom:0.55rem" data-i18n-aria-label="shell.settings_memory.search_memories_2" data-i18n-placeholder="shell.settings_memory.search_memories">
-              <div id="mem-category-filter" class="mem-cat-filter"></div>
+              <div id="mem-category-filter" class="settings-input custom-select mem-cat-filter" data-value="all" data-options="all|all;identity|identity;preference|preference;fact|fact;task|task;general|general" data-i18n-options="aide.mem_cat_all;aide.mem_cat_identity;aide.mem_cat_preference;aide.mem_cat_fact;aide.mem_cat_task;aide.mem_cat_general" aria-label="category" data-i18n-aria-label="common.category"></div>
               <div class="mem-view-list" id="memory-list"></div>
               <div style="display:flex;gap:var(--k-control-gap);margin-top:0.6rem">
                 <input type="text" id="mem-add-input" aria-label="add a memory" class="settings-input" placeholder="add a memory…" style="flex:1" data-i18n-aria-label="shell.settings_memory.add_a_memory_2" data-i18n-placeholder="shell.settings_memory.add_a_memory">

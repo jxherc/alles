@@ -10,14 +10,13 @@ const kokuen = source('../../static/js/kokuen.js');
 const css = source('../../static/kokuen.css');
 
 test('Library and Health choices use the shared KOKUEN radio model', () => {
-  for (const module of [books, read]) {
+  for (const module of [books]) {
     assert.match(module, /import \{ wireChoiceGroup \} from '\.\/kokuen\.js(\?v=\d+)?';/);
   }
   assert.match(books, /id="book-status" role="radiogroup" aria-label="\$\{esc\(t\('books\.shelf_label'\)\)\}"/);
   assert.match(books, /class="book-stars"[^>]*role="radiogroup"/);
   assert.match(books, /role="radio" aria-checked="\$\{i === b\.rating\}"/);
-  assert.match(read, /class="read-filter-choices" role="radiogroup" aria-label="\$\{esc\(t\('read\.filter_label'\)\)\}"/);
-  assert.match(read, /role="radio" aria-checked="\$\{_filter === k\}"/);
+  assert.match(read, /class="settings-input custom-select read-filter" id="read-filter" data-value="\$\{_filter\}"[\s\S]*?aria-label="\$\{esc\(t\('read\.filter_label'\)\)\}"/);
   assert.match(read, /id="read-feeds-btn" aria-pressed="\$\{_showFeeds\}"/);
   // four history ranges are a dropdown, not a wall of chips
   assert.match(health, /class="settings-input custom-select health-range" id="health-range" data-value="\$\{_days\}"[\s\S]*?aria-label="\$\{esc\(t\('health\.history_range'\)\)\}"/);
@@ -25,7 +24,7 @@ test('Library and Health choices use the shared KOKUEN radio model', () => {
   assert.match(books, /class="book-move" role="radiogroup" aria-label="\$\{esc\(t\('books\.shelf_for', \{ title: b\.title \}\)\)\}"/);
   assert.match(books, /role="radio" aria-checked="\$\{k === b\.status\}"/);
   assert.match(books, /querySelectorAll\('\.book-stars, \.book-move, #book-status'\)\.forEach\(group => wireChoiceGroup\(group\)\)/);
-  assert.match(read, /wireChoiceGroup\(body\.querySelector\('\.read-filter-choices'\)\)/);
+  assert.match(read, /initCustomDropdown\(filter\);/);
   assert.match(health, /initCustomDropdown\(range\)/);
 });
 

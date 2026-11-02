@@ -966,6 +966,14 @@ async function prepareHomeDayDraft(prompt) {
   }
 }
 
+// empty the composer once aide has taken this text; text typed since then stays
+function clearSentComposer(ta, text) {
+  if (ta.value.trim() !== text.trim()) return false;
+  ta.value = ''; ta.style.height = 'auto';
+  ta.dispatchEvent(new Event('input'));
+  return true;
+}
+
 window._askInChat = async (
   q,
   web = false,
@@ -1044,9 +1052,14 @@ window._askInChat = async (
     if (projectId && window._currentSession?.project_id !== projectId) {
       if (newChat({ projectId }) === false) return false;
     }
-    window._setAideDocumentScope?.(documentScope);
+    // another app's context rides with the message out of view; a note scope shows in the composer
+    const handoff = documentScope?.kind === 'handoff' ? documentScope : null;
+    window._setAideDocumentScope?.(handoff ? null : documentScope);
     ta.value = q; ta.dispatchEvent(new Event('input', { bubbles: true }));
-    await sendMessage(q);
+    // a handoff is sent like a typed message, so the box empties once aide takes it
+    await sendMessage(q, sessionId => {
+      if (getActiveId() === sessionId) clearSentComposer(ta, q);
+    }, { handoff });
     return true;
   } else {    // from another subapp — store private context behind a one-time opaque code
     const target = new URL(urlForApp('aide'));

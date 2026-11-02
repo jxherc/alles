@@ -11,6 +11,14 @@ from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
 
+def pick_filter(page, name):
+    # the saved reading filter is a dropdown (4 options), not a radio row
+    box = page.locator("#read-filter")
+    box.click()
+    page.get_by_role("option", name=name, exact=True).click()
+    expect(box).to_have_attribute("data-value", name)
+
+
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
     require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -213,11 +221,11 @@ def run():
 
                 listed = re.compile(re.escape(endpoint) + r"(?:\?.*)?$")
                 page.route(listed, scoped_list)
-                page.get_by_role("radio", name="unread", exact=True).click()
+                pick_filter(page, "unread")
                 expect(page.locator("#read-body .legacy-load-note")).to_have_count(0)
                 expect(field).to_be_disabled()
                 accepted_scopes[:] = ["f" * 64]
-                page.get_by_role("radio", name="all", exact=True).click()
+                pick_filter(page, "all")
                 expect(field).to_be_enabled()
                 expect(field).to_have_value("")
                 assert len(writes) == before_rotation
@@ -226,7 +234,7 @@ def run():
                     pending_scope,
                 )
                 page.unroute(listed, scoped_list)
-                page.get_by_role("radio", name="unread", exact=True).click()
+                pick_filter(page, "unread")
                 expect(field).to_have_value(retired_url)
                 expect(field).to_be_disabled()
                 page.locator("#read-save-check").click()

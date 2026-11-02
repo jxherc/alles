@@ -127,7 +127,9 @@ function harness({ active = 'archived', hash = '', view = 'today', index = [], p
     return { openPrimaryConversation };
   })()`, context);
   window._showPrimaryAide = central.openPrimaryConversation;
-  vm.runInContext(`let _streaming = false, _backgroundLaunching = false;
+  vm.runInContext(`let _streaming = false, _backgroundLaunching = false, _heldHandoff = null;
+    ${functionSource(chat, 'normalizeHandoff')}
+    ${functionSource(chat, 'takeHandoff')}
     ${functionSource(chat, 'getSendBlockReason')}
     ${functionSource(chat, 'canSendMessage')}
     ${functionSource(chat, 'sendMessage')}

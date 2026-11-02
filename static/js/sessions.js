@@ -718,6 +718,7 @@ function appendResponseRecovery(target, message, latest = false, row = null) {
 export function appendUserMsg(text, documentScope = null) {
   const { row } = _makeRow('user');
   row.innerHTML = `<div class="user-wrap">
+    ${handoffScopeHtml(documentScope)}
     ${documentScope?.path ? `<div class="user-context-scope">${escHtml(t('aide.using_note_path', { path: documentScope.path }))}</div>` : ''}
     ${documentScope?.documents ? `<details class="user-context-scope"><summary>${escHtml(tp('aide.selected_notes_summary', documentScope.documents.length))}</summary><ul tabindex="0" aria-label="${escHtml(t('aide.selected_source_notes'))}">${documentScope.documents.map(item => `<li>${escHtml(item.path)}</li>`).join('')}</ul></details>` : ''}
     <div class="user-bubble">${escHtml(text)}</div>
@@ -733,6 +734,16 @@ export function appendUserMsg(text, documentScope = null) {
   _wireEditButtons(row);
   scrollDown({ force: true });
   return row;
+}
+
+
+// "from andromeda" over a handed-off question, with its sources as links when it has any
+function handoffScopeHtml(scope) {
+  if (scope?.kind !== 'handoff') return '';
+  const label = escHtml(t('aide.handoff_from', { app: scope.app || '' }));
+  const links = (scope.sources || []).filter(item => /^https?:\/\//i.test(item?.url || ''));
+  if (!links.length) return `<div class="user-context-scope">${label}</div>`;
+  return `<details class="user-context-scope"><summary>${label}</summary><ul tabindex="0" aria-label="${escHtml(t('aide.handoff_sources'))}">${links.map(item => `<li><a href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escHtml(item.title || item.url)}</a></li>`).join('')}</ul></details>`;
 }
 
 

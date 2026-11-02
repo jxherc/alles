@@ -177,7 +177,7 @@ def run_profile(browser, profile):
         expect(page.locator("#files-view")).to_be_visible()
         if phone:
             location_id = add_location("phone connected files", root)
-        destination_id = add_location(profile + " destination", destination)
+        add_location(profile + " destination", destination)
         open_current()
 
         # Real keyboard traversal starts from a pointer-reachable search field.
@@ -389,7 +389,8 @@ def run_profile(browser, profile):
 
         page.locator(f'.file-row[data-path="{names["transfer"]}"] [data-file-select]').click()
         page.locator('[data-files-bulk="copy"]').click()
-        page.locator(f'#files-transfer-locations [data-value="{destination_id}"]').click()
+        page.locator("#files-transfer-locations").click()
+        page.locator(".custom-dropdown-option", has_text=profile + " destination").click()
         # This is a real backend collision, not a simulated response.
         with page.expect_response(
             lambda response: (

@@ -15,7 +15,7 @@ test('live voice uses the Alles call boundary and browser WebRTC', () => {
   assert.match(source, /\/offer/);
   assert.match(source, /\/transcripts/);
   assert.match(source, /\/hangup/);
-  assert.match(style, /#live-voice-btn\[hidden\]\s*\{\s*display:\s*none;/);
+  assert.match(readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8'), /^\[hidden\] \{\n  display: none !important;\n\}/m);
 });
 
 test('the browser never receives provider credentials or cancels work on hangup', () => {

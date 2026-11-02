@@ -13,6 +13,14 @@ from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
 
+def pick_filter(page, name):
+    # the saved reading filter is a dropdown (4 options), not a radio row
+    box = page.locator("#read-filter")
+    box.click()
+    page.get_by_role("option", name=name, exact=True).click()
+    expect(box).to_have_attribute("data-value", name)
+
+
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
     data = Path(os.environ["ALLES_DATA"]).resolve()
@@ -94,7 +102,7 @@ def run():
                         pending = page.evaluate("key=>sessionStorage.getItem(key)", key)
                         assert pending
                         accepted[:] = [other]
-                        page.get_by_role("radio", name="unread", exact=True).click()
+                        pick_filter(page, "unread")
                         expect(page.locator("#read-body")).to_contain_text("nothing saved yet")
                         held[0][0].fulfill(response=held[0][1])
                         expect(page.locator("#read-body")).to_contain_text(
@@ -104,7 +112,7 @@ def run():
                         expect(page.locator(".read-save-result")).to_have_count(0)
                         # Returning to the accepted storage can reconcile the exact receipt.
                         accepted[:] = [scope]
-                        page.get_by_role("radio", name="all", exact=True).click()
+                        pick_filter(page, "all")
                         expect(page.locator("#read-save-check")).to_be_enabled()
                         page.locator("#read-save-check").focus()
                         page.keyboard.press("Enter")

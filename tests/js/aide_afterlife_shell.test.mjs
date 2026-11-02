@@ -171,7 +171,7 @@ test('latest response usage uses one bare token-fragment mark and keeps its live
   assert.match(chat, /el\.hidden = false/);
   assert.match(sessions, /tokCount\.hidden = true/);
   assert.match(sessions, /tokValue\.textContent = ''/);
-  assert.match(css, /\.session-token-count\[hidden\]\s*\{\s*display:\s*none/);
+  assert.match(readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8'), /^\[hidden\] \{\n  display: none !important;\n\}/m);
 });
 
 test('the message rail scales without changing layout width', () => {
@@ -287,7 +287,7 @@ test('new tasks expose project and git branch controls without static filler', (
   assert.doesNotMatch(html, /title="runs on this server"/);
   assert.doesNotMatch(html, /id="aide-vault-context"/);
   assert.doesNotMatch(html, /<select[^>]+aide-new-context/);
-  assert.match(css, /\.aide-new-context-item\[hidden\]\s*\{\s*display:\s*none/);
+  assert.match(readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8'), /^\[hidden\] \{\n  display: none !important;\n\}/m);
   assert.match(rail, /role = 'menuitemradio'/);
   assert.match(rail, /session\?\.id[\s\S]*\/api\/sessions\/\$\{session\.id\}\/git\/branches/);
   assert.match(sessions, /project_id: options\.projectId \?\? window\._pendingProjectId \?\? ''/);
@@ -401,7 +401,7 @@ test('scheduled work uses custom controls rather than native choice controls', (
   assert.ok(view);
   assert.doesNotMatch(view, /<select\b/i);
   assert.doesNotMatch(view, /type="(?:checkbox|radio)"/i);
-  assert.match(view, /role="radiogroup"/);
+  assert.match(view.match(/<div[^>]*id="aide-schedule-kind"[^>]*>/)[0], /class="settings-input custom-select"/);
 });
 
 test('Discord is only an owner-scoped way to reach Aide', () => {

@@ -423,24 +423,21 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     assert page.evaluate("document.activeElement?.textContent?.trim()") == "add location"
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement?.getAttribute('aria-label')") == "close"
-    page.locator('#files-location-kind [data-value="local"]').focus()
-    page.keyboard.press("ArrowRight")
-    assert (
-        page.locator('#files-location-kind [data-value="obsidian"]').get_attribute("aria-checked")
-        == "true"
-    )
+    kind = page.locator("#files-location-kind")
+    assert kind.get_attribute("role") == "combobox"
+    assert kind.get_attribute("data-value") == "local"
+    kind.focus()
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    assert kind.get_attribute("data-value") == "obsidian"
     assert page.locator("#files-vault-workflow-field").is_visible()
-    page.keyboard.press("ArrowRight")
-    assert (
-        page.locator('#files-location-kind [data-value="webdav"]').get_attribute("aria-checked")
-        == "true"
-    )
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    assert kind.get_attribute("data-value") == "webdav"
     assert page.locator("#files-location-username").is_visible()
-    page.keyboard.press("ArrowRight")
-    assert (
-        page.locator('#files-location-kind [data-value="s3"]').get_attribute("aria-checked")
-        == "true"
-    )
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    assert kind.get_attribute("data-value") == "s3"
     assert page.locator("#files-location-bucket").is_visible()
     close_button.click()
     assert page.evaluate("document.activeElement?.id") == "files-add-location"
@@ -488,7 +485,8 @@ def _desktop(browser: Browser, errors: list[str], second: Path, read_only: Path)
     assert page.locator("#files-selection-bar").is_visible()
     assert page.locator("#files-selection-count").inner_text() == "1 selected"
     page.locator('[data-files-bulk="copy"]').click()
-    page.locator('#files-transfer-locations [role="radio"]:has-text("work archive")').click()
+    page.locator("#files-transfer-locations").click()
+    page.locator(".custom-dropdown-option", has_text="work archive").click()
     page.locator("#files-transfer-form").locator('button[type="submit"]').click()
     history = page.locator("#files-operations-clear")
     history.wait_for(state="visible")

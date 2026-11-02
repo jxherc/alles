@@ -3,6 +3,7 @@ import { confirm as dlgConfirm } from './dialog.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
 import { toast, plainError, writeClipboard } from './util.js';
 import { formatDateTime, t, tp } from './i18n.js';
+import { populateDropdown } from './dropdown.js?v=217';
 
 const $ = id => document.getElementById(id);
 const EVERY = () => [['hour', t('aide.goal_rhythm_hour')], ['six_hours', t('aide.goal_rhythm_six_hours')], ['day', t('aide.goal_rhythm_day')], ['week', t('aide.goal_rhythm_week')]];
@@ -54,39 +55,28 @@ function stateOf(goal) {
   return goal.enabled ? 'active' : 'paused';
 }
 
+// 4 or more options pick from the dropdown; 2 or 3 are a pill switch that shows every option
 function choiceGroup(label, options, value, onPick) {
   const field = el('div', 'aide-schedule-field');
   field.append(el('span', '', label));
-  const group = el('div', 'aide-schedule-choices');
-  group.setAttribute('role', 'radiogroup');
-  group.setAttribute('aria-label', label);
-  for (const [key, text] of options) {
-    const button = el('button', '', text);
-    button.type = 'button';
-    button.setAttribute('role', 'radio');
-    button.dataset.value = key;
-    button.setAttribute('aria-checked', String(key === value));
-    button.tabIndex = key === value ? 0 : -1;
-    button.addEventListener('click', () => pick(key));
-    group.append(button);
-  }
-  function pick(key) {
-    onPick(key);
-    for (const button of group.children) {
-      const on = button.dataset.value === key;
-      button.setAttribute('aria-checked', String(on));
-      button.tabIndex = on ? 0 : -1;
+  let group;
+  if (options.length > 3) {
+    group = el('div', 'settings-input custom-select');
+    group.setAttribute('aria-label', label);
+    populateDropdown(group, options.map(([key, text]) => ({ value: key, label: text })), value);
+    group.addEventListener('change', () => onPick(group.value));
+  } else {
+    group = el('div', 'k-pill-switch');
+    group.dataset.kokuenChoice = 'switch';
+    group.setAttribute('aria-label', label);
+    for (const [key, text] of options) {
+      const button = el('button', '', text);
+      button.dataset.value = key;
+      button.setAttribute('aria-checked', String(key === value));
+      group.append(button);
     }
+    group.addEventListener('change', event => onPick(event.detail.value));
   }
-  group.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
-    event.preventDefault();
-    const buttons = [...group.children];
-    const at = buttons.indexOf(document.activeElement);
-    const next = buttons[(at + (['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1) + buttons.length) % buttons.length];
-    next.focus();
-    pick(next.dataset.value);
-  });
   field.append(group);
   return field;
 }

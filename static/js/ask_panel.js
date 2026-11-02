@@ -201,11 +201,15 @@ async function failure(res) {
   return err;
 }
 
-function compose(question) {
+// where it was asked and what's on that screen go to the model out of view, so the question
+// reads as the owner wrote it when the session opens in aide
+function handoff() {
   const { root, label } = where();
   const text = shareScreen ? screenText(root) : '';
-  if (!text) return `${question}\n\n(asked from ${label} in alles)`;
-  return `${question}\n\n(asked from ${label} in alles. what's on that screen:)\n"""\n${text}\n"""`;
+  const context = text
+    ? `asked from ${label} in alles. what's on that screen:\n"""\n${text}\n"""`
+    : `asked from ${label} in alles`;
+  return { kind: 'handoff', app: label.slice(0, 64), context };
 }
 
 async function send() {
@@ -225,7 +229,7 @@ async function send() {
     const res = await fetchWithRecentOwner('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: id, message: compose(question), simple: true, turn_token: turnToken }),
+      body: JSON.stringify({ session_id: id, message: question, context_scope: handoff(), simple: true, turn_token: turnToken }),
       signal: controller.signal,
     }, { prompt: t('aide.reauth_prompt', { reason: t('aide.reauth_reason_full_access') }) });
     if (!res.ok || !res.body) throw await failure(res);

@@ -2,6 +2,7 @@ import { toast, plainError } from './util.js';
 import { formatDateTime, resolvedTimeZone, t } from './i18n.js';
 import { initAideNews } from './aidenews.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
+import { initCustomDropdown, setDropdownValue } from './dropdown.js?v=217';
 
 let initialized = false;
 let scheduleKind = 'schedule';
@@ -170,11 +171,7 @@ function renderTiming() {
 
 function setKind(kind) {
   scheduleKind = kind;
-  document.querySelectorAll('[data-schedule-kind]').forEach(button => {
-    const selected = button.dataset.scheduleKind === kind;
-    button.setAttribute('aria-checked', String(selected));
-    button.tabIndex = selected ? 0 : -1;
-  });
+  setDropdownValue(byId('aide-schedule-kind'), kind);
   renderTiming();
 }
 
@@ -550,10 +547,9 @@ function wireOnce() {
   });
   byId('aide-schedule-cancel')?.addEventListener('click', closeForm);
   byId('aide-schedule-form')?.addEventListener('submit', saveSchedule);
-  document.querySelectorAll('[data-schedule-kind]').forEach(button =>
-    button.addEventListener('click', () => setKind(button.dataset.scheduleKind)));
-  document.querySelector('.aide-schedule-choices')?.addEventListener('keydown', event =>
-    moveRadio(event, '[data-schedule-kind]', target => setKind(target.dataset.scheduleKind)));
+  const kind = byId('aide-schedule-kind');
+  initCustomDropdown(kind);
+  kind?.addEventListener('change', () => setKind(kind.value));
   document.querySelectorAll('[data-scheduled-tab]').forEach(button => {
     button.addEventListener('click', () => { selectTab(button).catch(error => toast(safeMessage(error.message), 'error')); });
     button.addEventListener('keydown', event => {

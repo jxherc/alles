@@ -291,6 +291,24 @@ class AideMultiSourceTests(VaultApiTest):
         received = self.client.post("/api/auth/context-handoff/" + response.json()["code"])
         self.assertEqual(received.json()["document_scope"], scope)
 
+    def test_another_hosts_handoff_carries_its_context_out_of_view(self):
+        # andromeda on its own subdomain hands aide the question and, separately, the results
+        scope = {
+            "kind": "handoff",
+            "app": "andromeda",
+            "context": "captured results",
+            "sources": [{"title": "worksheet", "url": "https://example.invalid/ws"}],
+            "note": None,
+        }
+        response = self.client.post(
+            "/api/auth/context-handoff",
+            json={"ask": "when is it due?", "document_scope": scope},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        received = self.client.post("/api/auth/context-handoff/" + response.json()["code"])
+        self.assertEqual(received.json()["ask"], "when is it due?")
+        self.assertEqual(received.json()["document_scope"], scope)
+
     def test_private_selected_answer_keeps_source_snapshots_only_in_ram(self):
         incognito.clear_for_tests()
         self.addCleanup(incognito.clear_for_tests)

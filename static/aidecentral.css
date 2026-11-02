@@ -1,13 +1,8 @@
 /* Aide owns one conversation. Context appears only when requested. */
-/* hidden from the first paint, before any script adds body classes: no "background work" flash */
-.aide-context-overlay[hidden] { display: none !important; }
 body.aide-central[data-space="aide"] {
   --aide-measure: 100%;
   --aide-gutter: var(--k-space-5, 24px);
 }
-body.aide-central .aide-dedicated-workspace[hidden],
-body.aide-central .aide-history-context[hidden],
-body.aide-central .aide-central-menu[hidden] { display: none !important; }
 body:not([data-space="aide"]) :is(.aide-mode-nav, .aide-central-action, .aide-more-anchor, .aide-dedicated-workspace, .aide-history-context) { display: none !important; }
 body.aide-central[data-space="aide"] .main { min-width: 0; width: 100%; margin: 0; }
 body.aide-central[data-space="aide"] .main > .topbar {
@@ -227,8 +222,6 @@ body.aide-central[data-space="aide"] .msg-actions-menu {
   background: var(--panel);
   box-shadow: none;
 }
-body.aide-central[data-space="aide"] .msg-actions-menu[hidden],
-body.aide-central[data-space="aide"] .msg-actions-compact > [hidden] { display: none !important; }
 body.aide-central[data-space="aide"] .msg-actions-menu > .act-btn {
   display: flex;
   opacity: 1;

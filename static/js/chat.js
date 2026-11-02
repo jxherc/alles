@@ -100,6 +100,8 @@ let _streaming = false;
 let _backgroundLaunching = false;
 let _chatAbort = null;
 let _chatSessionId = null;
+// the row the running reply streams into; switching tasks away and back redraws the list without it
+let _chatStreamRow = null;
 // the running turn's token: the stop button names it, so a late stop can't end the next turn
 let _chatTurnToken = '';
 // turns the owner stopped here; their stream may still end on its own a moment later
@@ -117,6 +119,10 @@ export function getSendBlockReason() {
 export function canSendMessage() {
   return !getSendBlockReason();
 }
+
+// a run this tab is streaming into a row still on screen is the reply, not background work to
+// reattach to. once the owner leaves the task and comes back, that row is gone and the card shows it
+window._aideStreamsHere = sessionId => _streaming && _chatSessionId === sessionId && !!_chatStreamRow?.isConnected;
 
 function normalizeDocumentScope(value) {
   if (!value) return null;
@@ -217,7 +223,7 @@ function restoreBackgroundInput(sessionId, text) {
 }
 
 function restoreDocumentScope(scope) {
-  if (!scope) return;
+  if (!scope || scope.kind === 'handoff') return;
   window._setAideDocumentScope(scope);
 }
 
@@ -302,8 +308,35 @@ function holdDocumentDraft(sessionId, draft, attachmentIds, privateReply, { owns
   };
 }
 
-export async function sendMessage(text, onAccepted = () => {}) {
+// what another app hands over with a question (andromeda's results, the ask panel's screen): the
+// model reads it, the owner's message shows only the question and where it came from
+function normalizeHandoff(value) {
+  if (value?.kind !== 'handoff') return null;
+  const app = String(value.app || '').trim().slice(0, 64);
+  const context = String(value.context || '');
+  if (!app || !context.trim()) return null;
+  const sources = (Array.isArray(value.sources) ? value.sources : [])
+    .map(item => ({ title: String(item?.title || '').slice(0, 500), url: String(item?.url || '') }))
+    .filter(item => /^https?:\/\//i.test(item.url) && item.url.length <= 2048)
+    .slice(0, 20);
+  const note = normalizeDocumentScope(value.note && { kind: 'vault_document', ...value.note });
+  return { kind: 'handoff', app, context, sources, ...(note ? { note: { path: note.path, expected_hash: note.expected_hash } } : {}) };
+}
+
+// a handoff whose send was refused before it started (no model picked yet, a file still
+// uploading) waits with its question: the composer keeps only the question, so the send that
+// follows still carries the other app's context instead of the bare words
+let _heldHandoff = null;
+
+function takeHandoff(text, handoff) {
+  if (handoff) _heldHandoff = { handoff, question: text.trim() };
+  else if (_heldHandoff && !text.includes(_heldHandoff.question)) _heldHandoff = null;
+  return _heldHandoff?.handoff || null;
+}
+
+export async function sendMessage(text, onAccepted = () => {}, { handoff = null } = {}) {
   if (!text?.trim() || _streaming || _backgroundLaunching) return;
+  handoff = takeHandoff(text, normalizeHandoff(handoff));
   if (window._aidePrimaryUnavailable) {
     showSendIssue(t('aide.send_reopen_main'));
     return;
@@ -390,14 +423,15 @@ export async function sendMessage(text, onAccepted = () => {}) {
   }) : null;
   if (!documentScope) onAccepted(sessionId);
   dropRefusedTurn(sessionId);
+  _heldHandoff = null;
 
   // image model picked as the primary → generate (legacy single-pick path)
-  if (!documentScope && isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
+  if (!documentScope && !handoff && isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
   // companion image slot set + the message reads like an image request → route to it
   const imgSlot = getImageSlot();
-  if (!documentScope && imgSlot && _looksLikeImageRequest(text)) { _sendImage(text, sessionId, freshSession, imgSlot); return; }
+  if (!documentScope && !handoff && imgSlot && _looksLikeImageRequest(text)) { _sendImage(text, sessionId, freshSession, imgSlot); return; }
 
-  if (!documentScope && shouldRunInBackground(text) && !isIncognitoMode()) {
+  if (!documentScope && !handoff && shouldRunInBackground(text) && !isIncognitoMode()) {
     _backgroundLaunching = true;
     showMessages();
     const userRow = appendUserMsg(text);
@@ -432,7 +466,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
   }
 
   showMessages();
-  const userRow = appendUserMsg(text, documentScope);
+  const userRow = appendUserMsg(text, documentScope || handoff);
   if (!documentScope) {
     window._setAideDocumentScope(null);
     clearAttachments();
@@ -449,7 +483,7 @@ export async function sendMessage(text, onAccepted = () => {}) {
     effort: getEffort(sel.model, modelSupport(sel).effortLevels),
     reasoning_mode: getReasoningMode(sel.model, modelSupport(sel).reasoningControl),
     custom_effort: getCustomEffort(sel.model),
-    context_scope: documentScope || undefined,
+    context_scope: documentScope || handoff || undefined,
   }, { freshSession, pendingDraft, userRow });
 }
 
@@ -543,6 +577,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   let regenOutcome;
 
   const { row, body } = createStreamingAiRow();
+  _chatStreamRow = row;
   // an edit or regenerate answers in place, right under its question
   if (resend && userRow?.isConnected) userRow.after(row);
   let accepted = false;
@@ -607,10 +642,13 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     thinkingEl.classList.remove('open');
   };
 
+  // the cursor ends the last line of text; after the rendered paragraph it sat alone on a new line
   const addCursor = (target) => {
     cursor = document.createElement('span');
     cursor.className = 'stream-cursor';
-    target.appendChild(cursor);
+    let host = target;
+    while (/^(P|H[1-6]|UL|OL|LI|BLOCKQUOTE)$/.test(host.lastElementChild?.tagName || '')) host = host.lastElementChild;
+    host.appendChild(cursor);
   };
 
   // time-throttled render: first token paints instantly, then at most every ~45ms.
@@ -1069,6 +1107,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       _chatAbort = null;
       _chatSessionId = null;
     }
+    if (_chatStreamRow === row) _chatStreamRow = null;
     if (_chatTurnToken === turnToken) _chatTurnToken = '';
     streamEnd();
     if (_streamToken === streamToken) setStreaming(false);

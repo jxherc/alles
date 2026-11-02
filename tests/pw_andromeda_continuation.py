@@ -27,6 +27,18 @@ CASES = (
 )
 
 
+def handed_over(message):
+    """the captured search aide's model got next to the question, or None"""
+    if not isinstance(message, str) or "<alles_document_reference>" not in message:
+        return None
+    for line in message.splitlines():
+        if line.startswith('{"from":'):
+            context = json.loads(line).get("context", "")
+            if context.startswith("Explain this search in relation to its original query."):
+                return context
+    return None
+
+
 class ContinuationModel(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     requests = []
@@ -52,13 +64,9 @@ class ContinuationModel(BaseHTTPRequestHandler):
             return
         prompt = next(
             (
-                m["content"]
+                handed_over(m["content"])
                 for m in reversed(body["messages"])
-                if m["role"] == "user"
-                and isinstance(m["content"], str)
-                and m["content"].startswith(
-                    "Explain this search in relation to its original query."
-                )
+                if m["role"] == "user" and handed_over(m["content"])
             ),
             None,
         )
@@ -467,14 +475,22 @@ def run(context_factory=None):
                                     if m["role"] == "user"
                                 ]
                                 record["model_user_messages"] = prompts
-                                prompts = [
-                                    p
-                                    for p in prompts
-                                    if p.startswith(
-                                        "Explain this search in relation to its original query."
-                                    )
-                                ]
+                                asked = [p for p in prompts if handed_over(p)]
+                                prompts = [handed_over(p) for p in asked]
                                 assert len(prompts) == 1, record["model_user_messages"]
+                                # the owner's message is the query; the search rides out of view
+                                assert asked[0].split("\n\n<alles_document_reference>")[0] == query
+                                expect(page.locator("#messages .user-bubble").last).to_have_text(
+                                    query
+                                )
+                                expect(
+                                    page.locator("#messages .user-context-scope").last
+                                ).to_contain_text("from andromeda")
+                                expect(page.locator("#messages")).not_to_contain_text(
+                                    "Explain this search"
+                                )
+                                # the handoff was sent like a typed message: the box is empty
+                                expect(page.locator("#composer-ta")).to_have_value("")
                                 captured = json.JSONDecoder().raw_decode(
                                     prompts[0].split("\n\n", 1)[1]
                                 )[0]
@@ -484,12 +500,23 @@ def run(context_factory=None):
                                     == payload["results"][0]["snippet"]
                                 )
                                 assert len(chats) == 1
-                                assert chats[0].get("context_scope") == scope
+                                assert chats[0]["message"] == query
+                                handoff = chats[0].get("context_scope") or {}
+                                assert handoff["kind"] == "handoff"
+                                assert handoff["app"] == "andromeda"
+                                assert handoff["context"] == prompts[0]
+                                assert handoff["sources"][0]["url"] == result["url"]
+                                note = handoff.get("note")
                                 if scope:
+                                    assert note == {
+                                        "path": scope["path"],
+                                        "expected_hash": scope["expected_hash"],
+                                    }
                                     assert (
-                                        scope["path"] in prompts[0]
-                                        and "quiet mornings" in prompts[0]
+                                        scope["path"] in asked[0] and "quiet mornings" in asked[0]
                                     )
+                                else:
+                                    assert note is None
                                 sessions = api("GET", "/api/sessions")
                                 assert (
                                     next(
@@ -532,7 +559,8 @@ def run(context_factory=None):
                                 if cross:
                                     assert urlparse(page.url).hostname == "aide.localhost"
                                     assert "ask" not in parse_qs(urlparse(page.url).query)
-                                    assert handoffs[-1]["ask"] == prompts[0]
+                                    assert handoffs[-1]["ask"] == query
+                                    assert handoffs[-1]["document_scope"]["context"] == prompts[0]
                                 if case == "saved-note":
                                     page.reload(wait_until="networkidle")
                                     if page.locator("#nav-backdrop").is_visible():

@@ -203,6 +203,16 @@ function _toggle(el) {
   else _openDropdown(el);
 }
 
+// the highest z-index among the trigger's ancestors (0 when none sets one)
+function _layerOf(el) {
+  let top = 0;
+  for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+    const z = parseInt(getComputedStyle(node).zIndex, 10);
+    if (z > top) top = z;
+  }
+  return top;
+}
+
 function _openDropdown(el) {
   _close();
   const panel = document.createElement('div');
@@ -213,6 +223,9 @@ function _openDropdown(el) {
   panel.setAttribute('role', 'listbox');
   if (_isMulti(el)) panel.setAttribute('aria-multiselectable', 'true');
   panel.setAttribute('aria-label', el.getAttribute('aria-label') || t('shell.choices'));
+  // the panel lives on the body, so it floats above whatever layer holds its trigger (a dialog,
+  // an editor backdrop), however high that layer's z-index is
+  panel.style.zIndex = String(Math.max(1000, _layerOf(el) + 1));
   document.body.appendChild(panel);
   _open = { el, panel, activeIndex: _activeIndex(el) };
   el.classList.add('open');
@@ -296,23 +309,23 @@ function _positionPanel(el, panel) {
   panel.style.maxWidth = `${window.innerWidth - margin * 2}px`;
   panel.style.minWidth = `${Math.min(rect.width, window.innerWidth - margin * 2)}px`;
 
-  // measure the natural height (uncapped), then cap to the CSS max and viewport
+  // measure the natural height (uncapped) with its edges, then cap to the CSS max and viewport.
+  // border-box, so the height we place is the height drawn (padding and border used to push a
+  // flipped panel's last row off its own bottom)
+  panel.style.boxSizing = 'border-box';
   panel.style.maxHeight = '';
-  const desired = Math.min(panel.scrollHeight, 260);   // 260 == CSS max-height
-  const spaceBelow = window.innerHeight - rect.bottom - margin;
-  const spaceAbove = rect.top - margin;
-
-  let top, maxH;
-  if (desired <= spaceBelow || spaceBelow >= spaceAbove) {
-    top = rect.bottom + 4;                              // room below → drop down
-    maxH = Math.min(desired, spaceBelow);
-  } else {
-    maxH = Math.min(desired, spaceAbove);               // tight below → flip up
-    top = rect.top - maxH - 4;
-  }
+  const edges = panel.offsetHeight - panel.clientHeight;
+  const desired = Math.min(panel.scrollHeight + edges, 260);   // 260 == CSS max-height
+  const spaceBelow = window.innerHeight - rect.bottom - margin - 4;
+  const spaceAbove = rect.top - margin - 4;
+  const below = desired <= spaceBelow || spaceBelow >= spaceAbove;
   // whole pixels, so the panel's edges don't land between device pixels
-  panel.style.maxHeight = `${Math.floor(Math.max(80, maxH))}px`;
-  panel.style.top = `${Math.round(Math.max(margin, top))}px`;
+  const height = Math.floor(Math.max(Math.min(80, desired), Math.min(desired, below ? spaceBelow : spaceAbove)));
+  let top = below ? rect.bottom + 4 : rect.top - height - 4;
+  // the whole panel stays on screen, even when neither side has its full height
+  top = Math.max(margin, Math.min(top, window.innerHeight - margin - height));
+  panel.style.maxHeight = `${height}px`;
+  panel.style.top = `${Math.round(top)}px`;
 
   // keep it inside the viewport horizontally too
   const width = panel.offsetWidth || rect.width;

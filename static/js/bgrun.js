@@ -43,6 +43,8 @@ export async function reattach(sessionId) {
     active = await fetch(`/api/agent/runs/active?session_id=${encodeURIComponent(sessionId)}`).then(r => r.json());
   } catch { return; }
   if (!active || !active.id || active.status !== 'running') return;
+  // a handoff opens the task and sends at once: the run found may be the reply already streaming
+  if (globalThis.window?._aideStreamsHere?.(sessionId)) return;
 
   _curRun = active.id;
   const box = _box();

@@ -188,6 +188,11 @@
           "key": "numbers_change",
           "title": "numbers show change",
           "body": "health's measurements and every account balance say how they moved since last week or month, with a small line of the last 30 days. finance leads with what you spent this month against last month."
+        },
+        {
+          "key": "pick_lists",
+          "title": "lists you pick from are menus",
+          "body": "andromeda's watch interval, aide's schedule kind, files' location kind and destination, memory categories, read filters and vault field kinds are now one dropdown, and typing a letter jumps to it. two or three options, like contacts sync and vault field width, are a pill switch."
         }
       ]
     },

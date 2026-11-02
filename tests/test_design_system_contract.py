@@ -182,6 +182,45 @@ class DesignSystemContractTests(unittest.TestCase):
         self.assertEqual(expected, components["field"]["minHeight"]["$value"])
         self.assertEqual(expected, components["shell"]["navigationTarget"]["$value"])
 
+    def test_the_hidden_attribute_always_hides_from_one_rule(self):
+        # a class that sets display used to beat the browser's [hidden], so every screen grew its
+        # own `.x[hidden] { display: none }`; kokuen.css now owns it once, with !important
+        def leaf_rules(css):
+            css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+            return re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+
+        def selectors(text):
+            parts, depth, cur = [], 0, ""
+            for ch in text:
+                depth += (ch == "(") - (ch == ")")
+                if ch == "," and not depth:
+                    parts.append(cur.strip())
+                    cur = ""
+                else:
+                    cur += ch
+            return [*parts, cur.strip()]
+
+        def hides(selector):
+            return bool(re.search(r"\[hidden\]$", re.split(r"[\s>+~]+", selector)[-1]))
+
+        globals_, patches, losers = [], [], []
+        for path in sorted((ROOT / "static").glob("*.css")):
+            for selector_text, body in leaf_rules(path.read_text(encoding="utf-8")):
+                sels = selectors(" ".join(selector_text.split()))
+                body = " ".join(body.split()).rstrip(";").strip()
+                if sels == ["[hidden]"]:
+                    globals_.append((path.name, body))
+                    continue
+                if not all(hides(sel) for sel in sels):
+                    continue
+                if re.fullmatch(r"display: ?none( ?!important)?", body):
+                    patches.append(f"{path.name}: {', '.join(sels)}")
+                elif "display" in body and "!important" not in body:
+                    losers.append(f"{path.name}: {', '.join(sels)}")
+        self.assertEqual([("kokuen.css", "display: none !important")], globals_)
+        self.assertEqual([], patches, "the global [hidden] rule in kokuen.css already hides these")
+        self.assertEqual([], losers, "a display shown while hidden needs !important to outrank it")
+
     def test_focus_is_neutral_and_active_state_keeps_the_accent(self):
         with (SYSTEM / "tokens/semantic.tokens.json").open(encoding="utf-8") as handle:
             themes = json.load(handle)["theme"]

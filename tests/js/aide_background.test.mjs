@@ -57,7 +57,7 @@ test('remote background work requires owner confirmation before any request or f
 });
 
 test('failed background enqueue restores the composer and keeps attachments', () => {
-  const branch = chat.match(/if \(!documentScope && shouldRunInBackground[\s\S]*?\r?\n  }\r?\n\r?\n  showMessages/)?.[0] || '';
+  const branch = chat.match(/if \(!documentScope && !handoff && shouldRunInBackground[\s\S]*?\r?\n  }\r?\n\r?\n  showMessages/)?.[0] || '';
   assert.match(branch, /if \(!run\)[\s\S]*restoreBackgroundInput\(sessionId, text\)[\s\S]*return/);
   assert.match(branch, /if \(!run\)[\s\S]*return;[\s\S]*getActiveId\(\) === sessionId\) clearAttachments\(attachmentIds\)/);
   assert.match(branch, /const userRow = appendUserMsg\(text\)/);
@@ -65,9 +65,9 @@ test('failed background enqueue restores the composer and keeps attachments', ()
   assert.match(chat, /function restoreComposerInput\(text\)[\s\S]*dispatchEvent\(new Event\('input'/);
 });
 
-test('a Docs-scoped image request stays on the scoped text path', () => {
-  assert.match(chat, /if \(!documentScope && isImageSelected\(\)\)/);
-  assert.match(chat, /if \(!documentScope && imgSlot && _looksLikeImageRequest\(text\)\)/);
+test('a Docs-scoped or handed-off request stays on the scoped text path', () => {
+  assert.match(chat, /if \(!documentScope && !handoff && isImageSelected\(\)\)/);
+  assert.match(chat, /if \(!documentScope && !handoff && imgSlot && _looksLikeImageRequest\(text\)\)/);
 });
 
 test('a Docs-scoped request restores its scope after a transport failure', () => {
@@ -115,4 +115,26 @@ test('a pre-run background failure never renders an inert retry action', () => {
 
 test('background actions are never queued for a surprising later replay', () => {
   assert.match(serviceWorker, /NOQUEUE = \[[^\]]*'\/api\/jarvis'/);
+});
+
+test('reattach skips only a reply still streaming into a row on screen', () => {
+  // leaving the task and coming back redraws the list without the live row; the card shows it then
+  assert.match(chat, /_aideStreamsHere = sessionId => _streaming && _chatSessionId === sessionId && !!_chatStreamRow\?\.isConnected/);
+  assert.match(chat, /const \{ row, body \} = createStreamingAiRow\(\);\r?\n  _chatStreamRow = row;/);
+  assert.match(chat, /if \(_chatStreamRow === row\) _chatStreamRow = null;/);
+});
+
+test('a refused handoff waits with its question for the next send', () => {
+  const source = chat.match(/let _heldHandoff = null;[\s\S]*?\nfunction takeHandoff[\s\S]*?\n\}/)?.[0] || '';
+  const take = Function(`${source}; return takeHandoff;`)();
+  const handoff = { kind: 'handoff', app: 'andromeda', context: 'results' };
+  assert.equal(take('what changed', handoff), handoff);
+  // no model yet: the owner picks one and sends the same words, maybe with more after them
+  assert.equal(take('what changed, briefly', null), handoff);
+  // unrelated words drop it
+  assert.equal(take('something else', null), null);
+  assert.equal(take('what changed', null), null);
+  // once a send is accepted the hold clears
+  assert.match(chat, /dropRefusedTurn\(sessionId\);\r?\n  _heldHandoff = null;/);
+  assert.match(chat, /handoff = takeHandoff\(text, normalizeHandoff\(handoff\)\);/);
 });

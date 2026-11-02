@@ -1,10 +1,10 @@
-import { escapeHtml as esc, plainError, writeClipboard } from './util.js';
-import { initCustomDropdowns } from './dropdown.js?v=217';
+import { escapeHtml as esc, appLabel, plainError, writeClipboard } from './util.js';
+import { initCustomDropdowns, setDropdownValue } from './dropdown.js?v=217';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { whenDay } from './when.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
-import { createMenuController, wireChoiceGroup } from './kokuen.js?v=5';
+import { createMenuController } from './kokuen.js?v=5';
 import { replaceRouteUrl } from './route_history.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -342,11 +342,7 @@ function watchStateText(watch = {}) {
 }
 
 function setWatchChoice(every) {
-  el('andromeda-watch-choices')?.querySelectorAll('[role="radio"]').forEach(choice => {
-    const on = Number(choice.dataset.every) === Number(every);
-    choice.setAttribute('aria-checked', String(on));
-    choice.tabIndex = on ? 0 : -1;
-  });
+  setDropdownValue(el('andromeda-watch-choices'), every);
 }
 
 function renderWatch(saved, fresh = []) {
@@ -2492,6 +2488,19 @@ export function buildAideSearchContext(state, origin = null, limit = 20_000) {
   return { request: render(), coverage: counts, partial };
 }
 
+// the links aide's message shows under "from andromeda": results first, then other evidence
+export function handoffSources(state, limit = 12) {
+  const seen = new Set();
+  const sources = [];
+  for (const item of [...(state.results || []), ...(state.evidence || [])]) {
+    const url = safeUrl(item?.url)?.href;
+    if (!url || seen.has(url) || sources.length >= limit) continue;
+    seen.add(url);
+    sources.push({ title: String(item.title || item.publisher || url).slice(0, 500), url });
+  }
+  return sources;
+}
+
 async function explainResults(button = el('andromeda-explain')) {
   if (_explainBusy || _state.resultStatus === 'loading') return;
   if (!_state.results.length && !_state.evidence.length) { status(tr('andromeda.no_web_results')); return; }
@@ -2510,7 +2519,6 @@ async function explainResults(button = el('andromeda-explain')) {
       saved_search_id: saved.id, url: savedSearchUrl(saved.id, location.href), checked_at: saved.checked_at || '',
     } : null;
     const { request, coverage, partial } = buildAideSearchContext(_state, origin);
-    const scope = _state.documentScope ? JSON.parse(JSON.stringify(_state.documentScope)) : null;
     const projectId = validatedProjectId(
       new URLSearchParams(location.search).get('project_id'),
     );
@@ -2530,7 +2538,13 @@ async function explainResults(button = el('andromeda-explain')) {
         return;
       }
     }
-    const opened = await window._askInChat(request, false, scope, projectId);
+    // aide shows the question; the captured results travel to the model out of view
+    const question = String(_state.rawQuery || _state.query || '').trim() || tr('andromeda.ask_aide');
+    const handoff = { kind: 'handoff', app: appLabel('andromeda'), context: request, sources: handoffSources(_state) };
+    // a search scoped to one note hands that note on too, so aide reads the same version
+    const note = _state.documentScope;
+    if (note?.kind === 'vault_document') handoff.note = { path: note.path, expected_hash: note.expected_hash };
+    const opened = await window._askInChat(question, false, handoff, projectId);
     if (opened === false && generation === _searchGeneration) status(tr('andromeda.aide_failed'));
   } catch (error) {
     if (generation === _searchGeneration) status(error?.message || tr('andromeda.aide_failed'));
@@ -2782,14 +2796,7 @@ function bindOnce() {
   wireHistory();
   // 28.08: no follow-up field here; the answer goes on in aide, with the question, answer and sources
   el('andromeda-continue-aide')?.addEventListener('click', event => void explainResults(event.currentTarget));
-  const watchChoices = el('andromeda-watch-choices');
-  if (watchChoices) {
-    watchChoices.addEventListener('click', event => {
-      const choice = event.target.closest('[role="radio"]');
-      if (choice) void changeWatch(choice.dataset.every);
-    });
-    wireChoiceGroup(watchChoices);
-  }
+  el('andromeda-watch-choices')?.addEventListener('change', event => void changeWatch(event.currentTarget.value));
   el('andromeda-blocked-undo')?.addEventListener('click', () => void undoHideSite());
   el('andromeda-form')?.addEventListener('submit', event => {
     event.preventDefault();

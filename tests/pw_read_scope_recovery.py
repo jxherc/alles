@@ -12,6 +12,14 @@ from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
 
+def pick_filter(page, name):
+    # the saved reading filter is a dropdown (4 options), not a radio row
+    box = page.locator("#read-filter")
+    box.click()
+    page.get_by_role("option", name=name, exact=True).click()
+    expect(box).to_have_attribute("data-value", name)
+
+
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
     require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -118,7 +126,7 @@ def run():
                         field.fill(b["url"])
                         hold[0] = True
                         accepted[:] = [other, scope]
-                        page.get_by_role("radio", name="unread", exact=True).click()
+                        pick_filter(page, "unread")
                         field.focus()
                         field.fill(b["url"])
                         for _ in range(100):

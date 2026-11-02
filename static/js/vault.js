@@ -1,7 +1,7 @@
 import { toast, writeClipboard } from './util.js';
 import { confirm, pick } from './dialog.js';
 import { MODEL_PROVIDERS } from './model_providers.js';
-import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
+import { getDropdownValue, populateDropdown, initCustomDropdown } from './dropdown.js?v=217';
 import { formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=5';
 import { requestWithRecentOwner } from './recent_owner.js';
@@ -519,9 +519,9 @@ function _renderTypeForm() {
         ${_vtDraft.fields.map((f, i) => `
           <div class="vt-field" data-i="${i}">
             <input class="settings-input vt-flabel" data-i="${i}" placeholder="${_esc(t('vault.field_name'))}" value="${_esc(f.label)}">
-            <div class="seg seg-sm vt-width" data-i="${i}">${_WIDTHS.map(w => `<button type="button" class="seg-opt${f.width === w ? ' active' : ''}" data-w="${w}">${_esc(_widthWord(w))}</button>`).join('')}</div>
-            <div class="seg seg-sm vt-kind" data-i="${i}">${_KINDS.map(k => `<button type="button" class="seg-opt${(f.kind || 'text') === k ? ' active' : ''}" data-kd="${k}">${_esc(_kindWord(k))}</button>`).join('')}</div>
             <button type="button" class="act-btn danger vt-rmf" data-i="${i}" title="${_esc(t('vault.remove_field'))}">${_si('close')}</button>
+            <div class="k-pill-switch vt-width" data-kokuen-choice="switch" data-i="${i}" aria-label="${_esc(t('vault.width'))}">${_WIDTHS.map(w => `<button data-value="${w}" aria-checked="${f.width === w}">${_esc(_widthWord(w))}</button>`).join('')}</div>
+            <div class="settings-input custom-select vt-kind" data-i="${i}" data-value="${f.kind || 'text'}" data-options="${_KINDS.map(k => `${k}|${_esc(_kindWord(k))}`).join(';')}" aria-label="${_esc(t('vault.type'))}"></div>
           </div>`).join('')}
       </div>
       <div class="vt-form-actions">
@@ -535,12 +535,7 @@ function _renderTypeForm() {
   box.querySelector('#vt-addf').onclick = () => { _vtSync(); _vtDraft.fields.push({ key: '', label: '', width: 'full', kind: 'text' }); _renderTypeForm(); };
   box.querySelector('#vt-cancel').onclick = () => { _vtDraft = null; box.innerHTML = ''; };
   box.querySelectorAll('.vt-rmf').forEach(b => b.onclick = () => { _vtSync(); _vtDraft.fields.splice(+b.dataset.i, 1); _renderTypeForm(); });
-  box.querySelectorAll('.vt-width .seg-opt').forEach(o => o.onclick = () => {
-    o.closest('.vt-width').querySelectorAll('.seg-opt').forEach(x => x.classList.toggle('active', x === o));
-  });
-  box.querySelectorAll('.vt-kind .seg-opt').forEach(o => o.onclick = () => {
-    o.closest('.vt-kind').querySelectorAll('.seg-opt').forEach(x => x.classList.toggle('active', x === o));
-  });
+  box.querySelectorAll('.vt-kind').forEach(initCustomDropdown);
   box.querySelector('#vt-save').onclick = _saveType;
 }
 
@@ -553,8 +548,8 @@ function _vtSync() {
     const i = +row.dataset.i;
     if (!_vtDraft.fields[i]) return;
     _vtDraft.fields[i].label = row.querySelector('.vt-flabel')?.value || '';
-    _vtDraft.fields[i].width = row.querySelector('.vt-width .seg-opt.active')?.dataset.w || 'full';
-    _vtDraft.fields[i].kind = row.querySelector('.vt-kind .seg-opt.active')?.dataset.kd || 'text';
+    _vtDraft.fields[i].width = row.querySelector('.vt-width [aria-checked="true"]')?.dataset.value || 'full';
+    _vtDraft.fields[i].kind = getDropdownValue(row.querySelector('.vt-kind')) || 'text';
   });
 }
 

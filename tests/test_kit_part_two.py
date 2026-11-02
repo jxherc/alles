@@ -204,20 +204,14 @@ CHOICE_EXCEPTIONS = {
     "js/books.js:te-seg-opt": "3 shelves",
     "js/settings/providers.js:data-value": "2 sign in kinds",
     "js/setupwizard.js:data-value": "2 or 3 choices per step",
+    "js/contacts.js:data-value": "3 sync intervals: manual, hourly, daily",
+    "js/vault.js:data-value": "3 field widths",
 }
 # known walls still waiting for the dropdown (listed in the s4b part 3 report)
 CHOICE_TO_CONVERT = {
-    "index.html:andromeda-watch-choices": "4 intervals",
-    "index.html:aide-schedule-choices": "4 schedule kinds",
-    "index.html:files-location-kind": "4 location kinds",
     "index.html:locale-language-list": "8 languages",
     "js/appsettings.js:seg-opt": "app setting choices of any length",
-    "js/filesphase7.js:data-value": "every files location",
-    "js/memory.js:mem-cat-btn": "memory categories, a list that grows",
-    "js/read.js:read-chip": "4 reading filters",
     "js/theme.js:te-seg-opt": "harmony and background pattern have more than 3",
-    "js/vault.js:seg-opt": "4 field kinds (widths are 3)",
-    "js/contacts.js:seg-opt": "sync intervals",
 }
 
 

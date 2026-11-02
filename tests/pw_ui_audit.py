@@ -394,7 +394,10 @@ FOCUS_ONE = r"""
   if (!el || !el.isConnected) return null;
   // a switch rings its track (::before), not its 44px target, so the pseudo element counts too
   const ol = c => c.outlineStyle !== 'none' && parseFloat(c.outlineWidth) > 0 ? c.outlineStyle + ' ' + c.outlineWidth + ' ' + c.outlineColor : '';
-  const snap = e => { const c = getComputedStyle(e); return { o: ol(c), po: ol(getComputedStyle(e, '::before')), s: c.boxShadow, b: [c.borderTopColor, c.borderRightColor, c.borderBottomColor, c.borderLeftColor].join('|'), bw: c.borderBottomWidth, bg: c.backgroundColor, col: c.color, td: c.textDecorationLine }; };
+  // a border side with no width draws nothing, so its color is no visible change (the stepper's
+  // borderless input once read as a second focus owner)
+  const edge = (c, side) => parseFloat(c[`border${side}Width`]) > 0 ? c[`border${side}Color`] : '';
+  const snap = e => { const c = getComputedStyle(e); return { o: ol(c), po: ol(getComputedStyle(e, '::before')), s: c.boxShadow, b: ['Top', 'Right', 'Bottom', 'Left'].map(side => edge(c, side)).join('|'), bw: c.borderBottomWidth, bg: c.backgroundColor, col: c.color, td: c.textDecorationLine }; };
   const chain = []; let p = el; for (let k = 0; k < 5 && p; k++) { chain.push(p); p = p.parentElement; }
   // overlays focus their first control on open; measure rest from an unfocused state
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
@@ -695,7 +698,9 @@ SPACING = r"""
   // a hint or label line flush on the field under it
   for (const field of controls.filter(el => ['INPUT', 'TEXTAREA'].includes(el.tagName))) {
     const prev = field.previousElementSibling || field.parentElement?.previousElementSibling;
-    if (!prev || !vis(prev) || prev.matches('label, .setup-field, .s-field')) continue;
+    // a control above (a dropdown trigger in a stacked entry row, split by the row's divider) is
+    // a field next to a field, not a hint
+    if (!prev || !vis(prev) || prev.matches('label, .setup-field, .s-field, [role=combobox], [role=button], [tabindex]')) continue;
     if (!/^(P|SMALL|SPAN|DIV)$/.test(prev.tagName) || !(prev.textContent || '').trim() || prev.querySelector('button, a, input')) continue;
     // an underline-only field has no top edge for the hint to touch
     const fs = getComputedStyle(field);
