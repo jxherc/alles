@@ -43,7 +43,7 @@ BROWSER_SUITES = {
     "finance-bank-connections": ("finance-bank-connections",),
     "finance-planning": ("finance-planning",),
     "ui-audit": ("ui-audit",),
-    "kit-rules": ("kit-rules",),
+    "kit-rules": ("kit-rules", "dropdown-layers"),
     "habits": (
         "habit-recovery",
         "habit-create-recovery",

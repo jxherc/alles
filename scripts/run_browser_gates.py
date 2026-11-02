@@ -65,6 +65,7 @@ COMMANDS = {
     "aide-central": ("tests/pw_aide_central.py",),
     "ui-audit": ("tests/pw_ui_audit.py",),
     "kit-rules": ("tests/pw_kit_rules.py",),
+    "dropdown-layers": ("tests/pw_dropdown_layers.py",),
     "help-manual": ("tests/pw_help_manual.py",),
     "livevoice": ("tests/pw_livevoice.py",),
     "draft-ownership": ("tests/pw_draft_ownership.py",),
