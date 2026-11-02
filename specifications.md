@@ -786,6 +786,9 @@ a real to-do list: type tasks in plain english, with recurring ones and smart vi
 - **overdue on top**: every task view draws overdue tasks first in their own group with "move all to today";
   a task due today or earlier has "tomorrow" on its row. other days, add subtask and delete sit in the row's
   more menu. delete turns the row into "deleted" with undo for 6 seconds, then reaches the server
+  `tests/pw_delete_controls.py` (gate `delete-controls`) opens every app on seeded data at ipad landscape and phone and
+  fails when a delete control is visible at rest outside a menu, a dialog or an edit panel; its ALLOWED list names the
+  rows that still show one and the session that owns each fix
 - **dates read one way** (`static/js/when.js`): today, tomorrow, yesterday, the weekday inside the next week,
   "in 9 days" or "3 days ago" inside two weeks, then the short date ("nov 12", with the year when it isn't
   this one). times follow the 12/24 hour setting, lowercase. the full date is the title on hover and shows in
