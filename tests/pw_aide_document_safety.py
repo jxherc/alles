@@ -168,6 +168,25 @@ def run():
                         page = context.new_page()
                         page.set_default_timeout(20000)
                         errors = []
+
+                        def check_steps_dialog():
+                            # the reviewed change reads back from the reply's steps, with no
+                            # filesystem revert offered for a document edit
+                            row = page.locator("#messages .msg-row").last
+                            row.locator(".msg-more-trigger").click()
+                            row.locator('[role="menuitem"][data-msg-act="steps"]').click()
+                            dialog = page.locator(".aide-steps-dialog")
+                            expect(dialog).to_be_visible()
+                            expect(dialog.locator(".agent-step-diff").last).to_contain_text(
+                                "-owner source"
+                            )
+                            expect(dialog.locator(".agent-step-diff").last).to_contain_text(
+                                "+accepted source"
+                            )
+                            expect(dialog.locator(".agent-revert-btn")).to_have_count(0)
+                            page.keyboard.press("Escape")
+                            expect(dialog).to_have_count(0)
+
                         page.on("pageerror", lambda error: errors.append(str(error)))
                         page.on(
                             "console",
@@ -183,7 +202,8 @@ def run():
                             page.locator("#send-btn").click()
                             approval = page.locator(".agent-perm-allow")
                             expect(approval).to_be_visible()
-                            diff = page.locator(".agent-step-diff").last
+                            # the approval asks about this change, so it shows it
+                            diff = page.locator(".agent-perm-diff")
                             expect(diff).to_contain_text("-owner source")
                             expect(diff).to_contain_text("+accepted source")
                             assert (
@@ -217,10 +237,14 @@ def run():
                             expect(page.locator(".ai-body").last).to_contain_text(final)
                             expect(page.locator("#send-btn")).to_be_enabled()
                             expect(page.locator(".agent-revert-btn")).to_have_count(0)
+                            # the stream is the reply only; the change stays in the steps dialog
+                            expect(page.locator("#messages .agent-step-diff")).to_have_count(0)
+                            check_steps_dialog()
                             saved_url = page.url
                             page.reload(wait_until="networkidle")
                             expect(page.locator(".ai-body").last).to_contain_text(final)
                             expect(page.locator(".agent-revert-btn")).to_have_count(0)
+                            check_steps_dialog()
                             read = api("GET", "/api/vault-md/file?path=" + path)
                             expected = (
                                 "newer owner source\r\n"

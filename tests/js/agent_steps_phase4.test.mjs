@@ -60,3 +60,18 @@ test('a skipped question reads as a skip, without its tool data or a failure cou
   assert.match(html, /you skipped this question/);
   assert.doesNotMatch(html, /failed|cancelled|answers|args/);
 });
+
+test('the steps dialog body has one list and the run controls, with no collapsible wrapper', async () => {
+  const { renderRunView } = await import('../../static/js/agentview.js');
+  const { title, html } = renderRunView([
+    { name: 'edit_file', args: { path: 'a.md' }, diff: '-old\n+new' },
+    { name: 'read_file', args: { path: 'b.md' }, output: 'ok' },
+  ], 'run-9');
+  assert.equal(title, '2 steps · 1 edit');
+  assert.match(html, /^<div class="agent-run-view">/);
+  assert.doesNotMatch(html, /<details class="agent-steps"/);
+  assert.match(html, /data-agent-sources="run-9"/);
+  assert.match(html, /data-agent-revert="run-9"/);
+  assert.match(html, /agent-step-diff/);
+  assert.deepEqual(renderRunView([], 'x'), { title: '', html: '' });
+});

@@ -1,6 +1,6 @@
 import { plainError, toast, withoutThinking } from './util.js';
-import { confirm as _dlgConfirm, form as _dlgForm, prompt as _dlgPrompt } from './dialog.js';
-import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
+import { confirm as _dlgConfirm, prompt as _dlgPrompt, view as _dlgView } from './dialog.js';
+import { renderRunView, wireAgentRunControls } from './agentview.js';
 import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
 import { isIncognitoMode } from './modes.js?v=259';
@@ -748,11 +748,8 @@ export function addStepsAction(actions, steps, runId = '') {
 }
 
 export function openReplySteps(button) {
-  void _dlgForm(button.textContent, renderAgentSteps(button.steps || [], true, button.dataset.runId), {
-    confirmLabel: t('common.close'),
-    className: 'aide-steps-dialog',
-    wire: card => wireAgentRunControls(card),
-  });
+  const { title, html } = renderRunView(button.steps || [], button.dataset.runId);
+  void _dlgView(title, html, { className: 'aide-steps-dialog', wire: card => wireAgentRunControls(card) });
 }
 
 
@@ -804,12 +801,13 @@ export function appendAiMsg(text, contextProvenance, sourceCitations = null, too
 
   const actions = document.createElement('div');
   actions.className = 'msg-actions';
-  actions.innerHTML = `<button class="act-btn" data-msg-act="copy">${t('common.copy')}</button>
+  // a reply that used tools and wrote no words has nothing to copy or reword: only its steps
+  actions.innerHTML = withoutThinking(displayText) ? `<button class="act-btn" data-msg-act="copy">${t('common.copy')}</button>
     <button class="act-btn" data-msg-act="note">${t('aide.note_button')}</button>
     <button class="act-btn" data-msg-act="task">${t('aide.add_plan_task')}</button>
     <button class="msg-regen-btn act-btn">${t('aide.regen')}</button>
     <button class="msg-rewrite-btn act-btn" data-style="shorter">${t('aide.shorter')}</button>
-    <button class="msg-rewrite-btn act-btn" data-style="simpler">${t('aide.simpler')}</button>`;
+    <button class="msg-rewrite-btn act-btn" data-style="simpler">${t('aide.simpler')}</button>` : '';
   addStepsAction(actions, toolSteps, agentRunId);
   wrap.appendChild(actions);
   wireRewriteButtons(actions);

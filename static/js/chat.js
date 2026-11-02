@@ -1,4 +1,5 @@
 import { mdToHtml, plainError, toast, withoutThinking, writeClipboard } from './util.js';
+import { renderDiff } from './agentview.js';
 import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown, wireMessageActions, rereadActiveSession, markRead, addStepsAction, openReplySteps,
   showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
@@ -843,13 +844,14 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         if (chunk.tool_permission) {
           const t = chunk.tool_permission;
           const card = document.createElement('div');
-          card.className = 'agent-perm';
+          card.className = `agent-perm${t.diff ? ' has-diff' : ''}`;
           card.dataset.req = t.request_id;
           card.dataset.callId = t.call_id || '';
           card.innerHTML = `
             <div class="agent-perm-msg">${escHtml(tr('aide.perm_approve_prompt', { summary: '\u0001' })).replace('\u0001', `<b>${escHtml(toolSummary(t.name, t.args))}</b>`)}${t.outside
               ? `<span class="agent-perm-outside">${escHtml(t.outside)}</span>`
               : ''}</div>
+            ${t.diff ? `<pre class="agent-perm-diff" tabindex="0" aria-label="${escHtml(toolSummary(t.name, t.args))}">${renderDiff(t.diff)}</pre>` : ''}
             <div class="agent-perm-actions">
               <button class="agent-perm-allow">${escHtml(tr('aide.perm_allow'))}</button>
               <button class="agent-perm-deny">${escHtml(tr('aide.perm_deny'))}</button>
@@ -1026,11 +1028,13 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       const status = sourceCitationStatus(sourceCitations || { status: 'needs_review' });
       if (status) body.appendChild(status);
     }
-    if (wrap && (cleanText || artifacts.length)) {
+    // a reply that used tools and wrote no words still gets its row, so its steps are one tap away
+    const hasWords = Boolean(withoutThinking(cleanText));
+    if (wrap && (hasWords || artifacts.length || steps.size)) {
       const actions = document.createElement('div');
       actions.className = 'msg-actions';
       let html = '';
-      if (cleanText) {
+      if (hasWords) {
         html += `<button class="act-btn" data-msg-act="copy">${t('common.copy')}</button>`;
         html += `<button class="act-btn" data-msg-act="note">${t('aide.note_button')}</button>`;
         html += `<button class="act-btn" data-msg-act="task">${t('aide.add_plan_task')}</button>`;
@@ -1042,14 +1046,14 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         wrap.dataset.artifacts = JSON.stringify(artifacts);
         html += `<button class="act-btn" data-msg-act="artifact">${t('aide.open_artifact')}</button>`;
       }
-      // the same buttons a reload draws, so regenerate and branch work right away
-      if (!privateReply) html += `<button class="act-btn msg-branch-btn" aria-description="${t('aide.branch_title')}">${t('aide.branch_button')}</button>`;
       actions.innerHTML = html;
       addStepsAction(actions, [...steps.values()], runId);
+      // the same buttons in the same order a reload draws, so regenerate and branch work right away
+      if (!privateReply) actions.insertAdjacentHTML('beforeend', `<button class="act-btn msg-branch-btn" aria-description="${t('aide.branch_title')}">${t('aide.branch_button')}</button>`);
       wrap.appendChild(actions);
       compactResponseActions(actions);
       wireMessageActions(row);
-      if (cleanText) import('./sessions.js').then(m => m.wireRewriteButtons(actions));
+      if (hasWords) import('./sessions.js').then(m => m.wireRewriteButtons(actions));
     }
 
     // auto-open the first artifact

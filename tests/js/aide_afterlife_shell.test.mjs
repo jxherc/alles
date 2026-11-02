@@ -151,8 +151,8 @@ test('the chat shows the reply only: no thinking or tool steps, and provenance j
     assert.doesNotMatch(source, /thinking-block|agent-step-list|agent-todos|docReceipt|ensureAgentPanel/);
   }
   // the steps only draw inside the dialog the reply's menu opens
-  assert.equal(sessions.match(/renderAgentSteps\(/g)?.length, 1);
-  assert.match(sessions, /export function openReplySteps\(button\) \{\s*void _dlgForm\(button\.textContent, renderAgentSteps\(/);
+  assert.equal(sessions.match(/renderRunView\(/g)?.length, 1);
+  assert.match(sessions, /export function openReplySteps\(button\) \{\s*const \{ title, html \} = renderRunView\(/);
   assert.match(chat, /contextProvenanceElement\(chunk\.context_provenance\)/);
   assert.match(chat, /if \(provenanceEl\) body\.appendChild\(provenanceEl\);\s*\/\/ action buttons/);
   assert.match(sessions, /contextProvenanceElement\(contextProvenance\)/);

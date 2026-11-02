@@ -1148,9 +1148,9 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
   font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
   font-size: 0.8125rem;
   line-height: 1.5;
-  white-space: pre;
+  white-space: normal;
 }
-.agent-step-diff span { display: block; }
+.agent-step-diff span { display: block; white-space: pre; }
 .agent-step-diff .diff-add  { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
 .agent-step-diff .diff-del  { color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); }
 .agent-step-diff .diff-hunk { color: var(--info); }
@@ -1189,6 +1189,19 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 .agent-perm-actions button:disabled { opacity: 0.45; pointer-events: none; }
 .agent-perm.approved { border-color: var(--green); }
 .agent-perm.denied { border-color: var(--error); opacity: 0.7; }
+/* an approval that changes a file shows the change it asks about, above the buttons */
+.agent-perm.has-diff { flex-direction: column; align-items: stretch; }
+.agent-perm-diff {
+  margin: 0; max-height: 260px; overflow: auto; padding: var(--k-space-2) var(--k-space-3);
+  border-radius: var(--k-radius-control); background: var(--k-page, var(--bg));
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace; font-size: 0.8125rem; line-height: 1.5; white-space: normal;
+}
+.agent-perm-diff span { display: block; white-space: pre; }
+.agent-perm-diff .diff-add { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
+.agent-perm-diff .diff-del { color: var(--error); background: color-mix(in srgb, var(--error) 10%, transparent); }
+.agent-perm-diff .diff-hunk { color: var(--info); }
+.agent-perm-diff .diff-meta { color: var(--muted); }
+.agent-perm.has-diff .agent-perm-actions { align-self: flex-end; }
 
 .aide-question-card {
   margin-top: 0.75rem;
@@ -11523,6 +11536,32 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .dialog-form .dialog-hint { margin: 0; color: var(--k-muted, var(--muted)); font-size: 0.8125rem; }
 .dialog-form .dialog-btns { margin-top: var(--k-space-3, 12px); }
 .dialog-form .dialog-btns .btn { min-height: 40px; padding-inline: var(--k-space-4, 16px); }
+
+/* a reply's steps: the title and the close button stay in view, the steps scroll between them */
+.dialog-card.dialog-view { max-height: calc(100dvh - 2 * var(--k-space-4, 16px)); }
+.dialog-view .dialog-form-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.dialog-card.aide-steps-dialog { width: min(600px, calc(100vw - 2 * var(--k-space-4, 16px))); }
+.dialog-card.dialog-view:focus-visible { outline: none; }
+.agent-run-view { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--k-space-3); }
+.agent-run-view > .agent-run-controls { display: flex; flex-wrap: wrap; gap: var(--k-space-4); }
+.agent-run-view :is(.agent-sources-btn, .agent-revert-btn) {
+  float: none; margin: 0; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: var(--k-radius-control);
+  background: transparent; font: inherit; font-size: 0.8125rem; cursor: pointer; text-align: start;
+}
+.agent-run-view .agent-sources-btn { color: var(--k-muted, var(--muted)); }
+.agent-run-view .agent-sources-btn:hover, .agent-run-view .agent-sources-btn[aria-expanded="true"] { color: var(--k-text, var(--text)); }
+.agent-run-view .agent-revert-btn { color: var(--k-danger, var(--error)); }
+.agent-run-view .agent-sources { margin: 0; padding: 0; border: 0; }
+.agent-run-view .agent-step-list { margin: 0; gap: 0; }
+.agent-run-view .agent-step { padding: 0 0 var(--k-space-3); }
+.agent-run-view .agent-step:not(:first-child) { padding-top: var(--k-space-3); }
+.agent-run-view .agent-step:first-child { border-top: 0; }
+.agent-run-view .agent-step-head { gap: var(--k-space-3); min-height: 32px; }
+.agent-run-view .agent-step-dot { display: none; }
+.agent-run-view .agent-step-name { font-family: inherit; font-weight: 560; }
+.agent-run-view .agent-step.destructive .agent-step-name { color: var(--k-danger, var(--error)); }
+.agent-run-view .agent-step :is(.agent-step-args-wrap, .agent-step-output, .agent-step-diff) { margin: var(--k-space-2) 0 0; }
+.agent-run-view :is(.agent-step-output, .agent-step-diff) { padding: var(--k-space-2) var(--k-space-3); border: 0; border-radius: var(--k-radius-control, 4px); background: var(--k-page, var(--bg)); }
 
 /* one page width for the specialist apps, matching the shared workbench */
 .specialist-group-slot > :is(#books-view, #habits-view, #health-view, #read-view, #tasks-view, #watch-view, #contacts-view, #subs-view, #days-view, #money-view) > :is(.page-view-head, .page-view-body, .page-view-footer) {

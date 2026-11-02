@@ -115,10 +115,8 @@ function asQuestion(step) {
   return { ...step, error: cancelled ? false : step.error, args: {}, output: '', _question: cancelled ? t('aide.step_skipped_question') : (step.args?.title || t('aide.step_asked_question')) };
 }
 
-export function renderAgentSteps(steps, open = false, agentRunId = '') {
-  if (!Array.isArray(steps) || !steps.length) return '';
-  steps = steps.map(asQuestion);
-  open = open || steps.some(step => step?.error || step?.completed === false);
+// the rows of a run's steps, and how many of them edited a file
+function stepRows(steps) {
   let edits = 0;
   const rows = steps.map(s => {
     const name = s.name || s.tool || 'tool';
@@ -144,18 +142,48 @@ export function renderAgentSteps(steps, open = false, agentRunId = '') {
       </div>${argsBlock}${out}${diff}
     </div>`;
   }).join('');
-  const detail = `${tp('aide.run_steps', steps.length)}${edits ? ` · ${tp('aide.run_edits', edits)}` : ''}`;
+  return { rows, edits };
+}
+
+function runControls(steps, agentRunId) {
   const runId = String(agentRunId || '').trim();
   const reversible = steps.some(step => step.diff && canRevertTool(step.name || step.tool));
-  const controls = runId ? `<span class="agent-run-controls">
+  return runId ? `<span class="agent-run-controls">
     <button type="button" class="agent-sources-btn" data-agent-sources="${esc(runId)}" aria-expanded="false" title="${esc(t('aide.step_sources_title'))}">${esc(t('aide.step_sources'))}</button>
     ${reversible ? `<button type="button" class="agent-revert-btn" data-agent-revert="${esc(runId)}" title="${esc(t('aide.step_revert_title'))}">${esc(t('aide.step_revert'))}</button>` : ''}
   </span>` : '';
-  const failed = steps.filter(step => step?.error).length;
-  const dots = `<span class="agent-steps-dots" aria-hidden="true">${steps.slice(-24).map(step => `<span class="${step?.error ? 'failed' : 'done'}"></span>`).join('')}</span>`;
-  const receipts = steps.map(step => (step.name || step.tool) === 'pi_run'
+}
+
+function docReceipts(steps) {
+  return steps.map(step => (step.name || step.tool) === 'pi_run'
     ? piDocReceipts(step.output, !!step.error)
     : docReceipt(step.name || step.tool, step.args, !!step.error)).join('');
+}
+
+// what a run did, for the dialog a reply opens from its menu: the title says how much, the body
+// holds the sources and undo controls, then every step with its diff
+export function renderRunView(steps, agentRunId = '') {
+  if (!Array.isArray(steps) || !steps.length) return { title: '', html: '' };
+  steps = steps.map(asQuestion);
+  const { rows, edits } = stepRows(steps);
+  const failed = steps.filter(step => step?.error).length;
+  const title = `${tp('aide.run_steps', steps.length)}${edits ? ` · ${tp('aide.run_edits', edits)}` : ''}${failed ? ` · ${tp('aide.step_failed', failed)}` : ''}`;
+  return {
+    title,
+    html: `<div class="agent-run-view">${runControls(steps, agentRunId)}<div class="agent-step-list">${rows}</div></div>${docReceipts(steps)}`,
+  };
+}
+
+export function renderAgentSteps(steps, open = false, agentRunId = '') {
+  if (!Array.isArray(steps) || !steps.length) return '';
+  steps = steps.map(asQuestion);
+  open = open || steps.some(step => step?.error || step?.completed === false);
+  const { rows, edits } = stepRows(steps);
+  const detail = `${tp('aide.run_steps', steps.length)}${edits ? ` · ${tp('aide.run_edits', edits)}` : ''}`;
+  const controls = runControls(steps, agentRunId);
+  const failed = steps.filter(step => step?.error).length;
+  const dots = `<span class="agent-steps-dots" aria-hidden="true">${steps.slice(-24).map(step => `<span class="${step?.error ? 'failed' : 'done'}"></span>`).join('')}</span>`;
+  const receipts = docReceipts(steps);
   return `<details class="agent-steps"${open ? ' open' : ''}><summary>${detail}${failed ? ` · ${tp('aide.step_failed', failed)}` : ''}${dots}${controls}</summary><div class="agent-step-list">${rows}</div></details>${receipts}`;
 }
 
@@ -182,8 +210,11 @@ export function wireAgentRunControls(root) {
         panel.className = 'agent-sources';
         panel.innerHTML = sourcesHtml(sources);
         panel.hidden = false;
+        // in a reply's steps dialog the panel sits under the controls, above the steps
+        const view = button.closest('.agent-run-view');
         const details = button.closest('.agent-steps');
-        if (details) {
+        if (view) view.insertBefore(panel, view.querySelector('.agent-step-list'));
+        else if (details) {
           details.open = true;
           details.appendChild(panel);
         }

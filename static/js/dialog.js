@@ -241,6 +241,29 @@ export function form(title, html, { confirmLabel = '', collect, submit, remove =
   });
 }
 
+// a dialog that only shows something (a run's steps, a receipt): one title, the caller's content
+// and one close button. escape, the backdrop and close all end it, focus is trapped while it is
+// open and returns to what opened it. wire(card) runs once the markup is in the page
+export function view(title, html, { wire = null, className = '' } = {}) {
+  return new Promise(resolve => {
+    const ov = _overlay();
+    const titleId = `dialog-title-${++dialogSequence}`;
+    ov.innerHTML = `<div class="dialog-card dialog-form dialog-view${className ? ` ${_esc(className)}` : ''}" role="dialog" aria-modal="true" aria-labelledby="${titleId}" tabindex="-1">
+      <h2 class="dialog-title" id="${titleId}">${_esc(title)}</h2>
+      <div class="dialog-form-body">${html}</div>
+      <div class="dialog-btns">
+        <button class="btn" type="button" data-dialog-cancel>${t('common.close')}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const card = ov.querySelector('.dialog-card');
+    _wireDialog(ov, resolve, () => null);
+    wire?.(card);
+    // the title is read first; the first tab lands on the first control inside
+    card.focus({ preventScroll: true });
+  });
+}
+
 export function choose(title, options) {
   return new Promise(resolve => {
     const ov = _overlay();
