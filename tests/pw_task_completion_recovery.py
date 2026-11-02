@@ -123,9 +123,11 @@ with sync_playwright() as pw:
                 for fault in [fail, lost]:
                     for done in [True, False]:
                         tab = "active" if done else "done"
-                        tab_button = page.locator(f'.tasks-tab[data-tab="{tab}"]')
-                        if tab_button.get_attribute("aria-pressed") != "true":
-                            tab_button.click()
+                        if page.locator("#tasks-view-pick").get_attribute("data-value") != tab:
+                            page.click("#tasks-view-pick")
+                            page.locator(".custom-dropdown-panel [role=option]").nth(
+                                ["active", "today", "upcoming", "someday", "done"].index(tab)
+                            ).click()
                         check = page.locator(f'.task-item[data-id="{task["id"]}"] .task-check')
                         expect(check).to_be_visible()
                         page.route(endpoint, fault)

@@ -145,9 +145,7 @@ def run():
                 page.goto(saved_link, wait_until="networkidle")
                 expect(page.locator("#te-title")).to_have_value(f"edited task {label}")
                 page.locator("#te-cancel").click()
-                expect(page.locator('.tasks-tab[data-tab="done"]')).to_have_attribute(
-                    "aria-pressed", "true"
-                )
+                expect(page.locator("#tasks-view-pick")).to_have_attribute("data-value", "done")
                 assert context.request.delete(base + "/api/tasks/" + task_id).ok
                 page.reload(wait_until="networkidle")
                 expect(page.locator("#te-title")).to_have_count(0)

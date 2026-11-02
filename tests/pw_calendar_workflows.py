@@ -797,7 +797,8 @@ def run():
                 passed()
 
                 begin("shared-picker-countdown-and-reminder")
-                page.get_by_role("tab", name="countdowns", exact=True).click()
+                page.get_by_role("tab", name="tasks", exact=True).click()
+                page.get_by_role("radio", name="countdowns", exact=True).click()
                 page.locator("#day-name").fill(label + " countdown")
                 set_date("#day-date", 30)
                 page.locator("#day-add-btn").click()
@@ -808,7 +809,8 @@ def run():
                     row["name"] == label + " countdown" and row["date"] == "2026-09-30"
                     for row in result["events"]
                 )
-                page.get_by_role("tab", name="reminders", exact=True).click()
+                page.get_by_role("tab", name="tasks", exact=True).click()
+                page.get_by_role("radio", name="reminders", exact=True).click()
                 page.locator("#reminder-text").fill(label + " reminder")
                 reminder_time = (
                     datetime.now(ZoneInfo("America/Toronto")) + timedelta(days=1)
@@ -830,7 +832,8 @@ def run():
                     reminder_time.astimezone(UTC).strftime("%Y-%m-%dT%H:%M")
                 )
                 page.reload(wait_until="networkidle")
-                page.get_by_role("tab", name="reminders", exact=True).click()
+                page.get_by_role("tab", name="tasks", exact=True).click()
+                page.get_by_role("radio", name="reminders", exact=True).click()
                 expect(page.locator("#reminder-list")).to_contain_text(label + " reminder")
                 shot("shared-picker-consumer")
                 passed()

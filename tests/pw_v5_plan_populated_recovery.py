@@ -122,7 +122,10 @@ def run() -> None:
         # out of the active tree, so follow it through the visible History view.
         complete.press("Enter")
         edit.wait_for(state="detached")
-        page.locator('.tasks-tab[data-tab="done"]').click()
+        page.click("#tasks-view-pick")
+        page.locator(".custom-dropdown-panel [role=option]").nth(
+            ["active", "today", "upcoming", "someday", "done"].index("done")
+        ).click()
         page.get_by_role("button", name=f"mark {task_title} incomplete", exact=True).wait_for(
             state="visible"
         )

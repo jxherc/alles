@@ -406,6 +406,23 @@ body:is(
 
 .specialist-view-strip .specialist-group-tabs { flex: 1; }
 
+/* plan's tasks tab picks what it lists (tasks, reminders, countdowns) and how (list or board)
+   with two pill switches at the end of the views row (u.06, decision 0064). a phone puts them on
+   their own line under the tabs */
+.plan-subviews {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--k-space-2, 8px);
+  min-width: 0;
+  padding-inline: var(--k-space-3, 12px);
+}
+html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { display: none; }
+@media (max-width: 760px) {
+  #plan-view .specialist-view-strip { flex-wrap: wrap; }
+  #plan-view .plan-subviews { flex: 1 0 100%; flex-wrap: wrap; padding-block: 0 var(--k-space-2, 8px); }
+}
+
 .specialist-view-scroll {
   flex: 0 0 var(--k-control, 44px);
   min-height: var(--k-control, 44px);

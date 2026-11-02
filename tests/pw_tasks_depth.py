@@ -135,15 +135,24 @@ def main():
         )
 
         # tabs use their real endpoints
-        pg.click('.tasks-tab[data-tab="upcoming"]')
+        pg.click("#tasks-view-pick")
+        pg.locator(".custom-dropdown-panel [role=option]").nth(
+            ["active", "today", "upcoming", "someday", "done"].index("upcoming")
+        ).click()
         pg.wait_for_timeout(500)
         r["upcoming_tab_lists_due"] = "visible after search clear" in (
             pg.text_content("#tasks-list") or ""
         )
-        pg.click('.tasks-tab[data-tab="someday"]')
+        pg.click("#tasks-view-pick")
+        pg.locator(".custom-dropdown-panel [role=option]").nth(
+            ["active", "today", "upcoming", "someday", "done"].index("someday")
+        ).click()
         pg.wait_for_timeout(500)
         r["someday_tab_lists_undated"] = "project parent" in (pg.text_content("#tasks-list") or "")
-        pg.click('.tasks-tab[data-tab="done"]')
+        pg.click("#tasks-view-pick")
+        pg.locator(".custom-dropdown-panel [role=option]").nth(
+            ["active", "today", "upcoming", "someday", "done"].index("done")
+        ).click()
         pg.wait_for_timeout(500)
         r["history_tab_lists_done"] = "done child" in (pg.text_content("#tasks-list") or "")
         pg.screenshot(path=str(EVID / "tasks-depth.png"))

@@ -307,7 +307,8 @@ with sync_playwright() as pw:
             day_state["mode"] = "load-hold"
             held = []
             page.get_by_role("tab", name="tasks", exact=True).press("Enter")
-            page.get_by_role("tab", name="countdowns", exact=True).press("Enter")
+            page.get_by_role("tab", name="tasks", exact=True).click()
+            page.get_by_role("radio", name="countdowns", exact=True).press("Enter")
             wait_count(held, 1)
             older = held.pop()
             snapshot = older.fetch()
@@ -318,7 +319,8 @@ with sync_playwright() as pw:
                 BASE + "/api/days/" + identity, data={"name": f"newer navigation state {width}"}
             ).ok
             page.get_by_role("tab", name="tasks", exact=True).press("Enter")
-            page.get_by_role("tab", name="countdowns", exact=True).press("Enter")
+            page.get_by_role("tab", name="tasks", exact=True).click()
+            page.get_by_role("radio", name="countdowns", exact=True).press("Enter")
             expect(page.locator(f'.day-card[data-id="{identity}"] .day-name')).to_have_text(
                 f"newer navigation state {width}"
             )

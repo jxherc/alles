@@ -1986,10 +1986,41 @@ const OVERVIEWS = Object.freeze({
   server: _renderServer,
 });
 
+// plan has 3 tabs (u.06): the agenda's next seven days sit under today, and the board,
+// reminders and countdowns are views of tasks picked by the pill switches under the tasks tab.
+// the sections and their links stay, so an old link still opens the right view
+const PLAN_TAB = Object.freeze({ week: 'overview', board: 'tasks', reminders: 'tasks', days: 'tasks' });
+const PLAN_TASK_VIEWS = Object.freeze(['tasks', 'board', 'reminders', 'days']);
+
+export function groupTabFor(group, section) {
+  return (group === 'plan' && PLAN_TAB[section]) || section;
+}
+
+function _pick(group, value) {
+  group?.querySelectorAll(':scope > button').forEach(button => {
+    button.setAttribute('aria-checked', String(button.dataset.value === value));
+    button.tabIndex = button.dataset.value === value ? 0 : -1;
+  });
+}
+
+function _setPlanViews(root, section) {
+  const views = root.querySelector('[data-plan-subviews]');
+  if (!views) return;
+  const inTasks = PLAN_TASK_VIEWS.includes(section);
+  views.hidden = !inTasks;
+  if (!inTasks) return;
+  _pick(views.querySelector('[data-plan-kind]'), section === 'board' ? 'tasks' : section);
+  const layout = views.querySelector('[data-plan-layout]');
+  _pick(layout, section);
+  layout.hidden = section !== 'tasks' && section !== 'board';
+}
+
 function _setTabs(root, section) {
   let activeTab = null;
+  const tab = groupTabFor(root.dataset.specialistApp, section);
+  if (root.dataset.specialistApp === 'plan') _setPlanViews(root, section);
   root.querySelectorAll('[data-group-section]').forEach(button => {
-    const active = button.dataset.groupSection === section;
+    const active = button.dataset.groupSection === tab;
     button.setAttribute('aria-selected', active ? 'true' : 'false');
     button.tabIndex = active ? 0 : -1;
     button.classList.toggle('active', active);
@@ -2082,6 +2113,14 @@ function _wire(group, root) {
       tabs[next].click();
     });
   });
+  const planViews = root.querySelector('[data-plan-subviews]');
+  if (planViews && tablist?.parentElement) {
+    tablist.parentElement.append(planViews);
+    planViews.addEventListener('change', event => {
+      const value = event.detail?.value;
+      if (PLAN_TASK_VIEWS.includes(value) && value !== _states.get('plan')?.section) window._navigateSpecialistSection?.('plan', value);
+    });
+  }
   root.querySelector('[data-files-back]')?.addEventListener('click', async () => {
     await window._navigateSpecialistSection?.('files', 'files');
     // the back button hides on files, so the picked tab takes focus instead of the page

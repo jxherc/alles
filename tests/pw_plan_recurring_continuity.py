@@ -101,9 +101,15 @@ with sync_playwright() as pw:
             result["steps"].append(
                 "capture/edit/monthly/leap-day completion/lost response/same-action retry creates one successor"
             )
-            page.locator('.tasks-tab[data-tab="done"]').click()
+            page.click("#tasks-view-pick")
+            page.locator(".custom-dropdown-panel [role=option]").nth(
+                ["active", "today", "upcoming", "someday", "done"].index("done")
+            ).click()
             page.get_by_role("button", name="mark " + title + " incomplete", exact=True).click()
-            page.locator('.tasks-tab[data-tab="active"]').click()
+            page.click("#tasks-view-pick")
+            page.locator(".custom-dropdown-panel [role=option]").nth(
+                ["active", "today", "upcoming", "someday", "done"].index("active")
+            ).click()
             original_row = page.locator(f'.task-item[data-id="{original["id"]}"]')
             expect(original_row).to_be_visible()
             original_row.locator(".task-check").click()

@@ -507,8 +507,8 @@
     <!-- ── Stage 8 specialist groups; proven legacy screens are mounted into their slots ── -->
     <section class="page-view specialist-group" id="plan-view" data-specialist-app="plan" data-kokuen-surface="specialist" style="display:none" aria-labelledby="plan-title">
       <header class="specialist-app-head"><div class="specialist-app-brand"><h2 class="specialist-app-name" id="plan-title" data-i18n="plan.title">plan</h2></div><div class="specialist-group-tabs" id="plan-tabs" role="tablist" aria-label="plan sections" data-i18n-aria-label="plan.sections">
-        <button type="button" role="tab" data-group-section="overview" data-i18n="plan.agenda">agenda</button><button type="button" role="tab" data-group-section="week" data-i18n="plan.week">week</button><button type="button" role="tab" data-group-section="board" data-i18n="plan.board">task board</button><button type="button" role="tab" data-group-section="calendar" data-i18n="calendar.title">calendar</button><button type="button" role="tab" data-group-section="tasks" data-i18n="tasks.title">tasks</button><button type="button" role="tab" data-group-section="reminders" data-i18n="aide.reminders">reminders</button><button type="button" role="tab" data-group-section="days" data-i18n="shell.plan.countdowns">countdowns</button>
-      </div></header>
+        <button type="button" role="tab" data-group-section="overview" data-i18n="common.today">today</button><button type="button" role="tab" data-group-section="calendar" data-i18n="calendar.title">calendar</button><button type="button" role="tab" data-group-section="tasks" data-i18n="tasks.title">tasks</button>
+      </div><div class="plan-subviews" data-plan-subviews hidden><div class="k-pill-switch" data-kokuen-choice="switch" data-plan-kind aria-label="show" data-i18n-aria-label="plan.kind"><button type="button" data-value="tasks" aria-checked="true" data-i18n="tasks.title">tasks</button><button type="button" data-value="reminders" data-i18n="aide.reminders">reminders</button><button type="button" data-value="days" data-i18n="shell.plan.countdowns">countdowns</button></div><div class="k-pill-switch" data-kokuen-choice="switch" data-plan-layout aria-label="layout" data-i18n-aria-label="plan.layout"><button type="button" data-value="tasks" aria-checked="true" data-i18n="plan.list">list</button><button type="button" data-value="board" data-i18n="plan.board_view">board</button></div></div></header>
       <div class="specialist-group-overview" data-group-overview></div><div class="specialist-group-slot" data-group-slot hidden></div>
     </section>
     <section class="page-view specialist-group" id="inbox-view" data-specialist-app="inbox" data-kokuen-surface="specialist" style="display:none" aria-labelledby="inbox-title">
@@ -562,13 +562,7 @@
     <div class="page-view" id="tasks-view" data-specialist-app="tasks" style="display:none">
       <div class="page-view-head">
         <span class="page-view-title" data-i18n="tasks.title">tasks</span>
-        <div class="tasks-tabs">
-          <button type="button" class="tasks-tab active" data-tab="active" aria-pressed="true" data-i18n="common.all">all</button>
-          <button type="button" class="tasks-tab" data-tab="today" aria-pressed="false" data-i18n="common.today">today</button>
-          <button type="button" class="tasks-tab" data-tab="upcoming" aria-pressed="false" data-i18n="tasks.upcoming">upcoming</button>
-          <button type="button" class="tasks-tab" data-tab="someday" aria-pressed="false" data-i18n="tasks.someday">someday</button>
-          <button type="button" class="tasks-tab" data-tab="done" aria-pressed="false" data-i18n="tasks.history">history</button>
-        </div>
+        <div class="custom-select tasks-view-pick" id="tasks-view-pick" aria-label="show" data-i18n-aria-label="plan.kind" data-value="active" data-options="active|all;today|today;upcoming|upcoming;someday|someday;done|history"></div>
         <input type="text" id="tasks-search" class="cal-quick tasks-search" aria-label="search tasks" placeholder="search tasks…" data-i18n-aria-label="tasks.search" data-i18n-placeholder="tasks.search">
       </div>
       <span id="task-completion-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></span>

@@ -334,7 +334,8 @@ def run():
                 )
 
                 begin("plan.board-filter-visibility")
-                page.get_by_role("tab", name="task board", exact=True).click()
+                page.get_by_role("tab", name="tasks", exact=True).click()
+                page.get_by_role("radio", name="board", exact=True).click()
                 board_search = page.get_by_role("searchbox", name="search tasks", exact=True)
                 expect(board_search).to_be_visible()
                 board_search.fill(title)

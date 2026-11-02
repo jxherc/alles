@@ -147,10 +147,13 @@ def run():
                     count.press("Enter")
                     first = page.locator('.task-item[data-id="' + upcoming["id"] + '"]')
                     expect(first).to_be_visible()
-                    expect(page.locator('.tasks-tab[data-tab="active"]')).to_have_attribute(
-                        "aria-pressed", "true"
+                    expect(page.locator("#tasks-view-pick")).to_have_attribute(
+                        "data-value", "active"
                     )
-                    page.locator('.tasks-tab[data-tab="done"]').click()
+                    page.click("#tasks-view-pick")
+                    page.locator(".custom-dropdown-panel [role=option]").nth(
+                        ["active", "today", "upcoming", "someday", "done"].index("done")
+                    ).click()
                     expect(
                         page.locator('.task-item[data-id="' + history["id"] + '"]')
                     ).to_be_visible()
@@ -162,8 +165,8 @@ def run():
                     count.press("Enter")
                     expect(first).to_be_visible()
                     expect(page.locator("#tasks-search")).to_have_value("")
-                    expect(page.locator('.tasks-tab[data-tab="active"]')).to_have_attribute(
-                        "aria-pressed", "true"
+                    expect(page.locator("#tasks-view-pick")).to_have_attribute(
+                        "data-value", "active"
                     )
                     expect(
                         page.locator('.task-item[data-id="' + history["id"] + '"]')
@@ -205,8 +208,8 @@ def run():
                     page.unroute(base + "/api/today?**", missing_total)
                     count.press("Enter")
                     expect(page.locator("#tasks-view")).to_be_visible()
-                    expect(page.locator('.tasks-tab[data-tab="active"]')).to_have_attribute(
-                        "aria-pressed", "true"
+                    expect(page.locator("#tasks-view-pick")).to_have_attribute(
+                        "data-value", "active"
                     )
                     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                     assert not external and not errors and not console, (external, errors, console)

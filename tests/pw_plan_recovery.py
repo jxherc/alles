@@ -373,7 +373,8 @@ def run():
                 save(a)
                 a.reload(wait_until="networkidle")
                 assert saved()["notes"] == "full history draft 中文 " + profile
-                action(a.get_by_role("tab", name="task board", exact=True))
+                action(a.get_by_role("tab", name="tasks", exact=True))
+                action(a.get_by_role("radio", name="board", exact=True))
                 action(a.get_by_role("tab", name="tasks", exact=True))
                 edit(a)
                 a.locator("#te-notes").fill("same document history draft")

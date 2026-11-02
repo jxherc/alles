@@ -207,7 +207,6 @@ CHOICE_EXCEPTIONS = {
 # known walls still waiting for the dropdown (listed in the s4b part 3 report)
 CHOICE_TO_CONVERT = {
     "index.html:andromeda-watch-choices": "4 intervals",
-    "index.html:tasks-tabs": "5 task views",
     "index.html:aide-schedule-choices": "4 schedule kinds",
     "index.html:files-location-kind": "4 location kinds",
     "index.html:locale-language-list": "8 languages",

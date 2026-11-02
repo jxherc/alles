@@ -102,6 +102,13 @@ async function recoverTaskDraft(generation) {
 }
 
 
+const _TAB_LABELS = [['active', 'common.all'], ['today', 'common.today'], ['upcoming', 'tasks.upcoming'], ['someday', 'tasks.someday'], ['done', 'tasks.history']];
+
+function _syncTabPick() {
+  const pick = document.getElementById('tasks-view-pick');
+  if (pick) populateDropdown(pick, _TAB_LABELS.map(([value, key]) => ({ value, label: tr(key) })), _tab);
+}
+
 function _wireTabs() {
   if (_tabsWired) return; _tabsWired = true;
   // the receipt floats on wide screens and lifts toasts, so it leaves with the tasks view
@@ -116,16 +123,16 @@ function _wireTabs() {
     renderCompletion();
     if (focused) document.getElementById('tasks-search')?.focus();
   });
-  document.querySelectorAll('.tasks-tab').forEach(b => b.addEventListener('click', () => {
+  // which tasks the list shows: 5 views, so the dropdown (choice rule, decision 0050)
+  const pick = document.getElementById('tasks-view-pick');
+  _syncTabPick();
+  pick?.addEventListener('change', () => {
+    const next = getDropdownValue(pick) || 'active';
+    if (next === _tab) return;
     ++_loadGeneration;
-    _tab = b.dataset.tab;
-    document.querySelectorAll('.tasks-tab').forEach(x => {
-      const selected = x === b;
-      x.classList.toggle('active', selected);
-      x.setAttribute('aria-pressed', String(selected));
-    });
+    _tab = next;
     loadTasks();
-  }));
+  });
   const si = document.getElementById('tasks-search');
   let _t = 0;
   si?.addEventListener('input', () => {
@@ -134,6 +141,7 @@ function _wireTabs() {
     _t = setTimeout(() => { _search = si.value.trim(); loadTasks(); }, 180);
   });
   window.addEventListener('alles:localization-change', () => {
+    _syncTabPick();
     renderCompletion();
     if (_tab === 'active' && !_search) renderTree();
     else renderTasks();
@@ -149,11 +157,7 @@ export function resetTaskFilters() {
   _search = '';
   const search = document.getElementById('tasks-search');
   if (search) search.value = '';
-  document.querySelectorAll('.tasks-tab').forEach(button => {
-    const selected = button.dataset.tab === _tab;
-    button.classList.toggle('active', selected);
-    button.setAttribute('aria-pressed', String(selected));
-  });
+  _syncTabPick();
 }
 
 export async function loadTasks(fetcher = fetch, target = null) {
@@ -182,11 +186,7 @@ export async function loadTasks(fetcher = fetch, target = null) {
     if (generation !== _loadGeneration || tab !== _tab || search !== _search) return;
     if (completed.some(task => task.id === target.id)) {
       _tab = 'done'; _tasks = completed;
-      document.querySelectorAll('.tasks-tab').forEach(button => {
-        const selected = button.dataset.tab === _tab;
-        button.classList.toggle('active', selected);
-        button.setAttribute('aria-pressed', String(selected));
-      });
+      _syncTabPick();
       renderTasks();
     }
   }
@@ -515,11 +515,7 @@ export async function openTaskRecord(id, isCurrent = () => true) {
     _search = '';
     const search = document.getElementById('tasks-search');
     if (search) search.value = '';
-    document.querySelectorAll('.tasks-tab').forEach(button => {
-      const selected = button.dataset.tab === _tab;
-      button.classList.toggle('active', selected);
-      button.setAttribute('aria-pressed', String(selected));
-    });
+    _syncTabPick();
     await loadTasks(fetch, { view: 'tasks', id });
   }
   if (!isCurrent() || !_findTask(id) || document.querySelector('.task-editor-ov')) return false;
@@ -806,11 +802,7 @@ export async function addTask(title, due = '') {
   }
   if (_tab === 'done') {   // jump back to a visible list so the new task shows
     _tab = 'active';
-    document.querySelectorAll('.tasks-tab').forEach(x => {
-      const selected = x.dataset.tab === 'active';
-      x.classList.toggle('active', selected);
-      x.setAttribute('aria-pressed', String(selected));
-    });
+    _syncTabPick();
   }
   if (_search) {   // a stale search filter would hide the new task — clear it like the done-tab case
     _search = '';
