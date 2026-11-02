@@ -73,7 +73,7 @@ test('home keeps the exact source identity and displayed occurrence for every da
 
 test('unfinished habits become local daily rows', () => {
   const rows = dailyRows({ events: [], tasks: {}, reminders: [], renewing: [], day_events: [], habits: [{ name: 'stretch' }] });
-  assert.deepEqual(rows[0], { view: 'habits', id: undefined, meta: 'not done', title: 'stretch', kind: 'habit' });
+  assert.deepEqual(rows[0], { view: 'habits', id: undefined, meta: 'not done', title: 'stretch', kind: 'habit', habitKind: 'check' });
 });
 
 test('day request contains bounded visible context and stays a draft until the owner sends', () => {

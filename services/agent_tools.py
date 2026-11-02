@@ -2686,10 +2686,10 @@ async def _habit_add(a):
 
 
 async def _habit_log(a):
-    from datetime import date
 
     from core.database import Habit, SessionLocal
     from services import habit_logs
+    from services.signals import calendar_today
 
     name = (a.get("name") or "").strip()
     habit_id = (a.get("id") or "").strip()
@@ -2718,7 +2718,7 @@ async def _habit_log(a):
                     "error": True,
                 }
             h = matches[0]
-        today = date.today().isoformat()
+        today = calendar_today().isoformat()  # the owner's day, not the server's
         if (a.get("sets") or "").strip():
             return _habit_log_sets(db, h, today, a)
         if not habit_logs.mark(db, h.id, today):
@@ -2790,10 +2790,10 @@ def _habit_log_sets(db, h, day, a):
 
 async def _habits_list(a):
     from collections import Counter
-    from datetime import date
 
     from core.database import Habit, SessionLocal
     from services import habit_logs
+    from services.signals import calendar_today
 
     db = SessionLocal()
     try:
@@ -2805,7 +2805,7 @@ async def _habits_list(a):
         )
         if not rows:
             return {"output": "no habits yet"}
-        today = date.today().isoformat()
+        today = calendar_today().isoformat()  # the owner's day, not the server's
         counts = Counter(h.name for h in rows)
         out = []
         for h in rows:

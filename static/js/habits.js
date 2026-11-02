@@ -508,6 +508,8 @@ function _wire(body) {
     // every log lives in its habit: a day (or the row's today) opens it on that day, the same way
     // for every kind; only a plain check is marked done in place
     if (logs(habit)) {
+      // the row's today opens on this week, like opening the row; a strip day keeps its week
+      if (!btn.closest('.habit-detail')) _weeksBack = 0;
       _open = habit.id; _logDay = btn.dataset.toggle; _render();
       if (btn.classList.contains('done') && !habit.days?.[_logDay]) loadHabits().then(() => $('habits-body')?.querySelector('.habit-day.picked')?.focus());
       $('habits-body')?.querySelector('.habit-day.picked')?.focus();

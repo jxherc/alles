@@ -87,8 +87,9 @@ def run() -> None:
         assert parse_qs(parsed.query).get("keep") == ["home-link"], page.url
         assert parsed.fragment == "anchor", page.url
 
+        # plan has 3 tabs (u.06, decision 0064): countdowns are the tasks tab's "days" view
         for old_host, current_host, root, section in (
-            ("days", "plan", "#plan-view", "days"),
+            ("days", "plan", "#plan-view", "tasks"),
             ("journal", "docs", "#docs-workbench-view", "journal"),
             ("gallery", "files", "#files-workbench-view", "gallery"),
             ("activity", "server", "#server-workbench-view", "activity"),
@@ -100,6 +101,11 @@ def run() -> None:
             expect(page.locator(f'{root} [data-group-section="{section}"]')).to_have_attribute(
                 "aria-selected", "true"
             )
+            if old_host == "days":
+                expect(
+                    page.locator('#plan-view [data-plan-kind] > button[data-value="days"]')
+                ).to_have_attribute("aria-checked", "true")
+                expect(page.locator("#days-view")).to_be_visible()
         context.close()
         browser.close()
 

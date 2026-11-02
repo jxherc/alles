@@ -37,6 +37,7 @@ function harness() {
     document, fetch: fetcher, toast: (message, kind) => toasts.push({ message, kind }),
     setTimeout: callback => timers.push(callback), clearTimeout() {},
     createFocusBoundary: () => ({ activate() {}, deactivate() {}, destroy() {} }),
+    createUndoDelete: () => ({ is: () => false, later() {}, undo() {} }),
   });
   vm.runInContext(source + '\nglobalThis.subject = { open: slug => _openDrawer(slug, document.getElementById("skl-new")), close: _closeDrawer, save: _save, current: () => _cur };', context);
   return {

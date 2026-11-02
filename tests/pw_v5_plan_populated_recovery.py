@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import time
@@ -15,6 +16,12 @@ DATA = Path(os.environ["ALLES_DATA"]).resolve()
 RUN_ID = os.environ.get("ALLES_TEST_RUN_ID", "").strip()
 BASE = f"http://127.0.0.1:{PORT}"
 PLAN = f"http://plan.localhost:{PORT}/?view=tasks"
+_EN = json.loads(
+    (Path(__file__).resolve().parents[1] / "static/locales/en.json").read_text("utf-8")
+)
+# the error toast a failed completion shows, read from the catalog so a reworded message can't
+# leave the gate waiting for text that no longer exists
+COMPLETION_FAILED = _EN.get("messages", _EN)["tasks.completion_failed"]
 
 
 def _require_owned_data() -> None:
@@ -111,7 +118,9 @@ def run() -> None:
         box = complete.bounding_box()
         assert box
         page.mouse.dblclick(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
-        page.get_by_text("request failed", exact=True).wait_for(state="visible")
+        page.locator("#toast-container .toast.error").filter(has_text=COMPLETION_FAILED).wait_for(
+            state="visible"
+        )
         assert failed_patch_count == 1
         assert complete.is_enabled()
         assert complete.get_attribute("data-kokuen-state") == "error"
@@ -138,10 +147,30 @@ def run() -> None:
         renamed_edit.wait_for(state="visible")
         assert renamed_edit.evaluate("node => document.activeElement === node")
 
-        # Destructive row action is also a named native keyboard control.
-        delete = page.get_by_role("button", name=f"delete {renamed_title}", exact=True)
+        # delete lives in the row's named more menu (u.10): no "are you sure", the row says
+        # "deleted" with undo where the change happened, and the server deletes once undo lapses
+        more = page.get_by_role("button", name=f"more for {renamed_title}", exact=True)
+        more.press("Enter")
+        menu = page.locator(f"#{more.get_attribute('aria-controls')}")
+        menu.wait_for(state="visible")
+        delete = menu.get_by_role("menuitem", name="delete", exact=True)
+        delete.focus()
         delete.press("Enter")
         renamed_edit.wait_for(state="detached")
+        gone = page.locator(".task-undo-del")
+        gone.wait_for(state="visible")
+        assert gone.evaluate("node => document.activeElement === node")
+        assert page.get_by_text(f"deleted “{renamed_title}”", exact=True).is_visible()
+        deleted_at = time.monotonic()
+        while page.evaluate(
+            """async id => [...await fetch('/api/tasks').then(r => r.json()),
+                ...await fetch('/api/tasks/done').then(r => r.json())].some(t => t.id === id)""",
+            task_id,
+        ):
+            assert time.monotonic() - deleted_at < 15, "the task was never deleted"
+            page.wait_for_timeout(500)
+        # undo had its few seconds before the server was asked
+        assert time.monotonic() - deleted_at > 4, time.monotonic() - deleted_at
         assert not page.get_by_text(renamed_title, exact=True).count()
 
         context.close()
@@ -150,7 +179,7 @@ def run() -> None:
     assert not unexpected_errors, unexpected_errors
     assert expected_failures, "forced 503 did not reach the browser"
     print(
-        "populated Plan real-use recovery gate passed: create, pointer repeat rejection, error, keyboard retry, edit, focus return, delete"
+        "populated Plan real-use recovery gate passed: create, pointer repeat rejection, error, keyboard retry, edit, focus return, delete with undo"
     )
 
 

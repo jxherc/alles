@@ -4,6 +4,7 @@ import { toast } from './util.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { wireChoiceGroup } from './kokuen.js?v=5';
 import { t, tp } from './i18n.js';
+import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -132,7 +133,16 @@ function _undoControls(book) {
   return buttons.length ? `<div class="book-notes-actions book-undo-actions">${buttons.join('')}</div>` : '';
 }
 
+// delete waits in the card with undo for a few seconds, then goes to the server (u.10)
+function _goneCard(b) {
+  return `
+    <div class="book-card book-gone" data-id="${b.id}" role="status">
+      <div class="book-info">${goneTextHtml(b.title)}<div class="book-notes-actions">${undoButtonHtml(b.id)}</div></div>
+    </div>`;
+}
+
 function _card(b) {
+  if (_undo.is(b.id)) return _goneCard(b);
   return `
     <div class="book-card" data-id="${b.id}" role="group" aria-label="${esc(t('books.card_label', { title: b.title }))}" tabindex="-1">
       ${_cover(b)}
@@ -147,7 +157,7 @@ function _card(b) {
           : (b.notes ? `<button type="button" class="book-notes" data-act="notes" aria-label="${esc(t('books.edit_notes_for', { title: b.title }))}">${esc(b.notes)}</button>` : `<button class="book-add-note" data-act="notes">${t('books.add_note')}</button>`)}
         ${_undoControls(b)}
       </div>
-      <button class="icon-btn danger book-del" data-act="del" title="${esc(t('common.remove'))}">${_si('trash')}</button>
+      ${moreMenuHtml('book', b.id, b.title, deleteItemHtml('data-act="del"'), 'book-more')}
     </div>`;
 }
 
@@ -440,6 +450,7 @@ function _wire(body) {
     $('book-cancel')?.addEventListener('click', () => { _adding = false; _lookup = []; ++_lookupGeneration; _lookupBusy = false; _lookupMessage = ''; _render(); $('books-add-toggle')?.focus(); });
   }
 
+  wireMoreMenus(body);
   body.querySelectorAll('.book-card[data-id]').forEach(card => {
     const id = card.dataset.id;
     card.querySelector('[data-f="notes"]')?.addEventListener('input', e => {
@@ -501,14 +512,36 @@ function _wire(body) {
         return;
       }
       if (act === 'del') {
-        const book = Object.values(_data.shelves).flat().find(book => book.id === id);
-        if (!book) return;
-        if (!await dlgConfirm(t('books.remove_confirm', { title: book.title }), { confirmLabel: t('books.remove_book') })) return;
-        await _changeBook(card, { method: 'DELETE' }, result => result?.ok === true, t('books.removed')); return;
+        if (_writingBooks.has(id) || _savingNotes.has(id)) return;
+        _undo.later(id);
       }
     }));
+    card.querySelector('[data-undo-del]')?.addEventListener('click', () => _undo.undo());
   });
 }
+
+const _undo = createUndoDelete({
+  key: 'book',
+  render: () => _render(),
+  remove: async id => {
+    await _bookRequest(`/api/books/${id}`, { method: 'DELETE' }, result => result?.ok === true);
+    _bookUndo.delete(id);
+  },
+  failed: (id, error) => {
+    const message = error instanceof TypeError ? t('books.connect_failed') : error.message;
+    _bookErrors.set(id, message);
+    toast(message, 'error');
+  },
+  after: async (gone, ok, hadFocus) => {
+    // a delete that failed keeps its card and the card's own message, so it can be tried again
+    if (!ok) return;
+    toast(t('books.removed'), 'success');
+    await loadBooks();
+    if (hadFocus && $('books-body')?.getClientRects().length && document.activeElement === document.body) {
+      ($('books-body').querySelector('.book-card') || $('books-add-toggle'))?.focus();
+    }
+  },
+});
 
 async function _create(checkOnly = false) {
   if (_createBusy || !_createReady) return;

@@ -1,27 +1,35 @@
-"""tasks UI depth smoke. :8894."""
+"""tasks UI depth smoke: quick add, search, reschedule, subtasks and the task views. run through
+the gate runner, which owns the server, its port and its throwaway data."""
 
+import os
 import sys
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
+from browser_gate_safety import require_server_ownership
 from playwright.sync_api import sync_playwright
 
-TASKS = "http://tasks.localhost:8894"
-EVID = Path(__file__).resolve().parent.parent / "docs" / "evidence" / "tasks"
+PORT = os.environ["PORT"]
+TASKS = f"http://tasks.localhost:{PORT}"
+EVID = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
 IGNORE = ("Failed to load resource", "net::", "ERR_", "favicon", "401", "Load failed")
+ZONE = "America/Toronto"
 
 
 def _iso(n=0):
-    return (date.today() + timedelta(days=n)).isoformat()
+    # the browser's day: the runner gives this process TZ=UTC, already tomorrow in the evening
+    return (datetime.now(ZoneInfo(ZONE)).date() + timedelta(days=n)).isoformat()
 
 
 def main():
+    require_server_ownership(f"http://127.0.0.1:{PORT}", os.environ["ALLES_TEST_RUN_ID"])
     EVID.mkdir(parents=True, exist_ok=True)
     r = {}
     errs = []
     with sync_playwright() as p:
         b = p.chromium.launch()
-        pg = b.new_context().new_page()
+        pg = b.new_context(timezone_id=ZONE, service_workers="block").new_page()
         pg.on(
             "console",
             lambda m: (
@@ -51,7 +59,7 @@ def main():
         pg.fill("#task-add-input", "call mom tomorrow !! #home")
         pg.press("#task-add-input", "Enter")
         pg.wait_for_function(
-            "document.querySelector('#tasks-list')?.textContent.includes('call mom')"
+            "() => document.querySelector('#tasks-list')?.textContent.includes('call mom')"
         )
         txt = pg.text_content("#tasks-list") or ""
         mom = pg.evaluate(
@@ -70,12 +78,12 @@ def main():
         # adding while a search is active clears the search so the new task stays visible
         pg.fill("#tasks-search", "nothing-matches-this")
         pg.wait_for_function(
-            "document.querySelector('#tasks-list')?.textContent.includes('nothing here')"
+            "() => document.querySelector('#tasks-list')?.textContent.includes('nothing here')"
         )
         pg.fill("#task-add-input", "visible after search clear !")
         pg.press("#task-add-input", "Enter")
         pg.wait_for_function(
-            "document.querySelector('#tasks-list')?.textContent.includes('visible after search clear')"
+            "() => document.querySelector('#tasks-list')?.textContent.includes('visible after search clear')"
         )
         r["add_clears_search_filter"] = pg.input_value(
             "#tasks-search"
@@ -92,6 +100,9 @@ def main():
         pg.wait_for_selector(".task-editor", timeout=6000)
         pg.click('.te-rs[data-w="next_week"]')
         pg.click("#te-cancel")
+        # a staged change asks before it's dropped; confirm the discard
+        discard = pg.get_by_role("alertdialog").filter(has_text="discard unsaved task changes?")
+        discard.get_by_role("button", name="confirm", exact=True).click()
         pg.wait_for_selector(".task-editor", state="detached", timeout=5000)
         due_after_cancel = pg.evaluate(
             f"() => fetch('/api/tasks').then(r=>r.json()).then(rows => rows.find(t => t.id === '{tid}')?.due_date || '')"
@@ -127,7 +138,7 @@ def main():
         pg.reload(wait_until="domcontentloaded")
         pg.wait_for_selector("#task-add-input", timeout=15000)
         pg.wait_for_function(
-            "document.querySelector('#tasks-list')?.textContent.includes('project parent')"
+            "() => document.querySelector('#tasks-list')?.textContent.includes('project parent')"
         )
         tree_txt = pg.text_content("#tasks-list") or ""
         r["subtasks_progress_render"] = (

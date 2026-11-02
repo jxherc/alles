@@ -429,14 +429,22 @@ def run():
                         assert len(history()) == 1
                     elif case == "write-rejected":
                         url = base + f"/api/subscriptions/{sid}"
+
+                        def press_action(action):
+                            if action != "del":
+                                key(row.locator(f"[data-act={action}]"))
+                                return
+                            # delete is in the row's more menu and waits six seconds for undo (u.10)
+                            key(row.locator(".row-more"))
+                            key(row.locator("[data-act=del]"))
+                            page.wait_for_timeout(6500)
+
                         for action in ["toggle", "save", "del"]:
                             if action == "save":
                                 key(row.locator(".btn[data-act=edit]"))
                                 row.locator("[data-f=name]").fill("kept draft")
                             page.route(url, reject)
-                            key(row.locator(f"[data-act={action}]"))
-                            if action == "del":
-                                key(page.locator("[data-dialog-confirm]"))
+                            press_action(action)
                             expect(page.locator("#subs-list [role=alert]")).to_contain_text(
                                 "could not confirm"
                             )
@@ -444,9 +452,8 @@ def run():
                             if action == "save":
                                 expect(row.locator("[data-f=name]")).to_have_value("kept draft")
                             page.unroute(url)
-                            key(row.locator(f"[data-act={action}]"))
+                            press_action(action)
                             if action == "del":
-                                key(page.locator("[data-dialog-confirm]"))
                                 expect(row).to_have_count(0)
                             else:
                                 expect(page.locator("#subs-list [role=alert]")).to_have_count(0)

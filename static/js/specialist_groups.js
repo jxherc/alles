@@ -10,6 +10,7 @@ import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
 import { whenDay, whenElement } from './when.js';
+import { completeTask, moveToTomorrow, openTaskDetails, tomorrowKey, wireSwipe } from './act_row.js';
 
 export function mailboxAddress(value) {
   const raw = String(value || '').trim();
@@ -416,12 +417,16 @@ function _agendaRows(target, rows, emptyCopy, openRecord, { now = '', lead = nul
 function _agendaRow(row, byDay, openRecord, past = false) {
   const interactive = row.type === 'task' || row.type === 'event';
   const item = _el(interactive ? 'button' : 'div', `specialist-record-row${row.overdue ? ' overdue' : ''}${past ? ' past' : ''}`);
+  const taskId = row.type === 'task' ? String(row.id || '').replace(/^task:/, '') : '';
   if (interactive) {
     // Reuse the existing record button's layout, hover and focus treatment.
     item.className += ' specialist-library-row';
     item.type = 'button';
     item.dataset.planAgendaRecord = row.id;
-    item.addEventListener('click', () => openRecord(row, item));
+    // a task's details open over the agenda (u.01); edit goes on to the full editor
+    item.addEventListener('click', () => (taskId
+      ? openTaskDetails(taskId, { from: item, onChange: () => _refresh('plan'), openFull: () => openRecord(row, item) })
+      : openRecord(row, item)));
   }
   const typeName = _typeLabel(row.type);
   const meta = row.meta && row.meta !== typeName ? `${typeName} · ${row.meta}` : typeName;
@@ -433,7 +438,35 @@ function _agendaRow(row, byDay, openRecord, past = false) {
     _el('strong', 'specialist-record-title', row.title),
     _el('span', 'specialist-record-meta', meta),
   );
-  return item;
+  return taskId ? _agendaTask(row, taskId, item) : item;
+}
+
+// a task in the agenda acts where it is (u.01): the check on the left, "tomorrow" on the right
+// for anything due today or earlier, and on touch a swipe right for done, left for tomorrow
+function _agendaTask(row, taskId, open) {
+  const wrap = _el('div', `plan-agenda-task${row.overdue ? ' overdue' : ''}`);
+  wrap.dataset.task = taskId;
+  const check = _el('button', 'plan-agenda-check');
+  check.type = 'button';
+  check.setAttribute('aria-label', t('tasks.mark_complete', { task: row.title }));
+  const act = async (button, change) => {
+    if (button.disabled) return;
+    button.disabled = true;
+    try { await change(); } catch { button.disabled = false; return; }
+    await _refresh('plan');
+  };
+  check.addEventListener('click', () => act(check, () => completeTask(taskId)));
+  wrap.append(check, open);
+  const due = row.due || row.date;
+  if (row.overdue || (due && due < tomorrowKey())) {
+    const later = _el('button', 'plan-agenda-snooze', t('tasks.reschedule.tomorrow'));
+    later.type = 'button';
+    later.setAttribute('aria-label', t('tasks.move_named', { task: row.title, day: t('tasks.reschedule.tomorrow') }));
+    later.addEventListener('click', () => act(later, () => moveToTomorrow(taskId)));
+    wrap.append(later);
+  }
+  wireSwipe(wrap, { right: () => check.click(), left: () => wrap.querySelector('.plan-agenda-snooze')?.click() });
+  return wrap;
 }
 
 async function _renderPlan(target, request, section = 'overview') {
@@ -1526,13 +1559,16 @@ function _importRepairHint(row) {
   if (reason === 'selected account requires a reviewed currency code before import') {
     return t('finance.hint_account_currency');
   }
+  if (reason === "this email's layout isn't one alles reads yet") {
+    return t('finance.hint_email');
+  }
   return '';
 }
 
 const _importStatus = status => ({
   pending: t('finance.st_pending'), duplicate: t('finance.st_duplicate'), needs_review: t('finance.needs_review'),
   conflict: t('finance.st_conflict'), applied: t('finance.st_applied'), applying: t('finance.st_applying'),
-  preview: t('finance.st_preview'), undone: t('finance.st_undone'),
+  preview: t('finance.st_preview'), undone: t('finance.st_undone'), skipped: t('finance.st_skipped'),
 }[status] || String(status).replace('_', ' '));
 
 const _importMetaKey = key => ({
@@ -1566,23 +1602,37 @@ function _renderImportReceipt(target, receipt, request, refresh) {
   );
   const rows = _el('div', 'finance-import-rows');
   let reviewInFile = 0;
+  // a bank email row names its email, and one alles can't read shows the email itself
+  const fromEmail = receipt.profile === 'bank-email';
   for (const row of receipt.rows) {
     const parsed = row.parsed || {};
+    const emailTitle = fromEmail ? (row.raw?.email_subject || t('finance.email_no_subject')) : '';
     const item = _el('div', `finance-import-row finance-import-row-${row.status}`);
     item.append(
       _el('span', 'finance-import-row-date', parsed.date ? whenDay(parsed.date) : t('finance.line_n', { n: row.row_number })),
-      _el('strong', '', parsed.payee || row.conflict_reason || (parsed.date ? t('finance.unnamed_transaction') : t('finance.needs_review'))),
+      _el('strong', '', parsed.payee || emailTitle || row.conflict_reason || (parsed.date ? t('finance.unnamed_transaction') : t('finance.needs_review'))),
       _el('span', 'finance-import-row-amount', parsed.amount_text ? _importAmount(parsed.currency_code || '', String(parsed.amount_text)) : ''),
       _el('span', 'finance-import-row-status', _importStatus(row.status)),
     );
     for (const key of ['category', 'notes', 'tags']) {
       if (parsed[key]) item.append(_el('small', 'finance-import-metadata', t('finance.metadata', { key: _importMetaKey(key), value: parsed[key] })));
     }
-    if (row.conflict_reason && parsed.payee) item.append(_el('small', '', row.conflict_reason));
     const repairHint = _importRepairHint(row);
+    // an unread email's hint already says why, so its reason isn't repeated above it
+    if (row.conflict_reason && (parsed.payee || (fromEmail && !repairHint)) && row.status !== 'skipped') item.append(_el('small', '', row.conflict_reason));
     if (repairHint) item.append(_el('p', 'specialist-group-note finance-import-repair-hint', repairHint));
-    // these reasons get a fix right in the row; anything else is fixed in the file
-    if (['needs_review', 'conflict'].includes(row.status) && !/conversion evidence|confirm account ending|no bank reference.*different statement|incomplete Actual write no longer matches/i.test(row.conflict_reason || '')) reviewInFile += 1;
+    if (fromEmail && row.status === 'needs_review' && row.raw?.email_text) {
+      const email = _el('details', 'finance-import-email');
+      email.open = !parsed.amount_text;
+      email.append(
+        _el('summary', '', t('finance.email_raw', { from: row.raw.email_from || '' })),
+        _el('pre', '', row.raw.email_text),
+      );
+      item.append(email);
+    }
+    // these reasons get a fix right in the row; anything else is fixed in the file. a bank
+    // email can't be fixed in a file: it's confirmed or left out in the row
+    if (!fromEmail && ['needs_review', 'conflict'].includes(row.status) && !/conversion evidence|confirm account ending|no bank reference.*different statement|incomplete Actual write no longer matches/i.test(row.conflict_reason || '')) reviewInFile += 1;
     if (row.status === 'needs_review' && /conversion evidence/i.test(row.conflict_reason || '')) {
       const form = _el('form', 'finance-import-conversion');
       const baseCode = receipt.canonical_base_currency_code || t('finance.base');
@@ -1657,6 +1707,32 @@ function _renderImportReceipt(target, receipt, request, refresh) {
         } finally { _setAsyncControlBusy(confirm, false); }
       });
       item.append(confirm);
+    }
+    if (fromEmail && row.status === 'needs_review') {
+      // an email alles can't read, or one for another card, never posts once it's left out
+      const leave = _el('button', 'finance-import-leave-out', t('finance.leave_out'));
+      leave.type = 'button';
+      leave.setAttribute('aria-label', t('finance.leave_out_named', { label: parsed.payee || emailTitle }));
+      leave.addEventListener('click', async () => {
+        _setAsyncControlBusy(leave, true);
+        message.textContent = '';
+        try {
+          await refresh(await _json(
+            request,
+            `/api/finance/imports/${encodeURIComponent(receipt.id)}/rows/${encodeURIComponent(row.id)}/resolve-match`,
+            { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decision: 'skip' }) },
+          ));
+          settleOnStatus(t('finance.left_out', { label: parsed.payee || emailTitle }));
+        } catch (error) {
+          message.textContent = error?.message || t('finance.leave_out_failed');
+        } finally { _setAsyncControlBusy(leave, false); }
+      });
+      // confirm and leave out sit together in the row's action group
+      const group = _el('div', 'finance-import-match-resolution');
+      const confirmButton = item.querySelector('.finance-import-confirm-account');
+      if (confirmButton) confirmButton.replaceWith(group);
+      else item.append(group);
+      group.append(...[confirmButton, leave].filter(Boolean));
     }
     if (row.status === 'needs_review' && /no bank reference.*different statement/i.test(row.conflict_reason || '')) {
       const resolution = _el('div', 'finance-import-match-resolution');
@@ -1859,16 +1935,21 @@ async function _renderImports(target, request) {
     _choiceField(t('finance.choice_format'), profiles.map(profile => ({ value: profile.id, label: profile.label })), profileId, value => {
       profileId = value;
       formatHelp.hidden = profileId !== 'generic-csv';
+      fromMail.hidden = profileId !== 'bank-email';
       previewGeneration += 1;
     }),
   );
   const fileInput = _el('input');
   fileInput.type = 'file';
-  fileInput.accept = '.csv,.txt,text/csv,text/plain';
+  fileInput.accept = '.csv,.txt,.eml,text/csv,text/plain,message/rfc822';
   fileInput.hidden = true;
   const fileRow = _el('div', 'finance-import-file-row');
   const choose = _el('button', '', t('finance.choose_file'));
   choose.type = 'button';
+  // bank alert emails come straight from mail's saved inbox; a saved .eml still works as a file
+  const fromMail = _el('button', '', t('finance.from_mail'));
+  fromMail.type = 'button';
+  fromMail.hidden = profileId !== 'bank-email';
   const fileName = _el('span', '', t('finance.no_file'));
   const preview = _el('button', 'finance-import-preview', t('finance.preview_import'));
   preview.type = 'button';
@@ -1898,23 +1979,20 @@ async function _renderImports(target, request) {
       ));
     }
   };
-  preview.addEventListener('click', async () => {
-    if (!selectedFile) return;
+  // one preview path for a chosen file and for bank emails read from mail
+  const runPreview = async (trigger, source) => {
     const generation = ++previewGeneration;
     activePreviewGeneration = generation;
-    const file = selectedFile;
     const capturedAccountId = accountId;
     const capturedProfileId = profileId;
     const choiceButtons = [...choices.querySelectorAll('button')];
-    _setAsyncControlBusy(preview, true);
+    _setAsyncControlBusy(trigger, true);
     _setAsyncControlBusy(choose, true);
+    if (trigger !== fromMail) _setAsyncControlBusy(fromMail, true);
     choiceButtons.forEach(button => _setAsyncControlBusy(button, true));
     previewMessage.textContent = '';
     try {
-      if (file.size > 5 * 1024 * 1024) {
-        throw new Error(t('finance.file_too_big'));
-      }
-      const content = await file.text();
+      const sourceBody = await source();
       if (generation !== previewGeneration) return;
       const selectedProfile = profiles.find(item => item.id === capturedProfileId);
       const selectedAccount = accounts.find(item => item.id === capturedAccountId);
@@ -1924,8 +2002,7 @@ async function _renderImports(target, request) {
         body: JSON.stringify({
           account_id: capturedAccountId,
           profile: capturedProfileId,
-          source_name: file.name,
-          content,
+          ...sourceBody,
           original_currency_code: selectedAccount?.currency_code
             || selectedAccount?.currency
             || selectedProfile?.default_currency_code
@@ -1940,15 +2017,28 @@ async function _renderImports(target, request) {
       }
     } finally {
       if (activePreviewGeneration === generation) {
+        _setAsyncControlBusy(trigger, false);
         preview.disabled = !selectedFile;
         preview.removeAttribute('aria-busy');
         _setAsyncControlBusy(choose, false);
+        _setAsyncControlBusy(fromMail, false);
         choiceButtons.forEach(button => _setAsyncControlBusy(button, false));
         activePreviewGeneration = 0;
       }
     }
+  };
+  preview.addEventListener('click', () => {
+    if (!selectedFile) return;
+    const file = selectedFile;
+    runPreview(preview, async () => {
+      if (file.size > 5 * 1024 * 1024) throw new Error(t('finance.file_too_big'));
+      return { source_name: file.name, content: await file.text() };
+    });
   });
-  fileRow.append(fileInput, choose, fileName, preview, previewMessage);
+  fromMail.addEventListener('click', () => runPreview(fromMail, async () => (
+    { source_name: t('finance.mail_source'), content: '', from_mail: true }
+  )));
+  fileRow.append(fileInput, choose, fromMail, fileName, preview, previewMessage);
   const historySection = _el('section', 'finance-import-history');
   historySection.append(_el('h2', '', t('finance.recent_receipts')));
   historyTarget = _el('div', 'finance-import-history-list');

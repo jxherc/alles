@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session as DbSession
 from core.database import Habit, HabitCreateReceipt, HabitLog, get_db
 from core.schema.base import local_date
 from services import habit_kinds, habit_logs
+from services.signals import calendar_today
 
 router = APIRouter(prefix="/api")
 
@@ -115,7 +116,7 @@ def _history(db, hid) -> Days:
 
 
 def _fmt(h: Habit, days: Days | None = None, today: date | None = None, log_day: str = "") -> dict:
-    today = today or date.today()
+    today = today or calendar_today()
     days = days or Days()
     dates, logs = days.done, days.logs
     kind = h.kind or "check"
@@ -169,7 +170,7 @@ def habit_risk(hid: str, window: int = 14, db: DbSession = Depends(get_db)):
     done = habit_logs.canonical_days(
         r.date for r in db.query(HabitLog).filter_by(habit_id=hid).all()
     )
-    return life_stats.habit_failure_risk(done, date.today(), window=window)
+    return life_stats.habit_failure_risk(done, calendar_today(), window=window)
 
 
 @router.get("/habits/kinds")
@@ -198,7 +199,9 @@ def overview(
         except ValueError:
             raise HTTPException(400, "date_q must be ISO (YYYY-MM-DD)")
     else:
-        today = date.today()
+        # the owner's day (timezone setting, else the last browser zone), not the server's: a box
+        # on utc is already tomorrow after 7 or 8 pm in toronto
+        today = calendar_today()
     habits = db.query(Habit).filter(Habit.archived == archived).order_by(Habit.created_at).all()
     # one query for all logs instead of one per habit (was H+1 round-trips on every overview load)
     by_habit: dict[str, list[tuple]] = {}
@@ -424,7 +427,7 @@ def toggle(hid: str, body: ToggleBody, db: DbSession = Depends(get_db)):
     h = db.get(Habit, hid)
     if not h:
         raise HTTPException(404)
-    raw_date = body.date or date.today().isoformat()
+    raw_date = body.date or calendar_today().isoformat()
     try:
         day = habit_logs.canonical_day(raw_date)
     except ValueError:
@@ -455,7 +458,7 @@ def exercise_history(
     if not h:
         raise HTTPException(404)
     try:
-        today = _d(date_q).isoformat() if date_q else date.today().isoformat()
+        today = _d(date_q).isoformat() if date_q else calendar_today().isoformat()
         wanted = json.loads(setup) if setup else {}
     except ValueError:
         raise HTTPException(400, "date_q must be ISO and setup json") from None

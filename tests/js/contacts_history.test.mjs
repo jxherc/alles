@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { t, tp } from '../../static/js/i18n.js';
+import { undoGlobals } from './helpers/undo_globals.mjs';
 
 const source = readFileSync(new URL('../../static/js/contacts.js', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
@@ -34,7 +35,7 @@ function harness() {
   const list = () => nodes.get('contacts-list');
   list().querySelector = selector => list().opens?.find(button => selector === `[data-open="${button.dataset.open}"]`) || null;
   const response = data => ({ ok: true, json: async () => data });
-  const context = vm.createContext({ t, tp,
+  const context = vm.createContext({ ...undoGlobals, t, tp,
     document, window: {}, CSS: { escape: String }, URLSearchParams, Promise, toast() {},
     location: { pathname: '/', search: '?view=contacts', hash: '' },
     pushRouteUrl: url => { pushes.push(url); position++; },

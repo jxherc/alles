@@ -17,6 +17,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_datepick import pick_date
 from pw_mail_calendar_capture import ModelReply
 
 
@@ -252,7 +253,8 @@ def run():
                         record("open-exact-plan-record")
                         page.locator(title_selector).fill(title + " edited")
                         if kind == "task":
-                            page.locator("#te-due").fill("2032-06-22")
+                            # the due field is the date button (U5): picked the way a person does
+                            pick_date(page.locator("#te-due"), "2032-06-22")
                             page.locator("#te-notes").fill("edited notes")
                             save_button = "#te-save"
                         else:

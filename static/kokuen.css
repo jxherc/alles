@@ -1946,7 +1946,25 @@ body:is(
 }
 
 :where(#finance-view) .finance-import-row:last-child { border-bottom: 0; }
-:where(#finance-view) .finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #f2897f); }
+/* the reason reads at the row's own size: a browser <small> landed under the 13px floor */
+:where(#finance-view) .finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #f2897f); font-size: inherit; }
+/* a bank email under review shows itself, wrapped, under the row's words */
+:where(#finance-view) .finance-import-row > .finance-import-email { grid-column: 2 / -1; min-width: 0; }
+/* keeps the disclosure triangle, so it reads as something that opens; padding makes it 44px */
+:where(#finance-view) .finance-import-email summary {
+  padding: var(--k-space-3) 0;
+  color: var(--k-ink-muted, var(--muted));
+  cursor: pointer;
+}
+:where(#finance-view) .finance-import-email pre {
+  margin: 0;
+  padding: var(--k-space-3);
+  border-radius: var(--k-radius-surface, 4px);
+  background: var(--k-panel-raised, var(--panel2));
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 /* the fix-it help reads under the row's words, not as a 10-line block in the date column */
 :where(#finance-view) .finance-import-row > .finance-import-repair-hint { grid-column: 2 / -1; margin: 0; }
 :where(#finance-view) .finance-import-row > .finance-import-metadata {
@@ -2134,6 +2152,7 @@ body:is(
   :where(#finance-view) .finance-import-row-amount { grid-column: 2; grid-row: 1 / span 2; }
   :where(#finance-view) .finance-import-row-status { grid-column: 1 / -1; text-align: left; }
   :where(#finance-view) .finance-import-row > small { grid-column: 1 / -1; }
+  :where(#finance-view) .finance-import-row > .finance-import-email { grid-column: 1 / -1; }
   :where(#finance-view) .finance-import-row > .finance-import-repair-hint { grid-column: 1 / -1; }
   :where(#finance-view) .finance-import-conversion { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); }
   :where(#finance-view) .finance-import-match-resolution { grid-column: 1 / -1; }
@@ -7047,7 +7066,7 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
   body[data-app="files"] #files-view .files-phase7-operation-dock {
     position: fixed;
     right: var(--k-space-2);
-    bottom: calc(var(--k-space-2) + var(--k-bar-h, 0px));
+    bottom: var(--k-space-2);
     width: calc(100% - 16px);
     max-width: calc(100vw - 16px);
   }
@@ -7641,8 +7660,8 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
    list's own divider scrolling up to a top line made two lines stacked on one edge */
 @media (max-width: 700px) {
   body.afterlife-shell:has(.app-rail:not([hidden])) {
-    --k-bar-h: calc(56px + env(safe-area-inset-bottom, 0px));
-    --k-shell-height: calc(100dvh - var(--k-bar-h));
+    --k-app-bar-height: calc(56px + env(safe-area-inset-bottom, 0px));
+    --k-shell-height: calc(100dvh - var(--k-app-bar-height));
   }
   body.afterlife-shell .app-rail:not([hidden]) {
     position: fixed;
@@ -7651,15 +7670,16 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
-    height: var(--k-bar-h);
+    height: var(--k-app-bar-height);
     padding: 0 var(--k-space-1, 4px) env(safe-area-inset-bottom, 0px);
     background: var(--k-panel, var(--panel));
   }
   body.afterlife-shell .app-rail-item[data-wide] { display: none; }
   body.app-drawer-open .app-rail { visibility: hidden; }
-}
-/* whatever is pinned to the screen's bottom edge rides above the phone bar (0 elsewhere) */
-:is(.toast-container, .sync-indicator, .mail-undo-bar, .andromeda-idle-footer, #aide-call-ongoing, .tts-wave-pop) {
-  translate: 0 calc(-1 * var(--k-bar-h, 0px));
+  /* what floats on the screen's bottom edge (toasts, undo bars, the transfer dock, the call
+     pill) rises above the bar; a margin adds to each one's own bottom offset */
+  body.afterlife-shell:has(.app-rail:not([hidden])) :where(.toast-container, .sync-indicator, #mail-undo-stack, #aide-call-ongoing, .files-phase7-operation-dock, .tts-wave-pop, .andromeda-idle-footer) {
+    margin-bottom: var(--k-app-bar-height);
+  }
 }
 @media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize) { transition: none; } }

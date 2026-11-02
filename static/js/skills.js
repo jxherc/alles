@@ -5,6 +5,7 @@ import { toast } from './util.js';
 import { t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=5';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
+import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _built = false;
@@ -232,7 +233,7 @@ function _renderGrid(list) {
     const sorted = [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
     // explain the order, but only on the plain installed grid (not while searching)
     const hint = _state.q ? '' : `<div class="skl-rankhint">${esc(_state.cat === 'start' ? t('aide.skl_hint_start') : t('aide.skl_hint_ranked'))}</div>`;
-    grid.innerHTML = hint + sorted.map(_card).join('');
+    grid.innerHTML = hint + sorted.map(s => (_undo.is(s.slug) ? _goneCard(s) : _card(s))).join('');
   }
   _bindCards(grid);
   if (focused && !focused.isConnected && document.activeElement === document.body) {
@@ -262,7 +263,7 @@ function _card(s) {
   ].join('');
   const acts = `<div class="skl-card-acts">
          <button class="skl-pin${s.pinned ? ' on' : ''}" data-act="pin" aria-label="${esc(t('aide.skl_pin_named', { name: s.name }))}" aria-pressed="${!!s.pinned}" aria-disabled="${_pinning.has(s.slug)}"${_pinning.has(s.slug) ? ' aria-busy="true"' : ''} title="${esc(s.pinned ? t('aide.skl_unpin') : t('aide.skl_pin_to_top'))}">${esc(t('aide.skl_pin'))}</button>
-         <button class="skl-del-q" data-act="del" aria-label="${esc(t('aide.skl_delete_named', { name: s.name }))}" title="${esc(t('common.delete'))}">${esc(t('common.delete'))}</button>
+         ${moreMenuHtml('skl', s.slug, s.name, deleteItemHtml(`data-act="del" aria-label="${esc(t('aide.skl_delete_named', { name: s.name }))}"`))}
        </div>`;
   return `
     <div class="skl-card${s.slug === _cur ? ' active' : ''}" data-slug="${esc(s.slug)}">
@@ -275,9 +276,25 @@ function _card(s) {
     </div>`;
 }
 
+// delete waits behind the card's menu with undo; the server call goes out after the undo time (u.10)
+function _goneCard(s) {
+  return `
+    <div class="skl-card skl-gone" data-slug="${esc(s.slug)}" role="status">
+      <div class="skl-card-top">${goneTextHtml(s.name)}</div>
+      <div class="skl-card-acts">${undoButtonHtml(s.slug)}</div>
+    </div>`;
+}
+
 function _bindCards(root) {
+  wireMoreMenus(root);
   root.querySelectorAll('.skl-card').forEach(c => {
     c.onclick = e => {
+      if (e.target.closest('.row-more-wrap')) {
+        e.stopPropagation();
+        if (e.target.closest('[data-act="del"]')) _undo.later(c.dataset.slug);
+        return;
+      }
+      if (e.target.closest('[data-undo-del]')) { e.stopPropagation(); _undo.undo(); return; }
       const act = e.target.closest('[data-act]')?.dataset.act;
       if (_state.mode === 'library') {
         if (act === 'add') { e.stopPropagation(); _addFromLibrary(c); return; }
@@ -285,7 +302,6 @@ function _bindCards(root) {
         return;
       }
       if (act === 'pin') { e.stopPropagation(); const pin = e.target.closest('[data-act="pin"]'); _togglePin(c.dataset.slug, !pin.classList.contains('on'), pin); }
-      else if (act === 'del') { e.stopPropagation(); _deleteCard(c.dataset.slug); }
       else _openDrawer(c.dataset.slug, c.querySelector('.skl-card-name'));
     };
   });
@@ -312,15 +328,22 @@ async function _togglePin(slug, pinned, trigger) {
   }
 }
 
-async function _deleteCard(slug) {
-  if (!await dlgConfirm(t('aide.skl_delete_confirm'))) return;
-  try {
-    await _api(`/api/skills/${encodeURIComponent(slug)}`, { method: 'DELETE' });
-    toast(t('aide.skl_deleted'), 'success');
-    if (_cur === slug) _closeDrawer(true);
+const _undo = createUndoDelete({
+  key: 'skl',
+  render: () => _render(),
+  remove: slug => _api(`/api/skills/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
+  failed: () => toast(t('aide.skl_delete_failed'), 'error'),
+  after: async (gone, ok, hadFocus) => {
+    if (ok) {
+      toast(t('aide.skl_deleted'), 'success');
+      if (_cur === gone.id) _closeDrawer(true);
+    }
     await _refresh();
-  } catch { toast(t('aide.skl_delete_failed'), 'error'); }
-}
+    if (hadFocus && document.activeElement === document.body) {
+      (document.querySelector('.skl-card .skl-card-name') || $('skl-new') || $('skl-search'))?.focus();
+    }
+  },
+});
 
 // ── library mode ────────────────────────────────────────────────────────────
 async function _toggleLibrary() {

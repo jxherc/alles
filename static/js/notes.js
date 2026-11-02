@@ -1,7 +1,7 @@
 import { toast } from './util.js';
 import { initDatePicker } from './datepick.js';
 import { t } from './i18n.js';
-import { whenDay } from './when.js';
+import { localDay, whenDay } from './when.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _notes = [];
@@ -230,8 +230,7 @@ function _gatherItems() {
 
 function _isOverdue(due) {
   if (!due) return false;
-  const today = new Date().toISOString().slice(0, 10);
-  return due < today;
+  return due < localDay();
 }
 
 

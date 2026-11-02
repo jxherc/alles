@@ -419,9 +419,10 @@ function _renderFiles(body) {
     <label class="setup-field"><span>${esc(t('setup.document_folder'))}</span><input class="settings-input setup-input" id="sw-vault" value="${esc(_state.vault_preview)}"></label>
     <label class="setup-field"><span>${esc(t('setup.files_folder'))}</span><input class="settings-input setup-input" id="sw-files" value="${esc(_state.files_preview)}"></label>
     <div id="sw-obsidian"></div>
+    <div id="sw-obsidian-lan"></div>
     ${_actions(true, _filesSaved ? t('common.continue') : t('setup.save_locations'))}`;
   _bindSwitch('sw-keep-vault');
-  if (_filesSaved) _renderObsidianChoice();
+  if (_filesSaved) { _renderObsidianChoice(); _renderObsidianLan($('sw-obsidian-lan')); }
   $('sw-back')?.addEventListener('click', () => _setStep(1));
   $('sw-save').addEventListener('click', async () => {
     const current = _formIsCurrent();
@@ -474,6 +475,50 @@ function _renderObsidianChoice() {
       button?.focus();
     }
   });
+}
+
+// obsidian on the ipad or phone reads the docs over the local network (WebDAV, for the Remotely Save plugin).
+// the password is an alles token made by the server and shown once, right after the mode is picked.
+const _LAN_MODES = ['off', 'read', 'write'];
+
+async function _renderObsidianLan(host, { focusMode = '' } = {}) {
+  if (!host) return;
+  let status;
+  try { status = await _api('/api/setup/obsidian-lan'); } catch { return; }
+  let token = '';
+  const draw = () => {
+    const on = status.mode !== 'off';
+    const field = (id, label, value) => `<label class="setup-field"><span>${esc(label)}</span><input class="settings-input setup-input" id="${id}" readonly value="${esc(value)}"></label>`;
+    host.innerHTML = `<div class="setup-section-label" id="sw-lan-label">${esc(t('setup.obsidian_lan'))}</div>
+      ${_choiceGroup('sw-lan-mode', _LAN_MODES.map(mode => ({ value: mode, label: t(`setup.obsidian_${mode}`), note: t(`setup.obsidian_${mode}_note`) })), status.mode)}
+      ${on ? (status.access_profile === 'device' ? `<div class="setup-connect-note" role="status">${esc(t('setup.obsidian_device_only'))}</div>`
+        : !status.url ? `<div class="setup-connect-note" role="status">${esc(t('setup.obsidian_no_address'))}</div>`
+          : `<div class="setup-connect-note">${esc(t('setup.obsidian_steps'))}</div>
+            ${field('sw-lan-url', t('setup.obsidian_address'), status.url)}
+            ${field('sw-lan-user', t('setup.obsidian_user'), 'obsidian')}
+            ${status.password_needed || token ? field('sw-lan-pass', t('setup.obsidian_password'), token || t('setup.obsidian_password_once')) : ''}`) : ''}
+      <div class="setup-connect-note" id="sw-lan-status" role="status" aria-live="polite"></div>`;
+    const group = host.querySelector('#sw-lan-mode');
+    group.setAttribute('aria-labelledby', 'sw-lan-label');
+    _bindChoiceGroup('sw-lan-mode', async mode => {
+      const note = host.querySelector('#sw-lan-status');
+      group.querySelectorAll('button').forEach(button => { button.disabled = true; });
+      try {
+        const next = await _api('/api/setup/obsidian-lan', _json('POST', { mode }), { recentOwner: true });
+        token = next.token || '';
+        status = next;
+      } catch (error) {
+        group.querySelectorAll('button').forEach(button => { button.disabled = false; });
+        note.textContent = plainError(error.message);
+        return;
+      }
+      draw();
+      host.querySelector(`#sw-lan-mode [data-value="${mode}"]`)?.focus();
+    });
+    host.querySelectorAll('input[readonly]').forEach(input => input.addEventListener('focus', () => input.select()));
+  };
+  draw();
+  if (focusMode) host.querySelector(`#sw-lan-mode [data-value="${focusMode}"]`)?.focus();
 }
 
 function _renderAiSearch(body) {
@@ -627,6 +672,7 @@ function _renderDone(body) {
     </div>
     <div class="setup-connect-title" id="sw-connect-title">${esc(t('setup.connect_title'))}</div>
     <div class="setup-connect" id="sw-connect" role="list" aria-labelledby="sw-connect-title"></div>
+    <div id="sw-obsidian-lan"></div>
     <div class="setup-actions"><button class="btn primary" type="button" id="sw-start" style="margin-left:auto">${esc(t('setup.open_alles'))}</button></div>`;
   _renderConnect($('sw-connect'));
   $('sw-start').addEventListener('click', _close);
@@ -637,20 +683,22 @@ function _renderDone(body) {
 const _CONNECT = [
   { id: 'mail', view: 'mail' },
   { id: 'phone', pane: 'tools', card: 'telegram-card' },
+  { id: 'obsidian', lan: true },
   { id: 'bank', view: 'finance' },
   { id: 'services', pane: 'tools', card: 'conn-service' },
 ];
 
 async function _connectStates() {
   const read = path => fetch(path).then(r => (r.ok ? r.json() : null)).catch(() => null);
-  const [mail, telegram, photon, discord] = await Promise.all([
+  const [mail, telegram, photon, discord, lan] = await Promise.all([
     read('/api/mail/accounts'), read('/api/aide/channels/telegram'),
-    read('/api/aide/channels/photon'), read('/api/jarvis/discord'),
+    read('/api/aide/channels/photon'), read('/api/jarvis/discord'), read('/api/setup/obsidian-lan'),
   ]);
   const phone = [telegram?.enabled && 'Telegram', photon?.enabled && 'iMessage', discord?.configured && 'Discord'].filter(Boolean);
   return {
     mail: Array.isArray(mail) && mail.length ? t('setup.connect_mail_count', { count: mail.length }) : '',
     phone: phone.join(', '),
+    obsidian: lan && lan.mode !== 'off' ? t(`setup.obsidian_${lan.mode}`) : '',
   };
 }
 
@@ -667,6 +715,12 @@ function _renderConnect(host) {
   host.addEventListener('click', event => {
     const item = _CONNECT.find(entry => entry.id === event.target.closest('[data-connect]')?.dataset.connect);
     if (!item) return;
+    if (item.lan) {
+      const lanHost = host.parentElement.querySelector('#sw-obsidian-lan');
+      if (lanHost && !lanHost.firstElementChild) _renderObsidianLan(lanHost, { focusMode: 'read' });
+      else lanHost?.querySelector('[role="radio"][aria-checked="true"], [role="radio"]')?.focus();
+      return;
+    }
     _close({ restoreFocus: false });
     if (item.view) { window._navigateTo?.(item.view); return; }
     window._openSettings?.(item.pane);

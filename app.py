@@ -202,6 +202,7 @@ from routes import (
 from routes import (
     settings as settings_routes,
 )
+from routes import docs_dav as docs_dav_routes
 from routes import setup as setup_routes
 from routes import browser_passwords as browser_password_routes
 from routes import (
@@ -1349,6 +1350,7 @@ app.include_router(jarvis_routes.hooks)
 app.include_router(aide_voice_routes.router)
 app.include_router(models.router)
 app.include_router(setup_routes.router)
+app.include_router(docs_dav_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(memory_routes.router)
 app.include_router(research_routes.router)

@@ -174,6 +174,7 @@ def run():
                         if blocked:
                             back.click()
                         card = page.locator(f'.read-card[data-id="{item["id"]}"]')
+                        # no native tooltips on controls (27.35): the title became the name
                         expect(card.locator('[data-act="read"]')).to_have_attribute(
                             "aria-label", "mark unread"
                         )

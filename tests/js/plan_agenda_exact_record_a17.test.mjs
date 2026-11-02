@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
-import { whenDay, whenElement } from '../../static/js/when.js';
+import { addDays, whenDay, whenElement } from '../../static/js/when.js';
 import { calendarDateKey, chosenTimeZone, configureLocalization, formatCalendarDate, formatClock, formatDateParts, formatDateTime, t, tp } from '../../static/js/i18n.js';
 import { recordTarget } from '../../static/js/recordlinks.js';
 
@@ -103,6 +103,7 @@ function harness(data = fixtures()) {
   body.append(root, tasks, calendar);
   const elements = [root, tasks, calendar];
   const calls = [];
+  const details = [];
   const location = { href: 'http://alles.test/?view=plan' };
   let open = async () => true;
   const window = { _openRecord: (...args) => { calls.push(args); return open(...args); } };
@@ -112,6 +113,11 @@ function harness(data = fixtures()) {
     initDatePicker() {},
     calendarDateKey: value => value === undefined ? today : calendarDateKey(value),
     disposePlanBoard() {},
+    // u.01: a task row opens its details over the agenda; "edit" there goes on to the same exact
+    // record router these tests check, so the stub takes that path at once
+    openTaskDetails: (id, { openFull }) => { details.push(id); return openFull(); },
+    completeTask: async () => {}, moveToTomorrow: async () => {}, wireSwipe() {},
+    tomorrowKey: () => addDays(today, 1),
   });
   vm.runInContext(source.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') + `
     globalThis.subject = { initSpecialistGroup, planCommitments };

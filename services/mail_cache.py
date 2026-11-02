@@ -4,9 +4,13 @@ back instantly from sqlite (and survive a slow/dead network or a restart). local
 search runs over the cache so it's instant and works offline.
 """
 
+import json
 from datetime import UTC, datetime, timezone
 
-from core.database import CachedMessage
+from core.database import CachedMessage, MailBody
+
+# a body bigger than this is read from the server each time instead of kept
+BODY_MAX_CHARS = 2_000_000
 
 
 def _to_msg(r: CachedMessage) -> dict:
@@ -151,8 +155,20 @@ def save(db, account_id: str, folder: str, msgs: list[dict]) -> int:
                 thread_id=m.get("thread_id", "") or "",
             )
         )
+    _prune_bodies(db, account_id, folder, msgs)
     db.commit()
     return len(msgs)
+
+
+def _prune_bodies(db, account_id, folder, msgs):
+    """a stored body lives only as long as its message is in the folder's latest fetch. a new
+    uidvalidity means the server renumbered the folder, so every stored body there goes."""
+    keep = {str(m.get("uid", "")) for m in msgs}
+    validity = next((str(m["uidvalidity"]) for m in msgs if m.get("uidvalidity")), "")
+    rows = db.query(MailBody).filter_by(account_id=account_id, folder=folder)
+    for row in rows:
+        if row.uid not in keep or (validity and row.uidvalidity != validity):
+            db.delete(row)
 
 
 def get_unified(db, limit: int = 50) -> list[dict]:
@@ -245,6 +261,7 @@ def archive(db, account_id, folder, uid) -> int:
         .filter_by(account_id=account_id, folder=folder, uid=str(uid))
         .delete()
     )
+    db.query(MailBody).filter_by(account_id=account_id, folder=folder, uid=str(uid)).delete()
     db.commit()
     return n
 
@@ -321,3 +338,112 @@ def search(db, account_id: str, q: str, limit: int = 40) -> list[dict]:
         .all()
     )
     return [_to_msg(r) for r in rows]
+
+
+# ── stored bodies: open a message without asking the mail server ────────────────
+
+
+def _body_and_header(db, account_id, folder, uid):
+    """the stored body and the header row it belongs to, or None when either is gone or they
+    no longer describe the same message (a reused uid shows up as a new message-id)."""
+    body = db.query(MailBody).filter_by(account_id=account_id, folder=folder, uid=str(uid)).first()
+    if body is None:
+        return None
+    header = (
+        db.query(CachedMessage)
+        .filter_by(account_id=account_id, folder=folder, uid=str(uid))
+        .first()
+    )
+    if header is None or (header.message_id or "") != (body.message_id or ""):
+        db.delete(body)
+        db.commit()
+        return None
+    return body
+
+
+def stored_body(db, account_id, folder, uid) -> dict | None:
+    """the message as the reader wants it, from the database, or None to ask the server."""
+    body = _body_and_header(db, account_id, folder, uid)
+    if body is None:
+        return None
+    return {
+        "uid": body.uid,
+        "from": body.sender or "",
+        "to": body.recipients or "",
+        "subject": body.subject or "",
+        "date": body.date or "",
+        "message_id": body.message_id or "",
+        "references": body.references or "",
+        "has_attachment": bool(body.has_attachment),
+        "text": body.text or "",
+        "html": body.html or "",
+        "stored": True,
+    }
+
+
+def keep_body(db, account_id, folder, msg) -> bool:
+    """store a message read from the server, when its header row is saved and agrees on the
+    message-id. a message nobody listed (a search hit, another folder) isn't kept."""
+    uid = str(msg.get("uid", ""))
+    if not uid or msg.get("error") or not isinstance(msg.get("text"), str):
+        return False
+    if len(msg.get("text") or "") + len(msg.get("html") or "") > BODY_MAX_CHARS:
+        return False
+    header = (
+        db.query(CachedMessage).filter_by(account_id=account_id, folder=folder, uid=uid).first()
+    )
+    message_id = (msg.get("message_id") or "").strip()
+    if header is None or (header.message_id or "") != message_id:
+        return False
+    row = db.query(MailBody).filter_by(account_id=account_id, folder=folder, uid=uid).first()
+    if row is None:
+        row = MailBody(account_id=account_id, folder=folder, uid=uid)
+        db.add(row)
+    row.uidvalidity = str(msg.get("uidvalidity") or "")
+    row.message_id = message_id
+    row.sender = msg.get("from", "") or ""
+    row.recipients = msg.get("to", "") or ""
+    row.subject = msg.get("subject", "") or ""
+    row.date = msg.get("date", "") or ""
+    row.references = msg.get("references", "") or ""
+    row.has_attachment = bool(msg.get("has_attachment"))
+    row.text = msg.get("text") or ""
+    row.html = msg.get("html") or ""
+    row.fetched_at = datetime.now(UTC).replace(tzinfo=None)
+    db.commit()
+    return True
+
+
+def missing_bodies(db, account_id, folder, limit) -> list[str]:
+    """uids of the newest listed messages that have no stored body yet, newest first."""
+    stored = {
+        uid for (uid,) in db.query(MailBody.uid).filter_by(account_id=account_id, folder=folder)
+    }
+    rows = get(db, account_id, folder, limit)
+    return [m["uid"] for m in rows if m["uid"] not in stored]
+
+
+def stored_attachments(db, account_id, folder, uid) -> list | None:
+    """the attachment list without the server: [] for a message stored without any, the list
+    once it was read, None when the server has to be asked."""
+    body = _body_and_header(db, account_id, folder, uid)
+    if body is None:
+        return None
+    if not body.has_attachment:
+        return []
+    try:
+        return json.loads(body.attachments) if body.attachments else None
+    except ValueError:
+        return None
+
+
+def keep_attachments(db, account_id, folder, uid, attachments) -> None:
+    body = _body_and_header(db, account_id, folder, uid)
+    if body is not None:
+        body.attachments = json.dumps(attachments)
+        db.commit()
+
+
+def forget_bodies(db, account_id) -> None:
+    """drop every stored body of an account (it was removed)."""
+    db.query(MailBody).filter_by(account_id=account_id).delete()
