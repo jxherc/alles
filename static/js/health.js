@@ -4,6 +4,7 @@ import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { calendarDateKey, formatList, t, tp } from './i18n.js';
+import { whenDay, whenHtml } from './when.js';
 import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
@@ -145,7 +146,7 @@ function _kindCard(k) {
       <div class="health-latest">${k.latest ? `${_fmtNum(k.latest.value)}<span>${esc(unit)}</span>` : '—'}${anom}</div>
       ${base}
       ${_line(k.series, tgt)}
-      <div class="health-card-meta">${k.latest ? esc(k.latest.date) : esc(t('health.no_entries'))} · ${esc(t('health.in_range', { count: k.series.length }))}</div>
+      <div class="health-card-meta">${k.latest ? whenHtml(k.latest.date) : esc(t('health.no_entries'))} · ${esc(t('health.in_range', { count: k.series.length }))}</div>
     </div>`;
 }
 
@@ -198,10 +199,10 @@ function _focusIfUnclaimed(selector, navigation) {
 function _row(e) {
   const label = e.label || kindLabel(e.kind);
   if (e.record_id && _undo.is(e.record_id)) {
-    return `<div class="health-row health-row-gone" data-id="${e.id}" data-record-id="${esc(e.record_id)}" role="status"><span class="health-row-kind">${goneTextHtml(`${label}, ${e.date}`)}</span><div class="health-row-actions">${undoButtonHtml(e.record_id)}</div></div>`;
+    return `<div class="health-row health-row-gone" data-id="${e.id}" data-record-id="${esc(e.record_id)}" role="status"><span class="health-row-kind">${goneTextHtml(`${label}, ${whenDay(e.date)}`)}</span><div class="health-row-actions">${undoButtonHtml(e.record_id)}</div></div>`;
   }
   const busy = _deleting.has(e.record_id) || _saving;
-  return `<div class="health-row" data-id="${e.id}" data-record-id="${esc(e.record_id)}" aria-busy="${busy}"><span class="health-row-date">${esc(e.date)}</span><span class="health-row-kind">${esc(label)}</span><span class="health-row-val">${esc(e.value)} ${esc(e.unit)}</span><span class="health-row-note">${esc(e.note)}</span><div class="health-row-actions"><button class="btn" data-act="edit" ${busy ? 'disabled' : ''} aria-label="${esc(t('health.edit_entry_from', { label, date: e.date }))}">${esc(t('common.edit'))}</button>${moreMenuHtml('health', e.record_id || e.id, `${label}, ${e.date}`, deleteItemHtml(`data-act="del" ${busy ? 'disabled' : ''} aria-label="${esc(t('health.delete_entry_from', { label, date: e.date }))}"`))}</div></div>`;
+  return `<div class="health-row" data-id="${e.id}" data-record-id="${esc(e.record_id)}" aria-busy="${busy}"><span class="health-row-date">${whenHtml(e.date)}</span><span class="health-row-kind">${esc(label)}</span><span class="health-row-val">${esc(e.value)} ${esc(e.unit)}</span><span class="health-row-note">${esc(e.note)}</span><div class="health-row-actions"><button class="btn" data-act="edit" ${busy ? 'disabled' : ''} aria-label="${esc(t('health.edit_entry_from', { label, date: whenDay(e.date) }))}">${esc(t('common.edit'))}</button>${moreMenuHtml('health', e.record_id || e.id, `${label}, ${whenDay(e.date)}`, deleteItemHtml(`data-act="del" ${busy ? 'disabled' : ''} aria-label="${esc(t('health.delete_entry_from', { label, date: whenDay(e.date) }))}"`))}</div></div>`;
 }
 
 function _importForm() {
@@ -299,7 +300,7 @@ async function _deleteEntry(entry) {
   const navigation = _navigation;
   if (_deleting.has(entry.record_id)) return;
   if (_saving) {
-    const reading = `${entry.label || kindLabel(entry.kind)}, ${entry.date}`;
+    const reading = `${entry.label || kindLabel(entry.kind)}, ${whenDay(entry.date)}`;
     _deleteErrors.set(entry.record_id, t('health.delete_error', { reading, message: t('health.delete_unconfirmed') }));
     _render();
     return;
@@ -313,7 +314,7 @@ async function _deleteEntry(entry) {
   } catch (error) {
     if ([404, 410].includes(error.status)) removed = true;
     else {
-      const reading = `${entry.label || kindLabel(entry.kind)}, ${entry.date}`;
+      const reading = `${entry.label || kindLabel(entry.kind)}, ${whenDay(entry.date)}`;
       const message = error.status === 409 ? t('health.delete_changed') : t('health.delete_unconfirmed');
       _deleteErrors.set(entry.record_id, t('health.delete_error', { reading, message }));
     }
