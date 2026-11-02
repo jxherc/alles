@@ -315,3 +315,32 @@ class HabitApiTests(ApiTest):
         self.client.patch(f"/api/habits/{hid}", json={"archived": True})
         ids = [x["id"] for x in self.client.get("/api/habits/overview").json()["habits"]]
         self.assertNotIn(hid, ids)
+
+    def test_today_is_the_owners_day_on_a_utc_server_in_the_evening(self):
+        # 23:30 nov 1 in toronto is nov 2 in utc. with no day sent, the owner's zone decides
+        # "today", never the server's own clock (a box on utc)
+        from unittest.mock import patch
+
+        import services.signals as signals
+
+        evening = datetime(2026, 11, 2, 4, 30, tzinfo=UTC)
+
+        class Clock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return evening.astimezone(tz) if tz else evening.replace(tzinfo=None)
+
+        hid = self._create().json()["id"]
+        with (
+            patch.object(signals, "datetime", Clock),
+            patch("core.settings.load_settings", return_value={"timezone": "America/Toronto"}),
+        ):
+            done = self.client.post(f"/api/habits/{hid}/toggle", json={}).json()
+            self.assertEqual(done, {"date": "2026-11-01", "done": True})
+            card = next(
+                h
+                for h in self.client.get("/api/habits/overview").json()["habits"]
+                if h["id"] == hid
+            )
+        self.assertTrue(card["done_today"])
+        self.assertEqual(card["grid"][-1]["date"], "2026-11-01")
