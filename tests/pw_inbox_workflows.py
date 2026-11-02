@@ -458,16 +458,22 @@ def run():
                 expect(imported_row.locator(".contact-star")).to_have_class("contact-star on")
                 inbox("contacts", reload=True)
                 expect(imported_row.locator(".contact-star")).to_have_class("contact-star on")
-                imported_row.get_by_role("button", name="del", exact=True).click()
-                page.get_by_role("alertdialog").get_by_role(
-                    "button", name="cancel", exact=True
-                ).click()
-                expect(imported_row).to_be_visible()
-                imported_row.get_by_role("button", name="del", exact=True).click()
-                page.get_by_role("alertdialog").get_by_role(
-                    "button", name="confirm", exact=True
-                ).click()
+                # delete sits in the row's more menu and waits six seconds with undo (u.10)
+                imported_row.locator(".row-more").click()
+                imported_row.get_by_role("menuitem", name="delete", exact=True).click()
+                expect(imported_row.locator(".row-gone-text")).to_contain_text(import_name)
+                imported_row.get_by_role("button", name="undo", exact=True).click()
+                expect(imported_row.locator(".row-gone-text")).to_have_count(0)
+                expect(imported_row.locator(".row-more")).to_be_focused()
+                page.wait_for_timeout(6500)
+                assert [c for c in contacts() if c["id"] == imported["id"]]
+                imported_row.locator(".row-more").click()
+                imported_row.get_by_role("menuitem", name="delete", exact=True).click()
+                expect(imported_row.get_by_role("button", name="undo", exact=True)).to_be_visible()
+                assert [c for c in contacts() if c["id"] == imported["id"]]
+                page.wait_for_timeout(6500)
                 expect(imported_row).to_have_count(0)
+                assert not [c for c in contacts() if c["id"] == imported["id"]]
                 inbox("contacts", reload=True)
                 assert not [c for c in contacts() if c["id"] == imported["id"]]
                 passed()

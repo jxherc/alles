@@ -399,7 +399,7 @@ def run():
                 if profile == "phone":
                     readability = begin("local-phone-readability")
                     row.scroll_into_view_if_needed()
-                    geometry = row.evaluate("""row => Object.fromEntries(['tx-payee','tx-cat','tx-acct','tx-date','tx-amt','tx-actions','tx-del'].map(cls => {
+                    geometry = row.evaluate("""row => Object.fromEntries(['tx-payee','tx-cat','tx-acct','tx-date','tx-amt','tx-actions','tx-more'].map(cls => {
                         const el=row.querySelector('.'+cls), r=el.getBoundingClientRect();
                         return [cls,{x:r.x,right:r.right,width:r.width,height:r.height,text:el.textContent}];
                     }))""")
@@ -414,10 +414,19 @@ def run():
                     expect(row.locator(".tx-payee")).to_have_text(corrected_payee)
                     expect(row.locator(".tx-cat")).to_have_text(category)
                     expect(row.locator(".tx-acct")).to_have_text(account_name)
-                    for control in row.locator("button").all():
+                    for control in row.locator("button:visible").all():
                         control.click(trial=True)
                         box = control.bounding_box()
                         assert box and box["width"] >= 44 and box["height"] >= 44, box
+                    # delete sits in the row's more menu (u.10): its item keeps the same target size
+                    row.locator(".row-more").click()
+                    menu_item = row.get_by_role("menuitem")
+                    expect(menu_item).to_have_count(1)
+                    menu_item.click(trial=True)
+                    box = menu_item.bounding_box()
+                    assert box and box["width"] >= 44 and box["height"] >= 44, box
+                    page.keyboard.press("Escape")
+                    expect(row.locator(".row-more")).to_be_focused()
                     # Real action and keyboard focus, beyond geometry/actionability checks.
                     row.locator(".tx-edit").click()
                     edit.locator("[data-cancel-txn]").click()
