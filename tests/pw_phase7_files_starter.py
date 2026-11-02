@@ -91,7 +91,7 @@ def run() -> None:
         page.locator("#theme-button").click()
         assert page.locator("html").get_attribute("data-theme") == "light"
         assert page.locator("body").evaluate(
-            "el => getComputedStyle(el).backgroundColor === 'rgb(244, 243, 240)'"
+            "el => getComputedStyle(el).backgroundColor === 'rgb(248, 246, 243)'"
         )
         page.screenshot(path="/tmp/alles-files-phase7-desktop.png", full_page=True)
         desktop.close()

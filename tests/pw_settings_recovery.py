@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -151,13 +152,25 @@ def exercise(page, api, dest, profile, restart, records):
         trigger = page.locator("#s-" + name + "-trigger")
         tab_to(trigger, name + " dropdown")
         page.keyboard.press("Enter")
-        expect(page.locator("#s-" + name + "-menu")).to_be_visible()
-        for _ in range(100):
-            if page.evaluate("document.activeElement.dataset.value") == value:
+        expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+        # the kit dropdown keeps focus on the trigger and jumps by typed letters
+        label = trigger.evaluate(
+            "(e, v) => e.dataset.options.split(';').map(p => p.split('|')).find(p => p[0] === v)[1]",
+            value,
+        )
+        page.keyboard.type(re.match(r"[a-z]*", label.lower()).group(0))
+        active = page.locator(".custom-dropdown-panel .custom-dropdown-option.active")
+        target = trigger.evaluate(
+            "(e, v) => e.dataset.options.split(';').map(p => p.split('|')[0]).indexOf(v)", value
+        )
+        for _ in range(500):
+            index = int(active.get_attribute("data-index"))
+            if index == target:
                 break
-            page.keyboard.press("ArrowDown")
-        assert page.evaluate("document.activeElement.dataset.value") == value
+            page.keyboard.press("ArrowDown" if index < target else "ArrowUp")
+        assert active.inner_text().strip() == label, (active.inner_text(), label)
         page.keyboard.press("Enter")
+        assert trigger.get_attribute("data-value") == value
         expect(trigger).to_have_attribute("data-value", value)
         expect(trigger).to_be_focused()
 
@@ -582,7 +595,7 @@ def exercise(page, api, dest, profile, restart, records):
     )
     assert hit, "settings overlay covers the timezone control"
     page.locator("#s-timezone-trigger").click()
-    expect(page.locator("#s-timezone-menu")).to_be_visible()
+    expect(page.locator(".custom-dropdown-panel")).to_be_visible()
     shot("08-arabic-menu")
     page.keyboard.press("Escape")
     expect(page.locator("#s-timezone-trigger")).to_be_focused()

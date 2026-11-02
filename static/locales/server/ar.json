@@ -2547,6 +2547,8 @@
     "the Files folder can't be the document folder or sit inside it": "لا يمكن أن يكون مجلد الملفات هو مجلد المستندات أو أن يقع داخله",
     "inside-Alles documents need to sit directly in the Files folder": "يجب أن تكون المستندات داخل Alles مباشرة في مجلد الملفات",
     "pair this browser again to keep fills encrypted": "أعد إقران هذا المتصفح حتى تبقى البيانات المعبأة مشفرة",
-    "the browser's public key is invalid": "المفتاح العام للمتصفح غير صالح"
+    "the browser's public key is invalid": "المفتاح العام للمتصفح غير صالح",
+    "Alles is busy for a moment. Try again.": "Alles مشغول للحظة. حاول مرة أخرى.",
+    "companion did not start: {reason}": "لم يبدأ الملحق: {reason}"
   }
 }

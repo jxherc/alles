@@ -2323,6 +2323,10 @@ html .date-panel input:is(.dp-tv, .dp-year):is(:focus, :focus-visible) { outline
 .custom-dropdown-option.selected {
   color: var(--text);
 }
+/* pick several: the mark alone shows the pick (no filled row), its slot kept so labels align */
+.custom-dropdown-option.is-multi { display: flex; align-items: center; gap: var(--k-space-2, 8px); }
+.custom-dropdown-check { flex: none; width: 14px; height: 14px; visibility: hidden; }
+.custom-dropdown-option.selected .custom-dropdown-check { visibility: visible; }
 .settings-textarea {
   width: 100%; background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control);
   color: var(--text); font-family: inherit; font-size: 0.8125rem;
@@ -6447,17 +6451,9 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 /* filters live on their own row under the title (left-aligned), not crammed against the right */
 #activity-view .page-view-head { flex-wrap: wrap; }
 .activity-filters { display: flex; flex-wrap: wrap; gap: var(--k-control-gap); align-items: center; flex-basis: 100%; margin-top: 0.5rem; }
-/* the source chips carry a fill now, so the row starts on the title's edge instead of moving
-   back by their padding (that was for bare text, decision 0031) */
-.act-chip {
-  font-family: inherit; font-size: 0.8125rem; cursor: pointer;
-  padding: 0.15rem 0.45rem; border-radius: var(--k-radius-control); color: var(--text);
-  border: 1px solid var(--faint); background: var(--panel);
-  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
-}
-.act-chip:hover { border-color: var(--muted); }
-.act-chip.off { opacity: 0.4; color: var(--muted); }
-.act-seg { margin-left: var(--k-space-3); }
+/* what to show (pick several) and the range (pick one) are the kit dropdown */
+.activity-filters .act-kinds { width: 280px; max-width: 100%; }
+.activity-filters .act-range { width: 160px; }
 .act-search { font-family: inherit; font-size: 0.8125rem; margin-left: auto; padding: 0.2rem 0.5rem; background: var(--bg); border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--text); width: 160px; }
 .act-search:focus { outline: none; }
 /* on a phone the search wraps onto its own line and takes it from the column edge */
@@ -11669,8 +11665,6 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 #messages .agent-step:not(.running):not(.error) .agent-step-status::before,
 #money-view .money-section-toggle::before,
 #money-view .money-section-toggle[aria-expanded="true"]::before,
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after,
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger[aria-expanded="true"]::after,
 .agent-step-args-wrap .custom-summary::before,
 .agent-step-args-wrap summary::before,
 .agent-step-args-wrap.open .custom-summary::before,

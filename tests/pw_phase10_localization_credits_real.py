@@ -139,9 +139,11 @@ def run() -> None:
         region = page.locator("#s-region-trigger")
         region.focus()
         page.keyboard.press("Enter")
-        expect(page.locator("#s-region-menu")).to_be_visible()
-        expect(page.locator('#s-region-menu [aria-selected="true"]')).to_be_focused()
-        page.keyboard.press("ArrowDown")
+        expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+        expect(page.locator('.custom-dropdown-option.active[aria-selected="true"]')).to_have_count(
+            1
+        )
+        page.keyboard.type("taiwan")
         page.keyboard.press("Enter")
         expect(region).to_have_text("Taiwan")
         expect(region).to_be_focused()
@@ -150,10 +152,12 @@ def run() -> None:
         timezone = page.locator("#s-timezone-trigger")
         timezone.focus()
         page.keyboard.press("Enter")
-        expect(page.locator("#s-timezone-menu")).to_be_visible()
-        expect(page.locator('#s-timezone-menu [aria-selected="true"]')).to_be_focused()
+        expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+        expect(page.locator('.custom-dropdown-option.active[aria-selected="true"]')).to_have_count(
+            1
+        )
         page.keyboard.press("Escape")
-        expect(page.locator("#s-timezone-menu")).to_be_hidden()
+        expect(page.locator(".custom-dropdown-panel")).to_have_count(0)
         expect(timezone).to_be_focused()
 
         clock_auto = pane.locator('[data-locale-format="clock_format"][data-value="auto"]')

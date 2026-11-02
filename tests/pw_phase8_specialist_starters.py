@@ -172,12 +172,12 @@ def _exercise_common(page: Page) -> None:
     assert theme.get_attribute("aria-checked") == "true"
     assert page.locator("html").get_attribute("data-theme") == "light"
     page.wait_for_function(
-        "getComputedStyle(document.body).backgroundColor === 'rgb(244, 243, 240)'"
+        "getComputedStyle(document.body).backgroundColor === 'rgb(248, 246, 243)'"
     )
     background = page.locator("body").evaluate(
         "element => getComputedStyle(element).backgroundColor"
     )
-    assert background == "rgb(244, 243, 240)", {
+    assert background == "rgb(248, 246, 243)", {
         "url": page.url,
         "background": background,
         "root_theme": page.locator("html").get_attribute("data-theme"),

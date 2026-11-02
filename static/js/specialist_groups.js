@@ -1211,7 +1211,7 @@ async function _renderFinance(target, request) {
 }
 
 async function _renderServer(target, request, section) {
-  const module = await import('./server_workbench.js?v=11');
+  const module = await import('./server_workbench.js?v=13');
   return module.renderServerSection(target, request, section);
 }
 

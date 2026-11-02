@@ -40,7 +40,7 @@ import { closeAideRun } from './aiderun.js';
 import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=16';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=298';
+import { openSettings, closeSettings, applyVis } from './settings.js?v=299';
 import {
   setIncognitoMode,
   isIncognitoMode,

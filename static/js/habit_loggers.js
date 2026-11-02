@@ -4,7 +4,7 @@
 import { form } from './dialog.js';
 import { formatCalendarDate, formatNumber, t, tp } from './i18n.js';
 import { initKokuenPrimitives } from './kokuen.js?v=5';
-import { initCustomDropdown } from './dropdown.js?v=215';
+import { initCustomDropdown } from './dropdown.js?v=217';
 import { api, toast } from './util.js';
 import { formatDecimal } from './liveformat.js';
 import { stepperHtml } from './stepper.js';

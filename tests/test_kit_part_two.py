@@ -194,7 +194,6 @@ CHOICE_EXCEPTIONS = {
     # toggles that each turn one thing on, not one pick from a list
     "js/calendar.js:cal-dow-b": "weekday toggles, like every calendar's repeat editor",
     "js/calendar.js:cal-rem": "reminder toggles, several at once",
-    "js/activity.js:act-chip": "filter toggles, several at once",
     "index.html:token-scopes": "token powers, several at once, each with a mark",
     # navigation, not a value: the open view or place, like every calendar and files app
     "index.html:cal-view": "calendar view switch",
@@ -212,7 +211,6 @@ CHOICE_TO_CONVERT = {
     "index.html:aide-schedule-choices": "4 schedule kinds",
     "index.html:files-location-kind": "4 location kinds",
     "index.html:locale-language-list": "8 languages",
-    "js/activity.js:seg-opt": "activity time ranges",
     "js/appsettings.js:seg-opt": "app setting choices of any length",
     "js/filesphase7.js:data-value": "every files location",
     "js/memory.js:mem-cat-btn": "memory categories, a list that grows",

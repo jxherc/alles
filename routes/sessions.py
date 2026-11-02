@@ -1,7 +1,7 @@
 import html as _html
 import json as _json
 import re as _re
-from datetime import UTC, datetime, timedelta
+from datetime import date, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import Response
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session as DbSession
 from core.api_errors import ApiError
 from core.auth import require_recent_owner
 from core.database import Message, ModelEndpoint, Project, Session, get_db
+from core.schema.base import local_date
 from services import incognito, lifecycle
 from services.aide_conversation import PRIMARY_ROLE, get_or_create_primary
 from services.project_environment import canonical_folder, session_environment
@@ -87,13 +88,13 @@ def list_sessions(db: DbSession = Depends(get_db)):
         .order_by(Session.last_message_at.desc())
         .all()
     )
-    now = datetime.now(UTC).replace(tzinfo=None)
-    today = now.date()
-    yesterday = (now - timedelta(days=1)).date()
+    # group by the day here, not the utc day: after 7 pm in toronto utc is already tomorrow
+    today = date.today()
+    yesterday = today - timedelta(days=1)
 
     result = {"today": [], "yesterday": [], "earlier": []}
     for s in rows:
-        ts = (s.last_message_at or s.created_at).date()
+        ts = local_date(s.last_message_at or s.created_at)
         if ts == today:
             result["today"].append(_fmt_session(s))
         elif ts == yesterday:

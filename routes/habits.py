@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import Habit, HabitCreateReceipt, HabitLog, get_db
+from core.schema.base import local_date
 from services import habit_kinds, habit_logs
 
 router = APIRouter(prefix="/api")
@@ -218,7 +219,7 @@ def overview(
         risk = life_stats.habit_failure_risk(done, today)
         # only nudge once there's enough history to judge (>= a week old) and you've actually
         # let it slide (low recent rate + no current streak) - never flag a brand-new habit
-        age = (today - h.created_at.date()).days if h.created_at else 999
+        age = (today - local_date(h.created_at)).days if h.created_at else 999
         risk["slipping"] = bool(age >= 7 and risk["recent_rate"] < 0.4 and card["streak"] == 0)
         card["risk"] = risk
         out.append(card)

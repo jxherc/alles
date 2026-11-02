@@ -3871,18 +3871,12 @@ html:not(#_) #messages .agent-step:not(.running):not(.error) .agent-step-status:
 /* the live dot only while live: loading, unavailable and static (no live monitoring) draw none */
 html:not(#_) #system-host:not([data-state="live"])::after { display: none; }
 html:not(#_) #system-host[data-state="live"]::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-inline-start: 8px; border-radius: 50%; vertical-align: 0.15em; background: var(--k-success, var(--green)); }
-html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after {
-  content: ""; display: inline-block; width: 1em; height: 1em; vertical-align: -0.15em; background: currentColor;
-  -webkit-mask: var(--ic-chev-down) center / contain no-repeat; mask: var(--ic-chev-down) center / contain no-repeat;
-}
-html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger[aria-expanded="true"]::after { -webkit-mask-image: var(--ic-chev-up); mask-image: var(--ic-chev-up); }
 /* high contrast swaps a currentColor fill for Canvas, so every mask mark above vanished. this
    sits after all of them: the same specificity earlier would lose to their fill */
 @media (forced-colors: active) {
   html:not(#_) :is(.agent-step-args-wrap summary, .agent-step-args-wrap .custom-summary, .aide-goal-memory summary, #aide-schedule-project)::before,
   html:not(#_) :is(.agent-step-args-wrap summary, .agent-step-args-wrap .custom-summary, .aide-goal-memory summary, #aide-schedule-project)::after,
   html:not(#_) #messages .agent-step:not(.running):not(.error) .agent-step-status::before,
-  html:not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after,
   html:not(#_) #system-host[data-state="live"]::after { background: CanvasText; }
 }
 

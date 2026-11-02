@@ -1337,6 +1337,10 @@ body:is(
 
 .server-workbench-admin:hover { color: var(--k-muted, var(--muted)); }
 .server-managed-surface { margin-top: var(--k-space-5, 24px); }
+/* 28.35: the picked host services, the add dropdown, the phrase and save sit on one 12px rhythm */
+.server-workbench-policy-hosts { display: grid; gap: var(--k-space-3, 12px); margin-top: var(--k-space-3, 12px); }
+.server-workbench-policy-hosts > * { margin: 0; }
+.server-workbench-policy-hosts[hidden] { display: none; }
 .server-managed-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .server-managed-controls { margin-top: var(--k-space-4, 16px); }
 .server-managed-section { margin-top: var(--k-space-5, 24px); }
@@ -2790,7 +2794,6 @@ html[data-kokuen-version="5"] :where(
   input:is([type="text"], [type="search"], [type="email"], [type="url"], [type="tel"], [type="password"], [type="number"]),
   textarea,
   .custom-select[role="combobox"],
-  .locale-choice-trigger[aria-haspopup="listbox"],
   .date-input
 ):where(:not([role="button"]:not(.date-input))):not(.wiki-source, .note-editor-title, .note-editor-body, .jrnl-text):focus-visible {
   outline: none !important;
@@ -2835,7 +2838,6 @@ body[data-app="finance"] #money-entry-fields :focus-visible,
 #wiki-view :is(.wiki-file, .wiki-dir-head):focus-visible,
 #wiki-view[data-kokuen-surface="docs"] .docs-reader-actions > button:focus-visible,
 #settings-modal :is(
-  .locale-choice-option,
   .locale-segmented > button,
   .credits-tabs > button,
   .home-settings-workbench button
@@ -3048,8 +3050,7 @@ html[data-kokuen-version="5"] .custom-dropdown-panel .custom-dropdown-option {
     input:not([type]),
     input:is([type="text"], [type="search"], [type="email"], [type="url"], [type="tel"], [type="password"], [type="number"]),
     textarea,
-    .custom-select[role="combobox"],
-    .locale-choice-trigger[aria-haspopup="listbox"]
+    .custom-select[role="combobox"]
   ):not([role="button"]):focus-visible:not(:where(
     .composer-box > .composer-ta,
     .search-command-head > .search-prompt-input,
@@ -4023,70 +4024,6 @@ textarea[data-kokuen-entry="autogrow"] {
   line-height: 1.35;
 }
 
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-wrap {
-  position: relative;
-  min-width: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger {
-  width: 100%;
-  min-height: var(--k-control-dense);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--k-space-3);
-  padding: 0 var(--k-space-3);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-control);
-  background: var(--k-page);
-  color: var(--k-soft);
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger::after {
-  color: var(--k-muted);
-  content: ''; --glyph: var(--ic-chevron-down);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger[aria-expanded="true"]::after {
-  content: ''; --glyph: var(--ic-chevron-up);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-menu {
-  position: fixed;
-  z-index: 8;
-  inset: auto;
-  max-height: 264px;
-  overflow-y: auto;
-  padding: var(--k-space-1);
-  border: 1px solid var(--k-line-strong);
-  border-radius: var(--k-radius-surface);
-  background: var(--k-page);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-menu[hidden] {
-  display: none;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-option {
-  width: 100%;
-  min-height: 44px;
-  padding: 0 var(--k-space-2);
-  border: 0;
-  border-radius: var(--k-radius-small);
-  background: transparent;
-  color: var(--k-soft);
-  font-size: 0.8125rem;
-  text-align: start;
-  cursor: pointer;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-choice-option:is(:hover, :focus-visible, [aria-selected="true"]) {
-  background: var(--k-hover);
-  color: var(--k-text);
-}
-
 /* bare until picked (decision 0031). it ends on the row's right edge like the pickers above it;
    stacked on a phone it starts on the column instead */
 #settings-modal[data-kokuen-surface="settings"] .locale-segmented {
@@ -4514,7 +4451,6 @@ html[dir="rtl"] :where(
     justify-content: flex-start;
   }
 
-  #settings-modal[data-kokuen-surface="settings"] .locale-choice-trigger,
   #settings-modal[data-kokuen-surface="settings"] .locale-segmented button,
   #settings-modal[data-kokuen-surface="settings"] .credits-tabs button {
     min-height: var(--k-control);

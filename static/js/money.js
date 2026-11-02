@@ -3,7 +3,7 @@
 import { api, toast, plainError } from './util.js';
 import { whenDay, whenFull, whenHtml } from './when.js';
 import { confirm as dlgConfirm, fields as dlgFields, choose as dlgChoose } from './dialog.js';
-import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=215';
+import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=217';
 import { initDatePicker, calendarDateParts } from './datepick.js';
 import { calendarDateKey, currencySymbol, formatCalendarDate, formatDate, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=5';

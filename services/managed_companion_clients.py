@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -15,6 +15,7 @@ ADGUARD_URL = "http://127.0.0.1:3000/control"
 NPM_URL = "http://127.0.0.1:8181/api"
 _ADGUARD_PURPOSE = "companions.adguard.password"
 _NPM_PURPOSE = "companions.npm.token"
+_NPM_ADMIN_PURPOSE = "companions.npm.admin"
 
 
 class CompanionClientError(RuntimeError):
@@ -45,21 +46,53 @@ def _adguard_credentials() -> tuple[str, str]:
     return username, password
 
 
-def _npm_token() -> str:
-    value = load_secret_config(
-        _credentials_path("nginx-proxy-manager"), _NPM_PURPOSE, field="token"
-    )
+def _npm_admin_path() -> Path:
+    return data_dir() / "nginx-proxy-manager.admin.json"
+
+
+def _npm_admin() -> tuple[str, str]:
+    value = load_secret_config(_npm_admin_path(), _NPM_ADMIN_PURPOSE)
+    return str(value.get("identity") or ""), str(value.get("password") or "")
+
+
+def _npm_stored_token() -> dict:
+    return load_secret_config(_credentials_path("nginx-proxy-manager"), _NPM_PURPOSE, field="token")
+
+
+def _token_expired(expires: str) -> bool:
+    try:
+        when = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return when <= datetime.now(timezone.utc) + timedelta(minutes=1)
+
+
+def _npm_token(requester: Callable[..., Any] = httpx.request) -> str:
+    value = _npm_stored_token()
     token = str(value.get("token") or "")
+    if token and not _token_expired(str(value.get("expires") or "")):
+        return token
+    # the admin alles created for itself signs in again, so the token never needs a person
+    identity, password = _npm_admin()
+    if identity and password:
+        connect_npm(identity, password, requester=requester)
+        token = str(_npm_stored_token().get("token") or "")
     if not token:
         raise CompanionClientError("Nginx Proxy Manager is not connected")
     return token
 
 
-def clear_credentials(service_id: str) -> None:
-    path = _credentials_path(service_id)
-    if path.is_symlink():
-        raise CompanionClientError("companion credential file is unsafe")
-    path.unlink(missing_ok=True)
+def clear_credentials(service_id: str, *, keep_admin: bool = False) -> None:
+    paths = [_credentials_path(service_id)]
+    if service_id == "nginx-proxy-manager" and not keep_admin:
+        paths.append(_npm_admin_path())
+    for path in paths:
+        if path.is_symlink():
+            raise CompanionClientError("companion credential file is unsafe")
+    for path in paths:
+        path.unlink(missing_ok=True)
 
 
 def _call(
@@ -208,8 +241,41 @@ def connect_npm(
     }
 
 
+def setup_npm_admin(
+    identity: str, password: str, *, requester: Callable[..., Any] = httpx.request
+) -> dict:
+    """Create the first admin through NPM's own setup call, then connect with it."""
+    state = _call("GET", f"{NPM_URL}/", requester=requester)
+    if not isinstance(state, dict) or state.get("setup"):
+        return {"created": False}
+    save_secret_config(
+        _npm_admin_path(),
+        {"identity": identity, "password": password},
+        _NPM_ADMIN_PURPOSE,
+    )
+    try:
+        _call(
+            "POST",
+            f"{NPM_URL}/users",
+            requester=requester,
+            payload={
+                "name": "Alles",
+                "nickname": "alles",
+                "email": identity,
+                "roles": ["admin"],
+                "is_disabled": False,
+                "auth": {"type": "password", "secret": password},
+            },
+        )
+    except CompanionClientError:
+        _npm_admin_path().unlink(missing_ok=True)
+        raise
+    connect_npm(identity, password, requester=requester)
+    return {"created": True}
+
+
 def npm_dashboard(*, requester: Callable[..., Any] = httpx.request) -> dict:
-    token = _npm_token()
+    token = _npm_token(requester)
     hosts = _call("GET", f"{NPM_URL}/nginx/proxy-hosts", requester=requester, token=token)
     certificates = _call("GET", f"{NPM_URL}/nginx/certificates", requester=requester, token=token)
     return {
@@ -250,7 +316,7 @@ def create_npm_proxy_host(
         "POST",
         f"{NPM_URL}/nginx/proxy-hosts",
         requester=requester,
-        token=_npm_token(),
+        token=_npm_token(requester),
         payload=payload,
     )
     return result if isinstance(result, dict) else {"ok": True}
