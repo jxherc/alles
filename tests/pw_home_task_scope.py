@@ -151,7 +151,7 @@ def run():
                         "data-value", "active"
                     )
                     page.click("#tasks-view-pick")
-                    page.locator(".custom-dropdown-panel [role=option]").nth(
+                    page.locator("body > .custom-dropdown-panel [role=option]").nth(
                         ["active", "today", "upcoming", "someday", "done"].index("done")
                     ).click()
                     expect(

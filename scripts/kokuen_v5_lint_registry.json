@@ -762,15 +762,6 @@
     "path": "static/kokuen.css",
     "selector": "body.afterlife-shell .app-rail:not([hidden])",
     "job": "distinct-region",
-    "reason": "The app rail's one edge (right on ipad landscape and desktop, top on a phone) separates the app list from the open app (u.07, decision 0064)."
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in body.afterlife-shell .app-rail:not([hidden]); check for nested bezels",
-    "css_block_sha256": "df82cc4554449b27c4cd879c33875dcb0452e9c501fd1c03fa0d67fdbebed345",
-    "path": "static/kokuen.css",
-    "selector": "body.afterlife-shell .app-rail:not([hidden])",
-    "job": "distinct-region",
-    "reason": "The app rail's one edge (right on ipad landscape and desktop, top on a phone) separates the app list from the open app (u.07, decision 0064)."
+    "reason": "The app rail's one edge (its right edge on ipad landscape and desktop) separates the app list from the open app; the phone bar parts by its fill instead (u.07, decision 0064)."
   }
 ]

@@ -7655,6 +7655,9 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
   }
   body.afterlife-shell .app-rail-more { margin-top: auto; }
 }
+/* the phone bar sits under every floating layer (menus, drawers, sheets, dialogs: z 25 and up)
+   and over the page, which ends above it. it parts from the page by its fill, not a line: a
+   list's own divider scrolling up to a top line made two lines stacked on one edge */
 @media (max-width: 700px) {
   body.afterlife-shell:has(.app-rail:not([hidden])) {
     --k-app-bar-height: calc(56px + env(safe-area-inset-bottom, 0px));
@@ -7663,14 +7666,13 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
   body.afterlife-shell .app-rail:not([hidden]) {
     position: fixed;
     inset: auto 0 0 0;
-    z-index: 200;
+    z-index: 20;
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
-    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    height: var(--k-app-bar-height);
     padding: 0 var(--k-space-1, 4px) env(safe-area-inset-bottom, 0px);
-    border-top: 1px solid var(--k-line, var(--faint));
-    background: var(--k-canvas, var(--bg));
+    background: var(--k-panel, var(--panel));
   }
   body.afterlife-shell .app-rail-item[data-wide] { display: none; }
   body.app-drawer-open .app-rail { visibility: hidden; }

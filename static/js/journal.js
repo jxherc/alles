@@ -1,7 +1,7 @@
 // journal — one entry per day. mood + tags + prompt + streak + on-this-day + AI reflect.
 import { toast, mdToHtml, plainError } from './util.js';
 import { formatCalendarDate, formatTime, t, tp } from './i18n.js';
-import { whenDay, whenFull } from './when.js';
+import { whenFull, whenHtml } from './when.js';
 import { createFocusBoundary } from './kokuen.js?v=5';
 import { replaceRouteUrl } from './route_history.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
@@ -401,7 +401,7 @@ async function buildJournal() {
         if (generation !== searchGeneration || !box.isConnected) return;
         const restoreFocus = retry && document.activeElement === retry;
         box.innerHTML = d.results.map(r =>
-          `<button type="button" class="jrnl-otd-row jrnl-search-result" data-d="${esc(r.date)}"><b>${esc(whenDay(r.date))}</b> ${esc(r.mood || '')} ${esc(r.snippet)}</button>`).join('')
+          `<button type="button" class="jrnl-otd-row jrnl-search-result" data-d="${esc(r.date)}"><b>${whenHtml(r.date)}</b> ${esc(r.mood || '')} ${esc(r.snippet)}</button>`).join('')
           || `<div class="jrnl-empty" role="status">${t('journal.no_matches')}</div>`;
         box.querySelectorAll('[data-d]').forEach(button => button.onclick = async () => {
           await navigateDay(button.dataset.d);
@@ -911,7 +911,7 @@ async function loadRecent() {
     el.innerHTML = (d.entries || []).map(e =>
       `<div class="jrnl-recent-row ${e.date === _day ? 'active' : ''}" data-d="${e.date}">
         <span class="jrnl-recent-mood">${esc(e.mood || '·')}</span>
-        <span class="jrnl-recent-date">${esc(whenDay(e.date))}</span>
+        <span class="jrnl-recent-date">${whenHtml(e.date)}</span>
         <span class="jrnl-recent-snip">${esc((e.content || '').slice(0, 60))}</span>
       </div>`
     ).join('') || `<div class="jrnl-empty">${t('journal.recent_empty')}</div>`;
