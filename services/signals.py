@@ -346,7 +346,7 @@ def _habits(db, today):
                     h.name,
                     "not done today",
                     "habits",
-                    {"id": h.id, "name": h.name},
+                    {"id": h.id, "name": h.name, "kind": h.kind or "check"},
                 )
             )
     return out

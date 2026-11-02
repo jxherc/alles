@@ -5,7 +5,7 @@ files, inbox, library, vault, aide) at ipad landscape and phone, with the pointe
 fails when a delete control (a trash icon, an aria-label, title, action or text that says
 delete, remove or trash, `.task-del` and the like) is visible outside an open menu, a dialog or
 an edit panel. every find prints its app, view, size and selector. ALLOWED names each real
-exception with its reason, or the session that still owns the fix ("left: <owner>").
+exception with its reason.
 
 run through the gate runner, which owns the server and its throwaway data. DELETE_SHOTS=<dir>
 also saves a screenshot of every find there (before and after evidence).
@@ -22,8 +22,8 @@ from playwright.sync_api import sync_playwright
 
 SIZES = {"ipad-landscape": (1180, 820), "phone": (390, 844)}
 
-# (app, view, selector) -> why it may stay visible at rest. "left: <owner>" is a find that sits
-# in a file another session owns; the line says where the fix goes.
+# (app, view, selector) -> why it may stay visible at rest. only real exceptions belong here: a
+# control that deletes nothing. a delete control that deletes goes behind its row's more menu.
 ALLOWED = {
     ("docs", "notes", "button#wiki-trash-btn"): "opens the recently deleted list, deletes nothing",
     (
@@ -31,36 +31,6 @@ ALLOWED = {
         "gallery",
         "nav#photos-sidebar > button.photos-nav-item",
     ): "the trash album in the sidebar, deletes nothing",
-    (
-        "finance",
-        "money",
-        "div#txn-rows > div.txns > div.txn > button.tx-del",
-    ): "left: s11b-numbers (money.js:1515, the row's delete shows on touch where the hover reveal never fires)",
-    (
-        "finance",
-        "subs",
-        "div#subs-list > div.sub-item > span.sub-actions > button.btn.danger",
-    ): "left: subscriptions owner (subs.js, a danger button on every row)",
-    (
-        "health",
-        "health",
-        "div.health-recent > div.health-row > div.health-row-actions > button.icon-btn.danger",
-    ): "left: s11b-numbers (health.js:201, a trash icon on every recent entry)",
-    (
-        "inbox",
-        "contacts",
-        "div#contacts-list > div.contact-item > div.contact-rowacts > button.act-btn.danger",
-    ): "left: contacts owner (contacts.js, row action)",
-    (
-        "library",
-        "books",
-        "div.book-shelf > div.book-grid > div.book-card > button.icon-btn.danger",
-    ): "left: library owner (books.js:150, a trash icon on every book card)",
-    (
-        "aide",
-        "skills",
-        "div#skl-grid > div.skl-card > div.skl-card-acts > button.skl-del-q",
-    ): "left: aide skills owner (skills.js:265, a delete button on every card)",
 }
 
 

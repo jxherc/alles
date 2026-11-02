@@ -3,6 +3,7 @@ import { autosizeTextarea, wireAutosizeTextarea } from './text_entry.js?v=1';
 import { appDesc, appLabel, toast } from './util.js';
 import { appGlyph } from './icons.js';
 import { addDays, whenDay, whenFull, whenTime } from './when.js';
+import { checkHabit, openTaskDetails, wireSwipe } from './act_row.js';
 
 const SECTION_LABELS = {
   needs_you: 'needs you',
@@ -76,7 +77,7 @@ export function dailyRows(day) {
   for (const item of day?.reminders || []) rows.push(reminderRow(item, day.date));
   for (const item of day?.renewing || []) rows.push({ view: 'subs', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: `${item.name} ${t('home.renews')}`, kind: 'renewal' });
   for (const item of day?.day_events || []) rows.push({ view: 'days', id: item.id, meta: item.in_days ? t('home.in_days', { count: item.in_days }) : t('common.today'), title: item.name, kind: 'date' });
-  for (const item of day?.habits || []) rows.push({ view: 'habits', id: item.id, meta: t('home.not_done'), title: item.name, kind: 'habit' });
+  for (const item of day?.habits || []) rows.push({ view: 'habits', id: item.id, meta: t('home.not_done'), title: item.name, kind: 'habit', habitKind: item.kind || 'check' });
   return rows;
 }
 
@@ -176,8 +177,19 @@ function taskRow(item, { tomorrow = false } = {}) {
   </div>`;
 }
 
+// a habit on home (u.01): a plain check is checked off right here, with undo in the row; a
+// habit with its own log (gym, water, sleep) opens where its logger lives
+function habitRow(item) {
+  const label = t('habits.day_not_completed', { name: item.title, date: t('habits.today') });
+  return `<div class="today-task today-habit" data-habit="${esc(item.id)}">
+    <button class="today-check" type="button" data-habit-check="${esc(item.id)}" aria-label="${esc(label)}"></button>
+    <button class="today-row today-task-open" type="button" data-view="habits" data-record="${esc(item.id)}"><span><b>${esc(item.title)}</b><small>${esc(item.meta)}</small></span></button>
+  </div>`;
+}
+
 function scheduleRow(item, options) {
   if (item.kind === 'task' && item.id) return taskRow(item, options);
+  if (item.kind === 'habit' && item.id && item.habitKind === 'check') return habitRow(item);
   return dayRow(item, item.kind === 'event' ? `<small>${esc(t('calendar.title'))}</small>` : '');
 }
 
@@ -323,6 +335,32 @@ async function checkTask(button) {
   });
 }
 
+// a habit checked on home: the row says so with undo for a few seconds, then home reloads
+async function checkHabitRow(button) {
+  const row = button.closest('.today-habit');
+  const title = row?.querySelector('b')?.textContent || '';
+  const id = button.dataset.habitCheck;
+  button.disabled = true;
+  try { await checkHabit(id, true); }
+  catch (error) { button.disabled = false; showStatus(error.message, true); return; }
+  row.className = 'today-task today-done';
+  row.setAttribute('role', 'status');
+  row.innerHTML = `<span></span><span class="today-done-text">${esc(t('tasks.completed_named', { task: title }))}</span>
+    <button class="today-snooze" type="button">${esc(t('common.undo'))}</button>`;
+  const undo = row.querySelector('button');
+  undo.focus();
+  clearTimeout(doneTimer);
+  doneTimer = setTimeout(() => { if (row.isConnected) load(); }, 6000);
+  undo.addEventListener('click', async () => {
+    clearTimeout(doneTimer);
+    undo.disabled = true;
+    try { await checkHabit(id, false); }
+    catch (error) { showStatus(error.message, true); }
+    await load();
+    document.querySelector(`#today-view [data-habit-check="${CSS.escape(id)}"]`)?.focus();
+  });
+}
+
 async function snoozeTask(button) {
   button.disabled = true;
   try { await patchTask(button.dataset.snooze, { due_date: addDays(calendarDateKey(), 1) }); }
@@ -389,7 +427,19 @@ function render() {
     .map(key => blocks[key]).filter(Boolean).join('') + suggestionSection();
   root.querySelectorAll('[data-check]').forEach(button => button.addEventListener('click', () => checkTask(button)));
   root.querySelectorAll('[data-snooze]').forEach(button => button.addEventListener('click', () => snoozeTask(button)));
+  root.querySelectorAll('[data-habit-check]').forEach(button => button.addEventListener('click', () => checkHabitRow(button)));
+  // swipe on touch: right is done, left is tomorrow, the same as the row's two buttons
+  root.querySelectorAll('.today-task[data-task]').forEach(row => wireSwipe(row, {
+    right: () => row.querySelector('[data-check]')?.click(),
+    left: () => row.querySelector('[data-snooze]')?.click(),
+  }));
   root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', async () => {
+    // a task's details open over home (u.01); edit still goes to the full editor in plan
+    if (button.dataset.view === 'tasks' && button.dataset.record) {
+      const id = button.dataset.record;
+      await openTaskDetails(id, { from: button, onChange: load, openFull: openRecord ? () => openRecord('tasks', id) : null });
+      return;
+    }
     if (button.dataset.record && openRecord) {
       await openRecord(button.dataset.view, button.dataset.record, button.dataset.occurrence);
       return;

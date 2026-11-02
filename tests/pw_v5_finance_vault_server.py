@@ -89,6 +89,8 @@ def _seed_money() -> None:
 
 
 def _wait_app(page: Page) -> None:
+    # a fresh data folder opens on setup (first run); this gate is about finance, vault, server
+    assert page.request.post(f"{BASE}/api/setup/dismiss").ok
     page.goto(BASE, wait_until="domcontentloaded")
     page.wait_for_function("typeof window._navigateTo === 'function'")
 
@@ -195,6 +197,14 @@ def _finance_money_keyboard_targets(page: Page) -> None:
     editor.locator("[data-cancel-txn]").click()
 
 
+def _opener(page: Page, name: str):
+    """an entry's open button. it is named by its own words (label in name), the entry's name
+    then its type, so it is found by the name it shows"""
+    return page.locator("[data-vault-open]").filter(
+        has=page.locator(".vault-entry-name", has_text=name)
+    )
+
+
 def _vault_keyboard_focus_and_recovery(page: Page) -> None:
     page.evaluate("window._navigateTo('vault')")
     page.locator("#vault-workbench-view").wait_for(state="visible")
@@ -202,7 +212,10 @@ def _vault_keyboard_focus_and_recovery(page: Page) -> None:
     page.locator("#vault-unlock-btn").click()
     page.locator("[data-vault-open]").first.wait_for()
 
-    opener = page.get_by_role("button", name="open deploy key")
+    opener = _opener(page, "deploy key")
+    assert opener.count() == 1
+    assert opener.get_attribute("aria-label") is None
+    assert opener.evaluate("element => element.textContent.trim()").startswith("deploy key")
     opener.focus()
     opener.press("Enter")
     dialog = page.locator(".vault-modal [role=dialog]")
@@ -216,7 +229,7 @@ def _vault_keyboard_focus_and_recovery(page: Page) -> None:
     page.keyboard.press("Escape")
     assert opener.evaluate("element => document.activeElement === element")
 
-    card = page.get_by_role("button", name="open test card")
+    card = _opener(page, "test card")
     card.press("Enter")
     dialog.wait_for(state="visible")
     assert dialog.locator("#vf-f-cvv").get_attribute("type") == "password"
@@ -236,7 +249,7 @@ def _vault_keyboard_focus_and_recovery(page: Page) -> None:
     assert page.locator("#vault-unlocked").is_visible()
     page.unroute("**/api/vault", fail_entries)
     error.get_by_role("button", name="retry loading entries").click()
-    page.get_by_role("button", name="open deploy key").wait_for()
+    _opener(page, "deploy key").wait_for()
 
 
 def _server_choice_rollback(page: Page) -> None:
@@ -252,24 +265,20 @@ def _server_choice_rollback(page: Page) -> None:
 
     page.route("**/api/settings", fail_patch)
     page.evaluate("window._navigateTo('server-search')")
-    group = page.locator('[role="radiogroup"][aria-label="primary search provider"]')
-    group.wait_for(state="visible")
-    previous = group.locator('[role="radio"][aria-checked="true"]')
-    previous_value = previous.get_attribute("data-value")
-    target = group.locator(f'[role="radio"]:not([data-value="{previous_value}"])').first
+    # more than 3 providers: the list is the dropdown (choice controls rule), so a failed save
+    # puts the old pick back in the trigger and says why
+    pick = page.get_by_role("combobox", name="primary search provider")
+    pick.wait_for(state="visible")
+    previous_value = pick.get_attribute("data-value")
+    previous_label = pick.inner_text().strip()
+    pick.click()
+    panel = page.locator(".custom-dropdown-panel")
+    target = panel.locator('[role="option"][aria-selected="false"]').first
     target.click()
     page.locator(".server-workbench-status.is-error").wait_for(state="visible")
-    assert (
-        group.locator(f'[role="radio"][data-value="{previous_value}"]').get_attribute(
-            "aria-checked"
-        )
-        == "true"
-    )
-    assert target.get_attribute("aria-checked") == "false"
-    assert group.get_attribute("aria-busy") is None
-    assert group.locator(f'[role="radio"][data-value="{previous_value}"]').evaluate(
-        "element => document.activeElement === element"
-    )
+    assert pick.get_attribute("data-value") == previous_value
+    assert pick.inner_text().strip() == previous_label
+    assert not pick.is_disabled()
     page.unroute("**/api/settings", fail_patch)
 
 

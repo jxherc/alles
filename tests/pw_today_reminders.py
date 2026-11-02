@@ -9,13 +9,16 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 from pw_settings_helpers import choose_settings_section
+
+# home's own day; in the evening a "tomorrow" section (u.02) is a .today-schedule too
+TODAY = '.today-schedule[data-home-section="today"]'
 
 CASES = (
     {
@@ -29,8 +32,10 @@ CASES = (
         "clock": "20:30",
         "future": "2032-09-26T04:00:00",
         "earlier": "2032-09-24T23:00:00",
-        "earlier_lines": r"Sep 24\n7:00\sPM",
-        "earlier_title": r"Sep 24, 2032, 7:00\sPM",
+        # u.04 (decision 0063): one day before home's day reads "yesterday", times lowercase
+        "clock_text": "8:30 pm",
+        "earlier_lines": r"yesterday\n7:00\spm",
+        "earlier_title": r"friday, september 24, 2032 7:00\spm",
     },
     {
         "name": "tokyo-before-utc-midnight",
@@ -43,8 +48,9 @@ CASES = (
         "clock": "00:30",
         "future": "2032-09-26T15:00:00",
         "earlier": "2032-09-25T01:00:00",
-        "earlier_lines": r"Sep 25\n10:00\sAM",
-        "earlier_title": r"Sep 25, 2032, 10:00\sAM",
+        "clock_text": "12:30 am",
+        "earlier_lines": r"yesterday\n10:00\sam",
+        "earlier_title": r"saturday, september 25, 2032 10:00\sam",
     },
     {
         "name": "configured-zone-overrides-browser",
@@ -57,8 +63,9 @@ CASES = (
         "clock": "00:30",
         "future": "2032-09-26T15:00:00",
         "earlier": "2032-09-25T01:00:00",
-        "earlier_lines": r"Sep 25\n10:00\sAM",
-        "earlier_title": r"Sep 25, 2032, 10:00\sAM",
+        "clock_text": "12:30 am",
+        "earlier_lines": r"yesterday\n10:00\sam",
+        "earlier_title": r"saturday, september 25, 2032 10:00\sam",
     },
 )
 
@@ -171,19 +178,19 @@ def run():
                             page.locator('[data-theme-mode="light"]').click()
                         assert appearance.value.ok
                         page.locator("#settings-modal-close").click()
-                    row = page.locator(".today-schedule .today-row").filter(has_text=visible)
+                    row = page.locator(TODAY + " .today-row").filter(has_text=visible)
                     expect(row).to_be_visible()
-                    # the server's wall clock, read in the app's own short time style
+                    # the server's wall clock, read in the app's one time style (when.js)
                     clock = page.evaluate(
-                        "async c => (await import('/static/js/i18n.js')).formatClock(c)",
+                        "async c => (await import('/static/js/when.js')).whenTime(c)",
                         case["clock"],
                     )
-                    assert clock and clock != "", clock
+                    assert clock == case["clock_text"], clock
                     expect(row.locator("em")).to_have_text(clock)
-                    expect(page.locator(".today-schedule")).not_to_contain_text(future)
+                    expect(page.locator(TODAY)).not_to_contain_text(future)
                     # one left over from an earlier local day says which day: day over time in
                     # the narrow column, the reminders list's full text on hover
-                    leftover = page.locator(".today-schedule .today-row").filter(has_text=earlier)
+                    leftover = page.locator(TODAY + " .today-row").filter(has_text=earlier)
                     expect(leftover.locator("em")).to_have_text(
                         re.compile(f"^{case['earlier_lines']}$"), use_inner_text=True
                     )
@@ -193,13 +200,17 @@ def run():
                     meta, title = (leftover.locator(sel).bounding_box() for sel in ("em", "b"))
                     assert meta["x"] + meta["width"] <= title["x"], (meta, title)
                     assert events["today_requests"], events
+                    # home asks for its day, and in the evening for the next one too (u.02)
+                    next_day = (date.fromisoformat(case["day"]) + timedelta(days=1)).isoformat()
+                    asked = set()
                     for url in events["today_requests"]:
                         params = parse_qs(urlsplit(url).query)
-                        assert params.get("date") == [case["day"]], params
+                        asked.update(params.get("date", []))
                         assert params.get("timezone") == [case["zone"]], params
+                    assert case["day"] in asked and asked <= {case["day"], next_day}, asked
                     page.reload(wait_until="networkidle")
                     expect(row.locator("em")).to_have_text(clock)
-                    expect(page.locator(".today-schedule")).not_to_contain_text(future)
+                    expect(page.locator(TODAY)).not_to_contain_text(future)
                     saved = context.request.get(base + "/api/reminders").json()
                     assert {r["id"]: r["trigger_at"] for r in saved if r["id"] in ids} == dict(
                         zip(ids, (case["trigger"], case["future"], case["earlier"]), strict=True)
@@ -218,11 +229,11 @@ def run():
                     expect(page.locator("#plan-view")).to_be_visible()
                     page.go_back(wait_until="networkidle")
                     expect(row.locator("em")).to_have_text(clock)
-                    expect(page.locator(".today-schedule")).not_to_contain_text(future)
+                    expect(page.locator(TODAY)).not_to_contain_text(future)
                     expect(row).to_be_visible()
                     box = page.wait_for_function(
                         """text => {
-                      const element = [...document.querySelectorAll('.today-schedule .today-row')]
+                      const element = [...document.querySelectorAll('.today-schedule[data-home-section=today] .today-row')]
                         .find(node => node.textContent.includes(text));
                       const rect = element?.getBoundingClientRect();
                       return rect && rect.width >= 44 && rect.height >= 44

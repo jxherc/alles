@@ -151,18 +151,15 @@ with sync_playwright() as pw:
                 route.fulfill(status=503, json={"detail": "synthetic lost delete reply"})
 
             page.route(url, lose)
-            card.locator('[data-act="del"]').click()
-            page.get_by_role("alertdialog").get_by_role(
-                "button", name="remove book", exact=True
-            ).click()
+            card.locator(".row-more").click()
+            with page.expect_response(url, timeout=15000):
+                card.locator('[data-act="del"]').click()
             expect(card.get_by_role("alert")).to_contain_text("synthetic lost delete")
             assert current() is None
             page.unroute(url)
+            card.locator(".row-more").click()
             card.locator('[data-act="del"]').click()
-            page.get_by_role("alertdialog").get_by_role(
-                "button", name="remove book", exact=True
-            ).click()
-            expect(card).to_have_count(0)
+            expect(card).to_have_count(0, timeout=15000)
             assert current() is None
             record("lost-delete-retry-confirms-absence")
             assert not errors, errors

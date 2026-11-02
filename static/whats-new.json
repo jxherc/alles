@@ -182,7 +182,7 @@
         {
           "key": "act_in_place",
           "title": "check off where you are",
-          "body": "check a task off or move it to tomorrow right from home or the task list, and undo a delete."
+          "body": "check a task off or move it to tomorrow from home, plan's agenda or the task list (or swipe it on touch), see its details without leaving the page, tick a habit from home, and undo a delete."
         },
         {
           "key": "numbers_change",
@@ -223,6 +223,11 @@
           "key": "bank_emails",
           "title": "bank emails become transactions",
           "body": "money's import reads bank alert emails from mail (amount, merchant, date and card ending) into the same review as a statement file. you confirm the card, apply, and undo works the same. an email it can't read shows up as it is, never guessed."
+        },
+        {
+          "key": "delete_menus",
+          "title": "delete sits in a menu",
+          "body": "skills, subscriptions, health entries, contacts, books and transactions keep delete in the row's more menu. a deleted row waits six seconds with undo, then it's gone."
         }
       ]
     },

@@ -7656,7 +7656,10 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
   body.afterlife-shell .app-rail-more { margin-top: auto; }
 }
 @media (max-width: 700px) {
-  body.afterlife-shell:has(.app-rail:not([hidden])) { --k-shell-height: calc(100dvh - 56px - env(safe-area-inset-bottom, 0px)); }
+  body.afterlife-shell:has(.app-rail:not([hidden])) {
+    --k-app-bar-height: calc(56px + env(safe-area-inset-bottom, 0px));
+    --k-shell-height: calc(100dvh - var(--k-app-bar-height));
+  }
   body.afterlife-shell .app-rail:not([hidden]) {
     position: fixed;
     inset: auto 0 0 0;
@@ -7671,5 +7674,10 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
   }
   body.afterlife-shell .app-rail-item[data-wide] { display: none; }
   body.app-drawer-open .app-rail { visibility: hidden; }
+  /* what floats on the screen's bottom edge (toasts, undo bars, the transfer dock, the call
+     pill) rises above the bar; a margin adds to each one's own bottom offset */
+  body.afterlife-shell:has(.app-rail:not([hidden])) :where(.toast-container, .sync-indicator, #mail-undo-stack, #aide-call-ongoing, .files-phase7-operation-dock, .tts-wave-pop, .andromeda-idle-footer) {
+    margin-bottom: var(--k-app-bar-height);
+  }
 }
 @media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize) { transition: none; } }

@@ -222,7 +222,10 @@ def exercise_history(logs, name, setup=None, today=None, config=None) -> dict:
     config = config or {}
     name = str(name or "").strip().lower()
     setup = {k: v for k, v in (setup or {}).items() if v}
-    today = today or date.today().isoformat()
+    if not today:
+        from services.signals import calendar_today  # signals imports this module
+
+        today = calendar_today().isoformat()
     days = _sets_by_day(logs, name, setup)
     before = [item for item in days if item[0] < today]
     last = {"date": before[-1][0], "sets": before[-1][1]} if before else None

@@ -7,18 +7,23 @@ the gate runner, which owns the server and its throwaway data.
 
 import json
 import os
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+
+ZONE = "America/Toronto"
 
 
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
     require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
     output = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
-    today = date.today()
+    # the browser's day, not this process's: the runner gives the gate and server TZ=UTC, which is
+    # already tomorrow after 7 or 8 pm in toronto
+    today = datetime.now(ZoneInfo(ZONE)).date()
     yesterday = (today - timedelta(days=1)).isoformat()
     old_day = (today - timedelta(days=20)).isoformat()  # the strip two weeks back
     rows = []
@@ -27,7 +32,7 @@ def run():
         for width, height in [(1180, 820), (390, 844)]:
             context = browser.new_context(
                 viewport={"width": width, "height": height},
-                timezone_id="America/Toronto",
+                timezone_id=ZONE,
                 service_workers="block",
                 reduced_motion="reduce",
             )
@@ -120,7 +125,7 @@ def run():
             def logs(item):
                 found = next(
                     h
-                    for h in api.get(base + "/api/habits/overview").json()["habits"]
+                    for h in api.get(base + f"/api/habits/overview?date_q={today}").json()["habits"]
                     if h["id"] == item["id"]
                 )
                 return found.get("days", {}), found.get("logs", {})

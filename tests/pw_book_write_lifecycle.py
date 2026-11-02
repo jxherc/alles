@@ -112,20 +112,20 @@ with sync_playwright() as pw:
                     )
                     with page.expect_request(base + "/api/books/overview"):
                         page.locator(f'.book-card[data-id="{other}"] [data-move="reading"]').click()
+                    # delete waits in the card with undo (u.10); the server call follows
+                    card.locator(".row-more").click()
                     card.locator('[data-act="del"]').click()
-                    expect(page.get_by_role("alertdialog")).to_be_visible()
+                    expect(card.locator("[data-undo-del]")).to_be_visible()
                     held[0][0].fulfill(response=held[0][1])
                     expect(
                         page.locator(f'.book-card[data-id="{other}"] [data-move="want"]')
                     ).to_be_enabled()
                     deletes = []
                     page.route(base + "/api/books/" + bid, lambda route: deletes.append(route))
-                    with page.expect_request(base + "/api/books/" + bid):
-                        page.get_by_role("alertdialog").get_by_role(
-                            "button", name="remove book", exact=True
-                        ).click()
-                    expect(card.locator('[data-rate="4"]')).to_be_disabled()
-                    expect(card.locator('[data-act="notes"]')).to_be_disabled()
+                    with page.expect_request(base + "/api/books/" + bid, timeout=15000):
+                        pass
+                    expect(card.locator("[data-rate]")).to_have_count(0)
+                    expect(card.locator('[data-act="notes"]')).to_have_count(0)
                     page.unroute(base + "/api/books/overview")
                     deletes[0].fulfill(response=deletes[0].fetch())
                     expect(card).to_have_count(0)

@@ -4,6 +4,7 @@ import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { calendarDateKey, formatList, t, tp } from './i18n.js';
+import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -196,8 +197,11 @@ function _focusIfUnclaimed(selector, navigation) {
 
 function _row(e) {
   const label = e.label || kindLabel(e.kind);
+  if (e.record_id && _undo.is(e.record_id)) {
+    return `<div class="health-row health-row-gone" data-id="${e.id}" data-record-id="${esc(e.record_id)}" role="status"><span class="health-row-kind">${goneTextHtml(`${label}, ${e.date}`)}</span><div class="health-row-actions">${undoButtonHtml(e.record_id)}</div></div>`;
+  }
   const busy = _deleting.has(e.record_id) || _saving;
-  return `<div class="health-row" data-id="${e.id}" data-record-id="${esc(e.record_id)}" aria-busy="${busy}"><span class="health-row-date">${esc(e.date)}</span><span class="health-row-kind">${esc(label)}</span><span class="health-row-val">${esc(e.value)} ${esc(e.unit)}</span><span class="health-row-note">${esc(e.note)}</span><div class="health-row-actions"><button class="btn" data-act="edit" ${busy ? 'disabled' : ''} aria-label="${esc(t('health.edit_entry_from', { label, date: e.date }))}">${esc(t('common.edit'))}</button><button class="icon-btn danger" data-act="del" ${busy ? 'disabled' : ''} title="${esc(t('common.delete'))}" aria-label="${esc(t('health.delete_entry_from', { label, date: e.date }))}">${_si('trash')}</button></div></div>`;
+  return `<div class="health-row" data-id="${e.id}" data-record-id="${esc(e.record_id)}" aria-busy="${busy}"><span class="health-row-date">${esc(e.date)}</span><span class="health-row-kind">${esc(label)}</span><span class="health-row-val">${esc(e.value)} ${esc(e.unit)}</span><span class="health-row-note">${esc(e.note)}</span><div class="health-row-actions"><button class="btn" data-act="edit" ${busy ? 'disabled' : ''} aria-label="${esc(t('health.edit_entry_from', { label, date: e.date }))}">${esc(t('common.edit'))}</button>${moreMenuHtml('health', e.record_id || e.id, `${label}, ${e.date}`, deleteItemHtml(`data-act="del" ${busy ? 'disabled' : ''} aria-label="${esc(t('health.delete_entry_from', { label, date: e.date }))}"`))}</div></div>`;
 }
 
 function _importForm() {
@@ -278,11 +282,28 @@ async function _closeImport() {
   _focusIfUnclaimed('#health-import', navigation);
 }
 
-async function _deleteEntry(entry) {
+// delete waits in the row with undo for a few seconds, then goes to the server (u.10)
+function _deleteLater(entry) {
   if (!entry || _deleting.has(entry.record_id) || _saving) return;
   if (!entry.record_id) { _deleteErrors.set(`missing:${entry.id}`, t('health.refresh_before_delete')); _render(); return; }
+  _undo.later(entry.record_id, { entry });
+}
+
+const _undo = createUndoDelete({
+  key: 'health',
+  render: () => _render(),
+  remove: (_id, gone) => _deleteEntry(gone.entry),
+});
+
+async function _deleteEntry(entry) {
   const navigation = _navigation;
-  if (!await dlgConfirm(t('health.delete_confirm')) || navigation !== _navigation || _deleting.has(entry.record_id) || _saving) return;
+  if (_deleting.has(entry.record_id)) return;
+  if (_saving) {
+    const reading = `${entry.label || kindLabel(entry.kind)}, ${entry.date}`;
+    _deleteErrors.set(entry.record_id, t('health.delete_error', { reading, message: t('health.delete_unconfirmed') }));
+    _render();
+    return;
+  }
   ++_loadGeneration;
   _deleting.add(entry.record_id); _render();
   let removed = false;
@@ -462,8 +483,10 @@ function _wire(body) {
       const entry = _entries.find(item => item.record_id === row.dataset.recordId);
       if (entry) _openEntry(entry);
     });
-    row.querySelector('[data-act="del"]')?.addEventListener('click', () => _deleteEntry(_entries.find(item => item.record_id === row.dataset.recordId)));
+    row.querySelector('[data-act="del"]')?.addEventListener('click', () => _deleteLater(_entries.find(item => item.record_id === row.dataset.recordId)));
+    row.querySelector('[data-undo-del]')?.addEventListener('click', () => _undo.undo());
   });
+  wireMoreMenus(body);
 }
 
 async function _create() {

@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { whenDay, whenFull, whenHtml } from '../../static/js/when.js';
+import { undoGlobals } from './helpers/undo_globals.mjs';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -24,7 +25,7 @@ function harness() {
     return elements.get(id);
   };
   const requests = [];
-  const context = vm.createContext({ whenDay, whenFull, whenHtml,
+  const context = vm.createContext({ ...undoGlobals, whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     document: { getElementById: get }, location: { search: '' }, URLSearchParams,

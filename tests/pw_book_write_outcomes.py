@@ -81,11 +81,9 @@ with sync_playwright() as pw:
                         }
                     )
             else:
-                card.locator('[data-act="del"]').click()
-                with page.expect_response(endpoint):
-                    page.get_by_role("alertdialog").get_by_role(
-                        "button", name="remove book", exact=True
-                    ).click()
+                card.locator(".row-more").click()
+                with page.expect_response(endpoint, timeout=15000):
+                    card.locator('[data-act="del"]').click()
             page.wait_for_timeout(100)
             success = page.locator(".toast.success").all_text_contents()
             errors = page.locator(".toast.error").all_text_contents()

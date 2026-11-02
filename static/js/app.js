@@ -37,7 +37,7 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=18';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=19';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
 import { openSettings, openSettingsAt, closeSettings, applyVis } from './settings.js?v=301';
@@ -1120,7 +1120,7 @@ const showMailView       = () => showView('mail-view',      'mail',      (_track
 const showPhotosView     = () => showView('photos-view',    'photos',    (_track, request) => { initPhotos(); return loadPhotos(request); });
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=312'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=313'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
   _renderFirstRun();
   return result;
 };

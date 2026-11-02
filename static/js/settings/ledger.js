@@ -8,7 +8,7 @@ export async function loadLedger(isCurrent = () => true) {
   if (!host) return;
   host.setAttribute('aria-busy', 'true');
   const [{ renderLedgerSetup }, value] = await Promise.all([
-    import('../specialist_groups.js?v=18'),
+    import('../specialist_groups.js?v=19'),
     fetch('/api/finance/actual').then(r => (r.ok ? r.json() : null)).catch(() => null),
   ]);
   if (!isCurrent() || !host.isConnected) return;

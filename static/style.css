@@ -4773,10 +4773,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   transition: color 0.15s, background 0.15s;
 }
 .task-snooze:hover { color: var(--text); background: var(--hover); }
-.task-more { color: var(--muted); }
-.task-more svg { width: 16px; height: 16px; }
-.task-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 180px; }
-.task-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: 44px; }
+.task-more, .row-more { color: var(--muted); }
+.task-more svg, .row-more svg { width: 16px; height: 16px; }
+.task-menu, .row-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 180px; }
+.task-menu .ctx-item, .row-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: 44px; }
+/* the same more menu on a row of any other app (undo_delete.js) */
+.row-more-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+.row-gone-text { color: var(--muted); font-size: 0.8125rem; }
 .task-group-late { border-bottom: 1px solid var(--faint); margin-bottom: 8px; }
 .task-group-late .task-item:last-child { border-bottom: none; }
 .task-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
@@ -5041,10 +5044,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .skl-badge { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0 0.25rem; flex-shrink: 0; }
 .skl-badge.git { color: var(--text); border-color: var(--line-strong); }
 .skl-card-acts { display: flex; justify-content: flex-end; gap: 0.15rem; margin-top: 0.25rem; }
-.skl-pin, .skl-del-q { background: none; border: 0; cursor: pointer; font-size: 0.8125rem; line-height: 1; color: var(--muted); padding: 0 8px; } /* 1.6px left the word touching its focus ring */
-.skl-pin:hover, .skl-del-q:hover { color: var(--text); }
+.skl-pin { background: none; border: 0; cursor: pointer; font-size: 0.8125rem; line-height: 1; color: var(--muted); padding: 0 8px; } /* 1.6px left the word touching its focus ring */
+.skl-pin:hover { color: var(--text); }
 .skl-pin.on { color: var(--text); opacity: 1; }
-.skl-del-q:hover { color: var(--error, var(--error)); }
 .skl-lib-bar { grid-column: 1 / -1; font-size: 0.8125rem; color: var(--muted); padding: 0 0 0.2rem; }
 .skl-lib-bar .btn { font-size: 0.8125rem; padding: 0.12rem 0.5rem; margin-left: 0.3rem; }
 .skl-add { background: none; border: 1px solid var(--line-strong); color: var(--text); border-radius: var(--k-radius-control);
@@ -5450,7 +5452,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
     #money-view .txn .tx-clear-label { display: none; }
     #money-view .txn .tx-actions { gap: var(--k-space-1, 4px); }
   }
-  :where(#money-view) .txn .tx-del { grid-column: 2; grid-row: 5; justify-self: end; }
+  :where(#money-view) .txn .tx-del, :where(#money-view) .txn .tx-more { grid-column: 2; grid-row: 5; justify-self: end; }
 
 #money-view .money-entry-action { min-height: 44px; }
 @media (max-width: 720px) {
@@ -5475,7 +5477,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view #money-section-plans { grid-template-columns: minmax(0, 1fr); }
 #money-view .money-task-pick { width: min(14rem, 100%); margin-bottom: var(--k-space-3, 12px); }
 #money-view .money-task { margin-bottom: 0; }
-#money-view .txn .tx-del { align-self: start; }
+#money-view .txn :is(.tx-del, .tx-more) { align-self: start; }
+:where(#money-view) .txn-gone > [data-undo-del] { grid-column: 2; grid-row: 1; }
+:where(#money-view) .txn-gone .tx-payee { color: var(--muted); }
 #money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .split-row) { align-items: end; }
 #money-view .money-field { display: grid; gap: var(--k-space-1, 4px); height: auto; min-width: 0; max-width: 100%; box-sizing: border-box; text-align: start; } /* the empty state centers its text; a label still starts where its field does */
 #money-view .money-field-label { color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; font-weight: 400; letter-spacing: normal; line-height: 1.4; }
@@ -9202,11 +9206,11 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-notes-edit textarea { width: 100%; resize: vertical; }
 .book-notes-actions { display: flex; gap: var(--k-control-gap); margin-top: 0.3rem; }
 .book-undo-actions { flex-wrap: wrap; }
-/* the remove button sits at the foot of the card, so titles and authors use its full width */
-.book-del { position: absolute; bottom: 0.25rem; right: 0.25rem; }
+/* the more button sits at the foot of the card, so titles and authors use its full width; its menu opens upward */
+.book-more { position: absolute; bottom: 0.25rem; right: 0.25rem; }
+.book-more .row-menu { top: auto; bottom: calc(100% + 4px); }
 .book-info > :last-child { padding-inline-end: 2.75rem; }
-.book-del svg { width: 14px; height: 14px; }
-.book-del:hover { color: var(--error); }
+.book-gone .row-gone-text { align-self: center; }
 .book-add { border: 1px solid var(--faint); border-left: 2px solid var(--line-strong); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.8rem; margin-bottom: 1.2rem; max-width: 560px; display: flex; flex-direction: column; gap: 0.5rem; }
 .book-add-row { display: flex; gap: var(--k-control-gap); align-items: center; }
 .book-add-row .settings-input { flex: 1; min-width: 0; }
@@ -9275,7 +9279,10 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
   .health-row-actions { grid-column: 4; grid-row: 1 / span 2; }
 }
 .health-row .icon-btn svg { width: 16px; height: 16px; }
-.health-row .icon-btn.danger:hover { color: var(--error); }
+/* the row that stands in while a delete waits for undo: the words, then the undo button */
+.health-row.health-row-gone { grid-template-columns: minmax(0, 1fr) auto; }
+.health-row.health-row-gone .health-row-kind { grid-column: 1; grid-row: 1; }
+.health-row.health-row-gone .health-row-actions { grid-column: 2; grid-row: 1; }
 @media (max-width: 680px) {
   .health-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; }
   .health-row-date { grid-column: 1 / 3; }
@@ -11637,3 +11644,100 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .cal-sync-form .cal-flabel { margin: var(--k-space-2) 0 0; }
 .cal-sync-line { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: var(--muted); }
 .cal-sync-line[data-tone="warn"] { color: var(--warn); }
+
+/* act where you are (u.01): an agenda task carries home's check on the left and "tomorrow" on
+   the right; the row in the middle opens its details over the agenda. the wrapper takes the
+   row's pull-back, so the inner row sits flat inside it */
+html:not(#_):not(#_) #plan-view .plan-agenda-task {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--k-space-1, 4px);
+  width: calc(100% + 2 * var(--k-space-3));
+  margin-inline: calc(-1 * var(--k-space-3));
+  border-radius: var(--k-radius-control);
+}
+html:not(#_):not(#_) #plan-view .plan-agenda-task > .specialist-record-row {
+  width: auto;
+  min-width: 0;
+  margin-inline: 0;
+  padding-inline: var(--k-space-2, 8px);
+}
+.plan-agenda-check {
+  width: 44px; height: 44px; border: 0; padding: 0; background: transparent; cursor: pointer;
+  display: grid; place-items: center; border-radius: var(--k-radius-control);
+}
+.plan-agenda-check::before {
+  content: ''; width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 50%;
+  transition: border-color 130ms, background 130ms;
+}
+.plan-agenda-check:hover::before { border-color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.plan-agenda-task.overdue .plan-agenda-check::before { border-color: var(--signal); }
+.plan-agenda-snooze {
+  min-height: 44px; padding: 0 var(--k-space-3, 12px); border: 0; border-radius: var(--k-radius-control);
+  background: transparent; color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer;
+  transition: color 130ms, background 130ms;
+}
+.plan-agenda-snooze:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.plan-agenda-check:disabled, .plan-agenda-snooze:disabled { opacity: 0.5; cursor: default; }
+
+/* a finger drags the row: right fills toward done, left toward tomorrow. the page still
+   scrolls up and down (pan-y) */
+:is(#today-view .today-task, #plan-view .plan-agenda-task) { touch-action: pan-y; }
+:is(.today-task, .plan-agenda-task).is-swiping { translate: var(--swipe-x, 0) 0; }
+:is(.today-task, .plan-agenda-task).swipe-right { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+:is(.today-task, .plan-agenda-task).swipe-left { background: color-mix(in srgb, var(--text) 8%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  :is(.today-task, .plan-agenda-task):not(.is-swiping) { transition: translate 200ms var(--k-ease-out), background 130ms; }
+}
+
+/* a task's details over the page it was opened from: a floating layer on the right like ask
+   aide's panel, a bottom sheet on a phone */
+#details-panel {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 940;
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-space-4, 16px);
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 16px));
+  padding: var(--k-space-5, 24px);
+  overflow-y: auto;
+  border-radius: var(--k-radius-large);
+  background: var(--k-raised);
+  box-shadow: var(--k-float);
+  color: var(--k-text);
+}
+.details-panel-head { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; gap: var(--k-space-2, 8px); }
+.details-panel-head h2 { margin: 0; padding-top: 10px; font-size: 1.125rem; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.details-panel-close {
+  width: 44px; height: 44px; border: 0; padding: 0; display: grid; place-items: center;
+  border-radius: var(--k-radius-control); background: transparent; color: var(--muted); cursor: pointer;
+}
+.details-panel-close:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.details-panel-meta { margin: 0; color: var(--muted); font-size: 0.875rem; }
+.details-panel-meta.late { color: var(--signal); }
+.details-panel-notes { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.9375rem; line-height: 1.5; }
+.details-panel-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); margin-top: auto; }
+.details-panel-actions .btn { min-height: 44px; }
+@media (prefers-reduced-motion: no-preference) {
+  #details-panel:not([hidden]) { animation: ask-panel-in 280ms var(--k-ease-out); }
+}
+@media (max-width: 760px) {
+  #details-panel {
+    top: auto; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    max-height: 85vh;
+    padding-bottom: calc(var(--k-space-5, 24px) + env(safe-area-inset-bottom, 0px));
+    border-radius: var(--k-radius-large) var(--k-radius-large) 0 0;
+  }
+  .details-panel-actions { margin-top: 0; }
+  .details-panel-actions .btn { flex: 1 1 0; }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  #details-panel:not([hidden]) { animation: details-sheet-in 280ms var(--k-ease-out); }
+}
+@keyframes details-sheet-in { from { translate: 0 24px; opacity: 0; } }

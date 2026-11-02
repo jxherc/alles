@@ -214,7 +214,7 @@ def today_view(
     day_events.sort(key=lambda x: x["in_days"])
 
     habits = [
-        {"id": d["id"], "name": d["name"]}
+        {"id": d["id"], "name": d["name"], "kind": d.get("kind", "check")}
         for d in (signal["data"] for signal in g.get("habit", []))
     ]
 
