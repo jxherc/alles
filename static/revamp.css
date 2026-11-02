@@ -1832,6 +1832,53 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:
   display: none;
 }
 
+/* saved and recent searches in one list under the box (27.13): the menu look, 4px below the edge */
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search { position: relative; overflow: visible; }
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] :is(.andromeda-app-head, .andromeda-search):has(.andromeda-history:not([hidden])) { z-index: 40; }
+html:not(#_) #andromeda-view .andromeda-history.custom-dropdown-panel {
+  position: absolute;
+  inset: calc(100% + var(--k-space-1)) 0 auto;
+  z-index: 30;
+  max-height: min(360px, 60vh);
+  padding: var(--k-space-1);
+  animation: none;
+}
+html:not(#_) #andromeda-view .andromeda-history[hidden] { display: none; }
+html:not(#_) #andromeda-view .andromeda-history-group {
+  padding: var(--k-space-2) var(--k-space-3) var(--k-space-1);
+  color: var(--k-quiet);
+  font-size: 0.8125rem;
+}
+html:not(#_) #andromeda-view .andromeda-history .custom-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  min-height: var(--k-control);
+  border-radius: var(--k-radius-control);
+  font-size: 0.875rem;
+  text-align: start;
+}
+html:not(#_) #andromeda-view .andromeda-history-query {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html:not(#_) #andromeda-view .andromeda-history-new { flex: none; color: var(--k-quiet); font-size: 0.8125rem; }
+html:not(#_) #andromeda-view .andromeda-history-clear {
+  min-height: var(--k-control);
+  margin-top: var(--k-space-1);
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-quiet);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+html:not(#_) #andromeda-view .andromeda-history-clear:hover { background: var(--k-hover); color: var(--k-text); }
+
 /* the idle page puts the app name where every other app has it, top left, not stacked on the search */
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"][data-state="idle"] .andromeda-page {
   position: relative;
