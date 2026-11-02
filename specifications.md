@@ -1861,9 +1861,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1023 http method/path pairs
-- 996 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
-- sha-256: `d832e4e9ecdbd0990fe26198eed8cd44d6054a10f1690a95e36e90c993d75fb2`
+- 1024 http method/path pairs
+- 997 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
+- sha-256: `3e3f0530018a79292afd603ba097c3f99c7f41650314daff0653e0e43df39b36`
 
 <details>
 <summary>app.py · 11 operations</summary>
@@ -3549,6 +3549,7 @@ retrieve full article text from each entry's publisher.
 | `POST` | `/api/system/companions/nginx-proxy-manager/connect` | `companion_npm_connect` |
 | `GET` | `/api/system/companions/nginx-proxy-manager/dashboard` | `companion_npm_dashboard` |
 | `POST` | `/api/system/companions/nginx-proxy-manager/disconnect` | `companion_npm_disconnect` |
+| `POST` | `/api/system/companions/nginx-proxy-manager/first-login` | `companion_npm_first_login` |
 | `POST` | `/api/system/companions/nginx-proxy-manager/proxy-hosts` | `companion_npm_proxy_host` |
 | `POST` | `/api/system/companions/{service_id}/activate` | `companion_activate` |
 | `POST` | `/api/system/companions/{service_id}/preflight` | `companion_preflight` |
