@@ -2,6 +2,7 @@ import { escapeHtml as esc, plainError, writeClipboard } from './util.js';
 import { initCustomDropdowns } from './dropdown.js?v=217';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
+import { whenDay } from './when.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
 import { createMenuController, wireChoiceGroup } from './kokuen.js?v=5';
 import { replaceRouteUrl } from './route_history.js';
@@ -1519,7 +1520,7 @@ function renderCompleteOverview(overview) {
   }
   contextClaims.forEach((claim, index) => renderContextClaim(claim, index, shape));
   const freshness = _state.overview.freshness || {};
-  const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: freshness.checked_on })}` : '';
+  const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: whenDay(freshness.checked_on) })}` : '';
   renderThread();
   renderFollowUps(_state.overview.status === 'ready' ? _state.overview.follow_ups : []);
   if (_state.overview.status === 'ready') {
@@ -1540,7 +1541,7 @@ function renderProseOverview(overview) {
   renderThread();
   renderFollowUps([]);
   const freshness = _state.overview.freshness || {};
-  const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: freshness.checked_on })}` : '';
+  const checked = freshness.checked_on ? ` · ${tr('andromeda.checked_on', { date: whenDay(freshness.checked_on) })}` : '';
   if (_state.overview.status === 'ready') {
     renderProse(_state.overview.text, _state.evidence, { done: true });
     text('andromeda-overview-state', `${_state.model?.model || ''}${_state.deep ? tr('andromeda.x_deeper_read') : ''}${checked}`);
@@ -1610,7 +1611,7 @@ function renderVerification(verification = {}, { saved = false } = {}) {
   const result = verification.result || verification;
   const counts = result.counts || {};
   const checkedOn = result.checked_on || String(verification.checked_at || '').slice(0, 10);
-  const freshness = checkedOn === verificationToday() ? tr('andromeda.x_checked_today') : tr('andromeda.x_checked_on', { when: checkedOn || tr('andromeda.x_earlier') });
+  const freshness = checkedOn === verificationToday() ? tr('andromeda.x_checked_today') : tr('andromeda.x_checked_on', { when: checkedOn ? whenDay(checkedOn) : tr('andromeda.x_earlier') });
   const parts = [freshness];
   if (counts.verified) parts.push(trp('andromeda.x_claims_verified', counts.verified));
   if (counts.corrected) parts.push(tr('andromeda.x_corrected_after'), trp('andromeda.x_claims_corrected', counts.corrected));
@@ -2342,7 +2343,7 @@ function reopen(saved) {
   if (_state.overview?.status) renderCompleteOverview(_state.overview);
   if (Object.keys(_state.verification).length) renderVerification(_state.verification, { saved: true });
   else clearVerificationView();
-  text('andromeda-result-meta', tr('andromeda.saved_checked', { date: shortDate(saved.checked_at) || saved.checked_at || '' }));
+  text('andromeda-result-meta', tr('andromeda.saved_checked', { date: shortDate(saved.checked_at) }));
   status(tr('andromeda.saved_reopened'));
   _openedSaved = { id: saved.id, checked_at: saved.checked_at, payload: JSON.stringify(searchSnapshot()) };
   renderWatch(saved, saved.watch_new || []);

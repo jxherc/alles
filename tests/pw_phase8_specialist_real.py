@@ -349,7 +349,18 @@ def _open_finance(page: Page) -> None:
         page.locator("#setup-wizard").wait_for(state="hidden")
     page.evaluate("window._navigateTo('finance')")
     page.locator("#finance-view").wait_for(state="visible")
-    page.locator(".finance-actual-ready").wait_for(state="visible")
+    page.locator(".finance-daily-actions").wait_for(state="visible")
+
+
+def _open_ledger_setup(page: Page) -> None:
+    """The Actual ledger's setup is not on the overview: one link opens its home in settings."""
+    page.get_by_role("link", name="ledger setup", exact=True).click()
+    page.locator("#s-ledger .finance-actual-panel").wait_for(state="visible")
+
+
+def _close_ledger_setup(page: Page) -> None:
+    page.locator("#settings-modal").press("Escape")
+    page.locator("#settings-modal").wait_for(state="hidden")
 
 
 def _exercise_case(
@@ -399,9 +410,11 @@ def _exercise_case(
         "theme => theme === 'light' ? document.documentElement.dataset.theme === 'light' : document.documentElement.dataset.theme !== 'light'",
         arg=theme,
     )
-    assert "ready for review" in page.locator(".finance-actual-head").inner_text()
-    page.get_by_role("button", name="show ledger setup").click()
-    assert "ledgers match" not in page.locator(".finance-actual-head").inner_text()
+    # the overview itself carries no ledger plumbing
+    assert page.locator(".finance-actual-panel").count() == 0
+    assert "show ledger setup" not in page.locator("#finance-view").inner_text()
+    _open_ledger_setup(page)
+    assert "ledgers match" in page.locator(".finance-actual-head").inner_text()
     assert page.locator(".finance-actual-facts dd").all_text_contents()[:3] == [
         "Alles",
         "CAD",
@@ -409,6 +422,7 @@ def _exercise_case(
     ]
     _assert_controls(page)
     _assert_no_overflow(page)
+    _close_ledger_setup(page)
 
     selected = page.locator('#finance-view [role="tab"][aria-selected="true"]')
     assert page.locator("#finance-tabs").get_attribute("aria-orientation") == "horizontal"
@@ -424,19 +438,17 @@ def _exercise_case(
         "aria-labelledby"
     ) == selected.get_attribute("id")
     page.evaluate("window._navigateTo('finance')")
-    page.locator(".finance-actual-ready").wait_for(state="visible")
+    page.locator(".finance-daily-actions").wait_for(state="visible")
     page.locator('#finance-view [data-group-section="money"]').click()
     page.locator("#money-view").wait_for(state="visible")
     page.locator('#finance-view [data-group-section="overview"]').click()
-    page.locator(".finance-actual-ready").wait_for(state="visible")
+    page.locator(".finance-daily-actions").wait_for(state="visible")
     page.locator('#finance-view [data-group-section="money"]').click()
     page.locator("#money-view").wait_for(state="visible")
     page.locator('#finance-view [data-group-section="overview"]').click()
-    page.locator(".finance-actual-ready").wait_for(state="visible")
+    page.locator(".finance-daily-actions").wait_for(state="visible")
 
-    setup = page.get_by_role("button", name="show ledger setup")
-    if setup.count():
-        setup.click()
+    _open_ledger_setup(page)
     trigger = page.get_by_role("button", name="review ledger switch")
     trigger.focus()
     trigger.click()
@@ -453,9 +465,6 @@ def _exercise_case(
     assert calls == ["/api/finance/actual/cutover/run-browser"]
     assert page.get_by_role("button", name="stop Actual").count() == 0
 
-    setup = page.get_by_role("button", name="show ledger setup")
-    if setup.count():
-        setup.click()
     rollback = page.get_by_role("button", name="review return to Alles")
     rollback.click()
     page.get_by_role("button", name="use Alles ledger").click()
@@ -464,6 +473,7 @@ def _exercise_case(
         "Actual-only transactions need review" in page.locator(".finance-actual-error").inner_text()
     )
     assert rollback.evaluate("element => document.activeElement === element")
+    _close_ledger_setup(page)
 
     _assert_controls(page)
     _assert_no_overflow(page)

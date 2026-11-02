@@ -1,6 +1,7 @@
 // subscriptions — recurring costs with billing cycles and renewal reminders
 import { api, toast } from './util.js';
 import { calendarDateKey, formatNumber, t, tp } from './i18n.js';
+import { whenDay } from './when.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { initDatePicker } from './datepick.js';
 import { choose as dlgChoose, confirm as dlgConfirm } from './dialog.js';
@@ -415,8 +416,8 @@ function _row(s) {
         ${s.category ? `<span class="sub-cat">${esc(s.category)}</span>` : ''}
         ${s.account_id && acctName(s.account_id) ? `<span class="sub-autopost" title="${t('subs.autopost_to', { account: esc(acctName(s.account_id)) })}">${_si('refresh')} ${esc(acctName(s.account_id))}</span>` : ''}
         ${s.notes ? `<span class="sub-notes" title="${esc(s.notes)}">…</span>` : ''}
-        ${s.trial_days_left != null && s.trial_days_left >= 0 ? `<span class="sub-trial" title="${t('subs.trial_title', { date: esc(s.trial_end) })}">${s.trial_days_left === 0 ? t('subs.trial_ends_today') : t('subs.trial_days_left', { count: s.trial_days_left })}</span>` : ''}
-        ${s.price_increased ? `<span class="sub-hike" title="${s.last_price_change ? t('subs.price_up_detail', { old: esc(_amt(s.currency, s.last_price_change.old)), new: esc(_amt(s.currency, s.last_price_change.new)), date: esc(s.last_price_change.date) }) : t('subs.price_up_title')}">${t('subs.price_up')}</span>` : ''}
+        ${s.trial_days_left != null && s.trial_days_left >= 0 ? `<span class="sub-trial" title="${t('subs.trial_title', { date: esc(whenDay(s.trial_end)) })}">${s.trial_days_left === 0 ? t('subs.trial_ends_today') : t('subs.trial_days_left', { count: s.trial_days_left })}</span>` : ''}
+        ${s.price_increased ? `<span class="sub-hike" title="${s.last_price_change ? t('subs.price_up_detail', { old: esc(_amt(s.currency, s.last_price_change.old)), new: esc(_amt(s.currency, s.last_price_change.new)), date: esc(whenDay(s.last_price_change.date)) }) : t('subs.price_up_title')}">${t('subs.price_up')}</span>` : ''}
         ${_dupIds.has(s.id) ? `<span class="sub-dup" title="${t('subs.duplicate_title')}">${_si('warning')} ${t('subs.duplicate')}</span>` : ''}
         ${_unusedIds.has(s.id) ? `<button class="sub-unused" data-act="edit" title="${t('subs.unused_title')}">${_si('snooze')} ${t('subs.unused')}</button>` : ''}
         ${s.cancel_url ? `<a class="sub-cancel-link" href="${esc(s.cancel_url)}" target="_blank" rel="noreferrer" title="${t('subs.how_to_cancel', { name: esc(s.name) })}">${t('subs.how_to_cancel_short')} ${_si('external')}</a>` : ''}
@@ -558,9 +559,9 @@ function renderHistory() {
     + (state.status ? '<div class="sub-hist-status" role="status"></div>' : '')
     + (state.loading ? `<div role="status">${t('subs.payments_loading')}</div>` : '')
     + (state.error ? `<div role="alert">${esc(state.error)}</div><button class="btn" data-history-retry>${t('subs.refresh_history')}</button>` : '')
-    + state.pays.map(p => `<div class="sub-hist-row"><span>${esc(p.date)}</span><span>${esc(_amt(p.currency || sub?.currency || '', p.amount))}</span></div>`).join('')
+    + state.pays.map(p => `<div class="sub-hist-row"><span>${esc(whenDay(p.date))}</span><span>${esc(_amt(p.currency || sub?.currency || '', p.amount))}</span></div>`).join('')
     + (!state.loading && !state.error && !state.pays.length ? `<div class="sub-hist-empty">${t('subs.no_payments')}</div>` : '')
-    + (payment ? `<button class="btn" data-act="undo-last">${t('subs.undo_date', { date: esc(payment.date) })}</button>` : '');
+    + (payment ? `<button class="btn" data-act="undo-last">${t('subs.undo_date', { date: esc(whenDay(payment.date)) })}</button>` : '');
   row.appendChild(pop);
   // filled a frame after the live region exists, so a screen reader hears it once
   const status = pop.querySelector('.sub-hist-status');

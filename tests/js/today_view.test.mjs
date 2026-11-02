@@ -64,10 +64,11 @@ test('home keeps the exact source identity and displayed occurrence for every da
     day_events: [{ id: 'date-1', name: 'anniversary' }],
     habits: [{ id: 'habit-1', name: 'walk' }],
   });
+  // overdue leads (u.03), then the day in order
   assert.deepEqual(rows.map(row => row.id), [
-    'event-1', 'task-1', 'task-2', 'reminder-1', 'subscription-1', 'date-1', 'habit-1',
+    'task-1', 'event-1', 'task-2', 'reminder-1', 'subscription-1', 'date-1', 'habit-1',
   ]);
-  assert.equal(rows[0].occurrence, '2026-10-01');
+  assert.equal(rows[1].occurrence, '2026-10-01');
 });
 
 test('unfinished habits become local daily rows', () => {
@@ -170,14 +171,14 @@ test('home counts only hidden tasks as more in plan and always shows habits', ()
   assert.deepEqual(eight.at(-1), { view: 'plan', id: '', meta: '', title: '2 more tasks in plan', kind: 'more' });
 });
 
-test('home times read like the reminders list, in the owner\'s 12/24-hour choice', async () => {
+test('home times read like every time (when.js), lowercase, in the owner\'s 12/24-hour choice', async () => {
   const { formatClock } = await import('../../static/js/i18n.js');
   try {
     configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '12' });
     const rows = dailyRows({ date: '2026-10-23', events: [{ id: 'e', title: 'dentist', time: '14:05' }],
       reminders: [{ id: 'r', text: 'call mom', at: '19:30' }] });
-    assert.equal(rows.find(row => row.kind === 'event').meta, '2:05 PM');
-    assert.equal(rows.find(row => row.kind === 'reminder').meta, '7:30 PM');
+    assert.equal(rows.find(row => row.kind === 'event').meta, '2:05 pm');
+    assert.equal(rows.find(row => row.kind === 'reminder').meta, '7:30 pm');
     configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '24' });
     assert.equal(formatClock('19:30'), '19:30');
     assert.equal(formatClock('not a time'), 'not a time');
@@ -198,20 +199,21 @@ test('a reminder left over from an earlier day shows its date; today\'s keep the
     ] });
     const row = id => rows.find(item => item.id === id);
     // the full text is the reminders list's own (reminderTimeLabel); it feeds aide and the tooltip
-    assert.equal(row('old').meta, formatDateTime('2026-10-21T19:30:00-04:00', { dateStyle: 'medium', timeStyle: 'short' }));
-    assert.match(row('old').meta, /^Oct 21, 2026, 7:30\sPM$/);
-    assert.equal(row('old').lines[0], 'Oct 21');
-    assert.match(row('old').lines[1], /^7:30\sPM$/);
-    assert.match(row('now').meta, /^8:15\sAM$/);
+    // the day reads like every date (when.js), counted from the day home shows; the full date
+    // goes to aide and the tooltip
+    assert.equal(row('old').meta, 'wednesday, october 21, 2026 7:30 pm');
+    assert.equal(row('old').lines[0], '2 days ago');
+    assert.match(row('old').lines[1], /^7:30\spm$/);
+    assert.match(row('now').meta, /^8:15\sam$/);
     assert.equal(row('now').lines, undefined);
-    assert.match(row('legacy').meta, /^9:00\sAM$/);
+    assert.match(row('legacy').meta, /^9:00\sam$/);
     assert.equal(row('legacy').lines, undefined);
-    assert.equal(row('last-year').lines[0], '12/30/25');
+    assert.equal(row('last-year').lines[0], 'dec 30, 2025');
     const old = { id: 'old', text: 'pay rent', at: '19:30', trigger_at: '2026-10-21T19:30:00-04:00' };
-    assert.match(homeDayRequest({ today: { date: '2026-10-23', reminders: [old] } }), /reminder: Oct 21, 2026, 7:30 PM — pay rent/);
+    assert.match(homeDayRequest({ today: { date: '2026-10-23', reminders: [old] } }), /reminder: wednesday, october 21, 2026 7:30 pm — pay rent/);
     configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '24' });
     const late = dailyRows({ date: '2026-10-23', reminders: [{ id: 'x', text: 'x', at: '23:45', trigger_at: '2026-10-22T23:45:00-04:00' }] });
-    assert.deepEqual(late[0].lines, ['Oct 22', '23:45']);
+    assert.deepEqual(late[0].lines, ['yesterday', '23:45']);
   } finally {
     configureLocalization({});
   }
@@ -222,4 +224,42 @@ test('home draws a left-over reminder as day over time, escaped', () => {
   const row = today.match(/function dayRow\([\s\S]*?\n}/)?.[0] || '';
   assert.match(row, /item\.lines\.map\(esc\)\.join\('<br>'\)/);
   assert.match(row, /title="\$\{esc\(item\.meta\)\}"/);
+});
+
+// u.02: the same day read at 9 am, 3 pm and 11 pm (the clock is passed in, never the real one)
+test('home knows the time: what is over fades under the rest, a now line before the next thing', async () => {
+  const { homeTimeline } = await import('../../static/js/today.js');
+  const rows = dailyRows({
+    date: '2026-10-30',
+    events: [
+      { id: 'class', title: 'ics4u class', time: '10:30', end: '11:45' },
+      { id: 'gym', title: 'gym', time: '17:30', end: '18:45' },
+    ],
+    tasks: { overdue: [{ id: 'lab', title: 'lab report', due: '2026-10-28' }], due_today: [{ id: 'shoes', title: 'gym shoes' }] },
+    reminders: [{ id: 'pills', text: 'vitamins', at: '20:30' }],
+  });
+  const ids = list => list.map(row => row.id);
+  const morning = homeTimeline(rows, '09:00');
+  assert.deepEqual(ids(morning.late), ['lab']);
+  assert.deepEqual(ids(morning.past), []);
+  assert.deepEqual(ids(morning.left), ['class', 'gym', 'shoes', 'pills']);
+  assert.equal(morning.nowAt, 0);
+  const afternoon = homeTimeline(rows, '15:00');
+  assert.deepEqual(ids(afternoon.past), ['class']);
+  assert.deepEqual(ids(afternoon.left), ['gym', 'shoes', 'pills']);
+  assert.equal(afternoon.nowAt, 0);
+  const night = homeTimeline(rows, '23:00');
+  assert.deepEqual(ids(night.past), ['class', 'gym', 'pills']);
+  assert.deepEqual(ids(night.left), ['shoes']);
+  assert.equal(night.nowAt, 1, 'with nothing timed left, the now line closes the list');
+  // an event is over at its end, not its start
+  assert.deepEqual(ids(homeTimeline(rows, '11:00').past), []);
+});
+
+test('from 8 pm home leads with tomorrow', async () => {
+  const { EVENING_HOUR } = await import('../../static/js/today.js');
+  assert.equal(EVENING_HOUR, 20);
+  const source = readFileSync(new URL('../../static/js/today.js', import.meta.url), 'utf8');
+  assert.match(source, /order\.splice\(order\.indexOf\('today'\), 0, 'tomorrow'\)/);
+  assert.match(source, /\/api\/today\?date=\$\{addDays\(date, 1\)\}/);
 });

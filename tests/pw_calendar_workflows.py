@@ -289,8 +289,13 @@ def run():
                 passed()
 
                 begin("keyboard-event-and-move")
+                # the search redraws the grid after a debounce: wait for the redrawn chip, so Tab
+                # and Enter don't land on one that's about to be replaced
+                page.evaluate(
+                    "document.querySelectorAll('.cal-chip').forEach(c => { c.dataset.old = '1'; })"
+                )
                 page.locator("#cal-search").fill("跨日")
-                expect(page.locator(f'.cal-chip[data-id="{eid}"]')).to_be_visible()
+                expect(page.locator(f'.cal-chip[data-id="{eid}"]:not([data-old])')).to_be_visible()
                 page.locator("#cal-search").click()
                 tab_to(f'.cal-chip[data-id="{eid}"]')
                 page.keyboard.press("Enter")
@@ -797,7 +802,8 @@ def run():
                 passed()
 
                 begin("shared-picker-countdown-and-reminder")
-                page.get_by_role("tab", name="countdowns", exact=True).click()
+                page.get_by_role("tab", name="tasks", exact=True).click()
+                page.get_by_role("radio", name="countdowns", exact=True).click()
                 page.locator("#day-name").fill(label + " countdown")
                 set_date("#day-date", 30)
                 page.locator("#day-add-btn").click()
@@ -808,7 +814,8 @@ def run():
                     row["name"] == label + " countdown" and row["date"] == "2026-09-30"
                     for row in result["events"]
                 )
-                page.get_by_role("tab", name="reminders", exact=True).click()
+                page.get_by_role("tab", name="tasks", exact=True).click()
+                page.get_by_role("radio", name="reminders", exact=True).click()
                 page.locator("#reminder-text").fill(label + " reminder")
                 reminder_time = (
                     datetime.now(ZoneInfo("America/Toronto")) + timedelta(days=1)
@@ -830,7 +837,8 @@ def run():
                     reminder_time.astimezone(UTC).strftime("%Y-%m-%dT%H:%M")
                 )
                 page.reload(wait_until="networkidle")
-                page.get_by_role("tab", name="reminders", exact=True).click()
+                page.get_by_role("tab", name="tasks", exact=True).click()
+                page.get_by_role("radio", name="reminders", exact=True).click()
                 expect(page.locator("#reminder-list")).to_contain_text(label + " reminder")
                 shot("shared-picker-consumer")
                 passed()

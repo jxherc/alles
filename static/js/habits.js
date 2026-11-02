@@ -5,6 +5,7 @@ import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { confirm as dlgConfirm, pick } from './dialog.js';
 import { calendarDateKey, formatCalendarDate, t, tp } from './i18n.js';
+import { whenFull } from './when.js';
 import { categoryHue } from './color.js';
 import { closeEmojiPicker, emojiFieldHtml, wireEmojiPicker } from './emoji_picker.js';
 import { catalogEntry, catalogName, catalogOptions } from './habit_catalog.js';
@@ -246,7 +247,7 @@ function _heat(grid) {
   const heads = names.map(name => `<span>${esc(name)}</span>`).join('');
   return `<div class="habit-year" aria-hidden="true"><div class="habit-year-months" style="--weeks:${weeks.length}">${heads}</div>
     <div class="habit-heat" style="--weeks:${weeks.length}">${grid.map(g =>
-    `<i class="${g.done ? 'on' : ''}${g.date === _day ? ' today' : ''}" title="${g.date}"></i>`).join('')}</div></div>`;
+    `<i class="${g.done ? 'on' : ''}${g.date === _day ? ' today' : ''}" title="${esc(whenFull(g.date))}"></i>`).join('')}</div></div>`;
 }
 
 function _weekStrip(h, picked = '') {
@@ -264,7 +265,7 @@ function _weekStrip(h, picked = '') {
     const date = formatCalendarDate(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const letter = formatCalendarDate(iso, { weekday: 'narrow' });
     const marks = `${iso === _day ? ' today' : ''}${iso === picked ? ' picked' : ''}`;
-    return `<button type="button" class="habit-day${completed ? ' done' : ''}${marks}" data-toggle="${iso}" title="${iso}" aria-pressed="${completed}"${iso === _day ? ' aria-current="date"' : ''} aria-label="${esc(t(completed ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date }))}"><span>${esc(letter)}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
+    return `<button type="button" class="habit-day${completed ? ' done' : ''}${marks}" data-toggle="${iso}" title="${esc(date)}" aria-pressed="${completed}"${iso === _day ? ' aria-current="date"' : ''} aria-label="${esc(t(completed ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date }))}"><span>${esc(letter)}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
   }).join('')}</div>`;
 }
 

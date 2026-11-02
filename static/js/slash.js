@@ -561,7 +561,7 @@ export async function tryExecuteSlashCommand(text) {
       if (_reminderBusy) return 'keep-draft';
       _reminderBusy = true;
       try {
-        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=246');
+        const { parseReminderTime, reminderRequest, createReminder, reminderMayHaveSaved } = await import('./reminders.js?v=247');
         const type = cmd === 'send' ? 'message' : 'reminder';
         const sessionId = getActiveId();
         const command = `/${cmd} ${args}`;

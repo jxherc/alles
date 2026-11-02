@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import pick_money_task
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from browser_gate_safety import require_server_ownership
@@ -195,7 +196,7 @@ with sync_playwright() as pw:
                 assert writes[0] == writes[1] and writes[0]["currency"] == "CAD"
                 expect(page.locator(f'.money-acct[data-id="{aid}"]')).to_be_attached()
                 plans()
-                button = page.locator(f'[data-currency-acct="{aid}"]')
+                button = page.locator(f'[data-acct-currency="{aid}"]')
                 bounds = button.bounding_box()
                 assert bounds and bounds["height"] >= 44 and bounds["width"] >= 44
                 if page.locator("#money-entry-fields").is_hidden():
@@ -240,17 +241,13 @@ with sync_playwright() as pw:
                     )
 
                 def change_currency(code):
+                    # the account's currency is the dropdown on its card
                     button.press("Enter")
-                    dialog = page.get_by_role(
-                        "dialog", name="currency for owned dollars " + label, exact=True
-                    )
-                    expect(dialog).to_be_visible()
-                    dialog.get_by_role("button", name=code, exact=True).press("Enter")
+                    page.get_by_role("option", name=code, exact=True).click()
 
                 button.press("Enter")
-                page.get_by_role(
-                    "dialog", name="currency for owned dollars " + label, exact=True
-                ).press("Escape")
+                expect(page.get_by_role("option", name="USD", exact=True)).to_be_visible()
+                page.keyboard.press("Escape")
                 expect(button).to_be_focused()
                 assert not currency_edits
                 check_draft()
@@ -275,7 +272,7 @@ with sync_playwright() as pw:
                 expect(page.locator(f'.money-acct[data-id="{aid}"] .ma-kind')).to_contain_text(
                     "USD"
                 )
-                expect(page.locator(f'[data-currency-acct="{aid}"]')).to_be_focused()
+                expect(page.locator(f'[data-acct-currency="{aid}"]')).to_be_focused()
                 saved = next(
                     item
                     for item in api.get(base + "/api/money/accounts").json()
@@ -383,13 +380,13 @@ with sync_playwright() as pw:
                 summary = page.locator(".money-summary").inner_text()
                 assert "CAD" in summary and "USD" not in summary and "180.00" not in summary
                 plans()
-                expect(page.locator(f'[data-currency-acct="{aid}"]')).to_be_disabled()
-                expect(page.locator(f'[data-currency-acct="{planned["id"]}"]')).to_be_disabled()
-                page.locator('[data-money-task="schedules"]').press("Enter")
+                expect(page.locator(f'[data-acct-currency="{aid}"]')).to_be_disabled()
+                expect(page.locator(f'[data-acct-currency="{planned["id"]}"]')).to_be_disabled()
+                pick_money_task(page, "schedules")
                 expect(
                     page.locator('.recur-group[data-id="' + before_schedule["id"] + '"] .rc-amt')
                 ).to_contain_text("−CAD\u00a010.00")
-                page.locator('[data-money-task="accounts"]').press("Enter")
+                pick_money_task(page, "accounts")
                 expect(page.locator(f'.money-acct[data-id="{aid}"] .ma-bal')).to_have_text(
                     "−USD\u00a010.00"
                 )
@@ -444,17 +441,21 @@ with sync_playwright() as pw:
                 ).json()
                 page.reload(wait_until="networkidle")
                 expect(page.locator(f'.txn[data-id="{unknown["id"]}"] .tx-amt')).to_have_text(
-                    "−currency not set\u00a07.00"
+                    "−$7.00"
                 )
                 plans()
                 expect(page.locator(f'.money-acct[data-id="{legacy["id"]}"] .ma-bal')).to_have_text(
-                    "currency not set\u00a093.00"
+                    "$93.00"
                 )
-                # no currency set can't take a rate: those accounts stay out with their own line,
-                # and the base-currency analytics keep working
-                expect(page.locator(".totals-currency-wrap")).to_contain_text(
-                    "2 accounts have no currency set and aren't in these totals"
+                # a "$" can't take a rate until the owner says which dollar it is: each such account
+                # asks, with the currency dropdown right there, and the base-currency analytics keep working
+                expect(page.locator(".money-currency-asks")).to_contain_text(
+                    "which currency is $ in owned unknown?"
                 )
+                expect(page.locator(".money-currency-asks")).to_contain_text(
+                    "which currency is $ in owned unknown destination?"
+                )
+                expect(page.locator("#finance-view")).not_to_contain_text("currency not set")
                 expect(page.locator('[data-card="envelope"]')).not_to_contain_text(
                     "combined analytics need one known currency"
                 )
@@ -488,8 +489,31 @@ with sync_playwright() as pw:
                     overview.press("Enter")
                 expect(page.locator("#finance-view")).to_contain_text("−USD\u00a010.00")
                 expect(page.locator("#finance-view")).to_contain_text("CAD\u00a090.00")
-                expect(page.locator("#finance-view")).to_contain_text("currency not set\u00a093.00")
+                expect(page.locator("#finance-view")).to_contain_text("$93.00")
+                expect(page.locator("#finance-view")).not_to_contain_text("currency not set")
                 capture("overview")
+                # picking from the question saves the code to the account
+                page.goto(base + "/?view=money&m=2026-10", wait_until="networkidle")
+                ask = page.locator(f'[data-ask-currency="{second_unknown["id"]}"]')
+                bounds = ask.bounding_box()
+                assert bounds and bounds["height"] >= 44 and bounds["width"] >= 44
+                ask.press("Enter")
+                with page.expect_response(
+                    lambda response: (
+                        response.url == base + "/api/money/accounts/" + second_unknown["id"]
+                        and response.request.method == "PATCH"
+                    )
+                ) as asked:
+                    page.get_by_role("option", name="CAD", exact=True).click()
+                assert asked.value.ok
+                expect(ask).to_have_count(0)
+                answered = next(
+                    item
+                    for item in api.get(base + "/api/money/accounts").json()
+                    if item["id"] == second_unknown["id"]
+                )
+                assert answered["currency_code"] == "CAD"
+                capture("question-answered")
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
                 assert not errors and not blocked, (errors, blocked)
                 assert (

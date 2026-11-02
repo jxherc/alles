@@ -1,4 +1,5 @@
 import { plainError } from './util.js';
+import { when, whenDay } from './when.js';
 import { t } from './i18n.js';
 const STAGES = Object.freeze(['backlog', 'next', 'doing', 'waiting']);
 const stageLabel = stage => t(STAGES.includes(stage) ? `plan.stage_${stage}` : 'plan.stage_done');
@@ -67,9 +68,8 @@ function dueLabel(task) {
   const due = String(task?.due_date || '').slice(0, 10);
   if (!due) return t('plan.no_date');
   const today = localDateKey();
-  if (due < today) return t('plan.overdue_on', { due });
-  if (due === today) return t('common.today');
-  return due;
+  if (due < today) return t('plan.overdue_on', { due: whenDay(due) });
+  return when(due, { time: task?.due_time || '' });
 }
 
 function cardFor(task, selectTask) {

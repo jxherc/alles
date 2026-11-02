@@ -3,7 +3,6 @@
 import { api, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
-import { wireChoiceGroup } from './kokuen.js?v=5';
 import { calendarDateKey, formatList, t, tp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
@@ -158,11 +157,11 @@ function _render() {
   const row = active?.closest('.health-row');
   const focus = body.contains(active) ? (active.id ? `#${CSS.escape(active.id)}`
     : row && active.dataset.act ? `.health-row[data-record-id="${CSS.escape(row.dataset.recordId)}"] [data-act="${CSS.escape(active.dataset.act)}"]`
-      : active.dataset.days ? `[data-days="${CSS.escape(active.dataset.days)}"]` : null) : null;
+      : null) : null;
   const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
   body.innerHTML = `
     <div class="health-bar">
-      <div class="health-ranges" role="radiogroup" aria-label="${esc(t('health.history_range'))}">${RANGES.map(([d, l]) => `<button type="button" role="radio" aria-checked="${_days === d}" class="health-chip${_days === d ? ' active' : ''}" data-days="${d}">${esc(t(l))}</button>`).join('')}</div>
+      <div class="settings-input custom-select health-range" id="health-range" data-value="${_days}" data-options="${RANGES.map(([d, l]) => `${d}|${esc(t(l))}`).join(';')}" aria-label="${esc(t('health.history_range'))}"></div>
       <div class="health-bar-actions">
         <button class="btn" id="health-import" title="${esc(t('health.import_title'))}" ${_importDraft ? 'disabled' : ''}>${esc(t('health.import'))}</button>
         <button class="btn primary" id="health-add-toggle">${_si('plus')} ${esc(t('health.entry'))}</button>
@@ -375,9 +374,10 @@ async function _closeEntry() {
 }
 
 function _wire(body) {
-  wireChoiceGroup(body.querySelector('.health-ranges'));
+  const range = body.querySelector('#health-range');
+  initCustomDropdown(range);
+  range?.addEventListener('change', () => { _days = +range.value; loadHealth(); });
   body.querySelector('[data-act="retry-load"]')?.addEventListener('click', () => loadHealth());
-  body.querySelectorAll('.health-chip').forEach(c => c.addEventListener('click', () => { _days = +c.dataset.days; loadHealth(); }));
   $('health-add-toggle')?.addEventListener('click', () => _openEntry());
   $('health-empty-add')?.addEventListener('click', () => _openEntry());
   $('health-import')?.addEventListener('click', _chooseImport);

@@ -113,7 +113,7 @@ a:focus-visible, button:focus-visible {
 .record-target:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* ── layout ── */
-.app { display: flex; height: 100vh; height: 100dvh; }
+.app { display: flex; height: 100vh; height: var(--k-shell-height, 100dvh); }
 body.preboot .app,
 body.login-mode .app {
   visibility: hidden;
@@ -626,11 +626,11 @@ body.is-hub .topbar {
 }
 body.is-hub .main {
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: var(--k-shell-height, 100dvh);
 }
 /* the full sidebar is aide's home base only. other apps use their own header. */
 body.is-subapp .sidebar { display: none; }
-body.is-subapp .main { min-height: 100vh; min-height: 100dvh; }
+body.is-subapp .main { min-height: 100vh; min-height: var(--k-shell-height, 100dvh); }
 
 [data-specialist-app], .aide-tool-view { position: relative; }
 /* Specialist apps used a 10–11px control scale inherited from the first compact
@@ -2925,7 +2925,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 body[data-space="today"] .main > .topbar { display: none; }
 
 body[data-space="today"] .main { width: 100%; }
-body[data-space="today"] .today-view { min-height: 100dvh; }
+body[data-space="today"] .today-view { min-height: var(--k-shell-height, 100dvh); }
 
 :where(#today-view) .today-inner {
   width: min(1120px, calc(100% - clamp(40px, 6vw, 68px)));
@@ -3008,6 +3008,33 @@ body[data-space="today"] .today-view { min-height: 100dvh; }
 :where(#today-view) .today-schedule .today-row > em { grid-column: 1; grid-row: 1; color: color-mix(in srgb, var(--text) 72%, var(--muted)); font-size: 0.875rem; }
 :where(#today-view) .today-schedule .today-row b { color: var(--text); font-size: 0.9375rem; font-weight: 530; }
 :where(#today-view) .today-schedule .today-row b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
+/* home knows the time and acts in place (u.01, u.02): a task row has its check in the time
+   column and "tomorrow" at the end; a "now" line sits before the next timed thing; what's
+   over is faded under "earlier today" */
+:where(#today-view) .today-task { display: grid; grid-template-columns: 5rem minmax(0, 1fr) auto; align-items: center; gap: 18px; }
+:where(#today-view) .today-task .today-task-open { grid-template-columns: minmax(0, 1fr); }
+:where(#today-view) .today-task .today-task-open > span { grid-column: 1; }
+:where(#today-view) .today-check { justify-self: start; width: 44px; height: 44px; margin-left: -14px; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; border-radius: var(--k-radius-control); }
+:where(#today-view) .today-check::before { content: ''; width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 50%; transition: border-color 130ms, background 130ms; }
+:where(#today-view) .today-check:hover::before { border-color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+:where(#today-view) .today-task.urgent .today-check::before { border-color: var(--signal); }
+:where(#today-view) .today-task.urgent small { color: var(--signal); }
+:where(#today-view) .today-snooze { min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--k-radius-control); background: transparent; color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer; transition: color 130ms, background 130ms; }
+:where(#today-view) .today-snooze:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+:where(#today-view) .today-done-text { color: var(--muted); font-size: 0.875rem; }
+:where(#today-view) .today-now { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 18px; align-items: center; }
+:where(#today-view) .today-now span { color: var(--signal); font-size: 0.8125rem; font-weight: 560; }
+:where(#today-view) .today-now::after { content: ''; height: 1px; background: color-mix(in srgb, var(--signal) 55%, transparent); }
+:where(#today-view) .today-earlier { display: grid; gap: 10px; margin-top: 16px; opacity: 0.55; }
+:where(#today-view) .today-earlier h3 { margin: 0; color: var(--muted); font-size: 0.8125rem; font-weight: 560; }
+@media (max-width: 560px) {
+  :where(#today-view) .today-schedule .today-row:not(.today-task-open), :where(#today-view) .today-task, :where(#today-view) .today-now { grid-template-columns: 3.5rem minmax(0, 1fr); gap: 12px; }
+  :where(#today-view) .today-task { grid-template-columns: 3.5rem minmax(0, 1fr) auto; }
+  :where(#today-view) .today-snooze { padding: 0 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(#today-view) .today-check::before, :where(#today-view) .today-snooze { transition: none; }
+}
 :where(#today-view) .today-lower { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(230px, 0.9fr); gap: clamp(44px, 8vw, 80px); }
 :where(#today-view) .today-focus .today-row { grid-template-columns: minmax(0, 1fr) auto; padding-left: 28px; position: relative; }
 :where(#today-view) .today-focus .today-row::before { content: ''; position: absolute; left: 1px; width: 13px; height: 13px; border: 1px solid var(--muted); border-radius: 50%; }
@@ -4579,7 +4606,8 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 }
 
 /* task item */
-.tasks-tabs { display: flex; gap: 0.15rem; }
+/* the task list's view is a dropdown (u.06): its own width, not the row's */
+#tasks-view-pick { flex: 0 0 auto; width: 12rem; max-width: 100%; }
 #task-completion-receipt { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) var(--page-gutter, 16px); color: var(--text); font-size: 0.8125rem; }
 #task-completion-receipt[hidden], #task-completion-receipt [hidden] { display: none; }
 #task-completion-message { min-width: 0; overflow-wrap: anywhere; }
@@ -4780,12 +4808,24 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 .ie-hint { font-size: 0.8125rem; color: var(--muted); line-height: 1.5; }
-.task-del {
-  background: none; border: none; cursor: pointer; color: var(--muted);
-  font-size: 0.8125rem; padding: 0.1rem 0.3rem;
-  transition: color 0.15s;
+/* a task row's actions (u.01, u.03, u.10): "tomorrow" on what's due or late, everything else
+   (other days, a subtask, delete) behind the row's more menu, so delete is never one tap away */
+.task-actions { position: relative; }
+.task-snooze {
+  background: none; border: 0; border-radius: var(--k-radius-control); cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0 8px;
+  transition: color 0.15s, background 0.15s;
 }
-.task-del:hover { color: var(--error); }
+.task-snooze:hover { color: var(--text); background: var(--hover); }
+.task-more { color: var(--muted); }
+.task-more svg { width: 16px; height: 16px; }
+.task-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 180px; }
+.task-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: 44px; }
+.task-group-late { border-bottom: 1px solid var(--faint); margin-bottom: 8px; }
+.task-group-late .task-item:last-child { border-bottom: none; }
+.task-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.task-group-head h3 { margin: 0; font-size: 0.8125rem; font-weight: 600; color: var(--error); }
+.task-gone-text { color: var(--muted); font-size: 0.8125rem; }
 
 /* ── subscriptions ── */
 .sub-item {
@@ -5220,7 +5260,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 :where(#money-view) .txn [data-edit-txn] { cursor: text; }
 :where(#money-view) .txn:hover [data-edit-txn] { color: var(--text); }
 :where(#money-view) .txn:last-child { border-bottom: none; }
-:where(#money-view) .tx-date { width: 44px; color: var(--muted); font-variant-numeric: tabular-nums; }
+:where(#money-view) .tx-date { min-width: 48px; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
 :where(#money-view) .tx-payee { flex: 1.4; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :where(#money-view) .tx-cat { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :where(#money-view) .tx-acct { width: 90px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -5475,9 +5515,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-section-toggle:disabled { cursor: default; }
 #money-view .money-section .money-grid[hidden] { display: none; }
 #money-view #money-section-plans { grid-template-columns: minmax(0, 1fr); }
-#money-view .money-task-choices { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
-#money-view .money-task-choices .btn { min-height: 44px; }
-#money-view .money-task-choices [aria-pressed="true"] { background: var(--k-raised, var(--raised)); color: var(--k-ink, var(--text)); -webkit-text-stroke: 0.35px currentColor; }
+#money-view .money-task-pick { width: min(14rem, 100%); margin-bottom: var(--k-space-3, 12px); }
 #money-view .money-task { margin-bottom: 0; }
 #money-view .txn .tx-del { align-self: start; }
 #money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .split-row) { align-items: end; }
@@ -5514,6 +5552,16 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-field-error:empty { display: none; }
 #money-view .money-acct { min-width: 0; flex: 1 1 15rem; }
 #money-view :is(.ma-bal, .tx-amt, .rc-amt) { white-space: nowrap; overflow-wrap: normal; }
+/* u.12: an account that is only a sign asks which currency it is, one line with the dropdown beside it */
+#money-view .money-currency-asks { display: grid; grid-template-columns: max-content 10.5rem; align-items: center; gap: var(--k-space-2, 8px) var(--k-space-3, 12px); margin-bottom: var(--k-space-3, 12px); }
+#money-view .money-currency-ask { display: contents; }
+#money-view .money-currency-q { color: var(--k-ink, var(--text)); font-size: 0.875rem; }
+@media (max-width: 480px) {
+  #money-view .money-currency-asks { grid-template-columns: minmax(0, 1fr); }
+}
+#money-view .money-currency-pick { width: 10.5rem; }
+#money-view .money-acct .money-currency-pick { width: 100%; max-width: 12rem; margin-top: var(--k-space-2, 8px); }
+#money-view .money-currency-ask .money-field-error { grid-column: 1 / -1; margin: 0; }
 #money-view :is(.goal-nums, .bg-nums) { overflow-wrap: normal; }
 
 #finance-view .finance-daily { margin-bottom: var(--k-space-4, 16px); }
@@ -5528,7 +5576,22 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 @container finance-card (max-width: 22rem) {
   #finance-view .finance-daily .specialist-group-row { grid-template-columns: minmax(0, 1fr); }
   #finance-view .finance-daily .specialist-group-row span { text-align: left; }
+  #finance-view .finance-daily .num-cell { justify-content: space-between; }
+  #finance-view .finance-daily .num-dated { justify-content: flex-start; }
+  #finance-view .finance-daily .num-figure { justify-items: start; text-align: left; }
 }
+/* u.05: spent this month leads the page; accounts show their change and a 30 day line; the other
+   cards are a name and a date or an amount on one row */
+#finance-view .finance-spent { margin-bottom: var(--k-block-gap, 16px); }
+#finance-view .finance-spent h2 { margin-bottom: var(--k-space-1, 4px); }
+#finance-view .finance-spent-figure { display: block; font-size: 1.75rem; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+#finance-view :is(.finance-spent-last, .finance-spent-note) { display: block; color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+#finance-view .finance-spent-ask { display: flex; align-items: center; min-height: 44px; margin-inline: 0; padding-inline: 0; text-decoration: underline; text-underline-offset: 3px; }
+#finance-view .finance-daily .num-row { align-items: center; }
+#finance-view .finance-daily .num-figure :is(.num-value, .num-change) { white-space: nowrap; }
+#finance-view .finance-daily .num-dated { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: var(--k-space-2, 8px); min-width: 0; }
+#finance-view .finance-daily .num-when { color: var(--k-ink-muted, var(--muted)); }
+#finance-view .finance-daily .num-amount { color: var(--k-ink, var(--text)); }
 :is(#finance-view, #s-ledger) .finance-actual-content { display: grid; gap: var(--k-space-3, 12px); }
 :is(#finance-view, #s-ledger) .finance-actual-content[hidden] { display: none; }
 :is(#finance-view, #s-ledger) .finance-actual-authority { margin: 0; color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; }
@@ -5589,6 +5652,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 /* the actions sit on the card's bottom edge, so a row of cards lines them up with or without a bar */
 .day-actions { display: flex; gap: var(--k-control-gap); margin-top: auto; padding-top: 0.5rem; }
 .day-actions .btn { font-size: 0.8125rem; padding: 0.12rem 0.42rem; }
+/* delete sits behind the card's more menu (u.10); the menu opens under the button */
+.day-actions { position: relative; align-items: center; }
+.day-more { margin-inline-start: auto; color: var(--muted); }
+.day-more svg { width: 16px; height: 16px; }
+.day-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 180px; }
+.day-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: 44px; }
+.day-card.day-gone .day-name { color: var(--muted); margin-top: 0; }
 .day-card.editing { gap: 0.3rem; }
 .day-card.editing .settings-input { font-size: 0.8125rem; width: 100%; }
 
@@ -6702,6 +6772,10 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
 .cal-agenda-task .cal-agenda-dot { border: 1px solid currentColor; border-radius: 2px; box-sizing: border-box; color: var(--muted); }
 .cal-agenda-task.overdue :is(.cal-agenda-dot, .cal-agenda-time) { color: var(--signal); }
 .specialist-record-row.overdue .specialist-record-time { color: var(--signal); }
+/* u.02 in the agenda: home's now line and faded rows for what's over */
+.plan-agenda-now { display: flex; align-items: center; gap: var(--k-space-2, 8px); min-height: 24px; color: var(--signal); font-size: 0.8125rem; font-weight: 560; }
+.plan-agenda-now::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, var(--signal) 55%, transparent); }
+.specialist-record-row.past { opacity: 0.55; }
 .cal-agenda-time { color: var(--muted); font-size: 0.8125rem; width: 5rem; flex-shrink: 0; white-space: nowrap; }
 .cal-agenda-title { font-size: 0.8125rem; color: var(--text); }
 .cal-agenda-recur { color: var(--muted); font-size: 0.8125rem; }
@@ -9214,11 +9288,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 #health-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }
 .health-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .health-bar-actions { display: flex; align-items: center; gap: var(--k-control-gap); }
-.health-ranges { display: flex; gap: 0.3rem; }
-.health-chip { background: none; border: 1px solid transparent; border-radius: var(--k-radius-control); color: var(--muted); padding: 0 12px; font-size: 0.8125rem; cursor: pointer; }
-.health-chip:hover { color: var(--text); background: var(--hover, var(--panel)); }
-/* neutral selection (decision 0019) */
-.health-chip.active { background: var(--k-raised, var(--panel)); border-color: var(--k-line-strong, var(--faint)); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
+.health-range { width: 10rem; min-height: 44px; }
 .health-empty { padding: 1.2rem 0; font-size: 0.8125rem; color: var(--muted); max-width: 460px; }
 .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
 .health-card { border: 1px solid var(--faint); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.8rem 0.9rem; }
@@ -9365,7 +9435,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 }
 .andromeda-view button,
 .andromeda-view input { font: inherit; }
-.andromeda-page { width: 100%; min-height: 100dvh; margin: 0 auto; padding: 0 clamp(18px, 2vw, 28px) 64px; }
+.andromeda-page { width: 100%; min-height: var(--k-shell-height, 100dvh); margin: 0 auto; padding: 0 clamp(18px, 2vw, 28px) 64px; }
 .andromeda-app-head {
   min-height: var(--k-app-header, 52px);
   display: grid;

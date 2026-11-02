@@ -9,6 +9,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_datepick import expect_date, pick_date
 
 
 def run():
@@ -118,7 +119,7 @@ def run():
                 page.locator(".task-editor .capture-source summary").click()
                 assert page.locator(".task-editor .capture-source pre").text_content() == original
                 page.locator("#te-title").fill(title + " edited")
-                page.locator("#te-due").fill("2032-06-22")
+                pick_date(page.locator("#te-due"), "2032-06-22")
                 with page.expect_response(
                     lambda r: r.url == base + "/api/tasks/" + rid and r.request.method == "PATCH"
                 ) as edited:
@@ -126,7 +127,7 @@ def run():
                 assert edited.value.ok, edited.value.text()
                 page.reload(wait_until="networkidle")
                 expect(page.locator("#te-title")).to_have_value(title + " edited")
-                expect(page.locator("#te-due")).to_have_value("2032-06-22")
+                expect_date(page.locator("#te-due"), "2032-06-22")
                 page.locator(".task-editor .capture-source summary").click()
                 assert page.locator(".task-editor .capture-source pre").text_content() == original
                 link = page.url

@@ -485,7 +485,7 @@ class AgendaCase:
         )
 
     async def event_workflow(self):
-        await self.agenda("week", "seven")
+        await self.agenda("overview", "seven")
         for key in ("event-a", "event-b", "series"):
             await expect(self.row(key).locator(".specialist-record-title")).to_have_text(self.title)
         other = await self.saved("event-a")
@@ -494,7 +494,7 @@ class AgendaCase:
         await self.exact_editor("event-b")
         await self.save_event("event-b", self.marker + " saved event details 中文")
         assert await self.saved("event-a") == other
-        await self.back("event-b", "week", "seven")
+        await self.back("event-b", "overview", "seven")
         await self.capture("event-saved-return")
         control = await self.keyboard_row("series", "seven")
         await control.press("Space")
@@ -508,13 +508,13 @@ class AgendaCase:
         assert saved["start_dt"] == original["start_dt"] and saved["end_dt"] == original["end_dt"]
         assert saved["recurrence"] == "daily" and saved["recur_count"] == original["recur_count"]
         assert parse_qs(urlsplit(self.page.url).query)["occurrence"] == [self.later]
-        await self.back("series", "week", "seven", self.later)
+        await self.back("series", "overview", "seven", self.later)
         await self.focus_proof(self.row("series"))
         await self.capture("recurrence-saved-return")
         await self.row("series").press("Enter")
         await self.exact_editor("series", self.later)
         await self.page.locator("#cal-back").press("Enter")
-        await self.back("series", "week", "seven", self.later, browser=False)
+        await self.back("series", "overview", "seven", self.later, browser=False)
         self.result["steps"].append(
             {
                 "scenario": "events-equal-title-and-later-occurrence-save",
@@ -736,11 +736,11 @@ class AgendaCase:
         await self.task_workflow()
         await self.event_workflow()
         await self.unavailable("gone-task", "overview", "unscheduled")
-        await self.unavailable("gone-event", "week", "seven")
+        await self.unavailable("gone-event", "overview", "seven")
         await self.failure_retry("task-a", "/api/tasks/tree", "overview", "unscheduled")
-        await self.failure_retry("event-a", "/api/calendar", "week", "seven")
+        await self.failure_retry("event-a", "/api/calendar", "overview", "seven")
         await self.stale_reply("task-a", "/api/tasks/tree", "overview", "unscheduled")
-        await self.stale_reply("event-a", "/api/calendar", "week", "seven")
+        await self.stale_reply("event-a", "/api/calendar", "overview", "seven")
         await self.check_network()
         self.result["status"] = "passed"
 

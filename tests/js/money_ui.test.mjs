@@ -1,10 +1,11 @@
 import { calendarDateKey, t, tp } from '../../static/js/i18n.js';
-import { amountIn, excludedNotes, totalsCurrency } from '../../static/js/money_currency.js';
+import { amountIn, bareSign, excludedNotes, totalsCurrency } from '../../static/js/money_currency.js';
 import { assignHues, categoryHue } from '../../static/js/color.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { whenDay, whenFull, whenHtml } from '../../static/js/when.js';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -23,14 +24,14 @@ function harness() {
     return elements.get(id);
   };
   const requests = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey,
     document: { getElementById: get }, location: { search: '' }, URLSearchParams,
     formatCalendarDate: () => 'october 2026',
     formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),
     toast() {}, tickNumbers() {}, api: async (...args) => { requests.push(args); return {}; },
-    amountIn, excludedNotes, totalsCurrency, wireCurrency() {}, assignHues, categoryHue,
+    amountIn, bareSign, excludedNotes, totalsCurrency, wireCurrency() {}, assignHues, categoryHue,
   });
   vm.runInContext(source + `
     _cur = 'CAD';
@@ -257,7 +258,8 @@ test('chosen management task survives refresh while other forms remain disclosed
   for (let n = 0; n < 2; n++) {
     h.render();
     const html = h.get('money-body').innerHTML;
-    assert.match(html, /data-money-task="goals" aria-pressed="true"/);
+    assert.match(html, /id="money-task-pick" data-value="goals" data-options="accounts\|accounts;budgets\|budgets;schedules\|schedules;goals\|goals"/);
+    assert.doesNotMatch(html, /data-money-task="/);
     assert.match(html, /data-money-task-panel="accounts" hidden/);
     assert.match(html, /data-money-task-panel="budgets" hidden/);
     assert.match(html, /data-money-task-panel="schedules" hidden/);
@@ -344,15 +346,69 @@ test('the envelope edits the saved number and names income it left out', () => {
   assert.match(html, /data-totals-rate="EUR:CAD"/);
 });
 
-test('an account with no currency gets its subtotal and the way to set it; Actual says its base is fixed', () => {
+test('an account with no currency is asked which one it is; Actual says its base is fixed', () => {
   const h = harness();
   const strip = html => html.replace(/<[a-z/][^>]*>/gi, ' ').replace(/\s+/g, ' ');
   h.setCurrency([{ id: 'old', name: 'old', currency_code: 'XXX', balance: 460 }, { id: 'c', currency_code: 'CAD' }], {
     currency: 'CAD', currency_status: 'partial', base_currency: { code: 'CAD', fixed: false }, ledger_currency: 'CAD',
     rates: [], included: true, excluded: [{ currency: 'XXX', accounts: 1, transactions: 1, net_worth: 460, income: 0, expense: 40 }] });
   const html = h.summaryCards();
-  assert.match(strip(html), /1 account has no currency set and isn't in these totals · 460\.00 set currency/);
-  assert.match(html, /data-set-currency="old"/);
+  // the account that has no currency is asked about, with the dropdown right there, instead of listed as left out
+  assert.match(strip(html), /which currency is old\?/);
+  assert.match(html, /data-ask-currency="old"/);
+  assert.doesNotMatch(strip(html), /has no currency set and isn't in these totals/);
   h.setCurrency([], { currency: 'CAD', ledger: 'actual' }, true);
   assert.match(strip(h.summaryCards()), /totals follow your Actual ledger in CAD/);
+});
+
+test('an account made with "$" reads as money and asks which currency it is, in one line with the dropdown', () => {
+  const h = harness();
+  const account = { id: 'a', name: 'td chequing', kind: 'checking', currency: '$', currency_code: 'XXX', balance: 735.46,
+    balance_by_currency: [{ currency: 'XXX', balance: 735.46 }] };
+  h.setCurrency([account], { currency: '$', currency_status: 'unknown', net_worth: 735.46, expense: 5.5, income: 0, net: -5.5,
+    totals_by_currency: [{ currency: 'XXX', account_id: 'a', account_name: 'td chequing', net_worth: 735.46, expense: 5.5, income: 0, net: -5.5 }] });
+  const strip = html => html.replace(/<[a-z/][^>]*>/gi, ' ').replace(/\s+/g, ' ');
+  const cards = h.summaryCards();
+  // the money screen never says "currency not set" next to the sign the account was made with
+  assert.doesNotMatch(strip(cards), /currency not set|totals stay separate/);
+  assert.match(strip(cards), /net worth \$\s*735\.46/);
+  // one question, with the currency dropdown right there
+  assert.match(strip(cards), /which currency is \$\?/);
+  assert.match(cards, /class="settings-input custom-select money-currency-pick" data-ask-currency="a"/);
+  const list = h.accountsList();
+  assert.doesNotMatch(strip(list), /currency not set|xxx/i);
+  assert.match(strip(list), /\$735\.46/);
+  assert.match(strip(list), /checking · \$/);
+  // the card has the same dropdown, empty until a currency is picked
+  assert.match(list, /data-acct-currency="a" data-value=""/);
+  assert.doesNotMatch(list, /data-currency-acct|change currency/);
+  const row = { id: 't', account_id: 'a', amount: -10, date: '2026-10-01', payee: 'p', original_currency_code: 'XXX' };
+  assert.match(h._renderTxnMain(row, { a: 'td chequing' }), /−\$10\.00/);
+});
+
+test('two accounts made with different signs each ask, naming themselves', () => {
+  const h = harness();
+  const accounts = [
+    { id: 'a', name: 'cash', currency: '$', currency_code: 'XXX', balance: 5 },
+    { id: 'b', name: 'trip', currency: '€', currency_code: 'XXX', balance: 7 },
+  ];
+  h.setCurrency(accounts, { currency: '$', currency_status: 'unknown', totals_by_currency: [
+    { currency: 'XXX', account_id: 'a', account_name: 'cash', net_worth: 5, expense: 0, income: 0, net: 0 },
+    { currency: 'XXX', account_id: 'b', account_name: 'trip', net_worth: 7, expense: 0, income: 0, net: 0 }] });
+  const text = h.summaryCards().replace(/<[a-z/][^>]*>/gi, ' ').replace(/\s+/g, ' ');
+  assert.match(text, /which currency is \$ in cash\?/);
+  assert.match(text, /which currency is € in trip\?/);
+  assert.match(text, /\$\s*5\.00/);
+  assert.match(text, /€\s*7\.00/);
+});
+
+test('an account with no sign at all asks by name, and a fixed currency is a disabled dropdown with its reason', () => {
+  const h = harness();
+  h.setCurrency([{ id: 'a', name: 'old', currency: '', currency_code: 'XXX', balance: 1 }], { currency: '', currency_status: 'unknown', totals_by_currency: [
+    { currency: 'XXX', account_id: 'a', account_name: 'old', net_worth: 1, expense: 0, income: 0, net: 0 }] });
+  assert.match(h.summaryCards().replace(/<[a-z/][^>]*>/gi, ' '), /which currency is old\?/);
+  h.setCurrency([{ id: 'c', name: 'fixed', currency: 'CAD', currency_code: 'CAD', balance: 3, currency_edit_reason: 'currency is fixed while an account has saved amounts.' }], { currency: 'CAD' });
+  const list = h.accountsList();
+  assert.match(list, /data-acct-currency="c" data-value="CAD"[^>]*aria-disabled="true"/);
+  assert.match(list, /currency is fixed while an account has saved amounts/);
 });

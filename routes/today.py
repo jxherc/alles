@@ -164,7 +164,13 @@ def today_view(
 
     # events - timed sorted by time, all-day last
     events = [
-        {"id": d["id"], "title": d["title"], "time": d["time"], "all_day": d["all_day"]}
+        {
+            "id": d["id"],
+            "title": d["title"],
+            "time": d["time"],
+            "end": d.get("end", ""),
+            "all_day": d["all_day"],
+        }
         for d in (s["data"] for s in g.get("event", []))
     ]
     events.sort(key=lambda x: (x["time"] == "", x["time"]))

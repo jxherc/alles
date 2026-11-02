@@ -1,7 +1,7 @@
 import { toast } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
 import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=217';
-import { formatDate, formatTime, t, tp } from './i18n.js';
+import { formatCalendarDate, formatDate, formatTime, t, tp } from './i18n.js';
 import { pushRouteUrl, routeHistoryPosition } from './route_history.js';
 
 // 4a - typed relationship kinds (mirrors services/contacts_graph _INVERSE)
@@ -89,7 +89,7 @@ async function showBirthdays() {
   if (!rows.length) { list.innerHTML = `<div class="page-empty">${t('contacts.no_birthdays')}</div>`; return; }
   list.innerHTML = `<div class="contacts-bday-head">${t('contacts.upcoming_birthdays')}</div>` + rows.map(b => {
     const when = b.days_until === 0 ? t('contacts.today_bang') : (b.days_until === 1 ? t('contacts.tomorrow') : tp('contacts.in_days', b.days_until));
-    return `<div class="settings-list-row contact-item"><span class="row-name">${_si('cake')} ${_esc(b.name)}</span><span class="row-meta">${_esc(b.birthday)} · ${when}</span></div>`;
+    return `<div class="settings-list-row contact-item"><span class="row-name">${_si('cake')} ${_esc(b.name)}</span><span class="row-meta">${_esc(_birthdayText(b.birthday))} · ${when}</span></div>`;
   }).join('');
 }
 
@@ -468,6 +468,14 @@ export async function addContact() {
 
 window._delContact = delContact;
 window._editContact = openContact;
+
+// a birthday is month and day (the year is the person's business, and may be missing)
+function _birthdayText(raw) {
+  const m = /(\d{1,2})-(\d{1,2})$/.exec(String(raw || '').trim());
+  if (!m) return '';
+  const [month, day] = [m[1].padStart(2, '0'), m[2].padStart(2, '0')];
+  return formatCalendarDate(`2000-${month}-${day}`, { month: 'long', day: 'numeric' }).toLowerCase();
+}
 
 function _esc(s = '') {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');

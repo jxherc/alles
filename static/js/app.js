@@ -19,7 +19,7 @@ import { closeWithSlide } from './motion.js';
 import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
-import { initSlash, tryExecuteSlashCommand } from './slash.js?v=401';
+import { initSlash, tryExecuteSlashCommand } from './slash.js?v=402';
 import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=254';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
@@ -37,7 +37,7 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=17';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=18';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
 import { openSettings, openSettingsAt, closeSettings, applyVis } from './settings.js?v=301';
@@ -63,10 +63,11 @@ import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import { initAideWorkspace } from './aideworkspace.js?v=282';
 import { initAideCentral } from './aidecentral.js?v=3';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=5';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=256';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=257';
+import { initAppRail, syncAppRail } from './app_rail.js';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
-import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=246';
+import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=247';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
 import { cachedLocalizationSettings, configureLocalization, formatDateTime, prepareLocalization, t, tp } from './i18n.js';
@@ -885,7 +886,7 @@ window._openSearchResult = async (type, value, messageId = '') => {
   }
   if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat', { preserveSession: true }))) return false;
   if (type === 'chat') return selectSession(value, messageId);
-  const { openNote } = await import('./docs.js?v=263');
+  const { openNote } = await import('./docs.js?v=264');
   return openNote(value);
 };
 
@@ -1008,7 +1009,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=256');
+      const module = await import('./andromeda.js?v=257');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1078,7 +1079,7 @@ const showCompareView  = () => showView('compare-view',  'compare',  () => { ini
 const showWikiView     = (section = 'docs') => showView(
   'wiki-view',
   section === 'journal' ? 'journal' : 'wiki',
-  (track, request) => trackedImport(track, request, () => import('./docs.js?v=263'), module => module.initDocs(section, request)),
+  (track, request) => trackedImport(track, request, () => import('./docs.js?v=264'), module => module.initDocs(section, request)),
   section === 'journal' ? 'docs-journal-section' : '',
 );
 const showVaultView      = () => showView('vault-view',      'vault',     (_track, request) => loadVaultView(request));
@@ -1089,7 +1090,7 @@ const showRemindersView  = () => {
 };
 const showSubsView       = () => showView('subs-view',      'subs',      (track, request) => trackedImport(track, request, () => import('./subs.js'), module => module.initSubsPanel(request)));
 const showMoneyView      = () => showView('money-view',     'money',     (track, request) => trackedImport(track, request, () => import('./money.js'), module => module.initMoneyPanel(request)));
-const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=6'), module => module.initDaysPanel(request)));
+const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=7'), module => module.initDaysPanel(request)));
 const showJournalView    = () => showWikiView('journal');
 const showActivityView   = () => showView('activity-view',  'activity',  (track, request) => trackedImport(track, request, () => import('./activity.js'), module => module.initActivity(request)));
 const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=271'), module => module.initSystem(request)));
@@ -1106,11 +1107,11 @@ const showMailView       = () => showView('mail-view',      'mail',      (_track
 const showPhotosView     = () => showView('photos-view',    'photos',    (_track, request) => { initPhotos(); return loadPhotos(request); });
 const showTodayView      = () => {
   _setAfterlifeSpace('today');
-  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=311'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
+  const result = showView('today-view', 'today', (track, request) => trackedImport(track, request, () => import('./today.js?v=312'), module => module.initToday({ navigate: navigateTo, apps: HOME_PINNABLE_APPS, askAide: prepareHomeDayDraft, legacyShortcuts: readLegacyHomeShortcuts, openRecord: openHomeRecord })));
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=256'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=257'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
@@ -1122,7 +1123,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'calendar') return loadCalendar(request);
   if (section === 'tasks') return loadTasks(request, readRecordTarget(location.href));
   if (section === 'reminders') return initReminderPanel(request, () => showSpecialistGroup(group, section));
-  if (section === 'days') return import('./days.js?v=6').then(module => module.initDaysPanel(request));
+  if (section === 'days') return import('./days.js?v=7').then(module => module.initDaysPanel(request));
   if (section === 'mail') return loadMail(request);
   if (section === 'contacts') return loadContacts('', request);
   if (section === 'books') return import('./books.js').then(module => module.initBooks(request));
@@ -1131,7 +1132,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'habits') return import('./habits.js').then(module => module.initHabits(request));
   if (section === 'money') return import('./money.js').then(module => module.initMoneyPanel(request));
   if (section === 'subs') return import('./subs.js').then(module => module.initSubsPanel(request));
-  if (group === 'docs') return import('./docs.js?v=263').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
+  if (group === 'docs') return import('./docs.js?v=264').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
@@ -1481,6 +1482,7 @@ function initAfterlifeShell(flags) {
   if (!trigger || !spaces.length) return;
   _setAfterlifeSpace(document.body.classList.contains('is-aide') ? 'aide' : '');
   _renderAppDrawer();
+  initAppRail({ apps: HOME_PINNABLE_APPS, navigate: navigateTo });
 
   const drawer = document.getElementById('app-drawer');
   if (drawer && trigger) {
@@ -1540,6 +1542,7 @@ function _syncShellTrigger(root = null) {
   const drawerLabel = document.getElementById('app-drawer-label');
   drawerLabel.textContent = appLabel(label);
   drawerLabel.dataset.app = label;
+  syncAppRail(label);
   syncAskPanel();
   trigger.setAttribute('aria-label', t('shell.switch_app_from', { label: appLabel(label) }));
   trigger.hidden = false;
@@ -1562,7 +1565,7 @@ function _renderAppDrawer() {
       button.type = 'button';
       button.className = 'app-drawer-item';
       button.dataset.view = destination.view;
-      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${appGlyph(destination.view)}</span><span><b>${appLabel(destination.name)}</b><small>${appDesc(destination.desc)}</small></span>`;
+      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${appGlyph(destination.view)}</span><span><b>${appLabel(destination.name)}</b></span>`;
       button.addEventListener('click', async () => {
         const staysOnPage = singleHost() || viewToSub(destination.view) === currentSub();
         const navigated = await navigateTo(destination.view);

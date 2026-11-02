@@ -6,7 +6,7 @@ import { plainError, toast } from './util.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 import { initDatePicker } from './datepick.js';
-import { confirm as dlgConfirm } from './dialog.js';
+import { wireActionMenu } from './kokuen.js?v=5';
 import { formatDate, formatNumber, ordinalCategory, t, tp } from './i18n.js';
 
 const $ = id => document.getElementById(id);
@@ -18,6 +18,8 @@ let _loadSequence = 0;
 let _loadError = '';
 let _adding = false;
 const _pending = new Set();
+let _gone = null;   // { id, name, nextId, timer }: deleted, still undoable (u.10, the tasks pattern)
+const UNDO_MS = 6000;
 const _editFields = ['name', 'date', 'repeat', 'category', 'notes', 'notify_days'];
 
 export async function loadDays(fetcher = fetch) {
@@ -182,7 +184,7 @@ function _render() {
   }
 
   // editing renders the card in place (its own section), not yanked to the top
-  const cardOf = e => e.id === _editing ? _editCard(e) : _card(e);
+  const cardOf = e => e.id === _gone?.id ? _goneCard(e) : e.id === _editing ? _editCard(e) : _card(e);
   const sections = [
     ['today', t('common.today'),     derived.filter(x => x.mode === 'today').sort(_byPinThenName)],
     ['upcoming', t('plan.days_upcoming'),  derived.filter(x => x.mode === 'countdown').sort(_byPinThenSoonest)],
@@ -218,8 +220,20 @@ function _card(e) {
       ${e.progress != null && e.mode !== 'today' ? `<div class="day-bar"><i style="width:${Math.round(e.progress * 100)}%"></i></div>` : ''}
       <div class="day-actions">
         <button class="btn" data-act="edit">${esc(t('common.edit'))}</button>
-        <button class="btn danger" data-act="del" aria-label="${esc(t('common.delete'))}" title="${esc(t('common.delete'))}">×</button>
+        <button type="button" class="icon-btn day-more" id="day-more-${e.id}" aria-haspopup="menu" aria-expanded="false" aria-controls="day-menu-${e.id}" aria-label="${esc(t('tasks.more_named', { task: e.name }))}">${_si('more')}</button>
+        <div class="ctx-menu day-menu" id="day-menu-${e.id}" role="menu" aria-labelledby="day-more-${e.id}" hidden>
+          <button type="button" class="ctx-item danger" role="menuitem" data-act="del">${esc(t('common.delete'))}</button>
+        </div>
       </div>
+    </div>`;
+}
+
+// delete is behind the card's menu and keeps the card's place with undo for a few seconds
+function _goneCard(e) {
+  return `
+    <div class="day-card day-gone" data-id="${e.id}">
+      <div class="day-name">${esc(t('tasks.deleted_named', { task: e.name }))}</div>
+      <div class="day-actions"><button type="button" class="btn" data-act="undo">${esc(t('common.undo'))}</button></div>
     </div>`;
 }
 
@@ -267,6 +281,7 @@ function _wire(grid) {
   });
   grid.querySelectorAll('.day-card.editing .custom-select').forEach(initCustomDropdown);
   grid.querySelectorAll('.day-card.editing .date-input').forEach(initDatePicker);
+  grid.querySelectorAll('.day-more').forEach(button => wireActionMenu(button, document.getElementById(button.getAttribute('aria-controls'))));
   grid.querySelectorAll('.day-card').forEach(card => {
     const id = card.dataset.id;
     const busy = value => card.querySelectorAll('[data-act]').forEach(button => {
@@ -277,15 +292,11 @@ function _wire(grid) {
       const act = btn.dataset.act;
       if (act === 'edit') { _editing = id; _render(); _refocus(grid, id, 'name'); return; }
       if (act === 'cancel') { _editing = null; _render(); _refocus(grid, id, 'edit'); return; }
+      if (act === 'undo') { _undoDelete(grid); return; }
       if (_pending.has(id)) return;
       const cards = [...grid.querySelectorAll('.day-card[data-id]')], at = cards.indexOf(card);
       const nextId = (cards[at + 1] || cards[at - 1])?.dataset.id || '';
-      // ask before going busy: a disabled button can't take focus back when the dialog closes
-      if (act === 'del' && !await dlgConfirm((name => name ? t('plan.days_stop_counting', { name }) : t('plan.days_stop_counting_this'))(_events.find(x => x.id === id)?.name))) {
-        if (btn.isConnected) btn.focus();
-        return;
-      }
-      if (_pending.has(id)) return;
+      if (act === 'del') { _deleteLater(grid, id, nextId); return; }
       _pending.add(id); busy(true);
       let landed = '';
       try {
@@ -297,13 +308,6 @@ function _wire(grid) {
           }, value => value?.id === id && value.pinned === !e.pinned);
           ++_loadSequence;
           landed = 'pin';
-          await loadDays(); return;
-        }
-        if (act === 'del') {
-          await dayJson(fetch, `/api/days/${id}`, { method: 'DELETE' }, value => value?.ok === true);
-          ++_loadSequence;
-          _events = _events.filter(item => item.id !== id);
-          landed = 'del';
           await loadDays(); return;
         }
         if (act === 'save') {
@@ -331,15 +335,53 @@ function _wire(grid) {
         // only when focus was lost to the redraw or the disabled button, never stolen from elsewhere
         const lost = !document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected;
         if (lost || btn === document.activeElement) {
-          if (landed === 'del') _refocus(grid, id, 'del', nextId);
-          else if (landed) _refocus(grid, id, landed === 'edit' && _editing === id ? 'save' : landed);
+          if (landed) _refocus(grid, id, landed === 'edit' && _editing === id ? 'save' : landed);
           // a change that failed leaves the card as it was; back to the button that was pressed
           else if (btn.isConnected) btn.focus();
-          else _refocus(grid, id, act === 'del' ? 'edit' : act);
+          else _refocus(grid, id, act);
         }
       }
     }));
   });
+}
+
+function _deleteLater(grid, id, nextId) {
+  if (_gone) _deleteNow(grid);
+  const event = _events.find(item => item.id === id);
+  if (!event) return;
+  _gone = { id, nextId, timer: setTimeout(() => _deleteNow(grid), UNDO_MS) };
+  _render();
+  grid.querySelector(`.day-card[data-id="${CSS.escape(id)}"] [data-act="undo"]`)?.focus();
+}
+
+async function _deleteNow(grid) {
+  const gone = _gone;
+  if (!gone) return;
+  clearTimeout(gone.timer);
+  _gone = null;
+  const hadFocus = document.activeElement?.dataset?.act === 'undo';
+  _pending.add(gone.id);
+  try {
+    await dayJson(fetch, `/api/days/${gone.id}`, { method: 'DELETE' }, value => value?.ok === true);
+    ++_loadSequence;
+    _events = _events.filter(item => item.id !== gone.id);
+  } catch (error) {
+    // the countdown comes back with its menu, so delete can be tried again
+    toast(error.message || t('plan.days_change_unconfirmed'), 'error');
+  } finally {
+    _pending.delete(gone.id);
+  }
+  await loadDays();
+  if (hadFocus) _refocus(grid, gone.id, _events.some(item => item.id === gone.id) ? 'edit' : 'del', gone.nextId);
+}
+
+function _undoDelete(grid) {
+  if (!_gone) return;
+  clearTimeout(_gone.timer);
+  const { id } = _gone;
+  _gone = null;
+  _render();
+  grid.querySelector(`.day-card[data-id="${CSS.escape(id)}"] .day-more`)?.focus();
 }
 
 function esc(s) {

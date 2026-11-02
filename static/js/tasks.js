@@ -1,9 +1,10 @@
 import { confirm as dlgConfirm, prompt as dlgPrompt } from './dialog.js';
 import { getDropdownValue, populateDropdown } from './dropdown.js?v=217';
 import { joinDue, initDatePicker, splitDue } from './datepick.js';
-import { calendarDateKey, formatTime, t as tr, tp as trp } from './i18n.js';
-import { createFocusBoundary, setControlState } from './kokuen.js?v=5';
+import { calendarDateKey, t as tr, tp as trp } from './i18n.js';
+import { createFocusBoundary, setControlState, wireActionMenu } from './kokuen.js?v=5';
 import { toast } from './util.js';
+import { whenDay, whenHtml } from './when.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 let _tasks = [];
@@ -101,6 +102,13 @@ async function recoverTaskDraft(generation) {
 }
 
 
+const _TAB_LABELS = [['active', 'common.all'], ['today', 'common.today'], ['upcoming', 'tasks.upcoming'], ['someday', 'tasks.someday'], ['done', 'tasks.history']];
+
+function _syncTabPick() {
+  const pick = document.getElementById('tasks-view-pick');
+  if (pick) populateDropdown(pick, _TAB_LABELS.map(([value, key]) => ({ value, label: tr(key) })), _tab);
+}
+
 function _wireTabs() {
   if (_tabsWired) return; _tabsWired = true;
   // the receipt floats on wide screens and lifts toasts, so it leaves with the tasks view
@@ -115,16 +123,16 @@ function _wireTabs() {
     renderCompletion();
     if (focused) document.getElementById('tasks-search')?.focus();
   });
-  document.querySelectorAll('.tasks-tab').forEach(b => b.addEventListener('click', () => {
+  // which tasks the list shows: 5 views, so the dropdown (choice rule, decision 0050)
+  const pick = document.getElementById('tasks-view-pick');
+  _syncTabPick();
+  pick?.addEventListener('change', () => {
+    const next = getDropdownValue(pick) || 'active';
+    if (next === _tab) return;
     ++_loadGeneration;
-    _tab = b.dataset.tab;
-    document.querySelectorAll('.tasks-tab').forEach(x => {
-      const selected = x === b;
-      x.classList.toggle('active', selected);
-      x.setAttribute('aria-pressed', String(selected));
-    });
+    _tab = next;
     loadTasks();
-  }));
+  });
   const si = document.getElementById('tasks-search');
   let _t = 0;
   si?.addEventListener('input', () => {
@@ -133,6 +141,7 @@ function _wireTabs() {
     _t = setTimeout(() => { _search = si.value.trim(); loadTasks(); }, 180);
   });
   window.addEventListener('alles:localization-change', () => {
+    _syncTabPick();
     renderCompletion();
     if (_tab === 'active' && !_search) renderTree();
     else renderTasks();
@@ -148,11 +157,7 @@ export function resetTaskFilters() {
   _search = '';
   const search = document.getElementById('tasks-search');
   if (search) search.value = '';
-  document.querySelectorAll('.tasks-tab').forEach(button => {
-    const selected = button.dataset.tab === _tab;
-    button.classList.toggle('active', selected);
-    button.setAttribute('aria-pressed', String(selected));
-  });
+  _syncTabPick();
 }
 
 export async function loadTasks(fetcher = fetch, target = null) {
@@ -181,11 +186,7 @@ export async function loadTasks(fetcher = fetch, target = null) {
     if (generation !== _loadGeneration || tab !== _tab || search !== _search) return;
     if (completed.some(task => task.id === target.id)) {
       _tab = 'done'; _tasks = completed;
-      document.querySelectorAll('.tasks-tab').forEach(button => {
-        const selected = button.dataset.tab === _tab;
-        button.classList.toggle('active', selected);
-        button.setAttribute('aria-pressed', String(selected));
-      });
+      _syncTabPick();
       renderTasks();
     }
   }
@@ -201,12 +202,7 @@ function _dueBadge(d, time = null, overdue = null) {
   const iso = d.slice(0, 10), today = _todayISO();
   const late = overdue ?? iso < today;
   const cls = late ? 'task-due overdue' : (iso === today ? 'task-due today' : 'task-due');
-  const day = iso === today ? tr('common.today') : (iso === _shift(today, 1) ? tr('tasks.tomorrow') : iso);
-  return `<span class="${cls}">${time ? `${day} ${_clock(time)}` : day}</span>`;
-}
-function _clock(hhmm) {
-  const [h, m] = hhmm.split(':').map(Number);
-  return formatTime(new Date(Date.UTC(2000, 0, 1, h, m)), { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+  return `<span class="${cls}">${whenHtml(iso, { time: time || '' })}</span>`;
 }
 function _shift(iso, n) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 
@@ -227,10 +223,39 @@ function _rowHtml(t, child, progress) {
       </div>
       </div>
       <div class="task-actions">
-      ${!child ? `<button type="button" class="task-addsub" data-id="${t.id}" aria-label="${esc(tr('tasks.add_subtask_named', { task: t.title }))}" title="${esc(tr('tasks.add_subtask'))}">${esc(tr('tasks.sub'))}</button>` : ''}
-      <button type="button" class="task-del" data-id="${t.id}" aria-label="${esc(tr('tasks.delete_named', { task: t.title }))}">×</button>
+      ${_snoozable(t) ? `<button type="button" class="task-snooze" data-id="${t.id}" data-w="tomorrow" aria-label="${esc(tr('tasks.move_named', { task: t.title, day: tr('tasks.reschedule.tomorrow') }))}">${esc(tr('tasks.reschedule.tomorrow'))}</button>` : ''}
+      <button type="button" class="icon-btn task-more" id="task-more-${t.id}" aria-haspopup="menu" aria-expanded="false" aria-controls="task-menu-${t.id}" aria-label="${esc(tr('tasks.more_named', { task: t.title }))}">${_si('more')}</button>
+      <div class="ctx-menu task-menu" id="task-menu-${t.id}" role="menu" aria-labelledby="task-more-${t.id}" hidden>
+        ${t.done ? '' : ['today', 'tomorrow', 'next_week'].map(w => `<button type="button" class="ctx-item" role="menuitem" data-move="${w}" data-id="${t.id}">${esc(tr(`tasks.reschedule.${w}`))}</button>`).join('')}
+        ${!child ? `<button type="button" class="ctx-item task-addsub" role="menuitem" data-id="${t.id}">${esc(tr('tasks.add_subtask'))}</button>` : ''}
+        <button type="button" class="ctx-item danger task-del" role="menuitem" data-id="${t.id}">${esc(tr('common.delete'))}</button>
+      </div>
       </div>
     </div>`;
+}
+
+// a deleted task keeps its place for a few seconds with undo, then the server deletes it (u.10)
+function _goneHtml(t) {
+  return `<div class="task-item task-gone" data-id="${t.id}" role="status">
+      <span></span><span class="task-gone-text">${esc(tr('tasks.deleted_named', { task: t.title }))}</span>
+      <div class="task-actions"><button type="button" class="btn task-undo-del">${esc(tr('common.undo'))}</button></div>
+    </div>`;
+}
+
+const _late = t => !t.done && Boolean(t.due_date) && (t.overdue ?? String(t.due_date).slice(0, 10) < _todayISO());
+const _conflictText = (field, value) => (field === 'due_date' && value ? whenDay(value) : value ?? '');
+const _snoozable = t =>!t.done && Boolean(t.due_date) && String(t.due_date).slice(0, 10) <= _todayISO();
+
+// overdue leads every task view, with one button that brings the whole group to today (u.03)
+function _listHtml(items, row) {
+  const shown = items.map(t => (_gone?.task.id === t.id ? _goneHtml(t) : row(t)));
+  const late = items.map((t, i) => _late(t) && _gone?.task.id !== t.id ? i : -1).filter(i => i >= 0);
+  if (!late.length || _tab === 'done') return shown.join('');
+  const before = late.some(i => String(items[i].due_date).slice(0, 10) < _todayISO());
+  return `<section class="task-group task-group-late" aria-labelledby="task-late-head">
+      <div class="task-group-head"><h3 id="task-late-head">${esc(tr('tasks.overdue_count', { count: late.length }))}</h3>${before ? `<button type="button" class="btn task-move-all">${esc(tr('tasks.move_all_today'))}</button>` : ''}</div>
+      ${late.map(i => shown[i]).join('')}
+    </section>${shown.filter((_, i) => !late.includes(i)).join('')}`;
 }
 
 function _emptyMsg() {
@@ -241,7 +266,7 @@ function _emptyMsg() {
 function renderTasks() {
   const list = document.getElementById('tasks-list');
   if (!list) return;
-  list.innerHTML = _tasks.length ? _tasks.map(t => _rowHtml(t, false)).join('') : _emptyMsg();
+  list.innerHTML = _tasks.length ? _listHtml(_tasks, t => _rowHtml(t, false)) : _emptyMsg();
   _wireRows(list);
 }
 
@@ -249,7 +274,7 @@ function renderTree() {
   const list = document.getElementById('tasks-list');
   if (!list) return;
   list.innerHTML = _tree.length
-    ? _tree.map(t => _rowHtml(t, false, t.progress) + (t.subtasks || []).map(s => _rowHtml(s, true)).join('')).join('')
+    ? _listHtml(_tree, t => _rowHtml(t, false, t.progress) + (t.subtasks || []).map(s => _rowHtml(s, true)).join(''))
     : _emptyMsg();
   _wireRows(list);
 }
@@ -298,27 +323,20 @@ function _wireRows(list) {
           && focusStillOwned(btn)) document.getElementById('task-completion-undo')?.focus();
     }, { failureMessage: tr(t?.done ? 'tasks.reopen_failed' : 'tasks.completion_failed') });
   }));
-  list.querySelectorAll('.task-del').forEach(btn => btn.addEventListener('click', async () => {
-    if (btn.getAttribute('aria-busy') === 'true') return;
-    // deleting can't be undone and takes subtasks with it, and the × sits right by "+ sub" on a
-    // phone, so it asks first, naming what goes
+  list.querySelectorAll('.task-del').forEach(btn => btn.addEventListener('click', () => _deleteLater(btn.dataset.id)));
+  list.querySelectorAll('.task-undo-del').forEach(btn => btn.addEventListener('click', _undoDelete));
+  list.querySelectorAll('.task-more').forEach(btn => wireActionMenu(btn, document.getElementById(btn.getAttribute('aria-controls'))));
+  list.querySelectorAll('.task-snooze, [data-move]').forEach(btn => btn.addEventListener('click', () => {
     const task = _findTask(btn.dataset.id);
-    const subs = task?.subtasks?.length || 0;
-    const question = !task ? tr('tasks.delete_confirm_this')
-      : subs ? trp('tasks.delete_confirm_subtasks', subs, { task: task.title }) : tr('tasks.delete_confirm_named', { task: task.title });
-    if (!await dlgConfirm(question)) { btn.focus(); return; }
-    const rows = [...list.querySelectorAll('.task-del')];
-    const next = rows[rows.indexOf(btn) + 1]?.dataset.id || rows[rows.indexOf(btn) - 1]?.dataset.id;
-    await _mutateTask(btn, async () => {
-      await _requireOk(fetch(`/api/tasks/${btn.dataset.id}`, { method: 'DELETE' }));
-      await loadTasks();
-      // focus stays in the list instead of dropping to the page
-      const target = next && document.querySelector(`.task-check[data-id="${CSS.escape(next)}"]`);
-      (target || document.getElementById('task-add-input'))?.focus();
-    });
+    if (task) _moveTasks([task], btn.dataset.w || btn.dataset.move, document.getElementById(`task-more-${task.id}`) || btn);
+  }));
+  list.querySelectorAll('.task-move-all').forEach(all => all.addEventListener('click', event => {
+    const late = (_tab === 'active' && !_search ? _tree : _tasks).filter(t => _late(t) && String(t.due_date).slice(0, 10) < _todayISO());
+    _moveTasks(late, 'today', event.currentTarget);
   }));
   list.querySelectorAll('.task-addsub').forEach(btn => btn.addEventListener('click', async () => {
     if (btn.getAttribute('aria-busy') === 'true') return;
+    btn = document.getElementById(`task-more-${btn.dataset.id}`) || btn;   // the menu closed: the busy state shows on its button
     setControlState(btn, 'busy', { message: tr('tasks.waiting_for_subtask') });
     const title = await dlgPrompt(tr('tasks.subtask_prompt'));
     if (!title?.trim()) {
@@ -337,6 +355,63 @@ function _wireRows(list) {
   list.querySelectorAll('.task-title').forEach(el => el.addEventListener('click', () => {
     openTaskEditor(el.closest('.task-item').dataset.id, el);
   }));
+}
+
+// moving keeps each task's time (S1's due_time); one request per task, then one refresh
+async function _moveTasks(tasks, w, control) {
+  if (!tasks.length) return;
+  const day = _reschedDate(w);
+  await _mutateTask(control, async () => {
+    for (const task of tasks) {
+      await _requireOk(fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ due_date: day }),
+      }));
+    }
+    await loadTasks();
+    toast(tr('tasks.moved_to', { day: whenDay(day) }), 'success');
+    document.querySelector(`#tasks-list .task-check[data-id="${CSS.escape(tasks[0].id)}"]`)?.focus();
+  });
+}
+
+let _gone = null;   // { task, timer }: deleted, still undoable
+const UNDO_MS = 6000;
+
+function _deleteLater(id) {
+  if (_gone) _deleteNow();
+  const task = _findTask(id);
+  if (!task) return;
+  _gone = { task, timer: setTimeout(_deleteNow, UNDO_MS) };
+  _rerender();
+  document.querySelector('#tasks-list .task-undo-del')?.focus();
+}
+
+async function _deleteNow() {
+  const gone = _gone;
+  if (!gone) return;
+  clearTimeout(gone.timer);
+  _gone = null;
+  const hadFocus = document.activeElement?.classList?.contains('task-undo-del');
+  try {
+    await _requireOk(fetch(`/api/tasks/${gone.task.id}`, { method: 'DELETE' }));
+  } catch {
+    toast(tr('tasks.delete_failed'), 'error');
+  }
+  await refreshAfterStatus();
+  if (hadFocus) document.getElementById('task-add-input')?.focus();
+}
+
+function _undoDelete() {
+  if (!_gone) return;
+  clearTimeout(_gone.timer);
+  const id = _gone.task.id;
+  _gone = null;
+  _rerender();
+  document.querySelector(`#tasks-list .task-check[data-id="${CSS.escape(id)}"]`)?.focus();
+}
+
+function _rerender() {
+  if (_tab === 'active' && !_search) renderTree(); else renderTasks();
 }
 
 function focusStillOwned(button) {
@@ -440,11 +515,7 @@ export async function openTaskRecord(id, isCurrent = () => true) {
     _search = '';
     const search = document.getElementById('tasks-search');
     if (search) search.value = '';
-    document.querySelectorAll('.tasks-tab').forEach(button => {
-      const selected = button.dataset.tab === _tab;
-      button.classList.toggle('active', selected);
-      button.setAttribute('aria-pressed', String(selected));
-    });
+    _syncTabPick();
     await loadTasks(fetch, { view: 'tasks', id });
   }
   if (!isCurrent() || !_findTask(id) || document.querySelector('.task-editor-ov')) return false;
@@ -662,7 +733,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
       if (response.status === 409 && result.detail?.code === 'task_conflict') {
         latestConflict = result.detail.current;
         showRecovery(tr('tasks.conflict_message'));
-        conflictValues.innerHTML = result.detail.fields.map(field => `<div><strong>${esc(tr(({ title: 'tasks.title_label', notes: 'tasks.notes', priority: 'tasks.priority.label', repeat: 'tasks.repeat.label', due_date: 'tasks.due', due_time: 'tasks.due', tags: 'tasks.tags', project: 'tasks.project' })[field]))}</strong><p>${esc(tr('tasks.your_change'))}: ${esc(values[field] ?? '')}</p><p>${esc(tr('tasks.saved_value'))}: ${esc(taskValues(latestConflict)[field] ?? '')}</p></div>`).join('');
+        conflictValues.innerHTML = result.detail.fields.map(field => `<div><strong>${esc(tr(({ title: 'tasks.title_label', notes: 'tasks.notes', priority: 'tasks.priority.label', repeat: 'tasks.repeat.label', due_date: 'tasks.due', due_time: 'tasks.due', tags: 'tasks.tags', project: 'tasks.project' })[field]))}</strong><p>${esc(tr('tasks.your_change'))}: ${esc(_conflictText(field, values[field]))}</p><p>${esc(tr('tasks.saved_value'))}: ${esc(_conflictText(field, taskValues(latestConflict)[field]))}</p></div>`).join('');
         mine.hidden = useSaved.hidden = conflictValues.hidden = false;
       } else if (!response.ok) throw new Error('request failed');
       else if (result.queued) showRecovery(tr('tasks.save_queued'));
@@ -731,11 +802,7 @@ export async function addTask(title, due = '') {
   }
   if (_tab === 'done') {   // jump back to a visible list so the new task shows
     _tab = 'active';
-    document.querySelectorAll('.tasks-tab').forEach(x => {
-      const selected = x.dataset.tab === 'active';
-      x.classList.toggle('active', selected);
-      x.setAttribute('aria-pressed', String(selected));
-    });
+    _syncTabPick();
   }
   if (_search) {   // a stale search filter would hide the new task — clear it like the done-tab case
     _search = '';

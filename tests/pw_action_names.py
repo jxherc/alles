@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 from browser_gate_safety import require_server_ownership
 from PIL import Image
 from playwright.sync_api import expect, sync_playwright
-from pw_finance_helpers import show_money_sections
+from pw_finance_helpers import pick_money_task, show_money_sections
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from services.appearance import from_legacy
@@ -279,13 +279,13 @@ def run():
                     ('.money-card[data-card="goals"] .card-hide', "hide goals card"),
                 ]:
                     if "goal" in selector:
-                        page.locator('[data-money-task="goals"]').click()
+                        pick_money_task(page, "goals")
                     elif "budget" in selector:
-                        page.locator('[data-money-task="budgets"]').click()
+                        pick_money_task(page, "budgets")
                     elif "rec=" in selector:
-                        page.locator('[data-money-task="schedules"]').click()
+                        pick_money_task(page, "schedules")
                     elif "acct=" in selector:
-                        page.locator('[data-money-task="accounts"]').click()
+                        pick_money_task(page, "accounts")
                     named(selector, name)
 
                 page.goto(base + "/?view=skills", wait_until="networkidle")

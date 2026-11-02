@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
-from pw_finance_helpers import show_money_sections
+from pw_finance_helpers import pick_money_task, show_money_sections
 
 from services.appearance import LIGHT_BASE
 
@@ -226,7 +226,7 @@ def run() -> None:
             page.keyboard.press("Enter")
             expect(retry).to_have_count(0)
             expect(card).to_be_hidden()
-            schedules_choice = page.locator('[data-money-task="schedules"]')
+            schedules_choice = page.locator("#money-task-pick")
             expect(schedules_choice).to_be_visible()
             expect(schedules_choice).to_be_focused()
             assert page.evaluate("JSON.parse(localStorage.getItem('money-hidden-cards'))") == [
@@ -244,9 +244,9 @@ def run() -> None:
             expect(card.get_by_role("button", name="pause")).to_be_visible()
             expect(card.locator(".card-hide")).to_be_enabled()
             expect(page.locator('[data-money-section="plans"]')).to_be_enabled()
-            page.locator('[data-money-task="goals"]').click()
+            pick_money_task(page, "goals")
             expect(card).to_be_hidden()
-            page.locator('[data-money-task="schedules"]').click()
+            pick_money_task(page, "schedules")
             assert len(state["requests"]) == 1, state["requests"]
             assert state["retries"] == [f"/api/money/recurring/{request['request_id']}/retry"], (
                 state["retries"]
@@ -258,10 +258,9 @@ def run() -> None:
             retry = card.get_by_role("button", name="retry creation")
             retry.focus()
             retry.press("Enter")
-            goals_choice = page.locator('[data-money-task="goals"]')
-            goals_choice.click()
+            goals_choice = pick_money_task(page, "goals")
             # Model focus moving to non-focusable content after a deliberate task choice.
-            goals_choice.evaluate("button => button.blur()")
+            goals_choice.evaluate("control => control.blur()")
             assert page.evaluate("document.activeElement === document.body")
             assert len(held_retries) == 1
             state["phase"] = "done"
@@ -270,7 +269,7 @@ def run() -> None:
                 status=200, content_type="application/json", body='{"ok":true}'
             )
             expect(retry).to_have_count(0)
-            expect(goals_choice).to_have_attribute("aria-pressed", "true")
+            expect(goals_choice).to_have_attribute("data-value", "goals")
             expect(page.locator("#money-task-goals")).to_be_visible()
             expect(card).to_be_hidden()
             assert page.evaluate("document.activeElement === document.body")
@@ -355,7 +354,7 @@ def run() -> None:
                     body='{"detail":"posting response not confirmed"}',
                 )
                 expect(card.get_by_text("pause not confirmed", exact=False).first).to_be_visible()
-                choice = page.locator('[data-money-task="schedules"]')
+                choice = page.locator("#money-task-pick")
                 expect(choice).to_be_visible()
                 if transition == "newer":
                     expect(page.locator("#rc-add")).to_be_focused()

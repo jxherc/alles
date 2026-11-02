@@ -8,7 +8,7 @@ export async function loadLedger(isCurrent = () => true) {
   if (!host) return;
   host.setAttribute('aria-busy', 'true');
   const [{ renderLedgerSetup }, value] = await Promise.all([
-    import('../specialist_groups.js?v=17'),
+    import('../specialist_groups.js?v=18'),
     fetch('/api/finance/actual').then(r => (r.ok ? r.json() : null)).catch(() => null),
   ]);
   if (!isCurrent() || !host.isConnected) return;
@@ -17,7 +17,8 @@ export async function loadLedger(isCurrent = () => true) {
     host.replaceChildren(Object.assign(document.createElement('p'), { className: 's-card-hint', textContent: t('finance.actual_status_unavailable', { error: t('finance.err_actual') }) }));
     return;
   }
-  const panel = renderLedgerSetup(value, fetch);
+  // a switch or a check redraws this card, not the finance overview behind settings
+  const panel = renderLedgerSetup(value, fetch, { onChanged: () => loadLedger(isCurrent) });
   // here the setup is the page: always open, and the card's own title names it
   panel.querySelector('.finance-actual-toggle')?.remove();
   panel.querySelector('.finance-actual-head h2')?.remove();

@@ -5,6 +5,8 @@ import vm from 'node:vm';
 
 const i18n = readFileSync(new URL('../../static/js/i18n.js', import.meta.url), 'utf8')
   .replace(/^export /gm, '');
+const when = readFileSync(new URL('../../static/js/when.js', import.meta.url), 'utf8')
+  .replace(/^import .*;$/gm, '').replace(/^export /gm, '');
 const tasks = readFileSync(new URL('../../static/js/tasks.js', import.meta.url), 'utf8')
   .replace(/^import .*;$/gm, '').replace(/^export /gm, '');
 
@@ -19,6 +21,7 @@ function harness(instant, zone) {
   vm.runInContext(i18n, context);
   context.configureLocalization({ language: 'en', timezone: zone });
   context.tr = context.t;
+  vm.runInContext(when, context);
   vm.runInContext(tasks + `
     loadTasks = async () => {};
     globalThis.subject = { today: _todayISO, badge: _dueBadge, shift: _shift,
@@ -41,11 +44,14 @@ for (const [zone, instant, day, tomorrow, saturday] of [
   test(`task urgency and rescheduling share the configured calendar: ${zone} at ${instant}`, () => {
     const h = harness(instant, zone);
     assert.equal(h.today(), day);
-    assert.equal(h.badge(day), '<span class="task-due today">today</span>');
-    assert.equal(h.badge(tomorrow), '<span class="task-due">tomorrow</span>');
+    // the badge reads the way every date reads (when.js), with the full date in its title
+    const read = html => html.replace(/<time datetime="(\d{4}-\d{2}-\d{2})" data-when title="[^"]+">([^<]+)<\/time>/, '$1|$2');
+    assert.equal(read(h.badge(day)), `<span class="task-due today">${day}|today</span>`);
+    assert.equal(read(h.badge(tomorrow)), `<span class="task-due">${tomorrow}|tomorrow</span>`);
     const yesterday = h.shift(day, -1);
-    assert.equal(h.badge(yesterday), `<span class="task-due overdue">${yesterday}</span>`);
-    assert.equal(h.badge('2030-01-02'), '<span class="task-due">2030-01-02</span>');
+    assert.equal(read(h.badge(yesterday)), `<span class="task-due overdue">${yesterday}|yesterday</span>`);
+    assert.equal(read(h.badge('2030-01-02')), '<span class="task-due">2030-01-02|jan 2, 2030</span>');
+    assert.equal(read(h.badge(tomorrow, '09:00')), `<span class="task-due">${tomorrow}|tomorrow 9:00 am</span>`);
     assert.equal(h.badge(null), '');
     assert.equal(h.reschedule('today'), day);
     assert.equal(h.reschedule('tomorrow'), tomorrow);

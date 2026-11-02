@@ -50,12 +50,13 @@ test('reminder identities retain secure randomness when randomUUID is unavailabl
   } finally { Object.defineProperty(globalThis, 'crypto', original); }
 });
 
-test('a reminder time reads like plan and home: one date-time style, not a relative count', () => {
+test('a reminder time reads the way every date reads (when.js): the day in words, then the time', () => {
   zone('America/Toronto');
   const now = Date.parse('2026-10-23T12:00:00Z');
   // stored utc without its z, an hour away and a day away read the same way
-  assert.match(reminderTimeLabel('2026-10-23T13:00:00', now), /^Oct 23, 2026, 9:00\s?a\.?m\.?$/i);
-  assert.match(reminderTimeLabel('2026-10-24T13:00:00Z', now), /^Oct 24, 2026, 9:00\s?a\.?m\.?$/i);
+  assert.match(reminderTimeLabel('2026-10-23T13:00:00', now), /^today 9:00\s?a\.?m\.?$/);
+  assert.match(reminderTimeLabel('2026-10-24T13:00:00Z', now), /^tomorrow 9:00\s?a\.?m\.?$/);
+  assert.match(reminderTimeLabel('2026-11-12T14:00:00Z', now), /^nov 12 9:00\s?a\.?m\.?$/);
   assert.equal(reminderTimeLabel('2026-10-23T11:00:00', now), 'due now');
   assert.equal(reminderTimeLabel('', now), '');
 });
@@ -64,9 +65,9 @@ test('the reminders list and home share one short time style', () => {
   configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '12' });
   try {
     const now = Date.parse('2026-10-23T12:00:00Z');
-    assert.ok(reminderTimeLabel('2026-10-24T23:30:00Z', now).endsWith(formatClock('19:30')));
+    assert.ok(reminderTimeLabel('2026-10-24T23:30:00Z', now).endsWith(formatClock('19:30').toLowerCase()));
     configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto', clock_format: '24' });
-    assert.ok(reminderTimeLabel('2026-10-24T23:30:00Z', now).endsWith(formatClock('19:30')));
+    assert.ok(reminderTimeLabel('2026-10-24T23:30:00Z', now).endsWith(formatClock('19:30').toLowerCase()));
   } finally {
     configureLocalization({});
   }
