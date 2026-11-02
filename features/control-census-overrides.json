@@ -16,6 +16,7 @@
     "static/js/andromeda_answers.js": "andromeda.cited-search",
     "static/js/app.js": "cross-feature.shared-shell",
     "static/js/app_rail.js": "cross-feature.shared-shell",
+    "static/js/act_row.js": "cross-feature.shared-shell",
     "static/js/appsettings.js": "cross-feature.settings",
     "static/js/books.js": "library.reading-and-news",
     "static/js/brain.js": "aide.conversation-and-execution",
