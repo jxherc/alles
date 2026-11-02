@@ -212,7 +212,9 @@ def run():
                     )
                     page.wait_for_function("innerWidth===720 && devicePixelRatio===2")
                     row["native_zoom"] = dict(factor=2, css_width=720, dpr=2)
-                expect(plan.item()).to_have_attribute("title", "review this reply as a plan task")
+                # 27.35: no native tooltip; the (closed) menu item is named by its own text
+                expect(plan.item()).to_have_text("+plan task")
+                assert plan.item().get_attribute("title") is None
                 # help sits with the conversation settings, which open from the "more" menu
                 page.locator("#aide-more-btn").press("Enter")
                 page.locator('#aide-more-menu [data-aide-central-action="options"]').press("Enter")

@@ -67,6 +67,12 @@ def run():
                     }
                 )
 
+            def choose_filter(name):
+                control = page.locator("#read-filter")
+                control.click()
+                page.get_by_role("option", name=name, exact=True).click()
+                expect(control).to_be_focused()
+
             try:
                 page.goto(base + "/?view=library", wait_until="networkidle")
                 page.get_by_role("tab", name="saved", exact=True).click()
@@ -177,10 +183,12 @@ def run():
                 record("keyboard-reduced-motion-bounds-console")
                 page.locator("#read-back").click()
                 card.locator('[data-act="fav"]').click()
-                expect(card.locator('[data-act="fav"]')).to_have_attribute("title", "unstar")
+                expect(card.locator('[data-act="fav"]')).to_have_attribute("aria-label", "unstar")
                 assert api.get(url).json()["fav"]
                 card.locator('[data-act="read"]').click()
-                expect(card.locator('[data-act="read"]')).to_have_attribute("title", "mark unread")
+                expect(card.locator('[data-act="read"]')).to_have_attribute(
+                    "aria-label", "mark unread"
+                )
                 assert api.get(url).json()["read"]
                 record("card-star-and-explicit-read-confirm-persisted-state")
                 page.route(url, lose_reply)
@@ -193,12 +201,15 @@ def run():
                 page.unroute(url)
                 card.locator('[data-act="archive"]').click()
                 expect(card).to_have_count(0)
-                page.get_by_role("radio", name="archive", exact=True).click()
+                # the four filters are one dropdown (choice rule: 4 or more use the dropdown)
+                choose_filter("archive")
+                expect(page.locator("#read-filter")).to_have_attribute("data-value", "archived")
                 expect(card).to_be_visible()
                 card.locator('[data-act="archive"]').click()
                 expect(card).to_have_count(0)
                 assert not api.get(url).json()["archived"]
-                page.get_by_role("radio", name="all", exact=True).click()
+                choose_filter("all")
+                expect(page.locator("#read-filter")).to_have_attribute("data-value", "all")
                 expect(card).to_be_visible()
                 record("lost-archive-reply-retry-and-unarchive")
 

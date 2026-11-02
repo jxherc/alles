@@ -121,14 +121,15 @@ def run():
                         )
                         page.wait_for_function("innerWidth === 720 && devicePixelRatio === 2")
                     groups = {
-                        "plan": ("plan-view", 7),
+                        "plan": ("plan-view", 3),
                         "inbox": ("inbox-view", 3),
                         "library": ("library-view", 3),
                         "health": ("health-group-view", 3),
                         "finance": ("finance-view", 4),
                         "docs": ("docs-workbench-view", 2),
                         "files": ("files-workbench-view", 2),
-                        "vault": ("vault-workbench-view", 1),
+                        # one section needs no views strip (3b6d519a)
+                        "vault": ("vault-workbench-view", 0),
                         "server": ("server-workbench-view", 9),
                     }
                     checked = []
@@ -137,6 +138,12 @@ def run():
                         root = page.locator("#" + root_id)
                         expect(root).to_be_visible()
                         strip = root.locator(".specialist-view-strip")
+                        if not count:
+                            expect(root.locator('[role="tablist"], [role="tab"]')).to_have_count(0)
+                            expect(strip).to_have_count(0)
+                            assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
+                            checked.append(group)
+                            continue
                         tabs = strip.locator('[role="tab"]')
                         expect(tabs).to_have_count(count)
                         more = strip.get_by_role("button", name="more views", exact=True)
