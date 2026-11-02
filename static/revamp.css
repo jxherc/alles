@@ -2375,6 +2375,8 @@ html:not(#_):not(#_) .k-field {
    from the start, and the label stops a control gap before it. a field joined to the one before
    it by a 1px left edge moves the chevron in by that pixel (--k-chevron-end) */
 html:not(#_):not(#_):not(#_) .custom-select[role="combobox"] {
+  /* the chevron below is placed from this box, not from whatever positioned box is further up */
+  position: relative;
   padding-inline: var(--k-space-3) calc(var(--k-chevron-end, var(--k-space-3)) + 13px + var(--k-control-gap));
 }
 

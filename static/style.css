@@ -2180,7 +2180,8 @@ body.is-aide.is-incognito .incognito-bar {
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.custom-select.settings-input {
+/* every dropdown trigger, with or without the field class: one row, label and chevron centered */
+.custom-select:is(.settings-input, [role="combobox"]) {
   cursor: pointer;
   min-width: 0;
   min-height: 44px;
