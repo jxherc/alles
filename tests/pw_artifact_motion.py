@@ -191,9 +191,10 @@ def run():
                             observation["home_duration"] = panel.evaluate(
                                 "e=>getComputedStyle(e).transitionDuration"
                             )
-                            assert observation["home_duration"] == (
-                                "0s" if motion == "reduce" else "0.2s"
-                            )
+                            # motion moves without layout (decision 0047): the panel's width
+                            # snaps open under either preference, nothing animates it
+                            assert observation["home_duration"] == "0s"
+                            assert panel.evaluate("e=>e.getAnimations().length") == 0
                             capture(motion + "-home")
                             close.press("Enter")
                             if motion == "reduce":
@@ -217,6 +218,11 @@ def run():
                             ).click()
                             page.wait_for_function(
                                 "id => window._currentSession?.id === id", arg=session["id"]
+                            )
+                            # opening a session may close the archive sidebar by itself;
+                            # read it once its slide has settled, then close what's left
+                            page.wait_for_function(
+                                "!document.getElementById('aide-sidebar').getAnimations().some(a => a.playState === 'running')"
                             )
                             if page.locator("#aide-sidebar").is_visible():
                                 page.locator("#aide-sidebar-close").click()
