@@ -37,6 +37,8 @@ SUITES = BROWSER_SUITES
 # gates that outgrew the default budget: settings-panes walks 80 settings scenarios and takes
 # about 340s, so 180s killed it mid-run every time. plan-agenda-navigation runs 16 profiles
 # (about 210s) and aide-context-help 64 (about 140s, longer under load)
+# health-import-recovery takes about 205s alone; aide-task-capture and aide-multi-source ran
+# past 180s alone and in the suite and passed with 540s
 GATE_TIMEOUTS = {
     "kit-rules": 1800,
     "settings-panes": 600,
@@ -44,6 +46,9 @@ GATE_TIMEOUTS = {
     "aide-context-help": 600,
     "delete-controls": 600,
     "money-row-menus": 600,
+    "health-import-recovery": 600,
+    "aide-task-capture": 600,
+    "aide-multi-source": 600,
 }
 COMMANDS = {
     "style-ownership": ("tests/pw_style_ownership.py",),
