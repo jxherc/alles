@@ -131,7 +131,7 @@ test('canonical recurring creation sends an exact category id and reuses its req
       setItem: (key, value) => storage.set(key, value),
       removeItem: key => storage.delete(key),
     },
-    document: { getElementById: element, querySelectorAll: () => [] },
+    document: { getElementById: element, querySelector: () => null, querySelectorAll: () => [] },
     getDropdownValue: el => el?.dataset.value || '',
     toast: () => {},
     api: async (path, options) => {
@@ -314,6 +314,74 @@ test('recurring edit stays scoped to one eligible linked schedule', () => {
   assert.match(pending, /data-retry-edit-rec="linked"/);
 });
 
+test('goal, holding, cap, rule, account and schedule rows keep delete in their more menu, and wait for undo', () => {
+  const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+  const context = vm.createContext({ ...undoGlobals, whenDay, whenFull, whenHtml,
+    t, tp,
+    calendarDateKey,
+    document: { activeElement: null, getElementById: () => null },
+    location: { search: '' }, URLSearchParams,
+    formatNumber: value => String(value),
+    assignHues: () => new Map(), categoryHue: () => 1, bareSign: () => '',
+  });
+  vm.runInContext(source + `
+    _goals = [{ id: 'g1', name: 'laptop', kind: 'savings', current: 1, target: 2, progress: 0.5, eta_months: 3 }];
+    _holdings = { holdings: [{ id: 'h1', symbol: 'VFV', qty: 1, price: 2, value: 2, gain: 1, gain_pct: 5 }], totals: {} };
+    _budgets = [{ id: 'b1', category: 'groceries', limit_amt: 100 }];
+    _rules = [{ id: 'r1', match: 'tims', category: 'coffee' }];
+    _accounts = [{ id: 'a1', name: 'chequing', kind: 'checking', balance: 5, currency: 'CAD' }];
+    _recurring = [{ id: 'c1', payee: 'spotify', amount: -5, cycle: 'monthly', next_date: '2026-11-09', active: true }];
+    globalThis.rows = { goal: goalRows, hold: holdingRows, budget: budgetRows, rule: ruleRows, acct: accountRows, rec: recurringList };
+    globalThis.gone = id => _rowDeletes.goal.undo.later(id);
+    globalThis.deletes = _rowDeletes;
+  `, context);
+  const attrs = { goal: 'data-del-goal="g1"', hold: 'data-del-hold="h1"', budget: 'data-del-budget="b1"', rule: 'data-del-rule="r1"', acct: 'data-del-acct="a1"', rec: 'data-del-rec="c1"' };
+  for (const [kind, attr] of Object.entries(attrs)) {
+    const html = context.rows[kind]();
+    // delete is a menu item, never a visible x beside the row
+    assert.match(html, new RegExp(`role="menuitem"[^>]*${attr}|${attr}[^>]*role="menuitem"`), kind);
+    assert.match(html, /class="icon-btn row-more"/, kind);
+    assert.doesNotMatch(html, />×</, kind);
+    // while its delete waits, the row is "deleted, undo" and the menu is gone
+    context.deletes[kind].undo.is = () => true;
+    const waiting = context.rows[kind]();
+    assert.match(waiting, /class="[^"]*money-row-gone"/, kind);
+    assert.match(waiting, /data-undo-del="/, kind);
+    assert.doesNotMatch(waiting, /row-more/, kind);
+  }
+});
+
+test('a ledger row keeps its actions inline, and moves them into its more menu on a 320px phone', () => {
+  const source = moneySource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+  const render = narrow => {
+    const context = vm.createContext({ ...undoGlobals, whenDay, whenFull, whenHtml,
+      t, tp,
+      calendarDateKey,
+      document: { activeElement: null, getElementById: () => null },
+      location: { search: '' }, URLSearchParams,
+      formatNumber: value => String(value),
+      assignHues: () => new Map(), categoryHue: () => 1, bareSign: () => '',
+      matchMedia: query => ({ matches: narrow && query === '(max-width: 360px)' }),
+    });
+    vm.runInContext(source + `
+      _accounts = [{ id: 'a1', name: 'chequing', currency: 'CAD' }];
+      globalThis.row = txn => _renderTxnMain(txn, { a1: 'chequing' });
+    `, context);
+    return context.row({ id: 'x1', account_id: 'a1', date: '2026-11-01', amount: -9, payee: 'spotify', category: 'subs', cleared: true });
+  };
+  const wide = render(false);
+  assert.match(wide, /class="tx-actions"/);
+  assert.match(wide, /class="tx-edit" data-edit-txn="x1"/);
+  const small = render(true);
+  assert.doesNotMatch(small, /tx-actions/);
+  // edit, cleared (with its state), split and the receipt come first in the menu, delete last
+  const menu = small.slice(small.indexOf('role="menu"'));
+  const order = ['data-edit-txn="x1"', 'data-clear-txn="x1"', 'data-split-txn="x1"', 'data-receipt-txn="x1"', 'data-del-txn="x1"'].map(item => menu.indexOf(item));
+  assert.ok(order.every(at => at > 0) && order.every((at, i) => i === 0 || at > order[i - 1]), String(order));
+  assert.match(menu, /data-clear-txn="x1" aria-label="cleared: [^"]*, on"/);
+  assert.equal((small.match(/role="menuitem"/g) || []).length, 5);
+});
+
 test('finance dialogs, rows, and destructive actions expose complete interaction boundaries', () => {
   assert.match(moneySource, /createFocusBoundary\(dialog/);
   assert.match(moneySource, /bankRequest as _ownerFetch/);
@@ -323,12 +391,13 @@ test('finance dialogs, rows, and destructive actions expose complete interaction
   assert.doesNotMatch(moneySource, /<span class="tx-tag" data-tag=/);
   // a transaction or transfer is deleted from its row's more menu and waits for undo (u.10)
   assert.match(moneySource, /const _txnUndo = createUndoDelete\(/);
-  assert.match(moneySource, /moreMenuHtml\('txn', txn\.id, labelText, deleteItemHtml\(`data-del-txn=/);
+  assert.match(moneySource, /moreMenuHtml\('txn', txn\.id, labelText, smallItems \+ deleteItemHtml\(`data-del-txn=/);
+  // goals, holdings, caps, rules, accounts and schedules do the same, one waiting delete per kind
+  for (const kind of ['goal', 'hold', 'acct', 'budget', 'rule', 'rec']) assert.match(moneySource, new RegExp(`${kind}: _rowDelete\\(`));
+  // an account takes its transactions with it, so it still asks; a ledger-backed schedule asks too
   for (const [key, consequence] of [
-    ['money.delete_goal_confirm', 'delete this goal'],
-    ['money.delete_holding_confirm', 'delete this holding'],
-    ['money.remove_cap_confirm', 'remove this spending cap'],
-    ['money.delete_rule_confirm', 'delete this categorization rule'],
+    ['money.delete_account_confirm', 'delete this account and all its transactions'],
+    ['money.delete_schedule_confirm', 'future posts stop'],
   ]) {
     assert.ok(moneySource.includes(`'${key}'`), key);
     assert.match(t(key), new RegExp(consequence));

@@ -330,9 +330,15 @@ def run() -> None:
             state["phase"] = "ready"
             page.reload(wait_until="networkidle")
             show_money_sections(page, task="schedules")
-            delete = linked.get_by_role("button", name="delete landlord schedule")
+            # delete sits in the schedule's more menu (u.10); a schedule the ledger doesn't let
+            # us delete has no menu
+            more = linked.get_by_role("button", name="more for landlord")
+            expect(more).to_be_visible()
+            expect(native.get_by_role("button", name="more for native")).to_have_count(0)
+            expect(native.get_by_role("menuitem", name="delete native schedule")).to_have_count(0)
+            more.click()
+            delete = linked.get_by_role("menuitem", name="delete landlord schedule")
             expect(delete).to_be_visible()
-            expect(native.get_by_role("button", name="delete native schedule")).to_have_count(0)
             assert delete.evaluate("element => element.getBoundingClientRect().height") >= 44
             page.screenshot(
                 path=str(output / f"recurring-delete-{profile}-ready.png"), full_page=True
@@ -350,13 +356,14 @@ def run() -> None:
             page.keyboard.press("Escape")
             expect(dialog).to_have_count(0)
             assert state["deletes"] == []
+            more.click()
             delete.click()
             state["lose_delete_next"] = True
             dialog.get_by_role("button", name="confirm").click()
             retry_delete = linked.get_by_role("button", name="retry deletion")
             expect(retry_delete).to_be_visible()
             assert state["deletes"] == [{"confirm_id": "linked-rent"}]
-            expect(linked.get_by_role("button", name="delete landlord schedule")).to_have_count(0)
+            expect(linked.get_by_role("menuitem", name="delete landlord schedule")).to_have_count(0)
             page.screenshot(
                 path=str(output / f"recurring-delete-{profile}-pending.png"), full_page=True
             )

@@ -493,6 +493,20 @@ with sync_playwright() as pw:
             target_id = transaction["id"]
             edit_action = page.locator(f'[data-edit-txn="{target_id}"]')
             edit = page.locator(f'.txn-edit[data-id="{target_id}"]')
+            # on a 320px phone a row's edit lives in its more menu: it opens the menu first, and
+            # focus comes back to the more button when the edit closes
+            small_phone = width <= 360
+            focus_target = (
+                page.locator(f'.txn[data-id="{target_id}"] .row-more')
+                if small_phone
+                else edit_action
+            )
+
+            def start_edit():
+                if small_phone:
+                    focus_target.press("Enter")
+                    expect(edit_action).to_be_visible()
+                edit_action.press("Enter")
 
             def check_new_draft():
                 assert page.evaluate(
@@ -513,7 +527,7 @@ with sync_playwright() as pw:
                 return next(item for item in response.json() if item["id"] == target_id)
 
             original = stored_target()
-            edit_action.press("Enter")
+            start_edit()
             expect(
                 edit.get_by_role("heading", name="edit " + original["payee"], exact=True)
             ).to_be_visible()
@@ -526,7 +540,7 @@ with sync_playwright() as pw:
             shot("transaction-edit")
             edit.locator("[data-cancel-txn]").press("Enter")
             expect(edit).to_have_count(0)
-            expect(edit_action).to_be_focused()
+            expect(focus_target).to_be_focused()
             expect(entry).to_be_visible()
             check_new_draft()
             assert stored_target() == original
@@ -547,7 +561,7 @@ with sync_playwright() as pw:
                     route.continue_()
 
             page.route(edit_pattern, edit_response)
-            edit_action.press("Enter")
+            start_edit()
             edited_payee = "saved edit 草稿 " + label
             edit.locator('[data-f="payee"]').fill(edited_payee)
             edit.locator("[data-save-txn]").press("Enter")
@@ -561,7 +575,7 @@ with sync_playwright() as pw:
             edit_mode = "normal"
             edit.locator("[data-save-txn]").press("Enter")
             expect(edit).to_have_count(0)
-            expect(edit_action).to_be_focused()
+            expect(focus_target).to_be_focused()
             expect(entry).to_be_visible()
             check_new_draft()
             changed = stored_target()
@@ -569,7 +583,7 @@ with sync_playwright() as pw:
             for field in ("id", "account_id", "amount", "date", "category", "tags"):
                 assert changed[field] == original[field]
             shot("transaction-edit-saved")
-            edit_action.press("Enter")
+            start_edit()
             final_payee = edited_payee + " final"
             edit.locator('[data-f="payee"]').fill(final_payee)
             edit_mode = "hold"
@@ -622,7 +636,7 @@ with sync_playwright() as pw:
                     else:
                         page.locator("#txn-search").fill("")
 
-                edit_action.press("Enter")
+                start_edit()
                 edit.locator('[data-f="payee"]').fill(wanted)
                 page.evaluate("window.ownedInlineEdit = document.querySelector('.txn-edit')")
                 leave_edit_list()
@@ -640,8 +654,8 @@ with sync_playwright() as pw:
                 assert len(edit_requests) == prior_writes
                 assert stored_target() == before_navigation
                 return_edit_list()
-                expect(edit_action).to_be_visible()
-                edit_action.press("Enter")
+                expect(focus_target).to_be_visible()
+                start_edit()
                 edit.locator('[data-f="payee"]').fill(wanted)
                 page.evaluate("window.ownedInlineEdit = document.querySelector('.txn-edit')")
                 leave_edit_list()
@@ -691,11 +705,11 @@ with sync_playwright() as pw:
                     assert changed[field] == before_navigation[field]
                 shot("transaction-edit-" + navigation + "-saved")
                 return_edit_list()
-                expect(edit_action).to_be_visible()
+                expect(focus_target).to_be_visible()
                 final_payee = wanted
             page.unroute(edit_pattern, edit_response)
             page.reload(wait_until="networkidle")
-            expect(edit_action).to_be_visible()
+            expect(focus_target).to_be_visible()
             assert stored_target()["payee"] == final_payee
             shot("transaction-edit-reload")
             assert page.evaluate("document.documentElement.scrollWidth<=innerWidth+1")
