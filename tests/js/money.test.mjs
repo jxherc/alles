@@ -323,7 +323,7 @@ test('finance dialogs, rows, and destructive actions expose complete interaction
   assert.doesNotMatch(moneySource, /<span class="tx-tag" data-tag=/);
   // a transaction or transfer is deleted from its row's more menu and waits for undo (u.10)
   assert.match(moneySource, /const _txnUndo = createUndoDelete\(/);
-  assert.match(moneySource, /moreMenuHtml\('txn', txn\.id, label, deleteItemHtml\(`data-del-txn=/);
+  assert.match(moneySource, /moreMenuHtml\('txn', txn\.id, labelText, deleteItemHtml\(`data-del-txn=/);
   for (const [key, consequence] of [
     ['money.delete_goal_confirm', 'delete this goal'],
     ['money.delete_holding_confirm', 'delete this holding'],

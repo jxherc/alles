@@ -1531,7 +1531,8 @@ function _renderTxnMain(txn, an) {
     .map(tg => `<button type="button" class="tx-tag" data-tag="${esc(tg)}" aria-label="${t('money.filter_by', { name: esc(tg) })}">${esc(tg)}</button>`).join('');
   const canSplit = (txn.amount || 0) < 0;  // only an expense divides across categories (matches the api)
   const currency = transactionCurrency(txn);
-  const label = esc(t('money.txn_label', { payee: txn.payee || t('money.kind_transaction'), date: txn.date || t('money.undated'), amount: signed(txn.amount, currency), account: an[txn.account_id] || t('money.kind_account') }));
+  const labelText = t('money.txn_label', { payee: txn.payee || t('money.kind_transaction'), date: txn.date || t('money.undated'), amount: signed(txn.amount, currency), account: an[txn.account_id] || t('money.kind_account') });
+  const label = esc(labelText);
   const actions = xf ? '' : `<span class="tx-actions">
     <button type="button" class="tx-edit" data-edit-txn="${txn.id}" aria-label="${t('money.edit_named', { label })}">${t('common.edit')}</button>
     <button class="tx-clear ${txn.cleared ? 'on' : ''}" data-clear-txn="${txn.id}" aria-label="${t('money.cleared_named', { label })}" aria-pressed="${!!txn.cleared}"><span aria-hidden="true">${_si(txn.cleared ? 'check-circle' : 'circle')}</span> ${t('money.cleared')}</button>
@@ -1550,8 +1551,8 @@ function _renderTxnMain(txn, an) {
       <span class="tx-amt ${txn.amount >= 0 ? 'pos' : 'neg'}">${signed(txn.amount, currency)}</span>
       ${actions}
       ${xf
-        ? moreMenuHtml('txn', txn.id, label, deleteItemHtml(`data-del-transfer="${txn.transfer_id}" aria-label="${t('money.delete_transfer_named', { label })}"`, t('money.delete_transfer')), 'tx-more')
-        : moreMenuHtml('txn', txn.id, label, deleteItemHtml(`data-del-txn="${txn.id}" aria-label="${t('money.delete_named', { label })}"`), 'tx-more')}
+        ? moreMenuHtml('txn', txn.id, labelText, deleteItemHtml(`data-del-transfer="${txn.transfer_id}" aria-label="${t('money.delete_transfer_named', { label })}"`, t('money.delete_transfer')), 'tx-more')
+        : moreMenuHtml('txn', txn.id, labelText, deleteItemHtml(`data-del-txn="${txn.id}" aria-label="${t('money.delete_named', { label })}"`), 'tx-more')}
     </div>`;
 }
 

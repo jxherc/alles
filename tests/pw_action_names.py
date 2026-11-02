@@ -241,22 +241,32 @@ def run():
                 )
                 response = context.request.get(base + link.get_attribute("href"))
                 assert response.ok and response.body() == receipt_bytes
-                delete = named(f'[data-del-txn="{txn["id"]}"]', "delete " + item)
+                # delete is in the row's more menu and waits for undo (u.10)
+                more = named(f'.txn[data-id="{txn["id"]}"] .row-more', "more for " + item)
+                activate(more)
+                delete = named(f'[data-del-txn="{txn["id"]}"]', "delete " + item, "menuitem")
                 activate(delete)
-                page.get_by_role("alertdialog").get_by_role(
-                    "button", name="cancel", exact=True
-                ).click()
-                expect(delete).to_be_focused()
+                undo = page.locator(f'[data-undo-del="{txn["id"]}"]')
+                expect(undo).to_be_focused()
+                activate(undo)
+                expect(more).to_be_focused()
                 expect(row).to_be_visible()
                 for direction, sign, account_label in [
                     ("from", "−", account_name),
                     ("to", "+", savings["name"]),
                 ]:
                     leg = transfer[direction]
+                    leg_label = f"{leg['payee']}, {day}, {sign}CAD\u00a03.00, {account_label}"
+                    leg_more = named(
+                        f'.txn[data-id="{leg["id"]}"] .row-more', "more for " + leg_label
+                    )
+                    activate(leg_more)
                     named(
                         f'.txn[data-id="{leg["id"]}"] [data-del-transfer]',
-                        f"delete transfer (both legs): {leg['payee']}, {day}, {sign}CAD\u00a03.00, {account_label}",
+                        f"delete transfer (both legs): {leg_label}",
+                        "menuitem",
                     )
+                    page.keyboard.press("Escape")
 
                 show_money_sections(page)
                 for selector, name in [

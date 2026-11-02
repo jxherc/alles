@@ -205,7 +205,7 @@ def run():
                     for(let i=0;i<n.length;i++) {
                         const range=document.createRange(); range.setStart(n,i); range.setEnd(n,i+1);
                         const r=range.getBoundingClientRect();
-                        if(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('.book-del')) hit.push(i);
+                        if(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('.book-more')) hit.push(i);
                     }
                     return hit;
                 }""")
@@ -213,7 +213,7 @@ def run():
                 for control in (
                     card.locator(".book-notes"),
                     page.locator(".books-goal"),
-                    card.locator(".book-del"),
+                    card.locator(".row-more"),
                 ):
                     box = control.bounding_box()
                     assert box and box["height"] >= 44 and box["width"] >= 44, box

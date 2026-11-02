@@ -116,7 +116,8 @@ with sync_playwright() as pw:
                         return {
                             title: [title.clientWidth,title.scrollWidth,title.clientHeight,title.scrollHeight],
                             purpose: [desc.clientWidth,desc.scrollWidth,desc.clientHeight,desc.scrollHeight],
-                            targets: [...card.querySelectorAll('button')].map(button => {
+                            // the closed more menu's items are not on screen, so not targets yet
+                            targets: [...card.querySelectorAll('button')].filter(button => button.getClientRects().length).map(button => {
                                 const r=button.getBoundingClientRect();
                                 return {name:button.getAttribute('aria-label'),width:r.width,height:r.height};
                             }),
@@ -265,15 +266,19 @@ with sync_playwright() as pw:
                 expect(page.locator("#skl-d-desc")).to_have_value(purpose)
                 page.keyboard.press("Escape")
                 expect(own).to_be_focused()
-                delete = own_card.get_by_role("button", name="delete skill " + name, exact=True)
-                delete.press("Enter")
-                page.get_by_role("alertdialog").get_by_role(
-                    "button", name="cancel", exact=True
-                ).press("Enter")
-                expect(delete).to_be_focused()
+                # delete is in the card's more menu and waits for undo; undo sends no write (u.10)
+                more = own_card.get_by_role("button", name="more for " + name, exact=True)
+                more.press("Enter")
+                own_card.get_by_role("menuitem", name="delete skill " + name, exact=True).press(
+                    "Enter"
+                )
+                undo = page.locator(f'[data-undo-del="{slug}"]')
+                expect(undo).to_be_focused()
+                undo.press("Enter")
+                expect(more).to_be_focused()
                 assert context.request.get(edit_endpoint).json()["body"] == saved_body
                 row["edit_recovery"] = (
-                    "read full title and purpose, exact fields, local refusal retains draft/focus, retry same record, reload, delete cancel without write/source focus"
+                    "read full title and purpose, exact fields, local refusal retains draft/focus, retry same record, reload, delete then undo without write/source focus"
                 )
                 shot("saved-choice")
                 all_skills.press("Enter")
