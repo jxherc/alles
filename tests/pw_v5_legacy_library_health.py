@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
-from playwright.sync_api import Browser, Page, sync_playwright
+from playwright.sync_api import Browser, Page, expect, sync_playwright
 
 PORT = os.environ.get("PORT", "8148")
 BASE = f"http://127.0.0.1:{PORT}"
@@ -134,9 +134,11 @@ def _books(page: Page) -> None:
         card.locator("[data-act='save-notes']").click()
     assert update.value.ok, update.value.text()
     card.get_by_text("edited through the real application", exact=True).wait_for()
+    # delete sits behind the card's more menu and waits six seconds with undo (u.10)
+    card.locator(".row-more").click()
     card.locator("[data-act='del']").click()
-    page.locator(".dialog-overlay [data-dialog-confirm]").click()
-    card.wait_for(state="detached")
+    expect(card.locator("[data-undo-del]")).to_be_visible()
+    card.wait_for(state="detached", timeout=15000)
 
 
 def _read(page: Page) -> None:
@@ -200,9 +202,10 @@ def _health(page: Page) -> None:
     page.locator("#health-create").click()
     row = page.locator('.health-row:has-text("71.4 kg")')
     row.wait_for()
+    row.locator(".row-more").click()
     row.locator("[data-act='del']").click()
-    page.locator(".dialog-overlay [data-dialog-confirm]").click()
-    row.wait_for(state="detached")
+    expect(page.locator("[data-undo-del]")).to_be_visible()
+    row.wait_for(state="detached", timeout=15000)
 
 
 def _degraded_loads(page: Page) -> None:

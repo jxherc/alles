@@ -10,6 +10,15 @@ from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
 
+def pick_filter(page, label, value):
+    # the four filters are one dropdown (choice rule: 4 or more use the dropdown)
+    box = page.locator("#read-filter")
+    box.click()
+    page.get_by_role("option", name=label, exact=True).click()
+    expect(box).to_be_focused()
+    expect(box).to_have_attribute("data-value", value)
+
+
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
     require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -200,12 +209,12 @@ def run():
                 page.unroute(url)
                 card.locator('[data-act="archive"]').click()
                 expect(card).to_have_count(0)
-                page.get_by_role("radio", name="archive", exact=True).click()
+                pick_filter(page, "archive", "archived")
                 expect(card).to_be_visible()
                 card.locator('[data-act="archive"]').click()
                 expect(card).to_have_count(0)
                 assert not api.get(url).json()["archived"]
-                page.get_by_role("radio", name="all", exact=True).click()
+                pick_filter(page, "all", "all")
                 expect(card).to_be_visible()
                 record("lost-archive-reply-retry-and-unarchive")
 
