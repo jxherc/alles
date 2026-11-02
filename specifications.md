@@ -1876,10 +1876,10 @@ the registered http operations are grouped by handler source. use `/openapi.json
 
 the compatibility snapshot locks the registered http surface:
 
-- 89 included fastapi router modules
-- 1024 http method/path pairs
-- 997 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
-- sha-256: `3e3f0530018a79292afd603ba097c3f99c7f41650314daff0653e0e43df39b36`
+- 90 included fastapi router modules
+- 1034 http method/path pairs
+- 999 `/api/*`, 2 `/v1/*`, and 33 non-api shell/public pairs
+- sha-256: `7377a9fc370c8c0387352f8232f42ab4c7ef2f6c8bb38bd0f0c86cf58e92f94a`
 
 <details>
 <summary>app.py · 11 operations</summary>
@@ -2412,6 +2412,26 @@ the compatibility snapshot locks the registered http surface:
 | `GET` | `/api/delegation/grants` | `list_grants` |
 | `POST` | `/api/delegation/grants` | `add_grant` |
 | `DELETE` | `/api/delegation/grants/{grant_id}` | `remove_grant` |
+
+</details>
+
+<details>
+<summary>routes/docs_dav.py · 8 operations</summary>
+
+[source](routes/docs_dav.py)
+
+webdav for the docs folder, off until setup turns it on (`docs_dav` is `off`, `read` or `write`). the password is an alles token (any user name), `read` scope for listing and downloading, `write` scope for saving. a saved markdown file goes through docs' own safe save, so it keeps a revision and both copies when the file changed underneath (412). delete, move and copy are not registered. dot folders and non-markdown saves are refused. each route answers at `/dav/docs` and `/dav/docs/{path:path}`.
+
+| method | path | handler |
+| --- | --- | --- |
+| `GET` | `/dav/docs` | `dav` |
+| `GET` | `/dav/docs/{path:path}` | `dav` |
+| `MKCOL` | `/dav/docs` | `dav` |
+| `MKCOL` | `/dav/docs/{path:path}` | `dav` |
+| `PROPFIND` | `/dav/docs` | `dav` |
+| `PROPFIND` | `/dav/docs/{path:path}` | `dav` |
+| `PUT` | `/dav/docs` | `dav` |
+| `PUT` | `/dav/docs/{path:path}` | `dav` |
 
 </details>
 
@@ -3411,7 +3431,7 @@ retrieve full article text from each entry's publisher.
 </details>
 
 <details>
-<summary>routes/setup.py · 8 operations</summary>
+<summary>routes/setup.py · 10 operations</summary>
 
 [source](routes/setup.py)
 
@@ -3422,6 +3442,8 @@ retrieve full article text from each entry's publisher.
 | `POST` | `/api/setup/dismiss` | `dismiss` |
 | `GET` | `/api/setup/obsidian` | `obsidian_status` |
 | `POST` | `/api/setup/obsidian` | `install_obsidian` |
+| `GET` | `/api/setup/obsidian-lan` | `obsidian_lan_status` |
+| `POST` | `/api/setup/obsidian-lan` | `set_obsidian_lan` |
 | `POST` | `/api/setup/resume` | `resume` |
 | `GET` | `/api/setup/status` | `status` |
 | `PATCH` | `/api/setup/step` | `save_step` |

@@ -191,6 +191,18 @@ _SETUP_DETECT_ADDITIONS = {"POST /api/setup/detect"}
 
 # the owner reads nginx proxy manager's first admin login behind the owner password
 _NPM_FIRST_LOGIN_ADDITIONS = {"POST /api/system/companions/nginx-proxy-manager/first-login"}
+_DOCS_LAN_ADDITIONS = {
+    "POST /api/setup/obsidian-lan",
+    "GET /api/setup/obsidian-lan",
+    "PROPFIND /dav/docs",
+    "PROPFIND /dav/docs/{path:path}",
+    "GET /dav/docs",
+    "GET /dav/docs/{path:path}",
+    "PUT /dav/docs",
+    "PUT /dav/docs/{path:path}",
+    "MKCOL /dav/docs",
+    "MKCOL /dav/docs/{path:path}",
+}
 
 
 def _route_rows():
@@ -218,6 +230,7 @@ def _route_rows():
         | _OPENSEARCH_ADDITIONS
         | _SETUP_DETECT_ADDITIONS
         | _NPM_FIRST_LOGIN_ADDITIONS
+        | _DOCS_LAN_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -359,6 +372,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _OPENSEARCH_ADDITIONS
                 - _SETUP_DETECT_ADDITIONS
                 - _NPM_FIRST_LOGIN_ADDITIONS
+                - _DOCS_LAN_ADDITIONS
             ),
             960,
         )
@@ -409,6 +423,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _OPENSEARCH_ADDITIONS
                 - _SETUP_DETECT_ADDITIONS
                 - _NPM_FIRST_LOGIN_ADDITIONS
+                - _DOCS_LAN_ADDITIONS
             ),
             974,
         )
@@ -455,11 +470,15 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_npm_first_login_route_is_additive(self):
         self.assertTrue(_NPM_FIRST_LOGIN_ADDITIONS <= set(_current_rows()))
 
+    def test_docs_over_the_local_network_routes_are_additive(self):
+        self.assertTrue(_DOCS_LAN_ADDITIONS <= set(_current_rows()))
+        self.assertFalse({row for row in _current_rows() if row.startswith(("DELETE /dav", "MOVE /dav"))})
+
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1024)
-        self.assertEqual(digest, "3e3f0530018a79292afd603ba097c3f99c7f41650314daff0653e0e43df39b36")
+        self.assertEqual(len(rows), 1034)
+        self.assertEqual(digest, "7377a9fc370c8c0387352f8232f42ab4c7ef2f6c8bb38bd0f0c86cf58e92f94a")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -468,7 +487,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 997, "v1": 2, "public": 25})
+        self.assertEqual(groups, {"api": 999, "v1": 2, "public": 33})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

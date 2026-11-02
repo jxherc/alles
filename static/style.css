@@ -5684,6 +5684,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-connect-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .setup-connect-text > span:first-child { color: var(--text); font-size: 0.875rem; }
 .setup-connect-note { color: var(--muted); font-size: 0.8125rem; }
+#sw-obsidian-lan .setup-connect-note { margin: 0 0 12px; line-height: 1.4; }
+#sw-obsidian-lan .setup-connect-note:empty { display: none; }
 .setup-connect-row .btn { flex: none; }
 .specialist-mail-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .specialist-mail-tools .specialist-choice-group { display: flex; gap: 8px; }
