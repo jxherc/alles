@@ -5,6 +5,8 @@ import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=5';
 import { openAppSettings } from './appsettings.js';
+import { mountSignin } from './signin.js';
+import { detectSetup } from './setup_detect.js';
 import { wireGridNav, WEEK_ROWS } from './grid_nav.js';
 import { chosenTimeZone, formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
@@ -465,6 +467,8 @@ export async function loadCalendar(fetcher = fetch, canReplaceEditor = () => tru
   // the agenda draws after a fetch: wait for it, so focus can go back to the row that was open
   else { _editing = null; _readDraft = null; await render(); }
   calendarMetadataNotice();
+  // the connections list links here as /?view=calendar#sync: open the sync panel once
+  if (globalThis.location?.hash === '#sync') { history.replaceState(history.state, '', location.pathname + location.search); openCaldavPanel(); }
   return true;
   } catch (error) {
     if (sequence === _loadSequence) calendarLoadError(error.message || tr('calendar.check_connection'));
@@ -2225,27 +2229,53 @@ async function openCaldavPanel() {
   const list = document.getElementById('calendar-list');
   let cfg = {};
   try { cfg = await fetch('/api/caldav/status').then(r => r.json()); } catch {}
-  list.innerHTML = `<div class="cal-editor" style="max-width:520px">
-    <div style="font-size:0.875rem;color:var(--text);margin-bottom:0.2rem">${esc(tr('calendar.sync_help'))}</div>
-    <div style="font-size:0.8125rem;color:var(--muted);line-height:1.5;margin-bottom:0.6rem">
-      ${esc(tr('calendar.caldav_intro'))}
-      ${cfg.available ? '' : `<br><b style="color:var(--warn)">${esc(tr('calendar.caldav_missing'))}</b>`}
-      ${cfg.connected ? `<br>${_fill(tr('calendar.caldav_connected', { name: '{name}' }), { name: `<b>${esc(cfg.username || '')}</b>` })}` : ''}
+  // oauth first (owner, oct 29): google calendar signs in by button, since google rejects passwords
+  // on caldav (developers.google.com/workspace/calendar/caldav/v2/guide). icloud and other caldav
+  // servers keep the app password form, the quiet fallback under the button
+  const showForm = Boolean(cfg.connected || cfg.url);
+  list.innerHTML = `<div class="cal-editor cal-sync-panel">
+    <div class="cal-sync-head">
+      <button class="btn ic-btn-lbl" id="cd-back">${_si('chevron-left')} ${esc(tr('common.back'))}</button>
+      <h2 class="cal-sync-title">${esc(tr('calendar.sync_help'))}</h2>
     </div>
-    <div class="cal-flabel">${esc(tr('calendar.server_url'))}</div>
-    <input class="settings-input" id="cd-url" placeholder="https://caldav.icloud.com/" value="${esc(cfg.url || '')}" style="width:100%">
-    <div class="cal-flabel" style="margin-top:0.4rem">${esc(tr('calendar.username'))}</div>
-    <input class="settings-input" id="cd-user" placeholder="you@icloud.com" value="${esc(cfg.username || '')}" style="width:100%">
-    <div class="cal-flabel" style="margin-top:0.4rem">${esc(tr('calendar.app_password'))}</div>
-    <input class="settings-input" id="cd-pass" type="password" placeholder="${esc(tr('calendar.app_password_placeholder'))}" style="width:100%">
-    <div class="cal-ed-actions">
-      <button class="btn ic-btn-lbl" id="cd-back">${_si('chevron-left')} back</button>
-      <button class="btn" id="cd-save">${esc(tr('common.save'))}</button>
-      <button class="btn primary" id="cd-sync">${esc(tr('calendar.sync_now'))}</button>
+    ${cfg.available ? '' : `<p class="cal-sync-line" data-tone="warn">${esc(tr('calendar.caldav_missing'))}</p>`}
+    <div id="cd-signin"></div>
+    <div class="cal-sync-form" id="cd-form"${showForm ? '' : ' hidden'}>
+      ${cfg.connected ? `<p class="cal-sync-line">${_fill(tr('calendar.caldav_connected', { name: '{name}' }), { name: `<b>${esc(cfg.username || '')}</b>` })}</p>` : ''}
+      <label class="cal-flabel" for="cd-user">${esc(tr('calendar.username'))}</label>
+      <input class="settings-input" id="cd-user" type="email" autocomplete="email" placeholder="you@icloud.com" value="${esc(cfg.username || '')}">
+      <label class="cal-flabel" for="cd-url">${esc(tr('calendar.server_url'))}</label>
+      <input class="settings-input" id="cd-url" type="url" placeholder="https://caldav.icloud.com/" value="${esc(cfg.url || '')}">
+      <label class="cal-flabel" for="cd-pass">${esc(tr('calendar.app_password'))}</label>
+      <input class="settings-input" id="cd-pass" type="password" placeholder="${esc(tr('calendar.app_password_placeholder'))}">
+      <div class="cal-ed-actions">
+        <button class="btn" id="cd-save">${esc(tr('common.save'))}</button>
+        <button class="btn primary" id="cd-sync">${esc(tr('calendar.sync_now'))}</button>
+      </div>
+      <div id="cd-status" class="cal-sync-line" role="status"></div>
     </div>
-    <div id="cd-status" style="font-size:0.8125rem;color:var(--muted);margin-top:0.5rem"></div>
   </div>`;
-  document.getElementById('cd-back').addEventListener('click', () => loadCalendar());
+  const form = document.getElementById('cd-form');
+  const signin = mountSignin(document.getElementById('cd-signin'), {
+    use: 'calendar',
+    provider: 'google',
+    fallback: {
+      label: tr('signin.fallback_password'),
+      reason: tr('signin.why_calendar'),
+      onClick() { form.hidden = false; document.getElementById('cd-user').focus(); },
+    },
+  });
+  // the server address follows the email address (icloud, fastmail, yahoo, or the domain's own
+  // caldav record), unless it was typed by hand
+  const url = document.getElementById('cd-url');
+  let urlTyped = Boolean(url.value);
+  url.addEventListener('input', () => { urlTyped = Boolean(url.value.trim()); });
+  document.getElementById('cd-user').addEventListener('change', async event => {
+    if (urlTyped) return;
+    const found = await detectSetup(event.target.value.trim());
+    if (found?.caldav?.url && !urlTyped) url.value = found.caldav.url;
+  });
+  document.getElementById('cd-back').addEventListener('click', () => { signin.destroy(); loadCalendar(); });
   const save = async () => {
     const body = { url: document.getElementById('cd-url').value.trim(), username: document.getElementById('cd-user').value.trim(), password: document.getElementById('cd-pass').value };
     await fetch('/api/caldav/connect', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });

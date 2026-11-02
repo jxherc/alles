@@ -193,8 +193,21 @@ export function closeSettings() {
   target?.focus();
 }
 
+// open settings on the pane that holds #id and bring that card into view: a link that stays put
+// when panes move between layouts (the finance overview opens the ledger setup with 's-ledger')
+export function openSettingsAt(id) {
+  const target = id && /^[\w-]+$/.test(id) ? document.getElementById(id) : null;
+  const pane = target?.closest('#settings-modal .s-pane')?.id.replace(/^s-pane-/, '');
+  if (!pane) return false;
+  openSettings(pane);
+  // focus stays on the section picker (openSettings), the card just comes into view
+  requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+  return true;
+}
+
 // expose for playwright tests + external callers
 window._openSettings = openSettings;
+window._openSettingsAt = openSettingsAt;
 
 // ── init (runs once) ──────────────────────────────────────────────────────────
 function _initSettings() {
@@ -1993,10 +2006,10 @@ async function _renderRules() {
       <button type="button" class="rule-row-main" aria-label="${t('settings.rule_edit_named', { name: _escAttr(r.name) })}" style="background:none;border:0;color:inherit;font:inherit;text-align:left">
         <span class="rule-row-name">${_esc(r.name)}</span>
         <span class="rule-row-desc">${_esc(label(_ruleOpts.triggers, r.trigger))} <b>${_esc(r.trigger_arg)}</b> → ${_esc(label(_ruleOpts.actions, r.action))}${r.action_arg ? `: <i>${_esc(r.action_arg.slice(0, 60))}</i>` : ''}</span>
+        ${r.migration_state === 'needs_review' ? `<span class="rule-row-desc">${_esc(t('settings.rule_needs_review'))}</span>` : ''}
         ${r.last_attempt && r.last_attempt.status !== 'succeeded' ? `<span class="rule-row-desc" title="${_esc(r.last_attempt.error || '')}">${t('settings.rule_last_attempt', { status: `<b>${_esc(r.last_attempt.status)}</b>` })}</span>` : ''}
       </button>
-      <button class="btn" data-act="test" title="${t('settings.rule_test_title')}">${t('settings.test')}</button>
-      <button class="btn" data-act="toggle">${r.enabled ? t('settings.rule_pause') : t('settings.rule_resume')}</button>
+      ${_ruleActions(r)}
       <button class="btn danger" data-act="del">×</button>
     </div>`).join('');
   el.querySelectorAll('.rule-row').forEach(row => {
@@ -2041,6 +2054,16 @@ async function _renderRules() {
       }
     }));
   });
+}
+
+// a rule made since july runs as an aide schedule that waits for review: the server refuses a
+// test (409) and keeps it off until it's reviewed there, so its row offers that review instead
+function _ruleActions(r) {
+  if (r.migration_state === 'needs_review') {
+    return `<a class="btn" href="/?view=scheduled" aria-label="${_escAttr(t('settings.rule_review_named', { name: r.name }))}">${_esc(t('settings.rule_review'))}</a>`;
+  }
+  return `<button class="btn" data-act="test" title="${t('settings.rule_test_title')}">${t('settings.test')}</button>
+      <button class="btn" data-act="toggle">${r.enabled ? t('settings.rule_pause') : t('settings.rule_resume')}</button>`;
 }
 
 async function _addRule() {

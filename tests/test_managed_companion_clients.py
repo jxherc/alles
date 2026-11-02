@@ -126,6 +126,14 @@ class ManagedCompanionClientTests(unittest.TestCase):
         stored = (self.root / "nginx-proxy-manager.admin.json").read_text("utf-8")
         self.assertNotIn("generated-password", stored)
         self.assertTrue((self.root / "nginx-proxy-manager.credentials.json").is_file())
+        # the owner can read it back (behind the owner password in the route) to open NPM
+        self.assertEqual(
+            clients.npm_first_login(),
+            {"saved": True, "identity": "admin@alles.local", "password": "generated-password"},
+        )
+
+    def test_npm_first_login_is_empty_when_alles_did_not_make_it(self):
+        self.assertEqual(clients.npm_first_login(), {"saved": False})
 
     def test_npm_first_admin_skipped_when_already_set_up(self):
         requester = Requester([Response(payload={"status": "OK", "setup": True})])

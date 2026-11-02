@@ -356,6 +356,35 @@ function npmConnectSurface(request, rerender, message) {
   return form;
 }
 
+// the first admin login alles made when it set nginx proxy manager up (managed_companions
+// activate): shown only after the owner's password, to open nginx proxy manager's own screens
+function npmFirstLogin(request) {
+  const box = el('div', 'server-npm-login');
+  const line = statusLine();
+  // inside an actions row so it draws as every other workbench button
+  const start = el('div', 'server-workbench-actions');
+  const show = action(t('server.wb_npm_show_login'), async () => {
+    const result = await json(request, '/api/system/companions/nginx-proxy-manager/first-login', { method: 'POST' });
+    if (!result?.saved) { line.textContent = t('server.wb_npm_no_login'); return; }
+    const facts = el('div', 'server-npm-login-facts');
+    facts.append(fact(t('server.wb_npm_email'), result.identity), fact(t('server.wb_npm_password'), result.password));
+    const acts = el('div', 'server-workbench-actions');
+    acts.append(
+      action(t('common.copy'), async () => {
+        await navigator.clipboard.writeText(result.password);
+        line.textContent = t('server.wb_npm_password_copied');
+      }),
+      action(t('server.wb_npm_hide_login'), async () => { line.textContent = ''; box.replaceChildren(start, line); show.focus(); }),
+    );
+    line.textContent = '';
+    box.replaceChildren(facts, acts, line);
+    acts.firstElementChild.focus();
+  });
+  start.append(show);
+  box.append(start, line);
+  return box;
+}
+
 function npmSurface(service, request, rerender) {
   const host = el('div', 'server-managed-surface');
   const state = statusLine(t('server.wb_npm_loading'));
@@ -365,7 +394,7 @@ function npmSurface(service, request, rerender) {
     try { dashboard = await json(request, '/api/system/companions/nginx-proxy-manager/dashboard'); }
     catch (error) {
       state.textContent = plainError(error.message);
-      host.append(npmConnectSurface(request, rerender, state));
+      host.append(npmFirstLogin(request), npmConnectSurface(request, rerender, state));
       return;
     }
     const hosts = managedList(t('server.wb_proxy_hosts'), dashboard.proxy_hosts || [], item => {
@@ -407,7 +436,7 @@ function npmSurface(service, request, rerender) {
         await rerender();
       }),
     );
-    host.replaceChildren(hosts, certificates, form);
+    host.replaceChildren(npmFirstLogin(request), hosts, certificates, form);
   })();
   return host;
 }

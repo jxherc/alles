@@ -1542,26 +1542,8 @@ html:not(#_):not(#_) #mail-view .mail-accounts {
   background: var(--k-panel);
 }
 
-html:not(#_):not(#_) #mail-view .mail-service-links {
-  flex-wrap: wrap;
-  gap: var(--k-space-2);
-  margin-inline: 0;
-}
-
-html:not(#_):not(#_) #mail-view .mail-service-link {
-  border: 1px solid var(--k-btn-line);
-  border-radius: var(--k-radius-control);
-  background: var(--k-btn-fill);
-  color: var(--k-text);
-  text-decoration: none;
-}
-
 html:not(#_):not(#_) #mail-view .mail-accounts .mail-empty {
   padding: var(--k-space-2) 0 0;
-}
-
-html:not(#_):not(#_) #mail-view .mail-service-link:hover {
-  background: var(--k-btn-fill-hover);
 }
 
 /* the old -12px pull-backs were for buttons drawn as bare words; a filled button sits on the edge */

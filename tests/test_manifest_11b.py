@@ -140,7 +140,7 @@ class ManifestTests(ApiTest):
         for module in (
             "models.js?v=217",
             "dropdown.js?v=217",
-            "specialist_groups.js?v=16",
+            "specialist_groups.js?v=17",
             "kokuen.js?v=5",
             "andromeda.js?v=256",
             "route_history.js",
