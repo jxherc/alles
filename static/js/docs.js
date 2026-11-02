@@ -434,7 +434,7 @@ export function showSection(section) {
     setHidden($('docs-context-panel'), true);
     setHidden($('wiki-ask'), true);
     $('wiki-view')?.classList.remove('no-note', 'docs-nav-open');
-    return import('./journal.js?v=259').then(module => module.initJournal());
+    return import('./journal.js?v=260').then(module => module.initJournal());
   }
 
   if (_section === 'notes') {

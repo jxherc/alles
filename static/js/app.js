@@ -37,7 +37,7 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=17';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=18';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
 import { openSettings, openSettingsAt, closeSettings, applyVis } from './settings.js?v=301';
@@ -63,11 +63,11 @@ import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import { initAideWorkspace } from './aideworkspace.js?v=282';
 import { initAideCentral } from './aidecentral.js?v=3';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=5';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=256';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=257';
 import { initAppRail, syncAppRail } from './app_rail.js';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
-import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=246';
+import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=247';
 import { registerServiceWorker } from './push.js';
 import { initSync } from './sync.js';
 import { cachedLocalizationSettings, configureLocalization, formatDateTime, prepareLocalization, t, tp } from './i18n.js';
@@ -886,7 +886,7 @@ window._openSearchResult = async (type, value, messageId = '') => {
   }
   if (!(await navigateTo(type === 'note' ? 'wiki' : 'chat', { preserveSession: true }))) return false;
   if (type === 'chat') return selectSession(value, messageId);
-  const { openNote } = await import('./docs.js?v=263');
+  const { openNote } = await import('./docs.js?v=264');
   return openNote(value);
 };
 
@@ -1009,7 +1009,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=256');
+      const module = await import('./andromeda.js?v=257');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1079,7 +1079,7 @@ const showCompareView  = () => showView('compare-view',  'compare',  () => { ini
 const showWikiView     = (section = 'docs') => showView(
   'wiki-view',
   section === 'journal' ? 'journal' : 'wiki',
-  (track, request) => trackedImport(track, request, () => import('./docs.js?v=263'), module => module.initDocs(section, request)),
+  (track, request) => trackedImport(track, request, () => import('./docs.js?v=264'), module => module.initDocs(section, request)),
   section === 'journal' ? 'docs-journal-section' : '',
 );
 const showVaultView      = () => showView('vault-view',      'vault',     (_track, request) => loadVaultView(request));
@@ -1111,7 +1111,7 @@ const showTodayView      = () => {
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=256'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=257'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,
@@ -1132,7 +1132,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'habits') return import('./habits.js').then(module => module.initHabits(request));
   if (section === 'money') return import('./money.js').then(module => module.initMoneyPanel(request));
   if (section === 'subs') return import('./subs.js').then(module => module.initSubsPanel(request));
-  if (group === 'docs') return import('./docs.js?v=263').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
+  if (group === 'docs') return import('./docs.js?v=264').then(module => module.initDocs(section === 'journal' ? 'journal' : 'docs', request));
   if (group === 'files' && section === 'files') return Promise.all([initFiles(request), loadFiles(undefined, request)]);
   if (group === 'files' && section === 'gallery') { initPhotos(); return loadPhotos(request); }
   if (group === 'vault') return loadVaultView(request);
