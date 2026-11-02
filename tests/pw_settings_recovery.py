@@ -152,14 +152,14 @@ def exercise(page, api, dest, profile, restart, records):
         trigger = page.locator("#s-" + name + "-trigger")
         tab_to(trigger, name + " dropdown")
         page.keyboard.press("Enter")
-        expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+        expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
         # the kit dropdown keeps focus on the trigger and jumps by typed letters
         label = trigger.evaluate(
             "(e, v) => e.dataset.options.split(';').map(p => p.split('|')).find(p => p[0] === v)[1]",
             value,
         )
         page.keyboard.type(re.match(r"[a-z]*", label.lower()).group(0))
-        active = page.locator(".custom-dropdown-panel .custom-dropdown-option.active")
+        active = page.locator("body > .custom-dropdown-panel .custom-dropdown-option.active")
         target = trigger.evaluate(
             "(e, v) => e.dataset.options.split(';').map(p => p.split('|')[0]).indexOf(v)", value
         )
@@ -595,7 +595,7 @@ def exercise(page, api, dest, profile, restart, records):
     )
     assert hit, "settings overlay covers the timezone control"
     page.locator("#s-timezone-trigger").click()
-    expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+    expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
     shot("08-arabic-menu")
     page.keyboard.press("Escape")
     expect(page.locator("#s-timezone-trigger")).to_be_focused()

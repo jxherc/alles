@@ -125,7 +125,7 @@ with sync_playwright() as pw:
                         tab = "active" if done else "done"
                         if page.locator("#tasks-view-pick").get_attribute("data-value") != tab:
                             page.click("#tasks-view-pick")
-                            page.locator(".custom-dropdown-panel [role=option]").nth(
+                            page.locator("body > .custom-dropdown-panel [role=option]").nth(
                                 ["active", "today", "upcoming", "someday", "done"].index(tab)
                             ).click()
                         check = page.locator(f'.task-item[data-id="{task["id"]}"] .task-check')

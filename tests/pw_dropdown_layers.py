@@ -19,8 +19,10 @@ from pw_ui_audit import goto, set_theme
 
 SIZES = {"desktop": (1280, 900), "phone": (390, 844)}
 
+# the list the trigger opened, found by its aria-controls: andromeda's history list wears the
+# same class for its look and stays in the page, so the class alone can name the wrong list
 PANEL = """trigger => {
-  const panel = document.querySelector('.custom-dropdown-panel');
+  const panel = document.getElementById(trigger.getAttribute('aria-controls') || '');
   if (!panel) return {open: false};
   let layer = 0;
   for (let node = trigger.parentElement; node && node !== document.body; node = node.parentElement) {
@@ -35,7 +37,7 @@ PANEL = """trigger => {
     return panel.contains(document.elementFromPoint(o.left + o.width / 2, o.top + o.height / 2));
   };
   return {
-    open: true, layer, z: parseInt(getComputedStyle(panel).zIndex, 10), options: options.length,
+    open: true, id: panel.id, layer, z: parseInt(getComputedStyle(panel).zIndex, 10), options: options.length,
     first: options.length ? hit(options[0]) : false,
     last: options.length ? hit(options[options.length - 1]) : false,
     inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
@@ -103,7 +105,7 @@ def main() -> int:
                         if not state["inside"]:
                             fails.append(f"{where}: the list leaves the screen {state}")
                         page.keyboard.press("Escape")
-                        page.locator(".custom-dropdown-panel").wait_for(state="detached")
+                        page.locator(f"#{state['id']}").wait_for(state="detached")
                 ctx.close()
         browser.close()
     for fail in fails:

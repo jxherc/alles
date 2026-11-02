@@ -211,13 +211,13 @@ def run():
 
                     # History reopening remains available after a conflicting receipt.
                     page.click("#tasks-view-pick")
-                    page.locator(".custom-dropdown-panel [role=option]").nth(
+                    page.locator("body > .custom-dropdown-panel [role=option]").nth(
                         ["active", "today", "upcoming", "someday", "done"].index("done")
                     ).click()
                     check.press("Enter")
                     expect(check).to_have_count(0)
                     page.click("#tasks-view-pick")
-                    page.locator(".custom-dropdown-panel [role=option]").nth(
+                    page.locator("body > .custom-dropdown-panel [role=option]").nth(
                         ["active", "today", "upcoming", "someday", "done"].index("active")
                     ).click()
                     expect(check).to_be_visible()

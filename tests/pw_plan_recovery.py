@@ -549,7 +549,7 @@ def run():
                 def pick_view(page, value):
                     action(page.locator("#tasks-view-pick"))
                     action(
-                        page.locator(".custom-dropdown-panel [role=option]").nth(
+                        page.locator("body > .custom-dropdown-panel [role=option]").nth(
                             ["active", "today", "upcoming", "someday", "done"].index(value)
                         )
                     )
