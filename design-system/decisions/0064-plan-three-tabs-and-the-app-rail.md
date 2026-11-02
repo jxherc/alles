@@ -42,6 +42,17 @@ its top line also stacked 6px under a server log row's divider. now:
 the app sheet keeps working and drops its "move through alles" heading (kept for screen readers)
 and the subtitle under every app (no helper text).
 
+## rejected nov 2: no rail on ipad or desktop
+
+the owner tested the nov 2 build on an ipad pro 11 in safari and said: "is the sidebar there because
+its a bug or its a new function, i didnt ask for this" and "i dont want the sidebar". the 72px rail
+(1024px and wider) is removed: no `.app-rail` css above 700px, so the nav stays `display: none`
+from 701px up and nothing reserves space for it. ipad and desktop go back to the app name button
+and the app sheet. it also drew "more" over andromeda's fixed "settings" footer, which is gone with
+it. the phone bar (700px and narrower) is unchanged; the owner hasn't decided on it. what's new
+(`app_rail`) and specifications.md now describe the phone bar only. the first paragraph of "the app
+rail" above is history, not the current rule.
+
 ## not done: keep the shell loaded
 
 the plan asked to keep the shell loaded when a switch takes over about 300 ms. measured on

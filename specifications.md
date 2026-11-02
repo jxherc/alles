@@ -473,12 +473,11 @@ related apps now open together without merging their records.
   tasks. under tasks, a pill switch picks tasks, reminders or countdowns and another list or board;
   the task list's views (all, today, upcoming, someday, history) are one dropdown. the old
   `?view=plan-week`, `plan-board`, `reminders` and `days` links still open those views
-- **the app rail**: at 1024px and wider a 72px rail at the shell's left lists home, aide, the
-  owner's pinned apps (home's pinned apps) and more, which opens the app sheet; at 700px and
-  narrower the same is a bottom bar of 5 (home, aide, 2 pinned apps, more), and every screen's
-  height leaves room for it: what's pinned to the screen's bottom (toasts, the files transfers,
-  mail's undo) sits above the bar, and menus, drawers and dialogs open over it. ipad portrait
-  keeps the app name button. the app sheet lists apps by name only
+- **the phone bar**: at 700px and narrower a bottom bar of 5 (home, aide, 2 pinned apps, more,
+  which opens the app sheet) lists the apps, and every screen's height leaves room for it: what's
+  pinned to the screen's bottom (toasts, the files transfers, mail's undo) sits above the bar, and
+  menus, drawers and dialogs open over it. ipad and desktop have no rail or bar; they keep the
+  app name button. the app sheet lists apps by name only
 - **inbox** puts cached mail, the selected message, and matching contact context in one workflow while
   keeping mail and contact records separate
 - **docs** keeps notes and journal as local sections of one markdown workbench. if a document's
