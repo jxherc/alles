@@ -299,7 +299,8 @@ async function _deleteEntry(entry) {
   const navigation = _navigation;
   if (_deleting.has(entry.record_id)) return;
   if (_saving) {
-    _deleteErrors.set(entry.record_id, t('health.delete_error', { reading: `${entry.label || kindLabel(entry.kind)}, ${entry.date}`, message: t('health.delete_unconfirmed') }));
+    const reading = `${entry.label || kindLabel(entry.kind)}, ${entry.date}`;
+    _deleteErrors.set(entry.record_id, t('health.delete_error', { reading, message: t('health.delete_unconfirmed') }));
     _render();
     return;
   }
