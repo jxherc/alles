@@ -4134,6 +4134,10 @@ html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-select
     background: var(--k-raised);
   }
 
+  html:not(#_):not(#_) body[data-app="files"] #files-view .files-phase7-operation-dock {
+    bottom: calc(var(--k-space-2) + var(--files-bulk-h, 0px));
+  }
+
   html:not(#_):not(#_) #files-view:has(.files-phase7-selection:not([hidden])) .files-list {
     padding-bottom: calc(var(--k-control) * 3 + var(--k-space-4));
   }
