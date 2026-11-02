@@ -7,6 +7,7 @@ the owner's normal data directory.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import tempfile
@@ -60,6 +61,20 @@ def _assert_target(locator) -> None:
     assert box and box["width"] >= 44 and box["height"] >= 44, box
 
 
+def _book_patch(response, book_id: str, field: str, value, before) -> bool:
+    # a book edit names what it changes and what it expected there, so a newer save isn't lost
+    if not (response.url.endswith(f"/api/books/{book_id}") and response.request.method == "PATCH"):
+        return False
+    body = json.loads(response.request.post_data or "{}")
+    return (
+        set(body) == {field, f"expected_{field}", "recovery_scope"}
+        and body[field] == value
+        and body[f"expected_{field}"] == before
+        and isinstance(body["recovery_scope"], str)
+        and bool(body["recovery_scope"])
+    )
+
+
 def _books(page: Page) -> None:
     page.evaluate("window._navigateTo('books')")
     page.locator("#books-view").wait_for(state="visible")
@@ -84,17 +99,22 @@ def _books(page: Page) -> None:
     page.locator("#book-create").click()
     card = page.locator('.book-card:has-text("KOKUEN field notes")')
     card.wait_for()
-    ratings = card.locator('[role="radiogroup"] [role="radio"]')
+    # a card holds two named radio groups: its rating and its shelf (want, reading, read)
+    assert card.locator('[role="radiogroup"]').count() == 2
+    shelf = card.locator('.book-move[role="radiogroup"] [role="radio"]')
+    assert shelf.count() == 3
+    for index in range(shelf.count()):
+        _assert_target(shelf.nth(index))
+    assert shelf.nth(2).get_attribute("aria-checked") == "true"
+    ratings = card.locator('.book-stars[role="radiogroup"] [role="radio"]')
     assert ratings.count() == 5
     for index in range(ratings.count()):
         _assert_target(ratings.nth(index))
     ratings.first.focus()
+    book_id = card.get_attribute("data-id")
+    assert book_id
     with page.expect_response(
-        lambda response: (
-            response.url.endswith(f"/api/books/{card.get_attribute('data-id')}")
-            and response.request.method == "PATCH"
-            and response.request.post_data == '{"rating":5}'
-        )
+        lambda response: _book_patch(response, book_id, "rating", 5, 0)
     ) as rating_update:
         page.keyboard.press("End")
     assert rating_update.value.ok, rating_update.value.text()
@@ -106,13 +126,9 @@ def _books(page: Page) -> None:
     )
     card.locator(".book-add-note").click()
     card.locator("textarea[data-f='notes']").fill("edited through the real application")
-    book_id = card.get_attribute("data-id")
-    assert book_id
     with page.expect_response(
-        lambda response: (
-            response.url.endswith(f"/api/books/{book_id}")
-            and response.request.method == "PATCH"
-            and response.request.post_data == '{"notes":"edited through the real application"}'
+        lambda response: _book_patch(
+            response, book_id, "notes", "edited through the real application", ""
         )
     ) as update:
         card.locator("[data-act='save-notes']").click()
@@ -253,7 +269,8 @@ def _degraded_loads(page: Page) -> None:
         data={"kind": "weight", "value": 72.1, "unit": "kg", "note": "partial load evidence"},
     )
     assert health.ok, health.text()
-    overview_url = re.compile(r".*/api/health/overview\?days=\d+$")
+    # the log asks for its range and the day it shows (b17286ef keeps logs on the chosen day)
+    overview_url = re.compile(r".*/api/health/overview\?days=\d+&date_q=\d{4}-\d{2}-\d{2}$")
     overview_failure = fail_once()
     page.route(overview_url, overview_failure)
     page.evaluate("window._navigateTo('health-log')")
