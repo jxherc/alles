@@ -7615,10 +7615,10 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
 @media (max-width: 620px) { .k-rail-resize { display: none; } }
 @media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize)::after { transition: none; } }
 
-/* ── the app rail (u.07, decision 0064) ──────────────────────────────────────────
-   ipad landscape and desktop: a slim column of apps at the left of the shell. a phone: a bottom
-   bar of 5, and every screen's height drops by the bar (--k-shell-height) so nothing hides under
-   it. ipad portrait keeps the app name button only */
+/* ── the phone bar (u.07, decision 0064) ─────────────────────────────────────────
+   a phone gets a bottom bar of 5, and every screen's height drops by the bar (--k-shell-height)
+   so nothing hides under it. ipad and desktop have no rail (the owner rejected it): from 701px up
+   the nav stays display none and reserves nothing */
 .app-rail { display: none; }
 .app-rail-item {
   display: grid;
@@ -7642,19 +7642,6 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
 .app-rail-item:hover { color: var(--k-text, var(--text)); background: var(--k-hover, var(--hover)); }
 .app-rail-item[aria-current="page"] { color: var(--k-text, var(--text)); font-weight: 600; }
 .app-rail-item:focus-visible { outline: 2px solid var(--k-focus); outline-offset: -2px; }
-@media (min-width: 1024px) {
-  body.afterlife-shell .app-rail:not([hidden]) {
-    display: flex;
-    flex: 0 0 72px;
-    flex-direction: column;
-    gap: var(--k-space-1, 4px);
-    padding: var(--k-space-2, 8px) var(--k-space-1, 4px);
-    overflow-y: auto;
-    border-right: 1px solid var(--k-line, var(--faint));
-    background: var(--k-canvas, var(--bg));
-  }
-  body.afterlife-shell .app-rail-more { margin-top: auto; }
-}
 /* the phone bar sits under every floating layer (menus, drawers, sheets, dialogs: z 25 and up)
    and over the page, which ends above it. it parts from the page by its fill, not a line: a
    list's own divider scrolling up to a top line made two lines stacked on one edge */

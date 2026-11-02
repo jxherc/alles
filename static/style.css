@@ -9360,10 +9360,16 @@ body.afterlife-shell[data-space="andromeda"] .main { width: 100%; min-width: 0; 
 body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 
 .andromeda-view {
-  /* side space scales with the screen: 7% of the width on each side, never less than the app name
+  /* side space scales with the view's own width (cqw, not vw: the shell's chrome or a scrollbar
+     makes the view narrower than the window): 7% on each side, never less than the app name
      needs; the column takes the rest up to 1160px. long text keeps its own readable measure */
-  --andromeda-side: max(7vw, 120px);
-  --andromeda-col: min(1160px, max(320px, calc(100vw - 2 * clamp(18px, 2vw, 28px) - 2 * var(--andromeda-side))));
+  container-type: inline-size;
+  --andromeda-side: max(7cqw, 7.5rem);
+  --andromeda-wide: min(1160px, max(320px, calc(100cqw - 2 * var(--k-gutter, 24px) - 2 * var(--andromeda-side))));
+  /* the search box, tabs and text results share one reading column (a 36em measure plus the
+     card's padding and the row menu), so the card, its text and the menu sit together. images
+     and videos break out to the wide width below it */
+  --andromeda-col: min(var(--andromeda-wide), 38rem);
   --andromeda-line: color-mix(in srgb, var(--faint) 82%, var(--text) 18%);
   --andromeda-strong-line: color-mix(in srgb, var(--faint) 60%, var(--text) 40%);
   min-height: 100dvh;
@@ -9377,7 +9383,9 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-app-head {
   min-height: var(--k-app-header, 52px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, var(--andromeda-col)) minmax(0, 1fr);
+  /* each side track keeps room for the app name (left) and the settings button, so a narrow view
+     squeezes the search box and never the name */
+  grid-template-columns: minmax(calc(var(--andromeda-side) - 12px), 1fr) minmax(0, var(--andromeda-col)) minmax(calc(var(--andromeda-side) - 12px), 1fr);
   align-items: center;
   gap: 12px;
   border-bottom: 0;
@@ -9437,6 +9445,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-home-button { width: auto; min-width: 44px; padding-inline: 6px; }
 .andromeda-submit { justify-self: center; }
 .andromeda-result-column { width: min(var(--andromeda-col), 100%); margin-inline: auto; padding-bottom: clamp(80px, 12vh, 128px); }
+.andromeda-result-column :is(.andromeda-image-grid, .andromeda-video-grid) { margin-inline: min(0px, calc((100% - var(--andromeda-wide)) / 2)); }
 .andromeda-result-tools {
   min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
   border: 0;

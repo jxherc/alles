@@ -1,7 +1,7 @@
-// the app rail (u.07, decision 0064): ipad landscape and desktop get a slim column of apps on the
-// left, a phone a bottom bar. home and aide come first, then the owner's pinned apps (the same
-// list as home's pinned apps), and "more" opens the app sheet for the rest. css decides where it
-// sits; the phone bar keeps 5 buttons so each stays a 44px target
+// the phone bar (u.07, decision 0064): a phone gets a bottom bar. ipad and desktop have no rail
+// (the owner rejected it), so css shows the nav at 700px and narrower only. home and aide come
+// first, then the owner's pinned apps (the same list as home's pinned apps), and "more" opens the
+// app sheet for the rest. the bar keeps 5 buttons so each stays a 44px target
 import { appGlyph } from './icons.js';
 import { t } from './i18n.js';
 import { appLabel } from './util.js';

@@ -8773,7 +8773,7 @@ const BUILTIN_ENGLISH = {
     "whatsnew.2026_11_01.plan_tabs.title": "plan has 3 tabs",
     "whatsnew.2026_11_01.plan_tabs.body": "today, calendar and tasks. calendar holds day, week and month, tasks show as a list or a board, and reminders and countdowns are kinds you switch to under tasks. old links still open the right view.",
     "whatsnew.2026_11_01.app_rail.title": "apps one tap away",
-    "whatsnew.2026_11_01.app_rail.body": "on an ipad held sideways or a computer, home, aide and your pinned apps sit in a rail on the left. on a phone they're a bar at the bottom, and the rest are under more.",
+    "whatsnew.2026_11_01.app_rail.body": "on a phone, home, aide and your pinned apps are a bar at the bottom, and the rest are under more.",
     "whatsnew.2026_11_01.speech_dates.title": "dates read like speech",
     "whatsnew.2026_11_01.speech_dates.body": "plan, home, health and money write dates the same way: today, tomorrow, sun, in 9 days, nov 12.",
     "whatsnew.2026_11_01.overdue_first.title": "overdue first",

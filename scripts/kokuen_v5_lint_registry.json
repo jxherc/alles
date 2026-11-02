@@ -754,14 +754,5 @@
     "selector": "html[data-kokuen-version=\"5\"] .k-pill-switch",
     "job": "one shared choice track",
     "reason": "A pill switch (decision 0050) is one round track holding 2 or 3 radio options; the track's 1px ring is its only boundary and the picked option is a sliding fill, not a nested bezel."
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in body.afterlife-shell .app-rail:not([hidden]); check for nested bezels",
-    "css_block_sha256": "22ae3062f52e48e828314ab7bc6442eaa7d2b8a709e59f3dc51ac27ad3473794",
-    "path": "static/kokuen.css",
-    "selector": "body.afterlife-shell .app-rail:not([hidden])",
-    "job": "distinct-region",
-    "reason": "The app rail's one edge (its right edge on ipad landscape and desktop) separates the app list from the open app; the phone bar parts by its fill instead (u.07, decision 0064)."
   }
 ]

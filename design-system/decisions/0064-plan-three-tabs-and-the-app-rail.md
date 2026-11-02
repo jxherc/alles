@@ -42,6 +42,30 @@ its top line also stacked 6px under a server log row's divider. now:
 the app sheet keeps working and drops its "move through alles" heading (kept for screen readers)
 and the subtitle under every app (no helper text).
 
+## rejected nov 2: no rail on ipad or desktop
+
+the owner tested the nov 2 build on an ipad pro 11 in safari and said: "is the sidebar there because
+its a bug or its a new function, i didnt ask for this" and "i dont want the sidebar". the 72px rail
+(1024px and wider) is removed: no `.app-rail` css above 700px, so the nav stays `display: none`
+from 701px up and nothing reserves space for it. ipad and desktop go back to the app name button
+and the app sheet. it also drew "more" over andromeda's fixed "settings" footer, which is gone with
+it. the phone bar (700px and narrower) is unchanged; the owner hasn't decided on it. what's new
+(`app_rail`) and specifications.md now describe the phone bar only. the first paragraph of "the app
+rail" above is history, not the current rule.
+
+## andromeda's search box and title (same ipad report)
+
+on the results view the search box covered the "andromeda" title. cause: the header's column width
+(`--andromeda-col`, static/style.css) was worked out from `100vw`, but the view is narrower than
+the window whenever something sits beside it (the rail took 72px), so the side track holding the
+title was squeezed under its width. now the width comes from the view's own width (`cqw`, the view
+is a size container), each side track keeps a minimum that fits the title, and a narrow view
+squeezes the search box instead. the search box, tabs and text results also share one reading
+column of 38rem (a 36em text measure plus the card's padding and the row menu), where the 1160px
+column left the overview card two thirds empty and put each result's menu 450px from its text.
+images and videos break out to the wide width under the tabs, so the tabs and the search box
+don't move when a tab is picked.
+
 ## not done: keep the shell loaded
 
 the plan asked to keep the shell loaded when a switch takes over about 300 ms. measured on
