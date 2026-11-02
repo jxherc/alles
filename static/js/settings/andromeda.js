@@ -23,6 +23,10 @@ export function sanitizeSearchSettings(settings = {}) {
   );
 }
 
+// the one line saying why an engine asks for a key (the same strings the settings form shows)
+const WHY_KEY = { tavily: 'tavily', brave: 'brave', google_pse: 'google', serper: 'serper', exa: 'exa' };
+export const searchKeyWhy = id => WHY_KEY[id] ? t(`shell.andromeda_settings.why_key_${WHY_KEY[id]}`) : '';
+
 export function configuredFallbackChain(primary, fallback) {
   if (!fallback || fallback === 'none' || fallback === 'disabled' || fallback === primary) return [];
   return [fallback];
