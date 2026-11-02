@@ -3,6 +3,7 @@
 // A tool asked for by name opens empty; a query that carries its input answers right away.
 import { plainError } from './util.js';
 import { formatCalendarDate, formatDate, formatNumber, formatTime, t, tp } from './i18n.js';
+import { whenDay } from './when.js';
 import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import {
   ICON_COPY, ICON_SPEAK, ICON_SWAP, button, calcTool, canSpeak, choices, clockTool, colorTool, copyText,
@@ -256,7 +257,7 @@ function currencyTool(data, ctx) {
   const status = statusLine();
   const show = () => {
     if (!rate) { right.input.value = ''; rateLine.textContent = ''; return; }
-    rateLine.textContent = `1 ${from} = ${formatNumber(rate, { maximumFractionDigits: 6 })} ${to} · ${data.source}${data.date ? `, ${data.date}` : ''}`;
+    rateLine.textContent = `1 ${from} = ${formatNumber(rate, { maximumFractionDigits: 6 })} ${to} · ${data.source}${data.date ? `, ${whenDay(data.date)}` : ''}`;
   };
   const update = source => {
     if (!rate) return;

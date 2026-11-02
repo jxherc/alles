@@ -15,6 +15,7 @@ import {
   releaseSpecialistLegacyView,
 } from '../../static/js/specialist_groups.js';
 import { viewToSub } from '../../static/js/subdomain.js';
+import { whenDay } from '../../static/js/when.js';
 import { configureLocalization, t, tp } from '../../static/js/i18n.js';
 
 // copy now lives in the catalog: a phrase counts when a key used in this source says it
@@ -296,7 +297,7 @@ function financeHarness(extraContext = {}) {
     get classList() { return { add() {}, remove() {} }; }
   }
   const context = vm.createContext({
-    t, tp,
+    t, tp, whenDay,
     document: { createElement: tag => new Element(tag) },
     window: {},
     formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),

@@ -1,5 +1,6 @@
 import { filterCommands } from './palette.js';
 import { chosenTimeZone, t } from './i18n.js';
+import { whenDay } from './when.js';
 import { plainError } from './util.js';
 
 let _debounce = null;
@@ -391,12 +392,12 @@ function _renderResults(data, query, status = null, preserveSelection = false) {
   // tasks, events and messages open the record itself, not just their app
   matches += _group(t('common.search_group_mail'), mail, message => _row(`data-type="mail" data-view="mail" data-id="${_esc(message.uid)}" data-aid="${_esc(message.account_id)}" data-folder="${_esc(message.folder || 'INBOX')}"`, message.subject, _fromName(message.from)));
   matches += _group(t('common.search_group_tasks'), tasks, task => _row(`data-type="record" data-view="tasks" data-id="${_esc(task.id)}"`, task.title, task.done ? t('common.done') : ''));
-  matches += _group(t('common.search_group_calendar'), calendar, event => _row(`data-type="record" data-view="calendar" data-id="${_esc(event.id)}"`, event.title, event.when));
+  matches += _group(t('common.search_group_calendar'), calendar, event => _row(`data-type="record" data-view="calendar" data-id="${_esc(event.id)}"`, event.title, whenDay(event.when)));
   matches += _group(t('common.search_group_books'), books, book => _row('data-type="nav" data-view="books"', book.title, [book.author, book.status].filter(Boolean).join(' · ')));
   matches += _group(t('common.search_group_read'), read, item => _row('data-type="nav" data-view="read"', item.title, item.site));
   matches += _group(t('common.search_group_habits'), habits, habit => _row('data-type="nav" data-view="habits"', habit.name, ''));
   matches += _group(t('common.search_group_watch'), watch, item => _row('data-type="nav" data-view="watch"', item.name, item.url));
-  matches += _group(t('common.search_group_money'), money, transaction => _row('data-type="nav" data-view="money"', transaction.payee, `${_money(transaction.amount)} · ${transaction.when}`));
+  matches += _group(t('common.search_group_money'), money, transaction => _row('data-type="nav" data-view="money"', transaction.payee, `${_money(transaction.amount)} · ${whenDay(transaction.when)}`));
   matches += _group(t('common.search_group_subs'), subs, subscription => _row('data-type="nav" data-view="subs"', subscription.name, subscription.snippet));
   matches += _group(t('common.search_group_contacts'), contacts, contact => _row('data-type="nav" data-view="contacts"', contact.name, contact.snippet));
   matches += _group(t('common.search_group_photos'), photos, photo => _row('data-type="nav" data-view="photos"', photo.name, ''));

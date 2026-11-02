@@ -6,6 +6,7 @@ import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from 
 import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=5';
 import { openAppSettings } from './appsettings.js';
 import { wireGridNav, WEEK_ROWS } from './grid_nav.js';
+import { whenDay } from './when.js';
 import { chosenTimeZone, formatDate, formatDateParts, formatTime, localizationState, resolvedTimeZone, t as tr, tp as trp } from './i18n.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -1055,7 +1056,7 @@ const _taskClock = hhmm => {
 };
 const _agendaTask = (task, overdue) => {
   const label = overdue ? tr('home.overdue') : task.due_time ? _taskClock(task.due_time) : tr('tasks.due');
-  return `<button type="button" class="cal-agenda-ev cal-agenda-task${overdue ? ' overdue' : ''}" data-task="${esc(task.id)}" aria-label="${esc(overdue ? tr('calendar.open_task_overdue', { title: task.title, due: task.due }) : tr('calendar.open_task_due', { title: task.title }))}" title="${esc(tr('calendar.task_title', { title: task.title }))}"><span class="cal-agenda-dot" aria-hidden="true"></span><span class="cal-agenda-time">${esc(label)}</span><span class="cal-agenda-title">${esc(task.title)}</span></button>`;
+  return `<button type="button" class="cal-agenda-ev cal-agenda-task${overdue ? ' overdue' : ''}" data-task="${esc(task.id)}" aria-label="${esc(overdue ? tr('calendar.open_task_overdue', { title: task.title, due: whenDay(task.due) }) : tr('calendar.open_task_due', { title: task.title }))}" title="${esc(tr('calendar.task_title', { title: task.title }))}"><span class="cal-agenda-dot" aria-hidden="true"></span><span class="cal-agenda-time">${esc(label)}</span><span class="cal-agenda-title">${esc(task.title)}</span></button>`;
 };
 export const agendaDays = d => {
   const days = Array.isArray(d?.days) ? d.days : [];
@@ -1755,7 +1756,7 @@ async function findTime() {
   const ov = document.createElement('div');
   ov.className = 'cal-scope-ov';
   const fmt = iso => iso.slice(11);
-  ov.innerHTML = `<div class="cal-scope"><div class="cal-scope-h">${esc(tr('calendar.free_on', { date: dstr, minutes: mins }))}</div>${
+  ov.innerHTML = `<div class="cal-scope"><div class="cal-scope-h">${esc(tr('calendar.free_on', { date: whenDay(dstr), minutes: mins }))}</div>${
     slots.length ? slots.map(s => `<button class="btn" data-s="${s.start}" data-e="${s.end}">${fmt(s.start)} – ${fmt(s.end)}</button>`).join('')
                  : `<div style="color:var(--muted);font-size:0.8125rem;padding:0.4rem">${esc(tr('calendar.no_free_slots'))}</div>`
   }<button class="btn cal-scope-cancel">${esc(tr('common.cancel'))}</button></div>`;

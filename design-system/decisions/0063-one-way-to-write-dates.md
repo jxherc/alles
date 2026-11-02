@@ -30,5 +30,4 @@ task row (u.10).
 ## not yet
 
 the side panel for details and swipe on touch (u.01), plan's 3 tabs (u.06), numbers with change
-(u.05), the app rail (u.07), mail and files dates (S6), and a static lint for raw iso dates in
-templates (the browser check counts them on the rendered page instead).
+(u.05), the app rail (u.07), mail and files dates (S6). the static lint for raw iso dates exists now: `tests/test_raw_dates_lint.py`.

@@ -3,6 +3,7 @@ import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from 
 import { initCustomDropdown, populateDropdown, setDropdownValue } from './dropdown.js?v=217';
 import { initDatePicker } from './datepick.js';
 import { formatDateTime, t, tp } from './i18n.js';
+import { whenDay } from './when.js';
 import { wireActionMenu } from './kokuen.js?v=5';
 import { openAppSettings } from './appsettings.js';
 
@@ -743,7 +744,7 @@ async function loadMemories() {
     _photos = []; return;
   }
   const groups = d.groups.map(g => ({
-    label: `${tp('photos.years_ago', g.years_ago)} · ${g.date}`,
+    label: `${tp('photos.years_ago', g.years_ago)} · ${whenDay(g.date)}`,
     items: g.items,
   }));
   _paintGroups(groups, t('photos.no_memories'));

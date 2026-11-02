@@ -1365,7 +1365,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     const parsed = row.parsed || {};
     const item = _el('div', `finance-import-row finance-import-row-${row.status}`);
     item.append(
-      _el('span', 'finance-import-row-date', parsed.date || t('finance.line_n', { n: row.row_number })),
+      _el('span', 'finance-import-row-date', parsed.date ? whenDay(parsed.date) : t('finance.line_n', { n: row.row_number })),
       _el('strong', '', parsed.payee || row.conflict_reason || (parsed.date ? t('finance.unnamed_transaction') : t('finance.needs_review'))),
       _el('span', 'finance-import-row-amount', parsed.amount_text ? _importAmount(parsed.currency_code || '', String(parsed.amount_text)) : ''),
       _el('span', 'finance-import-row-status', _importStatus(row.status)),

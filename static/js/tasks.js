@@ -243,7 +243,8 @@ function _goneHtml(t) {
 }
 
 const _late = t => !t.done && Boolean(t.due_date) && (t.overdue ?? String(t.due_date).slice(0, 10) < _todayISO());
-const _snoozable = t => !t.done && Boolean(t.due_date) && String(t.due_date).slice(0, 10) <= _todayISO();
+const _conflictText = (field, value) => (field === 'due_date' && value ? whenDay(value) : value ?? '');
+const _snoozable = t =>!t.done && Boolean(t.due_date) && String(t.due_date).slice(0, 10) <= _todayISO();
 
 // overdue leads every task view, with one button that brings the whole group to today (u.03)
 function _listHtml(items, row) {
@@ -736,7 +737,7 @@ async function openTaskEditor(id, source, recovered = null, isCurrent = () => tr
       if (response.status === 409 && result.detail?.code === 'task_conflict') {
         latestConflict = result.detail.current;
         showRecovery(tr('tasks.conflict_message'));
-        conflictValues.innerHTML = result.detail.fields.map(field => `<div><strong>${esc(tr(({ title: 'tasks.title_label', notes: 'tasks.notes', priority: 'tasks.priority.label', repeat: 'tasks.repeat.label', due_date: 'tasks.due', due_time: 'tasks.due', tags: 'tasks.tags', project: 'tasks.project' })[field]))}</strong><p>${esc(tr('tasks.your_change'))}: ${esc(values[field] ?? '')}</p><p>${esc(tr('tasks.saved_value'))}: ${esc(taskValues(latestConflict)[field] ?? '')}</p></div>`).join('');
+        conflictValues.innerHTML = result.detail.fields.map(field => `<div><strong>${esc(tr(({ title: 'tasks.title_label', notes: 'tasks.notes', priority: 'tasks.priority.label', repeat: 'tasks.repeat.label', due_date: 'tasks.due', due_time: 'tasks.due', tags: 'tasks.tags', project: 'tasks.project' })[field]))}</strong><p>${esc(tr('tasks.your_change'))}: ${esc(_conflictText(field, values[field]))}</p><p>${esc(tr('tasks.saved_value'))}: ${esc(_conflictText(field, taskValues(latestConflict)[field]))}</p></div>`).join('');
         mine.hidden = useSaved.hidden = conflictValues.hidden = false;
       } else if (!response.ok) throw new Error('request failed');
       else if (result.queued) showRecovery(tr('tasks.save_queued'));
