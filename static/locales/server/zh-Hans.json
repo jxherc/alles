@@ -2561,6 +2561,11 @@
     "pair this browser again to keep fills encrypted": "请重新配对这个浏览器，让填写的内容保持加密",
     "the browser's public key is invalid": "浏览器的公钥无效",
     "Alles is busy for a moment. Try again.": "Alles 正忙，请稍后再试。",
-    "companion did not start: {reason}": "配套服务未能启动：{reason}"
+    "companion did not start: {reason}": "配套服务未能启动：{reason}",
+    "no bank alert emails in mail's saved inbox from the last {mail_days} days": "邮件已保存的收件箱里最近 {mail_days} 天没有银行提醒邮件",
+    "only a bank email row can be left out": "只有银行邮件的行可以略过",
+    "only bank alert emails are read from mail": "只有银行提醒邮件会从邮件中读取",
+    "the email list could not be read": "无法读取邮件列表",
+    "the email names more than one amount": "这封邮件写了不止一个金额"
   }
 }

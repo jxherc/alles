@@ -2561,6 +2561,11 @@
     "pair this browser again to keep fills encrypted": "vuelve a vincular este navegador para que los rellenos sigan cifrados",
     "the browser's public key is invalid": "la clave pública del navegador no es válida",
     "Alles is busy for a moment. Try again.": "Alles está ocupado un momento. Inténtalo de nuevo.",
-    "companion did not start: {reason}": "el complemento no arrancó: {reason}"
+    "companion did not start: {reason}": "el complemento no arrancó: {reason}",
+    "no bank alert emails in mail's saved inbox from the last {mail_days} days": "no hay avisos del banco en la bandeja guardada de mail de los últimos {mail_days} días",
+    "only a bank email row can be left out": "solo una fila de correo del banco se puede dejar fuera",
+    "only bank alert emails are read from mail": "solo los avisos del banco se leen desde mail",
+    "the email list could not be read": "no se pudo leer la lista de correos",
+    "the email names more than one amount": "el correo indica más de un importe"
   }
 }

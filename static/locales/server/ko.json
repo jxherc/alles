@@ -2561,6 +2561,11 @@
     "pair this browser again to keep fills encrypted": "자동 입력을 계속 암호화하려면 이 브라우저를 다시 페어링하세요",
     "the browser's public key is invalid": "브라우저의 공개 키가 올바르지 않습니다",
     "Alles is busy for a moment. Try again.": "Alles가 잠시 바쁩니다. 다시 시도하세요.",
-    "companion did not start: {reason}": "컴패니언이 시작되지 않았습니다: {reason}"
+    "companion did not start: {reason}": "컴패니언이 시작되지 않았습니다: {reason}",
+    "no bank alert emails in mail's saved inbox from the last {mail_days} days": "메일에 저장된 받은편지함에 최근 {mail_days}일 동안의 은행 알림 메일이 없습니다",
+    "only a bank email row can be left out": "은행 메일 행만 제외할 수 있습니다",
+    "only bank alert emails are read from mail": "메일에서는 은행 알림 메일만 읽습니다",
+    "the email list could not be read": "메일 목록을 읽지 못했습니다",
+    "the email names more than one amount": "메일에 금액이 둘 이상 있습니다"
   }
 }

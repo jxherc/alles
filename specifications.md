@@ -943,6 +943,19 @@ imports, with an optional gated move to an alles-managed actual budget core.
 - reviewed generic csv and supported bank statement/notification profiles always preview first; repeat
   rows are stable duplicates, changed source rows are conflicts, and local undo removes only receipt-owned
   transactions. read-only simplefin and plaid connections are available after provider setup
+- **bank alert emails** are a reviewed import profile (`bank-email`). "read bank emails from mail"
+  picks up to 50 alert emails from mail's saved inboxes (the last 60 days): a subject about a
+  transaction (alert, purchase, payment, deposit, withdrawal, spent, charged, refund, e-transfer) from
+  a sender or subject that names a bank, card or alert. a saved `.eml` or pasted email works as a
+  file too. each email is one row read from its own words: the amount (one amount only; balance and
+  limit lines are ignored), the direction (purchase, spent, charged, payment, withdrawal against
+  deposit, refund, credited, received; both or neither is a review row), the merchant (`at`, `to`,
+  `from`, or a `Merchant:` / `Payee:` / `Description:` line), the date it names (else the day the bank
+  sent it), the card or account ending, and a reference number or the email's message-id as its
+  bank reference. a bare `$` takes the account's currency. a layout it can't read, or a missing
+  ending, goes to the review with the email's own text and nothing guessed. like the cmb
+  notifications, every row waits for "this ending belongs to this account", and any bank email row
+  can be left out (`resolve-match` with `skip`), so the rest applies; undo works the same
 - bank connections open from the finance overview, from money's empty state and from money → manage →
   banks. plaid comes first with its sign-up and keys links and defaults to a real bank; test data is the
   other choice. plaid only gets an https return address (or plain-http localhost in sandbox), taken from

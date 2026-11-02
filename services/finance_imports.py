@@ -39,6 +39,12 @@ PROFILE_DETAILS = (
         "default_currency_code": "CNY",
     },
     {
+        "id": "bank-email",
+        "label": "Bank alert emails",
+        "kind": "notification",
+        "default_currency_code": "",
+    },
+    {
         "id": "rbc-csv",
         "label": "RBC statement CSV",
         "kind": "statement",
@@ -95,6 +101,13 @@ PROFILE_DETAILS = (
 )
 PROFILES = {item["id"]: item for item in PROFILE_DETAILS}
 CANADIAN_PROFILES = frozenset({"cibc-csv", "rbc-csv", "td-csv", "bmo-csv", "scotiabank-csv"})
+# rows from these name a card or account ending, which the owner confirms belongs to the account
+NOTIFICATION_PROFILES = frozenset(
+    item["id"] for item in PROFILE_DETAILS if item["kind"] == "notification"
+)
+# the layout reason the review shows for an email no parser shape fits; nothing is guessed
+EMAIL_SHAPE_UNKNOWN = "this email's layout isn't one alles reads yet"
+RAW_EMAIL_CHARS = 4000
 
 
 def _pick(row: dict, *aliases: str) -> str:
@@ -294,6 +307,246 @@ def _notification_row(line: str, requested_currency: str) -> dict:
     }
 
 
+_EMAIL_MONEY = re.compile(
+    r"(?P<pre>US\$|USD\s?|CA\$|C\$|CAD\s?|EUR\s?|GBP\s?|€|£|\$)\s?(?P<num>\d[\d,]*(?:\.\d{1,2})?)"
+    r"(?:\s?(?P<post>USD|CAD|EUR|GBP)\b)?"
+)
+_EMAIL_SYMBOLS = {"US$": "USD", "CA$": "CAD", "C$": "CAD", "€": "EUR", "£": "GBP"}
+# lines about balances and limits name amounts that are not the transaction
+_EMAIL_NOT_THE_AMOUNT = re.compile(
+    r"(?i)balance|available|credit limit|minimum|statement|threshold|alerts? (?:over|above)|"
+    r"more than|greater than|exceeds?"
+)
+_EMAIL_DEBIT = re.compile(
+    r"(?i)\b(purchase[ds]?|spent|charged|charge|payment|paid|withdrawals?|withdrawn|"
+    r"debit(?:ed)?|sent)\b"
+)
+_EMAIL_CREDIT = re.compile(r"(?i)\b(deposit(?:ed)?|refund(?:ed)?|credited|received)\b")
+_EMAIL_SUFFIX = re.compile(
+    r"(?i)(?:ending(?:\s+in)?|ends\s+(?:in|with)|last\s+(?:4|four)\s+digits?(?:\s+of)?|"
+    r"[*x•]{2,}|\.{3})\s*#?\s*(\d{4})\b"
+)
+_EMAIL_LABELLED = re.compile(
+    r"(?im)^\s*(merchant|payee|description|where|amount|date|transaction date|card|account)"
+    r"\s*[:：]\s*(.+?)\s*$"
+)
+_EMAIL_MERCHANT = re.compile(
+    r"(?:\bat|\bwith|\bto|\bfrom)\s+(?!your\b|you\b|the\s+account\b)"
+    r"([A-Z0-9][A-Za-z0-9&'*#./ -]{1,60}?)"
+    r"(?=\s+(?:on|using|with|for|was|from|to|at)\b|[.,;!\n]|$)"
+)
+_EMAIL_DATE = re.compile(
+    r"(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|"
+    r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4})\b"
+)
+
+
+def _email_date(text: str, sent: str) -> str:
+    """the date the alert names, else the day the bank sent it (alerts go out as it happens)."""
+    found = _EMAIL_DATE.search(text)
+    if found:
+        raw = found.group(1).replace(",", "")
+        if raw[:1].isalpha():
+            # "Nov 01 2026", "November 1 2026", "Sept. 3 2026": month by its first 3 letters
+            short = raw[:3] + raw[raw.index(" ") :]
+            try:
+                return datetime.strptime(short, "%b %d %Y").date().isoformat()
+            except ValueError:
+                raise ValueError("date is missing or ambiguous") from None
+        return _date_text(raw)
+    if sent:
+        from email.utils import parsedate_to_datetime
+
+        try:
+            when = parsedate_to_datetime(sent)
+        except (TypeError, ValueError):
+            when = None
+        if when is not None:
+            return (when.astimezone() if when.tzinfo else when).date().isoformat()
+    raise ValueError("date is missing or ambiguous")
+
+
+def _email_parts(item: dict) -> tuple[dict, str]:
+    """the raw fields a review shows, and the text the shapes are read from."""
+    subject = str(item.get("subject") or "").strip()
+    body = str(item.get("text") or "")
+    raw = {
+        "email_from": str(item.get("from") or "").strip()[:200],
+        "email_subject": subject[:300],
+        "email_date": str(item.get("date") or "").strip()[:80],
+        "email_text": body.strip()[:RAW_EMAIL_CHARS],
+    }
+    return raw, f"{subject}\n{body}"
+
+
+def _bank_email_row(item: dict, requested_currency: str) -> dict:
+    """read one alert email. every value comes from the email's own words; a shape that doesn't
+    fit is a review row with the raw email, never a guess."""
+    raw, text = _email_parts(item)
+    labelled = {key.lower(): value for key, value in _EMAIL_LABELLED.findall(text)}
+    lines = [line for line in text.splitlines() if not _EMAIL_NOT_THE_AMOUNT.search(line)]
+    usable = "\n".join(lines)
+    amounts = {}
+    for match in _EMAIL_MONEY.finditer(labelled.get("amount", "") or usable):
+        code = (match.group("post") or "").strip() or match.group("pre").strip()
+        code = _EMAIL_SYMBOLS.get(code, code)
+        amounts[(match.group("num").replace(",", ""), code)] = match
+    if not amounts:
+        raise ValueError(EMAIL_SHAPE_UNKNOWN)
+    if len(amounts) > 1:
+        raise ValueError("the email names more than one amount")
+    (number, code), match = next(iter(amounts.items()))
+    plain = re.sub(r"(?i)credit card|credit limit|available credit|debit card", " ", usable)
+    debit = bool(_EMAIL_DEBIT.search(plain))
+    credit = bool(_EMAIL_CREDIT.search(plain))
+    if debit == credit:
+        raise ValueError(EMAIL_SHAPE_UNKNOWN if not debit else "direction is missing or ambiguous")
+    if code == "$":
+        code = requested_currency
+    currency = currency_code(code)
+    if currency == "XXX":
+        raise ValueError("currency is missing or ambiguous")
+    amount = _money(number)
+    amount = -abs(amount) if debit else abs(amount)
+    amount_text = decimal_text(amount)
+    suffix = _EMAIL_SUFFIX.search(
+        " ".join(filter(None, [labelled.get("card"), labelled.get("account"), usable]))
+    )
+    if not suffix:
+        raise ValueError("account suffix is missing")
+    payee = (
+        labelled.get("merchant")
+        or labelled.get("payee")
+        or labelled.get("description")
+        or labelled.get("where")
+        or ""
+    )
+    if not payee:
+        after = _EMAIL_MERCHANT.search(usable[match.start() :]) or _EMAIL_MERCHANT.search(usable)
+        payee = after.group(1).strip() if after else ""
+    if not payee:
+        payee = (_EMAIL_DEBIT.search(plain) or _EMAIL_CREDIT.search(plain)).group(1).lower()
+    reference = re.search(
+        r"(?i)(?:reference|confirmation|transaction)\s*(?:number|no\.?|id|#)\s*[:：#]?\s*"
+        r"([A-Za-z0-9][A-Za-z0-9_-]{3,63})",
+        text,
+    )
+    message_id = str(item.get("message_id") or "").strip()
+    return {
+        "date": _email_date(
+            labelled.get("date") or labelled.get("transaction date") or text, raw["email_date"]
+        ),
+        "amount_text": amount_text,
+        "payee": payee[:120],
+        "currency_code": currency,
+        "external_id": reference.group(1) if reference else message_id[:200],
+        "account_suffix": suffix.group(1),
+    }
+
+
+_ALERT_SUBJECT = re.compile(
+    r"(?i)\b(alert|transaction|purchase|payment|deposit|withdrawal|spent|charged?|refund|"
+    r"e-?transfer)\b"
+)
+_ALERT_SENDER = re.compile(
+    r"(?i)\b(bank|card|alerts?|notifications?|notify|visa|mastercard|amex)\b"
+)
+MAIL_ALERT_LIMIT = 50
+
+
+def mail_alert_emails(db, days: int = 60, limit: int = MAIL_ALERT_LIMIT) -> list[dict]:
+    """bank alert emails from the saved inbox of every mail account, newest first: a subject
+    about a transaction from a sender (or subject) that names a bank, card or alert. bodies come
+    from the stored copies, else one read from the mail server, which is then kept."""
+    import time
+
+    from core.database import CachedMessage, MailAccount
+    from services import mail as mailsvc
+    from services import mail_cache
+
+    since = time.time() - max(1, min(int(days), 366)) * 86400
+    rows = (
+        db.query(CachedMessage)
+        .filter(CachedMessage.folder == "INBOX", CachedMessage.date_ts >= since)
+        .order_by(CachedMessage.date_ts.desc())
+        .all()
+    )
+    picked = [
+        row
+        for row in rows
+        if _ALERT_SUBJECT.search(row.subject or "")
+        and (_ALERT_SENDER.search(row.sender or "") or _ALERT_SENDER.search(row.subject or ""))
+    ][:limit]
+    accounts = {}
+    out = []
+    for row in picked:
+        body = mail_cache.stored_body(db, row.account_id, "INBOX", row.uid)
+        if body is None:
+            if row.account_id not in accounts:
+                account = db.get(MailAccount, row.account_id)
+                accounts[row.account_id] = account
+            account = accounts[row.account_id]
+            if account is None:
+                continue
+            from routes.mail import _acct_dict
+
+            try:
+                body = mailsvc.fetch_message(_acct_dict(account), row.uid, "INBOX")
+            except Exception:
+                body = {"error": "unreachable"}
+            if body.get("error"):
+                # the review still shows the email, from its saved headers, with nothing guessed
+                body = {"text": "", "from": row.sender, "subject": row.subject, "date": row.date}
+            else:
+                mail_cache.keep_body(db, row.account_id, "INBOX", body | {"uid": row.uid})
+        text = body.get("text") or re.sub(r"<[^>]+>", " ", body.get("html") or "")
+        out.append(
+            {
+                "from": body.get("from") or row.sender or "",
+                "subject": body.get("subject") or row.subject or "",
+                "date": body.get("date") or row.date or "",
+                "message_id": body.get("message_id") or row.message_id or "",
+                "text": text,
+            }
+        )
+    return out
+
+
+def bank_emails(content: str) -> list[dict]:
+    """the emails in a bank-email source: the json list mail hands over, a saved .eml file, or
+    one pasted email."""
+    stripped = content.lstrip("﻿").strip()
+    if stripped.startswith("["):
+        import json
+
+        try:
+            items = json.loads(stripped)
+        except ValueError as error:
+            raise ValueError("the email list could not be read") from error
+        if not isinstance(items, list) or not all(isinstance(item, dict) for item in items):
+            raise ValueError("the email list could not be read")
+        return items
+    import email
+    from email import policy
+
+    message = email.message_from_string(stripped, policy=policy.default)
+    if message.get("From") or message.get("Subject"):
+        part = message.get_body(preferencelist=("plain", "html"))
+        body = part.get_content() if part is not None else ""
+        if part is not None and part.get_content_type() == "text/html":
+            body = re.sub(r"<[^>]+>", " ", body)
+        return [
+            {
+                "from": str(message.get("From") or ""),
+                "subject": str(message.get("Subject") or ""),
+                "date": str(message.get("Date") or ""),
+                "message_id": str(message.get("Message-ID") or ""),
+                "text": body,
+            }
+        ]
+    return [{"text": stripped}]
+
+
 def parse(
     profile: str,
     content: str,
@@ -304,25 +557,32 @@ def parse(
 ) -> list[dict]:
     if profile not in PROFILES:
         raise ValueError("unsupported import profile")
-    raw_rows = (
-        [
+    emails = bank_emails(content) if profile == "bank-email" else []
+    if profile == "bank-email":
+        raw_rows = [
+            {"line_number": index, "raw": _email_parts(item)[0], "email": item}
+            for index, item in enumerate(emails, start=1)
+        ]
+    elif profile == "cmb-notification":
+        raw_rows = [
             {"line_number": index, "raw": {"notification": line.strip()}}
             for index, line in enumerate(content.splitlines(), start=1)
             if line.strip()
         ]
-        if profile == "cmb-notification"
-        else _csv_rows(content, profile)
-    )
+    else:
+        raw_rows = _csv_rows(content, profile)
     if not raw_rows:
         raise ValueError("source has no transaction rows")
     parsed_rows = []
     for item in raw_rows:
+        email_item = item.pop("email", None)
         try:
-            parsed = (
-                _notification_row(item["raw"]["notification"], requested_currency)
-                if profile == "cmb-notification"
-                else _statement_row(profile, item["raw"], requested_currency)
-            )
+            if email_item is not None:
+                parsed = _bank_email_row(email_item, requested_currency)
+            elif profile == "cmb-notification":
+                parsed = _notification_row(item["raw"]["notification"], requested_currency)
+            else:
+                parsed = _statement_row(profile, item["raw"], requested_currency)
             parsed_rows.append({**item, "parsed": parsed, "stable_identity": "", "error": ""})
         except ValueError as error:
             parsed_rows.append({**item, "parsed": {}, "stable_identity": "", "error": str(error)})

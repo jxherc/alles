@@ -2561,6 +2561,11 @@
     "pair this browser again to keep fills encrypted": "入力内容を暗号化したままにするため、このブラウザをもう一度ペアリングしてください",
     "the browser's public key is invalid": "ブラウザの公開鍵が無効です",
     "Alles is busy for a moment. Try again.": "Alles は少しの間ビジーです。もう一度お試しください。",
-    "companion did not start: {reason}": "コンパニオンが起動しませんでした: {reason}"
+    "companion did not start: {reason}": "コンパニオンが起動しませんでした: {reason}",
+    "no bank alert emails in mail's saved inbox from the last {mail_days} days": "メールの保存済み受信トレイに、直近 {mail_days} 日の銀行通知メールはありません",
+    "only a bank email row can be left out": "除外できるのは銀行メールの行だけです",
+    "only bank alert emails are read from mail": "メールから読み込めるのは銀行通知メールだけです",
+    "the email list could not be read": "メールの一覧を読み込めませんでした",
+    "the email names more than one amount": "このメールには金額が複数あります"
   }
 }
