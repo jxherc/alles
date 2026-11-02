@@ -505,7 +505,11 @@ def run(context_factory=None):
                                 assert handoff["kind"] == "handoff"
                                 assert handoff["app"] == "andromeda"
                                 assert handoff["context"] == prompts[0]
-                                assert handoff["sources"][0]["url"] == result["url"]
+                                # the links list results first, then evidence (the bounded
+                                # cases have 600 results of their own), capped at 12
+                                first = (payload["results"] or payload["evidence"])[0]["url"]
+                                assert handoff["sources"][0]["url"] == first
+                                assert 1 <= len(handoff["sources"]) <= 12
                                 note = handoff.get("note")
                                 if scope:
                                     assert note == {

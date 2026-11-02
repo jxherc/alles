@@ -275,33 +275,25 @@ def run():
                         page.goto(base + "/?view=server", wait_until="networkidle")
                         root = page.locator("#server-workbench-view")
                         root.locator('[data-group-section="policy"]').press("Enter")
+                        # 28.35: the policy is a choice that explains itself, not a file to edit
                         card = root.locator(".server-workbench-card").filter(
-                            has=page.get_by_role("heading", name="server access policy", exact=True)
-                        )
-                        expect(card).to_contain_text(
-                            "owned-only limits control to Alles-managed services"
-                        )
-                        expect(card).to_contain_text(
-                            "allowlisted_host also permits the exact host services you list"
-                        )
-                        expect(card).to_contain_text("validate the change before saving")
-                        expect(card).to_contain_text(
-                            "commands, arguments, paths, and globs are rejected"
-                        )
-                        editor = card.locator("textarea")
-                        original = editor.input_value()
-                        validate = card.get_by_role(
-                            "button", name="validate and show diff", exact=True
-                        )
-                        validate.press("Enter")
-                        # a missing policy file keeps its own error line above the check result
-                        expect(
-                            card.locator(".server-workbench-status").filter(
-                                has_text="policy is valid"
+                            has=page.get_by_role(
+                                "heading", name="what alles may control", exact=True
                             )
-                        ).to_have_text("policy is valid")
-                        expect(validate).to_be_focused()
-                        expect(editor).to_have_value(original)
+                        )
+                        expect(card).to_contain_text("alles always runs its own services")
+                        expect(card).to_contain_text(
+                            "start and stop services on this machine that you pick"
+                        )
+                        # a fresh box has no policy file: it says what that means and offers
+                        # the safe default, and reading it changes nothing
+                        expect(card).to_contain_text(
+                            "not set up yet. until it is, alles controls only its own services."
+                        )
+                        expect(
+                            card.get_by_role("button", name="keep it to alles only", exact=True)
+                        ).to_be_visible()
+                        expect(card.locator("textarea")).to_have_count(0)
                         assert api("GET", "/api/system/policy").json() == before
                         card.locator("h2").scroll_into_view_if_needed()
                         row["policy"] = {"unchanged": True, "text": card.inner_text()}

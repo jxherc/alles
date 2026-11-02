@@ -301,7 +301,8 @@ with sync_playwright() as pw:
                 reply_more.press("Enter")
                 stream_action = reply_actions.get_by_role("menuitem", name="+plan task", exact=True)
                 expect(stream_action).to_be_visible()
-                expect(stream_action).to_have_attribute("title", "review this reply as a plan task")
+                # 27.35: no native tooltip on reply actions
+                assert stream_action.get_attribute("title") is None
                 row["streamed_plan_action_verified"] = True
                 page.keyboard.press("Escape")
                 expect(page.locator("#conn-banner")).to_be_hidden()
