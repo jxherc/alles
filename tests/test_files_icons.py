@@ -60,5 +60,28 @@ class IconUnification(unittest.TestCase):
         self.assertRegex(CSS, r"\.files-location-button svg\s*\{[^}]*width")
 
 
+class FilesRowsAndHeader(unittest.TestCase):
+    """27.27: the files list read as buggy on an ipad."""
+
+    REVAMP = (ROOT / "static" / "revamp.css").read_text(encoding="utf-8")
+
+    def test_folders_show_no_size(self):
+        # a folder isn't 0 B; the list and the details leave the size out
+        self.assertIn("item.type === 'dir' ? '' : esc(formatSize(item.size))", FILES)
+        self.assertIn("${item.type === 'dir' ? '' : `<dt>${t('files.meta_size')}", FILES)
+
+    def test_picked_row_is_the_one_fill(self):
+        self.assertIn("${selected ? ' is-selected' : ''}", FILES)
+        self.assertIn("row?.classList.toggle('is-selected', selected)", FILES)
+        self.assertIn(":is(:hover, :focus-within, .is-current, .is-selected)", CSS)
+        # the select box drew its own 44px tile inside the row's hover, and it stuck after a tap
+        self.assertNotRegex(CSS, r"#files-view \.files-check:hover,")
+
+    def test_header_follows_the_column_not_the_screen(self):
+        # the details panel and a resized sidebar narrow the column at any screen width
+        self.assertIn("container: files-browser / inline-size", self.REVAMP)
+        self.assertIn("@container files-browser (max-width: 779px)", self.REVAMP)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -360,6 +360,8 @@ class SettingsPatch(BaseModel):
     # engine id -> key; "" clears it. covers every engine in services/research/engines.py
     search_keys: dict[str, str] | None = None
     andromeda_blocked_sites: list[str] | None = None
+    # the last searches, newest first; kept here so every device shows the same history (27.13)
+    andromeda_recent_searches: list[str] | None = None
     andromeda_confirm_remote: bool | None = None
     search_fallback: str | None = None
     andromeda_normal_results: bool | None = None
@@ -646,6 +648,14 @@ def patch_settings(body: SettingsPatch, request: Request):
         if len(raw) > MAX_BLOCKED_SITES or any(not blocked_site(value) for value in raw):
             raise ApiError(400, "invalid_blocked_site", "use site names like example.com")
         patch["andromeda_blocked_sites"] = blocked_sites(raw)
+    if "andromeda_recent_searches" in patch:
+        recent, seen = [], set()
+        for value in patch["andromeda_recent_searches"]:
+            query = " ".join(str(value).split())[:300]
+            if query and query.lower() not in seen:
+                seen.add(query.lower())
+                recent.append(query)
+        patch["andromeda_recent_searches"] = recent[:20]
     if "search_keys" in patch:
         for engine_id, value in patch.pop("search_keys").items():
             engine = SEARCH_ENGINES.get(engine_id)

@@ -132,6 +132,7 @@ _defaults = {
     "exa_api_key": "",
     "custom_search_engines": [],
     "andromeda_blocked_sites": [],
+    "andromeda_recent_searches": [],
     "coding_harness": "pi",
     "coding_approval": "auto",
     "coding_guard": True,

@@ -108,3 +108,21 @@ test('rows read back as their own fields, sides as the short letter', () => {
   const holds = { key: 'holds', type: 'rows', columns: [{ key: 'name', type: 'text' }, { key: 'seconds', type: 'seconds' }] };
   assert.equal(entryText({ values: { holds: [{ name: 'pigeon', seconds: 60, side: 'L' }] } }, [holds]), 'holds L name pigeon · hold 60 s');
 });
+
+test('a checklist keeps each step with its own state, so an undone step survives a re-log', async () => {
+  const { checklistSteps, readChecklist } = await import('../../static/js/habit_loggers.js');
+  const logged = [{ item: 'wash', done: true }, { item: 'dry', done: true }, { item: 'fold', done: false }];
+  assert.deepEqual(checklistSteps(logged), logged);
+  // older entries were one line of text or plain names: every step was done
+  assert.deepEqual(checklistSteps('wash, dry'), [{ item: 'wash', done: true }, { item: 'dry', done: true }]);
+  assert.deepEqual(checklistSteps(['wash', 'Wash', ' ']), [{ item: 'wash', done: true }]);
+  // the form reads back the box of every step plus anything typed in the new step field
+  const step = (item, done) => ({ dataset: { item }, querySelector: () => ({ getAttribute: () => String(done) }) });
+  const box = {
+    querySelectorAll: () => logged.map(one => step(one.item, one.done)),
+    querySelector: () => ({ value: 'iron, ' }),
+  };
+  assert.deepEqual(readChecklist(box), [...logged, { item: 'iron', done: true }]);
+  const stages = { key: 'stages', type: 'checklist' };
+  assert.equal(entryText({ values: { stages: logged } }, [stages]), 'stages wash, dry, fold (not done)');
+});

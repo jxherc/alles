@@ -938,6 +938,9 @@ function fieldHtml(field, value, d, parent = '') {
     case 'rows':
       return `<div class="dlog-row" data-type="rows"><div class="dlog-label"><span id="${id}">${esc(name)}</span></div>
         <div class="dlog-control dlog-rows" data-f="${esc(field.key)}" role="group" aria-labelledby="${id}">${rowsInner(field, Array.isArray(value) ? value : [], d)}</div></div>`;
+    case 'checklist':
+      return `<div class="dlog-row" data-type="checklist"><div class="dlog-label"><span id="${id}">${esc(name)}</span></div>
+        <div class="dlog-control dlog-checklist" data-f="${esc(field.key)}" role="group" aria-labelledby="${id}">${checklistInner(checklistSteps(value))}</div></div>`;
     case 'files':
       return `<div class="dlog-row" data-type="files"><div class="dlog-label"><span id="${id}">${esc(name)}</span></div>
         <div class="dlog-control dlog-files" data-f="${esc(field.key)}" role="group" aria-labelledby="${id}">${filesInner(Array.isArray(value) ? value : [])}</div></div>`;
@@ -959,6 +962,39 @@ function rowsInner(field, rows, d) {
       <div class="dlog-rowcard-fields">${side}${field.columns.map(column => fieldHtml(column, one[column.key], d, field.key)).join('')}</div></div>`;
   }).join('');
   return `${cards}<button type="button" class="btn dlog-add-row" data-dlog="add-row">${_si('plus')} ${esc(t('habits.add_row'))}</button>`;
+}
+
+// a checklist value is its steps, each with its own state: { item, done }. the old field was one
+// line of text, so a step left undone came back done (or lost) the next time it was logged
+export function checklistSteps(value) {
+  const list = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+  const seen = new Set();
+  return list.map(step => typeof step === 'string' ? { item: step.trim(), done: true }
+    : { item: String(step?.item ?? step?.text ?? '').trim(), done: step?.done !== false })
+    .filter(step => step.item && !seen.has(step.item.toLowerCase()) && seen.add(step.item.toLowerCase()));
+}
+
+// what the list shows now: each step's box, plus anything typed in the new step field (done)
+export function readChecklist(box) {
+  const steps = [...box.querySelectorAll('.dlog-step')].map(step => ({
+    item: step.dataset.item, done: step.querySelector('[role="checkbox"]')?.getAttribute('aria-checked') === 'true',
+  }));
+  const typed = textIn(box.querySelector('[data-dlog-step-new]'));
+  return checklistSteps([...steps, ...typed.split(',')]);
+}
+
+function checklistInner(steps) {
+  const items = steps.map(step => `<li class="dlog-step" data-item="${esc(step.item)}">
+      <button type="button" class="dlog-step-check" role="checkbox" aria-checked="${step.done}" data-dlog="step" aria-label="${esc(step.item)}"></button>
+      <span class="dlog-step-name" aria-hidden="true">${esc(step.item)}</span>
+      <button type="button" class="icon-btn" data-dlog="remove-step" aria-label="${esc(t('habits.remove_step', { name: step.item }))}">${_si('close')}</button></li>`).join('');
+  return `${items ? `<ul class="dlog-steps">${items}</ul>` : ''}<input type="text" class="settings-input dlog-step-new" data-dlog-step-new autocomplete="off" placeholder="${esc(t('habits.add_step'))}" aria-label="${esc(t('habits.add_step'))}">`;
+}
+
+function changeSteps(box, change) {
+  const steps = change(readChecklist(box));
+  box.innerHTML = checklistInner(steps);
+  box.querySelector('[data-dlog-step-new]')?.focus();
 }
 
 // files (a practice recording): stored in the files app under habits/<habit>, listed by name
@@ -1020,6 +1056,10 @@ export function collectDay(scope, fields) {
       const box = own(scope, `.dlog-rows[data-f="${CSS.escape(key)}"]`);
       const rows = box ? readRows(box, field).filter(one => Object.keys(one).some(name => name !== 'side')) : [];
       value = rows.length ? rows : null;
+    } else if (field.type === 'checklist') {
+      const box = own(scope, `.dlog-checklist[data-f="${CSS.escape(key)}"]`);
+      const steps = box ? readChecklist(box) : [];
+      value = steps.length ? steps : null;
     } else if (field.type === 'files') {
       const box = own(scope, `.dlog-files[data-f="${CSS.escape(key)}"]`);
       const paths = box ? [...box.querySelectorAll('li[data-path]')].map(item => item.dataset.path) : [];
@@ -1029,7 +1069,7 @@ export function collectDay(scope, fields) {
       if (text) {
         const parts = text.split(',').map(part => part.trim()).filter(Boolean);
         value = field.type === 'tags' ? parts : field.type === 'people' ? parts.map(part => ({ text: part }))
-          : field.type === 'checklist' ? parts.map(item => ({ item, done: true })) : field.type === 'link' ? { text } : text;
+          : field.type === 'link' ? { text } : text;
       }
     }
     if (value != null && value !== '') values[key] = value;
@@ -1056,6 +1096,7 @@ export function entryText(entry, fields, kind = '') {
     else if (field.type === 'sets') shown = value.map(one => `${num(one.reps ?? 0)}${(one.count || 1) > 1 ? ` × ${num(one.count)}` : ''}`).join(', ');
     else if (field.type === 'rows') shown = value.map(one => [one.side ? sideShort(one.side) : '', entryText({ values: one }, field.columns, field.key)].filter(Boolean).join(' ')).join('; ');
     else if (field.type === 'files') shown = value.map(path => path.split('/').pop()).join(', ');
+    else if (field.type === 'checklist') shown = checklistSteps(value).map(step => step.done ? step.item : t('habits.step_not_done', { name: step.item })).join(', ');
     else if (Array.isArray(value)) shown = value.map(item => item?.text ?? item?.item ?? item).join(', ');
     else if (typeof value === 'object') shown = value.text ?? '';
     else shown = typeof value === 'number' ? num(value) : String(value);
@@ -1180,6 +1221,12 @@ function wireDay(host) {
       const card = button.closest('.dlog-rowcard');
       const at = [...card.parentElement.querySelectorAll(':scope > .dlog-rowcard')].indexOf(card);
       changeRows(d, card.parentElement, rows => { rows.splice(at, 1); return Math.min(at, rows.length - 1); });
+    } else if (act === 'step') {
+      const done = button.getAttribute('aria-checked') !== 'true';
+      button.setAttribute('aria-checked', String(done));
+    } else if (act === 'remove-step') {
+      const name = button.closest('.dlog-step').dataset.item;
+      changeSteps(button.closest('.dlog-checklist'), steps => steps.filter(step => step.item !== name));
     } else if (act === 'remove-file') {
       const box = button.closest('.dlog-files');
       button.closest('li').remove();
@@ -1187,6 +1234,11 @@ function wireDay(host) {
       box.innerHTML = filesInner(paths);
       box.querySelector('.dlog-add-file')?.focus();
     }
+  });
+  host.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || !event.target.matches('[data-dlog-step-new]') || !textIn(event.target)) return;
+    event.preventDefault();
+    changeSteps(event.target.closest('.dlog-checklist'), steps => steps);
   });
   host.addEventListener('change', event => {
     const d = _dlog;

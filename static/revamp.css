@@ -1814,6 +1814,53 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search:
   display: none;
 }
 
+/* saved and recent searches in one list under the box (27.13): the menu look, 4px below the edge */
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] .andromeda-search { position: relative; overflow: visible; }
+html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"] :is(.andromeda-app-head, .andromeda-search):has(.andromeda-history:not([hidden])) { z-index: 40; }
+html:not(#_) #andromeda-view .andromeda-history.custom-dropdown-panel {
+  position: absolute;
+  inset: calc(100% + var(--k-space-1)) 0 auto;
+  z-index: 30;
+  max-height: min(360px, 60vh);
+  padding: var(--k-space-1);
+  animation: none;
+}
+html:not(#_) #andromeda-view .andromeda-history[hidden] { display: none; }
+html:not(#_) #andromeda-view .andromeda-history-group {
+  padding: var(--k-space-2) var(--k-space-3) var(--k-space-1);
+  color: var(--k-quiet);
+  font-size: 0.8125rem;
+}
+html:not(#_) #andromeda-view .andromeda-history .custom-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  min-height: var(--k-control);
+  border-radius: var(--k-radius-control);
+  font-size: 0.875rem;
+  text-align: start;
+}
+html:not(#_) #andromeda-view .andromeda-history-query {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html:not(#_) #andromeda-view .andromeda-history-new { flex: none; color: var(--k-quiet); font-size: 0.8125rem; }
+html:not(#_) #andromeda-view .andromeda-history-clear {
+  min-height: var(--k-control);
+  margin-top: var(--k-space-1);
+  padding: 0 var(--k-space-3);
+  border: 0;
+  border-radius: var(--k-radius-control);
+  background: transparent;
+  color: var(--k-quiet);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+html:not(#_) #andromeda-view .andromeda-history-clear:hover { background: var(--k-hover); color: var(--k-text); }
+
 /* the idle page puts the app name where every other app has it, top left, not stacked on the search */
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"][data-state="idle"] .andromeda-page {
   position: relative;
@@ -2019,9 +2066,12 @@ html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row, .files
   padding-inline: var(--k-gutter);
 }
 
-/* up to an ipad in portrait the sidebar leaves too little room for one row: the folder name
-   squeezed to 0px and up slid under settings, so the actions take their own row */
-@media (max-width: 1023px) {
+/* when the column is narrow the folder name squeezed to nothing ("on t" with the details open on
+   an ipad, 27.27), so the actions take their own row. the column's own width decides, since the
+   sidebar can be resized and the details panel takes room at any screen size */
+html:not(#_):not(#_) #files-view .files-phase7-browser { container: files-browser / inline-size; }
+
+@container files-browser (max-width: 779px) {
   html:not(#_):not(#_) #files-view .files-phase7-app-head {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "where settings" "actions actions";
@@ -4473,6 +4523,26 @@ html:not(#_):not(#_) .dlog-control.dlog-files { display: grid; gap: var(--k-spac
 html:not(#_):not(#_) .dlog-file-list { display: grid; gap: var(--k-row-gap); margin: 0; padding: 0; list-style: none; }
 html:not(#_):not(#_) .dlog-file-list > li { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); min-height: var(--k-control); padding-inline-start: var(--k-space-3); border-radius: var(--k-radius-control); }
 html:not(#_):not(#_) .dlog-file-list > li:hover { background: var(--k-hover); }
+/* a checklist step: its box, its name, remove; the box draws the same tick as the files list */
+html:not(#_):not(#_) .dlog-checklist { display: grid; gap: var(--k-space-2); }
+html:not(#_):not(#_) .dlog-steps { display: grid; gap: var(--k-row-gap); margin: 0; padding: 0; list-style: none; }
+html:not(#_):not(#_) .dlog-step { display: flex; align-items: center; gap: var(--k-space-1); min-height: var(--k-control); border-radius: var(--k-radius-control); }
+html:not(#_):not(#_) .dlog-step:hover { background: var(--k-hover); }
+html:not(#_):not(#_) .dlog-step-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+html:not(#_):not(#_) .dlog-step-check { display: grid; place-items: center; flex: none; width: var(--k-control); height: var(--k-control); padding: 0; border: 0; background: transparent; cursor: pointer; }
+html:not(#_):not(#_) .dlog-step-check::before {
+  content: ""; grid-area: 1 / 1; width: 20px; height: 20px; box-sizing: border-box;
+  border: 1.5px solid var(--k-line-strong); border-radius: 6px; background: transparent;
+  transition: background-color 180ms var(--k-ease-out), border-color 180ms var(--k-ease-out);
+}
+html:not(#_):not(#_) .dlog-step-check::after {
+  content: ""; grid-area: 1 / 1; width: 5px; height: 9px; margin-top: -2px;
+  border: solid var(--k-on-accent); border-width: 0 2px 2px 0; rotate: 45deg; scale: 0;
+  transition: scale 160ms var(--k-ease-out);
+}
+html:not(#_):not(#_) .dlog-step-check[aria-checked="true"]::before { border-color: var(--k-accent); background: var(--k-accent); }
+html:not(#_):not(#_) .dlog-step-check[aria-checked="true"]::after { scale: 1; }
+html:not(#_):not(#_) .dlog-step:has(.dlog-step-check[aria-checked="false"]) .dlog-step-name { color: var(--k-muted); }
 html:not(#_):not(#_) .dlog-file-name { overflow-wrap: anywhere; }
 html:not(#_):not(#_) .dlog-add-file { position: relative; cursor: pointer; }
 html:not(#_):not(#_) .dlog-add-file:focus-within { outline: 1px solid var(--k-field-focus); outline-offset: -1px; }

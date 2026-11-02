@@ -1222,8 +1222,12 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   web results start under a small "web results" label, so each part reads apart at a glance. "/"
   outside a text field jumps to the search box. opening andromeda asks its settings, engines, models
   and saved searches in one round, not one after another. its settings buttons open the andromeda
-  section of settings; the page itself keeps only the per-search engine and exact model beside the
-  results, and the saved searches.
+  section of settings.
+- **search history.** a click (or arrow down) in the empty search box opens one list under it: saved
+  searches first (with how many new links a watch found), then the last 20 searches, both narrowed by
+  what's typed. arrows move, enter opens, escape closes, and "clear recent searches" empties the recent
+  part. the recent searches live in settings (`andromeda_recent_searches`), so every device shows the
+  same history; re-running the same search (a tab switch, retry or reload) doesn't add it again.
 - **result rows.** each row shows the site's icon, its name and a "host › path" trail above a larger
   title, then the page date before the snippet when the engine gives one. a row without an icon from the
   engine uses duckduckgo's icon service, and every icon and image loads through the media proxy.
@@ -1244,7 +1248,7 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   `andromeda_watch` job (every 5 minutes, at most three due searches per run) repeats the search with the
   same engine and keeps only links it has not seen before, starting from the saved results. a watch never
   asks a model, so nothing but the search itself leaves the machine. new links trigger a push to subscribed
-  browsers and the discord or telegram alert when configured. the saved list shows how many are new; opening
+  browsers and the discord or telegram alert when configured. the search history list shows how many are new; opening
   the search lists them under "new since you last looked" and marks them seen. a failed check waits for the
   next slot and shows the failure type.
 - **hidden sites.** "hide <site>" in a result's menu adds the site to `andromeda_blocked_sites`; that

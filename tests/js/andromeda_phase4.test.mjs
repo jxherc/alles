@@ -468,3 +468,20 @@ test('overview blocks turn markdown tables, fences and headings into their own s
   assert.deepEqual(blocks[2].items, [['name', 'value'], ['a', '1']]);
   assert.deepEqual(blocks[3].items, ['x = 1']);
 });
+
+test('27.13: one history list, saved first, recent after, narrowed by what is typed', async () => {
+  const { historyRows, rememberSearch } = await import('../../static/js/andromeda.js');
+  let recent = [];
+  for (const q of ['sqlite wal', 'NaCl  melting point', 'sqlite wal', 'boh4m notes']) recent = rememberSearch(recent, q);
+  assert.deepEqual(recent, ['boh4m notes', 'sqlite wal', 'NaCl melting point']);
+  assert.equal(rememberSearch(Array.from({ length: 20 }, (_, i) => `q${i}`), 'new').length, 20);
+  const saved = [{ id: 'a', query: 'sqlite wal', watch: { new_count: 2 } }, { id: 'b', query: 'tft comps' }];
+  const rows = historyRows(saved, recent);
+  assert.deepEqual(rows.map(row => `${row.kind}:${row.query}`), [
+    'saved:sqlite wal', 'saved:tft comps', 'recent:boh4m notes', 'recent:NaCl melting point',
+  ]);
+  assert.equal(rows[0].fresh, 2);
+  assert.deepEqual(historyRows(saved, recent, 'NACL').map(row => row.query), ['NaCl melting point']);
+  // the exact text already in the box isn't offered back as a recent search
+  assert.deepEqual(historyRows([], recent, 'boh4m notes'), []);
+});

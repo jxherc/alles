@@ -1,4 +1,4 @@
-import { plainError, writeClipboard } from './util.js';
+import { escapeHtml as esc, plainError, writeClipboard } from './util.js';
 import { initCustomDropdowns } from './dropdown.js?v=217';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
@@ -37,6 +37,10 @@ let _sourceCardSeq = 0;
 let _openSourceCard = null;
 let _lastHidden = null;
 let _watching = null; // { id, every_hours } for the saved search on screen
+let _recent = [];      // the last searches, from settings so every device has the same ones
+let _savedList = [];   // saved searches, newest first
+let _historyActive = -1;
+const RECENT_MAX = 20;
 
 const SAVE_PREFIX = 'alles.andromeda.pending.v1:';
 
@@ -118,7 +122,7 @@ function setCategory(next, { search = true } = {}) {
   });
   if (value !== 'all') showOverview(false);
   if (search && _state.rawQuery) {
-    runAndromedaSearch(_state.rawQuery, { category: value });
+    runAndromedaSearch(_state.rawQuery, { category: value, keepHistory: true });
   }
 }
 
@@ -1970,6 +1974,8 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   const input = el('andromeda-query');
   const query = String(queryValue || input?.value || '').trim();
   if (!query) { input?.focus(); return; }
+  closeHistory();
+  if (!options.keepHistory) saveRecent(rememberSearch(_recent, query));
   _openedSaved = null;
   _savedOpenRetry = '';
   // the search lives in the address, so a reload or coming back from a result opens it again
@@ -2390,6 +2396,7 @@ async function loadSaved() {
     const { searches, recovery_scopes } = await jsonRequest('/api/andromeda/saved', { cache: 'no-store' });
     if (generation !== _savedListGeneration) return;
     if (!Array.isArray(searches)) throw new Error(tr('andromeda.x_saved_load_failed'));
+    _savedList = searches;
     readSaveRecovery(recovery_scopes);
   } catch (error) {
     if (generation !== _savedListGeneration) return;
@@ -2535,7 +2542,7 @@ async function explainResults(button = el('andromeda-explain')) {
 function bindRecovery() {
   el('andromeda-recovery')?.addEventListener('click', event => {
     const action = event.target.closest('[data-andromeda-recovery]')?.dataset.andromedaRecovery;
-    if (action === 'retry') runAndromedaSearch();
+    if (action === 'retry') runAndromedaSearch('', { keepHistory: true });
     if (action === 'broaden') {
       const broad = (el('andromeda-query')?.value || '')
         .replace(/"([^"]+)"/g, '$1').replace(/(^|\s)![^\s]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -2558,6 +2565,117 @@ function applyPrefs(settings) {
     overview: settings.andromeda_overview !== false,
     band: settings.andromeda_model_band || 'standard',
   };
+  if (Array.isArray(settings.andromeda_recent_searches)) _recent = settings.andromeda_recent_searches;
+}
+
+// ── search history (27.13): saved and recent searches in one list under the search box ──
+export function rememberSearch(list, query) {
+  const value = String(query || '').trim().replace(/\s+/g, ' ');
+  if (!value) return list;
+  return [value, ...list.filter(item => item.toLowerCase() !== value.toLowerCase())].slice(0, RECENT_MAX);
+}
+
+export function historyRows(saved = [], recent = [], typed = '') {
+  const needle = String(typed || '').trim().toLowerCase();
+  const hit = text => !needle || String(text || '').toLowerCase().includes(needle);
+  const savedRows = saved.filter(row => row?.id && hit(row.query)).slice(0, 6)
+    .map(row => ({ kind: 'saved', id: row.id, query: row.query, fresh: row.watch?.new_count || 0 }));
+  const taken = new Set(savedRows.map(row => row.query.toLowerCase()));
+  const recentRows = recent.filter(query => hit(query) && query.toLowerCase() !== needle && !taken.has(query.toLowerCase()))
+    .slice(0, 8).map(query => ({ kind: 'recent', query }));
+  return [...savedRows, ...recentRows];
+}
+
+function historyPanel() { return el('andromeda-history'); }
+
+function closeHistory() {
+  const panel = historyPanel(), input = el('andromeda-query');
+  if (panel) panel.hidden = true;
+  _historyActive = -1;
+  input?.setAttribute('aria-expanded', 'false');
+  input?.removeAttribute('aria-activedescendant');
+}
+
+function renderHistory() {
+  const panel = historyPanel(), input = el('andromeda-query');
+  if (!panel || !input) return;
+  const rows = historyRows(_savedList, _recent, input.value);
+  if (!rows.length || document.activeElement !== input) { closeHistory(); return; }
+  _historyActive = Math.min(_historyActive, rows.length - 1);
+  const group = (kind, label) => {
+    const items = rows.map((row, index) => ({ row, index })).filter(item => item.row.kind === kind);
+    if (!items.length) return '';
+    return `<div class="andromeda-history-group" role="presentation">${esc(label)}</div>` + items.map(({ row, index }) => `
+      <button type="button" tabindex="-1" role="option" id="andromeda-history-${index}" data-history-index="${index}"
+        class="custom-dropdown-option${index === _historyActive ? ' active' : ''}" aria-selected="${index === _historyActive}">
+        <span class="andromeda-history-query">${esc(row.query)}</span>${row.fresh ? `<span class="andromeda-history-new">${esc(tr('andromeda.history_new', { count: row.fresh }))}</span>` : ''}
+      </button>`).join('');
+  };
+  panel.innerHTML = group('saved', tr('andromeda.history_saved')) + group('recent', tr('andromeda.history_recent'))
+    + (rows.some(row => row.kind === 'recent') ? `<button type="button" tabindex="-1" class="andromeda-history-clear" data-history-clear>${esc(tr('andromeda.history_clear'))}</button>` : '');
+  panel._rows = rows;
+  panel.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+  if (_historyActive >= 0) input.setAttribute('aria-activedescendant', `andromeda-history-${_historyActive}`);
+  else input.removeAttribute('aria-activedescendant');
+}
+
+function pickHistory(row) {
+  closeHistory();
+  if (!row) return;
+  if (row.kind === 'saved') {
+    const target = savedSearchUrl(row.id, location.href);
+    if (target) replaceRouteUrl(target);
+    void openSavedSearch(row.id);
+  } else runAndromedaSearch(row.query);
+}
+
+function saveRecent(next) {
+  _recent = next;
+  void jsonRequest('/api/settings', {
+    method: 'PATCH', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ andromeda_recent_searches: next }),
+  }).catch(() => {});
+}
+
+function wireHistory() {
+  const input = el('andromeda-query'), panel = historyPanel();
+  if (!input || !panel) return;
+  input.setAttribute('aria-controls', 'andromeda-history');
+  input.setAttribute('aria-expanded', 'false');
+  // a click (or arrow down) in an empty box offers the history, the way a browser's address bar does;
+  // focus alone doesn't, since the page focuses the box on load
+  input.addEventListener('click', () => { if (panel.hidden && !input.value.trim()) { _historyActive = -1; renderHistory(); } });
+  input.addEventListener('input', () => { _historyActive = -1; renderHistory(); });
+  input.addEventListener('keydown', event => {
+    const rows = panel._rows || [];
+    if (event.key === 'Escape' && !panel.hidden) { event.preventDefault(); event.stopPropagation(); closeHistory(); return; }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter') return;
+    if (event.key === 'Enter') {
+      if (panel.hidden || _historyActive < 0) { closeHistory(); return; }
+      event.preventDefault();
+      pickHistory(rows[_historyActive]);
+      return;
+    }
+    if (panel.hidden) { renderHistory(); if (panel.hidden) return; }
+    event.preventDefault();
+    const count = (panel._rows || []).length;
+    _historyActive = event.key === 'ArrowDown' ? (_historyActive + 1) % count : (_historyActive <= 0 ? count - 1 : _historyActive - 1);
+    renderHistory();
+    el(`andromeda-history-${_historyActive}`)?.scrollIntoView({ block: 'nearest' });
+  });
+  input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) closeHistory(); }, 0));
+  // pointerdown keeps focus in the box, so the list stays put until the pick lands
+  panel.addEventListener('pointerdown', event => event.preventDefault());
+  panel.addEventListener('click', event => {
+    if (event.target.closest('[data-history-clear]')) {
+      saveRecent([]);
+      renderHistory();
+      return;
+    }
+    const option = event.target.closest('[data-history-index]');
+    if (option) pickHistory((panel._rows || [])[Number(option.dataset.historyIndex)]);
+  });
 }
 
 async function loadPrefs() {
@@ -2660,6 +2778,7 @@ function bindOnce() {
   }, true);
   initCustomDropdowns(el('andromeda-view'));
   wireSearchFocusPresentation();
+  wireHistory();
   // 28.08: no follow-up field here; the answer goes on in aide, with the question, answer and sources
   el('andromeda-continue-aide')?.addEventListener('click', event => void explainResults(event.currentTarget));
   const watchChoices = el('andromeda-watch-choices');
@@ -2763,7 +2882,7 @@ export async function initAndromeda() {
     return;
   }
   const query = params.get('q');
-  if (query && !_state.rawQuery) runAndromedaSearch(query);
+  if (query && !_state.rawQuery) runAndromedaSearch(query, { keepHistory: true });
   else if (!_state.rawQuery && (_pendingSave || _unreadableSave || _saveMessage)) {
     setPageState('results'); renderSaveRecovery();
   } else if (!_state.rawQuery) {

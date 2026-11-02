@@ -137,6 +137,17 @@ class BlockedSitesTest(ApiTest):
         bad = self.client.patch("/api/settings", json={"andromeda_blocked_sites": ["not a site"]})
         self.assertEqual(bad.status_code, 400)
 
+    def test_recent_searches_are_kept_clean_and_short(self):
+        # 27.13: one search history every device sees
+        raw = ["  sqlite   wal ", "SQLite WAL", "", "x" * 400] + [f"q{i}" for i in range(30)]
+        r = self.client.patch("/api/settings", json={"andromeda_recent_searches": raw})
+        self.assertEqual(r.status_code, 200)
+        kept = r.json()["andromeda_recent_searches"]
+        self.assertEqual(kept[:2], ["sqlite wal", "x" * 300])
+        self.assertEqual(len(kept), 20)
+        r = self.client.patch("/api/settings", json={"andromeda_recent_searches": []})
+        self.assertEqual(r.json()["andromeda_recent_searches"], [])
+
     def test_normal_search_drops_blocked_sites(self):
         save_settings({"andromeda_blocked_sites": ["spam.dev"]})
         rows = [

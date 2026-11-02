@@ -356,7 +356,11 @@ def run(context_factory=None):
                             target += "&ctx=" + code
                         page.goto(target, wait_until="networkidle")
                         retry = page.locator("#andromeda-saved-retry")
-                        ask = page.locator("#andromeda-explain")
+                        # with an overview on screen the handoff is "continue in aide" under it;
+                        # "ask aide about these results" only shows when there's no answer (28.08)
+                        ask = page.locator(
+                            "#andromeda-continue-aide:visible, #andromeda-explain:visible"
+                        )
                         if case in ("saved-retry", "saved-deleted"):
                             expect(retry).to_be_visible()
                             page.screenshot(path=str(out / (label + "-error.png")), full_page=True)
