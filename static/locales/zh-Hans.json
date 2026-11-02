@@ -8729,7 +8729,7 @@
     "whatsnew.2026_11_01.overdue_first.title": "逾期的排在最前",
     "whatsnew.2026_11_01.overdue_first.body": "逾期任务在主页和任务列表里排在最前。一点就能把它们全部移到今天，也可以只把一项移到明天。",
     "whatsnew.2026_11_01.home_by_time.title": "主页知道现在几点",
-    "whatsnew.2026_11_01.home_by_time.body": "已经过去的会变淡，排到还没到的下面，中间有一条「现在」线。晚上 8 点起，主页先显示明天：第一个日程和到期的事。",
+    "whatsnew.2026_11_01.home_by_time.body": "已经过去的会变淡，排到还没到的下面，中间有一条「现在」线。晚上 8 点起，主页先显示明天：第一个日程和到期的事。计划里的日程也一样。",
     "whatsnew.2026_11_01.act_in_place.title": "在哪儿都能勾掉",
     "whatsnew.2026_11_01.act_in_place.body": "在主页或任务列表里直接勾掉任务或移到明天，删除也能撤销。",
     "whatsnew.2026_11_01.numbers_change.title": "数字会显示变化",

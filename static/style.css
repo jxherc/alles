@@ -6772,6 +6772,10 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
 .cal-agenda-task .cal-agenda-dot { border: 1px solid currentColor; border-radius: 2px; box-sizing: border-box; color: var(--muted); }
 .cal-agenda-task.overdue :is(.cal-agenda-dot, .cal-agenda-time) { color: var(--signal); }
 .specialist-record-row.overdue .specialist-record-time { color: var(--signal); }
+/* u.02 in the agenda: home's now line and faded rows for what's over */
+.plan-agenda-now { display: flex; align-items: center; gap: var(--k-space-2, 8px); min-height: 24px; color: var(--signal); font-size: 0.8125rem; font-weight: 560; }
+.plan-agenda-now::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, var(--signal) 55%, transparent); }
+.specialist-record-row.past { opacity: 0.55; }
 .cal-agenda-time { color: var(--muted); font-size: 0.8125rem; width: 5rem; flex-shrink: 0; white-space: nowrap; }
 .cal-agenda-title { font-size: 0.8125rem; color: var(--text); }
 .cal-agenda-recur { color: var(--muted); font-size: 0.8125rem; }

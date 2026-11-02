@@ -115,6 +115,9 @@ function harness(data = fixtures()) {
   });
   vm.runInContext(source.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') + `
     globalThis.subject = { initSpecialistGroup, planCommitments };
+    // the clock is pinned at midnight: nothing is over yet and tomorrow doesn't lead. the time of
+    // day rule has its own tests (plan_agenda_time.test.mjs)
+    _nowClock = () => '00:00';
   `, context);
   const request = async url => {
     const value = data[url];

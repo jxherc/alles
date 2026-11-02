@@ -302,6 +302,8 @@ export function planCommitments(events, tasks, reminders) {
       title: item.title || t('groups.untitled_event'),
       date,
       time: _timeKey(when),
+      // an event is over when it ends, not when it starts (u.02); only a same day end counts
+      end: _dateKey(String(item.end_dt || item.end || '')) === date ? _timeKey(String(item.end_dt || item.end || '')) : '',
       meta: item.location || item.calendar || t('groups.type_calendar'),
       sort: _commitmentSortKey(when),
     });
@@ -346,10 +348,55 @@ const _typeLabel = type => ({
   event: t('groups.type_event'), task: t('groups.type_task'), reminder: t('groups.type_reminder'),
 }[type] || type);
 
-function _agendaRows(target, rows, emptyCopy, openRecord) {
+// the time of day as "21:05" in the owner's zone, for the agenda's now line
+function _nowClock(now = new Date()) {
+  const parts = Object.fromEntries(formatDateParts(now, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', numberingSystem: 'latn' }).map(part => [part.type, part.value]));
+  return `${parts.hour}:${parts.minute}`;
+}
+
+// home's rule for one day (u.02): overdue first, then what's left with a now line before the
+// next timed row, then what's over, faded, under "earlier today"
+export function agendaTimeline(rows, hhmm) {
+  const over = row => (row.type === 'event' || row.type === 'reminder') && row.time && (row.end || row.time) <= hhmm;
+  const late = rows.filter(row => row.overdue);
+  const left = rows.filter(row => !row.overdue && !over(row));
+  const past = rows.filter(row => !row.overdue && over(row));
+  const at = left.findIndex(row => row.time);
+  const nowAt = past.length || at >= 0 ? (at >= 0 ? at : left.length) : -1;
+  return { late, left, past, nowAt };
+}
+
+// from 8 pm the agenda's today leads with tomorrow, as home does
+const AGENDA_EVENING_HOUR = 20;
+
+function _agendaRows(target, rows, emptyCopy, openRecord, { now = '', lead = null } = {}) {
   target.replaceChildren();
+  if (lead?.rows.length) {
+    target.append(_el('h3', 'specialist-record-day', lead.label));
+    for (const row of lead.rows) target.append(_agendaRow(row, false, openRecord));
+    target.append(_el('h3', 'specialist-record-day', whenDay(_todayKey())));
+  }
   if (!rows.length) {
     target.append(_el('p', 'specialist-workbench-empty', emptyCopy));
+    return;
+  }
+  if (now && new Set(rows.map(row => row.date || '')).size <= 1) {
+    const { late, left, past, nowAt } = agendaTimeline(rows, now);
+    const line = () => {
+      const marker = _el('div', 'plan-agenda-now', t('home.now'));
+      marker.setAttribute('role', 'presentation');
+      return marker;
+    };
+    for (const row of late) target.append(_agendaRow(row, false, openRecord));
+    left.forEach((row, index) => {
+      if (index === nowAt) target.append(line());
+      target.append(_agendaRow(row, false, openRecord));
+    });
+    if (nowAt === left.length) target.append(line());
+    if (past.length) {
+      target.append(_el('h3', 'specialist-record-day plan-agenda-earlier', t('home.earlier_today')));
+      for (const row of past) target.append(_agendaRow(row, false, openRecord, true));
+    }
     return;
   }
   // rows over more than one day read under a heading per day, so the first column is only the
@@ -362,27 +409,31 @@ function _agendaRows(target, rows, emptyCopy, openRecord) {
       lastDay = row.date;
       target.append(_el('h3', 'specialist-record-day', _agendaDayLabel(row.date)));
     }
-    const interactive = row.type === 'task' || row.type === 'event';
-    const item = _el(interactive ? 'button' : 'div', `specialist-record-row${row.overdue ? ' overdue' : ''}`);
-    if (interactive) {
-      // Reuse the existing record button's layout, hover and focus treatment.
-      item.className += ' specialist-library-row';
-      item.type = 'button';
-      item.dataset.planAgendaRecord = row.id;
-      item.addEventListener('click', () => openRecord(row, item));
-    }
-    const typeName = _typeLabel(row.type);
-    const meta = row.meta && row.meta !== typeName ? `${typeName} · ${row.meta}` : typeName;
-    item.append(
-      // row.time stays "09:00" for sorting; it reads like every other time in the app
-      // one day's list: the card head already shows the date, so an untimed row says due or all day
-      _el('span', 'specialist-record-time', row.overdue ? t('groups.overdue')
-        : (row.time && formatClock(row.time)) || (byDay || row.date ? (row.type === 'task' ? t('groups.due') : t('groups.all_day')) : '--')),
-      _el('strong', 'specialist-record-title', row.title),
-      _el('span', 'specialist-record-meta', meta),
-    );
-    target.append(item);
+    target.append(_agendaRow(row, byDay, openRecord));
   }
+}
+
+function _agendaRow(row, byDay, openRecord, past = false) {
+  const interactive = row.type === 'task' || row.type === 'event';
+  const item = _el(interactive ? 'button' : 'div', `specialist-record-row${row.overdue ? ' overdue' : ''}${past ? ' past' : ''}`);
+  if (interactive) {
+    // Reuse the existing record button's layout, hover and focus treatment.
+    item.className += ' specialist-library-row';
+    item.type = 'button';
+    item.dataset.planAgendaRecord = row.id;
+    item.addEventListener('click', () => openRecord(row, item));
+  }
+  const typeName = _typeLabel(row.type);
+  const meta = row.meta && row.meta !== typeName ? `${typeName} · ${row.meta}` : typeName;
+  item.append(
+    // row.time stays "09:00" for sorting; it reads like every other time in the app
+    // one day's list: the card head already shows the date, so an untimed row says due or all day
+    _el('span', 'specialist-record-time', row.overdue ? t('groups.overdue')
+      : (row.time && formatClock(row.time)) || (byDay || row.date ? (row.type === 'task' ? t('groups.due') : t('groups.all_day')) : '--')),
+    _el('strong', 'specialist-record-title', row.title),
+    _el('span', 'specialist-record-meta', meta),
+  );
+  return item;
 }
 
 async function _renderPlan(target, request, section = 'overview') {
@@ -540,7 +591,14 @@ async function _renderPlan(target, request, section = 'overview') {
       empty = unscheduledEmpty;
     }
     agendaHead.querySelector('span').textContent = value === 'today' ? whenDay(today) : value === 'seven' ? t('groups.next_seven_days') : t('groups.no_date');
-    _agendaRows(agendaList, rows, empty, openRecord);
+    let timing = {};
+    if (value === 'today') {
+      const now = _nowClock();
+      const tomorrow = addDateKeyDays(today, 1);
+      timing = { now, lead: Number(now.slice(0, 2)) >= AGENDA_EVENING_HOUR
+        ? { label: whenDay(tomorrow), rows: commitments.filter(item => item.date === tomorrow) } : null };
+    }
+    _agendaRows(agendaList, rows, empty, openRecord, timing);
   };
   const choices = _choiceButtons(t('groups.plan_window'), [
     { value: 'today', label: t('groups.window_today', { count: inWindow('today').length }) },
