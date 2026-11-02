@@ -19,6 +19,12 @@ export function dayKey(value) {
   return Number.isNaN(parsed.valueOf()) ? '' : calendarDateKey(parsed);
 }
 
+// the owner's day right now (or at a given instant) as y-m-d. use this, never
+// toISOString().slice(0, 10): that is the utc day, already tomorrow after 7 or 8 pm in toronto
+export function localDay(value = new Date()) {
+  return calendarDateKey(value);
+}
+
 // whole days from today to the key (negative is the past)
 export function daysFromToday(key, now = new Date()) {
   const a = Date.parse(`${dayKey(now)}T00:00:00Z`), b = Date.parse(`${dayKey(key)}T00:00:00Z`);

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { configureLocalization, installCatalog } from '../../static/js/i18n.js';
-import { addDays, dayKey, when, whenDay, whenFull, whenHtml, whenTime } from '../../static/js/when.js';
+import { addDays, dayKey, localDay, when, whenDay, whenFull, whenHtml, whenTime } from '../../static/js/when.js';
 
 // today comes from the real clock, so every expected day is worked out from it (mistakes.md:
 // never a fixed calendar date in a today based check)
@@ -53,4 +53,15 @@ test('other languages get their own words', () => {
   configureLocalization({ language: 'fr', region: 'FR', timezone: 'Europe/Paris' });
   assert.equal(whenDay(addDays(dayKey(new Date()), 1)), 'demain');
   configureLocalization({ language: 'en', region: 'US', timezone: 'America/Toronto' });
+});
+
+test('the local day is the owner\'s day, not the utc one, late in the evening', () => {
+  configureLocalization({ language: 'en', region: 'CA', timezone: 'America/Toronto' });
+  // 23:30 in toronto on nov 1 is 04:30 utc on nov 2
+  const evening = new Date('2026-11-02T04:30:00Z');
+  assert.equal(evening.toISOString().slice(0, 10), '2026-11-02');
+  assert.equal(localDay(evening), '2026-11-01');
+  // and in summer time (edt, utc-4): 23:30 on jul 1 is 03:30 utc on jul 2
+  assert.equal(localDay(new Date('2026-07-02T03:30:00Z')), '2026-07-01');
+  assert.equal(localDay(), dayKey(new Date()));
 });
