@@ -2037,9 +2037,12 @@ html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row, .files
   padding-inline: var(--k-gutter);
 }
 
-/* up to an ipad in portrait the sidebar leaves too little room for one row: the folder name
-   squeezed to 0px and up slid under settings, so the actions take their own row */
-@media (max-width: 1023px) {
+/* when the column is narrow the folder name squeezed to nothing ("on t" with the details open on
+   an ipad, 27.27), so the actions take their own row. the column's own width decides, since the
+   sidebar can be resized and the details panel takes room at any screen size */
+html:not(#_):not(#_) #files-view .files-phase7-browser { container: files-browser / inline-size; }
+
+@container files-browser (max-width: 779px) {
   html:not(#_):not(#_) #files-view .files-phase7-app-head {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "where settings" "actions actions";

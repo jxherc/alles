@@ -2918,7 +2918,6 @@ html[data-kokuen-version="5"] .act-chip.off {
 /* every action answers the pointer with tone, never a lift */
 #today-view :is(.today-capture-send, .today-shortcut):hover,
 #wiki-view[data-kokuen-surface="docs"] :is(.docs-nav-label, .docs-nav-text-action):hover,
-body[data-app="files"] #files-view .files-check:hover,
 #settings-modal .modal-close:hover {
   background: var(--k-hover);
   color: var(--k-text);
@@ -6422,7 +6421,9 @@ body[data-app="files"] #files-view .file-row {
   cursor: default;
 }
 
-body[data-app="files"] #files-view .file-row:is(:hover, :focus-within, .is-current) {
+/* the row is the one fill: a picked row stays lit, and its box never draws a second tile inside
+   the row's hover (27.27; on a touch screen that tile stuck after the tap) */
+body[data-app="files"] #files-view .file-row:is(:hover, :focus-within, .is-current, .is-selected) {
   background: var(--k-hover);
   color: var(--k-text);
 }

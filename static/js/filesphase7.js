@@ -637,10 +637,10 @@ function renderItems() {
     const current = itemKey(state.current) === key;
     const stateCopy = item.offline_state && item.offline_state !== 'ready' ? stateLabel(item.offline_state) : '';
     return `
-      <div class="file-row${current ? ' is-current' : ''}" tabindex="0" data-path="${esc(key)}" data-type="${esc(item.type || 'file')}"${item.trash_id ? ` data-trash-id="${esc(item.trash_id)}"` : ''}>
+      <div class="file-row${current ? ' is-current' : ''}${selected ? ' is-selected' : ''}" tabindex="0" data-path="${esc(key)}" data-type="${esc(item.type || 'file')}"${item.trash_id ? ` data-trash-id="${esc(item.trash_id)}"` : ''}>
         <button class="files-check" type="button" role="checkbox" aria-checked="${selected}" aria-label="${esc(t('files.select_named', { name: item.name || basename(path) }))}" data-file-select></button>
         <span class="file-main">${itemIcon(item)}<button class="file-name-button" type="button" data-file-open>${esc(item.name || basename(path))}${stateCopy ? ` · ${esc(stateCopy)}` : ''}</button></span>
-        <span class="file-size">${esc(formatSize(item.size))}</span>
+        <span class="file-size">${item.type === 'dir' ? '' : esc(formatSize(item.size))}</span>
         <span class="file-changed">${esc(formatChanged(item.mtime || item.updated_at))}</span>
       </div>`;
   }).join('');
@@ -657,8 +657,9 @@ function toggleSelection(path, force) {
   const selected = force === undefined ? !state.selected.has(path) : Boolean(force);
   if (selected) state.selected.set(path, item);
   else state.selected.delete(path);
-  const check = document.querySelector(`.file-row[data-path="${CSS.escape(path)}"] [data-file-select]`);
-  check?.setAttribute('aria-checked', String(selected));
+  const row = document.querySelector(`.file-row[data-path="${CSS.escape(path)}"]`);
+  row?.classList.toggle('is-selected', selected);
+  row?.querySelector('[data-file-select]')?.setAttribute('aria-checked', String(selected));
   renderSelection();
   updateSelectAll();
 }
@@ -737,7 +738,7 @@ async function renderDetails(item) {
   const readable = state.view !== 'offline' || cacheReady;
   host.innerHTML = `
     <h2 class="files-detail-name">${esc(item.name || basename(path))}</h2>
-    <div class="files-detail-path">${esc(path)}</div>
+    ${path !== (item.name || basename(path)) ? `<div class="files-detail-path">${esc(path)}</div>` : ''}
     <div class="files-detail-actions">
       ${state.view === 'trash'
         ? (writable ? `<button class="files-text-button" type="button" data-detail-action="restore">${t('files.restore')}</button>` : '')
@@ -755,7 +756,7 @@ async function renderDetails(item) {
       <dt>${t('files.meta_location')}</dt><dd>${esc(currentLocation()?.name || '')}</dd>
       <dt>${t('files.meta_access')}</dt><dd>${isWritable() ? t('files.access_managed') : t('files.read_only')}</dd>
       <dt>${t('files.meta_kind')}</dt><dd>${esc(item.type === 'dir' ? t('files.type_dir') : !item.type || item.type === 'file' ? t('files.type_file') : item.type)}</dd>
-      <dt>${t('files.meta_size')}</dt><dd data-files-detail-size>${esc(formatSize(item.size) || t('common.unknown'))}</dd>
+      ${item.type === 'dir' ? '' : `<dt>${t('files.meta_size')}</dt><dd data-files-detail-size>${esc(formatSize(item.size) || t('common.unknown'))}</dd>`}
       <dt>${t('files.meta_offline')}</dt><dd>${esc(stateLabel(offlineState) || t('files.online_only'))}</dd>
     </dl>
     <div id="files-detail-versions"></div>`;
