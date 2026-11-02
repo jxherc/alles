@@ -210,10 +210,16 @@ def run():
                     capture("changed-completion")
 
                     # History reopening remains available after a conflicting receipt.
-                    page.locator('.tasks-tab[data-tab="done"]').click()
+                    page.click("#tasks-view-pick")
+                    page.locator(".custom-dropdown-panel [role=option]").nth(
+                        ["active", "today", "upcoming", "someday", "done"].index("done")
+                    ).click()
                     check.press("Enter")
                     expect(check).to_have_count(0)
-                    page.locator('.tasks-tab[data-tab="active"]').click()
+                    page.click("#tasks-view-pick")
+                    page.locator(".custom-dropdown-panel [role=option]").nth(
+                        ["active", "today", "upcoming", "someday", "done"].index("active")
+                    ).click()
                     expect(check).to_be_visible()
                     assert api.patch(endpoint, data={"stage": "doing"}).ok
                     page.reload(wait_until="networkidle")

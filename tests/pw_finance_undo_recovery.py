@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import pick_money_task
 
 sys.path[:0] = [str(Path.cwd()), str(Path.cwd() / "tests")]
 from browser_gate_safety import require_server_ownership  # noqa: E402
@@ -436,7 +437,7 @@ def run():
                                 elif case == "task-focus":
                                     if page.locator("#money-section-plans").is_hidden():
                                         page.locator('[data-money-section="plans"]').click()
-                                    target = page.locator('[data-money-task="goals"]')
+                                    target = page.locator("#money-task-pick")
                                 elif case == "summary-focus":
                                     target = page.locator("#money-summary-toggle")
                                 else:
@@ -495,7 +496,7 @@ def run():
                                 plans = page.locator("#money-section-plans")
                                 if plans.is_hidden():
                                     page.locator('[data-money-section="plans"]').click()
-                                page.locator('[data-money-task="schedules"]').click()
+                                pick_money_task(page, "schedules")
                                 page.locator('[data-edit-rec="owned-linked-rent"]').press("Enter")
                                 expect(page.locator("#rce-amount")).to_be_visible()
                                 page.locator("#rce-amount").fill("73.10")

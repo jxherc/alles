@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { plainError } from '../../static/js/util.js';
 import { t, tp } from '../../static/js/i18n.js';
+import { whenDay } from '../../static/js/when.js';
 
 const source = readFileSync(new URL('../../static/js/calendar.js', import.meta.url), 'utf8');
 const actual = name => source.match(new RegExp(`^(?:async )?function ${name}\\([^]*?^}`, 'm'))[0];
@@ -42,7 +43,7 @@ function harness() {
     },
     body: { appendChild: el => overlays.push(el) },
   };
-  const context = vm.createContext({ document, nodes, state, Date, Number,
+  const context = vm.createContext({ document, nodes, state, Date, Number, whenDay,
     fetch: async (url, options = {}) => { requests.push({ url, ...options }); return state.handler(url, options); },
     toast: (message, type) => toasts.push({ message, type }), plainError, zoneHeader: () => ({ 'x-alles-time-zone': 'UTC' }),
     withZone: (init = {}) => ({ ...init, headers: { ...(init.headers || {}), 'x-alles-time-zone': 'UTC' } }),

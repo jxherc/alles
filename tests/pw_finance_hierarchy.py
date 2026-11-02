@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import pick_money_task
 
 sys.path.insert(0, str(Path.cwd()))
 sys.path.insert(0, str(Path.cwd() / "tests"))
@@ -347,8 +348,8 @@ with sync_playwright() as pw:
             expect(manage).to_be_focused()
             plans = page.locator('[data-money-section="plans"]')
             plans.press("Enter")
-            accounts_task = page.locator('[data-money-task="accounts"]')
-            expect(accounts_task).to_have_attribute("aria-pressed", "true")
+            accounts_task = page.locator("#money-task-pick")
+            expect(accounts_task).to_have_attribute("data-value", "accounts")
             expect(page.locator("#money-task-accounts")).to_be_visible()
             expect(page.locator("#bf-cat")).to_be_hidden()
             expect(page.locator("#gl-name")).to_be_hidden()
@@ -360,23 +361,21 @@ with sync_playwright() as pw:
                 ("schedules", "rc-payee"),
                 ("goals", "gl-name"),
             ]:
-                choice = page.locator(f'[data-money-task="{task}"]')
-                choice.tap() if width <= 390 else choice.press("Enter")
-                expect(choice).to_have_attribute("aria-pressed", "true")
+                choice = pick_money_task(page, task, tap=width <= 390)
                 expect(choice).to_be_focused()
                 expect(page.locator("#money-task-accounts")).to_be_hidden()
                 page.locator("#" + field).fill("exact " + task + " draft 中文")
-            accounts_task.press("Enter")
+            pick_money_task(page, "accounts")
             expect(page.locator("#af-name")).to_have_value("exact account draft 中文")
             for task, field in [
                 ("budgets", "bf-cat"),
                 ("schedules", "rc-payee"),
                 ("goals", "gl-name"),
             ]:
-                page.locator(f'[data-money-task="{task}"]').press("Enter")
+                pick_money_task(page, task)
                 expect(page.locator("#" + field)).to_have_value("exact " + task + " draft 中文")
             shot("chosen-management")
-            accounts_task.press("Enter")
+            pick_money_task(page, "accounts")
             plans.press("Enter")
             if compact:
                 totals.press("Enter")

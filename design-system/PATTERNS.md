@@ -63,9 +63,9 @@ Appearance starts with mode, then discloses accents, searchable themes and advan
 
 ## finance
 
-Daily balances and subscriptions lead the overview. Routine ledger setup stays compact, with the current write destination visible; unavailable authority stays prominent and explicit write-destination confirmation keeps safe default focus.
+The overview leads with what was spent this month against last month, then accounts with their change since last month and a quiet 30 day line, top categories, recent transactions and upcoming renewals (0065). Ledger setup is not on the page: one plain button opens it in a dialog, where explicit write-destination confirmation keeps safe default focus. A ledger in use that is not healthy stays prominent on the page.
 
-Money places transaction entry and its list before supporting panels. Accounts, budgets and schedules remain discoverable through one disclosure; analytics and tools use another. Unresolved work remains visible and expansion survives refresh. Currency values retain grouped digits and two decimal places in responsive tracks wide enough for the complete amount.
+Money places transaction entry and its list before supporting panels. Accounts, budgets and schedules remain discoverable through one disclosure; analytics and tools use another. Unresolved work remains visible and expansion survives refresh. Currency values retain grouped digits and two decimal places in responsive tracks wide enough for the complete amount. An account made with only a sign ("$") reads with that sign and asks "which currency is $?" in one line with the currency dropdown; "currency not set" labels only an amount with no sign at all (0065).
 
 ## destructive action
 

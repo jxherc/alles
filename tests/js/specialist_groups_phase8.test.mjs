@@ -15,7 +15,9 @@ import {
   releaseSpecialistLegacyView,
 } from '../../static/js/specialist_groups.js';
 import { viewToSub } from '../../static/js/subdomain.js';
-import { configureLocalization, t, tp } from '../../static/js/i18n.js';
+import { calendarDateKey, configureLocalization, t, tp } from '../../static/js/i18n.js';
+import { balanceOn, balanceSeries, lastThirtyDays, monthBefore, sparkSvg, weekChange, weekChangeText } from '../../static/js/numbers.js';
+import { whenDay } from '../../static/js/when.js';
 
 // copy now lives in the catalog: a phrase counts when a key used in this source says it
 const assertCopy = (source, pattern) => {
@@ -279,6 +281,7 @@ test('Finance Actual status exposes only safe actions for each authority state',
 
 function financeHarness(extraContext = {}) {
   let focused = null;
+  let body = null;
   class Element {
     constructor(tag) { this.tagName = tag; this.children = []; this.attributes = {}; this.events = {}; this.dataset = {}; this.className = ''; this.textContent = ''; }
     append(...children) { for (const child of children) { child.parent = this; this.children.push(child); } }
@@ -295,9 +298,12 @@ function financeHarness(extraContext = {}) {
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     get classList() { return { add() {}, remove() {} }; }
   }
+  body = new Element('body');
   const context = vm.createContext({
-    t, tp,
-    document: { createElement: tag => new Element(tag) },
+    t, tp, whenDay, calendarDateKey, balanceOn, balanceSeries, lastThirtyDays, monthBefore, sparkSvg, weekChange, weekChangeText,
+    whenElement: value => Object.assign(new Element('time'), { textContent: whenDay(value) }),
+    createFocusBoundary: () => ({ activate() {}, deactivate() {}, destroy() {} }),
+    document: { createElement: tag => new Element(tag), body },
     window: {},
     formatNumber: (value, options) => new Intl.NumberFormat('en-CA', options).format(value),
     ...extraContext,
@@ -305,7 +311,7 @@ function financeHarness(extraContext = {}) {
   vm.runInContext(specialistSource.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') + `
     globalThis.financeSubject = { render: _renderFinance, status: _renderActualStatus, receipt: _renderImportReceipt, history: _receiptHistory };
   `, context);
-  return { ...context.financeSubject, target: new Element('div'), focused: () => focused };
+  return { ...context.financeSubject, target: new Element('div'), body, focused: () => focused };
 }
 
 const healthyFinance = {
@@ -313,53 +319,145 @@ const healthyFinance = {
   ledger: { mode: 'alles', base_currency_code: 'CAD', run: { id: 'ready-run', status: 'ready' } },
 };
 
-test('Finance daily balances precede routine ledger setup and keep grouped cents', async () => {
+const financePaths = (overrides = {}) => async path => ({ ok: true, json: async () => ({
+  '/api/subscriptions': { subscriptions: [] },
+  '/api/finance/actual': healthyFinance,
+  ...overrides,
+})[path.split('?')[0]] });
+
+const rowOf = (table, name) => table.querySelectorAll('.specialist-group-row').find(row => row.children[0].textContent === name);
+const valueOf = row => row.querySelector('.num-value').textContent;
+
+test('Finance overview keeps ledger setup off the page: one link, no panel, grouped cents', async () => {
   const h = financeHarness();
-  await h.render(h.target, async path => ({ ok: true, json: async () => ({
+  await h.render(h.target, financePaths({
     '/api/money/accounts': [{ name: 'checking', currency_code: 'CAD', balance: 12345678.9 }],
-    '/api/subscriptions?advance=false': { subscriptions: [] },
-    '/api/finance/actual': healthyFinance,
-  })[path] }));
+  }));
+  assert.equal(h.target.querySelector('.finance-actual-panel'), null);
+  assert.equal(h.target.querySelector('.finance-actual-toggle'), null);
+  const link = h.target.querySelector('.finance-daily-actions').querySelectorAll('.specialist-inline-action').find(item => item.textContent === 'ledger setup');
+  assert.ok(link, 'the ledger setup is one plain link');
+  assert.equal(link.tagName, 'a');
+  assert.doesNotMatch(h.target.textContent, /show ledger setup|writes to Alles|Alles active/);
   const grid = h.target.querySelector('.finance-daily');
-  const ledger = h.target.querySelector('.finance-actual-panel');
-  assert.ok(h.target.children.indexOf(grid) < h.target.children.indexOf(ledger));
-  assert.equal(grid.querySelector('.specialist-group-row').children[1].textContent, 'CAD\u00a012,345,678.90');
-  assert.equal(ledger.querySelector('.finance-actual-content').hidden, true);
-  assert.equal(ledger.querySelector('.finance-actual-head').children[1].textContent, 'ready for review');
-  assert.equal(ledger.querySelector('.finance-actual-content').children[0].textContent, 'ledgers match');
-  const toggle = ledger.querySelector('.finance-actual-toggle');
-  assert.equal(toggle.attributes['aria-expanded'], 'false');
-  assert.equal(toggle.attributes['aria-controls'], 'finance-actual-content');
-  toggle.events.click();
-  assert.equal(toggle.attributes['aria-expanded'], 'true');
-  assert.equal(ledger.querySelector('.finance-actual-content').hidden, false);
+  assert.equal(valueOf(grid.querySelector('.specialist-group-row')), 'CAD 12,345,678.90');
+});
+
+test('Finance overview links the ledger setup to its home in settings', async () => {
+  const opened = [];
+  const h = financeHarness({ _openSettingsAt: id => { opened.push(id); return true; } });
+  await h.render(h.target, financePaths({ '/api/money/accounts': [] }));
+  const link = h.target.querySelector('.finance-daily-actions').querySelectorAll('.specialist-inline-action').find(item => item.textContent === 'ledger setup');
+  assert.equal(link.href, '/?view=settings#s-ledger');
+  let prevented = false;
+  await link.events.click({ button: 0, preventDefault() { prevented = true; } });
+  assert.deepEqual(opened, ['s-ledger']);
+  assert.ok(prevented, 'settings opens in place, the page does not reload');
+  assert.equal(h.body.children.some(child => /finance-ledger/.test(child.className)), false, 'no dialog of its own');
+});
+
+test('Finance overview leads with what was spent this month against last month', async () => {
+  const h = financeHarness();
+  const month = calendarDateKey().slice(0, 7);
+  const [year, number] = month.split('-').map(Number);
+  const before = number === 1 ? `${year - 1}-12` : `${year}-${String(number - 1).padStart(2, '0')}`;
+  await h.render(h.target, financePaths({
+    '/api/money/accounts': [{ id: 'a', name: 'td chequing', currency: '$', currency_code: 'XXX', balance: 735.46 }],
+    '/api/money/summary': { month, expense: 5.5, currency: '$', by_category: [['eating out', 5.5], ['groceries', 3]], trend: [{ month: before, expense: 154.34 }, { month, expense: 5.5 }] },
+    '/api/money/transactions/search': [{ id: 'x', account_id: 'a', date: calendarDateKey(), amount: -5.5, payee: 'tim hortons', category: 'eating out' }],
+  }));
+  const first = h.target.children[0];
+  assert.match(first.className, /finance-spent/);
+  assert.equal(first.querySelector('.finance-spent-figure').textContent, '$5.50');
+  assert.equal(first.querySelector('.finance-spent-last').textContent, 'last month $154.34');
+  const cards = h.target.querySelectorAll('.specialist-group-card');
+  const names = cards.map(card => card.children[0].textContent);
+  assert.deepEqual(names, ['spent this month', 'accounts', 'top categories', 'recent transactions', 'upcoming renewals']);
+  assert.equal(cards[2].querySelectorAll('.specialist-group-row')[0].children[1].textContent, '$5.50');
+  assert.equal(cards[3].querySelectorAll('.specialist-group-row')[0].children[0].textContent, 'tim hortons');
+  assert.equal(cards[3].querySelector('.num-amount').textContent, '−$5.50');
+});
+
+test('every balance shows its change against last month and a line of the last 30 days', async () => {
+  const h = financeHarness();
+  const day = calendarDateKey();
+  const ago = n => { const d = new Date(`${day}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
+  await h.render(h.target, financePaths({
+    '/api/money/accounts': [{ id: 'a', name: 'td chequing', currency: '$', currency_code: 'XXX', balance: 735.46 }, { id: 'b', name: 'quiet', currency: '$', currency_code: 'XXX', balance: 50 }],
+    '/api/money/transactions/search': [
+      { id: '1', account_id: 'a', date: ago(2), amount: -25 },
+      { id: '2', account_id: 'a', date: ago(12), amount: -9.99 },
+      { id: '3', account_id: 'a', date: ago(40), amount: -64.2 },
+    ],
+  }));
+  const rows = h.target.querySelector('.finance-daily').querySelectorAll('.specialist-group-row');
+  const checking = rows[0], quiet = rows[1];
+  // a month ago it held 735.46 + 25 + 9.99 = 770.45, so it is down 34.99
+  assert.equal(valueOf(checking), '$735.46');
+  assert.equal(checking.querySelector('.num-change').textContent, '−$34.99 vs last month');
+  assert.match(checking.querySelector('.num-spark').innerHTML, /^<svg [^>]*aria-hidden="true"/);
+  assert.equal(checking.querySelector('.num-spark').attributes['aria-hidden'], 'true');
+  // nothing moved: the change says so, and a flat line is not drawn
+  assert.equal(quiet.querySelector('.num-change').textContent, 'no change vs last month');
+  assert.ok(!quiet.querySelector('.num-spark').innerHTML);
+});
+
+test('a list of entries that stopped short of a month ago shows balances without a change', async () => {
+  const h = financeHarness();
+  const day = calendarDateKey();
+  const entries = Array.from({ length: 1000 }, (_, i) => ({ id: String(i), account_id: 'a', date: day, amount: -1 }));
+  await h.render(h.target, financePaths({
+    '/api/money/accounts': [{ id: 'a', name: 'busy', currency: '$', currency_code: 'XXX', balance: 100 }],
+    '/api/money/transactions/search': entries,
+  }));
+  const row = h.target.querySelector('.finance-daily').querySelector('.specialist-group-row');
+  assert.equal(valueOf(row), '$100.00');
+  assert.equal(row.querySelector('.num-change'), null);
+});
+
+test('upcoming renewals list the next ones first, with when they renew', async () => {
+  const h = financeHarness();
+  const day = calendarDateKey();
+  const ahead = n => { const d = new Date(`${day}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  await h.render(h.target, financePaths({
+    '/api/money/accounts': [],
+    '/api/subscriptions': { subscriptions: [
+      { name: 'later', price: 9.99, currency: '$', next_due: ahead(20), active: true },
+      { name: 'paused', price: 5, currency: '$', next_due: ahead(1), active: false },
+      { name: 'soon', price: 12, currency: '$', next_due: ahead(3), active: true },
+    ] },
+  }));
+  const card = h.target.querySelectorAll('.specialist-group-card').find(item => item.children[0].textContent === 'upcoming renewals');
+  const names = card.querySelectorAll('.specialist-group-row').map(row => row.children[0].textContent);
+  assert.deepEqual(names, ['soon', 'later']);
 });
 
 test('Finance overview labels live canonical balances with base and keeps native historical units separate', async () => {
   const h = financeHarness();
-  await h.render(h.target, async path => ({ ok: true, json: async () => ({
+  await h.render(h.target, financePaths({
     '/api/money/accounts': [
       { name: 'migrated', currency: 'CAD', currency_code: 'USD', balance: 13.5 },
       { name: 'native', currency: 'CAD', currency_code: 'CAD', balance: 90, balance_by_currency: [{ currency: 'USD', balance: 97 }, { currency: 'XXX', balance: -7 }] },
+      { name: 'made with $', currency: '$', currency_code: 'XXX', balance: 627.46 },
     ],
-    '/api/subscriptions?advance=false': { subscriptions: [] },
-    '/api/finance/actual': healthyFinance,
-  })[path] }));
+  }));
   const rows = h.target.querySelector('.finance-daily').querySelectorAll('.specialist-group-row');
-  assert.equal(rows[0].children[1].textContent, 'CAD\u00a013.50');
-  // one sign style: a true minus, kept on the number when there's no currency code
-  assert.equal(rows[1].children[1].textContent, 'USD\u00a097.00 · currency not set\u00a0−7.00');
+  assert.equal(valueOf(rows[0]), 'CAD 13.50');
+  // one sign style: a true minus, kept on the number when there's no currency code. an account
+  // with no currency of its own reads as money with the sign it was made with (u.12)
+  assert.equal(valueOf(rows[1]), 'USD 97.00');
+  assert.equal(valueOf(rows[2]), '−7.00');
+  assert.equal(valueOf(rows[3]), '$627.46');
+  assert.doesNotMatch(h.target.textContent, /currency not set/);
 });
 
 test('Finance overview puts a true minus before the currency code', async () => {
   const h = financeHarness();
-  await h.render(h.target, async path => ({ ok: true, json: async () => ({
+  await h.render(h.target, financePaths({
     '/api/money/accounts': [{ name: 'card', currency: 'USD', currency_code: 'USD', balance: -980098.43 }],
-    '/api/subscriptions?advance=false': { subscriptions: [] },
-    '/api/finance/actual': healthyFinance,
-  })[path] }));
+  }));
   const rows = h.target.querySelector('.finance-daily').querySelectorAll('.specialist-group-row');
-  assert.equal(rows[0].children[1].textContent, '−USD\u00a0980,098.43');
+  assert.equal(valueOf(rows[0]), '−USD 980,098.43');
 });
 
 test('Finance keeps an unhealthy authoritative ledger warning open before daily work', async () => {
@@ -371,23 +469,24 @@ test('Finance keeps an unhealthy authoritative ledger warning open before daily 
   assert.notEqual(h.target.children[0].querySelector('.finance-actual-content').hidden, true);
 });
 
-test('expanding healthy setup never switches authority and confirmation starts on the safe action', () => {
+test('the ledger setup never switches authority on its own and confirmation starts on the safe action', () => {
   const h = financeHarness();
   let requests = 0;
   const panel = h.status(healthyFinance, async () => { requests += 1; });
-  const toggle = panel.querySelector('.finance-actual-toggle');
-  toggle.events.click();
-  assert.equal(requests, 0);
+  assert.equal(panel.querySelector('.finance-actual-content').hidden, undefined);
   const review = panel.querySelectorAll('button').find(button => button.dataset.actualAction === 'cutover');
   review.events.click();
   assert.equal(requests, 0);
   assert.equal(h.focused().textContent, 'keep current ledger');
-  assert.equal(toggle.disabled, true);
   h.focused().events.click();
   assert.equal(requests, 0);
   assert.equal(h.focused(), review);
-  assert.equal(toggle.disabled, false);
   assert.equal(panel.querySelector('.finance-actual-confirm'), null);
+});
+
+test('health measurements show the change against last week and a line of the last 30 days', () => {
+  assert.match(specialistSource, /weekChange\(item\.series\)/);
+  assert.match(specialistSource, /sparkSvg\(lastThirtyDays\(item\.series, day\)\)/);
 });
 
 test('Plan composes events, tasks, and reminders into one stable ordered agenda', () => {

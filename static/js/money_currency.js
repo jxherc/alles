@@ -8,6 +8,14 @@ import { populateDropdown } from './dropdown.js?v=217';
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const known = code => /^[A-Z]{3}$/.test(code || '') && code !== 'XXX';
 
+// an account with no currency code that was made with a sign ("$"): that sign, else ''. a sign
+// is not a currency: "$" stays unknown until the owner says which dollar it is
+export function bareSign(account) {
+  if (!account || known(account.currency_code)) return '';
+  const sign = String(account.currency || '').trim();
+  return sign && sign.length <= 4 && !/^[A-Z]{3}$/.test(sign) ? sign : '';
+}
+
 export function amountIn(currency, value) {
   const number = formatNumber(Math.abs(Number(value) || 0), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `${Number(value) < 0 ? '−' : ''}${currency}\u00a0${number}`;

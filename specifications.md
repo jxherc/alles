@@ -469,6 +469,15 @@ related apps now open together without merging their records.
 - **plan** combines a time-ordered calendar, tasks, and reminders agenda, with quick task capture and
   direct access to each full specialist screen. its task board is another view of the same task
   records: four active stages, manual order, filters, quick add, detail editing, and completed history
+  plan has 3 tabs: today (the agenda, with its next seven days), calendar (day, week and month) and
+  tasks. under tasks, a pill switch picks tasks, reminders or countdowns and another list or board;
+  the task list's views (all, today, upcoming, someday, history) are one dropdown. the old
+  `?view=plan-week`, `plan-board`, `reminders` and `days` links still open those views
+- **the app rail**: at 1024px and wider a 72px rail at the shell's left lists home, aide, the
+  owner's pinned apps (home's pinned apps) and more, which opens the app sheet; at 700px and
+  narrower the same is a bottom bar of 5 (home, aide, 2 pinned apps, more), and every screen's
+  height leaves room for it. ipad portrait keeps the app name button. the app sheet lists apps by
+  name only
 - **inbox** puts cached mail, the selected message, and matching contact context in one workflow while
   keeping mail and contact records separate
 - **docs** keeps notes and journal as local sections of one markdown workbench. if a document's
@@ -516,8 +525,16 @@ related apps now open together without merging their records.
   retry confirms the current extracted version without fetching again. Saving news still makes no
   publisher request. Extraction does not guarantee every paragraph or bypass paid access.
 - **health** places today's habit rhythm beside the latest measurements without changing the local,
-  sensitive health-context boundary
-- **finance** combines money, subscriptions, reviewed imports, and visible managed-actual state
+  sensitive health-context boundary. each measurement shows its change against the last reading a
+  week or more before its latest ("−1.2 lb this week", from `series` in `/api/health/overview`) and a
+  plain svg line of the last 30 days (hidden from a screen reader; the change is the text)
+- **finance** combines money, subscriptions, reviewed imports, and managed-actual state. its
+  overview leads with spent this month against last month (`/api/money/summary`), then accounts
+  (each balance with its change since the same day last month, worked out from the ledger's last
+  1000 entries from `/api/money/transactions/search`, which reads without posting due schedules, and a 30 day line), top categories, recent
+  transactions and upcoming renewals. a list cut short before a month back shows balances without a
+  change. ledger setup is one button, "ledger setup", that opens the Actual ledger controls in a
+  dialog; a ledger in use that is not healthy stays on the page
 - **vault** keeps passwords, passkeys, pairing, watchtower, reauthentication, and recovery within the
   existing encrypted boundary
 - **server** opens on an overview of the machine (cpu, memory, storage and network at a glance, the
@@ -538,6 +555,11 @@ your whole day on one screen the moment you open alles.
   handoffs can be retried; a retained request identity confirms the same child after a lost reply.
   uncertain outcomes require inspection and cannot be retried from this view
 - **today** combines events, due work, reminders, habits, renewals, and important dates
+- **home knows the time**: overdue tasks lead the schedule, then what's left of the day in order with a
+  "now" line before the next timed thing; events and reminders that are over fade under "earlier today"
+  (an event is over at its end, `end` in `/api/today`). from 8 pm a **tomorrow** section comes first with
+  tomorrow's events and due tasks. a task row checks off in place (undo in the row for 6 seconds) and has
+  "tomorrow" on its right
 - **in progress** shows active background aide work; **briefs** holds completed reports
 - **pinned apps** opens the app destinations selected in **settings → home**
 - **suggestions** appears only when aide has saved proactive cards. it stays separate from needs you;
@@ -790,6 +812,18 @@ a calendar with month / week / day views and repeating events.
 ### tasks
 a real to-do list: type tasks in plain english, with recurring ones and smart views.
 
+- **overdue on top**: every task view draws overdue tasks first in their own group with "move all to today";
+  a task due today or earlier has "tomorrow" on its row. other days, add subtask and delete sit in the row's
+  more menu. delete turns the row into "deleted" with undo for 6 seconds, then reaches the server
+  `tests/pw_delete_controls.py` (gate `delete-controls`) opens every app on seeded data at ipad landscape and phone and
+  fails when a delete control is visible at rest outside a menu, a dialog or an edit panel; its ALLOWED list names the
+  rows that still show one and the session that owns each fix
+- **dates read one way** (`static/js/when.js`): today, tomorrow, yesterday, the weekday inside the next week,
+  "in 9 days" or "3 days ago" inside two weeks, then the short date ("nov 12", with the year when it isn't
+  this one). times follow the 12/24 hour setting, lowercase. the full date is the title on hover and shows in
+  place on a long press. used by tasks, plan's agenda and board, reminders, home, health's overview and money transactions, and by journal, notes, subscriptions, photos, search, andromeda, contacts and docs for the
+  dates they show. `tests/test_raw_dates_lint.py` fails the build when a raw `YYYY-MM-DD` value is drawn in text, a title, an
+  aria-label or a `t()` param without going through when.js or an i18n.js formatter (an allow list names each exception)
 - **natural-language quick-add**: "pay rent every 1st !" or "call mom tomorrow #home" parses the due date, repeat, `#tags` and `!` priority for you (deterministic, no deps, all local)
 - **due times**: a task has a due day (`due_date`, `2026-10-20`) and an optional time (`due_time`, `09:30`; migration 77). a time needs a day. moving a task to another day keeps its time, clearing the day clears it, and a day sent as `2026-10-20T09:30` is split into the two. the quick add reads a time next to a day ("dentist tomorrow 9am" is due 09:00 and the time leaves the title; a time with no day stays in the title). a task due at a time goes overdue at that time, not at midnight (`overdue` on every task row, home and the agenda's overdue lists, the signals); with no time it is overdue after its day. lists sort by day, then time, with untimed tasks after timed ones. the calendar's task overlay and agenda carry the time, a repeat keeps it, exports have a `due_time` column, and Aide's `task_add` tool takes `due_date` and `due_time` (words like "tomorrow 9am" left in its title count when no day is given). on screen the due field is one date field with an optional time (`datepick.js` type `due`): the task editor, the tasks add row (its `due` goes to `/api/tasks/quick` and wins over a day in the text) and the capture review all use it; "add time" in its panel adds a time and "no time" takes it away. a timed task's row shows the time, and so do its calendar chip and agenda line.
 - **a chat message as a task**: `POST /api/tasks/quick` with `from_message: true` reads "add study for chem to my todo" the way a person says it (a lead such as add, put, remind me to or todo: and a "to my todo" phrase come off). with `preview: true` the answer says whether it `understood` the message; without preview a message that does not read as a task is a 400. Aide offers it as "add as a task" in one tap when there is no model to answer, and the typed message stays in the box.
@@ -896,9 +930,15 @@ imports, with an optional gated move to an alles-managed actual budget core.
   as saved with a note; their fields name the ledger currency when it differs. the envelope also
   names income it couldn't count. the report names what it left out for its dates, and its csv has
   a currency column for each row
-- an old "$" account with no currency can be told which one it was always in (its change currency
-  button stays open); its entries with no currency take that one. with no currency set anywhere,
-  totals stay separate as before
+- an old "$" account with no currency can be told which one it was always in; its entries with no
+  currency take that one. the account says so itself: money shows one line, "which currency is $?",
+  with the currency dropdown beside it (type to jump), and picking one saves the code after a
+  confirmation. the account's card holds the same dropdown (disabled with the reason once an account
+  holds amounts with a currency). amounts in such an account read with the sign it was made with
+  ("$735.46"); "currency not set" labels only an amount with no sign. a "$" is never turned into a
+  code unasked. with no currency set anywhere, totals stay separate as before
+- money's four plan tasks (accounts, budgets, schedules, goals) and health's four history ranges are
+  dropdowns
 - reviewed generic csv and supported bank statement/notification profiles always preview first; repeat
   rows are stable duplicates, changed source rows are conflicts, and local undo removes only receipt-owned
   transactions. read-only simplefin and plaid connections are available after provider setup

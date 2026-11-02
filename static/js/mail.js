@@ -9,7 +9,7 @@ import { detectSetup } from './setup_detect.js';
 import { initDatePicker as _dpInit } from './datepick.js';
 import { formatDate, formatDateTime, formatTime, resolvedTimeZone, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
-import { reminderTimeFromWall } from './reminders.js?v=246';
+import { reminderTimeFromWall } from './reminders.js?v=247';
 
 // monochrome ui icons (same global as files/etc) — keeps the row controls matching the app
 const _si = n => (window.icon ? window.icon(n) : '');

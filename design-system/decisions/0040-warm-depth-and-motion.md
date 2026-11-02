@@ -109,7 +109,8 @@ app family had its own centred column (880, 928, 1040, 1080px) or padding.
 
 - Inter, the 44px target, kokuen's spacing scale, the server monitor's own palette (0010).
 - "currency not set" stays visible on money totals with an unknown currency: it is a safety
-  label, not decoration.
+  label, not decoration. (0065: an amount with a sign it was made with reads with that sign and the
+  question "which currency is $?" asks the rest; the label stays only for an amount with no sign.)
 
 ## verification
 

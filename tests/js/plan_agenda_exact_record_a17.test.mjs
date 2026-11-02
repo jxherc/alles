@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { whenDay, whenElement } from '../../static/js/when.js';
 import { calendarDateKey, chosenTimeZone, configureLocalization, formatCalendarDate, formatClock, formatDateParts, formatDateTime, t, tp } from '../../static/js/i18n.js';
 import { recordTarget } from '../../static/js/recordlinks.js';
 
@@ -107,13 +108,16 @@ function harness(data = fixtures()) {
   const window = { _openRecord: (...args) => { calls.push(args); return open(...args); } };
   const context = vm.createContext({
     document: { createElement: tag => new Element(tag), getElementById: id => elements.find(el => el.id === id) },
-    window, location, recordTarget, t, tp, formatCalendarDate, formatClock, formatDateParts, formatDateTime, chosenTimeZone,
+    window, location, recordTarget, t, tp, whenDay, whenElement, formatCalendarDate, formatClock, formatDateParts, formatDateTime, chosenTimeZone,
     initDatePicker() {},
     calendarDateKey: value => value === undefined ? today : calendarDateKey(value),
     disposePlanBoard() {},
   });
   vm.runInContext(source.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') + `
     globalThis.subject = { initSpecialistGroup, planCommitments };
+    // the clock is pinned at midnight: nothing is over yet and tomorrow doesn't lead. the time of
+    // day rule has its own tests (plan_agenda_time.test.mjs)
+    _nowClock = () => '00:00';
   `, context);
   const request = async url => {
     const value = data[url];

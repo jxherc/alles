@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 import { t, tp } from '../../static/js/i18n.js';
+import { whenDay, whenFull, whenHtml } from '../../static/js/when.js';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -29,7 +30,7 @@ function harness({ search = false, missing = false, quota = false } = {}) {
   let amount = -10;
   const writes = [], storage = new Map();
   const state = { quota };
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     calendarDateKey: () => '2026-10-06', location: { search:'' }, URLSearchParams,
     crypto:webcrypto, TextEncoder, fetch:async () => {},
@@ -101,7 +102,7 @@ function refreshHarness() {
     if (!elements.has(id)) elements.set(id, { value: '', textContent: '' });
     return elements.get(id);
   };
-  const context = vm.createContext({
+  const context = vm.createContext({ whenDay, whenFull, whenHtml,
     t, tp,
     document: { getElementById: get, activeElement: null },
     calendarDateKey: () => '2026-10-07', formatCalendarDate: () => 'october 2026',

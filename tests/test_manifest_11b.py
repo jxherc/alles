@@ -140,9 +140,9 @@ class ManifestTests(ApiTest):
         for module in (
             "models.js?v=217",
             "dropdown.js?v=217",
-            "specialist_groups.js?v=17",
+            "specialist_groups.js?v=18",
             "kokuen.js?v=5",
-            "andromeda.js?v=256",
+            "andromeda.js?v=257",
             "route_history.js",
         ):
             self.assertIn(f"/static/js/{module}", urls)

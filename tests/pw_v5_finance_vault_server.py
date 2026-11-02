@@ -159,7 +159,9 @@ def _finance_recent_owner(page: Page) -> None:
     page.route("**/api/auth/**", auth)
     page.evaluate("window._navigateTo('finance')")
     page.locator("#finance-view").wait_for(state="visible")
-    backup = page.get_by_role("button", name="create cold backup")
+    page.get_by_role("link", name="ledger setup", exact=True).click()
+    page.locator("#s-ledger .finance-actual-panel").wait_for(state="visible")
+    backup = page.get_by_role("button", name="create backup")
     backup.focus()
     backup.press("Enter")
     prompt = page.locator(".dialog-overlay")
@@ -169,6 +171,8 @@ def _finance_recent_owner(page: Page) -> None:
     page.locator(".finance-actual-message").filter(has_text="browser-proof verified").wait_for()
     assert state == {"writes": 2, "reauth": 1}, state
     assert backup.get_attribute("aria-busy") is None
+    page.locator("#settings-modal").press("Escape")
+    page.locator("#settings-modal").wait_for(state="hidden")
     page.unroute("**/api/finance/actual**", actual)
     page.unroute("**/api/auth/**", auth)
 

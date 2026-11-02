@@ -1,6 +1,7 @@
 import { toast } from './util.js';
 import { initDatePicker } from './datepick.js';
 import { t } from './i18n.js';
+import { whenDay } from './when.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
 let _notes = [];
@@ -79,7 +80,7 @@ function renderNotes() {
       <button class="note-title" type="button">${esc(n.title || t('notes.untitled'))}</button>
       <div class="note-preview">${esc(n.content.slice(0, 200)) || '—'}</div>
       ${(n.due || n.items?.length) ? `<div class="note-meta-row">
-        ${n.due ? `<span class="note-due${_isOverdue(n.due) ? ' overdue' : ''}">${_isOverdue(n.due) ? t('notes.overdue_on', { date: esc(n.due) }) : t('notes.due_on', { date: esc(n.due) })}</span>` : ''}
+        ${n.due ? `<span class="note-due${_isOverdue(n.due) ? ' overdue' : ''}">${_isOverdue(n.due) ? t('notes.overdue_on', { date: esc(whenDay(n.due)) }) : t('notes.due_on', { date: esc(whenDay(n.due)) })}</span>` : ''}
         ${n.items?.length ? `<span class="note-progress">${_si('check')} ${n.items.filter(i => i.done).length}/${n.items.length}</span>` : ''}
       </div>` : ''}
       ${n.tags?.length ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">${esc(t)}</span>`).join('')}</div>` : ''}

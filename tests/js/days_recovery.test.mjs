@@ -12,7 +12,7 @@ const deferred = () => { let resolve; const promise = new Promise(r => { resolve
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 function harness(fetcher = async () => response({ events: [event] })) {
-  const nodes = new Map(), toasts = [], seen = { focused: '', confirm: async () => true };
+  const nodes = new Map(), toasts = [], timers = [], seen = { focused: '' };
   const node = key => {
     if (!nodes.has(key)) nodes.set(key, { value: '', dataset: {}, listeners: {}, disabled: false, isConnected: true,
       addEventListener(name, listener) { this.listeners[name] = listener; },
@@ -29,20 +29,23 @@ function harness(fetcher = async () => response({ events: [event] })) {
     querySelector: selector => fields[selector.match(/data-f="([^"]+)"/)?.[1]],
     querySelectorAll: selector => selector === '[data-act]' ? buttons : [] };
   const grid = { querySelectorAll: selector => selector === '.day-card' ? [card] : [], querySelector: () => null };
+  // the undo window's timer runs when the test says so
+  const setTimeout = (fn, ms) => { timers.push({ fn, ms }); return timers.length; };
   const context = vm.createContext({
     fetch: (...args) => fetcher(...args), window: {}, CSS: { escape: String },
     document: { getElementById: node, activeElement: null },
-    toast: (...args) => toasts.push(args), plainError: message => String(message), dlgConfirm: (...args) => seen.confirm(...args),
+    toast: (...args) => toasts.push(args), plainError: message => String(message), setTimeout, clearTimeout() {},
     initCustomDropdown() {}, initDatePicker() {}, formatDate() {}, formatNumber: String, t, tp,
   });
   vm.runInContext(source + `
     _render = () => {};
     globalThis.subject = { add: _add, loadDays, wire: grid => _wire(grid),
       seed: events => { _events = events; _editing = 'event-1'; },
-      state: () => ({ events: _events, editing: _editing }) };
+      state: () => ({ events: _events, editing: _editing, gone: _gone }) };
+    globalThis.subject.undo = () => _undoDelete(globalThis.subject.grid);
   `, context);
-  context.subject.seed([{ ...event }]); context.subject.wire(grid);
-  return { ...context.subject, node, fields, toasts, seen };
+  context.subject.seed([{ ...event }]); context.subject.grid = grid; context.subject.wire(grid);
+  return { ...context.subject, node, fields, toasts, timers, seen };
 }
 
 test('pending countdown add submits once and keeps newer name and category', async () => {
@@ -85,11 +88,19 @@ test('late countdown list cannot replace a newer navigation read', async () => {
   assert.equal(h.state().events[0].id, 'newer');
 });
 
-test('unconfirmed deletion retains countdown and enables deliberate retry', async () => {
+test('delete waits out the undo window; a refused delete keeps the countdown for a retry', async () => {
   for (const reply of [response({ detail: 'delete unavailable' }, 503), response({})]) {
-    const h = harness(async (path, options) => options ? reply : response({ events: [event] }));
+    let writes = 0;
+    const h = harness(async (path, options) => { if (options) { writes++; return reply; } return response({ events: [event] }); });
     await h.node('del').listeners.click();
+    assert.equal(writes, 0, 'nothing is deleted while undo is offered');
+    assert.equal(h.state().gone.id, 'event-1');
+    const undoWindow = h.timers.at(-1);
+    assert.equal(undoWindow.ms, 6000);
+    await undoWindow.fn();
+    assert.equal(writes, 1);
     assert.equal(h.state().events[0].id, 'event-1');
+    assert.equal(h.state().gone, null);
     assert.equal(h.toasts.at(-1)[1], 'error');
     assert.equal(h.node('del').disabled, false);
   }
@@ -110,11 +121,22 @@ test('a saved edit does not close a newer edit typed while waiting', async () =>
   assert.equal(h.fields.name.value, 'newer unsaved edit');
 });
 
-test('delete asks before going busy, so a cancelled confirm hands focus back to the ×', async () => {
+test('undo inside the window keeps the countdown and sends nothing', async () => {
   let writes = 0;
   const h = harness(async (path, options) => { if (options) writes++; return response({ events: [event] }); });
-  h.seen.confirm = async () => { assert.equal(h.node('del').disabled, false, 'the × is still usable while asking'); return false; };
   await h.node('del').listeners.click();
+  h.undo();
+  assert.equal(h.state().gone, null);
   assert.equal(writes, 0);
-  assert.equal(h.seen.focused, 'del');
+  assert.equal(h.state().events[0].id, 'event-1');
+});
+
+test('a confirmed delete drops the countdown after the window', async () => {
+  let writes = 0;
+  const h = harness(async (path, options) => { if (options) { writes++; return response({ ok: true }); } return response({ events: [] }); });
+  await h.node('del').listeners.click();
+  await h.timers.at(-1).fn();
+  assert.equal(writes, 1);
+  assert.deepEqual(h.state().events, []);
+  assert.equal(h.toasts.length, 0);
 });

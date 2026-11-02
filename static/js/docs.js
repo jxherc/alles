@@ -6,6 +6,7 @@ import { loadNotes } from './notes.js';
 import { replaceRouteUrl } from './route_history.js';
 import { clearLinkedRecord, readRecordTarget, replaceLinkedRecord } from './recordlinks.js';
 import { t, tp } from './i18n.js';
+import { when } from './when.js';
 
 let _section = 'docs';
 let _cur = null;
@@ -433,7 +434,7 @@ export function showSection(section) {
     setHidden($('docs-context-panel'), true);
     setHidden($('wiki-ask'), true);
     $('wiki-view')?.classList.remove('no-note', 'docs-nav-open');
-    return import('./journal.js?v=259').then(module => module.initJournal());
+    return import('./journal.js?v=260').then(module => module.initJournal());
   }
 
   if (_section === 'notes') {
@@ -1709,7 +1710,7 @@ async function showRevisions() {
       body: revisions.length
         ? `<div class="docs-revision-list">${revisions.map(revision => `
             <button type="button" data-revision="${esc(revision.id)}">
-              <span>${esc(revision.reason || t('docs.before_save'))}</span><small>${esc(revision.created_at || revision.id)}</small>
+              <span>${esc(revision.reason || t('docs.before_save'))}</span><small>${esc(when(revision.created_at) || revision.id)}</small>
             </button>`).join('')}</div>`
         : `<p>${t('docs.no_revisions')}</p>`,
       actions: [{ id: 'cancel', label: t('common.close') }],

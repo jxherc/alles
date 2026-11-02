@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import pick_money_task
 
 base = f"http://127.0.0.1:{os.environ['PORT']}"
 require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -95,7 +96,7 @@ with sync_playwright() as pw:
             plans = page.locator('[data-money-section="plans"]')
             if plans.get_attribute("aria-expanded") != "true":
                 plans.click()
-            page.locator('[data-money-task="goals"]').click()
+            pick_money_task(page, "goals")
             goals = page.locator('[data-card="goals"]')
             goals.locator("#gl-name").fill("Emergency Fund")
             goals.locator("#gl-target").fill("1000")
@@ -123,7 +124,7 @@ with sync_playwright() as pw:
             plans = page.locator('[data-money-section="plans"]')
             if plans.get_attribute("aria-expanded") != "true":
                 plans.click()
-            page.locator('[data-money-task="goals"]').click()
+            pick_money_task(page, "goals")
             expect(page.locator('[data-card="goals"]')).to_contain_text("Emergency Fund")
             page.locator(".goal-row [data-del-goal]").click()
             page.get_by_role("alertdialog").locator("[data-dialog-confirm]").click()

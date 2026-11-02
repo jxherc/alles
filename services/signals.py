@@ -165,6 +165,9 @@ def _events(db, today, *, timezone_name=None):
         full = str(wall_time(e.start_dt, zone))
         t = full[11:16] if len(full) > 10 else ""
         timed = (not e.all_day) and bool(t)
+        # the end time when the event ends the same day, so home can fade what's over (u.02)
+        until = str(wall_time(e.end_dt, zone)) if e.end_dt and timed else ""
+        end = until[11:16] if until[:10] == full[:10] and until[11:16] > t else ""
         out.append(
             _sig(
                 "event",
@@ -177,6 +180,7 @@ def _events(db, today, *, timezone_name=None):
                     "id": e.id,
                     "title": e.title,
                     "time": "" if e.all_day else t,
+                    "end": end,
                     "all_day": e.all_day,
                     "start_dt": full,
                 },

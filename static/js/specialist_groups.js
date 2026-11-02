@@ -5,9 +5,11 @@ import { confirm as confirmDialog } from './dialog.js';
 import { initDatePicker } from './datepick.js';
 import { iconEl } from './icons.js';
 import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDateParts, formatDateTime, formatNumber, t, tp } from './i18n.js';
+import { balanceOn, balanceSeries, lastThirtyDays, monthBefore, signedFigure, sparkSvg, weekChange, weekChangeText } from './numbers.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
+import { whenDay, whenElement } from './when.js';
 
 export function mailboxAddress(value) {
   const raw = String(value || '').trim();
@@ -300,6 +302,8 @@ export function planCommitments(events, tasks, reminders) {
       title: item.title || t('groups.untitled_event'),
       date,
       time: _timeKey(when),
+      // an event is over when it ends, not when it starts (u.02); only a same day end counts
+      end: _dateKey(String(item.end_dt || item.end || '')) === date ? _timeKey(String(item.end_dt || item.end || '')) : '',
       meta: item.location || item.calendar || t('groups.type_calendar'),
       sort: _commitmentSortKey(when),
     });
@@ -337,23 +341,62 @@ export function planCommitments(events, tasks, reminders) {
 }
 
 function _agendaDayLabel(key) {
-  if (!key) return t('groups.no_date');
-  const today = calendarDateKey(new Date());
-  if (key === today) return t('common.today');
-  const next = new Date(`${today}T00:00:00Z`);
-  next.setUTCDate(next.getUTCDate() + 1);
-  if (key === next.toISOString().slice(0, 10)) return t('groups.tomorrow');
-  return formatCalendarDate(key, { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase();
+  return key ? whenDay(key) : t('groups.no_date');
 }
 
 const _typeLabel = type => ({
   event: t('groups.type_event'), task: t('groups.type_task'), reminder: t('groups.type_reminder'),
 }[type] || type);
 
-function _agendaRows(target, rows, emptyCopy, openRecord) {
+// the time of day as "21:05" in the owner's zone, for the agenda's now line
+function _nowClock(now = new Date()) {
+  const parts = Object.fromEntries(formatDateParts(now, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', numberingSystem: 'latn' }).map(part => [part.type, part.value]));
+  return `${parts.hour}:${parts.minute}`;
+}
+
+// home's rule for one day (u.02): overdue first, then what's left with a now line before the
+// next timed row, then what's over, faded, under "earlier today"
+export function agendaTimeline(rows, hhmm) {
+  const over = row => (row.type === 'event' || row.type === 'reminder') && row.time && (row.end || row.time) <= hhmm;
+  const late = rows.filter(row => row.overdue);
+  const left = rows.filter(row => !row.overdue && !over(row));
+  const past = rows.filter(row => !row.overdue && over(row));
+  const at = left.findIndex(row => row.time);
+  const nowAt = past.length || at >= 0 ? (at >= 0 ? at : left.length) : -1;
+  return { late, left, past, nowAt };
+}
+
+// from 8 pm the agenda's today leads with tomorrow, as home does
+const AGENDA_EVENING_HOUR = 20;
+
+function _agendaRows(target, rows, emptyCopy, openRecord, { now = '', lead = null } = {}) {
   target.replaceChildren();
+  if (lead?.rows.length) {
+    target.append(_el('h3', 'specialist-record-day', lead.label));
+    for (const row of lead.rows) target.append(_agendaRow(row, false, openRecord));
+    target.append(_el('h3', 'specialist-record-day', whenDay(_todayKey())));
+  }
   if (!rows.length) {
     target.append(_el('p', 'specialist-workbench-empty', emptyCopy));
+    return;
+  }
+  if (now && new Set(rows.map(row => row.date || '')).size <= 1) {
+    const { late, left, past, nowAt } = agendaTimeline(rows, now);
+    const line = () => {
+      const marker = _el('div', 'plan-agenda-now', t('home.now'));
+      marker.setAttribute('role', 'presentation');
+      return marker;
+    };
+    for (const row of late) target.append(_agendaRow(row, false, openRecord));
+    left.forEach((row, index) => {
+      if (index === nowAt) target.append(line());
+      target.append(_agendaRow(row, false, openRecord));
+    });
+    if (nowAt === left.length) target.append(line());
+    if (past.length) {
+      target.append(_el('h3', 'specialist-record-day plan-agenda-earlier', t('home.earlier_today')));
+      for (const row of past) target.append(_agendaRow(row, false, openRecord, true));
+    }
     return;
   }
   // rows over more than one day read under a heading per day, so the first column is only the
@@ -366,27 +409,31 @@ function _agendaRows(target, rows, emptyCopy, openRecord) {
       lastDay = row.date;
       target.append(_el('h3', 'specialist-record-day', _agendaDayLabel(row.date)));
     }
-    const interactive = row.type === 'task' || row.type === 'event';
-    const item = _el(interactive ? 'button' : 'div', `specialist-record-row${row.overdue ? ' overdue' : ''}`);
-    if (interactive) {
-      // Reuse the existing record button's layout, hover and focus treatment.
-      item.className += ' specialist-library-row';
-      item.type = 'button';
-      item.dataset.planAgendaRecord = row.id;
-      item.addEventListener('click', () => openRecord(row, item));
-    }
-    const typeName = _typeLabel(row.type);
-    const meta = row.meta && row.meta !== typeName ? `${typeName} · ${row.meta}` : typeName;
-    item.append(
-      // row.time stays "09:00" for sorting; it reads like every other time in the app
-      // one day's list: the card head already shows the date, so an untimed row says due or all day
-      _el('span', 'specialist-record-time', row.overdue ? t('groups.overdue')
-        : (row.time && formatClock(row.time)) || (byDay || row.date ? (row.type === 'task' ? t('groups.due') : t('groups.all_day')) : '--')),
-      _el('strong', 'specialist-record-title', row.title),
-      _el('span', 'specialist-record-meta', meta),
-    );
-    target.append(item);
+    target.append(_agendaRow(row, byDay, openRecord));
   }
+}
+
+function _agendaRow(row, byDay, openRecord, past = false) {
+  const interactive = row.type === 'task' || row.type === 'event';
+  const item = _el(interactive ? 'button' : 'div', `specialist-record-row${row.overdue ? ' overdue' : ''}${past ? ' past' : ''}`);
+  if (interactive) {
+    // Reuse the existing record button's layout, hover and focus treatment.
+    item.className += ' specialist-library-row';
+    item.type = 'button';
+    item.dataset.planAgendaRecord = row.id;
+    item.addEventListener('click', () => openRecord(row, item));
+  }
+  const typeName = _typeLabel(row.type);
+  const meta = row.meta && row.meta !== typeName ? `${typeName} · ${row.meta}` : typeName;
+  item.append(
+    // row.time stays "09:00" for sorting; it reads like every other time in the app
+    // one day's list: the card head already shows the date, so an untimed row says due or all day
+    _el('span', 'specialist-record-time', row.overdue ? t('groups.overdue')
+      : (row.time && formatClock(row.time)) || (byDay || row.date ? (row.type === 'task' ? t('groups.due') : t('groups.all_day')) : '--')),
+    _el('strong', 'specialist-record-title', row.title),
+    _el('span', 'specialist-record-meta', meta),
+  );
+  return item;
 }
 
 async function _renderPlan(target, request, section = 'overview') {
@@ -499,7 +546,7 @@ async function _renderPlan(target, request, section = 'overview') {
   let windowName = returnTo?.windowName || (section === 'week' ? 'seven' : 'today');
   const agenda = _el('section', 'specialist-workbench-main');
   const agendaHead = _el('div', 'specialist-workbench-head');
-  agendaHead.append(_el('h2', '', t('groups.agenda')), _el('span', '', today));
+  agendaHead.append(_el('h2', '', t('groups.agenda')), _el('span', '', whenDay(today)));
   const agendaList = _el('div', 'specialist-record-list');
   const openStatus = _el('p', 'specialist-group-note plan-agenda-status');
   openStatus.setAttribute('role', 'status');
@@ -543,8 +590,15 @@ async function _renderPlan(target, request, section = 'overview') {
       rows = commitments.filter(item => item.type === 'task' && !item.date);
       empty = unscheduledEmpty;
     }
-    agendaHead.querySelector('span').textContent = value === 'today' ? today : value === 'seven' ? t('groups.next_seven_days') : t('groups.no_date');
-    _agendaRows(agendaList, rows, empty, openRecord);
+    agendaHead.querySelector('span').textContent = value === 'today' ? whenDay(today) : value === 'seven' ? t('groups.next_seven_days') : t('groups.no_date');
+    let timing = {};
+    if (value === 'today') {
+      const now = _nowClock();
+      const tomorrow = addDateKeyDays(today, 1);
+      timing = { now, lead: Number(now.slice(0, 2)) >= AGENDA_EVENING_HOUR
+        ? { label: whenDay(tomorrow), rows: commitments.filter(item => item.date === tomorrow) } : null };
+    }
+    _agendaRows(agendaList, rows, empty, openRecord, timing);
   };
   const choices = _choiceButtons(t('groups.plan_window'), [
     { value: 'today', label: t('groups.window_today', { count: inWindow('today').length }) },
@@ -864,6 +918,21 @@ async function _renderLibrary(target, request) {
   draw();
 }
 
+// a figure with its change under it and a quiet line of the last 30 days beside it (u.05).
+// the line is for the eye only; the change text is what a screen reader reads
+function _numberCell(value, change, svg, className = '') {
+  const cell = _el('span', `num-cell ${className}`.trim());
+  const figure = _el('span', 'num-figure');
+  figure.append(_el('span', 'num-value', value));
+  if (change) figure.append(_el('small', 'num-change', change));
+  // the line's slot is always there, so every figure in a list ends on the same edge
+  const line = _el('span', 'num-spark');
+  line.setAttribute('aria-hidden', 'true');
+  if (svg) line.innerHTML = svg;
+  cell.append(figure, line);
+  return cell;
+}
+
 async function _renderHealth(target, request) {
   const day = _todayKey();
   const [healthResult, habitsResult] = await Promise.allSettled([
@@ -898,10 +967,16 @@ async function _renderHealth(target, request) {
   if (!health.length && !healthError) measurements.append(_sectionJump('health', 'health', t('groups.log_measurement'), 'specialist-inline-action'));
   for (const item of health) {
     const row = _el('div', 'specialist-record-row');
+    const change = weekChange(item.series);
     row.append(
-      _el('span', 'specialist-record-time', item.latest?.date || '--'),
+      item.latest?.date ? Object.assign(whenElement(item.latest.date), { className: 'specialist-record-time' }) : _el('span', 'specialist-record-time', '--'),
       _el('strong', 'specialist-record-title', item.label || item.kind || t('groups.measurement')),
-      _el('span', 'specialist-record-meta', item.latest ? `${item.latest.value} ${item.latest.unit || ''}` : t('groups.no_entries')),
+      _numberCell(
+        item.latest ? `${item.latest.value} ${item.latest.unit || ''}` : t('groups.no_entries'),
+        change ? weekChangeText(change, item.latest?.date, day) : '',
+        sparkSvg(lastThirtyDays(item.series, day)),
+        'specialist-record-meta',
+      ),
     );
     measurements.append(row);
   }
@@ -1028,23 +1103,21 @@ function _actualConfirmation(panel, action, trigger, runAction) {
   cancel.type = 'button';
   const confirm = _el('button', 'finance-actual-confirm-primary', action === 'cutover' ? t('finance.use_actual') : t('finance.use_alles'));
   confirm.type = 'button';
-  const toggle = panel.querySelector('.finance-actual-toggle');
-  if (toggle) toggle.disabled = true;
   const close = () => {
     confirmation.remove();
-    if (toggle) toggle.disabled = false;
     trigger.focus();
   };
   cancel.addEventListener('click', close);
   confirm.addEventListener('click', () => {
     confirmation.remove();
-    if (toggle) toggle.disabled = false;
     trigger.focus();
     runAction(action, trigger);
   });
   confirmation.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
+    // only the confirmation closes: the ledger panel around it stays
+    event.stopPropagation();
     close();
   });
   actions.append(cancel, confirm);
@@ -1053,34 +1126,16 @@ function _actualConfirmation(panel, action, trigger, runAction) {
   cancel.focus();
 }
 
-function _renderActualStatus(value, request) {
+function _renderActualStatus(value, request, { onChanged = null } = {}) {
   const presentation = financeActualPresentation(value);
   const reported = !!value && typeof value === 'object';
   const service = value?.service || {};
   const ledger = value?.ledger || {};
   const panel = _el('section', `finance-actual-panel finance-actual-${presentation.state}`);
   panel.setAttribute('aria-label', t('finance.ledger_status_label'));
-  const compact = ['canonical', 'ready', 'available', 'not-installed'].includes(presentation.state);
   const heading = _el('header', 'finance-actual-head');
-  const status = compact
-    ? (presentation.state === 'ready' ? t('finance.ready_for_review') : t('finance.ledger_active', { ledger: ledger.mode === 'actual' ? 'Actual' : 'Alles' }))
-    : presentation.title;
-  heading.append(_el('h2', '', t('finance.actual_ledger')), _el('strong', '', status));
+  heading.append(_el('h2', '', t('finance.actual_ledger')), _el('strong', '', presentation.title));
   const content = _el('div', 'finance-actual-content');
-  content.id = 'finance-actual-content';
-  let toggle = null;
-  if (compact) {
-    toggle = _el('button', 'finance-actual-toggle', t('finance.show_setup'));
-    toggle.type = 'button';
-    toggle.setAttribute('aria-controls', content.id);
-    toggle.setAttribute('aria-expanded', 'false');
-    content.hidden = true;
-    toggle.addEventListener('click', () => {
-      content.hidden = !content.hidden;
-      toggle.setAttribute('aria-expanded', String(!content.hidden));
-      toggle.textContent = content.hidden ? t('finance.show_setup') : t('finance.hide_setup');
-    });
-  }
   const detail = _el('p', 'finance-actual-detail', presentation.detail);
   const facts = _el('dl', 'finance-actual-facts');
   const fact = (term, description) => {
@@ -1097,7 +1152,6 @@ function _renderActualStatus(value, request) {
 
   const setBusy = busy => {
     panel.setAttribute('aria-busy', busy ? 'true' : 'false');
-    if (toggle) toggle.disabled = busy;
     actions.querySelectorAll('button').forEach(button => _setAsyncControlBusy(button, busy));
   };
   const runAction = async (action, returnFocus = null) => {
@@ -1129,6 +1183,8 @@ function _renderActualStatus(value, request) {
       if (action === 'backup') {
         message.textContent = t('finance.backup_verified', { id: result.backup_id || '' });
         setBusy(false);
+      } else if (onChanged) {
+        await onChanged();
       } else {
         await _refresh('finance');
       }
@@ -1156,24 +1212,20 @@ function _renderActualStatus(value, request) {
     });
     actions.append(button);
   }
-  panel.append(heading);
-  if (compact) {
-    panel.append(_el('p', 'finance-actual-authority', `${t('finance.writes_to', { ledger: ledger.mode === 'actual' ? 'Actual' : 'Alles' })}${ledger.base_currency_code ? ` · ${ledger.base_currency_code}` : ''}`), toggle);
-  }
-  if (compact) content.append(_el('p', 'finance-actual-detail', presentation.title));
   content.append(detail, facts, actions, message);
-  panel.append(content);
+  panel.append(heading, content);
   return panel;
 }
 
-// a true minus before the code (−USD 12.00), as Money writes it. with no currency the label
-// isn't part of the amount, so there the minus stays on the number
-function financeAmount(value, currency = '') {
+// a true minus before the code (−USD 12.00), as Money writes it. an account with no known
+// currency reads as money with the sign it was made with ("$627.46"), never "currency not set"
+// (u.12); money's own screen still offers to set it
+function financeAmount(value, currency = '', sign = '') {
   const cents = Math.round(Number(value ?? 0) * 100);
   const number = formatNumber(Math.abs(cents) / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const sign = cents < 0 ? '−' : '';
-  const code = `${currency === 'XXX' ? t('finance.currency_not_set') : currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}`;
-  return currency === 'XXX' ? `${code}${sign}${number}` : `${sign}${code}${number}`;
+  const minus = cents < 0 ? '−' : '';
+  if (currency === 'XXX' || !currency) return `${minus}${/^[A-Z]{3}$/.test(sign) ? '' : sign}${number}`;
+  return `${minus}${currency}${/^[A-Z]{3}$/.test(currency) ? '\u00a0' : ''}${number}`;
 }
 
 // a statement amount as the file wrote it (-12.34), in the same sign style
@@ -1182,36 +1234,185 @@ function _importAmount(code, text) {
   return `${negative ? '−' : ''}${code ? `${code}\u00a0` : ''}${negative ? text.slice(1) : text}`;
 }
 
+// the readings a balance's change is worked out from: the ledger's own recent entries. a list
+// that filled its limit before reaching a month back is cut short, and shows no change
+const FINANCE_ENTRIES = 1000;
+
+// "+$120.00" / "−CAD 5.00": a change carries its sign even when it is up
+function _signedMoney(delta, currency, sign) {
+  return `${delta > 0 ? '+' : ''}${financeAmount(delta, currency, sign)}`;
+}
+
+// one row per currency an account holds. an account in a single currency is one row
+function _accountRows(item) {
+  if (item.balance_by_currency?.length) return item.balance_by_currency.map(row => ({ currency: row.currency, balance: row.balance, whole: false }));
+  return [{ currency: item.currency_code === 'XXX' ? 'XXX' : (item.currency || item.currency_code || ''), balance: item.balance, whole: true }];
+}
+
+// a balance, its change against the same day last month, and its last 30 days
+function _balanceCell(item, row, entries, entriesComplete, day) {
+  const value = financeAmount(row.balance, row.currency, item.currency);
+  if (!entriesComplete) return _numberCell(value, '', '', 'num-balance');
+  const moves = entries
+    .filter(entry => entry.account_id === item.id && (row.whole || (entry.amount_currency_code || entry.original_currency_code || 'XXX') === row.currency))
+    .map(entry => ({ date: entry.date, amount: entry.amount }));
+  const now = Number(row.balance) || 0;
+  const delta = Math.round((now - balanceOn(now, moves, monthBefore(day), day)) * 100) / 100;
+  const change = delta === 0
+    ? t('numbers.month_no_change')
+    : t('numbers.month_change', { figure: _signedMoney(delta, row.currency, item.currency) });
+  const line = sparkSvg(balanceSeries(now, moves, day).map((point, at) => ({ x: at, y: point.value })));
+  return _numberCell(value, change, line, 'num-balance');
+}
+
+// the finance overview's cards share one row: a name and what goes with it on the right
+function _financeRow(title, meta) {
+  const row = _el('div', 'specialist-group-row');
+  row.append(_el('strong', '', title || t('groups.untitled')));
+  if (meta) row.append(meta);
+  return row;
+}
+
+function _financeCard(title, rows, emptyCopy, className = '') {
+  const card = _el('section', `specialist-group-card ${className}`.trim());
+  card.append(_el('h2', '', title));
+  const list = _el('div', 'specialist-group-list');
+  if (!rows.length) list.append(_el('p', 'specialist-group-empty', emptyCopy));
+  for (const row of rows) list.append(row);
+  card.append(list);
+  return card;
+}
+
+// when and what, the date in the owner's words with the full day on hover
+function _dated(date, text) {
+  const meta = _el('span', 'num-dated');
+  if (date) meta.append(Object.assign(whenElement(date), { className: 'num-when' }));
+  if (text) meta.append(_el('span', 'num-amount', text));
+  return meta;
+}
+
+// how the ledger's totals are written: its currency code, or the sign accounts without a code were made with
+function _summaryUnit(summary, accounts) {
+  const code = /^[A-Z]{3}$/.test(summary?.currency || '') ? summary.currency : '';
+  if (code) return { currency: code, sign: '' };
+  const signs = [...new Set(accounts.filter(item => !item.archived).map(item => item.currency).filter(Boolean))];
+  // two different signs added up would be a number in no currency at all
+  return signs.length > 1 ? null : { currency: '', sign: signs[0] || summary?.currency || '' };
+}
+
+function _shiftMonthKey(month, delta) {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!match) return '';
+  const at = Number(match[1]) * 12 + Number(match[2]) - 1 + delta;
+  return `${Math.floor(at / 12)}-${String((at % 12) + 1).padStart(2, '0')}`;
+}
+
+// spent this month against last month, the first thing the page says. what the total leaves out
+// is said under it: an account made with a bare sign has no currency to add up yet, and the
+// question that settles it is one tap away in money
+function _spentCard(summary, accounts) {
+  if (!summary || typeof summary.expense !== 'number') return null;
+  const unit = _summaryUnit(summary, accounts);
+  if (!unit) return null;
+  const last = (summary.trend || []).find(row => row.month === _shiftMonthKey(String(summary.month || ''), -1));
+  const card = _el('section', 'specialist-group-card finance-spent');
+  card.append(_el('h2', '', t('finance.spent_this_month')));
+  const figures = _el('div', 'finance-spent-row');
+  figures.append(_el('strong', 'finance-spent-figure', financeAmount(summary.expense, unit.currency, unit.sign)));
+  if (last) figures.append(_el('span', 'finance-spent-last', t('finance.spent_last_month', { amount: financeAmount(last.expense, unit.currency, unit.sign) })));
+  card.append(figures);
+  const left = summary.excluded || [];
+  if (left.some(row => row.currency !== 'XXX')) card.append(_el('small', 'finance-spent-note', t('finance.spent_left_out')));
+  if (left.some(row => row.currency === 'XXX')) {
+    const signs = [...new Set(accounts.filter(item => !item.archived && item.currency_code === 'XXX').map(item => String(item.currency || '').trim()).filter(Boolean))];
+    if (!signs.length) card.append(_el('small', 'finance-spent-note', t('finance.spent_no_currency')));
+    for (const sign of signs) card.append(_sectionJump('finance', 'money', t('money.which_currency', { sign }), 'specialist-inline-action finance-spent-ask'));
+  }
+  return card;
+}
+
+// the Actual ledger's setup is not working-page content: its home is settings (s-ledger) and the
+// overview links there. a real link, so a new tab or a reload still lands on it
+function _ledgerLink() {
+  const link = _el('a', 'specialist-inline-action', t('finance.ledger_setup'));
+  link.href = '/?view=settings#s-ledger';
+  link.addEventListener('click', event => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button) return;
+    if (globalThis._openSettingsAt?.('s-ledger')) event.preventDefault();
+  });
+  return link;
+}
+
 async function _renderFinance(target, request) {
-  const [accountsResult, subscriptionsResult, actualResult] = await Promise.allSettled([
+  const day = _todayKey();
+  const [accountsResult, subscriptionsResult, actualResult, summaryResult, entriesResult] = await Promise.allSettled([
     _json(request, '/api/money/accounts'),
     _json(request, '/api/subscriptions?advance=false'),
     _json(request, '/api/finance/actual'),
+    _json(request, `/api/money/summary?month=${day.slice(0, 7)}`),
+    // the search route reads the ledger as it is; the list route posts due schedules first, and the overview never writes
+    _json(request, `/api/money/transactions/search?limit=${FINANCE_ENTRIES}`),
   ]);
   const accounts = _asArray(_settled(accountsResult, []));
-  const subscriptionData = _settled(subscriptionsResult, {});
-  const subscriptions = _asArray(subscriptionData, 'subscriptions');
+  const subscriptions = _asArray(_settled(subscriptionsResult, {}), 'subscriptions');
   const actual = _settled(actualResult, null);
+  const summary = _settled(summaryResult, null);
+  const entries = _asArray(_settled(entriesResult, []));
   const accountsError = _settledError(accountsResult, t('finance.err_accounts'));
   const subscriptionsError = _settledError(subscriptionsResult, t('finance.err_subscriptions'));
   const actualError = _settledError(actualResult, t('finance.err_actual'));
+  const summaryError = _settledError(summaryResult, t('finance.err_summary'));
+  const entriesError = _settledError(entriesResult, t('finance.err_summary'));
+  // entries come newest first: a full list that never got back a month is cut short
+  const entriesComplete = !entriesError && (entries.length < FINANCE_ENTRIES || (entries.at(-1)?.date || '') <= monthBefore(day));
   target.replaceChildren();
-  const grid = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
-  grid.append(
-    _list(t('finance.accounts'), accounts.map(item => ({ title: item.name, meta: item.balance_by_currency?.length ? item.balance_by_currency.map(row => financeAmount(row.balance, row.currency)).join(' · ') : financeAmount(item.balance, item.currency || item.currency_code || '') })), accountsError ? t('finance.accounts_unavailable', { error: accountsError }) : t('finance.no_accounts')),
-    _list(t('finance.subscriptions'), subscriptions.map(item => ({ title: item.name, meta: `${financeAmount(item.price, item.currency || '')} · ${item.cycle ? t('subs.cycle_' + item.cycle) : ''}` })), subscriptionsError ? t('finance.subscriptions_unavailable', { error: subscriptionsError }) : t('finance.no_subscriptions')),
+
+  const accountRows = [];
+  for (const item of accounts) {
+    for (const row of _accountRows(item)) {
+      const line = _financeRow(item.name, _balanceCell(item, row, entries, entriesComplete, day));
+      line.classList.add('num-row');
+      accountRows.push(line);
+    }
+  }
+  const unit = _summaryUnit(summary, accounts) || { currency: '', sign: '' };
+  const categoryRows = (summary?.by_category || []).slice(0, 5).map(([name, amount]) =>
+    _financeRow(name || t('finance.uncategorized'), _el('span', '', financeAmount(amount, unit.currency, unit.sign))));
+  const accountSign = new Map(accounts.map(item => [item.id, item.currency]));
+  const recentRows = entries.slice(0, 6).map(entry => {
+    const code = entry.amount_currency_code || entry.original_currency_code || '';
+    const amount = `${entry.amount > 0 ? '+' : ''}${financeAmount(entry.amount, code, accountSign.get(entry.account_id) || '')}`;
+    return _financeRow(entry.payee || entry.category || t('finance.transaction'), _dated(entry.date, amount));
+  });
+  const renewalRows = subscriptions
+    .filter(item => item.active !== false && /^\d{4}-\d{2}-\d{2}/.test(String(item.next_due || '')))
+    .sort((a, b) => String(a.next_due).localeCompare(String(b.next_due)))
+    .slice(0, 5)
+    .map(item => _financeRow(item.name, _dated(item.next_due, financeAmount(item.price, item.currency || ''))));
+
+  const first = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
+  first.append(
+    _financeCard(t('finance.accounts'), accountRows, accountsError ? t('finance.accounts_unavailable', { error: accountsError }) : t('finance.no_accounts'), 'finance-accounts'),
+    _financeCard(t('finance.top_categories'), categoryRows, summaryError ? t('finance.summary_unavailable') : t('finance.nothing_spent')),
+  );
+  const second = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
+  second.append(
+    _financeCard(t('finance.recent_transactions'), recentRows, entriesError ? t('finance.summary_unavailable') : t('finance.no_transactions')),
+    _financeCard(t('finance.upcoming_renewals'), renewalRows, subscriptionsError ? t('finance.subscriptions_unavailable', { error: subscriptionsError }) : t('finance.no_subscriptions')),
   );
   const work = _el('div', 'finance-daily-actions');
   const banks = _el('button', 'specialist-inline-action', t('finance.bank_connections'));
   banks.type = 'button';
   banks.addEventListener('click', async () => (await import('./money.js')).openBankConnections());
-  work.append(_sectionJump('finance', 'money', t('finance.open_transactions'), 'specialist-inline-action'), banks);
-  const ledgerPanel = _renderActualStatus(actual, request);
+  work.append(_sectionJump('finance', 'money', t('finance.open_transactions'), 'specialist-inline-action'), banks, _ledgerLink());
+
+  // the ledger in use and not well is not setup: it stays where it can't be missed
   const urgent = financeActualPresentation(actual).state === 'canonical-unhealthy' || !!actualError;
-  if (urgent) target.append(ledgerPanel);
+  if (urgent) target.append(_renderActualStatus(actual, request));
   if (actualError) target.append(_el('p', 'specialist-group-error', t('finance.actual_status_unavailable', { error: actualError })));
-  target.append(work, grid);
-  if (!urgent) target.append(ledgerPanel);
+  const lead = _spentCard(summary, accounts);
+  if (lead) target.append(lead);
+  target.append(first, second, work);
 }
 
 async function _renderServer(target, request, section) {
@@ -1369,7 +1570,7 @@ function _renderImportReceipt(target, receipt, request, refresh) {
     const parsed = row.parsed || {};
     const item = _el('div', `finance-import-row finance-import-row-${row.status}`);
     item.append(
-      _el('span', 'finance-import-row-date', parsed.date || t('finance.line_n', { n: row.row_number })),
+      _el('span', 'finance-import-row-date', parsed.date ? whenDay(parsed.date) : t('finance.line_n', { n: row.row_number })),
       _el('strong', '', parsed.payee || row.conflict_reason || (parsed.date ? t('finance.unnamed_transaction') : t('finance.needs_review'))),
       _el('span', 'finance-import-row-amount', parsed.amount_text ? _importAmount(parsed.currency_code || '', String(parsed.amount_text)) : ''),
       _el('span', 'finance-import-row-status', _importStatus(row.status)),
@@ -1811,10 +2012,41 @@ const OVERVIEWS = Object.freeze({
   server: _renderServer,
 });
 
+// plan has 3 tabs (u.06): the agenda's next seven days sit under today, and the board,
+// reminders and countdowns are views of tasks picked by the pill switches under the tasks tab.
+// the sections and their links stay, so an old link still opens the right view
+const PLAN_TAB = Object.freeze({ week: 'overview', board: 'tasks', reminders: 'tasks', days: 'tasks' });
+const PLAN_TASK_VIEWS = Object.freeze(['tasks', 'board', 'reminders', 'days']);
+
+export function groupTabFor(group, section) {
+  return (group === 'plan' && PLAN_TAB[section]) || section;
+}
+
+function _pick(group, value) {
+  group?.querySelectorAll(':scope > button').forEach(button => {
+    button.setAttribute('aria-checked', String(button.dataset.value === value));
+    button.tabIndex = button.dataset.value === value ? 0 : -1;
+  });
+}
+
+function _setPlanViews(root, section) {
+  const views = root.querySelector('[data-plan-subviews]');
+  if (!views) return;
+  const inTasks = PLAN_TASK_VIEWS.includes(section);
+  views.hidden = !inTasks;
+  if (!inTasks) return;
+  _pick(views.querySelector('[data-plan-kind]'), section === 'board' ? 'tasks' : section);
+  const layout = views.querySelector('[data-plan-layout]');
+  _pick(layout, section);
+  layout.hidden = section !== 'tasks' && section !== 'board';
+}
+
 function _setTabs(root, section) {
   let activeTab = null;
+  const tab = groupTabFor(root.dataset.specialistApp, section);
+  if (root.dataset.specialistApp === 'plan') _setPlanViews(root, section);
   root.querySelectorAll('[data-group-section]').forEach(button => {
-    const active = button.dataset.groupSection === section;
+    const active = button.dataset.groupSection === tab;
     button.setAttribute('aria-selected', active ? 'true' : 'false');
     button.tabIndex = active ? 0 : -1;
     button.classList.toggle('active', active);
@@ -1907,6 +2139,14 @@ function _wire(group, root) {
       tabs[next].click();
     });
   });
+  const planViews = root.querySelector('[data-plan-subviews]');
+  if (planViews && tablist?.parentElement) {
+    tablist.parentElement.append(planViews);
+    planViews.addEventListener('change', event => {
+      const value = event.detail?.value;
+      if (PLAN_TASK_VIEWS.includes(value) && value !== _states.get('plan')?.section) window._navigateSpecialistSection?.('plan', value);
+    });
+  }
   root.querySelector('[data-files-back]')?.addEventListener('click', async () => {
     await window._navigateSpecialistSection?.('files', 'files');
     // the back button hides on files, so the picked tab takes focus instead of the page
@@ -1988,6 +2228,6 @@ export async function initSpecialistGroup(group, { section = 'overview', request
 }
 
 // settings › connections and tools is the ledger setup's home (u.05): it draws the same panel
-export function renderLedgerSetup(value, request = fetch) {
-  return _renderActualStatus(value, request);
+export function renderLedgerSetup(value, request = fetch, options = {}) {
+  return _renderActualStatus(value, request, options);
 }

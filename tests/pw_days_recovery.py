@@ -19,6 +19,14 @@ require_server_ownership(BASE, os.environ["ALLES_TEST_RUN_ID"])
 OUT = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
 rows = []
 
+
+def delete_from_menu(card):
+    """delete lives in the card's more menu; the card turns into an undo row until it's gone."""
+    card.locator(".day-more").press("Enter")
+    card.locator('[data-act="del"]').press("Enter")
+    expect(card.locator('[data-act="undo"]')).to_be_focused()
+
+
 with sync_playwright() as pw:
     browser = pw.chromium.launch()
     for width, theme in [(1440, "dark"), (390, "light")]:
@@ -183,17 +191,14 @@ with sync_playwright() as pw:
             )
             card = page.locator(f'.day-card[data-id="{identity}"]')
             card.locator('[data-act="pin"]').press("Enter")
-            expect(card.locator('[data-act="pin"]')).to_have_attribute("title", "unpin")
-            card.locator('[data-act="del"]').press("Enter")
-            page.get_by_role("alertdialog").get_by_role("button", name="cancel", exact=True).press(
-                "Enter"
-            )
-            expect(card).to_be_visible()
-            card.locator('[data-act="del"]').press("Enter")
-            page.get_by_role("alertdialog").get_by_role("button", name="confirm", exact=True).press(
-                "Enter"
-            )
-            expect(card).to_have_count(0)
+            expect(card.locator('[data-act="pin"]')).to_have_attribute("aria-label", "unpin")
+            # delete is in the card's menu and waits out an undo window (u.10)
+            expect(card.locator('[data-act="del"]')).to_be_hidden()
+            delete_from_menu(card)
+            card.locator('[data-act="undo"]').press("Enter")
+            expect(card.locator(".day-more")).to_be_focused()
+            delete_from_menu(card)
+            expect(card).to_have_count(0, timeout=10_000)
             record(
                 "days.edit-pin-delete-cancel-retry",
                 exact_backend_deleted=not any(
@@ -231,24 +236,19 @@ with sync_playwright() as pw:
             record("days.newer-edit-during-save", persisted_first_then_newer=True)
             for mode in ["delete-fail", "delete-malformed"]:
                 day_state["mode"] = mode
-                card.locator('[data-act="del"]').press("Enter")
-                page.get_by_role("alertdialog").get_by_role(
-                    "button", name="confirm", exact=True
-                ).press("Enter")
+                delete_from_menu(card)
                 expect(page.locator(".toast.error").last).to_contain_text(
-                    "synthetic deletion unavailable" if mode == "delete-fail" else "not confirmed"
+                    "synthetic deletion unavailable" if mode == "delete-fail" else "not confirmed",
+                    timeout=10_000,
                 )
-                expect(card).to_be_visible()
+                expect(card.locator(".day-more")).to_be_visible()
                 expect(card.locator('[data-act="del"]')).to_be_enabled()
                 assert any(
                     x["id"] == identity for x in api.get(BASE + "/api/days").json()["events"]
                 )
             day_state["mode"] = "normal"
-            card.locator('[data-act="del"]').press("Enter")
-            page.get_by_role("alertdialog").get_by_role("button", name="confirm", exact=True).press(
-                "Enter"
-            )
-            expect(card).to_have_count(0)
+            delete_from_menu(card)
+            expect(card).to_have_count(0, timeout=10_000)
             assert not any(
                 x["id"] == identity for x in api.get(BASE + "/api/days").json()["events"]
             )
@@ -307,7 +307,8 @@ with sync_playwright() as pw:
             day_state["mode"] = "load-hold"
             held = []
             page.get_by_role("tab", name="tasks", exact=True).press("Enter")
-            page.get_by_role("tab", name="countdowns", exact=True).press("Enter")
+            page.get_by_role("tab", name="tasks", exact=True).click()
+            page.get_by_role("radio", name="countdowns", exact=True).press("Enter")
             wait_count(held, 1)
             older = held.pop()
             snapshot = older.fetch()
@@ -318,7 +319,8 @@ with sync_playwright() as pw:
                 BASE + "/api/days/" + identity, data={"name": f"newer navigation state {width}"}
             ).ok
             page.get_by_role("tab", name="tasks", exact=True).press("Enter")
-            page.get_by_role("tab", name="countdowns", exact=True).press("Enter")
+            page.get_by_role("tab", name="tasks", exact=True).click()
+            page.get_by_role("radio", name="countdowns", exact=True).press("Enter")
             expect(page.locator(f'.day-card[data-id="{identity}"] .day-name')).to_have_text(
                 f"newer navigation state {width}"
             )

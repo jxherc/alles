@@ -42,6 +42,7 @@ GATE_TIMEOUTS = {
     "settings-panes": 600,
     "plan-agenda-navigation": 600,
     "aide-context-help": 600,
+    "delete-controls": 600,
 }
 COMMANDS = {
     "style-ownership": ("tests/pw_style_ownership.py",),
@@ -166,6 +167,7 @@ COMMANDS = {
     "habit-focus": ("tests/pw_habit_focus.py",),
     "habit-slipping": ("tests/pw_habit_slipping.py",),
     "habit-taps": ("tests/pw_habit_taps.py",),
+    "delete-controls": ("tests/pw_delete_controls.py",),
     "finance-imports": ("tests/pw_finance_imports.py",),
     "finance-workflows": ("tests/pw_finance_workflows.py",),
     "finance-hierarchy": ("tests/pw_finance_hierarchy.py",),
