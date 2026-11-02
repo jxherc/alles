@@ -7696,4 +7696,9 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
   }
   body.afterlife-shell .app-rail-item[data-wide] { display: none; }
   body.app-drawer-open .app-rail { visibility: hidden; }
+  /* what floats on the screen's bottom edge (toasts, undo bars, the transfer dock, the call
+     pill) rises above the bar; a margin adds to each one's own bottom offset */
+  body.afterlife-shell:has(.app-rail:not([hidden])) :where(.toast-container, .sync-indicator, #mail-undo-stack, #aide-call-ongoing, .files-phase7-operation-dock, .tts-wave-pop, .andromeda-idle-footer) {
+    margin-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
 }
