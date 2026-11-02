@@ -163,6 +163,8 @@ App-specific navigation or context only. It never repeats the universal launcher
 
 Use a dialog for a blocking decision and a side panel for continuing context. Label it, trap focus only when modal, restore focus on close, support Escape when safe, and prevent content behind it from becoming keyboard-accessible.
 
+A dialog that only shows something (the steps behind an Aide reply) is a view dialog (`view` in `dialog.js`): one title, the content, one close button, no cancel. The content scrolls between the title and the close button, and focus returns to the control that opened it.
+
 ## inline status
 
 Use short states such as `saving`, `saved`, `offline`, `partial results`, or `needs approval`. Keep status near the affected content and announce important asynchronous changes. Do not make a temporary toast the only record of important work.

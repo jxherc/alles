@@ -29,6 +29,26 @@ test('only what needs the owner shows mid reply, between the words and typing', 
   assert.match(chat, /addStepsAction\(actions, \[\.\.\.steps\.values\(\)\], runId\)/);
 });
 
+test('a reply with tools and no words still gets its actions row, with the steps', () => {
+  assert.match(chat, /if \(wrap && \(hasWords \|\| artifacts\.length \|\| steps\.size\)\)/);
+  assert.match(chat, /if \(hasWords\) \{\s*html \+= `<button class="act-btn" data-msg-act="copy">/);
+  // after a reload a reply with no words has nothing to copy either, only its steps
+  assert.match(sessions, /actions\.innerHTML = withoutThinking\(displayText\) \? `/);
+});
+
+test('an approval for a file change shows the change it asks about', () => {
+  assert.match(chat, /agent-perm-diff[^\n]*renderDiff\(t\.diff\)/);
+});
+
+test('the steps dialog is the shared view dialog: one title, one close, no cancel', () => {
+  const dialog = readFileSync(new URL('../../static/js/dialog.js', import.meta.url), 'utf8');
+  const view = dialog.slice(dialog.indexOf('export function view('), dialog.indexOf('export function choose('));
+  assert.equal(view.match(/<h2 class="dialog-title"/g)?.length, 1);
+  assert.equal(view.match(/data-dialog-cancel/g)?.length, 1);
+  assert.doesNotMatch(view, /data-dialog-confirm/);
+  assert.match(sessions, /_dlgView\(title, html, \{ className: 'aide-steps-dialog'/);
+});
+
 test('read goes under the newest message the server took', () => {
   assert.match(sessions, /<span class="user-read">\$\{escHtml\(t\('aide\.read_mark'\)\)\}<\/span>/);
   assert.match(chat, /accepted = true;[\s\S]{0,400}markRead\(asked\)/);
