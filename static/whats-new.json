@@ -155,9 +155,39 @@
           "body": "adding a mail account starts with your email address. it picks the provider and its sign in, and for your own domain it finds the mail servers from the domain's published settings, so you type the address and an app password at most. calendar sync fills its server the same way."
         },
         {
-          "key": "home_time",
-          "title": "home knows the time, tasks act in place",
-          "body": "dates read the same everywhere: today, tomorrow, sun, in 9 days, nov 12. home puts overdue tasks first, fades what's over and leads with tomorrow after 8 pm. check a task off or move it to tomorrow right from home or the task list, move every overdue task to today in one tap, and undo a delete."
+          "key": "plan_tabs",
+          "title": "plan has 3 tabs",
+          "body": "today, calendar and tasks. calendar holds day, week and month, tasks show as a list or a board, and reminders and countdowns are kinds you switch to under tasks. old links still open the right view."
+        },
+        {
+          "key": "app_rail",
+          "title": "apps one tap away",
+          "body": "on an ipad held sideways or a computer, home, aide and your pinned apps sit in a rail on the left. on a phone they're a bar at the bottom, and the rest are under more."
+        },
+        {
+          "key": "speech_dates",
+          "title": "dates read like speech",
+          "body": "plan, home, health and money write dates the same way: today, tomorrow, sun, in 9 days, nov 12."
+        },
+        {
+          "key": "overdue_first",
+          "title": "overdue first",
+          "body": "overdue tasks come first on home and in the task list. move every one to today in one tap, or a single task to tomorrow."
+        },
+        {
+          "key": "home_by_time",
+          "title": "home knows the time",
+          "body": "what's over fades and drops under what's left, with a now line between them. from 8 pm home leads with tomorrow: its first event and what's due."
+        },
+        {
+          "key": "act_in_place",
+          "title": "check off where you are",
+          "body": "check a task off or move it to tomorrow right from home or the task list, and undo a delete."
+        },
+        {
+          "key": "numbers_change",
+          "title": "numbers show change",
+          "body": "health's measurements and every account balance say how they moved since last week or month, with a small line of the last 30 days. finance leads with what you spent this month against last month."
         }
       ]
     },
