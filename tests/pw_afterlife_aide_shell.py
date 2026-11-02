@@ -999,17 +999,22 @@ def run() -> None:
                 """
                 async () => {
                   const {appendAiMsg} = await import('/static/js/sessions.js');
-                  appendAiMsg('answer', 'thinking first', [{type:'tool', name:'check'}]);
+                  appendAiMsg('answer', {}, null, [{type:'tool', name:'check'}]);
                 }
                 """
             )
+            # the chat is the reply: no thinking block or steps under it, and the work behind
+            # it opens from the reply's own menu
             answer_body = page.locator("#messages .ai-body").last
             children = answer_body.locator(":scope > *")
             classes = children.evaluate_all("els => els.map(el => el.className)")
-            assert classes.index("ai-content") < classes.index("thinking-block")
-            assert classes.index("ai-content") < next(
-                i for i, value in enumerate(classes) if "agent-steps" in value
-            )
+            assert classes == ["ai-content"], classes
+            answer_row = page.locator("#messages .msg-row").last
+            answer_row.locator(".msg-more-trigger").click()
+            answer_row.locator('[role="menuitem"][data-msg-act="steps"]').click()
+            page.wait_for_selector(".aide-steps-dialog", state="visible")
+            page.keyboard.press("Escape")
+            page.wait_for_selector(".aide-steps-dialog", state="detached")
 
             open_more_item("tools")
             page.wait_for_selector("#aide-work-panel:not([hidden])")

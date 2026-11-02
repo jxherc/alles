@@ -156,6 +156,15 @@ def run(context_factory=None):
                     )
                     phase = "read-search-denied-reload"
 
+                    def open_steps():
+                        # the work behind the newest reply opens from the reply's own menu
+                        row = page.locator("#messages .msg-row").last
+                        row.locator(".msg-more-trigger").click()
+                        row.locator('[role="menuitem"][data-msg-act="steps"]').click()
+                        dialog = page.locator(".aide-steps-dialog")
+                        expect(dialog).to_be_visible()
+                        return dialog
+
                     def close_sidebar():
                         backdrop = page.locator("#nav-backdrop")
                         if backdrop.is_visible():
@@ -192,7 +201,8 @@ def run(context_factory=None):
                         conversation = page.url
                         page.reload(wait_until="networkidle")
                         close_sidebar()
-                        button = page.locator("[data-agent-sources]").last
+                        dialog = open_steps()
+                        button = dialog.locator("[data-agent-sources]")
                         rid = button.get_attribute("data-agent-sources")
                         sources_url = f"/api/agent/runs/{rid}/sources"
                         sources = api("GET", sources_url)
@@ -209,7 +219,7 @@ def run(context_factory=None):
                         )
                         button.focus()
                         button.press("Enter")
-                        panel = page.locator(".agent-sources")
+                        panel = dialog.locator(".agent-sources")
                         expect(panel).to_contain_text("2 failed or denied")
                         expect(panel).to_contain_text("search results")
                         expect(panel).not_to_contain_text("missing-owned-source")
@@ -243,7 +253,7 @@ def run(context_factory=None):
                         )
                         page.goto(conversation, wait_until="networkidle")
                         close_sidebar()
-                        page.locator("[data-agent-sources]").last.click()
+                        open_steps().locator("[data-agent-sources]").click()
                         page.locator('.agent-sources a[href*="doc_hash="]').click()
                         expect(
                             page.get_by_role("button", name="open current version", exact=True)
@@ -258,7 +268,7 @@ def run(context_factory=None):
                         phase = "failed-load-retry"
                         page.goto(conversation, wait_until="networkidle")
                         close_sidebar()
-                        button = page.locator("[data-agent-sources]").last
+                        button = open_steps().locator("[data-agent-sources]")
                         pattern = "**" + sources_url
 
                         def failed(route):
@@ -290,7 +300,7 @@ def run(context_factory=None):
                         run_path.write_text(json.dumps(saved))
                         page.reload(wait_until="networkidle")
                         close_sidebar()
-                        page.locator("[data-agent-sources]").last.click()
+                        open_steps().locator("[data-agent-sources]").click()
                         expect(page.locator('.agent-sources a[href*="doc_hash="]')).to_have_count(1)
                         assert api("GET", sources_url)["outcomes"]["succeeded"] == 2
                         assert not errors, errors
@@ -303,7 +313,7 @@ def run(context_factory=None):
                         run_path.write_text(json.dumps(saved))
                         page.reload(wait_until="networkidle")
                         close_sidebar()
-                        page.locator("[data-agent-sources]").last.click()
+                        open_steps().locator("[data-agent-sources]").click()
                         expect(page.locator(".agent-sources")).to_contain_text("incomplete history")
                         expect(page.locator(".agent-sources")).to_contain_text(
                             "4 with an unknown outcome"
