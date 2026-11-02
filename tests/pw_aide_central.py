@@ -1100,6 +1100,26 @@ def run_profile(pw, browser, ids, width, theme, zoom=False):
             expect(queued).not_to_be_visible()
             row["queued_cancel"] = True
 
+        # a short window (640x450, or 200% zoom): the actions menu stays on screen and its last
+        # row is reachable by scrolling inside it
+        full_viewport = dict(page.viewport_size)
+        page.set_viewport_size({"width": full_viewport["width"], "height": 450})
+        page.locator("#aide-more-btn").click()
+        short_menu = page.locator("#aide-more-menu")
+        expect(short_menu).to_be_visible()
+        short = short_menu.evaluate(
+            """el => { const r = el.getBoundingClientRect(); return {top: r.top, bottom: r.bottom,
+                vh: innerHeight, scrolls: el.scrollHeight > el.clientHeight + 1}; }"""
+        )
+        assert short["top"] >= 0 and short["bottom"] <= short["vh"] + 1, short
+        last_item = short_menu.locator('[role="menuitem"]').last
+        last_item.scroll_into_view_if_needed()
+        edge = last_item.bounding_box()
+        assert edge["y"] + edge["height"] <= short["vh"] + 1, (edge, short)
+        row["short_window_menu"] = short
+        page.keyboard.press("Escape")
+        page.set_viewport_size(full_viewport)
+
         page.locator("#aide-more-btn").click()
         page.locator('[data-aide-central-action="memory"]').click()
         expect(panel).to_be_visible()
