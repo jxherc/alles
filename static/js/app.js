@@ -40,7 +40,7 @@ import { closeAideRun } from './aiderun.js';
 import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=16';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
-import { openSettings, closeSettings, applyVis } from './settings.js?v=300';
+import { openSettings, openSettingsAt, closeSettings, applyVis } from './settings.js?v=300';
 import {
   setIncognitoMode,
   isIncognitoMode,
@@ -1369,7 +1369,8 @@ function renderLocalView(v, route = {}) {
   else if (v === 'skills')    showSkillsView();
   else if (v === 'mail')      showMailView();
   else if (v === 'photos')    showPhotosView();
-  else if (v === 'settings')  openSettings();
+  // /?view=settings#s-ledger opens the pane that holds that card
+  else if (v === 'settings')  { if (!openSettingsAt(decodeURIComponent(location.hash.slice(1)))) openSettings(); }
 }
 
 // ── launcher tiles ──────────────────────────────────────────────────────────

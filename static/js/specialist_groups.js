@@ -1986,3 +1986,8 @@ export async function initSpecialistGroup(group, { section = 'overview', request
   legacyRoot.style.display = 'flex';
   return loadLegacy(group, selected, request);
 }
+
+// settings › connections and tools is the ledger setup's home (u.05): it draws the same panel
+export function renderLedgerSetup(value, request = fetch) {
+  return _renderActualStatus(value, request);
+}

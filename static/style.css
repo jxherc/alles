@@ -5527,13 +5527,15 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   #finance-view .finance-daily .specialist-group-row { grid-template-columns: minmax(0, 1fr); }
   #finance-view .finance-daily .specialist-group-row span { text-align: left; }
 }
-#finance-view .finance-actual-content { display: grid; gap: var(--k-space-3, 12px); }
-#finance-view .finance-actual-content[hidden] { display: none; }
-#finance-view .finance-actual-authority { margin: 0; color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; }
-#finance-view .finance-actual-toggle { justify-self: start; min-height: 44px; margin-inline-start: calc(-1 * var(--k-space-2, 8px)); padding: 0 var(--k-space-2, 8px); color: var(--k-ink, var(--text)); background: transparent; border: 0; border-radius: var(--k-radius-control, 3px); font: inherit; font-size: 0.8125rem; cursor: pointer; }
-#finance-view .finance-actual-toggle:hover { background: var(--k-hover, var(--panel)); }
-#finance-view .finance-actual-toggle:focus-visible { outline: 2px solid var(--k-focus); outline-offset: var(--k-focus-offset, -2px); }
-#finance-view .finance-actual-toggle:disabled { color: var(--k-ink-muted, var(--muted)); cursor: wait; }
+:is(#finance-view, #s-ledger) .finance-actual-content { display: grid; gap: var(--k-space-3, 12px); }
+:is(#finance-view, #s-ledger) .finance-actual-content[hidden] { display: none; }
+:is(#finance-view, #s-ledger) .finance-actual-authority { margin: 0; color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; }
+:is(#finance-view, #s-ledger) .finance-actual-toggle { justify-self: start; min-height: 44px; margin-inline-start: calc(-1 * var(--k-space-2, 8px)); padding: 0 var(--k-space-2, 8px); color: var(--k-ink, var(--text)); background: transparent; border: 0; border-radius: var(--k-radius-control, 3px); font: inherit; font-size: 0.8125rem; cursor: pointer; }
+:is(#finance-view, #s-ledger) .finance-actual-toggle:hover { background: var(--k-hover, var(--panel)); }
+:is(#finance-view, #s-ledger) .finance-actual-toggle:focus-visible { outline: 2px solid var(--k-focus); outline-offset: var(--k-focus-offset, -2px); }
+:is(#finance-view, #s-ledger) .finance-actual-toggle:disabled { color: var(--k-ink-muted, var(--muted)); cursor: wait; }
+/* in settings the card is the box: the panel adds no second inset */
+#s-ledger .finance-actual-panel { margin: 0; padding: 0; }
 
 .days-grid {
   display: grid;

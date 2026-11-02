@@ -7,6 +7,7 @@ import { formatPhone } from '../liveformat.js';
 import { formatDate, formatList, resolvedTimeZone, t, tp } from '../i18n.js';
 import { mountDependencies } from '../dependencies.js';
 import { catalogByGroup, mountSignin } from '../signin.js';
+import { loadLedger } from './ledger.js';
 import { _setSwitch, _bindSwitch, _patchSetting, _patchSettings, _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 const _si = n => (globalThis.window?.icon ? globalThis.window.icon(n) : '');   // the shared svg icon set
 
@@ -1598,7 +1599,7 @@ export const connectionsPane = createSettingsPane({
   load: isCurrent => (_connectionsLoaded = Promise.all([
     loadAgentStatus(isCurrent), loadMcpServers(isCurrent), loadConnections(isCurrent),
     loadDiscordConnection(isCurrent), loadPermRules(isCurrent), loadMacosStatus(isCurrent),
-    loadPhoton(isCurrent), loadTelegram(isCurrent), loadBrowserSignin(isCurrent), loadDependencies(),
+    loadPhoton(isCurrent), loadTelegram(isCurrent), loadBrowserSignin(isCurrent), loadDependencies(), loadLedger(isCurrent),
   ])),
   dispose() {
     // leaving the pane ends the live view, so Aide isn't kept waiting on a page nobody watches

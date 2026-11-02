@@ -193,8 +193,21 @@ export function closeSettings() {
   target?.focus();
 }
 
+// open settings on the pane that holds #id and bring that card into view: a link that stays put
+// when panes move between layouts (the finance overview opens the ledger setup with 's-ledger')
+export function openSettingsAt(id) {
+  const target = id && /^[\w-]+$/.test(id) ? document.getElementById(id) : null;
+  const pane = target?.closest('#settings-modal .s-pane')?.id.replace(/^s-pane-/, '');
+  if (!pane) return false;
+  openSettings(pane);
+  // focus stays on the section picker (openSettings), the card just comes into view
+  requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+  return true;
+}
+
 // expose for playwright tests + external callers
 window._openSettings = openSettings;
+window._openSettingsAt = openSettingsAt;
 
 // ── init (runs once) ──────────────────────────────────────────────────────────
 function _initSettings() {
