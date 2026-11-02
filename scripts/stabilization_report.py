@@ -44,6 +44,7 @@ BROWSER_SUITES = {
     "finance-planning": ("finance-planning",),
     "ui-audit": ("ui-audit",),
     "kit-rules": ("kit-rules",),
+    "delete-controls": ("delete-controls",),
     "habits": (
         "habit-recovery",
         "habit-create-recovery",
@@ -502,6 +503,7 @@ BROWSER_SUITES = {
         "pwa-offline",
         "pwa-storage",
         "pwa-rejection",
+        "delete-controls",
         *SURFACE_GATES,
     ),
 }

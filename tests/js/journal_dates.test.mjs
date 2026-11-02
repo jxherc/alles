@@ -81,6 +81,7 @@ test('journal hydration failures stay visible and immediately retryable', () => 
 
 test('the year strip is a picture: no cell takes a click or a tab stop, the months are the way in', async () => {
   const { formatCalendarDate, t, tp } = await import('../../static/js/i18n.js');
+  const { whenDay, whenFull } = await import('../../static/js/when.js');
   const vm = await import('node:vm');
   const body = source.match(/function stopAt\([\s\S]*?\n}\n/)?.[0] + source.match(/async function loadHeatmap\(\) \{[\s\S]*?\n}\n/)?.[0];
   assert.ok(!body.includes('undefined'));
@@ -92,7 +93,7 @@ test('the year strip is a picture: no cell takes a click or a tab stop, the mont
     contains: () => false, querySelectorAll: () => [], querySelector: () => null,
   });
   const context = vm.createContext({
-    document: { getElementById: node, activeElement: null }, esc: s => String(s), formatCalendarDate, t, tp,
+    document: { getElementById: node, activeElement: null }, esc: s => String(s), formatCalendarDate, whenDay, whenFull, t, tp,
     jget: async () => ({ year: 2026, days: { '2026-03-02': { level: 2, words: 120, mood: '' }, '2026-03-09': { level: 1, words: 20, mood: '' }, '2026-10-12': { level: 1, words: 30, mood: '' } } }),
     todayISO: () => '2026-10-23', _day: '2026-10-12', _heatYear: null, navigateDay: day => days.push(day),
   });

@@ -300,7 +300,7 @@ function financeHarness(extraContext = {}) {
   }
   body = new Element('body');
   const context = vm.createContext({
-    t, tp, calendarDateKey, balanceOn, balanceSeries, lastThirtyDays, monthBefore, sparkSvg, weekChange, weekChangeText,
+    t, tp, whenDay, calendarDateKey, balanceOn, balanceSeries, lastThirtyDays, monthBefore, sparkSvg, weekChange, weekChangeText,
     whenElement: value => Object.assign(new Element('time'), { textContent: whenDay(value) }),
     createFocusBoundary: () => ({ activate() {}, deactivate() {}, destroy() {} }),
     document: { createElement: tag => new Element(tag), body },

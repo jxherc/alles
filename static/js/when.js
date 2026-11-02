@@ -63,10 +63,17 @@ export function when(value, { time = '', now } = {}) {
 }
 
 // the full date for hover and long press: "sunday, november 1, 2026"
+const fullDays = new Map();
 export function whenFull(value, { time = '' } = {}) {
   const key = dayKey(value);
   if (!key) return '';
-  const day = low(formatCalendarDate(key, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+  const memo = `${localeTag()}|${key}`;   // a year grid asks for 365 of these at once
+  let day = fullDays.get(memo);
+  if (day === undefined) {
+    day = low(formatCalendarDate(key, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+    if (fullDays.size > 800) fullDays.clear();
+    fullDays.set(memo, day);
+  }
   const clock = time ? whenTime(time) : whenTime(value);
   return clock ? `${day} ${clock}` : day;
 }
