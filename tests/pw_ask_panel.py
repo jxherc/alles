@@ -162,6 +162,13 @@ def run():
                     page.click("#ask-panel-open")
                     expect(page.locator("#messages")).to_contain_text("what is due?")
                     expect(page.locator("#messages")).to_contain_text("renew passport is due")
+                    # the owner's message is the question; the screen went to the model out of view
+                    first = page.locator("#messages .user-bubble").first
+                    expect(first).to_have_text("what is due?")
+                    expect(page.locator("#messages .user-context-scope").first).to_contain_text(
+                        "from plan"
+                    )
+                    expect(page.locator("#messages")).not_to_contain_text("what's on that screen")
 
                     page.goto(f"{HOME}/?view=vault")
                     expect(page.locator("#vault-view")).to_be_visible()

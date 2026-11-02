@@ -548,7 +548,7 @@ test('the stream names both rows first and a refusal leaves the history alone', 
 
 test('just-sent rows carry regenerate and branch', () => {
   const send = chat.slice(chat.indexOf('export async function sendMessage'), chat.indexOf('export function resendMessage'));
-  assert.match(send, /const userRow = appendUserMsg\(text, documentScope\);/);
+  assert.match(send, /const userRow = appendUserMsg\(text, documentScope \|\| handoff\);/);
   assert.match(send, /\{ freshSession, pendingDraft, userRow \}\);/);
   assert.match(stream, /msg-regen-btn act-btn/);
   assert.match(stream, /msg-branch-btn/);
@@ -744,7 +744,7 @@ test('an edit stopped before the server confirmed it re-reads once that turn is 
 
 test('the ask panel names its turn and stops by it before letting go', () => {
   const panel = read('ask_panel');
-  assert.match(panel, /body: JSON\.stringify\(\{ session_id: id, message: compose\(question\), simple: true, turn_token: turnToken \}\)/);
+  assert.match(panel, /body: JSON\.stringify\(\{ session_id: id, message: question, context_scope: handoff\(\), simple: true, turn_token: turnToken \}\)/);
   assert.match(panel, /body: JSON\.stringify\(\{ turn_token: turnToken \}\)/);
   assert.match(panel, /Promise\.race\(\[told, new Promise\(resolve => setTimeout\(resolve, 800\)\)\]\)\.then\(\(\) => controller\.abort\(\)\)/);
 });

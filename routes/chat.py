@@ -27,7 +27,12 @@ from services.chat_turn import (
     _resolve_persona,
     _stream_and_save,
 )
-from services.document_context import VaultDocumentsScope, read_sources
+from services.document_context import (
+    HandoffScope,
+    VaultDocumentsScope,
+    handoff_context,
+    read_sources,
+)
 from services.llm import detect_provider, reasoning_control_supported, simple_complete
 from services.memory_store import apply_memory_tool_policy, inject_memories
 from services.model_capabilities import effort_levels, metadata_for
@@ -333,7 +338,7 @@ class ChatRequest(BaseModel):
     reasoning_mode: Literal["", "automatic", "on", "off"] = ""
     custom_effort: CustomEffort | None = None
     simple: bool = False  # pure chat — never auto-promote to tools (the home "ask aide")
-    context_scope: VaultDocumentScope | VaultDocumentsScope | None = None
+    context_scope: VaultDocumentScope | VaultDocumentsScope | HandoffScope | None = None
     retry_message_id: str = ""
     # edit (new words in `message`) or regenerate (the stored words) a stored question. it's
     # checked, cut and answered in one go, so a refusal leaves the history as it was
@@ -638,7 +643,7 @@ def _apply_run_controls(
 
 
 def _vault_document_context(
-    scope: VaultDocumentScope | VaultDocumentsScope | None,
+    scope: VaultDocumentScope | VaultDocumentsScope | HandoffScope | None,
 ) -> tuple[str, dict | None]:
     """Resolve one owner-selected note without changing the saved user message.
 
@@ -649,6 +654,14 @@ def _vault_document_context(
         return "", None
     if isinstance(scope, VaultDocumentsScope):
         return read_sources(scope)
+    if isinstance(scope, HandoffScope):
+        context, provenance = handoff_context(scope)
+        if scope.note is None:
+            return context, provenance
+        note_text, note = _vault_document_context(
+            VaultDocumentScope(path=scope.note.path, expected_hash=scope.note.expected_hash)
+        )
+        return note_text + context, {**provenance, "note": note}
     from services import vault_md
 
     try:

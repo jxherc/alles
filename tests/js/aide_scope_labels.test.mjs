@@ -32,3 +32,26 @@ for (const count of [1, 2]) {
     assert.deepEqual(provenanceLabels({ document: scope }), [`${count} selected ${noun} only`]);
   });
 }
+
+test('a handed-off question shows where it came from and its sources, never the context', () => {
+  const turn = {};
+  const context = vm.createContext({ t, tp,
+    document: { getElementById() { return { appendChild() {} }; } },
+    _makeRow() { return { row: turn }; }, scrollDown() {}, _wireEditButtons() {},
+  });
+  vm.runInContext(escaping + '\n' + turnRenderer, context);
+  const scope = {
+    kind: 'handoff', app: 'andromeda', context: 'Explain this search. {"query":"HIDDEN"}',
+    sources: [{ title: 'worksheet <b>', url: 'https://example.invalid/ws' }, { title: 'bad', url: 'javascript:alert(1)' }],
+  };
+  context.appendUserMsg('when is it due?', scope);
+  assert.ok(turn.innerHTML.includes('<summary>from andromeda</summary>'));
+  assert.ok(turn.innerHTML.includes('<a href="https://example.invalid/ws" target="_blank" rel="noopener noreferrer">worksheet &lt;b&gt;</a>'));
+  assert.ok(!turn.innerHTML.includes('javascript:'));
+  assert.ok(!turn.innerHTML.includes('HIDDEN'));
+  assert.ok(turn.innerHTML.includes('<div class="user-bubble">when is it due?</div>'));
+  assert.equal(turn.contextScope, scope);
+  // the ask panel hands no links: a quiet line, no disclosure
+  context.appendUserMsg('which is first?', { kind: 'handoff', app: 'plan · tasks', context: 'screen' });
+  assert.ok(turn.innerHTML.includes('<div class="user-context-scope">from plan · tasks</div>'));
+});

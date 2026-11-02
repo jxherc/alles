@@ -1465,6 +1465,8 @@ const BUILTIN_ENGLISH = {
     "aide.unstar_session": "unstar session",
     "aide.use_for_task": "use for this task",
     "aide.using_note_path": "using note · {path}",
+    "aide.handoff_from": "from {app}",
+    "aide.handoff_sources": "sources",
     "aide.view_coding": "coding",
     "aide.view_terminal": "terminal",
     "aide.working": "working",

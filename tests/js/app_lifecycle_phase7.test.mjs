@@ -282,7 +282,9 @@ test('scoped web searches use one-time handoff state and retain scope for Aide f
   );
   assert.ok(handoff.indexOf('context-handoff') < handoff.indexOf('encodeURIComponent(q)'));
   assert.match(andromeda, /documentScope: options\.documentScope \|\| null/);
-  assert.match(andromeda, /_askInChat\(request, false, scope, projectId\)/);
+  assert.match(andromeda, /_askInChat\(question, false, handoff, projectId\)/);
+  // a search scoped to one note hands that exact note on with the results
+  assert.match(andromeda, /if \(note\?\.kind === 'vault_document'\) handoff\.note = \{ path: note\.path, expected_hash: note\.expected_hash \}/);
 });
 
 test('boot-time Aide handoffs preserve a validated selected project', () => {

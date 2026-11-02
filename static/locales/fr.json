@@ -1461,6 +1461,8 @@
     "aide.unstar_session": "retirer la session des favoris",
     "aide.use_for_task": "utiliser pour cette tâche",
     "aide.using_note_path": "note utilisée · {path}",
+    "aide.handoff_from": "depuis {app}",
+    "aide.handoff_sources": "sources",
     "aide.view_coding": "code",
     "aide.view_terminal": "terminal",
     "aide.working": "en cours",

@@ -1461,6 +1461,8 @@
     "aide.unstar_session": "quitar destacado a la sesión",
     "aide.use_for_task": "usar en esta tarea",
     "aide.using_note_path": "usando nota · {path}",
+    "aide.handoff_from": "desde {app}",
+    "aide.handoff_sources": "fuentes",
     "aide.view_coding": "programación",
     "aide.view_terminal": "terminal",
     "aide.working": "trabajando",

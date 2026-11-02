@@ -1243,7 +1243,10 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   providers, and retry/broaden/edit/return actions.
 - **save or continue.** saved searches keep the request settings, result metadata, overview, citations,
   evidence, model provenance, and checked time. saving supports up to 600 results within a 20 MB result-data limit; oversized snapshots are rejected intact. pending saves stay in this browser tab for checking or retry after a lost reply or reload. retrying the same request returns the same snapshot, and cannot recreate a deleted snapshot. browser storage must be available before sending a recoverable save. ask aide retains the original query, result excerpts, overview, evidence passages, verification and
-  public model provenance, while preserving selected project and document scope. an unchanged saved
+  public model provenance, while preserving selected project and document scope. aide's message shows
+  only the original query, under a quiet "from andromeda" that opens to the result links; the captured
+  context travels to the model out of view as untrusted reference data (a `handoff` context scope kept
+  on the message, so retry, regenerate and edit send it again). an unchanged saved
   snapshot supplies an exact return link; failed links offer an explicit retry. when captured context
   exceeds the existing 20,000-character handoff, a confirmation names the included result/passage counts
   and omitted sections before sending whole records. cancel sends nothing, and the full saved snapshot
@@ -1458,7 +1461,7 @@ run from a hidden aide research toggle.
 
 shortcuts are remappable in settings. global search is one command palette across the whole suite: chats, docs, **mail** (over the local header cache, instant), tasks, calendar, contacts, memories, **money**, **subscriptions**, and **photos**, grouped by app, and clicking a result jumps to it in its app (even on another subdomain). local matches appear first; finance matches follow through a separate read from the active ledger, with a visible unavailable state if that read fails. it also carries two **action rails**: **ask aide** opens the query in aide, while **search with andromeda** opens the normal links-first search page. deeper research continues in aide after approval.
 
-**ask aide from any app.** `ctrl + .` toggles it on every screen except aide itself and the vault. a panel slides in from the right (full screen on a phone) and sends your question to aide as a plain chat turn (no tools), with the app and view name and, unless you press "don't share screen", up to 3,000 characters of the words on that screen. the vault never shares its screen. the answer streams into the panel; "continue in aide" opens the same session in the full app, and "new" starts over. the panel keeps its session for the browser tab.
+**ask aide from any app.** `ctrl + .` toggles it on every screen except aide itself and the vault. a panel slides in from the right (full screen on a phone) and sends your question to aide as a plain chat turn (no tools), with the app and view name and, unless you press "don't share screen", up to 3,000 characters of the words on that screen. the app, view and screen words go to the model out of view as untrusted reference data, so the question reads as you wrote it, under "from <app>", when the session opens in aide. the vault never shares its screen. the answer streams into the panel; "continue in aide" opens the same session in the full app, and "new" starts over. the panel keeps its session for the browser tab.
 
 ---
 

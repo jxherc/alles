@@ -272,3 +272,60 @@ class ResendContextTests(VaultApiTest):
         self.assertEqual(again.status_code, 200, again.text)
         self.assertEqual(self.asked(), "what changed?")
         self.assertEqual(self.history(sid)[0]["meta"], {})
+
+    def handoff(self, **extra):
+        return {
+            "kind": "handoff",
+            "app": "andromeda",
+            "context": 'Explain this search. {"passages":["the worksheet is due HANDOFFFRIDAY"]}',
+            "sources": [{"title": "worksheet", "url": "https://example.invalid/ws"}],
+            **extra,
+        }
+
+    def test_a_handoff_shows_the_question_and_hands_the_context_to_the_model(self):
+        # andromeda and the ask panel hand context over; the owner's message stays the question
+        scope = self.handoff()
+        sid = self.session()
+        first = self.send(sid, message="when is the worksheet due?", context_scope=scope)
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertIn("when is the worksheet due?", self.asked())
+        self.assertIn("HANDOFFFRIDAY", self.asked())
+        self.assertIn("<alles_document_reference>", self.asked())
+        question = self.history(sid)[0]
+        self.assertEqual(question["content"], "when is the worksheet due?")
+        self.assertEqual(question["meta"]["context_scope"], {**scope, "note": None})
+        system = " ".join(str(m["content"]) for m in self.captured[-1] if m["role"] == "system")
+        self.assertIn("untrusted reference data", system)
+
+        # regenerate and edit hand the same context over again
+        again = self.regenerate(sid)
+        self.assertEqual(again.status_code, 200, again.text)
+        self.assertIn("HANDOFFFRIDAY", self.asked())
+        history = self.history(sid)
+        edited = self.send(
+            sid,
+            message="and where do i hand it in?",
+            edit_message_id=history[0]["id"],
+            newest_id=history[-1]["id"],
+        )
+        self.assertEqual(edited.status_code, 200, edited.text)
+        self.assertIn("HANDOFFFRIDAY", self.asked())
+        self.assertEqual(self.history(sid)[0]["content"], "and where do i hand it in?")
+
+    def test_a_handoff_scoped_to_a_note_reads_that_exact_note(self):
+        note = self.note("trip.md", "flight at 9am NOTEWORDS")
+        scope = self.handoff(note={"path": note["path"], "expected_hash": note["hash"]})
+        sid = self.session()
+        self.assertEqual(self.send(sid, context_scope=scope).status_code, 200)
+        self.assertIn("NOTEWORDS", self.asked())
+        self.assertIn("HANDOFFFRIDAY", self.asked())
+        vault_md.write(note["path"], "flight moved", expected_hash=note["hash"])
+        refused = self.send(self.session(), context_scope=scope)
+        self.assertEqual(refused.status_code, 409, refused.text)
+        self.assertEqual(refused.json()["code"], "document_scope_changed")
+
+    def test_a_handoff_needs_its_context(self):
+        sid = self.session()
+        bad = (self.handoff(context=""), self.handoff(app=""), self.handoff(context="x" * 24_001))
+        for scope in bad:
+            self.assertEqual(self.send(sid, context_scope=scope).status_code, 422)

@@ -1461,6 +1461,8 @@
     "aide.unstar_session": "세션 별표 해제",
     "aide.use_for_task": "이 작업에 사용",
     "aide.using_note_path": "노트 사용 중 · {path}",
+    "aide.handoff_from": "{app}에서",
+    "aide.handoff_sources": "출처",
     "aide.view_coding": "코딩",
     "aide.view_terminal": "터미널",
     "aide.working": "작업 중",

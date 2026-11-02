@@ -11031,6 +11031,8 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .user-context-scope { overflow-wrap: anywhere; margin: 0 0 0.3rem; color: var(--muted); font-size: 0.8125rem; }
 .user-context-scope summary { min-height: 44px; align-content: center; cursor: pointer; }
 .user-context-scope ul { max-height: 12rem; overflow: auto; margin: 0; padding-inline-start: 1.2rem; }
+/* a handed-off question's source links keep the 44px target; the text stays the scope's size */
+.user-context-scope li a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; }
 
 .docs-product-view button:focus-visible,
 .docs-product-view input:focus-visible,

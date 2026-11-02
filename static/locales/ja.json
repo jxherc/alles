@@ -1461,6 +1461,8 @@
     "aide.unstar_session": "セッションのスターを外す",
     "aide.use_for_task": "このタスクに使う",
     "aide.using_note_path": "ノートを使用中 · {path}",
+    "aide.handoff_from": "{app} から",
+    "aide.handoff_sources": "出典",
     "aide.view_coding": "コーディング",
     "aide.view_terminal": "ターミナル",
     "aide.working": "作業中",

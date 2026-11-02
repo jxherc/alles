@@ -57,7 +57,7 @@ test('remote background work requires owner confirmation before any request or f
 });
 
 test('failed background enqueue restores the composer and keeps attachments', () => {
-  const branch = chat.match(/if \(!documentScope && shouldRunInBackground[\s\S]*?\r?\n  }\r?\n\r?\n  showMessages/)?.[0] || '';
+  const branch = chat.match(/if \(!documentScope && !handoff && shouldRunInBackground[\s\S]*?\r?\n  }\r?\n\r?\n  showMessages/)?.[0] || '';
   assert.match(branch, /if \(!run\)[\s\S]*restoreBackgroundInput\(sessionId, text\)[\s\S]*return/);
   assert.match(branch, /if \(!run\)[\s\S]*return;[\s\S]*getActiveId\(\) === sessionId\) clearAttachments\(attachmentIds\)/);
   assert.match(branch, /const userRow = appendUserMsg\(text\)/);
@@ -65,9 +65,9 @@ test('failed background enqueue restores the composer and keeps attachments', ()
   assert.match(chat, /function restoreComposerInput\(text\)[\s\S]*dispatchEvent\(new Event\('input'/);
 });
 
-test('a Docs-scoped image request stays on the scoped text path', () => {
-  assert.match(chat, /if \(!documentScope && isImageSelected\(\)\)/);
-  assert.match(chat, /if \(!documentScope && imgSlot && _looksLikeImageRequest\(text\)\)/);
+test('a Docs-scoped or handed-off request stays on the scoped text path', () => {
+  assert.match(chat, /if \(!documentScope && !handoff && isImageSelected\(\)\)/);
+  assert.match(chat, /if \(!documentScope && !handoff && imgSlot && _looksLikeImageRequest\(text\)\)/);
 });
 
 test('a Docs-scoped request restores its scope after a transport failure', () => {

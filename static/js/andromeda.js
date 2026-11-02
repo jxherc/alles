@@ -1,4 +1,4 @@
-import { plainError, writeClipboard } from './util.js';
+import { appLabel, plainError, writeClipboard } from './util.js';
 import { initCustomDropdowns, setDropdownValue } from './dropdown.js?v=217';
 import { confirm as confirmDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
@@ -2480,6 +2480,19 @@ export function buildAideSearchContext(state, origin = null, limit = 20_000) {
   return { request: render(), coverage: counts, partial };
 }
 
+// the links aide's message shows under "from andromeda": results first, then other evidence
+export function handoffSources(state, limit = 12) {
+  const seen = new Set();
+  const sources = [];
+  for (const item of [...(state.results || []), ...(state.evidence || [])]) {
+    const url = safeUrl(item?.url)?.href;
+    if (!url || seen.has(url) || sources.length >= limit) continue;
+    seen.add(url);
+    sources.push({ title: String(item.title || item.publisher || url).slice(0, 500), url });
+  }
+  return sources;
+}
+
 async function explainResults(button = el('andromeda-explain')) {
   if (_explainBusy || _state.resultStatus === 'loading') return;
   if (!_state.results.length && !_state.evidence.length) { status(tr('andromeda.no_web_results')); return; }
@@ -2498,7 +2511,6 @@ async function explainResults(button = el('andromeda-explain')) {
       saved_search_id: saved.id, url: savedSearchUrl(saved.id, location.href), checked_at: saved.checked_at || '',
     } : null;
     const { request, coverage, partial } = buildAideSearchContext(_state, origin);
-    const scope = _state.documentScope ? JSON.parse(JSON.stringify(_state.documentScope)) : null;
     const projectId = validatedProjectId(
       new URLSearchParams(location.search).get('project_id'),
     );
@@ -2518,7 +2530,13 @@ async function explainResults(button = el('andromeda-explain')) {
         return;
       }
     }
-    const opened = await window._askInChat(request, false, scope, projectId);
+    // aide shows the question; the captured results travel to the model out of view
+    const question = String(_state.rawQuery || _state.query || '').trim() || tr('andromeda.ask_aide');
+    const handoff = { kind: 'handoff', app: appLabel('andromeda'), context: request, sources: handoffSources(_state) };
+    // a search scoped to one note hands that note on too, so aide reads the same version
+    const note = _state.documentScope;
+    if (note?.kind === 'vault_document') handoff.note = { path: note.path, expected_hash: note.expected_hash };
+    const opened = await window._askInChat(question, false, handoff, projectId);
     if (opened === false && generation === _searchGeneration) status(tr('andromeda.aide_failed'));
   } catch (error) {
     if (generation === _searchGeneration) status(error?.message || tr('andromeda.aide_failed'));

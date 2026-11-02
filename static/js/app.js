@@ -1051,12 +1051,14 @@ window._askInChat = async (
     if (projectId && window._currentSession?.project_id !== projectId) {
       if (newChat({ projectId }) === false) return false;
     }
-    window._setAideDocumentScope?.(documentScope);
+    // another app's context rides with the message out of view; a note scope shows in the composer
+    const handoff = documentScope?.kind === 'handoff' ? documentScope : null;
+    window._setAideDocumentScope?.(handoff ? null : documentScope);
     ta.value = q; ta.dispatchEvent(new Event('input', { bubbles: true }));
     // a handoff is sent like a typed message, so the box empties once aide takes it
     await sendMessage(q, sessionId => {
       if (getActiveId() === sessionId) clearSentComposer(ta, q);
-    });
+    }, { handoff });
     return true;
   } else {    // from another subapp — store private context behind a one-time opaque code
     const target = new URL(urlForApp('aide'));
