@@ -285,6 +285,8 @@ import json
 from pathlib import Path
 from unittest import mock
 from services import native_install, service_manager
+# this test drives the macos install; pin the host so a linux ci runner reads the same layout
+mock.patch("platform.system", return_value="Darwin").start()
 
 root = Path(sys.argv[2])
 home, drive, source = root / "home", root / "drive" / "Alles", root / "source"
