@@ -241,9 +241,18 @@ def run():
                 assert page.evaluate(
                     "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 )
-                for button in row.locator("button").all():
+                for button in row.locator("button:visible").all():
                     box = button.bounding_box()
                     assert box and box["width"] >= 44 and box["height"] >= 44, box
+                # delete sits in the row's more menu (u.10): its item keeps the same target size
+                row.locator(".row-more").click()
+                menu_item = row.get_by_role("menuitem", name="delete", exact=False)
+                expect(menu_item).to_be_visible()
+                box = menu_item.bounding_box()
+                assert box and box["width"] >= 44 and box["height"] >= 44, box
+                page.keyboard.press("Escape")
+                expect(row.get_by_role("menuitem")).to_have_count(0)
+                expect(row.locator(".row-more")).to_be_focused()
                 passed()
                 begin("health.target-validation")
                 target = page.locator('.health-card[data-kind="weight"] [data-act="set-target"]')
