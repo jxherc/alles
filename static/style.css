@@ -4817,10 +4817,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   transition: color 0.15s, background 0.15s;
 }
 .task-snooze:hover { color: var(--text); background: var(--hover); }
-.task-more { color: var(--muted); }
-.task-more svg { width: 16px; height: 16px; }
-.task-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 180px; }
-.task-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: 44px; }
+.task-more, .row-more { color: var(--muted); }
+.task-more svg, .row-more svg { width: 16px; height: 16px; }
+.task-menu, .row-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 180px; }
+.task-menu .ctx-item, .row-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: 44px; }
+/* the same more menu on a row of any other app (undo_delete.js) */
+.row-more-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+.row-gone-text { color: var(--muted); font-size: 0.8125rem; }
 .task-group-late { border-bottom: 1px solid var(--faint); margin-bottom: 8px; }
 .task-group-late .task-item:last-child { border-bottom: none; }
 .task-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
@@ -5086,10 +5089,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .skl-badge { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0 0.25rem; flex-shrink: 0; }
 .skl-badge.git { color: var(--text); border-color: var(--line-strong); }
 .skl-card-acts { display: flex; justify-content: flex-end; gap: 0.15rem; margin-top: 0.25rem; }
-.skl-pin, .skl-del-q { background: none; border: 0; cursor: pointer; font-size: 0.8125rem; line-height: 1; color: var(--muted); padding: 0 8px; } /* 1.6px left the word touching its focus ring */
-.skl-pin:hover, .skl-del-q:hover { color: var(--text); }
+.skl-pin { background: none; border: 0; cursor: pointer; font-size: 0.8125rem; line-height: 1; color: var(--muted); padding: 0 8px; } /* 1.6px left the word touching its focus ring */
+.skl-pin:hover { color: var(--text); }
 .skl-pin.on { color: var(--text); opacity: 1; }
-.skl-del-q:hover { color: var(--error, var(--error)); }
 .skl-lib-bar { grid-column: 1 / -1; font-size: 0.8125rem; color: var(--muted); padding: 0 0 0.2rem; }
 .skl-lib-bar .btn { font-size: 0.8125rem; padding: 0.12rem 0.5rem; margin-left: 0.3rem; }
 .skl-add { background: none; border: 1px solid var(--line-strong); color: var(--text); border-radius: var(--k-radius-control);
@@ -5490,7 +5492,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   /* the receipt action keeps its paperclip and drops its words on a phone, so the row's actions
      stay on one line at the touch type size (0044); its aria-label still names it */
   @media (max-width: 720px) { #money-view .txn .tx-receipt-label { display: none; } }
-  :where(#money-view) .txn .tx-del { grid-column: 2; grid-row: 5; justify-self: end; }
+  :where(#money-view) .txn .tx-del, :where(#money-view) .txn .tx-more { grid-column: 2; grid-row: 5; justify-self: end; }
 
 #money-view .money-entry-action { min-height: 44px; }
 #money-view :is(#money-entry-fields, #money-entry-action, #money-summary-toggle, .ms-card)[hidden] { display: none; }
@@ -5517,7 +5519,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view #money-section-plans { grid-template-columns: minmax(0, 1fr); }
 #money-view .money-task-pick { width: min(14rem, 100%); margin-bottom: var(--k-space-3, 12px); }
 #money-view .money-task { margin-bottom: 0; }
-#money-view .txn .tx-del { align-self: start; }
+#money-view .txn :is(.tx-del, .tx-more) { align-self: start; }
+:where(#money-view) .txn-gone > [data-undo-del] { grid-column: 2; grid-row: 1; }
+:where(#money-view) .txn-gone .tx-payee { color: var(--muted); }
 #money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .split-row) { align-items: end; }
 #money-view .money-field { display: grid; gap: var(--k-space-1, 4px); height: auto; min-width: 0; max-width: 100%; box-sizing: border-box; text-align: start; } /* the empty state centers its text; a label still starts where its field does */
 #money-view .money-field-label { color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; font-weight: 400; letter-spacing: normal; line-height: 1.4; }
@@ -9266,11 +9270,11 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-notes-edit textarea { width: 100%; resize: vertical; }
 .book-notes-actions { display: flex; gap: var(--k-control-gap); margin-top: 0.3rem; }
 .book-undo-actions { flex-wrap: wrap; }
-/* the remove button sits at the foot of the card, so titles and authors use its full width */
-.book-del { position: absolute; bottom: 0.25rem; right: 0.25rem; }
+/* the more button sits at the foot of the card, so titles and authors use its full width; its menu opens upward */
+.book-more { position: absolute; bottom: 0.25rem; right: 0.25rem; }
+.book-more .row-menu { top: auto; bottom: calc(100% + 4px); }
 .book-info > :last-child { padding-inline-end: 2.75rem; }
-.book-del svg { width: 14px; height: 14px; }
-.book-del:hover { color: var(--error); }
+.book-gone .row-gone-text { align-self: center; }
 .book-add { border: 1px solid var(--faint); border-left: 2px solid var(--line-strong); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.8rem; margin-bottom: 1.2rem; max-width: 560px; display: flex; flex-direction: column; gap: 0.5rem; }
 .book-add-row { display: flex; gap: var(--k-control-gap); align-items: center; }
 .book-add-row .settings-input { flex: 1; min-width: 0; }
@@ -9339,7 +9343,10 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
   .health-row-actions { grid-column: 4; grid-row: 1 / span 2; }
 }
 .health-row .icon-btn svg { width: 16px; height: 16px; }
-.health-row .icon-btn.danger:hover { color: var(--error); }
+/* the row that stands in while a delete waits for undo: the words, then the undo button */
+.health-row.health-row-gone { grid-template-columns: minmax(0, 1fr) auto; }
+.health-row.health-row-gone .health-row-kind { grid-column: 1; grid-row: 1; }
+.health-row.health-row-gone .health-row-actions { grid-column: 2; grid-row: 1; }
 @media (max-width: 680px) {
   .health-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; }
   .health-row-date { grid-column: 1 / 3; }

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
+import { undoGlobals } from './helpers/undo_globals.mjs';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -26,7 +27,7 @@ function harness(values = {}, { canonical = false, targetEditor = null, apiHandl
   get('money-body').querySelector = selector => selector.startsWith('.txn-edit')
     ? { dataset: originalEditor, contains: () => false, querySelector: field => get(edits[field.match(/data-f="(.+)"/)[1]]) }
     : null;
-  const context = vm.createContext({
+  const context = vm.createContext({ ...undoGlobals,
     t, tp,
     calendarDateKey,
     document, CSS: { escape: String }, location: { search: '' }, URLSearchParams,

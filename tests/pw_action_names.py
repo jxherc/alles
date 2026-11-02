@@ -320,15 +320,21 @@ def run():
                 assert not context.request.get(base + "/api/skills/" + skill["slug"]).json()[
                     "pinned"
                 ]
+                # delete sits in the card's more menu and waits for undo (u.10)
+                more = named(
+                    f'.skl-card[data-slug="{skill["slug"]}"] .row-more', "more for " + skill_name
+                )
+                activate(more)
                 delete = named(
-                    f'.skl-card[data-slug="{skill["slug"]}"] .skl-del-q',
+                    f'.skl-card[data-slug="{skill["slug"]}"] [role="menuitem"]',
                     "delete skill " + skill_name,
+                    "menuitem",
                 )
                 activate(delete)
-                page.get_by_role("alertdialog").get_by_role(
-                    "button", name="cancel", exact=True
-                ).click()
-                expect(delete).to_be_focused()
+                undo = page.locator(f'[data-undo-del="{skill["slug"]}"]')
+                expect(undo).to_be_focused()
+                activate(undo)
+                expect(more).to_be_focused()
                 assert context.request.get(base + "/api/skills/" + skill["slug"]).ok
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                 assert not errors and not external, (errors, external)

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import { t, tp } from '../../static/js/i18n.js';
+import { undoGlobals } from './helpers/undo_globals.mjs';
 
 const source = readFileSync(new URL('../../static/js/money.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
@@ -34,7 +35,7 @@ function harness() {
     const next = deferred(); pending.push(next);
     return next.promise;
   };
-  const context = vm.createContext({
+  const context = vm.createContext({ ...undoGlobals,
     t, tp,
     calendarDateKey: () => '2026-10-16', location: { search: '' }, URLSearchParams,
     AbortController, fetch() {}, document: { activeElement: null, getElementById: get, body: { append() {} } },
