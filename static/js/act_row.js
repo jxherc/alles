@@ -118,8 +118,13 @@ export function closeDetails({ restoreFocus = true } = {}) {
 // editor where the task lives (openFull). onChange runs after a change so the list redraws
 export async function openTaskDetails(id, { from = document.activeElement, onChange = () => {}, openFull = null } = {}) {
   if (!panel) build();
-  const response = await fetch('/api/tasks');
-  const task = response.ok ? (await response.json()).find(item => item.id === id) : null;
+  // finished tasks live in their own list (the task list's done view opens them here too)
+  let task = null;
+  for (const path of ['/api/tasks', '/api/tasks/done']) {
+    const response = await fetch(path);
+    task = response.ok ? (await response.json()).find(item => item.id === id) : null;
+    if (task) break;
+  }
   if (!task) { if (openFull) await openFull(); return; }
   opener = from;
   const due = task.due_date ? `${whenDay(task.due_date)}${task.due_time ? ` ${whenTime(task.due_time)}` : ''}` : '';
@@ -133,8 +138,8 @@ export async function openTaskDetails(id, { from = document.activeElement, onCha
     ${meta.length ? `<p class="details-panel-meta${late ? ' late' : ''}">${meta.map(esc).join(' · ')}</p>` : ''}
     ${task.notes ? `<p class="details-panel-notes">${esc(task.notes)}</p>` : ''}
     <div class="details-panel-actions">
-      <button type="button" class="btn primary" data-details="done">${esc(t('common.done'))}</button>
-      ${task.due_date === tomorrowKey() ? '' : `<button type="button" class="btn" data-details="tomorrow">${esc(t('tasks.reschedule.tomorrow'))}</button>`}
+      ${task.done ? '' : `<button type="button" class="btn primary" data-details="done">${esc(t('common.done'))}</button>`}
+      ${task.done || task.due_date === tomorrowKey() ? '' : `<button type="button" class="btn" data-details="tomorrow">${esc(t('tasks.reschedule.tomorrow'))}</button>`}
       ${openFull ? `<button type="button" class="btn" data-details="edit">${esc(t('common.edit'))}</button>` : ''}
     </div>`;
   panel.querySelector('.details-panel-close').addEventListener('click', () => closeDetails());
@@ -144,10 +149,10 @@ export async function openTaskDetails(id, { from = document.activeElement, onCha
     closeDetails();
     await onChange();
   };
-  panel.querySelector('[data-details="done"]').addEventListener('click', event => act(event.currentTarget, () => completeTask(id)));
+  panel.querySelector('[data-details="done"]')?.addEventListener('click', event => act(event.currentTarget, () => completeTask(id)));
   panel.querySelector('[data-details="tomorrow"]')?.addEventListener('click', event => act(event.currentTarget, () => moveToTomorrow(id)));
   panel.querySelector('[data-details="edit"]')?.addEventListener('click', async () => { closeDetails({ restoreFocus: false }); await openFull(); });
   panel.hidden = false;
   document.body.classList.add('details-panel-open');
-  requestAnimationFrame(() => panel.querySelector('[data-details="done"]')?.focus());
+  requestAnimationFrame(() => panel.querySelector('[data-details="done"], [data-details="edit"]')?.focus());
 }

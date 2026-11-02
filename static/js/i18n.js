@@ -364,7 +364,7 @@ const BUILTIN_ENGLISH = {
     "tasks.save_not_confirmed": "save not confirmed. your changes are still here. try saving again.",
     "tasks.save_queued": "change queued offline. this draft stays here until it is saved.",
     "tasks.saved_refresh_failed": "task saved, but the list could not refresh. reload to see it.",
-    "tasks.edit_named": "edit {task}",
+    "tasks.open_named": "open {task}",
     "tasks.undo_completion": "undo",
     "tasks.dismiss_completion": "dismiss completion message",
     "tasks.completed_named": "completed: {task}",

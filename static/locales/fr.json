@@ -360,7 +360,7 @@
     "tasks.save_not_confirmed": "enregistrement non confirmé. tes modifications sont toujours ici. réessaie d’enregistrer.",
     "tasks.save_queued": "modification en attente hors ligne. ce brouillon reste ici jusqu’à son enregistrement.",
     "tasks.saved_refresh_failed": "tâche enregistrée, mais la liste ne s’est pas actualisée. recharge pour la voir.",
-    "tasks.edit_named": "modifier {task}",
+    "tasks.open_named": "ouvrir {task}",
     "tasks.undo_completion": "annuler",
     "tasks.dismiss_completion": "fermer le message de fin",
     "tasks.completed_named": "terminée : {task}",

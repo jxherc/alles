@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
-from playwright.sync_api import Route, sync_playwright
+from playwright.sync_api import Route, expect, sync_playwright
 
 PORT = os.environ.get("PORT", "8147")
 DATA = Path(os.environ["ALLES_DATA"]).resolve()
@@ -71,7 +71,7 @@ def run() -> None:
         # authority for every subsequent pointer and keyboard action.
         page.locator("#task-add-input").fill(task_title)
         page.locator("#task-add-input").press("Enter")
-        edit = page.get_by_role("button", name=f"edit {task_title}", exact=True)
+        edit = page.get_by_role("button", name=f"open {task_title}", exact=True)
         edit.wait_for(state="visible")
         row = edit.locator(
             "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' task-item ')][1]"
@@ -91,6 +91,9 @@ def run() -> None:
         # Native Enter activation opens the labelled modal. Escape closes it and
         # returns focus to the same task edit control.
         edit.press("Enter")
+        # the panel puts focus on done a frame after it opens; wait for that before the next key
+        expect(page.locator('#details-panel [data-details="done"]')).to_be_focused()
+        page.locator('#details-panel [data-details="edit"]').press("Enter")
         dialog = page.get_by_role("dialog", name="edit task")
         dialog.wait_for(state="visible")
         assert page.locator("#te-title").evaluate("node => document.activeElement === node")
@@ -139,11 +142,12 @@ def run() -> None:
         page.get_by_role("button", name=f"mark {task_title} incomplete", exact=True).wait_for(
             state="visible"
         )
-        edit = page.get_by_role("button", name=f"edit {task_title}", exact=True)
+        edit = page.get_by_role("button", name=f"open {task_title}", exact=True)
         edit.click()
+        page.locator('#details-panel [data-details="edit"]').click()
         page.locator("#te-title").fill(renamed_title)
         page.get_by_role("button", name="save", exact=True).click()
-        renamed_edit = page.get_by_role("button", name=f"edit {renamed_title}", exact=True)
+        renamed_edit = page.get_by_role("button", name=f"open {renamed_title}", exact=True)
         renamed_edit.wait_for(state="visible")
         assert renamed_edit.evaluate("node => document.activeElement === node")
 

@@ -128,7 +128,8 @@ def run():
                 )
 
             def edit(page):
-                action(page.get_by_role("button", name="edit " + item["title"], exact=True))
+                action(page.get_by_role("button", name="open " + item["title"], exact=True))
+                action(page.locator('#details-panel [data-details="edit"]'))
                 expect(page.get_by_role("dialog", name="edit task", exact=True)).to_be_visible()
 
             def save(page, status=200, closes=True):

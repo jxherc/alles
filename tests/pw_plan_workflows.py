@@ -95,7 +95,8 @@ def run():
                 )
 
             def editor():
-                activate(page.get_by_role("button", name="edit " + title, exact=True))
+                activate(page.get_by_role("button", name="open " + title, exact=True))
+                activate(page.locator('#details-panel [data-details="edit"]'))
                 expect(page.get_by_role("dialog", name="edit task")).to_be_visible()
 
             def save():
@@ -116,7 +117,7 @@ def run():
                 page.locator("#settings-modal-close").click()
                 page.goto(base + "/?view=plan", wait_until="networkidle")
                 page.get_by_role("tab", name="tasks", exact=True).click()
-                expect(page.get_by_role("button", name="edit " + title, exact=True)).to_be_visible()
+                expect(page.get_by_role("button", name="open " + title, exact=True)).to_be_visible()
                 if value == "light":
                     expect(page.locator("html")).to_have_attribute("data-theme", "light")
                 else:

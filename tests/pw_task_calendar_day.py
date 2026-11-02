@@ -15,6 +15,7 @@ from playwright.sync_api import expect, sync_playwright
 
 sys.path[:0] = [str(Path.cwd()), str(Path.cwd() / "tests")]
 from browser_gate_safety import require_server_ownership  # noqa: E402
+from pw_datepick import expect_date  # noqa: E402
 
 from services.appearance import from_legacy  # noqa: E402
 
@@ -174,7 +175,7 @@ def run():
                     saved = accepted.value.json()
                     assert saved["due_date"] == tomorrow
                     page.locator("#capture-open").press("Enter")
-                    expect(page.locator("#te-due")).to_have_value(tomorrow)
+                    expect_date(page.locator("#te-due"), tomorrow)
                     page.locator("#te-cancel").press("Enter")
                     row = page.locator(f'.task-item[data-id="{saved["id"]}"]')
                     expect(page.locator(".task-editor")).to_have_count(0)
@@ -182,13 +183,17 @@ def run():
                     assert "today" not in row.locator(".task-due").get_attribute("class")
                     capture("tomorrow")
                     row.locator(".task-title").press("Enter")
+                    expect(page.locator('#details-panel [data-details="done"]')).to_be_focused()
+                    page.locator('#details-panel [data-details="edit"]').press("Enter")
                     page.locator('.te-rs[data-w="today"]').press("Enter")
-                    expect(page.locator("#te-due")).to_have_value(day.isoformat())
+                    expect_date(page.locator("#te-due"), day.isoformat())
                     page.locator("#te-cancel").press("Enter")
                     page.locator("[data-dialog-confirm]").press("Enter")
                     expect(row.locator(".task-title")).to_be_focused()
                     assert stored()["due_date"] == tomorrow
                     row.locator(".task-title").press("Enter")
+                    expect(page.locator('#details-panel [data-details="done"]')).to_be_focused()
+                    page.locator('#details-panel [data-details="edit"]').press("Enter")
                     page.locator('.te-rs[data-w="today"]').press("Enter")
                     endpoint = base + "/api/tasks/" + saved["id"]
 
@@ -207,7 +212,7 @@ def run():
                     expect(page.locator(".task-recovery-message")).to_contain_text(
                         "save not confirmed"
                     )
-                    expect(page.locator("#te-due")).to_have_value(day.isoformat())
+                    expect_date(page.locator("#te-due"), day.isoformat())
                     assert stored()["due_date"] == tomorrow
                     capture("save-recovery")
                     page.unroute(endpoint, unavailable)
@@ -216,20 +221,22 @@ def run():
                     expect(row.locator(".task-title")).to_be_focused()
                     assert stored()["due_date"] == day.isoformat()
                     page.reload(wait_until="networkidle")
-                    expect(page.locator("#te-due")).to_have_value(day.isoformat())
+                    expect_date(page.locator("#te-due"), day.isoformat())
                     page.locator("#te-cancel").press("Enter")
                     expect(page.locator(".task-editor")).to_have_count(0)
                     expect(row.locator(".task-due.today")).to_have_text("today")
                     row.locator(".task-title").press("Enter")
+                    expect(page.locator('#details-panel [data-details="done"]')).to_be_focused()
+                    page.locator('#details-panel [data-details="edit"]').press("Enter")
                     page.locator('.te-rs[data-w="tomorrow"]').press("Enter")
-                    expect(page.locator("#te-due")).to_have_value(tomorrow)
+                    expect_date(page.locator("#te-due"), tomorrow)
                     page.locator("#te-save").press("Enter")
                     expect(row.locator(".task-due")).to_have_text("tomorrow")
                     assert stored()["due_date"] == tomorrow
                     capture("rescheduled")
                     page.clock.set_fixed_time(instant + timedelta(days=1))
                     page.reload(wait_until="networkidle")
-                    expect(page.locator("#te-due")).to_have_value(tomorrow)
+                    expect_date(page.locator("#te-due"), tomorrow)
                     page.locator("#te-cancel").press("Enter")
                     expect(page.locator(".task-editor")).to_have_count(0)
                     assert not page.locator(".app").evaluate("e=>e.inert")
