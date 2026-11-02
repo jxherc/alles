@@ -4541,6 +4541,26 @@ html:not(#_):not(#_) .dlog-control.dlog-files { display: grid; gap: var(--k-spac
 html:not(#_):not(#_) .dlog-file-list { display: grid; gap: var(--k-row-gap); margin: 0; padding: 0; list-style: none; }
 html:not(#_):not(#_) .dlog-file-list > li { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); min-height: var(--k-control); padding-inline-start: var(--k-space-3); border-radius: var(--k-radius-control); }
 html:not(#_):not(#_) .dlog-file-list > li:hover { background: var(--k-hover); }
+/* a checklist step: its box, its name, remove; the box draws the same tick as the files list */
+html:not(#_):not(#_) .dlog-checklist { display: grid; gap: var(--k-space-2); }
+html:not(#_):not(#_) .dlog-steps { display: grid; gap: var(--k-row-gap); margin: 0; padding: 0; list-style: none; }
+html:not(#_):not(#_) .dlog-step { display: flex; align-items: center; gap: var(--k-space-1); min-height: var(--k-control); border-radius: var(--k-radius-control); }
+html:not(#_):not(#_) .dlog-step:hover { background: var(--k-hover); }
+html:not(#_):not(#_) .dlog-step-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+html:not(#_):not(#_) .dlog-step-check { display: grid; place-items: center; flex: none; width: var(--k-control); height: var(--k-control); padding: 0; border: 0; background: transparent; cursor: pointer; }
+html:not(#_):not(#_) .dlog-step-check::before {
+  content: ""; grid-area: 1 / 1; width: 20px; height: 20px; box-sizing: border-box;
+  border: 1.5px solid var(--k-line-strong); border-radius: 6px; background: transparent;
+  transition: background-color 180ms var(--k-ease-out), border-color 180ms var(--k-ease-out);
+}
+html:not(#_):not(#_) .dlog-step-check::after {
+  content: ""; grid-area: 1 / 1; width: 5px; height: 9px; margin-top: -2px;
+  border: solid var(--k-on-accent); border-width: 0 2px 2px 0; rotate: 45deg; scale: 0;
+  transition: scale 160ms var(--k-ease-out);
+}
+html:not(#_):not(#_) .dlog-step-check[aria-checked="true"]::before { border-color: var(--k-accent); background: var(--k-accent); }
+html:not(#_):not(#_) .dlog-step-check[aria-checked="true"]::after { scale: 1; }
+html:not(#_):not(#_) .dlog-step:has(.dlog-step-check[aria-checked="false"]) .dlog-step-name { color: var(--k-muted); }
 html:not(#_):not(#_) .dlog-file-name { overflow-wrap: anywhere; }
 html:not(#_):not(#_) .dlog-add-file { position: relative; cursor: pointer; }
 html:not(#_):not(#_) .dlog-add-file:focus-within { outline: 1px solid var(--k-field-focus); outline-offset: -1px; }
