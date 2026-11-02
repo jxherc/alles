@@ -8419,6 +8419,11 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   font-size: 0.8125rem;
   letter-spacing: -0.005em;
 }
+.mail-from { display: flex; align-items: center; gap: 8px; }
+.mail-from-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-av { width: 24px; height: 24px; }
+.mail-reader-from { display: flex; align-items: center; gap: 8px; }
+.mail-reader-from .mail-av { width: 32px; height: 32px; font-size: 0.875rem; }
 .mail-row.unread .mail-from { font-weight: 600; }
 .mail-date {
   color: var(--muted);
