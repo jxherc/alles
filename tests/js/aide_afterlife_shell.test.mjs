@@ -143,14 +143,18 @@ test('Aide tool pages keep the Aide sidebar on single-host installs', () => {
   }
 });
 
-test('thinking stays before the answer while tool details and provenance follow it', () => {
+test('the chat shows the reply only: no thinking or tool steps, and provenance joins the actions row', () => {
   assert.match(chat, /mode: 'agent'/);
   assert.match(chat, /function getMode\(\) \{\s*return 'agent'/);
   assert.doesNotMatch(chat, /aide-suggest-chips|\/api\/aide\/suggestions/);
-  assert.match(sessions, /body\.appendChild\(content\)[\s\S]*body\.appendChild\(tb\)[\s\S]*renderAgentSteps/);
-  assert.match(chat, /body\.appendChild\(contentEl\)[\s\S]*body\.insertBefore\(thinkingEl, contentEl\)/);
-  assert.match(chat, /body\.appendChild\(agentEl\)/);
+  for (const source of [chat, sessions]) {
+    assert.doesNotMatch(source, /thinking-block|agent-step-list|agent-todos|docReceipt|ensureAgentPanel/);
+  }
+  // the steps only draw inside the dialog the reply's menu opens
+  assert.equal(sessions.match(/renderAgentSteps\(/g)?.length, 1);
+  assert.match(sessions, /export function openReplySteps\(button\) \{\s*void _dlgForm\(button\.textContent, renderAgentSteps\(/);
   assert.match(chat, /contextProvenanceElement\(chunk\.context_provenance\)/);
+  assert.match(chat, /if \(provenanceEl\) body\.appendChild\(provenanceEl\);\s*\/\/ action buttons/);
   assert.match(sessions, /contextProvenanceElement\(contextProvenance\)/);
   assert.match(sessions, /if \(provenance\) body\.appendChild\(provenance\)/);
 });

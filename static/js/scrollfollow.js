@@ -1,3 +1,9 @@
+// aide follows a growing reply while the owner sits at the end of the chat. whether they left the
+// end comes only from where the view is (scrollTop, scrollHeight, clientHeight), the way
+// use-stick-to-bottom does it (hermes' web chat, on this machine): the view moving up is the
+// owner leaving, being at the end is them back. the app's own growth never counts as leaving: a
+// tool step or a code block can add more than BOTTOM_GAP between two scroll events, and judging
+// "still at the end?" right after that growth is what used to drop the follow mid reply.
 const BOTTOM_GAP = 96;
 
 let _chat = null;
@@ -5,6 +11,8 @@ let _jump = null;
 let _following = true;
 let _touching = false;
 let _wired = false;
+// where the view was at the last scroll event or pin, to tell "moved up" from "content grew"
+let _lastTop = 0;
 // a jump to the end asked for while the chat was hidden (no height yet); done once it shows
 let _pendingEnd = false;
 
@@ -13,19 +21,18 @@ export function distanceFromBottom(element) {
   return Math.max(0, element.scrollHeight - element.scrollTop - element.clientHeight);
 }
 
-export function shouldAutoFollow({ following, distance, typing = false, selecting = false }) {
-  return Boolean(following && distance <= BOTTOM_GAP && !typing && !selecting);
+// what one scroll event says about following, from the position alone
+export function followAfterScroll({ following, top, lastTop, distance }) {
+  if (distance <= 1) return true;               // at the end, however it got there
+  if (top < lastTop - 1) return false;          // the view moved up: only the owner does that
+  if (top > lastTop + 1 && distance <= BOTTOM_GAP) return true;  // came back down to the end
+  return following;                             // content grew under a still view
 }
 
 function selectionInsideChat() {
   const selection = document.getSelection?.();
   if (!selection || selection.isCollapsed || !_chat) return false;
   return _chat.contains(selection.anchorNode) || _chat.contains(selection.focusNode);
-}
-
-function typingDraft() {
-  const input = document.getElementById('composer-ta');
-  return document.activeElement === input && Boolean(input?.value.trim());
 }
 
 export function refreshScrollFollow() {
@@ -43,24 +50,25 @@ export function resumeScrollFollow() {
   scrollToLatest({ force: true });
 }
 
+function pin() {
+  if (!_chat.clientHeight) { _pendingEnd = true; return; }
+  _pendingEnd = false;
+  _chat.scrollTop = _chat.scrollHeight;
+  _lastTop = _chat.scrollTop;
+}
+
+// keeps the newest line in view while following. a caller never turns following off: only the
+// owner moving the view does. a finger on the chat or a selection in it holds the view still
 export function scrollToLatest({ force = false } = {}) {
   _chat ||= document.getElementById('chat');
   _jump ||= document.getElementById('jump-latest');
   if (!_chat) return false;
-  if (_touching && !force) return false;
-  const canFollow = shouldAutoFollow({
-    following: _following,
-    distance: distanceFromBottom(_chat),
-    typing: typingDraft(),
-    selecting: selectionInsideChat(),
-  });
-  if (!force && !canFollow) {
-    pauseScrollFollow();
+  if (force) _following = true;
+  else if (!_following || _touching || selectionInsideChat()) {
+    refreshScrollFollow();
     return false;
   }
-  if (!_chat.clientHeight) _pendingEnd = true;
-  _chat.scrollTop = _chat.scrollHeight;
-  _following = true;
+  pin();
   refreshScrollFollow();
   return true;
 }
@@ -71,48 +79,47 @@ export function initScrollFollow() {
   _chat = document.getElementById('chat');
   _jump = document.getElementById('jump-latest');
   if (!_chat) return;
+  _lastTop = _chat.scrollTop;
   _chat.addEventListener('scroll', () => {
-    _following = distanceFromBottom(_chat) <= BOTTOM_GAP;
+    const top = _chat.scrollTop;
+    _following = followAfterScroll({ following: _following, top, lastTop: _lastTop, distance: distanceFromBottom(_chat) });
+    _lastTop = top;
     refreshScrollFollow();
   }, { passive: true });
+  // a wheel or key up is the owner leaving even before the view moves: a pin landing mid
+  // animation would otherwise cancel the scroll they asked for
+  const canScroll = () => _chat.scrollHeight > _chat.clientHeight;
   _chat.addEventListener('wheel', event => {
-    if (event.deltaY < 0) pauseScrollFollow();
+    if (event.deltaY < 0 && canScroll()) pauseScrollFollow();
   }, { passive: true });
-  // a touch screen sends no wheel: a finger dragging the conversation down (back to older
-  // messages) is the same ask, and while a finger is down a growing reply never pulls the
-  // view, which would also stop safari's momentum mid-swipe
-  let touchY = null;
-  _chat.addEventListener('touchstart', event => {
-    _touching = true;
-    touchY = event.touches?.[0]?.clientY ?? null;
-  }, { passive: true });
-  _chat.addEventListener('touchmove', event => {
-    const y = event.touches?.[0]?.clientY;
-    if (touchY != null && y != null && y - touchY > 4) pauseScrollFollow();
-  }, { passive: true });
-  const lift = () => { _touching = false; touchY = null; };
+  _chat.addEventListener('keydown', event => {
+    if (['ArrowUp', 'PageUp', 'Home'].includes(event.key) && canScroll()) pauseScrollFollow();
+  });
+  // nothing moves the view while a finger is down (that would also stop safari's momentum).
+  // the drag itself scrolls, so the scroll events above decide whether it left the end
+  _chat.addEventListener('touchstart', () => { _touching = true; }, { passive: true });
+  const lift = () => {
+    _touching = false;
+    // a reply that grew under a resting finger catches up once it lifts
+    if (_following) scrollToLatest();
+  };
   _chat.addEventListener('touchend', lift, { passive: true });
   _chat.addEventListener('touchcancel', lift, { passive: true });
-  _chat.addEventListener('keydown', event => {
-    if (['ArrowUp', 'PageUp', 'Home'].includes(event.key)) pauseScrollFollow();
-  });
   document.addEventListener('selectionchange', () => {
     if (selectionInsideChat()) pauseScrollFollow();
   });
-  const input = document.getElementById('composer-ta');
-  input?.addEventListener('input', () => {
-    if (input.value.trim()) pauseScrollFollow();
-    else if (distanceFromBottom(_chat) <= BOTTOM_GAP) _following = true;
-  });
   _jump?.addEventListener('click', resumeScrollFollow);
-  // the chat shows (from hidden), the window resizes or a reply grows: stay on the newest
-  // message unless the owner scrolled away from it
+  // the chat shows (from hidden), the window resizes or a reply grows (words, a picture that
+  // loads, a code block, the typing line going, the actions row coming): stay on the newest line
+  // while following. this is the one place growth is followed; it needs no scroll event
   if (typeof ResizeObserver === 'function') {
     const messages = document.getElementById('messages');
     const stick = () => {
-      if (!_chat.clientHeight || _touching || !(_pendingEnd || _following)) return;
-      _pendingEnd = false;
-      if (distanceFromBottom(_chat) > 1) _chat.scrollTop = _chat.scrollHeight;
+      if (!_chat.clientHeight || _touching || !(_pendingEnd || _following) || selectionInsideChat()) {
+        refreshScrollFollow();
+        return;
+      }
+      if (_pendingEnd || distanceFromBottom(_chat) > 1) pin();
       refreshScrollFollow();
     };
     const observer = new ResizeObserver(stick);

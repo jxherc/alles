@@ -1069,6 +1069,7 @@
     "aide.question_needs_input": "Aide があなたの入力を待っています",
     "aide.question_save_failed": "保存できませんでした。もう一度お試しください",
     "aide.question_saved": "回答を保存しました",
+    "aide.read_mark": "既読",
     "aide.reauth_prompt": "{reason}には Alles のパスワードを入力してください",
     "aide.reauth_reason_branch": "この作業ブランチを切り替え",
     "aide.reauth_reason_folder": "プロジェクトフォルダを選択",

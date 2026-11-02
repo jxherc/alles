@@ -25,6 +25,12 @@ export function _safeUrl(u) {
 // remoteImages: model answers, artifacts and the like show a remote image as a link, because
 // loading it would tell that server the page was read (and a steered answer can put chat text in
 // its address). the owner's own notes load them
+// aide's chat shows the reply only: a model that writes its thinking into the reply (<think>),
+// finished or still open while it streams, keeps it out of the words
+export function withoutThinking(text = '') {
+  return String(text).replace(/<think(?:ing)?>[\s\S]*?(?:<\/think(?:ing)?>|$)/gi, '').trim();
+}
+
 export function mdToHtml(text, { remoteImages = false } = {}) {
   if (!text) return '';
 

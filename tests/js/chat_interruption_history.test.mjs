@@ -33,7 +33,7 @@ function harness() {
     t,
     window: { addEventListener() {}, _mdToHtml: text => text },
     document: { getElementById: () => messages, createElement: element },
-    stripEmojis: text => text, applyResponsePrivacy() {}, scrollToLatest() {}, reconcileAnswerNote() {},
+    stripEmojis: text => text, withoutThinking: text => text, applyResponsePrivacy() {}, scrollToLatest() {}, reconcileAnswerNote() {},
     contextProvenanceElement: () => null, sourceCitationStatus: () => null, isIncognitoMode: () => false,
     // Menu interaction is covered by aide_response_actions; this fixture owns
     // interruption content and verifies the renderer passes its real action row.

@@ -1069,6 +1069,7 @@
     "aide.question_needs_input": "Aide needs your input",
     "aide.question_save_failed": "could not save - try again",
     "aide.question_saved": "answer saved",
+    "aide.read_mark": "read",
     "aide.reauth_prompt": "enter your Alles password to {reason}",
     "aide.reauth_reason_branch": "switch this working branch",
     "aide.reauth_reason_folder": "choose a Project folder",
