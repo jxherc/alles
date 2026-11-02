@@ -8785,6 +8785,8 @@
     "whatsnew.2026_11_01.delete_menus.body": "スキル、サブスクリプション、ヘルスの記録、連絡先、本、取引では、削除は各行の「その他」メニューにあります。削除した行は 6 秒間「元に戻す」で取り消せて、その後に消えます。",
     "whatsnew.2026_11_01.money_menus.title": "お金でも削除はメニューの中に",
     "whatsnew.2026_11_01.money_menus.body": "目標、投資、支出上限、ルール、口座、定期の削除は各行の「その他」メニューにあり、6 秒間は取り消せます。予算とつながった定期は、これまでどおり先に確認します。いちばん小さい電話では、取引の編集、照合済み、分割、レシートもそのメニューに入ります。",
+    "whatsnew.2026_11_01.own_drive.title": "alles を専用のドライブに",
+    "whatsnew.2026_11_01.own_drive.body": "ALLES_HOME=/Volumes/External/Alles を付けてインストールすると、alles が保存するものはドキュメントやファイルも含めてすべてそのフォルダーに入ります。ドライブがつながっていないときは、alles がそう伝え、空のまま起動せずにドライブを待ちます。",
     "settings.example_display_name": "例: eric",
     "settings.example_username": "例: jxh",
     "settings.example_stt_language": "例: en-US, zh-CN, fr-FR",

@@ -8785,6 +8785,8 @@
     "whatsnew.2026_11_01.delete_menus.body": "스킬, 구독, 건강 기록, 연락처, 책, 거래에서 삭제는 각 행의 더 보기 메뉴에 있습니다. 삭제한 행은 6초 동안 실행 취소할 수 있고, 그 뒤에 사라집니다.",
     "whatsnew.2026_11_01.money_menus.title": "가계에서도 삭제는 메뉴 안에",
     "whatsnew.2026_11_01.money_menus.body": "목표, 투자, 지출 한도, 규칙, 계좌, 정기 항목의 삭제는 각 행의 더 보기 메뉴에 있고 6초 동안 실행 취소할 수 있습니다. 예산과 연결된 정기 항목은 전처럼 먼저 확인합니다. 가장 작은 휴대폰에서는 거래의 편집, 정산됨, 분할, 영수증도 그 메뉴로 들어갑니다.",
+    "whatsnew.2026_11_01.own_drive.title": "alles를 전용 드라이브에",
+    "whatsnew.2026_11_01.own_drive.body": "ALLES_HOME=/Volumes/External/Alles로 설치하면 alles가 보관하는 모든 것이 문서와 파일까지 그 폴더에 들어갑니다. 드라이브가 연결되어 있지 않으면 alles가 그렇다고 알려 주고, 빈 상태로 시작하지 않고 드라이브를 기다립니다.",
     "settings.example_display_name": "예: eric",
     "settings.example_username": "예: jxh",
     "settings.example_stt_language": "예: en-US, zh-CN, fr-FR",

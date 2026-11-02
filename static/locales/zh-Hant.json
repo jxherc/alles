@@ -8785,6 +8785,8 @@
     "whatsnew.2026_11_01.delete_menus.body": "技能、訂閱、健康紀錄、聯絡人、書籍和交易的刪除操作都在每一行的更多選單裡。刪除後的列會保留六秒，可以復原，之後才真正刪除。",
     "whatsnew.2026_11_01.money_menus.title": "記帳裡的刪除也放進了選單",
     "whatsnew.2026_11_01.money_menus.body": "目標、投資、支出上限、規則、帳戶和定期的刪除操作都在每一行的更多選單裡，可以復原六秒。和預算連結的定期仍會先確認。在最小的手機上，交易的編輯、已結清、分拆和收據也放進了這個選單。",
+    "whatsnew.2026_11_01.own_drive.title": "alles 裝在自己的硬碟上",
+    "whatsnew.2026_11_01.own_drive.body": "用 ALLES_HOME=/Volumes/External/Alles 安裝，alles 保存的所有東西都會放在這個資料夾裡，包括文件和檔案。硬碟沒接上時，alles 會直接說明，並等硬碟接上，而不是用空資料夾啟動。",
     "settings.example_display_name": "例如 eric",
     "settings.example_username": "例如 jxh",
     "settings.example_stt_language": "例如 en-US、zh-CN、fr-FR",

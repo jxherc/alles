@@ -8785,6 +8785,8 @@
     "whatsnew.2026_11_01.delete_menus.body": "dans les compétences, abonnements, entrées de santé, contacts, livres et transactions, supprimer se trouve dans le menu plus de chaque ligne. une ligne supprimée attend six secondes avec annuler, puis disparaît.",
     "whatsnew.2026_11_01.money_menus.title": "dans argent aussi, supprimer est dans un menu",
     "whatsnew.2026_11_01.money_menus.body": "les objectifs, investissements, plafonds de dépenses, règles, comptes et échéanciers gardent supprimer dans le menu plus de la ligne, avec six secondes pour annuler. un échéancier lié à votre budget demande toujours confirmation d'abord. sur les plus petits téléphones, modifier, pointé, ventiler et reçu d'une transaction passent aussi dans ce menu.",
+    "whatsnew.2026_11_01.own_drive.title": "alles sur son propre disque",
+    "whatsnew.2026_11_01.own_drive.body": "installez avec ALLES_HOME=/Volumes/External/Alles et tout ce que garde alles vit dans ce dossier, documents et fichiers compris. quand le disque n’est pas branché, alles le dit et l’attend au lieu de démarrer à vide.",
     "settings.example_display_name": "p. ex. eric",
     "settings.example_username": "ex. jxh",
     "settings.example_stt_language": "ex. en-US, zh-CN, fr-FR",

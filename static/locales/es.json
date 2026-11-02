@@ -8785,6 +8785,8 @@
     "whatsnew.2026_11_01.delete_menus.body": "en habilidades, suscripciones, entradas de salud, contactos, libros y transacciones, eliminar está en el menú de más de cada fila. una fila eliminada espera seis segundos con deshacer y luego desaparece.",
     "whatsnew.2026_11_01.money_menus.title": "en dinero también, eliminar está en un menú",
     "whatsnew.2026_11_01.money_menus.body": "los objetivos, inversiones, límites de gasto, reglas, cuentas y programaciones tienen eliminar en el menú de más de cada fila, con seis segundos para deshacer. una programación vinculada a tu presupuesto sigue preguntando primero. en los teléfonos más pequeños, editar, conciliado, dividir y recibo de una transacción también pasan a ese menú.",
+    "whatsnew.2026_11_01.own_drive.title": "alles en su propio disco",
+    "whatsnew.2026_11_01.own_drive.body": "instala con ALLES_HOME=/Volumes/External/Alles y todo lo que guarda alles vive en esa carpeta, documentos y archivos incluidos. si el disco no está conectado, alles lo dice y lo espera en lugar de arrancar vacío.",
     "settings.example_display_name": "p. ej. eric",
     "settings.example_username": "p. ej. jxh",
     "settings.example_stt_language": "p. ej. en-US, zh-CN, fr-FR",

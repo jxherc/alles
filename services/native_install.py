@@ -549,7 +549,8 @@ def _launcher_source(layout: NativeLayout) -> bytes:
         return f'#!/bin/sh\nexec {dispatcher} "$@"\n'.encode("utf-8")
     # the launcher stays on this computer while the rest may sit on a drive that isn't plugged
     # in: a command says so, and the service waits for the drive instead of starting on nothing.
-    # the service log is opened here, since launchd and systemd give up on a log path that's gone
+    # the service log is opened here: launchd ends a job with EX_CONFIG and makes nothing when its
+    # program or log folder is missing (checked on macos, nov 2), so neither may sit on the drive
     return (
         "#!/bin/sh\n"
         f"home={shlex.quote(str(layout.install_home))}\n"

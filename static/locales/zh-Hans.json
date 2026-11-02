@@ -8785,6 +8785,8 @@
     "whatsnew.2026_11_01.delete_menus.body": "技能、订阅、健康记录、联系人、书籍和交易的删除操作都在每一行的更多菜单里。删除后的行会保留六秒，可以撤销，之后才真正删除。",
     "whatsnew.2026_11_01.money_menus.title": "记账里的删除也放进了菜单",
     "whatsnew.2026_11_01.money_menus.body": "目标、投资、支出上限、规则、账户和定期收支的删除操作都在每一行的更多菜单里，可以撤销六秒。和预算关联的定期收支仍会先确认。在最小的手机上，交易的编辑、已结清、拆分和收据也放进了这个菜单。",
+    "whatsnew.2026_11_01.own_drive.title": "alles 装在自己的硬盘上",
+    "whatsnew.2026_11_01.own_drive.body": "用 ALLES_HOME=/Volumes/External/Alles 安装，alles 保存的所有东西都会放在这个文件夹里，包括文档和文件。硬盘没插上时，alles 会直接说明，并等硬盘插上，而不是用空文件夹启动。",
     "settings.example_display_name": "例如 eric",
     "settings.example_username": "例如 jxh",
     "settings.example_stt_language": "例如 en-US、zh-CN、fr-FR",

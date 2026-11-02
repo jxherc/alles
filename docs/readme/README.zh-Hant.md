@@ -27,6 +27,14 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
 
 預設情況下，只有這台裝置能存取 alles，而且啟動時沒有密碼。**在放到網路上之前**，請先為它設定密碼並選擇誰能開啟它：`alles access lan` 一次完成這兩件事。區域網路存取和公開存取的要求不同；請先閱讀[安全說明](../../specifications.md#security--read-before-exposing-it)。安裝完成後，它會問你要不要設定密碼（至少 8 個字元；之後可以用 `alles password` 設定或修改），以及你的其他裝置是否也要能開啟它。
 
+### 裝到另一顆硬碟上
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
+```
+
+這樣 alles 會把所有東西都放在這個資料夾裡：文件和檔案直接可見，資料庫、程式、備份和設定放在裡面一個隱藏的 `.alles` 資料夾中。只有 `alles` 指令和啟動服務的小檔案留在這台電腦上，之後的每個指令（包括 `alles update`）都會自己找到這個資料夾。硬碟沒接上時，安裝會在建立任何東西之前停下，`alles` 會提示硬碟不在，背景服務會等硬碟接上，而不是用空資料夾啟動。`ALLES_PORT=8000` 也可以用同樣的方式換連接埠。
+
 ### 從其他裝置使用
 
 ```bash

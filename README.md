@@ -25,6 +25,14 @@ then open [http://localhost:6769](http://localhost:6769) and follow the setup. y
 
 by default, alles is only accessible from this device and starts without a password. right after installing it asks whether you want one (8 characters or more; `alles password` sets or changes it later) and whether your other devices should open it. **before putting it on your network**, give it a password and choose who can open it: `alles access lan` does both. local network and public access have different requirements; read [security](specifications.md#security--read-before-exposing-it) first.
 
+### put it on another drive
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
+```
+
+alles then keeps everything in that folder: your docs and files where you can see them, and the database, app, backups and settings in a hidden `.alles` folder inside it. only the `alles` command and the small file that starts the service stay on this computer, and every later command (`alles update` too) finds the folder on its own. if the drive isn't plugged in, the install stops before it makes anything, `alles` says the drive is missing, and the service waits for the drive instead of starting empty. `ALLES_PORT=8000` picks another port the same way.
+
 ### use it from another device
 
 ```bash
