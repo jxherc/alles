@@ -2566,6 +2566,10 @@
     "only a bank email row can be left out": "只有銀行郵件的列可以略過",
     "only bank alert emails are read from mail": "只有銀行通知郵件會從郵件中讀取",
     "the email list could not be read": "無法讀取郵件清單",
-    "the email names more than one amount": "這封郵件寫了不只一個金額"
+    "the email names more than one amount": "這封郵件寫了不只一個金額",
+    "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME 需要完整路徑，例如 /Volumes/External/Alles",
+    "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT 需要 1024 到 65535 之間的數字",
+    "the drive {drive} isn't connected. plug it in, then run the install again": "硬碟 {drive} 沒有連接。接上後再執行一次安裝",
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "資料夾 {folder} 不存在。接上它所在的硬碟或先建立它，然後再安裝"
   }
 }

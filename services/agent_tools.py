@@ -1294,8 +1294,10 @@ async def _opencode_run(prompt: str, cwd: str = ".", model: str = "", agent: str
 def _pi_workspace():
     """pi's own folder for work that isn't in a code project: documents, research, plans."""
     from core.database import CodingProject, SessionLocal
+    from services.setup_state import _visible_defaults
 
-    folder = Path(os.environ.get("ALLES_PI_WORKSPACE") or Path.home() / "Alles" / "Aide")
+    # inside the files root: ~/Alles, or ALLES_HOME when the install lives on a drive
+    folder = Path(os.environ.get("ALLES_PI_WORKSPACE") or _visible_defaults()[1] / "Aide")
     folder.mkdir(parents=True, exist_ok=True)
     db = SessionLocal()
     try:

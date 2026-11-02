@@ -2566,6 +2566,10 @@
     "only a bank email row can be left out": "只有银行邮件的行可以略过",
     "only bank alert emails are read from mail": "只有银行提醒邮件会从邮件中读取",
     "the email list could not be read": "无法读取邮件列表",
-    "the email names more than one amount": "这封邮件写了不止一个金额"
+    "the email names more than one amount": "这封邮件写了不止一个金额",
+    "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME 需要完整路径，比如 /Volumes/External/Alles",
+    "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT 需要 1024 到 65535 之间的数字",
+    "the drive {drive} isn't connected. plug it in, then run the install again": "硬盘 {drive} 没有连接。插上后再运行一次安装",
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "文件夹 {folder} 不存在。插上它所在的硬盘或先建好它，然后再安装"
   }
 }

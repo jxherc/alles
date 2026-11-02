@@ -2566,6 +2566,10 @@
     "only a bank email row can be left out": "seule une ligne d'e-mail de la banque peut être laissée de côté",
     "only bank alert emails are read from mail": "seules les alertes de la banque sont lues dans mail",
     "the email list could not be read": "la liste d'e-mails n'a pas pu être lue",
-    "the email names more than one amount": "l'e-mail indique plus d'un montant"
+    "the email names more than one amount": "l'e-mail indique plus d'un montant",
+    "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME demande un chemin complet, comme /Volumes/External/Alles",
+    "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT demande un nombre de 1024 à 65535",
+    "the drive {drive} isn't connected. plug it in, then run the install again": "le disque {drive} n’est pas branché. branchez-le, puis relancez l’installation",
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "le dossier {folder} n’existe pas. branchez son disque ou créez-le, puis relancez l’installation"
   }
 }

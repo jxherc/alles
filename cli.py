@@ -427,7 +427,7 @@ def cmd_status(args=()):
 
     ui = cli_ui.Style()
     native = _native_layout()
-    port = 6769 if native is not None else _port()
+    port = native.port if native is not None else _port()
     url = f"http://localhost:{port}"
     release = None
     if native is not None:
@@ -1488,9 +1488,10 @@ def _native_service_endpoint(layout) -> tuple[int, str]:
     from services import native_install
 
     # The owned service definition intentionally does not inherit the invoking
-    # shell's PORT. Verify that definition before relying on its fixed endpoint.
+    # shell's PORT. Verify that definition before relying on its endpoint (6769 unless the
+    # install chose ALLES_PORT, which the dispatcher hands to every command).
     native_install.verify_install(layout)
-    port = 6769
+    port = layout.port
     return port, f"http://127.0.0.1:{port}"
 
 
@@ -2804,7 +2805,7 @@ def cmd_doctor(args=()):
     for ok, label, detail in folders:
         ui.check(ok, label, detail, width)
     native = _native_layout()
-    port = 6769 if native is not None else _port()
+    port = native.port if native is not None else _port()
     if native is not None or _port_open(port):
         healthy = _health_ok(port)
         ui.check(
@@ -2986,6 +2987,20 @@ def _offer_aide_tools(ui, launcher: Path) -> None:
     ui.say(ui.dim("  later: alles tools install"))
 
 
+def _old_launcher_checkout(launcher: Path) -> str | None:
+    """The checkout an older `alles install --launcher-only` command runs, or None."""
+    import re
+
+    try:
+        if launcher.is_symlink() or not launcher.is_file():
+            return None
+        text = launcher.read_text("utf-8")
+    except (OSError, UnicodeError):
+        return None
+    found = re.fullmatch(r'#!/usr/bin/env bash\nexec "[^"\n]+" "([^"\n]+)/cli\.py" "\$@"\n', text)
+    return found.group(1) if found else None
+
+
 def cmd_install(args=()):
     """Install alles as a background service on macOS or Linux, one step per line."""
     args = tuple(args)
@@ -3011,6 +3026,25 @@ def cmd_install(args=()):
     ui.check(True, f"python {version}", "", steps.width)
     try:
         layout = native_install.platform_layout()
+        native_install.check_install_home(layout)
+    except native_install.NativeInstallError as exc:
+        steps.fail(f"stopped safely: {exc}")
+        steps.close()
+        return False
+    aside = None
+    old = _old_launcher_checkout(layout.launcher)
+    if old is not None:
+        where = cli_ui.short_path(layout.launcher)
+        ui.say(f"  {where} is an older alles command that runs {cli_ui.short_path(old)}")
+        if not _ask(ui, "replace it with this install's alles command?"):
+            ui.check(
+                False, "alles command", f"kept: move {where} away, then install again", steps.width
+            )
+            return False
+        aside = layout.launcher.with_name(".alles-before-install")
+        os.replace(layout.launcher, aside)
+    installed = False
+    try:
         # the installer registers the service under the install's own data folder, not this checkout
         os.environ["ALLES_DATA"] = str(layout.data_root)
         result = native_install.install(
@@ -3020,6 +3054,7 @@ def cmd_install(args=()):
             install_source=source,
             progress=steps.handle,
         )
+        installed = True
     except native_install.NativeInstallError as exc:
         steps.fail(f"stopped safely: {exc}")
         return False
@@ -3028,6 +3063,11 @@ def cmd_install(args=()):
         return False
     finally:
         steps.close()
+        if aside is not None:
+            if installed:
+                aside.unlink(missing_ok=True)
+            elif not layout.launcher.exists():
+                os.replace(aside, layout.launcher)
 
     port, _ = _native_service_endpoint(layout)
     running = _wait_for_health(port)
@@ -3123,7 +3163,7 @@ def _restart_for_settings(native) -> bool:
             service_manager.control("server", "restart")
         except (service_manager.ServiceControlError, service_manager.ServiceOwnershipError):
             return False
-        return _wait_for_health(6769, 30)
+        return _wait_for_health(native.port, 30)
     if _running(_pid()):
         return bool(cmd_restart())
     return False
@@ -3239,7 +3279,8 @@ def cmd_access(args=()):
         if addresses:
             ui.say()
             ui.say("  open it from your other devices")
-            ui.rows([(f"http://{host}:6769", where) for host, where in addresses], dim_value=True)
+            port = native.port if native is not None else _port()
+            ui.rows([(f"http://{host}:{port}", where) for host, where in addresses], dim_value=True)
     ui.say()
     return True
 
@@ -4066,7 +4107,8 @@ def cmd_completion(args=()):
 
 
 def _server_url() -> str:
-    return f"http://127.0.0.1:{6769 if _native_layout() is not None else _port()}"
+    native = _native_layout()
+    return f"http://127.0.0.1:{native.port if native is not None else _port()}"
 
 
 def _chat_client():
@@ -4240,7 +4282,7 @@ def _dump_lines() -> list[tuple[str, str]]:
         rows.append(("providers", ", ".join(kinds) or "none"))
     except Exception as exc:
         rows.append(("providers", f"can't be read: {type(exc).__name__}"))
-    port = 6769 if native is not None else _port()
+    port = native.port if native is not None else _port()
     rows.append(("server", "answering" if _health_ok(port) else "not answering"))
     try:
         import asyncio

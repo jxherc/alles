@@ -2566,6 +2566,10 @@
     "only a bank email row can be left out": "solo una fila de correo del banco se puede dejar fuera",
     "only bank alert emails are read from mail": "solo los avisos del banco se leen desde mail",
     "the email list could not be read": "no se pudo leer la lista de correos",
-    "the email names more than one amount": "el correo indica más de un importe"
+    "the email names more than one amount": "el correo indica más de un importe",
+    "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME necesita una ruta completa, como /Volumes/External/Alles",
+    "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT necesita un número de 1024 a 65535",
+    "the drive {drive} isn't connected. plug it in, then run the install again": "el disco {drive} no está conectado. conéctalo y vuelve a ejecutar la instalación",
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "la carpeta {folder} no existe. conecta su disco o créala y vuelve a instalar"
   }
 }
