@@ -37,10 +37,10 @@ import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
-import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=16';
+import { GROUP_DEFINITIONS, groupIdentifierFor, groupRouteFor, initSpecialistGroup, normalizeGroupSection, releaseSpecialistLegacyView } from './specialist_groups.js?v=17';
 import { addSsoAuthCode, buildApexBrokerUrl, normalizeSsoTarget, stripTransientParams } from './sso-state.js';
 import { loadBrainPanel } from './brain.js?v=242';
-import { openSettings, openSettingsAt, closeSettings, applyVis } from './settings.js?v=300';
+import { openSettings, openSettingsAt, closeSettings, applyVis } from './settings.js?v=301';
 import {
   setIncognitoMode,
   isIncognitoMode,
