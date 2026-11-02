@@ -1525,7 +1525,7 @@ function _renderTxnMain(txn, an) {
   const label = esc(t('money.txn_label', { payee: txn.payee || t('money.kind_transaction'), date: txn.date || t('money.undated'), amount: signed(txn.amount, currency), account: an[txn.account_id] || t('money.kind_account') }));
   const actions = xf ? '' : `<span class="tx-actions">
     <button type="button" class="tx-edit" data-edit-txn="${txn.id}" aria-label="${t('money.edit_named', { label })}">${t('common.edit')}</button>
-    <button class="tx-clear ${txn.cleared ? 'on' : ''}" data-clear-txn="${txn.id}" aria-label="${t('money.cleared_named', { label })}" aria-pressed="${!!txn.cleared}"><span aria-hidden="true">${_si(txn.cleared ? 'check-circle' : 'circle')}</span> ${t('money.cleared')}</button>
+    <button class="tx-clear ${txn.cleared ? 'on' : ''}" data-clear-txn="${txn.id}" aria-label="${t('money.cleared_named', { label })}" aria-pressed="${!!txn.cleared}"><span aria-hidden="true">${_si(txn.cleared ? 'check-circle' : 'circle')}</span> <span class="tx-clear-label">${t('money.cleared')}</span></button>
     ${canSplit ? `<button class="tx-split-btn ${txn.split ? 'on' : ''}" data-split-txn="${txn.id}" aria-label="${t('money.split_named', { label })}" aria-expanded="${_splitTxn === txn.id}" title="${t('money.split_title')}">${t('money.split')}</button>` : ''}
     ${txn.receipt_id
       ? `<a class="tx-receipt" href="/api/uploads/${esc(txn.receipt_id)}" target="_blank" rel="noopener" aria-label="${t('money.view_receipt_for', { label })}" title="${t('money.view_receipt')}"><span aria-hidden="true">${_si('paperclip')}</span><span class="tx-receipt-label">${t('money.view_receipt')}</span></a>`

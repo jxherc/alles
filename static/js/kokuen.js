@@ -142,15 +142,22 @@ function primitiveFor(element) {
 }
 
 // 27.35, 27.51: no native title tooltips on controls (the browser's own box covers what's under it and
-// can't be styled). a title that is a control's only name becomes its aria-label, then goes
+// can't be styled). a title that is a control's only name becomes its aria-label, then goes. a field's
+// <label> is a name too: a title must never replace it (the shortcut fields lost "new aide task" to
+// "press keys"), so on a named control the title stays as its description instead
 function dropNativeTooltip(element) {
   const title = element.getAttribute('title');
   if (title == null) return;
-  const named = element.getAttribute('aria-label') || element.getAttribute('aria-labelledby')
+  const text = title.trim();
+  const label = [...(element.labels || [])].map(node => node.textContent.trim()).join(' ');
+  const named = element.getAttribute('aria-label') || element.getAttribute('aria-labelledby') || label
     || (!element.matches('input, textarea') && (element.textContent || '').trim());
-  if (!named && title.trim()) {
+  if (!named && text) {
     element.setAttribute('aria-label', title);
     if (element.dataset.i18nTitle && !element.dataset.i18nAriaLabel) element.dataset.i18nAriaLabel = element.dataset.i18nTitle;
+  } else if (text && text.toLowerCase() !== String(named).trim().toLowerCase()
+    && !element.hasAttribute('aria-describedby')) {
+    element.setAttribute('aria-description', text);
   }
   element.removeAttribute('title');
 }

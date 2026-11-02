@@ -3647,6 +3647,10 @@ textarea[data-kokuen-entry="autogrow"] {
   #settings-modal[data-kokuen-surface="settings"] {
     padding-top: var(--k-space-2);
   }
+  /* short screens (200% zoom, a phone on its side): the 10% that 90dvh leaves is a line of content */
+  #settings-modal[data-kokuen-surface="settings"] .s-modal {
+    height: calc(100dvh - var(--k-space-2) * 2);
+  }
 }
 
 #settings-modal[data-kokuen-surface="settings"] .s-header {

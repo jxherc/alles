@@ -201,6 +201,7 @@ function choiceMenu(label, options, selected, onChange) {
     const value = pick.value;
     if (value === current) return;
     pick.disabled = true;
+    pick.setAttribute('aria-busy', 'true');
     try { await onChange(value); current = value; }
     catch (error) {
       pick.value = current;
@@ -208,7 +209,7 @@ function choiceMenu(label, options, selected, onChange) {
       let region = owner?.querySelector('.server-workbench-status');
       if (!region && owner) { region = statusLine(); owner.append(region); }
       if (region) { region.textContent = plainError(error.message || t('server.wb_setting_failed')); region.classList.add('is-error'); }
-    } finally { pick.disabled = false; }
+    } finally { pick.disabled = false; pick.removeAttribute('aria-busy'); }
   });
   return field;
 }

@@ -678,6 +678,9 @@ async function loadEpList() {
     if (!_providersActive || generation !== _endpointLoadGeneration) return;
     if (!_modelRolesDirty && !document.activeElement?.matches('#s-model-roles [data-role-select]')) _renderModelRoles(eps, settings, roles);
     if (_hasEndpointDrafts() || _endpointPending.size || _endpointConfirmations.size) return;
+    // nothing to refresh before the first connection; the sign in comes up a row instead
+    const refreshAll = document.getElementById('s-ep-refresh-all');
+    if (refreshAll) refreshAll.hidden = !eps.length;
     if (!eps.length) {
       el.innerHTML = `<div class="s-role-empty">${_esc(t('providers.no_endpoints'))}</div>`;
       return;

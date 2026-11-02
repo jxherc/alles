@@ -345,7 +345,10 @@ def run():
                         "rules": "automation & delivery",
                         "andromeda": "andromeda",
                     }
-                    expect(page.locator(".s-nav-item")).to_have_count(20)
+                    expect(page.locator(".s-nav-item[data-pane]")).to_have_count(20)
+                    # plus the one link that leaves settings for the server app
+                    expect(page.locator(".s-nav-item:not([data-pane])")).to_have_count(1)
+                    expect(page.locator('.s-nav-item[data-link="server"]')).to_have_count(1)
                     for pane, name in names.items():
                         choose_settings_section(page, pane, touch=width <= 390)
                         expect(page.locator("#settings-pane-title")).to_have_text(name)
