@@ -104,6 +104,9 @@ with sync_playwright() as pw:
 
             def fill():
                 page.locator("#ma-email").fill(email)
+                # a new account opens on sign in; the server fields are the app password fallback
+                if page.locator("#ma-fallback").is_visible():
+                    page.locator("#ma-fallback").click()
                 page.locator("#ma-imaph").fill("127.0.0.1")
                 page.locator("#ma-imapp").fill("1")
                 page.locator("#ma-smtph").fill("127.0.0.1")

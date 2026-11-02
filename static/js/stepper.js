@@ -10,11 +10,14 @@ const PLUS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // name is what the field is ("weight, left"); attrs are extra data-* the owner reads back
-export function stepperHtml({ name, value = '', step = 1, min = 0, max = '', inputmode = 'decimal', placeholder = '?', auto = true, attrs = '', disabled = false }) {
+// unit ("min", "g", "ml") sits right after the value inside the field, so the number never reads
+// bare; the value's width follows what's typed, so the two stay together in the middle
+export function stepperHtml({ name, value = '', step = 1, min = 0, max = '', inputmode = 'decimal', placeholder = '?', auto = true, attrs = '', disabled = false, unit = '' }) {
   const off = disabled ? ' disabled' : '';
+  const input = `<input inputmode="${esc(inputmode)}" autocomplete="off" aria-label="${esc(unit ? `${name} (${unit})` : name)}" placeholder="${esc(placeholder)}" value="${esc(value)}"${unit ? ` style="--k-len: ${valueLength(value, placeholder)}"` : ''}${off}>`;
   return `<div class="k-stepper"${auto ? ` data-kokuen-stepper="auto" data-step="${esc(step)}" data-min="${esc(min)}"${max !== '' ? ` data-max="${esc(max)}"` : ''}` : ''}${attrs ? ` ${attrs}` : ''}>
       <button type="button" data-d="-1" aria-label="${esc(t('common.less_n', { name }))}"${off}>${MINUS}</button>
-      <input inputmode="${esc(inputmode)}" autocomplete="off" aria-label="${esc(name)}" placeholder="${esc(placeholder)}" value="${esc(value)}"${off}>
+      ${unit ? `<label class="k-stepper-value">${input}<span class="k-stepper-unit" aria-hidden="true">${esc(unit)}</span></label>` : input}
       <button type="button" data-d="1" aria-label="${esc(t('common.more_n', { name }))}"${off}>${PLUS}</button>
     </div>`;
 }
@@ -35,8 +38,11 @@ function limits(stepper) {
 }
 
 // minus is off at the floor, plus at the ceiling; an empty or unknown value can still go up
+const valueLength = (value, placeholder = '') => Math.max(1, String(value ?? '').length || String(placeholder).length);
+
 function paint(stepper) {
   const input = stepper.querySelector('input');
+  if (stepper.querySelector('.k-stepper-unit')) input.style.setProperty('--k-len', String(valueLength(input.value, input.placeholder)));
   if (input.disabled) return;
   const { min, max } = limits(stepper);
   const raw = input.value.trim();

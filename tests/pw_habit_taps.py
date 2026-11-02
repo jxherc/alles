@@ -196,22 +196,21 @@ def run():
             page.locator('[data-act="back"]').click()
 
             for kind, item in loggers.items():
-
+                # the row's today opens the habit on today's log, like every other kind; the
+                # form starts from yesterday, so log is the second and last tap
                 def prefilled(item=item):
                     tap(page.locator(f'.habit-row[data-id="{item["id"]}"] .habit-today'))
-                    tap(
-                        page.locator(
-                            ".dialog-overlay [data-dialog-confirm]:not([data-dialog-remove])"
-                        )
-                    )
-                    expect(page.locator(".dialog-overlay")).to_have_count(0)
+                    tap(page.locator(".dlog-log"))
+                    expect(page.locator(".dlog-entry")).to_have_count(1)
                     expect(
-                        page.locator(f'.habit-row[data-id="{item["id"]}"] .habit-today')
+                        page.locator(f'.habit-day[data-toggle="{today.isoformat()}"]')
                     ).to_have_attribute("aria-pressed", "true")
 
                 counted(f"{kind}, same as last time", prefilled, 2)
+                page.wait_for_timeout(300)
                 _, saved = logs(item)
                 assert saved.get(today.isoformat()) == saved.get(yesterday), (kind, saved)
+                page.locator('[data-act="back"]').click()
             # every other kind: its own day log, built from its fields. today starts from the last
             # entry, so "same as last time" is one tap on log (open is where the logger lives)
             if width == 1180:

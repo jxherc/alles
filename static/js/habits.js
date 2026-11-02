@@ -9,7 +9,7 @@ import { whenFull } from './when.js';
 import { categoryHue } from './color.js';
 import { closeEmojiPicker, emojiFieldHtml, wireEmojiPicker } from './emoji_picker.js';
 import { catalogEntry, catalogName, catalogOptions } from './habit_catalog.js';
-import { hasDayLog, hasLogger, logSummary, openLogger, renderDayLog, renderGym } from './habit_loggers.js';
+import { hasDayLog, logSummary, renderDayLog, renderGym } from './habit_loggers.js';
 const _si = n => (window.icon ? window.icon(n) : '');
 
 const $ = id => document.getElementById(id);
@@ -265,7 +265,7 @@ function _weekStrip(h, picked = '') {
     const date = formatCalendarDate(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const letter = formatCalendarDate(iso, { weekday: 'narrow' });
     const marks = `${iso === _day ? ' today' : ''}${iso === picked ? ' picked' : ''}`;
-    return `<button type="button" class="habit-day${completed ? ' done' : ''}${marks}" data-toggle="${iso}" title="${esc(date)}" aria-pressed="${completed}"${iso === _day ? ' aria-current="date"' : ''}${hasLogger(h) && h.kind !== 'workout' ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(t(completed ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date }))}"><span>${esc(letter)}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
+    return `<button type="button" class="habit-day${completed ? ' done' : ''}${marks}" data-toggle="${iso}" title="${esc(date)}" aria-pressed="${completed}"${iso === _day ? ' aria-current="date"' : ''} aria-label="${esc(t(completed ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date }))}"><span>${esc(letter)}</span><b>${d.getDate()}</b><span class="habit-day-state" aria-hidden="true">${completed ? _si('check') : ''}</span></button>`;
   }).join('')}</div>`;
 }
 
@@ -279,6 +279,9 @@ function _dots(h) {
 // the habit's own colour, or a steady hue from its name
 const _accent = h => `--habit-accent:${esc(/^#[0-9a-f]{3,8}$/i.test(String(h.color || '')) ? h.color : `var(--cat-${categoryHue(h.name)})`)}`;
 
+// a habit that logs details (the gym, every catalog kind) rather than a plain done
+const logs = habit => habit?.kind === 'workout' || hasDayLog(habit);
+
 // one compact row per habit (u.08): open on the name, today's check or log on the right
 function _row(h) {
   const slip = !h.archived && h.risk && h.risk.slipping;
@@ -289,7 +292,7 @@ function _row(h) {
   const label = t(doneToday ? 'habits.day_completed' : 'habits.day_not_completed', { name: h.name, date: t('habits.today') });
   const action = h.archived
     ? `<button class="btn" data-act="restore">${esc(t('habits.restore'))}</button>`
-    : `<button type="button" class="habit-day habit-today${doneToday ? ' done' : ''}" data-toggle="${_day}" aria-pressed="${doneToday}"${hasLogger(h) && h.kind !== 'workout' ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(label)}">${doneToday ? _si('check') : hasLogger(h) ? _si('plus') : ''}</button>`;
+    : `<button type="button" class="habit-day habit-today${doneToday ? ' done' : ''}" data-toggle="${_day}" aria-pressed="${doneToday}" aria-label="${esc(label)}">${doneToday ? _si('check') : logs(h) ? _si('plus') : ''}</button>`;
   return `
     <div class="habit-card habit-row${slip ? ' at-risk' : ''}" data-id="${h.id}" style="${_accent(h)}">
       <button type="button" class="habit-row-open" data-act="open" aria-label="${esc(t('habits.open_habit', { name: h.name }))}">
@@ -502,14 +505,15 @@ function _wire(body) {
 
   body.querySelectorAll('.habit-day[data-toggle]').forEach(btn => btn.addEventListener('click', () => {
     const habit = _habits.find(h => h.id === btn.closest('.habit-card').dataset.id);
-    // the gym log lives in the habit: a day picks which session it shows
-    if (habit?.kind === 'workout' || (hasDayLog(habit) && btn.closest('.habit-detail'))) {
+    // every log lives in its habit: a day (or the row's today) opens it on that day, the same way
+    // for every kind; only a plain check is marked done in place
+    if (logs(habit)) {
       _open = habit.id; _logDay = btn.dataset.toggle; _render();
       if (btn.classList.contains('done') && !habit.days?.[_logDay]) loadHabits().then(() => $('habits-body')?.querySelector('.habit-day.picked')?.focus());
       $('habits-body')?.querySelector('.habit-day.picked')?.focus();
       return;
     }
-    return hasLogger(habit) ? _openDayLog(habit, btn.dataset.toggle) : _toggleDay(btn);
+    return _toggleDay(btn);
   }));
 
   // escape on the edit card is cancel. an open frequency menu keeps its escape to itself
@@ -531,20 +535,6 @@ async function _pickHabit() {
   if (choice.action) return { ...blank, name: choice.query };
   const entry = catalogEntry(choice);
   return entry ? { ...blank, name: catalogName(entry), icon: entry.icon, kind: entry.kind, unit: entry.unit } : null;
-}
-
-// a habit with a logger opens that day's log; saving marks the day done with its details
-async function _openDayLog(habit, day) {
-  if (_saving) return;
-  const navigation = _navigation;
-  const done = habit.grid.some(g => g.date === day && g.done);
-  const result = await openLogger(habit, day, { done,
-    save: data => api(`/api/habits/${habit.id}/toggle`, { method: 'POST', body: { date: day, data } }) });
-  if (!result || navigation !== _navigation) return;
-  await writeHabit(async () => {
-    if (result.remove) await api(`/api/habits/${habit.id}/toggle`, { method: 'POST', body: { date: day, done: false } });
-    await loadHabits();
-  });
 }
 
 function _toggleDay(btn) {

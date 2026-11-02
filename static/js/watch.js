@@ -220,21 +220,44 @@ function _editCard(m) {
     </div>`;
 }
 
+// the usual things to watch (28.34): pick one, paste the address, done. the name comes from the
+// address, how often comes from the pick, and both sit under "more" with the keyword
+const WATCH_PRESETS = [
+  { key: 'site', kind: 'http', interval: 300 },
+  { key: 'cert', kind: 'cert', interval: 86400 },
+  { key: 'health', kind: 'health', interval: 60 },
+  { key: 'self', kind: 'health', interval: 60, name: 'alles', url: () => `${location.origin}/health` },
+];
+const _preset = key => WATCH_PRESETS.find(p => p.key === key) || WATCH_PRESETS[0];
+const _hostName = url => { try { return new URL(/^[a-z]+:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch { return ''; } };
+
 function _addForm() {
+  const options = WATCH_PRESETS.map(p => `${p.key}|${t(`server.watch_preset_${p.key}`)}`).join(';');
   return `
     <div class="watch-card editing watch-add" data-add="1">
-      <input type="text" class="settings-input" data-f="name" placeholder="${esc(t('server.watch_name_example'))}">
-      <input type="text" class="settings-input" data-f="url" placeholder="https://example.com">
-      ${_kindSelect('http')}
-      <div class="watch-edit-row">
-        <input type="text" class="settings-input" data-f="interval_secs" value="300" inputmode="numeric" placeholder="${esc(t('server.watch_interval'))}">
-        <input type="text" class="settings-input" data-f="expect_keyword" placeholder="${esc(t('server.watch_keyword_optional'))}">
-      </div>
+      <div class="settings-input custom-select" data-f="preset" data-value="site" data-options="${esc(options)}" aria-label="${esc(t('server.watch_what'))}"></div>
+      <input type="url" class="settings-input" data-f="url" placeholder="https://example.com" aria-label="${esc(t('server.watch_address'))}" spellcheck="false" autocomplete="url">
+      <details class="watch-more">
+        <summary class="s-add-summary">${esc(t('server.watch_more'))}</summary>
+        <input type="text" class="settings-input" data-f="name" placeholder="${esc(t('server.watch_name_example'))}" aria-label="${esc(t('server.watch_name'))}">
+        <div class="watch-edit-row">
+          <input type="text" class="settings-input" data-f="interval_secs" value="300" inputmode="numeric" placeholder="${esc(t('server.watch_interval'))}" aria-label="${esc(t('server.watch_interval'))}">
+          <input type="text" class="settings-input" data-f="expect_keyword" placeholder="${esc(t('server.watch_keyword_optional'))}" aria-label="${esc(t('server.watch_keyword_optional'))}">
+        </div>
+      </details>
       <div class="watch-actions">
         <button class="btn primary" data-act="create">${esc(t('server.watch_add_monitor'))}</button>
         <button class="btn" data-act="cancel-add">${esc(t('common.cancel'))}</button>
       </div>
     </div>`;
+}
+
+// a pick fills what it knows: "this alles" needs no address, the others keep what was typed
+function _applyPreset(card) {
+  const preset = _preset(card.querySelector('[data-f="preset"]')?.dataset.value);
+  const url = card.querySelector('[data-f="url"]');
+  url.hidden = Boolean(preset.url);
+  card.querySelector('[data-f="interval_secs"]').value = preset.interval;
 }
 
 // ── wiring ──────────────────────────────────────────────────────────────────
@@ -279,6 +302,7 @@ function _wire(body) {
   // add form
   const addCard = body.querySelector('.watch-add');
   if (addCard) {
+    addCard.querySelector('[data-f="preset"]')?.addEventListener('change', () => _applyPreset(addCard));
     addCard.querySelector('[data-act="create"]')?.addEventListener('click', () => _create(addCard));
     addCard.querySelector('[data-act="cancel-add"]')?.addEventListener('click', () => { _adding = false; _render(); });
   }
@@ -343,15 +367,15 @@ function _wire(body) {
 
 async function _create(card) {
   const v = f => card.querySelector(`[data-f="${f}"]`);
-  const name = v('name')?.value.trim();
-  const url = v('url')?.value.trim();
-  if (!name) { toast(t('server.watch_give_name'), 'error'); return; }
-  if (!url) { toast(t('server.watch_what_url'), 'error'); return; }
+  const preset = _preset(v('preset')?.dataset.value);
+  const url = preset.url ? preset.url() : v('url')?.value.trim();
+  if (!url) { toast(t('server.watch_what_url'), 'error'); v('url')?.focus(); return; }
+  const name = v('name')?.value.trim() || preset.name || _hostName(url) || url;
   const interval = parseInt(v('interval_secs')?.value, 10);
   const r = await fetch('/api/watch', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      name, url, kind: v('kind')?.dataset.value || 'http',
+      name, url, kind: preset.kind,
       interval_secs: Number.isNaN(interval) ? 300 : interval,
       expect_keyword: v('expect_keyword')?.value.trim() || '',
     }),

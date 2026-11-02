@@ -7,6 +7,7 @@ import { _esc, _escAttr, _fetchWithRecentOwner } from './shared.js';
 import { API_TYPES, authFor, mountProviderPicker } from '../model_providers.js';
 import { wireChoiceGroup } from '../kokuen.js?v=5';
 import { t, tp } from '../i18n.js';
+import { mountSignin } from '../signin.js';
 import { roleOptions as _roleOptionData, setModelRole, announceModelRoles, onModelRoles } from './model_roles.js';
 
 let _providersActive = false;
@@ -963,11 +964,34 @@ function _wireProvidersPane() {
 
 }
 
+// oauth first: gemini, claude and chatgpt sign in by button; an api key (the add form) is the fallback
+let _modelSignin = null;
+function _mountModelSignin() {
+  const host = document.getElementById('s-ep-signin');
+  if (!host) return;
+  if (_modelSignin) { _modelSignin.refresh(); return; }
+  _modelSignin = mountSignin(host, {
+    use: 'models',
+    fallback: {
+      label: t('signin.fallback_key'),
+      reason: t('signin.why_models'),
+      onClick() {
+        const add = document.getElementById('s-ep-add-details');
+        if (!add) return;
+        add.open = true;
+        document.getElementById('s-ep-provider-filter')?.focus();
+      },
+    },
+    onDone: () => loadEpList(),
+  });
+}
+
 export const providersPane = createSettingsPane({
   init: _wireProvidersPane,
   load(isCurrent) {
     _providersCurrent = isCurrent;
     _providersActive = true;
+    _mountModelSignin();
     return Promise.all([loadEpList(), loadLocalModels()]);
   },
   dispose() {

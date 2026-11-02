@@ -1385,6 +1385,8 @@ button.effort-custom-row:focus-visible { color: var(--text); background: var(--b
   margin-top: 0.5rem;
   font-size: 0.8125rem; color: var(--muted); line-height: 1.5;
 }
+/* the one line under a key field that says why it's a key (oauth first) */
+.s-key-why { margin: var(--k-space-1, 4px) 0 0; }
 .agent-status-grid > div {
   border: 1px solid var(--faint);
   border-radius: var(--k-radius-control);
@@ -2115,7 +2117,7 @@ body.is-aide.is-incognito .incognito-bar {
   :where(#settings-modal) .jarvis-quiet-fields label:nth-child(3) { grid-column: 1 / -1; }
   :where(#settings-modal) .jarvis-quiet-fields .btn { justify-self: start; }
 }
-:where(#settings-modal) .s-provider-warning { margin: 0 0 0.75rem; }
+:where(#settings-modal) .s-provider-warning { margin: var(--k-space-3) 0 0; }
 :where(#settings-modal) .s-behavior-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 :where(#settings-modal) .s-behavior-options button {
   min-height: 72px;
@@ -4108,6 +4110,10 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 /* "sign in with google" + its one-time setup */
 .mail-oauth:empty { display: none; }
 .mail-oauth { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.2rem; }
+/* the server fields stay children of the form's column (same gaps) until the fallback folds them */
+.mail-manual { display: contents; }
+/* these set their own display, which beats the hidden attribute */
+.mail-oauth[hidden], .mail-manual[hidden], .mail-signin[hidden], .signin-fallback[hidden] { display: none; }
 .mail-google-btn { align-self: stretch; text-align: center; text-decoration: none; }
 .mail-or { font-size: 0.8125rem; color: var(--muted); text-align: center; }
 .mail-oauth-toggle { align-self: flex-start; }
@@ -5586,12 +5592,15 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #finance-view .finance-daily .num-dated { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: var(--k-space-2, 8px); min-width: 0; }
 #finance-view .finance-daily .num-when { color: var(--k-ink-muted, var(--muted)); }
 #finance-view .finance-daily .num-amount { color: var(--k-ink, var(--text)); }
-.finance-ledger-dialog { width: min(640px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 32px)); overflow: auto; }
-.finance-ledger-head { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3, 12px); margin-bottom: var(--k-space-3, 12px); }
-.finance-ledger-head h2 { margin: 0; font-size: 1rem; }
-.finance-ledger-head .btn { min-width: 44px; min-height: 44px; }
-.finance-ledger-body .finance-actual-panel { margin: 0; padding: 0; border: 0; background: none; }
-:is(#finance-view, .finance-ledger-dialog) .finance-actual-content { display: grid; gap: var(--k-space-3, 12px); }
+:is(#finance-view, #s-ledger) .finance-actual-content { display: grid; gap: var(--k-space-3, 12px); }
+:is(#finance-view, #s-ledger) .finance-actual-content[hidden] { display: none; }
+:is(#finance-view, #s-ledger) .finance-actual-authority { margin: 0; color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; }
+:is(#finance-view, #s-ledger) .finance-actual-toggle { justify-self: start; min-height: 44px; margin-inline-start: calc(-1 * var(--k-space-2, 8px)); padding: 0 var(--k-space-2, 8px); color: var(--k-ink, var(--text)); background: transparent; border: 0; border-radius: var(--k-radius-control, 3px); font: inherit; font-size: 0.8125rem; cursor: pointer; }
+:is(#finance-view, #s-ledger) .finance-actual-toggle:hover { background: var(--k-hover, var(--panel)); }
+:is(#finance-view, #s-ledger) .finance-actual-toggle:focus-visible { outline: 2px solid var(--k-focus); outline-offset: var(--k-focus-offset, -2px); }
+:is(#finance-view, #s-ledger) .finance-actual-toggle:disabled { color: var(--k-ink-muted, var(--muted)); cursor: wait; }
+/* in settings the card is the box: the panel adds no second inset */
+#s-ledger .finance-actual-panel { margin: 0; padding: 0; }
 
 .days-grid {
   display: grid;
@@ -8614,38 +8623,7 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   grid-template-columns: minmax(0, 1fr) 96px;
   gap: 0.5rem;
 }
-.mail-service-links,
-.mail-provider-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-/* provider shortcuts are text actions: bare at rest, tone on hover */
-.mail-service-link,
-.mail-provider-btn {
-  align-items: center;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--k-radius-control);
-  color: var(--soft, var(--muted));
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8125rem;
-  line-height: 1;
-  display: inline-flex;
-  min-height: var(--ui-control-height, 44px);
-  padding: 0 12px;
-  text-decoration: none;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-}
-/* labels start on the panel's text edge (padding + border pulled back) */
-.mail-accounts .mail-service-links { margin-inline-start: calc(-12px - 1px); }
 .mail-accounts .mail-empty { padding-inline: 0; }
-.mail-service-link:hover,
-.mail-provider-btn:hover {
-  color: var(--text);
-  background: var(--hover, var(--panel));
-}
 .mail-provider-note {
   border-left: 1px solid var(--faint);
   color: var(--muted);
@@ -8923,7 +8901,10 @@ html[data-font-size="lg"] { font-size: 118.75%; }
 .watch-card.editing .settings-input { width: 100%; }
 .watch-edit-row { display: flex; gap: 0.4rem; }
 .watch-edit-row .settings-input { flex: 1; min-width: 0; }
-.watch-add { border-left: 2px solid var(--line-strong); margin-bottom: 1rem; max-width: 420px; }
+.watch-add { margin-bottom: var(--k-space-4); max-width: 420px; }
+/* name, how often and the keyword fold under "more"; a pick that needs no address hides it */
+.watch-more > * + * { margin-top: var(--k-space-2); }
+.watch-card .settings-input[hidden] { display: none; }
 .watch-empty { padding: 1.2rem 0; font-size: 0.8125rem; color: var(--muted); max-width: 460px; }
 .watch-empty code { font-size: 0.8125rem; color: var(--muted); }
 
@@ -11707,3 +11688,32 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
   -webkit-mask: var(--glyph) center / contain no-repeat;
   mask: var(--glyph) center / contain no-repeat;
 }
+
+/* sign in placed on the connection screens (c.06): the component draws itself (signin.css); these
+   only give it room in each screen. scale steps only (0 4 8 12 16 24) */
+.conn-signin, .s-ep-signin, .mail-signin { margin-block-end: var(--k-space-4); }
+.mail-signin { margin-block-start: var(--k-space-3); }
+.conn-token-form { display: flex; flex-direction: column; gap: var(--k-space-2); margin-block-end: var(--k-space-3); }
+.conn-token-form[hidden] { display: none; }
+.photon-receipts { margin-block: var(--k-space-2); }
+
+/* the connection catalog (27.57): one row per thing alles can connect to, grouped */
+.conn-catalog { display: flex; flex-direction: column; gap: var(--k-space-4); }
+.conn-catalog-head { margin: 0 0 var(--k-space-1); font-size: 0.8125rem; font-weight: 520; color: var(--muted); }
+.conn-catalog-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--k-row-gap); }
+.conn-catalog-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--k-space-3); min-height: var(--k-row, 44px); }
+.conn-catalog-who { display: flex; flex-direction: column; min-width: 0; font-size: 0.875rem; line-height: 1.35; }
+.conn-catalog-who strong { font-weight: 520; color: var(--text); }
+.conn-catalog-who span { font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+.conn-catalog-row .btn { min-height: var(--k-control, 44px); display: inline-flex; align-items: center; text-decoration: none; }
+
+/* calendar sync: sign in first, the caldav form as the fallback */
+.cal-sync-panel { max-width: 520px; display: flex; flex-direction: column; gap: var(--k-space-3); }
+.cal-sync-head { display: flex; align-items: center; gap: var(--k-space-3); }
+.cal-sync-title { margin: 0; font-size: 1rem; font-weight: 560; color: var(--text); }
+.cal-sync-form { display: flex; flex-direction: column; gap: var(--k-space-1); }
+.cal-sync-form[hidden] { display: none; }
+.cal-sync-form .settings-input { width: 100%; min-height: var(--k-control, 44px); }
+.cal-sync-form .cal-flabel { margin: var(--k-space-2) 0 0; }
+.cal-sync-line { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: var(--muted); }
+.cal-sync-line[data-tone="warn"] { color: var(--warn); }

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
@@ -261,6 +261,24 @@ def companion_npm_connect(body: NpmConnectBody, request: Request):
         actor=observability.actor_kind(dict(request.scope.get("headers") or [])),
         target="nginx-proxy-manager",
         details={"identity": body.identity},
+    )
+    return result
+
+
+@router.post(
+    "/companions/nginx-proxy-manager/first-login",
+    dependencies=[Depends(require_recent_owner)],
+)
+def companion_npm_first_login(request: Request, response: Response):
+    # a secret: only after the owner's password, never cached, and every look is audited
+    result = managed_companion_clients.npm_first_login()
+    response.headers["Cache-Control"] = "no-store"
+    audit.record(
+        action="service.companion.npm.first_login",
+        outcome="success" if result["saved"] else "missing",
+        actor=observability.actor_kind(dict(request.scope.get("headers") or [])),
+        target="nginx-proxy-manager",
+        details={},
     )
     return result
 

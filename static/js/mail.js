@@ -3,7 +3,9 @@ import { openCaptureReview, showPendingCapture } from './capture.js';
 import { readRecordTarget, recordTarget } from './recordlinks.js';
 import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_history.js';
 import { confirm as dlgConfirm, prompt as dlgPrompt, fields as dlgFields } from './dialog.js';
-import { populateDropdown, getDropdownValue } from './dropdown.js?v=217';
+import { populateDropdown, getDropdownValue, initCustomDropdown, setDropdownValue } from './dropdown.js?v=217';
+import { mountSignin, signinReturn } from './signin.js';
+import { detectSetup } from './setup_detect.js';
 import { initDatePicker as _dpInit } from './datepick.js';
 import { formatDate, formatDateTime, formatTime, resolvedTimeZone, t, tp } from './i18n.js';
 import { categoryHue } from './color.js';
@@ -181,12 +183,6 @@ function providerForEmail(email) {
   return PRESETS.find(p => p.key !== 'domain' && p.re.test(email || '')) || null;
 }
 
-// one tap per provider: gmail goes straight to google once sign-in is set up, the rest open the form filled in
-function providerStartHtml() {
-  return PRESETS.filter(p => p.key !== 'domain').map(p =>
-    `<button type="button" class="mail-service-link" data-provider-start="${esc(p.key)}">${esc(_presetLabel(p))}</button>`
-  ).join('');
-}
 
 let _messageGeneration = 0;
 let _mailEditor = null, _mailReader = null, _mailLeave = null, _openingDraft = null;
@@ -3082,8 +3078,8 @@ async function accountsPanel(firstRun = false) {
   }
   main.innerHTML = `<div class="mail-accounts" role="region" aria-label="${esc(t('mail.accounts_label'))}">
     <div class="mail-form-head"><div><div class="mail-compose-head">${t('mail.accounts')}</div><div class="mail-form-sub">${firstRun ? t('mail.connect_mailbox') : t('mail.manage_mailboxes')}</div></div>
-      <div class="mail-form-actions"><button type="button" class="btn" id="mail-accounts-close">${t('common.close')}</button><button type="button" class="btn primary" id="mail-add-acct">${t('common.add')}</button></div></div>
-    <div class="mail-service-links">${providerStartHtml()}</div>${accountRecoveryHtml}<div id="mail-account-rows"></div></div>`;
+      <div class="mail-form-actions"><button type="button" class="btn" id="mail-accounts-close">${t('common.close')}</button><button type="button" class="btn" id="mail-add-acct">${t('common.add')}</button></div></div>
+    <div class="mail-signin" id="mail-signin"></div>${accountRecoveryHtml}<div id="mail-account-rows"></div></div>`;
   const root = main.querySelector('.mail-accounts');
   mountMailSettings(root, () => accountsPanel(firstRun));
   const live = () => current() && root.isConnected;
@@ -3107,19 +3103,18 @@ async function accountsPanel(firstRun = false) {
     if (focused && document.activeElement === document.body) root.querySelector('#mail-add-acct').focus();
   }
   root.querySelector('#mail-add-acct').addEventListener('click', () => { if (!_accountRecovery.pending && !_accountRecovery.error && !_accountRecovery.write) acctForm(null); });
-  root.querySelectorAll('[data-provider-start]').forEach(button => button.addEventListener('click', async () => {
-    if (_accountRecovery.pending || _accountRecovery.error || _accountRecovery.write) return;
-    const key = button.dataset.providerStart;
-    if (key === 'gmail' && !_oauthRecovery.pending && !_oauthRecovery.write) {
-      const status = await readOauthStatus().catch(() => null);
-      if (!live()) return;
-      if (status?.configured) {
-        if (await prepareMailNavigation()) window.location.assign('/api/mail/oauth/google/start');
-        return;
-      }
-    }
-    acctForm(null, key);
-  }));
+  // oauth first (owner, oct 29): gmail and outlook sign in by button; the rest use an app password
+  const signin = mountSignin(root.querySelector('#mail-signin'), {
+    use: 'mail',
+    fallback: {
+      label: t('signin.fallback_password'),
+      reason: t('signin.why_mail'),
+      onClick() { if (!_accountRecovery.pending && !_accountRecovery.error && !_accountRecovery.write) acctForm(null, '', true); },
+    },
+    onDone: () => { _reloadCurrent(); },
+  });
+  const resumeAttempt = signinReturn();
+  if (resumeAttempt) signin.resume(resumeAttempt);
   // opened from the cog's menu (gone now) or anything else that left focus nowhere: start on
   // the panel's main action
   if (!document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected) root.querySelector('#mail-add-acct')?.focus();
@@ -3132,30 +3127,31 @@ async function accountsPanel(firstRun = false) {
   paintRows(); paintRecovery();
 }
 
-function acctForm(acct, presetKey = '') {
+function acctForm(acct, presetKey = '', manual = false) {
   const main = $('mail-main');
   const a = acct || {};
   const generation = ++_messageGeneration;
   let existing = acct, testing = false;
   const state = _accountRecovery;
+  // oauth first (owner, oct 29): a new account opens on the address and the sign in buttons; the
+  // server fields are the app password fallback and stay folded until it's picked
+  const fresh = !acct, byHand = !fresh || Boolean(presetKey) || manual;
   main.innerHTML = `<div class="mail-accounts" role="region" aria-label="${esc(t('mail.accounts_label'))}">
     <div class="mail-form-head">
-      <div>
-        <div class="mail-compose-head">${acct ? t('mail.edit_account') : t('mail.add_account')}</div>
-        <div class="mail-form-sub">${t('mail.imap_smtp_hint')}</div>
-      </div>
+      <div class="mail-compose-head">${acct ? t('mail.edit_account') : t('mail.add_account')}</div>
       <div class="mail-form-actions">
         <button class="btn" id="ma-close">${t('common.close')}</button>
-        <button type="button" class="btn primary" id="ma-save">${t('common.save')}</button>
+        <button type="button" class="btn primary" id="ma-save"${byHand ? '' : ' hidden'}>${t('common.save')}</button>
       </div>
     </div>
+    <label class="mail-account-field"><span>${t('mail.email_address')}</span><input class="settings-input" id="ma-email" type="email" autocomplete="email" spellcheck="false" placeholder="${esc(t('mail.email_address'))}" value="${esc(a.email || '')}"></label>
+    ${fresh ? '<div class="mail-signin" id="ma-signin"></div>' : ''}
     <div class="mail-oauth" id="ma-oauth"></div>
-    <label class="mail-account-field"><span>${t('mail.email_address')}</span><input class="settings-input" id="ma-email" placeholder="${esc(t('mail.email_address'))}" value="${esc(a.email || '')}"></label>
+    ${fresh ? `<button type="button" class="signin-act signin-fallback" id="ma-fallback"${byHand ? ' hidden' : ''}><span>${esc(t('signin.fallback_password'))}</span><span class="signin-reason">${esc(t('signin.why_mail'))}</span></button>` : ''}
+    <div class="mail-manual" id="ma-manual"${byHand ? '' : ' hidden'}>
     <label class="mail-account-field"><span>${t('mail.label_optional')}</span><input class="settings-input" id="ma-name" placeholder="${esc(t('mail.label_optional'))}" value="${esc(a.name || '')}"></label>
-    <div class="mail-provider-row">
-      ${PRESETS.map(p => `<button class="mail-provider-btn" type="button" data-provider="${esc(p.key)}">${esc(_presetLabel(p))}</button>`).join('')}
-    </div>
-    <div class="mail-provider-note" id="ma-provider-note">${t('mail.pick_provider')}</div>
+    <div class="mail-account-field"><span id="ma-provider-label">${t('mail.provider')}</span><div class="settings-input custom-select" id="ma-provider" aria-labelledby="ma-provider-label" data-value=""></div></div>
+    <div class="mail-provider-note" id="ma-provider-note" role="status">${t('mail.pick_provider')}</div>
     <div class="mail-guide" id="ma-guide"></div>
     <div class="mail-form-grid">
       <label class="mail-account-field"><span>${t('mail.imap_host')}</span><input class="settings-input" id="ma-imaph" placeholder="${esc(t('mail.imap_host_ph'))}" value="${esc(a.imap_host || '')}"></label>
@@ -3169,6 +3165,7 @@ function acctForm(acct, presetKey = '') {
     <div class="mail-form-sub">${t('mail.tls_hint')}</div>
     <button type="button" class="btn" id="ma-test">${t('mail.test_imap')}</button>
     <div id="ma-status" class="mail-status" role="status" aria-live="polite" tabindex="-1"></div>
+    </div>
     ${accountRecoveryHtml}
   </div>`;
 
@@ -3214,13 +3211,69 @@ function acctForm(acct, presetKey = '') {
     }
     noteAccountChanges();
   };
-  root.querySelectorAll('.mail-provider-btn').forEach(btn => {
-    btn.addEventListener('click', () => applyProvider(PRESETS.find(p => p.key === btn.dataset.provider)));
+  // the provider is a pick from a list (ux laws: a dropdown, never a wall of buttons), and the
+  // address picks it for you: known providers from the table, any other domain from its published
+  // settings (services/setup_detect.py)
+  const picker = el('ma-provider');
+  populateDropdown(picker, [{ value: '', label: t('mail.provider_from_address') }, ...PRESETS.map(p => ({ value: p.key, label: _presetLabel(p) }))], '');
+  initCustomDropdown(picker);
+  // a new account: the sign in buttons for the address's provider (both until it's typed); an
+  // address with no sign in (icloud, yahoo, fastmail, your own domain) opens the server fields.
+  // google's client setup sits under its button, folded, only while google is a candidate
+  let signin = null, signinFor, signinHint = '';
+  const openManual = (focus = false) => {
+    el('ma-manual').hidden = false; el('ma-save').hidden = false;
+    if (el('ma-fallback')) el('ma-fallback').hidden = true;
+    if (focus) el('ma-manual').querySelector('input, [tabindex="0"]')?.focus();
+  };
+  const syncOauth = () => {
+    el('ma-oauth').hidden = fresh ? !(signinFor === null || signinFor === 'google') : !['', 'gmail'].includes(getDropdownValue(picker));
+  };
+  // provider: null for every mail sign in, '' for none, or one provider id
+  const route = provider => {
+    if (!fresh) return;
+    const host = el('ma-signin'), hint = el('ma-email').value.trim();
+    host.hidden = provider === '';
+    if (provider === '') { signin?.destroy(); signin = null; signinFor = ''; openManual(); syncOauth(); return; }
+    if (!signin || signinFor !== provider || signinHint !== hint) {
+      signin?.destroy();
+      signinFor = provider; signinHint = hint;
+      signin = mountSignin(host, { use: 'mail', provider: provider || '', loginHint: hint, onDone: () => { if (current()) accountsPanel(); } });
+    }
+    syncOauth();
+  };
+  const signinOf = key => ({ gmail: 'google', outlook: 'microsoft' })[key] ?? '';
+  picker.addEventListener('change', () => { syncOauth(); applyProvider(PRESETS.find(p => p.key === getDropdownValue(picker))); });
+  let hostsTyped = Boolean(a.imap_host || a.smtp_host);
+  for (const id of ['ma-imaph', 'ma-smtph']) el(id).addEventListener('input', () => { hostsTyped = true; });
+  el('ma-fallback')?.addEventListener('click', () => openManual(true));
+  el('ma-email').addEventListener('change', async () => {
+    const email = el('ma-email').value.trim();
+    const known = providerForEmail(email);
+    if (known) { setDropdownValue(picker, known.key); if (!hostsTyped) applyProvider(known); route(signinOf(known.key)); syncOauth(); return; }
+    if (!domainFromEmail(email)) { route(null); return; }
+    if (hostsTyped) return;
+    el('ma-provider-note').textContent = t('mail.detecting', { domain: domainFromEmail(email) });
+    const found = await detectSetup(email);
+    if (!current() || hostsTyped || el('ma-email').value.trim() !== email) return;
+    route(found?.signin || '');
+    setDropdownValue(picker, 'domain');
+    applyProvider(PRESETS.find(p => p.key === 'domain'));
+    if (found?.mail) {
+      el('ma-imaph').value = found.mail.imap_host; el('ma-imapp').value = found.mail.imap_port;
+      el('ma-smtph').value = found.mail.smtp_host; el('ma-smtpp').value = found.mail.smtp_port;
+      el('ma-provider-note').textContent = found.mail.source === 'guess'
+        ? t('mail.detect_guess', { domain: found.domain })
+        : t('mail.detected', { domain: found.domain });
+    }
+    noteAccountChanges();
   });
-  el('ma-email').addEventListener('blur', () => {
-    const p = providerForEmail(el('ma-email').value.trim());
-    if (p && !el('ma-imaph').value && !el('ma-smtph').value) applyProvider(p);
-  });
+  if (a.email && !presetKey) {
+    const known = providerForEmail(a.email);
+    setDropdownValue(picker, known ? known.key : (a.imap_host ? 'domain' : ''));
+  }
+  if (fresh) route(manual ? '' : null);
+  syncOauth();
 
   const collect = () => ({
     email: el('ma-email').value.trim(),
@@ -3290,8 +3343,8 @@ function acctForm(acct, presetKey = '') {
   root.querySelectorAll('input').forEach(input => input.addEventListener('input', noteAccountChanges));
   // a provider picked from the accounts list is the form's starting point, not an unsaved edit
   if (presetKey) {
-    // google sign-in only belongs to gmail
-    if (presetKey !== 'gmail') el('ma-oauth').style.display = 'none';
+    setDropdownValue(picker, presetKey);
+    syncOauth();
     applyProvider(PRESETS.find(p => p.key === presetKey));
     editor.initial = editor.snapshot();
     el('ma-status').textContent = '';
@@ -3407,13 +3460,16 @@ async function renderOauthBox(acct, editor) {
   // the loading box has the final layout (an unconfigured guess, or what was seen last), so nothing below it jumps.
   // the hidden span holds the status line's space, since it can wrap to two lines. ids are dropped
   // while loading so an #ma-* control only exists once it is live
+  // a new account: the sign in button above does the signing in, so this is only google's client
+  // setup, folded behind one action
+  const fresh = !acct;
   const shell = (saved, busy = false) => {
     const base = saved.redirect_base || (!saved.configured && location.protocol === 'https:' ? location.origin : '');
     return `
-      <p id="ma-oauth-saved"${busy ? ' role="status" class="mail-oauth-pending"' : ''}>${busy ? `<span>${t('mail.loading_google')}</span><span aria-hidden="true">${t(saved.configured ? 'mail.google_keys_saved' : 'mail.google_not_configured')}</span>` : ''}</p>
-      <a class="btn primary mail-google-btn" id="ma-google-start" href="/api/mail/oauth/google/start"${saved.configured ? '' : ' hidden'}>${acct?.auth_type === 'oauth' ? t('mail.google_reconnect') : t('mail.google_signin')}</a>
-      <button type="button" class="btn mail-oauth-toggle" id="ma-oauth-toggle" aria-expanded="${!saved.configured}" aria-controls="ma-oauth-steps">${saved.configured ? t('mail.google_edit') : t('mail.google_setup')}</button>
-      <div class="mail-oauth-steps" id="ma-oauth-steps"${saved.configured ? ' hidden' : ''}>
+      <p id="ma-oauth-saved"${fresh ? ' hidden' : busy ? ' role="status" class="mail-oauth-pending"' : ''}>${busy && !fresh ? `<span>${t('mail.loading_google')}</span><span aria-hidden="true">${t(saved.configured ? 'mail.google_keys_saved' : 'mail.google_not_configured')}</span>` : ''}</p>
+      <a class="btn primary mail-google-btn" id="ma-google-start" href="/api/mail/oauth/google/start"${saved.configured && !fresh ? '' : ' hidden'}>${acct?.auth_type === 'oauth' ? t('mail.google_reconnect') : t('mail.google_signin')}</a>
+      <button type="button" class="btn mail-oauth-toggle" id="ma-oauth-toggle" aria-expanded="${!saved.configured && !fresh}" aria-controls="ma-oauth-steps">${saved.configured ? t('mail.google_edit') : t('mail.google_setup')}</button>
+      <div class="mail-oauth-steps" id="ma-oauth-steps"${saved.configured || fresh ? ' hidden' : ''}>
         <p>${t('mail.google_intro')}</p>
         <p class="mail-oauth-warn" id="ma-oauth-https"${originOk || saved.configured ? ' hidden' : ''}>${t('mail.google_needs_https')}</p>
         <ol class="mail-oauth-list">
@@ -3431,7 +3487,7 @@ async function renderOauthBox(acct, editor) {
         <p class="mail-oauth-note">${t('mail.google_unverified')}</p>
       </div>
       <div class="mail-saved-status"><p id="ma-oauth-status" role="status" aria-live="polite" tabindex="-1"></p><div class="mail-rule-actions" id="ma-oauth-actions"></div></div>
-      <div class="mail-or">${t('mail.or_by_hand')}</div>`;
+      ${fresh ? '' : `<div class="mail-or">${t('mail.or_by_hand')}</div>`}`;
   };
   box.inert = true; box.setAttribute('aria-busy', 'true');
   box.innerHTML = shell({ configured: _oauthSeenConfigured, client_id: '', client_secret_configured: false, redirect_base: '' }, true).replace(/ id="[^"]*"/g, '');
@@ -3479,9 +3535,9 @@ async function renderOauthBox(acct, editor) {
     if (!current()) return;
     const blocked = Boolean(state.write || state.pending || state.error);
     el('ma-oauth-save').setAttribute('aria-disabled', String(blocked));
-    el('ma-google-start').hidden = !saved.configured;
+    el('ma-google-start').hidden = !saved.configured || fresh;
     el('ma-google-start').setAttribute('aria-disabled', String(blocked));
-    el('ma-oauth-saved').textContent = saved.configured ? t('mail.google_keys_saved') : t('mail.google_not_configured');
+    el('ma-oauth-saved').textContent = fresh ? '' : saved.configured ? t('mail.google_keys_saved') : t('mail.google_not_configured');
     el('ma-oauth-toggle').textContent = saved.configured ? t('mail.google_edit') : t('mail.google_setup');
     const status = el('ma-oauth-status'), actions = el('ma-oauth-actions'), focused = actions.contains(document.activeElement);
     status.textContent = state.error || state.notice || (state.pending ? t('mail.google_last_unconfirmed') : dirty() ? t('mail.google_unsaved') : '');

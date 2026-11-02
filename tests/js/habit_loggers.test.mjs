@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { HABIT_CATALOG, HABIT_GROUPS, catalogOptions } from '../../static/js/habit_catalog.js';
-import { durationText, hasLogger, logSummary, matchExercises } from '../../static/js/habit_loggers.js';
+import { durationText, entryText, hasLogger, logSummary, matchExercises, nightText, scaleWords } from '../../static/js/habit_loggers.js';
 
 const LANGUAGES = ['en', 'fr', 'es', 'zh-Hans', 'zh-Hant', 'ja', 'ko', 'ar'];
 
@@ -80,4 +80,31 @@ test('exercise suggestions put names that start with the typed text first', () =
   assert.deepEqual(matchExercises(names, 'press'), ['bench press', 'leg press']);
   assert.deepEqual(matchExercises(names, 'squat'), [], 'an exact match has nothing left to suggest');
   assert.equal(matchExercises(Array.from({ length: 20 }, (_, at) => `move ${at}`), 'move').length, 8);
+});
+
+test('a rating names every value and its two ends; a 1 to 4 row skips a word', () => {
+  assert.deepEqual(scaleWords('quality', 5), ['awful', 'poor', 'okay', 'good', 'great']);
+  assert.deepEqual(scaleWords('rating', 4), ['awful', 'poor', 'good', 'great']);
+  assert.equal(scaleWords('effort', 10)[6], 'hard');
+  assert.equal(scaleWords('craving', 5)[0], 'none');
+});
+
+test('a bedtime from noon on is the night before; a morning one is not', () => {
+  assert.equal(nightText('23:30', '2026-11-01'), 'oct 31, the night before');
+  assert.equal(nightText('00:40', '2026-11-01'), '');
+  assert.equal(nightText('?', '2026-11-01'), '');
+});
+
+test('a sleep entry reads its times on the clock and counts the time in bed', () => {
+  const fields = [{ key: 'bedtime', type: 'clock' }, { key: 'wake', type: 'clock' }, { key: 'latency', type: 'minutes' }, { key: 'caffeine_mg', type: 'number' }];
+  const text = entryText({ values: { bedtime: '23:15', wake: '07:05', latency: 15, caffeine_mg: 95 } }, fields, 'sleep');
+  assert.match(text, /in bed 7 h 50 min/);
+  assert.match(text, /time to fall asleep 15 min/);
+  assert.match(text, /caffeine 95 mg/);
+  assert.doesNotMatch(text, /07:05/);
+});
+
+test('rows read back as their own fields, sides as the short letter', () => {
+  const holds = { key: 'holds', type: 'rows', columns: [{ key: 'name', type: 'text' }, { key: 'seconds', type: 'seconds' }] };
+  assert.equal(entryText({ values: { holds: [{ name: 'pigeon', seconds: 60, side: 'L' }] } }, [holds]), 'holds L name pigeon · hold 60 s');
 });

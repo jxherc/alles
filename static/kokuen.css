@@ -1697,7 +1697,7 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   text-align: right;
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-panel {
+:where(#finance-view, #s-ledger) .finance-actual-panel {
   display: grid;
   gap: var(--k-space-3, 12px);
   margin: 0 0 var(--k-space-4, 16px);
@@ -1706,42 +1706,42 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   background: transparent;
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-head {
+:where(#finance-view, #s-ledger) .finance-actual-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--k-space-3, 12px);
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-head h2,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm h3 {
+:where(#finance-view, #s-ledger) .finance-actual-head h2,
+:where(#finance-view, #s-ledger) .finance-actual-confirm h3 {
   margin: 0;
   color: var(--k-ink, var(--text));
   font-size: 0.8125rem;
   font-weight: 650;
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-head strong {
+:where(#finance-view, #s-ledger) .finance-actual-head strong {
   color: var(--k-ink-muted, var(--muted));
   font-size: 0.8125rem;
   font-weight: 600;
   text-align: right;
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-canonical .finance-actual-head strong,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-ready .finance-actual-head strong {
+:where(#finance-view, #s-ledger) .finance-actual-canonical .finance-actual-head strong,
+:where(#finance-view, #s-ledger) .finance-actual-ready .finance-actual-head strong {
   color: color-mix(in srgb, var(--k-ink, var(--text)) 78%, var(--k-success, var(--green)) 22%);
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-failed .finance-actual-head strong,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-unhealthy .finance-actual-head strong,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-error {
+:where(#finance-view, #s-ledger) .finance-actual-failed .finance-actual-head strong,
+:where(#finance-view, #s-ledger) .finance-actual-unhealthy .finance-actual-head strong,
+:where(#finance-view, #s-ledger) .finance-actual-error {
   color: color-mix(in srgb, var(--k-ink, var(--text)) 76%, var(--k-danger, var(--error)) 24%) !important;
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-detail,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-message,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm p {
+:where(#finance-view, #s-ledger) .finance-actual-detail,
+:where(#finance-view, #s-ledger) .finance-actual-message,
+:where(#finance-view, #s-ledger) .finance-actual-confirm p {
   max-width: 62rem;
   margin: 0;
   color: var(--k-ink-muted, var(--muted));
@@ -1749,7 +1749,7 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   line-height: 1.5;
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-facts {
+:where(#finance-view, #s-ledger) .finance-actual-facts {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: var(--k-space-2, 8px) var(--k-space-3, 12px);
@@ -1757,18 +1757,18 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   font-size: 0.8125rem;
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-facts dt { color: var(--k-ink-muted, var(--muted)); }
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-facts dd { min-width: 0; margin: 0; color: var(--k-ink, var(--text)); overflow-wrap: anywhere; }
+:where(#finance-view, #s-ledger) .finance-actual-facts dt { color: var(--k-ink-muted, var(--muted)); }
+:where(#finance-view, #s-ledger) .finance-actual-facts dd { min-width: 0; margin: 0; color: var(--k-ink, var(--text)); overflow-wrap: anywhere; }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-actions,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm-actions {
+:where(#finance-view, #s-ledger) .finance-actual-actions,
+:where(#finance-view, #s-ledger) .finance-actual-confirm-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--k-space-2, 8px);
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-actions button,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm-actions button {
+:where(#finance-view, #s-ledger) .finance-actual-actions button,
+:where(#finance-view, #s-ledger) .finance-actual-confirm-actions button {
   min-height: 44px;
   scroll-margin-block: var(--k-space-2, 8px);
   padding: 8px 12px;
@@ -1781,34 +1781,34 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   cursor: pointer;
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-actions button:hover,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm-actions button:hover {
+:where(#finance-view, #s-ledger) .finance-actual-actions button:hover,
+:where(#finance-view, #s-ledger) .finance-actual-confirm-actions button:hover {
   color: var(--k-ink, var(--text));
   background: var(--k-hover, var(--panel));
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-actions button:focus-visible,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm-actions button:focus-visible,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm:focus-visible {
+:where(#finance-view, #s-ledger) .finance-actual-actions button:focus-visible,
+:where(#finance-view, #s-ledger) .finance-actual-confirm-actions button:focus-visible,
+:where(#finance-view, #s-ledger) .finance-actual-confirm:focus-visible {
   outline: 2px solid var(--k-focus);
   outline-offset: var(--k-focus-offset, -2px);
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-actions button:disabled,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm-actions button:disabled {
+:where(#finance-view, #s-ledger) .finance-actual-actions button:disabled,
+:where(#finance-view, #s-ledger) .finance-actual-confirm-actions button:disabled {
   cursor: wait;
   color: var(--k-ink-muted, var(--muted));
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-actions .finance-actual-primary,
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm-actions .finance-actual-confirm-primary {
+:where(#finance-view, #s-ledger) .finance-actual-actions .finance-actual-primary,
+:where(#finance-view, #s-ledger) .finance-actual-confirm-actions .finance-actual-confirm-primary {
   border-color: var(--k-line-strong, var(--faint));
   color: var(--k-ink, var(--text));
   background: transparent;
   font-weight: 560;
 }
 
-:where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm {
+:where(#finance-view, #s-ledger) .finance-actual-confirm {
   display: grid;
   gap: var(--k-space-3, 12px);
   padding: var(--k-space-3, 12px);
@@ -2147,17 +2147,17 @@ html:not(#_) :is(.plan-subviews, .plan-subviews > .k-pill-switch)[hidden] { disp
   :where(#finance-view) .finance-import-row > .finance-import-repair-hint { grid-column: 1 / -1; }
   :where(#finance-view) .finance-import-conversion { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); }
   :where(#finance-view) .finance-import-match-resolution { grid-column: 1 / -1; }
-  :where(#finance-view, .finance-ledger-dialog) .finance-actual-head { align-items: flex-start; flex-direction: column; }
-  :where(#finance-view, .finance-ledger-dialog) .finance-actual-head strong { text-align: left; }
+  :where(#finance-view, #s-ledger) .finance-actual-head { align-items: flex-start; flex-direction: column; }
+  :where(#finance-view, #s-ledger) .finance-actual-head strong { text-align: left; }
 }
 
 @media (max-width: 440px) {
   .specialist-group-capture { grid-template-columns: minmax(0, 1fr); }
   .specialist-group-capture button { width: 100%; }
-  :where(#finance-view, .finance-ledger-dialog) .finance-actual-facts { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-1, 4px); }
-  :where(#finance-view, .finance-ledger-dialog) .finance-actual-facts dd { margin-bottom: var(--k-space-2, 8px); }
-  :where(#finance-view, .finance-ledger-dialog) .finance-actual-actions button,
-  :where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm-actions button { width: 100%; }
+  :where(#finance-view, #s-ledger) .finance-actual-facts { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-1, 4px); }
+  :where(#finance-view, #s-ledger) .finance-actual-facts dd { margin-bottom: var(--k-space-2, 8px); }
+  :where(#finance-view, #s-ledger) .finance-actual-actions button,
+  :where(#finance-view, #s-ledger) .finance-actual-confirm-actions button { width: 100%; }
 }
 
 /* When the approved Phase 7 Files browser is mounted inside the Phase 12 Files

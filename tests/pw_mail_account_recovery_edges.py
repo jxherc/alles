@@ -115,6 +115,8 @@ with sync_playwright() as pw:
                 page.get_by_role("button", name="accounts", exact=True).click()
                 if case.startswith("oauth-"):
                     page.locator("#mail-add-acct").click()
+                    # a new account folds google's client setup behind one action
+                    page.locator("#ma-oauth-toggle").click()
                     page.locator("#ma-cid").fill("owned-client")
                     page.locator("#ma-csec").fill("dummy")
                     page.locator("#ma-rbase").fill("https://example.invalid")
@@ -150,6 +152,7 @@ with sync_playwright() as pw:
                     continue
                 if case in {"cancel-must-remove", "cancel-unsent-close"}:
                     page.locator("#mail-add-acct").click()
+                    page.locator("#ma-fallback").click()
                     for key, value in [
                         ("email", "pending@example.invalid"),
                         ("imaph", "127.0.0.1"),
@@ -186,7 +189,8 @@ with sync_playwright() as pw:
                         expect(recovery).to_have_text("account recovery cleared")
                     else:
                         expect(status).to_have_text("account saved; incoming mail connected")
-                    page.locator('[data-provider="gmail"]').click()
+                    page.locator("#ma-provider").click()
+                    page.get_by_role("option", name="Gmail", exact=True).click()
                     expect(page.locator("#ma-imaph")).to_have_value("imap.gmail.com")
                     expect(status).to_have_text("account changes are unsaved")
                     expect(recovery).to_be_empty()

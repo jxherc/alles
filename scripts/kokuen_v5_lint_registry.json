@@ -73,19 +73,19 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in :where(#finance-view, .finance-ledger-dialog) .finance-actual-actions button, :where(#finance-view, .finance-ledger-dial; check for nested bezels",
-    "css_block_sha256": "3b34e3bd7dc9274a99b85678c1df8c765c7f99c3c5d85b9ae762e8bd6ae9b965",
+    "message": "descendant draws a boundary in :where(#finance-view, #s-ledger) .finance-actual-actions button, :where(#finance-view, #s-ledger) .finance-actual-confir; check for nested bezels",
+    "css_block_sha256": "f852fe5fc83e874503d8a9d994a2e18770fe330682315c05ad4126775f074239",
     "path": "static/kokuen.css",
-    "selector": ":where(#finance-view, .finance-ledger-dialog) .finance-actual-actions button, :where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm-actions button",
+    "selector": ":where(#finance-view, #s-ledger) .finance-actual-actions button, :where(#finance-view, #s-ledger) .finance-actual-confirm-actions button",
     "job": "control-bezel",
     "reason": "Finance connection/review action perimeter. Distinct confirmation/cancel action perimeter."
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in :where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm; check for nested bezels",
-    "css_block_sha256": "15f439875c9d43dca2eb7524cad5b898031e5b2ef882f7843e98233cb0bd9f4a",
+    "message": "descendant draws a boundary in :where(#finance-view, #s-ledger) .finance-actual-confirm; check for nested bezels",
+    "css_block_sha256": "f353b9f1ee86ecdab3d2753148eae32232c5621fb8dd082e53f10950e10a91b5",
     "path": "static/kokuen.css",
-    "selector": ":where(#finance-view, .finance-ledger-dialog) .finance-actual-confirm",
+    "selector": ":where(#finance-view, #s-ledger) .finance-actual-confirm",
     "job": "authority-state-region",
     "reason": "ledger authority-change warning region, effective permission rail. open authority-switch confirmation, no final action"
   },

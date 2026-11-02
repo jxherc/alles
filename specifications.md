@@ -309,12 +309,23 @@ the gym logger shows every session of a day (two entries, say back then arms): e
 its muscle groups, its note sits under it word for word, and a set saves into its own session's
 entry. every catalog habit is its own kind ([static/js/habit_catalog.js](static/js/habit_catalog.js)):
 its opened page logs the day with that kind's fields from `GET /api/habits/kinds` (the ones on
-by default or switched on), each in one kit control: a number is the stepper, a rating the number
-row, 2 or 3 options or yes and no a pill switch, 4 or more the dropdown, a time or date the date
-field, words a field; a measure's unit switch sits beside its name. "single" kinds keep one entry
-a day, the rest add one per session; the form starts from the last entry, so the same as last
-time is one tap on log. rows and files fields aren't on that form yet. the row's own tap still
-just marks the day done. "last time" and the next step hint come from days before the open day, and records
+by default, switched on, or already holding a value that day), each in one kit control: a number
+is the stepper with its unit inside ("15 min", "30 g", "152 bpm"; `static/js/units.js`), a rating
+or a 1 to 10 number (effort, severity) the number row with its end words and a readout naming the
+pick ("4, good"), 2 or 3 options or yes and no a pill switch, 4 or more the dropdown, a time of
+day the time field (`datepick.js` type `time`: "11:15 pm" in the owner's 12 or 24 hour clock; a
+bedtime from noon on says it was the night before, and the entry counts the time in bed), a date
+the date field, rows (laps, climbs, naps, holds) a card per row with its own fields and a side
+where the field has sides, files an upload into the files app under `habits/<habit>`, words a
+field; a measure's unit switch sits beside its name and renames the unit in its stepper. every
+field, option, rating word and unit name is in all 8 languages
+(`tests/test_habit_logger_strings.py`). "single" kinds keep one entry a day, the rest add one per
+session; the form starts from the last entry, so the same as last time is one tap on log. the old
+reading, count, duration and distance dialog is gone: those kinds log on the same form, and a
+habit row's today button opens any habit that logs details on today's log, the same way for
+every kind (a plain check is still marked done in place). the gym logger sets the open
+exercise's setup (load basis as a dropdown, then equipment, machine, grip, stance, angle, seat,
+pin; enter saves) and each session's muscle groups with the dropdown's pick several. "last time" and the next step hint come from days before the open day, and records
 (heaviest and the rest) only from days up to it, so a past day never counts a later session.
 
 **units and body profile.** [services/units.py](services/units.py) holds every conversion table
@@ -356,6 +367,7 @@ what it supports:
 - **other harnesses**: pi is the default (`coding_harness`). oh-my-pi (omp, a pi fork with 60+ built-in providers and an ask-before-commands mode, `coding_approval`) runs through the same driver. under more harnesses, alles lists the public [ACP registry](https://agentclientprotocol.com/registry) plus popular ones it doesn't carry (DeepSeek Harness, Kimi Code, MiniMax Code, Codewhale, Kode, Neovate, Nanocoder, Strands, OpenHands, QwenPaw, Open Interpreter, gptme, Hermes), each marked open or closed source; installing one puts its pinned package or checksum-verified binary in `~/.cache/alles/harness`, and its chats connect over ACP with the harness's own sign-in, models and permission prompts. alles keeps a plain log of those chats to show them again.
 - **text Aide from your phone**: settings → connections & tools → text Aide over iMessage connects Aide to [photon](https://photon.codes)'s shared imessage line through the open-source `spectrum-ts` sdk (12.11.0, installed on first use into `~/.cache/alles/photon-12.11.0` with install scripts off). a small node helper keeps the line open. only texts from the owner's own numbers or emails are answered; others are counted and ignored. a text becomes background work in the one main conversation, and the result comes back as a text. questions with choices can be answered by replying with a number or the option. approvals never happen over text, because photon's servers relay every message: Aide says the action is waiting in alles instead. the project secret is sealed with the other credentials and never returned. photon's shared line only lets a text through when its sender is a registered user of the project, so whenever imessage is on alles registers each owner phone number with photon (skipping ones it already knows, using the project id and secret) and shows the line that number should text. "connect with Photon" skips copying keys: a device login, approved once in the browser, lets alles find or create its `alles` project, mint the project secret, save it, and register the owner's numbers; the dashboard token is sealed with the other credentials. this follows hermes-agent's photon setup. presence follows hermes-agent's photon plugin (spectrum-ts `typing("start" | "stop")` and `message.read()`): once a text from the owner reaches alles it is marked read (a stranger on the shared line gets no receipt; `photon_read_receipts`, on by default, turns it off, and `PUT /api/aide/channels/photon` takes `read_receipts`), the typing bubble starts at once, and while Aide works it is sent again every 4 seconds from the 2 second run watch (`Presence` in [services/channel_runs.py](services/channel_runs.py); imessage's bubble lapses after about 5 seconds, and the node helper holds no timer of its own). it stops with the answer or an error and stays off while a question waits for the owner.
 - **one sign in component**: [static/js/signin.js](static/js/signin.js) (`mountSignin(host, {use, provider, fallback})`) draws every connection's sign in from the `/api/signin` contract, so no screen builds its own: the "sign in with <provider>" button first; a device step with the code large (copy, open the provider's page, a live wait with the time left, cancel); a redirect step that opens the provider in a new tab and waits; a paste step for providers that show a code; the signed in accounts with check and sign out (and "sign in again" for one that needs it); and the quiet fallback ("use an app password instead") with its one line reason. a provider that isn't set up shows the button disabled with the server's reason. every state is on `/static/signin-test.html` against a fake server ([static/js/signin_fake.js](static/js/signin_fake.js)); both are served only when `ALLES_TEST_DATA=1`. [static/js/connection_catalog.js](static/js/connection_catalog.js) lists every connection and how it signs in, with the reason line for each one that isn't a sign in.
+- **mail's add account, oauth first**: a new account opens on the email address and the sign in buttons (google and microsoft until the address names one). an address with no sign in (icloud, yahoo, fastmail, your own domain) opens the server fields with the servers found from the address (`POST /api/setup/detect`); google's own client setup sits folded behind "set up sign in with Google" while google is a candidate. "use an app password instead" is the quiet fallback with its reason. each search provider's key field says why it's a key (none of tavily, brave, serper, exa or google pse offers a sign in to other apps; google pse is closed to new users and ends jan 1, 2027).
 - **text Aide on telegram**: settings → connections & tools → text Aide on Telegram uses the owner's own bot (made once with @BotFather) and the same token and chat id as telegram notifications ([services/telegram_channel.py](services/telegram_channel.py)). alles long-polls the bot, so no public address is needed. turning it on with a new token finds the owner's private chat from the newest message to the bot. only that chat is answered; other chats and groups are counted and ignored, and messages older than 15 minutes (sent while alles was down) get no late answer. it shares [services/channel_runs.py](services/channel_runs.py) with imessage: a text becomes background work in the main conversation, choices can be answered by number, approvals stay inside alles, and the answer comes back split under telegram's 4096-character limit. while Aide works, "typing..." is sent again every 4 seconds (telegram's lasts 5) through the same presence step, and pauses while a question waits. telegram bots can't send read receipts, so there is none. discord's typing, sent again every 8 seconds (its lasts 10), has no read receipt either.
 - **web errands**: Aide's browser (playwright chromium, headless) keeps one profile under `<data>/browser/profile`, so sign-ins carry over. pages come back as text plus numbered elements, and `browse_click`, `browse_type`, `browse_select`, `browse_scroll` and `browse_back` act on those numbers. private, local and tailnet addresses are refused, including alles itself. checkout and payment requests are blocked in the browser, so Aide stops before paying. password and card fields are never filled by Aide. clicks and submits that look like sending, booking, buying or confirming ask the owner first, even in full auto. the owner signs in to sites from settings → connections & tools → sign in to a site (or Aide's ⋯ menu): alles opens the page in that same browser and streams screenshots, and the owner's clicks and keys go straight to the page. what they type is never logged, kept or shown to Aide, and a snapshot never reads a password or card field's value. Aide's browse tools wait while the view is open (it closes on done, on leaving the pane, or after two idle minutes, and leaves a blank page). the private-address and payment blocks still apply. sites that kept cookies are listed under `<data>/browser/signins.json` with a sign-out (clears that site's cookies and stored data) and a forget-everything button that deletes the whole profile. opening a site, signing out and forgetting need a recent owner sign-in; api tokens can't reach any of it.
 - **app actions from plain chat**: just ask ("what's on my calendar", "any new emails", "remind me to call the dentist", "add lunch friday 1pm"). reads can run directly; changes and sends follow the configured permission rules
@@ -1901,9 +1913,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 89 included fastapi router modules
-- 1022 http method/path pairs
-- 995 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
-- sha-256: `7fa91cad1c8a008e433647c94254fd797814ef0eedb554e3baec31d86012b5f6`
+- 1024 http method/path pairs
+- 997 `/api/*`, 2 `/v1/*`, and 25 non-api shell/public pairs
+- sha-256: `3e3f0530018a79292afd603ba097c3f99c7f41650314daff0653e0e43df39b36`
 
 <details>
 <summary>app.py · 11 operations</summary>
@@ -3435,13 +3447,14 @@ retrieve full article text from each entry's publisher.
 </details>
 
 <details>
-<summary>routes/setup.py · 7 operations</summary>
+<summary>routes/setup.py · 8 operations</summary>
 
 [source](routes/setup.py)
 
 | method | path | handler |
 | --- | --- | --- |
 | `POST` | `/api/setup/complete` | `complete` |
+| `POST` | `/api/setup/detect` | `detect` |
 | `POST` | `/api/setup/dismiss` | `dismiss` |
 | `GET` | `/api/setup/obsidian` | `obsidian_status` |
 | `POST` | `/api/setup/obsidian` | `install_obsidian` |
@@ -3588,6 +3601,7 @@ retrieve full article text from each entry's publisher.
 | `POST` | `/api/system/companions/nginx-proxy-manager/connect` | `companion_npm_connect` |
 | `GET` | `/api/system/companions/nginx-proxy-manager/dashboard` | `companion_npm_dashboard` |
 | `POST` | `/api/system/companions/nginx-proxy-manager/disconnect` | `companion_npm_disconnect` |
+| `POST` | `/api/system/companions/nginx-proxy-manager/first-login` | `companion_npm_first_login` |
 | `POST` | `/api/system/companions/nginx-proxy-manager/proxy-hosts` | `companion_npm_proxy_host` |
 | `POST` | `/api/system/companions/{service_id}/activate` | `companion_activate` |
 | `POST` | `/api/system/companions/{service_id}/preflight` | `companion_preflight` |
@@ -4247,6 +4261,8 @@ registered intervals come from `app.py`. the current loop sleeps 30 seconds betw
 ## settings inventory
 
 the settings window groups its panes by what the owner is doing (decision 0057): you · how aide answers (models, personas, voice, chat display) · what aide knows (memory, web search, personal records, andromeda) · what aide does on its own (background checks, automations, patterns) · accounts and connections · safety and this alles (password, backups, a "server" entry that closes settings and opens the server app, about). general › setup › settings layout switches to "by how often", "by what it changes" or the classic grouping; the pick is kept per device (`localStorage` `alles-settings-organization`). `scripts/settings_homes.py` proves every pane, the server entry and every first run setup step has exactly one home in every layout and prints the inventory with `--table`. region, timezone and currency in language & region are the kit dropdown (type letters to jump). in the server app, a managed companion (adguard home, nginx proxy manager) starts from one "set up" button: it runs the port checks, then starts the companion and waits up to 120s for its admin api; nginx proxy manager's first admin login is made by alles and kept encrypted (`nginx-proxy-manager.admin.json`), and an expired token signs in again with it. a failed start names docker's last error line.
+
+a card can be linked to by its id wherever its pane sits: `openSettingsAt(id)` in [static/js/settings.js](static/js/settings.js) opens the pane that holds it and scrolls it into view, and `/?view=settings#<id>` does the same from a url. the money ledger's setup (where money is saved, Actual's service and its checks) lives in connections and tools as the "Actual ledger" card, `#s-ledger`, the same panel the finance overview drew. the server's watch tab adds a monitor from a preset (a website is up every 5 minutes, a certificate daily, a health page every minute, or this alles' own `/health`), the address is the one field and the name comes from it. nginx proxy manager's card shows the first admin login alles made, after the owner password (`POST /api/system/companions/nginx-proxy-manager/first-login`, audited, never cached).
 
 these are source defaults in [core/settings.py](core/settings.py), not values from an owner's installation. long/nested values are abbreviated; the source and settings routes contain their complete structure and validation.
 

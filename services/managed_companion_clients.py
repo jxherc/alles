@@ -55,6 +55,15 @@ def _npm_admin() -> tuple[str, str]:
     return str(value.get("identity") or ""), str(value.get("password") or "")
 
 
+def npm_first_login() -> dict:
+    """the first admin login alles made for NPM (setup_npm_admin), for the owner to open NPM's
+    own screens. empty when alles didn't make it (NPM was set up by hand, or before)."""
+    identity, password = _npm_admin()
+    if not identity or not password:
+        return {"saved": False}
+    return {"saved": True, "identity": identity, "password": password}
+
+
 def _npm_stored_token() -> dict:
     return load_secret_config(_credentials_path("nginx-proxy-manager"), _NPM_PURPOSE, field="token")
 

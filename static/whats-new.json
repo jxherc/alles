@@ -140,6 +140,21 @@
           "body": "one set up button checks the ports and starts it, waits while it gets ready, and makes its admin login for you. if a port is taken, it says which."
         },
         {
+          "key": "habit_log_words",
+          "title": "habit logs in your language, with units",
+          "body": "every field, choice and unit on a habit's log is in your language. a time is just a time (a late bedtime says it was the night before), numbers show their unit, ratings name your pick, and laps, climbs or naps log as rows on the form. the gym logger sets an exercise's setup and a session's muscle groups."
+        },
+        {
+          "key": "signin_button",
+          "title": "sign in by button",
+          "body": "gmail, outlook, google calendar, gemini, claude, chatgpt and github sign in with a button where the provider allows it. a key, token or app password is the quiet fallback, and the screen says why. github and microsoft wait on alles' own client id."
+        },
+        {
+          "key": "mail_from_address",
+          "title": "mail servers from your address",
+          "body": "adding a mail account starts with your email address. it picks the provider and its sign in, and for your own domain it finds the mail servers from the domain's published settings, so you type the address and an app password at most. calendar sync fills its server the same way."
+        },
+        {
           "key": "home_time",
           "title": "home knows the time, tasks act in place",
           "body": "dates read the same everywhere: today, tomorrow, sun, in 9 days, nov 12. home puts overdue tasks first, fades what's over and leads with tomorrow after 8 pm. check a task off or move it to tomorrow right from home or the task list, move every overdue task to today in one tap, and undo a delete."
