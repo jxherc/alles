@@ -111,11 +111,21 @@ with sync_playwright() as pw:
                 page.locator("#compare-send-btn").press("Enter")
                 page.locator("#compare-model-setup").press("Enter")
                 expect(page.locator("#s-ep-list")).not_to_be_empty()
-                control = page.locator("#s-ep-add-details > summary")
+                # oauth first: the sign in buttons lead, and "use an api key instead" (the first
+                # key connection) stays in the first view, 200% zoom included
+                expect(page.locator("#s-ep-signin .signin-button").first).to_be_visible()
+                control = page.locator('#s-ep-signin [data-act="fallback"]')
+                expect(control).to_contain_text("use an api key instead")
                 bounds = control.bounding_box()
-                assert bounds["y"] >= 0 and bounds["y"] + bounds["height"] <= page.evaluate(
-                    "innerHeight"
-                ), bounds
+                scroller = page.locator("#settings-modal .s-content").bounding_box()
+                assert bounds["y"] >= scroller["y"] and bounds["y"] + bounds["height"] <= min(
+                    scroller["y"] + scroller["height"], page.evaluate("innerHeight")
+                ), (
+                    bounds,
+                    scroller,
+                )
+                # nothing to refresh before the first connection
+                expect(page.locator("#s-ep-refresh-all")).to_be_hidden()
                 expect(page.locator("#s-model-defaults-card")).to_be_hidden()
                 page.screenshot(path=str(out / f"{label}-first-connection.png"))
                 # the settings nav is one tab stop per section, so the budget follows the section count
@@ -125,6 +135,8 @@ with sync_playwright() as pw:
                     page.keyboard.press("Tab")
                 expect(control).to_be_focused()
                 page.keyboard.press("Enter")
+                expect(page.locator("#s-ep-add-details")).to_have_attribute("open", "")
+                expect(page.locator("#s-ep-provider-filter")).to_be_focused()
                 # pick from the provider list by keyboard: filter, arrow in, Enter
                 page.locator("#s-ep-provider-filter").fill("custom")
                 page.keyboard.press("ArrowDown")

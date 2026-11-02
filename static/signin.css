@@ -1,6 +1,8 @@
 /* the sign in component (static/js/signin.js). tokens only: spacing on the 0 4 8 12 16 24 32 scale,
    type on the rem roles, 44px targets, state by tone and wording, never by color alone. */
 .signin { display: flex; flex-direction: column; gap: var(--k-space-4, 16px); min-width: 0; }
+/* short screens (200% zoom, a phone on its side): a step tighter, so the key fallback stays in the first view */
+@media (max-height: 600px) { .signin { gap: var(--k-space-3, 12px); } }
 .signin-provider { display: flex; flex-direction: column; align-items: flex-start; gap: var(--k-space-2, 8px); min-width: 0; }
 .signin-provider > * { max-width: 100%; }
 
