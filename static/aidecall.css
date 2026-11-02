@@ -10,9 +10,6 @@
   background: var(--k-page);
 }
 
-#aide-call-workspace[hidden],
-#aide-call-workspace [hidden] { display: none !important; }
-
 #aide-call-workspace .aide-call-topline {
   display: flex;
   align-items: center;
@@ -162,7 +159,6 @@
   color: var(--k-text);
 }
 
-#aide-call-ongoing[hidden],
 body[data-space="aide"] #aide-call-ongoing { display: none !important; }
 
 #aide-call-ongoing button {

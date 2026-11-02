@@ -180,6 +180,15 @@ Controls carry no native `title` tooltip. A title that is a control's only name 
 - offline: keep available local data visible;
 - permission denied: state what needs permission and where to change it.
 
+## hidden
+
+`el.hidden = true` always hides. `kokuen.css` owns one `[hidden] { display: none !important; }`, so a
+class that sets `display` can't show a hidden element any more. Don't add a `.x[hidden] { display:
+none }` patch (`test_the_hidden_attribute_always_hides_from_one_rule` fails on one). An element that
+must stay laid out while hidden says so with its own higher `!important` rule beside it: the vault's
+unlock error keeps its line (`#vault-unlock-error[hidden]`), and the app drawer and its scrim keep
+showing for their closing slide (`#app-drawer.is-closing`).
+
 ## new component contract
 
 Document purpose, when to use, when not to use, anatomy, properties, variants, all states, pointer and keyboard behavior, content, sizing, overflow, responsive behavior, accessibility, approved/rejected examples, code mapping, and tests before adoption.

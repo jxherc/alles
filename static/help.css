@@ -30,7 +30,6 @@ body[data-app="files"] .alles-help-card.dialog-card {
 .alles-help-article li { margin-block: var(--k-space-2); }
 .alles-help-article pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); background: var(--k-raised); padding: var(--k-space-3); font-size: 0.8125rem; }
 .alles-help-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin-top: var(--k-space-5); }
-.alles-help-card [hidden] { display: none; }
 .manual-context-help { flex-shrink: 0; margin-inline-start: auto; }
 @media (max-width: 620px) {
   .alles-help-card.dialog-card,

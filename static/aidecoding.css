@@ -5,7 +5,6 @@
   height: 100%; flex: 1 1 auto; overflow: hidden;
   color: var(--k-text); background: var(--k-page); font: 400 0.9375rem/1.45 var(--k-font);
 }
-#aide-coding-workspace [hidden], #aide-coding-workspace[hidden] { display: none !important; }
 #aide-coding-workspace :where(button, input, textarea) { font: inherit; }
 #aide-coding-workspace :where(button, input, textarea):focus { outline: none; }
 #aide-coding-workspace :where(button, input, textarea, summary):focus-visible { outline: 2px solid var(--k-focus); outline-offset: var(--k-focus-offset, -2px); }

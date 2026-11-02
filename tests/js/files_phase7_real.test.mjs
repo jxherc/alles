@@ -305,7 +305,7 @@ test('Files exposes the reviewed external Obsidian vault workflow', () => {
   assert.match(files, /t\('files\.vault_links_unchanged'\)/);
   assert.equal(t('files.vault_links_unchanged'), 'relative links and file bytes stay unchanged');
   assert.match(files, /preview\.required_bytes/);
-  assert.match(css, /\.files-choice-field\[hidden\] \{ display: none; \}/);
+  assert.match(readFileSync(new URL('../../static/kokuen.css', import.meta.url), 'utf8'), /^\[hidden\] \{\n  display: none !important;\n\}/m);
   assert.doesNotMatch(view, /type="(?:checkbox|radio)"/i);
 });
 
