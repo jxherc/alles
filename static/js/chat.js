@@ -1,7 +1,6 @@
-import { mdToHtml, plainError, toast, writeClipboard } from './util.js';
-import { canRevertTool, docReceipt, piDocReceipts, stepKind, stepMark } from './agentview.js';
+import { mdToHtml, plainError, toast, withoutThinking, writeClipboard } from './util.js';
 import {
-  appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown, wireMessageActions, rereadActiveSession,
+  appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown, wireMessageActions, rereadActiveSession, markRead, addStepsAction, openReplySteps,
   showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
 } from './sessions.js';
 import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=217';
@@ -18,13 +17,7 @@ import { saveAnswerTask } from './answer_task.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=2';
 import { compactResponseActions } from './response_actions.js?v=6';
 
-// tools that change state / reach out — flagged in the agent panel + permission cards
-const DESTRUCTIVE_TOOLS = new Set(['shell', 'bash', 'write_file', 'edit_file', 'apply_patch',
-  'git_commit', 'git_push', 'revert_file', 'delete_file', 'mail_send',
-  'computer_click', 'computer_type', 'computer_key', 'computer_scroll']);
-
-// one-line human summary of a tool call (so the panel + approvals read clearly,
-// not as raw JSON)
+// one-line human summary of a tool call, so an approval reads clearly, not as raw json
 function toolSummary(name, args = {}) {
   const a = args || {};
   const cut = (s, n = 70) => String(s || '').replace(/\s+/g, ' ').slice(0, n);
@@ -93,6 +86,7 @@ if (typeof document !== 'undefined') document.addEventListener?.('click', e => {
   if (act === 'copy') window.copyMsg(btn);
   else if (act === 'note' || act === 'task') window.saveMsgAs(btn, act);
   else if (act === 'artifact') window.openArtifactFromMsg(btn);
+  else if (act === 'steps') openReplySteps(btn);
   else if (act === 'remember') window.rememberUserMessage?.(btn);
 });
 
@@ -582,24 +576,21 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   if (resend && userRow?.isConnected) userRow.after(row);
   let accepted = false;
 
-  let thinkingEl = null;
   const contentEl = document.createElement('div');
   contentEl.className = 'ai-content';
   body.appendChild(contentEl);
   let provenanceEl = null;
   let sourceCitations = null;
   let sourceReplyId = "";
-  let agentEl = null;
-  let todoEl = null;
-  const toolEls = new Map();
+  // what needs the owner while aide works (a permission, a question), under the words
+  let attentionEl = null;
+  // why the last step that failed did, for a turn that ends without words to say it
+  let failedStep = '';
+  // the steps behind the reply, for its menu (never drawn in the chat)
+  const steps = new Map();
+  let runId = '';
   let accText = '';
-  let accThink = '';
   let cursor = null;
-  let runId = null;
-  let hadEdits = false;
-  let thinkStart = 0;
-  let thinkTimer = 0;
-  let thinkDone = false;
   let genStart = 0;     // first answer token time
   let providerError = false;
   // a regenerate's old answer and the turns after it, hidden until the new answer has words
@@ -618,9 +609,6 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   progressEl.setAttribute('aria-live', 'polite');
   progressEl.textContent = t('aide.progress_typing');
   body.appendChild(progressEl);
-  const setProgress = text => {
-    if (progressEl.isConnected) progressEl.textContent = text;
-  };
   // the reply's status line says it's stopping until the stream ends (it may have gone already)
   _chatStopping = () => {
     progressEl.textContent = t('aide.stopping');
@@ -628,18 +616,20 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   };
   const clearProgress = () => progressEl.remove();
 
-  // freeze the thinking block: stop the live timer, show "thought for Xs", collapse
-  const finishThinking = () => {
-    if (!thinkingEl || thinkDone) return;
-    thinkDone = true;
-    if (thinkTimer) { clearInterval(thinkTimer); thinkTimer = 0; }
-    const secs = Math.max(1, Math.round((Date.now() - thinkStart) / 1000));
-    const label = thinkingEl.querySelector('.think-label');
-    const timer = thinkingEl.querySelector('.think-timer');
-    if (label) label.textContent = t('aide.thought_for', { secs });
-    if (timer) timer.textContent = '';
-    thinkingEl.classList.remove('thinking-live');
-    thinkingEl.classList.remove('open');
+  const attention = () => {
+    if (!attentionEl) {
+      attentionEl = document.createElement('div');
+      attentionEl.className = 'aide-needs-you';
+      body.insertBefore(attentionEl, progressEl.isConnected ? progressEl : null);
+    }
+    return attentionEl;
+  };
+  // an answered prompt leaves the stream; focus that was on it goes back to the reply
+  const dropPrompt = card => {
+    const hadFocus = card.contains(document.activeElement);
+    card.remove();
+    if (attentionEl && !attentionEl.children.length) { attentionEl.remove(); attentionEl = null; }
+    if (hadFocus) focusAfterReply(row);
   };
 
   // the cursor ends the last line of text; after the rendered paragraph it sat alone on a new line
@@ -662,15 +652,13 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     lastRenderAt = Date.now();
     const displayText = _splitBeforeArtifact(accText);
     if (!displayText) return;
-    // only auto-scroll if the user is already following along at the bottom
-    const chat = document.getElementById('chat');
-    const stick = !chat || (chat.scrollHeight - chat.scrollTop - chat.clientHeight < 120);
     cursor?.remove();
-    contentEl.innerHTML = mdToHtml(stripEmojis(displayText));
+    contentEl.innerHTML = mdToHtml(stripEmojis(withoutThinking(displayText)));
     applyResponsePrivacy(contentEl);
     cursor?.remove();
     addCursor(contentEl);
-    if (stick) scrollDown();
+    // follows only while the owner is at the end (scrollfollow.js decides from the position)
+    scrollDown();
   };
   const scheduleRender = () => {
     if (renderTimer) return;
@@ -740,6 +728,10 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     }
 
     accepted = true;
+    // the server took the turn: aide has read the question (a retry answers the one above it)
+    let asked = userRow?.isConnected ? userRow : row.previousElementSibling;
+    while (asked && !asked.querySelector('.user-bubble')) asked = asked.previousElementSibling;
+    markRead(asked);
     if (resend?.keepOld && userRow?.isConnected) {
       for (let next = userRow.nextElementSibling; next; next = next.nextElementSibling) {
         if (next === row) continue;
@@ -753,8 +745,6 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     const reader = r.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
-
-    addCursor(body);
 
     // proxy-buffering detector: if the whole reply lands in one burst after a
     // long wait, something between the browser and the server held the stream
@@ -783,8 +773,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         if (chunk.error) {
           providerError = true;
           cursor?.remove();
-          // appendChild, not innerHTML += — the latter re-parses all of body and
-          // detaches the live tool/agent nodes (toolEls/agentEl) + their listeners
+          // appendChild, not innerHTML += — the latter re-parses all of body and detaches the
+          // live prompt cards and their listeners
           appendError(body, chunk.error);
           if (isConnError(chunk.error)) showConnBanner();
           continue;
@@ -808,8 +798,11 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
           }
         }
 
-        if (chunk.agent_run) {
-          runId = chunk.agent_run.id || runId;
+        if (chunk.agent_run) runId = chunk.agent_run.id || runId;
+        if (chunk.tool_start) steps.set(chunk.tool_start.call_id, { name: chunk.tool_start.name, args: chunk.tool_start.args || {} });
+        if (chunk.tool_diff && steps.has(chunk.tool_diff.call_id)) steps.get(chunk.tool_diff.call_id).diff = chunk.tool_diff.diff;
+        if (chunk.tool_result && steps.has(chunk.tool_result.call_id)) {
+          Object.assign(steps.get(chunk.tool_result.call_id), { output: chunk.tool_result.output, error: !!chunk.tool_result.error });
         }
 
         if (chunk.regenerated) regenOutcome = chunk.regenerated.replaced;
@@ -839,229 +832,72 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
 
         if (chunk.context_provenance) {
           sourceReplyId = chunk.context_provenance.reply_id || "";
+          // it joins the reply's actions row when the reply ends, never the stream before that
           provenanceEl?.remove();
           provenanceEl = contextProvenanceElement(chunk.context_provenance);
-          if (provenanceEl) body.appendChild(provenanceEl);
         }
 
-        // agent_turn is internal bookkeeping. Keep the user-facing state as
-        // "typing" until real thinking or a named tool begins.
-
-        if (chunk.todo_update) {
-          const panel = ensureAgentPanel();
-          if (!todoEl) {
-            todoEl = document.createElement('div');
-            todoEl.className = 'agent-todos';
-            panel.parentElement.insertBefore(todoEl, panel);
-          }
-          const items = chunk.todo_update.items || [];
-          todoEl.innerHTML = items.map(item => `
-            <div class="agent-todo ${escHtml(item.status || 'pending')}">
-              <span class="agent-todo-mark"></span>
-              <span>${escHtml(item.step || '')}</span>
-            </div>
-          `).join('');
-          scrollDown();
-        }
-
-        if (chunk.tool_start) {
-          const t = chunk.tool_start;
-          setProgress(`${String(t.name || tr('aide.run_tool')).replaceAll('_', ' ')}…`);
-          const panel = ensureAgentPanel();
-          const step = document.createElement('div');
-          step.className = 'agent-step running' + (DESTRUCTIVE_TOOLS.has(t.name) ? ' destructive' : '');
-          step.dataset.callId = t.call_id || '';
-          step.dataset.toolName = t.name || '';
-          step.dataset.kind = stepKind(t.name);
-          step.dataset.start = String(Date.now());
-          step._args = t.args || {};
-          step.innerHTML = `
-            <div class="agent-step-head">
-              <span class="agent-step-dot"></span>${stepMark(t.name)}
-              <span class="agent-step-name">${escHtml(t.name || tr('aide.run_tool'))}</span>
-              <span class="agent-step-summary">${escHtml(toolSummary(t.name, t.args))}</span>
-              <span class="agent-step-status">${escHtml(tr('aide.bg_state_running'))}</span>
-              <span class="agent-step-time">0.0s</span>
-            </div>
-            <div class="agent-step-args-wrap custom-disclosure">
-              <div class="custom-summary" data-toggle-open>${escHtml(tr('aide.step_args'))}</div>
-              <pre class="agent-step-args custom-details">${escHtml(JSON.stringify(t.args || {}, null, 2))}</pre>
-            </div>
-            <pre class="agent-step-output"></pre>
-          `;
-          panel.appendChild(step);
-          toolEls.set(t.call_id, step);
-          // a live timer per step, so a slow one reads as working, not stuck
-          step._timer = setInterval(() => {
-            if (!step.isConnected || !step.classList.contains('running')) { clearInterval(step._timer); return; }
-            if (step.classList.contains('waiting')) return;
-            const secs = (Date.now() - +step.dataset.start) / 1000;
-            step.querySelector('.agent-step-time').textContent = secs < 10 ? `${secs.toFixed(1)}s` : `${Math.round(secs)}s`;
-          }, 100);
-          countSteps();
-          scrollDown();
-        }
-
-        if (chunk.tool_delta) {
-          const t = chunk.tool_delta;
-          const step = toolEls.get(t.call_id);
-          const out = step?.querySelector('.agent-step-output');
-          if (out) out.textContent += t.text || '';
-          scrollDown();
-        }
-
-        if (chunk.tool_image) {
-          const t = chunk.tool_image;
-          const step = toolEls.get(t.call_id);
-          if (step && t.image) {
-            let shot = step.querySelector('.agent-step-shot');
-            if (!shot) {
-              shot = document.createElement('img');
-              shot.className = 'agent-step-shot';
-              step.appendChild(shot);
-            }
-            shot.src = t.image;
-          }
-          scrollDown();
-        }
-
-        if (chunk.tool_diff) {
-          const t = chunk.tool_diff;
-          const step = toolEls.get(t.call_id);
-          hadEdits ||= canRevertTool(step?.dataset.toolName);
-          if (step && t.diff) {
-            let d = step.querySelector('.agent-step-diff');
-            if (!d) {
-              d = document.createElement('pre');
-              d.className = 'agent-step-diff';
-              step.appendChild(d);
-            }
-            d.innerHTML = renderDiff(t.diff);
-          }
-          scrollDown();
-        }
-
+        // the chat is the reply and nothing else (owner, nov 2: "nothing but a reply, a read,
+        // and a typing"). steps, plans, thinking and tool output stay in the run's record; only a
+        // permission or a question shows, under the words, until it's answered
         if (chunk.tool_permission) {
           const t = chunk.tool_permission;
-          const step = toolEls.get(t.call_id);
-          if (step) {
-            const card = document.createElement('div');
-            card.className = 'agent-perm';
-            card.dataset.req = t.request_id;
-            card.innerHTML = `
-              <div class="agent-perm-msg">${escHtml(tr('aide.perm_approve_prompt', { summary: '\u0001' })).replace('\u0001', `<b>${escHtml(toolSummary(t.name, t.args))}</b>`)}${t.outside
-                ? `<span class="agent-perm-outside">${escHtml(t.outside)}</span>`
-                : ''}</div>
-              <div class="agent-perm-actions">
-                <button class="agent-perm-allow">${escHtml(tr('aide.perm_allow'))}</button>
-                <button class="agent-perm-deny">${escHtml(tr('aide.perm_deny'))}</button>
-              </div>`;
-            step.appendChild(card);
-            const decide = async (allow) => {
-              card.querySelectorAll('button').forEach(b => b.disabled = true);
-              const sent = await fetchWithRecentOwner(`/api/agent/permission/${t.request_id}`, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ allow }),
-              }).catch(() => null);
-              if (!sent?.ok) {
-                // the server did not take the answer: the card must not say it did
-                card.querySelectorAll('button').forEach(b => { b.disabled = false; });
-                toast(tr('common.request_failed'), 'error');
-                return;
-              }
-              card.classList.add(allow ? 'approved' : 'denied');
-              card.querySelector('.agent-perm-msg').textContent = allow ? tr('aide.perm_approved') : tr('aide.perm_denied');
-            };
-            // waiting on the owner, not working: the timer stops and the line says so
-            step.classList.add('waiting');
-            step.querySelector('.agent-step-time').textContent = tr('aide.step_waiting_you');
-            card.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
-              step.classList.remove('waiting');
-              step.dataset.start = String(Date.now());
-            }, { once: true }));
-            card.querySelector('.agent-perm-allow').addEventListener('click', () => decide(true));
-            card.querySelector('.agent-perm-deny').addEventListener('click', () => decide(false));
-          }
+          const card = document.createElement('div');
+          card.className = 'agent-perm';
+          card.dataset.req = t.request_id;
+          card.dataset.callId = t.call_id || '';
+          card.innerHTML = `
+            <div class="agent-perm-msg">${escHtml(tr('aide.perm_approve_prompt', { summary: '\u0001' })).replace('\u0001', `<b>${escHtml(toolSummary(t.name, t.args))}</b>`)}${t.outside
+              ? `<span class="agent-perm-outside">${escHtml(t.outside)}</span>`
+              : ''}</div>
+            <div class="agent-perm-actions">
+              <button class="agent-perm-allow">${escHtml(tr('aide.perm_allow'))}</button>
+              <button class="agent-perm-deny">${escHtml(tr('aide.perm_deny'))}</button>
+            </div>`;
+          attention().appendChild(card);
+          const decide = async (allow) => {
+            card.querySelectorAll('button').forEach(b => b.disabled = true);
+            const sent = await fetchWithRecentOwner(`/api/agent/permission/${t.request_id}`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ allow }),
+            }).catch(() => null);
+            if (!sent?.ok) {
+              // the server did not take the answer: the card must not say it did
+              card.querySelectorAll('button').forEach(b => { b.disabled = false; });
+              toast(tr('common.request_failed'), 'error');
+              return;
+            }
+            dropPrompt(card);
+          };
+          card.querySelector('.agent-perm-allow').addEventListener('click', () => decide(true));
+          card.querySelector('.agent-perm-deny').addEventListener('click', () => decide(false));
           scrollDown();
         }
 
         if (chunk.tool_permission_resolved) {
-          const t = chunk.tool_permission_resolved;
-          const step = toolEls.get(t.call_id);
-          const card = step?.querySelector('.agent-perm');
-          if (card && !card.classList.contains('approved') && !card.classList.contains('denied')) {
-            // resolved elsewhere / timed out
-            card.querySelectorAll('button').forEach(b => b.disabled = true);
-            card.classList.add(t.allow ? 'approved' : 'denied');
-            card.querySelector('.agent-perm-msg').textContent = t.allow ? tr('aide.perm_approved') : tr('aide.perm_denied');
-          }
+          // answered elsewhere or timed out
+          const id = chunk.tool_permission_resolved.call_id || '';
+          const card = [...(attentionEl?.querySelectorAll('.agent-perm') || [])].find(item => item.dataset.callId === id);
+          if (card) dropPrompt(card);
         }
 
         if (chunk.user_question) {
-          const question = chunk.user_question;
-          const step = toolEls.get(question.call_id);
-          renderAideQuestion(step || ensureAgentPanel(), question);
+          renderAideQuestion(attention(), chunk.user_question);
           scrollDown();
         }
 
         if (chunk.user_question_resolved) {
           const resolved = chunk.user_question_resolved;
-          const step = toolEls.get(resolved.call_id);
-          markAideQuestionResolved(step || agentEl, resolved.id, resolved.answer?.cancelled === true);
+          markAideQuestionResolved(attentionEl, resolved.id, resolved.answer?.cancelled === true);
         }
 
-        if (chunk.tool_result) {
-          const t = chunk.tool_result;
-          const step = toolEls.get(t.call_id);
-          if (step) {
-            clearInterval(step._timer);
-            step.classList.remove('running');
-            step.classList.toggle('error', !!t.error);
-            countSteps();
-            const receipt = step.dataset.toolName === 'pi_run'
-              ? piDocReceipts(step.querySelector('.agent-step-output')?.textContent || t.output, !!t.error)
-              : docReceipt(step.dataset.toolName, step._args, !!t.error);
-            if (receipt && agentEl) agentEl.insertAdjacentHTML('afterend', receipt);
-            const status = step.querySelector('.agent-step-status');
-            if (status) status.textContent = t.completed === false ? tr('aide.step_no_final_result') : t.error ? tr('aide.run_status_error') : tr('aide.run_status_done');
-            const out = step.querySelector('.agent-step-output');
-            // a failed step's reason is the server's own sentence: show it in the reader's language
-            const said = t.error ? String(t.output || '').split('\n').map(serverText).join('\n') : t.output;
-            if (out && !out.textContent) out.textContent = said || tr('aide.step_no_output');
-            // a failed step ends with why it failed, even after it streamed some progress
-            else if (out && t.error && said && !out.textContent.includes(said)) out.textContent += `\n${said}`;
-          }
-          scrollDown();
-        }
-
-        if (chunk.thinking) {
-          setProgress(t('aide.thinking_progress'));
-          accThink += chunk.thinking;
-          if (!thinkingEl) {
-            thinkStart = Date.now();
-            thinkingEl = document.createElement('div');
-            thinkingEl.className = 'thinking-block thinking-live custom-disclosure open';
-            thinkingEl.innerHTML = `
-              <div class="custom-summary" data-toggle-open>
-                <span class="think-label">${escHtml(t('aide.thinking'))}</span><span class="think-timer"></span>
-              </div>
-              <div class="thinking-content custom-details"></div>`;
-            body.insertBefore(thinkingEl, contentEl);
-            // live elapsed timer while reasoning
-            thinkTimer = setInterval(() => {
-              if (thinkDone) return;
-              const t = thinkingEl.querySelector('.think-timer');
-              if (t) t.textContent = ` ${((Date.now() - thinkStart) / 1000).toFixed(1)}s`;
-            }, 100);
-          }
-          thinkingEl.querySelector('.thinking-content').textContent = accThink;
-          scrollDown();
+        if (chunk.tool_result?.error) {
+          // a failed step's reason is the server's own sentence: kept in the reader's language
+          failedStep = String(chunk.tool_result.output || '').split('\n').map(serverText).join('\n').trim() || failedStep;
         }
 
         if (chunk.delta) {
-          finishThinking();   // first real content → reasoning is done
-          clearProgress();
           if (!genStart) { genStart = Date.now(); hideConnBanner(); }  // a real token = we're connected, clear any stale warning
           accText += chunk.delta;
           scheduleRender();
@@ -1112,7 +948,6 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     streamEnd();
     if (_streamToken === streamToken) setStreaming(false);
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
-    finishThinking();   // freeze timer even if the reply was thinking-only
     clearProgress();
     cursor?.remove();
     body.classList.add('done');
@@ -1127,73 +962,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       appendInterruptionNotice(body, t('aide.response_unconfirmed'));
     }
 
-    // a cancelled or answered question folds away with the steps: don't leave focus inside it
-    const focusInSteps = agentEl?.querySelector('.agent-step-list')?.contains(document.activeElement);
-    if (agentEl && (toolEls.size || todoEl)) {
-      const hasAttention = Boolean(
-        agentEl.querySelector('.agent-step.error, .agent-step.running, .agent-perm:not(.approved):not(.denied), .aide-question-card:not(.answered):not(.cancelled)')
-      );
-      agentEl.classList.toggle('open', hasAttention);
-      if (focusInSteps && !hasAttention) focusAfterReply(row);
-      const summary = agentEl.querySelector('.custom-summary');
-      if (summary) {
-        countSteps();
-        if (hasAttention) summary.insertAdjacentHTML('afterbegin', `<span class="agent-steps-attention">${escHtml(t('aide.needs_you_dot'))}</span>`);
-        summary.setAttribute('aria-expanded', String(hasAttention));
-      }
-    } else if (agentEl) {
-      agentEl.remove();
-      agentEl = null;
-      if (focusInSteps) focusAfterReply(row);
-    }
-
-    // provenance — let the reader see what the run actually touched
-    if (agentEl && runId) {
-      const sum = agentEl.querySelector('.custom-summary') || agentEl.querySelector('summary');
-      if (sum && !sum.querySelector('.agent-sources-btn')) {
-        const sb = document.createElement('button');
-        sb.className = 'agent-sources-btn';
-        sb.textContent = t('aide.step_sources');
-        sb.setAttribute('aria-description', t('aide.step_sources_touched_title'));
-        let panel = null;
-        sb.addEventListener('click', async (e) => {
-          e.preventDefault(); e.stopPropagation();
-          if (panel) { panel.hidden = !panel.hidden; return; }
-          sb.disabled = true;
-          try {
-            const src = await fetch(`/api/agent/runs/${runId}/sources`).then(x => x.json());
-            const { sourcesHtml } = await import('./runs.js');
-            panel = document.createElement('div');
-            panel.className = 'agent-sources';
-            panel.innerHTML = sourcesHtml(src);
-            agentEl.appendChild(panel);
-          } catch { toast(t('aide.sources_load_failed'), 'error'); }
-          sb.disabled = false;
-        });
-        sum.appendChild(sb);
-      }
-    }
-
-    // revert control — only if the agent actually edited files this run
-    if (agentEl && runId && hadEdits) {
-      const sum = agentEl.querySelector('.custom-summary') || agentEl.querySelector('summary');
-      if (sum && !sum.querySelector('.agent-revert-btn')) {
-        const rb = document.createElement('button');
-        rb.className = 'agent-revert-btn';
-        rb.textContent = t('aide.step_revert');
-        rb.setAttribute('aria-description', t('aide.step_revert_title'));
-        rb.addEventListener('click', async (e) => {
-          e.preventDefault(); e.stopPropagation();
-          rb.disabled = true; rb.textContent = t('aide.run_reverting');
-          try {
-            const r = await fetch(`/api/agent/runs/${runId}/revert`, { method: 'POST' }).then(x => x.json());
-            rb.textContent = tp('aide.run_reverted', r.restored || 0);
-            toast(tp('aide.run_reverted_files', r.restored || 0), 'success');
-          } catch { rb.textContent = t('aide.run_revert_failed'); toast(t('aide.run_revert_failed'), 'error'); }
-        });
-        sum.appendChild(rb);
-      }
-    }
+    // answered questions leave with the turn; one still waiting stays, it needs the owner
+    attentionEl?.querySelectorAll('.aide-question-card.answered, .aide-question-card.cancelled').forEach(dropPrompt);
 
     const artifacts = extractArtifacts(accText);
     const cleanText = stripArtifacts(accText);
@@ -1205,10 +975,10 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         contentEl.className = 'ai-content';
         body.appendChild(contentEl);
       }
-      contentEl.innerHTML = mdToHtml(stripEmojis(cleanText));
+      contentEl.innerHTML = mdToHtml(stripEmojis(withoutThinking(cleanText)));
       applyResponsePrivacy(contentEl);
       announceReply(contentEl);
-    }
+    } else if (failedStep && !providerError && !userStopped()) appendError(body, failedStep);
 
     // Retry a definite refusal before the turn is accepted, or a finished provider failure.
     // Unknown transport outcomes must not replay work that might already have happened.
@@ -1240,6 +1010,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         scrollDown({ force: true });
       }
     }
+
+    if (provenanceEl) body.appendChild(provenanceEl);
 
     // action buttons
     const wrap = body.parentElement;
@@ -1273,6 +1045,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       // the same buttons a reload draws, so regenerate and branch work right away
       if (!privateReply) html += `<button class="act-btn msg-branch-btn" aria-description="${t('aide.branch_title')}">${t('aide.branch_button')}</button>`;
       actions.innerHTML = html;
+      addStepsAction(actions, [...steps.values()], runId);
       wrap.appendChild(actions);
       compactResponseActions(actions);
       wireMessageActions(row);
@@ -1320,55 +1093,11 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     }
   }
 
-  // the panel's line: how many steps, how many failed, a dot per step that turns green or red
-  function countSteps() {
-    if (!agentEl) return;
-    const steps = [...agentEl.querySelectorAll('.agent-step')];
-    const failed = steps.filter(step => step.classList.contains('error')).length;
-    const running = steps.some(step => step.classList.contains('running'));
-    const label = agentEl.querySelector('.custom-summary');
-    label.innerHTML = `${tp('aide.run_steps', steps.length)}${failed ? ` · ${tp('aide.step_failed', failed)}` : ''}${running ? t('aide.step_working_suffix') : ''}<span class="agent-steps-dots" aria-hidden="true">${steps.slice(-24).map(step => `<span class="${step.classList.contains('running') ? 'running' : step.classList.contains('error') ? 'failed' : 'done'}"></span>`).join('')}</span>`;
-  }
-
-  function ensureAgentPanel() {
-    if (agentEl) return agentEl.querySelector('.agent-step-list');
-    agentEl = document.createElement('div');
-    agentEl.className = 'agent-steps custom-disclosure open';
-    agentEl.innerHTML = `
-      <div class="custom-summary" role="button" tabindex="0" aria-expanded="true">${t('aide.working')}</div>
-      <div class="agent-step-list custom-details"></div>`;
-    body.appendChild(agentEl);
-    const disclosure = agentEl.querySelector('.custom-summary');
-    disclosure.addEventListener('click', event => {
-      const open = agentEl.classList.toggle('open');
-      event.currentTarget.setAttribute('aria-expanded', String(open));
-      countSteps();
-    });
-    disclosure.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        disclosure.click();
-      }
-    });
-    return agentEl.querySelector('.agent-step-list');
-  }
 }
-
 
 function _splitBeforeArtifact(text) {
   const idx = text.indexOf('<aide-artifact');
   return idx === -1 ? text : text.slice(0, idx).trimEnd();
-}
-
-function renderDiff(diff = '') {
-  return String(diff).split('\n').map(line => {
-    let cls = '';
-    if (line.startsWith('+') && !line.startsWith('+++')) cls = 'diff-add';
-    else if (line.startsWith('-') && !line.startsWith('---')) cls = 'diff-del';
-    else if (line.startsWith('@@')) cls = 'diff-hunk';
-    else if (line.startsWith('+++') || line.startsWith('---') || line.startsWith('diff ')) cls = 'diff-meta';
-    return `<span class="${cls}">${escHtml(line)}</span>`;
-  }).join('\n');
 }
 
 function escHtml(s = '') {

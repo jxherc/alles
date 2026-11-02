@@ -1069,6 +1069,7 @@
     "aide.question_needs_input": "Aide 需要你的輸入",
     "aide.question_save_failed": "無法儲存，請再試一次",
     "aide.question_saved": "回答已儲存",
+    "aide.read_mark": "已讀",
     "aide.reauth_prompt": "輸入你的 Alles 密碼以{reason}",
     "aide.reauth_reason_branch": "切換此工作分支",
     "aide.reauth_reason_folder": "選擇專案資料夾",

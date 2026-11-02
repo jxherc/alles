@@ -1,8 +1,8 @@
-import { plainError, toast } from './util.js';
-import { confirm as _dlgConfirm, prompt as _dlgPrompt } from './dialog.js';
+import { plainError, toast, withoutThinking } from './util.js';
+import { confirm as _dlgConfirm, form as _dlgForm, prompt as _dlgPrompt } from './dialog.js';
+import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
 import { renderProjectFolders, loadProjects, getProjects, createProject, assignSession } from './projects.js';
 import { applyResponsePrivacy, stripEmojis, welcomeEnabled } from './privacy.js';
-import { renderAgentSteps, wireAgentRunControls } from './agentview.js';
 import { isIncognitoMode } from './modes.js?v=259';
 import { scrollToLatest } from './scrollfollow.js';
 import {
@@ -641,14 +641,7 @@ function renderMessages(msgs) {
       div.innerHTML = `<span>${escHtml(t('aide.context_compacted'))}</span>`;
       container.appendChild(div);
     } else if (m.role === 'assistant') {
-      const { row, wrap, body } = appendAiMsg(
-        m.content,
-        m.meta?.thinking,
-        m.meta?.tool_steps,
-        m.meta?.context_provenance,
-        m.meta?.agent_run_id,
-        m.meta?.source_citations,
-      );
+      const { row, wrap, body } = appendAiMsg(m.content, m.meta?.context_provenance, m.meta?.source_citations, m.meta?.tool_steps, m.meta?.agent_run_id);
       row.dataset.msgId = m.id;
       reconcileAnswerNote(wrap);
       if (m.meta?.interrupted) appendInterruptionNotice(body);
@@ -677,6 +670,9 @@ function renderMessages(msgs) {
       compactResponseActions(actions);
     }
   }
+  // the newest message aide kept is the one it read
+  const kept = [...container.querySelectorAll('.msg-row')].filter(row => row.querySelector('.user-bubble') && row.dataset.msgId);
+  if (kept.length) markRead(kept.at(-1));
   // wire edit + branch buttons after all messages are rendered
   _wireEditButtons(container);
   _wireBranchButtons(container);
@@ -725,6 +721,7 @@ export function appendUserMsg(text, documentScope = null) {
     <div class="user-actions">
     <button class="msg-memory-btn" type="button" data-msg-act="remember" aria-label="${escHtml(t('aide.remember_message'))}">${escHtml(t('aide.remember'))}</button>
     <button class="msg-edit-btn" type="button" title="${escHtml(t('common.edit'))}" aria-label="${escHtml(t('aide.edit_message'))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"></path><path d="m15 5 4 4"></path></svg></button>
+    <span class="user-read">${escHtml(t('aide.read_mark'))}</span>
     </div>
   </div>`;
   // an edit or regenerate asks again with the same notes
@@ -734,6 +731,36 @@ export function appendUserMsg(text, documentScope = null) {
   _wireEditButtons(row);
   scrollDown({ force: true });
   return row;
+}
+
+
+// the work behind a reply (its steps, what it touched, undoing its file edits) opens from the
+// reply's own menu, never in the chat itself
+export function addStepsAction(actions, steps, runId = '') {
+  if (!actions || !Array.isArray(steps) || !steps.length) return;
+  const button = document.createElement('button');
+  button.className = 'act-btn';
+  button.dataset.msgAct = 'steps';
+  button.dataset.runId = runId || '';
+  button.textContent = tp('aide.run_steps', steps.length);
+  button.steps = steps;
+  actions.appendChild(button);
+}
+
+export function openReplySteps(button) {
+  void _dlgForm(button.textContent, renderAgentSteps(button.steps || [], true, button.dataset.runId), {
+    confirmLabel: t('common.close'),
+    className: 'aide-steps-dialog',
+    wire: card => wireAgentRunControls(card),
+  });
+}
+
+
+// aide picked the message up: "read" shows under it, and only under the newest one
+export function markRead(row) {
+  if (!row?.querySelector?.('.user-read')) return;
+  document.querySelectorAll('#messages .msg-row.is-read').forEach(other => { if (other !== row) other.classList.remove('is-read'); });
+  row.classList.add('is-read');
 }
 
 
@@ -756,7 +783,7 @@ export function appendInterruptionNotice(target, text = t('aide.response_interru
 }
 
 
-export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentRunId = '', sourceCitations = null) {
+export function appendAiMsg(text, contextProvenance, sourceCitations = null, toolSteps = null, agentRunId = '') {
   const { row, wrap, body } = _makeAiRow();
   // strip artifact tags from display
   const displayText = text ? text.replace(/<aide-artifact[^>]*>[\s\S]*?<\/aide-artifact>/g, '').trim() : '';
@@ -765,22 +792,10 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
   wrap.dataset.private = String(window._currentSession?.incognito || isIncognitoMode());
   const content = document.createElement('div');
   content.className = 'ai-content';
-  content.innerHTML = displayText ? _md(stripEmojis(displayText)) : '';
+  content.innerHTML = displayText ? _md(stripEmojis(withoutThinking(displayText))) : '';
   applyResponsePrivacy(content);
   body.appendChild(content);
-  if (thinking) {
-    const tb = document.createElement('details');
-    tb.className = 'thinking-block';
-    tb.innerHTML = `<summary>${escHtml(t('aide.thinking'))}</summary><div class="thinking-content"></div>`;
-    tb.querySelector('.thinking-content').textContent = thinking;
-    body.appendChild(tb);
-  }
-  if (toolSteps?.length) {
-    const holder = document.createElement('div');
-    holder.innerHTML = renderAgentSteps(toolSteps, false, agentRunId);
-    body.append(...holder.children);  // the steps, then any doc cards
-    wireAgentRunControls(body);
-  }
+  // the chat is the reply: its thinking and tool steps stay in the saved record, not on screen
   const provenance = contextProvenanceElement(contextProvenance);
   if (provenance) body.appendChild(provenance);
   const citationStatus = sourceCitationStatus(sourceCitations);
@@ -795,6 +810,7 @@ export function appendAiMsg(text, thinking, toolSteps, contextProvenance, agentR
     <button class="msg-regen-btn act-btn">${t('aide.regen')}</button>
     <button class="msg-rewrite-btn act-btn" data-style="shorter">${t('aide.shorter')}</button>
     <button class="msg-rewrite-btn act-btn" data-style="simpler">${t('aide.simpler')}</button>`;
+  addStepsAction(actions, toolSteps, agentRunId);
   wrap.appendChild(actions);
   wireRewriteButtons(actions);
   compactResponseActions(actions);

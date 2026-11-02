@@ -1069,6 +1069,7 @@
     "aide.question_needs_input": "يحتاج Aide إدخالك",
     "aide.question_save_failed": "تعذّر الحفظ - حاول مجددًا",
     "aide.question_saved": "تم حفظ الإجابة",
+    "aide.read_mark": "تمت القراءة",
     "aide.reauth_prompt": "أدخل كلمة مرور Alles لـ{reason}",
     "aide.reauth_reason_branch": "تبديل فرع العمل هذا",
     "aide.reauth_reason_folder": "اختر مجلد مشروع",

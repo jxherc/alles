@@ -1069,6 +1069,7 @@
     "aide.question_needs_input": "Aide a besoin de toi",
     "aide.question_save_failed": "impossible d’enregistrer - réessaie",
     "aide.question_saved": "réponse enregistrée",
+    "aide.read_mark": "lu",
     "aide.reauth_prompt": "saisis ton mot de passe Alles pour {reason}",
     "aide.reauth_reason_branch": "changer de branche de travail",
     "aide.reauth_reason_folder": "choisis un dossier de projet",

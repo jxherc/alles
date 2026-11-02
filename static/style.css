@@ -809,6 +809,12 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
   min-height: 44px; display: inline-flex; align-items: flex-start; padding: 4px 8px 0;
   border: 0; border-radius: var(--k-radius-control); background: none; color: var(--muted); font: inherit; font-size: 0.8125rem; line-height: 18px;
 }
+/* "read" under the newest message aide picked up. every message keeps its room, so the word
+   showing up never moves the row */
+.user-actions > .user-read {
+  padding: 4px 8px 0; color: var(--muted); font-size: 0.8125rem; line-height: 18px; visibility: hidden;
+}
+.msg-row.is-read .user-actions > .user-read { visibility: visible; }
 .msg-memory-btn { cursor: pointer; opacity: 0; }
 .user-wrap:hover .msg-memory-btn,
 .user-actions:focus-within .msg-memory-btn { opacity: 1; }
@@ -1153,6 +1159,10 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
 .agent-step-counts { margin-left: auto; font-size: 0.8125rem; font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace; white-space: nowrap; flex: 0 0 auto; }
 .agent-step-counts .diff-add { color: var(--green); }
 .agent-step-counts .diff-del { color: var(--error); }
+
+/* what waits on the owner mid reply (a permission, a question), between the words and "typing" */
+.aide-needs-you { display: grid; gap: var(--k-space-2); margin: var(--k-space-2) 0; }
+.aide-needs-you > .agent-perm { margin: 0; }
 
 /* permission approval card */
 .agent-perm {
