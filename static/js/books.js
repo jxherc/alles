@@ -533,7 +533,9 @@ const _undo = createUndoDelete({
     toast(message, 'error');
   },
   after: async (gone, ok, hadFocus) => {
-    if (ok) toast(t('books.removed'), 'success');
+    // a delete that failed keeps its card and the card's own message, so it can be tried again
+    if (!ok) return;
+    toast(t('books.removed'), 'success');
     await loadBooks();
     if (hadFocus && $('books-body')?.getClientRects().length && document.activeElement === document.body) {
       ($('books-body').querySelector('.book-card') || $('books-add-toggle'))?.focus();
