@@ -353,7 +353,8 @@
       ],
       "variants": [
         "steps itself (data-kokuen-stepper=auto)",
-        "owned by its logger (markup only)"
+        "owned by its logger (markup only)",
+        "with a unit after the value (decision 0067)"
       ],
       "states": [
         "resting",

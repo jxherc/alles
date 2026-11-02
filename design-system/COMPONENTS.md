@@ -87,7 +87,8 @@ start and plus inside the end, the value centered at role 22 semibold with tabul
 bubbling `change` (`detail.value`). Minus is off at the floor, plus at the ceiling; empty and "?"
 count from the floor. Focus shows on the stepper's own edge only. A logger that keeps its own model
 (the gym set logger) uses the markup with `auto: false`. A plain number with no common step is a
-field with the numeric keypad, not a stepper.
+field with the numeric keypad, not a stepper. A number with a unit passes `unit` ("min", "g", "ml", decision 0067): the unit sits
+muted right after the value inside the field, and the value is only as wide as what's typed.
 
 ## tabs
 
@@ -123,7 +124,9 @@ phone two or more fields stack and the button takes the last line.
 ## date and time field
 
 `.date-input` with `datepick.js`, never a native picker. `data-type="date"`, `"datetime"`, or
-`"due"` (a date with an optional time: "add time" in the panel, "no time" in its footer). Outside a
+`"due"` (a date with an optional time: "add time" in the panel, "no time" in its footer), or
+`"time"` (a time of day alone, "HH:MM", decision 0068: no calendar, the owner's 12 or 24 hour clock,
+lowercase). Outside a
 row it is the one field; inside an entry row it is bare. `joinDue` and `splitDue` map a due value to
 a task's `due_date` and `due_time`.
 

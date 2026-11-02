@@ -138,6 +138,11 @@
           "key": "proxy_setup",
           "title": "nginx proxy manager sets itself up",
           "body": "one set up button checks the ports and starts it, waits while it gets ready, and makes its admin login for you. if a port is taken, it says which."
+        },
+        {
+          "key": "habit_log_words",
+          "title": "habit logs in your language, with units",
+          "body": "every field, choice and unit on a habit's log is in your language. a time is just a time (a late bedtime says it was the night before), numbers show their unit, ratings name your pick, and laps, climbs or naps log as rows on the form. the gym logger sets an exercise's setup and a session's muscle groups."
         }
       ]
     },
