@@ -19,7 +19,7 @@ import { closeWithSlide } from './motion.js';
 import { loadTasks, addTask, prepareTaskNavigation, resetTaskFilters } from './tasks.js';
 import { loadCalendar, newEvent } from './calendar.js';
 import { loadGallery, initGalleryUpload } from './gallery.js';
-import { initSlash, tryExecuteSlashCommand } from './slash.js?v=401';
+import { initSlash, tryExecuteSlashCommand } from './slash.js?v=402';
 import { attachFile, discardAttachments, initDropZone } from './uploads.js?v=254';
 import { loadProjects } from './projects.js';
 import { openSearch, closeSearch, initSearch } from './search.js';
@@ -1090,7 +1090,7 @@ const showRemindersView  = () => {
 };
 const showSubsView       = () => showView('subs-view',      'subs',      (track, request) => trackedImport(track, request, () => import('./subs.js'), module => module.initSubsPanel(request)));
 const showMoneyView      = () => showView('money-view',     'money',     (track, request) => trackedImport(track, request, () => import('./money.js'), module => module.initMoneyPanel(request)));
-const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=6'), module => module.initDaysPanel(request)));
+const showDaysView       = () => showView('days-view',      'days',      (track, request) => trackedImport(track, request, () => import('./days.js?v=7'), module => module.initDaysPanel(request)));
 const showJournalView    = () => showWikiView('journal');
 const showActivityView   = () => showView('activity-view',  'activity',  (track, request) => trackedImport(track, request, () => import('./activity.js'), module => module.initActivity(request)));
 const showSystemView     = () => showView('system-view',    'system',    (track, request) => trackedImport(track, request, () => import('./system.js?v=271'), module => module.initSystem(request)));
@@ -1123,7 +1123,7 @@ async function _loadSpecialistLegacy(group, section, request) {
   if (section === 'calendar') return loadCalendar(request);
   if (section === 'tasks') return loadTasks(request, readRecordTarget(location.href));
   if (section === 'reminders') return initReminderPanel(request, () => showSpecialistGroup(group, section));
-  if (section === 'days') return import('./days.js?v=6').then(module => module.initDaysPanel(request));
+  if (section === 'days') return import('./days.js?v=7').then(module => module.initDaysPanel(request));
   if (section === 'mail') return loadMail(request);
   if (section === 'contacts') return loadContacts('', request);
   if (section === 'books') return import('./books.js').then(module => module.initBooks(request));

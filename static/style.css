@@ -5652,6 +5652,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 /* the actions sit on the card's bottom edge, so a row of cards lines them up with or without a bar */
 .day-actions { display: flex; gap: var(--k-control-gap); margin-top: auto; padding-top: 0.5rem; }
 .day-actions .btn { font-size: 0.8125rem; padding: 0.12rem 0.42rem; }
+/* delete sits behind the card's more menu (u.10); the menu opens under the button */
+.day-actions { position: relative; align-items: center; }
+.day-more { margin-inline-start: auto; color: var(--muted); }
+.day-more svg { width: 16px; height: 16px; }
+.day-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 180px; }
+.day-menu .ctx-item { box-sizing: border-box; display: flex; align-items: center; min-height: 44px; }
+.day-card.day-gone .day-name { color: var(--muted); margin-top: 0; }
 .day-card.editing { gap: 0.3rem; }
 .day-card.editing .settings-input { font-size: 0.8125rem; width: 100%; }
 

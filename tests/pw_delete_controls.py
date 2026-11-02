@@ -57,11 +57,6 @@ ALLOWED = {
         "div.book-shelf > div.book-grid > div.book-card > button.icon-btn.danger",
     ): "left: library owner (books.js:150, a trash icon on every book card)",
     (
-        "plan",
-        "days",
-        "div#days-grid > div.day-card > div.day-actions > button.btn.danger",
-    ): "left: s11 part 2 (days.js:221, countdowns become a kind of reminder)",
-    (
         "aide",
         "skills",
         "div#skl-grid > div.skl-card > div.skl-card-acts > button.skl-del-q",
