@@ -254,7 +254,13 @@ def run():
                     expect(page.locator(".cal-scope-ov")).to_have_count(0)
                     expect(more).to_be_focused()
                     menu_item("#cal-sync-btn").press("Enter")
+                    # oauth first: the sign in comes first, the app password form waits behind it
+                    expect(page.locator("#cd-form")).to_be_hidden()
+                    fallback = page.locator('#cd-signin [data-act="fallback"]')
+                    expect(fallback).to_contain_text("use an app password instead")
+                    fallback.press("Enter")
                     expect(page.locator("#cd-url")).to_be_visible()
+                    expect(page.locator("#cd-user")).to_be_focused()
                     page.locator("#cd-back").press("Enter")
                     expect(page.locator("#cd-url")).to_have_count(0)
                     menu_item("#cal-settings-btn").press("Enter")
