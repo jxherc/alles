@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -177,10 +178,16 @@ def run():
                 record("keyboard-reduced-motion-bounds-console")
                 page.locator("#read-back").click()
                 card.locator('[data-act="fav"]').click()
-                expect(card.locator('[data-act="fav"]')).to_have_attribute("title", "unstar")
+                # no native tooltips on controls (27.35): an icon button's title is its name
+                expect(card.locator('[data-act="fav"]')).to_have_attribute("aria-label", "unstar")
+                expect(card.locator('[data-act="fav"]')).not_to_have_attribute(
+                    "title", re.compile(".*")
+                )
                 assert api.get(url).json()["fav"]
                 card.locator('[data-act="read"]').click()
-                expect(card.locator('[data-act="read"]')).to_have_attribute("title", "mark unread")
+                expect(card.locator('[data-act="read"]')).to_have_attribute(
+                    "aria-label", "mark unread"
+                )
                 assert api.get(url).json()["read"]
                 record("card-star-and-explicit-read-confirm-persisted-state")
                 page.route(url, lose_reply)
