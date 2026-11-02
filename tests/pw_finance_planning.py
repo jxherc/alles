@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from browser_gate_safety import require_server_ownership
 from PIL import Image
 from playwright.sync_api import expect, sync_playwright
+from pw_finance_helpers import pick_money_task
 
 
 def run():
@@ -79,7 +80,7 @@ def run():
                 toggle = page.locator('[data-money-section="plans"]')
                 if toggle.get_attribute("aria-expanded") == "false":
                     toggle.click()
-                page.locator(f'[data-money-task="{name}"]').click()
+                pick_money_task(page, name)
 
             def release():
                 assert len(held) == 1

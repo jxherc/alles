@@ -5508,9 +5508,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-section-toggle:disabled { cursor: default; }
 #money-view .money-section .money-grid[hidden] { display: none; }
 #money-view #money-section-plans { grid-template-columns: minmax(0, 1fr); }
-#money-view .money-task-choices { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
-#money-view .money-task-choices .btn { min-height: 44px; }
-#money-view .money-task-choices [aria-pressed="true"] { background: var(--k-raised, var(--raised)); color: var(--k-ink, var(--text)); -webkit-text-stroke: 0.35px currentColor; }
+#money-view .money-task-pick { width: min(14rem, 100%); margin-bottom: var(--k-space-3, 12px); }
 #money-view .money-task { margin-bottom: 0; }
 #money-view .txn .tx-del { align-self: start; }
 #money-view :is(.txn-add, .txn-transfer, .txn-edit, .acct-form, .budget-form, .goal-form, .report-form, .hold-form, .recur-form, .rule-form, .env-add, .split-row) { align-items: end; }
@@ -5547,6 +5545,16 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 #money-view .money-field-error:empty { display: none; }
 #money-view .money-acct { min-width: 0; flex: 1 1 15rem; }
 #money-view :is(.ma-bal, .tx-amt, .rc-amt) { white-space: nowrap; overflow-wrap: normal; }
+/* u.12: an account that is only a sign asks which currency it is, one line with the dropdown beside it */
+#money-view .money-currency-asks { display: grid; grid-template-columns: max-content 10.5rem; align-items: center; gap: var(--k-space-2, 8px) var(--k-space-3, 12px); margin-bottom: var(--k-space-3, 12px); }
+#money-view .money-currency-ask { display: contents; }
+#money-view .money-currency-q { color: var(--k-ink, var(--text)); font-size: 0.875rem; }
+@media (max-width: 480px) {
+  #money-view .money-currency-asks { grid-template-columns: minmax(0, 1fr); }
+}
+#money-view .money-currency-pick { width: 10.5rem; }
+#money-view .money-acct .money-currency-pick { width: 100%; max-width: 12rem; margin-top: var(--k-space-2, 8px); }
+#money-view .money-currency-ask .money-field-error { grid-column: 1 / -1; margin: 0; }
 #money-view :is(.goal-nums, .bg-nums) { overflow-wrap: normal; }
 
 #finance-view .finance-daily { margin-bottom: var(--k-space-4, 16px); }
@@ -9287,11 +9295,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 #health-body { padding: 1rem clamp(0.9rem, 3vw, 2rem) 2rem; overflow-y: auto; }
 .health-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .health-bar-actions { display: flex; align-items: center; gap: var(--k-control-gap); }
-.health-ranges { display: flex; gap: 0.3rem; }
-.health-chip { background: none; border: 1px solid transparent; border-radius: var(--k-radius-control); color: var(--muted); padding: 0 12px; font-size: 0.8125rem; cursor: pointer; }
-.health-chip:hover { color: var(--text); background: var(--hover, var(--panel)); }
-/* neutral selection (decision 0019) */
-.health-chip.active { background: var(--k-raised, var(--panel)); border-color: var(--k-line-strong, var(--faint)); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
+.health-range { width: 10rem; min-height: 44px; }
 .health-empty { padding: 1.2rem 0; font-size: 0.8125rem; color: var(--muted); max-width: 460px; }
 .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
 .health-card { border: 1px solid var(--faint); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.8rem 0.9rem; }

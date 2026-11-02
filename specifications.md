@@ -904,9 +904,15 @@ imports, with an optional gated move to an alles-managed actual budget core.
   as saved with a note; their fields name the ledger currency when it differs. the envelope also
   names income it couldn't count. the report names what it left out for its dates, and its csv has
   a currency column for each row
-- an old "$" account with no currency can be told which one it was always in (its change currency
-  button stays open); its entries with no currency take that one. with no currency set anywhere,
-  totals stay separate as before
+- an old "$" account with no currency can be told which one it was always in; its entries with no
+  currency take that one. the account says so itself: money shows one line, "which currency is $?",
+  with the currency dropdown beside it (type to jump), and picking one saves the code after a
+  confirmation. the account's card holds the same dropdown (disabled with the reason once an account
+  holds amounts with a currency). amounts in such an account read with the sign it was made with
+  ("$735.46"); "currency not set" labels only an amount with no sign. a "$" is never turned into a
+  code unasked. with no currency set anywhere, totals stay separate as before
+- money's four plan tasks (accounts, budgets, schedules, goals) and health's four history ranges are
+  dropdowns
 - reviewed generic csv and supported bank statement/notification profiles always preview first; repeat
   rows are stable duplicates, changed source rows are conflicts, and local undo removes only receipt-owned
   transactions. read-only simplefin and plaid connections are available after provider setup

@@ -59,3 +59,13 @@ test('a rate takes a comma as its decimal point and flags a far jump', () => {
   assert.equal(rateJump('1.085', '1085'), 'about 1000 times the saved rate');
   assert.equal(rateJump('1.36', '0.0136'), 'about 1/100 of the saved rate');
 });
+
+test('a bare sign is not a currency: only an account with no code and a sign has one', async () => {
+  const { bareSign } = await import('../../static/js/money_currency.js');
+  assert.equal(bareSign({ currency: '$', currency_code: 'XXX' }), '$');
+  assert.equal(bareSign({ currency: '€' }), '€');
+  assert.equal(bareSign({ currency: '$', currency_code: 'CAD' }), '');
+  assert.equal(bareSign({ currency: 'CAD', currency_code: 'XXX' }), '');
+  assert.equal(bareSign({ currency: '', currency_code: 'XXX' }), '');
+  assert.equal(bareSign(null), '');
+});

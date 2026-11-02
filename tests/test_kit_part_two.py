@@ -215,11 +215,9 @@ CHOICE_TO_CONVERT = {
     "js/filesphase7.js:data-value": "every files location",
     "js/memory.js:mem-cat-btn": "memory categories, a list that grows",
     "js/read.js:read-chip": "4 reading filters",
-    "js/health.js:health-chip": "4 history ranges",
     "js/theme.js:te-seg-opt": "harmony and background pattern have more than 3",
     "js/vault.js:seg-opt": "4 field kinds (widths are 3)",
     "js/contacts.js:seg-opt": "sync intervals",
-    "js/money.js:btn": "money plan tasks",
 }
 
 

@@ -114,7 +114,7 @@ test('shared choice groups expose selected state and the complete radio keyboard
   for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']) {
     assert.match(runtime, new RegExp(`'${key}'`), key);
   }
-  for (const module of ['books.js', 'read.js', 'health.js']) {
+  for (const module of ['books.js', 'read.js']) {
     const source = read(`static/js/${module}`);
     assert.match(source, /wireChoiceGroup/);
     assert.match(source, /role="radiogroup"/);

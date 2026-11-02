@@ -23,7 +23,7 @@ function harness() {
     return elements.get(id);
   };
   const context = vm.createContext({
-    t, tp,
+    t, tp, bareSign: () => '',
     calendarDateKey: () => '2026-10-16', formatNumber: number => String(number),
     document: { getElementById: get, activeElement: null }, location: { search: '' },
     URLSearchParams, clearTimeout, Response, initCustomDropdown() {}, initDatePicker() {},

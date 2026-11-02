@@ -10,6 +10,12 @@ from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
 
 
+def pick_range(page, label):
+    """Health's history range is a dropdown: open it and pick the range by its label."""
+    page.locator("#health-range").press("Enter")
+    page.get_by_role("option", name=label, exact=True).click()
+
+
 def run():
     base = f"http://127.0.0.1:{os.environ['PORT']}"
     require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -393,13 +399,13 @@ def run():
                                 held.append((route, route.fetch()))
 
                         page.route(base + "/api/health", hold_first)
-                        page.locator('.health-chip[data-days="7"]').press("Enter")
+                        pick_range(page, "7d")
                         expect(
                             page.locator('#health-body [data-kokuen-state="loading"]')
                         ).to_be_visible()
                         wait_held()
                         replacement = replace(item)
-                        page.locator('.health-chip[data-days="90"]').press("Enter")
+                        pick_range(page, "90d")
                         expect(
                             page.locator(
                                 f'.health-row[data-record-id="{replacement["record_id"]}"]'
@@ -412,9 +418,7 @@ def run():
                         expect(
                             page.locator(f'.health-row[data-record-id="{item["record_id"]}"]')
                         ).to_have_count(0)
-                        expect(page.locator('.health-chip[data-days="90"]')).to_have_attribute(
-                            "aria-checked", "true"
-                        )
+                        expect(page.locator("#health-range")).to_have_attribute("data-value", "90")
                     assert not errors, errors
                     assert len(console) == len(expected_status) and all(
                         status in message for status, message in zip(expected_status, console)

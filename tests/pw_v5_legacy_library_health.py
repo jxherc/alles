@@ -169,16 +169,16 @@ def _read(page: Page) -> None:
 def _health(page: Page) -> None:
     page.evaluate("window._navigateTo('health-log')")
     page.locator("#health-view").wait_for(state="visible")
-    ranges = page.locator('.health-ranges [role="radio"]')
-    assert ranges.count() == 4
-    assert page.locator(".health-ranges").get_attribute("role") == "radiogroup"
-    for index in range(ranges.count()):
-        _assert_target(ranges.nth(index))
-    ranges.first.focus()
-    page.keyboard.press("End")
-    page.wait_for_function(
-        "document.querySelector('.health-ranges [role=radio]:nth-child(4)')?.getAttribute('aria-checked') === 'true'"
-    )
+    # four history ranges are a dropdown: type-to-jump, arrows, a 44px target
+    ranges = page.locator("#health-range")
+    assert ranges.get_attribute("role") == "combobox"
+    _assert_target(ranges)
+    ranges.focus()
+    page.keyboard.press("Enter")
+    assert page.get_by_role("option").count() == 4
+    page.get_by_role("option", name="1y", exact=True).click()
+    page.wait_for_function("document.querySelector('#health-range')?.dataset.value === '365'")
+    page.locator("#health-range").wait_for(state="visible")
     page.locator("#health-add-toggle").click()
     page.locator("#health-value").fill("71.4")
     page.locator("#health-unit").fill("kg")
