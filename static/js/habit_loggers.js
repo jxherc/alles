@@ -1,19 +1,18 @@
 // a day's log for habits that record more than "done": sets and weights, pages, minutes, counts.
 // the server checks the same shapes (services/habit_kinds.py). weights are pounds, as the owner
 // logs them: dumbbells per hand, machines per side. a set row without reps is 10, without sets 1.
-import { form } from './dialog.js';
 import { formatCalendarDate, formatNumber, t, tp } from './i18n.js';
 import { initKokuenPrimitives } from './kokuen.js?v=5';
-import { initCustomDropdown } from './dropdown.js?v=217';
+import { getDropdownValues, initCustomDropdown } from './dropdown.js?v=217';
 import { api, toast } from './util.js';
 import { formatDecimal } from './liveformat.js';
-import { stepperHtml } from './stepper.js';
-import { initDatePickers } from './datepick.js';
+import { clockText, initDatePickers } from './datepick.js';
+import { stepperHtml, wireSteppers } from './stepper.js';
+import { MEASURE_UNITS, fieldUnit, storedUnit, unitText } from './units.js';
 
 const LOGGED = new Set(['workout', 'reading', 'count', 'duration', 'distance']);
 const UNITS = new Set(['reps', 'steps', 'glasses', 'servings', 'words', 'cards', 'pages', 'chapters']);
 const DEFAULT_REPS = 10;
-const MAX_ROWS = 50;
 const SUGGESTIONS = 8;
 
 export const hasLogger = habit => LOGGED.has(habit?.kind);
@@ -59,113 +58,9 @@ export function logSummary(habit, data) {
   return '';
 }
 
-// ── reading the fields ─────────────────────────────────────────────────────────
-function bad(input, key) {
-  input?.setAttribute('aria-invalid', 'true');
-  input?.focus();
-  return new Error(t(key));
-}
-
-// '' is "not given"; commas read the way the field formats them (7,5 and 1,650)
-function numberIn(input, { whole = false, required = false, min = 0 } = {}) {
-  const raw = formatDecimal(String(input?.value ?? '').trim());
-  input?.removeAttribute('aria-invalid');
-  if (!raw) {
-    if (required) throw bad(input, 'habits.log_bad_number');
-    return null;
-  }
-  const value = Number(raw);
-  if (!Number.isFinite(value) || value < min || (whole && !Number.isInteger(value))) throw bad(input, 'habits.log_bad_number');
-  return value;
-}
-
 // one option of a kit pill switch; kokuen gives it its role and the unpicked state
 const pillButton = (value, text, on) => `<button type="button" data-value="${esc(value)}"${on ? ' aria-checked="true"' : ''}>${esc(text)}</button>`;
 const textIn = input => String(input?.value ?? '').replace(/\s+/g, ' ').trim();
-const choiceIn = (card, key) => card.querySelector(`[data-k="${key}"] [aria-checked="true"]`)?.dataset.value;
-
-export function collectLog(kind, card) {
-  const field = key => card.querySelector(`[data-k="${key}"]`);
-  if (kind === 'workout') {
-    const rows = [];
-    for (const row of card.querySelectorAll('.hlog-row')) {
-      const get = key => row.querySelector(`[data-k="${key}"]`);
-      const values = ['exercise', 'weight', 'reps', 'sets', 'note'].map(key => textIn(get(key)));
-      if (values.every(value => !value)) continue;
-      const exercise = values[0];
-      if (!exercise) throw bad(get('exercise'), 'habits.log_need_exercise');
-      const weight = numberIn(get('weight'));
-      const reps = numberIn(get('reps'), { whole: true, min: 1 });
-      const sets = numberIn(get('sets'), { whole: true, min: 1 });
-      rows.push({ exercise, weight, reps: reps ?? DEFAULT_REPS, sets: sets ?? 1, note: values[4] });
-    }
-    return { rows };
-  }
-  if (kind === 'reading') return { amount: numberIn(field('amount'), { required: true }), unit: choiceIn(card, 'unit') || 'pages', book: textIn(field('book')) };
-  if (kind === 'count') return { amount: numberIn(field('amount'), { required: true }) };
-  if (kind === 'duration') return { minutes: numberIn(field('minutes'), { required: true }) };
-  if (kind === 'distance') return { distance: numberIn(field('distance'), { required: true }), unit: choiceIn(card, 'unit') || 'km', minutes: numberIn(field('minutes')) };
-  return null;
-}
-
-// ── markup ─────────────────────────────────────────────────────────────────────
-function numberField(key, label, value, { decimal = true, placeholder = '', id }) {
-  return `<div class="hlog-f hlog-${key}"><label for="${id}">${esc(label)}</label>
-    <input class="settings-input dialog-input" id="${id}" data-k="${key}" inputmode="${decimal ? 'decimal' : 'numeric'}" autocomplete="off" value="${esc(value ?? '')}" placeholder="${esc(placeholder)}"></div>`;
-}
-
-// two units (pages or chapters, km or mi): the kit pill switch
-function choiceField(key, label, options, value, id) {
-  return `<div class="hlog-f"><span id="${id}-label">${esc(label)}</span>
-    <div class="k-pill-switch" data-kokuen-choice="switch" data-k="${key}" aria-labelledby="${id}-label">${options.map(([option, text]) => pillButton(option, text, option === value)).join('')}</div></div>`;
-}
-
-function rowHtml(row, first) {
-  const id = `hlog-${++_sequence}`;
-  const label = (key, text) => `<label for="${id}-${key}"${first ? '' : ' class="sr-only"'}>${esc(text)}</label>`;
-  const input = (key, value, extra = '') => `<input class="settings-input dialog-input" id="${id}-${key}" data-k="${key}" autocomplete="off" value="${esc(value ?? '')}"${extra}>`;
-  return `<div class="hlog-row">
-    <div class="hlog-line">
-      <div class="hlog-f hlog-ex">${label('exercise', t('habits.exercise'))}${input('exercise', row.exercise, ` role="combobox" aria-autocomplete="list" aria-expanded="false" spellcheck="false"`)}</div>
-      <button type="button" class="icon-btn hlog-remove" data-hlog-remove aria-label="${esc(t('habits.remove_row'))}">${_si('trash')}</button>
-    </div>
-    <div class="hlog-nums">
-      <div class="hlog-f">${label('weight', t('habits.weight_lb'))}${input('weight', row.weight, ' inputmode="decimal"')}</div>
-      <div class="hlog-f">${label('reps', t('habits.reps'))}${input('reps', row.reps, ` inputmode="numeric" placeholder="${DEFAULT_REPS}"`)}</div>
-      <div class="hlog-f">${label('sets', t('habits.sets'))}${input('sets', row.sets, ' inputmode="numeric" placeholder="1"')}</div>
-      <div class="hlog-f">${label('note', t('habits.note'))}${input('note', row.note)}</div>
-    </div>
-  </div>`;
-}
-
-// an empty day starts from the last logged day's values, so "same as last time" is open and save
-function fieldsHtml(habit, data, recent) {
-  const id = `hlog-${++_sequence}`;
-  if (habit.kind === 'workout') {
-    const rows = data?.rows?.length ? data.rows : [{}];
-    return `<div class="hlog-rows">${rows.map((row, at) => rowHtml(row, at === 0)).join('')}</div>
-      <button type="button" class="btn hlog-add" data-hlog-add>${_si('plus')} ${esc(t('habits.add_set'))}</button>`;
-  }
-  if (habit.kind === 'reading') {
-    const unit = data?.unit || recent?.unit || 'pages';
-    return `<div class="hlog-inline">${numberField('amount', t('habits.amount'), data?.amount ?? recent?.amount, { id: `${id}-amount` })}
-      ${choiceField('unit', t('habits.unit'), [['pages', t('habits.u_pages')], ['chapters', t('habits.u_chapters')]], unit, `${id}-unit`)}</div>
-      <div class="hlog-f"><label for="${id}-book">${esc(t('habits.book'))}</label>
-        <input class="settings-input dialog-input" id="${id}-book" data-k="book" autocomplete="off" value="${esc(data?.book ?? recent?.book ?? '')}"></div>`;
-  }
-  if (habit.kind === 'count') {
-    const label = UNITS.has(habit.unit) ? t(`habits.u_${habit.unit}`) : (habit.unit || t('habits.amount'));
-    return numberField('amount', label, data?.amount ?? recent?.amount, { id: `${id}-amount` });
-  }
-  if (habit.kind === 'duration') return numberField('minutes', t('habits.minutes'), data?.minutes ?? recent?.minutes, { decimal: false, id: `${id}-minutes` });
-  if (habit.kind === 'distance') {
-    const unit = data?.unit || recent?.unit || habit.unit || 'km';
-    return `<div class="hlog-inline">${numberField('distance', t('habits.distance'), data?.distance ?? recent?.distance, { id: `${id}-distance` })}
-      ${choiceField('unit', t('habits.unit'), [['km', 'km'], ['mi', 'mi']], unit, `${id}-unit`)}</div>
-      ${numberField('minutes', t('habits.minutes'), data?.minutes ?? recent?.minutes, { decimal: false, id: `${id}-minutes` })}`;
-  }
-  return '';
-}
 
 // ── behavior ───────────────────────────────────────────────────────────────────
 
@@ -261,62 +156,6 @@ function wireExercises(card, names) {
   window.addEventListener('resize', place);
 }
 
-function wireRows(card) {
-  const rows = card.querySelector('.hlog-rows');
-  const add = card.querySelector('[data-hlog-add]');
-  const sync = () => {
-    const all = rows.querySelectorAll('.hlog-row');
-    add.disabled = all.length >= MAX_ROWS;
-    // only the first row shows its labels; the rows below line up under them
-    all.forEach((row, at) => row.querySelectorAll('.hlog-f > label').forEach(label => label.classList.toggle('sr-only', at > 0)));
-  };
-  add.addEventListener('click', () => {
-    const last = [...rows.querySelectorAll('.hlog-row')].pop();
-    const copy = key => textIn(last?.querySelector(`[data-k="${key}"]`));
-    rows.insertAdjacentHTML('beforeend', rowHtml({ exercise: copy('exercise'), weight: copy('weight'), reps: copy('reps'), sets: copy('sets') }, false));
-    sync();
-    const row = [...rows.querySelectorAll('.hlog-row')].pop();
-    row.querySelector(`[data-k="${copy('exercise') ? 'weight' : 'exercise'}"]`)?.focus();
-  });
-  rows.addEventListener('click', event => {
-    const remove = event.target.closest('[data-hlog-remove]');
-    if (!remove) return;
-    const row = remove.closest('.hlog-row');
-    const next = row.nextElementSibling || row.previousElementSibling;
-    row.remove();
-    if (!rows.querySelector('.hlog-row')) rows.insertAdjacentHTML('beforeend', rowHtml({}, true));
-    sync();
-    (next?.isConnected ? next : rows.querySelector('.hlog-row'))?.querySelector('[data-k="exercise"]')?.focus();
-  });
-  sync();
-}
-
-// the most recent day before this one that had details: a reading habit keeps its book and unit
-function recentLog(habit, day) {
-  const days = Object.keys(habit.logs || {}).filter(other => other < day).sort();
-  return days.length ? habit.logs[days[days.length - 1]] : null;
-}
-
-// resolves null (closed), { saved: data } or { remove: true }
-export async function openLogger(habit, day, { save, done = false } = {}) {
-  const data = habit.logs?.[day] || null;
-  const date = formatCalendarDate(day, { weekday: 'long', month: 'long', day: 'numeric' });
-  let saved = null;
-  const result = await form(t('habits.log_title', { name: habit.name, date }), `<div class="hlog-fields">${fieldsHtml(habit, data, recentLog(habit, day))}</div>`, {
-    className: `habit-log-dialog habit-log-${habit.kind}`,
-    collect: card => collectLog(habit.kind, card),
-    submit: async value => { saved = await save(value); },
-    remove: done ? { label: t('habits.clear_log') } : null,
-    wire: card => {
-      initKokuenPrimitives(card);
-      if (habit.kind === 'workout') { wireRows(card); wireExercises(card, habit.exercises || []); }
-      card.addEventListener('input', event => event.target.removeAttribute('aria-invalid'));
-    },
-  });
-  if (!result) return null;
-  return result.remove ? { remove: true } : { saved: saved ?? result };
-}
-
 // ── the gym logger (track E3): the set logger screen the owner approved ────────────────────────
 // a workout day is v2: entries[].values.exercises = [{name, setup, sets: [...]}]. a split set is
 // two stored sets, side L then side R; the screen pairs them back into one row. every value keeps
@@ -325,10 +164,19 @@ const KG = 0.45359237;
 const SET_TYPES = ['warmup', 'working', 'top', 'backoff', 'drop', 'failure'];
 const SET_STATUSES = ['done', 'planned', 'attempted', 'failed', 'unfinished'];
 const RIR_TOP = 5;
+// an exercise's setup (services/habit_kinds.py LOAD_BASES and SETUP_KEYS): history and the last
+// time line match it exactly, so a reverse grip press never reads as an overhand one
+const LOAD_BASES = ['per_hand', 'per_side', 'stack', 'total', 'assist', 'bodyweight'];
+const SETUP_TEXT = ['equipment', 'machine', 'grip', 'stance', 'angle', 'seat', 'pin'];
+// the muscle groups a session can pick (several), plus any the owner already wrote their own way
+const MUSCLES = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'core', 'glutes', 'quads', 'hamstrings', 'calves', 'full_body'];
+const muscleLabel = value => { const key = `habits.muscle_${value}`; const found = t(key); return found === key ? value : found; };
 const UNDO_MS = 8000;
 let _gym = null;
 
 const isNum = value => typeof value === 'number' && Number.isFinite(value);
+// L and R as the reader's language writes them (左 and 右)
+const sideShort = side => t(side === 'L' ? 'habits.side_l' : 'habits.side_r');
 const mmss = seconds => `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
 
 // stored sets as the rows the owner sees: a side L set and the side R set right after it are one
@@ -356,7 +204,7 @@ function sideText(one, shown) {
 // "L 65 × 10 · R 65 × 12", "50 × 10"
 export function setText(group, shown = 'lb') {
   if (group.both) return sideText(group.both, shown);
-  return ['L', 'R'].filter(side => group[side]).map(side => `${side} ${sideText(group[side], shown)}`).join(' · ');
+  return ['L', 'R'].filter(side => group[side]).map(side => `${sideShort(side)} ${sideText(group[side], shown)}`).join(' · ');
 }
 
 // "warm up · 3 left", "1 left · 3 bad on L"
@@ -370,8 +218,8 @@ export function setMeta(group) {
   for (const side of group.both ? ['both'] : ['L', 'R']) {
     const one = group[side];
     if (!one) continue;
-    if (one.partial) bits.push(side === 'both' ? t('habits.n_partial', { n: num(one.partial) }) : t('habits.n_partial_on', { n: num(one.partial), side }));
-    if (one.bad) bits.push(side === 'both' ? t('habits.n_bad', { n: num(one.bad) }) : t('habits.n_bad_on', { n: num(one.bad), side }));
+    if (one.partial) bits.push(side === 'both' ? t('habits.n_partial', { n: num(one.partial) }) : t('habits.n_partial_on', { n: num(one.partial), side: sideShort(side) }));
+    if (one.bad) bits.push(side === 'both' ? t('habits.n_bad', { n: num(one.bad) }) : t('habits.n_bad_on', { n: num(one.bad), side: sideShort(side) }));
   }
   if (first.tempo) bits.push(t('habits.tempo_n', { n: first.tempo }));
   const notes = [group.both, group.L, group.R].map(one => one?.note).filter(Boolean);
@@ -493,39 +341,56 @@ function setsHtml(g, index) {
   }).join('')}</ol>`;
 }
 
-function exerciseMeta(exercise, muscles) {
+function exerciseMeta(exercise) {
   const setup = exercise.setup || {};
-  const bits = [setup.basis ? t(`habits.basis_${setup.basis}`) : '',
-    ...['equipment', 'machine', 'grip', 'stance', 'angle', 'seat', 'pin'].map(key => setup[key] || ''), ...(muscles || [])];
+  const bits = [setup.basis ? t(`habits.basis_${setup.basis}`) : '', ...SETUP_TEXT.map(key => setup[key] || '')];
   return bits.filter(Boolean).join(' · ');
 }
 
 // a day can hold more than one session (back in the morning, arms later): each keeps its own
 // entry, its muscle groups and its note, and the screen shows every one of them
-const entryOf = (g, exercise) => g.doc?.entries?.[exercise._s];
 
+// a session: its name when the day has several, its muscle groups (the dropdown's pick several,
+// decision 0056) and its note, word for word
 function sessionHead(g, slot, number) {
   const entry = g.doc?.entries?.[slot];
-  const muscles = entry?.values?.muscles || [];
-  const name = g.slots.length > 1 ? (muscles.join(' · ') || t('habits.session_n', { n: number })) : '';
+  const muscles = g.muscles[slot] ?? entry?.values?.muscles ?? [];
+  const name = g.slots.length > 1 ? (muscles.map(muscleLabel).join(' · ') || t('habits.session_n', { n: number })) : '';
   const note = entry?.note || '';
-  if (!name && !note) return '';
-  return `<div class="gym-session" data-slot="${slot}">${name ? `<p class="gym-session-name">${esc(name)}</p>` : ''}${note ? `<p class="gym-session-note">${esc(note)}</p>` : ''}</div>`;
+  const id = `gym-muscles-${slot}`;
+  const options = [...new Set([...MUSCLES, ...muscles])].map(value => `${value}|${muscleLabel(value)}`).join(';');
+  return `<div class="gym-session" data-slot="${slot}">${name ? `<p class="gym-session-name">${esc(name)}</p>` : ''}
+    <div class="gym-frow gym-muscles"><div class="gym-flabel"><span id="${id}">${esc(t('habits.muscle_groups'))}</span></div><div class="settings-input custom-select" data-gym="muscles" data-slot="${slot}" data-multiple="true" data-value="${esc(muscles.join(';'))}" data-options="${esc(options)}" aria-labelledby="${id}"></div></div>
+    ${note ? `<p class="gym-session-note">${esc(note)}</p>` : ''}</div>`;
+}
+
+// the setup of the exercise being logged, set from the screen: load basis is a dropdown, the rest
+// are words as the owner writes them (overhand, 30°, seat 4)
+function setupHtml(exercise) {
+  const setup = exercise.setup || {};
+  const bases = [`none|${t('habits.setup_none')}`, ...LOAD_BASES.map(basis => `${basis}|${t(`habits.basis_${basis}`)}`)].join(';');
+  return `<div class="gym-setup" id="gym-setup">
+    <div class="gym-fields">
+      <div class="gym-frow"><div class="gym-flabel"><span id="gym-basis-label">${esc(t('habits.setup_load'))}</span></div><div class="settings-input custom-select" data-gym="basis" data-value="${esc(setup.basis || 'none')}" data-options="${esc(bases)}" aria-labelledby="gym-basis-label"></div></div>
+      ${SETUP_TEXT.map(key => `<div class="gym-frow"><div class="gym-flabel"><label for="gym-setup-${key}">${esc(t(`habits.setup_${key}`))}</label></div><input class="settings-input" id="gym-setup-${key}" data-setup="${key}" autocomplete="off" value="${esc(setup[key] || '')}"></div>`).join('')}
+    </div>
+    <div class="gym-actions"><button type="button" class="btn" data-gym="setup-cancel">${esc(t('common.cancel'))}</button><button type="button" class="btn primary" data-gym="setup-save">${esc(t('common.save'))}</button></div>
+  </div>`;
 }
 
 function gymHtml(g) {
-  const many = g.slots.length > 1;
   const list = g.exercises.map((exercise, index) => {
-    const muscles = many ? null : entryOf(g, exercise)?.values?.muscles;
     const head = index === 0 || g.exercises[index - 1]._s !== exercise._s ? sessionHead(g, exercise._s, g.slots.indexOf(exercise._s) + 1) : '';
     return `${head}<article class="gym-ex${index === g.active ? ' active' : ''}" data-ex="${index}">
       <header class="gym-ex-head">
         <h3 class="gym-ex-name">${esc(exercise.name)}</h3>
-        ${exerciseMeta(exercise, muscles) ? `<p class="gym-ex-meta">${esc(exerciseMeta(exercise, muscles))}</p>` : ''}
+        ${exerciseMeta(exercise) ? `<p class="gym-ex-meta">${esc(exerciseMeta(exercise))}</p>` : ''}
         <p class="gym-prev" hidden><span class="gym-prev-when"></span><span class="gym-prev-vals"></span></p>
         <p class="gym-best" hidden></p>
         <p class="gym-hint" hidden><span class="gym-hint-text"></span><button type="button" class="gym-text-btn" data-gym="hint">${esc(t('habits.use_hint'))}</button></p>
+        ${index === g.active ? `<button type="button" class="gym-text-btn gym-setup-btn" data-gym="setup" aria-expanded="${!!g.setupOpen}" aria-controls="gym-setup">${esc(t('habits.edit_setup'))}</button>` : ''}
       </header>
+      ${index === g.active && g.setupOpen ? setupHtml(exercise) : ''}
       ${setsHtml(g, index)}
       ${index === g.active ? editorHtml(g) : `<button type="button" class="btn gym-ex-open" data-gym="activate">${esc(t('habits.log_sets_here'))}</button>`}
     </article>`;
@@ -619,13 +484,13 @@ function paintHistory(g) {
       prev.hidden = false;
     }
     const records = found?.records || {};
-    const tops = ['', 'L', 'R'].filter(side => records[side]?.heaviest).map(side => `${side ? `${side} ` : ''}${sideText(records[side].heaviest, unit)}`);
+    const tops = ['', 'L', 'R'].filter(side => records[side]?.heaviest).map(side => `${side ? `${sideShort(side)} ` : ''}${sideText(records[side].heaviest, unit)}`);
     const best = node.querySelector('.gym-best');
     if (tops.length) { best.textContent = t('habits.heaviest_n', { n: tops.join(' · ') }); best.hidden = false; }
     const hint = node.querySelector('.gym-hint');
     if (found?.hint?.length && node.classList.contains('active')) {
       hint.querySelector('.gym-hint-text').textContent = t('habits.next_step_n', {
-        n: found.hint.map(step => `${step.side ? `${step.side} ` : ''}${loadText(step.to, step.unit, unit)}`).join(' · ') });
+        n: found.hint.map(step => `${step.side ? `${sideShort(step.side)} ` : ''}${loadText(step.to, step.unit, unit)}`).join(' · ') });
       hint.hidden = false;
     }
   });
@@ -655,6 +520,10 @@ function store(g, before, focus) {
     const exercises = g.exercises.filter(exercise => exercise._s === slot && exercise.sets.length).map(({ keep, _s, ...exercise }) => exercise);
     entry.values = { ...entry.values, exercises };
     if (!exercises.length) delete entry.values.exercises;
+    if (slot in g.muscles) {
+      if (g.muscles[slot].length) entry.values.muscles = g.muscles[slot];
+      else delete entry.values.muscles;
+    }
   }
   const only = doc.entries[0];
   const empty = doc.entries.length === 1 && !Object.keys(only.values || {}).length && !only.note;
@@ -741,6 +610,27 @@ function logSet(g) {
   store(g, before, '.gym-log-btn');
 }
 
+function saveSetup(g) {
+  const exercise = g.exercises[g.active];
+  if (!exercise) return;
+  const before = structuredClone(g.exercises);
+  const basis = g.host.querySelector('#gym-setup [data-gym="basis"]')?.dataset.value;
+  const setup = basis && basis !== 'none' ? { basis } : {};
+  for (const key of SETUP_TEXT) {
+    const value = textIn(g.host.querySelector(`#gym-setup [data-setup="${key}"]`));
+    if (value) setup[key] = value;
+  }
+  if (Object.keys(setup).length) exercise.setup = setup;
+  else delete exercise.setup;
+  g.setupOpen = false; g.touched = false;
+  announce(t('habits.setup_saved'));
+  // another setup is another history: its last time and hint load again
+  g.draft = nextDraft(g);
+  paint(g, '.gym-setup-btn');
+  store(g, before, '.gym-setup-btn');
+  loadHistory(g, exercise);
+}
+
 function addExercise(g) {
   const input = g.host.querySelector('.gym-add input');
   const name = textIn(input);
@@ -811,7 +701,14 @@ function onClick(g, event) {
     clearInterval(g.restTimer); g.rest = null;
     host.querySelector('.gym-rest').hidden = true;
     host.querySelector('.gym-log-btn')?.focus();
-  } else if (act === 'hint') {
+  } else if (act === 'setup') {
+    g.setupOpen = !g.setupOpen;
+    paint(g, g.setupOpen ? '#gym-setup [data-gym="basis"]' : '.gym-setup-btn');
+  } else if (act === 'setup-cancel') {
+    g.setupOpen = false;
+    paint(g, '.gym-setup-btn');
+  } else if (act === 'setup-save') saveSetup(g);
+  else if (act === 'hint') {
     // a hint fills the weights when asked, never on its own
     for (const step of g.history.get(historyKey(g.exercises[g.active]))?.hint || []) {
       for (const side of step.side ? [step.side] : ['L', 'R']) g.draft[side].weight = step.to;
@@ -844,6 +741,10 @@ function onChange(g, event) {
     paintSteppers(g);
   } else if (act === 'rir' && event.detail) { g.draft.rir = Number(event.detail.value); g.touched = true; }
   else if (act === 'type' || act === 'status') { g.draft[act] = target.value; g.touched = true; }
+  else if (act === 'muscles') {
+    g.muscles[Number(target.dataset.slot)] = getDropdownValues(target);
+    store(g, structuredClone(g.exercises), null);
+  }
 }
 
 function onInput(g, event) {
@@ -873,6 +774,11 @@ function wireGym(host, names) {
   host.addEventListener('focusout', event => { if (event.target.matches('.k-stepper input') && _gym?.host === host) queueMicrotask(() => paintSteppers(_gym)); });
   host.addEventListener('keydown', event => {
     if (event.key === 'Enter' && event.target.matches('.gym-add input') && !event.defaultPrevented && _gym?.host === host) { event.preventDefault(); addExercise(_gym); }
+    // enter in a setup field saves the setup, escape closes it, as in any short form
+    if (event.target.matches('#gym-setup input') && _gym?.host === host) {
+      if (event.key === 'Enter') { event.preventDefault(); saveSetup(_gym); }
+      else if (event.key === 'Escape') { event.preventDefault(); _gym.setupOpen = false; paint(_gym, '.gym-setup-btn'); }
+    }
   });
   wireExercises(host, names);
 }
@@ -891,7 +797,7 @@ export function renderGym(host, habit, day, { save }) {
   const g = same ? Object.assign(_gym, { host, habit, save, doc, slots: [...new Set([...slots, ..._gym.slots])].sort((a, b) => a - b) }) : {
     host, habit, day, save, doc, more, slots,
     exercises: slots.flatMap(slot => structuredClone(entries[slot]?.values?.exercises || []).map(exercise => ({ ...exercise, _s: slot }))),
-    history: new Map(), editing: null, undo: null, rest: null, touched: false,
+    history: new Map(), editing: null, undo: null, rest: null, touched: false, muscles: {}, setupOpen: false,
   };
   if (!same) { g.active = Math.max(0, g.exercises.length - 1); g.draft = nextDraft(g); }
   _gym = g;
@@ -903,41 +809,61 @@ export function renderGym(host, habit, day, { save }) {
 }
 
 // ── every other kind (track E1): one day log built from the kind's fields ────────────────────
-// GET /api/habits/kinds names each kind's fields; a field shows when it's on by default or the
-// habit switched it on. each type takes one kit control: a number is the stepper, a rating the
-// number row, 2 or 3 options a pill switch, 4 or more the dropdown, yes or no a pill switch, a time
-// or a date the date field, words a field. one entry a day for "single" kinds, else one a session.
-const SKIP = new Set(['rows', 'files', 'exercises']);
-const MEASURE_UNITS = { distance: ['km', 'mi'], body: ['cm', 'in'], weight: ['lb', 'kg'], height: ['cm', 'in'], liquid: ['ml', 'floz', 'glasses'], temperature: ['c', 'f'] };
-const UNIT_TEXT = { floz: 'fl oz', c: '°c', f: '°f' };
+// GET /api/habits/kinds names each kind's fields; a field shows when it's on by default, the habit
+// switched it on, or the day being shown already holds a value for it. each type takes one kit
+// control: a number is the stepper (with its unit inside), a rating the number row (end words and
+// a readout that names the pick), 2 or 3 options a pill switch, 4 or more the dropdown, yes or no
+// a pill switch, a time of day the time field, a date the date field, rows a card per row, files
+// an upload list, words a field. one entry a day for "single" kinds, else one a session.
+const SKIP = new Set(['exercises']);
+// a bedtime at noon or later is the night before the day it's logged on (the morning you woke)
+const NIGHT = new Set(['bedtime', 'tried']);
+// the words that name a rating's values ("4, good"); a key not listed reads awful to great
+const SCALES = { energy: 'energy', calm_before: 'calm', calm_after: 'calm', focus: 'focus', craving: 'much', fatigue: 'much', mess: 'mess', effort: 'effort', severity: 'severity' };
+const TEN = new Set(['effort', 'severity']);
 let _kinds = null;
 let _dlog = null;
 
-export const hasDayLog = habit => !!habit && habit.kind !== 'check' && habit.kind !== 'workout' && !LOGGED.has(habit.kind);
+// every habit but a plain check logs its day here, the gym logger aside
+export const hasDayLog = habit => !!habit && habit.kind !== 'check' && habit.kind !== 'workout';
 
 export function loadKinds() {
   _kinds ||= api('/api/habits/kinds').then(data => data.kinds).catch(error => { _kinds = null; throw error; });
   return _kinds;
 }
 
-// a field's name: its translation, else its key in plain words
+// a field's name: its translation, else its key in plain words (a custom field brings its label)
 export function fieldLabel(key) {
   const name = `habits.field_${key}`;
   const found = t(name);
   return found === name ? key.replace(/_/g, ' ') : found;
 }
-function optionLabel(value) {
+export function optionLabel(value) {
   const name = `habits.option_${value}`;
   const found = t(name);
   return found === name ? value.replace(/_/g, ' ') : found;
 }
 
-export function shownFields(spec, habit) {
+export function shownFields(spec, habit, entries = []) {
   const config = habit.fields || {};
   const on = new Set(config.on || []);
   const hidden = new Set(config.hidden || []);
+  // a value already logged always shows, even for a field switched off since
+  const used = new Set(entries.flatMap(entry => Object.keys(entry?.values || {})));
   return [...(spec?.fields || []), ...(config.custom || [])]
-    .filter(field => !SKIP.has(field.type) && !hidden.has(field.key) && (field.on || on.has(field.key)));
+    .filter(field => !SKIP.has(field.type) && (used.has(field.key) || (!hidden.has(field.key) && (field.on || on.has(field.key)))));
+}
+
+// a number picked from a short range (effort 1 to 10) is a rating, so it takes the number row
+const isRating = field => field.type === 'rating' || (field.type === 'number' && !!field.whole && (field.min ?? 0) >= 1 && field.max > 0 && field.max <= 10);
+const ratingTop = (field, d) => field.type === 'rating' ? (field.max || d.scale || 5) : field.max;
+
+// the word for each value of a rating, spread over its scale's words (a 1 to 4 row skips one)
+export function scaleWords(key, top, low = 1) {
+  const scale = SCALES[key] || 'good';
+  const size = TEN.has(scale) ? 10 : 5;
+  const count = top - low + 1;
+  return Array.from({ length: count }, (_, at) => t(`habits.scale_${scale}_${count === 1 ? 1 : Math.round(at * (size - 1) / (count - 1)) + 1}`));
 }
 
 // one pick: a pill switch for 2 or 3 options, the dropdown for more (ux laws: a list that can
@@ -950,35 +876,71 @@ export function choiceHtml(key, options, picked, labelledBy) {
   return `<div class="settings-input custom-select" data-f="${esc(key)}" data-value="${esc(picked ?? '')}" data-options="${esc(options.map(([value, text]) => `${value}|${text}`).join(';'))}" aria-labelledby="${labelledBy}"></div>`;
 }
 
-function fieldHtml(field, value, d) {
+const dayBefore = day => {
+  const [y, m, n] = day.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, n - 1)).toISOString().slice(0, 10);
+};
+// "oct 31, the night before" beside a bedtime of 11:30 pm logged on nov 1
+export function nightText(value, day) {
+  if (!/^\d{2}:\d{2}$/.test(String(value || '')) || value < '12:00') return '';
+  return t('habits.night_before', { date: formatCalendarDate(dayBefore(day), { month: 'short', day: 'numeric' }).toLocaleLowerCase() });
+}
+
+// what a count habit counts ("glasses"), else the field's own unit
+function unitOf(field, d, parent) {
+  if (!parent && d.habit.kind === 'count' && field.key === 'amount' && d.habit.unit) {
+    return UNITS.has(d.habit.unit) ? t(`habits.u_${d.habit.unit}`) : unitText(d.habit.unit);
+  }
+  return fieldUnit(field, parent || d.habit.kind);
+}
+
+function measureUnits(field, value, d) {
+  const units = MEASURE_UNITS[field.measure] || [];
+  const saved = storedUnit(value?.unit);
+  const unit = units.includes(saved) ? saved : units.includes(d.units?.[field.measure]) ? d.units[field.measure] : units[0];
+  return { units, unit };
+}
+
+function fieldHtml(field, value, d, parent = '') {
   const id = `dlog-${++_sequence}`;
   const name = field.label || fieldLabel(field.key);
-  // a measure's unit switch sits beside its name, as the gym logger's lb or kg does
   const row = (control, type = field.type, aside = '') => `<div class="dlog-row" data-type="${type}"><div class="dlog-label"><span id="${id}">${esc(name)}</span>${aside}</div><div class="dlog-control">${control}</div></div>`;
-  const stepper = (key, shown, step = 1) => stepperHtml({ name, value: shown ?? '', step, min: field.min ?? 0, max: field.max ?? '', inputmode: field.whole || field.type === 'count' ? 'numeric' : 'decimal', attrs: `data-f="${esc(key)}"` });
+  const stepper = (key, shown, step = 1, unit = unitOf(field, d, parent)) => stepperHtml({ name, value: shown ?? '', step, min: field.min ?? 0, max: field.max ?? '', unit, inputmode: field.whole || field.type === 'count' ? 'numeric' : 'decimal', attrs: `data-f="${esc(key)}"` });
+  if (isRating(field)) {
+    const low = field.type === 'rating' ? 1 : field.min;
+    const top = ratingTop(field, d);
+    const words = scaleWords(field.key, top, low);
+    const ends = words.map((word, at) => (at === 0 || at === words.length - 1 ? word : '')).join(',');
+    return row(`<div class="k-number-row" data-kokuen-choice="rating" data-f="${esc(field.key)}" data-min="${low}" data-max="${top}" data-value="${value ?? ''}" data-labels="${esc(words.join(','))}" data-words="${esc(ends)}" aria-label="${esc(name)}"></div>`, 'rating');
+  }
   switch (field.type) {
-    case 'number': case 'count': case 'minutes':
-      return row(stepper(field.key, value, field.type === 'minutes' ? 5 : 1));
+    case 'number': case 'count': case 'minutes': case 'seconds':
+      return row(stepper(field.key, value, field.type === 'minutes' ? 5 : field.type === 'seconds' ? 15 : 1));
     case 'measure': {
-      const units = MEASURE_UNITS[field.measure] || [];
-      const unit = value?.unit || d.units?.[field.measure] || units[0];
-      return row(stepper(field.key, value?.value), field.type, units.length > 1 ? choiceHtml(`${field.key}.unit`, units.map(u => [u, UNIT_TEXT[u] || u]), unit, id) : '');
+      const { units, unit } = measureUnits(field, value, d);
+      return row(stepper(field.key, value?.value, 1, unitText(unit)), field.type, units.length > 1 ? choiceHtml(`${field.key}.unit`, units.map(u => [u, unitText(u)]), unit, id) : '');
     }
-    case 'rating':
-      return row(`<div class="k-number-row" data-kokuen-choice="rating" data-f="${esc(field.key)}" data-min="1" data-max="${field.max || d.scale || 5}" data-value="${value ?? ''}" aria-label="${esc(name)}"></div>`);
     case 'yesno':
       return row(choiceHtml(field.key, [['yes', t('common.yes')], ['no', t('common.no')]], value === true ? 'yes' : value === false ? 'no' : null, id));
     case 'choice':
       return row(choiceHtml(field.key, field.options.map(option => [option, optionLabel(option)]), value, id));
-    case 'clock':
-      return row(`<div class="date-input" data-type="due" data-f="${esc(field.key)}" data-value="${value ? `${d.day}T${value}` : ''}" aria-labelledby="${id}"></div>`);
+    case 'clock': {
+      const night = NIGHT.has(field.key) && !parent ? `<span class="dlog-aside" data-night="${esc(field.key)}">${esc(nightText(value, d.day))}</span>` : '';
+      return row(`<div class="date-input" data-type="time" data-f="${esc(field.key)}" data-value="${esc(value && value !== '?' ? value : '')}" aria-labelledby="${id}"></div>${night}`);
+    }
     case 'date':
       return row(`<div class="date-input" data-type="date" data-f="${esc(field.key)}" data-value="${esc(value || '')}" aria-labelledby="${id}"></div>`);
     case 'sets': {
       const first = Array.isArray(value) ? value[0] : null;
       const sets = stepperHtml({ name: t('habits.sets'), value: first?.count ?? 1, min: 1, max: 100, inputmode: 'numeric', attrs: `data-f="${esc(field.key)}.count"` });
-      return `${row(stepper(`${field.key}.reps`, first?.reps), 'count')}<div class="dlog-row" data-type="count"><div class="dlog-label"><span>${esc(t('habits.sets'))}</span></div><div class="dlog-control">${sets}</div></div>`;
+      return `${row(stepper(`${field.key}.reps`, first?.reps, 1, ''), 'count')}<div class="dlog-row" data-type="count"><div class="dlog-label"><span>${esc(t('habits.sets'))}</span></div><div class="dlog-control">${sets}</div></div>`;
     }
+    case 'rows':
+      return `<div class="dlog-row" data-type="rows"><div class="dlog-label"><span id="${id}">${esc(name)}</span></div>
+        <div class="dlog-control dlog-rows" data-f="${esc(field.key)}" role="group" aria-labelledby="${id}">${rowsInner(field, Array.isArray(value) ? value : [], d)}</div></div>`;
+    case 'files':
+      return `<div class="dlog-row" data-type="files"><div class="dlog-label"><span id="${id}">${esc(name)}</span></div>
+        <div class="dlog-control dlog-files" data-f="${esc(field.key)}" role="group" aria-labelledby="${id}">${filesInner(Array.isArray(value) ? value : [])}</div></div>`;
     default: {
       const text = Array.isArray(value) ? value.map(item => item?.text ?? item?.item ?? item).join(', ') : value?.text ?? value ?? '';
       return row(`<input type="text" class="settings-input" data-f="${esc(field.key)}" autocomplete="off" value="${esc(text)}" aria-labelledby="${id}">`, 'text');
@@ -986,8 +948,33 @@ function fieldHtml(field, value, d) {
   }
 }
 
-function readNumber(host, key) {
-  const raw = formatDecimal(String(host.querySelector(`.k-stepper[data-f="${CSS.escape(key)}"] input`)?.value ?? '').trim());
+// rows (laps, climbs, naps): one card per row with the row's own fields, a side when the field
+// has sides, and a remove button; a new row starts empty under the last one
+function rowsInner(field, rows, d) {
+  const cards = rows.map((one, at) => {
+    const legend = `dlog-${++_sequence}`;
+    const side = field.sides ? `<div class="dlog-row" data-type="choice"><div class="dlog-label"><span id="${legend}-side">${esc(t('habits.sides'))}</span></div><div class="dlog-control">${choiceHtml('side', [['', t('habits.side_both')], ['L', t('habits.left')], ['R', t('habits.right')]], one.side || '', `${legend}-side`)}</div></div>` : '';
+    return `<div class="dlog-rowcard" data-scope role="group" aria-labelledby="${legend}">
+      <div class="dlog-rowcard-head"><span id="${legend}">${esc(t('habits.row_n', { n: at + 1 }))}</span><button type="button" class="icon-btn" data-dlog="remove-row" aria-label="${esc(t('habits.remove_row_n', { n: at + 1 }))}">${_si('trash')}</button></div>
+      <div class="dlog-rowcard-fields">${side}${field.columns.map(column => fieldHtml(column, one[column.key], d, field.key)).join('')}</div></div>`;
+  }).join('');
+  return `${cards}<button type="button" class="btn dlog-add-row" data-dlog="add-row">${_si('plus')} ${esc(t('habits.add_row'))}</button>`;
+}
+
+// files (a practice recording): stored in the files app under habits/<habit>, listed by name
+function filesInner(paths) {
+  const list = paths.length ? `<ul class="dlog-file-list">${paths.map(path => `<li data-path="${esc(path)}"><span class="dlog-file-name">${esc(path.split('/').pop())}</span><button type="button" class="icon-btn" data-dlog="remove-file" aria-label="${esc(t('habits.remove_file', { name: path.split('/').pop() }))}">${_si('close')}</button></li>`).join('')}</ul>` : '';
+  return `${list}<label class="btn dlog-add-file">${_si('plus')} ${esc(t('habits.add_file'))}<input type="file" class="sr-only" data-dlog="file"></label>`;
+}
+
+// the one node of a selector that belongs to this scope (the form, or one row's card), so a row's
+// own "minutes" is never read as the day's
+function own(scope, selector) {
+  return [...scope.querySelectorAll(selector)].find(node => node.closest('[data-scope]') === scope) || null;
+}
+
+function readNumber(scope, key) {
+  const raw = formatDecimal(String(own(scope, `.k-stepper[data-f="${CSS.escape(key)}"] input`)?.value ?? '').trim());
   if (!raw) return null;
   if (raw === '?') return '?';
   const value = Number(raw);
@@ -995,34 +982,50 @@ function readNumber(host, key) {
   return value;
 }
 
-function pickOf(host, key) {
-  const node = host.querySelector(`[data-f="${CSS.escape(key)}"]`);
+function pickOf(scope, key) {
+  const node = own(scope, `[data-f="${CSS.escape(key)}"]`);
   if (!node) return null;
   if (node.matches('.custom-select')) return node.dataset.value || null;
   if (node.matches('.k-number-row')) return node.querySelector('[aria-checked="true"]')?.dataset.value ?? (node.dataset.value || null);
   return node.querySelector('[aria-checked="true"]')?.dataset.value ?? null;
 }
 
+function readRows(box, field) {
+  return [...box.querySelectorAll(':scope > .dlog-rowcard')].map(card => {
+    const values = collectDay(card, field.columns);
+    const side = field.sides ? pickOf(card, 'side') : '';
+    return side ? { ...values, side } : values;
+  });
+}
+
 // the values the form holds, in the shapes services/habit_kinds.py stores
-export function collectDay(host, fields) {
+export function collectDay(scope, fields) {
   const values = {};
   for (const field of fields) {
     const key = field.key;
     let value = null;
-    if (['number', 'count', 'minutes'].includes(field.type)) value = readNumber(host, key);
+    if (isRating(field)) { const pick = pickOf(scope, key); value = pick == null ? null : Number(pick); }
+    else if (['number', 'count', 'minutes', 'seconds'].includes(field.type)) value = readNumber(scope, key);
     else if (field.type === 'measure') {
-      const amount = readNumber(host, key);
-      if (amount != null) value = { value: amount, unit: pickOf(host, `${key}.unit`) || (MEASURE_UNITS[field.measure] || [])[0] };
-    } else if (field.type === 'rating') { const pick = pickOf(host, key); value = pick == null ? null : Number(pick); }
-    else if (field.type === 'choice') value = pickOf(host, key);
-    else if (field.type === 'yesno') { const pick = pickOf(host, key); value = pick == null ? null : pick === 'yes'; }
-    else if (field.type === 'clock') value = (host.querySelector(`[data-f="${CSS.escape(key)}"]`)?.dataset.value || '').split('T')[1]?.slice(0, 5) || null;
-    else if (field.type === 'date') value = host.querySelector(`[data-f="${CSS.escape(key)}"]`)?.dataset.value?.slice(0, 10) || null;
+      const amount = readNumber(scope, key);
+      if (amount != null) value = { value: amount, unit: pickOf(scope, `${key}.unit`) || (MEASURE_UNITS[field.measure] || [])[0] };
+    } else if (field.type === 'choice') value = pickOf(scope, key);
+    else if (field.type === 'yesno') { const pick = pickOf(scope, key); value = pick == null ? null : pick === 'yes'; }
+    else if (field.type === 'clock') value = own(scope, `[data-f="${CSS.escape(key)}"]`)?.dataset.value || null;
+    else if (field.type === 'date') value = own(scope, `[data-f="${CSS.escape(key)}"]`)?.dataset.value?.slice(0, 10) || null;
     else if (field.type === 'sets') {
-      const reps = readNumber(host, `${key}.reps`);
-      if (reps != null) value = [{ reps, count: readNumber(host, `${key}.count`) || 1, status: 'done' }];
+      const reps = readNumber(scope, `${key}.reps`);
+      if (reps != null) value = [{ reps, count: readNumber(scope, `${key}.count`) || 1, status: 'done' }];
+    } else if (field.type === 'rows') {
+      const box = own(scope, `.dlog-rows[data-f="${CSS.escape(key)}"]`);
+      const rows = box ? readRows(box, field).filter(one => Object.keys(one).some(name => name !== 'side')) : [];
+      value = rows.length ? rows : null;
+    } else if (field.type === 'files') {
+      const box = own(scope, `.dlog-files[data-f="${CSS.escape(key)}"]`);
+      const paths = box ? [...box.querySelectorAll('li[data-path]')].map(item => item.dataset.path) : [];
+      value = paths.length ? paths : null;
     } else {
-      const text = textIn(host.querySelector(`input[data-f="${CSS.escape(key)}"]`));
+      const text = textIn(own(scope, `input[data-f="${CSS.escape(key)}"]`));
       if (text) {
         const parts = text.split(',').map(part => part.trim()).filter(Boolean);
         value = field.type === 'tags' ? parts : field.type === 'people' ? parts.map(part => ({ text: part }))
@@ -1034,23 +1037,34 @@ export function collectDay(host, fields) {
   return values;
 }
 
-// "amount 4 · mood 4 · felt fine", read off the same fields the form shows
-export function entryText(entry, fields) {
+const clockMinutes = value => /^\d{2}:\d{2}$/.test(String(value || '')) ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
+
+// "bedtime 11:30 pm · woke up 7:00 am · in bed 7 h 30 min · quality 4", read off the form's fields
+export function entryText(entry, fields, kind = '') {
   const bits = [];
   for (const field of fields) {
     const value = entry.values?.[field.key];
     if (value == null) continue;
+    const unit = value !== '?' && ['number', 'count', 'seconds'].includes(field.type) && !isRating(field) ? fieldUnit(field, kind) : '';
     let shown;
-    if (field.type === 'measure') shown = `${value.value === '?' ? '?' : num(value.value)} ${UNIT_TEXT[value.unit] || value.unit}`;
+    if (field.type === 'measure') shown = `${value.value === '?' ? '?' : num(value.value)} ${unitText(value.unit)}`;
     else if (field.type === 'minutes') shown = value === '?' ? '?' : durationText(value);
+    else if (field.type === 'clock') shown = value === '?' ? '?' : clockText(value);
     else if (field.type === 'yesno') shown = t(value ? 'common.yes' : 'common.no');
     else if (field.type === 'choice') shown = optionLabel(value);
     else if (field.type === 'date') shown = formatCalendarDate(value, { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase();
     else if (field.type === 'sets') shown = value.map(one => `${num(one.reps ?? 0)}${(one.count || 1) > 1 ? ` × ${num(one.count)}` : ''}`).join(', ');
+    else if (field.type === 'rows') shown = value.map(one => [one.side ? sideShort(one.side) : '', entryText({ values: one }, field.columns, field.key)].filter(Boolean).join(' ')).join('; ');
+    else if (field.type === 'files') shown = value.map(path => path.split('/').pop()).join(', ');
     else if (Array.isArray(value)) shown = value.map(item => item?.text ?? item?.item ?? item).join(', ');
     else if (typeof value === 'object') shown = value.text ?? '';
     else shown = typeof value === 'number' ? num(value) : String(value);
-    bits.push(`${field.label || fieldLabel(field.key)} ${shown}`);
+    bits.push(`${field.label || fieldLabel(field.key)} ${shown}${unit ? ` ${unit}` : ''}`);
+    // tesler's law: time in bed is counted from bedtime and wake, never typed
+    if (field.key === 'wake') {
+      const from = clockMinutes(entry.values?.bedtime), to = clockMinutes(value);
+      if (from != null && to != null) bits.push(t('habits.in_bed', { n: durationText((to - from + 1440) % 1440) }));
+    }
   }
   if (entry.note) bits.push(entry.note);
   return bits.join(' · ');
@@ -1059,7 +1073,7 @@ export function entryText(entry, fields) {
 function dayHtml(d) {
   const { entries, fields, editing } = d;
   const list = entries.length ? `<ol class="dlog-entries" aria-label="${esc(t('habits.logged_entries'))}">${entries.map((entry, at) => `<li class="dlog-entry${editing === at ? ' is-editing' : ''}" data-at="${at}">
-      <span class="dlog-entry-text">${esc(entryText(entry, fields) || t('habits.done_no_details'))}</span>
+      <span class="dlog-entry-text">${esc(entryText(entry, fields, d.habit.kind) || t('habits.done_no_details'))}</span>
       <button type="button" class="icon-btn" data-dlog="edit" aria-label="${esc(t('habits.edit_entry_n', { n: at + 1 }))}">${_si('edit')}</button></li>`).join('')}</ol>` : '';
   const from = editing != null ? entries[editing] : d.single && entries.length ? entries[0] : d.prefill;
   const noteId = `dlog-${++_sequence}`;
@@ -1071,12 +1085,18 @@ function dayHtml(d) {
     </section>`;
 }
 
+function initControls(root) {
+  initKokuenPrimitives(root);
+  root.querySelectorAll('.custom-select').forEach(initCustomDropdown);
+  initDatePickers(root);
+  wireSteppers(root);
+}
+
 function paintDay(d, focus) {
   if (!d.host.isConnected) return;
+  d.host.setAttribute('data-scope', '');
   d.host.innerHTML = dayHtml(d);
-  initKokuenPrimitives(d.host);
-  d.host.querySelectorAll('.custom-select').forEach(initCustomDropdown);
-  initDatePickers(d.host);
+  initControls(d.host);
   if (focus) d.host.querySelector(focus)?.focus({ preventScroll: true });
 }
 
@@ -1106,17 +1126,84 @@ function logDay(d) {
   });
 }
 
+// add or remove a row: the rows already typed are read back and drawn again with the change
+function changeRows(d, box, change) {
+  const field = d.fields.find(one => one.key === box.dataset.f);
+  if (!field) return;
+  let rows;
+  try { rows = readRows(box, field); } catch (error) { toast(error.message, 'error'); return; }
+  const focus = change(rows);
+  box.innerHTML = rowsInner(field, rows, d);
+  initControls(box);
+  const cards = box.querySelectorAll(':scope > .dlog-rowcard');
+  (focus >= 0 && cards[focus] ? cards[focus].querySelector('input, [tabindex="0"], button') : box.querySelector('.dlog-add-row'))?.focus({ preventScroll: true });
+}
+
+async function addFile(d, input) {
+  const file = input.files?.[0];
+  const box = input.closest('.dlog-files');
+  if (!file || !box) return;
+  const body = new FormData();
+  const folder = `habits/${(d.habit.name || 'habit').replace(/[\\/]+/g, ' ').trim() || 'habit'}`;
+  body.append('path', folder);
+  body.append('file', file, file.name);
+  // the busy edge (0053) runs on the add button while the file goes up
+  const busy = box.querySelector('.dlog-add-file');
+  busy?.classList.add('k-busy');
+  busy?.setAttribute('data-busy', 'true');
+  try {
+    const saved = await api('/api/files/upload', { method: 'POST', body });
+    const paths = [...box.querySelectorAll('li[data-path]')].map(item => item.dataset.path);
+    paths.push(saved?.path || `${folder}/${file.name}`);
+    box.innerHTML = filesInner(paths);
+    box.querySelector('[data-dlog="file"]')?.closest('label')?.focus?.();
+  } catch (error) {
+    toast(error.message || t('habits.file_failed'), 'error');
+  } finally {
+    busy?.setAttribute('data-busy', 'false');
+  }
+}
+
 function wireDay(host) {
   if (host.dataset.dlogWired === '1') return;
   host.dataset.dlogWired = '1';
   host.addEventListener('click', event => {
     const d = _dlog;
     const button = event.target.closest('[data-dlog]');
-    if (!d || d.host !== host || !button) return;
+    if (!d || d.host !== host || !button || button.matches('input')) return;
     const act = button.dataset.dlog;
     if (act === 'log') logDay(d);
     else if (act === 'edit') { d.editing = Number(button.closest('.dlog-entry').dataset.at); paintDay(d, '.dlog-form input, .dlog-form [tabindex="0"]'); }
     else if (act === 'cancel') { d.editing = null; paintDay(d, '.dlog-log'); }
+    else if (act === 'add-row') changeRows(d, button.closest('.dlog-rows'), rows => { rows.push({}); return rows.length - 1; });
+    else if (act === 'remove-row') {
+      const card = button.closest('.dlog-rowcard');
+      const at = [...card.parentElement.querySelectorAll(':scope > .dlog-rowcard')].indexOf(card);
+      changeRows(d, card.parentElement, rows => { rows.splice(at, 1); return Math.min(at, rows.length - 1); });
+    } else if (act === 'remove-file') {
+      const box = button.closest('.dlog-files');
+      button.closest('li').remove();
+      const paths = [...box.querySelectorAll('li[data-path]')].map(item => item.dataset.path);
+      box.innerHTML = filesInner(paths);
+      box.querySelector('.dlog-add-file')?.focus();
+    }
+  });
+  host.addEventListener('change', event => {
+    const d = _dlog;
+    if (!d || d.host !== host) return;
+    if (event.target.matches('[data-dlog="file"]')) { addFile(d, event.target); return; }
+    const target = event.target.closest('[data-f]');
+    if (!target) return;
+    const key = target.dataset.f;
+    // a measure's unit switch renames the unit inside its stepper
+    if (key.endsWith('.unit') && event.detail?.value) {
+      const stepper = target.closest('.dlog-row')?.querySelector(`.k-stepper[data-f="${CSS.escape(key.slice(0, -5))}"]`);
+      const unit = stepper?.querySelector('.k-stepper-unit');
+      if (unit) unit.textContent = unitText(event.detail.value);
+      return;
+    }
+    const night = target.closest('.dlog-control')?.querySelector(`[data-night="${CSS.escape(key)}"]`);
+    if (night) night.textContent = nightText(target.dataset.value, d.day);
   });
 }
 
@@ -1133,12 +1220,13 @@ function lastEntry(habit, day) {
 // one habit's day log drawn into host. save(doc) stores the day
 export async function renderDayLog(host, habit, day, { save }) {
   const spec = (await loadKinds())?.[habit.kind];
+  const entries = structuredClone(habit.days?.[day]?.entries || []);
+  const prefill = lastEntry(habit, day);
   const d = {
-    host, habit, day, save, editing: null,
-    entries: structuredClone(habit.days?.[day]?.entries || []),
+    host, habit, day, save, editing: null, entries,
     single: !!spec?.single, scale: habit.fields?.scale, units: habit.fields?.units,
-    fields: shownFields(spec, habit),
-    prefill: lastEntry(habit, day),
+    fields: shownFields(spec, habit, [...entries, prefill]),
+    prefill,
   };
   _dlog = d;
   host.classList.add('dlog');

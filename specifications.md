@@ -309,12 +309,23 @@ the gym logger shows every session of a day (two entries, say back then arms): e
 its muscle groups, its note sits under it word for word, and a set saves into its own session's
 entry. every catalog habit is its own kind ([static/js/habit_catalog.js](static/js/habit_catalog.js)):
 its opened page logs the day with that kind's fields from `GET /api/habits/kinds` (the ones on
-by default or switched on), each in one kit control: a number is the stepper, a rating the number
-row, 2 or 3 options or yes and no a pill switch, 4 or more the dropdown, a time or date the date
-field, words a field; a measure's unit switch sits beside its name. "single" kinds keep one entry
-a day, the rest add one per session; the form starts from the last entry, so the same as last
-time is one tap on log. rows and files fields aren't on that form yet. the row's own tap still
-just marks the day done. "last time" and the next step hint come from days before the open day, and records
+by default, switched on, or already holding a value that day), each in one kit control: a number
+is the stepper with its unit inside ("15 min", "30 g", "152 bpm"; `static/js/units.js`), a rating
+or a 1 to 10 number (effort, severity) the number row with its end words and a readout naming the
+pick ("4, good"), 2 or 3 options or yes and no a pill switch, 4 or more the dropdown, a time of
+day the time field (`datepick.js` type `time`: "11:15 pm" in the owner's 12 or 24 hour clock; a
+bedtime from noon on says it was the night before, and the entry counts the time in bed), a date
+the date field, rows (laps, climbs, naps, holds) a card per row with its own fields and a side
+where the field has sides, files an upload into the files app under `habits/<habit>`, words a
+field; a measure's unit switch sits beside its name and renames the unit in its stepper. every
+field, option, rating word and unit name is in all 8 languages
+(`tests/test_habit_logger_strings.py`). "single" kinds keep one entry a day, the rest add one per
+session; the form starts from the last entry, so the same as last time is one tap on log. the old
+reading, count, duration and distance dialog is gone: those kinds log on the same form, and a
+habit row's today button opens any habit that logs details on today's log, the same way for
+every kind (a plain check is still marked done in place). the gym logger sets the open
+exercise's setup (load basis as a dropdown, then equipment, machine, grip, stance, angle, seat,
+pin; enter saves) and each session's muscle groups with the dropdown's pick several. "last time" and the next step hint come from days before the open day, and records
 (heaviest and the rest) only from days up to it, so a past day never counts a later session.
 
 **units and body profile.** [services/units.py](services/units.py) holds every conversion table

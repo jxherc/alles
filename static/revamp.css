@@ -4414,6 +4414,11 @@ html:not(#_):not(#_) .k-stepper input {
 }
 
 html:not(#_):not(#_) .k-stepper input::placeholder { color: var(--k-muted); font-weight: 400; }
+/* a stepper with a unit (decision 0067): the value and its unit sit together in the middle, the
+   value as wide as what's typed; a tap anywhere between the buttons lands in the value */
+html:not(#_):not(#_) .k-stepper-value { display: flex; align-items: center; justify-content: center; gap: var(--k-space-1); min-width: 0; height: 100%; cursor: text; }
+html:not(#_):not(#_) .k-stepper-value input { flex: 0 1 auto; width: calc(var(--k-len, 2) * 1ch + var(--k-space-2)); max-width: 100%; }
+html:not(#_):not(#_) .k-stepper-unit { flex: none; color: var(--k-muted); font-size: 0.9375rem; white-space: nowrap; }
 html:not(#_):not(#_) .k-stepper:has(input:disabled) { opacity: 0.5; }
 html:not(#_):not(#_) .k-stepper:has(input:disabled) button:disabled { opacity: 1; }
 html:not(#_):not(#_) .k-stepper input:disabled { cursor: default; }
@@ -4452,14 +4457,47 @@ html:not(#_):not(#_) .gym-empty { margin: 0; color: var(--k-muted); font-size: 0
 html:not(#_):not(#_) .gym-session { display: grid; gap: var(--k-space-1); }
 html:not(#_):not(#_) .gym-ex + .gym-session { border-top: 1px solid var(--k-line); padding-top: var(--k-space-5); }
 html:not(#_):not(#_) .gym-session-name { margin: 0; color: var(--k-muted); font-size: 0.875rem; font-weight: 620; }
+/* a session's muscle groups (pick several) and the open exercise's setup, set from the screen */
+html:not(#_):not(#_) .gym-muscles { margin-top: var(--k-space-1); }
+html:not(#_):not(#_) .gym-setup-btn { justify-self: start; margin-inline-start: calc(-1 * var(--k-space-3)); }
+html:not(#_):not(#_) .gym-setup { display: grid; gap: var(--k-space-3); padding: var(--k-space-4); border-radius: var(--k-radius-control); outline: 1px solid var(--k-line); outline-offset: -1px; }
+html:not(#_):not(#_) .gym-setup .settings-input { min-height: var(--k-control); }
 html:not(#_):not(#_) .gym-session-note { margin: 0; color: var(--k-soft); font-size: 0.9375rem; line-height: 1.45; white-space: pre-line; }
 
 /* every other kind's day log (E1): the gym logger's grid and panel, one field per row. labels
    on the left on wide screens, on top on a phone; a measure's unit switch sits beside its stepper */
 html:not(#_):not(#_) .dlog { display: grid; gap: var(--k-space-4); --gym-label: 224px; --gym-h: 52px; }
-/* a plain 1 to 5 row has no words, so its readout would only repeat the picked number: screen
-   readers still hear it */
-html:not(#_):not(#_) .dlog .k-number-row-readout { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* a rating row shows its end words under 1 and the top, and the readout names the pick ("4, good").
+   the row keeps 4px each side so an end word wider than its 44px column stays inside the row */
+html:not(#_):not(#_) .dlog .k-number-row { padding-inline: var(--k-space-1); }
+/* a time a bedtime puts on the night before says which night, right beside the time */
+html:not(#_):not(#_) .dlog-aside { color: var(--k-muted); font-size: 0.875rem; }
+/* a unit switch with three units (ml, fl oz, glasses) drops under its name instead of running into
+   the stepper; a unit never breaks over two lines */
+html:not(#_):not(#_) .dlog-label { flex-wrap: wrap; }
+html:not(#_):not(#_) .dlog-label .k-pill-switch > button { white-space: nowrap; }
+html:not(#_):not(#_) .dlog-aside:empty { display: none; }
+/* rows (laps, climbs, naps): the field takes the full width, a card per row with its own fields */
+html:not(#_):not(#_) .dlog-row[data-type="rows"], html:not(#_):not(#_) .dlog-row[data-type="files"] { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2); }
+html:not(#_):not(#_) .dlog-row:is([data-type="rows"], [data-type="files"]) > .dlog-label { min-height: 0; }
+html:not(#_):not(#_) .dlog-control.dlog-rows { display: grid; gap: var(--k-space-3); align-items: stretch; }
+html:not(#_):not(#_) .dlog-rowcard { display: grid; gap: var(--k-space-2); padding: var(--k-space-3) var(--k-space-4) var(--k-space-4); border-radius: var(--k-radius-control); outline: 1px solid var(--k-line); outline-offset: -1px; }
+html:not(#_):not(#_) .dlog-rowcard-head { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); color: var(--k-soft); font-size: 0.875rem; font-weight: 600; }
+html:not(#_):not(#_) .dlog-rowcard-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--k-space-3); }
+html:not(#_):not(#_) .dlog-rowcard .dlog-row { grid-template-columns: minmax(0, 1fr); gap: var(--k-space-1); }
+html:not(#_):not(#_) .dlog-rowcard .dlog-label { min-height: var(--k-control); }
+html:not(#_):not(#_) :is(.dlog-add-row, .dlog-add-file) { justify-self: start; }
+html:not(#_):not(#_) .dlog-control.dlog-files { display: grid; gap: var(--k-space-2); }
+html:not(#_):not(#_) .dlog-file-list { display: grid; gap: var(--k-row-gap); margin: 0; padding: 0; list-style: none; }
+html:not(#_):not(#_) .dlog-file-list > li { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); min-height: var(--k-control); padding-inline-start: var(--k-space-3); border-radius: var(--k-radius-control); }
+html:not(#_):not(#_) .dlog-file-list > li:hover { background: var(--k-hover); }
+html:not(#_):not(#_) .dlog-file-name { overflow-wrap: anywhere; }
+html:not(#_):not(#_) .dlog-add-file { position: relative; cursor: pointer; }
+html:not(#_):not(#_) .dlog-add-file:focus-within { outline: 1px solid var(--k-field-focus); outline-offset: -1px; }
+/* the time field's panel (U5 time, decision 0068): no calendar, so it's as wide as its time row */
+html:not(#_):not(#_) .date-panel:has(.dp-time-only) { width: auto; }
+html:not(#_):not(#_) .dp-time-only { margin-top: 0; }
+html:not(#_):not(#_) .dp-period { font-size: 0.875rem; }
 html:not(#_):not(#_) .dlog-entries { display: grid; gap: var(--k-row-gap); margin: 0; padding: 0; list-style: none; }
 html:not(#_):not(#_) .dlog-entry {
   display: grid;
