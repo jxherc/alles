@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import FinanceLedgerState, SessionLocal, Subscription, get_db
+from core.schema.base import local_date
 from services import actual_finance, finance_currency, finance_requests, money_totals
 
 
@@ -654,7 +655,7 @@ def unused_subscriptions(cycles: int = 2, as_of: str = "", db: DbSession = Depen
         # one added inside the window hasn't had the chance to be charged yet; "unused?" on a
         # subscription added a minute ago was noise
         added = getattr(sub, "created_at", None)
-        if isinstance(added, datetime) and cutoff < added.date() <= today:
+        if isinstance(added, datetime) and cutoff < local_date(added) <= today:
             continue
         matched = False
         for t in charges:
