@@ -388,10 +388,18 @@ with sync_playwright() as pw:
                         current = api.get(
                             "/api/mail/scheduled", params={"request_id": identity}
                         ).json()["scheduled"][0]
-                        assert (
-                            current["status"] == claimed_state
-                            and current["body"] == "exact future message 中文"
+                        # the server's 30 s outbox job (services/mail_outbox.py) moves a "sending"
+                        # row to "uncertain" on its own, and a slow run can cross a tick. either
+                        # way the failed cancel must leave the row unsent, uncanceled, with its body.
+                        kept = (
+                            {"sending", "uncertain"}
+                            if claimed_state == "sending"
+                            else {claimed_state}
                         )
+                        assert (
+                            current["status"] in kept
+                            and current["body"] == "exact future message 中文"
+                        ), current
                     finally:
                         with SessionLocal() as db:
                             db.get(ScheduledMail, identity).status = "canceled"
