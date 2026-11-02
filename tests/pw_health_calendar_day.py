@@ -191,8 +191,12 @@ def run():
                         button = card.locator(f'[data-toggle="{first_day}"]')
                         button.press("Enter")
                         expect(button).to_have_class(re.compile(r"\bdone\b"))
-                        expect(card.locator(".habit-heat i").last).to_have_attribute(
-                            "title", first_day
+                        # the row's today cell (u.08 rows, no heat map) is the browser's day
+                        expect(card.locator(".habit-today")).to_have_attribute(
+                            "data-toggle", first_day
+                        )
+                        expect(card.locator(".habit-dots i").last).to_have_class(
+                            re.compile(r"^on today$")
                         )
                         page.reload(wait_until="networkidle")
                         expect(button).to_have_class(re.compile(r"\bdone\b"))
@@ -207,11 +211,16 @@ def run():
                         expect(card.locator(f'[data-toggle="{next_day}"]')).not_to_have_class(
                             re.compile(r"\bdone\b")
                         )
-                        expect(card.locator(f'[data-toggle="{first_day}"]')).to_have_class(
-                            re.compile(r"\bdone\b")
+                        # the next day: today's cell moved on, yesterday's dot stays on
+                        expect(card.locator(".habit-today")).to_have_attribute(
+                            "data-toggle", next_day
                         )
-                        expect(card.locator(".habit-heat i").last).to_have_attribute(
-                            "title", next_day
+                        expect(card.locator(f'[data-toggle="{first_day}"]')).to_have_count(0)
+                        expect(card.locator(".habit-dots i").last).to_have_class(
+                            re.compile(r"^\s*today$")
+                        )
+                        expect(card.locator(".habit-dots i").nth(5)).to_have_class(
+                            re.compile(r"^on$")
                         )
                     page.reload(wait_until="networkidle")
                     if case != "habit":

@@ -353,7 +353,9 @@ def run():
                 card = page.locator(f'.habit-card[data-id="{habit_id}"]')
                 expect(card).to_be_visible()
                 day_button = card.locator(f'.habit-day[data-toggle="{day}"]')
-                expect(day_button).to_have_class("habit-day done")
+                # today's cell is marked habit-today since the habit rows rebuild (u.08)
+                expect(day_button).to_have_class("habit-day habit-today done")
+                expect(day_button).to_have_attribute("aria-pressed", "true")
                 page.screenshot(
                     path=str(output / f"habits-{profile}-legacy-done.png"), full_page=True
                 )
@@ -367,15 +369,15 @@ def run():
                 ) as toggle:
                     day_button.click()
                 assert toggle.value.ok
-                expect(day_button).to_have_class("habit-day")
+                expect(day_button).to_have_class("habit-day habit-today")
                 with SessionLocal() as db:
                     assert not db.query(HabitLog).filter_by(habit_id=habit_id).all()
                 page.reload(wait_until="networkidle")
-                expect(day_button).to_have_class("habit-day")
+                expect(day_button).to_have_class("habit-day habit-today")
                 day_button.focus()
                 expect(day_button).to_be_focused()
                 day_button.press("Space")
-                expect(day_button).to_have_class("habit-day done")
+                expect(day_button).to_have_class("habit-day habit-today done")
                 assert page.evaluate(
                     "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 )
@@ -409,9 +411,11 @@ def run():
                 page.goto(base + "/?view=habits", wait_until="networkidle")
                 first = page.locator(f'.habit-card[data-id="{ids[0]}"]')
                 second = page.locator(f'.habit-card[data-id="{ids[1]}"]')
-                expect(first.locator(f'.habit-day[data-toggle="{day}"]')).to_have_class("habit-day")
+                expect(first.locator(f'.habit-day[data-toggle="{day}"]')).to_have_class(
+                    "habit-day habit-today"
+                )
                 expect(second.locator(f'.habit-day[data-toggle="{day}"]')).to_have_class(
-                    "habit-day done"
+                    "habit-day habit-today done"
                 )
                 page.screenshot(
                     path=str(output / f"habits-{profile}-aide-duplicate.png"), full_page=True
