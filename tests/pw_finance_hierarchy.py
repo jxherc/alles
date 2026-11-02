@@ -267,7 +267,13 @@ with sync_playwright() as pw:
             )
             first = page.locator("#txn-rows .txn").first.bounding_box()
             if width <= 390:
-                assert first["y"] + first["height"] <= 844, first
+                # the first transaction is on the first screen, above the phone's app bar (u.07)
+                fold = page.evaluate(
+                    "() => { const bar = document.getElementById('app-rail');"
+                    " return bar && !bar.hidden && getComputedStyle(bar).position === 'fixed'"
+                    " ? bar.getBoundingClientRect().top : innerHeight }"
+                )
+                assert first["y"] + first["height"] <= fold, (first, fold)
 
             def shot(name):
                 capture = context.new_cdp_session(page).send(
