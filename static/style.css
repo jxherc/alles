@@ -4600,7 +4600,8 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 }
 
 /* task item */
-.tasks-tabs { display: flex; gap: 0.15rem; }
+/* the task list's view is a dropdown (u.06): its own width, not the row's */
+#tasks-view-pick { flex: 0 0 auto; width: 12rem; max-width: 100%; }
 #task-completion-receipt { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--k-space-2, 8px); padding: var(--k-space-2, 8px) var(--page-gutter, 16px); color: var(--text); font-size: 0.8125rem; }
 #task-completion-receipt[hidden], #task-completion-receipt [hidden] { display: none; }
 #task-completion-message { min-width: 0; overflow-wrap: anywhere; }

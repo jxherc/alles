@@ -457,6 +457,15 @@ related apps now open together without merging their records.
 - **plan** combines a time-ordered calendar, tasks, and reminders agenda, with quick task capture and
   direct access to each full specialist screen. its task board is another view of the same task
   records: four active stages, manual order, filters, quick add, detail editing, and completed history
+  plan has 3 tabs: today (the agenda, with its next seven days), calendar (day, week and month) and
+  tasks. under tasks, a pill switch picks tasks, reminders or countdowns and another list or board;
+  the task list's views (all, today, upcoming, someday, history) are one dropdown. the old
+  `?view=plan-week`, `plan-board`, `reminders` and `days` links still open those views
+- **the app rail**: at 1024px and wider a 72px rail at the shell's left lists home, aide, the
+  owner's pinned apps (home's pinned apps) and more, which opens the app sheet; at 700px and
+  narrower the same is a bottom bar of 5 (home, aide, 2 pinned apps, more), and every screen's
+  height leaves room for it. ipad portrait keeps the app name button. the app sheet lists apps by
+  name only
 - **inbox** puts cached mail, the selected message, and matching contact context in one workflow while
   keeping mail and contact records separate
 - **docs** keeps notes and journal as local sections of one markdown workbench. if a document's
