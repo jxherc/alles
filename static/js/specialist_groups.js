@@ -4,7 +4,9 @@
 import { confirm as confirmDialog } from './dialog.js';
 import { initDatePicker } from './datepick.js';
 import { iconEl } from './icons.js';
+import { createFocusBoundary } from './kokuen.js?v=5';
 import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDateParts, formatDateTime, formatNumber, t, tp } from './i18n.js';
+import { balanceOn, balanceSeries, lastThirtyDays, monthBefore, signedFigure, sparkSvg, weekChange, weekChangeText } from './numbers.js';
 import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
@@ -859,6 +861,21 @@ async function _renderLibrary(target, request) {
   draw();
 }
 
+// a figure with its change under it and a quiet line of the last 30 days beside it (u.05).
+// the line is for the eye only; the change text is what a screen reader reads
+function _numberCell(value, change, svg, className = '') {
+  const cell = _el('span', `num-cell ${className}`.trim());
+  const figure = _el('span', 'num-figure');
+  figure.append(_el('span', 'num-value', value));
+  if (change) figure.append(_el('small', 'num-change', change));
+  // the line's slot is always there, so every figure in a list ends on the same edge
+  const line = _el('span', 'num-spark');
+  line.setAttribute('aria-hidden', 'true');
+  if (svg) line.innerHTML = svg;
+  cell.append(figure, line);
+  return cell;
+}
+
 async function _renderHealth(target, request) {
   const day = _todayKey();
   const [healthResult, habitsResult] = await Promise.allSettled([
@@ -893,10 +910,16 @@ async function _renderHealth(target, request) {
   if (!health.length && !healthError) measurements.append(_sectionJump('health', 'health', t('groups.log_measurement'), 'specialist-inline-action'));
   for (const item of health) {
     const row = _el('div', 'specialist-record-row');
+    const change = weekChange(item.series);
     row.append(
       item.latest?.date ? Object.assign(whenElement(item.latest.date), { className: 'specialist-record-time' }) : _el('span', 'specialist-record-time', '--'),
       _el('strong', 'specialist-record-title', item.label || item.kind || t('groups.measurement')),
-      _el('span', 'specialist-record-meta', item.latest ? `${item.latest.value} ${item.latest.unit || ''}` : t('groups.no_entries')),
+      _numberCell(
+        item.latest ? `${item.latest.value} ${item.latest.unit || ''}` : t('groups.no_entries'),
+        change ? weekChangeText(change, item.latest?.date, day) : '',
+        sparkSvg(lastThirtyDays(item.series, day)),
+        'specialist-record-meta',
+      ),
     );
     measurements.append(row);
   }
@@ -1023,23 +1046,21 @@ function _actualConfirmation(panel, action, trigger, runAction) {
   cancel.type = 'button';
   const confirm = _el('button', 'finance-actual-confirm-primary', action === 'cutover' ? t('finance.use_actual') : t('finance.use_alles'));
   confirm.type = 'button';
-  const toggle = panel.querySelector('.finance-actual-toggle');
-  if (toggle) toggle.disabled = true;
   const close = () => {
     confirmation.remove();
-    if (toggle) toggle.disabled = false;
     trigger.focus();
   };
   cancel.addEventListener('click', close);
   confirm.addEventListener('click', () => {
     confirmation.remove();
-    if (toggle) toggle.disabled = false;
     trigger.focus();
     runAction(action, trigger);
   });
   confirmation.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
+    // only the confirmation closes: the ledger dialog around it stays
+    event.stopPropagation();
     close();
   });
   actions.append(cancel, confirm);
@@ -1048,34 +1069,16 @@ function _actualConfirmation(panel, action, trigger, runAction) {
   cancel.focus();
 }
 
-function _renderActualStatus(value, request) {
+function _renderActualStatus(value, request, { onChanged = null } = {}) {
   const presentation = financeActualPresentation(value);
   const reported = !!value && typeof value === 'object';
   const service = value?.service || {};
   const ledger = value?.ledger || {};
   const panel = _el('section', `finance-actual-panel finance-actual-${presentation.state}`);
   panel.setAttribute('aria-label', t('finance.ledger_status_label'));
-  const compact = ['canonical', 'ready', 'available', 'not-installed'].includes(presentation.state);
   const heading = _el('header', 'finance-actual-head');
-  const status = compact
-    ? (presentation.state === 'ready' ? t('finance.ready_for_review') : t('finance.ledger_active', { ledger: ledger.mode === 'actual' ? 'Actual' : 'Alles' }))
-    : presentation.title;
-  heading.append(_el('h2', '', t('finance.actual_ledger')), _el('strong', '', status));
+  heading.append(_el('h2', '', t('finance.actual_ledger')), _el('strong', '', presentation.title));
   const content = _el('div', 'finance-actual-content');
-  content.id = 'finance-actual-content';
-  let toggle = null;
-  if (compact) {
-    toggle = _el('button', 'finance-actual-toggle', t('finance.show_setup'));
-    toggle.type = 'button';
-    toggle.setAttribute('aria-controls', content.id);
-    toggle.setAttribute('aria-expanded', 'false');
-    content.hidden = true;
-    toggle.addEventListener('click', () => {
-      content.hidden = !content.hidden;
-      toggle.setAttribute('aria-expanded', String(!content.hidden));
-      toggle.textContent = content.hidden ? t('finance.show_setup') : t('finance.hide_setup');
-    });
-  }
   const detail = _el('p', 'finance-actual-detail', presentation.detail);
   const facts = _el('dl', 'finance-actual-facts');
   const fact = (term, description) => {
@@ -1092,7 +1095,6 @@ function _renderActualStatus(value, request) {
 
   const setBusy = busy => {
     panel.setAttribute('aria-busy', busy ? 'true' : 'false');
-    if (toggle) toggle.disabled = busy;
     actions.querySelectorAll('button').forEach(button => _setAsyncControlBusy(button, busy));
   };
   const runAction = async (action, returnFocus = null) => {
@@ -1124,6 +1126,8 @@ function _renderActualStatus(value, request) {
       if (action === 'backup') {
         message.textContent = t('finance.backup_verified', { id: result.backup_id || '' });
         setBusy(false);
+      } else if (onChanged) {
+        await onChanged();
       } else {
         await _refresh('finance');
       }
@@ -1151,13 +1155,8 @@ function _renderActualStatus(value, request) {
     });
     actions.append(button);
   }
-  panel.append(heading);
-  if (compact) {
-    panel.append(_el('p', 'finance-actual-authority', `${t('finance.writes_to', { ledger: ledger.mode === 'actual' ? 'Actual' : 'Alles' })}${ledger.base_currency_code ? ` · ${ledger.base_currency_code}` : ''}`), toggle);
-  }
-  if (compact) content.append(_el('p', 'finance-actual-detail', presentation.title));
   content.append(detail, facts, actions, message);
-  panel.append(content);
+  panel.append(heading, content);
   return panel;
 }
 
@@ -1178,36 +1177,216 @@ function _importAmount(code, text) {
   return `${negative ? '−' : ''}${code ? `${code}\u00a0` : ''}${negative ? text.slice(1) : text}`;
 }
 
+// the readings a balance's change is worked out from: the ledger's own recent entries. a list
+// that filled its limit before reaching a month back is cut short, and shows no change
+const FINANCE_ENTRIES = 1000;
+
+// "+$120.00" / "−CAD 5.00": a change carries its sign even when it is up
+function _signedMoney(delta, currency, sign) {
+  return `${delta > 0 ? '+' : ''}${financeAmount(delta, currency, sign)}`;
+}
+
+// one row per currency an account holds. an account in a single currency is one row
+function _accountRows(item) {
+  if (item.balance_by_currency?.length) return item.balance_by_currency.map(row => ({ currency: row.currency, balance: row.balance, whole: false }));
+  return [{ currency: item.currency_code === 'XXX' ? 'XXX' : (item.currency || item.currency_code || ''), balance: item.balance, whole: true }];
+}
+
+// a balance, its change against the same day last month, and its last 30 days
+function _balanceCell(item, row, entries, entriesComplete, day) {
+  const value = financeAmount(row.balance, row.currency, item.currency);
+  if (!entriesComplete) return _numberCell(value, '', '', 'num-balance');
+  const moves = entries
+    .filter(entry => entry.account_id === item.id && (row.whole || (entry.amount_currency_code || entry.original_currency_code || 'XXX') === row.currency))
+    .map(entry => ({ date: entry.date, amount: entry.amount }));
+  const now = Number(row.balance) || 0;
+  const delta = Math.round((now - balanceOn(now, moves, monthBefore(day), day)) * 100) / 100;
+  const change = delta === 0
+    ? t('numbers.month_no_change')
+    : t('numbers.month_change', { figure: _signedMoney(delta, row.currency, item.currency) });
+  const line = sparkSvg(balanceSeries(now, moves, day).map((point, at) => ({ x: at, y: point.value })));
+  return _numberCell(value, change, line, 'num-balance');
+}
+
+// the finance overview's cards share one row: a name and what goes with it on the right
+function _financeRow(title, meta) {
+  const row = _el('div', 'specialist-group-row');
+  row.append(_el('strong', '', title || t('groups.untitled')));
+  if (meta) row.append(meta);
+  return row;
+}
+
+function _financeCard(title, rows, emptyCopy, className = '') {
+  const card = _el('section', `specialist-group-card ${className}`.trim());
+  card.append(_el('h2', '', title));
+  const list = _el('div', 'specialist-group-list');
+  if (!rows.length) list.append(_el('p', 'specialist-group-empty', emptyCopy));
+  for (const row of rows) list.append(row);
+  card.append(list);
+  return card;
+}
+
+// when and what, the date in the owner's words with the full day on hover
+function _dated(date, text) {
+  const meta = _el('span', 'num-dated');
+  if (date) meta.append(Object.assign(whenElement(date), { className: 'num-when' }));
+  if (text) meta.append(_el('span', 'num-amount', text));
+  return meta;
+}
+
+// how the ledger's totals are written: its currency code, or the sign accounts without a code were made with
+function _summaryUnit(summary, accounts) {
+  const code = /^[A-Z]{3}$/.test(summary?.currency || '') ? summary.currency : '';
+  if (code) return { currency: code, sign: '' };
+  const signs = [...new Set(accounts.filter(item => !item.archived).map(item => item.currency).filter(Boolean))];
+  // two different signs added up would be a number in no currency at all
+  return signs.length > 1 ? null : { currency: '', sign: signs[0] || summary?.currency || '' };
+}
+
+function _shiftMonthKey(month, delta) {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!match) return '';
+  const at = Number(match[1]) * 12 + Number(match[2]) - 1 + delta;
+  return `${Math.floor(at / 12)}-${String((at % 12) + 1).padStart(2, '0')}`;
+}
+
+// spent this month against last month, the first thing the page says. what the total leaves out
+// is said under it: an account made with a bare sign has no currency to add up yet, and the
+// question that settles it is one tap away in money
+function _spentCard(summary, accounts) {
+  if (!summary || typeof summary.expense !== 'number') return null;
+  const unit = _summaryUnit(summary, accounts);
+  if (!unit) return null;
+  const last = (summary.trend || []).find(row => row.month === _shiftMonthKey(String(summary.month || ''), -1));
+  const card = _el('section', 'specialist-group-card finance-spent');
+  card.append(_el('h2', '', t('finance.spent_this_month')));
+  const figures = _el('div', 'finance-spent-row');
+  figures.append(_el('strong', 'finance-spent-figure', financeAmount(summary.expense, unit.currency, unit.sign)));
+  if (last) figures.append(_el('span', 'finance-spent-last', t('finance.spent_last_month', { amount: financeAmount(last.expense, unit.currency, unit.sign) })));
+  card.append(figures);
+  const left = summary.excluded || [];
+  if (left.some(row => row.currency !== 'XXX')) card.append(_el('small', 'finance-spent-note', t('finance.spent_left_out')));
+  if (left.some(row => row.currency === 'XXX')) {
+    const signs = [...new Set(accounts.filter(item => !item.archived && item.currency_code === 'XXX').map(item => String(item.currency || '').trim()).filter(Boolean))];
+    if (!signs.length) card.append(_el('small', 'finance-spent-note', t('finance.spent_no_currency')));
+    for (const sign of signs) card.append(_sectionJump('finance', 'money', t('money.which_currency', { sign }), 'specialist-inline-action finance-spent-ask'));
+  }
+  return card;
+}
+
+// the Actual ledger's setup is not working-page content: it opens from one link, in a dialog
+async function _openLedgerSetup(request, trigger) {
+  const overlay = _el('div', 'dialog-overlay finance-ledger-overlay');
+  const dialog = _el('section', 'dialog-card finance-ledger-dialog');
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'finance-ledger-title');
+  const head = _el('header', 'finance-ledger-head');
+  const title = _el('h2', '', t('finance.ledger_setup'));
+  title.id = 'finance-ledger-title';
+  const closeButton = _el('button', 'btn', t('common.close'));
+  closeButton.type = 'button';
+  head.append(title, closeButton);
+  const body = _el('div', 'finance-ledger-body');
+  dialog.append(head, body);
+  overlay.append(dialog);
+  let focusBoundary = null;
+  const close = () => {
+    focusBoundary?.deactivate();
+    focusBoundary?.destroy();
+    overlay.remove();
+  };
+  closeButton.addEventListener('click', close);
+  overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+  const show = async () => {
+    let status = null;
+    try { status = await _json(request, '/api/finance/actual'); } catch (error) {
+      body.replaceChildren(_el('p', 'specialist-group-error', t('finance.actual_status_unavailable', { error: error?.message || t('finance.err_actual') })));
+      return;
+    }
+    body.replaceChildren(_renderActualStatus(status, request, {
+      onChanged: async () => { await show(); await _refresh('finance'); },
+    }));
+  };
+  document.body.append(overlay);
+  focusBoundary = createFocusBoundary(dialog, { trigger, onEscape: close });
+  focusBoundary.activate({ source: trigger, focus: closeButton });
+  await show();
+}
+
 async function _renderFinance(target, request) {
-  const [accountsResult, subscriptionsResult, actualResult] = await Promise.allSettled([
+  const day = _todayKey();
+  const [accountsResult, subscriptionsResult, actualResult, summaryResult, entriesResult] = await Promise.allSettled([
     _json(request, '/api/money/accounts'),
     _json(request, '/api/subscriptions?advance=false'),
     _json(request, '/api/finance/actual'),
+    _json(request, `/api/money/summary?month=${day.slice(0, 7)}`),
+    // the search route reads the ledger as it is; the list route posts due schedules first, and the overview never writes
+    _json(request, `/api/money/transactions/search?limit=${FINANCE_ENTRIES}`),
   ]);
   const accounts = _asArray(_settled(accountsResult, []));
-  const subscriptionData = _settled(subscriptionsResult, {});
-  const subscriptions = _asArray(subscriptionData, 'subscriptions');
+  const subscriptions = _asArray(_settled(subscriptionsResult, {}), 'subscriptions');
   const actual = _settled(actualResult, null);
+  const summary = _settled(summaryResult, null);
+  const entries = _asArray(_settled(entriesResult, []));
   const accountsError = _settledError(accountsResult, t('finance.err_accounts'));
   const subscriptionsError = _settledError(subscriptionsResult, t('finance.err_subscriptions'));
   const actualError = _settledError(actualResult, t('finance.err_actual'));
+  const summaryError = _settledError(summaryResult, t('finance.err_summary'));
+  const entriesError = _settledError(entriesResult, t('finance.err_summary'));
+  // entries come newest first: a full list that never got back a month is cut short
+  const entriesComplete = !entriesError && (entries.length < FINANCE_ENTRIES || (entries.at(-1)?.date || '') <= monthBefore(day));
   target.replaceChildren();
-  const grid = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
-  grid.append(
-    _list(t('finance.accounts'), accounts.map(item => ({ title: item.name, meta: item.balance_by_currency?.length ? item.balance_by_currency.map(row => financeAmount(row.balance, row.currency, item.currency)).join(' · ') : financeAmount(item.balance, item.currency_code === 'XXX' ? 'XXX' : (item.currency || item.currency_code || ''), item.currency) })), accountsError ? t('finance.accounts_unavailable', { error: accountsError }) : t('finance.no_accounts')),
-    _list(t('finance.subscriptions'), subscriptions.map(item => ({ title: item.name, meta: `${financeAmount(item.price, item.currency || '')} · ${item.cycle ? t('subs.cycle_' + item.cycle) : ''}` })), subscriptionsError ? t('finance.subscriptions_unavailable', { error: subscriptionsError }) : t('finance.no_subscriptions')),
+
+  const accountRows = [];
+  for (const item of accounts) {
+    for (const row of _accountRows(item)) {
+      const line = _financeRow(item.name, _balanceCell(item, row, entries, entriesComplete, day));
+      line.classList.add('num-row');
+      accountRows.push(line);
+    }
+  }
+  const unit = _summaryUnit(summary, accounts) || { currency: '', sign: '' };
+  const categoryRows = (summary?.by_category || []).slice(0, 5).map(([name, amount]) =>
+    _financeRow(name || t('finance.uncategorized'), _el('span', '', financeAmount(amount, unit.currency, unit.sign))));
+  const accountSign = new Map(accounts.map(item => [item.id, item.currency]));
+  const recentRows = entries.slice(0, 6).map(entry => {
+    const code = entry.amount_currency_code || entry.original_currency_code || '';
+    const amount = `${entry.amount > 0 ? '+' : ''}${financeAmount(entry.amount, code, accountSign.get(entry.account_id) || '')}`;
+    return _financeRow(entry.payee || entry.category || t('finance.transaction'), _dated(entry.date, amount));
+  });
+  const renewalRows = subscriptions
+    .filter(item => item.active !== false && /^\d{4}-\d{2}-\d{2}/.test(String(item.next_due || '')))
+    .sort((a, b) => String(a.next_due).localeCompare(String(b.next_due)))
+    .slice(0, 5)
+    .map(item => _financeRow(item.name, _dated(item.next_due, financeAmount(item.price, item.currency || ''))));
+
+  const first = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
+  first.append(
+    _financeCard(t('finance.accounts'), accountRows, accountsError ? t('finance.accounts_unavailable', { error: accountsError }) : t('finance.no_accounts'), 'finance-accounts'),
+    _financeCard(t('finance.top_categories'), categoryRows, summaryError ? t('finance.summary_unavailable') : t('finance.nothing_spent')),
+  );
+  const second = _el('div', 'specialist-group-grid specialist-group-grid-two finance-daily');
+  second.append(
+    _financeCard(t('finance.recent_transactions'), recentRows, entriesError ? t('finance.summary_unavailable') : t('finance.no_transactions')),
+    _financeCard(t('finance.upcoming_renewals'), renewalRows, subscriptionsError ? t('finance.subscriptions_unavailable', { error: subscriptionsError }) : t('finance.no_subscriptions')),
   );
   const work = _el('div', 'finance-daily-actions');
   const banks = _el('button', 'specialist-inline-action', t('finance.bank_connections'));
   banks.type = 'button';
   banks.addEventListener('click', async () => (await import('./money.js')).openBankConnections());
-  work.append(_sectionJump('finance', 'money', t('finance.open_transactions'), 'specialist-inline-action'), banks);
-  const ledgerPanel = _renderActualStatus(actual, request);
+  const ledger = _el('button', 'specialist-inline-action', t('finance.ledger_setup'));
+  ledger.type = 'button';
+  ledger.addEventListener('click', () => _openLedgerSetup(request, ledger));
+  work.append(_sectionJump('finance', 'money', t('finance.open_transactions'), 'specialist-inline-action'), banks, ledger);
+
+  // the ledger in use and not well is not setup: it stays where it can't be missed
   const urgent = financeActualPresentation(actual).state === 'canonical-unhealthy' || !!actualError;
-  if (urgent) target.append(ledgerPanel);
+  if (urgent) target.append(_renderActualStatus(actual, request));
   if (actualError) target.append(_el('p', 'specialist-group-error', t('finance.actual_status_unavailable', { error: actualError })));
-  target.append(work, grid);
-  if (!urgent) target.append(ledgerPanel);
+  const lead = _spentCard(summary, accounts);
+  if (lead) target.append(lead);
+  target.append(first, second, work);
 }
 
 async function _renderServer(target, request, section) {

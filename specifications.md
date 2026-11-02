@@ -504,8 +504,16 @@ related apps now open together without merging their records.
   retry confirms the current extracted version without fetching again. Saving news still makes no
   publisher request. Extraction does not guarantee every paragraph or bypass paid access.
 - **health** places today's habit rhythm beside the latest measurements without changing the local,
-  sensitive health-context boundary
-- **finance** combines money, subscriptions, reviewed imports, and visible managed-actual state
+  sensitive health-context boundary. each measurement shows its change against the last reading a
+  week or more before its latest ("−1.2 lb this week", from `series` in `/api/health/overview`) and a
+  plain svg line of the last 30 days (hidden from a screen reader; the change is the text)
+- **finance** combines money, subscriptions, reviewed imports, and managed-actual state. its
+  overview leads with spent this month against last month (`/api/money/summary`), then accounts
+  (each balance with its change since the same day last month, worked out from the ledger's last
+  1000 entries from `/api/money/transactions/search`, which reads without posting due schedules, and a 30 day line), top categories, recent
+  transactions and upcoming renewals. a list cut short before a month back shows balances without a
+  change. ledger setup is one button, "ledger setup", that opens the Actual ledger controls in a
+  dialog; a ledger in use that is not healthy stays on the page
 - **vault** keeps passwords, passkeys, pairing, watchtower, reauthentication, and recovery within the
   existing encrypted boundary
 - **server** opens on an overview of the machine (cpu, memory, storage and network at a glance, the

@@ -159,6 +159,7 @@ def _finance_recent_owner(page: Page) -> None:
     page.route("**/api/auth/**", auth)
     page.evaluate("window._navigateTo('finance')")
     page.locator("#finance-view").wait_for(state="visible")
+    page.get_by_role("button", name="ledger setup", exact=True).click()
     backup = page.get_by_role("button", name="create cold backup")
     backup.focus()
     backup.press("Enter")

@@ -5561,14 +5561,28 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 @container finance-card (max-width: 22rem) {
   #finance-view .finance-daily .specialist-group-row { grid-template-columns: minmax(0, 1fr); }
   #finance-view .finance-daily .specialist-group-row span { text-align: left; }
+  #finance-view .finance-daily .num-cell { justify-content: space-between; }
+  #finance-view .finance-daily .num-dated { justify-content: flex-start; }
+  #finance-view .finance-daily .num-figure { justify-items: start; text-align: left; }
 }
-#finance-view .finance-actual-content { display: grid; gap: var(--k-space-3, 12px); }
-#finance-view .finance-actual-content[hidden] { display: none; }
-#finance-view .finance-actual-authority { margin: 0; color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; }
-#finance-view .finance-actual-toggle { justify-self: start; min-height: 44px; margin-inline-start: calc(-1 * var(--k-space-2, 8px)); padding: 0 var(--k-space-2, 8px); color: var(--k-ink, var(--text)); background: transparent; border: 0; border-radius: var(--k-radius-control, 3px); font: inherit; font-size: 0.8125rem; cursor: pointer; }
-#finance-view .finance-actual-toggle:hover { background: var(--k-hover, var(--panel)); }
-#finance-view .finance-actual-toggle:focus-visible { outline: 2px solid var(--k-focus); outline-offset: var(--k-focus-offset, -2px); }
-#finance-view .finance-actual-toggle:disabled { color: var(--k-ink-muted, var(--muted)); cursor: wait; }
+/* u.05: spent this month leads the page; accounts show their change and a 30 day line; the other
+   cards are a name and a date or an amount on one row */
+#finance-view .finance-spent { margin-bottom: var(--k-block-gap, 16px); }
+#finance-view .finance-spent h2 { margin-bottom: var(--k-space-1, 4px); }
+#finance-view .finance-spent-figure { display: block; font-size: 1.75rem; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+#finance-view :is(.finance-spent-last, .finance-spent-note) { display: block; color: var(--k-ink-muted, var(--muted)); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+#finance-view .finance-spent-ask { display: flex; align-items: center; min-height: 44px; margin-inline: 0; padding-inline: 0; text-decoration: underline; text-underline-offset: 3px; }
+#finance-view .finance-daily .num-row { align-items: center; }
+#finance-view .finance-daily .num-figure :is(.num-value, .num-change) { white-space: nowrap; }
+#finance-view .finance-daily .num-dated { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: var(--k-space-2, 8px); min-width: 0; }
+#finance-view .finance-daily .num-when { color: var(--k-ink-muted, var(--muted)); }
+#finance-view .finance-daily .num-amount { color: var(--k-ink, var(--text)); }
+.finance-ledger-dialog { width: min(640px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 32px)); overflow: auto; }
+.finance-ledger-head { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-3, 12px); margin-bottom: var(--k-space-3, 12px); }
+.finance-ledger-head h2 { margin: 0; font-size: 1rem; }
+.finance-ledger-head .btn { min-width: 44px; min-height: 44px; }
+.finance-ledger-body .finance-actual-panel { margin: 0; padding: 0; border: 0; background: none; }
+:is(#finance-view, .finance-ledger-dialog) .finance-actual-content { display: grid; gap: var(--k-space-3, 12px); }
 
 .days-grid {
   display: grid;

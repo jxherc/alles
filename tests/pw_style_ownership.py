@@ -196,7 +196,7 @@ def run():
 
                 page.route("**/api/finance/actual**", actual_route)
                 page.get_by_role("tab", name="overview", exact=True).click()
-                page.get_by_role("button", name="show ledger setup", exact=True).click()
+                page.get_by_role("button", name="ledger setup", exact=True).click()
                 review = page.get_by_role("button", name="review ledger switch", exact=True)
                 review.click()
                 cancel = page.get_by_role("button", name="keep current ledger", exact=True)
@@ -207,7 +207,7 @@ def run():
                 expect(cancel).to_be_focused()
                 focus_bounds = """button => {
                     const style = getComputedStyle(button), box = button.getBoundingClientRect();
-                    const scroller = button.closest('.specialist-group-overview');
+                    const scroller = button.closest('.finance-ledger-dialog');
                     const port = scroller.getBoundingClientRect();
                     const extent = parseFloat(style.outlineWidth) + Math.max(0, parseFloat(style.outlineOffset));
                     return {label: button.textContent.trim(), outline: style.outlineStyle,
