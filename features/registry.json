@@ -54,6 +54,7 @@
         "route_modules": [
           "routes.auth",
           "routes.setup",
+          "routes.docs_dav",
           "routes.api_tokens",
           "routes.status"
         ],

@@ -472,7 +472,9 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
 
     def test_docs_over_the_local_network_routes_are_additive(self):
         self.assertTrue(_DOCS_LAN_ADDITIONS <= set(_current_rows()))
-        self.assertFalse({row for row in _current_rows() if row.startswith(("DELETE /dav", "MOVE /dav"))})
+        self.assertFalse(
+            {row for row in _current_rows() if row.startswith(("DELETE /dav", "MOVE /dav"))}
+        )
 
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
