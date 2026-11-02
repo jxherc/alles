@@ -317,6 +317,51 @@ class CliInstallHelpersTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_install_sh_runs_with_no_controlling_terminal(self):
+        # /dev/tty is readable but fails to open with no terminal (background shell, ssh without
+        # -t, automation): the old `[ -r /dev/tty ]` check died with "Device not configured".
+        # no network: a fake curl answers the commit lookup and serves a one-file "release".
+        with tempfile.TemporaryDirectory(prefix="alles-sh-") as directory:
+            base = Path(directory)
+            bin_dir = base / "bin"
+            bin_dir.mkdir()
+            (bin_dir / "python3").symlink_to(sys.executable)
+            src = base / "pack" / "alles-src"
+            src.mkdir(parents=True)
+            (src / "cli.py").write_text("print('fake cli ran')\n", "utf-8")
+            archive = base / "release.tar.gz"
+            with tarfile.open(archive, "w:gz") as bundle:
+                bundle.add(src, arcname="alles-src")
+            curl = bin_dir / "curl"
+            curl.write_text(
+                "#!/bin/sh\n"
+                'case "$*" in\n'
+                f'  *api.github.com*) printf "%s" {"ab" * 20} ;;\n'
+                f'  *) cat "{archive}" ;;\n'
+                "esac\n",
+                "utf-8",
+            )
+            curl.chmod(0o755)
+            env = {
+                "PATH": f"{bin_dir}:/usr/bin:/bin",
+                "HOME": str(base),
+                "TMPDIR": str(base),
+                "NO_COLOR": "1",
+            }
+            result = subprocess.run(
+                ["/bin/sh", str(ROOT / "install.sh")],
+                env=env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+                start_new_session=True,  # a new session has no controlling terminal
+            )
+        self.assertNotIn("/dev/tty", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("fake cli ran", result.stdout)
+
 
 class PasswordCommandTest(unittest.TestCase):
     def test_password_takes_eight_characters_and_turns_the_lock_on(self):
