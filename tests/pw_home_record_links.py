@@ -74,6 +74,15 @@ def run():
                 expect(row).to_be_visible()
                 row.focus()
                 row.press("Enter")
+                # u.01 (decision 0066): the row opens the task's details over home, focus on
+                # done; edit goes on to the full editor at the record's own link
+                panel = page.locator("#details-panel")
+                expect(panel).to_be_visible()
+                expect(panel.locator("#details-panel-title")).to_have_text(f"target task {label}")
+                expect(panel.locator('[data-details="done"]')).to_be_focused()
+                assert task_id not in page.url
+                panel.locator('[data-details="edit"]').press("Enter")
+                expect(panel).to_be_hidden()
                 expect(page.locator("#te-title")).to_have_value(f"target task {label}")
                 expect(page.locator("#te-title")).to_be_focused()
                 assert task_id in page.url

@@ -81,6 +81,15 @@ def run():
                     },
                 )
 
+            def open_task(item):
+                # u.01 (decision 0066): a home task row opens its details over home; edit goes
+                # on to the full editor through the record router
+                page.locator(f'[data-record="{item["id"]}"]').click()
+                panel = page.locator("#details-panel")
+                expect(panel.locator("#details-panel-title")).to_have_text(item["title"])
+                panel.locator('[data-details="edit"]').click()
+                expect(panel).to_be_hidden()
+
             def assert_record(item_id):
                 assert parse_qs(urlparse(page.url).query)["record"] == [item_id], page.url
 
@@ -113,11 +122,11 @@ def run():
                         )
 
                     page.route("**/api/tasks/tree", hold)
-                    page.locator(f'[data-record="{a["id"]}"]').click()
+                    open_task(a)
                     expect(page.locator("html")).to_have_attribute("data-held-tree-requests", "1")
                     page.go_back(wait_until="domcontentloaded")
                     expect(page.locator("#today-view")).to_be_visible()
-                    page.locator(f'[data-record="{b["id"]}"]').click()
+                    open_task(b)
                     expect(page.locator("html")).to_have_attribute("data-held-tree-requests", "2")
                     for index in [0, 1] if case == "selection-old-first" else [1, 0]:
                         with page.expect_response("**/api/tasks/tree"):
@@ -136,18 +145,18 @@ def run():
                 elif case == "unrelated-draft":
                     a, b = task("draft a"), task("target b")
                     home()
-                    page.locator(f'[data-record="{a["id"]}"]').click()
+                    open_task(a)
                     page.locator("#te-title").fill("unsaved a")
                     home()
-                    page.locator(f'[data-record="{b["id"]}"]').click()
+                    open_task(b)
                     expect(page.locator("#te-title")).to_have_value("target b")
                     assert_record(b["id"])
                     page.locator("#te-title").fill("unsaved b")
                     home()
-                    page.locator(f'[data-record="{b["id"]}"]').click()
+                    open_task(b)
                     expect(page.locator("#te-title")).to_have_value("unsaved b")
                     home()
-                    page.locator(f'[data-record="{a["id"]}"]').click()
+                    open_task(a)
                     expect(page.locator("#te-title")).to_have_value("unsaved a")
                     assert_record(a["id"])
                 elif case.startswith("calendar-"):
