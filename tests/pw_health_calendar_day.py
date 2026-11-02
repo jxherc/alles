@@ -191,9 +191,10 @@ def run():
                         button = card.locator(f'[data-toggle="{first_day}"]')
                         button.press("Enter")
                         expect(button).to_have_class(re.compile(r"\bdone\b"))
-                        expect(card.locator(".habit-heat i").last).to_have_attribute(
-                            "title", first_day
-                        )
+                        # u.08: the row draws the week as dots ending on the browser's day
+                        dots = card.locator(".habit-dots i")
+                        expect(dots).to_have_count(7)
+                        expect(dots.last).to_have_class(re.compile(r"\bon\b.*\btoday\b"))
                         page.reload(wait_until="networkidle")
                         expect(button).to_have_class(re.compile(r"\bdone\b"))
                         page.get_by_role("tab", name="overview", exact=True).click()
@@ -207,12 +208,25 @@ def run():
                         expect(card.locator(f'[data-toggle="{next_day}"]')).not_to_have_class(
                             re.compile(r"\bdone\b")
                         )
-                        expect(card.locator(f'[data-toggle="{first_day}"]')).to_have_class(
-                            re.compile(r"\bdone\b")
+                        expect(dots.last).to_have_class(re.compile(r"\btoday\b"))
+                        expect(dots.last).not_to_have_class(re.compile(r"\bon\b"))
+                        expect(dots.nth(5)).to_have_class(re.compile(r"\bon\b"))
+                        # the opened habit keeps the week strip and the year grid
+                        card.locator('[data-act="open"]').press("Enter")
+                        detail = page.locator(f'.habit-detail[data-id="{habit["id"]}"]')
+                        expect(
+                            detail.locator(f'.habit-day[data-toggle="{first_day}"]')
+                        ).to_have_class(re.compile(r"\bdone\b"))
+                        expect(
+                            detail.locator(f'.habit-day[data-toggle="{next_day}"]')
+                        ).not_to_have_class(re.compile(r"\bdone\b"))
+                        expect(detail.locator(".habit-heat i").last).to_have_class(
+                            re.compile(r"\btoday\b")
                         )
-                        expect(card.locator(".habit-heat i").last).to_have_attribute(
-                            "title", next_day
+                        last_two = detail.locator(".habit-heat i").evaluate_all(
+                            "cells => cells.slice(-2).map(cell => cell.className)"
                         )
+                        assert "on" in last_two[0].split(), last_two
                     page.reload(wait_until="networkidle")
                     if case != "habit":
                         expect(page.locator(".health-row")).to_have_count(

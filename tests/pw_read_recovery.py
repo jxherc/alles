@@ -175,7 +175,7 @@ def run():
                             back.click()
                         card = page.locator(f'.read-card[data-id="{item["id"]}"]')
                         expect(card.locator('[data-act="read"]')).to_have_attribute(
-                            "title", "mark unread"
+                            "aria-label", "mark unread"
                         )
                         assert api.get(url).json()["read"]
                     assert not errors, errors
