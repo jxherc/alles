@@ -1385,6 +1385,8 @@ button.effort-custom-row:focus-visible { color: var(--text); background: var(--b
   margin-top: 0.5rem;
   font-size: 0.8125rem; color: var(--muted); line-height: 1.5;
 }
+/* the one line under a key field that says why it's a key (oauth first) */
+.s-key-why { margin: var(--k-space-1, 4px) 0 0; }
 .agent-status-grid > div {
   border: 1px solid var(--faint);
   border-radius: var(--k-radius-control);
