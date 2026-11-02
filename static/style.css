@@ -8836,7 +8836,10 @@ html[data-font-size="lg"] { font-size: 118.75%; }
 .watch-card.editing .settings-input { width: 100%; }
 .watch-edit-row { display: flex; gap: 0.4rem; }
 .watch-edit-row .settings-input { flex: 1; min-width: 0; }
-.watch-add { border-left: 2px solid var(--line-strong); margin-bottom: 1rem; max-width: 420px; }
+.watch-add { margin-bottom: var(--k-space-4); max-width: 420px; }
+/* name, how often and the keyword fold under "more"; a pick that needs no address hides it */
+.watch-more > * + * { margin-top: var(--k-space-2); }
+.watch-card .settings-input[hidden] { display: none; }
 .watch-empty { padding: 1.2rem 0; font-size: 0.8125rem; color: var(--muted); max-width: 460px; }
 .watch-empty code { font-size: 0.8125rem; color: var(--muted); }
 
