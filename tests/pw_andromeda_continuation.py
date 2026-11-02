@@ -475,9 +475,7 @@ def run(context_factory=None):
                                 prompts = [handed_over(p) for p in asked]
                                 assert len(prompts) == 1, record["model_user_messages"]
                                 # the owner's message is the query; the search rides out of view
-                                assert (
-                                    asked[0].split("\n\n<alles_document_reference>")[0] == query
-                                )
+                                assert asked[0].split("\n\n<alles_document_reference>")[0] == query
                                 expect(page.locator("#messages .user-bubble").last).to_have_text(
                                     query
                                 )
@@ -510,7 +508,9 @@ def run(context_factory=None):
                                         "path": scope["path"],
                                         "expected_hash": scope["expected_hash"],
                                     }
-                                    assert scope["path"] in asked[0] and "quiet mornings" in asked[0]
+                                    assert (
+                                        scope["path"] in asked[0] and "quiet mornings" in asked[0]
+                                    )
                                 else:
                                     assert note is None
                                 sessions = api("GET", "/api/sessions")
