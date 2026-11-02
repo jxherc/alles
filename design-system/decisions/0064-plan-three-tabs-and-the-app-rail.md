@@ -25,6 +25,20 @@ target or more, the open app marked with `aria-current="page"` and weight, no fi
 on a phone every screen's height is `--k-shell-height` (100dvh less the bar), so composers and
 entry rows end above the bar.
 
+amended nov 2 (the last gates): the first bar sat at z-index 200 over every floating layer and
+over what the page pins to the screen's bottom, so it covered the files transfers and their
+"start", andromeda's idle "settings", and the lower items of aide's actions menu at 200% zoom;
+its top line also stacked 6px under a server log row's divider. now:
+- `--k-app-bar-height` is the bar's height on a phone and `--k-shell-height` is built from it.
+- the bar sits at z-index 20: over the page, under every menu, drawer, sheet and dialog (25 and
+  up).
+- what's pinned to the bottom edge (toasts, the sync badge, mail's undo, the files transfers
+  dock, andromeda's idle footer, the ongoing call, the speaking wave) takes a margin of the bar's
+  height in one rule (gate repair's 803c5424, merged with this).
+- the bar parts from the page by the panel fill, not a top line, so a list's divider can't
+  stack on it.
+- `tests/pw_kit_rules.py` checks `bar-covers`: no control whose visible middle the bar covers.
+
 the app sheet keeps working and drops its "move through alles" heading (kept for screen readers)
 and the subtitle under every app (no helper text).
 

@@ -249,7 +249,7 @@ def navigation(page, api, dest, profile, records):
         trigger = page.locator(f'[data-locale-choice="{name}"]')
         trigger.focus()
         page.keyboard.press("ArrowDown")
-        menu = page.locator(".custom-dropdown-panel")
+        menu = page.locator("body > .custom-dropdown-panel")
         expect(menu).to_be_visible()
         assert menu.evaluate("e => e.parentElement.tagName") == "BODY"
         page.keyboard.press("End")

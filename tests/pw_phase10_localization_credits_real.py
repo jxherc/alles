@@ -139,7 +139,7 @@ def run() -> None:
         region = page.locator("#s-region-trigger")
         region.focus()
         page.keyboard.press("Enter")
-        expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+        expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
         expect(page.locator('.custom-dropdown-option.active[aria-selected="true"]')).to_have_count(
             1
         )
@@ -152,12 +152,12 @@ def run() -> None:
         timezone = page.locator("#s-timezone-trigger")
         timezone.focus()
         page.keyboard.press("Enter")
-        expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+        expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
         expect(page.locator('.custom-dropdown-option.active[aria-selected="true"]')).to_have_count(
             1
         )
         page.keyboard.press("Escape")
-        expect(page.locator(".custom-dropdown-panel")).to_have_count(0)
+        expect(page.locator("body > .custom-dropdown-panel")).to_have_count(0)
         expect(timezone).to_be_focused()
 
         clock_auto = pane.locator('[data-locale-format="clock_format"][data-value="auto"]')

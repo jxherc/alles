@@ -69,7 +69,7 @@ with sync_playwright() as p:
                 ("someday", {"", "someday"}),
             ]:
                 page.click("#tasks-view-pick")
-                page.locator(".custom-dropdown-panel [role=option]").nth(
+                page.locator("body > .custom-dropdown-panel [role=option]").nth(
                     ["active", "today", "upcoming", "someday", "done"].index(view)
                 ).click()
                 for suffix in ["", "overdue", "today", "future", "someday"]:
@@ -80,7 +80,7 @@ with sync_playwright() as p:
                     )
                     expect(editor).to_have_count(1 if suffix in expected else 0)
             page.click("#tasks-view-pick")
-            page.locator(".custom-dropdown-panel [role=option]").nth(
+            page.locator("body > .custom-dropdown-panel [role=option]").nth(
                 ["active", "today", "upcoming", "someday", "done"].index("active")
             ).click()
             page.get_by_role("button", name="edit " + title, exact=True).click()
@@ -119,14 +119,14 @@ with sync_playwright() as p:
             button.click()
             expect(button).to_have_count(0)
             page.click("#tasks-view-pick")
-            page.locator(".custom-dropdown-panel [role=option]").nth(
+            page.locator("body > .custom-dropdown-panel [role=option]").nth(
                 ["active", "today", "upcoming", "someday", "done"].index("done")
             ).click()
             undo = page.get_by_role("button", name="mark " + title + " incomplete", exact=True)
             expect(undo).to_be_visible()
             page.reload(wait_until="networkidle")
             page.click("#tasks-view-pick")
-            page.locator(".custom-dropdown-panel [role=option]").nth(
+            page.locator("body > .custom-dropdown-panel [role=option]").nth(
                 ["active", "today", "upcoming", "someday", "done"].index("done")
             ).click()
             search(title)
@@ -136,7 +136,7 @@ with sync_playwright() as p:
             page.locator("#te-cancel").click()
             undo.click()
             page.click("#tasks-view-pick")
-            page.locator(".custom-dropdown-panel [role=option]").nth(
+            page.locator("body > .custom-dropdown-panel [role=option]").nth(
                 ["active", "today", "upcoming", "someday", "done"].index("active")
             ).click()
             expect(button).to_be_visible()

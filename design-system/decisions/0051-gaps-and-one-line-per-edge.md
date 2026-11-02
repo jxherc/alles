@@ -30,7 +30,11 @@ amends 0041 ("rows sit 2px apart").
   the rendered check only counts painted controls.
 - a dropdown trigger's chevron sits `--k-chevron-end` (12px) from its end, the same as the text
   start; the label stops a control gap before it. a field joined to the one before it by a 1px
-  left edge moves it in by that pixel (28.02).
+  left edge moves it in by that pixel (28.02). the trigger itself is the chevron's anchor
+  (`position: relative` in the same rule) and every `.custom-select[role="combobox"]` gets the
+  base trigger row (flex, centered, 44px), not only the ones with `.settings-input`: plan's task
+  view picker and settings' region, timezone and currency had neither, so the chevron sat at the
+  screen's right edge and the label at the box's top (nov 2).
 - one boundary per edge: rows part by space, a section by one line or by space. a row never
   draws a line where its card already draws one. the server fact and service rows lose their
   lines.

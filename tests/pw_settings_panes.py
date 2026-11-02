@@ -2609,10 +2609,10 @@ def exercise(page, api, endpoint, destination):
     pane("models")
     menu = page.locator('[data-role-select="aide_chat"]')
     menu.click()
-    expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+    expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
     page.keyboard.press("Control+,")
     expect(page.locator("#s-pane-general")).to_be_visible()
-    expect(page.locator(".custom-dropdown-panel")).to_have_count(0)
+    expect(page.locator("body > .custom-dropdown-panel")).to_have_count(0)
     expect(menu).to_have_attribute("aria-expanded", "false")
 
     # OAuth starts only create temporary UI for the opening that requested them.
@@ -3179,7 +3179,7 @@ def exercise(page, api, endpoint, destination):
         role_control.focus()
         role_control.evaluate("el => window.__settingsPaneFocusedControl = el")
         page.keyboard.press("End")
-        expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+        expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
         if rejected:
             focused_reads[-1].fulfill(
                 status=503, json={"detail": "synthetic focused role load rejected"}
@@ -3189,9 +3189,9 @@ def exercise(page, api, endpoint, destination):
         page.wait_for_load_state("networkidle")
         expect(role_control).to_be_focused()
         assert page.evaluate("window.__settingsPaneFocusedControl.isConnected")
-        expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+        expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
         page.keyboard.press("Enter")
-        expect(page.locator(".custom-dropdown-panel")).to_have_count(0)
+        expect(page.locator("body > .custom-dropdown-panel")).to_have_count(0)
         expect(role_control).to_be_focused()
         assert role_control.get_attribute("data-value")
         focus_evidence.append(
@@ -3222,7 +3222,7 @@ def exercise(page, api, endpoint, destination):
             control.evaluate("el => window.__settingsPaneFocusedControl = el")
             if selector == "[data-edit-adapter]":
                 page.keyboard.press("End")
-                expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+                expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
             if rejected:
                 focused_reads[-1].fulfill(
                     status=503, json={"detail": "synthetic focused endpoint load rejected"}
@@ -3234,9 +3234,9 @@ def exercise(page, api, endpoint, destination):
             assert page.evaluate("window.__settingsPaneFocusedControl.isConnected")
             assert clean_editor.get_attribute("data-dirty") is None
             if selector == "[data-edit-adapter]":
-                expect(page.locator(".custom-dropdown-panel")).to_be_visible()
+                expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
                 page.keyboard.press("Escape")
-                expect(page.locator(".custom-dropdown-panel")).to_have_count(0)
+                expect(page.locator("body > .custom-dropdown-panel")).to_have_count(0)
                 expect(control).to_be_focused()
             else:
                 expect(control).to_have_value("fixture-a, fixture-b")
