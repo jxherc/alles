@@ -1688,6 +1688,19 @@ html:not(#_):not(#_) .k-entry-row > :is(p, .specialist-group-note, .contact-erro
   padding: var(--k-space-2) var(--k-space-3) var(--k-space-1);
 }
 
+/* an error in the row (a save that failed, the server busy) sits on its own line under the fields.
+   the row never wraps otherwise, so a 100% basis only shrank the fields beside it (u.13: the
+   name field fell to 80px under the busy message). a phone stacks a row with 2+ fields in a
+   column already (below), where the error is the last line by its order */
+@media (min-width: 761px) {
+  html:not(#_):not(#_) .k-entry-row:has(> .k-entry-error:not([hidden])) { flex-wrap: wrap; }
+}
+html:not(#_):not(#_) .k-entry-row > .k-entry-error {
+  order: 99;
+  flex: 0 0 100%;
+  box-sizing: border-box;
+}
+
 
 /* ── home: the capture box is a soft filled composer ─────────────────────────── */
 
