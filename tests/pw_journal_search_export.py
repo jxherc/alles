@@ -84,6 +84,17 @@ def run(context_factory=None):
                 status = page.locator("#jrnl-export-status")
                 locked = False
 
+                # a result names its day the way every date reads (decision 0063): the short
+                # words, the full date on hover, the exact day in datetime
+                full = {first: "monday, september 21, 2026", second: "tuesday, september 22, 2026"}
+                short = {first: "sep 21", second: "sep 22"}
+
+                def shows_day(where, day):
+                    stamp = where.locator(f'time[data-when][datetime="{day}"]')
+                    expect(stamp).to_have_attribute("title", full[day])
+                    # the year joins once the day is in another year than today
+                    expect(stamp).to_have_text(re.compile(rf"^{short[day]}(, 2026)?$"))
+
                 def query(value):
                     search.fill(value)
                     page.clock.fast_forward(300)
@@ -140,7 +151,7 @@ def run(context_factory=None):
                     if case == "normal":
                         query("different")
                         result = box.get_by_role("button")
-                        expect(result).to_contain_text(second)
+                        shows_day(result, second)
                         page.locator("#jrnl-lock").focus()
                         page.keyboard.press("Tab")
                         expect(result).to_be_focused()
@@ -156,7 +167,7 @@ def run(context_factory=None):
                         expect(editor).to_have_value("edited after finding exact day")
                     elif case == "search-error":
                         query("needle")
-                        expect(box).to_contain_text(first)
+                        shows_day(box, first)
                         target = base + "/api/journal/search?q=different"
                         page.route(
                             target,
@@ -164,7 +175,7 @@ def run(context_factory=None):
                         )
                         query("different")
                         expect(box).to_contain_text("could not search")
-                        expect(box).not_to_contain_text(first)
+                        expect(box.locator(f'time[datetime="{first}"]')).to_have_count(0)
                         page.screenshot(path=str(out / f"{width}-{case}-error.png"))
                         page.unroute(target)
                         hold("/api/journal/search?q=different")
@@ -175,7 +186,7 @@ def run(context_factory=None):
                         expect(retry).to_be_focused()
                         expect(retry).to_have_attribute("aria-disabled", "true")
                         release()
-                        expect(box.get_by_role("button")).to_contain_text(second)
+                        shows_day(box.get_by_role("button"), second)
                         expect(box.get_by_role("button")).to_be_focused()
                         page.keyboard.press("Enter")
                         expect(editor).to_have_value(content[second])
@@ -186,7 +197,7 @@ def run(context_factory=None):
                         page.wait_for_function("window.held")
                         if case == "search-late":
                             query("different")
-                            expect(box).to_contain_text(second)
+                            shows_day(box, second)
                         elif case == "search-clear":
                             query("")
                             expect(box).to_be_empty()
@@ -194,8 +205,8 @@ def run(context_factory=None):
                             lock_now()
                         release()
                         if case == "search-late":
-                            expect(box).to_contain_text(second)
-                            expect(box).not_to_contain_text(first)
+                            shows_day(box, second)
+                            expect(box.locator(f'time[datetime="{first}"]')).to_have_count(0)
                         elif case == "search-clear":
                             expect(box).to_be_empty()
                         else:

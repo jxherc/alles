@@ -1,7 +1,7 @@
 // subscriptions — recurring costs with billing cycles and renewal reminders
 import { api, toast } from './util.js';
 import { calendarDateKey, formatNumber, t, tp } from './i18n.js';
-import { whenDay } from './when.js';
+import { whenDay, whenHtml } from './when.js';
 import { initCustomDropdown } from './dropdown.js?v=217';
 import { initDatePicker } from './datepick.js';
 import { choose as dlgChoose, confirm as dlgConfirm } from './dialog.js';
@@ -559,7 +559,7 @@ function renderHistory() {
     + (state.status ? '<div class="sub-hist-status" role="status"></div>' : '')
     + (state.loading ? `<div role="status">${t('subs.payments_loading')}</div>` : '')
     + (state.error ? `<div role="alert">${esc(state.error)}</div><button class="btn" data-history-retry>${t('subs.refresh_history')}</button>` : '')
-    + state.pays.map(p => `<div class="sub-hist-row"><span>${esc(whenDay(p.date))}</span><span>${esc(_amt(p.currency || sub?.currency || '', p.amount))}</span></div>`).join('')
+    + state.pays.map(p => `<div class="sub-hist-row"><span>${whenHtml(p.date)}</span><span>${esc(_amt(p.currency || sub?.currency || '', p.amount))}</span></div>`).join('')
     + (!state.loading && !state.error && !state.pays.length ? `<div class="sub-hist-empty">${t('subs.no_payments')}</div>` : '')
     + (payment ? `<button class="btn" data-act="undo-last">${t('subs.undo_date', { date: esc(whenDay(payment.date)) })}</button>` : '');
   row.appendChild(pop);
