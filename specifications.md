@@ -476,8 +476,9 @@ related apps now open together without merging their records.
 - **the app rail**: at 1024px and wider a 72px rail at the shell's left lists home, aide, the
   owner's pinned apps (home's pinned apps) and more, which opens the app sheet; at 700px and
   narrower the same is a bottom bar of 5 (home, aide, 2 pinned apps, more), and every screen's
-  height leaves room for it. ipad portrait keeps the app name button. the app sheet lists apps by
-  name only
+  height leaves room for it: what's pinned to the screen's bottom (toasts, the files transfers,
+  mail's undo) sits above the bar, and menus, drawers and dialogs open over it. ipad portrait
+  keeps the app name button. the app sheet lists apps by name only
 - **inbox** puts cached mail, the selected message, and matching contact context in one workflow while
   keeping mail and contact records separate
 - **docs** keeps notes and journal as local sections of one markdown workbench. if a document's

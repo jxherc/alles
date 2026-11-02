@@ -732,6 +732,7 @@ SPACING = r"""
 #   controls-touch      two separate painted controls sit under 8px apart, across or down
 #   chevron-inset       a dropdown's chevron ends further from the end than its text starts
 #   stacked-lines       two parallel lines under 24px apart with nothing between them
+#   bar-covers          the phone's app bar sits over a control the page shows (u.07)
 KIT_RULES = r"""
 () => {
   const out = [];
@@ -835,6 +836,32 @@ KIT_RULES = r"""
     if (!vis(el) || !lab || !ch || !vis(ch)) continue;
     const r = el.getBoundingClientRect(), text = lab.getBoundingClientRect().left - r.left, end = r.right - ch.getBoundingClientRect().right;
     if (Math.abs(text - end) > 1) out.push(['chevron-inset', sig(el), 'text ' + text.toFixed(1) + 'px, chevron ' + end.toFixed(1) + 'px']);
+  }
+
+  // the phone bar: a control whose visible middle the bar covers can't be tapped. the visible
+  // part is cut by every clipping parent up to a fixed box (a fixed box escapes their clip)
+  const bar = document.getElementById('app-rail');
+  if (bar && vis(bar) && getComputedStyle(bar).position === 'fixed') {
+    const br = bar.getBoundingClientRect();
+    for (const el of document.querySelectorAll('button, a[href], input, textarea, [role="button"], [role="menuitem"], [role="option"], [role="combobox"]')) {
+      if (bar.contains(el) || !vis(el)) continue;
+      const r = el.getBoundingClientRect();
+      let top = r.top, bottom = r.bottom, left = r.left, right = r.right;
+      for (let p = el; p && p !== document.documentElement; p = p.parentElement) {
+        const ps = getComputedStyle(p);
+        if (p !== el && !(ps.overflowX === 'visible' && ps.overflowY === 'visible')) {
+          const pr = p.getBoundingClientRect();
+          top = Math.max(top, pr.top); bottom = Math.min(bottom, pr.bottom);
+          left = Math.max(left, pr.left); right = Math.min(right, pr.right);
+        }
+        if (ps.position === 'fixed') break;
+      }
+      if (bottom - top < 4 || right - left < 4) continue;
+      const x = (left + right) / 2, y = (top + bottom) / 2;
+      if (y < br.top || y > Math.min(br.bottom, innerHeight - 1)) continue;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && bar.contains(hit)) out.push(['bar-covers', sig(el), 'middle ' + Math.round(y - br.top) + 'px under the bar']);
+    }
   }
 
   // lines: horizontal borders and 1px inset shadows, paired when nothing sits between them
