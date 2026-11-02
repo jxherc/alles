@@ -4060,7 +4060,6 @@
     "mail.imap_host_ph": "IMAP ホスト",
     "mail.imap_port": "IMAP ポート",
     "mail.imap_port_ph": "IMAP ポート",
-    "mail.imap_smtp_hint": "IMAP は受信、SMTP は送信",
     "mail.inline_image": "インライン画像",
     "mail.insert": "挿入",
     "mail.insert_image": "画像を挿入",

@@ -4060,7 +4060,6 @@
     "mail.imap_host_ph": "IMAP 호스트",
     "mail.imap_port": "IMAP 포트",
     "mail.imap_port_ph": "IMAP 포트",
-    "mail.imap_smtp_hint": "IMAP은 받고 SMTP는 보냅니다",
     "mail.inline_image": "인라인 이미지",
     "mail.insert": "삽입",
     "mail.insert_image": "이미지 삽입",

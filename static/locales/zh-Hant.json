@@ -4060,7 +4060,6 @@
     "mail.imap_host_ph": "IMAP 主機",
     "mail.imap_port": "IMAP 連接埠",
     "mail.imap_port_ph": "IMAP 連接埠",
-    "mail.imap_smtp_hint": "IMAP 負責收信，SMTP 負責寄信",
     "mail.inline_image": "內嵌圖片",
     "mail.insert": "插入",
     "mail.insert_image": "插入圖片",

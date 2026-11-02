@@ -2115,7 +2115,7 @@ body.is-aide.is-incognito .incognito-bar {
   :where(#settings-modal) .jarvis-quiet-fields label:nth-child(3) { grid-column: 1 / -1; }
   :where(#settings-modal) .jarvis-quiet-fields .btn { justify-self: start; }
 }
-:where(#settings-modal) .s-provider-warning { margin: 0 0 0.75rem; }
+:where(#settings-modal) .s-provider-warning { margin: var(--k-space-3) 0 0; }
 :where(#settings-modal) .s-behavior-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 :where(#settings-modal) .s-behavior-options button {
   min-height: 72px;
@@ -4081,6 +4081,10 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 /* "sign in with google" + its one-time setup */
 .mail-oauth:empty { display: none; }
 .mail-oauth { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.2rem; }
+/* the server fields stay children of the form's column (same gaps) until the fallback folds them */
+.mail-manual { display: contents; }
+/* these set their own display, which beats the hidden attribute */
+.mail-oauth[hidden], .mail-manual[hidden], .mail-signin[hidden], .signin-fallback[hidden] { display: none; }
 .mail-google-btn { align-self: stretch; text-align: center; text-decoration: none; }
 .mail-or { font-size: 0.8125rem; color: var(--muted); text-align: center; }
 .mail-oauth-toggle { align-self: flex-start; }

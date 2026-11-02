@@ -4060,7 +4060,6 @@
     "mail.imap_host_ph": "host imap",
     "mail.imap_port": "puerto IMAP",
     "mail.imap_port_ph": "puerto imap",
-    "mail.imap_smtp_hint": "IMAP recibe, SMTP envía",
     "mail.inline_image": "imagen en línea",
     "mail.insert": "insertar",
     "mail.insert_image": "insertar imagen",
