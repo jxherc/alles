@@ -27,6 +27,7 @@ SURFACE_GATES = tuple(
 BROWSER_SUITES = {
     "aide-central": ("aide-central",),
     "ask-panel": ("ask-panel",),
+    "notice-clears": ("notice-clears",),
     "aide-coding": ("aide-coding",),
     "help-manual": ("help-manual",),
     "livevoice": ("livevoice",),
@@ -226,6 +227,7 @@ BROWSER_SUITES = {
         "aide-session-list",
         "aide-source-outcomes",
         "ask-panel",
+        "notice-clears",
         "aide-panel-ownership",
         "aide-draft-storage-failure",
         "aide-depth",
@@ -436,6 +438,7 @@ BROWSER_SUITES = {
         "aide-session-list",
         "aide-source-outcomes",
         "ask-panel",
+        "notice-clears",
         "aide-panel-ownership",
         "aide-draft-storage-failure",
         "aide-depth",
