@@ -4,7 +4,6 @@ import base64
 import hashlib
 import json
 import os
-import re
 import struct
 import sys
 import tempfile
@@ -406,10 +405,14 @@ def run():
                                 "id => window._currentSession === null && window._pendingProjectId === id",
                                 arg=project["id"],
                             )
-                            expect(field).to_have_value(
-                                re.compile("retained synthetic source excerpt")
-                            )
+                            # a handoff shows only its question; the saved results ride out of view
+                            # and wait for the send (no model is picked here, so it is refused)
+                            expect(field).to_have_value("owned saved context " + label)
+                            assert "retained synthetic source excerpt" not in field.input_value()
                             assert page.evaluate("window._pendingDocumentScope") is None
+                            expect(
+                                page.get_by_text("choose a model before sending.", exact=True)
+                            ).to_be_visible()
                         else:
                             expect(field).to_have_value("")
                             assert page.evaluate("window._currentSession") is None

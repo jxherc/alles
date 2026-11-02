@@ -100,6 +100,8 @@ let _streaming = false;
 let _backgroundLaunching = false;
 let _chatAbort = null;
 let _chatSessionId = null;
+// the row the running reply streams into; switching tasks away and back redraws the list without it
+let _chatStreamRow = null;
 // the running turn's token: the stop button names it, so a late stop can't end the next turn
 let _chatTurnToken = '';
 // turns the owner stopped here; their stream may still end on its own a moment later
@@ -118,8 +120,9 @@ export function canSendMessage() {
   return !getSendBlockReason();
 }
 
-// a run this tab is streaming is the reply on screen, not background work to reattach to
-window._aideStreamsHere = sessionId => _streaming && _chatSessionId === sessionId;
+// a run this tab is streaming into a row still on screen is the reply, not background work to
+// reattach to. once the owner leaves the task and comes back, that row is gone and the card shows it
+window._aideStreamsHere = sessionId => _streaming && _chatSessionId === sessionId && !!_chatStreamRow?.isConnected;
 
 function normalizeDocumentScope(value) {
   if (!value) return null;
@@ -320,8 +323,20 @@ function normalizeHandoff(value) {
   return { kind: 'handoff', app, context, sources, ...(note ? { note: { path: note.path, expected_hash: note.expected_hash } } : {}) };
 }
 
+// a handoff whose send was refused before it started (no model picked yet, a file still
+// uploading) waits with its question: the composer keeps only the question, so the send that
+// follows still carries the other app's context instead of the bare words
+let _heldHandoff = null;
+
+function takeHandoff(text, handoff) {
+  if (handoff) _heldHandoff = { handoff, question: text.trim() };
+  else if (_heldHandoff && !text.includes(_heldHandoff.question)) _heldHandoff = null;
+  return _heldHandoff?.handoff || null;
+}
+
 export async function sendMessage(text, onAccepted = () => {}, { handoff = null } = {}) {
   if (!text?.trim() || _streaming || _backgroundLaunching) return;
+  handoff = takeHandoff(text, normalizeHandoff(handoff));
   if (window._aidePrimaryUnavailable) {
     showSendIssue(t('aide.send_reopen_main'));
     return;
@@ -333,7 +348,6 @@ export async function sendMessage(text, onAccepted = () => {}, { handoff = null 
 
   let attachmentIds = getAttachments();
   let documentScope = normalizeDocumentScope(window._pendingDocumentScope);
-  handoff = normalizeHandoff(handoff);
   const privateReply = isIncognitoMode();
   let draft = { text: document.getElementById('composer-ta')?.value || '', document_scope: documentScope };
   let sessionId = getActiveId();
@@ -409,6 +423,7 @@ export async function sendMessage(text, onAccepted = () => {}, { handoff = null 
   }) : null;
   if (!documentScope) onAccepted(sessionId);
   dropRefusedTurn(sessionId);
+  _heldHandoff = null;
 
   // image model picked as the primary → generate (legacy single-pick path)
   if (!documentScope && !handoff && isImageSelected()) { _sendImage(text, sessionId, freshSession, getSelected()); return; }
@@ -562,6 +577,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
   let regenOutcome;
 
   const { row, body } = createStreamingAiRow();
+  _chatStreamRow = row;
   // an edit or regenerate answers in place, right under its question
   if (resend && userRow?.isConnected) userRow.after(row);
   let accepted = false;
@@ -1091,6 +1107,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       _chatAbort = null;
       _chatSessionId = null;
     }
+    if (_chatStreamRow === row) _chatStreamRow = null;
     if (_chatTurnToken === turnToken) _chatTurnToken = '';
     streamEnd();
     if (_streamToken === streamToken) setStreaming(false);

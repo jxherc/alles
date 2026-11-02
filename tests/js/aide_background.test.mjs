@@ -116,3 +116,25 @@ test('a pre-run background failure never renders an inert retry action', () => {
 test('background actions are never queued for a surprising later replay', () => {
   assert.match(serviceWorker, /NOQUEUE = \[[^\]]*'\/api\/jarvis'/);
 });
+
+test('reattach skips only a reply still streaming into a row on screen', () => {
+  // leaving the task and coming back redraws the list without the live row; the card shows it then
+  assert.match(chat, /_aideStreamsHere = sessionId => _streaming && _chatSessionId === sessionId && !!_chatStreamRow\?\.isConnected/);
+  assert.match(chat, /const \{ row, body \} = createStreamingAiRow\(\);\r?\n  _chatStreamRow = row;/);
+  assert.match(chat, /if \(_chatStreamRow === row\) _chatStreamRow = null;/);
+});
+
+test('a refused handoff waits with its question for the next send', () => {
+  const source = chat.match(/let _heldHandoff = null;[\s\S]*?\nfunction takeHandoff[\s\S]*?\n\}/)?.[0] || '';
+  const take = Function(`${source}; return takeHandoff;`)();
+  const handoff = { kind: 'handoff', app: 'andromeda', context: 'results' };
+  assert.equal(take('what changed', handoff), handoff);
+  // no model yet: the owner picks one and sends the same words, maybe with more after them
+  assert.equal(take('what changed, briefly', null), handoff);
+  // unrelated words drop it
+  assert.equal(take('something else', null), null);
+  assert.equal(take('what changed', null), null);
+  // once a send is accepted the hold clears
+  assert.match(chat, /dropRefusedTurn\(sessionId\);\r?\n  _heldHandoff = null;/);
+  assert.match(chat, /handoff = takeHandoff\(text, normalizeHandoff\(handoff\)\);/);
+});
