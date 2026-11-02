@@ -114,22 +114,26 @@ with sync_playwright() as pw:
                         == 2
                     )
                     page.wait_for_function("innerWidth === 640 && devicePixelRatio === 2")
-                group = page.get_by_role("radiogroup", name="results per search")
+                # four choices are a dropdown now (choice rule: 4 or more use the dropdown)
+                pick = page.get_by_role("combobox", name="results per search", exact=True)
 
-                def radio(value):
-                    return group.get_by_role("radio", name=str(value), exact=True)
+                def step(key="ArrowDown"):
+                    # the list opens on the current value; the key moves, enter picks
+                    page.keyboard.press(key)
+                    expect(page.get_by_role("listbox")).to_be_visible()
+                    page.keyboard.press("Enter")
 
-                radio(5).focus()
+                pick.focus()
                 for value in [8, 10]:
-                    page.keyboard.press("ArrowRight")
-                    expect(group).not_to_have_attribute("aria-busy", "true")
-                    expect(radio(value)).to_have_attribute("aria-checked", "true")
-                    expect(radio(value)).to_be_focused()
+                    step()
+                    expect(pick).not_to_have_attribute("aria-busy", "true")
+                    expect(pick).to_have_attribute("data-value", str(value))
+                    expect(pick).to_be_focused()
                     assert (
                         context.request.get(base + "/api/settings").json()["search_result_count"]
                         == value
                     )
-                page.screenshot(path=str(out / f"{label}-radio.png"))
+                page.screenshot(path=str(out / f"{label}-choice.png"))
 
                 held = []
 
@@ -140,37 +144,39 @@ with sync_playwright() as pw:
                         route.continue_()
 
                 page.route(base + "/api/settings", hold_patch)
-                page.keyboard.press("ArrowRight")
-                expect(group).to_have_attribute("aria-busy", "true")
-                expect(radio(12)).to_be_disabled()
+                step()
+                expect(pick).to_have_attribute("aria-busy", "true")
+                expect(pick).to_be_disabled()
                 away = page.get_by_label("answer tokens", exact=True)
                 away.focus()
                 expect(away).to_be_focused()
                 assert len(held) == 1
                 held.pop().continue_()
-                expect(group).not_to_have_attribute("aria-busy", "true")
+                expect(pick).not_to_have_attribute("aria-busy", "true")
                 expect(away).to_be_focused()
+                expect(pick).to_have_attribute("data-value", "12")
                 assert (
                     context.request.get(base + "/api/settings").json()["search_result_count"] == 12
                 )
-                radio(12).focus()
-                page.keyboard.press("Home")
-                expect(group).to_have_attribute("aria-busy", "true")
+                pick.focus()
+                step("Home")
+                expect(pick).to_have_attribute("aria-busy", "true")
                 assert len(held) == 1
                 held.pop().fulfill(
                     status=503, json={"detail": "synthetic setting save failed; try again"}
                 )
-                expect(radio(12)).to_be_enabled()
-                expect(radio(12)).to_have_attribute("aria-checked", "true")
-                expect(radio(12)).to_be_focused()
+                expect(pick).to_be_enabled()
+                expect(pick).to_have_attribute("data-value", "12")
+                expect(pick).to_be_focused()
                 assert (
                     context.request.get(base + "/api/settings").json()["search_result_count"] == 12
                 )
-                page.screenshot(path=str(out / f"{label}-radio-failed.png"))
+                page.screenshot(path=str(out / f"{label}-choice-failed.png"))
                 page.unroute(base + "/api/settings", hold_patch)
-                page.keyboard.press("Home")
-                expect(radio(5)).to_be_enabled()
-                expect(radio(5)).to_be_focused()
+                step("Home")
+                expect(pick).to_be_enabled()
+                expect(pick).to_have_attribute("data-value", "5")
+                expect(pick).to_be_focused()
                 assert (
                     context.request.get(base + "/api/settings").json()["search_result_count"] == 5
                 )
@@ -223,71 +229,67 @@ with sync_playwright() as pw:
                 page.unroute(base + "/api/settings", hold_patch)
                 page.reload(wait_until="networkidle")
                 expect(toggle).to_have_attribute("aria-checked", "false")
-                expect(radio(5)).to_have_attribute("aria-checked", "true")
+                expect(pick).to_have_attribute("data-value", "5")
 
                 # A newer busy control keeps focus even when an older save finishes first.
                 page.route(base + "/api/settings", hold_patch)
-                radio(5).focus()
-                page.keyboard.press("ArrowRight")
-                expect(group).to_have_attribute("aria-busy", "true")
+                pick.focus()
+                step()
+                expect(pick).to_have_attribute("aria-busy", "true")
                 toggle.focus()
                 page.keyboard.press("Space")
                 expect(toggle).to_be_disabled()
                 assert len(held) == 2
                 held.pop(0).continue_()
-                expect(group).not_to_have_attribute("aria-busy", "true")
+                expect(pick).not_to_have_attribute("aria-busy", "true")
                 expect(toggle).to_be_focused()
                 held.pop().continue_()
                 expect(toggle).to_be_enabled()
                 expect(toggle).to_be_focused()
                 page.keyboard.press("Space")
                 expect(toggle).to_be_disabled()
-                radio(8).focus()
-                page.keyboard.press("ArrowRight")
-                expect(group).to_have_attribute("aria-busy", "true")
+                pick.focus()
+                step()
+                expect(pick).to_have_attribute("aria-busy", "true")
                 assert len(held) == 2
                 held.pop(0).continue_()
                 expect(toggle).to_be_enabled()
-                expect(radio(10)).to_be_focused()
+                expect(pick).to_be_focused()
                 held.pop().continue_()
-                expect(group).not_to_have_attribute("aria-busy", "true")
-                expect(radio(10)).to_be_focused()
+                expect(pick).not_to_have_attribute("aria-busy", "true")
+                expect(pick).to_have_attribute("data-value", "10")
+                expect(pick).to_be_focused()
                 page.unroute(base + "/api/settings", hold_patch)
                 page.goto(base + "/?view=server-policy", wait_until="networkidle")
+                # 28.35: the policy is a choice, not a file to hand edit. a missing file
+                # reads "not set up" with one action that writes the safe default
                 policy = page.locator(".server-workbench-card").filter(
-                    has=page.get_by_role("heading", name="server access policy", exact=True)
+                    has=page.get_by_role("heading", name="what alles may control", exact=True)
                 )
-                expect(policy).to_contain_text("host controls unavailable")
+                expect(policy).to_contain_text("not set up yet")
                 expect(policy).not_to_contain_text("policy_missing")
-                expect(policy).to_contain_text("Nothing outside Alles can be controlled")
-                editor = policy.locator("textarea")
-                original = editor.input_value()
-                editor.fill("{")
-                with page.expect_response(base + "/api/system/policy/diff") as validation:
-                    policy.get_by_role("button", name="validate and show diff").click()
-                assert validation.value.status == 409, validation.value.text()
-                expect(policy.locator(".server-workbench-status").first).to_have_class(
-                    "server-workbench-status is-error"
-                )
-                expect(editor).to_have_value("{")
+                expect(policy.locator("textarea")).to_have_count(0)
                 assert not context.request.get(base + "/api/system/policy").json()["valid"]
                 page.screenshot(path=str(out / f"{label}-policy-missing.png"))
-                editor.fill(original)
-                policy.get_by_role("button", name="save policy", exact=True).click()
-                expect(policy).to_contain_text("saved and verified")
-                expect(policy).not_to_contain_text("host controls unavailable")
+                policy.get_by_role("button", name="keep it to alles only", exact=True).press(
+                    "Enter"
+                )
+                mode = policy.get_by_role("radiogroup", name="control", exact=True)
+                owned = mode.get_by_role("radio", name="alles only", exact=True)
+                expect(owned).to_have_attribute("aria-checked", "true")
+                expect(
+                    mode.get_by_role("radio", name="plus services i pick", exact=True)
+                ).to_have_attribute("aria-checked", "false")
+                expect(policy).not_to_contain_text("not set up yet")
                 saved = context.request.get(base + "/api/system/policy").json()
                 assert saved["valid"] and saved["policy"]["control_mode"] == "owned_only"
                 page.reload(wait_until="networkidle")
-                expect(policy).not_to_contain_text("host controls unavailable")
-                expect(policy).not_to_contain_text("policy_missing")
+                expect(owned).to_have_attribute("aria-checked", "true")
+                expect(policy).not_to_contain_text("not set up yet")
                 page.screenshot(path=str(out / f"{label}-policy-saved.png"))
                 assert not errors, errors
-                assert (
-                    len(console) == 3
-                    and sum("503" in message for message in console) == 2
-                    and sum("409" in message for message in console) == 1
-                ), console
+                # the two synthetic failed setting saves, nothing else
+                assert len(console) == 2 and all("503" in message for message in console), console
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                 row.update(
                     status="passed",
