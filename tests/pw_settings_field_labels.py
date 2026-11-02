@@ -31,6 +31,143 @@ DOM_NAME = """el => {
 }"""
 
 
+# every field the settings form shows, written out: a new, moved or removed field fails here
+# until this list says so (99 after telegram's bot token joined the tools section)
+EXPECTED_FIELDS = {
+    "ai": [
+        "#settings-context-limit",
+    ],
+    "andromeda": [
+        "#s-andromeda-brave-key",
+        "#s-andromeda-exa-key",
+        "#s-andromeda-google-cx",
+        "#s-andromeda-google-key",
+        "#s-andromeda-searxng-url",
+        "#s-andromeda-serper-key",
+        "#s-andromeda-tavily-key",
+        "#s-hidden-site",
+    ],
+    "backup": [
+        "#s3-backup-access-key-id",
+        "#s3-backup-bucket",
+        "#s3-backup-endpoint",
+        "#s3-backup-prefix",
+        "#s3-backup-region",
+        "#s3-backup-secret-access-key",
+        "#webdav-backup-password",
+        "#webdav-backup-url",
+        "#webdav-backup-username",
+    ],
+    "credits": [
+        "#credits-search",
+    ],
+    "developer": [
+        "#shortcut-focus_input",
+        "#shortcut-new-task",
+        "#shortcut-search",
+        "#shortcut-send",
+        "#shortcut-settings-input",
+        "#shortcut-sidebar",
+        "#shortcut-stop",
+        "#token-name",
+        "#wh-name",
+        "#wh-url",
+    ],
+    "general": [
+        "#s-user-name",
+        "#s-username",
+    ],
+    "memory": [
+        "#mem-add-input",
+        "#mem-search",
+        "#settings-owner-instructions",
+    ],
+    "models": [
+        "#s-ep-key",
+        "#s-ep-manual",
+        "#s-ep-name",
+        "#s-ep-provider-filter",
+        "#s-ep-url",
+        "#s-ep-vision",
+        "#s-gemini-client-id",
+        "#s-gemini-client-secret",
+        "#s-gemini-project-id",
+        "#s-local-custom",
+    ],
+    "personas": [
+        "#cookbook-desc",
+        "#cookbook-name",
+        "#cookbook-prompt",
+        "#persona-doc-content",
+        "#persona-doc-title",
+        "#persona-initial",
+        "#persona-name",
+        "#persona-prompt",
+    ],
+    "proactive": [
+        "#s-prox-hours",
+        "#s-prox-qend",
+        "#s-prox-qstart",
+    ],
+    "rules": [
+        "#rule-action-arg",
+        "#rule-name",
+        "#rule-trigger-arg",
+        "#s-notify-discord",
+        "#s-notify-tgchat",
+        "#s-notify-tgtoken",
+    ],
+    "search": [
+        "#s-cse-body",
+        "#s-cse-key",
+        "#s-cse-key-header",
+        "#s-cse-key-prefix",
+        "#s-cse-name",
+        "#s-cse-results",
+        "#s-cse-snippet-field",
+        "#s-cse-title-field",
+        "#s-cse-url",
+        "#s-cse-url-field",
+    ],
+    "security": [
+        "#s-pw-new",
+        "#s-pw-new2",
+        "#s-pw-old",
+    ],
+    "themes": [
+        "#s-accent-hex",
+    ],
+    "tools": [
+        "#browser-signin-text",
+        "#browser-signin-url",
+        "#conn-custom",
+        "#conn-token",
+        "#jarvis-discord-channels",
+        "#jarvis-discord-quiet-end",
+        "#jarvis-discord-quiet-start",
+        "#jarvis-discord-timezone",
+        "#jarvis-discord-token",
+        "#mcp-command",
+        "#mcp-env",
+        "#mcp-headers",
+        "#mcp-name",
+        "#mcp-registry-q",
+        "#mcp-url",
+        "#perm-rule-path",
+        "#perm-rule-tool",
+        "#photon-owner",
+        "#photon-project-id",
+        "#photon-project-secret",
+        "#s-agent-roots",
+        "#telegram-token",
+    ],
+    "voice": [
+        "#s-stt-language",
+        "#settings-openai-key",
+    ],
+}
+
+
 def registry():
     SettingsFieldLabels.setUpClass()
     fields = []
@@ -55,8 +192,11 @@ def run():
     require_server_ownership(base, run_id)
     out = Path(os.environ["ALLES_BROWSER_ARTIFACTS"])
     fields = registry()
-    # 95 before the andromeda section: four search fields moved out, seven provider key fields in
-    assert len(fields) == 98
+    found = {}
+    for field in fields:
+        found.setdefault(field["pane"], []).append(field["selector"])
+    assert {pane: sorted(ids) for pane, ids in found.items()} == EXPECTED_FIELDS
+    assert len(fields) == 99
     profiles = [(w, t, False) for w in (1440, 768, 390) for t in ("light", "dark")]
     profiles += [(1440, t, True) for t in ("light", "dark")]
     rows = []

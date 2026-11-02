@@ -503,7 +503,11 @@ export async function loadConnections(isCurrent = () => true) {
     const conns = all.filter(connection => !signedIn.has(String(connection.id)));
     // a token already pasted keeps its form open, so its row has its context
     if (conns.length) document.getElementById('conn-token-form').hidden = false;
-    if (!conns.length) { el.innerHTML = ''; return; }
+    // signed in accounts show in their own row, so the empty line is for no connection at all
+    if (!conns.length) {
+      el.innerHTML = all.length ? '' : `<div class="settings-row-empty">${_esc(t('connections.nothing_connected'))}</div>`;
+      return;
+    }
     el.innerHTML = conns.map(c => `
       <div class="settings-list-row">
         <span class="status-dot" style="background:${c.connected ? 'var(--green)' : 'var(--faint)'}"></span>

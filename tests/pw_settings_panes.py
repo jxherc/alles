@@ -359,7 +359,8 @@ def connection_write_cases(page, api, pane, reopen, choose_edge, destination):
                         "**/api/auth/me", lambda route: route.fulfill(json={"enabled": True})
                     )
                 held_deletes[-1].fulfill(
-                    status=int(outcome), json={"detail": "synthetic delete rejected"}
+                    status=int(outcome),
+                    json={"detail": "synthetic delete rejected", "code": "recent_auth_required"},
                 )
                 if outcome == "403":
                     expect(page.locator("[data-dialog-cancel]")).to_be_visible()
@@ -1461,7 +1462,11 @@ def persona_token_action_cases(page, api, reopen, destination):
                         lambda route: (reauth.append(True), route.fulfill(json={"ok": True})),
                     )
                 held[0].fulfill(
-                    status=int(outcome), json={"detail": "synthetic token revocation rejected"}
+                    status=int(outcome),
+                    json={
+                        "detail": "synthetic token revocation rejected",
+                        "code": "recent_auth_required",
+                    },
                 )
                 if outcome == "403":
                     expect(page.locator('.dialog-input[type="password"]')).to_be_visible()
@@ -1972,7 +1977,11 @@ def developer_focus_webhook_cases(page, api, pane, reopen, destination):
                 elif focus_case == "newer-pane":
                     pane("general")
                 held[-1].fulfill(
-                    status=403, json={"detail": "synthetic owner confirmation required"}
+                    status=403,
+                    json={
+                        "detail": "synthetic owner confirmation required",
+                        "code": "recent_auth_required",
+                    },
                 )
                 failures["403"] += 1
                 expect(page.locator('.dialog-input[type="password"]')).to_be_visible()
@@ -3500,6 +3509,10 @@ def exercise(page, api, endpoint, destination):
         page.route(route_url, hold_form_create)
         for outcome in ("newer", "failure", "unchanged"):
             if form == "connection":
+                # the token form is the fallback under github's sign in button, closed until asked
+                if page.locator("#conn-token-form").is_hidden():
+                    page.get_by_role("button", name="use a token instead").click()
+                expect(page.locator("#conn-token-form")).to_be_visible()
                 choose_edge("conn-service")
                 expect(page.locator("#conn-custom-row")).to_be_visible()
                 page.locator("#conn-custom").fill("example-create-fixture")

@@ -426,6 +426,40 @@ export function createFocusBoundary(dialog, { trigger = null, onEscape = null } 
 }
 
 
+// keep an open menu on screen from the top: flip it above its anchor when that side has more
+// room, and scroll inside it when neither side fits all the rows (a short window, big zoom)
+function fitMenuHeight(menu) {
+  menu.style.maxHeight = '';
+  menu.style.overflowY = '';
+  if (menu.dataset.fitFlip) {
+    menu.style.top = menu.dataset.fitTop;
+    menu.style.bottom = menu.dataset.fitBottom;
+    delete menu.dataset.fitFlip;
+  }
+  const edge = 8;
+  const rect = menu.getBoundingClientRect();
+  const below = window.innerHeight - edge - rect.top;
+  const full = menu.scrollHeight + (menu.offsetHeight - menu.clientHeight);
+  if (full <= below) return;
+  let room = below;
+  const anchor = getComputedStyle(menu).position === 'absolute' ? menu.offsetParent : null;
+  if (anchor && !menu.style.top) {
+    const above = anchor.getBoundingClientRect().top - edge;
+    if (above > below) {
+      menu.dataset.fitFlip = '1';
+      menu.dataset.fitTop = menu.style.top;
+      menu.dataset.fitBottom = menu.style.bottom;
+      menu.style.top = 'auto';
+      menu.style.bottom = '100%';
+      room = above;
+    }
+  }
+  if (full > room) {
+    menu.style.maxHeight = `${Math.max(room, 88)}px`;
+    menu.style.overflowY = 'auto';
+  }
+}
+
 export function createMenuController(menu, { onClose = null, closeOnOutsidePointer = true } = {}) {
   if (!menu) return null;
   let returnFocus = null;
@@ -452,6 +486,7 @@ export function createMenuController(menu, { onClose = null, closeOnOutsidePoint
     returnFocus = source || document.activeElement;
     menu.hidden = false;
     menu.style.display = 'block';
+    fitMenuHeight(menu);
     if (focus) items()[0]?.focus();
     if (closeOnOutsidePointer) {
       outsideListening = true;
