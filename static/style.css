@@ -5443,6 +5443,13 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   /* the receipt action keeps its paperclip and drops its words on a phone, so the row's actions
      stay on one line at the touch type size (0044); its aria-label still names it */
   @media (max-width: 720px) { #money-view .txn .tx-receipt-label { display: none; } }
+  /* at 320 (a small phone) edit, cleared, split and the paperclip still ran onto a second line
+     beside delete's cell; "cleared" keeps its circle or tick there, and its aria-label, and the
+     gap steps down to 4px (each word still has its 10px inside the target) */
+  @media (max-width: 360px) {
+    #money-view .txn .tx-clear-label { display: none; }
+    #money-view .txn .tx-actions { gap: var(--k-space-1, 4px); }
+  }
   :where(#money-view) .txn .tx-del { grid-column: 2; grid-row: 5; justify-self: end; }
 
 #money-view .money-entry-action { min-height: 44px; }
