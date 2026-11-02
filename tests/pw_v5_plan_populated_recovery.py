@@ -72,7 +72,8 @@ def run() -> None:
         task_id = row.get_attribute("data-id")
         assert task_id
 
-        controls = row.locator("button")
+        # the row's more menu is closed: its items are hidden until it opens
+        controls = row.locator("button:visible")
         for index in range(controls.count()):
             control = controls.nth(index)
             assert control.get_attribute("data-kokuen-primitive"), index

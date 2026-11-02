@@ -289,8 +289,13 @@ def run():
                 passed()
 
                 begin("keyboard-event-and-move")
+                # the search redraws the grid after a debounce: wait for the redrawn chip, so Tab
+                # and Enter don't land on one that's about to be replaced
+                page.evaluate(
+                    "document.querySelectorAll('.cal-chip').forEach(c => { c.dataset.old = '1'; })"
+                )
                 page.locator("#cal-search").fill("跨日")
-                expect(page.locator(f'.cal-chip[data-id="{eid}"]')).to_be_visible()
+                expect(page.locator(f'.cal-chip[data-id="{eid}"]:not([data-old])')).to_be_visible()
                 page.locator("#cal-search").click()
                 tab_to(f'.cal-chip[data-id="{eid}"]')
                 page.keyboard.press("Enter")

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_datepick import expect_date, pick_date
 
 base = "http://127.0.0.1:" + os.environ["PORT"]
 require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -83,7 +84,7 @@ with sync_playwright() as p:
                 ["active", "today", "upcoming", "someday", "done"].index("active")
             ).click()
             page.get_by_role("button", name="edit " + title, exact=True).click()
-            page.locator("#te-due").fill("2032-11-07")
+            pick_date(page.locator("#te-due"), "2032-11-07")
             page.locator("#te-notes").fill("retained source and correction")
             page.locator("#te-save").click()
             expect(page.locator("#te-title")).to_have_count(0)
@@ -130,7 +131,7 @@ with sync_playwright() as p:
             ).click()
             search(title)
             page.get_by_role("button", name="edit " + title, exact=True).click()
-            expect(page.locator("#te-due")).to_have_value("2032-11-07")
+            expect_date(page.locator("#te-due"), "2032-11-07")
             expect(page.locator("#te-notes")).to_have_value("retained source and correction")
             page.locator("#te-cancel").click()
             undo.click()

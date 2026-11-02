@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_datepick import expect_date, pick_date
 
 
 def run():
@@ -175,7 +176,7 @@ def run():
                 begin("plan.concurrent-field-edits")
                 edit(a)
                 edit(b)
-                a.locator("#te-due").fill("2032-11-07")
+                pick_date(a.locator("#te-due"), "2032-11-07")
                 a.locator("#te-notes").fill("tab A saved note 中文")
                 save(a)
                 b.locator("#te-proj").fill("university")
@@ -188,7 +189,7 @@ def run():
                 assert events["task_writes"][-1]["body"]["expected"] == {"project": "school"}
                 b.reload(wait_until="networkidle")
                 edit(b)
-                expect(b.locator("#te-due")).to_have_value("2032-11-07")
+                expect_date(b.locator("#te-due"), "2032-11-07")
                 expect(b.locator("#te-notes")).to_have_value("tab A saved note 中文")
                 expect(b.locator("#te-proj")).to_have_value("university")
                 assert saved()["due_date"] == "2032-11-07"
@@ -544,19 +545,29 @@ def run():
                 def delay_tree(route):
                     held.append((route, route.fetch()))
 
+                # the 5 task views are one dropdown (u.06): open it, pick the view by its value
+                def pick_view(page, value):
+                    action(page.locator("#tasks-view-pick"))
+                    action(
+                        page.locator(".custom-dropdown-panel [role=option]").nth(
+                            ["active", "today", "upcoming", "someday", "done"].index(value)
+                        )
+                    )
+
+                # picking the view that's already open does nothing, so leave it first
+                pick_view(a, "done")
+                expect(a.locator("#tasks-view-pick")).to_have_attribute("data-value", "done")
                 a.route("**/api/tasks/tree", delay_tree)
-                action(a.get_by_role("button", name="all", exact=True))
+                pick_view(a, "active")
                 a.wait_for_timeout(100)
                 assert held
                 with a.expect_response(lambda r: r.url.endswith("/api/tasks/done")):
-                    action(a.get_by_role("button", name="history", exact=True))
+                    pick_view(a, "done")
                 expect(a.locator("#tasks-list .task-title")).to_have_text([completed["title"]])
                 with a.expect_response(lambda r: r.url.endswith("/api/tasks/tree")):
                     held[0][0].fulfill(response=held[0][1])
                 expect(a.locator("#tasks-list .task-title")).to_have_text([completed["title"]])
-                expect(a.get_by_role("button", name="history", exact=True)).to_have_attribute(
-                    "aria-pressed", "true"
-                )
+                expect(a.locator("#tasks-view-pick")).to_have_attribute("data-value", "done")
                 shot(a, "latest-history-retained")
                 a.unroute("**/api/tasks/tree", delay_tree)
                 passed(

@@ -191,7 +191,7 @@ with sync_playwright() as pw:
             )
             card = page.locator(f'.day-card[data-id="{identity}"]')
             card.locator('[data-act="pin"]').press("Enter")
-            expect(card.locator('[data-act="pin"]')).to_have_attribute("title", "unpin")
+            expect(card.locator('[data-act="pin"]')).to_have_attribute("aria-label", "unpin")
             # delete is in the card's menu and waits out an undo window (u.10)
             expect(card.locator('[data-act="del"]')).to_be_hidden()
             delete_from_menu(card)

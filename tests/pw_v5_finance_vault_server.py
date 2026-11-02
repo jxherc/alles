@@ -161,7 +161,7 @@ def _finance_recent_owner(page: Page) -> None:
     page.locator("#finance-view").wait_for(state="visible")
     page.get_by_role("link", name="ledger setup", exact=True).click()
     page.locator("#s-ledger .finance-actual-panel").wait_for(state="visible")
-    backup = page.get_by_role("button", name="create cold backup")
+    backup = page.get_by_role("button", name="create backup")
     backup.focus()
     backup.press("Enter")
     prompt = page.locator(".dialog-overlay")

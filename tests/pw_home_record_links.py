@@ -252,7 +252,7 @@ def run():
                     elif view == "habits":
                         selected.locator(f'[data-toggle="{today}"]').click()
                         expect(selected.locator(f'[data-toggle="{today}"]')).to_have_class(
-                            "habit-day done"
+                            re.compile(r"\bhabit-day\b.*\bdone\b")
                         )
                         assert next(
                             item

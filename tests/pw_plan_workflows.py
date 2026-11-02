@@ -15,6 +15,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_datepick import expect_date, pick_date
 from pw_settings_helpers import choose_settings_section
 
 
@@ -165,16 +166,16 @@ def run():
                 with page.expect_response(lambda r: r.url.endswith("/api/tasks/tree")):
                     search.fill("")
                 editor()
-                page.locator("#te-due").fill("2032-11-07")
+                pick_date(page.locator("#te-due"), "2032-11-07")
                 save()
                 assert saved()["due_date"] == "2032-11-07"
                 editor()
-                expect(page.locator("#te-due")).to_have_value("2032-11-07")
+                expect_date(page.locator("#te-due"), "2032-11-07")
                 page.locator("#te-proj").fill("university")
                 save()
                 page.reload(wait_until="networkidle")
                 editor()
-                expect(page.locator("#te-due")).to_have_value("2032-11-07")
+                expect_date(page.locator("#te-due"), "2032-11-07")
                 expect(page.locator("#te-proj")).to_have_value("university")
                 assert saved()["due_date"] == "2032-11-07"
                 page.locator("#te-cancel").click()
@@ -295,7 +296,8 @@ def run():
                 assert title_bounds and title_bounds["width"] >= (
                     200 if profile == "phone" else 400
                 ), title_bounds
-                for control in row.locator("button").all():
+                # the row's more menu is closed: its items are hidden until it opens
+                for control in row.locator("button:visible").all():
                     bounds = control.bounding_box()
                     assert bounds and bounds["width"] >= 44 and bounds["height"] >= 44, bounds
                 assert page.evaluate(

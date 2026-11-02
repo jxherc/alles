@@ -6,6 +6,7 @@ from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
 from playwright.sync_api import expect, sync_playwright
+from pw_datepick import pick_date
 
 base = f"http://127.0.0.1:{os.environ['PORT']}"
 require_server_ownership(base, os.environ["ALLES_TEST_RUN_ID"])
@@ -57,7 +58,7 @@ with sync_playwright() as pw:
             page.get_by_role("tab", name="tasks", exact=True).click()
             search(title)
             page.get_by_role("button", name="edit " + title, exact=True).click()
-            page.locator("#te-due").fill("2032-01-31")
+            pick_date(page.locator("#te-due"), "2032-01-31")
             page.locator("#te-rep").click()
             page.get_by_role("option", name="monthly", exact=True).click()
             page.locator("#te-save").click()
