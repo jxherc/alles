@@ -7,7 +7,7 @@ import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdo
 import { initDatePicker, calendarDateParts } from './datepick.js';
 import { calendarDateKey, currencySymbol, formatCalendarDate, formatDate, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary } from './kokuen.js?v=5';
-import { createUndoDelete, deleteItemHtml, goneTextHtml, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
+import { createUndoDelete, deleteItemHtml, goneTextHtml, moreButton, moreMenuHtml, undoButtonHtml, wireMoreMenus } from './undo_delete.js';
 import { bankRequest as _ownerFetch, openPlaidLink, plaidNotice } from './finance_plaid.js';
 import { replaceRouteUrl } from './route_history.js';
 import { assignHues, categoryHue } from './color.js';
@@ -364,6 +364,19 @@ function compactMoney() {
   return globalThis.matchMedia?.('(max-width: 720px)')?.matches || false;
 }
 
+// a small phone (320): a row's edit, cleared, split and receipt go into its more menu, so the
+// payee and amount keep the row instead of wrapping around five actions
+function narrowMoney() {
+  return globalThis.matchMedia?.('(max-width: 360px)')?.matches || false;
+}
+
+// an action that lives in a row's menu can't take focus while the menu is shut: focus goes to the
+// row's more button instead
+function _rowActionTarget(id, attr = 'data-edit-txn') {
+  const control = $('txn-rows')?.querySelector(`[${attr}="${CSS.escape(id)}"]`);
+  return control?.closest('[role="menu"]') ? control.closest('.txn')?.querySelector('.row-more') : control;
+}
+
 function scheduleNeedsAttention() {
   return _recurringError || _recurring.some(r => r.repair_needed || r.repair_pending || r.posting_pending || r.create_pending || r.create_needs_review || r.edit_pending || r.edit_needs_review || r.delete_pending || r.delete_needs_review);
 }
@@ -481,6 +494,7 @@ export function initMoneyPanel(fetcher = fetch) {
       if (pending?.request_id) transactionSaveStatus(t('money.earlier_may_be_saved'));
     } catch {}
     window.matchMedia('(max-width: 720px)').addEventListener('change', syncMoneyLayout);
+    window.matchMedia('(max-width: 360px)').addEventListener('change', () => { if ($('txn-rows') && !$('txn-rows').querySelector('.txn-edit')) renderTxns(); });
     $('money-prev')?.addEventListener('click', () => { _month = _shiftMonth(_month, -1); load(fetch, true, false); });
     $('money-next')?.addEventListener('click', () => { _month = _shiftMonth(_month, 1); load(fetch, true, false); });
     $('money-manage-toggle')?.addEventListener('click', () => {
@@ -804,7 +818,7 @@ function render(preserveDrafts = false, preserveFilters = preserveDrafts) {
   wireSavedTransactions();
   if (retained) restoreMoneyDrafts(b, retained);
   restoreSavedFocus(savedFocus);
-  if (clearedFocus && document.activeElement === document.body) b.querySelector(`[data-clear-txn="${CSS.escape(clearedFocus)}"]`)?.focus();
+  if (clearedFocus && document.activeElement === document.body) _rowActionTarget(clearedFocus, 'data-clear-txn')?.focus();
 }
 
 function retainMoneyDrafts(body, preserveFilters) {
@@ -1145,20 +1159,25 @@ function wireNetworthHistory() {
 
 const _goalKind = kind => ({ savings: t('money.goal_savings'), debt: t('money.goal_debt') }[kind] || kind);
 
-function goalsCard() {
-  if (!comparableTotals()) return currencyBoundary();
+function goalRows() {
   const rows = (_goals || []).map(g => {
+    if (_rowDeletes.goal.undo.is(g.id)) return _goneRow(g.id, g.name);
     const pct = Math.round((g.progress || 0) * 100);
     const eta = g.eta_months === 0 ? t('money.goal_reached') : (g.eta_months != null ? t('money.goal_months_left', { n: g.eta_months }) : t('money.goal_set_monthly'));
     return `<div class="goal-row" data-id="${g.id}">
       <div class="goal-head"><span class="goal-name">${esc(g.name)} <span class="goal-kind">${esc(_goalKind(g.kind))}</span></span>
         <span class="goal-nums">${fmt(g.current, _goalsCurrency || _cur)} / ${fmt(g.target, _goalsCurrency || _cur)}</span>
-        <button class="tx-del" data-del-goal="${g.id}" aria-label="${t('money.remove_goal', { name: esc(g.name) })}" title="${t('common.remove')}">×</button></div>
+        ${moreMenuHtml('goal', g.id, g.name, deleteItemHtml(`data-del-goal="${g.id}" aria-label="${t('money.remove_goal', { name: esc(g.name) })}"`, t('common.remove')))}</div>
       <div class="goal-bar-wrap"><div class="goal-bar" style="width:${pct}%"></div></div>
       <div class="goal-eta">${pct}% · ${eta}</div>
     </div>`;
   }).join('');
-  return `<div class="goals">${rows || `<div class="money-empty-sm">${t('money.no_goals')}</div>`}</div>
+  return rows || `<div class="money-empty-sm">${t('money.no_goals')}</div>`;
+}
+
+function goalsCard() {
+  if (!comparableTotals()) return currencyBoundary();
+  return `<div class="goals">${goalRows()}</div>
     <div class="goal-form">
       ${moneyField(t('money.goal_name'), `<input type="text" id="gl-name" class="settings-input" placeholder="${t('money.goal_name')}" style="flex:1;min-width:6.25rem">`)}
       ${moneyField(t('money.goal_type'), `<div class="settings-input custom-select" id="gl-kind" data-value="savings" data-options="savings|${t('money.goal_savings')};debt|${t('money.goal_debt')}" style="width:7.5rem"></div>`)}
@@ -1180,19 +1199,25 @@ function reportsCard() {
     <div id="rp-out" class="report-out"></div>`;
 }
 
-function holdingsCard() {
-  if (!comparableTotals()) return currencyBoundary();
-  const d = _holdings;
+function holdingRows() {
   const fmt = (n, currency = _canonicalLedger ? _cur : savedIn()) => fmtMoney(n, currency);
   const signed = n => (n >= 0 ? '+' : '−') + fmt(Math.abs(n));
-  const rows = (d?.holdings || []).map(h => `
+  return (_holdings?.holdings || []).map(h => _rowDeletes.hold.undo.is(h.id) ? _goneRow(h.id, h.symbol) : `
     <div class="hold-row" data-id="${h.id}">
       <span class="hold-sym">${esc(h.symbol)}</span>
       <span class="hold-qty">${h.qty}×${fmt(h.price)}</span>
       <span class="hold-val">${fmt(h.value)}</span>
       <span class="hold-gain ${h.gain >= 0 ? 'pos' : 'neg'}">${signed(h.gain)} (${h.gain_pct}%)</span>
-      <button class="tx-del" data-del-hold="${h.id}" aria-label="${t('money.remove_holding', { symbol: esc(h.symbol) })}" title="${t('common.remove')}">×</button>
+      ${moreMenuHtml('hold', h.id, h.symbol, deleteItemHtml(`data-del-hold="${h.id}" aria-label="${t('money.remove_holding', { symbol: esc(h.symbol) })}"`, t('common.remove')))}
     </div>`).join('');
+}
+
+function holdingsCard() {
+  if (!comparableTotals()) return currencyBoundary();
+  const d = _holdings;
+  const fmt = (n, currency = _canonicalLedger ? _cur : savedIn()) => fmtMoney(n, currency);
+  const signed = n => (n >= 0 ? '+' : '−') + fmt(Math.abs(n));
+  const rows = holdingRows();
   const tot = d?.totals || {};
   const totRow = (d?.holdings || []).length
     ? `<div class="hold-total">${t('money.holdings_total', { amount: fmt(tot.value || 0) })} · <span class="${(tot.gain || 0) >= 0 ? 'pos' : 'neg'}">${signed(tot.gain || 0)}</span></div>`
@@ -1208,11 +1233,15 @@ function holdingsCard() {
 }
 
 function accountsList() {
-  return `<div class="money-accts">` + _accounts.map(a => `
+  return `<div class="money-accts">${accountRows()}</div>`;
+}
+
+function accountRows() {
+  return _accounts.map(a => _rowDeletes.acct.undo.is(a.id) ? _goneRow(a.id, a.name, 'money-acct') : `
     <div class="money-acct ${a.archived ? 'arch' : ''}" data-id="${a.id}">
       <div class="ma-top"><span class="ma-name">${esc(a.name)}</span>
         <button class="ma-rc" data-rc-acct="${a.id}" aria-label="${t('money.reconcile_named', { name: esc(a.name) })}" title="${t('money.reconcile_title')}">${_si('scale')}</button>
-        <button class="ma-del" data-del-acct="${a.id}" aria-label="${t('money.delete_account_named', { name: esc(a.name) })}" title="${t('common.delete')}">×</button></div>
+        ${moreMenuHtml('acct', a.id, a.name, deleteItemHtml(`data-del-acct="${a.id}" aria-label="${t('money.delete_account_named', { name: esc(a.name) })}"`))}</div>
       <div class="ma-bal ${a.balance < 0 ? 'neg' : ''}">${(!_canonicalLedger && a.balance_by_currency?.length ? a.balance_by_currency : [{ currency: accountCurrency(a), balance: a.balance }]).map(row => esc(fmt(row.balance, row.currency === 'XXX' ? bareSign(a) || 'XXX' : row.currency))).join('<br>')}</div>
       <div class="ma-kind">${esc(a.kind)}${accountCurrency(a) === 'XXX' ? '' : ` · ${esc(accountCurrency(a))}`}</div>
       ${_canonicalLedger ? '' : `${accountCurrencyPick(a)}${a.currency_edit_reason ? `<p class="money-empty-sm">${esc(a.currency_edit_reason)}</p>` : ''}<p id="acct-currency-status-${a.id}" class="money-field-error" role="status"></p>`}
@@ -1221,7 +1250,7 @@ function accountsList() {
         <button class="btn" data-rc-run="${a.id}">${t('money.check')}</button>
         <div class="rc-out" id="rc-out-${a.id}"></div>
       </div>
-    </div>`).join('') + `</div>`;
+    </div>`).join('');
 }
 
 function catChart() {
@@ -1314,12 +1343,17 @@ function envelopeCard() {
 
 function budgetsList() {
   if (!_budgets.length) return `<div class="money-empty-sm">${t('money.no_caps')}</div>`;
+  return `<div class="budgets">${budgetRows()}</div>`;
+}
+
+function budgetRows() {
   const byCat = {}; (_sum?.budgets || []).forEach(b => byCat[b.category] = b);
   // the summary shows each cap in the totals currency when a rate allows (saved in the ledger one)
   const cur = _canonicalLedger ? _cur : capsIn();
-  return `<div class="budgets">` + _budgets.map(b => {
+  return _budgets.map(b => {
     // a tag cap has no category: it is named and looked up by its tag, or it showed as a blank row
     const name = b.category || b.tag || '';
+    if (_rowDeletes.budget.undo.is(b.id)) return _goneRow(b.id, name);
     const spent = byCat[name]?.spent || 0;
     const limit = _canonicalLedger ? b.limit_amt : byCat[name]?.limit ?? b.limit_amt;
     const pct = limit > 0 ? Math.min(100, spent / limit * 100) : 0;
@@ -1327,21 +1361,25 @@ function budgetsList() {
     return `<div class="budget-row" data-id="${b.id}">
       <div class="bg-head"><span class="bg-cat">${catDot(name)}${esc(name)}</span>
         <span class="bg-nums ${over ? 'over' : ''}">${fmt(spent, cur)} / ${fmt(limit, cur)}</span>
-        <button class="bg-del" data-del-budget="${b.id}" aria-label="${t('money.remove_cap_for', { name: esc(name) })}" title="${t('common.remove')}">×</button></div>
+        ${moreMenuHtml('budget', b.id, name, deleteItemHtml(`data-del-budget="${b.id}" aria-label="${t('money.remove_cap_for', { name: esc(name) })}"`, t('common.remove')))}</div>
       <div class="bg-bar-wrap"><div class="bg-bar ${over ? 'over' : ''}" style="width:${pct}%;--cat:var(--cat-${hueOf(name)})"></div></div>
     </div>`;
-  }).join('') + `</div>`;
+  }).join('');
 }
 
 function rulesList() {
   if (!_rules.length) return `<div class="money-empty-sm">${t('money.no_rules')}</div>`;
-  return `<div class="rules">` + _rules.map(r => `
+  return `<div class="rules">${ruleRows()}</div>`;
+}
+
+function ruleRows() {
+  return _rules.map(r => _rowDeletes.rule.undo.is(r.id) ? _goneRow(r.id, r.match, 'rule') : `
     <div class="rule" data-id="${r.id}">
       <span class="rl-match">${esc(r.match)}</span>
       <span class="rl-arrow" aria-hidden="true">${_si('arrow-right')}</span>
       <span class="rl-cat">${esc(r.category) || `<span class="tx-dim">${t('money.clear_paren')}</span>`}</span>
-      <button class="tx-del" data-del-rule="${r.id}" aria-label="${t('money.delete_rule_for', { name: esc(r.match) })}" title="${t('common.delete')}">×</button>
-    </div>`).join('') + `</div>`;
+      ${moreMenuHtml('rule', r.id, r.match, deleteItemHtml(`data-del-rule="${r.id}" aria-label="${t('money.delete_rule_for', { name: esc(r.match) })}"`))}
+    </div>`).join('');
 }
 
 function _ruleForm() {
@@ -1393,16 +1431,15 @@ function recurringList() {
   if (_recurringError) return `<div class="money-empty-sm money-history-error" role="status">${t('money.schedules_failed')} <button type="button" class="btn" id="recurring-retry">${t('common.retry')}</button></div>`;
   const status = _recurringStatus ? `<p class="money-recurring-error" role="status">${esc(_recurringStatus)}</p>` : '';
   if (!_recurring.length) return status + `<div class="money-empty-sm">${_canonicalLedger ? t('money.no_schedules_actual') : t('money.no_recurring')}</div>`;
-  return `${status}<div class="recurs">` + _recurring.map(r => `
+  return `${status}<div class="recurs">` + _recurring.map(r => _rowDeletes.rec.undo.is(r.id) ? _goneRow(r.id, r.payee || r.category || t('money.recurring'), 'recur-group') : `
     <div class="recur-group" data-id="${esc(r.id)}"><div class="recur ${r.active || r.repair_pending || r.posting_pending || r.create_pending || r.edit_pending || r.delete_pending || (_canonicalLedger && r.editable) ? '' : 'paused'}">
       <span class="rc-payee">${esc(r.payee) || esc(r.category) || '—'}</span>
       <span class="rc-amt ${r.amount == null ? '' : r.amount >= 0 ? 'pos' : 'neg'}">${r.amount == null ? (r.amount_kind === 'range' ? t('money.range') : t('money.varies')) : `${r.amount_kind === 'approx' ? '≈' : ''}${signed(r.amount, accountCurrency(_accounts.find(a => a.id === r.account_id)))}`}<span class="rc-cyc">${_cycleShort()[r.cycle] || ''}</span></span>
       <span class="rc-next" title="${r.create_pending ? t('money.creation_pending') : r.edit_pending ? t('money.edit_pending') : r.delete_pending ? t('money.deletion_pending') : r.next_date ? t('money.next_post', { date: esc(whenFull(r.next_date)) }) : t('money.next_date_unavailable')}">${r.create_pending || r.edit_pending || r.delete_pending ? t('money.pending') : r.active ? (r.next_date ? esc(whenDay(r.next_date)) : t('common.unknown')) : (_canonicalLedger ? t('money.inactive') : t('subs.paused'))}</span>
       ${_canonicalLedger && r.manageable && !r.edit_pending && _recurringEdit?.id !== r.id ? `<button type="button" class="btn rc-toggle" data-toggle-rec="${esc(r.id)}">${r.posting_pending ? (r.posting_target_active ? t('money.retry_resume') : t('money.retry_pause')) : r.active ? t('subs.pause') : t('subs.resume')}</button>` : ''}
       ${_canonicalLedger && r.editable ? `<button type="button" class="btn rc-edit" data-edit-rec="${esc(r.id)}" aria-label="${t('money.edit_schedule_named', { name: esc(r.payee || t('money.recurring')) })}" aria-expanded="${_recurringEdit?.id === r.id}" ${_recurringEdit?.id === r.id && _recurringEdit.options ? 'aria-controls="rce-panel"' : ''} ${_recurringEdit && (_recurringEdit.id !== r.id || _recurringEdit.saving) ? 'disabled' : ''}>${t('common.edit')}</button>` : ''}
-      ${_canonicalLedger && r.editable && !_recurringEdit ? `<button type="button" class="btn rc-delete" data-del-rec="${esc(r.id)}" aria-label="${t('money.delete_schedule_named', { name: esc(r.payee || t('money.recurring')) })}">${t('common.delete')}</button>` : ''}
-      ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? t('subs.pause') : t('subs.resume')}">${r.active ? t('subs.pause') : t('subs.resume')}</button>
-      <button class="tx-del" data-del-rec="${esc(r.id)}" aria-label="${t('money.delete_schedule_named', { name: esc(r.payee || r.category || t('money.recurring')) })}" title="${t('common.delete')}">×</button>`}
+      ${_canonicalLedger ? '' : `<button class="btn rc-toggle" data-toggle-rec="${esc(r.id)}" title="${r.active ? t('subs.pause') : t('subs.resume')}">${r.active ? t('subs.pause') : t('subs.resume')}</button>`}
+      ${(_canonicalLedger ? r.editable && !_recurringEdit : true) ? moreMenuHtml('rec', r.id, r.payee || r.category || t('money.recurring'), deleteItemHtml(`data-del-rec="${esc(r.id)}" aria-label="${t('money.delete_schedule_named', { name: esc(r.payee || r.category || t('money.recurring')) })}"`)) : ''}
     </div>${_recurringEditForm(r)}${_canonicalLedger && r.create_pending ? `<div class="recur-repair" role="status"><span>${r.create_needs_review ? t('money.create_marker_missing') : t('money.create_unconfirmed')}</span>${r.create_needs_review ? '' : `<button type="button" class="btn" data-retry-create-rec="${esc(r.id)}">${t('money.retry_creation')}</button>`}</div>` : ''}${_canonicalLedger && r.edit_pending ? `<div class="recur-repair" role="status"><span>${r.edit_needs_review ? t('money.edit_no_match') : t('money.edit_unconfirmed')}</span>${r.edit_needs_review ? '' : `<button type="button" class="btn" data-retry-edit-rec="${esc(r.id)}">${t('money.retry_edit')}</button>`}</div>` : ''}${_canonicalLedger && r.delete_pending ? `<div class="recur-repair" role="status"><span>${r.delete_needs_review ? t('money.delete_no_match') : t('money.delete_unconfirmed')}</span>${r.delete_needs_review ? '' : `<button type="button" class="btn" data-retry-delete-rec="${esc(r.id)}">${t('money.retry_deletion')}</button>`}</div>` : ''}${_canonicalLedger && r.repair_needed ? `<div class="recur-repair"><span>${r.repair_pending ? t('money.repair_incomplete') : t('money.repair_old')}</span><button type="button" class="btn" data-repair-rec="${esc(r.id)}">${r.repair_pending ? t('money.retry_repair') : t('money.repair_posting')}</button></div>` : ''}${_canonicalLedger && r.posting_pending ? `<div class="recur-repair"><span>${r.posting_target_active ? t('money.resume_not_confirmed') : t('money.pause_not_confirmed')}</span></div>` : ''}</div>`).join('') + `</div>`;
 }
 
@@ -1533,7 +1570,8 @@ function _renderTxnMain(txn, an) {
   const currency = transactionCurrency(txn);
   const labelText = t('money.txn_label', { payee: txn.payee || t('money.kind_transaction'), date: txn.date || t('money.undated'), amount: signed(txn.amount, currency), account: an[txn.account_id] || t('money.kind_account') });
   const label = esc(labelText);
-  const actions = xf ? '' : `<span class="tx-actions">
+  const small = narrowMoney() && !xf;
+  const actions = xf || small ? '' : `<span class="tx-actions">
     <button type="button" class="tx-edit" data-edit-txn="${txn.id}" aria-label="${t('money.edit_named', { label })}">${t('common.edit')}</button>
     <button class="tx-clear ${txn.cleared ? 'on' : ''}" data-clear-txn="${txn.id}" aria-label="${t('money.cleared_named', { label })}" aria-pressed="${!!txn.cleared}"><span aria-hidden="true">${_si(txn.cleared ? 'check-circle' : 'circle')}</span> <span class="tx-clear-label">${t('money.cleared')}</span></button>
     ${canSplit ? `<button class="tx-split-btn ${txn.split ? 'on' : ''}" data-split-txn="${txn.id}" aria-label="${t('money.split_named', { label })}" aria-expanded="${_splitTxn === txn.id}" title="${t('money.split_title')}">${t('money.split')}</button>` : ''}
@@ -1541,6 +1579,14 @@ function _renderTxnMain(txn, an) {
       ? `<a class="tx-receipt" href="/api/uploads/${esc(txn.receipt_id)}" target="_blank" rel="noopener" aria-label="${t('money.view_receipt_for', { label })}" title="${t('money.view_receipt')}"><span aria-hidden="true">${_si('paperclip')}</span><span class="tx-receipt-label">${t('money.view_receipt')}</span></a>`
       : `<button class="tx-receipt-btn" data-receipt-txn="${txn.id}" aria-label="${t('money.attach_receipt_to', { label })}" title="${t('money.attach_receipt')}"><span aria-hidden="true">${_si('paperclip')}</span><span class="tx-receipt-label">${t('money.attach_receipt')}</span></button>`}
   </span>`;
+  // on a small phone the same actions are the first items of the row's menu
+  const smallItems = !small ? '' : `
+    <button type="button" class="ctx-item" role="menuitem" data-edit-txn="${txn.id}" aria-label="${t('money.edit_named', { label })}">${t('common.edit')}</button>
+    <button type="button" class="ctx-item" role="menuitem" data-clear-txn="${txn.id}" aria-label="${t('money.cleared_named', { label })}, ${txn.cleared ? t('common.on') : t('common.off')}">${t('money.cleared')}${txn.cleared ? `<span class="menu-mark" aria-hidden="true">${_si('check-circle')}</span>` : ''}</button>
+    ${canSplit ? `<button type="button" class="ctx-item" role="menuitem" data-split-txn="${txn.id}" aria-label="${t('money.split_named', { label })}">${t('money.split')}</button>` : ''}
+    ${txn.receipt_id
+      ? `<a class="ctx-item" role="menuitem" href="/api/uploads/${esc(txn.receipt_id)}" target="_blank" rel="noopener" aria-label="${t('money.view_receipt_for', { label })}">${t('money.view_receipt')}</a>`
+      : `<button type="button" class="ctx-item" role="menuitem" data-receipt-txn="${txn.id}" aria-label="${t('money.attach_receipt_to', { label })}">${t('money.attach_receipt')}</button>`}`;
   return `
     <div class="txn ${xf ? 'is-transfer' : ''}" data-id="${txn.id}"${xf ? ` data-transfer="${esc(txn.transfer_id)}"` : ''}>
       <span class="tx-date">${txn.date ? whenHtml(txn.date) : ''}</span>
@@ -1552,7 +1598,7 @@ function _renderTxnMain(txn, an) {
       ${actions}
       ${xf
         ? moreMenuHtml('txn', txn.id, labelText, deleteItemHtml(`data-del-transfer="${txn.transfer_id}" aria-label="${t('money.delete_transfer_named', { label })}"`, t('money.delete_transfer')), 'tx-more')
-        : moreMenuHtml('txn', txn.id, labelText, deleteItemHtml(`data-del-txn="${txn.id}" aria-label="${t('money.delete_named', { label })}"`), 'tx-more')}
+        : moreMenuHtml('txn', txn.id, labelText, smallItems + deleteItemHtml(`data-del-txn="${txn.id}" aria-label="${t('money.delete_named', { label })}"`), 'tx-more')}
     </div>`;
 }
 
@@ -1706,10 +1752,10 @@ function wire() {
   if ($('bf-add')) $('bf-add').disabled = _budgetSaving;
   _wireEnvelope();
   $('hd-add')?.addEventListener('click', addHolding);
-  $('money-body').querySelectorAll('[data-del-hold]').forEach(b => b.addEventListener('click', () => delHolding(b.dataset.delHold)));
+  _rowDeletes.hold.wire();
   $('gl-add')?.addEventListener('click', addGoal);
   if ($('gl-add')) $('gl-add').disabled = _goalSaving;
-  $('money-body').querySelectorAll('[data-del-goal]').forEach(b => b.addEventListener('click', () => delGoal(b.dataset.delGoal)));
+  _rowDeletes.goal.wire();
   $('rp-run')?.addEventListener('click', runReport);
   wireForecast();
   wireAlerts();
@@ -1730,7 +1776,7 @@ function wire() {
     clearTimeout(_searchTimer); _searchTimer = setTimeout(applySearch, 220);
   }));
   _wireTxnRows();
-  $('money-body').querySelectorAll('[data-del-acct]').forEach(b => b.addEventListener('click', () => delAccount(b.dataset.delAcct)));
+  _rowDeletes.acct.wire();
   $('money-body').querySelectorAll('[data-acct-currency], [data-ask-currency]').forEach(control => {
     if (_currencyCodes.length) populateDropdown(control, _currencyOptions(), control.dataset.value || '');
     control.addEventListener('change', () => setAccountCurrency(control.dataset.askCurrency || control.dataset.acctCurrency, getDropdownValue(control), control));
@@ -1745,12 +1791,12 @@ function wire() {
   }));
   $('money-body').querySelectorAll('[data-rc-acct]').forEach(b => b.addEventListener('click', () => toggleReconcile(b.dataset.rcAcct)));
   $('money-body').querySelectorAll('[data-rc-run]').forEach(b => b.addEventListener('click', () => runReconcile(b.dataset.rcRun)));
-  $('money-body').querySelectorAll('[data-del-budget]').forEach(b => b.addEventListener('click', () => delBudget(b.dataset.delBudget)));
+  _rowDeletes.budget.wire();
   wireRecurring();
   $('rl-add')?.addEventListener('click', addRule);
   $('rl-cat')?.addEventListener('keydown', e => { if (e.key === 'Enter') addRule(); });
   $('rules-apply')?.addEventListener('click', applyRules);
-  $('money-body').querySelectorAll('[data-del-rule]').forEach(b => b.addEventListener('click', () => delRule(b.dataset.delRule)));
+  _rowDeletes.rule.wire();
 }
 
 async function retryRecurring(focusId = '', focusOwner = captureMoneyFocus('schedules')) {
@@ -1795,7 +1841,7 @@ function wireRecurringList() {
   document.querySelectorAll('#recurring-content [data-retry-create-rec]').forEach(b => b.addEventListener('click', () => retryRecurringCreate(b)));
   document.querySelectorAll('#recurring-content [data-retry-edit-rec]').forEach(b => b.addEventListener('click', () => retryRecurringEdit(b)));
   document.querySelectorAll('#recurring-content [data-retry-delete-rec]').forEach(b => b.addEventListener('click', () => retryRecurringDelete(b)));
-  document.querySelectorAll('#recurring-content [data-del-rec]').forEach(b => b.addEventListener('click', () => delRecurring(b.dataset.delRec)));
+  _rowDeletes.rec.wire();
   document.querySelectorAll('#recurring-content [data-toggle-rec]').forEach(b => b.addEventListener('click', () => toggleRecurring(b)));
   document.querySelectorAll('#recurring-content [data-repair-rec]').forEach(b => b.addEventListener('click', () => repairRecurring(b)));
   const editor = document.querySelector?.('#recurring-list .recur-edit');
@@ -1986,7 +2032,7 @@ function _wireTxnRows() {
   root.querySelectorAll('[data-save-txn]').forEach(b => b.addEventListener('click', () => saveTxn(b.dataset.saveTxn)));
   root.querySelectorAll('[data-cancel-txn]').forEach(b => b.addEventListener('click', () => {
     const id = b.dataset.cancelTxn; _editTxn = null; render(true);
-    ($('txn-rows').querySelector(`[data-edit-txn="${CSS.escape(id)}"]`) || $('txn-search'))?.focus();
+    (_rowActionTarget(id) || $('txn-search'))?.focus();
   }));
   // escape is cancel. an open menu or date picker keeps its escape to itself (it stops it)
   root.querySelectorAll('.txn-edit').forEach(row => row.addEventListener('keydown', event => {
@@ -2131,11 +2177,6 @@ async function addAccount() {
     toast(t('money.add_account_failed'), 'error');
   }
 }
-async function delAccount(id) {
-  if (!await dlgConfirm(t('money.delete_account_confirm'))) return;
-  try { await api(`/api/money/accounts/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast(t('money.delete_failed'), 'error'); }
-}
 function transactionAmountError(message) {
   const field = $('tx-amt'), error = $('tx-amt-error');
   if (error) error.textContent = message;
@@ -2271,6 +2312,89 @@ const _txnUndo = createUndoDelete({
     _focusAfterRowDelete(gone.next, gone.focusVersion);
   },
 });
+
+// goals, holdings, caps, rules, accounts and schedules: each row keeps delete in its more menu and
+// the row turns into "deleted, undo" for a few seconds before the server call, like the ledger rows
+// above (u.10). one waiting delete per kind
+function _goneRow(id, name, cls = '') {
+  return `<div class="${cls ? cls + ' ' : ''}money-row-gone" data-id="${esc(id)}" role="status">${goneTextHtml(name)}${undoButtonHtml(id)}</div>`;
+}
+
+function _rowDelete({ key, attr, list, rows, remove, reload = () => load(), draw = null, ask = null, direct = null }) {
+  const kind = {
+    undo: createUndoDelete({
+      key,
+      render: () => kind.draw(),
+      remove,
+      failed: () => toast(t('money.delete_failed'), 'error'),
+      after: async (pending, ok, hadFocus) => {
+        await reload(pending);
+        // undo's own button had focus when time ran out: land on the row that took its place
+        if (!hadFocus || (document.activeElement && document.activeElement !== document.body)) return;
+        (moreButton(key, pending.next) || document.querySelector(`${list} .row-more`)
+          || document.querySelector(list)?.closest('.money-card')?.querySelector('input, button'))?.focus();
+      },
+    }),
+    draw() {
+      const el = document.querySelector(list);
+      if (!el) return;
+      if (draw) { draw(el); return; }
+      el.innerHTML = rows();
+      kind.wire();
+    },
+    wire() {
+      const el = document.querySelector(list);
+      if (!el) return;
+      wireMoreMenus(el);
+      el.querySelectorAll(`[${attr}]`).forEach(button => button.addEventListener('click', async () => {
+        const id = button.getAttribute(attr);
+        // ask: a question whose answer the row can't show (an account takes its transactions with it)
+        if (ask && !await ask(id)) return;
+        // direct: a delete that can't wait for undo (a ledger-backed schedule)
+        if (direct?.(id)) return;
+        const row = button.closest('[data-id]');
+        kind.undo.later(id, { next: (row?.nextElementSibling || row?.previousElementSibling)?.dataset.id || '' });
+      }));
+      el.querySelectorAll('[data-undo-del]').forEach(button => button.addEventListener('click', () => kind.undo.undo()));
+    },
+  };
+  return kind;
+}
+
+const _deleteOn = path => id => api(`${path}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+const _rowDeletes = {
+  goal: _rowDelete({ key: 'goal', attr: 'data-del-goal', list: '.goals', rows: () => goalRows(), remove: _deleteOn('/api/money/goals') }),
+  hold: _rowDelete({ key: 'hold', attr: 'data-del-hold', list: '.holds', rows: () => holdingRows(), remove: _deleteOn('/api/money/holdings') }),
+  acct: _rowDelete({ key: 'acct', attr: 'data-del-acct', list: '.money-accts', rows: () => accountRows(), remove: _deleteOn('/api/money/accounts'), ask: () => dlgConfirm(t('money.delete_account_confirm')) }),
+  budget: _rowDelete({ key: 'budget', attr: 'data-del-budget', list: '.budgets', rows: () => budgetRows(), remove: _deleteOn('/api/money/budgets') }),
+  rule: _rowDelete({ key: 'rule', attr: 'data-del-rule', list: '.rules', rows: () => ruleRows(), remove: _deleteOn('/api/money/rules') }),
+  rec: _rowDelete({
+    key: 'rec',
+    attr: 'data-del-rec',
+    list: '#recurring-list',
+    draw: el => { el.innerHTML = recurringList(); wireRecurringList(); },
+    remove: _deleteOn('/api/money/recurring'),
+    // a ledger-backed schedule keeps its confirm and its saved-deletion path (it writes to the
+    // linked budget, which has no undo)
+    direct: id => { if (!_canonicalLedger) return false; delRecurring(id); return true; },
+  }),
+};
+
+async function delRecurring(id) {
+  const r = _recurring.find(row => row.id === id);
+  if (!r?.editable || _recurringEdit) return;
+  if (!await dlgConfirm(t('money.delete_schedule_confirm', { name: r.payee || t('money.recurring') }))) return;
+  const focusOwner = captureMoneyFocus('schedules');
+  try {
+    await api(`/api/money/recurring/${encodeURIComponent(id)}/delete`, {
+      method: 'POST', body: { confirm_id: id },
+    });
+    _recurringStatus = '';
+  } catch (error) {
+    _recurringStatus = t('money.deletion_not_confirmed_for', { payee: r.payee, error: error.message || t('money.retry_saved_deletion') });
+  }
+  await retryRecurring(id, focusOwner);
+}
 
 // take deleted rows out of what's on screen, so the redraw before the fresh read doesn't bring
 // them back (and hand focus to a row that's gone)
@@ -2461,7 +2585,7 @@ async function saveTxn(id) {
     // safari doesn't focus a tapped button, so a tap on save leaves focus on <body> already
     const owned = !focused || focused === document.body || row.contains(focused);
     if (owned && focusVersion === _moneyFocusChange && document.activeElement === document.body) {
-      ($('txn-rows').querySelector(`[data-edit-txn="${CSS.escape(id)}"]`) || $('txn-search'))?.focus();
+      (_rowActionTarget(id) || $('txn-search'))?.focus();
     }
   } catch { toast(t('money.save_failed_short'), 'error'); }
 }
@@ -2522,11 +2646,6 @@ async function addGoal() {
     if ($('gl-add')) $('gl-add').disabled = false;
   }
 }
-async function delGoal(id) {
-  if (!await dlgConfirm(t('money.delete_goal_confirm'))) return;
-  try { await api(`/api/money/goals/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast(t('money.delete_failed'), 'error'); }
-}
 async function runReport() {
   const start = $('rp-start')?.dataset.value || '', end = $('rp-end')?.dataset.value || '';
   const out = $('rp-out'); if (!out) return;
@@ -2562,11 +2681,6 @@ async function addHolding() {
     } });
     await load();
   } catch { toast(t('money.add_failed'), 'error'); }
-}
-async function delHolding(id) {
-  if (!await dlgConfirm(t('money.delete_holding_confirm'))) return;
-  try { await api(`/api/money/holdings/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast(t('money.delete_failed'), 'error'); }
 }
 
 // dashboard: hide/show cards, persisted in localStorage (4c)
@@ -2801,11 +2915,6 @@ async function addBudget() {
     if ($('bf-add')) $('bf-add').disabled = false;
   }
 }
-async function delBudget(id) {
-  if (!await dlgConfirm(t('money.remove_cap_confirm'))) return;
-  try { await api(`/api/money/budgets/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast(t('money.delete_failed'), 'error'); }
-}
 async function addRecurring() {
   const payee = $('rc-payee')?.value.trim();
   const amtRaw = _decimal($('rc-amt')?.value);
@@ -2922,28 +3031,6 @@ async function retryRecurringDelete(button) {
   }
   await retryRecurring(r.id, focusOwner);
 }
-async function delRecurring(id) {
-  let focusOwner = captureMoneyFocus('schedules');
-  if (_canonicalLedger) {
-    const r = _recurring.find(row => row.id === id);
-    if (!r?.editable || _recurringEdit) return;
-    if (!await dlgConfirm(t('money.delete_schedule_confirm', { name: r.payee || t('money.recurring') }))) return;
-    focusOwner = captureMoneyFocus('schedules');
-    try {
-      await api(`/api/money/recurring/${encodeURIComponent(id)}/delete`, {
-        method: 'POST', body: { confirm_id: id },
-      });
-      _recurringStatus = '';
-    } catch (error) {
-      _recurringStatus = t('money.deletion_not_confirmed_for', { payee: r.payee, error: error.message || t('money.retry_saved_deletion') });
-    }
-    await retryRecurring(id, focusOwner);
-    return;
-  }
-  if (!await dlgConfirm(t('money.stop_recurring_confirm'))) return;
-  try { await api(`/api/money/recurring/${encodeURIComponent(id)}`, { method: 'DELETE' }); await load(); }
-  catch { toast(t('money.delete_failed'), 'error'); }
-}
 async function toggleRecurring(button) {
   const focusOwner = captureMoneyFocus('schedules');
   const r = _recurring.find(x => x.id === button.dataset.toggleRec);
@@ -3020,11 +3107,6 @@ async function addRule() {
     await api('/api/money/rules', { method: 'POST', body: { match, category: $('rl-cat').value.trim() } });
     await load();
   } catch { toast(t('money.add_rule_failed'), 'error'); }
-}
-async function delRule(id) {
-  if (!await dlgConfirm(t('money.delete_rule_confirm'))) return;
-  try { await api(`/api/money/rules/${id}`, { method: 'DELETE' }); await load(); }
-  catch { toast(t('money.delete_failed'), 'error'); }
 }
 async function applyRules() {
   try {

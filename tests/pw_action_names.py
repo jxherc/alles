@@ -186,61 +186,125 @@ def run():
 
                 item = f"{payee}, {day}, −CAD\u00a012.50, {account_name}"
                 row = page.locator(f'.txn[data-id="{txn["id"]}"]')
-                clear = named(f'[data-clear-txn="{txn["id"]}"]', "cleared: " + item)
-                expect(clear).to_have_attribute("aria-pressed", "false")
-                failed_path = base + "/api/money/transactions/" + txn["id"]
-                page.route(
-                    failed_path,
-                    lambda route: route.fulfill(
-                        status=503, json={"detail": "synthetic interruption"}
-                    ),
-                )
-                activate(clear)
-                expect(page.locator(".toast.error").last).to_have_text("failed")
-                expect(clear).to_have_attribute("aria-pressed", "false")
-                page.unroute(failed_path)
-                activate(clear)
-                expect(clear).to_have_attribute("aria-pressed", "true")
-                if width > 390:
-                    expect(clear).to_be_focused()
-                result["finance_ax"] = row.aria_snapshot()
-                page.screenshot(path=str(out / f"{label}-cleared.png"))
-                page.reload(wait_until="networkidle")
-                expect(clear).to_have_attribute("aria-pressed", "true")
-                activate(clear)
-                expect(clear).to_have_attribute("aria-pressed", "false")
-                saved = context.request.get(
-                    base + f"/api/money/transactions?month={day[:7]}"
-                ).json()
-                assert not next(t for t in saved if t["id"] == txn["id"])["cleared"]
+                if width > 360:
+                    clear = named(f'[data-clear-txn="{txn["id"]}"]', "cleared: " + item)
+                    expect(clear).to_have_attribute("aria-pressed", "false")
+                    failed_path = base + "/api/money/transactions/" + txn["id"]
+                    page.route(
+                        failed_path,
+                        lambda route: route.fulfill(
+                            status=503, json={"detail": "synthetic interruption"}
+                        ),
+                    )
+                    activate(clear)
+                    expect(page.locator(".toast.error").last).to_have_text("failed")
+                    expect(clear).to_have_attribute("aria-pressed", "false")
+                    page.unroute(failed_path)
+                    activate(clear)
+                    expect(clear).to_have_attribute("aria-pressed", "true")
+                    if width > 390:
+                        expect(clear).to_be_focused()
+                    result["finance_ax"] = row.aria_snapshot()
+                    page.screenshot(path=str(out / f"{label}-cleared.png"))
+                    page.reload(wait_until="networkidle")
+                    expect(clear).to_have_attribute("aria-pressed", "true")
+                    activate(clear)
+                    expect(clear).to_have_attribute("aria-pressed", "false")
+                    saved = context.request.get(
+                        base + f"/api/money/transactions?month={day[:7]}"
+                    ).json()
+                    assert not next(t for t in saved if t["id"] == txn["id"])["cleared"]
 
-                edit = named(f'[data-edit-txn="{txn["id"]}"]', "edit " + item)
-                activate(edit)
-                activate(named(f'[data-cancel-txn="{txn["id"]}"]', "cancel editing " + payee))
-                split = named(
-                    f'[data-split-txn="{txn["id"]}"]', "split " + item + " across categories"
-                )
-                expect(split).to_have_attribute("aria-expanded", "false")
-                activate(split)
-                expect(split).to_have_attribute("aria-expanded", "true")
-                named('.split-row-del[data-i="0"]', "remove split row 1")
-                page.locator("#split-cancel").click()
-                expect(split).to_have_attribute("aria-expanded", "false")
-                receipt = named(f'[data-receipt-txn="{txn["id"]}"]', "attach receipt to " + item)
-                with page.expect_file_chooser() as chooser:
-                    activate(receipt)
-                chooser.value.set_files(
-                    {
-                        "name": "receipt.png",
-                        "mimeType": "image/png",
-                        "buffer": receipt_bytes,
-                    }
-                )
-                link = named(
-                    f'.txn[data-id="{txn["id"]}"] .tx-receipt', "view receipt for " + item, "link"
-                )
-                response = context.request.get(base + link.get_attribute("href"))
-                assert response.ok and response.body() == receipt_bytes
+                    edit = named(f'[data-edit-txn="{txn["id"]}"]', "edit " + item)
+                    activate(edit)
+                    activate(named(f'[data-cancel-txn="{txn["id"]}"]', "cancel editing " + payee))
+                    split = named(
+                        f'[data-split-txn="{txn["id"]}"]', "split " + item + " across categories"
+                    )
+                    expect(split).to_have_attribute("aria-expanded", "false")
+                    activate(split)
+                    expect(split).to_have_attribute("aria-expanded", "true")
+                    named('.split-row-del[data-i="0"]', "remove split row 1")
+                    page.locator("#split-cancel").click()
+                    expect(split).to_have_attribute("aria-expanded", "false")
+                    receipt = named(
+                        f'[data-receipt-txn="{txn["id"]}"]', "attach receipt to " + item
+                    )
+                    with page.expect_file_chooser() as chooser:
+                        activate(receipt)
+                    chooser.value.set_files(
+                        {
+                            "name": "receipt.png",
+                            "mimeType": "image/png",
+                            "buffer": receipt_bytes,
+                        }
+                    )
+                    link = named(
+                        f'.txn[data-id="{txn["id"]}"] .tx-receipt',
+                        "view receipt for " + item,
+                        "link",
+                    )
+                    response = context.request.get(base + link.get_attribute("href"))
+                    assert response.ok and response.body() == receipt_bytes
+                else:
+                    more_row = f'.txn[data-id="{txn["id"]}"] .row-more'
+
+                    def menu_action(selector, name):
+                        # on a 320px phone a ledger row's own actions are in its more menu. the
+                        # list draws again after each one, so let that finish first
+                        page.wait_for_load_state("networkidle")
+                        page.wait_for_timeout(400)
+                        activate(named(more_row, "more for " + item))
+                        return named(selector, name, "menuitem")
+
+                    clear = menu_action(f'[data-clear-txn="{txn["id"]}"]', f"cleared: {item}, off")
+                    failed_path = base + "/api/money/transactions/" + txn["id"]
+                    page.route(
+                        failed_path,
+                        lambda route: route.fulfill(
+                            status=503, json={"detail": "synthetic interruption"}
+                        ),
+                    )
+                    activate(clear)
+                    expect(page.locator(".toast.error").last).to_have_text("failed")
+                    page.unroute(failed_path)
+                    clear = menu_action(f'[data-clear-txn="{txn["id"]}"]', f"cleared: {item}, off")
+                    activate(clear)
+                    expect(row).to_be_visible()
+                    saved = context.request.get(
+                        base + f"/api/money/transactions?month={day[:7]}"
+                    ).json()
+                    assert next(t for t in saved if t["id"] == txn["id"])["cleared"]
+                    result["finance_ax"] = row.aria_snapshot()
+                    page.screenshot(path=str(out / f"{label}-cleared.png"))
+                    clear = menu_action(f'[data-clear-txn="{txn["id"]}"]', f"cleared: {item}, on")
+                    activate(clear)
+                    expect(row).to_be_visible()
+                    edit = menu_action(f'[data-edit-txn="{txn["id"]}"]', "edit " + item)
+                    activate(edit)
+                    activate(named(f'[data-cancel-txn="{txn["id"]}"]', "cancel editing " + payee))
+                    expect(page.locator(more_row)).to_be_focused()
+                    split = menu_action(
+                        f'[data-split-txn="{txn["id"]}"]', "split " + item + " across categories"
+                    )
+                    activate(split)
+                    named('.split-row-del[data-i="0"]', "remove split row 1")
+                    page.locator("#split-cancel").click()
+                    receipt = menu_action(
+                        f'[data-receipt-txn="{txn["id"]}"]', "attach receipt to " + item
+                    )
+                    with page.expect_file_chooser() as chooser:
+                        activate(receipt)
+                    chooser.value.set_files(
+                        {"name": "receipt.png", "mimeType": "image/png", "buffer": receipt_bytes}
+                    )
+                    link = menu_action(
+                        f'.txn[data-id="{txn["id"]}"] a[role="menuitem"]',
+                        "view receipt for " + item,
+                    )
+                    response = context.request.get(base + link.get_attribute("href"))
+                    assert response.ok and response.body() == receipt_bytes
+                    page.keyboard.press("Escape")
                 # delete is in the row's more menu and waits for undo (u.10)
                 more = named(f'.txn[data-id="{txn["id"]}"] .row-more', "more for " + item)
                 activate(more)
@@ -269,24 +333,52 @@ def run():
                     page.keyboard.press("Escape")
 
                 show_money_sections(page)
-                for selector, name in [
+                # each row's delete sits in its more menu (u.10): the menu button is named, and
+                # so is the delete inside it
+                for selector, name, more, more_name in [
                     (
                         f'[data-rc-acct="{account["id"]}"]',
                         f"reconcile {account_name} to a statement",
+                        None,
+                        None,
                     ),
-                    (f'[data-del-acct="{account["id"]}"]', "delete account " + account_name),
-                    (f'[data-del-goal="{goal["id"]}"]', "remove goal weekend " + label),
-                    (f'[data-del-hold="{holding["id"]}"]', "remove holding " + holding["symbol"]),
+                    (
+                        f'[data-del-acct="{account["id"]}"]',
+                        "delete account " + account_name,
+                        f'.money-acct[data-id="{account["id"]}"] .row-more',
+                        "more for " + account_name,
+                    ),
+                    (
+                        f'[data-del-goal="{goal["id"]}"]',
+                        "remove goal weekend " + label,
+                        f'.goal-row[data-id="{goal["id"]}"] .row-more',
+                        "more for weekend " + label,
+                    ),
+                    (
+                        f'[data-del-hold="{holding["id"]}"]',
+                        "remove holding " + holding["symbol"],
+                        f'.hold-row[data-id="{holding["id"]}"] .row-more',
+                        "more for " + holding["symbol"],
+                    ),
                     (
                         f'[data-del-budget="{budget["id"]}"]',
                         "remove spending cap for groceries " + label,
+                        f'.budget-row[data-id="{budget["id"]}"] .row-more',
+                        "more for groceries " + label,
                     ),
-                    (f'[data-del-rule="{rule["id"]}"]', "delete rule for market " + label),
+                    (
+                        f'[data-del-rule="{rule["id"]}"]',
+                        "delete rule for market " + label,
+                        f'.rule[data-id="{rule["id"]}"] .row-more',
+                        "more for market " + label,
+                    ),
                     (
                         f'[data-del-rec="{recurring["id"]}"]',
                         "delete supplies " + label + " schedule",
+                        f'.recur-group[data-id="{recurring["id"]}"] .row-more',
+                        "more for supplies " + label,
                     ),
-                    ('.money-card[data-card="goals"] .card-hide', "hide goals card"),
+                    ('.money-card[data-card="goals"] .card-hide', "hide goals card", None, None),
                 ]:
                     if "goal" in selector:
                         pick_money_task(page, "goals")
@@ -296,7 +388,12 @@ def run():
                         pick_money_task(page, "schedules")
                     elif "acct=" in selector:
                         pick_money_task(page, "accounts")
-                    named(selector, name)
+                    if more:
+                        activate(named(more, more_name))
+                        named(selector, name, "menuitem")
+                        page.keyboard.press("Escape")
+                    else:
+                        named(selector, name)
 
                 page.goto(base + "/?view=skills", wait_until="networkidle")
                 pin = named(f'.skl-card[data-slug="{skill["slug"]}"] .skl-pin', "pin " + skill_name)

@@ -3764,11 +3764,10 @@ html:not(#_)[data-kokuen-version="5"] #contacts-view:has(#cd-save) #contact-add-
 /* a transaction's text actions share one rhythm: the same 10px each side (so the gaps between
    words are even) inside their 44px targets, and the whole group moves back by that 10px so every
    line of actions starts its words on the row's edge, a wrapped one too. the group runs the row's
-   full width and leaves the end free for delete, which keeps its own cell: sharing the first
+   full width and leaves the end free for the more menu, which keeps its own cell: sharing the first
    column with the amount's width pushed the receipt action onto a second line */
 html:not(#_) #money-view :is(.tx-edit, .tx-clear, .tx-split-btn, .tx-receipt-btn) { min-width: 44px; padding-inline: 10px; text-align: center; }
 html:not(#_) #money-view .txn:not(.txn-edit) .tx-actions { grid-column: 1 / -1; margin-inline-start: -10px; padding-inline-end: calc(44px + var(--k-space-2, 8px)); }
-html:not(#_) #money-view .txn:not(.txn-edit) .tx-del { position: relative; z-index: 1; }
 
 /* settings: "saving… / saved" sits in the pane's top corner. as a line above the content it pushed
    every switch 31px down the moment you clicked one */
