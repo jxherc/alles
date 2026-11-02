@@ -319,10 +319,16 @@ export function mountSignin(host, options = {}) {
         <button class="btn primary signin-button" type="button" data-act="start" data-provider="${esc(p.id)}"${notReady ? ` disabled aria-describedby="${reasonId}"` : ''}>${esc(label)}</button>
         ${notReady ? `<p class="signin-line" id="${reasonId}" data-tone="quiet">${esc(serverText(p.not_ready?.text || ''))}</p>` : ''}
       </div>` : ''}
-      ${fallback && (idle || s.phase === 'done') ? `<button class="signin-act signin-fallback" type="button" data-act="fallback">
-        <span>${esc(fallback.label)}</span><span class="signin-reason">${esc(fallback.reason)}</span>
-      </button>` : ''}
     </section>`;
+  }
+
+  // the fallback belongs to the screen, not to one provider: drawn once, after every button, and
+  // only while no sign in is under way (a screen with three providers showed it three times)
+  function fallbackBlock(list) {
+    const quiet = list.every(p => ['idle', 'done'].includes(slot(p).phase));
+    return fallback && quiet ? `<button class="signin-act signin-fallback" type="button" data-act="fallback">
+        <span>${esc(fallback.label)}</span><span class="signin-reason">${esc(fallback.reason)}</span>
+      </button>` : '';
   }
 
   function render(focus = false) {
@@ -333,7 +339,7 @@ export function mountSignin(host, options = {}) {
     const list = providerList();
     host.innerHTML = state.failed
       ? `<p class="signin-line" data-tone="bad" role="alert">${esc(state.failed)}</p><button class="btn" type="button" data-act="reload">${esc(t('signin.try_again'))}</button>`
-      : `${list.map(providerBlock).join('')}${state.notice ? `<p class="signin-line" role="status" data-notice tabindex="-1">${esc(state.notice)}</p>` : ''}`;
+      : `${list.map(providerBlock).join('')}${fallbackBlock(list)}${state.notice ? `<p class="signin-line" role="status" data-notice tabindex="-1">${esc(state.notice)}</p>` : ''}`;
     const field = host.querySelector('[data-paste] input');
     if (field && slotPaste.value) field.value = slotPaste.value;
     if (focus || keep) {

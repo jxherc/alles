@@ -2,6 +2,7 @@
 // (static/js/signin_fake.js). ?state=waiting shows one; no query shows all. ?freeze stops the
 // clock so a countdown reads the same in every screenshot. served only when ALLES_TEST_DATA=1.
 import { prepareLocalization } from './i18n.js';
+import { initKokuenPrimitives } from './kokuen.js?v=5';
 import { mountSignin } from './signin.js';
 import { account, fakeSignin } from './signin_fake.js';
 
@@ -40,6 +41,9 @@ const STATES = {
 };
 
 await prepareLocalization({ language: params.get('lang') || 'en' });
+// the app wires every button as a kokuen action (app.js); without it the page drew the old
+// muted .btn, so copy read as disabled next to the primary
+initKokuenPrimitives(document);
 const names = params.get('state') ? [params.get('state')] : Object.keys(STATES);
 if (names.length === 1) document.body.classList.add('single');
 const root = document.getElementById('states');

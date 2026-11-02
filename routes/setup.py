@@ -106,3 +106,15 @@ def install_obsidian(body: ObsidianInstallBody):
         return {"vault_connected": True, **obsidian_setup.install_companion(vault)}
     except obsidian_setup.ObsidianSetupError as exc:
         raise ApiError(409, "obsidian_companion_refused", str(exc)) from exc
+
+
+class DetectBody(BaseModel):
+    email: str = ""
+
+
+@router.post("/detect")
+async def detect(body: DetectBody):
+    """mail and calendar servers for an email address (the address stays in the body, not the url)."""
+    from services import setup_detect
+
+    return await setup_detect.detect(body.email[:320])

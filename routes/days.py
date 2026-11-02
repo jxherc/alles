@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.database import DayEvent, SessionLocal, get_db
+from core.schema.base import local_date
 from services import day_events
 
 router = APIRouter(prefix="/api")
@@ -65,7 +66,7 @@ def _fmt(ev: DayEvent, today: date) -> dict:
         mode = "today" if days == 0 else ("countdown" if days > 0 else "since")
         progress = None
         if days > 0:
-            start = ev.created_at.date() if ev.created_at else today
+            start = local_date(ev.created_at) if ev.created_at else today
             span = (target - start).days
             if span > 0:
                 progress = round(min(1.0, max(0.0, (today - start).days / span)), 3)

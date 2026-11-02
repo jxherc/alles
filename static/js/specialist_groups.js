@@ -1215,7 +1215,7 @@ async function _renderFinance(target, request) {
 }
 
 async function _renderServer(target, request, section) {
-  const module = await import('./server_workbench.js?v=13');
+  const module = await import('./server_workbench.js?v=14');
   return module.renderServerSection(target, request, section);
 }
 
@@ -1985,4 +1985,9 @@ export async function initSpecialistGroup(group, { section = 'overview', request
   }
   legacyRoot.style.display = 'flex';
   return loadLegacy(group, selected, request);
+}
+
+// settings › connections and tools is the ledger setup's home (u.05): it draws the same panel
+export function renderLedgerSetup(value, request = fetch) {
+  return _renderActualStatus(value, request);
 }

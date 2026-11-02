@@ -7,13 +7,14 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=607">
-  <link rel="stylesheet" href="/static/kokuen.css?v=92">
+<link rel="stylesheet" href="/static/style.css?v=609">
+  <link rel="stylesheet" href="/static/kokuen.css?v=93">
 <link rel="stylesheet" href="/static/aidecentral.css?v=19">
 <link rel="stylesheet" href="/static/aidecoding.css?v=28">
 <link rel="stylesheet" href="/static/aidecall.css?v=3">
 <link rel="stylesheet" href="/static/help.css?v=2">
-<link rel="stylesheet" href="/static/revamp.css?v=102">
+<link rel="stylesheet" href="/static/revamp.css?v=103">
+<link rel="stylesheet" href="/static/signin.css?v=1">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <link rel="search" type="application/opensearchdescription+xml" title="andromeda" href="/opensearch.xml">
@@ -24,7 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=607">
+<link rel="modulepreload" href="/static/js/app.js?v=609">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=217">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -55,10 +56,10 @@
 <link rel="modulepreload" href="/static/js/route_history.js">
 <link rel="modulepreload" href="/static/js/recordlinks.js">
 <link rel="modulepreload" href="/static/js/aiderun.js">
-<link rel="modulepreload" href="/static/js/specialist_groups.js?v=16">
+<link rel="modulepreload" href="/static/js/specialist_groups.js?v=17">
 <link rel="modulepreload" href="/static/js/sso-state.js">
 <link rel="modulepreload" href="/static/js/brain.js?v=242">
-<link rel="modulepreload" href="/static/js/settings.js?v=299">
+<link rel="modulepreload" href="/static/js/settings.js?v=301">
 <link rel="modulepreload" href="/static/js/modes.js?v=259">
 <link rel="modulepreload" href="/static/js/privacy.js">
 <link rel="modulepreload" href="/static/js/scrollfollow.js">
@@ -88,6 +89,8 @@
 <link rel="modulepreload" href="/static/js/recent_owner.js">
 <link rel="modulepreload" href="/static/js/aidequestions.js?v=2">
 <link rel="modulepreload" href="/static/js/datepick.js">
+<link rel="modulepreload" href="/static/js/signin.js">
+<link rel="modulepreload" href="/static/js/setup_detect.js">
 <link rel="modulepreload" href="/static/js/grid_nav.js">
 <link rel="modulepreload" href="/static/js/palette.js">
 <link rel="modulepreload" href="/static/js/help_content.js?v=2">
@@ -113,10 +116,12 @@
 <link rel="modulepreload" href="/static/js/note_capture.js">
 <link rel="modulepreload" href="/static/js/notice.js">
 <link rel="modulepreload" href="/static/js/sha256.js">
+<link rel="modulepreload" href="/static/js/connection_catalog.js">
 <link rel="modulepreload" href="/static/js/settings/pane.js">
 <link rel="modulepreload" href="/static/js/settings/model_roles.js">
 <link rel="modulepreload" href="/static/js/mcp-config.js">
 <link rel="modulepreload" href="/static/js/dependencies.js">
+<link rel="modulepreload" href="/static/js/settings/ledger.js">
 <link rel="modulepreload" href="/static/js/colorpicker.js">
 <link rel="modulepreload" href="/static/js/andromeda_tools.js">
 <link rel="modulepreload" href="/static/js/andromeda_utility_tools.js">
@@ -1827,7 +1832,7 @@
               <button class="btn" id="s-ep-refresh-all" type="button" style="margin-left:auto" data-i18n="shell.settings_models.refresh_all">refresh all</button>
             </div>
             <div class="s-card-body">
-              <p class="s-card-hint s-provider-warning" data-i18n="shell.settings_models.alles_uses_provider_api_keys_owner">Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits.</p>
+              <div class="s-ep-signin" id="s-ep-signin"></div>
               <div id="s-ep-list" style="margin-bottom:0.75rem"></div>
               <details id="s-ep-add-details">
                 <summary class="s-add-summary" data-i18n="shell.settings_models.add_connection">+ add connection</summary>
@@ -1883,6 +1888,7 @@
                   <button class="btn primary" id="s-gemini-oauth-start" type="button" data-i18n="shell.s_gemini_oauth.open_google_authorization">open Google authorization</button>
                 </div>
               </div>
+              <p class="s-card-hint s-provider-warning" data-i18n="shell.settings_models.alles_uses_provider_api_keys_owner">Alles uses provider API keys, owner-managed compatible proxies, or the documented Gemini OAuth flow. It never imports consumer chat sessions. Requests may use provider quota or credits.</p>
             </div>
           </div>
           <div class="s-card">
@@ -2078,13 +2084,18 @@
                 <div class="settings-input custom-select" id="s-andromeda-count" style="width:100px" data-value="8" data-options="3|3;5|5;8|8;10|10;20|20" aria-labelledby="s-andromeda-count-label"></div>
               </div>
               <div id="s-andromeda-provider-fields" hidden>
-                <div class="s-field" hidden data-andromeda-provider-field="tavily"><label for="s-andromeda-tavily-key" data-i18n="shell.andromeda_settings.tavily_api_key">tavily api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-tavily-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-tavily-key" aria-label="clear tavily api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_tavily_api_key">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="brave"><label for="s-andromeda-brave-key" data-i18n="shell.andromeda_settings.brave_api_key">brave api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-brave-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-brave-key" aria-label="clear brave api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_brave_api_key">clear</button></div></div>
+                <!-- why a key: https://docs.tavily.com/documentation/api-reference/endpoint/search (bearer api key only) -->
+                <div class="s-field" hidden data-andromeda-provider-field="tavily"><label for="s-andromeda-tavily-key" data-i18n="shell.andromeda_settings.tavily_api_key">tavily api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-tavily-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-tavily-key" aria-label="clear tavily api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_tavily_api_key">clear</button></div><p class="s-card-hint s-key-why" data-i18n="shell.andromeda_settings.why_key_tavily">tavily only takes an api key; it has no sign in for other apps.</p></div>
+                <!-- why a key: https://api-dashboard.search.brave.com/app/documentation/web-search/get-started (X-Subscription-Token only) -->
+                <div class="s-field" hidden data-andromeda-provider-field="brave"><label for="s-andromeda-brave-key" data-i18n="shell.andromeda_settings.brave_api_key">brave api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-brave-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-brave-key" aria-label="clear brave api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_brave_api_key">clear</button></div><p class="s-card-hint s-key-why" data-i18n="shell.andromeda_settings.why_key_brave">brave search only takes an api key; it has no sign in for other apps.</p></div>
                 <div class="s-field" hidden data-andromeda-provider-field="searxng"><label for="s-andromeda-searxng-url" data-i18n="shell.andromeda_settings.external_searxng_url">external searxng url</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-searxng-url" type="url" class="settings-input" style="flex:1" inputmode="url" autocomplete="off" placeholder="https://search.example.com"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-searxng-url" aria-label="clear external searxng url" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_external_searxng_url">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="google_pse"><label for="s-andromeda-google-key" data-i18n="common.google_pse_api_key">google pse api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-google-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-google-key" aria-label="clear google pse api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_api_key">clear</button></div></div>
+                <!-- why a key: https://developers.google.com/custom-search/v1/overview (api key and engine id; closed to new customers, ends jan 1 2027) -->
+                <div class="s-field" hidden data-andromeda-provider-field="google_pse"><label for="s-andromeda-google-key" data-i18n="common.google_pse_api_key">google pse api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-google-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-google-key" aria-label="clear google pse api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_api_key">clear</button></div><p class="s-card-hint s-key-why" data-i18n="shell.andromeda_settings.why_key_google">google pse only takes a key and an engine id, and google closed it to new users; it stops working on jan 1, 2027.</p></div>
                 <div class="s-field" hidden data-andromeda-provider-field="google_pse"><label for="s-andromeda-google-cx" data-i18n="shell.andromeda_settings.google_pse_cx">google pse cx</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-google-cx" type="text" class="settings-input" style="flex:1" autocomplete="off" placeholder="search engine id" data-i18n-placeholder="shell.andromeda_settings.search_engine_id"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-google-cx" aria-label="clear google pse cx" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_google_pse_cx">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="serper"><label for="s-andromeda-serper-key" data-i18n="shell.andromeda_settings.serper_api_key">serper api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-serper-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-serper-key" aria-label="clear serper api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_serper_api_key">clear</button></div></div>
-                <div class="s-field" hidden data-andromeda-provider-field="exa"><label for="s-andromeda-exa-key" data-i18n="shell.andromeda_settings.exa_api_key">exa api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-exa-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-exa-key" aria-label="clear exa api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_exa_api_key">clear</button></div></div>
+                <!-- why a key: https://serper.dev/playground (X-API-KEY only) -->
+                <div class="s-field" hidden data-andromeda-provider-field="serper"><label for="s-andromeda-serper-key" data-i18n="shell.andromeda_settings.serper_api_key">serper api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-serper-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-serper-key" aria-label="clear serper api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_serper_api_key">clear</button></div><p class="s-card-hint s-key-why" data-i18n="shell.andromeda_settings.why_key_serper">serper only takes an api key; it has no sign in for other apps.</p></div>
+                <!-- why a key: https://exa.ai/auth.md (the api takes a key; oauth at auth.exa.ai covers only exa's hosted mcp server) -->
+                <div class="s-field" hidden data-andromeda-provider-field="exa"><label for="s-andromeda-exa-key" data-i18n="shell.andromeda_settings.exa_api_key">exa api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-exa-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-exa-key" aria-label="clear exa api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_exa_api_key">clear</button></div><p class="s-card-hint s-key-why" data-i18n="shell.andromeda_settings.why_key_exa">exa's search api only takes a key; exa's sign in covers its mcp server, which you can add under mcp servers.</p></div>
               </div>
               <div id="s-andromeda-search-status" class="s-search-status" role="status" aria-live="polite"></div>
             </div>
@@ -2411,6 +2422,20 @@
 
         <!-- ── tools pane ── -->
         <div class="s-pane" id="s-pane-tools">
+          <div class="s-card" id="conn-catalog-card">
+            <div class="s-card-head">
+              <svg data-ic="link" aria-hidden="true"></svg>
+              <span id="conn-catalog-title" data-i18n="connections.catalog_title">what alles can connect to</span>
+            </div>
+            <div class="s-card-body"><div class="conn-catalog" id="conn-catalog"></div></div>
+          </div>
+          <div class="s-card" id="s-ledger" role="region" aria-labelledby="s-ledger-title">
+            <div class="s-card-head">
+              <svg data-ic="dollar" aria-hidden="true"></svg>
+              <span id="s-ledger-title" data-i18n="finance.actual_ledger">Actual ledger</span>
+            </div>
+            <div class="s-card-body" id="s-ledger-body"></div>
+          </div>
           <div class="s-card" id="deps-card">
             <div class="s-card-head">
               <svg data-ic="download" aria-hidden="true"></svg>
@@ -2481,6 +2506,10 @@
               </div>
               <p class="photon-line" id="photon-line" aria-live="polite" hidden></p>
               <div class="s-field"><label for="photon-owner"><span data-i18n="shell.settings_tools.your_phone_number_or_email">your phone number or email</span> <span class="s-field-note" data-i18n="shell.settings_tools.only_these_get_answers_one_per">only these get answers; one per line</span></label><textarea class="settings-textarea" id="photon-owner" rows="2" placeholder="+1 555 010 0199"></textarea></div>
+              <div class="jarvis-discord-status photon-receipts">
+                <div class="s-toggle-label" id="photon-receipts-label" data-i18n="connections.read_receipts">send read receipts</div>
+                <button class="s-switch" type="button" id="photon-read-receipts" role="switch" aria-checked="true" aria-labelledby="photon-receipts-label"></button>
+              </div>
               <details class="photon-keys">
                 <summary data-i18n="shell.settings_tools.enter_photon_keys_yourself">enter Photon keys yourself</summary>
                 <div class="s-field"><label for="photon-project-id"><span data-i18n="shell.settings_tools.photon_project_id">Photon project id</span> <span class="s-field-note" data-i18n="shell.settings_tools.from_app_photon_codes">from app.photon.codes</span></label><input class="settings-input" id="photon-project-id" autocomplete="off" spellcheck="false" style="width:100%"></div>
@@ -2627,7 +2656,9 @@
               <span data-i18n="common.connections">connections</span>
             </div>
             <div class="s-card-body">
-              <div id="conn-list" style="margin-bottom:0.75rem"></div>
+              <div class="conn-signin" id="conn-github-signin"></div>
+              <div id="conn-list"></div>
+              <div class="conn-token-form" id="conn-token-form" hidden>
               <div class="s-field"><label data-i18n="shell.settings_tools.service">service</label>
                 <div class="settings-input custom-select" id="conn-service" data-value="github" data-options="github|github;gitlab|gitlab;custom|custom…" data-i18n-options=";;settings.opt_custom" style="width:100%"></div>
               </div>
@@ -2637,6 +2668,7 @@
               <button type="button" class="btn primary" id="conn-add-btn" style="width:100%" data-i18n="shell.settings_tools.connect">connect</button>
               <div class="s-card-hint" data-i18n="shell.settings_tools.github_a_fine_grained_or_classic">github: the button opens a token already filled in; pick your repos, create it and paste it here. aide gets github tools once connected.</div>
               <div class="s-card-hint" data-i18n="shell.settings_tools.alles_cannot_show_quota_or_credits">alles cannot show quota or credits for token connections. check limits with the service, and disconnect here when access is no longer needed.</div>
+              </div>
               <button type="button" class="btn" id="conn-rotate-key" style="width:100%;margin-top:0.65rem" data-i18n="shell.settings_tools.rotate_credential_key">rotate credential key</button>
               <div class="s-card-hint" data-i18n="shell.settings_tools.re_encrypts_saved_credentials_then_safely">re-encrypts saved credentials, then safely retires the old key.</div>
             </div>
@@ -3100,6 +3132,6 @@
   </div><!-- /s-modal -->
 </div>
 
-<script type="module" src="/static/js/app.js?v=607"></script>
+<script type="module" src="/static/js/app.js?v=609"></script>
 </body>
 </html>

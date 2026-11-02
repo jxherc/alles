@@ -2,6 +2,8 @@
 // a .date-input div carries data-type="date|datetime|due" and data-value; .value
 // reads/writes the same strings the backend expects (YYYY-MM-DD / YYYY-MM-DDTHH:MM).
 // "due" is a date with an optional time: YYYY-MM-DD until a time is added, then YYYY-MM-DDTHH:MM.
+// "time" is a time of day alone (HH:MM, a bedtime or a start): no calendar, the hour in the owner's
+// 12 or 24 hour choice.
 import {
   formatCalendarDate,
   formatDate,
@@ -9,6 +11,7 @@ import {
   formatDateParts,
   resolvedTimeZone,
   formatTime,
+  formatClock,
   localizationState,
   t,
 } from './i18n.js';
@@ -50,6 +53,23 @@ export function initDatePicker(el) {
 
 const _isDate = el => el.dataset.type === 'date';
 const _isDue = el => el.dataset.type === 'due';
+const _isTime = el => el.dataset.type === 'time';
+const _clockParts = value => {
+  const match = /^(\d{2}):(\d{2})$/.exec(String(value || ''));
+  return match && Number(match[1]) < 24 && Number(match[2]) < 60 ? { h: Number(match[1]), mi: Number(match[2]) } : null;
+};
+// the owner's clock setting, else the language's own habit: a 12 hour language writes 1 pm, not 13
+export function uses12Hours(state = localizationState()) {
+  if (state.clockFormat === '12') return true;
+  if (state.clockFormat === '24') return false;
+  return !formatClock('13:00').includes('13');
+}
+// "am" or "pm" in the interface language, lowercase like the rest of the app
+function _period(h) {
+  const parts = formatDateParts(Date.UTC(2000, 0, 1, h), { hour: 'numeric', hour12: true, timeZone: 'UTC' });
+  return (parts.find(part => part.type === 'dayPeriod')?.value || (h < 12 ? 'am' : 'pm')).toLocaleLowerCase();
+}
+export const clockText = value => _clockParts(value) ? formatClock(value).toLocaleLowerCase() : String(value || '');
 // a due value without a time reads and writes like a plain date
 const _dateOnly = el => _isDate(el) || (_isDue(el) && !(_open?.el === el ? _open.sel.timed : String(el.dataset.value || '').includes('T')));
 
@@ -116,6 +136,10 @@ function _currentParts(value = new Date()) {
 }
 function _parse(el) {
   const v = el.dataset.value;
+  if (_isTime(el)) {
+    const now = _currentParts();
+    return { ...now, ...(_clockParts(v) || { h: now.h, mi: now.mi }) };
+  }
   if (_isDue(el)) {
     const timed = dateTimeParts(v);
     if (timed) return { ...timed, timed: true };
@@ -143,8 +167,13 @@ function _display(v, isDate) {
   const d = formatDate(dt, { month: 'short', day: 'numeric', year: 'numeric', ...zone });
   return `${d}, ${formatTime(dt, { hour: 'numeric', minute: '2-digit', ...zone })}`;
 }
+const CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 function _trigger(el) {
   const v = el.dataset.value;
+  if (_isTime(el)) {
+    el.innerHTML = `<span class="date-input-label${v ? '' : ' ph'}">${v ? clockText(v) : _placeholder(el)}</span>${CLOCK}`;
+    return;
+  }
   el.innerHTML = `<span class="date-input-label${v ? '' : ' ph'}">${v ? _display(v, _isDate(el) || (_isDue(el) && !v.includes('T'))) : _placeholder(el)}</span>` +
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
 }
@@ -177,13 +206,67 @@ function _openPanel(el) {
   const cur = _parse(el);
   _open = { el, panel, view: { y: cur.y, mo: cur.mo }, sel: cur };
   _render(el);
-  (panel.querySelector('.dp-day.sel') || panel.querySelector('.dp-day')).focus();
+  (panel.querySelector('.dp-day.sel') || panel.querySelector('.dp-day') || panel.querySelector('.dp-tv')).focus();
   window.addEventListener('resize', _reposition);
   window.visualViewport?.addEventListener('resize', _reposition);
   setTimeout(() => document.addEventListener('click', _outside), 0);
 }
 
+// a time of day alone: hour and minute (with am or pm on a 12 hour clock), clear and now
+function _renderTime(el) {
+  const { panel, sel } = _open;
+  const active = panel.contains(document.activeElement) ? document.activeElement : null;
+  const focusKey = active?.dataset.step ? `[data-step="${active.dataset.step}"]` : active?.dataset.part ? `[data-part="${active.dataset.part}"]`
+    : active?.classList.contains('dp-now') ? '.dp-now' : null;
+  const twelve = uses12Hours();
+  const hour = twelve ? String(sel.h % 12 || 12) : _z(sel.h);
+  panel.innerHTML = `
+    <div class="dp-time dp-time-only">
+      <button type="button" class="dp-step" data-step="h-1" aria-label="${t('common.datepick_prev_hour')}">‹</button><input class="dp-tv" data-part="h" inputmode="numeric" maxlength="2" aria-label="${t('common.datepick_hour')}" value="${hour}"><button type="button" class="dp-step" data-step="h1" aria-label="${t('common.datepick_next_hour')}">›</button>
+      <span class="dp-colon">:</span>
+      <button type="button" class="dp-step" data-step="mi-1" aria-label="${t('common.datepick_minutes_earlier')}">‹</button><input class="dp-tv" data-part="mi" inputmode="numeric" maxlength="2" aria-label="${t('common.datepick_minute')}" value="${_z(sel.mi)}"><button type="button" class="dp-step" data-step="mi1" aria-label="${t('common.datepick_minutes_later')}">›</button>
+      ${twelve ? `<button type="button" class="dp-step dp-period" data-step="ap">${_period(sel.h)}</button>` : ''}
+    </div>
+    <div class="dp-foot"><button type="button" class="dp-clear">${t('common.datepick_clear')}</button><button type="button" class="dp-now">${t('common.datepick_now')}</button></div>`;
+  const hold = b => { if (panel.contains(b) && document.activeElement !== b) b.focus({ preventScroll: true }); };
+  panel.querySelectorAll('.dp-step').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    hold(b);
+    const s = b.dataset.step;
+    if (s === 'ap') sel.h = (sel.h + 12) % 24;
+    else if (s.startsWith('h')) sel.h = (sel.h + (s === 'h1' ? 1 : 23)) % 24;
+    else sel.mi = s === 'mi1' ? (Math.floor(sel.mi / 5) * 5 + 5) % 60 : (Math.ceil(sel.mi / 5) * 5 + 55) % 60;
+    _commit(el); _render(el);
+  }));
+  panel.querySelectorAll('.dp-tv').forEach(input => {
+    const part = input.dataset.part;
+    const apply = () => {
+      if (_open?.panel !== panel) return;
+      const n = parseInt(input.value, 10);
+      // on a 12 hour clock a typed hour keeps the half of the day it's in (12 is the first hour)
+      const h = twelve && part === 'h' && n >= 1 && n <= 12 ? (n % 12) + (sel.h >= 12 ? 12 : 0) : n;
+      const top = part === 'h' ? 23 : 59;
+      if (Number.isFinite(h) && h >= 0 && h <= top && h !== sel[part]) { sel[part] = h; _commit(el); }
+      input.value = part === 'h' && twelve ? String(sel.h % 12 || 12) : _z(sel[part]);
+    };
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('change', apply);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); _render(el); } });
+  });
+  panel.querySelector('.dp-clear').addEventListener('click', e => { e.stopPropagation(); el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })); _close(); });
+  panel.querySelector('.dp-now').addEventListener('click', e => {
+    e.stopPropagation();
+    hold(e.currentTarget);
+    const now = _currentParts();
+    sel.h = now.h; sel.mi = now.mi;
+    _commit(el); _render(el);
+  });
+  _position(el, panel);
+  if (focusKey) panel.querySelector(focusKey)?.focus({ preventScroll: true });
+}
+
 function _render(el) {
+  if (_isTime(el)) { _renderTime(el); return; }
   const { panel, view, sel } = _open;
   const active = panel.contains(document.activeElement) ? document.activeElement : null;
   const focusKey = active?.dataset.d ? `[data-d="${active.dataset.d}"]` : active?.dataset.step ? `[data-step="${active.dataset.step}"]` : active?.dataset.nav ? `[data-nav="${active.dataset.nav}"]`
@@ -318,7 +401,7 @@ function _grid(view, sel) {
 }
 
 function _commit(el) {
-  el.dataset.value = _fmt(_open.sel, _dateOnly(el));
+  el.dataset.value = _isTime(el) ? `${_z(_open.sel.h)}:${_z(_open.sel.mi)}` : _fmt(_open.sel, _dateOnly(el));
   _trigger(el);
   el.dispatchEvent(new Event('change', { bubbles: true }));
 }

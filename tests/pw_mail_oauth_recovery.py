@@ -183,10 +183,18 @@ with sync_playwright() as pw:
                 page.get_by_role("button", name="accounts", exact=True).click()
                 page.locator("#mail-add-acct").click()
 
+            def unfold():
+                # a new account folds google's client setup behind one action
+                expect(page.locator("#ma-oauth")).not_to_have_attribute("aria-busy", "true")
+                if not page.locator("#ma-cid").is_visible():
+                    page.locator("#ma-oauth-toggle").click()
+                expect(page.locator("#ma-cid")).to_be_visible()
+
             def inputs():
                 # the box holds its final layout while it loads, but only a loaded one is live
                 expect(page.locator("#ma-oauth")).not_to_have_attribute("aria-busy", "true")
-                if configured:
+                # a new account folds google's client setup behind one action, set up or not
+                if not page.locator("#ma-cid").is_visible():
                     disclosure = page.locator("#ma-oauth-toggle")
                     disclosure.scroll_into_view_if_needed()
                     box = disclosure.bounding_box()
@@ -233,7 +241,7 @@ with sync_playwright() as pw:
                     expect(page.locator("#ma-oauth")).to_contain_text("could not load Google setup")
                     expect(page.locator("#ma-cid")).to_have_count(0)
                     page.get_by_role("button", name="retry Google setup", exact=True).click()
-                    expect(page.locator("#ma-cid")).to_be_visible()
+                    unfold()
                 elif case == "storage-read":
                     expect(page.locator("#ma-oauth-status")).to_contain_text("could not read")
                     expect(page.locator("#ma-oauth-save")).to_have_attribute(
@@ -289,6 +297,7 @@ with sync_playwright() as pw:
                     confirm()
                     expect(page.locator("#mail-add-acct")).to_be_visible()
                     page.locator("#mail-add-acct").click()
+                    unfold()
                     expect(page.locator("#ma-cid")).to_have_value("")
                     if case == "reopen-before-edit":
                         page.locator("#ma-cid").fill("newer-client")
@@ -530,8 +539,9 @@ with sync_playwright() as pw:
                         elif case == "late-close":
                             expect(page.locator("#mail-add-acct")).to_be_visible()
                             page.locator("#mail-add-acct").click()
-                            expect(page.locator("#ma-oauth-saved")).to_contain_text(
-                                "Google client keys are saved"
+                            # a new account folds google's setup: the action says it's set up
+                            expect(page.locator("#ma-oauth-toggle")).to_have_text(
+                                "edit Google setup"
                             )
                             assert status()["client_id"] == "owned-client"
                         else:

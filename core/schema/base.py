@@ -43,3 +43,9 @@ def _uid():
 
 def _now():
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def local_date(stamp):
+    """the day a stored utc time (from _now) falls on here. compare this, not stamp.date(), with
+    date.today(): after 7 pm in toronto the utc day is already tomorrow"""
+    return stamp.replace(tzinfo=UTC).astimezone().date()
