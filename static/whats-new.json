@@ -182,7 +182,7 @@
         {
           "key": "act_in_place",
           "title": "check off where you are",
-          "body": "check a task off or move it to tomorrow right from home or the task list, and undo a delete."
+          "body": "check a task off or move it to tomorrow from home, plan's agenda or the task list (or swipe it on touch), see its details without leaving the page, tick a habit from home, and undo a delete."
         },
         {
           "key": "numbers_change",

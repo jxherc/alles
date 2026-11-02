@@ -10,6 +10,7 @@ import { disposePlanBoard, renderPlanBoard } from './plan_board.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { recordTarget } from './recordlinks.js';
 import { whenDay, whenElement } from './when.js';
+import { completeTask, moveToTomorrow, openTaskDetails, tomorrowKey, wireSwipe } from './act_row.js';
 
 export function mailboxAddress(value) {
   const raw = String(value || '').trim();
@@ -416,12 +417,16 @@ function _agendaRows(target, rows, emptyCopy, openRecord, { now = '', lead = nul
 function _agendaRow(row, byDay, openRecord, past = false) {
   const interactive = row.type === 'task' || row.type === 'event';
   const item = _el(interactive ? 'button' : 'div', `specialist-record-row${row.overdue ? ' overdue' : ''}${past ? ' past' : ''}`);
+  const taskId = row.type === 'task' ? String(row.id || '').replace(/^task:/, '') : '';
   if (interactive) {
     // Reuse the existing record button's layout, hover and focus treatment.
     item.className += ' specialist-library-row';
     item.type = 'button';
     item.dataset.planAgendaRecord = row.id;
-    item.addEventListener('click', () => openRecord(row, item));
+    // a task's details open over the agenda (u.01); edit goes on to the full editor
+    item.addEventListener('click', () => (taskId
+      ? openTaskDetails(taskId, { from: item, onChange: () => _refresh('plan'), openFull: () => openRecord(row, item) })
+      : openRecord(row, item)));
   }
   const typeName = _typeLabel(row.type);
   const meta = row.meta && row.meta !== typeName ? `${typeName} · ${row.meta}` : typeName;
@@ -433,7 +438,35 @@ function _agendaRow(row, byDay, openRecord, past = false) {
     _el('strong', 'specialist-record-title', row.title),
     _el('span', 'specialist-record-meta', meta),
   );
-  return item;
+  return taskId ? _agendaTask(row, taskId, item) : item;
+}
+
+// a task in the agenda acts where it is (u.01): the check on the left, "tomorrow" on the right
+// for anything due today or earlier, and on touch a swipe right for done, left for tomorrow
+function _agendaTask(row, taskId, open) {
+  const wrap = _el('div', `plan-agenda-task${row.overdue ? ' overdue' : ''}`);
+  wrap.dataset.task = taskId;
+  const check = _el('button', 'plan-agenda-check');
+  check.type = 'button';
+  check.setAttribute('aria-label', t('tasks.mark_complete', { task: row.title }));
+  const act = async (button, change) => {
+    if (button.disabled) return;
+    button.disabled = true;
+    try { await change(); } catch { button.disabled = false; return; }
+    await _refresh('plan');
+  };
+  check.addEventListener('click', () => act(check, () => completeTask(taskId)));
+  wrap.append(check, open);
+  const due = row.due || row.date;
+  if (row.overdue || (due && due < tomorrowKey())) {
+    const later = _el('button', 'plan-agenda-snooze', t('tasks.reschedule.tomorrow'));
+    later.type = 'button';
+    later.setAttribute('aria-label', t('tasks.move_named', { task: row.title, day: t('tasks.reschedule.tomorrow') }));
+    later.addEventListener('click', () => act(later, () => moveToTomorrow(taskId)));
+    wrap.append(later);
+  }
+  wireSwipe(wrap, { right: () => check.click(), left: () => wrap.querySelector('.plan-agenda-snooze')?.click() });
+  return wrap;
 }
 
 async function _renderPlan(target, request, section = 'overview') {

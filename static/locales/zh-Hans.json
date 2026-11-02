@@ -8739,7 +8739,7 @@
     "whatsnew.2026_11_01.home_by_time.title": "主页知道现在几点",
     "whatsnew.2026_11_01.home_by_time.body": "已经过去的会变淡，排到还没到的下面，中间有一条「现在」线。晚上 8 点起，主页先显示明天：第一个日程和到期的事。计划里的日程也一样。",
     "whatsnew.2026_11_01.act_in_place.title": "在哪儿都能勾掉",
-    "whatsnew.2026_11_01.act_in_place.body": "在主页或任务列表里直接勾掉任务或移到明天，删除也能撤销。",
+    "whatsnew.2026_11_01.act_in_place.body": "在主页、计划的日程或任务列表里直接勾掉任务或移到明天（触屏上也可以滑动），不离开页面就能看详情，在主页就能打卡习惯，删除也能撤销。",
     "whatsnew.2026_11_01.numbers_change.title": "数字会显示变化",
     "whatsnew.2026_11_01.numbers_change.body": "健康的测量值和每个账户余额都会说明比上周或上月变化了多少，并附一条最近 30 天的小折线。财务先显示本月花了多少，和上月对比。",
     "settings.example_display_name": "例如 eric",

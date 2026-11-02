@@ -560,6 +560,12 @@ your whole day on one screen the moment you open alles.
   (an event is over at its end, `end` in `/api/today`). from 8 pm a **tomorrow** section comes first with
   tomorrow's events and due tasks. a task row checks off in place (undo in the row for 6 seconds) and has
   "tomorrow" on its right
+- **act where you are** (u.01, `static/js/act_row.js`): on home and plan's agenda a task row's check marks
+  it done and "tomorrow" (anything due today or earlier) moves it; on touch a swipe right is done and left
+  is tomorrow. tapping the task opens its details in a side panel over the page (a bottom sheet under
+  761px) with done, tomorrow and edit; edit goes on to the full editor in plan. a plain check habit on home
+  has the same check (`kind` in `/api/today` habits) with undo in the row; a habit with its own log opens it
+  in health
 - **in progress** shows active background aide work; **briefs** holds completed reports
 - **pinned apps** opens the app destinations selected in **settings → home**
 - **suggestions** appears only when aide has saved proactive cards. it stays separate from needs you;

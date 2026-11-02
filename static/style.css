@@ -11728,3 +11728,101 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .cal-sync-form .cal-flabel { margin: var(--k-space-2) 0 0; }
 .cal-sync-line { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: var(--muted); }
 .cal-sync-line[data-tone="warn"] { color: var(--warn); }
+
+/* act where you are (u.01): an agenda task carries home's check on the left and "tomorrow" on
+   the right; the row in the middle opens its details over the agenda. the wrapper takes the
+   row's pull-back, so the inner row sits flat inside it */
+html:not(#_):not(#_) #plan-view .plan-agenda-task {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--k-space-1, 4px);
+  width: calc(100% + 2 * var(--k-space-3));
+  margin-inline: calc(-1 * var(--k-space-3));
+  border-radius: var(--k-radius-control);
+}
+html:not(#_):not(#_) #plan-view .plan-agenda-task > .specialist-record-row {
+  width: auto;
+  min-width: 0;
+  margin-inline: 0;
+  padding-inline: var(--k-space-2, 8px);
+}
+.plan-agenda-check {
+  width: 44px; height: 44px; border: 0; padding: 0; background: transparent; cursor: pointer;
+  display: grid; place-items: center; border-radius: var(--k-radius-control);
+}
+.plan-agenda-check::before {
+  content: ''; width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 50%;
+  transition: border-color 130ms, background 130ms;
+}
+.plan-agenda-check:hover::before { border-color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.plan-agenda-task.overdue .plan-agenda-check::before { border-color: var(--signal); }
+.plan-agenda-snooze {
+  min-height: 44px; padding: 0 var(--k-space-3, 12px); border: 0; border-radius: var(--k-radius-control);
+  background: transparent; color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer;
+  transition: color 130ms, background 130ms;
+}
+.plan-agenda-snooze:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.plan-agenda-check:disabled, .plan-agenda-snooze:disabled { opacity: 0.5; cursor: default; }
+
+/* a finger drags the row: right fills toward done, left toward tomorrow. the page still
+   scrolls up and down (pan-y) */
+:is(#today-view .today-task, #plan-view .plan-agenda-task) { touch-action: pan-y; }
+:is(.today-task, .plan-agenda-task).is-swiping { translate: var(--swipe-x, 0) 0; }
+:is(.today-task, .plan-agenda-task).swipe-right { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+:is(.today-task, .plan-agenda-task).swipe-left { background: color-mix(in srgb, var(--text) 8%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  :is(.today-task, .plan-agenda-task):not(.is-swiping) { transition: translate 200ms var(--k-ease-out), background 130ms; }
+}
+
+/* a task's details over the page it was opened from: a floating layer on the right like ask
+   aide's panel, a bottom sheet on a phone */
+#details-panel {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 940;
+  display: flex;
+  flex-direction: column;
+  gap: var(--k-space-4, 16px);
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 16px));
+  padding: var(--k-space-5, 24px);
+  overflow-y: auto;
+  border-radius: var(--k-radius-large);
+  background: var(--k-raised);
+  box-shadow: var(--k-float);
+  color: var(--k-text);
+}
+#details-panel[hidden] { display: none; }
+.details-panel-head { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; gap: var(--k-space-2, 8px); }
+.details-panel-head h2 { margin: 0; padding-top: 10px; font-size: 1.125rem; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.details-panel-close {
+  width: 44px; height: 44px; border: 0; padding: 0; display: grid; place-items: center;
+  border-radius: var(--k-radius-control); background: transparent; color: var(--muted); cursor: pointer;
+}
+.details-panel-close:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.details-panel-meta { margin: 0; color: var(--muted); font-size: 0.875rem; }
+.details-panel-meta.late { color: var(--signal); }
+.details-panel-notes { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.9375rem; line-height: 1.5; }
+.details-panel-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); margin-top: auto; }
+.details-panel-actions .btn { min-height: 44px; }
+@media (prefers-reduced-motion: no-preference) {
+  #details-panel:not([hidden]) { animation: ask-panel-in 280ms var(--k-ease-out); }
+}
+@media (max-width: 760px) {
+  #details-panel {
+    top: auto; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    max-height: 85vh;
+    padding-bottom: calc(var(--k-space-5, 24px) + env(safe-area-inset-bottom, 0px));
+    border-radius: var(--k-radius-large) var(--k-radius-large) 0 0;
+  }
+  .details-panel-actions { margin-top: 0; }
+  .details-panel-actions .btn { flex: 1 1 0; }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  #details-panel:not([hidden]) { animation: details-sheet-in 280ms var(--k-ease-out); }
+}
+@keyframes details-sheet-in { from { translate: 0 24px; opacity: 0; } }

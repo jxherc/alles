@@ -8742,7 +8742,7 @@ const BUILTIN_ENGLISH = {
     "whatsnew.2026_11_01.home_by_time.title": "home knows the time",
     "whatsnew.2026_11_01.home_by_time.body": "what's over fades and drops under what's left, with a now line between them. from 8 pm home leads with tomorrow: its first event and what's due. plan's agenda works the same way.",
     "whatsnew.2026_11_01.act_in_place.title": "check off where you are",
-    "whatsnew.2026_11_01.act_in_place.body": "check a task off or move it to tomorrow right from home or the task list, and undo a delete.",
+    "whatsnew.2026_11_01.act_in_place.body": "check a task off or move it to tomorrow from home, plan's agenda or the task list (or swipe it on touch), see its details without leaving the page, tick a habit from home, and undo a delete.",
     "whatsnew.2026_11_01.numbers_change.title": "numbers show change",
     "whatsnew.2026_11_01.numbers_change.body": "health's measurements and every account balance say how they moved since last week or month, with a small line of the last 30 days. finance leads with what you spent this month against last month.",
     "settings.example_display_name": "e.g. eric",
