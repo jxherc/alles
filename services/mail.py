@@ -382,6 +382,7 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
     ok = False
     try:
         exists = _select_count(M, folder)
+        validity = _uidvalidity(M)
 
         # background poll: if the tip hasn't moved, hand back the last list and
         # skip the (slow on a bad link) full header fetch entirely
@@ -437,6 +438,7 @@ def fetch_inbox(acct, folder: str = "INBOX", limit: int = 30, quick: bool = Fals
                     "message_id": (msg.get("Message-ID", "") or "").strip(),
                     "in_reply_to": (msg.get("In-Reply-To", "") or "").strip(),
                     "references": (msg.get("References", "") or "").strip(),
+                    "uidvalidity": validity,
                 }
             )
         rows.reverse()  # sequence order is oldest→newest; we want newest first
@@ -622,16 +624,9 @@ def _fetch_message_parts(M, uid_b):
             meta += part.decode("latin-1", "replace")
     if hdr_bytes is None:
         return None
-    bs = _extract_bodystructure(meta)
-    if not bs:
+    bs, want = _wanted_parts(meta)
+    if not bs or not want:
         return None
-    parts = _text_parts(_imap_tokenize(bs))
-    if not parts:
-        return None
-
-    want = {}
-    for p in parts:
-        want.setdefault(p["subtype"], p)  # first plain + first html is plenty
 
     # fetch every wanted text section in ONE round trip (was one per part — slow on
     # a high-latency link). only sections the bodystructure flagged as text are
@@ -645,7 +640,21 @@ def _fetch_message_parts(M, uid_b):
             m = re.search(r"BODY\[([0-9.]+)\]", meta)
             if m:
                 by_section[m.group(1)] = x[1]
+    return _parts_result(hdr_bytes, bs, want, by_section)
 
+
+def _wanted_parts(meta: str):
+    """(bodystructure text, {subtype: part}) for a message's first text/plain and text/html."""
+    bs = _extract_bodystructure(meta)
+    if not bs:
+        return None, {}
+    want = {}
+    for p in _text_parts(_imap_tokenize(bs)):
+        want.setdefault(p["subtype"], p)  # first plain + first html is plenty
+    return bs, want
+
+
+def _parts_result(hdr_bytes, bs: str, want: dict, by_section: dict) -> dict:
     text, html = "", ""
     for kind, p in want.items():
         body = by_section.get(p["section"])
@@ -669,6 +678,84 @@ def _fetch_message_parts(M, uid_b):
         "text": text,
         "html": html,
     }
+
+
+def _uidvalidity(M) -> str:
+    """the selected folder's UIDVALIDITY from the SELECT answer. a uid names the same message
+    only while this stays the same, so stored bodies are kept per value."""
+    try:
+        got = (getattr(M, "untagged_responses", None) or {}).get("UIDVALIDITY") or []
+        return bytes(got[-1] or b"").decode("ascii", "replace").strip() if got else ""
+    except Exception:
+        return ""
+
+
+def _group_fetch(data) -> list[dict]:
+    """split a FETCH answer for several messages into one entry each: the metadata text and
+    the literals by label. imaplib hands back (head, literal) tuples and plain bytes; an item
+    that starts with "<seq> (" opens the next message."""
+    out = []
+    for part in data or []:
+        head, blob = (part[0], part[1]) if isinstance(part, tuple) else (part, None)
+        text = bytes(head or b"").decode("latin-1", "replace")
+        if not out or re.match(r"\d+ \(", text):
+            out.append({"meta": "", "literals": []})
+        out[-1]["meta"] += text
+        if blob is not None:
+            label = re.search(r"(BODY\[[^\]]*\]|RFC822)\s*\{\d+\}\s*$", text)
+            out[-1]["literals"].append((label.group(1) if label else "", blob))
+    return out
+
+
+def fetch_bodies(acct, uids, folder: str = "INBOX") -> list[dict]:
+    """read several messages' text and html over one connection in a few round trips: one
+    FETCH for every header and bodystructure, then one per group of messages that want the
+    same sections. a message whose structure can't be read is left out (opening it falls back
+    to the whole message). each result carries its uid and the folder's uidvalidity."""
+    want_uids = [message_uid(u).decode() for u in uids]
+    box = _box(folder)
+    if not want_uids:
+        return []
+    M = _imap(acct)
+    ok = False
+    try:
+        M.select(box, readonly=True)
+        validity = _uidvalidity(M)
+        typ, d = M.uid("fetch", ",".join(want_uids), "(BODY.PEEK[HEADER] BODYSTRUCTURE)")
+        if typ != "OK":
+            return []
+        found = {}
+        for entry in _group_fetch(d):
+            uid = _uid_from_meta(entry["meta"].encode("latin-1", "replace"))
+            hdr = next((blob for label, blob in entry["literals"] if "HEADER" in label), None)
+            bs, want = _wanted_parts(entry["meta"])
+            if uid and hdr is not None and bs and want:
+                found[uid] = (hdr, bs, want)
+        groups = {}
+        for uid, (_hdr, _bs, want) in found.items():
+            spec = " ".join(f"BODY.PEEK[{p['section']}]" for p in want.values())
+            groups.setdefault(spec, []).append(uid)
+        sections = {}
+        for spec, members in groups.items():
+            typ2, pd = M.uid("fetch", ",".join(members), f"({spec})")
+            if typ2 != "OK":
+                continue
+            for entry in _group_fetch(pd):
+                uid = _uid_from_meta(entry["meta"].encode("latin-1", "replace"))
+                for label, blob in entry["literals"]:
+                    m = re.search(r"BODY\[([0-9.]+)\]", label)
+                    if uid and m:
+                        sections.setdefault(uid, {})[m.group(1)] = blob
+        ok = True
+        out = []
+        for uid in want_uids:
+            if uid in found and uid in sections:
+                hdr, bs, want = found[uid]
+                result = _parts_result(hdr, bs, want, sections[uid])
+                out.append(result | {"uid": uid, "uidvalidity": validity})
+        return out
+    finally:
+        _release_imap(acct, M, ok)
 
 
 def _fetch_message_rfc822(M, uid_b):
@@ -724,6 +811,7 @@ def fetch_message(acct, uid: str, folder: str = "INBOX", *, refresh: bool = Fals
     ok = False
     try:
         M.select(box, readonly=True)
+        validity = _uidvalidity(M)
         result = None
         try:
             result = _fetch_message_parts(M, uid_b)
@@ -734,6 +822,7 @@ def fetch_message(acct, uid: str, folder: str = "INBOX", *, refresh: bool = Fals
         if result is None:
             return {"error": "message not found"}
         result["uid"] = uid
+        result["uidvalidity"] = validity
         ok = True
         _put_cache(_MESSAGE_CACHE, cache_key, _MESSAGE_TTL, result)
         return result

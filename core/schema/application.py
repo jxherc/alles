@@ -1400,6 +1400,31 @@ class CachedMessage(Base):
     cached_at = Column(DateTime, default=_now)
 
 
+class MailBody(Base):
+    # a message's text and html, kept after the first read or the background prefetch so
+    # opening it never waits on the mail server. served only while its header row in
+    # cached_messages agrees (same uid and message-id); dropped with that row or when the
+    # folder's uidvalidity changes.
+    __tablename__ = "mail_bodies"
+    __table_args__ = (Index("ux_mail_bodies_message", "account_id", "folder", "uid", unique=True),)
+    id = Column(String, primary_key=True, default=_uid)
+    account_id = Column(String, nullable=False)
+    folder = Column(String, nullable=False, default="INBOX")
+    uid = Column(String, nullable=False)
+    uidvalidity = Column(String, default="")
+    message_id = Column(String, default="")
+    sender = Column(Text, default="")
+    recipients = Column(Text, default="")
+    subject = Column(Text, default="")
+    date = Column(String, default="")
+    references = Column(Text, default="")
+    has_attachment = Column(Boolean, default=False)
+    attachments = Column(Text, default="")  # json list once read from the server, "" = not yet
+    text = Column(Text, default="")
+    html = Column(Text, default="")
+    fetched_at = Column(DateTime, default=_now)
+
+
 class MailRule(Base):
     # a triage rule (5d): if match_field contains match_value → action
     __tablename__ = "mail_rules"

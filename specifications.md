@@ -717,6 +717,7 @@ a real email client (read + send), with one-click setup for the big providers an
 - **sign in instead of a password:** the accounts screen starts a microsoft device sign-in for outlook, hotmail and work mail (imap `outlook.office365.com:993`, smtp `smtp.office365.com:587`, xoauth2), or reuses the owner's google client for gmail. a rotated microsoft refresh token is saved on every refresh, and a refresh that fails for good marks the account `needs_sign_in` without breaking the other accounts.
 - **ai:** summarize a long thread, turn an email into a task, or turn an email into a calendar event (the ai reads out the date/time/title for you)
 - **fast + offline-tolerant:** a persistent header cache means the inbox opens instantly and still shows your last sync when the network's slow or down; local search over the cache is instant
+- **opened messages stay local:** a message's text and html are kept in `mail_bodies` after the first open, and after every inbox fetch the newest 20 listed messages are read ahead in one batch (two imap round trips for all of them, `BODY.PEEK`, so nothing is marked read). opening one of them is a database read, and the attachment list answers from it too (an empty list without asking the server; the server's list is kept after the first ask). a stored body is served only while its message is still in the folder's latest fetch with the same message-id; it goes when the message leaves the server, is archived or moved, when the folder's uidvalidity changes, or when the account is removed. bodies over 2 million characters are read from the server each time. a search hit or a message nobody listed isn't kept.
 - *under the hood:* built directly on python's standard `imaplib`/`smtplib`; no third-party mail library. it pools live connections, caches what it's read, loads the inbox by range (not a slow "search everything"), and opens a message by pulling *only* its text/html body (not the attachments), so it stays fast on a weak connection.
 
 ### calendar
@@ -1741,7 +1742,7 @@ erDiagram
     money_accounts |o--o{ money_transactions : records
     albums |o--o{ photos : groups
 ```
-the declared schema has **137 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
+the declared schema has **137 tables** covering: chat (`sessions`, `messages`, `model_endpoints`, `mcp_servers`), saved search snapshots and durable verification jobs (`andromeda_saved_searches`, `andromeda_verification_jobs`), notes/journal/tasks (`journal_entries`, `tasks`), calendar (`calendars`, `calendar_events`, `event_attendees`, `booking_pages`, `calendar_subscriptions`), money (`money_accounts`, `money_transactions`, `money_budgets`, `money_goals`, `money_holdings`, `money_recurring`, …), subscriptions (`subscriptions`, `sub_payments`, `sub_price_changes`), contacts (`contacts`, `contact_fields`, `contact_groups`), mail (`mail_accounts`, `mail_drafts`, `cached_messages`, `mail_bodies`, `mail_rules`, `mail_scheduled`), scheduled news (`news_configuration`, `news_sources`, `news_entries`, `news_briefs`), photos (`albums`, `photos`), the vault (`vaults`, `vault_entries`, `vault_attachments`, `webauthn_credentials`, `browser_connections`), durable jarvis state (`jarvis_workflows`, `jarvis_triggers`, `jarvis_runs`, `jarvis_run_events`, `jarvis_run_prompts`, `jarvis_delivery_attempts`, `jarvis_connectors`, `jarvis_inbox_events`, capability grants and delegated actions), plus `personas`, `projects`, `memories`, `reminders`, `automation_rules`, `automation_attempts`, `day_events`, `habits`, `health_entries`, `books`, `read_items`, `monitors`, `webhooks`, `api_tokens`, `connections`, and more.
 - **`data/vault/`**: your docs as plain `.md` files (with `_assets/` for embedded images and `_templates/` for templates).
 - **`data/skills/`**: agent skills as `SKILL.md` files (frontmatter + steps).
 - **`data/`** (other): uploads, photos, gallery, and file-app content as plain files; `server-policy.json`
@@ -3895,7 +3896,7 @@ retrieve full article text from each entry's publisher.
 
 ## database table inventory
 
-this lists **139 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **140 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -3978,6 +3979,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `journal_entries` | `id: VARCHAR pk`, `date: VARCHAR ?`, `content: TEXT ?`, `mood: VARCHAR ?`, `tags: VARCHAR ?`, `created_at: DATETIME ?`, `updated_at: DATETIME ?` | — |
 | `mail_account_deletions` | `id: VARCHAR pk`, `deleted_at: DATETIME` | — |
 | `mail_accounts` | `id: VARCHAR pk`, `name: VARCHAR ?`, `email: VARCHAR ?`, `imap_host: VARCHAR ?`, `imap_port: INTEGER ?`, `smtp_host: VARCHAR ?`, `smtp_port: INTEGER ?`, `username: VARCHAR ?`, `password: TEXT ? sealed`, `use_ssl: BOOLEAN ?`, `auth_type: VARCHAR ?`, `oauth_provider: VARCHAR ?`, `oauth_access_token: TEXT ? sealed`, `oauth_refresh_token: TEXT ? sealed`, `oauth_expires_at: FLOAT ?`, `created_at: DATETIME ?`, `revision: INTEGER` | — |
+| `mail_bodies` | `id: VARCHAR pk`, `account_id: VARCHAR`, `folder: VARCHAR`, `uid: VARCHAR`, `uidvalidity: VARCHAR ?`, `message_id: VARCHAR ?`, `sender: TEXT ?`, `recipients: TEXT ?`, `subject: TEXT ?`, `date: VARCHAR ?`, `references: TEXT ?`, `has_attachment: BOOLEAN ?`, `attachments: TEXT ?`, `text: TEXT ?`, `html: TEXT ?`, `fetched_at: DATETIME ?` | — |
 | `mail_drafts` | `id: VARCHAR pk`, `account_id: VARCHAR ?`, `to: TEXT ?`, `cc: TEXT ?`, `bcc: TEXT ?`, `subject: TEXT ?`, `body: TEXT ?`, `in_reply_to: VARCHAR ?`, `references: TEXT ?`, `updated_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_rules` | `id: VARCHAR pk`, `match_field: VARCHAR ?`, `match_value: VARCHAR ?`, `action: VARCHAR ?`, `action_arg: VARCHAR ?`, `enabled: BOOLEAN ?`, `created_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
 | `mail_saved_searches` | `id: VARCHAR pk`, `name: VARCHAR`, `query: TEXT ?`, `created_at: DATETIME ?`, `deleted_at: DATETIME ?` | — |
@@ -4134,6 +4136,7 @@ known versions run in ascending order.
 | 76 | `habit_kinds` | [m0076_habit_kinds.py](core/migrations/m0076_habit_kinds.py) |
 | 77 | `task_due_time` | [m0077_task_due_time.py](core/migrations/m0077_task_due_time.py) |
 | 78 | `habit_fields` | [m0078_habit_fields.py](core/migrations/m0078_habit_fields.py) |
+| 80 | `mail_bodies` | [m0080_mail_bodies.py](core/migrations/m0080_mail_bodies.py) |
 
 </details>
 
