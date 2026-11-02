@@ -5642,7 +5642,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .rule-presets > .rule-preset-pick { flex: 1 1 auto; min-width: 0; max-width: 24rem; }
 
 /* ── first-run setup wizard: compact KOKUEN utility surface ── */
-.setup-card { width: 560px; max-width: calc(100vw - 32px); max-height: min(720px, calc(100dvh - 32px)); padding: 0; overflow: hidden; }
+.setup-card { width: 560px; max-width: calc(100vw - 32px); max-height: min(720px, calc(100dvh - 96px)); min-height: min(344px, calc(100dvh - 96px)); padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.setup-card > .setup-head { flex: none; }
 .setup-head { min-height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--faint); }
 .setup-dots { color: var(--muted); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
 .setup-skip { min-height: 44px; padding: 0 8px; border: 0; border-radius: var(--k-radius-control); background: transparent; color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer; }
@@ -5650,7 +5651,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-skip:focus-visible, .setup-choice-group button:focus-visible, .setup-provider:focus-visible,
 .setup-card .home-settings-switch:focus-visible,
 .vault-form .home-settings-switch:focus-visible { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
-.setup-body { min-height: 300px; max-height: calc(100dvh - 78px); padding: 20px 24px 24px; overflow-y: auto; }
+.setup-body { flex: 1 1 auto; min-height: 0; padding: 20px 24px 24px; overflow-y: auto; }
 .setup-title { color: var(--text); font-size: 1.125rem; font-weight: 520; letter-spacing: -0.015em; }
 .setup-sub { max-width: 58ch; margin: 6px 0 20px; color: var(--k-soft, color-mix(in srgb, var(--text) 76%, var(--bg))); font-size: 0.8125rem; line-height: 1.55; }
 .setup-sub:has(> .setup-region-change) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
@@ -5708,6 +5709,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-connect-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .setup-connect-text > span:first-child { color: var(--text); font-size: 0.875rem; }
 .setup-connect-note { color: var(--muted); font-size: 0.8125rem; }
+#sw-obsidian-lan .setup-connect-note { margin: 0 0 12px; line-height: 1.4; }
+#sw-obsidian-lan .setup-connect-note:empty { display: none; }
 .setup-connect-row .btn { flex: none; }
 .specialist-mail-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .specialist-mail-tools .specialist-choice-group { display: flex; gap: 8px; }
@@ -5718,8 +5721,8 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-actions { min-height: 44px; display: flex; align-items: center; gap: 12px; margin-top: 16px; }
 .setup-actions .btn { min-height: 44px; }
 @media (max-width: 620px) {
-  .setup-card { max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
-  .setup-body { max-height: calc(100dvh - 60px); padding: 16px; }
+  .setup-card { max-width: calc(100vw - 16px); max-height: calc(100dvh - 88px); }
+  .setup-body { padding: 16px; }
   .setup-pair, .setup-choice-group, .setup-provider-grid { grid-template-columns: 1fr; }
   .setup-choice-group button, .setup-provider, .setup-actions .btn { min-height: 44px; }
   .setup-actions { align-items: stretch; flex-wrap: wrap; }
@@ -8428,6 +8431,11 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   font-size: 0.8125rem;
   letter-spacing: -0.005em;
 }
+.mail-from { display: flex; align-items: center; gap: 8px; }
+.mail-from-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-av { width: 24px; height: 24px; }
+.mail-reader-from { display: flex; align-items: center; gap: 8px; }
+.mail-reader-from .mail-av { width: 32px; height: 32px; font-size: 0.875rem; }
 .mail-row.unread .mail-from { font-weight: 600; }
 .mail-date {
   color: var(--muted);

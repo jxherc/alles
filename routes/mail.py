@@ -1,5 +1,6 @@
 import json
 import re
+import threading
 import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -427,6 +428,9 @@ def del_account(
                 raise HTTPException(404, "account not found")
             _account_request_id(aid)
         db.add(MailAccountDeletion(id=aid))
+        from services import mail_cache
+
+        mail_cache.forget_bodies(db, aid)
         db.commit()
         mailsvc.clear_cache()
         return {"ok": True}
@@ -532,6 +536,36 @@ def oauth_callback(
     return _back("ok")
 
 
+PREFETCH_BODIES = 20  # the newest messages whose bodies are read ahead after a list
+_prefetching: set = set()
+_prefetch_lock = threading.Lock()
+
+
+def _prefetch_bodies(acct: dict, aid: str, folder: str) -> None:
+    """read the newest messages' bodies into the database, so opening one is instant. one
+    run per account and folder at a time; a failure only means those open the slow way."""
+    from core.database import SessionLocal
+    from services import mail_cache
+
+    key = (aid, folder)
+    with _prefetch_lock:
+        if key in _prefetching:
+            return
+        _prefetching.add(key)
+    try:
+        with SessionLocal() as db:
+            uids = mail_cache.missing_bodies(db, aid, folder, PREFETCH_BODIES)
+            if not uids:
+                return
+            for msg in mailsvc.fetch_bodies(acct, uids, folder):
+                mail_cache.keep_body(db, aid, folder, msg)
+    except Exception:
+        pass
+    finally:
+        with _prefetch_lock:
+            _prefetching.discard(key)
+
+
 @router.get("/inbox/{aid}")
 def inbox(
     aid: str,
@@ -547,6 +581,11 @@ def inbox(
     try:
         msgs = mailsvc.fetch_inbox(_acct_dict(a), folder, limit, quick=quick)
         mail_cache.save(db, aid, folder, msgs)
+        # bodies are kept per uidvalidity, so only a list that carries one gets read ahead
+        if any(m.get("uidvalidity") for m in msgs):
+            threading.Thread(
+                target=_prefetch_bodies, args=(_acct_dict(a), aid, folder), daemon=True
+            ).start()
         visible = {m["uid"]: m for m in mail_cache.get(db, aid, folder, limit)}
         return {
             "messages": [
@@ -1515,12 +1554,23 @@ def idle_status(aid: str, db: DbSession = Depends(get_db)):
 
 @router.get("/message/{aid}")
 def message(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(get_db)):
+    from services import mail_cache
+
     _imap_args(uid, folder)
     a = _get(db, aid)
+    # a body read before (or prefetched) opens from the database, no server round trip
+    stored = mail_cache.stored_body(db, aid, folder, uid)
+    if stored is not None:
+        return stored
     try:
-        return mailsvc.fetch_message(_acct_dict(a), uid, folder)
+        msg = mailsvc.fetch_message(_acct_dict(a), uid, folder)
     except Exception as e:
         return {"error": str(e)[:200]}
+    try:
+        mail_cache.keep_body(db, aid, folder, msg)
+    except Exception:
+        db.rollback()  # keeping it is a speed-up; the reader still gets the message
+    return msg
 
 
 @router.get("/search/{aid}")
@@ -1550,12 +1600,20 @@ def threads(aid: str, folder: str = "INBOX", limit: int = 60, db: DbSession = De
 
 @router.get("/attachments/{aid}")
 def attachments(aid: str, uid: str, folder: str = "INBOX", db: DbSession = Depends(get_db)):
+    from services import mail_cache
+
     _imap_args(uid, folder)
     a = _get(db, aid)
+    # listing them downloads the whole message, so a stored body answers when it can
+    stored = mail_cache.stored_attachments(db, aid, folder, uid)
+    if stored is not None:
+        return {"attachments": stored}
     try:
-        return {"attachments": mailsvc.list_attachments(_acct_dict(a), uid, folder)}
+        found = mailsvc.list_attachments(_acct_dict(a), uid, folder)
     except Exception as e:
         return {"error": str(e)[:200], "attachments": []}
+    mail_cache.keep_attachments(db, aid, folder, uid, found)
+    return {"attachments": found}
 
 
 @router.get("/attachment/{aid}")

@@ -1,5 +1,5 @@
 /* alles service worker — offline shell + web push */
-const VERSION = 'v448';   // oct 28 visual pass: fields in bars, label in name, motion without layout loops.
+const VERSION = 'v449';   // oct 28 visual pass: fields in bars, label in name, motion without layout loops.
 const BUILD = '__ALLES_BUILD__';   // the server swaps in a hash of static/, so any change is a new worker
 const CACHE = `alles-${VERSION}-${BUILD}`;
 const STAMP = '610';   // keep in sync with index.html ?v=

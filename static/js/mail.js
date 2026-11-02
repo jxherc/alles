@@ -150,6 +150,36 @@ const fromName = f => {
   const m = /^(.*?)\s*<([^>]+)>/.exec(f || '');
   return (m ? (m[1].replace(/"/g, '').trim() || m[2]) : f) || t('mail.unknown_sender');
 };
+// sender photos come from contacts, matched by email address. nobody with a contact photo gets
+// a quiet initial instead. the map loads once per visit and the list redraws when it arrives.
+let _photos = null;
+let _photosLoading = false;
+const senderEmail = f => ((/<([^>]+)>/.exec(f || '') || [, f || ''])[1] || '').trim().toLowerCase();
+async function loadSenderPhotos(fetcher = fetch) {
+  if (_photos || _photosLoading) return;
+  _photosLoading = true;
+  try {
+    const response = await fetcher('/api/contacts');
+    const contacts = response.ok ? await response.json() : [];
+    const map = new Map();
+    for (const c of Array.isArray(contacts) ? contacts : []) {
+      if (!c.avatar) continue;
+      for (const raw of String(c.email || '').split(/[\s,;]+/)) {
+        if (raw.includes('@')) map.set(raw.toLowerCase(), { id: c.id, v: c.updated_at || c.avatar });
+      }
+    }
+    _photos = map;
+    const list = $('mail-list');
+    if (map.size && list?.querySelector('.mail-row[data-aid]')) preserveMailReadFocus(list)(() => renderInbox(_lastMsgs, _mailErrors));
+  } catch (error) { console.error(error); } finally { _photosLoading = false; }
+}
+const senderMark = f => {
+  const hit = _photos?.get(senderEmail(f));
+  if (hit) return `<img class="contact-av mail-av" src="/api/contacts/${esc(hit.id)}/avatar?v=${encodeURIComponent(hit.v)}" alt="" loading="lazy">`;
+  const initial = (fromName(f).replace(/^[^\p{L}\p{N}]+/u, '')[0] || '?').toUpperCase();
+  return `<span class="contact-av contact-av-ph mail-av" aria-hidden="true">${esc(initial)}</span>`;
+};
+const senderLine = f => `${senderMark(f)}<span class="mail-from-name">${esc(fromName(f))}</span>`;
 const shortDate = d => { try { return formatDate(d, { month: 'short', day: 'numeric' }); } catch (e) { console.error(e); return ''; } };
 const acctName = id => {
   const a = _accounts.find(x => x.id === id);
@@ -928,6 +958,7 @@ async function openCurrentDraft() {
 
 export async function loadMail(fetcher = fetch) {
   initMail();
+  loadSenderPhotos(fetcher);
   const emptyHost = $('mail-main');
   if (emptyHost?.dataset) {
     emptyHost.dataset.emptyPick = t('mail.pick_message');
@@ -1417,7 +1448,7 @@ const _msgRow = (m, indent = false) => {
   return `
     <div class="mail-row${m.seen ? '' : ' unread'}${indent ? ' mail-row-child' : ''}" data-aid="${esc(m.account_id)}" data-uid="${esc(m.uid)}" data-folder="${esc(m.folder || 'INBOX')}" data-subject="${esc(m.subject)}">
       <div class="mail-row-top">
-        <span class="mail-from">${esc(fromName(m.from))}</span>
+        <span class="mail-from">${senderLine(m.from)}</span>
         <span class="mail-date">${esc(shortDate(m.date))}</span>
       </div>
       <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || t('mail.no_subject'))}</button>${(m.labels || []).map(l => `<button type="button" class="mail-label-chip" data-labelfilter="${esc(l)}" style="--cat:var(--cat-${categoryHue(l)})">${esc(l)}</button>`).join('')}</div>
@@ -1468,7 +1499,7 @@ function _renderThreads(messages, msgTime) {
     const head = `
       <div class="mail-row mail-thread-head${th.unseen ? ' unread' : ''}${open ? ' open' : ''}" data-thread="${esc(th.k)}">
         <div class="mail-row-top">
-          <span class="mail-from">${esc(fromName(th.top.from))}</span>
+          <span class="mail-from">${senderLine(th.top.from)}</span>
           <span class="mail-date">${esc(shortDate(th.top.date))}</span>
         </div>
         <button type="button" class="mail-open mail-subject" aria-expanded="${open}"><span class="mail-thread-caret" aria-hidden="true">${_si(open ? 'chevron-down' : 'chevron-right')}</span> ${esc(th.top.subject || t('mail.no_subject'))} <span class="mail-thread-count">${th.msgs.length}</span></button>
@@ -1681,7 +1712,7 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     <div class="mail-reader-head">
       <div class="mail-reader-kicker">${esc(acctName(aid))}</div>
       <div class="mail-reader-subject">${esc(m.subject)}</div>
-      <div class="mail-reader-meta"><b>${esc(fromName(m.from))}</b> &lt;${esc((/<([^>]+)>/.exec(m.from) || [, m.from])[1])}&gt;</div>
+      <div class="mail-reader-meta mail-reader-from">${senderMark(m.from)}<span><b>${esc(fromName(m.from))}</b> &lt;${esc((/<([^>]+)>/.exec(m.from) || [, m.from])[1])}&gt;</span></div>
       <div class="mail-reader-meta">${esc(t('mail.to_line', { to: m.to }))} · ${esc(readerDate(m.date))}</div>
       <div style="display:flex;gap:var(--k-control-gap);flex-wrap:wrap">
         <button class="btn" id="mail-reply">${t('mail.reply')}</button>

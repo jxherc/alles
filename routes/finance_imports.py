@@ -40,8 +40,11 @@ class PreviewBody(BaseModel):
     account_id: str
     profile: str
     source_name: str
-    content: str
+    content: str = ""
     original_currency_code: str = ""
+    # bank-email only: read the alert emails from mail's saved inbox instead of `content`
+    from_mail: bool = False
+    mail_days: int = 60
 
 
 class ConversionEvidenceBody(BaseModel):
@@ -323,7 +326,7 @@ def _notification_confirmation_reason(batch: FinanceImportBatch, parsed: dict) -
 
 
 def _notification_account_confirmed(batch: FinanceImportBatch, parsed: dict) -> bool:
-    if batch.profile != "cmb-notification":
+    if batch.profile not in finance_imports.NOTIFICATION_PROFILES:
         return True
     suffix = str(parsed.get("account_suffix") or "").strip()
     if not suffix:
@@ -532,7 +535,18 @@ def _preview_locked(body: PreviewBody, db: DbSession):
         raise HTTPException(400, "unknown account")
     if body.profile not in finance_imports.PROFILES:
         raise HTTPException(400, "unsupported import profile")
-    source = body.content.encode("utf-8")
+    content = body.content
+    if body.from_mail:
+        if body.profile != "bank-email":
+            raise HTTPException(400, "only bank alert emails are read from mail")
+        emails = finance_imports.mail_alert_emails(db, body.mail_days)
+        if not emails:
+            raise HTTPException(
+                400,
+                f"no bank alert emails in mail's saved inbox from the last {body.mail_days} days",
+            )
+        content = json.dumps(emails, ensure_ascii=False, sort_keys=True)
+    source = content.encode("utf-8")
     if not source or len(source) > MAX_SOURCE_BYTES:
         raise HTTPException(400, "source must be between 1 byte and 5 MiB")
     source_name = body.source_name.strip()
@@ -552,7 +566,7 @@ def _preview_locked(body: PreviewBody, db: DbSession):
     try:
         parsed_rows = finance_imports.parse(
             body.profile,
-            body.content,
+            content,
             account_id=body.account_id,
             requested_currency=currency,
             statement_identity=statement_identity,
@@ -626,7 +640,7 @@ def _preview_locked(body: PreviewBody, db: DbSession):
                     f"import currency {imported_currency} does not match selected "
                     f"account currency {account_currency}"
                 )
-            elif body.profile == "cmb-notification":
+            elif body.profile in finance_imports.NOTIFICATION_PROFILES:
                 suffix = item["parsed"].get("account_suffix", "")
                 status = "needs_review"
                 reason = (
@@ -743,7 +757,7 @@ def _preview_locked(body: PreviewBody, db: DbSession):
         "source_sha256": source_sha,
         "original_currency_code": receipt_currency,
     }
-    if body.profile == "cmb-notification":
+    if body.profile in finance_imports.NOTIFICATION_PROFILES:
         receipt.update(
             {
                 "account_name": account_name or "account",
@@ -786,7 +800,7 @@ def confirm_notification_account(
         row = db.get(FinanceImportRow, row_id)
         if not batch or not row or row.batch_id != batch.id:
             raise HTTPException(404, "import row not found")
-        if batch.profile != "cmb-notification" or batch.status != "preview":
+        if batch.profile not in finance_imports.NOTIFICATION_PROFILES or batch.status != "preview":
             raise HTTPException(
                 409, "account confirmation is available only during notification preview"
             )
@@ -852,9 +866,29 @@ def resolve_ambiguous_match(
             raise HTTPException(404, "import row not found")
         if batch.status != "preview" or row.status != "needs_review":
             raise HTTPException(409, "this import row is not awaiting a match decision")
+        decision = body.decision.strip().casefold()
+        # a bank email alles can't read, or one for another card, is left out by the owner;
+        # it never posts and the rest of the receipt can apply
+        if decision == "skip":
+            if batch.profile != "bank-email":
+                raise HTTPException(409, "only a bank email row can be left out")
+            row.status = "skipped"
+            row.conflict_reason = ""
+            try:
+                receipt = json.loads(batch.receipt_json or "{}")
+            except (TypeError, ValueError):
+                receipt = {}
+            skipped = receipt.get("skipped_rows")
+            receipt["skipped_rows"] = (skipped if isinstance(skipped, dict) else {}) | {
+                row.id: datetime.now(UTC).isoformat()
+            }
+            batch.receipt_json = json.dumps(receipt, sort_keys=True)
+            rows = db.query(FinanceImportRow).filter_by(batch_id=batch.id).all()
+            _update_batch_counts(batch, rows)
+            db.commit()
+            return _batch_payload(db, batch)
         if not row.conflict_reason.startswith("matching row has no bank reference "):
             raise HTTPException(409, "this review row is not an ambiguous statement match")
-        decision = body.decision.strip().casefold()
         if decision not in {"duplicate", "new"}:
             raise HTTPException(400, "decision must be duplicate or new")
         try:

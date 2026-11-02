@@ -62,6 +62,7 @@ from core.schema.application import JarvisWorkflow as JarvisWorkflow
 from core.schema.application import JournalEntry as JournalEntry
 from core.schema.application import MailAccount as MailAccount
 from core.schema.application import MailAccountDeletion as MailAccountDeletion
+from core.schema.application import MailBody as MailBody
 from core.schema.application import MailDraft as MailDraft
 from core.schema.application import MailRule as MailRule
 from core.schema.application import McpServer as McpServer

@@ -4099,6 +4099,27 @@ html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-select
   flex: none;
 }
 
+/* on a phone the actions wrap under the count: a scrolling strip cut "delete" off mid word */
+@media (max-width: 640px) {
+  html:not(#_):not(#_) #files-view .files-phase7-table-head:has(> .files-phase7-selection:not([hidden])) {
+    height: auto;
+    min-height: var(--k-control);
+    align-items: start;
+  }
+
+  html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-selection {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-selection .files-phase7-selection-actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    margin-inline-start: 0;
+    overflow-x: visible;
+  }
+}
+
 /* a filled accent button draws its focus ring outside its fill, on the page: inside, the gray ring
    on purple sat at 1.3-2.7:1. the capture bar's add button keeps a 6px clear border, so its ring
    sits in that gap instead of over the bar's own edge */

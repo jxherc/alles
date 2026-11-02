@@ -109,7 +109,7 @@ export function harness() {
     location: { href: 'http://synthetic.invalid/?view=mail' },
     esc: value => String(value ?? ''), readRecordTarget: () => null, acctName: () => 'synthetic',
     resolvedTimeZone: () => 'UTC', _si: () => '', formatDate: String, formatTime: String, formatDateTime: String, safeMailHtml: html => String(html ?? ''),
-    fromName: value => value, _accountEditor: null, _mailErrors: [],
+    fromName: value => value, senderMark: () => "", _accountEditor: null, _mailErrors: [],
     dlgConfirm: text => { confirms.push(text); return confirmation; }, toast: (...args) => notices.push(args),
     mailJson: async url => {
       if (url === '/api/mail/accounts') return [account];
@@ -133,7 +133,7 @@ export function harness() {
     reminderTimeFromWall: value => new Date(value + 'Z'), _dpInit() {},
     storePendingDraft: (pending, editor, snapshot) => { writes.push({ pending, snapshot }); editor.pending = pending; editor.pendingSnapshot = snapshot; context._draftPending = pending; },
     savePendingDraft: async () => {}, submitOutgoing: async () => {},
-    initMail() {}, showPendingCapture() {}, startMailPoll: async () => {}, syncAccountSelect() {},
+    initMail() {}, loadSenderPhotos() {}, showPendingCapture() {}, startMailPoll: async () => {}, syncAccountSelect() {},
     _mailLoadGeneration: 0, _listGeneration: 0, _listContext: '', _lastMsgs: [], _filter: 'inbox', _searchView: '', _labelFilter: '',
     loadDraftRecovery: async () => ({ drafts: [], recovery_scopes: [scope] }), _renderSavedBar() {},
     searchMail: async () => {}, loadCachedMail: async () => {}, loadInbox: async () => {},

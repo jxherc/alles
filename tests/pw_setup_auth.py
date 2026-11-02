@@ -250,6 +250,10 @@ def check_profile(browser, profile, output, records):
                     page.locator("#sw-owner-password").fill(password)
                     page.locator("#sw-save").click()
                     expect(page.locator("#setup-dots")).to_contain_text("3 / 5")
+                    # the default keeps docs inside the files folder; this gate uses two separate folders
+                    page.locator("#sw-keep-vault").click()
+                    (data / "visible" / "Vault").mkdir(parents=True, exist_ok=True)
+                    (data / "visible" / "Files").mkdir(parents=True, exist_ok=True)
                     page.locator("#sw-vault").fill(str(data / "visible" / "Vault"))
                     page.locator("#sw-files").fill(str(data / "visible" / "Files"))
                     page.locator("#sw-save").click()

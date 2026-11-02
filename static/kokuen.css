@@ -1946,7 +1946,25 @@ body:is(
 }
 
 :where(#finance-view) .finance-import-row:last-child { border-bottom: 0; }
-:where(#finance-view) .finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #f2897f); }
+/* the reason reads at the row's own size: a browser <small> landed under the 13px floor */
+:where(#finance-view) .finance-import-row > small { grid-column: 2 / -1; color: var(--k-danger, #f2897f); font-size: inherit; }
+/* a bank email under review shows itself, wrapped, under the row's words */
+:where(#finance-view) .finance-import-row > .finance-import-email { grid-column: 2 / -1; min-width: 0; }
+/* keeps the disclosure triangle, so it reads as something that opens; padding makes it 44px */
+:where(#finance-view) .finance-import-email summary {
+  padding: var(--k-space-3) 0;
+  color: var(--k-ink-muted, var(--muted));
+  cursor: pointer;
+}
+:where(#finance-view) .finance-import-email pre {
+  margin: 0;
+  padding: var(--k-space-3);
+  border-radius: var(--k-radius-surface, 4px);
+  background: var(--k-panel-raised, var(--panel2));
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 /* the fix-it help reads under the row's words, not as a 10-line block in the date column */
 :where(#finance-view) .finance-import-row > .finance-import-repair-hint { grid-column: 2 / -1; margin: 0; }
 :where(#finance-view) .finance-import-row > .finance-import-metadata {
@@ -2134,6 +2152,7 @@ body:is(
   :where(#finance-view) .finance-import-row-amount { grid-column: 2; grid-row: 1 / span 2; }
   :where(#finance-view) .finance-import-row-status { grid-column: 1 / -1; text-align: left; }
   :where(#finance-view) .finance-import-row > small { grid-column: 1 / -1; }
+  :where(#finance-view) .finance-import-row > .finance-import-email { grid-column: 1 / -1; }
   :where(#finance-view) .finance-import-row > .finance-import-repair-hint { grid-column: 1 / -1; }
   :where(#finance-view) .finance-import-conversion { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); }
   :where(#finance-view) .finance-import-match-resolution { grid-column: 1 / -1; }

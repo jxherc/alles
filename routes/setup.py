@@ -1,14 +1,17 @@
+import json
+import secrets
 from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from core.api_errors import ApiError
+from core.api_tokens import hash_token, normalize_scopes
 from core.auth import require_recent_owner
-from core.database import ModelEndpoint, get_db
-from core.settings import load_settings
-from services import obsidian_setup, setup_state
+from core.database import ApiToken, ModelEndpoint, get_db
+from core.settings import auth_enabled, load_settings, save_settings
+from services import docs_webdav, obsidian_setup, setup_state
 
 router = APIRouter(prefix="/api/setup")
 
@@ -106,6 +109,56 @@ def install_obsidian(body: ObsidianInstallBody):
         return {"vault_connected": True, **obsidian_setup.install_companion(vault)}
     except obsidian_setup.ObsidianSetupError as exc:
         raise ApiError(409, "obsidian_companion_refused", str(exc)) from exc
+
+
+_DAV_TOKEN_NAME = "obsidian on the local network"
+
+
+def _dav_status(request: Request) -> dict:
+    from core.server_config import access_profile
+
+    port = request.url.port or (443 if request.url.scheme == "https" else 80)
+    host = docs_webdav.lan_address()
+    return {
+        "mode": docs_webdav.mode(),
+        "access_profile": access_profile(),
+        "url": f"{request.url.scheme}://{host}:{port}/dav/docs" if host else "",
+        "password_needed": auth_enabled(),
+    }
+
+
+@router.get("/obsidian-lan")
+def obsidian_lan_status(request: Request):
+    return _dav_status(request)
+
+
+class ObsidianLanBody(BaseModel):
+    mode: str = "off"
+
+
+@router.post("/obsidian-lan", dependencies=[Depends(require_recent_owner)])
+def set_obsidian_lan(body: ObsidianLanBody, request: Request, db: DbSession = Depends(get_db)):
+    """off, read, or write. a token is made for the plugin to use as its password and is
+    shown once; changing the mode replaces the old one."""
+    if body.mode not in docs_webdav.MODES:
+        raise ApiError(400, "invalid_docs_dav_mode", "choose off, read or write")
+    for old in db.query(ApiToken).filter(ApiToken.name == _DAV_TOKEN_NAME).all():
+        db.delete(old)
+    token = ""
+    if body.mode != "off":
+        scopes = ["read", "write"] if body.mode == "write" else ["read"]
+        token = "alles_" + secrets.token_urlsafe(32)
+        db.add(
+            ApiToken(
+                name=_DAV_TOKEN_NAME,
+                token_hash=hash_token(token),
+                prefix=token[:12],
+                scopes=json.dumps(list(normalize_scopes(scopes))),
+            )
+        )
+    db.commit()
+    save_settings({"docs_dav": body.mode})
+    return {**_dav_status(request), "token": token}
 
 
 class DetectBody(BaseModel):
