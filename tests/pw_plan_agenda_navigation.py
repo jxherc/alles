@@ -352,6 +352,16 @@ class AgendaCase:
         )
         return self.page.locator(f'#plan-view button[data-plan-agenda-record="{identity}"]')
 
+    async def details(self, key):
+        # u.01 (decision 0066): a task row opens its details over the agenda, focus on done;
+        # edit goes on to the full editor through the same record router
+        panel = self.page.locator("#details-panel")
+        await expect(panel).to_be_visible()
+        await expect(panel.locator("#details-panel-title")).to_have_text(self.record(key)["title"])
+        await expect(panel.locator('[data-details="done"]')).to_be_focused()
+        await panel.locator('[data-details="edit"]').press("Enter")
+        await expect(panel).to_be_hidden()
+
     def choice(self, window):
         return self.page.locator(
             f'#plan-view .specialist-choice-group button[data-value="{window}"]'
@@ -444,6 +454,7 @@ class AgendaCase:
         other = await self.saved("task-a")
         control = self.row("task-b")
         await control.tap() if self.width == 390 else await control.click()
+        await self.details("task-b")
         await self.exact_editor("task-b")
         renamed = self.title + " edited"
         notes = self.marker + " saved task details 中文"
@@ -465,12 +476,14 @@ class AgendaCase:
         await self.capture("task-saved-return")
         # A fresh editor load reads the actual saved values again.
         await self.row("task-b").press("Space")
+        await self.details("task-b")
         await self.exact_editor("task-b")
         await self.page.keyboard.press("Escape")
         await self.back("task-b", "overview", "unscheduled", browser=False)
         control = await self.keyboard_row("task-a", "unscheduled")
         await self.capture("keyboard-row")
         await control.press("Enter")
+        await self.details("task-a")
         await self.exact_editor("task-a")
         await self.page.keyboard.press("Escape")
         await self.back("task-a", "overview", "unscheduled", browser=False)
@@ -591,6 +604,8 @@ class AgendaCase:
         self.boundary.fault = fault
         try:
             await self.row(key).press("Enter")
+            if key.startswith("task"):
+                await self.details(key)
             await asyncio.wait_for(fault.done.wait(), 10)
             if key.startswith("task"):
                 retry = self.page.locator("#plan-view > .specialist-state .specialist-state-retry")
@@ -628,6 +643,8 @@ class AgendaCase:
         self.boundary.fault = fault
         try:
             await self.row(key).press("Enter")
+            if key.startswith("task"):
+                await self.details(key)
             await asyncio.wait_for(fault.entered.wait(), 10)
             assert fault.status == 200 and self.record(key)["id"] in fault.ids, (
                 fault.status,
@@ -675,8 +692,9 @@ class AgendaCase:
         await expect(self.row("outside")).to_have_count(0)
         for window in ("today", "seven", "unscheduled"):
             await self.choice(window).press("Enter")
+            # a task row sits in its act-in-place wrapper (u.01), one per task
             count = await self.page.locator(
-                "#plan-view .specialist-record-list > .specialist-record-row"
+                "#plan-view .specialist-record-list > :is(.specialist-record-row, .plan-agenda-task)"
             ).count()
             text = await self.choice(window).inner_text()
             assert int(text.rsplit("·", 1)[1].strip()) == count, (text, count)
