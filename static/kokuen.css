@@ -341,7 +341,7 @@ body:is(
 
   min-width: 0;
   min-height: 0;
-  height: 100dvh;
+  height: var(--k-shell-height, 100dvh);
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--k-app-header) var(--k-control) minmax(0, 1fr);
   overflow: hidden;
@@ -5994,7 +5994,7 @@ body[data-app="files"] #files-view {
   scroll-padding-bottom: var(--files-operation-clearance);
   min-width: 0;
   min-height: 0;
-  height: 100dvh;
+  height: var(--k-shell-height, 100dvh);
   overflow: hidden;
   background: var(--k-page);
 }
@@ -6881,7 +6881,7 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
 
 @media (max-width: 760px) {
   body[data-app="files"] #files-view {
-    height: 100dvh;
+    height: var(--k-shell-height, 100dvh);
     overflow: auto;
   }
 
@@ -7638,3 +7638,61 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
 }
 @media (max-width: 620px) { .k-rail-resize { display: none; } }
 @media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize)::after { transition: none; } }
+
+/* ── the app rail (u.07, decision 0064) ──────────────────────────────────────────
+   ipad landscape and desktop: a slim column of apps at the left of the shell. a phone: a bottom
+   bar of 5, and every screen's height drops by the bar (--k-shell-height) so nothing hides under
+   it. ipad portrait keeps the app name button only */
+.app-rail { display: none; }
+.app-rail-item {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--k-space-1, 4px);
+  min-width: 44px;
+  min-height: 56px;
+  padding: var(--k-space-1, 4px);
+  border: 0;
+  border-radius: var(--k-radius-control, 8px);
+  color: var(--k-muted, var(--muted));
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.app-rail-item > svg { width: 22px; height: 22px; }
+.app-rail-item > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-rail-item:hover { color: var(--k-text, var(--text)); background: var(--k-hover, var(--hover)); }
+.app-rail-item[aria-current="page"] { color: var(--k-text, var(--text)); font-weight: 600; }
+.app-rail-item:focus-visible { outline: 2px solid var(--k-focus); outline-offset: -2px; }
+@media (min-width: 1024px) {
+  body.afterlife-shell .app-rail:not([hidden]) {
+    display: flex;
+    flex: 0 0 72px;
+    flex-direction: column;
+    gap: var(--k-space-1, 4px);
+    padding: var(--k-space-2, 8px) var(--k-space-1, 4px);
+    overflow-y: auto;
+    border-right: 1px solid var(--k-line, var(--faint));
+    background: var(--k-canvas, var(--bg));
+  }
+  body.afterlife-shell .app-rail-more { margin-top: auto; }
+}
+@media (max-width: 700px) {
+  body.afterlife-shell:has(.app-rail:not([hidden])) { --k-shell-height: calc(100dvh - 56px - env(safe-area-inset-bottom, 0px)); }
+  body.afterlife-shell .app-rail:not([hidden]) {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 200;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding: 0 var(--k-space-1, 4px) env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--k-line, var(--faint));
+    background: var(--k-canvas, var(--bg));
+  }
+  body.afterlife-shell .app-rail-item[data-wide] { display: none; }
+  body.app-drawer-open .app-rail { visibility: hidden; }
+}

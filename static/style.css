@@ -113,7 +113,7 @@ a:focus-visible, button:focus-visible {
 .record-target:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* ── layout ── */
-.app { display: flex; height: 100vh; height: 100dvh; }
+.app { display: flex; height: 100vh; height: var(--k-shell-height, 100dvh); }
 body.preboot .app,
 body.login-mode .app {
   visibility: hidden;
@@ -626,11 +626,11 @@ body.is-hub .topbar {
 }
 body.is-hub .main {
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: var(--k-shell-height, 100dvh);
 }
 /* the full sidebar is aide's home base only. other apps use their own header. */
 body.is-subapp .sidebar { display: none; }
-body.is-subapp .main { min-height: 100vh; min-height: 100dvh; }
+body.is-subapp .main { min-height: 100vh; min-height: var(--k-shell-height, 100dvh); }
 
 [data-specialist-app], .aide-tool-view { position: relative; }
 /* Specialist apps used a 10–11px control scale inherited from the first compact
@@ -2923,7 +2923,7 @@ mark.wiki-cmark { background: rgba(129, 140, 248, 0.28); color: inherit; border-
 body[data-space="today"] .main > .topbar { display: none; }
 
 body[data-space="today"] .main { width: 100%; }
-body[data-space="today"] .today-view { min-height: 100dvh; }
+body[data-space="today"] .today-view { min-height: var(--k-shell-height, 100dvh); }
 
 :where(#today-view) .today-inner {
   width: min(1120px, calc(100% - clamp(40px, 6vw, 68px)));
@@ -9442,7 +9442,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 }
 .andromeda-view button,
 .andromeda-view input { font: inherit; }
-.andromeda-page { width: 100%; min-height: 100dvh; margin: 0 auto; padding: 0 clamp(18px, 2vw, 28px) 64px; }
+.andromeda-page { width: 100%; min-height: var(--k-shell-height, 100dvh); margin: 0 auto; padding: 0 clamp(18px, 2vw, 28px) 64px; }
 .andromeda-app-head {
   min-height: var(--k-app-header, 52px);
   display: grid;

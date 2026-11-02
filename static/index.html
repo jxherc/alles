@@ -67,6 +67,7 @@
 <link rel="modulepreload" href="/static/js/aidecentral.js?v=3">
 <link rel="modulepreload" href="/static/js/kokuen.js?v=5">
 <link rel="modulepreload" href="/static/js/andromeda.js?v=256">
+<link rel="modulepreload" href="/static/js/app_rail.js">
 <link rel="modulepreload" href="/static/js/shortcuts.js">
 <link rel="modulepreload" href="/static/js/ask_panel.js">
 <link rel="modulepreload" href="/static/js/reminders.js?v=246">
@@ -129,6 +130,8 @@
 
 <div class="app">
 
+  <nav class="app-rail" id="app-rail" aria-label="apps" hidden></nav>
+
   <h1 class="shell-title"><button class="shell-navigation-toggle" id="app-drawer-btn" type="button" hidden
     aria-label="switch app from alles" aria-haspopup="dialog" aria-controls="app-drawer" aria-expanded="false" data-i18n-aria-label="shell.switch_app_from_alles">
     <span id="app-drawer-label">alles</span><svg data-ic="chevron-down" class="shell-navigation-chevron" aria-hidden="true"></svg>
@@ -141,7 +144,7 @@
       <button class="app-drawer-home" id="app-drawer-close" type="button" aria-label="close alles navigation" data-i18n="common.close" data-i18n-aria-label="shell.app.close_alles_navigation">close</button>
     </div>
     <div class="app-drawer-content">
-      <h2 id="app-drawer-title" data-i18n="shell.app.move_through_alles">move through alles</h2>
+      <h2 id="app-drawer-title" class="sr-only" data-i18n="shell.app.move_through_alles">move through alles</h2>
       <div class="app-drawer-grid" id="app-drawer-grid"></div>
     </div>
     <footer class="app-drawer-footer">

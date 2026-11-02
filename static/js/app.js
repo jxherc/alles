@@ -64,6 +64,7 @@ import { initAideWorkspace } from './aideworkspace.js?v=282';
 import { initAideCentral } from './aidecentral.js?v=3';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=5';
 import { validatedProjectId, withProjectContext } from './andromeda.js?v=256';
+import { initAppRail, syncAppRail } from './app_rail.js';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
 import { startReminderPoll, initReminderPanel, reminderTimeFromWall, reminderRequest, createReminder, reminderMayHaveSaved } from './reminders.js?v=246';
@@ -1480,6 +1481,7 @@ function initAfterlifeShell(flags) {
   if (!trigger || !spaces.length) return;
   _setAfterlifeSpace(document.body.classList.contains('is-aide') ? 'aide' : '');
   _renderAppDrawer();
+  initAppRail({ apps: HOME_PINNABLE_APPS, navigate: navigateTo });
 
   const drawer = document.getElementById('app-drawer');
   if (drawer && trigger) {
@@ -1539,6 +1541,7 @@ function _syncShellTrigger(root = null) {
   const drawerLabel = document.getElementById('app-drawer-label');
   drawerLabel.textContent = appLabel(label);
   drawerLabel.dataset.app = label;
+  syncAppRail(label);
   syncAskPanel();
   trigger.setAttribute('aria-label', t('shell.switch_app_from', { label: appLabel(label) }));
   trigger.hidden = false;
@@ -1561,7 +1564,7 @@ function _renderAppDrawer() {
       button.type = 'button';
       button.className = 'app-drawer-item';
       button.dataset.view = destination.view;
-      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${appGlyph(destination.view)}</span><span><b>${appLabel(destination.name)}</b><small>${appDesc(destination.desc)}</small></span>`;
+      button.innerHTML = `<span class="app-drawer-icon" aria-hidden="true">${appGlyph(destination.view)}</span><span><b>${appLabel(destination.name)}</b></span>`;
       button.addEventListener('click', async () => {
         const staysOnPage = singleHost() || viewToSub(destination.view) === currentSub();
         const navigated = await navigateTo(destination.view);

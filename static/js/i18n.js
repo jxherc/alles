@@ -2388,6 +2388,7 @@ const BUILTIN_ENGLISH = {
     "common.models": "models",
     "common.money": "money",
     "common.more": "more",
+    "shell.apps": "apps",
     "common.move_to_trash": "move to trash",
     "common.name": "name",
     "common.never": "never",
