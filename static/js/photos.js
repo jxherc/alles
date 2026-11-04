@@ -89,6 +89,15 @@ function rememberPhotoChange(photo, key, value) {
 // a trackpad pinch step through 4 row heights; rows stay justified, so no picture is cropped.
 // the step is remembered in this browser
 const PHOTO_SIZES = [0.7, 1, 1.45, 2];
+const PHOTO_GAP = 3;
+// each step is a whole number of pictures across, one fewer than the step before, so a step can
+// never land on the layout of its neighbour at any width (a phone has 4, 3, 2, 1 across)
+function _stepCols(cw, step) {
+  const base = cw < 560 ? 116 : (cw < 900 ? 150 : 184);
+  let cols = Math.max(4, Math.round(cw / (base * PHOTO_SIZES[0])));
+  for (let i = 0; i < step; i++) cols = Math.max(1, Math.min(cols - 1, Math.round(cw / (base * PHOTO_SIZES[i + 1]))));
+  return cols;
+}
 const SIZE_KEY = 'alles-photos-size';
 let _size = (() => {
   try { const n = Number(localStorage.getItem(SIZE_KEY) ?? 1); return Number.isInteger(n) && PHOTO_SIZES[n] ? n : 1; } catch { return 1; }
@@ -158,7 +167,7 @@ function _justify(items, containerW, targetH, gap) {
     if (!isFinite(ar) || ar <= 0) ar = 1;
     ar = Math.min(Math.max(ar, 0.45), 3);   // clamp wild panoramas/strips so one shot can't eat a whole row
     row.push({ it, ar }); arSum += ar;
-    if (arSum * targetH + gap * (row.length - 1) >= containerW) flush(true);
+    if (arSum * targetH + gap * (row.length - 1) >= containerW - 0.5) flush(true);
   }
   flush(false);   // leftover row sits at target height, left-aligned (ragged edge, like google/immich)
   return rows;
@@ -196,11 +205,12 @@ function _paintGroups(groups, emptyMsg) {
   _photos = [];
   if (!groups.length) { grid.innerHTML = `<div class="photos-empty">${emptyMsg}</div>`; _repaint = null; return; }
   const cw = grid.clientWidth || grid.offsetWidth || 800;
-  const targetH = (cw < 560 ? 116 : (cw < 900 ? 150 : 184)) * PHOTO_SIZES[_size];
+  const cols = _stepCols(cw, _size);
+  const targetH = (cw - PHOTO_GAP * (cols - 1)) / cols;
   let html = '';
   for (const g of groups) {
     html += `<div class="photos-moment"><div class="photos-moment-label">${esc(g.label)}</div><div class="photos-rows">`;
-    for (const r of _justify(g.items, cw, targetH, 3)) {
+    for (const r of _justify(g.items, cw, targetH, PHOTO_GAP)) {
       html += '<div class="photos-row">';
       for (const c of r) { _photos.push(c.it); html += _cellHtml(c.it, c.w, c.h); }
       html += '</div>';

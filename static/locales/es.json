@@ -6311,7 +6311,6 @@
     "server.wb_queries_today": "consultas de hoy",
     "server.wb_recent_dns": "actividad DNS reciente",
     "server.wb_release": "estado de versión y actualización",
-    "server.wb_release_copy": "Esta página informa de la compilación en ejecución. Instalar una actualización sigue siendo una acción del supervisor nativo o de la CLI, porque este proceso del navegador no puede reemplazarse a sí mismo de forma segura.",
     "server.wb_release_commit": "versión publicada",
     "server.wb_release_value": "{commit} · instalada el {date}",
     "server.wb_updates": "actualizaciones",

@@ -140,7 +140,7 @@ def exercise(page, api, dest, profile, restart, records):
 
     def locale_fields():
         return page.evaluate("""({
-          language: document.querySelector('[data-locale-language][aria-checked=true]').dataset.localeLanguage,
+          language: document.querySelector('#s-language-trigger').dataset.value,
           region: document.querySelector('#s-region-trigger').dataset.value,
           timezone: document.querySelector('#s-timezone-trigger').dataset.value,
           currency: document.querySelector('#s-currency-trigger').dataset.value,
@@ -465,11 +465,11 @@ def exercise(page, api, dest, profile, restart, records):
     page.on("request", capture_language_write)
     regional_before = locale_fields()
     assert regional_before["language"] == "en"
-    languages = page.locator("[data-locale-language]").evaluate_all(
-        "es => es.filter(e => !e.disabled && e.getAttribute('aria-disabled') !== 'true').map(e => e.dataset.localeLanguage)"
+    languages = page.locator("#s-language-trigger").evaluate(
+        "e => e.dataset.options.split(';').map(p => p.split('|')[0])"
     )
     assert languages == ["en", "fr", "es", "zh-Hans", "zh-Hant", "ja", "ko", "ar"]
-    language_route = {"target": "language radio group", "keys": []}
+    language_route = {"target": "language dropdown", "keys": []}
     keyboard_routes.append(language_route)
 
     def radio_state(selector, attribute, value):
@@ -489,8 +489,16 @@ def exercise(page, api, dest, profile, restart, records):
         assert focus["visible"] and focus["outline"] != "none" and focus["width"] != "0px", focus
 
     def language_key(key, value):
+        # the kit dropdown: an arrow or Home/End opens it and moves, Enter picks and closes
+        trigger = page.locator("#s-language-trigger")
         page.keyboard.press(key)
-        radio_state("[data-locale-language]", "data-locale-language", value)
+        expect(page.locator("body > .custom-dropdown-panel")).to_be_visible()
+        page.keyboard.press("Enter")
+        expect(page.locator("body > .custom-dropdown-panel")).to_have_count(0)
+        expect(trigger).to_be_focused()
+        expect(trigger).to_be_in_viewport()
+        expect(trigger).to_have_attribute("data-value", value)
+        assert trigger.evaluate("e => e.matches(':focus-visible')")
         language_route["keys"].append({"key": key, "language": value, "active": active_control()})
         (dest / "keyboard-traversal.json").write_text(json.dumps(keyboard_routes, indent=2))
 
@@ -515,18 +523,15 @@ def exercise(page, api, dest, profile, restart, records):
                 radio_state(selector, "data-value", value)
             assert locale_fields()[name] == original
 
-    tab_to(page.locator('#locale-language-list [tabindex="0"]'), "current language LTR")
-    radio_state("[data-locale-language]", "data-locale-language", "en")
+    tab_to(page.locator("#s-language-trigger"), "current language LTR")
+    expect(page.locator("#s-language-trigger")).to_have_attribute("data-value", "en")
     shot("08-language-tab-entry")
     for value in languages[1:]:
         language_key("ArrowDown", value)
     for key, value in (
-        ("ArrowDown", "en"),
-        ("ArrowUp", "ar"),
         ("Home", "en"),
-        ("ArrowRight", "fr"),
-        ("ArrowLeft", "en"),
         ("End", "ar"),
+        ("ArrowUp", "ko"),
         ("Home", "en"),
         ("ArrowDown", "fr"),
     ):
@@ -542,8 +547,8 @@ def exercise(page, api, dest, profile, restart, records):
     assert locale_fields() == regional_draft
     assert all(settings()[key] == value for key, value in regional_before.items())
     assert language_writes == [], language_writes
-    tab_to(page.locator('#locale-language-list [tabindex="0"]'), "retained unsaved language")
-    radio_state("[data-locale-language]", "data-locale-language", "fr")
+    tab_to(page.locator("#s-language-trigger"), "retained unsaved language")
+    expect(page.locator("#s-language-trigger")).to_have_attribute("data-value", "fr")
     shot("08-language-unsaved-draft")
     language_key("End", "ar")
     assert language_writes == [], language_writes
@@ -555,13 +560,11 @@ def exercise(page, api, dest, profile, restart, records):
     pane("notifications", True)
     expect(page.locator("html")).to_have_attribute("dir", "rtl")
     assert locale_fields() == {**regional_before, "language": "ar"}
-    tab_to(page.locator('#locale-language-list [tabindex="0"]'), "saved language RTL")
-    radio_state("[data-locale-language]", "data-locale-language", "ar")
+    tab_to(page.locator("#s-language-trigger"), "saved language RTL")
+    expect(page.locator("#s-language-trigger")).to_have_attribute("data-value", "ar")
     for key, value in (
-        ("ArrowRight", "ko"),
-        ("ArrowLeft", "ar"),
-        ("ArrowDown", "en"),
-        ("ArrowUp", "ar"),
+        ("ArrowUp", "ko"),
+        ("ArrowDown", "ar"),
         ("Home", "en"),
         ("End", "ar"),
     ):
@@ -611,7 +614,7 @@ def exercise(page, api, dest, profile, restart, records):
     expect(page.locator("#s-pidx-clear")).to_be_focused()
     record("settings.rtl-overlay", settings_rect=rect, dialog_rect=rect2, overlay_rect=overlay)
     pane("notifications")
-    page.locator('[data-locale-language="en"]').click()
+    choice("language", "en")
     locale_save()
 
     pane("themes")

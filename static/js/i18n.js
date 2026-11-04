@@ -6314,7 +6314,6 @@ const BUILTIN_ENGLISH = {
     "server.wb_queries_today": "queries today",
     "server.wb_recent_dns": "recent DNS activity",
     "server.wb_release": "release and update status",
-    "server.wb_release_copy": "This page reports the running build. Installing an update remains a native supervisor or CLI action because this browser process cannot safely replace itself.",
     "server.wb_release_commit": "release",
     "server.wb_release_value": "{commit} · installed {date}",
     "server.wb_updates": "updates",

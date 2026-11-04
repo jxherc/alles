@@ -288,7 +288,7 @@ test('the real Files screen uses the Phase 7 multi-location workbench', () => {
   ]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
   }
-  assert.match(app, /from '\.\/filesphase7\.js\?v=491'/);
+  assert.match(app, /from '\.\/filesphase7\.js\?v=492'/);
   assert.doesNotMatch(html.match(/id="files-view"[\s\S]*?<\/div>\s*\n\s*<!-- ── mail view/)[0], /<select\b|type="(?:checkbox|radio)"/i);
 });
 
@@ -971,6 +971,7 @@ function filesViewportHarness(options = {}) {
     innerHeight: options.innerHeight || 450,
     getComputedStyle: element => styles.get(element),
     applyWriteState: () => { writeStateCalls += 1; },
+    publishBulkHeight: () => {},
   });
   vm.runInContext(source + '\nglobalThis.actions = { revealFileControl, updateOperationClearance, renderSelection };', context);
   return {

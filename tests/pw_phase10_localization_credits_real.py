@@ -125,11 +125,13 @@ def run() -> None:
 
         _open_settings_pane(page, "notifications", "#locale-settings-workbench")
         pane = page.locator("#s-pane-notifications")
-        assert pane.locator(".locale-language-choice").count() == 8
-        assert pane.locator('.locale-language-choice[aria-disabled="false"]').count() == 8
-        expect(pane.locator('[data-locale-language="en"]')).to_have_attribute(
-            "aria-checked", "true"
-        )
+        language_pick = page.locator("#s-language-trigger")
+        expect(language_pick).to_have_attribute("data-value", "en")
+        language_pick.focus()
+        page.keyboard.press("Enter")
+        expect(page.locator("body > .custom-dropdown-panel [role=option]")).to_have_count(8)
+        page.keyboard.press("Escape")
+        expect(language_pick).to_be_focused()
         assert pane.locator('select, input[type="checkbox"], input[type="radio"]').count() == 0
         expect(page.locator("#s-region-trigger")).to_have_text("automatic")
         expect(page.locator("#s-timezone-trigger")).to_have_text("automatic")
@@ -175,10 +177,13 @@ def run() -> None:
 
         for language in LANGUAGES:
             catalog = catalogs[language]["messages"]
-            row = pane.locator(f'[data-locale-language="{language}"]')
-            row.focus()
-            page.keyboard.press("Space")
-            expect(row).to_have_attribute("aria-checked", "true")
+            language_pick.focus()
+            page.keyboard.press("Enter")
+            page.keyboard.press("Home")
+            for _ in range(LANGUAGES.index(language)):
+                page.keyboard.press("ArrowDown")
+            page.keyboard.press("Enter")
+            expect(language_pick).to_have_attribute("data-value", language)
             save = page.locator("#s-locale-save")
             save.focus()
             page.keyboard.press("Enter")
@@ -395,7 +400,7 @@ def run() -> None:
             assert page.locator("#s-region-trigger").evaluate(
                 "el => el.getBoundingClientRect().height >= 44"
             )
-            assert page.locator(".locale-language-choice").first.evaluate(
+            assert page.locator("#s-language-trigger").evaluate(
                 "el => el.getBoundingClientRect().height >= 44"
             )
             page.evaluate("document.documentElement.style.zoom = '2'")

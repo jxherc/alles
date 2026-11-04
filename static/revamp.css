@@ -1688,6 +1688,19 @@ html:not(#_):not(#_) .k-entry-row > :is(p, .specialist-group-note, .contact-erro
   padding: var(--k-space-2) var(--k-space-3) var(--k-space-1);
 }
 
+/* an error in the row (a save that failed, the server busy) sits on its own line under the fields.
+   the row never wraps otherwise, so a 100% basis only shrank the fields beside it (u.13: the
+   name field fell to 80px under the busy message). a phone stacks a row with 2+ fields in a
+   column already (below), where the error is the last line by its order */
+@media (min-width: 761px) {
+  html:not(#_):not(#_) .k-entry-row:has(> .k-entry-error:not([hidden])) { flex-wrap: wrap; }
+}
+html:not(#_):not(#_) .k-entry-row > .k-entry-error {
+  order: 99;
+  flex: 0 0 100%;
+  box-sizing: border-box;
+}
+
 
 /* ── home: the capture box is a soft filled composer ─────────────────────────── */
 
@@ -3475,18 +3488,6 @@ html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-ro
   html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-row em { max-width: none; }
 }
 
-/* a phone keeps the review status beside the name, as wide screens do, instead of a third line */
-@media (max-width: 540px) {
-  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-language-choice {
-    grid-template-columns: minmax(0, 1fr) auto 10px;
-    min-height: 58px;
-  }
-
-  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-language-choice em { grid-column: 2; grid-row: 1; }
-
-  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-language-choice::after { grid-column: 3; grid-row: 1; }
-}
-
 /* a touch screen has no hover to reveal a memory's edit, pin and remove */
 @media (hover: none) {
   html:not(#_):not(#_) #settings-modal .mem-item .mem-actions { opacity: 1; }
@@ -4121,6 +4122,28 @@ html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-select
   }
 }
 
+/* on a phone the list scrolls the whole page, so the bulk bar would leave with the table head. while
+   rows are ticked it sits above the phone bar instead, and the list gets room to scroll its last
+   rows clear of it */
+@media (max-width: 700px) {
+  html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-selection:not([hidden]) {
+    position: fixed;
+    inset: auto 0 var(--k-app-bar-height, 0px) 0;
+    z-index: 11;
+    box-sizing: border-box;
+    padding: var(--k-space-2) var(--k-space-4);
+    background: var(--k-raised);
+  }
+
+  html:not(#_):not(#_) body[data-app="files"] #files-view .files-phase7-operation-dock {
+    bottom: calc(var(--k-space-2) + var(--files-bulk-h, 0px));
+  }
+
+  html:not(#_):not(#_) #files-view:has(.files-phase7-selection:not([hidden])) .files-list {
+    padding-bottom: calc(var(--k-control) * 3 + var(--k-space-4));
+  }
+}
+
 /* a filled accent button draws its focus ring outside its fill, on the page: inside, the gray ring
    on purple sat at 1.3-2.7:1. the capture bar's add button keeps a 6px clear border, so its ring
    sits in that gap instead of over the bar's own edge */
@@ -4373,7 +4396,7 @@ html:not(#_):not(#_) .gym-editing { color: var(--k-muted); font-weight: 400; }
 html:not(#_):not(#_) .gym-rest {
   display: flex;
   align-items: center;
-  gap: var(--k-space-1);
+  gap: var(--k-control-gap);
   padding: var(--k-space-1) var(--k-space-1) var(--k-space-1) var(--k-space-3);
   border-radius: var(--k-radius-control);
   background: var(--k-field);

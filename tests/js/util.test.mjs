@@ -212,3 +212,13 @@ test('the mail link button turns typed text into a web or email link', () => {
   assert.equal(linkHref('javascript:alert(1)'), null);
   assert.equal(linkHref('tel:5551234567'), null);
 });
+
+test('busyText answers only the busy database, in plain words', async () => {
+  const { busyText } = await import('../../static/js/util.js');
+  const busy = Object.assign(new Error('Alles is busy for a moment. Try again.'), { status: 503, data: { code: 'database_busy' } });
+  assert.equal(busyText(busy), 'Alles is busy for a moment. Try again.');
+  assert.equal(busyText(Object.assign(new Error('down'), { status: 503, data: { code: 'other' } })), '');
+  assert.equal(busyText(Object.assign(new Error('x'), { status: 500, data: { code: 'database_busy' } })), '');
+  assert.equal(busyText(new Error('Failed to fetch')), '');
+  assert.equal(busyText(undefined), '');
+});

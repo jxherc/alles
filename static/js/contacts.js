@@ -1,4 +1,4 @@
-import { toast } from './util.js';
+import { busyText, toast } from './util.js';
 import { prompt as _dlgPrompt, fields as _dlgFields } from './dialog.js';
 import { initCustomDropdown, getDropdownValue, populateDropdown } from './dropdown.js?v=217';
 import { formatCalendarDate, formatDate, formatTime, t, tp } from './i18n.js';
@@ -278,8 +278,8 @@ async function openContact(id) {
         await loadContacts();
         list.querySelector(`[data-open="${CSS.escape(id)}"]`)?.focus();
       }
-    } catch {
-      error.textContent = t('contacts.save_failed');
+    } catch (failure) {
+      error.textContent = busyText(failure) || t('contacts.save_failed');
       error.hidden = false;
     } finally {
       saving = false;
@@ -303,12 +303,12 @@ async function openContact(id) {
     try {
       const response = await fetch(`/api/contacts/${id}/fields`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, label, value }) });
       const field = await response.json();
-      if (!response.ok || !field || typeof field.id !== 'string' || !field.id || field.value !== value) throw new Error('field not saved');
+      if (!response.ok || !field || typeof field.id !== 'string' || !field.id || field.value !== value) throw Object.assign(new Error('field not saved'), { status: response.status, data: field });
       c.fields = [...(c.fields || []), field];
       if (fields.isConnected) renderFields(c);
       labelInput.value = valueInput.value = '';
-    } catch {
-      error.textContent = t('contacts.add_field_failed');
+    } catch (failure) {
+      error.textContent = busyText(failure) || t('contacts.add_field_failed');
       error.hidden = false;
     } finally {
       button.disabled = labelInput.disabled = valueInput.disabled = false;
@@ -465,7 +465,7 @@ async function savedContact(response, expected, id = '') {
   const contact = await response.json();
   if (!response.ok || !contact || typeof contact.id !== 'string' || !contact.id
       || (id && contact.id !== id) || Object.entries(expected).some(([key, value]) => contact[key] !== value)) {
-    throw new Error('contact save not confirmed');
+    throw Object.assign(new Error(contact?.detail || 'contact save not confirmed'), { status: response.status, data: contact });
   }
   return contact;
 }
@@ -489,8 +489,8 @@ export async function addContact() {
     toast(t('contacts.contact_added'), 'success');
     await loadContacts();
     document.querySelector(`[data-open="${CSS.escape(contact.id)}"]`)?.focus();
-  } catch {
-    error.textContent = t('contacts.add_failed');
+  } catch (failure) {
+    error.textContent = busyText(failure) || t('contacts.add_failed');
     error.hidden = false;
   } finally {
     _creatingContact = false;

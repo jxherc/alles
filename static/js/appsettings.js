@@ -1,6 +1,7 @@
 // per-app settings — a gear in an app's header opens a small popover of just that
 // app's options, saved to settings.json. custom controls only (no native selects).
 import { t } from './i18n.js';
+import { initCustomDropdowns } from './dropdown.js?v=217';
 import { writeClipboard } from './util.js';
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -58,6 +59,11 @@ export function appSettingValue(el) {
 }
 
 export function renderAppSettingField(f, val) {
+  if (f.type === 'choice' && f.opts.length > 3) {
+    // 4 or more options: the kit dropdown, the stored value stays the plain id
+    const data = f.opts.map(([v, l]) => `${v}|${l}`).join(';');
+    return `<div class="aps-field"><label>${f.label}</label><div class="custom-select" data-k="${f.k}"${f.num ? ' data-num="1"' : ''} aria-label="${esc(f.label)}" data-value="${esc(String(val ?? f.opts[0][0]))}" data-options="${esc(data)}"></div></div>`;
+  }
   if (f.type === 'choice') {
     return `<div class="aps-field"><label>${f.label}</label><div class="seg" data-k="${f.k}"${f.num ? ' data-num="1"' : ''} role="group" aria-label="${esc(f.label)}">` +
       f.opts.map(([v, l]) => `<button type="button" class="seg-opt${String(val) === String(v) ? ' active' : ''}" data-val="${v}" aria-pressed="${String(val) === String(v)}">${l}</button>`).join('') + `</div></div>`;
@@ -142,7 +148,7 @@ export async function openAppSettings(app, anchor) {
   window.addEventListener('resize', place);
   window.visualViewport?.addEventListener('resize', place);
   _open = { pop, app, anchor, place };
-  const controls = () => [...pop.querySelectorAll('button, input, textarea, [role="switch"]')]
+  const controls = () => [...pop.querySelectorAll('button, input, textarea, [role="switch"], [role="combobox"]')]
     .filter(node => !node.disabled && node.getClientRects().length);
   pop.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
@@ -168,6 +174,7 @@ export async function openAppSettings(app, anchor) {
   pop.addEventListener('pointerdown', () => { pressedInside = true; setTimeout(() => { pressedInside = false; }, 0); });
   pop.addEventListener('focusout', e => {
     if (_open?.pop !== pop) return;
+    if (document.querySelector('.custom-dropdown-panel')) return;   // a dropdown of ours is open: its panel lives on the body
     if (e.relatedTarget) {
       if (!pop.contains(e.relatedTarget)) closeAppSettings({ restoreFocus: false });
       return;
@@ -175,6 +182,7 @@ export async function openAppSettings(app, anchor) {
     const tappedInside = pressedInside;
     requestAnimationFrame(() => {
       if (_open?.pop === pop && !tappedInside && !pop.contains(document.activeElement)
+          && !document.querySelector('.custom-dropdown-panel')
           && (!document.activeElement || document.activeElement === document.body)) closeAppSettings();
     });
   });
@@ -187,6 +195,11 @@ export async function openAppSettings(app, anchor) {
       _patch(spec, seg.dataset.k, num ? Number(opt.dataset.val) : opt.dataset.val);
     }));
   });
+  // choices of 4 or more (the kit dropdown)
+  initCustomDropdowns(pop);
+  pop.querySelectorAll('.custom-select[data-k]').forEach(pick => pick.addEventListener('change', () => {
+    _patch(spec, pick.dataset.k, pick.dataset.num === '1' ? Number(pick.value) : pick.value);
+  }));
   // toggles
   pop.querySelectorAll('.s-switch[data-tk]').forEach(sw => sw.addEventListener('click', () => {
     const on = !sw.classList.contains('on');
@@ -205,7 +218,7 @@ export async function openAppSettings(app, anchor) {
   }));
   setTimeout(() => document.addEventListener('click', _outside), 0);
   // keyboard and screen readers start inside: the chosen option of a choice, else the first control
-  const first = pop.querySelector('button, input, textarea, [role="switch"]');
+  const first = pop.querySelector('button, input, textarea, [role="switch"], [role="combobox"]');
   (first?.closest('.seg')?.querySelector('.seg-opt.active') || first)?.focus();
 }
 

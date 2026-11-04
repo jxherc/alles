@@ -81,10 +81,6 @@ NUMBERS = (
 )
 SETTINGS = "left: s8 (settings and server panels)"
 ALLOWED = {
-    ("static/js/health.js", "esc(e.date)"): NUMBERS,
-    ("static/js/health.js", "e.date"): NUMBERS,
-    ("static/js/health.js", "k.latest ? esc(k.latest.date) : esc(t('health.no_entries'))"): NUMBERS,
-    ("static/js/health.js", "reading"): NUMBERS,
     ("static/js/money.js", "esc(c.target.date)"): NUMBERS,
     ("static/js/money.js", "esc(target.date)"): NUMBERS,
     ("static/js/money.js", "txn.date || t('money.undated')"): NUMBERS,

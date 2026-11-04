@@ -120,6 +120,9 @@ An add form is one entry row (decision 0052): `.k-entry-row` on the row, bare fi
 by a 1px divider, then one `.btn`. 4px padding on every side; the button is 44px with an 8px radius
 and sits 4px from the top, end and bottom, 8px after the last field. No inline gaps or widths. On a
 phone two or more fields stack and the button takes the last line.
+A form error goes in the row as a child with `.k-entry-error` (hidden until it shows): it takes its own
+full-width line under the fields and never narrows them. A server busy answer (503 `database_busy`)
+reads through `busyText` in `util.js`, in the chosen language.
 
 ## date and time field
 
