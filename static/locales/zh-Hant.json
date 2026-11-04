@@ -6311,7 +6311,6 @@
     "server.wb_queries_today": "今日查詢",
     "server.wb_recent_dns": "近期 DNS 活動",
     "server.wb_release": "版本與更新狀態",
-    "server.wb_release_copy": "此頁面顯示正在執行的版本。安裝更新仍須透過原生 supervisor 或 CLI 進行，因為這個瀏覽器處理程序無法安全地取代自己。",
     "server.wb_release_commit": "版本",
     "server.wb_release_value": "{commit} · 安裝於 {date}",
     "server.wb_updates": "更新",

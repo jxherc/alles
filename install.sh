@@ -22,9 +22,12 @@ fail() {
   printf '\n' >&2
   exit 1
 }
+# a terminal exists only if /dev/tty really opens: with no controlling terminal (a background
+# shell, ssh without -t, automation) the file is there and readable but opening it fails
+have_tty() { (exec < /dev/tty) 2> /dev/null; }
 # questions read the keyboard even though this script itself arrives through a pipe
 ask() {
-  [ -r /dev/tty ] || return 1
+  have_tty || return 1
   printf '  %s [Y/n] ' "$1"
   read -r answer < /dev/tty || return 1
   case "$answer" in [nN]*) return 1 ;; *) return 0 ;; esac
@@ -87,7 +90,7 @@ ok "download" "$(printf '%s' "$commit" | cut -c1-7) from $branch"
 
 export ALLES_INSTALL_REPOSITORY="$repo" ALLES_INSTALL_BRANCH="$branch" ALLES_INSTALL_COMMIT="$commit"
 cd "$tmp"
-if [ -r /dev/tty ]; then
+if have_tty; then
   "$python" "$src/cli.py" install < /dev/tty
 else
   "$python" "$src/cli.py" install

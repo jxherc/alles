@@ -168,6 +168,7 @@ COMMANDS = {
     "subscriptions-recovery": ("tests/pw_subscriptions_recovery.py",),
     "subscription-history": ("tests/pw_subscription_history.py",),
     "health-calendar-day": ("tests/pw_health_calendar_day.py",),
+    "contacts-busy": ("tests/pw_contacts_busy.py",),
     "habit-recovery": ("tests/pw_habit_recovery.py",),
     "habit-create-recovery": ("tests/pw_habit_create_recovery.py",),
     "habit-color": ("tests/pw_habit_color.py",),
