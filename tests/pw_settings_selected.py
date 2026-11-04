@@ -204,13 +204,14 @@ def run() -> None:
                 expect(sans).to_be_focused()
                 expect(sans).to_have_attribute("aria-checked", "true")
 
-                harmony = page.locator('#theme-editor-inline [data-seg="harmony-type"]')
-                expect(harmony).to_have_attribute("role", "radiogroup")
-                harmony.locator('[data-val="complementary"]').focus()
-                harmony.locator('[data-val="complementary"]').press("ArrowRight")
-                expect(harmony.locator('[data-val="analogous"]')).to_have_attribute(
-                    "aria-checked", "true"
-                )
+                # harmony type has 4 options, so it is the kit dropdown (arrows pick, enter keeps)
+                harmony = page.locator('#theme-editor-inline [data-pick="harmony-type"]')
+                expect(harmony).to_have_attribute("role", "combobox")
+                harmony.focus()
+                page.keyboard.press("ArrowDown")
+                page.keyboard.press("Enter")
+                expect(harmony).to_have_attribute("data-value", "analogous")
+                expect(harmony).to_be_focused()
 
                 sample = presets.locator(
                     '[data-preset="sakura"]' if theme == "light" else '[data-preset="graphite"]'
@@ -264,9 +265,8 @@ def run() -> None:
                 page.screenshot(path=str(output / f"settings-home-{width}-{theme}.png"))
 
                 choose_settings_section(page, "notifications")
-                language = page.locator('[data-locale-language="en"]')
-                expect(language).to_have_attribute("aria-checked", "true")
-                assert _colors(language, "::after")["background"] == text
+                language = page.locator("#s-language-trigger")
+                expect(language).to_have_attribute("data-value", "en")
                 language.scroll_into_view_if_needed()
                 language.focus()
                 page.screenshot(path=str(output / f"settings-language-{width}-{theme}.png"))

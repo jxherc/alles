@@ -79,11 +79,11 @@ test('approved Phase 10 language and Credits workbenches use honest custom contr
   const creditsPane = html.match(/<!-- ── approved Phase 10 manifest-driven Credits workbench ── -->[\s\S]*?<!-- ── backup pane ── -->/)?.[0] || '';
 
   assert.match(html, /data-pane="credits"[^>]*>about &amp; credits<\/button>/);
-  assert.equal((localePane.match(/data-locale-language=/g) || []).length, 8);
-  assert.equal((localePane.match(/data-locale-language=/g) || []).length, 8);
-  assert.match(source, /row\.setAttribute\('aria-disabled', String\(!language\.available\)\)/);
+  // 8 languages are one dropdown, not eight radio buttons; only a ready language is listed
+  assert.doesNotMatch(localePane, /data-locale-language=|locale-language-choice|role="radio"[^>]*data-locale-language/);
+  assert.match(source, /options\.languages\.filter\(language => language\.available\)/);
   assert.match(source, /focusTarget\.focus\(\{ preventScroll: true \}\)/);
-  assert.match(localePane, /data-locale-language="en"/);
+  assert.match(localePane, /class="custom-select" id="s-language-trigger"[^>]*data-locale-choice="language"[^>]*data-value="en"/);
   assert.match(localePane, /class="custom-select" id="s-region-trigger"[^>]*data-value=""/);
   assert.match(localePane, /class="custom-select" id="s-timezone-trigger"[^>]*data-value=""/);
   assert.match(localePane, /class="custom-select" id="s-currency-trigger"[^>]*data-value=""/);
@@ -107,7 +107,7 @@ test('approved Phase 10 language and Credits workbenches use honest custom contr
   assert.match(source, /currency: document\.getElementById\('s-currency-trigger'\)/);
   // region, timezone and currency are the kit dropdown, which owns escape and focus return
   assert.match(source, /populateDropdown\(trigger, options/);
-  assert.match(source, /t\('locale\.language_unavailable'/);
+  assert.match(source, /_setLocaleChoiceValue\('language', value\)/);
   assert.match(source, /tp\('credits\.gap_remaining', gapCount\)/);
   assert.match(localePane, /id="locale-preview-path"[^>]*>alles\/data · 14:30<\/code>/);
   assert.doesNotMatch(`${localePane}\n${source}`, /\/Users\/jxh\/alles/);

@@ -125,6 +125,16 @@ class ChoiceTests(unittest.TestCase):
         server = (STATIC / "js/server_workbench.js").read_text(encoding="utf-8")
         self.assertIn("options.length > 3", server)
         self.assertIn("{ list: true }", server)
+        # 28.14: 4 or more options in the language pane, the appearance editor and the app
+        # settings popover are the kit dropdown; the pill switch keeps 3 or fewer
+        app_settings = (STATIC / "js/appsettings.js").read_text(encoding="utf-8")
+        self.assertIn("f.opts.length > 3", app_settings)
+        theme = (STATIC / "js/theme.js").read_text(encoding="utf-8")
+        self.assertIn("_pick('bgPattern'", theme)
+        self.assertIn("_pick('harmony-type'", theme)
+        self.assertNotIn("_seg('bgPattern'", theme)
+        self.assertIn('data-locale-choice="language"', HTML)
+        self.assertNotIn("locale-language-choice", HTML)
 
     def test_no_group_of_more_than_3_text_choices(self):
         """28.14: 2 or 3 text choices are a pill switch, 4 or more (or a list that can grow) the
@@ -206,13 +216,12 @@ CHOICE_EXCEPTIONS = {
     "js/setupwizard.js:data-value": "2 or 3 choices per step",
     "js/contacts.js:data-value": "3 sync intervals: manual, hourly, daily",
     "js/vault.js:data-value": "3 field widths",
+    # the renderer picks by length: 4 or more options draw the dropdown, so these hold 3 or fewer
+    "js/appsettings.js:seg-opt": "app setting choices with 3 options or fewer",
+    "js/theme.js:te-seg-opt": "font, density and harmony mode: 3 options or fewer",
 }
-# known walls still waiting for the dropdown (listed in the s4b part 3 report)
-CHOICE_TO_CONVERT = {
-    "index.html:locale-language-list": "8 languages",
-    "js/appsettings.js:seg-opt": "app setting choices of any length",
-    "js/theme.js:te-seg-opt": "harmony and background pattern have more than 3",
-}
+# known walls still waiting for the dropdown: none left
+CHOICE_TO_CONVERT = {}
 
 
 def _svg_body(s):
@@ -372,7 +381,10 @@ class FollowUpAndPhotoTests(unittest.TestCase):
     def test_photo_size_has_four_remembered_steps(self):
         photos = js("photos.js")
         self.assertIn("const PHOTO_SIZES = [0.7, 1, 1.45, 2];", photos)
-        self.assertIn("* PHOTO_SIZES[_size]", photos)
+        # each step is a whole number of pictures across, one fewer than the step before, so no
+        # step can land on the layout of its neighbour at any width
+        self.assertIn("_stepCols(cw, _size)", photos)
+        self.assertIn("Math.min(cols - 1,", photos)
         self.assertIn("localStorage.setItem(SIZE_KEY", photos)
         self.assertIn('id="photos-zoom-in"', HTML)
 

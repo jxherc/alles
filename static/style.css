@@ -5067,7 +5067,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   overflow-wrap: anywhere; }
 .skl-badge { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0 0.25rem; flex-shrink: 0; }
 .skl-badge.git { color: var(--text); border-color: var(--line-strong); }
-.skl-card-acts { display: flex; justify-content: flex-end; gap: 0.15rem; margin-top: 0.25rem; }
+.skl-card-acts { display: flex; justify-content: flex-end; gap: var(--k-control-gap); margin-top: 0.25rem; }
 .skl-pin { background: none; border: 0; cursor: pointer; font-size: 0.8125rem; line-height: 1; color: var(--muted); padding: 0 8px; } /* 1.6px left the word touching its focus ring */
 .skl-pin:hover { color: var(--text); }
 .skl-pin.on { color: var(--text); opacity: 1; }
@@ -6296,7 +6296,7 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
 .contact-item:hover { background: var(--panel); }
 .contact-rowmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
 .contact-rowmain .row-name { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.contact-rowacts { display: flex; gap: 0.3rem; flex-shrink: 0; }
+.contact-rowacts { display: flex; gap: var(--k-control-gap); flex-shrink: 0; }
 .contacts-create { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
 .contacts-create input { min-width: 0; width: 100%; }
 .contact-error { color: var(--error); font-size: 0.875rem; margin: 0; }
@@ -8352,7 +8352,7 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--k-control-gap);
 }
 .mail-head .btn {
   height: 30px;
@@ -8970,7 +8970,6 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .te-body .te-seg-opt { min-height: 44px; }
 .te-body .te-seg-opt.active { background: var(--raised); color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
 /* the background-pattern picker has many options now — let it wrap into a grid of chips */
-.te-seg[data-seg="bgPattern"] { display: flex; flex-wrap: wrap; }
 .te-bg-extra { display: flex; gap: 1.2rem; align-items: center; margin-top: 0.6rem; flex-wrap: wrap; }
 .te-slider { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; color: var(--muted); }
 .te-slider input[type=range] { -webkit-appearance: none; appearance: none; width: 110px; height: 4px; border-radius: var(--k-radius-control); background: var(--faint); outline: none; }
@@ -10631,7 +10630,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-save-state:focus-visible { outline-offset: -3px; }
 .docs-save-state.error { color: var(--error); }
 
-.docs-reader-actions { position: relative; display: flex; align-items: center; gap: 0.25rem; }
+.docs-reader-actions { position: relative; display: flex; align-items: center; gap: var(--k-control-gap); }
 .docs-reader-actions > button { min-width: 0; padding: 0 0.55rem; }
 .docs-reader-actions > button:disabled { opacity: 0.45; cursor: default; }
 .docs-reader-actions .docs-obsidian-action,
@@ -10681,7 +10680,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
   color: var(--muted);
   font-size: 0.8125rem;
 }
-.docs-inline-actions { margin-left: auto; display: flex; gap: 0.25rem; }
+.docs-inline-actions { margin-left: auto; display: flex; gap: var(--k-control-gap); }
 .docs-inline-actions button { min-height: 25px; padding: 0 0.45rem; border: 0; }
 
 .docs-import-trigger { flex: 0 0 auto; min-height: 44px; padding-inline: var(--k-space-3); }

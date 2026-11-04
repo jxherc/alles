@@ -59,7 +59,7 @@ function harness() {
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     document, window: {}, setTimeout: () => 1, clearTimeout() {},
     _lum: lum, _mix: mix, _mutedFor: mutedFor, generateHarmony,
-    initColorPickers() {}, wireChoiceGroup() {}, toast() {},
+    initColorPickers() {}, initCustomDropdowns() {}, wireChoiceGroup() {}, toast() {},
   });
   vm.runInContext(themeSource + '\napplyBgPattern = () => {}; globalThis.subject = { renderThemeEditorInto, PRESETS };', context);
   const name = 'evening "&" <quiet>';
