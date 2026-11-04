@@ -5,6 +5,7 @@
 import { initColorPickers } from './colorpicker.js';
 import { generateHarmony, lum as _lum, mix as _mix, mutedFor as _mutedFor } from './color.js';
 import { wireChoiceGroup } from './kokuen.js?v=5';
+import { initCustomDropdowns } from './dropdown.js?v=217';
 import { toast } from './util.js';
 import { t, tp } from './i18n.js';
 export { generateHarmony };
@@ -705,8 +706,14 @@ const _optionWords = () => ({
 });
 const _optionWord = o => _optionWords()[o] || o;
 
+// 4 or more options: the kit dropdown (3 or fewer stay a pill switch, see _seg)
+function _pick(field, label, opts, value) {
+  const data = opts.map(o => `${o}|${_optionWord(o)}`).join(';');
+  return `<div class="custom-select te-pick" data-pick="${field}" aria-label="${esc(label)}" data-value="${esc(value)}" data-options="${esc(data)}"></div>`;
+}
+
 function _seg(field, opts) {
-  const label = field === 'bgPattern' ? t('settings.theme_background_pattern') : field === 'font' ? t('settings.theme_font') : t('settings.theme_density');
+  const label = field === 'font' ? t('settings.theme_font') : t('settings.theme_density');
   return `<div class="te-seg" data-seg="${field}" role="radiogroup" aria-label="${esc(label)}">${opts.map(o => `<button type="button" role="radio" aria-checked="${_draft[field] === o}" tabindex="-1" class="te-seg-opt${_draft[field] === o ? ' active' : ''}" data-val="${o}">${esc(_optionWord(o))}</button>`).join('')}</div>`;
 }
 
@@ -754,7 +761,7 @@ function _renderEditor() {
 
       <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_harmony'))}</div><div class="te-harmony">
         <label class="te-color"><input type="color" id="te-harmony-accent" value="${esc(c.accent)}"><span>${esc(t('settings.theme_starting_color'))}</span></label>
-        <div class="te-seg" data-seg="harmony-type" role="radiogroup" aria-label="${esc(t('settings.theme_harmony_type'))}">${['complementary', 'analogous', 'triadic', 'monochromatic'].map((o, i) => `<button type="button" role="radio" aria-label="${esc(_optionWord(o))}" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${esc(Array.from(_optionWord(o)).slice(0, 4).join(''))}</button>`).join('')}</div>
+        ${_pick('harmony-type', t('settings.theme_harmony_type'), ['complementary', 'analogous', 'triadic', 'monochromatic'], 'complementary')}
         <div class="te-seg" data-seg="harmony-mode" role="radiogroup" aria-label="${esc(t('settings.theme_harmony_mode'))}">${['dark', 'light'].map((o, i) => `<button type="button" role="radio" aria-checked="${i === 0}" tabindex="-1" class="te-seg-opt${i === 0 ? ' active' : ''}" data-val="${o}">${esc(_optionWord(o))}</button>`).join('')}</div>
         <button class="btn" id="te-harmony-gen">${esc(t('common.generate'))}</button>
       </div></div>
@@ -765,7 +772,7 @@ function _renderEditor() {
       </div>
 
       <div class="te-sec"><div class="te-sec-h">${esc(t('settings.theme_color_background'))}</div>
-        ${_seg('bgPattern', PATTERNS)}
+        ${_pick('bgPattern', t('settings.theme_background_pattern'), PATTERNS, _draft.bgPattern)}
         <div class="te-bg-extra" style="${NO_FX.has(_draft.bgPattern) ? 'display:none' : ''}">
           <label class="te-color te-inline"><input type="color" id="te-effect-color" value="${esc(c.text)}"><span>${esc(t('settings.theme_effect_color'))}</span></label>
           <label class="te-slider"><span>${esc(t('settings.theme_intensity'))}</span><input type="range" id="te-intensity" min="0" max="1" step="0.05" value="${esc(_draft.effect?.intensity ?? 1)}"></label>
@@ -807,6 +814,7 @@ function _filterPresets(m) {
 
 function _wireEditor(m) {
   initColorPickers(m);
+  initCustomDropdowns(m);
   m.querySelectorAll('.te-presets, .te-seg').forEach(group => wireChoiceGroup(group));
   m.querySelector('#te-close')?.addEventListener('click', _close);
   m.querySelector('#te-done')?.addEventListener('click', _close);
@@ -849,15 +857,18 @@ function _wireEditor(m) {
     seg.querySelectorAll('.te-seg-opt').forEach(o => o.onclick = () => {
       seg.querySelectorAll('.te-seg-opt').forEach(x => x.classList.remove('active'));
       o.classList.add('active');
-      if (field === 'font' || field === 'density' || field === 'bgPattern') {
+      if (field === 'font' || field === 'density') {
         _draft[field] = o.dataset.val;
         _commit();
-        if (field === 'bgPattern') {
-          const extra = m.querySelector('.te-bg-extra');
-          if (extra) extra.style.display = NO_FX.has(o.dataset.val) ? 'none' : '';
-        }
       }
     });
+  });
+
+  m.querySelector('[data-pick="bgPattern"]')?.addEventListener('change', e => {
+    _draft.bgPattern = e.currentTarget.value;
+    _commit();
+    const extra = m.querySelector('.te-bg-extra');
+    if (extra) extra.style.display = NO_FX.has(_draft.bgPattern) ? 'none' : '';
   });
 
   const effC = m.querySelector('#te-effect-color');
@@ -874,7 +885,7 @@ function _wireEditor(m) {
 
   m.querySelector('#te-harmony-gen').onclick = () => {
     const accent = m.querySelector('#te-harmony-accent').value;
-    const type = m.querySelector('[data-seg="harmony-type"] .active')?.dataset.val || 'complementary';
+    const type = m.querySelector('[data-pick="harmony-type"]')?.value || 'complementary';
     const mode = m.querySelector('[data-seg="harmony-mode"] .active')?.dataset.val || 'dark';
     _draft.colors = generateHarmony(accent, type, mode);
     _draft.accentCustom = true;

@@ -48,39 +48,48 @@ def exercise(page, api, dest, profile, records, data):
                 "aria-busy", "false"
             )
 
+    def label_of(language):
+        return next(
+            item["label"]
+            for item in api.get("/api/settings/localization/options").json()["languages"]
+            if item["id"] == language
+        )
+
+    def open_list():
+        trigger = page.locator("#s-language-trigger")
+        trigger.scroll_into_view_if_needed()
+        trigger.click()
+        panel = page.locator(".custom-dropdown-panel:not([hidden])")
+        expect(panel).to_be_visible()
+        return panel
+
     def observe(name, language, unavailable=False):
-        # Scroll with real Tab traversal to the selected language before capture.
-        target = page.locator("[data-locale-language][aria-checked=true]")
-        expect(target).to_have_attribute("data-locale-language", language)
-        for _ in range(160):
-            if target.evaluate("e=>e===document.activeElement"):
-                break
-            page.keyboard.press("Tab")
-        expect(target).to_be_focused()
-        expect(target).to_be_in_viewport()
-        actual = page.locator("[data-locale-language]").evaluate_all("""es=>es.map(e=>({
-          id:e.dataset.localeLanguage,disabled:e.getAttribute('aria-disabled'),selected:e.getAttribute('aria-checked'),
-          label:e.querySelector('em').textContent,key:e.querySelector('em').dataset.i18n
-        }))""")
-        translations = json.loads((ROOT / "static" / "locales" / f"{language}.json").read_text())[
-            "messages"
-        ]
-        mismatches = []
-        for row in actual:
-            disabled = unavailable and row["id"] == "ja"
-            assert row["disabled"] == str(disabled).lower()
-            key = "locale.catalog_reviewed_pending" if disabled else "common.reviewed"
-            if row["label"] != translations[key] or row["key"] != key:
-                mismatches.append(
-                    {"id": row["id"], "expected_key": key, "expected_label": translations[key]}
-                )
+        # the list holds the languages that are ready: all 8, or 7 while Japanese is pending
+        trigger = page.locator("#s-language-trigger")
+        expect(trigger).to_have_attribute("data-value", language)
+        expect(trigger).to_contain_text(label_of(language))
+        panel = open_list()
+        rows = panel.locator('[role="option"]').evaluate_all(
+            "es=>es.map(e=>({text:e.textContent.trim(),selected:e.getAttribute('aria-selected')}))"
+        )
         page.screenshot(path=str(dest / (name + ".png")), full_page=True)
+        page.keyboard.press("Escape")
+        expect(panel).to_have_count(0)
+        listed = [row["text"] for row in rows]
+        wanted = [
+            item["label"]
+            for item in api.get("/api/settings/localization/options").json()["languages"]
+            if item["available"]
+        ]
+        mismatches = [] if listed == wanted else [{"listed": listed, "expected": wanted}]
+        assert len(listed) == (7 if unavailable else 8), listed
+        assert [row["text"] for row in rows if row["selected"] == "true"] == [label_of(language)]
         observations.append(
             {
                 "state": name,
                 "language": language,
                 "unavailable_ja": unavailable,
-                "rows": actual,
+                "rows": rows,
                 "mismatches": mismatches,
             }
         )
@@ -88,7 +97,9 @@ def exercise(page, api, dest, profile, records, data):
         assert not mismatches, mismatches
 
     def save(language):
-        page.locator(f'[data-locale-language="{language}"]').click()
+        panel = open_list()
+        panel.locator('[role="option"]', has_text=label_of(language)).click()
+        expect(page.locator("#s-language-trigger")).to_have_attribute("data-value", language)
         page.locator("#s-locale-save").click()
         expect(page.locator("#locale-settings-workbench")).to_have_attribute("aria-busy", "false")
         assert api.get("/api/settings").json()["language"] == language
@@ -122,30 +133,22 @@ def exercise(page, api, dest, profile, records, data):
     assert api.get("/api/settings").json()["language"] == "en"
     pane(reload=True)
     observe("08-unavailable-english", "en", True)
-    unavailable = page.locator('[data-locale-language="ja"]')
-    unavailable.scroll_into_view_if_needed()
-    rect = unavailable.bounding_box()
-    assert unavailable.evaluate(
-        "e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}"
-    )
-    page.mouse.click(rect["x"] + rect["width"] / 2, rect["y"] + rect["height"] / 2)
-    expect(page.locator('[data-locale-language="en"]')).to_have_attribute("aria-checked", "true")
-    expect(page.locator("#locale-settings-save-state")).to_contain_text("Japanese")
-    page.screenshot(path=str(dest / "08-unavailable-click.png"), full_page=True)
-    selected = page.locator('[data-locale-language="en"]')
-    for _ in range(160):
-        if selected.evaluate("e=>e===document.activeElement"):
-            break
-        page.keyboard.press("Tab")
-    expect(selected).to_be_focused()
-    for value in ("fr", "es", "zh-Hans", "zh-Hant", "ko"):
+    # a pending language is not in the list at all, so it can't be clicked or reached by keyboard
+    jp = label_of("ja")
+    panel = open_list()
+    expect(panel.locator('[role="option"]', has_text=jp)).to_have_count(0)
+    page.screenshot(path=str(dest / "08-unavailable-list.png"), full_page=True)
+    page.keyboard.press("Escape")
+    trigger = page.locator("#s-language-trigger")
+    expect(trigger).to_be_focused()
+    for value in ("fr", "es", "zh-Hans"):
         page.keyboard.press("ArrowDown")
-        expect(page.locator(f'[data-locale-language="{value}"]')).to_be_focused()
-    expect(unavailable).to_have_attribute("aria-checked", "false")
-    page.screenshot(path=str(dest / "08-unavailable-keyboard-skip.png"), full_page=True)
-    page.keyboard.press("Home")
-    expect(selected).to_be_focused()
+        page.keyboard.press("Enter")
+        expect(trigger).to_have_attribute("data-value", value)
     assert api.get("/api/settings").json()["language"] == "en"
+    page.keyboard.press("End")
+    page.keyboard.press("Enter")
+    expect(trigger).not_to_have_attribute("data-value", "ja")
     save("en")
     observe("09-unavailable-after-save", "en", True)
     save("ar")

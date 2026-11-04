@@ -3953,88 +3953,10 @@ textarea[data-kokuen-entry="autogrow"] {
   line-height: 1.45;
 }
 
-#settings-modal[data-kokuen-surface="settings"] :where(.locale-language-list, .locale-format-list, .credits-list, .credits-detail) {
+#settings-modal[data-kokuen-surface="settings"] :where(.locale-format-list, .credits-list, .credits-detail) {
   border: 1px solid var(--k-line);
   border-radius: var(--k-radius-surface);
   overflow: hidden;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice {
-  position: relative;
-  width: 100%;
-  min-height: 58px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 10px;
-  align-items: center;
-  gap: var(--k-space-3);
-  padding: var(--k-space-2) var(--k-space-3);
-  border: 0;
-  border-bottom: 1px solid var(--k-line);
-  border-radius: 0;
-  background: transparent;
-  color: var(--k-text);
-  text-align: start;
-  cursor: pointer;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice:last-child {
-  border-bottom: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice:hover {
-  background: var(--k-hover);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice[aria-disabled="true"] {
-  color: var(--k-muted);
-  cursor: not-allowed;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice[aria-disabled="true"]:hover {
-  background: transparent;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice > span,
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice strong,
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice small {
-  min-width: 0;
-  display: block;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice strong {
-  font-size: 0.875rem;
-  font-weight: 560;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice small {
-  margin-top: var(--k-space-1);
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice em {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-  font-style: normal;
-  white-space: nowrap;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice::after {
-  width: 8px;
-  height: 8px;
-  box-sizing: border-box;
-  border: 1px solid var(--k-line-strong);
-  border-radius: 50%;
-  content: "";
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice[aria-checked="true"]::after {
-  border-color: var(--k-text);
-  background: var(--k-text);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-language-choice[aria-disabled="true"]::after {
-  border-color: color-mix(in srgb, var(--k-line) 78%, var(--k-panel));
 }
 
 #settings-modal[data-kokuen-surface="settings"] .locale-format-row {
@@ -4468,21 +4390,6 @@ html[dir="rtl"] :where(
 
   #settings-modal[data-kokuen-surface="settings"] :where(#locale-settings-load-state, #credits-settings-load-state) {
     display: none;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .locale-language-choice {
-    min-height: 64px;
-    grid-template-columns: minmax(0, 1fr) 9px;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .locale-language-choice em {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .locale-language-choice::after {
-    grid-column: 2;
-    grid-row: 1;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .locale-format-row {

@@ -148,7 +148,14 @@ def open_pane(page, name):
 
 
 def save_locale(page, language):
-    page.locator(f'[data-locale-language="{language}"]').click()
+    trigger = page.locator("#s-language-trigger")
+    label = trigger.evaluate(
+        "(e, v) => e.dataset.options.split(';').map(p => p.split('|')).find(p => p[0] === v)[1]",
+        language,
+    )
+    trigger.click()
+    page.locator("body > .custom-dropdown-panel [role=option]", has_text=label).click()
+    expect(trigger).to_have_attribute("data-value", language)
     with page.expect_response(
         lambda r: r.url.endswith("/api/settings") and r.request.method == "PATCH"
     ) as response:
@@ -322,7 +329,7 @@ def navigation(page, api, dest, profile, records):
             page.keyboard.press("Tab")
             expect(page.locator("#settings-modal .k-rail-resize")).to_be_focused()
         page.keyboard.press("Tab")
-        expect(page.locator(f'[data-locale-language="{language}"]')).to_be_focused()
+        expect(page.locator("#s-language-trigger")).to_be_focused()
         after = observe(f"{language}-controls-hover")
         if profile == "phone":
             assert after["navScroll"] == nav_scroll, after
@@ -372,7 +379,7 @@ def navigation(page, api, dest, profile, records):
     assert response.value.ok
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
     open_pane(page, "notifications")
-    tab_to(page, page.locator('[data-locale-language="ar"]'))
+    tab_to(page, page.locator("#s-language-trigger"))
     observe("light-scrolled-context")
     page.keyboard.press("Escape")
     expect(page.locator("#settings-modal")).to_be_hidden()
@@ -452,7 +459,7 @@ def verify_preferences(context, page, dest):
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
     page.screenshot(path=str(dest / "chat.png"), full_page=True)
     open_pane(page, "notifications")
-    expect(page.locator('[data-locale-language="fr"]')).to_have_attribute("aria-checked", "true")
+    expect(page.locator("#s-language-trigger")).to_have_attribute("data-value", "fr")
     expect(page.locator('[data-locale-format="clock_format"][data-value="24"]')).to_have_attribute(
         "aria-checked", "true"
     )

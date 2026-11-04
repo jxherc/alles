@@ -154,21 +154,12 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] :where(.locale-language-list, .locale-format-list, .credits-list, .credi; check for nested bezels",
-    "css_block_sha256": "93b06a3e6a52422f5f6c5352bc5f1cac2ba12d6dc5fc372a6db431d762166f1f",
+    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] :where(.locale-format-list, .credits-list, .credits-detail); check for nested bezels",
+    "css_block_sha256": "daf6427d9323e8b2127da353852b03f118853f972bdce5a9d3b0160443d3375c",
     "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] :where(.locale-language-list, .locale-format-list, .credits-list, .credits-detail)",
+    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] :where(.locale-format-list, .credits-list, .credits-detail)",
     "job": "distinct-region",
-    "reason": "Language choice-list boundary groups peer selectable languages. Formatting preferences list separates setting rows from other sections. Credits entry-list boundary separates selectable dependencies from detail. Selected dependency detail boundary separates it from the entry list."
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-language-choice; check for nested bezels",
-    "css_block_sha256": "c54f101347b4e75d69c38f2698f7dfa80ac8adf52c58ccfb3f026d3c05debaef",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-language-choice",
-    "job": "control-row-seam",
-    "reason": "Each language choice is a selectable row; its bottom seam separates choices inside the language list."
+    "reason": "Formatting preferences list separates setting rows from other sections. Credits entry-list boundary separates selectable dependencies from detail. Selected dependency detail boundary separates it from the entry list."
   },
   {
     "rule": "nested-boundary",

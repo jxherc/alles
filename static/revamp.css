@@ -3475,18 +3475,6 @@ html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-ro
   html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-row em { max-width: none; }
 }
 
-/* a phone keeps the review status beside the name, as wide screens do, instead of a third line */
-@media (max-width: 540px) {
-  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-language-choice {
-    grid-template-columns: minmax(0, 1fr) auto 10px;
-    min-height: 58px;
-  }
-
-  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-language-choice em { grid-column: 2; grid-row: 1; }
-
-  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-language-choice::after { grid-column: 3; grid-row: 1; }
-}
-
 /* a touch screen has no hover to reveal a memory's edit, pin and remove */
 @media (hover: none) {
   html:not(#_):not(#_) #settings-modal .mem-item .mem-actions { opacity: 1; }

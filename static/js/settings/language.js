@@ -5,6 +5,7 @@ import { formatDateForLocale, formatTimeForLocale, prepareLocalization, regionNa
 
 // ── Phase 10 locale Settings ─────────────────────────────────────────────────
 const LOCALE_FALLBACK_OPTIONS = {
+  languages: [{ value: 'en', label: 'English' }],
   regions: [
     { value: '', label: 'automatic' },
     { value: 'TW', label: 'Taiwan' },
@@ -34,6 +35,7 @@ const LOCALE_FALLBACK_OPTIONS = {
 };
 
 let _localeOptions = LOCALE_FALLBACK_OPTIONS;
+let _languageDirection = {};
 let _localeSettings = null;
 let _localeSettingsBusy = false;
 let _localeSettingsSaving = false;
@@ -56,7 +58,7 @@ function _browserTimezone() {
 }
 
 function _localeChoiceOptions(name) {
-  const optionKey = name === 'currency' ? 'currencies' : `${name}s`;
+  const optionKey = name === 'currency' ? 'currencies' : name === 'language' ? 'languages' : `${name}s`;
   return _localeOptions[optionKey] || [];
 }
 
@@ -84,7 +86,7 @@ function _renderLocaleChoiceMenu(name) {
 
 function _setLocaleChoiceValue(name, value, dirty = false) {
   const trigger = document.querySelector(`[data-locale-choice="${name}"]`);
-  const valid = _localeChoiceOptions(name).some(item => item.value === value) ? value : '';
+  const valid = _localeChoiceOptions(name).some(item => item.value === value) ? value : (name === 'language' ? 'en' : '');
   if (trigger) trigger.dataset.value = valid;
   _renderLocaleChoiceMenu(name);
   if (dirty) _markLocaleSettingsChanged();
@@ -108,38 +110,24 @@ function _localeRadioValue(name) {
 }
 
 function _selectedLocaleLanguage() {
-  return document.querySelector('[data-locale-language][aria-checked="true"]')?.dataset.localeLanguage || 'en';
+  return document.getElementById('s-language-trigger')?.dataset.value || 'en';
 }
 
 function _setLocaleLanguage(value) {
-  const choices = [...document.querySelectorAll('[data-locale-language]')];
-  const selected = choices.find(choice => choice.dataset.localeLanguage === value
-    && choice.getAttribute('aria-disabled') !== 'true') || choices[0];
-  choices.forEach(choice => {
-    const active = choice === selected;
-    choice.setAttribute('aria-checked', String(active));
-    choice.tabIndex = active ? 0 : -1;
-  });
-  _updateLocalePreview();
+  _setLocaleChoiceValue('language', value);
 }
 
 function _applyLocaleOptions(options) {
   if (Array.isArray(options?.regions) && options.regions.length) _localeOptions.regions = options.regions;
   if (Array.isArray(options?.timezones) && options.timezones.length) _localeOptions.timezones = options.timezones;
   if (Array.isArray(options?.currencies) && options.currencies.length) _localeOptions.currencies = options.currencies;
+  // only a language that is ready can be picked, so the list shows just those
   if (Array.isArray(options?.languages)) {
-    for (const language of options.languages) {
-      const row = document.querySelector(`[data-locale-language="${CSS.escape(language.id)}"]`);
-      if (!row) continue;
-      row.querySelector('strong').textContent = language.label;
-      row.querySelector('small').textContent = language.english_name;
-      const badge = row.querySelector('em');
-      badge.dataset.i18n = language.available ? 'common.reviewed' : 'locale.catalog_reviewed_pending';
-      badge.textContent = t(badge.dataset.i18n);
-      row.setAttribute('aria-disabled', String(!language.available));
-      row.dataset.direction = language.direction;
-    }
+    const ready = options.languages.filter(language => language.available);
+    if (ready.length) _localeOptions.languages = ready.map(language => ({ value: language.id, label: language.label }));
+    _languageDirection = Object.fromEntries(options.languages.map(language => [language.id, language.direction]));
   }
+  _renderLocaleChoiceMenu('language');
   _renderLocaleChoiceMenu('region');
   _renderLocaleChoiceMenu('timezone');
   _renderLocaleChoiceMenu('currency');
@@ -157,7 +145,7 @@ function _updateLocalePreview() {
   const timezone = document.getElementById('s-timezone-trigger')?.dataset.value || '';
   const currency = document.getElementById('s-currency-trigger')?.dataset.value || '';
   const tag = _localePreviewTag(language, region || _browserRegion());
-  const direction = document.querySelector(`[data-locale-language="${CSS.escape(language)}"]`)?.dataset.direction || 'ltr';
+  const direction = _languageDirection[language] || 'ltr';
   const tagEl = document.getElementById('locale-preview-tag');
   const dateEl = document.getElementById('locale-preview-date');
   const pathEl = document.getElementById('locale-preview-path');
@@ -318,40 +306,10 @@ function _wireLocaleSettingsPane() {
     trigger.addEventListener('change', () => _setLocaleChoiceValue(trigger.dataset.localeChoice, trigger.dataset.value || '', true));
   });
   pane.addEventListener('click', event => {
-    const language = event.target.closest('[data-locale-language]');
-    if (language) {
-      if (language.getAttribute('aria-disabled') === 'true') {
-        _setLocaleSettingsStatus(t('locale.language_unavailable', {
-          language: language.querySelector('small')?.textContent || language.dataset.localeLanguage,
-        }));
-        return;
-      }
-      _setLocaleLanguage(language.dataset.localeLanguage);
-      _markLocaleSettingsChanged();
-      return;
-    }
     const format = event.target.closest('[data-locale-format]');
     if (format) _setLocaleRadioValue(format.dataset.localeFormat, format.dataset.value, true);
   });
   pane.addEventListener('keydown', event => {
-    const language = event.target.closest('[data-locale-language]');
-    if (language && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
-      const choices = [...pane.querySelectorAll('[data-locale-language]')]
-        .filter(choice => !choice.disabled && choice.getAttribute('aria-disabled') !== 'true');
-      const index = choices.indexOf(language);
-      if (index < 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const rtl = getComputedStyle(language.parentElement).direction === 'rtl';
-      const backwards = event.key === 'ArrowUp'
-        || (event.key === 'ArrowLeft' && !rtl) || (event.key === 'ArrowRight' && rtl);
-      const next = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1
-        : (index + (backwards ? -1 : 1) + choices.length) % choices.length;
-      _setLocaleLanguage(choices[next].dataset.localeLanguage);
-      _markLocaleSettingsChanged();
-      choices[next].focus();
-      return;
-    }
     const format = event.target.closest('[data-locale-format]');
     if (format && ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
