@@ -28,7 +28,7 @@ import { initCompareView, loadCompareModels, loadCompareLeaderboard } from './co
 import { loadVaultView, initVault } from './vault.js?v=293';
 import { loadContacts, addContact } from './contacts.js';
 import { initLiveFormat } from './liveformat.js';
-import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=491';
+import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=492';
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos, closeLightbox } from './photos.js';

@@ -334,6 +334,13 @@ const RAW_ERRORS = [
     'shell.error_generic'],
 ];
 
+// the server answers 503 database_busy when a write waited out the database lock. forms say that in
+// plain words (in the chosen language, through plainError) instead of their generic "could not save".
+// takes an error from api() or one made by hand with status and data; '' for any other error
+export function busyText(error) {
+  return error?.status === 503 && error?.data?.code === 'database_busy' ? plainError(error.message) : '';
+}
+
 export function plainError(msg) {
   const text = String(msg ?? '').trim();
   if (!text) return t('shell.error_generic');

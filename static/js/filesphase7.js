@@ -672,12 +672,24 @@ function updateSelectAll() {
   button.setAttribute('aria-checked', count && count < state.items.length ? 'mixed' : String(Boolean(count && count === state.items.length)));
 }
 
+// on a phone the bulk bar is pinned above the phone bar; the transfer dock rises by its height
+let bulkWatch = null;
+function publishBulkHeight(bar) {
+  const root = document.documentElement;
+  if (!bulkWatch && typeof ResizeObserver === 'function') {
+    bulkWatch = new ResizeObserver(() => root.style.setProperty('--files-bulk-h', bar.hidden ? '0px' : `${bar.offsetHeight}px`));
+    bulkWatch.observe(bar);
+  }
+  root.style.setProperty('--files-bulk-h', bar.hidden ? '0px' : `${bar.offsetHeight}px`);
+}
+
 function renderSelection() {
   const bar = $('files-selection-bar');
   if (!bar) return;
   const count = state.selected.size;
   bar.hidden = count === 0;
   $('files-selection-count').textContent = tp('files.selected_count', count);
+  publishBulkHeight(bar);
   applyWriteState();
   revealFileControl(document.activeElement);
 }

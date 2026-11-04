@@ -192,7 +192,7 @@ def run():
                 expect(row.get_by_role("button", name="edit", exact=False)).to_be_focused()
                 page.reload(wait_until="networkidle")
                 expect(row.locator(".health-row-val")).to_have_text("72.125 kg")
-                expect(row).to_contain_text(CORRECTED_DAY)
+                expect(row.locator("time[data-when]")).to_have_attribute("datetime", CORRECTED_DAY)
                 entry = saved(note + " corrected")[0]
                 assert entry["value"] == 72.125 and entry["date"] == CORRECTED_DAY
                 assert not saved(note)

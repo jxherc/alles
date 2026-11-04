@@ -6311,7 +6311,6 @@
     "server.wb_queries_today": "本日のクエリ",
     "server.wb_recent_dns": "最近の DNS アクティビティ",
     "server.wb_release": "リリースと更新の状態",
-    "server.wb_release_copy": "このページには実行中のビルドが表示されます。このブラウザのプロセスは自分自身を安全に置き換えられないため、更新のインストールはネイティブのスーパーバイザーまたは CLI で行います。",
     "server.wb_release_commit": "リリース",
     "server.wb_release_value": "{commit} · {date} にインストール",
     "server.wb_updates": "アップデート",
