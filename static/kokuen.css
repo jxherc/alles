@@ -1284,6 +1284,7 @@ body:is(
 }
 
 .server-workbench-field { min-width: 0; display: grid; margin-top: var(--k-space-4, 16px); }
+.server-workbench-card > .server-workbench-why { margin-top: var(--k-space-2, 8px); }
 .server-workbench-field :where(input, textarea) {
   width: 100%;
   min-height: 44px;
@@ -7028,9 +7029,10 @@ body[data-app="files"] #files-view .files-vault-review strong { color: var(--k-t
     overflow-x: auto;
   }
 
-  /* :is, not :where: at zero weight the desktop columns above won and a phone row ran 66px wide */
+  /* :is, not :where: at zero weight the desktop columns above won and a phone row ran 66px wide.
+     the first column is 28px so the 44px check, centered in it, ends where the name column begins */
   body[data-app="files"] #files-view :is(.files-phase7-table-head, .file-row) {
-    grid-template-columns: 24px minmax(140px, 1fr) 64px;
+    grid-template-columns: 28px minmax(140px, 1fr) 64px;
   }
 
   body[data-app="files"] #files-view .files-loading-row {

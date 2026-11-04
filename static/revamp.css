@@ -4134,6 +4134,28 @@ html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-select
   }
 }
 
+/* on a phone the list scrolls the whole page, so the bulk bar would leave with the table head. while
+   rows are ticked it sits above the phone bar instead, and the list gets room to scroll its last
+   rows clear of it */
+@media (max-width: 700px) {
+  html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-selection:not([hidden]) {
+    position: fixed;
+    inset: auto 0 var(--k-app-bar-height, 0px) 0;
+    z-index: 11;
+    box-sizing: border-box;
+    padding: var(--k-space-2) var(--k-space-4);
+    background: var(--k-raised);
+  }
+
+  html:not(#_):not(#_) body[data-app="files"] #files-view .files-phase7-operation-dock {
+    bottom: calc(var(--k-space-2) + var(--files-bulk-h, 0px));
+  }
+
+  html:not(#_):not(#_) #files-view:has(.files-phase7-selection:not([hidden])) .files-list {
+    padding-bottom: calc(var(--k-control) * 3 + var(--k-space-4));
+  }
+}
+
 /* a filled accent button draws its focus ring outside its fill, on the page: inside, the gray ring
    on purple sat at 1.3-2.7:1. the capture bar's add button keeps a 6px clear border, so its ring
    sits in that gap instead of over the bar's own edge */
@@ -4386,7 +4408,7 @@ html:not(#_):not(#_) .gym-editing { color: var(--k-muted); font-weight: 400; }
 html:not(#_):not(#_) .gym-rest {
   display: flex;
   align-items: center;
-  gap: var(--k-space-1);
+  gap: var(--k-control-gap);
   padding: var(--k-space-1) var(--k-space-1) var(--k-space-1) var(--k-space-3);
   border-radius: var(--k-radius-control);
   background: var(--k-field);

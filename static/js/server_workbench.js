@@ -8,6 +8,7 @@ import { formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { confirm as confirmDialog } from './dialog.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { announceModelRoles, onModelRoles } from './settings/model_roles.js';
+import { searchKeyWhy } from './settings/andromeda.js';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -740,7 +741,10 @@ async function renderSearch(target, request) {
     ['disabled', t('server.wb_disabled')],
   ].map(([value, label]) => ({ value, label }));
   panel.append(
-    choice(t('server.wb_primary_provider'), providerOptions, settings.search_provider || 'duckduckgo', value => save({ search_provider: value })),
+    choice(t('server.wb_primary_provider'), providerOptions, settings.search_provider || 'duckduckgo', async value => {
+      await save({ search_provider: value });
+      drawCredentials();
+    }),
     choice(t('server.wb_results_per_search'), [5, 8, 10, 12].map(value => ({ value: String(value), label: String(value) })), String(settings.search_result_count || 8), value => save({ search_result_count: Number(value) })),
     switchButton(t('server.wb_fact_check'), settings.andromeda_verification_enabled !== false, value => save({ andromeda_verification_enabled: value })),
     choice(t('server.wb_fact_schedule'), [
@@ -773,31 +777,41 @@ async function renderSearch(target, request) {
   panel.append(limits);
 
   const credentials = card(t('server.wb_credentials'), t('server.wb_credentials_copy'));
-  // one key field per keyed engine, from the shared engine list; google pse also needs its cx
-  const credentialSpecs = [
-    ...engines.filter(engine => engine.key_setting && !engine.custom).map(engine => [
-      t('server.wb_api_key', { name: engine.label.toLowerCase() }), engine.key_setting, `${engine.key_setting}_configured`, 'password',
-    ]),
-    [t('server.wb_google_cx'), 'google_pse_cx', '', 'text'],
-    [t('server.wb_searxng_url'), 'searxng_url', '', 'url'],
-  ];
-  for (const [label, key, configuredKey, type] of credentialSpecs) {
-    const field = el('label', 'server-workbench-field');
-    field.append(el('span', '', label));
-    const input = el('input');
-    input.type = type;
-    input.autocomplete = type === 'password' ? 'new-password' : 'off';
-    input.placeholder = configuredKey && settings[configuredKey] ? t('server.wb_configured_replace') : t('server.wb_not_configured');
-    if (!configuredKey && key === 'google_pse_cx') input.value = settings[key] || '';
-    if (!configuredKey && key === 'searxng_url') input.placeholder = settings[key] || 'https://search.example.com';
-    input.addEventListener('change', () => {
-      void save({ [key]: input.value.trim() }).then(() => {
-        if (type === 'password') input.value = '';
-      }).catch(() => {});
-    });
-    field.append(input);
-    credentials.append(field);
+  // only the picked provider's fields, as in settings > andromeda; google pse also needs its cx, searxng its url
+  const specsFor = engine => {
+    if (!engine) return [];
+    const specs = [];
+    if (engine.key_setting && !engine.custom) specs.push([t('server.wb_api_key', { name: engine.label.toLowerCase() }), engine.key_setting, `${engine.key_setting}_configured`, 'password']);
+    if (engine.id === 'google_pse') specs.push([t('server.wb_google_cx'), 'google_pse_cx', '', 'text']);
+    if (engine.id === 'searxng') specs.push([t('server.wb_searxng_url'), 'searxng_url', '', 'url']);
+    return specs;
+  };
+  function drawCredentials() {
+    const picked = settings.search_provider || 'duckduckgo';
+    const specs = specsFor(engines.find(engine => engine.id === picked));
+    credentials.querySelectorAll('.server-workbench-field, .server-workbench-why').forEach(node => node.remove());
+    credentials.hidden = !specs.length;
+    for (const [label, key, configuredKey, type] of specs) {
+      const field = el('label', 'server-workbench-field');
+      field.append(el('span', '', label));
+      const input = el('input');
+      input.type = type;
+      input.autocomplete = type === 'password' ? 'new-password' : 'off';
+      input.placeholder = configuredKey && settings[configuredKey] ? t('server.wb_configured_replace') : t('server.wb_not_configured');
+      if (!configuredKey && key === 'google_pse_cx') input.value = settings[key] || '';
+      if (!configuredKey && key === 'searxng_url') input.placeholder = settings[key] || 'https://search.example.com';
+      input.addEventListener('change', () => {
+        void save({ [key]: input.value.trim() }).then(() => {
+          if (type === 'password') input.value = '';
+        }).catch(() => {});
+      });
+      field.append(input);
+      credentials.append(field);
+    }
+    const why = searchKeyWhy(picked);
+    if (why && specs.length) credentials.append(el('p', 'server-workbench-copy server-workbench-why', why));
   }
+  drawCredentials();
 
   const models = card(t('server.wb_roles'), t('server.wb_roles_copy'));
   if (endpointsResult.status === 'rejected' || rolesResult.status === 'rejected') {

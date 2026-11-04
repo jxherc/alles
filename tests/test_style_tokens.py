@@ -52,8 +52,13 @@ class StyleTokenTests(unittest.TestCase):
         self.assertEqual(js.count('<span class="cal-task-title">'), 2)
 
     def test_habit_week_gap_gives_way_before_the_days(self):
-        # seven 44px days overflowed a 390px phone card with a fixed 0.3rem gap
-        self.assertIn("gap: clamp(0px, calc((100% - 7 * 44px) / 6), 0.3rem)", _rule(".habit-week"))
+        # the kit's control gap between days; seven 44px days overflowed a 390px phone card with
+        # 0.3rem, and fit only with the scale's 4px under 430px (7.8px free, so 8px would shrink a day)
+        self.assertIn("gap: var(--k-control-gap, 8px)", _rule(".habit-week"))
+        css = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
+        self.assertIn(
+            "@media (max-width: 430px) { .habit-week { gap: var(--k-space-1, 4px); } }", css
+        )
 
     def test_labels_are_never_uppercased(self):
         # copy is lowercase; "READING", "CALENDAR SETTINGS" and the vault's "NAME/TYPE/CVV" all came
