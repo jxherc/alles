@@ -1161,8 +1161,16 @@ const _bdayChips = (map, d) => (map[_bdayKey(d)] || [])
 // the title gets its own span: the chip is a flex row, so an ellipsis on it never shows.
 // in a month cell a task line opens its day instead of completing it: the lines are packed
 // tight there and a stray tap shouldn't tick a task off. the day's 44px toggle completes it
-const _taskChip = t =>
-  `<button type="button" class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" aria-label="${esc(t.done ? tr('calendar.task_done', { title: t.title }) : t.title)}" title="${esc(tr('calendar.task_title', { title: t.title }))}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span>${t.time ? `<span class="cal-task-time">${esc(_taskClock(t.time))}</span>` : ''}<span class="cal-task-title">${esc(t.title)}</span></button>`;
+// in a narrow cell the title wins: the time shrinks to its hour, then goes (a tooltip keeps it)
+const _hourClock = hhmm => {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return formatTime(new Date(Date.UTC(2000, 0, 1, h, m)), { hour: 'numeric', timeZone: 'UTC' });
+};
+const _taskChip = (t, timeMode = 'full') => {
+  const clock = !t.time || timeMode === 'none' ? '' : timeMode === 'hour' ? _hourClock(t.time) : _taskClock(t.time);
+  const tip = tr('calendar.task_title', { title: t.title });
+  return `<button type="button" class="cal-task${t.done ? ' done' : ''}" data-task="${esc(t.id)}" aria-label="${esc(t.done ? tr('calendar.task_done', { title: t.title }) : t.title)}" title="${esc(t.time && timeMode !== 'full' ? `${_taskClock(t.time)} ${tip}` : tip)}"><span class="cal-task-chk${t.done ? ' on' : ''}" aria-hidden="true">${t.done ? _si('check') : ''}</span>${clock ? `<span class="cal-task-time">${esc(clock)}</span>` : ''}<span class="cal-task-title">${esc(t.title)}</span></button>`;
+};
 // the day/week all-day row has room for a real control: a 44px button you can tab to and toggle
 // with enter or space. month cells keep the compact chip
 const _taskToggle = t =>
@@ -1284,7 +1292,11 @@ function renderMonth() {
   const narrow = Boolean(window.matchMedia?.(MONTH_NARROW).matches);
   const counts = {}, lines = {};
   // a cell under ~150px cut "9:00 AM lunch" to "9:00 A…": there the title leads and the time follows
-  const titleFirst = narrow || (el.clientWidth && el.clientWidth / 7 < 150);
+  const cellW = el.clientWidth ? el.clientWidth / 7 : 999;
+  const titleFirst = narrow || cellW < 150;
+  // a task's time is a whole "9:00 AM" in a roomy cell (190px and up), its hour in a middling
+  // one, and only a tooltip below 150px, so the title keeps the room
+  const taskTime = narrow || cellW < 150 ? 'none' : cellW < 190 ? 'hour' : 'full';
   const chipText = o => o.all_day ? o.title : titleFirst ? `${o.title} ${timeShort(o._date)}` : `${timeShort(o._date)} ${o.title}`;
 
   const cells = [];
@@ -1305,7 +1317,7 @@ function renderMonth() {
     const items = [
       ...evts.map(o =>
         `<button type="button" class="cal-chip${o._recur ? ' recurring' : ''}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="${chipStyle(o)}" title="${chipTitle(o)}">${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}<span class="cal-ev-title">${esc(chipText(o))}</span></button>`),
-      ...(tasksByDay[key] || []).map(_taskChip),
+      ...(tasksByDay[key] || []).map(task => _taskChip(task, taskTime)),
       ...(bmap[_bdayKey(cell)] || []).map(n => `<div class="cal-bday" title="${esc(tr('calendar.birthday_of', { name: n }))}">${_si('cake')} ${esc(n)}</div>`),
     ];
     counts[key] = items.length;
