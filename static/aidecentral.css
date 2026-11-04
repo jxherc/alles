@@ -158,7 +158,7 @@ body.aide-central[data-space="aide"] .aide-background-details { font-size: 0.812
   body.aide-central[data-space="aide"] { --aide-gutter: var(--k-space-4, 16px); }
   body.aide-central[data-space="aide"] .main > .topbar { padding: 0 var(--aide-gutter); gap: 0; }
   body.aide-central[data-space="aide"] .topbar-left { gap: var(--k-space-2, 8px); }
-  .aide-mode-nav { gap: 0; flex-shrink: 0; }
+  .aide-mode-nav { gap: var(--k-control-gap, 8px); flex-shrink: 0; }
   /* a tab keeps its whole word */
   .aide-mode-nav button { flex-shrink: 0; white-space: nowrap; padding: 0 var(--k-space-2, 8px); }
   body.aide-central[data-space="aide"] .composer-outer { padding: var(--k-space-2, 8px) var(--aide-gutter) max(var(--k-space-3, 12px), env(safe-area-inset-bottom)); }
@@ -191,7 +191,7 @@ body.aide-central[data-space="aide"] .aide-background-details { font-size: 0.812
 body.aide-central[data-space="aide"] .msg-actions.msg-actions-compact {
   display: flex;
   flex-wrap: nowrap;
-  gap: 0;
+  gap: var(--k-control-gap, 8px);
   margin: var(--k-space-2, 8px) 0 0;
   opacity: 1;
   transition: none;
@@ -251,8 +251,8 @@ body.aide-central #messages > .msg-row + .msg-row .user-wrap { padding-top: var(
 
 /* one quiet line under each reply: copy, more, and what Aide used (model and context), which
    opens as a panel under the line instead of pushing the reply around */
-body.aide-central .msg-actions { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: var(--k-space-1, 4px); }
-body.aide-central .context-provenance.is-tucked { margin: 0 0 0 var(--k-space-1, 4px); }
+body.aide-central .msg-actions { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: var(--k-control-gap, 8px); }
+body.aide-central .context-provenance.is-tucked { margin: 0; }
 body.aide-central .context-provenance.is-tucked > summary {
   display: inline-flex; align-items: center; min-height: var(--k-control, 44px); padding: 0 var(--k-space-2, 8px); border-radius: var(--k-radius-control, 4px);
   color: var(--k-muted, var(--muted)); font-size: 0.8125rem; list-style: none; cursor: pointer;

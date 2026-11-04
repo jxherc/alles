@@ -9020,8 +9020,10 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .habit-actions { display: flex; flex-wrap: wrap; gap: var(--k-control-gap); }
 .habit-actions .icon-btn svg { width: 14px; height: 14px; }
 .habit-actions .icon-btn.danger:hover { color: var(--error); }
-/* seven 44px days barely fit a phone card, so the gap gives way first (0 to 0.3rem) */
-.habit-week { display: flex; gap: clamp(0px, calc((100% - 7 * 44px) / 6), 0.3rem); margin-bottom: 0.6rem; }
+/* the kit's control gap between days; on a phone seven 44px days leave 7.8px, so it steps to the scale's 4px
+   instead of shrinking a day under 44px */
+.habit-week { display: flex; gap: var(--k-control-gap, 8px); margin-bottom: 0.6rem; }
+@media (max-width: 430px) { .habit-week { gap: var(--k-space-1, 4px); } }
 .habit-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 0.3rem 0; border: 1px solid var(--faint); border-radius: var(--k-radius-control); background: none; color: var(--muted); cursor: pointer; transition: border-color 0.12s, background 0.12s; }
 /* under ~340px seven 44px days can't fit at all, so the week goes 4 + 3 instead of cutting saturday off */
 @media (max-width: 340px) {
