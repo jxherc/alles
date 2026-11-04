@@ -360,7 +360,7 @@
     "tasks.save_not_confirmed": "尚未确认保存。你的更改仍在这里，请重试保存。",
     "tasks.save_queued": "更改已进入离线队列。保存完成前，此草稿会保留在这里。",
     "tasks.saved_refresh_failed": "任务已保存，但列表刷新失败。请重新加载查看。",
-    "tasks.edit_named": "编辑 {task}",
+    "tasks.open_named": "打开 {task}",
     "tasks.undo_completion": "撤销",
     "tasks.dismiss_completion": "关闭完成消息",
     "tasks.completed_named": "已完成：{task}",

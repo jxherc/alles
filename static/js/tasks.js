@@ -5,6 +5,7 @@ import { calendarDateKey, t as tr, tp as trp } from './i18n.js';
 import { createFocusBoundary, setControlState, wireActionMenu } from './kokuen.js?v=5';
 import { toast } from './util.js';
 import { whenDay, whenHtml } from './when.js';
+import { openTaskDetails, wireSwipe } from './act_row.js';
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
 let _tasks = [];
@@ -213,7 +214,7 @@ function _rowHtml(t, child, progress) {
     <div class="task-item${child ? ' task-child' : ''}" data-id="${t.id}">
       <button type="button" class="task-check${t.done ? ' done' : ''}" data-id="${t.id}" aria-label="${checkLabel}"></button>
       <div class="task-content">
-      <button type="button" class="task-title${t.done ? ' done' : ''}" aria-label="${esc(tr('tasks.edit_named', { task: t.title }))}">${title}</button>
+      <button type="button" class="task-title${t.done ? ' done' : ''}" aria-label="${esc(tr('tasks.open_named', { task: t.title }))}">${title}</button>
       <div class="task-meta">
       ${t.repeat ? `<span class="task-repeat" title="${esc(tr('tasks.repeats', { repeat: tr(`tasks.repeat.${t.repeat}`) }))}">${_si('refresh')}</span>` : ''}
       ${_dueBadge(t.due_date, t.due_time, t.overdue)}
@@ -352,8 +353,15 @@ function _wireRows(list) {
       await loadTasks();
     }, { alreadyBusy: true });
   }));
+  // the title opens details over the list (u.01); edit goes on to the full editor
   list.querySelectorAll('.task-title').forEach(el => el.addEventListener('click', () => {
-    openTaskEditor(el.closest('.task-item').dataset.id, el);
+    const id = el.closest('.task-item').dataset.id;
+    openTaskDetails(id, { from: el, onChange: () => loadTasks(), openFull: () => openTaskEditor(id, el) });
+  }));
+  // swipe on touch: right is the check, left is tomorrow, the same as the row's buttons
+  list.querySelectorAll('.task-item:not(.task-gone)').forEach(row => wireSwipe(row, {
+    right: () => row.querySelector('.task-check')?.click(),
+    left: () => row.querySelector('.task-snooze')?.click(),
   }));
 }
 

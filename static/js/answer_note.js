@@ -91,7 +91,7 @@ export async function saveAnswerNote(button) {
   const wrap = button.closest('.ai-wrap');
   if (!wrap?.answerText?.trim()) return;
   reconcileAnswerNote(wrap);
-  if (wrap.savedNote) { noteSaved(wrap.savedNote, '', true); return; }
+  if (wrap.savedNote) { noteSaved(wrap.savedNote, ''); return; }
   const focusBefore = document.activeElement;
   const restoreFocus = () => document.activeElement === focusBefore || document.activeElement === document.body;
   button.disabled = true; button.textContent = t('common.saving');
@@ -104,7 +104,7 @@ export async function saveAnswerNote(button) {
     const title = raw.split('\n')[0].replace(/[#*`\[\]<>:/\\?"|]/g, '').trim().slice(0, 80).replace(/[.\s]+$/, '') || 'answer';
     const saved = await saveNote(text, `${title}.md`, { sourceKey });
     wrap.savedNote = saved;
-    noteSaved(saved, text, restoreFocus(), null, sourceKey);
+    noteSaved(saved, text, false, null, sourceKey);
   } catch (error) {
     const host = document.getElementById('aide-note-recovery');
     if (host) {

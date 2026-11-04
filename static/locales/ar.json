@@ -360,7 +360,7 @@
     "tasks.save_not_confirmed": "لم يتم تأكيد الحفظ. تغييراتك ما زالت هنا. حاول الحفظ مرة أخرى.",
     "tasks.save_queued": "التغيير في قائمة الانتظار دون اتصال. تبقى هذه المسودة هنا حتى يتم حفظها.",
     "tasks.saved_refresh_failed": "تم حفظ المهمة، لكن تعذر تحديث القائمة. أعد التحميل لرؤيتها.",
-    "tasks.edit_named": "تحرير {task}",
+    "tasks.open_named": "فتح {task}",
     "tasks.undo_completion": "تراجع",
     "tasks.dismiss_completion": "إغلاق رسالة الإكمال",
     "tasks.completed_named": "مكتملة: {task}",

@@ -75,7 +75,7 @@ with sync_playwright() as p:
                 for suffix in ["", "overdue", "today", "future", "someday"]:
                     editor = page.get_by_role(
                         "button",
-                        name="edit " + title + (" " + suffix if suffix else ""),
+                        name="open " + title + (" " + suffix if suffix else ""),
                         exact=True,
                     )
                     expect(editor).to_have_count(1 if suffix in expected else 0)
@@ -83,7 +83,8 @@ with sync_playwright() as p:
             page.locator("body > .custom-dropdown-panel [role=option]").nth(
                 ["active", "today", "upcoming", "someday", "done"].index("active")
             ).click()
-            page.get_by_role("button", name="edit " + title, exact=True).click()
+            page.get_by_role("button", name="open " + title, exact=True).click()
+            page.locator('#details-panel [data-details="edit"]').click()
             pick_date(page.locator("#te-due"), "2032-11-07")
             page.locator("#te-notes").fill("retained source and correction")
             page.locator("#te-save").click()
@@ -130,7 +131,8 @@ with sync_playwright() as p:
                 ["active", "today", "upcoming", "someday", "done"].index("done")
             ).click()
             search(title)
-            page.get_by_role("button", name="edit " + title, exact=True).click()
+            page.get_by_role("button", name="open " + title, exact=True).click()
+            page.locator('#details-panel [data-details="edit"]').click()
             expect_date(page.locator("#te-due"), "2032-11-07")
             expect(page.locator("#te-notes")).to_have_value("retained source and correction")
             page.locator("#te-cancel").click()

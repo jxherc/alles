@@ -814,6 +814,11 @@ async def run():
                     context = await owned_context(
                         pw, browser, data, width, theme, zoom, motion, label
                     )
+                    # the agenda leads with tomorrow from 8 pm and drops past events under "earlier
+                    # today", so the chip counts depend on the hour: the page's clock stays at noon
+                    await context.clock.set_fixed_time(
+                        datetime.now(UTC).replace(hour=12, minute=0, second=0, microsecond=0)
+                    )
                     case = AgendaCase(
                         context, base, output, label, width, theme, zoom, motion, run_id
                     )

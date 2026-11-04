@@ -3,7 +3,9 @@ import { icon } from './icons.js';
 
 // one notice rule (27.54): a confirmation ("saved") clears itself after a while; an error stays until
 // it's closed, so it's never missed and never stuck. both have a close button.
-// a confirmation waits while the pointer is on it or focus is inside, so nobody loses it mid-read
+// a confirmation waits while the pointer is on it or while focus is inside because the person moved it
+// there (focusin after the notice appeared). focus that code put there, or that was already inside,
+// never holds it: it always clears after its time
 function closeButton() {
   const close = document.createElement('button');
   close.type = 'button';
@@ -35,7 +37,7 @@ export function errorNotice(host, text) {
 export function dismissAfter(host, ms = 8000) {
   const close = closeButton();
   host.append(close);
-  let timer = 0, hovered = false;
+  let timer = 0, hovered = false, focusHeld = false;
   const owned = () => close.isConnected && close.parentNode === host;
   const clear = () => {
     clearTimeout(timer);
@@ -46,13 +48,13 @@ export function dismissAfter(host, ms = 8000) {
   };
   const arm = () => {
     clearTimeout(timer);
-    if (!hovered && !host.contains(document.activeElement)) timer = setTimeout(clear, ms);
+    if (!hovered && !focusHeld) timer = setTimeout(clear, ms);
   };
   close.addEventListener('click', clear);
   host.onpointerenter = () => { hovered = true; clearTimeout(timer); };
   host.onpointerleave = () => { hovered = false; arm(); };
-  host.onfocusin = () => clearTimeout(timer);
-  host.onfocusout = () => setTimeout(arm);
+  host.onfocusin = () => { focusHeld = true; clearTimeout(timer); };
+  host.onfocusout = () => { focusHeld = false; setTimeout(arm); };
   arm();
   return clear;
 }

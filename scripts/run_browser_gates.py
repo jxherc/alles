@@ -275,6 +275,7 @@ COMMANDS = {
     "plan-agenda-navigation": ("tests/pw_plan_agenda_navigation.py",),
     "plan-populated": ("tests/pw_v5_plan_populated_recovery.py",),
     "tasks-depth": ("tests/pw_tasks_depth.py",),
+    "notice-clears": ("tests/pw_notice_clears.py",),
     "finance-vault": ("tests/pw_v5_finance_vault_server.py",),
     "specialist-real": ("tests/pw_phase8_specialist_real.py",),
     "aide-panel-ownership": ("tests/pw_aide_panel_ownership.py",),

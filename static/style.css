@@ -11737,12 +11737,12 @@ html:not(#_):not(#_) #plan-view .plan-agenda-task > .specialist-record-row {
 
 /* a finger drags the row: right fills toward done, left toward tomorrow. the page still
    scrolls up and down (pan-y) */
-:is(#today-view .today-task, #plan-view .plan-agenda-task) { touch-action: pan-y; }
-:is(.today-task, .plan-agenda-task).is-swiping { translate: var(--swipe-x, 0) 0; }
-:is(.today-task, .plan-agenda-task).swipe-right { background: color-mix(in srgb, var(--accent) 16%, transparent); }
-:is(.today-task, .plan-agenda-task).swipe-left { background: color-mix(in srgb, var(--text) 8%, transparent); }
+:is(#today-view .today-task, #plan-view .plan-agenda-task, #tasks-list .task-item) { touch-action: pan-y; }
+:is(.today-task, .plan-agenda-task, .task-item).is-swiping { translate: var(--swipe-x, 0) 0; }
+:is(.today-task, .plan-agenda-task, .task-item).swipe-right { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+:is(.today-task, .plan-agenda-task, .task-item).swipe-left { background: color-mix(in srgb, var(--text) 8%, transparent); }
 @media (prefers-reduced-motion: no-preference) {
-  :is(.today-task, .plan-agenda-task):not(.is-swiping) { transition: translate 200ms var(--k-ease-out), background 130ms; }
+  :is(.today-task, .plan-agenda-task, .task-item):not(.is-swiping) { transition: translate 200ms var(--k-ease-out), background 130ms; }
 }
 
 /* a task's details over the page it was opened from: a floating layer on the right like ask

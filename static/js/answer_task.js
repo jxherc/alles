@@ -47,7 +47,7 @@ export async function saveAnswerTask(button) {
   const attempt = ++preparation;
   const current = () => attempt === preparation && button.isConnected
     && trigger.isConnected && trigger.getClientRects().length;
-  if (wrap.savedTask) { taskSaved(wrap.savedTask, 'task', true); return; }
+  if (wrap.savedTask) { taskSaved(wrap.savedTask, 'task'); return; }
   button.setAttribute('aria-disabled', 'true');
   button.textContent = t('aide.task_preparing');
   try {

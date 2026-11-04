@@ -97,6 +97,8 @@ def main():
             }"""
         )
         pg.eval_on_selector(f'.task-item[data-id="{tid}"] .task-title', "el => el.click()")
+        # the title opens details over the list (u.01); edit goes on to the full editor
+        pg.click('#details-panel [data-details="edit"]')
         pg.wait_for_selector(".task-editor", timeout=6000)
         pg.click('.te-rs[data-w="next_week"]')
         pg.click("#te-cancel")
@@ -110,6 +112,8 @@ def main():
         r["reschedule_cancel_does_not_persist"] = due_after_cancel == ""
 
         pg.eval_on_selector(f'.task-item[data-id="{tid}"] .task-title', "el => el.click()")
+        # the title opens details over the list (u.01); edit goes on to the full editor
+        pg.click('#details-panel [data-details="edit"]')
         pg.wait_for_selector(".task-editor", timeout=6000)
         pg.click('.te-rs[data-w="tomorrow"]')
         pg.click("#te-save")

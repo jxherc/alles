@@ -358,12 +358,14 @@ def check_profile(browser, profile, output, records):
                     capture.press("Enter")
                     expect(capture).to_have_value("")
                     page.get_by_role("tab", name="tasks", exact=True).click()
-                    page.get_by_role("button", name="edit " + title, exact=True).click()
+                    page.get_by_role("button", name="open " + title, exact=True).click()
+                    page.locator('#details-panel [data-details="edit"]').click()
                     page.locator("#te-notes").fill("saved after completing owner setup")
                     page.locator("#te-save").click()
                     expect(page.locator("#te-title")).to_have_count(0)
                     page.reload(wait_until="networkidle")
-                    page.get_by_role("button", name="edit " + title, exact=True).click()
+                    page.get_by_role("button", name="open " + title, exact=True).click()
+                    page.locator('#details-panel [data-details="edit"]').click()
                     expect(page.locator("#te-notes")).to_have_value(
                         "saved after completing owner setup"
                     )
