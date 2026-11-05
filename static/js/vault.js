@@ -387,7 +387,7 @@ function _createVaultForm() {
         <button type="button" class="modal-close" id="nv-x" aria-label="${_esc(t('common.close'))}">✕</button></div>
       <div class="vault-form">
         <div class="vform-field"><label for="nv-name">${_esc(t('common.name'))}</label>
-          <input id="nv-name" class="settings-input vform-input" placeholder="${_esc(t('vault.e_g_work'))}"></div>
+          <input id="nv-name" ${_NOFILL} class="settings-input vform-input" placeholder="${_esc(t('vault.e_g_work'))}"></div>
         <div class="vform-field"><label for="nv-pw">${_esc(t('vault.master_password'))}</label>
           <input id="nv-pw" type="password" autocomplete="new-password" class="settings-input vform-input" minlength="8" placeholder="${_esc(t('vault.12_or_more_characters'))}"></div>
       </div>
@@ -514,11 +514,11 @@ function _renderTypeForm() {
   box.innerHTML = `
     <div class="vt-form">
       <div class="vform-field"><label>${_esc(t('vault.type_name'))}</label>
-        <input id="vt-label" class="settings-input vform-input" placeholder="${_esc(t('vault.e_g_wi_fi'))}" value="${_esc(_vtDraft.label)}"></div>
+        <input id="vt-label" ${_NOFILL} class="settings-input vform-input" placeholder="${_esc(t('vault.e_g_wi_fi'))}" value="${_esc(_vtDraft.label)}"></div>
       <div class="vt-fields">
         ${_vtDraft.fields.map((f, i) => `
           <div class="vt-field" data-i="${i}">
-            <input class="settings-input vt-flabel" data-i="${i}" placeholder="${_esc(t('vault.field_name'))}" value="${_esc(f.label)}">
+            <input ${_NOFILL} class="settings-input vt-flabel" data-i="${i}" placeholder="${_esc(t('vault.field_name'))}" value="${_esc(f.label)}">
             <button type="button" class="act-btn danger vt-rmf" data-i="${i}" title="${_esc(t('vault.remove_field'))}">${_si('close')}</button>
             <div class="k-pill-switch vt-width" data-kokuen-choice="switch" data-i="${i}" aria-label="${_esc(t('vault.width'))}">${_WIDTHS.map(w => `<button data-value="${w}" aria-checked="${f.width === w}">${_esc(_widthWord(w))}</button>`).join('')}</div>
             <div class="settings-input custom-select vt-kind" data-i="${i}" data-value="${f.kind || 'text'}" data-options="${_KINDS.map(k => `${k}|${_esc(_kindWord(k))}`).join(';')}" aria-label="${_esc(t('vault.type'))}"></div>
@@ -788,7 +788,7 @@ async function _setupTotp() {
       <div class="vault-form">
         <p class="mv-2fa-explain">${_esc(t('vault.scan_this_in_google_authenticator'))}</p>
         <div class="totp-secret" id="totp-secret">${_esc(d.secret)}</div>
-        <div class="vform-field"><input id="totp-code" class="settings-input vform-input" inputmode="numeric" maxlength="6" placeholder="${_esc(t('vault.6_digit_code'))}"></div>
+        <div class="vform-field"><input id="totp-code" autocomplete="one-time-code" class="settings-input vform-input" inputmode="numeric" maxlength="6" placeholder="${_esc(t('vault.6_digit_code'))}"></div>
         <div class="np-err" id="totp-err"></div>
       </div>
       <div class="vault-form-actions">
@@ -1155,7 +1155,7 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
       </div>
       <div class="vault-form">
         <div class="vform-field"><label for="vf-name">${_esc(t('common.name'))}</label>
-          <input id="vf-name" class="settings-input vform-input" placeholder="${_esc(t('vault.e_g_chase_visa'))}"></div>
+          <input id="vf-name" ${_NOFILL} class="settings-input vform-input" placeholder="${_esc(t('vault.e_g_chase_visa'))}"></div>
         <div class="vform-field"><label id="vf-type-label">${_esc(t('vault.type'))}</label>
           <div class="settings-input custom-select vform-input" id="vf-type" style="width:100%"></div></div>
         <div class="vform-divider"></div>
@@ -1498,6 +1498,11 @@ function _currentFields() {
   return keys.map(k => _defOf(k, tk));
 }
 
+// html autofill token that keeps chrome from treating a vault field as a card, name or address
+// (see the note above _fieldHtml). the master password fields keep their password tokens.
+// data-nofill tells liveformat.js this isn't a real code field, or it would digit-format the text.
+const _NOFILL = 'autocomplete="one-time-code" data-nofill';
+
 // what an api key is for: every ai provider alles knows, the usual other services, or anything typed
 const _SERVICES = [
   ['GitHub', 'https://api.github.com'], ['GitLab', 'https://gitlab.com/api/v4'], ['Stripe', 'https://api.stripe.com'],
@@ -1548,15 +1553,15 @@ function _fieldHtml(def) {
   const ph = def.placeholder || '';
   if (def.kind === 'service')
     return `<div class="vform-field"><label for="${id}">${_esc(def.label)}</label>
-      <div class="vform-pw"><input id="${id}" type="text" class="settings-input vform-input" autocomplete="off" placeholder="${_esc(ph)}">
+      <div class="vform-pw"><input id="${id}" type="text" class="settings-input vform-input" ${_NOFILL} placeholder="${_esc(ph)}">
         <button type="button" class="btn" data-service-pick>${_esc(t('vault.choose_service'))}</button></div></div>`;
   if (def.kind === 'textarea')
     return `<div class="vform-field"><label for="${id}">${_esc(def.label)}</label>
-      <textarea id="${id}" class="settings-input vform-input" rows="2" placeholder="${_esc(ph)}"></textarea></div>`;
+      <textarea id="${id}" class="settings-input vform-input" rows="2" ${_NOFILL} placeholder="${_esc(ph)}"></textarea></div>`;
   if (def.kind === 'secretarea')
     return `<div class="vform-field"><label for="${id}">${_esc(def.label)}</label>
       <div class="vform-secretarea">
-        <textarea id="${id}" class="settings-input vform-input" rows="5" autocomplete="off" spellcheck="false" placeholder="${_esc(ph)}"></textarea>
+        <textarea id="${id}" class="settings-input vform-input" rows="5" ${_NOFILL} spellcheck="false" placeholder="${_esc(ph)}"></textarea>
         <div class="vform-secret-actions">
           <button type="button" class="act-btn" data-reveal="${id}">${_esc(t('vault.show'))}</button>
           <button type="button" class="act-btn" data-copy="${id}">${_esc(t('common.copy'))}</button>
@@ -1570,14 +1575,14 @@ function _fieldHtml(def) {
           <span class="vault-strength-label"></span></div>` : '';
     return `<div class="vform-field${def.half ? ' half' : ''}"><label for="${id}">${_esc(def.label)}</label>
       <div class="vform-pw">
-        <input id="${id}" type="password" autocomplete="off" class="settings-input vform-input" placeholder="${_esc(ph)}">
+        <input id="${id}" type="password" ${_NOFILL} class="settings-input vform-input" placeholder="${_esc(ph)}">
         <button type="button" class="act-btn" data-reveal="${id}">${_esc(t('vault.show'))}</button>
         <button type="button" class="act-btn" data-copy="${id}">${_esc(t('common.copy'))}</button>
         ${gen}
       </div>${strength}</div>`;
   }
   return `<div class="vform-field${def.half ? ' half' : ''}"><label for="${id}">${_esc(def.label)}</label>
-    <input id="${id}" type="text" class="settings-input vform-input" placeholder="${_esc(ph)}"></div>`;
+    <input id="${id}" type="text" class="settings-input vform-input" ${_NOFILL} placeholder="${_esc(ph)}"></div>`;
 }
 
 function _renderFields(defs, values = {}) {
@@ -1904,7 +1909,7 @@ function _promptCode(title) {
         <div class="modal-head"><span class="modal-title" id="cc-title">${_esc(title)}</span></div>
         <div class="vault-form"><div class="vform-field">
           <label for="cc-code">${_esc(t('vault.verification_code'))}</label>
-          <input id="cc-code" class="settings-input vform-input" inputmode="numeric" maxlength="6" placeholder="${_esc(t('vault.6_digits'))}"></div></div>
+          <input id="cc-code" autocomplete="one-time-code" class="settings-input vform-input" inputmode="numeric" maxlength="6" placeholder="${_esc(t('vault.6_digits'))}"></div></div>
         <div class="vault-form-actions">
           <button type="button" class="btn" id="cc-cancel">${_esc(t('common.cancel'))}</button>
           <button type="button" class="btn primary" id="cc-ok">${_esc(t('vault.unlock'))}</button></div>

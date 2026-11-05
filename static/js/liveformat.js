@@ -229,7 +229,7 @@ function kindOf(el) {
   if (el.dataset.k === 'birthday') return 'birthday';
   if (/YYYY-MM-DD|^\d{4}-\d{2}-\d{2}$/.test(ph)) return 'date';
   if (/^HH:MM$/i.test(ph) || /^\d{1,2}:\d{2}$/.test(ph)) return 'time';
-  if (/\b6-digit code\b/i.test(ph) || el.autocomplete === 'one-time-code') return 'code';
+  if (/\b6-digit code\b/i.test(ph) || (el.autocomplete === 'one-time-code' && !el.hasAttribute('data-nofill'))) return 'code';
   if (el.id === 's-accent-hex' || /#hex\b/i.test(ph)) return 'hex';
   if (type === 'email') return 'email';
   if (type === 'url' || mode === 'url') return 'url';
