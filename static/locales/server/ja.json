@@ -1917,6 +1917,7 @@
     "that folder is unavailable": "そのフォルダは利用できません",
     "that habit type doesn't exist": "その種類の習慣はありません",
     "that image is over 20 MB": "その画像は 20 MB を超えています",
+    "that isn't a release id": "それはリリース ID ではありません",
     "that isn't one of the times this page offers": "このページで提示されている時間ではありません",
     "that language isn't available in the translator": "その言語は翻訳機能では利用できません",
     "that local Git branch is unavailable": "そのローカルの Git ブランチは利用できません",

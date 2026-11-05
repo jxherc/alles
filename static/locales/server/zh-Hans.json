@@ -1917,6 +1917,7 @@
     "that folder is unavailable": "该文件夹不可用",
     "that habit type doesn't exist": "没有这种习惯类型",
     "that image is over 20 MB": "该图片超过 20 MB",
+    "that isn't a release id": "这不是一个版本 ID",
     "that isn't one of the times this page offers": "这不是此页面提供的时间",
     "that language isn't available in the translator": "翻译器不支持该语言",
     "that local Git branch is unavailable": "该本地 Git 分支不可用",

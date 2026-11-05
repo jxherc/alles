@@ -1950,6 +1950,7 @@
     "that folder is unavailable",
     "that habit type doesn't exist",
     "that image is over 20 MB",
+    "that isn't a release id",
     "that isn't one of the times this page offers",
     "that language isn't available in the translator",
     "that local Git branch is unavailable",

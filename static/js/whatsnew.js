@@ -29,11 +29,38 @@ const read = () => {
   if (cookie) return decodeURIComponent(cookie.slice(COOKIE.length + 1));
   try { return localStorage.getItem(SEEN) || ''; } catch { return ''; }
 };
-const mark = id => {
+const markHere = id => {
   const domain = sharedDomain();
   document.cookie = `${COOKIE}=${encodeURIComponent(id)}; path=/; max-age=31536000; SameSite=Lax${domain ? `; domain=${domain}` : ''}`;
   try { localStorage.setItem(SEEN, id); } catch { /* private window: the cookie still holds */ }
 };
+
+// a browser only remembers for its own address, and on an ipad every home-screen app keeps its
+// own storage too, so the tailscale ip, the lan ip and the home-screen app each showed the notes
+// again (nov 5). alles keeps one record for all of them in its settings
+let _onServer = null;
+async function seenOnServer() {
+  try {
+    const settings = await fetch('/api/settings', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null));
+    _onServer = typeof settings?.whats_new_seen === 'string' ? settings.whats_new_seen : '';
+  } catch { _onServer = null; }
+  return _onServer || '';
+}
+const mark = id => {
+  markHere(id);
+  if (_onServer === id) return;
+  _onServer = id;
+  fetch('/api/settings', {
+    method: 'PATCH', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ whats_new_seen: id }),
+  }).catch(() => {});
+};
+
+// the newer of two records; releases are newest first, and one the list doesn't know is oldest
+export function newestSeen(list, ...ids) {
+  const rank = id => { const at = list.findIndex(release => release.id === id); return at === -1 ? Infinity : at; };
+  return ids.filter(Boolean).sort((a, b) => rank(a) - rank(b))[0] || '';
+}
 
 async function releases() {
   try {
@@ -56,12 +83,18 @@ export async function maybeShowWhatsNew() {
   // a test browser or other automation never needs release notes over the screen it drives
   if (navigator.webdriver) return;
   const list = await releases();
-  if (list.length && !read()) { mark(list[0].id); return; }
-  const show = unseen(list, read());
+  if (!list.length) return;
+  const here = read();
+  const seen = newestSeen(list, here, await seenOnServer());
+  if (!seen) { mark(list[0].id); return; }
+  if (seen !== here) markHere(seen);
+  const show = unseen(list, seen);
   if (!show.length) return;
   // never on top of something the owner already has open
   const busy = [...document.querySelectorAll('.dialog-overlay, [role="dialog"], [role="alertdialog"]')].some(node => node.getClientRects().length);
   if (busy) { setTimeout(maybeShowWhatsNew, 4000); return; }
+  // shown once is seen: switching apps or reloading before closing it never brings it back
+  mark(list[0].id);
   open(show, { first: false, latest: list[0].id });
 }
 

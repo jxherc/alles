@@ -1917,6 +1917,7 @@
     "that folder is unavailable": "ce dossier est indisponible",
     "that habit type doesn't exist": "ce type d’habitude n’existe pas",
     "that image is over 20 MB": "cette image dépasse 20 Mo",
+    "that isn't a release id": "ce n’est pas un identifiant de version",
     "that isn't one of the times this page offers": "ce n’est pas l’un des horaires proposés par cette page",
     "that language isn't available in the translator": "cette langue n’est pas disponible dans le traducteur",
     "that local Git branch is unavailable": "cette branche Git locale est indisponible",

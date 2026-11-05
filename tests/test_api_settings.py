@@ -146,6 +146,18 @@ class SettingsApiTest(ApiTest):
         cs._clear_settings_cache()  # restart-equivalent: the next read must come from disk
         self.assertEqual(cs.load_settings()["default_chat_behavior"], "answer_only")
 
+    def test_whats_new_seen_is_one_record_for_every_address(self):
+        # nov 5: each browser address and home-screen app kept its own record, so the notes
+        # kept coming back on the ipad
+        self.assertEqual(self.client.get("/api/settings").json()["whats_new_seen"], "")
+        response = self.client.patch("/api/settings", json={"whats_new_seen": "2026-11-05"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get("/api/settings").json()["whats_new_seen"], "2026-11-05")
+        for bad in ("", "../x", "A" * 41, "2026 11 05", "<b>"):
+            response = self.client.patch("/api/settings", json={"whats_new_seen": bad})
+            self.assertEqual(response.status_code, 400, bad)
+        self.assertEqual(self.client.get("/api/settings").json()["whats_new_seen"], "2026-11-05")
+
     def test_rejects_invalid_default_chat_behavior(self):
         for value in ("automatic", "agent", "chat", "", "ANSWER_ONLY"):
             with self.subTest(value=value):

@@ -444,6 +444,7 @@ class SettingsPatch(BaseModel):
     session_context_inject: bool | None = None
     insights_enabled: bool | None = None
     intent_suggestions: bool | None = None
+    whats_new_seen: str | None = None
     insights_auto_inject: bool | None = None
     distilled_auto_inject: bool | None = None
     holdings_autoprice: bool | None = None
@@ -475,6 +476,10 @@ def patch_settings(body: SettingsPatch, request: Request):
             "invalid_default_chat_behavior",
             "default chat behavior must be automatic_tools or answer_only",
         )
+    if "whats_new_seen" in patch and not re.fullmatch(
+        r"[0-9a-z][0-9a-z-]{0,39}", patch["whats_new_seen"]
+    ):
+        raise ApiError(400, "invalid_whats_new_seen", "that isn't a release id")
     for key in ("owner_instructions", "system_prompt"):
         if key not in patch:
             continue

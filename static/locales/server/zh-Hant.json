@@ -1917,6 +1917,7 @@
     "that folder is unavailable": "該資料夾無法使用",
     "that habit type doesn't exist": "沒有這種習慣類型",
     "that image is over 20 MB": "該圖片超過 20 MB",
+    "that isn't a release id": "這不是一個版本 ID",
     "that isn't one of the times this page offers": "這不是此頁面提供的時段之一",
     "that language isn't available in the translator": "翻譯器不提供該語言",
     "that local Git branch is unavailable": "該本機 Git 分支無法使用",
