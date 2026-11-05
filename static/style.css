@@ -9725,6 +9725,11 @@ html[data-theme="light"] .andromeda-marker { background: color-mix(in srgb, var(
   text-decoration-color: var(--andromeda-line); text-underline-offset: 0.2em; cursor: pointer;
 }
 .andromeda-view .andromeda-spelling-fix:hover { text-decoration-color: currentColor; }
+/* "showing results for x" with "search instead for y": two phrases that wrap as whole phrases */
+.andromeda-view .andromeda-spelling[data-kind="corrected"] { flex-wrap: wrap; column-gap: 16px; row-gap: 0; }
+.andromeda-view .andromeda-spelling[data-kind="corrected"] strong { color: var(--text); font-weight: 560; }
+.andromeda-view .andromeda-spelling[data-kind="corrected"] .andromeda-spelling-fix { font-style: normal; text-align: start; }
+.andromeda-view .andromeda-spelling-instead { display: inline-flex; align-items: center; flex-wrap: wrap; column-gap: 6px; }
 /* a tool answers the query: the overview is one line with a way to ask for it */
 .andromeda-view .andromeda-overview[data-offered="true"] { padding: 4px 0; }
 .andromeda-view .andromeda-overview[data-offered="true"] .andromeda-section-head { align-items: center; justify-content: flex-start; margin-bottom: 0; }

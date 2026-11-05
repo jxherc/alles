@@ -55,6 +55,8 @@ function freshState() {
     rawQuery: '', query: '', category: 'all', request: {}, results: [], overviewSeed: [],
     overview: {}, evidence: [], model: {}, verification: {}, verifierModel: {},
     hasMore: false, usedNoAi: false,
+    // the spelling fix the search made ({ from, to }), and whether the owner asked for no fix
+    corrected: null, exact: false,
     resultStatus: 'empty', providerDisabled: false, documentScope: null,
     // earlier questions in this thread, sent with the overview so "it" means something
     context: [], followUpOf: '', deep: false,
@@ -123,7 +125,7 @@ function setCategory(next, { search = true } = {}) {
   });
   if (value !== 'all') showOverview(false);
   if (search && _state.rawQuery) {
-    runAndromedaSearch(_state.rawQuery, { category: value, keepHistory: true });
+    runAndromedaSearch(_state.rawQuery, { category: value, keepHistory: true, exact: _state.exact });
   }
 }
 
@@ -1898,9 +1900,9 @@ async function startOverview(query, results, searchGeneration, options = {}) {
   }
 }
 
-function askAnswer(query, kind = '') {
+function askAnswer(query, kind = '', exact = false) {
   return jsonRequest('/api/andromeda/answer', {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query, kind }),
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query, kind, exact }),
   });
 }
 
@@ -1919,6 +1921,7 @@ function renderSpelling(fixed = '') {
   const line = el('andromeda-spelling');
   if (!line) return;
   line.replaceChildren();
+  delete line.dataset.kind;
   line.hidden = !fixed;
   if (!fixed) return;
   const again = document.createElement('button');
@@ -1933,12 +1936,42 @@ function renderSpelling(fixed = '') {
   line.append(document.createTextNode(`${tr('andromeda.ans_did_you_mean')} `), again);
 }
 
-async function loadAnswer(query, searchGeneration) {
+// google style: the search ran on the fixed spelling. the box shows it, this line says so, and
+// the link searches the words as they were typed, with no fix
+function renderCorrection({ from, to }, typed) {
+  const line = el('andromeda-spelling');
+  if (!line) return;
+  line.replaceChildren();
+  line.dataset.kind = 'corrected';
+  line.hidden = false;
+  const shown = document.createElement('span');
+  const fixed = document.createElement('strong');
+  fixed.textContent = to;
+  shown.append(document.createTextNode(`${tr('andromeda.showing_results_for')} `), fixed);
+  const instead = document.createElement('span');
+  instead.className = 'andromeda-spelling-instead';
+  const original = document.createElement('button');
+  original.type = 'button';
+  original.className = 'andromeda-spelling-fix';
+  original.textContent = from;
+  original.addEventListener('click', () => {
+    const input = el('andromeda-query');
+    if (input) input.value = typed;
+    void runAndromedaSearch(typed, { exact: true });
+  });
+  instead.append(document.createTextNode(`${tr('andromeda.search_instead_for')} `), original);
+  line.append(shown, instead);
+}
+
+let _answerSeq = 0;
+async function loadAnswer(query, searchGeneration, exact = false) {
+  const seq = ++_answerSeq;
   try {
-    const answer = await askAnswer(query);
-    if (searchGeneration === _searchGeneration) {
+    const answer = await askAnswer(query, '', exact);
+    if (searchGeneration === _searchGeneration && seq === _answerSeq) {
       renderAnswer(el('andromeda-answer'), answer, ANSWER_TOOLS);
-      renderSpelling(answer?.did_you_mean || '');
+      // a fixed or exact search already says what was searched; "did you mean" would argue with it
+      if (!_state.corrected && !exact) renderSpelling(answer?.did_you_mean || '');
     }
     return answer;
   } catch {
@@ -1967,11 +2000,30 @@ function offerOverview(query, results, searchGeneration) {
   };
 }
 
+// the search ran on the fixed spelling: that is what the box, the address, the history and a saved
+// search record, and "load more" and the other tabs carry on with it as it is
+function adoptCorrection(result, typed, currentCategory, options) {
+  _state.corrected = { from: result.corrected_from, to: result.query };
+  _state.rawQuery = _state.query;
+  _state.exact = true;
+  _state.request = { ..._state.request, query: _state.query, exact: true };
+  if (!options.keepHistory) {
+    const was = typed.toLowerCase();
+    saveRecent(rememberSearch(_recent.filter(item => item.toLowerCase() !== was), _state.query));
+  }
+  const route = new URL(location.href);
+  route.searchParams.set('q', _state.query);
+  route.searchParams.delete('exact');
+  if (route.href !== location.href) replaceRouteUrl(route);
+  renderCorrection(_state.corrected, typed);
+}
+
 export async function runAndromedaSearch(queryValue = '', options = {}) {
   const input = el('andromeda-query');
   const query = String(queryValue || input?.value || '').trim();
   if (!query) { input?.focus(); return; }
   closeHistory();
+  const exact = !!options.exact;
   if (!options.keepHistory) saveRecent(rememberSearch(_recent, query));
   _openedSaved = null;
   _savedOpenRetry = '';
@@ -1980,6 +2032,8 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   const route = new URL(location.href);
   route.searchParams.delete('saved');
   route.searchParams.set('q', query);
+  if (exact) route.searchParams.set('exact', '1');
+  else route.searchParams.delete('exact');
   if (route.href !== location.href) replaceRouteUrl(route);
   const currentCategory = CATEGORIES.has(options.category) ? options.category : category();
   if (input) input.value = query;
@@ -2000,6 +2054,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     usedNoAi: /(^|\s)!ai(?=\s|$)/i.test(query),
     context: Array.isArray(options.context) ? options.context.slice(-3) : [],
     followUpOf: String(options.followUpOf || ''),
+    exact,
   };
   renderAndromedaResults([], 'loading', currentCategory);
   clearOverview();
@@ -2011,7 +2066,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   renderAnswer(el('andromeda-answer'), null);
   renderSpelling('');
   // calculator, converter, weather, dictionary... runs beside the search, never in front of it
-  const answerReady = currentCategory === 'all' ? loadAnswer(query, searchGeneration) : Promise.resolve(null);
+  let answerReady = currentCategory === 'all' ? loadAnswer(query, searchGeneration, exact) : Promise.resolve(null);
   const wantsOverview = currentCategory === 'all'
     && _prefs.overview
     && !/(^|\s)!ai(?=\s|$)/i.test(query);
@@ -2031,6 +2086,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     overview: wantsOverview,
     max_results: pageSize(currentCategory),
     follow_up_of: _state.followUpOf,
+    exact,
   };
   _state.request = { ...request, band: _prefs.band };
   try {
@@ -2041,6 +2097,11 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     if (searchGeneration !== _searchGeneration) return;
     _state.usedNoAi = !!result.used_no_ai;
     _state.query = queryWithNoAi(result.query || query, _state.usedNoAi);
+    if (result.corrected_from) adoptCorrection(result, query, currentCategory, options);
+    if (result.correction === 'engine' && currentCategory === 'all') {
+      // the search engine found the fix, so the card is asked again for it
+      answerReady = loadAnswer(result.query, searchGeneration, true);
+    }
     _state.results = result.results || [];
     _state.hasMore = !!result.has_more;
     _state.overviewSeed = result.overview_seed || _state.results;
@@ -2557,7 +2618,7 @@ async function explainResults(button = el('andromeda-explain')) {
 function bindRecovery() {
   el('andromeda-recovery')?.addEventListener('click', event => {
     const action = event.target.closest('[data-andromeda-recovery]')?.dataset.andromedaRecovery;
-    if (action === 'retry') runAndromedaSearch('', { keepHistory: true });
+    if (action === 'retry') runAndromedaSearch('', { keepHistory: true, exact: _state.exact });
     if (action === 'broaden') {
       const broad = (el('andromeda-query')?.value || '')
         .replace(/"([^"]+)"/g, '$1').replace(/(^|\s)![^\s]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -2702,6 +2763,7 @@ async function loadPrefs() {
 export function andromedaLandingUrl(value) {
   const url = new URL(value, 'http://localhost');
   url.searchParams.delete('q');
+  url.searchParams.delete('exact');
   url.searchParams.delete('saved');
   return `${url.pathname}${url.search}${url.hash}`;
 }
@@ -2890,7 +2952,7 @@ export async function initAndromeda() {
     return;
   }
   const query = params.get('q');
-  if (query && !_state.rawQuery) runAndromedaSearch(query, { keepHistory: true });
+  if (query && !_state.rawQuery) runAndromedaSearch(query, { keepHistory: true, exact: params.get('exact') === '1' });
   else if (!_state.rawQuery && (_pendingSave || _unreadableSave || _saveMessage)) {
     setPageState('results'); renderSaveRecovery();
   } else if (!_state.rawQuery) {

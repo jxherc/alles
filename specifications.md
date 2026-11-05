@@ -161,7 +161,7 @@ http audit metadata in [services/audit.py](services/audit.py) is separate from d
 | integration | implementation | boundary |
 | --- | --- | --- |
 | models/catalogs | [services/llm.py](services/llm.py), [services/model_providers.py](services/model_providers.py) | protocol formatting and live model ids |
-| search/pages | [services/andromeda.py](services/andromeda.py), [services/net_guard.py](services/net_guard.py) | bounded evidence, quotes, guarded urls/redirects |
+| search/pages | [services/andromeda.py](services/andromeda.py), [services/andromeda_spelling.py](services/andromeda_spelling.py), [services/net_guard.py](services/net_guard.py) | bounded evidence, quotes, guarded urls/redirects |
 | answer tools | [services/andromeda_answers.py](services/andromeda_answers.py), [services/andromeda_f1.py](services/andromeda_f1.py), [services/andromeda_dates.py](services/andromeda_dates.py), [services/andromeda_utilities.py](services/andromeda_utilities.py) | fixed public data hosts through the guarded fetcher; translation through the answer model |
 | mail | [services/mail.py](services/mail.py), [services/mail_compose.py](services/mail_compose.py) | imap/smtp, local cache, compose, sending |
 | calendars/contacts | [services/caldav_sync.py](services/caldav_sync.py), [services/carddav_sync.py](services/carddav_sync.py) | configured synchronization |
@@ -1243,6 +1243,18 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **compact answer, separate links.** search, the cited answer, and results share one readable axis. the
   shortest decisive evidence-backed substring is highlighted inside the key answer. ordinary web results
   begin in their own labeled region and use spacing instead of divider lines between rows.
+- **typos are fixed, google-style.** `POST /api/andromeda/search` fixes plain typos before it searches: "achievemenst"
+  becomes "achievements", and the results, the answer card and the overview all use the fixed words.
+  [services/andromeda_spelling.py](services/andromeda_spelling.py) uses pyspellchecker's english list and stays careful:
+  only lowercase or capitalized words of 4+ letters the list doesn't know, only when the fix swaps two
+  letters or doubles or undoubles one (words of 7+ letters also allow a missed letter or a neighbouring key), only to a
+  word at about one per million or more, and never when two fixes are close. quotes, digits, all caps,
+  urls, `site:` style operators, `!` bangs and what follows them, and queries outside plain english stay as
+  typed. a brave, searxng or google pse fix is used when the list has none (one more search unless brave
+  already searched it). without the package there is no fix. the reply has `query` (what was searched)
+  and `corrected_from`; the box shows the fixed words and one line above the results says "showing
+  results for" them with "search instead for" the typed words, which searches them exactly (`exact: true`,
+  also `?exact=1` in the address). history and saved searches record what was searched.
 - **answer tools.** `POST /api/andromeda/answer` checks the query (plain pattern matching, nothing leaves
   the machine for that) and draws one tool above the overview on the "all" tab. one rule runs through
   it: asking for a tool opens the tool, empty; asking with the input answers right away, inside the same
@@ -1262,7 +1274,8 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
     browser's own speech), parts of speech with examples, similar and opposite words that look up in
     place. without the local copy it falls back to the free dictionary api and wiktionary online.
     **spelling** ("how to spell x") and **did you mean** use the same copy: wiktionary marks common
-    misspellings, so "recieve" offers "receive" above the results, google-style.
+    misspellings, so a misspelling the typo fix above leaves alone is offered above the results as
+    "did you mean" (not after "search instead for").
   - **periodic table and elements**: the built-in table, arrow keys between elements, a family
     highlight; an element card leads with the asked fact (mass, number, symbol, group, period).
   - **formula 1**: next race with a live countdown and session times in local time, driver and team
