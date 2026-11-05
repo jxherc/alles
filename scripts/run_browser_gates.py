@@ -50,6 +50,8 @@ GATE_TIMEOUTS = {
     "aide-task-capture": 600,
     "aide-multi-source": 600,
     "aide-queue": 900,
+    # 8 profiles in webkit, each one a search, an overview and a second search
+    "andromeda-spelling": 600,
 }
 COMMANDS = {
     "style-ownership": ("tests/pw_style_ownership.py",),
@@ -112,6 +114,7 @@ COMMANDS = {
     "andromeda-saved": ("tests/pw_andromeda_saved.py",),
     "andromeda-handoff": ("tests/pw_andromeda_handoff.py",),
     "andromeda-continuation": ("tests/pw_andromeda_continuation.py",),
+    "andromeda-spelling": ("tests/pw_andromeda_spelling.py",),
     "aide-task-capture": ("tests/pw_aide_task_capture.py",),
     "aide-send-preflight": ("tests/pw_aide_send_preflight.py",),
     "server-companion-controls": ("tests/pw_server_companion_controls.py",),
