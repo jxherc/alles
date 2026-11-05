@@ -8031,7 +8031,7 @@
     "vault.api_key_token": "API キー / トークン",
     "vault.approve": "承認",
     "vault.approve_access_for": "{name} のアクセスを承認",
-    "vault.approve_each_browser_here_access": "ブラウザごとにここで承認してください。アクセスは 5 分間有効で、ページのオリジンに対して選んだログイン情報だけが渡されます。",
+    "vault.approve_each_browser_here_access": "ブラウザごとにここで承認してください。アクセスは選んだ時間だけ有効で、ページのオリジンに対して選んだログイン情報だけが渡されます。",
     "vault.approve_pairing_for": "{name} のペアリングを承認",
     "vault.attach_file": "+ ファイルを添付",
     "vault.attachments": "添付ファイル",

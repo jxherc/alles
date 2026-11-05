@@ -8034,7 +8034,7 @@ const BUILTIN_ENGLISH = {
     "vault.api_key_token": "API key / token",
     "vault.approve": "approve",
     "vault.approve_access_for": "approve access for {name}",
-    "vault.approve_each_browser_here_access": "approve each browser here. access lasts five minutes and only releases the login you choose for the page's exact origin.",
+    "vault.approve_each_browser_here_access": "approve each browser here. access lasts as long as you pick and only releases the login you choose for the page's exact origin.",
     "vault.approve_pairing_for": "approve pairing for {name}",
     "vault.attach_file": "+ attach file",
     "vault.attachments": "attachments",

@@ -8031,7 +8031,7 @@
     "vault.api_key_token": "clave de API / token",
     "vault.approve": "aprobar",
     "vault.approve_access_for": "aprobar el acceso de {name}",
-    "vault.approve_each_browser_here_access": "aprueba aquí cada navegador. el acceso dura cinco minutos y solo entrega el inicio de sesión que elijas para el origen exacto de la página.",
+    "vault.approve_each_browser_here_access": "aprueba aquí cada navegador. el acceso dura el tiempo que elijas y solo entrega el inicio de sesión que elijas para el origen exacto de la página.",
     "vault.approve_pairing_for": "aprobar el emparejamiento de {name}",
     "vault.attach_file": "+ adjuntar archivo",
     "vault.attachments": "adjuntos",

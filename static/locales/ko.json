@@ -8031,7 +8031,7 @@
     "vault.api_key_token": "API 키 / 토큰",
     "vault.approve": "승인",
     "vault.approve_access_for": "{name}의 접근 승인",
-    "vault.approve_each_browser_here_access": "여기서 브라우저마다 승인하세요. 접근은 5분간 유지되며, 페이지의 정확한 출처에 대해 선택한 로그인 정보만 제공합니다.",
+    "vault.approve_each_browser_here_access": "여기서 브라우저마다 승인하세요. 접근은 고른 시간 동안 유지되며, 페이지의 정확한 출처에 대해 선택한 로그인 정보만 제공합니다.",
     "vault.approve_pairing_for": "{name}의 페어링 승인",
     "vault.attach_file": "+ 파일 첨부",
     "vault.attachments": "첨부 파일",

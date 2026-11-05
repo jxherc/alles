@@ -8031,7 +8031,7 @@
     "vault.api_key_token": "API 金鑰 / token",
     "vault.approve": "核准",
     "vault.approve_access_for": "核准 {name} 的存取",
-    "vault.approve_each_browser_here_access": "請在這裡逐一核准每個瀏覽器。存取權持續五分鐘，且只會針對該頁面的確切來源釋出你選擇的登入資訊。",
+    "vault.approve_each_browser_here_access": "請在這裡逐一核准每個瀏覽器。存取權持續你選擇的時長，且只會針對該頁面的確切來源釋出你選擇的登入資訊。",
     "vault.approve_pairing_for": "核准 {name} 的配對",
     "vault.attach_file": "+ 附加檔案",
     "vault.attachments": "附件",

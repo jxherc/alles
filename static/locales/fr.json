@@ -8031,7 +8031,7 @@
     "vault.api_key_token": "clé API / jeton",
     "vault.approve": "approuver",
     "vault.approve_access_for": "approuver l’accès pour {name}",
-    "vault.approve_each_browser_here_access": "approuve chaque navigateur ici. l’accès dure cinq minutes et ne libère que l’identifiant choisi pour l’origine exacte de la page.",
+    "vault.approve_each_browser_here_access": "approuve chaque navigateur ici. l’accès dure le temps que tu choisis et ne libère que l’identifiant choisi pour l’origine exacte de la page.",
     "vault.approve_pairing_for": "approuver l’appairage pour {name}",
     "vault.attach_file": "+ joindre un fichier",
     "vault.attachments": "pièces jointes",

@@ -8031,7 +8031,7 @@
     "vault.api_key_token": "API 密钥 / 令牌",
     "vault.approve": "批准",
     "vault.approve_access_for": "批准 {name} 的访问",
-    "vault.approve_each_browser_here_access": "请逐个批准这里的浏览器。访问权限持续五分钟，且只会向该页面的确切来源提供你选择的登录信息。",
+    "vault.approve_each_browser_here_access": "请逐个批准这里的浏览器。访问权限持续你选择的时长，且只会向该页面的确切来源提供你选择的登录信息。",
     "vault.approve_pairing_for": "批准 {name} 的配对",
     "vault.attach_file": "+ 附加文件",
     "vault.attachments": "附件",

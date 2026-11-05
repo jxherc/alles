@@ -8030,7 +8030,7 @@
     "vault.api_key_token": "مفتاح API / رمز",
     "vault.approve": "موافقة",
     "vault.approve_access_for": "الموافقة على وصول {name}",
-    "vault.approve_each_browser_here_access": "وافق على كل متصفح هنا. يدوم الوصول خمس دقائق ولا يطلق إلا تسجيل الدخول الذي تختاره لأصل الصفحة الدقيق.",
+    "vault.approve_each_browser_here_access": "وافق على كل متصفح هنا. يدوم الوصول المدة التي تختارها ولا يطلق إلا تسجيل الدخول الذي تختاره لأصل الصفحة الدقيق.",
     "vault.approve_pairing_for": "الموافقة على اقتران {name}",
     "vault.attach_file": "+ إرفاق ملف",
     "vault.attachments": "المرفقات",
