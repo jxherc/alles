@@ -17,6 +17,7 @@ import { fetchWithRecentOwner } from './recent_owner.js';
 import { saveAnswerTask } from './answer_task.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=2';
 import { compactResponseActions } from './response_actions.js?v=6';
+import { addQueued, clearQueued, queuedItems, restoreQueued, takeQueued } from './chatqueue.js';
 
 // one-line human summary of a tool call, so an approval reads clearly, not as raw json
 function toolSummary(name, args = {}) {
@@ -92,6 +93,9 @@ if (typeof document !== 'undefined') document.addEventListener?.('click', e => {
 });
 
 let _streaming = false;
+// the task the running reply belongs to, until its stream has fully ended (a stop clears
+// _chatSessionId earlier)
+let _streamingSession = null;
 let _backgroundLaunching = false;
 let _chatAbort = null;
 let _chatSessionId = null;
@@ -113,6 +117,75 @@ export function getSendBlockReason() {
 
 export function canSendMessage() {
   return !getSendBlockReason();
+}
+
+// while aide replies in this task, a new message waits its turn instead of being refused
+export function canQueueMessage() {
+  return _streaming && !_backgroundLaunching && !window._aidePrimaryUnavailable
+    && !!_streamingSession && getActiveId() === _streamingSession;
+}
+
+// one at a time, in the order they were sent
+let _queueTail = Promise.resolve();
+let _queueFiles = false;
+async function queueMessage(text, onAccepted) {
+  if (_queueFiles) return;
+  const sessionId = getActiveId();
+  if (hasPendingAttachments()) { showSendIssue(t('aide.send_wait_attachments')); return; }
+  // notes, other apps' context and pictures are sent one at a time, as before
+  if (window._pendingDocumentScope || isImageSelected() || getImageSlot()) { toast(t('shell.wait_for_answer'), 'error'); return; }
+  const attachmentIds = getAttachments();
+  const privateTask = isIncognitoMode();
+  if (attachmentIds.length) {
+    // files stay attached until the server has the message
+    _queueFiles = true;
+    try {
+      if (!await addQueued(sessionId, text, attachmentIds, { privateTask })) return;
+    } finally { _queueFiles = false; }
+    clearAttachments(attachmentIds);
+    onAccepted(sessionId);
+    return;
+  }
+  // the box empties at once, so a quick second Enter can't send the same words again; if the
+  // server never took them they go back into the box
+  onAccepted(sessionId);
+  const job = _queueTail.then(() => addQueued(sessionId, text, [], { privateTask }));
+  _queueTail = job.catch(() => {});
+  if (!await job && getActiveId() === sessionId) restoreComposerInput(text);
+}
+
+// the reply ended: what came in meanwhile is answered next, all together
+let _flushing = false;
+export async function answerQueued(sessionId = getActiveId()) {
+  if (_flushing || !sessionId || getActiveId() !== sessionId) return;
+  _flushing = true;
+  try {
+    // the server lets go of the finished turn a moment after the stream closes
+    for (let waited = 0; ; waited += 150) {
+      if (_streaming || getActiveId() !== sessionId || !queuedItems(sessionId).length) return;
+      const state = await fetch(`/api/chat/queue/${encodeURIComponent(sessionId)}`).then(r => r.ok ? r.json() : null).catch(() => null);
+      if (!state || !state.answering || waited >= 15000) break;
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    const sel = getSelected();
+    const taken = takeQueued(sessionId);
+    if (!taken || !sel || _streaming || !canSendMessage()) return;
+    const userRow = taken.askRow();
+    showMessages();
+    // not awaited: the guard covers only the start, so messages sent during this turn flush after it
+    void streamReply({
+      session_id: sessionId,
+      message: taken.text,
+      mode: getMode(),
+      file_ids: taken.fileIds,
+      incognito: isIncognitoMode(),
+      permission_mode: getPermMode(),
+      effort: getEffort(sel.model, modelSupport(sel).effortLevels),
+      reasoning_mode: getReasoningMode(sel.model, modelSupport(sel).reasoningControl),
+      custom_effort: getCustomEffort(sel.model),
+      queued_ids: taken.ids,
+    }, { userRow, taken });
+  } finally { _flushing = false; }
 }
 
 // a run this tab is streaming into a row still on screen is the reply, not background work to
@@ -330,6 +403,7 @@ function takeHandoff(text, handoff) {
 }
 
 export async function sendMessage(text, onAccepted = () => {}, { handoff = null } = {}) {
+  if (text?.trim() && !handoff && canQueueMessage()) return queueMessage(text, onAccepted);
   if (!text?.trim() || _streaming || _backgroundLaunching) return;
   handoff = takeHandoff(text, normalizeHandoff(handoff));
   if (window._aidePrimaryUnavailable) {
@@ -551,13 +625,14 @@ function focusAfterReply(row = document.getElementById('messages')?.lastElementC
   } else composer?.focus();
 }
 
-async function streamReply(request, { freshSession = false, previousRow = null, pendingDraft = null, userRow = null, shownScope = null, resend = null } = {}) {
+async function streamReply(request, { freshSession = false, previousRow = null, pendingDraft = null, userRow = null, shownScope = null, resend = null, taken = null } = {}) {
   const { session_id: sessionId, message: text, incognito: privateReply } = request;
   // an edit or regenerate leaves the notes to the server; the row still shows what it used
   const documentScope = request.context_scope || shownScope;
   // Only the latest settled failure may retry. A new turn retires older controls.
   document.querySelectorAll('.aide-retry-response').forEach(button => button.remove());
   previousRow?.remove();
+  _streamingSession = sessionId;
   setStreaming(true);
   const ctrl = new AbortController();
   const streamToken = ++_streamToken;
@@ -685,6 +760,16 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
       resend.refused(refusal.reason);
       return;
     }
+    if (!r.ok && taken) {
+      // the turn that was to answer the waiting messages was refused: they wait as before, and
+      // when another tab already sent them this one just reads the task again
+      const error = await r.json().catch(() => ({}));
+      row.remove();
+      if (error.code === 'queue_changed') { clearQueued(taken); userRow?.remove(); void rereadActiveSession(sessionId); }
+      else restoreQueued(taken, userRow);
+      setStreaming(false);
+      return;
+    }
     if (!r.ok) {
       const error = await r.json().catch(() => ({}));
       if (error.code === 'turn_stopped') {
@@ -729,6 +814,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     }
 
     accepted = true;
+    if (taken) clearQueued(taken);
     // the server took the turn: aide has read the question (a retry answers the one above it)
     let asked = userRow?.isConnected ? userRow : row.previousElementSibling;
     while (asked && !asked.querySelector('.user-bubble')) asked = asked.previousElementSibling;
@@ -921,6 +1007,12 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     }
 
   } catch (e) {
+    if (taken && !accepted) {
+      // no answer: the waiting messages stay where they were, and the server still holds them
+      row.remove();
+      restoreQueued(taken, userRow);
+      return;
+    }
     if (resend && !accepted) {
       // no answer from the server: it may or may not have taken it (a stop can land after it
       // did), so the edit box re-reads once the turn is let go
@@ -948,7 +1040,7 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     if (_chatStreamRow === row) _chatStreamRow = null;
     if (_chatTurnToken === turnToken) _chatTurnToken = '';
     streamEnd();
-    if (_streamToken === streamToken) setStreaming(false);
+    if (_streamToken === streamToken) { _streamingSession = null; setStreaming(false); }
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = 0; }
     clearProgress();
     cursor?.remove();
@@ -1095,6 +1187,8 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
         .then(d => { if (d?.name) updateSessionName(sessionId, d.name); })
         .catch(() => {});
     }
+    // what came in while this reply ran is answered next, all together
+    if (accepted && _streamToken === streamToken) void answerQueued();
   }
 
 }
@@ -1171,7 +1265,8 @@ function announceReply(content) {
 
 function setStreaming(val, stoppable = true) {
   _streaming = val;
-  document.getElementById('send-btn').disabled = val;
+  // send stays on while a reply runs: a message sent now waits for its turn
+  document.getElementById('send-btn').disabled = val && !canQueueMessage();
   const stop = document.getElementById('stop-btn');
   // a new turn, or the end of one, ends any "stopping…"
   stop.removeAttribute?.('aria-disabled');

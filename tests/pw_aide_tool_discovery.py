@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 from urllib.parse import urlparse
@@ -238,10 +239,13 @@ with sync_playwright() as pw:
                 page.evaluate("window._setAideDocumentScope(null)")
                 field.fill("original connection failure question")
                 page.locator("#send-btn").click()
-                expect(page.locator("#send-btn")).to_be_disabled()
                 page.wait_for_function(
                     "document.querySelector('#stop-btn').classList.contains('visible')"
                 )
+                # stop shows before the request reaches the route; the handler runs during waits
+                deadline = time.monotonic() + 5
+                while not held and time.monotonic() < deadline:
+                    page.wait_for_timeout(10)
                 assert len(held) == 1
                 sid = requests[0]["session_id"]
                 session = api.get(base + "/api/sessions/" + sid + "/history").json()["session"]

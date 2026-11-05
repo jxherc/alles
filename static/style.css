@@ -819,6 +819,8 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
 .user-wrap:hover .msg-memory-btn,
 .user-actions:focus-within .msg-memory-btn { opacity: 1; }
 .msg-memory-btn:hover { color: var(--text); }
+.msg-unqueue-btn { cursor: pointer; }
+.msg-unqueue-btn:hover { color: var(--text); }
 .memory-confirm { gap: 4px; }
 /* the targets stay 44px tall, so the ring is drawn round the label line only (4px each side) and
    never sits on the words or hangs into the gap */

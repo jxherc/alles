@@ -311,8 +311,10 @@ body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(
 body.aide-central[data-space="aide"] .composer-box .send-btn:not(.is-empty):not(.recording):active::before { transform: scale(.94); }
 body.aide-central[data-space="aide"] .composer-box .send-btn.is-empty:hover::before { background: var(--k-hover, var(--panel)); }
 /* while an answer streams, stop takes send's own slot and look (a 32px fill in a 44px target);
-   added beside it, it pushed the model and mic 44px left the moment an answer began */
-.composer-bar .stop-btn.visible + .send-btn { display: none; }
+   added beside it, it pushed the model and mic 44px left the moment an answer began. once words are
+   typed, send takes the slot back (the message waits for its turn); stop returns when the box is empty */
+.composer-bar .stop-btn.visible + .send-btn.is-empty { display: none; }
+.composer-bar .stop-btn.visible:has(+ .send-btn:not(.is-empty)) { display: none; }
 body.aide-central[data-space="aide"] .composer-box .stop-btn { position: relative; isolation: isolate; border-color: transparent; background: none; color: var(--k-page, var(--bg)); }
 body.aide-central[data-space="aide"] .composer-box .stop-btn .ic { width: 12px; height: 12px; fill: currentColor; }
 body.aide-central[data-space="aide"] .composer-box .stop-btn::before {

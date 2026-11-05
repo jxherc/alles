@@ -8778,6 +8778,8 @@
     "whatsnew.2026_11_01.obsidian_lan.body": "설정에서 WebDAV로 iPad나 휴대폰의 Obsidian(Remotely Save 플러그인용)에 문서를 공유할 수 있습니다. 처음에는 읽기 전용이며, 읽기와 저장을 고르면 저장된 노트마다 수정본이 남습니다. 켜기 전에는 아무것도 공유되지 않습니다.",
     "whatsnew.2026_11_01.obsidian_lan.title": "로컬 네트워크로 Obsidian 사용",
     "whatsnew.2026_11_05.date": "2026년 11월 5일",
+    "whatsnew.2026_11_05.chat_queue.body": "aide가 아직 답하는 동안에도 메시지를 더 보낼 수 있습니다. 답변 아래에서 삭제 버튼과 함께 기다리고, 답이 끝나면 aide가 한꺼번에 답합니다.",
+    "whatsnew.2026_11_05.chat_queue.title": "aide가 답하는 동안에도 보내기",
     "whatsnew.2026_11_05.obsidian_sync.body": "설정에서 스위치 하나를 켜고 iPad나 휴대폰으로 코드를 스캔하세요. Remotely Save가 알아서 채워지고, 이름 바꾸기와 삭제까지 포함해 문서를 양방향으로 동기화합니다. 동기화로 지워진 노트는 문서 휴지통으로 가며 다시 꺼낼 수 있습니다.",
     "whatsnew.2026_11_05.obsidian_sync.title": "Obsidian이 문서와 동기화됩니다",
     "whatsnew.2026_11_05.setup_signin.body": "설정의 모델 단계가 Claude 또는 ChatGPT 로그인으로 시작합니다. API 키도 대안으로 계속 쓸 수 있습니다.",

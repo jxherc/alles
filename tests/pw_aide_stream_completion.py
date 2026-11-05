@@ -183,7 +183,9 @@ with sync_playwright() as pw:
                     page.locator("#composer-ta").fill("owned " + mode + " test")
                     page.locator("#send-btn").click()
                     if mode in ["held_partial", "user_stop"]:
-                        expect(page.locator("#send-btn")).to_be_disabled()
+                        page.wait_for_function(
+                            "document.querySelector('#stop-btn').classList.contains('visible')"
+                        )
                         for _ in range(100):
                             if held:
                                 break

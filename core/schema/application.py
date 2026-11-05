@@ -140,6 +140,19 @@ class Message(Base):
             return {}
 
 
+class QueuedMessage(Base):
+    """a message sent while aide was still replying: it waits here until the next turn takes it."""
+
+    __tablename__ = "queued_messages"
+    id = Column(String, primary_key=True, default=_uid)
+    session_id = Column(
+        String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    content = Column(Text, nullable=False, default="")
+    file_ids = Column(Text, default="[]")
+    created_at = Column(DateTime, default=_now)
+
+
 class AideCall(Base):
     __tablename__ = "aide_calls"
     id = Column(String, primary_key=True, default=_uid)

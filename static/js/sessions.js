@@ -1,3 +1,4 @@
+import { drawQueued } from './chatqueue.js';
 import { plainError, toast, withoutThinking } from './util.js';
 import { confirm as _dlgConfirm, prompt as _dlgPrompt, view as _dlgView } from './dialog.js';
 import { renderRunView, wireAgentRunControls } from './agentview.js';
@@ -513,7 +514,7 @@ export async function selectSession(id, messageId = '', options = {}) {
     if (options.push && id !== previousId && routeHistoryPosition() === position) pushRouteUrl(sourceUrl);
     else replaceRouteUrl(sourceUrl);
     document.querySelectorAll('.session-item').forEach(el => syncSessionRowState(el, el.dataset.id === id));
-    renderMessages(data.messages);
+    renderMessages(data.messages, data.queued);
     showMessages();
     // a saved chat with nothing in it yet greets like a new one, with the starts
     if (!data.messages?.length) showWelcome();
@@ -529,6 +530,8 @@ export async function selectSession(id, messageId = '', options = {}) {
     try {
       window._refreshPersonaBtn?.();
     } catch (e) {}
+    // messages left waiting before a reload or a switch are answered now
+    if (data.queued?.length) import('./chat.js').then(m => m.answerQueued(id)).catch(() => {});
     // Reattach durable Aide work to this same task after a reload or tab switch.
     import('./aidebackground.js?v=248').then(m => m.reattachBackgroundWork(id)).catch(() => {});
     if (messageId && !focusSessionMessage(messageId)) {
@@ -607,7 +610,7 @@ export async function refreshActiveSessionQuietly(sessionId, { overEdits = false
     const top = chat?.scrollTop || 0;
     const atEnd = chat && chat.scrollHeight - chat.clientHeight - top < 80;
     window._currentSession = data.session;
-    renderMessages(data.messages);
+    renderMessages(data.messages, data.queued);
     if (data.messages.length) showMessages();
     requestAnimationFrame(() => {
       if (chat && sessionId === _activeId) chat.scrollTop = atEnd ? chat.scrollHeight : top;
@@ -619,7 +622,7 @@ export async function refreshActiveSessionQuietly(sessionId, { overEdits = false
 window._refreshAideSessionQuietly = refreshActiveSessionQuietly;
 
 
-function renderMessages(msgs) {
+function renderMessages(msgs, queued = []) {
   const container = document.getElementById('messages');
   container.innerHTML = '';
   for (const m of msgs) {
@@ -677,6 +680,8 @@ function renderMessages(msgs) {
   _wireEditButtons(container);
   _wireBranchButtons(container);
   _reopenEditDrafts(container);
+  // messages sent while aide was replying, still waiting for their turn
+  drawQueued(_activeId, queued);
   scrollDown({ force: true });
 }
 

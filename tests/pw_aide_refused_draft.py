@@ -410,7 +410,9 @@ with sync_playwright() as pw:
                     }""")
                     retry.press("Enter")
                     check("", None)
-                    expect(page.locator("#send-btn")).to_be_disabled()
+                    page.wait_for_function(
+                        "document.querySelector('#stop-btn').classList.contains('visible')"
+                    )
                     if interruption == "stop":
                         page.locator("#stop-btn").click()
                     else:

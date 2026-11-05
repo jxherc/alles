@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from core.api_errors import ApiError
 from core.auth import require_recent_owner
-from core.database import Message, ModelEndpoint, Session, SessionLocal, get_db
+from core.database import Message, ModelEndpoint, QueuedMessage, Session, SessionLocal, get_db
 from core.settings import load_settings
 from services import incognito as incognito_service
 from services.chat_turn import (
@@ -349,6 +349,9 @@ class ChatRequest(BaseModel):
     # names this turn for its stop button: a late stop from a reply that already ended never
     # stops the next turn (or a handoff) in the same task
     turn_token: str = ""
+    # messages sent while aide was replying: this turn answers them, and they leave the queue
+    # once their words are saved
+    queued_ids: list[str] = []
 
 
 # what makes two sends "the same request" for a retry
@@ -360,6 +363,7 @@ _SAME_REQUEST = {
     "regenerate_message_id",
     "newest_id",
     "turn_token",
+    "queued_ids",
 }
 _FILE_GONE = "this question's file was deleted. ask again with it attached."
 _NOTE_CHANGED = {
@@ -905,6 +909,11 @@ async def create_chat_response(body: ChatRequest, request: Request, db, *, voice
         ):
             raise ApiError(409, "turn_stopped", "stopped before it started")
         # the turn is ours: other writers now wait, so these checks hold until the answer is in
+        if body.queued_ids:
+            # another tab already took them: sending the words again would ask twice
+            if len(queue_items(body.session_id, body.queued_ids)) != len(set(body.queued_ids)):
+                raise ApiError(409, "queue_changed", "those messages were already sent")
+            settings["queued_ids"] = list(body.queued_ids)
         _validate_retry(body, s, db, claimed=True)
         stored = _resend_target(body, s, db)
         if stored is not None and body.edit_message_id:
@@ -1065,6 +1074,83 @@ async def chat_background(body: ChatRequest, request: Request, db: DbSession = D
 
 
 # POST /api/chat/stop/{session_id}
+_QUEUE_LIMIT = 30
+
+
+class QueueBody(BaseModel):
+    session_id: str
+    message: str = Field(max_length=100_000)
+    file_ids: list[str] = []
+
+
+def _queue_view(row) -> dict:
+    try:
+        files = json.loads(row.file_ids or "[]")
+    except ValueError:
+        files = []
+    return {"id": row.id, "message": row.content, "file_ids": files}
+
+
+@router.post("/chat/queue")
+def queue_message(body: QueueBody, db: DbSession = Depends(get_db)):
+    """A message sent while aide is replying is saved now and answered by the next turn."""
+    if incognito_service.get_session(body.session_id):
+        raise ApiError(400, "incognito_queue_local", "private tasks keep their queue in the page")
+    session = db.get(Session, body.session_id)
+    if not session:
+        raise HTTPException(404, "session not found")
+    if not body.message.strip():
+        raise ApiError(400, "queue_empty", "write a message first")
+    waiting = db.query(QueuedMessage).filter(QueuedMessage.session_id == body.session_id).count()
+    if waiting >= _QUEUE_LIMIT:
+        raise ApiError(409, "queue_full", "too many messages are waiting. let aide catch up")
+    row = QueuedMessage(
+        session_id=body.session_id,
+        content=body.message,
+        file_ids=json.dumps(body.file_ids),
+    )
+    db.add(row)
+    db.commit()
+    return _queue_view(row)
+
+
+def queued_for(db: DbSession, session_id: str) -> list[dict]:
+    rows = (
+        db.query(QueuedMessage)
+        .filter(QueuedMessage.session_id == session_id)
+        .order_by(QueuedMessage.created_at, sql_text("queued_messages.rowid"))
+        .all()
+    )
+    return [_queue_view(r) for r in rows]
+
+
+def queue_items(session_id: str, ids: list[str]) -> list[str]:
+    with SessionLocal() as db:
+        rows = (
+            db.query(QueuedMessage.id)
+            .filter(QueuedMessage.session_id == session_id, QueuedMessage.id.in_(ids))
+            .all()
+        )
+    return [r[0] for r in rows]
+
+
+@router.get("/chat/queue/{session_id}")
+def get_queue(session_id: str, db: DbSession = Depends(get_db)):
+    return {"queued": queued_for(db, session_id), "answering": session_id in _streams}
+
+
+@router.delete("/chat/queue/{session_id}/{item_id}")
+def remove_queued(session_id: str, item_id: str, db: DbSession = Depends(get_db)):
+    """Gone before aide got to it. Taken already is an answer too, not an error."""
+    removed = (
+        db.query(QueuedMessage)
+        .filter(QueuedMessage.session_id == session_id, QueuedMessage.id == item_id)
+        .delete()
+    )
+    db.commit()
+    return {"removed": bool(removed)}
+
+
 class StopBody(BaseModel):
     # the turn the stop button belongs to; empty stops whatever runs in the task
     turn_token: str = ""

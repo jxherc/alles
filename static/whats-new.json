@@ -18,6 +18,11 @@
           "key": "unlock_length",
           "title": "pick how long a browser stays unlocked",
           "body": "when you approve a browser for your vault, pick 5 minutes, 1 hour or 8 hours. locking or revoking still ends it at once."
+        },
+        {
+          "key": "chat_queue",
+          "title": "keep sending while aide answers",
+          "body": "send more messages while aide is still answering. they wait under the reply with a remove button, and aide answers them together once it's done."
         }
       ]
     },

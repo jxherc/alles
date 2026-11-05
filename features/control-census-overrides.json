@@ -24,6 +24,7 @@
     "static/js/calendar.js": "plan.tasks-calendar",
     "static/js/ask_panel.js": "aide.conversation-and-execution",
     "static/js/chat.js": "aide.conversation-and-execution",
+    "static/js/chatqueue.js": "aide.conversation-and-execution",
     "static/js/answer_note.js": "aide.conversation-and-execution",
     "static/js/answer_task.js": "aide.conversation-and-execution",
     "static/js/notice.js": "aide.conversation-and-execution",

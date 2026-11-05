@@ -197,13 +197,14 @@ def get_history(session_id: str, response: Response, db: DbSession = Depends(get
                 "timestamp": m.timestamp.isoformat(),
             }
         )
-    from routes.chat import _streams
+    from routes.chat import _streams, queued_for
 
     # a page re-reading after a stop waits until its turn has been saved and let go
     running = _streams.get(session_id)
     return {
         "session": _fmt_session(s),
         "messages": msgs,
+        "queued": [] if getattr(s, "incognito", False) else queued_for(db, session_id),
         "answering": running is not None,
         "answering_turn": getattr(running, "turn_token", "") if running is not None else "",
     }

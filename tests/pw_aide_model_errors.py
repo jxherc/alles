@@ -150,7 +150,9 @@ with sync_playwright() as pw:
                 question = "original synthetic local question"
                 field.fill(question)
                 page.locator("#send-btn").click()
-                expect(page.locator("#send-btn")).to_be_disabled()
+                page.wait_for_function(
+                    "document.querySelector('#stop-btn').classList.contains('visible')"
+                )
                 deadline = time.monotonic() + 5
                 while not held and time.monotonic() < deadline:
                     page.wait_for_timeout(10)

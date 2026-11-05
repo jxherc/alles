@@ -208,7 +208,7 @@ def run():
                   const answer = [...document.querySelectorAll('#messages .ai-content')].at(-1);
                   return answer?.textContent.includes('phase')
                     && !answer.textContent.includes('finished')
-                    && document.querySelector('#send-btn')?.disabled;
+                    && document.querySelector('#stop-btn')?.classList.contains('visible');
                 }"""
             )
             wait_finished(1)

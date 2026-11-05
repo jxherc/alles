@@ -421,6 +421,12 @@ what it supports:
 - **unsent messages**: missing models and failed task creation keep the composer draft for retry.
   Ordinary drafts survive reload; private drafts stay in memory. Repeated send attempts during
   task creation do not start another request, and newer text remains after the first message is accepted.
+- **sending while aide replies**: a message sent during a reply doesn't stop it. it shows under the
+  reply with a remove button and waits; when the reply ends, the next turn answers everything that
+  waited, in order, as one question. normal tasks keep waiting messages on the server
+  (`/api/chat/queue`), so they survive a reload; private tasks keep them in the page. note context
+  and picture requests still wait for the reply to end. with words in the box, send takes the stop
+  button's place; Esc still stops the reply.
 - **edit and regenerate**: one `/api/chat` request with `edit_message_id` (and the new words) or
   `regenerate_message_id`, plus `newest_id`, the newest message the tab got from the server. the
   server checks everything and builds the context first, so a refusal (`history_moved` when another
@@ -1949,9 +1955,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 90 included fastapi router modules
-- 1038 http method/path pairs
-- 999 `/api/*`, 2 `/v1/*`, and 37 non-api shell/public pairs
-- sha-256: `59174a8eb29b5e6166313fd735f4de17504f0e755c64b3d161c53616d9078521`
+- 1041 http method/path pairs
+- 1002 `/api/*`, 2 `/v1/*`, and 37 non-api shell/public pairs
+- sha-256: `fc603c8f6be4a5f8240be23cabbf68a115e3deba6a3824ec188ba6eeb6f3f08d`
 
 <details>
 <summary>app.py · 11 operations</summary>
@@ -2340,7 +2346,7 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/chat.py · 5 operations</summary>
+<summary>routes/chat.py · 8 operations</summary>
 
 [source](routes/chat.py)
 
@@ -2349,6 +2355,9 @@ the compatibility snapshot locks the registered http surface:
 | `POST` | `/api/agent/background` | `chat_background` |
 | `GET` | `/api/aide/suggestions` | `aide_suggestions` |
 | `POST` | `/api/chat` | `chat` |
+| `POST` | `/api/chat/queue` | `queue_message` |
+| `DELETE` | `/api/chat/queue/{session_id}/{item_id}` | `remove_queued` |
+| `GET` | `/api/chat/queue/{session_id}` | `get_queue` |
 | `POST` | `/api/chat/rewrite` | `rewrite_last` |
 | `POST` | `/api/chat/stop/{session_id}` | `stop_chat` |
 
@@ -3931,7 +3940,7 @@ retrieve full article text from each entry's publisher.
 
 ## database table inventory
 
-this lists **140 mapped tables**. `schema_migrations` is additional migration history created by the runner.
+this lists **141 mapped tables**. `schema_migrations` is additional migration history created by the runner.
 
 declared columns come from [core/database.py](core/database.py). `pk` means primary key, `?` means nullable, and `sealed` marks the encrypted-text adapter. json/text fields can contain state validated by the owning service.
 
@@ -4055,6 +4064,7 @@ declared columns come from [core/database.py](core/database.py). `pk` means prim
 | `proactive_state` | `id: VARCHAR pk`, `seen_keys: TEXT ?`, `updated_at: DATETIME ?` | — |
 | `projects` | `id: VARCHAR pk`, `name: VARCHAR`, `description: TEXT ?`, `system_prompt: TEXT ?`, `working_dir: TEXT ?`, `scratchpad: TEXT ?`, `color: VARCHAR ?`, `created_at: DATETIME ?`, `last_opened_at: DATETIME ?` | — |
 | `push_subscriptions` | `id: VARCHAR pk`, `endpoint: TEXT`, `p256dh: VARCHAR ?`, `auth: TEXT ? sealed`, `created_at: DATETIME ?` | — |
+| `queued_messages` | `id: VARCHAR pk`, `session_id: VARCHAR`, `content: TEXT`, `file_ids: TEXT ?`, `created_at: DATETIME ?` | `session_id → sessions.id` |
 | `read_feeds` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `last_checked: DATETIME ?`, `created_at: DATETIME ?` | — |
 | `read_create_receipts` | `id: VARCHAR pk`, `payload_hash: VARCHAR`, `item_id: VARCHAR`, `created_at: DATETIME ?` | — |
 | `read_items` | `id: VARCHAR pk`, `url: VARCHAR`, `title: VARCHAR ?`, `text: TEXT ?`, `text_state: VARCHAR` (default unknown), `excerpt: VARCHAR ?`, `site: VARCHAR ?`, `image: VARCHAR ?`, `read_minutes: INTEGER ?`, `added_at: DATETIME ?`, `read_at: VARCHAR ?`, `read_position: FLOAT` (default 0), `position_revision: VARCHAR` (default empty), `fav: BOOLEAN ?`, `archived: BOOLEAN ?`, `tags: VARCHAR ?` | — |
@@ -4172,6 +4182,7 @@ known versions run in ascending order.
 | 77 | `task_due_time` | [m0077_task_due_time.py](core/migrations/m0077_task_due_time.py) |
 | 78 | `habit_fields` | [m0078_habit_fields.py](core/migrations/m0078_habit_fields.py) |
 | 80 | `mail_bodies` | [m0080_mail_bodies.py](core/migrations/m0080_mail_bodies.py) |
+| 81 | `queued_messages` | [m0081_queued_messages.py](core/migrations/m0081_queued_messages.py) |
 
 </details>
 

@@ -24,7 +24,7 @@ test('stopping a document-scoped request restores its scope for the next send', 
 test('old aborted stream cleanup cannot hide a newer stream', () => {
   assert.match(src, /let _streamToken = 0/);
   assert.match(src, /const streamToken = \+\+_streamToken/);
-  assert.match(src, /if \(_streamToken === streamToken\) setStreaming\(false\)/);
+  assert.match(src, /if \(_streamToken === streamToken\) \{ _streamingSession = null; setStreaming\(false\); \}/);
 });
 
 test('background startup blocks duplicate launches until the first request settles', () => {

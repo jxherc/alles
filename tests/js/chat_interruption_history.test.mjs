@@ -30,7 +30,7 @@ function harness() {
   const messages = element();
   const compacted = [];
   const context = vm.createContext({
-    t,
+    t, drawQueued() {},
     window: { addEventListener() {}, _mdToHtml: text => text },
     document: { getElementById: () => messages, createElement: element },
     stripEmojis: text => text, withoutThinking: text => text, applyResponsePrivacy() {}, scrollToLatest() {}, reconcileAnswerNote() {},

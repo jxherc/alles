@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func
 from sqlalchemy import text as sql_text
 
-from core.database import Memory, Message, ModelEndpoint, Persona, Session
+from core.database import Memory, Message, ModelEndpoint, Persona, QueuedMessage, Session
 from core.settings import _ARTIFACT_INSTRUCTIONS, build_aide_system_prompt, owner_instructions
 from services import incognito as incognito_service
 from services.agent_runtime import merge_usage, provider_effort, run_agent
@@ -430,6 +430,14 @@ async def _stream_and_save(
             finished=completed and not provider_failed,
             stopped=stop_event.is_set(),
         )
+        if (settings or {}).get("queued_ids") and not incognito:
+            # their words are in the saved question now (even a cut-off turn keeps it), so they
+            # stop waiting. in the finally: a closed page must not leave them to be sent twice
+            with db_factory() as db:
+                db.query(QueuedMessage).filter(
+                    QueuedMessage.id.in_(settings["queued_ids"])
+                ).delete()
+                db.commit()
     if not completed and not provider_failed and not stop_event.is_set():
         yield {
             "error": "response ended before completion. review task activity before sending again."

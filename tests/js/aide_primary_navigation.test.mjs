@@ -132,6 +132,7 @@ function harness({ active = 'archived', hash = '', view = 'today', index = [], p
     ${functionSource(chat, 'takeHandoff')}
     ${functionSource(chat, 'getSendBlockReason')}
     ${functionSource(chat, 'canSendMessage')}
+    function canQueueMessage() { return false; }
     ${functionSource(chat, 'sendMessage')}
     globalThis.sendWhenBlocked = sendMessage;
     globalThis.showSendIssue = message => state.sendIssue = message;

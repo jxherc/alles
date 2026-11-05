@@ -11,7 +11,7 @@ document.querySelectorAll?.('[data-ic]').forEach(slot => {
 });
 import { chooseBootState } from './bootstate.js';
 import { activeAfterlifeSpaces, loadAfterlifeFeatures } from './afterlife.js';
-import { canSendMessage, getSendBlockReason, sendMessage, stopStream, hideConnBanner } from './chat.js';
+import { canQueueMessage, canSendMessage, getSendBlockReason, sendMessage, stopStream, hideConnBanner } from './chat.js';
 window._canRefreshAideMessages = canSendMessage;
 import { toast, closeAllModals, mdToHtml, api, appLabel, appDesc, writeClipboard } from './util.js';
 import { confirm as confirmDialog } from './dialog.js';
@@ -2365,8 +2365,11 @@ async function doSend() {
   if (!text) return;
   // Enter can still reach this function while the send button is disabled. Keep the
   // draft intact instead of clearing it and letting sendMessage reject it as busy.
-  if (_composerSending || !canSendMessage()) return;
-  _composerSending = true;
+  // a reply that is running holds _composerSending until it ends: a message sent now only
+  // waits its turn, so it goes through
+  const queuing = canQueueMessage();
+  if ((_composerSending && !queuing) || (!canSendMessage() && !queuing)) return;
+  if (!queuing) _composerSending = true;
   try {
     await sendMessage(text, sessionId => {
       if (getActiveId() !== sessionId) return;
@@ -2377,7 +2380,7 @@ async function doSend() {
       // A new task adopts any text typed while its creation was pending.
       if (sendingSession !== sessionId) clearDraft(sendingSession);
     });
-  } finally { _composerSending = false; }
+  } finally { if (!queuing) _composerSending = false; }
 }
 
 // schedule-send dialog (pointer and keyboard context paths on the send button)

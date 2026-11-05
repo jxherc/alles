@@ -17,7 +17,7 @@ function harness(send) {
   const context = vm.createContext({
     document: { getElementById: () => field }, Event: class {},
     getActiveId: () => active, tryExecuteSlashCommand: async () => false,
-    canSendMessage: () => true, saveDraft, clearDraft: id => drafts.delete(id),
+    canSendMessage: () => true, canQueueMessage: () => false, saveDraft, clearDraft: id => drafts.delete(id),
     sendMessage: (text, accepted) => send(text, accepted, id => { active = id; }),
   });
   vm.runInContext(source + '\nglobalThis.send = doSend;', context);

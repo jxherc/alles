@@ -49,6 +49,7 @@ GATE_TIMEOUTS = {
     "health-import-recovery": 600,
     "aide-task-capture": 600,
     "aide-multi-source": 600,
+    "aide-queue": 900,
 }
 COMMANDS = {
     "style-ownership": ("tests/pw_style_ownership.py",),
@@ -264,6 +265,7 @@ COMMANDS = {
     "shell-app-name": ("tests/pw_shell_app_name.py",),
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     "aide-composer": ("tests/pw_aide_composer.py",),
+    "aide-queue": ("tests/pw_aide_queue.py",),
     "aide-webkit-prompts": ("tests/pw_aide_webkit_prompts.py",),
     "aide-image-retry": ("tests/pw_aide_image_retry.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),
