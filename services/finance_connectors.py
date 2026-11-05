@@ -395,6 +395,12 @@ def _simplefin_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
     if response.status_code >= 400 or not isinstance(data, dict):
         raise FinanceConnectorError("SimpleFIN account sync failed")
     messages = _simplefin_messages(data)
+    # protocol 2 names the bank on its connection, linked by conn_id; protocol 1 had org
+    banks = {
+        str(c.get("conn_id")): str(c.get("org_name") or c.get("name") or "").strip()
+        for c in data.get("connections") or []
+        if isinstance(c, dict) and c.get("conn_id")
+    }
     accounts = []
     for raw in data.get("accounts") or []:
         if not isinstance(raw, dict):
@@ -423,7 +429,7 @@ def _simplefin_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
             )
         name = str(raw.get("name") or "SimpleFIN account")
         org = raw.get("org") if isinstance(raw.get("org"), dict) else {}
-        bank = str(org.get("name") or "").strip()
+        bank = banks.get(str(raw.get("conn_id") or "")) or str(org.get("name") or "").strip()
         currency = str(raw.get("currency") or "").strip().upper()
         accounts.append(
             {
@@ -439,7 +445,16 @@ def _simplefin_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
     # one bank needing attention mustn't stop the others: only nothing at all is a failure
     if messages and not accounts:
         raise FinanceConnectorError(f"SimpleFIN says: {'; '.join(messages)}"[:1000])
-    return {"accounts": accounts, "cursor": row.cursor, "removed": [], "messages": messages}
+    return {
+        "accounts": accounts,
+        "cursor": row.cursor,
+        "removed": [],
+        "messages": messages,
+        # None when the server speaks protocol 1, which has no connections list
+        "connections": len(data["connections"])
+        if isinstance(data.get("connections"), list)
+        else None,
+    }
 
 
 def _plaid_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
@@ -631,12 +646,18 @@ def sync(db, connection_id: str, *, client=httpx) -> dict:
         row.last_synced_at = _now()
         messages = list(snapshot.get("messages") or [])
         if row.provider == "simplefin" and not snapshot["accounts"] and not messages:
-            # an empty answer isn't a sync: the bridge hasn't loaded the bank yet, or this app
-            # was given no accounts
-            messages.append(
-                "SimpleFIN shared no accounts yet. In SimpleFIN, check this app can see your "
-                "accounts, then sync again."
-            )
+            # an empty answer isn't a sync. with no connections at all, no bank was ever added in
+            # simplefin (nov 5: the owner's token saw 0 connections, 0 accounts)
+            if snapshot.get("connections") == 0:
+                messages.append(
+                    "SimpleFIN has no bank connected yet. Add your bank in SimpleFIN, "
+                    "then sync again."
+                )
+            else:
+                messages.append(
+                    "SimpleFIN shared no accounts yet. In SimpleFIN, check this app can see "
+                    "your accounts, then sync again."
+                )
         row.last_error = "; ".join(messages)[:1000]
         db.commit()
         return {**public_dict(row), "created": created, "updated": updated, "removed": removed}

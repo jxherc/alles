@@ -156,11 +156,12 @@ class FinanceConnectorTests(ApiTest):
             row = self.simplefin_row(db)
             payload = {
                 "errlist": [{"code": "con.auth", "msg": "Scotiabank needs you to sign in again"}],
+                "connections": [{"conn_id": "c-td", "name": "TD", "org_name": "TD Canada Trust"}],
                 "accounts": [
                     {
                         "id": "td-1",
                         "name": "Chequing",
-                        "org": {"name": "TD Canada Trust"},
+                        "conn_id": "c-td",
                         "currency": "cad",
                         "balance": "1200.50",
                         "transactions": [
@@ -193,6 +194,13 @@ class FinanceConnectorTests(ApiTest):
             )
             self.assertEqual(result["created"], 0)
             self.assertIn("shared no accounts yet", result["last_error"])
+            # protocol 2 with no connections at all: no bank was ever added in simplefin
+            result = finance_connectors.sync(
+                db,
+                row.id,
+                client=Client(Response({"accounts": [], "connections": [], "errlist": []})),
+            )
+            self.assertIn("no bank connected yet", result["last_error"])
         finally:
             db.close()
 
