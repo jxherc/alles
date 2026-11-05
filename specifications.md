@@ -4307,7 +4307,7 @@ registered intervals come from `app.py`. the current loop sleeps 30 seconds betw
 | `npm_dashboard` | read connected nginx proxy manager proxy-host and certificate state. |
 | `npm_proxy_host_create` | create one typed nginx proxy manager host. credentials stay in the local broker and never enter model context. |
 | `opencode_run` | delegate a coding subtask to opencode cli via 'opencode run' when opencode is installed and authenticated. |
-| `project_create` | make a Project folder anywhere in the owner's home folder or on a mounted drive and turn it into a Project; an existing folder just becomes one. a General chat moves into it and its next write lands there; a chat already in a Project or folder, or an incognito chat, stays put. refuses the filesystem root, credential stores and anywhere else. follows the permission mode like other writes. |
+| `project_create` | make a Project folder anywhere in the owner's home folder or on a mounted drive and turn it into a Project; an existing folder just becomes one. a General chat moves into it and its next write lands there; a chat already in a Project or folder, or an incognito chat, stays put. refuses the filesystem root, credential stores, folders under `~/Library` or any hidden folder in home (app data and startup items) and anywhere else. follows the permission mode like other writes; in approve mode the card names the folder before anything is made. |
 | `read_file` | read a file. returns line-numbered content (`nnn\tcode`) so you can cite exact lines and copy precise old_strings for edit_file. read a file before editing it. |
 | `read_list` | list saved read-later items. |
 | `read_save` | save a url to the read-later archive (fetches + stores the readable text). |

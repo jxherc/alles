@@ -23,6 +23,11 @@
           "key": "chat_queue",
           "title": "keep sending while aide answers",
           "body": "send more messages while aide is still answering. they wait under the reply with a remove button, and aide answers them together once it's done."
+        },
+        {
+          "key": "aide_projects",
+          "title": "aide makes project folders",
+          "body": "ask aide to start a project anywhere in your home folder or on a drive. it makes the folder, turns it into a project and keeps working in it from the same chat."
         }
       ]
     },

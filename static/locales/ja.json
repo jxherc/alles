@@ -8780,6 +8780,8 @@
     "whatsnew.2026_11_01.obsidian_lan.body": "設定から WebDAV 経由で、iPad やスマホの Obsidian（Remotely Save プラグイン用）にドキュメントを共有できます。最初は読み取り専用で、読み取りと保存を選ぶと保存したノートごとに改訂が残ります。オンにするまで何も共有されません。",
     "whatsnew.2026_11_01.obsidian_lan.title": "ローカルネットワーク越しの Obsidian",
     "whatsnew.2026_11_05.date": "2026年11月5日",
+    "whatsnew.2026_11_05.aide_projects.body": "ホームフォルダやドライブのどこにでも、aide にプロジェクトを始めるよう頼めます。フォルダを作ってプロジェクトにし、同じチャットのままそこで作業を続けます。",
+    "whatsnew.2026_11_05.aide_projects.title": "aide がプロジェクトフォルダを作成",
     "whatsnew.2026_11_05.chat_queue.body": "aide が返信している間もメッセージを送れます。返信の下に削除ボタン付きで待機し、返信が終わると aide がまとめて答えます。",
     "whatsnew.2026_11_05.chat_queue.title": "aide の返信中も送信できます",
     "whatsnew.2026_11_05.obsidian_sync.body": "設定でスイッチを一つ入れ、iPad やスマホでコードを読み取ります。Remotely Save が自動で設定され、名前の変更や削除も含めてドキュメントを双方向に同期します。同期で消えたノートはドキュメントのごみ箱に入り、元に戻せます。",

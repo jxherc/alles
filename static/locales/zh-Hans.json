@@ -8780,6 +8780,8 @@
     "whatsnew.2026_11_01.obsidian_lan.body": "设置里可以通过 WebDAV 把你的文档共享给 iPad 或手机上的 Obsidian，配合 Remotely Save 插件。默认只读，选择读取并保存时，每条保存的笔记都会留下修订版。你打开之前不会共享任何内容。",
     "whatsnew.2026_11_01.obsidian_lan.title": "通过局域网使用 Obsidian",
     "whatsnew.2026_11_05.date": "2026 年 11 月 5 日",
+    "whatsnew.2026_11_05.aide_projects.body": "让 aide 在你的主文件夹或外接硬盘的任意位置开一个项目。它会建好文件夹、设为项目，并在同一个对话里接着在里面工作。",
+    "whatsnew.2026_11_05.aide_projects.title": "aide 能创建项目文件夹",
     "whatsnew.2026_11_05.chat_queue.body": "aide 还在回复时也能继续发消息。它们会在回复下方排队，带一个移除按钮，等回复结束后 aide 会一起回答。",
     "whatsnew.2026_11_05.chat_queue.title": "aide 回复时也能继续发送",
     "whatsnew.2026_11_05.obsidian_sync.body": "在设置里打开一个开关，用 iPad 或手机扫描二维码。Remotely Save 会自动填好，双向同步你的文档，包括重命名和删除。同步删除的笔记会进入文档的回收站，可以找回。",

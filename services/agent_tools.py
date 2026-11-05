@@ -4464,7 +4464,8 @@ APP_TOOL_DEFS = [
     ),
     _tool(
         "project_create",
-        "Make a new Project folder anywhere in the owner's home folder or on a mounted drive, "
+        "Make a new Project folder in the owner's home folder (not ~/Library or a hidden folder) "
+        "or on a mounted drive, "
         "and turn it into a Project. An existing folder simply becomes the Project. When this chat "
         "is in General it moves into the Project, so write_file and shell work in the new folder "
         "from the next step.",

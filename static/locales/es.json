@@ -8780,6 +8780,8 @@
     "whatsnew.2026_11_01.obsidian_lan.body": "la configuración puede compartir tus docs con Obsidian en un iPad o un teléfono por WebDAV, para el plugin Remotely Save. empieza en solo lectura, y leer y guardar conserva una revisión de cada nota guardada. no se comparte nada hasta que lo actives.",
     "whatsnew.2026_11_01.obsidian_lan.title": "Obsidian por tu red local",
     "whatsnew.2026_11_05.date": "5 de noviembre de 2026",
+    "whatsnew.2026_11_05.aide_projects.body": "pide a aide que empiece un proyecto en cualquier lugar de tu carpeta personal o en un disco. crea la carpeta, la convierte en proyecto y sigue trabajando en ella desde el mismo chat.",
+    "whatsnew.2026_11_05.aide_projects.title": "aide crea carpetas de proyecto",
     "whatsnew.2026_11_05.chat_queue.body": "envía más mensajes mientras aide todavía responde. esperan bajo la respuesta con un botón para quitarlos, y aide los responde juntos cuando termina.",
     "whatsnew.2026_11_05.chat_queue.title": "sigue enviando mientras aide responde",
     "whatsnew.2026_11_05.obsidian_sync.body": "activa un interruptor en la configuración y escanea el código con el iPad o el móvil. Remotely Save se rellena solo y sincroniza tus documentos en ambos sentidos, con cambios de nombre y borrados incluidos. una nota borrada por una sincronización va a la papelera de documentos, donde puedes recuperarla.",

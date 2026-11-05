@@ -8783,6 +8783,8 @@ const BUILTIN_ENGLISH = {
     "whatsnew.2026_11_01.obsidian_lan.body": "setup can share your docs with Obsidian on an iPad or phone through WebDAV, for the Remotely Save plugin. it starts read only, and read and save keeps a revision of every saved note. nothing is shared until you turn it on.",
     "whatsnew.2026_11_01.obsidian_lan.title": "obsidian over your local network",
     "whatsnew.2026_11_05.date": "november 5, 2026",
+    "whatsnew.2026_11_05.aide_projects.body": "ask aide to start a project anywhere in your home folder or on a drive. it makes the folder, turns it into a project and keeps working in it from the same chat.",
+    "whatsnew.2026_11_05.aide_projects.title": "aide makes project folders",
     "whatsnew.2026_11_05.chat_queue.body": "send more messages while aide is still answering. they wait under the reply with a remove button, and aide answers them together once it's done.",
     "whatsnew.2026_11_05.chat_queue.title": "keep sending while aide answers",
     "whatsnew.2026_11_05.obsidian_sync.body": "turn on one switch in setup and scan the code with the iPad or phone. Remotely Save fills itself in and syncs your docs both ways, renames and deletes included. a note deleted by a sync goes to docs' trash, where you can bring it back.",
