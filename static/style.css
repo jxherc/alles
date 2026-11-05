@@ -9399,6 +9399,7 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
      card's padding and the row menu), so the card, its text and the menu sit together. images
      and videos break out to the wide width below it */
   --andromeda-col: min(var(--andromeda-wide), 38rem);
+  --andromeda-text: calc(var(--k-measure) * 0.875 + 56px);
   --andromeda-line: color-mix(in srgb, var(--faint) 82%, var(--text) 18%);
   --andromeda-strong-line: color-mix(in srgb, var(--faint) 60%, var(--text) 40%);
   min-height: 100dvh;
@@ -9473,6 +9474,11 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
 .andromeda-icon-button svg { width: 15px; height: 15px; }
 .andromeda-home-button { width: auto; min-width: 44px; padding-inline: 6px; }
 .andromeda-submit { justify-self: center; }
+/* the box, tabs and results header use the wide width; the idle hero box keeps the narrow one.
+   result text stays at its own reading measure (--andromeda-text: 36em of text, the card's padding
+   and the row menu), so the menu sits beside the text and the extra width stays empty on the right */
+.andromeda-view:not([data-state="idle"]) { --andromeda-col: var(--andromeda-wide); }
+.andromeda-result-column .andromeda-result { max-width: var(--andromeda-text); }
 .andromeda-result-column { width: min(var(--andromeda-col), 100%); margin-inline: auto; padding-bottom: clamp(80px, 12vh, 128px); }
 .andromeda-result-column :is(.andromeda-image-grid, .andromeda-video-grid) { margin-inline: min(0px, calc((100% - var(--andromeda-wide)) / 2)); }
 .andromeda-result-tools {
