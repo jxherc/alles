@@ -92,7 +92,12 @@ async function jsonRequest(url, options = {}) {
   return body;
 }
 
-function status(message) { text('andromeda-status', message); }
+// busy: heard by a screen reader but never drawn, so the line that clears when the results land
+// can't pull the overview and the results up with it
+function status(message, busy = false) {
+  text('andromeda-status', message);
+  el('andromeda-status')?.classList.toggle('sr-only', busy);
+}
 
 function setPageState(state) {
   const page = el('andromeda-view');
@@ -2098,7 +2103,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     const node = el('andromeda-overview');
     if (node?.dataset) node.dataset.loading = 'true';
   } else showOverview(false);
-  status(tr('andromeda.searching'));
+  status(tr('andromeda.searching'), true);
   const request = {
     query: searched,
     category: currentCategory,

@@ -53,6 +53,8 @@ class Web(BaseHTTPRequestHandler):
             return
         query = parse_qs(url.query).get("q", [""])[0]
         Web.queries.append(query)
+        # slow enough that the loading lines are on screen for a while before the results land
+        time.sleep(0.7)
         rows = [
             {
                 "url": f"https://example.com/{Web.tag}/{n}",
@@ -106,6 +108,8 @@ SAMPLER = """() => {
         top: card.getBoundingClientRect().top,
         line: !line.hidden && line.getBoundingClientRect().height > 0,
         lineTop: line.getBoundingClientRect().top,
+        above: [...card.parentElement.children].filter(n => n.getBoundingClientRect().height > 0)
+          .map(n => `${n.id || n.className}:${Math.round(n.getBoundingClientRect().top)}`),
       });
     }
     requestAnimationFrame(tick);
@@ -298,7 +302,7 @@ def run():
                             "spread": round(max(tops) - min(tops), 2),
                             "frames": len(seen),
                         }
-                        assert max(tops) - min(tops) <= 1, (min(tops), max(tops))
+                        assert max(tops) - min(tops) <= 1, (seen[0]["above"], seen[-1]["above"])
                         assert max(lines) - min(lines) <= 1, (min(lines), max(lines))
                         assert f"q={FIXED}" in page.url and "exact" not in page.url, page.url
                         deadline = time.time() + 5
