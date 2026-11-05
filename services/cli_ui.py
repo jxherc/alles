@@ -20,11 +20,9 @@ class Style:
             os.environ.get("TERM") != "dumb"
         )
         self.color = self.tty and "NO_COLOR" not in os.environ
-        # the app icon's own colors (static/favicon.svg): #0a0a0a square, #818cf8 dot;
-        # 256 color terminals get the nearest cells (232 and 105)
+        # the app icon's purple (static/favicon.svg, #818cf8); 256 color terminals get 105
         truecolor = os.environ.get("COLORTERM", "").lower() in ("truecolor", "24bit")
         self.purple = "38;2;129;140;248" if truecolor else "38;5;105"
-        self.square = "48;2;10;10;10" if truecolor else "48;5;232"
         encoding = (getattr(self.stream, "encoding", "") or "").lower()
         fancy = "utf" in encoding
         self.fancy = fancy
@@ -59,26 +57,11 @@ class Style:
         self.stream.write(text + "\n")
         self.stream.flush()
 
-    def logo(self) -> list[str]:
-        """The app icon as three rows: a dark square with the purple dot in its middle."""
-        if not (self.color and self.fancy):
-            return []
-        cell = f"\033[{self.square};{self.purple}m"
-        return [f"{cell}{row}\033[0m" for row in ("      ", "  ▄▄  ", "  ▀▀  ")]
-
     def header(self, title: str, lines: tuple[str, ...] = ()) -> None:
-        """The logo with the title and up to two short lines beside it; plain text when piped."""
+        """The title and up to two short lines under it."""
         self.say()
-        art = self.logo()
-        text = [f"{self.accent('alles')}  {title}", *lines]
-        if art:
-            for index, row in enumerate(art):
-                self.say(f"  {row}   {text[index] if index < len(text) else ''}".rstrip())
-            for extra in text[len(art) :]:
-                self.say(f"  {' ' * 6}   {extra}")
-        else:
-            for line in text:
-                self.say(f"  {line}")
+        for line in (f"{self.accent('alles')}  {title}", *lines):
+            self.say(f"  {line}")
         self.say()
 
     def width(self) -> int:

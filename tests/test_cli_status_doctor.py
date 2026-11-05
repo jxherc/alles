@@ -262,14 +262,14 @@ class ToolsAndCompletionTest(unittest.TestCase):
 
 
 class StyleTest(unittest.TestCase):
-    def test_piped_output_has_no_logo_or_escape_codes(self):
+    def test_piped_output_has_no_escape_codes(self):
         out = io.StringIO()
         ui = cli_ui.Style(out)
         ui.header("status", ("release abc1234",))
         ui.say(ui.bar(0.5, 10))
         self.assertEqual(out.getvalue(), "\n  alles  status\n  release abc1234\n\n[#####-----]\n")
 
-    def test_a_color_terminal_draws_the_square_and_the_purple_dot(self):
+    def test_a_color_terminal_header_is_the_purple_name_and_no_logo(self):
         class Tty(io.StringIO):
             encoding = "utf-8"
 
@@ -280,11 +280,13 @@ class StyleTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color", "COLORTERM": "truecolor"}):
             os.environ.pop("NO_COLOR", None)
             ui = cli_ui.Style(out)
-            ui.header("status")
-        text = out.getvalue()
-        self.assertIn("48;2;10;10;10;38;2;129;140;248m  ▄▄  ", text)  # favicon.svg colors
-        with mock.patch.dict(os.environ, {"TERM": "xterm-256color", "NO_COLOR": "1"}):
-            self.assertEqual(cli_ui.Style(Tty()).logo(), [])
+            ui.header("status", ("release abc1234",))
+        # favicon.svg's purple, bold, on the name; the owner asked for no logo, so no
+        # background colours or block glyphs
+        self.assertEqual(
+            out.getvalue(),
+            "\n  \033[1;38;2;129;140;248malles\033[0m  status\n  release abc1234\n\n",
+        )
 
 
 if __name__ == "__main__":
