@@ -1178,7 +1178,8 @@ a.run-src-item { display: flex; align-items: center; min-height: 44px; text-deco
   border-radius: var(--k-radius-control);
   background: color-mix(in srgb, var(--signal) 8%, transparent);
 }
-.agent-perm-msg { font-size: 0.8125rem; color: var(--text); }
+/* a long path or link in the ask wraps anywhere, so the card never grows past the chat column */
+.agent-perm-msg { min-width: 0; overflow-wrap: anywhere; font-size: 0.8125rem; color: var(--text); }
 /* the full resolved path of a step outside the task's folder: wraps anywhere, so a long one never pushes the buttons off */
 .agent-perm-outside { display: block; margin-top: 0.2rem; overflow-wrap: anywhere; }
 .agent-perm-actions { display: flex; gap: var(--k-control-gap); flex-shrink: 0; }
