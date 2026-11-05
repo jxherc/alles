@@ -199,6 +199,13 @@ def configure_plaid(db, *, client_id: str, secret: str, environment: str, client
             raise FinanceConnectorError(
                 f"Plaid says: {real}. Use the client ID and the secret from the same Plaid account."
             )
+        if other == "sandbox":
+            # sandbox only takes plaid's test login (user_good / pass_good), so switching a real
+            # bank choice to it leaves a bank sign in that can never work
+            raise FinanceConnectorError(
+                "These are Plaid's sandbox keys, and sandbox only takes Plaid's test login. "
+                "For your real bank, paste the production secret from Plaid's keys page."
+            )
         env, switched = other, True
     row = FinanceConnection(
         provider="plaid",

@@ -3208,6 +3208,7 @@
     "finance.return_heading": "返回已冻结的 Alles 账本？",
     "finance.return_to_finance": "返回财务",
     "finance.row_requeued": "该行已回到导入队列",
+    "finance.sandbox_hint": "这里 Plaid 的窗口只接受测试登录 user_good / pass_good。要连接你真正的银行，请断开后用生产环境密钥重新连接。",
     "finance.sandbox_test": "沙盒 · 测试账户",
     "finance.save_conversion": "保存已审核的换算",
     "finance.search_choices": "搜索{label}选项",

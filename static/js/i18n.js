@@ -3212,6 +3212,7 @@ const BUILTIN_ENGLISH = {
     "finance.return_heading": "return to the frozen Alles ledger?",
     "finance.return_to_finance": "return to Finance",
     "finance.row_requeued": "row is back in the import queue",
+    "finance.sandbox_hint": "plaid's window only takes the test login user_good / pass_good here. for your real bank, disconnect and connect again with your production secret.",
     "finance.sandbox_test": "sandbox · test accounts",
     "finance.save_conversion": "save reviewed conversion",
     "finance.search_choices": "search {label} choices",

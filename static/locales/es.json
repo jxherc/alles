@@ -3208,6 +3208,7 @@
     "finance.return_heading": "¿volver al libro de cuentas congelado de Alles?",
     "finance.return_to_finance": "volver a Finanzas",
     "finance.row_requeued": "la fila volvió a la cola de importación",
+    "finance.sandbox_hint": "aquí la ventana de Plaid solo acepta el acceso de prueba user_good / pass_good. para tu banco real, desconecta y vuelve a conectar con tu secreto de producción.",
     "finance.sandbox_test": "sandbox · cuentas de prueba",
     "finance.save_conversion": "guardar conversión revisada",
     "finance.search_choices": "buscar opciones de {label}",

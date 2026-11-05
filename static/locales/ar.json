@@ -3208,6 +3208,7 @@
     "finance.return_heading": "العودة إلى دفتر Alles المجمّد؟",
     "finance.return_to_finance": "العودة إلى المالية",
     "finance.row_requeued": "عاد الصف إلى قائمة الاستيراد",
+    "finance.sandbox_hint": "نافذة Plaid هنا تقبل فقط تسجيل الدخول التجريبي user_good / pass_good. لحسابك البنكي الحقيقي، افصل الاتصال ثم اتصل مجددًا بالمفتاح السري للإنتاج.",
     "finance.sandbox_test": "وضع الاختبار · حسابات تجريبية",
     "finance.save_conversion": "حفظ التحويل المراجَع",
     "finance.search_choices": "البحث في خيارات {label}",

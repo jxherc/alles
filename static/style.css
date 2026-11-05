@@ -549,6 +549,9 @@ body[data-app="files"] .dialog-msg { overflow-wrap: anywhere; }
 .finance-bank-row strong { color: var(--text); font-size: 0.8125rem; }
 .finance-bank-row span, .finance-bank-row small { margin-top: 3px; color: var(--muted); font-size: 0.8125rem; }
 .finance-bank-row > div:last-child, .finance-bank-environments { display: flex; flex-wrap: wrap; gap: 6px; }
+/* long text (a hint, an error) wraps beside the buttons instead of folding them into a column */
+.finance-bank-row > div:first-child { flex: 1 1 auto; min-width: 0; }
+.finance-bank-row > div:last-child { flex: none; }
 .finance-bank-setup { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 20px; }
 .finance-bank-setup section { min-width: 0; }
 .finance-bank-setup label { display: block; margin: 12px 0 5px; color: var(--muted); font-size: 0.8125rem; }

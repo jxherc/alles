@@ -3208,6 +3208,7 @@
     "finance.return_heading": "凍結した Alles の台帳に戻しますか？",
     "finance.return_to_finance": "家計に戻る",
     "finance.row_requeued": "この行はインポートキューに戻りました",
+    "finance.sandbox_hint": "ここでは Plaid の画面はテスト用ログイン user_good / pass_good しか受け付けません。実際の銀行には、接続を解除して本番用シークレットで接続し直してください。",
     "finance.sandbox_test": "サンドボックス · テスト口座",
     "finance.save_conversion": "確認済みの換算を保存",
     "finance.search_choices": "{label} の選択肢を検索",

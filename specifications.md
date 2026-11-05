@@ -981,10 +981,12 @@ imports, with an optional gated move to an alles-managed actual budget core.
   the browser's origin so tailscale serve keeps the https; when plaid rejects an unregistered return
   address, link retries without one and runs the bank sign-in in plaid's popup
 - saving plaid keys checks them with plaid first (`/institutions/get`, which plaid authenticates before anything
-  else): stray spaces and line breaks are removed, keys that belong to the other environment switch it and say so
-  (plaid's `INVALID_API_KEYS` is also what a sandbox secret gets in production), keys that neither environment
-  takes are refused with plaid's own words, and an unreachable plaid says so instead of blaming the keys. a failing
-  plaid call later shows plaid's message with its error code.
+  else): stray spaces and line breaks are removed, production keys saved under test data switch to production and
+  say so (plaid's `INVALID_API_KEYS` is also what a sandbox secret gets in production), sandbox keys saved under a
+  real bank are refused with a line saying sandbox only takes plaid's test login and the production secret is
+  needed, keys that neither environment takes are refused with plaid's own words, and an unreachable plaid says so
+  instead of blaming the keys. a sandbox connection's row says plaid's window there only takes `user_good` /
+  `pass_good`. a failing plaid call later shows plaid's message with its error code.
 - managed actual 26.7.0 stays on loopback with private alles-owned authentication, cold backups, fresh
   restore read-back, and paired app/manifest rollback
 - actual becomes canonical only after staged count, balance, aggregate, transfer, budget, schedule,

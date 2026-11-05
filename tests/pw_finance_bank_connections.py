@@ -184,6 +184,10 @@ def run():
             expect(dialog.locator('[data-bank-id="synthetic-plaid"]')).to_contain_text(
                 "sandbox · test accounts"
             )
+            # a real bank login always fails in sandbox, so the row says so before Link opens
+            expect(dialog.locator('[data-bank-id="synthetic-plaid"]')).to_contain_text(
+                "user_good / pass_good"
+            )
             assert not any(item["path"].endswith("/link-token") for item in state["requests"])
             state["delay"] = ""
 

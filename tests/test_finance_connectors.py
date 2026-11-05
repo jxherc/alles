@@ -214,20 +214,39 @@ class FinanceConnectorTests(ApiTest):
         finally:
             db.close()
 
-    def test_keys_from_the_other_environment_switch_it_and_say_so(self):
+    def test_sandbox_keys_for_a_real_bank_are_refused_not_switched(self):
+        # sandbox's bank window only takes plaid's test login, so a real bank could never sign in
         plaid = self.plaid_answers(production=self.WRONG_KEYS, sandbox={"institutions": []})
+        db = self.db()
+        try:
+            with self.assertRaises(finance_connectors.FinanceConnectorError) as raised:
+                finance_connectors.configure_plaid(
+                    db,
+                    client_id="abc",
+                    secret="sandbox-secret",
+                    environment="production",
+                    client=plaid,
+                )
+            self.assertIn("sandbox keys", str(raised.exception))
+            self.assertIn("production secret", str(raised.exception))
+            self.assertEqual(db.query(FinanceConnection).count(), 0)
+        finally:
+            db.close()
+
+    def test_production_keys_for_test_data_switch_to_production_and_say_so(self):
+        plaid = self.plaid_answers(production={"institutions": []}, sandbox=self.WRONG_KEYS)
         db = self.db()
         try:
             public = finance_connectors.configure_plaid(
                 db,
                 client_id="abc",
-                secret="sandbox-secret",
-                environment="production",
+                secret="production-secret",
+                environment="sandbox",
                 client=plaid,
             )
-            self.assertEqual(public["environment"], "sandbox")
-            self.assertIn("sandbox", public["message"])
-            self.assertEqual(db.get(FinanceConnection, public["id"]).environment, "sandbox")
+            self.assertEqual(public["environment"], "production")
+            self.assertIn("production", public["message"])
+            self.assertEqual(db.get(FinanceConnection, public["id"]).environment, "production")
         finally:
             db.close()
 

@@ -194,6 +194,7 @@
     "SimpleFIN returned an invalid transaction date": "SimpleFIN a renvoyé une date de transaction invalide",
     "SimpleFIN setup token exchange failed": "l’échange du jeton de configuration SimpleFIN a échoué",
     "SimpleFIN setup token is invalid": "le jeton de configuration SimpleFIN est invalide",
+    "These are Plaid's sandbox keys, and sandbox only takes Plaid's test login. For your real bank, paste the production secret from Plaid's keys page.": "Ce sont les clés sandbox de Plaid, et le sandbox n'accepte que la connexion de test de Plaid. Pour votre vraie banque, collez le secret de production depuis la page des clés de Plaid.",
     "These keys belong to Plaid's {env} setup, so Alles switched to it.": "Ces clés appartiennent à l'environnement {env} de Plaid, donc Alles est passé dessus.",
     "WebDAV credentials are invalid": "les identifiants WebDAV sont invalides",
     "WebDAV endpoint is invalid": "le point d’accès WebDAV est invalide",

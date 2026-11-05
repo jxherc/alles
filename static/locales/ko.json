@@ -3208,6 +3208,7 @@
     "finance.return_heading": "고정된 Alles 원장으로 돌아갈까요?",
     "finance.return_to_finance": "재무로 돌아가기",
     "finance.row_requeued": "행이 가져오기 대기열로 돌아갔습니다",
+    "finance.sandbox_hint": "여기서는 Plaid 창이 테스트 로그인 user_good / pass_good만 받습니다. 실제 은행은 연결을 해제한 뒤 프로덕션 시크릿으로 다시 연결하세요.",
     "finance.sandbox_test": "샌드박스 · 테스트 계좌",
     "finance.save_conversion": "검토된 환산 저장",
     "finance.search_choices": "{label} 선택지 검색",

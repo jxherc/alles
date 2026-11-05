@@ -3208,6 +3208,7 @@
     "finance.return_heading": "revenir au registre Alles figé ?",
     "finance.return_to_finance": "retour à Finances",
     "finance.row_requeued": "la ligne est de retour dans la file d’import",
+    "finance.sandbox_hint": "ici, la fenêtre de Plaid n'accepte que la connexion de test user_good / pass_good. pour ta vraie banque, déconnecte puis reconnecte avec ton secret de production.",
     "finance.sandbox_test": "sandbox · comptes de test",
     "finance.save_conversion": "enregistrer la conversion vérifiée",
     "finance.search_choices": "chercher dans les choix {label}",
