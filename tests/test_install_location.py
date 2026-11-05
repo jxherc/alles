@@ -456,5 +456,110 @@ class OldLauncherTest(unittest.TestCase):
         self.assertEqual(leftovers, ["alles"])
 
 
+class InstallFromDriveTest(unittest.TestCase):
+    """the one-line install started in a folder on another drive installs on that drive."""
+
+    # fake paths: "/" is the startup disk that holds the home folder (device 1), drives are 2
+    MOUNTS = {"/", "/Volumes/Drive", "/media/eric/usb", "/run/media/eric/usb", "/mnt/disk"}
+    HOME = Path("/Users/eric")
+
+    def _pick(self, folder: str, *, on_home_disk=()):
+        def device(path):
+            text = str(path)
+            return 2 if text in self.MOUNTS - {"/"} - set(on_home_disk) else 1
+
+        return native_install.drive_install_home(
+            Path(folder),
+            home=self.HOME,
+            is_mount=lambda path: str(path) in self.MOUNTS,
+            device=device,
+        )
+
+    def test_a_folder_on_a_drive_gets_an_alles_folder_inside_it(self):
+        for folder in (
+            "/Volumes/Drive",
+            "/Volumes/Drive/stuff/more",
+            "/media/eric/usb",
+            "/run/media/eric/usb/stuff",
+            "/mnt/disk",
+        ):
+            with self.subTest(folder=folder):
+                self.assertEqual(self._pick(folder), Path(folder) / "Alles")
+
+    def test_an_alles_folder_on_the_drive_is_used_as_it_is(self):
+        for folder in ("/Volumes/Drive/Alles", "/media/eric/usb/alles"):
+            with self.subTest(folder=folder):
+                self.assertEqual(self._pick(folder), Path(folder))
+
+    def test_the_startup_disk_keeps_the_usual_places(self):
+        for folder in ("/Users/eric/Downloads", "/Users/eric", "/opt/stuff", "/", "/Volumes"):
+            with self.subTest(folder=folder):
+                self.assertIsNone(self._pick(folder))
+        # a drive folder that really sits on the home folder's disk isn't another drive
+        self.assertIsNone(self._pick("/mnt/disk", on_home_disk={"/mnt/disk"}))
+
+    def test_a_drive_that_cannot_be_read_keeps_the_usual_places(self):
+        def device(_path):
+            raise OSError("gone")
+
+        picked = native_install.drive_install_home(
+            Path("/Volumes/Drive"),
+            home=self.HOME,
+            is_mount=lambda path: str(path) in self.MOUNTS,
+            device=device,
+        )
+        self.assertIsNone(picked)
+
+    def _install(self, env: dict, picked: Path | None):
+        import io
+
+        import cli
+
+        seen = {}
+
+        def layout(*_args, **_kwargs):
+            seen["home"] = os.environ.get("ALLES_HOME")
+            raise native_install.NativeInstallError("stop here")
+
+        clean = {
+            k: v
+            for k, v in os.environ.items()
+            if not k.startswith("ALLES_INSTALL_") and k != "ALLES_HOME"
+        }
+        with (
+            mock.patch.dict(os.environ, {**clean, **env}, clear=True),
+            mock.patch.object(native_install, "drive_install_home", return_value=picked) as pick,
+            mock.patch.object(native_install, "platform_layout", side_effect=layout),
+            mock.patch("sys.stdout", new_callable=io.StringIO) as output,
+        ):
+            ok = cli.cmd_install()
+        self.assertFalse(ok)
+        return seen.get("home"), pick, output.getvalue()
+
+    def test_the_install_command_uses_the_drive_install_sh_started_on(self):
+        drive = Path("/Volumes/Drive/Alles")
+        home, pick, output = self._install({"ALLES_INSTALL_FROM": "/Volumes/Drive"}, drive)
+        self.assertEqual(home, str(drive))
+        pick.assert_called_once_with(Path("/Volumes/Drive"))
+        self.assertIn("the drive you're in", output)
+
+    def test_the_install_command_keeps_alles_home_and_the_usual_places(self):
+        # an ALLES_HOME you typed wins over the folder you're in
+        home, pick, _ = self._install(
+            {"ALLES_INSTALL_FROM": "/Volumes/Drive", "ALLES_HOME": "/Volumes/Other/Alles"},
+            Path("/Volumes/Drive/Alles"),
+        )
+        self.assertEqual(home, "/Volumes/Other/Alles")
+        pick.assert_not_called()
+        # started on the startup disk: no ALLES_HOME, so the usual places
+        home, _, output = self._install({"ALLES_INSTALL_FROM": "/Users/eric/Downloads"}, None)
+        self.assertIsNone(home)
+        self.assertNotIn("the drive you're in", output)
+        # run without install.sh: nothing to go on
+        home, pick, _ = self._install({}, Path("/Volumes/Drive/Alles"))
+        self.assertIsNone(home)
+        pick.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -29,6 +29,15 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
 
 ### 別のドライブに入れる
 
+ドライブ上のフォルダーでインストールを実行すると、alles はそこの `Alles` フォルダーに入ります：
+
+```bash
+cd /Volumes/External
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+どこからでも、フォルダーを自分で指定することもできます：
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
 ```

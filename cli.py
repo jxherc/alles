@@ -3024,6 +3024,13 @@ def cmd_install(args=()):
         ui.check(False, f"python {version}", "alles needs python 3.11 or newer", steps.width)
         return False
     ui.check(True, f"python {version}", "", steps.width)
+    # install.sh names the folder it was started in; on another drive, the install goes there
+    started_in = os.environ.get("ALLES_INSTALL_FROM", "").strip()
+    if started_in and not os.environ.get("ALLES_HOME", "").strip():
+        on_drive = native_install.drive_install_home(Path(started_in))
+        if on_drive is not None:
+            os.environ["ALLES_HOME"] = str(on_drive)
+            ui.check(True, "folder", f"{on_drive}  (the drive you're in)", steps.width)
     try:
         layout = native_install.platform_layout()
         native_install.check_install_home(layout)

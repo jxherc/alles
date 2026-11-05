@@ -27,6 +27,15 @@ by default, alles is only accessible from this device and starts without a passw
 
 ### put it on another drive
 
+run the install from a folder on the drive and alles goes into an `Alles` folder there:
+
+```bash
+cd /Volumes/External
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+or name the folder yourself, from anywhere:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
 ```

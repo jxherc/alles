@@ -15,6 +15,7 @@ class TranslatedReadmeTests(unittest.TestCase):
             "python app.py",
             "sudo apt install git python3-venv",
             "curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh",
+            "cd /Volumes/External",
             "alles access lan",
             "python cli.py access lan",
             "docker build -t alles .",

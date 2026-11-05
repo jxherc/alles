@@ -362,6 +362,57 @@ class CliInstallHelpersTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("fake cli ran", result.stdout)
 
+    def test_install_sh_tells_the_installer_where_it_was_started(self):
+        # install.sh moves to a temp folder before the installer runs, so it has to pass on the
+        # folder the owner ran it from; started on a drive, the install goes there
+        with tempfile.TemporaryDirectory(prefix="alles-sh-") as directory:
+            base = Path(directory).resolve()
+            bin_dir = base / "bin"
+            bin_dir.mkdir()
+            (bin_dir / "python3").symlink_to(sys.executable)
+            src = base / "pack" / "alles-src"
+            src.mkdir(parents=True)
+            (src / "cli.py").write_text(
+                "import os\nprint('from=' + os.environ['ALLES_INSTALL_FROM'] + '|cwd=' + os.getcwd())\n",
+                "utf-8",
+            )
+            archive = base / "release.tar.gz"
+            with tarfile.open(archive, "w:gz") as bundle:
+                bundle.add(src, arcname="alles-src")
+            curl = bin_dir / "curl"
+            curl.write_text(
+                "#!/bin/sh\n"
+                'case "$*" in\n'
+                f'  *api.github.com*) printf "%s" {"cd" * 20} ;;\n'
+                f'  *) cat "{archive}" ;;\n'
+                "esac\n",
+                "utf-8",
+            )
+            curl.chmod(0o755)
+            started = base / "drive folder"
+            started.mkdir()
+            result = subprocess.run(
+                ["/bin/sh", str(ROOT / "install.sh")],
+                cwd=started,
+                env={
+                    "PATH": f"{bin_dir}:/usr/bin:/bin",
+                    "HOME": str(base),
+                    "TMPDIR": str(base),
+                    "NO_COLOR": "1",
+                },
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+                start_new_session=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        line = next(x for x in result.stdout.splitlines() if x.startswith("from="))
+        start, cwd = line[len("from=") :].split("|cwd=")
+        self.assertEqual(start, str(started))
+        self.assertNotEqual(cwd, str(started))  # the installer itself runs in the temp folder
+
 
 class PasswordCommandTest(unittest.TestCase):
     def test_password_takes_eight_characters_and_turns_the_lock_on(self):

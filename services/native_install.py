@@ -81,6 +81,38 @@ def _install_home_from_env() -> Path | None:
     return path
 
 
+# where macos and linux mount other drives (usb disks, sd cards)
+_DRIVE_FOLDERS = ("/Volumes/", "/media/", "/run/media/", "/mnt/")
+
+
+def drive_install_home(
+    folder: Path,
+    *,
+    home: Path | None = None,
+    is_mount: Callable[[Path], bool] = os.path.ismount,
+    device: Callable[[Path], int] = lambda path: os.stat(path).st_dev,
+) -> Path | None:
+    """The install folder when install.sh ran from a folder on another drive, else None.
+
+    the drive has to be mounted in a drive folder and not hold the home folder, so running the
+    one-line install from ~/Downloads or /tmp still installs in the usual place.
+    """
+    try:
+        folder = folder.resolve()
+        home = (home or Path.home()).resolve()
+        mount = folder
+        while not is_mount(mount) and mount != mount.parent:
+            mount = mount.parent
+        if not str(mount).startswith(_DRIVE_FOLDERS) or device(mount) == device(home):
+            return None
+        # already in an alles folder (a reinstall): use it rather than nesting another one
+        if folder.name.lower() == "alles" or (folder / ".alles").is_dir():
+            return folder
+    except OSError:
+        return None
+    return folder / "Alles"
+
+
 def _port_from_env() -> int:
     raw = os.environ.get("ALLES_PORT", "").strip()
     if not raw:

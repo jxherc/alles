@@ -28,6 +28,15 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
 
 ### 装到另一块硬盘上
 
+在硬盘上的文件夹里运行安装，alles 就会装进那里的 `Alles` 文件夹：
+
+```bash
+cd /Volumes/External
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+也可以在任何地方自己指定文件夹：
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
 ```

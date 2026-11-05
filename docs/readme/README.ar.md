@@ -35,6 +35,15 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
 
 ### تثبيته على قرص آخر
 
+شغّل التثبيت من مجلد على القرص فيُثبَّت alles في مجلد `Alles` هناك:
+
+```bash
+cd /Volumes/External
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+أو حدّد المجلد بنفسك من أي مكان:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
 ```

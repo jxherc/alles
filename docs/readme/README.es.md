@@ -28,6 +28,15 @@ por defecto, solo se puede acceder a alles desde este dispositivo y arranca sin 
 
 ### instalarlo en otro disco
 
+ejecuta la instalación desde una carpeta del disco y alles va a una carpeta `Alles` allí:
+
+```bash
+cd /Volumes/External
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+o indica tú la carpeta, desde cualquier sitio:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
 ```

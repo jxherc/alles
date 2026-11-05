@@ -29,6 +29,15 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
 
 ### 다른 드라이브에 설치하기
 
+드라이브의 폴더에서 설치를 실행하면 alles가 그곳의 `Alles` 폴더에 들어갑니다:
+
+```bash
+cd /Volumes/External
+curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh
+```
+
+어디서든 폴더를 직접 정할 수도 있습니다:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLES_HOME=/Volumes/External/Alles sh
 ```

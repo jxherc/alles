@@ -7,6 +7,8 @@ set -eu
 
 repo="${ALLES_REPOSITORY:-jxherc/alles}"
 branch="${ALLES_BRANCH:-main}"
+# the folder this ran from: started on another drive, alles installs there (see drive_install_home)
+here=$(pwd -P 2>/dev/null || true)
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != "dumb" ]; then
   accent=$(printf '\033[1;38;5;147m') good=$(printf '\033[32m') bad=$(printf '\033[31m')
@@ -89,6 +91,7 @@ src=$(find "$tmp/src" -mindepth 1 -maxdepth 1 -type d | head -n 1)
 ok "download" "$(printf '%s' "$commit" | cut -c1-7) from $branch"
 
 export ALLES_INSTALL_REPOSITORY="$repo" ALLES_INSTALL_BRANCH="$branch" ALLES_INSTALL_COMMIT="$commit"
+export ALLES_INSTALL_FROM="$here"
 cd "$tmp"
 if have_tty; then
   "$python" "$src/cli.py" install < /dev/tty
