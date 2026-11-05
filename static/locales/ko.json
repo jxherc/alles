@@ -1430,6 +1430,7 @@
     "aide.step_loading_sources": "출처 불러오는 중…",
     "aide.step_no_final_result": "최종 결과 없음",
     "aide.step_no_output": "(출력 없음)",
+    "aide.step_project_create": "프로젝트 만들기 {path}",
     "aide.step_question": "질문",
     "aide.step_read": "{path} 읽기",
     "aide.step_recall": "떠올리기: {query}",

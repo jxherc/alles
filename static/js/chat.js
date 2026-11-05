@@ -14,6 +14,7 @@ import { formatNumber, serverText, t, tp, t as tr } from './i18n.js';
 import { contextProvenanceElement, sourceCitationStatus } from './memoryactions.js';
 import { saveAnswerNote } from './answer_note.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
+import { loadProjects } from './projects.js';
 import { saveAnswerTask } from './answer_task.js';
 import { markAideQuestionResolved, renderAideQuestion } from './aidequestions.js?v=2';
 import { compactResponseActions } from './response_actions.js?v=6';
@@ -43,6 +44,7 @@ function toolSummary(name, args = {}) {
     case 'memory_add': return t('aide.step_remember');
     case 'diagnostics': return t('aide.step_diagnostics');
     case 'mail_send': return t('aide.step_send_mail', { to: cut(a.to, 40) });
+    case 'project_create': return t('aide.step_project_create', { path: cut(a.path, 90) });
     default: {
       const v = Object.values(a).find(x => typeof x === 'string' && x.length < 80);
       return v ? `${name}: ${cut(v)}` : name;
@@ -1180,6 +1182,11 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     }
     _stoppedTurns.delete(turnToken);
 
+    // aide made a project and moved this chat into it: the header follows without a reload
+    if (accepted && [...steps.values()].some(step => step.name === 'project_create' && !step.error)) {
+      void followSessionProject(sessionId);
+    }
+
     // name the chat from its first message (async; updates the sidebar when ready)
     if (freshSession && !privateReply && cleanText && row.dataset.msgId) {
       fetch(`/api/sessions/${sessionId}/auto-name`, { method: 'POST' })
@@ -1191,6 +1198,18 @@ async function streamReply(request, { freshSession = false, previousRow = null, 
     if (accepted && _streamToken === streamToken) void answerQueued();
   }
 
+}
+
+async function followSessionProject(sessionId) {
+  try {
+    const [data] = await Promise.all([
+      fetch(`/api/sessions/${encodeURIComponent(sessionId)}/history`).then(r => (r.ok ? r.json() : null)),
+      loadProjects(),
+    ]);
+    if (!data?.session || getActiveId() !== sessionId) return;
+    window._currentSession = data.session;
+    window._syncAideNewTaskContext?.(data.session);
+  } catch {}
 }
 
 function _splitBeforeArtifact(text) {

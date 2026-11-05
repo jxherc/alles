@@ -25,6 +25,7 @@ import httpx
 
 from core.settings import data_dir, load_settings
 from services import shell_sandbox
+from services.native_install import _DRIVE_FOLDERS
 
 log = logging.getLogger(__name__)
 
@@ -101,6 +102,7 @@ TOOL_PERMISSION = {
     "find_definition": "read",
     "diagnostics": "read",
     "revert_file": "write",
+    "project_create": "write",
     "screenshot": "computer",
     "computer_click": "computer",
     "computer_move": "computer",
@@ -2148,6 +2150,8 @@ async def execute(name: str, args: dict) -> dict:
         return await _goal_list()
     if name == "task_add":
         return await _task_add(args)
+    if name == "project_create":
+        return await _project_create(args)
     if name == "task_done":
         done = args.get("done", True)
         if not isinstance(done, bool):
@@ -2499,6 +2503,102 @@ async def _goal_list() -> dict:
         return {"output": "\n".join(lines) or "no goals yet"}
     finally:
         db.close()
+
+
+def _project_place_error(folder: Path) -> str:
+    """why a folder can't become a Project from a chat, else ''. Only the owner's home folder
+    and mounted drives are fair game; the filesystem root and credential stores never are."""
+    text = str(folder)
+    if folder == Path(folder.anchor):
+        return "the filesystem root can't be a project"
+    if _is_secret_path(text):
+        return f"{text} looks like a credential or secret store"
+    try:
+        home = Path.home().resolve()
+    except (OSError, RuntimeError):
+        home = None
+    in_home = home is not None and folder != home and _within(folder, home)
+    on_drive = text.startswith(_DRIVE_FOLDERS) and len(text) > min(len(d) for d in _DRIVE_FOLDERS)
+    if not (in_home or on_drive):
+        return f"projects can only be in your home folder or on a mounted drive, not {text}"
+    return ""
+
+
+async def _project_create(args):
+    """make a Project folder from a chat. a General chat moves into it and this turn's tool
+    settings follow, so the next write in the same turn lands in the folder."""
+    from core.database import Project, SessionLocal
+    from core.database import Session as ChatSession
+    from services.project_environment import canonical_folder
+
+    args = args if isinstance(args, dict) else {}
+    raw = args.get("path")
+    if not isinstance(raw, str) or not raw.strip():
+        return {
+            "output": "path required: an absolute folder path, or one starting with ~",
+            "error": True,
+        }
+    label = args.get("name")
+    if label is not None and not isinstance(label, str):
+        return {"output": "name must be text", "error": True}
+    if not Path(raw.strip()).expanduser().is_absolute():
+        return {"output": "path must be absolute or start with ~", "error": True}
+    try:
+        folder = Path(canonical_folder(raw.strip(), must_exist=False))
+    except ValueError as exc:
+        return {"output": str(exc).replace("_", " "), "error": True}
+    why = _project_place_error(folder)
+    if why:
+        return {"output": why, "error": True}
+    if folder.exists() and not folder.is_dir():
+        return {"output": f"{folder} is a file, not a folder", "error": True}
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        return {"output": f"couldn't make {folder}: {exc.strerror or exc}", "error": True}
+
+    path = str(folder)
+    name = (label or "").strip() or folder.name
+    s = _settings()
+    session_id = (get_agent_ctx() or {}).get("session_id") or ""
+    db = SessionLocal()
+    try:
+        project = db.query(Project).filter(Project.working_dir == path).first()
+        reused = project is not None
+        if project is None:
+            project = Project(name=name, description="", system_prompt="", working_dir=path)
+            db.add(project)
+            db.flush()
+        chat = db.get(ChatSession, session_id) if session_id and not s.get("incognito") else None
+        if chat is not None and chat.incognito:
+            chat = None
+        moved = False
+        where = ""
+        if chat is None:
+            where = "this chat isn't saved, so it stays where it is"
+        elif chat.project_id == project.id:
+            where = "this chat already works in it"
+        elif chat.project_id or (chat.working_dir or "").strip():
+            where = "this chat stays in its own project or folder"
+        else:
+            chat.project_id = project.id
+            chat.working_dir = ""
+            moved = True
+        db.commit()
+        project_id, project_name = project.id, project.name
+    finally:
+        db.close()
+    if moved:
+        s["agent_environment"] = "project"
+        s["agent_cwd"] = path
+        s["agent_project_id"] = project_id
+    verb = "project" if reused else "made project"
+    if reused:
+        head = f"{path} was already the project {project_name}"
+    else:
+        head = f"{verb} {project_name} at {path}"
+    tail = "this chat now works in it" if moved else where
+    return {"output": f"{head}. {tail}."}
 
 
 async def _task_add(args):
@@ -4357,6 +4457,21 @@ APP_TOOL_DEFS = [
         ["title"],
     ),
     _tool(
+        "project_create",
+        "Make a new Project folder anywhere in the owner's home folder or on a mounted drive, "
+        "and turn it into a Project. An existing folder simply becomes the Project. When this chat "
+        "is in General it moves into the Project, so write_file and shell work in the new folder "
+        "from the next step.",
+        {
+            "path": {
+                "type": "string",
+                "description": "absolute folder path, or one starting with ~",
+            },
+            "name": {"type": "string", "description": "defaults to the folder's name"},
+        },
+        ["path"],
+    ),
+    _tool(
         "task_done",
         "Mark a task done or not done.",
         {
@@ -4724,6 +4839,7 @@ MUTATING_TOOLS = {
     "goal_add",
     "task_add",
     "task_done",
+    "project_create",
     "docs_write",
     "note_write",
     "note_append",
@@ -4777,6 +4893,8 @@ def delegated_action_details(name: str, args: dict, settings: dict | None = None
         raw_target = str(args.get("id") or args.get("calendar_id") or "calendar")
     elif name == "contact_add":
         raw_target = str(args.get("email") or args.get("name") or "contact")
+    elif name == "project_create":
+        raw_target = str(args.get("path") or "project folder")
     elif name.startswith("computer_"):
         raw_target = "local screen"
     elif name in {"shell", "bash"}:

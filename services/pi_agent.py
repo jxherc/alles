@@ -86,7 +86,14 @@ THINKING_LEVELS = ("off", "minimal", "low", "medium", "high", "xhigh", "max")
 # pi has its own file, shell and web tools; browser, computer, server and outgoing mail stay
 # with Aide, where their approvals live
 _BRIDGE_SKIP = ("browse_", "computer_", "server_", "adguard_", "npm_", "files_operation", "github_")
-_BRIDGE_SKIP_NAMES = {"mail_send", "search_code", "screenshot", "spawn_agent", "spawn_agents"}
+_BRIDGE_SKIP_NAMES = {
+    "mail_send",
+    "project_create",
+    "search_code",
+    "screenshot",
+    "spawn_agent",
+    "spawn_agents",
+}
 _BRIDGE_EXTRA = {"memory_search", "memory_add", "skill_list", "skill_load", "skill_match"}
 
 

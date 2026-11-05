@@ -186,6 +186,7 @@
         "memory_search",
         "opencode_run",
         "pi_run",
+        "project_create",
         "read_file",
         "recall",
         "revert_file",

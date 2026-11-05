@@ -1430,6 +1430,7 @@
     "aide.step_loading_sources": "正在載入來源…",
     "aide.step_no_final_result": "沒有最終結果",
     "aide.step_no_output": "（沒有輸出）",
+    "aide.step_project_create": "建立專案 {path}",
     "aide.step_question": "問題",
     "aide.step_read": "讀取 {path}",
     "aide.step_recall": "回想：{query}",

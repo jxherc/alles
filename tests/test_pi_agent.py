@@ -387,6 +387,7 @@ class SecretsAndBridgeTest(PiTest):
             "alles_mail_send",
             "alles_browse_open",
             "alles_server_service_control",
+            "alles_project_create",
         ):
             self.assertNotIn(kept_with_aide, names)
 
@@ -760,6 +761,7 @@ class PiDoesTheWorkTest(unittest.TestCase):
             "note_append",
             "contact_add",
             "book_add",
+            "project_create",
         ):
             self.assertIn(name, handed)
         for name in ("pi_run", "docs_read", "mail_send", "memory_add", "web_search"):

@@ -53,6 +53,7 @@ SURFACE_CAPABILITIES = {
             "aide", "search the live web", ("web_search", "web_fetch"), "external_read", "automatic"
         ),
         SurfaceCapability("aide", "save long-term memory", ("memory_add",), "change", "ask"),
+        SurfaceCapability("aide", "make a project folder", ("project_create",), "change", "ask"),
     ),
     "plan": (
         SurfaceCapability(

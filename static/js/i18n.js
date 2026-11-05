@@ -1434,6 +1434,7 @@ const BUILTIN_ENGLISH = {
     "aide.step_loading_sources": "loading sources…",
     "aide.step_no_final_result": "no final result",
     "aide.step_no_output": "(no output)",
+    "aide.step_project_create": "make project {path}",
     "aide.step_question": "question",
     "aide.step_read": "read {path}",
     "aide.step_recall": "recall: {query}",

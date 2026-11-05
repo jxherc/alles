@@ -1430,6 +1430,7 @@
     "aide.step_loading_sources": "جارٍ تحميل المصادر…",
     "aide.step_no_final_result": "لا نتيجة نهائية",
     "aide.step_no_output": "(لا مخرجات)",
+    "aide.step_project_create": "إنشاء مشروع {path}",
     "aide.step_question": "سؤال",
     "aide.step_read": "قراءة {path}",
     "aide.step_recall": "استرجاع: {query}",

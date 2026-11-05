@@ -1430,6 +1430,7 @@
     "aide.step_loading_sources": "ソースを読み込み中…",
     "aide.step_no_final_result": "最終結果なし",
     "aide.step_no_output": "（出力なし）",
+    "aide.step_project_create": "プロジェクトを作成 {path}",
     "aide.step_question": "質問",
     "aide.step_read": "{path} を読み取り",
     "aide.step_recall": "想起: {query}",

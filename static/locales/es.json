@@ -1430,6 +1430,7 @@
     "aide.step_loading_sources": "cargando fuentes…",
     "aide.step_no_final_result": "sin resultado final",
     "aide.step_no_output": "(sin salida)",
+    "aide.step_project_create": "crear el proyecto {path}",
     "aide.step_question": "pregunta",
     "aide.step_read": "leer {path}",
     "aide.step_recall": "recordar: {query}",
