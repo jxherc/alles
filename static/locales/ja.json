@@ -4588,6 +4588,7 @@
     "mail.guide_paste": "下のパスワード欄に貼り付けて、保存を押してください",
     "mail.image_upload_failed": "画像のアップロードに失敗しました",
     "mail.images_blocked": "プライバシー保護のため、リモート画像はブロックされています",
+    "mail.images_show": "画像を表示",
     "mail.imap_host": "IMAP ホスト",
     "mail.imap_host_ph": "IMAP ホスト",
     "mail.imap_port": "IMAP ポート",

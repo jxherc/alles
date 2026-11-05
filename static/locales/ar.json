@@ -4588,6 +4588,7 @@
     "mail.guide_paste": "الصقها في مربع كلمة المرور أدناه ثم اضغط حفظ",
     "mail.image_upload_failed": "فشل رفع الصورة",
     "mail.images_blocked": "الصور الخارجية محجوبة حفاظًا على الخصوصية",
+    "mail.images_show": "إظهار الصور",
     "mail.imap_host": "مضيف IMAP",
     "mail.imap_host_ph": "مضيف imap",
     "mail.imap_port": "منفذ IMAP",

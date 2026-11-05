@@ -635,6 +635,7 @@ a real email client (read + send), with one-click setup for the big providers an
 
 - connects to **any imap/smtp account** (imap = how apps read your inbox, smtp = how they send); one-click presets for gmail, outlook, icloud, yahoo, fastmail, or your own domain
 - live inbox that auto-refreshes; open, read, and reply to mail
+- html mail opens in a sandboxed frame whose policy allows only embedded pictures (`img-src data: cid:`), since a picture from the web tells its sender the mail was opened. a message that asks for web pictures says "remote images are blocked for privacy" with a **show images** button that reloads that one message with `https:` and `http:` pictures allowed and moves focus into it; a message without web pictures says nothing about images.
 - opening mail paints the last inbox this browser saw; a browser with nothing saved paints the headers the server saved last (`/api/mail/cached/{aid}`) and swaps in the live list when imap answers
 - the inbox overview starts on unread mail and has one **summarize unread** button: `POST /api/mail/summarize` with `kind: "digest"` sends only senders, subjects and previews (up to 60) and returns one short overview of what needs a reply
 - search and folder reads keep failures visible with retry; an older response cannot replace a

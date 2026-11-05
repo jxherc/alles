@@ -4592,6 +4592,7 @@ const BUILTIN_ENGLISH = {
     "mail.guide_paste": "paste it in the password box below, then hit save",
     "mail.image_upload_failed": "image upload failed",
     "mail.images_blocked": "remote images are blocked for privacy",
+    "mail.images_show": "show images",
     "mail.imap_host": "IMAP host",
     "mail.imap_host_ph": "imap host",
     "mail.imap_port": "IMAP port",

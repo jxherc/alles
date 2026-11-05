@@ -4588,6 +4588,7 @@
     "mail.guide_paste": "粘贴到下方的密码框中，然后点击保存",
     "mail.image_upload_failed": "图片上传失败",
     "mail.images_blocked": "为保护隐私，已屏蔽远程图片",
+    "mail.images_show": "显示图片",
     "mail.imap_host": "IMAP 主机",
     "mail.imap_host_ph": "imap 主机",
     "mail.imap_port": "IMAP 端口",

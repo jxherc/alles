@@ -4588,6 +4588,7 @@
     "mail.guide_paste": "pégala en el cuadro de contraseña de abajo y pulsa guardar",
     "mail.image_upload_failed": "falló la subida de la imagen",
     "mail.images_blocked": "las imágenes remotas están bloqueadas por privacidad",
+    "mail.images_show": "mostrar imágenes",
     "mail.imap_host": "host IMAP",
     "mail.imap_host_ph": "host imap",
     "mail.imap_port": "puerto IMAP",

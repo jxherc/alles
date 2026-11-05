@@ -4588,6 +4588,7 @@
     "mail.guide_paste": "colle-le dans le champ du mot de passe ci-dessous, puis appuie sur enregistrer",
     "mail.image_upload_failed": "échec du téléversement de l’image",
     "mail.images_blocked": "les images distantes sont bloquées pour ta confidentialité",
+    "mail.images_show": "afficher les images",
     "mail.imap_host": "hôte IMAP",
     "mail.imap_host_ph": "hôte imap",
     "mail.imap_port": "port IMAP",

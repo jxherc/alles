@@ -4588,6 +4588,7 @@
     "mail.guide_paste": "아래 비밀번호 입력란에 붙여넣은 다음 저장을 누르세요",
     "mail.image_upload_failed": "이미지 업로드 실패",
     "mail.images_blocked": "개인정보 보호를 위해 원격 이미지를 차단했습니다",
+    "mail.images_show": "이미지 표시",
     "mail.imap_host": "IMAP 호스트",
     "mail.imap_host_ph": "IMAP 호스트",
     "mail.imap_port": "IMAP 포트",

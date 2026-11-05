@@ -8548,6 +8548,7 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   color: var(--text);
   font-weight: 500;
 }
+.mail-images-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap); margin-bottom: var(--k-space-2); }
 .mail-reader-head #mail-reply {
   position: absolute;
   top: 1.15rem;

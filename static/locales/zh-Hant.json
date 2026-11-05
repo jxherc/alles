@@ -4588,6 +4588,7 @@
     "mail.guide_paste": "貼到下方的密碼欄位，然後按儲存",
     "mail.image_upload_failed": "圖片上傳失敗",
     "mail.images_blocked": "為了保護隱私，已封鎖遠端圖片",
+    "mail.images_show": "顯示圖片",
     "mail.imap_host": "IMAP 主機",
     "mail.imap_host_ph": "IMAP 主機",
     "mail.imap_port": "IMAP 連接埠",

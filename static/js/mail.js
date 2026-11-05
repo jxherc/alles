@@ -142,8 +142,18 @@ function stripAutomaticMailNavigation(html = '') {
   });
   return template.innerHTML;
 }
-export function mailBodySrcdoc(html = '') {
-  return `<meta http-equiv="Content-Security-Policy" content="${MAIL_BODY_CSP}"><style>body{font-family:system-ui,sans-serif;color:#111;background:#fff;font-size:16px;padding:8px;margin:0}a{color:#1a0dab}a:visited{color:#681da8}</style>${stripAutomaticMailNavigation(html)}`;
+// a picture from the web tells its sender the mail was opened, so it waits until the owner says
+// show images for that message
+export function mailHasRemoteImages(html = '') {
+  const source = String(html);
+  return /<img\b[^>]*\bsrc\s*=\s*["']?\s*(?:https?:)?\/\//i.test(source)
+    || /\bsrcset\s*=/i.test(source)
+    || /\burl\(\s*["']?\s*(?:https?:)?\/\//i.test(source)
+    || /\bbackground\s*=\s*["']?\s*(?:https?:)?\/\//i.test(source);
+}
+export function mailBodySrcdoc(html = '', { images = false } = {}) {
+  const csp = images ? MAIL_BODY_CSP.replace("img-src data: cid:", "img-src data: cid: https: http:") : MAIL_BODY_CSP;
+  return `<meta http-equiv="Content-Security-Policy" content="${csp}"><style>body{font-family:system-ui,sans-serif;color:#111;background:#fff;font-size:16px;padding:8px;margin:0}a{color:#1a0dab}a:visited{color:#681da8}</style>${stripAutomaticMailNavigation(html)}`;
 }
 const catchErr = msg => e => { console.error(msg || 'Error:', e); if (msg) toast(msg, 'error'); };
 const fromName = f => {
@@ -1705,8 +1715,9 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
     return;
   }
   const hadFocus = main.contains(document.activeElement);
+  const remoteImages = !!m.html && mailHasRemoteImages(m.html);
   const bodyHtml = m.html
-    ? `<div class="mail-reader-meta">${t('mail.images_blocked')}</div><iframe class="mail-body-frame" sandbox></iframe>`
+    ? `${remoteImages ? `<div class="mail-reader-meta mail-images-line"><span>${t('mail.images_blocked')}</span><button type="button" class="btn" id="mail-show-images">${t('mail.images_show')}</button></div>` : ''}<iframe class="mail-body-frame" sandbox></iframe>`
     : `<pre class="mail-body-text">${esc(m.text || t('mail.no_content'))}</pre>`;
   main.innerHTML = `<div class="mail-reader">
     <div class="mail-reader-head">
@@ -1729,6 +1740,14 @@ async function openMessage(aid, uid, folder = 'INBOX', verified = null, isCurren
   if (m.html) {
     const f = main.querySelector('.mail-body-frame');
     f.srcdoc = mailBodySrcdoc(m.html);
+    const showImages = main.querySelector('#mail-show-images');
+    if (showImages) showImages.onclick = () => {
+      f.srcdoc = mailBodySrcdoc(m.html, { images: true });
+      showImages.closest('.mail-images-line')?.remove();
+      // the button is gone, so focus goes to the message it opened up
+      f.setAttribute('tabindex', '-1');
+      f.focus();
+    };
   }
   reader = main.querySelector('.mail-reader');
   _mailReader = { root: reader, generation: paneGeneration };
