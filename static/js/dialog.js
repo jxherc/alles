@@ -302,7 +302,10 @@ export function pick(title, options, { value = '', placeholder = '', action = nu
     let shown = [], active = 0;
     const submit = _wireDialog(ov, resolve, button => button.hasAttribute('data-pick-action')
       ? { action: true, query: search.value.trim() } : button.dataset.value);
-    const optionHtml = (option, index) => `<button type="button" class="dialog-pick-option" role="option" id="${listId}-${index}" tabindex="-1" data-dialog-confirm data-value="${_esc(option.value)}" aria-selected="${option.value === value}"><span>${option.icon ? `<span class="dialog-pick-icon" aria-hidden="true">${_esc(option.icon)}</span>` : ''}${_esc(option.label)}</span>${option.hint ? `<small>${_esc(option.hint)}</small>` : ''}</button>`;
+    // when any hint is more than a short code, every hint goes dim under its name (one row height);
+    // a list of short codes keeps them on the right
+    const stacked = options.some(option => (option.hint || '').length > 14);
+    const optionHtml = (option, index) => `<button type="button" class="dialog-pick-option"${stacked && option.hint ? ' data-stack' : ''} role="option" id="${listId}-${index}" tabindex="-1" data-dialog-confirm data-value="${_esc(option.value)}" aria-selected="${option.value === value}"><span>${option.icon ? `<span class="dialog-pick-icon" aria-hidden="true">${_esc(option.icon)}</span>` : ''}${_esc(option.label)}</span>${option.hint ? `<small>${_esc(option.hint)}</small>` : ''}</button>`;
     const paint = () => {
       const query = search.value.trim().toLowerCase();
       shown = options.filter(option => !query || `${option.label} ${option.value} ${option.hint || ''} ${option.words || ''}`.toLowerCase().includes(query));

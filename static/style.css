@@ -6920,7 +6920,9 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
 .dialog-pick-group { display: flex; flex-direction: column; gap: 2px; }
 .dialog-pick-group + .dialog-pick-group { margin-top: var(--k-space-2); }
 .dialog-pick-heading { padding: var(--k-space-2) 12px var(--k-space-1); color: var(--muted); font-size: 0.8125rem; }
-.dialog-pick-option > span:first-child { display: inline-flex; align-items: center; min-width: 0; }
+.dialog-pick-option > span:first-child { display: inline-flex; align-items: center; min-width: 0; white-space: nowrap; }
+.dialog-pick-option[data-stack] { flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding-block: 8px; }
+.dialog-pick-option[data-stack] small { line-height: 1.35; }
 .dialog-pick-icon { flex: 0 0 auto; width: 1.5em; margin-inline-end: var(--k-space-2); font-size: 1.125rem; line-height: 1; text-align: center; }
 .dialog-btns .dialog-pick-action, .dialog-btns .dialog-remove { margin-inline-end: auto; }
 .cal-ed-actions { flex-wrap: wrap; }
