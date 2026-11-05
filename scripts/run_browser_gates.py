@@ -266,6 +266,7 @@ COMMANDS = {
     "aide-continuity": ("tests/pw_aide_continuity.py",),
     "aide-composer": ("tests/pw_aide_composer.py",),
     "aide-queue": ("tests/pw_aide_queue.py",),
+    "aide-project-create": ("tests/pw_aide_project_create.py",),
     "aide-webkit-prompts": ("tests/pw_aide_webkit_prompts.py",),
     "aide-image-retry": ("tests/pw_aide_image_retry.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),
@@ -439,6 +440,16 @@ def run_gate(name: str, output: Path, startup_timeout: float, gate_timeout: floa
         env = isolated_environment(data, run_id, port, directory)
         if name in {"home-capture", "home-route-parity-off"}:
             env["ALLES_AFTERLIFE_FEATURES"] = "afterlife_shell"
+        if name == "aide-project-create":
+            # the tool only makes folders in the home folder or on a drive: give it a throwaway home
+            home = data / "home"
+            home.mkdir(exist_ok=True)
+            env.setdefault(
+                "PLAYWRIGHT_BROWSERS_PATH",
+                os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+                or str(Path.home() / "Library" / "Caches" / "ms-playwright"),
+            )
+            env["HOME"] = str(home)
         result.update({"run_id": run_id, "port": port, "data_root": str(data)})
         server = gate = None
         try:

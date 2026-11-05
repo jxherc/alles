@@ -927,6 +927,11 @@ async def run_agent(
                     )
                     if unconfined:
                         details = {**details, "privacy_effect": warning}
+                    # project_create can move this chat into a project mid-turn: the action
+                    # belongs to the project the chat works in now
+                    moved_to = settings.get("agent_project_id") or ""
+                    if moved_to and moved_to != _delegated_scope_id:
+                        _delegated_scope_kind, _delegated_scope_id = "project", moved_to
                     delegated_request = ActionRequest(
                         origin="aide",
                         scope_kind=_delegated_scope_kind,

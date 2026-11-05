@@ -2,7 +2,7 @@ import { mdToHtml, plainError, toast, withoutThinking, writeClipboard } from './
 import { renderDiff } from './agentview.js';
 import {
   appendUserMsg, appendInterruptionNotice, createStreamingAiRow, scrollDown, wireMessageActions, rereadActiveSession, markRead, addStepsAction, openReplySteps,
-  showMessages, updateSessionName, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
+  showMessages, updateSessionName, updateSessionHeader, createSession, getActiveId, getComposerGeneration, markActive, saveDraft, clearDraft, consumeDraft, getDraftSnapshot,
 } from './sessions.js';
 import { getSelected, getCurrentEndpoint, getSelectionSource, isImageSelected, getImageSlot } from './models.js?v=217';
 import { openArtifact, extractArtifacts, stripArtifacts } from './artifacts.js';
@@ -1208,7 +1208,7 @@ async function followSessionProject(sessionId) {
     ]);
     if (!data?.session || getActiveId() !== sessionId) return;
     window._currentSession = data.session;
-    window._syncAideNewTaskContext?.(data.session);
+    updateSessionHeader(data.session);
   } catch {}
 }
 

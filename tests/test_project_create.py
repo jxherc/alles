@@ -6,10 +6,13 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import services.agent_tools as at
 from core.database import Project, Session
+from services import agent_runtime as ar
+from services import agent_state
 from tests._client import ApiTest
 
 
@@ -173,6 +176,73 @@ class ProjectCreateTests(ApiTest):
             d["function"]["name"] for d in at.build_tool_defs({"agent_permission_mode": "plan"})
         }
         self.assertNotIn("project_create", plan)
+
+    def test_a_whole_turn_makes_the_project_then_writes_in_it(self):
+        """the runtime's approval scope follows the chat into the project, or the write is refused"""
+        target = self.home / "turn"
+        sid = self.chat()
+        steps = [
+            [
+                {
+                    "tool_call": {
+                        "call_id": "c1",
+                        "name": "project_create",
+                        "args": {"path": str(target)},
+                    }
+                },
+                {"done": True},
+            ],
+            [
+                {
+                    "tool_call": {
+                        "call_id": "c2",
+                        "name": "write_file",
+                        "args": {"path": str(target / "a.txt"), "content": "hi"},
+                    }
+                },
+                {"done": True},
+            ],
+            [{"delta": "ok"}, {"done": True}],
+        ]
+        calls = {"n": 0}
+
+        async def fake(messages, base_url, api_key, model, **kw):
+            n = calls["n"]
+            calls["n"] += 1
+            for chunk in steps[min(n, len(steps) - 1)]:
+                yield chunk
+
+        class Stop:
+            def is_set(self):
+                return False
+
+        async def go():
+            chunks = []
+            settings = {"agent_context_files": False, "agent_environment": "general"}
+            async for chunk in ar.run_agent(
+                [{"role": "user", "content": "go"}],
+                SimpleNamespace(base_url="http://x/", api_key="k"),
+                "m",
+                Stop(),
+                settings,
+                [],
+                [],
+                [],
+                session_id=sid,
+            ):
+                chunks.append(chunk)
+            return chunks
+
+        with (
+            tempfile.TemporaryDirectory() as runs,
+            mock.patch.object(agent_state, "DATA_DIR", Path(runs)),
+            mock.patch.object(ar, "stream_chat", fake),
+            mock.patch.object(ar, "LLM_RETRY_BASE", 0),
+        ):
+            chunks = asyncio.run(go())
+        outputs = [c["tool_result"] for c in chunks if "tool_result" in c]
+        self.assertEqual([o.get("error") for o in outputs], [False, False], outputs)
+        self.assertEqual((target / "a.txt").read_text(), "hi")
 
 
 if __name__ == "__main__":
