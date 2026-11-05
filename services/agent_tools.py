@@ -2521,6 +2521,12 @@ def _project_place_error(folder: Path) -> str:
     on_drive = text.startswith(_DRIVE_FOLDERS) and len(text) > min(len(d) for d in _DRIVE_FOLDERS)
     if not (in_home or on_drive):
         return f"projects can only be in your home folder or on a mounted drive, not {text}"
+    if in_home:
+        # ~/Library and hidden folders hold app data and things that run at login
+        # (LaunchAgents, autostart): a project there would let a write start a program
+        top = folder.relative_to(home).parts[0]
+        if top.startswith(".") or top == "Library":
+            return f"projects can't go in {home / top}, which holds app data and startup items"
     return ""
 
 

@@ -90,6 +90,19 @@ class ProjectCreateTests(ApiTest):
             self.assertTrue(out["error"])
             self.assertFalse(path.exists())
 
+    def test_refuses_library_and_hidden_folders_in_home(self):
+        # things there run at login, so a write into a project there could start a program
+        for path in (
+            self.home / "Library" / "LaunchAgents",
+            self.home / ".config" / "autostart",
+            self.home / ".local" / "work",
+        ):
+            out, _ = self.run_tool({"path": str(path)})
+            self.assertTrue(out["error"], path)
+            self.assertIn("startup items", out["output"])
+            self.assertFalse(path.exists())
+        self.assertEqual(self.project_rows(), [])
+
     def test_relative_and_file_paths_are_errors(self):
         out, _ = self.run_tool({"path": "projects/x"})
         self.assertTrue(out["error"])
