@@ -9485,9 +9485,9 @@ body.afterlife-shell[data-space="andromeda"] .main { flex: 1 1 auto; }
   min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
   border: 0;
 }
-/* every tab has the same side padding, so the words sit evenly apart; the row moves back
-   by that padding so "all" still starts on the content edge */
-.andromeda-tabs { align-self: stretch; display: flex; align-items: stretch; gap: 0; margin-inline-start: -12px; }
+/* every tab has the same side padding, so the words sit evenly apart. the first tab's own edge
+   (its selected fill) sits on the search box's left edge */
+.andromeda-tabs { align-self: stretch; display: flex; align-items: stretch; gap: 0; }
 .andromeda-tab {
   position: relative; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 0 12px; border: 0; background: transparent;
   color: var(--muted); font-size: 0.8125rem; cursor: pointer;
