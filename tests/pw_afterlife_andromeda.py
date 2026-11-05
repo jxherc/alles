@@ -466,13 +466,21 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     )
     page.locator("#andromeda-query").fill("partial provider !ai")
     page.locator("#andromeda-form").press("Enter")
+    # the old results stay up for the spelling check, so wait for this search's own status
+    page.wait_for_function(
+        "() => document.getElementById('andromeda-status').textContent.includes('some sources were unavailable')"
+    )
     page.wait_for_selector(".andromeda-result-title", state="visible")
-    assert "some sources were unavailable" in page.locator("#andromeda-status").inner_text()
     assert page.locator(".andromeda-result-title").count() > 0
     assert page.locator("#andromeda-overview").is_hidden()
 
+    sent = len(requests)
     page.locator("#andromeda-query").fill("official website !ai")
     page.locator("#andromeda-form").press("Enter")
+    for _ in range(100):
+        if len(requests) > sent:
+            break
+        page.wait_for_timeout(50)
     page.wait_for_selector(".andromeda-result-title", state="visible")
     assert requests[-1]["overview"] is False
     assert page.locator("#andromeda-overview").is_hidden()
