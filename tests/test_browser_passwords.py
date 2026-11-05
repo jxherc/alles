@@ -103,7 +103,7 @@ class BrowserPasswordsApiTest(ApiTest):
         self.assertEqual(polled.status_code, 200)
         return polled.json()
 
-    def _unlock_browser(self, connection):
+    def _unlock_browser(self, connection, seconds=None):
         started = self._extension(
             "/api/auth/browser/unlock/start",
             {
@@ -116,7 +116,8 @@ class BrowserPasswordsApiTest(ApiTest):
         owner = self.client.get("/api/vault/browsers", headers=self.owner_headers).json()
         self.assertEqual(owner["unlock_requests"][0]["code"], request["code"])
         approved = self.client.post(
-            f"/api/vault/browsers/unlock-requests/{request['request_id']}/approve",
+            f"/api/vault/browsers/unlock-requests/{request['request_id']}/approve"
+            + (f"?seconds={seconds}" if seconds is not None else ""),
             headers=self.owner_headers,
         )
         self.assertEqual(approved.status_code, 200)
@@ -129,6 +130,7 @@ class BrowserPasswordsApiTest(ApiTest):
             },
         )
         self.assertEqual(polled.status_code, 200)
+        self.last_unlock_seconds = polled.json()["expires_in"]
         return polled.json()["session_token"]
 
     def _add_login(self):
@@ -381,6 +383,35 @@ class BrowserPasswordsApiTest(ApiTest):
             },
         )
         self.assertEqual(started.status_code, 200)
+
+    def test_owner_picks_how_long_an_approval_lasts_from_a_short_list(self):
+        connection = self._pair()
+        self._unlock_browser(connection)
+        self.assertLessEqual(self.last_unlock_seconds, 300)
+        self.assertGreater(self.last_unlock_seconds, 290)
+        for seconds in (3600, 8 * 3600):
+            browser_passwords.reset_ephemeral_state()
+            self._unlock_browser(connection, seconds=seconds)
+            self.assertLessEqual(self.last_unlock_seconds, seconds)
+            self.assertGreater(self.last_unlock_seconds, seconds - 10)
+
+    def test_an_approval_length_off_the_list_is_refused(self):
+        connection = self._pair()
+        started = self._extension(
+            "/api/auth/browser/unlock/start",
+            {
+                "connection_id": connection["connection_id"],
+                "device_secret": connection["device_secret"],
+            },
+        ).json()
+        refused = self.client.post(
+            f"/api/vault/browsers/unlock-requests/{started['request_id']}/approve?seconds=86400",
+            headers=self.owner_headers,
+        )
+        self.assertEqual(refused.status_code, 400, refused.text)
+        self.assertEqual(refused.json()["code"], "invalid_unlock_length")
+        pending = self.client.get("/api/vault/browsers", headers=self.owner_headers).json()
+        self.assertEqual(len(pending["unlock_requests"]), 1)
 
     def test_browser_activity_does_not_extend_the_absolute_unlock_deadline(self):
         self._add_login()

@@ -7,7 +7,7 @@ import json
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, Request, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
@@ -367,6 +367,8 @@ def cancel_pairing(
 def approve_unlock(
     request_id: str,
     response: Response,
+    # how long the approval lasts; the service checks it against its short list
+    seconds: int = Query(5 * 60, ge=1, le=24 * 60 * 60),
     db: DbSession = Depends(get_db),
     ctx: tuple[str, str] = Depends(_ctx),
 ):
@@ -389,6 +391,7 @@ def approve_unlock(
             vault_id,
             password,
             vault.verifier,
+            seconds,
         )
         return {"ok": True}
     except browser_passwords.BrowserPasswordError as exc:

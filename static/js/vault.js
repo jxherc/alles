@@ -605,8 +605,9 @@ function _browserAccessMarkup(state, failed) {
         <button class="act-btn danger" type="button" data-browser-pair-deny="${_esc(item.id)}" aria-label="${_esc(t('vault.deny_pairing_for', { name: item.name }))}">${_esc(t('vault.deny'))}</button>
       </div>`),
     ...unlocks.map(item => `
-      <div class="mv-browser-row request" role="listitem">
+      <div class="mv-browser-row request unlock" role="listitem">
         <div class="mv-browser-copy"><strong>${_esc(item.name)}</strong><small>${t('vault.access_code_line', { code: `<span class="mv-browser-code">${_esc(item.code)}</span>`, expiry: _esc(_browserExpiry(item.expires_in)) })}</small></div>
+        <div class="settings-input custom-select mv-browser-stay" data-browser-stay aria-label="${_esc(t('vault.stay_unlocked_for'))}"></div>
         <button class="act-btn" type="button" data-browser-unlock="${_esc(item.id)}" aria-label="${_esc(t('vault.approve_access_for', { name: item.name }))}">${_esc(t('vault.approve'))}</button>
         <button class="act-btn danger" type="button" data-browser-unlock-deny="${_esc(item.id)}" aria-label="${_esc(t('vault.deny_access_for', { name: item.name }))}">${_esc(t('vault.deny'))}</button>
       </div>`),
@@ -625,6 +626,21 @@ function _browserAccessMarkup(state, failed) {
           </div>`).join('') : `<p class="mv-browser-empty">${_esc(t('vault.no_browsers_connected_to_this'))}</p>`}
       </div>
     </div>`;
+}
+
+// how long one approval lasts. the owner picks it each time; the server only accepts these three.
+// the last pick is a convenience kept in this browser, the default stays 5 minutes.
+const _STAY_KEY = 'alles.vault.browserStay';
+function _stayChoices() {
+  return [
+    { value: '300', label: t('vault.stay_5_minutes') },
+    { value: '3600', label: t('vault.stay_1_hour') },
+    { value: '28800', label: t('vault.stay_8_hours') },
+  ];
+}
+function _stayLast() {
+  try { const saved = localStorage.getItem(_STAY_KEY); if (_stayChoices().some(item => item.value === saved)) return saved; } catch { /* private window */ }
+  return '300';
 }
 
 async function _browserOwnerMutation(url, opts, success) {
@@ -762,8 +778,14 @@ async function _renderManageExtra() {
     _browserOwnerMutation(`/api/vault/browsers/pairings/${button.dataset.browserPair}/approve`, { method: 'POST' }, t('vault.browser_paired')));
   box.querySelectorAll('[data-browser-pair-deny]').forEach(button => button.onclick = () =>
     _browserOwnerMutation(`/api/vault/browsers/pairings/${button.dataset.browserPairDeny}`, { method: 'DELETE' }, t('vault.pairing_denied')));
-  box.querySelectorAll('[data-browser-unlock]').forEach(button => button.onclick = () =>
-    _browserOwnerMutation(`/api/vault/browsers/unlock-requests/${button.dataset.browserUnlock}/approve`, { method: 'POST' }, t('vault.browser_access_approved')));
+  box.querySelectorAll('[data-browser-stay]').forEach(select => {
+    populateDropdown(select, _stayChoices(), _stayLast());
+    select.addEventListener('change', () => { try { localStorage.setItem(_STAY_KEY, select.value); } catch { /* not kept */ } });
+  });
+  box.querySelectorAll('[data-browser-unlock]').forEach(button => button.onclick = () => {
+    const seconds = Number(button.closest('.mv-browser-row').querySelector('[data-browser-stay]')?.value || 300);
+    return _browserOwnerMutation(`/api/vault/browsers/unlock-requests/${button.dataset.browserUnlock}/approve?seconds=${seconds}`, { method: 'POST' }, t('vault.browser_access_approved'));
+  });
   box.querySelectorAll('[data-browser-unlock-deny]').forEach(button => button.onclick = () =>
     _browserOwnerMutation(`/api/vault/browsers/unlock-requests/${button.dataset.browserUnlockDeny}`, { method: 'DELETE' }, t('vault.browser_access_denied')));
   box.querySelectorAll('[data-browser-lock]').forEach(button => button.onclick = () =>

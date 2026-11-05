@@ -56,7 +56,7 @@ assert.match(popup, /\/api\/auth\/browser\/disconnect/);
 assert.match(popup, /await request\(state\.allesOrigin, '\/api\/auth\/browser\/disconnect'/);
 assert.ok(popup.indexOf('/api/auth/browser/disconnect') < popup.indexOf("chrome.storage.local.remove(['allesOrigin', 'connectionId', 'deviceSecret'])"));
 assert.match(popup, /catch \(error\) \{[^]*?disconnected here\.[^]*?chrome\.storage\.local\.remove/);
-assert.match(popup, /chrome\.storage\.session\.remove\(\['sessionToken', 'pairing', 'unlockRequest'\]\)/);
+assert.match(popup, /chrome\.storage\.session\.remove\(\['sessionToken', 'pairing', 'unlockRequest', 'unlockSeconds'\]\)/);
 const unlockPoll = popup.match(/async function pollUnlock\(unlockRequest\)[\s\S]*?\n}\n\nasync function activeTab/)?.[0] || '';
 assert.ok(unlockPoll.indexOf("chrome.storage.session.get('unlockRequest')") < unlockPoll.indexOf('chrome.storage.session.set({ sessionToken'));
 assert.ok(unlockPoll.indexOf('chrome.storage.session.set({ sessionToken') < unlockPoll.lastIndexOf("chrome.storage.session.get('unlockRequest')"));

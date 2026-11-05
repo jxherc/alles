@@ -1,6 +1,6 @@
 async function lockStoredBrowser() {
   const local = await chrome.storage.local.get(['allesOrigin', 'connectionId', 'deviceSecret']);
-  await chrome.storage.session.remove(['sessionToken', 'unlockRequest', 'pairing']);
+  await chrome.storage.session.remove(['sessionToken', 'unlockRequest', 'pairing', 'unlockSeconds']);
   if (!local.allesOrigin || !local.connectionId || !local.deviceSecret) return;
   try {
     await fetch(`${local.allesOrigin}/api/auth/browser/lock`, {
@@ -12,7 +12,17 @@ async function lockStoredBrowser() {
   } catch { /* local session was already cleared; server expiry is the fallback */ }
 }
 
-chrome.runtime.onInstalled.addListener(() => chrome.idle.setDetectionInterval(60));
+// the 5 minute approval locks after a minute without input; a longer one the owner chose in alles
+// (1 hour, 8 hours) waits that long, or it would lock before the choice meant anything.
+// chrome.idle takes whole seconds, 15 or more.
+async function setIdleLock() {
+  const { unlockSeconds } = await chrome.storage.session.get('unlockSeconds');
+  const seconds = Number(unlockSeconds) > 300 ? Math.min(Number(unlockSeconds), 8 * 60 * 60) : 60;
+  chrome.idle.setDetectionInterval(seconds);
+}
+chrome.runtime.onInstalled.addListener(setIdleLock);
+chrome.runtime.onStartup.addListener(setIdleLock);
+chrome.storage.session.onChanged.addListener(changes => { if (changes.unlockSeconds) setIdleLock(); });
 chrome.idle.onStateChanged.addListener(state => {
   if (state === 'idle' || state === 'locked') lockStoredBrowser();
 });

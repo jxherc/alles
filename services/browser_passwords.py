@@ -29,6 +29,10 @@ _EXTENSION_ORIGIN = re.compile(r"^chrome-extension://[a-p]{32}$")
 _PAIR_TTL = 5 * 60
 _UNLOCK_REQUEST_TTL = 3 * 60
 _SESSION_TTL = 5 * 60
+# how long the owner may let one approval last: the default, an hour, a work day. the key sits in
+# memory that long, so the choice is the owner's and is made at each approval; locking the vault,
+# changing its password or revoking the browser still ends it at once.
+SESSION_CHOICES = (5 * 60, 60 * 60, 8 * 60 * 60)
 _MAX_PENDING = 128
 _LOCK = threading.RLock()
 
@@ -383,7 +387,10 @@ def approve_unlock(
     vault_id: str,
     password,
     vault_verifier: str,
+    ttl: int = _SESSION_TTL,
 ) -> None:
+    if ttl not in SESSION_CHOICES:
+        raise BrowserPasswordError(400, "invalid_unlock_length", "pick one of the listed lengths")
     with _LOCK:
         _prune()
         request = _unlock_requests.get(request_id)
@@ -397,7 +404,7 @@ def approve_unlock(
             vault_id=vault_id,
             password=password,
             verifier_hash=_hash(vault_verifier),
-            expires=time.monotonic() + _SESSION_TTL,
+            expires=time.monotonic() + ttl,
         )
         request.session_token = token
         request.expires = _sessions[token].expires

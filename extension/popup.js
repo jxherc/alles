@@ -268,7 +268,7 @@ async function renderLocked(message = '') {
   showHost(state.allesOrigin);
   app.innerHTML = `
     <h1>locked</h1>
-    <p class="quiet">unlock to fill from your vault. it locks again after 5 minutes or when the computer sleeps.</p>
+    <p class="quiet">unlock to fill from your vault. you pick how long it stays open when you approve, and it locks when the computer sleeps.</p>
     ${message ? `<p class="error" role="alert">${escapeHtml(message)}</p>` : ''}
     <div class="actions"><button class="primary" id="unlock">unlock</button><button class="quiet-button push" id="disconnect">disconnect</button></div>`;
   const disconnect = document.getElementById('disconnect');
@@ -295,7 +295,7 @@ async function resetBrowser(button = null, message = '') {
       }
     }
     await chrome.storage.local.remove(['allesOrigin', 'connectionId', 'deviceSecret']);
-    await chrome.storage.session.remove(['sessionToken', 'pairing', 'unlockRequest']);
+    await chrome.storage.session.remove(['sessionToken', 'pairing', 'unlockRequest', 'unlockSeconds']);
     await forgetBrowserKey();
     renderSetup(warning);
   } catch (error) {
@@ -334,10 +334,11 @@ async function pollUnlock(unlockRequest) {
       if (result.status === 'approved') {
         const pendingBeforeWrite = (await chrome.storage.session.get('unlockRequest')).unlockRequest;
         if (!sameUnlockRequest(pendingBeforeWrite, unlockRequest)) return;
-        await chrome.storage.session.set({ sessionToken: result.session_token });
+        // the background script reads how long this approval lasts to set its idle lock
+        await chrome.storage.session.set({ sessionToken: result.session_token, unlockSeconds: Number(result.expires_in) || 300 });
         const pendingAfterWrite = (await chrome.storage.session.get('unlockRequest')).unlockRequest;
         if (!sameUnlockRequest(pendingAfterWrite, unlockRequest)) {
-          await chrome.storage.session.remove('sessionToken');
+          await chrome.storage.session.remove(['sessionToken', 'unlockSeconds']);
           return;
         }
         await chrome.storage.session.remove('unlockRequest');
@@ -381,6 +382,11 @@ async function loadMatches() {
     const tab = await activeTab();
     const url = new URL(tab.url);
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error('open a website first');
+    // alles never releases to a plain http page (localhost aside); say so here instead of showing the server's refusal
+    if (url.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+      renderInsecure(url.host);
+      return;
+    }
     const result = await request(state.allesOrigin, '/api/auth/browser/match', pageBody(state, tab));
     const found = await openSealed(result.sealed, fillAad(state.connectionId, tab.url));
     if (!await ownsSessionToken(sessionToken)) return;
@@ -389,7 +395,7 @@ async function loadMatches() {
     if (sessionToken && !await ownsSessionToken(sessionToken)) return;
     if (error.code === 'browser_needs_pairing') { await resetBrowser(null, 'connect this browser again, so fills stay encrypted'); return; }
     if (/locked|revoked|invalid/i.test(error.message) || error.code === 'browser_locked') {
-      await chrome.storage.session.remove('sessionToken');
+      await chrome.storage.session.remove(['sessionToken', 'unlockSeconds']);
       renderLocked(error.message);
       return;
     }
@@ -397,6 +403,15 @@ async function loadMatches() {
     const lock = document.getElementById('lock');
     lock.addEventListener('click', () => lockBrowser(lock));
   }
+}
+
+function renderInsecure(host) {
+  app.innerHTML = `
+    <h1>${escapeHtml(host)}</h1>
+    <p class="quiet">this page uses plain http, so anything sent to it could be read on the way. alles only fills on https pages.</p>
+    <div class="actions"><button id="lock">lock</button></div>`;
+  const lock = document.getElementById('lock');
+  lock.addEventListener('click', () => lockBrowser(lock));
 }
 
 const GROUPS = [
@@ -456,7 +471,7 @@ async function lockBrowser(button = null) {
   if (button && !setBusy(button, true, 'locking…')) return;
   try {
     const state = await stores();
-    await chrome.storage.session.remove(['sessionToken', 'unlockRequest']);
+    await chrome.storage.session.remove(['sessionToken', 'unlockRequest', 'unlockSeconds']);
     if (state.allesOrigin && state.connectionId && state.deviceSecret) {
       await request(state.allesOrigin, '/api/auth/browser/lock', { connection_id: state.connectionId, device_secret: state.deviceSecret });
     }
