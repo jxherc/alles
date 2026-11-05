@@ -72,6 +72,22 @@ class SearchBody(BaseModel):
     exact: bool = False
 
 
+class CorrectBody(BaseModel):
+    query: str = Field(min_length=1, max_length=2_000)
+
+
+@router.post("/correct")
+async def correct_spelling(body: CorrectBody):
+    """the local spelling fix alone, so the page can show "showing results for" before the search
+    starts. nothing leaves the machine; an engine's own fix still arrives with the results."""
+    _require_flag()
+    parsed = andromeda.parse_query(body.query, overview_default=False)
+    fixed = (
+        await asyncio.to_thread(andromeda_spelling.correct, parsed.query) if parsed.query else None
+    )
+    return {"query": fixed or parsed.query, "corrected_from": parsed.query if fixed else None}
+
+
 @router.get("/providers")
 def providers():
     """Return usable engines without exposing credentials."""

@@ -1251,7 +1251,9 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   word at about one per million or more, and never when two fixes are close. quotes, digits, all caps,
   urls, `site:` style operators, `!` bangs and what follows them, and queries outside plain english stay as
   typed. a brave, searxng or google pse fix is used when the list has none (one more search unless brave
-  already searched it). without the package there is no fix. the reply has `query` (what was searched)
+  already searched it). the page asks `POST /api/andromeda/correct` (the local fix alone, 400 ms limit) before it
+  draws anything, so the line and the box are there with the first loading lines and nothing moves when the
+  results land; only an engine's fix can arrive late. without the package there is no fix. the reply has `query` (what was searched)
   and `corrected_from`; the box shows the fixed words and one line above the results says "showing
   results for" them with "search instead for" the typed words, which searches them exactly (`exact: true`,
   also `?exact=1` in the address). history and saved searches record what was searched.
@@ -1977,9 +1979,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 90 included fastapi router modules
-- 1041 http method/path pairs
-- 1002 `/api/*`, 2 `/v1/*`, and 37 non-api shell/public pairs
-- sha-256: `fc603c8f6be4a5f8240be23cabbf68a115e3deba6a3824ec188ba6eeb6f3f08d`
+- 1042 http method/path pairs
+- 1003 `/api/*`, 2 `/v1/*`, and 37 non-api shell/public pairs
+- sha-256: `a7644b68da1d890bc210762360941151b643f83d93b1bd4cbe1d5721fa1d1b2a`
 
 <details>
 <summary>app.py · 11 operations</summary>
@@ -2087,13 +2089,14 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/andromeda.py · 21 operations</summary>
+<summary>routes/andromeda.py · 22 operations</summary>
 
 [source](routes/andromeda.py)
 
 | method | path | handler |
 | --- | --- | --- |
 | `POST` | `/api/andromeda/answer` | `special_answer` |
+| `POST` | `/api/andromeda/correct` | `correct_spelling` |
 | `POST` | `/api/andromeda/deep-research` | `deep_research` |
 | `GET` | `/api/andromeda/deep-research/preview` | `deep_research_preview` |
 | `GET` | `/api/andromeda/media` | `media` |

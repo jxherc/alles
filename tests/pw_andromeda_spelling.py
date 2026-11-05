@@ -96,6 +96,24 @@ class Model(BaseHTTPRequestHandler):
         self.wfile.flush()
 
 
+SAMPLER = """() => {
+  window.__frames = [];
+  const tick = () => {
+    const card = document.getElementById('andromeda-overview');
+    const line = document.getElementById('andromeda-spelling');
+    if (card && !card.hidden && card.getBoundingClientRect().height > 0) {
+      window.__frames.push({
+        top: card.getBoundingClientRect().top,
+        line: !line.hidden && line.getBoundingClientRect().height > 0,
+        lineTop: line.getBoundingClientRect().top,
+      });
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}"""
+
+
 def rect(page, selector):
     return page.evaluate(
         """selector => {
@@ -236,6 +254,8 @@ def run():
                         assert light == (theme == "light"), ("page colour", theme)
                         box = page.locator("#andromeda-query")
                         box.fill(TYPED)
+                        # every frame: where the overview card and the line are once drawn
+                        page.evaluate(SAMPLER)
                         page.keyboard.press("Enter")
 
                         # 1. the fixed words are searched and shown
@@ -249,8 +269,13 @@ def run():
                         )
                         assert page.locator("#andromeda-results").inner_text().count(TYPED) == 0
                         assert Web.queries == [FIXED], Web.queries
+                        # the local fix is asked first; the search then runs on the fixed words
+                        asked = [b for p, b in sent if p == "/api/andromeda/correct"]
+                        assert asked and asked[0]["query"] == TYPED, asked
                         search = [b for p, b in sent if p == "/api/andromeda/search"]
-                        assert search[0]["query"] == TYPED and not search[0]["exact"], search
+                        assert search[0]["query"] == FIXED and search[0]["exact"] is True, search
+                        answers = [b for p, b in sent if p == "/api/andromeda/answer"]
+                        assert answers[0]["query"] == FIXED, answers
                         # the overview was asked for the fixed words, and so was the model
                         expect(page.locator("#andromeda-overview")).to_contain_text(
                             "122 achievements", timeout=20000
@@ -260,6 +285,21 @@ def run():
                         assert Model.asked and all(
                             FIXED in m and TYPED not in m for m in Model.asked
                         ), "the model saw the typo"
+                        # nothing moved after it was drawn: the line was there with the first
+                        # loading lines, and the overview card kept its top to within 1px
+                        seen = page.evaluate("window.__frames")
+                        assert seen, "the overview never drew"
+                        assert seen[0]["line"], ("the line came after the overview", seen[0])
+                        tops = [f["top"] for f in seen]
+                        lines = [f["lineTop"] for f in seen]
+                        record["overview_top"] = {
+                            "first": round(tops[0], 1),
+                            "last": round(tops[-1], 1),
+                            "spread": round(max(tops) - min(tops), 2),
+                            "frames": len(seen),
+                        }
+                        assert max(tops) - min(tops) <= 1, (min(tops), max(tops))
+                        assert max(lines) - min(lines) <= 1, (min(lines), max(lines))
                         assert f"q={FIXED}" in page.url and "exact" not in page.url, page.url
                         deadline = time.time() + 5
                         while FIXED not in recent() and time.time() < deadline:

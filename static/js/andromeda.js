@@ -2018,6 +2018,20 @@ function adoptCorrection(result, typed, currentCategory, options) {
   renderCorrection(_state.corrected, typed);
 }
 
+// the local spelling fix, asked before anything is drawn so the line and the box are there with the
+// first loading lines. a slow or failing answer is not waited for: the search goes on as typed
+async function askLocalFix(query) {
+  try {
+    const answer = await Promise.race([
+      jsonRequest('/api/andromeda/correct', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query }),
+      }),
+      new Promise(resolve => setTimeout(resolve, 400)),
+    ]);
+    return answer?.corrected_from ? answer : null;
+  } catch { return null; }
+}
+
 export async function runAndromedaSearch(queryValue = '', options = {}) {
   const input = el('andromeda-query');
   const query = String(queryValue || input?.value || '').trim();
@@ -2045,17 +2059,24 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   void cancelVerification();
   const searchGeneration = ++_searchGeneration;
   _searchAbort = new AbortController();
+  const noAi = /(^|\s)!ai(?=\s|$)/i.test(query);
+  const early = exact ? null : await askLocalFix(query);
+  if (searchGeneration !== _searchGeneration) return;
+  // what is searched: the fixed words when the local fix found some, else what was typed
+  const searched = early ? queryWithNoAi(early.query, noAi) : query;
+  const asExact = exact || !!early;
   _state = {
     ...freshState(),
-    rawQuery: query,
-    query: queryWithNoAi(query, /(^|\s)!ai(?=\s|$)/i.test(query)),
+    rawQuery: searched,
+    query: queryWithNoAi(searched, noAi),
     category: currentCategory,
     documentScope: options.documentScope || null,
-    usedNoAi: /(^|\s)!ai(?=\s|$)/i.test(query),
+    usedNoAi: noAi,
     context: Array.isArray(options.context) ? options.context.slice(-3) : [],
     followUpOf: String(options.followUpOf || ''),
-    exact,
+    exact: asExact,
   };
+  if (input) input.value = searched;
   renderAndromedaResults([], 'loading', currentCategory);
   clearOverview();
   clearVerificationView();
@@ -2065,11 +2086,10 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   renderWatch(null);
   renderAnswer(el('andromeda-answer'), null);
   renderSpelling('');
+  if (early) adoptCorrection(early, query, currentCategory, options);
   // calculator, converter, weather, dictionary... runs beside the search, never in front of it
-  let answerReady = currentCategory === 'all' ? loadAnswer(query, searchGeneration, exact) : Promise.resolve(null);
-  const wantsOverview = currentCategory === 'all'
-    && _prefs.overview
-    && !/(^|\s)!ai(?=\s|$)/i.test(query);
+  let answerReady = currentCategory === 'all' ? loadAnswer(searched, searchGeneration, asExact) : Promise.resolve(null);
+  const wantsOverview = currentCategory === 'all' && _prefs.overview && !noAi;
   // the overview is there from the first moment, with its loading lines; it steps aside only
   // when the results say a card already answers or the search is a site name or link
   if (wantsOverview) {
@@ -2080,13 +2100,13 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
   } else showOverview(false);
   status(tr('andromeda.searching'));
   const request = {
-    query,
+    query: searched,
     category: currentCategory,
     normal_results: _prefs.normalResults,
     overview: wantsOverview,
     max_results: pageSize(currentCategory),
     follow_up_of: _state.followUpOf,
-    exact,
+    exact: asExact,
   };
   _state.request = { ...request, band: _prefs.band };
   try {

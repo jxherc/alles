@@ -219,6 +219,9 @@ _CHAT_QUEUE_ADDITIONS = {
     "POST /api/chat/queue",
 }
 
+# andromeda's local spelling fix, asked before a search starts
+_ANDROMEDA_CORRECT_ADDITIONS = {"POST /api/andromeda/correct"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -248,6 +251,7 @@ def _route_rows():
         | _DOCS_LAN_ADDITIONS
         | _DAV_SYNC_ADDITIONS
         | _CHAT_QUEUE_ADDITIONS
+        | _ANDROMEDA_CORRECT_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -392,6 +396,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _DOCS_LAN_ADDITIONS
                 - _DAV_SYNC_ADDITIONS
                 - _CHAT_QUEUE_ADDITIONS
+                - _ANDROMEDA_CORRECT_ADDITIONS
             ),
             960,
         )
@@ -445,6 +450,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _DOCS_LAN_ADDITIONS
                 - _DAV_SYNC_ADDITIONS
                 - _CHAT_QUEUE_ADDITIONS
+                - _ANDROMEDA_CORRECT_ADDITIONS
             ),
             974,
         )
@@ -494,6 +500,9 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_chat_queue_routes_are_additive(self):
         self.assertTrue(_CHAT_QUEUE_ADDITIONS <= set(_current_rows()))
 
+    def test_andromeda_correct_route_is_additive(self):
+        self.assertTrue(_ANDROMEDA_CORRECT_ADDITIONS <= set(_current_rows()))
+
     def test_docs_over_the_local_network_routes_are_additive(self):
         self.assertTrue(_DOCS_LAN_ADDITIONS <= set(_current_rows()))
         self.assertTrue(_DAV_SYNC_ADDITIONS <= set(_current_rows()))
@@ -503,8 +512,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1041)
-        self.assertEqual(digest, "fc603c8f6be4a5f8240be23cabbf68a115e3deba6a3824ec188ba6eeb6f3f08d")
+        self.assertEqual(len(rows), 1042)
+        self.assertEqual(digest, "a7644b68da1d890bc210762360941151b643f83d93b1bd4cbe1d5721fa1d1b2a")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -513,7 +522,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 1002, "v1": 2, "public": 37})
+        self.assertEqual(groups, {"api": 1003, "v1": 2, "public": 37})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

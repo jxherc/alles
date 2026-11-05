@@ -63,7 +63,7 @@ import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import { initAideWorkspace } from './aideworkspace.js?v=282';
 import { initAideCentral } from './aidecentral.js?v=3';
 import { beginBusy, createFocusBoundary, createMenuController, initKokuenPrimitives, setControlState } from './kokuen.js?v=5';
-import { validatedProjectId, withProjectContext } from './andromeda.js?v=258';
+import { validatedProjectId, withProjectContext } from './andromeda.js?v=259';
 import { initAppRail, syncAppRail } from './app_rail.js';
 import { loadShortcuts, matchesShortcut, matchesSettingsShortcut } from './shortcuts.js';
 import { initAskPanel, syncAskPanel } from './ask_panel.js';
@@ -1017,7 +1017,7 @@ window._askInChat = async (
         if (newChat({ projectId: scopedProjectId }) === false) return false;
       }
       _replaceHistoryUrl(withProjectContext(location.href, scopedProjectId));
-      const module = await import('./andromeda.js?v=258');
+      const module = await import('./andromeda.js?v=259');
       await module.runAndromedaSearch(q, { documentScope });
       return true;
     }
@@ -1124,7 +1124,7 @@ const showTodayView      = () => {
   _renderFirstRun();
   return result;
 };
-const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=258'), module => module.initAndromeda())); };
+const showAndromedaView  = () => { _setAfterlifeSpace('andromeda'); return showView('andromeda-view', 'andromeda', (track, request) => trackedImport(track, request, () => import('./andromeda.js?v=259'), module => module.initAndromeda())); };
 const showAideScheduledView = () => showView('aide-scheduled-view', 'scheduled', (track, request) => trackedImport(
   track,
   request,

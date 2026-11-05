@@ -142,7 +142,7 @@ class ManifestTests(ApiTest):
             "dropdown.js?v=217",
             "specialist_groups.js?v=19",
             "kokuen.js?v=5",
-            "andromeda.js?v=258",
+            "andromeda.js?v=259",
             "route_history.js",
         ):
             self.assertIn(f"/static/js/{module}", urls)

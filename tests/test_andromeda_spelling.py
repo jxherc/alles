@@ -250,6 +250,14 @@ class SearchRouteTest(ApiTest):
         self.assertEqual(self.seen, ["achievemenst"])
         self.assertIsNone(body["corrected_from"])
 
+    def test_the_correct_route_gives_only_the_local_fix(self):
+        with self._search_with():
+            fixed = self.client.post("/api/andromeda/correct", json={"query": "achievemenst !ai"})
+            same = self.client.post("/api/andromeda/correct", json={"query": "achievements"})
+        self.assertEqual(fixed.json(), {"query": "achievements", "corrected_from": "achievemenst"})
+        self.assertEqual(same.json(), {"query": "achievements", "corrected_from": None})
+        self.assertEqual(self.seen, [])
+
     def test_the_answer_route_fixes_the_same_way(self):
         seen = []
 
