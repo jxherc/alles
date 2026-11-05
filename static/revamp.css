@@ -1885,6 +1885,10 @@ html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="i
   min-height: var(--k-control);
   isolation: isolate;
   overflow: visible;
+  /* the ::before below is this box's one edge. the form keeps no ring or fill of its own in any
+     state (at rest it kept the hero box's ring from the rule above, a second outline 4px outside) */
+  background: transparent;
+  box-shadow: none;
 }
 html:not(#_) #andromeda-view[data-kokuen-surface="andromeda"]:not([data-state="idle"]) .andromeda-search:is(:hover, :focus-within, [data-keyboard-focus]) {
   background: transparent;
