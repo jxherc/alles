@@ -1,11 +1,12 @@
 """
-push a short notification out to Discord and/or Telegram — used to ping when a
+push a short notification out to Discord, Telegram and/or the owner's iMessage — used to ping when a
 long agent run finishes or needs approval, so you don't have to babysit the tab.
 
 config lives in settings (set in the app, no file editing):
   notify_discord_webhook   - a Discord channel webhook url
   notify_telegram_token    - a Telegram bot token
   notify_telegram_chat_id  - the chat id to message
+iMessage goes through the Photon channel (settings, connections) into the owner's own chat.
 all optional; if nothing's set, send() is a no-op.
 """
 
@@ -29,14 +30,33 @@ def _targets() -> dict:
 
 def configured() -> bool:
     t = _targets()
-    return bool(t["discord"] or (t["tg_token"] and t["tg_chat"]))
+    return bool(t["discord"] or (t["tg_token"] and t["tg_chat"]) or _imessage_on())
+
+
+def _imessage_on() -> bool:
+    from services import photon_channel
+
+    return photon_channel.can_notify()
+
+
+async def send_imessage(text: str) -> bool | None:
+    """text the owner. None when iMessage isn't set up, else whether it went out. never raises."""
+    if not text or not _imessage_on():
+        return None
+    from services import photon_channel
+
+    try:
+        return await photon_channel.deliver(text)
+    except Exception as e:
+        log.warning("imessage notify failed: %s", type(e).__name__)
+        return False
 
 
 async def send(text: str) -> dict:
     """fire to every configured channel. returns which ones were attempted/ok.
     never raises — a notification failure must not break the thing that triggered it."""
     t = _targets()
-    out = {"discord": None, "telegram": None}
+    out = {"discord": None, "telegram": None, "imessage": None}
     if not text:
         return out
     from services.net_guard import is_safe_url
@@ -61,4 +81,5 @@ async def send(text: str) -> dict:
                 # str(e) can carry the request url incl. the bot token — log only the type
                 log.warning("telegram notify failed: %s", type(e).__name__)
                 out["telegram"] = False
+    out["imessage"] = await send_imessage(text)
     return out

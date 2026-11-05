@@ -2559,6 +2559,8 @@
     "connections.photon_connect": "Photon으로 연결",
     "connections.photon_connected_note": "Photon 프로젝트에 연결되었습니다. 계정을 바꾸면 다시 연결하세요.",
     "connections.photon_line": "{from}에서 {to}(으)로 문자를 보내세요.",
+    "connections.photon_text_first": "휴대폰에서 alles에 문자를 한 번 보내면 alles도 문자를 보낼 수 있어요.",
+    "connections.photon_notify_failed": "alles가 문자를 보내지 못했어요. 위의 연결을 확인하세요.",
     "connections.photon_open": "Photon 열기",
     "connections.photon_reconnect": "Photon 다시 연결",
     "connections.photon_save_failed": "저장할 수 없습니다",

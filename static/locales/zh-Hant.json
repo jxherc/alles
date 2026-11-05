@@ -2559,6 +2559,8 @@
     "connections.photon_connect": "用 Photon 連線",
     "connections.photon_connected_note": "已連線到你的 Photon 專案。如果更換帳號，請重新連線。",
     "connections.photon_line": "用 {from} 傳簡訊給 {to}。",
+    "connections.photon_text_first": "先用手機傳一則簡訊給 alles，它才能傳簡訊給你。",
+    "connections.photon_notify_failed": "alles 無法傳簡訊給你。請檢查上方的連線。",
     "connections.photon_open": "開啟 Photon",
     "connections.photon_reconnect": "重新連線 Photon",
     "connections.photon_save_failed": "無法儲存",

@@ -2559,6 +2559,8 @@
     "connections.photon_connect": "Photon で接続",
     "connections.photon_connected_note": "Photon プロジェクトに接続しました。アカウントを変更した場合は再接続してください。",
     "connections.photon_line": "{from} から {to} にテキストを送信してください。",
+    "connections.photon_text_first": "alles に一度スマホからメッセージを送ると、alles からも送れるようになります。",
+    "connections.photon_notify_failed": "alles からメッセージを送れませんでした。上の接続を確認してください。",
     "connections.photon_open": "Photon を開く",
     "connections.photon_reconnect": "Photon を再接続",
     "connections.photon_save_failed": "保存できませんでした",

@@ -2559,6 +2559,8 @@
     "connections.photon_connect": "connect with Photon",
     "connections.photon_connected_note": "connected to your Photon project. reconnect if you change accounts.",
     "connections.photon_line": "text {to} from {from}.",
+    "connections.photon_text_first": "text alles once from your phone so it can text you back.",
+    "connections.photon_notify_failed": "alles couldn't text you. check the connection above.",
     "connections.photon_open": "open Photon",
     "connections.photon_reconnect": "reconnect Photon",
     "connections.photon_save_failed": "could not save",

@@ -2559,6 +2559,8 @@
     "connections.photon_connect": "الاتصال عبر Photon",
     "connections.photon_connected_note": "متصل بمشروع Photon الخاص بك. أعد الاتصال إذا غيّرت الحسابات.",
     "connections.photon_line": "أرسل رسالة إلى {to} من {from}.",
+    "connections.photon_text_first": "أرسل رسالة إلى alles مرة واحدة من هاتفك ليتمكن من مراسلتك.",
+    "connections.photon_notify_failed": "تعذر على alles إرسال رسالة إليك. تحقق من الاتصال أعلاه.",
     "connections.photon_open": "فتح Photon",
     "connections.photon_reconnect": "إعادة الاتصال بـ Photon",
     "connections.photon_save_failed": "تعذّر الحفظ",

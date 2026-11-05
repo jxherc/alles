@@ -41,6 +41,8 @@ state = {
     # owner number -> the Photon line it texts; filled when the line connects
     "lines": {},
     "register_error": "",
+    # why the last notification text did not go out: "" | "text_first" | "failed"
+    "notify_note": "",
 }
 _proc = None
 _task: asyncio.Task | None = None
@@ -49,6 +51,9 @@ _seen: list[str] = []
 # run id -> {"space", "told": set of notices already sent}
 _runs: dict[str, dict] = {}
 _told_text_only: dict[str, float] = {}
+# send id -> future of the sidecar's {"type":"sent"} or {"type":"error"} answer
+_pending: dict[str, asyncio.Future] = {}
+DELIVER_TIMEOUT = 20.0
 
 
 def _home() -> Path:
@@ -158,6 +163,89 @@ async def reply(space: str, text: str) -> None:
     await _send({"type": "send", "space": space, "text": text})
 
 
+def _is_dm(space: str) -> bool:
+    # Photon names a one-to-one chat `any;-;<number>` and a group `any;+;<guid>`
+    # (hermes plugins/platforms/photon/sidecar/index.mjs:93); a bare number is a DM too
+    return not space.startswith("any;+;")
+
+
+def _owner_target() -> str:
+    """where a notification goes: the owner's last DM (kept in settings so a restart keeps it),
+    else a bare phone number of theirs, which the sidecar turns into a DM like hermes does for
+    PHOTON_HOME_CHANNEL (adapter.py:333, sidecar/index.mjs:962). never anyone else."""
+    from core.settings import load_settings
+
+    saved = load_settings()
+    handles = settings()["owner_handles"]
+    space, who = str(saved.get("photon_owner_space") or ""), str(saved.get("photon_owner_by") or "")
+    if space and is_owner(who, handles):  # the number it came from is still one of theirs
+        return space
+    for handle in handles:
+        digits = "".join(c for c in handle if c.isdigit())
+        if "@" not in handle and len(digits) >= 10:
+            return "+" + digits
+    return ""
+
+
+def can_notify() -> bool:
+    current = settings()
+    return bool(
+        current["enabled"]
+        and current["project_id"]
+        and current["has_secret"]
+        and current["owner_handles"]
+    )
+
+
+async def deliver(text: str) -> bool:
+    """text the owner in their own DM. returns whether Photon took it. a refusal (shared and free
+    lines may only reply to a chat the owner started: adapter.py:85 "Target not allowed") leaves
+    a one line note for the settings screen instead of failing silently."""
+    if not text or not can_notify():
+        return False
+    if _proc is None or _proc.returncode is not None or state["state"] != "ready":
+        log.warning("photon: notification not sent, the line is %s", state["state"])
+        state["notify_note"] = "failed"
+        return False
+    target = _owner_target()
+    if not target:
+        state["notify_note"] = "text_first"
+        log.warning("photon: no conversation with the owner yet; text alles once from your phone")
+        return False
+    send_id = f"n{time.monotonic_ns()}"
+    waiter = asyncio.get_running_loop().create_future()
+    _pending[send_id] = waiter
+    try:
+        await _send({"type": "send", "space": target, "text": text, "id": send_id, "resolve": True})
+        answer = await asyncio.wait_for(waiter, DELIVER_TIMEOUT)
+    except TimeoutError:
+        state["notify_note"] = "failed"
+        log.warning("photon: notification timed out")
+        return False
+    finally:
+        _pending.pop(send_id, None)
+    if answer.get("type") == "sent":
+        state["notify_note"] = ""
+        return True
+    refused = answer.get("class") == "target_not_allowed" or "resolve space" in str(
+        answer.get("message") or ""
+    )
+    state["notify_note"] = "text_first" if refused else "failed"
+    log.warning("photon: notification refused (%s)", "text first" if refused else "error")
+    return False
+
+
+def _remember_dm(space: str, sender: str) -> None:
+    from core.settings import load_settings, save_settings
+
+    if not space or not _is_dm(space):
+        return
+    saved = load_settings()
+    if saved.get("photon_owner_space") != space or saved.get("photon_owner_by") != sender:
+        save_settings({"photon_owner_space": space, "photon_owner_by": sender})
+    state["notify_note"] = ""
+
+
 async def _typing(space: str, on: bool) -> None:
     await _send({"type": "typing", "space": space, "on": on})
 
@@ -223,6 +311,10 @@ async def _handle(record: dict) -> None:
     kind = record.get("type")
     if kind == "ready":
         state.update(state="ready", error="")
+    elif kind in ("sent", "error") and str(record.get("id") or "") in _pending:
+        waiter = _pending[str(record["id"])]
+        if not waiter.done():
+            waiter.set_result(record)
     elif kind == "error":
         state["error"] = str(record.get("message") or "")[:300]
         if "refused" in state["error"] or "not installed" in state["error"]:
@@ -244,6 +336,7 @@ async def handle_message(record: dict) -> None:
         state["ignored"] += 1
         state["last_ignored"] = sender[:80]
         return
+    _remember_dm(space, sender)
     if not text:
         # a photo or voice note gets one heads-up a minute; typing bubbles, reactions and the
         # like get nothing, or every bubble would answer itself

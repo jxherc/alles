@@ -1128,7 +1128,10 @@ function _renderPhoton(data) {
   document.getElementById('photon-head-state').textContent = head;
   const detail = document.getElementById('photon-detail');
   if (data.state === 'error' && data.error) detail.textContent = data.error;
-  else if (data.state === 'ready') {
+  else if (data.state === 'ready' && data.notify_note) {
+    // a notification the line refused or lost; it clears itself after the next one goes out
+    detail.textContent = t(data.notify_note === 'text_first' ? 'connections.photon_text_first' : 'connections.photon_notify_failed');
+  } else if (data.state === 'ready') {
     detail.textContent = data.ignored
       ? tp('connections.photon_handled_ignored', data.ignored, { handled: data.handled || 0 })
       : tp('connections.photon_handled', data.handled || 0);

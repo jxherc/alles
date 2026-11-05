@@ -2559,6 +2559,8 @@
     "connections.photon_connect": "用 Photon 连接",
     "connections.photon_connected_note": "已连接到你的 Photon 项目。如果更换账号，请重新连接。",
     "connections.photon_line": "用 {from} 给 {to} 发短信。",
+    "connections.photon_text_first": "先用手机给 alles 发一条短信，它才能给你发短信。",
+    "connections.photon_notify_failed": "alles 没能给你发短信。请检查上面的连接。",
     "connections.photon_open": "打开 Photon",
     "connections.photon_reconnect": "重新连接 Photon",
     "connections.photon_save_failed": "无法保存",

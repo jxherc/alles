@@ -320,3 +320,131 @@ class PhotonSetupTest(ApiTest):
         self.assertNotIn("dash-token", self.client.get("/api/settings").text)
         self.assertNotIn("dash-token", self.client.get("/api/aide/channels/photon").text)
         self.assertNotIn("fresh-secret", self.client.get("/api/aide/channels/photon").text)
+
+
+class NotifyByMessageTest(ApiTest):
+    """notify.send also texts the owner, through a fake sidecar that answers like the real one:
+    a first message to a number is refused on a shared line (hermes adapter.py:85)."""
+
+    message = PhotonTest.message
+
+    def setUp(self):
+        super().setUp()
+        photon_channel._seen.clear()
+        photon_channel._runs.clear()
+        save_settings(
+            {
+                "photon_owner_handles": ["+1 (555) 010-0199"],
+                "photon_enabled": True,
+                "photon_project_id": "p1",
+                "photon_project_secret": "s1",
+                "photon_owner_space": "",
+                "photon_owner_by": "",
+            }
+        )
+        self.commands = []
+        self.dedicated = False  # a dedicated line may start a chat; a shared one may not
+        self.live = {"chat-1"}  # spaces the helper has seen since it started
+
+        async def fake_send(command):
+            self.commands.append(command)
+            if command["type"] != "send" or not command.get("resolve"):
+                return
+            space = command["space"]
+            if space in self.live or self.dedicated:
+                answer = {"type": "sent", "id": command["id"], "space": space}
+            else:
+                answer = {
+                    "type": "error",
+                    "id": command["id"],
+                    "class": "target_not_allowed",
+                    "message": "Target not allowed for this project",
+                }
+            asyncio.get_running_loop().call_soon(
+                lambda: asyncio.ensure_future(photon_channel._handle(answer))
+            )
+
+        patches = [
+            mock.patch.object(photon_channel, "_send", side_effect=fake_send),
+            mock.patch.object(photon_channel, "_proc", mock.Mock(returncode=None)),
+            mock.patch.object(photon_channel, "reply"),
+            mock.patch.object(photon_channel, "_typing"),
+            mock.patch("services.jarvis_handoff.launch"),
+        ]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        photon_channel.state.update(state="ready", notify_note="")
+
+    def tearDown(self):
+        photon_channel.state.update(state="off", notify_note="")
+        save_settings({"photon_owner_space": "", "photon_owner_by": "", "photon_enabled": False})
+        super().tearDown()
+
+    def texts(self):
+        return [c for c in self.commands if c.get("resolve")]
+
+    def test_a_notification_goes_into_the_dm_the_owner_texted_from(self):
+        from services import notify
+
+        asyncio.run(photon_channel.handle_message(self.message("hi")))
+        res = asyncio.run(notify.send("aide finished"))
+        self.assertIs(res["imessage"], True)
+        self.assertEqual(self.texts()[0]["space"], "chat-1")
+        self.assertEqual(self.texts()[0]["text"], "aide finished")
+        self.assertTrue(notify.configured())
+
+    def test_the_dm_survives_a_restart(self):
+        from services import notify
+
+        asyncio.run(photon_channel.handle_message(self.message("hi")))
+        photon_channel._seen.clear()
+        self.live.clear()  # a new helper process has seen no chat yet
+        self.dedicated = True  # (so space.get / space.create can find it again)
+        asyncio.run(notify.send("after restart"))
+        self.assertEqual(self.texts()[0]["space"], "chat-1")
+        self.assertTrue(self.texts()[0]["resolve"])  # the helper resolves an id it hasn't seen
+
+    def test_a_group_chat_is_never_remembered_as_the_dm(self):
+        record = {**self.message("hi"), "space": "any;+;group-1"}
+        asyncio.run(photon_channel.handle_message(record))
+        from core.settings import load_settings
+
+        self.assertEqual(load_settings().get("photon_owner_space"), "")
+
+    def test_a_shared_line_refusal_leaves_a_note_not_a_crash(self):
+        from services import notify
+
+        res = asyncio.run(notify.send("first"))  # the owner never texted; only a number is known
+        self.assertIs(res["imessage"], False)
+        self.assertEqual(self.texts()[0]["space"], "+15550100199")
+        self.assertEqual(photon_channel.public()["notify_note"], "text_first")
+        asyncio.run(photon_channel.handle_message(self.message("hello", message_id="m9")))
+        self.assertEqual(photon_channel.state["notify_note"], "")  # texting it once clears it
+        self.assertIs(asyncio.run(notify.send("second"))["imessage"], True)
+
+    def test_only_the_owner_is_ever_texted(self):
+        from services import notify
+
+        asyncio.run(photon_channel.handle_message(self.message("hi", sender="+19998887777")))
+        asyncio.run(notify.send("secret"))
+        self.assertTrue(all(c["space"] != "chat-1" for c in self.texts()))
+        self.assertEqual([c["space"] for c in self.texts()], ["+15550100199"])
+        # a remembered chat stops counting once its number is no longer one of the owner's
+        asyncio.run(photon_channel.handle_message(self.message("hi", message_id="m5")))
+        save_settings({"photon_owner_handles": ["+1 (555) 010-0123"]})
+        self.assertEqual(photon_channel._owner_target(), "+15550100123")
+
+    def test_nothing_is_sent_while_photon_is_off(self):
+        from services import notify
+
+        save_settings({"photon_enabled": False})
+        res = asyncio.run(notify.send("x"))
+        self.assertIsNone(res["imessage"])
+        self.assertEqual(self.commands, [])
+
+    def test_the_test_route_covers_imessage(self):
+        asyncio.run(photon_channel.handle_message(self.message("hi")))
+        r = self.client.post("/api/notify/test")
+        self.assertEqual(r.status_code, 200)
+        self.assertIs(r.json()["sent"]["imessage"], True)

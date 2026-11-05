@@ -141,6 +141,9 @@ _defaults = {
     "photon_project_secret": "",
     "photon_access_token": "",
     "photon_owner_handles": [],
+    # the owner's last one-to-one chat and the handle it came from; notifications text it
+    "photon_owner_space": "",
+    "photon_owner_by": "",
     # mark the owner's texts read when they reach alles (hermes: PHOTON_READ_RECEIPTS)
     "photon_read_receipts": True,
     "andromeda_confirm_remote": False,

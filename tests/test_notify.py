@@ -52,7 +52,10 @@ class NotifyServiceTest(unittest.TestCase):
     def test_not_configured_is_noop(self):
         with mock.patch.object(notify, "_targets", lambda: _cfg()):
             self.assertFalse(notify.configured())
-            self.assertEqual(asyncio.run(notify.send("hi")), {"discord": None, "telegram": None})
+            self.assertEqual(
+                asyncio.run(notify.send("hi")),
+                {"discord": None, "telegram": None, "imessage": None},
+            )
 
     def test_sends_to_both_channels(self):
         cli = _Client()
@@ -138,7 +141,9 @@ class NotifyApiTest(ApiTest):
         safe_url.assert_called_once_with("https://d/wh")
         self.assertEqual(cli.calls, ["https://d/wh"])
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json(), {"ok": True, "sent": {"discord": True, "telegram": None}})
+        self.assertEqual(
+            r.json(), {"ok": True, "sent": {"discord": True, "telegram": None, "imessage": None}}
+        )
 
     def test_test_route_400_when_unconfigured(self):
         with mock.patch.object(notify, "_targets", lambda: _cfg()):

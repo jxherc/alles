@@ -359,7 +359,12 @@ async def _fire_due_reminders():
                 # push reached a browser -> the user's been told, so mark it fired: it won't
                 # linger as "overdue" in the list or re-toast on next open. with no live
                 # subscriptions, leave it unfired so an open tab still toasts it via /due.
-                if result["sent"]:
+                # the owner's iMessage too (set up in settings, connections); r.notified already
+                # claims this row, so a restart never texts it twice
+                from services.notify import send_imessage
+
+                texted = await send_imessage(f"reminder: {r.text}")
+                if result["sent"] or texted:
                     r.fired = True
                 elif not result["uncertain"]:
                     # No provider may have accepted it, so a later safe retry is allowed.

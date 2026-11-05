@@ -130,7 +130,10 @@ async def fire_due():
                 {"title": "event reminder", "body": body, "url": "/", "tag": key}
             )
             fired.discard(pending_key)
-            if result["sent"]:
+            from services.notify import send_imessage
+
+            texted = await send_imessage(f"event reminder: {body}")  # same claim, so once
+            if result["sent"] or texted:
                 fired.add(key)
             elif result["uncertain"]:
                 fired.add(uncertain_key)
