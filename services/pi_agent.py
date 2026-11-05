@@ -21,7 +21,13 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from core.settings import data_dir
-from services.model_capabilities import thinks
+from services.model_capabilities import (
+    anthropic_thinking,
+    anthropic_thinking_format,
+    effort_levels,
+    metadata_for,
+    thinks,
+)
 
 PI_PACKAGE = "@earendil-works/pi-coding-agent"
 PI_VERSION = "1.3.0"
@@ -314,9 +320,56 @@ def _provider_id(endpoint) -> str:
     return "alles-" + re.sub(r"[^a-z0-9]+", "-", str(endpoint.id).lower()).strip("-")
 
 
+def _pi_model(model: str, api: str, provider: str, metadata: dict) -> dict:
+    """One models.json entry: whether the model thinks, how, and which of pi's levels it takes.
+
+    pi 1.3.0 (pi-ai dist/api/anthropic-messages.js) sends thinking {type: enabled} with a budget
+    to a custom anthropic provider unless compat.forceAdaptiveThinking is set, and claude models
+    from 4.7 on refuse that with a 400. its thinkingLevelMap (pi-ai dist/models.js
+    getSupportedThinkingLevels) offers xhigh and max only when mapped, hides a level mapped to
+    null, and with off: null never sends {type: disabled}, which some models refuse too.
+    """
+    entry: dict = {"id": model}
+    if api == "anthropic-messages":
+        form = anthropic_thinking_format(model, metadata)
+        if form is None:
+            return entry
+        entry["reasoning"] = True
+        entry["compat"] = {"forceAdaptiveThinking": form == "adaptive"}
+        if form == "adaptive":
+            entry["thinkingLevelMap"] = _level_map(effort_levels("anthropic", model, metadata))
+            if anthropic_thinking(model, metadata)["off"] is None:
+                entry["thinkingLevelMap"]["off"] = None
+        return entry
+    if not thinks(model, metadata):
+        return entry
+    entry["reasoning"] = True
+    levels = effort_levels(provider, model, metadata)
+    if levels:  # unknown levels stay pi's default; known ones hide the rest
+        entry["thinkingLevelMap"] = _level_map(levels)
+    return entry
+
+
+def _level_map(levels: list[str]) -> dict:
+    """pi's thinking levels mapped to the provider's effort names; null hides a level.
+    unknown levels (an empty list) map nothing, so pi keeps its own defaults."""
+    have = set(levels)
+    found: dict = {}
+    if not have:
+        return found
+    for level in ("low", "medium", "high"):
+        found[level] = level if level in have else None
+    found["minimal"] = found["low"]
+    for level in ("xhigh", "max"):
+        if level in have:
+            found[level] = level
+    return found
+
+
 def model_config(db) -> tuple[dict, dict, list[dict]]:
     """pi's models.json, the env vars holding the keys, and the choices for the picker."""
     from core.database import ModelEndpoint
+    from services.llm import detect_provider
     from services.model_catalog import is_chat_model
 
     providers, env, choices = {}, {}, []
@@ -336,21 +389,23 @@ def model_config(db) -> tuple[dict, dict, list[dict]]:
         key_var = f"ALLES_PI_KEY_{index}"
         env[key_var] = endpoint.api_key or "none"
         provider = _provider_id(endpoint)
+        kind = "anthropic" if api == "anthropic-messages" else detect_provider(endpoint.base_url)
+        entries = [_pi_model(m, api, kind, metadata_for(endpoint, m)) for m in models]
         providers[provider] = {
             "baseUrl": base,
             "api": api,
             "apiKey": "$" + key_var,
-            "models": [{"id": m, **({"reasoning": True} if thinks(m) else {})} for m in models],
+            "models": entries,
         }
         choices += [
             {
                 "endpoint_id": endpoint.id,
                 "endpoint": endpoint.name,
-                "model": m,
+                "model": entry["id"],
                 "provider": provider,
-                "thinks": thinks(m),
+                "thinks": bool(entry.get("reasoning")),
             }
-            for m in models
+            for entry in entries
         ]
     return {"providers": providers}, env, choices
 

@@ -219,8 +219,42 @@ def metadata_for(endpoint, model: str) -> dict:
     return value if isinstance(value, dict) else {}
 
 
-def thinks(model: str) -> bool:
+def thinks(model: str, metadata: dict | None = None) -> bool:
+    """Whether a model reasons at all: what its catalog says, else a guess from its name."""
+    metadata = metadata if isinstance(metadata, dict) else {}
+    if "capabilities" in metadata:
+        return anthropic_thinking_format(model, metadata) is not None
+    stated = _from_metadata(metadata)
+    if stated is not None:
+        return bool(stated)
     name = (model or "").lower().split("/")[-1]
     if "claude" in name:
         return not re.search(r"claude-(instant|2|3-5|3\.5|3-(opus|sonnet|haiku))", name)
     return bool(_THINKS.search(name))
+
+
+def anthropic_thinking_format(model: str, metadata: dict | None = None) -> str | None:
+    """How a claude model thinks: "adaptive", "budget" (thinking enabled with budget_tokens) or
+    None when it doesn't think. the catalog's thinking types win over the name table; a claude
+    the table doesn't know is taken as adaptive, since budgets were removed from 4.7 on."""
+    metadata = metadata if isinstance(metadata, dict) else {}
+    caps = metadata.get("capabilities")
+    thinking = caps.get("thinking") if isinstance(caps, dict) else None
+    types = thinking.get("types") if isinstance(thinking, dict) else None
+    if isinstance(types, dict) and types:
+        if _flag(types, "adaptive", "supported"):
+            return "adaptive"
+        if _flag(types, "enabled", "supported"):
+            return "budget"
+        return None
+    if _flag(thinking, "supported") is False:
+        return None
+    on, _, _ = _thinking_by_name(_name(model))
+    if on:
+        return on
+    name = (model or "").lower().split("/")[-1]
+    if "claude" in name and not re.search(
+        r"claude-(instant|2|3-5|3\.5|3-(opus|sonnet|haiku))", name
+    ):
+        return "adaptive"
+    return None

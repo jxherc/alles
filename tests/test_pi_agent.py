@@ -598,6 +598,88 @@ class EffortAndCommandsTest(PiTest):
         self.assertEqual([m.get("reasoning", False) for m in listed], [True, True, False])
         self.assertEqual([c["thinks"] for c in choices], [True, True, False])
 
+    def test_claude_models_get_the_thinking_they_take(self):
+        # pi sends thinking {type: enabled} unless told adaptive; 4.7 and newer refuse it with
+        # 400 "thinking.type.enabled is not supported for this model"
+        catalog = {
+            # anthropic's own catalog: adaptive only, every effort, disabled refused
+            "claude-new-x": {
+                "capabilities": {
+                    "thinking": {
+                        "types": {
+                            "adaptive": {"supported": True},
+                            "enabled": {"supported": False},
+                            "disabled": {"supported": False},
+                        }
+                    },
+                    "effort": {
+                        "supported": True,
+                        **{
+                            level: {"supported": True}
+                            for level in ("low", "medium", "high", "xhigh", "max")
+                        },
+                    },
+                }
+            },
+        }
+        self.add_endpoint(
+            name="claude",
+            base_url="https://api.anthropic.com",
+            models=[
+                "claude-opus-5-5",
+                "claude-sonnet-4-5",
+                "claude-opus-4-7",
+                "claude-new-x",
+                "claude-3-5-haiku",
+            ],
+            model_metadata=json.dumps(catalog),
+        )
+        with self.db() as session:
+            config, _, choices = pi_agent.model_config(session)
+        listed = {m["id"]: m for m in next(iter(config["providers"].values()))["models"]}
+        adaptive = {"forceAdaptiveThinking": True}
+        # opus 5.5: adaptive, every effort, and no off (it refuses thinking disabled)
+        self.assertEqual(listed["claude-opus-5-5"]["compat"], adaptive)
+        self.assertEqual(
+            listed["claude-opus-5-5"]["thinkingLevelMap"],
+            {
+                "low": "low",
+                "medium": "medium",
+                "high": "high",
+                "minimal": "low",
+                "xhigh": "xhigh",
+                "max": "max",
+                "off": None,
+            },
+        )
+        # sonnet 4.5 still thinks through a budget, and pi's own levels stay
+        self.assertEqual(listed["claude-sonnet-4-5"]["compat"], {"forceAdaptiveThinking": False})
+        self.assertNotIn("thinkingLevelMap", listed["claude-sonnet-4-5"])
+        # opus 4.7 is adaptive by name; it can be turned off
+        self.assertEqual(listed["claude-opus-4-7"]["compat"], adaptive)
+        self.assertNotIn("off", listed["claude-opus-4-7"]["thinkingLevelMap"])
+        # the catalog's types win over the name
+        self.assertEqual(listed["claude-new-x"]["compat"], adaptive)
+        self.assertIsNone(listed["claude-new-x"]["thinkingLevelMap"]["off"])
+        # a claude that doesn't think gets nothing pi could send
+        self.assertEqual(listed["claude-3-5-haiku"], {"id": "claude-3-5-haiku"})
+        thinks = {c["model"]: c["thinks"] for c in choices}
+        self.assertFalse(thinks["claude-3-5-haiku"])
+        self.assertTrue(thinks["claude-opus-5-5"])
+
+    def test_known_effort_levels_hide_the_rest_for_other_providers(self):
+        catalog = {"r1": {"reasoning": {"supported_efforts": ["low", "high"]}}}
+        self.add_endpoint(models=["r1", "coder-thinking"], model_metadata=json.dumps(catalog))
+        with self.db() as session:
+            config, _, _ = pi_agent.model_config(session)
+        listed = {m["id"]: m for m in next(iter(config["providers"].values()))["models"]}
+        self.assertEqual(
+            listed["r1"]["thinkingLevelMap"],
+            {"low": "low", "medium": None, "high": "high", "minimal": "low"},
+        )
+        # levels nobody stated: pi keeps its defaults
+        self.assertEqual(listed["coder-thinking"], {"id": "coder-thinking", "reasoning": True})
+
     def test_effort_commands_context_compact_and_goal(self):
         self.add_endpoint(models=["coder-thinking"])
         project = SimpleNamespace(id="proj1", path=str(self.project_dir))
