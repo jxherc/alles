@@ -2563,6 +2563,11 @@
       "bytes": 1080
     },
     {
+      "path": "licenses/python/pyspellchecker-0.9.1/01-license.txt",
+      "sha256": "77d4907539a090578bd5e71fb0c90870c5c127c4cc571209015fd8576de6e2ec",
+      "bytes": 1074
+    },
+    {
       "path": "licenses/python/python-dateutil-2.9.0.post0/01-license.txt",
       "sha256": "9313256b27c4a1b7666c433acbf70a447383df0ea8c4b59bee0b6e412a281f92",
       "bytes": 2890

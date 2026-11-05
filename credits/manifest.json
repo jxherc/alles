@@ -2534,6 +2534,22 @@
       "inventory_source": "requirements.lock"
     },
     {
+      "id": "python-pyspellchecker",
+      "name": "pyspellchecker",
+      "category": "code",
+      "summary": "search typo fixes",
+      "version": "0.9.1",
+      "license": "MIT",
+      "source_url": "https://github.com/barrust/pyspellchecker",
+      "bundled": true,
+      "notice_required": true,
+      "license_files": [
+        "licenses/python/pyspellchecker-0.9.1/01-license.txt"
+      ],
+      "notice_files": [],
+      "inventory_source": "requirements.lock"
+    },
+    {
       "id": "python-python-dateutil",
       "name": "python-dateutil",
       "category": "code",

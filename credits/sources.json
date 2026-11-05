@@ -20,7 +20,8 @@
     {"package": "beautifulsoup4", "summary": "HTML parsing", "source_url": "https://www.crummy.com/software/BeautifulSoup/"},
     {"package": "trafilatura", "summary": "readable web-article extraction", "source_url": "https://github.com/adbar/trafilatura"},
     {"package": "ddgs", "summary": "keyless search provider client", "source_url": "https://github.com/deedy5/ddgs"},
-    {"package": "psutil", "summary": "local system metrics", "source_url": "https://github.com/giampaolo/psutil"}
+    {"package": "psutil", "summary": "local system metrics", "source_url": "https://github.com/giampaolo/psutil"},
+    {"package": "pyspellchecker", "summary": "search typo fixes", "source_url": "https://github.com/barrust/pyspellchecker"}
   ],
   "python_license_sources": [
     {

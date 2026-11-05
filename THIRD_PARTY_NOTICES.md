@@ -149,6 +149,7 @@ source revision: `phase10-release-inventory-2026-07-22`
 | pycparser | `3.0` | BSD-3-Clause | [upstream](https://github.com/eliben/pycparser) | [`01-license.txt`](licenses/python/pycparser-3.0/01-license.txt) |
 | pydantic | `2.13.4` | MIT | [upstream](https://github.com/pydantic/pydantic) | [`01-license.txt`](licenses/python/pydantic-2.13.4/01-license.txt) |
 | pydantic_core | `2.46.4` | MIT | [upstream](https://github.com/sponsors/samuelcolvin) | [`01-license.txt`](licenses/python/pydantic-core-2.46.4/01-license.txt) |
+| pyspellchecker | `0.9.1` | MIT | [upstream](https://github.com/barrust/pyspellchecker) | [`01-license.txt`](licenses/python/pyspellchecker-0.9.1/01-license.txt) |
 | python-dateutil | `2.9.0.post0` | Dual License | [upstream](https://dateutil.readthedocs.io/en/stable/) | [`01-license.txt`](licenses/python/python-dateutil-2.9.0.post0/01-license.txt) |
 | python-docx | `1.2.0` | MIT | [upstream](https://github.com/python-openxml/python-docx) | [`01-license.txt`](licenses/python/python-docx-1.2.0/01-license.txt) |
 | python-dotenv | `1.2.2` | BSD-3-Clause | [upstream](https://github.com/theskumar/python-dotenv) | [`01-license.txt`](licenses/python/python-dotenv-1.2.2/01-license.txt) |

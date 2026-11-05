@@ -28,7 +28,7 @@ from core.database import (
     get_db,
 )
 from core.settings import load_settings
-from services import andromeda, andromeda_watch
+from services import andromeda, andromeda_spelling, andromeda_watch
 from services.research import engines as search_engines
 
 router = APIRouter(prefix="/api/andromeda")
@@ -68,6 +68,8 @@ class SearchBody(BaseModel):
     provider: str = Field(default="", max_length=40)
     # the question this one follows up; a vague follow-up searches with it as context
     follow_up_of: str = Field(default="", max_length=2_000)
+    # "search instead for ...": search the query as typed, with no spelling fix
+    exact: bool = False
 
 
 @router.get("/providers")
@@ -109,27 +111,46 @@ async def search(body: SearchBody):
     }
     count = body.max_results or default_counts[body.category]
     search_needed = bool(normal_enabled or parsed.overview)
-    search_text = (
-        andromeda.follow_up_query(parsed.query, body.follow_up_of)
-        if body.follow_up_of
-        else parsed.query
+    # google style: search the fixed spelling and say so. the word list is local and checked
+    # first, an engine's own fix (brave, searxng, google pse) covers what it doesn't know
+    fixed = (
+        None if body.exact else await asyncio.to_thread(andromeda_spelling.correct, parsed.query)
     )
-    result = await andromeda.normal_search(
-        search_text,
-        enabled=search_needed,
-        max_results=count,
-        category=body.category,
-        provider=body.provider,
-    )
+    fixed_by = "local" if fixed else ""
+    used = fixed or parsed.query
+
+    async def run(text: str) -> dict:
+        return await andromeda.normal_search(
+            andromeda.follow_up_query(text, body.follow_up_of) if body.follow_up_of else text,
+            enabled=search_needed,
+            max_results=count,
+            category=body.category,
+            provider=body.provider,
+        )
+
+    result = await run(used)
+    engine_fix = result.pop("engine_correction", "")
+    applied = result.pop("engine_correction_applied", False)
+    if not fixed and not body.exact and body.category == "all" and not body.follow_up_of:
+        engine_fix = andromeda_spelling.from_engine(parsed.query, engine_fix)
+        if engine_fix:
+            fixed, fixed_by, used = engine_fix, "engine", engine_fix
+            if not applied:
+                result = await run(used)
+                result.pop("engine_correction", None)
+                result.pop("engine_correction_applied", None)
 
     overview_seed = result.get("results", [])[:12] if parsed.overview else []
     from services import andromeda_answers
 
-    found = andromeda_answers.detect(parsed.query) if body.category == "all" else None
+    found = andromeda_answers.detect(used) if body.category == "all" else None
     if not normal_enabled:
         result = {**result, "status": "disabled", "results": []}
     return {
-        "query": parsed.query,
+        "query": used,
+        # what was typed, when it was fixed; the page offers "search instead for" with it
+        "corrected_from": parsed.query if fixed else None,
+        "correction": fixed_by or None,
         "used_no_ai": parsed.used_no_ai,
         "category": body.category,
         "normal_results_enabled": bool(normal_enabled),
@@ -137,7 +158,7 @@ async def search(body: SearchBody):
         "overview_seed": overview_seed,
         # skip: a tool answers this, the overview waits to be asked; brief: a short one beside it
         "answer_kind": found["kind"] if found else None,
-        "overview_mode": andromeda_answers.overview_mode(found, parsed.query),
+        "overview_mode": andromeda_answers.overview_mode(found, used),
         **result,
     }
 
@@ -201,6 +222,8 @@ class AnswerBody(BaseModel):
     query: str = Field(min_length=1, max_length=300)
     # set by a tool's own field: only that kind may answer, and "not found" is said out loud
     kind: str = Field(default="", max_length=20)
+    # the search shows the typed query as it is, so no spelling fix and no "did you mean"
+    exact: bool = False
 
 
 @router.post("/answer")
@@ -211,12 +234,17 @@ async def special_answer(body: AnswerBody, db: DbSession = Depends(get_db)):
     from services import andromeda_answers
 
     parsed = andromeda.parse_query(body.query, overview_default=False)
+    if not body.kind and not body.exact:
+        # the same local fix the search makes, so the card answers what the page shows
+        fixed = await asyncio.to_thread(andromeda_spelling.correct, parsed.query)
+        if fixed:
+            parsed = andromeda.parse_query(fixed, overview_default=False)
     if body.kind == "calc":
         # the calculator's own keys: any arithmetic counts, even a bare number
         found = {"kind": "calc", "expression": parsed.query.strip()}
     else:
         found = andromeda_answers.detect(parsed.query)
-    if not found and not body.kind:
+    if not found and not body.kind and not body.exact:
         # no tool fits: check the spelling instead, google style, without holding anything up
         try:
             fixed = await asyncio.wait_for(andromeda_answers.did_you_mean(parsed.query), 3)

@@ -292,6 +292,15 @@ async def normal_search(
             or ((str(provider)[:64],) if provider else ())
         ),
         "has_more": has_more,
+        # the engine's own spelling fix (brave, searxng, google pse), for the route to check
+        **(
+            {
+                "engine_correction": str(chain_result.correction),
+                "engine_correction_applied": bool(chain_result.correction_applied),
+            }
+            if getattr(chain_result, "correction", "")
+            else {}
+        ),
     }
 
 

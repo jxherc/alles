@@ -22,4 +22,4 @@ local license text are in `THIRD_PARTY_NOTICES.md` and `licenses/`.
 - **[Odysseus](https://github.com/pewdiepie-archdaemon/odysseus)** - Original product inspiration; Alles is an independent reimplementation (`not bundled`, credit).
 - **[Perplexica (now Vane)](https://github.com/ItzCrazyKns/Perplexica)** - Cited self-hosted answer-engine reference; no upstream code is bundled (`not bundled`, credit).
 
-The complete generated inventory contains 497 exact release entries, including every locked Python, CodeMirror, Actual, and Capacitor dependency.
+The complete generated inventory contains 498 exact release entries, including every locked Python, CodeMirror, Actual, and Capacitor dependency.

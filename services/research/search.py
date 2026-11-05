@@ -49,6 +49,17 @@ class SearchReport:
     error: str | None
     failure_type: str
     attempted_sources: tuple[str, ...]
+    # the engine's own spelling fix for the query, when it gave one
+    correction: str = ""
+    # brave searches the fixed query itself; searxng and google pse answer for the typed one
+    correction_applied: bool = False
+
+
+class Rows(list):
+    """provider rows that also carry the engine's spelling fix for the query."""
+
+    correction = ""
+    correction_applied = False
 
 
 class SearchChainResult(tuple):
@@ -58,6 +69,8 @@ class SearchChainResult(tuple):
         value = super().__new__(cls, (report.results, report.provider, report.error))
         value.failure_type = report.failure_type
         value.attempted_sources = report.attempted_sources
+        value.correction = report.correction
+        value.correction_applied = report.correction_applied
         return value
 
 
@@ -189,11 +202,17 @@ async def _search_brave(query, api_key, max_results=5):
         )
         r.raise_for_status()
         data = r.json()
-    return [
+    rows = Rows(
         {"url": x.get("url", ""), "title": x.get("title", ""), "snippet": x.get("description", "")}
         for x in data.get("web", {}).get("results", [])
         if x.get("url")
-    ]
+    )
+    # api-dashboard.search.brave.com/api-reference/web/search/get: query.altered is the
+    # spellchecker's fix, and with the spellcheck flag on (the default) "the modified query is
+    # always used for search"
+    rows.correction = (data.get("query") or {}).get("altered") or ""
+    rows.correction_applied = True
+    return rows
 
 
 async def _search_searxng(query, base_url, max_results=5, category="all"):
@@ -209,7 +228,7 @@ async def _search_searxng(query, base_url, max_results=5, category="all"):
     if base != local_base and not base.startswith("https://") and not loopback:
         raise SearchProviderFailure("configuration")
 
-    output: list[dict] = []
+    output = Rows()
     seen: set[str] = set()
     local_client = (
         httpx.AsyncClient(timeout=15, follow_redirects=False)
@@ -233,6 +252,10 @@ async def _search_searxng(query, base_url, max_results=5, category="all"):
             rows = data.get("results", []) if isinstance(data, dict) else None
             if not isinstance(rows, list):
                 raise SearchProviderFailure("invalid_response")
+            # searx/webutils.py get_json_response: "corrections" lists fixes for the typed query
+            fixes = data.get("corrections")
+            if page == 1 and isinstance(fixes, list) and fixes and isinstance(fixes[0], str):
+                output.correction = fixes[0]
             added = 0
             for row in rows:
                 result_url = row.get("url", "")
@@ -279,11 +302,14 @@ async def _search_google_pse(query, api_key, cx, max_results=5):
         )
         r.raise_for_status()
         data = r.json()
-    return [
+    rows = Rows(
         {"url": x.get("link", ""), "title": x.get("title", ""), "snippet": x.get("snippet", "")}
         for x in data.get("items", [])
         if x.get("link")
-    ]
+    )
+    # developers.google.com/custom-search/v1/reference/rest/v1/Search: spelling.correctedQuery
+    rows.correction = (data.get("spelling") or {}).get("correctedQuery") or ""
+    return rows
 
 
 async def _search_serper(query, api_key, max_results=5):
@@ -765,16 +791,24 @@ async def search_chain_report(query, override=None, max_results=10, category="al
     )
     attempted = []
     failure_type = ""
+    # an engine can fix the spelling and still find nothing, so keep the first fix it gave
+    fix = ("", False)
     for name in chain:
         safe_name = _safe_provider_name(name)
         if safe_name not in attempted:
             attempted.append(safe_name)
         try:
             results = await _search_provider(name, query, settings, max_results, category)
+            if not fix[0] and getattr(results, "correction", ""):
+                fix = (str(results.correction), bool(results.correction_applied))
             if results:
                 if name != primary:
                     log.info("research search fallback: %s", safe_name)
-                return SearchReport(results, safe_name, None, "", tuple(attempted))
+                # a fix brave already searched doesn't describe another engine's results
+                own = bool(getattr(results, "correction", ""))
+                return SearchReport(
+                    results, safe_name, None, "", tuple(attempted), fix[0], fix[1] and own
+                )
             log.warning("research search: %s returned nothing", safe_name)
         except Exception as error:
             current_type = _safe_failure_type(error)
@@ -785,7 +819,7 @@ async def search_chain_report(query, override=None, max_results=10, category="al
     else:
         failure_type = "no_results"
         safe_error = "search providers returned no results"
-    return SearchReport([], None, safe_error, failure_type, tuple(attempted))
+    return SearchReport([], None, safe_error, failure_type, tuple(attempted), *fix)
 
 
 async def search_chain(query, override=None, max_results=10, category="all"):
