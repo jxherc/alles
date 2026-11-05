@@ -203,6 +203,14 @@ _DOCS_LAN_ADDITIONS = {
     "MKCOL /dav/docs",
     "MKCOL /dav/docs/{path:path}",
 }
+# Remotely Save deletes and renames during a sync (src/fsWebdav.ts rm, rename), so the same
+# endpoint answers DELETE (to docs' trash) and MOVE
+_DAV_SYNC_ADDITIONS = {
+    "DELETE /dav/docs",
+    "DELETE /dav/docs/{path:path}",
+    "MOVE /dav/docs",
+    "MOVE /dav/docs/{path:path}",
+}
 
 
 def _route_rows():
@@ -231,6 +239,7 @@ def _route_rows():
         | _SETUP_DETECT_ADDITIONS
         | _NPM_FIRST_LOGIN_ADDITIONS
         | _DOCS_LAN_ADDITIONS
+        | _DAV_SYNC_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -373,6 +382,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _SETUP_DETECT_ADDITIONS
                 - _NPM_FIRST_LOGIN_ADDITIONS
                 - _DOCS_LAN_ADDITIONS
+                - _DAV_SYNC_ADDITIONS
             ),
             960,
         )
@@ -424,6 +434,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _SETUP_DETECT_ADDITIONS
                 - _NPM_FIRST_LOGIN_ADDITIONS
                 - _DOCS_LAN_ADDITIONS
+                - _DAV_SYNC_ADDITIONS
             ),
             974,
         )
@@ -472,15 +483,15 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
 
     def test_docs_over_the_local_network_routes_are_additive(self):
         self.assertTrue(_DOCS_LAN_ADDITIONS <= set(_current_rows()))
-        self.assertFalse(
-            {row for row in _current_rows() if row.startswith(("DELETE /dav", "MOVE /dav"))}
-        )
+        self.assertTrue(_DAV_SYNC_ADDITIONS <= set(_current_rows()))
+        # copy stays unanswered: nothing in a sync needs it
+        self.assertFalse({row for row in _current_rows() if row.startswith("COPY /dav")})
 
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1034)
-        self.assertEqual(digest, "7377a9fc370c8c0387352f8232f42ab4c7ef2f6c8bb38bd0f0c86cf58e92f94a")
+        self.assertEqual(len(rows), 1038)
+        self.assertEqual(digest, "59174a8eb29b5e6166313fd735f4de17504f0e755c64b3d161c53616d9078521")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -489,7 +500,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 999, "v1": 2, "public": 33})
+        self.assertEqual(groups, {"api": 999, "v1": 2, "public": 37})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

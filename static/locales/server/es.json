@@ -1258,7 +1258,6 @@
     "only an applied import or a recovered partial import can be undone": "solo se puede deshacer una importación aplicada o una importación parcial recuperada",
     "only an expense transaction can be split": "solo se puede dividir una transacción de gasto",
     "only local models can qualify for Auto": "solo los modelos locales pueden calificar para Auto",
-    "only markdown documents can be saved here; other files stay in docs": "aquí solo se pueden guardar documentos markdown; los demás archivos se quedan en docs",
     "only pause or resume is available for canonical schedules": "solo están disponibles pausar o reanudar para las programaciones canónicas",
     "only pi on this machine can call this": "solo pi en esta máquina puede llamar a esto",
     "only png, jpg, gif, webp, avif or bmp images go into a doc": "solo se pueden insertar en un documento imágenes png, jpg, gif, webp, avif o bmp",
@@ -2571,6 +2570,14 @@
     "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME necesita una ruta completa, como /Volumes/External/Alles",
     "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT necesita un número de 1024 a 65535",
     "the drive {drive} isn't connected. plug it in, then run the install again": "el disco {drive} no está conectado. conéctalo y vuelve a ejecutar la instalación",
-    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "la carpeta {folder} no existe. conecta su disco o créala y vuelve a instalar"
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "la carpeta {folder} no existe. conecta su disco o créala y vuelve a instalar",
+    "a file and a folder cannot replace each other": "un archivo y una carpeta no pueden sustituirse entre sí",
+    "a folder cannot move into itself": "una carpeta no puede moverse dentro de sí misma",
+    "could not save the file": "no se pudo guardar el archivo",
+    "file too large": "archivo demasiado grande",
+    "the destination exists": "el destino ya existe",
+    "the destination is not inside docs": "el destino no está dentro de docs",
+    "the docs folder itself cannot be changed": "la carpeta docs en sí no se puede cambiar",
+    "the root is a folder": "la raíz es una carpeta"
   }
 }

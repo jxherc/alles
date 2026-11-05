@@ -1258,7 +1258,6 @@
     "only an applied import or a recovered partial import can be undone": "只能復原已套用的匯入或已恢復的部分匯入",
     "only an expense transaction can be split": "只有支出交易可以拆分",
     "only local models can qualify for Auto": "只有本機模型才有資格用於 Auto",
-    "only markdown documents can be saved here; other files stay in docs": "這裡只能儲存 markdown 文件，其他檔案留在文件裡",
     "only pause or resume is available for canonical schedules": "標準排程只能暫停或繼續",
     "only pi on this machine can call this": "只有這台機器上的 pi 才能呼叫",
     "only png, jpg, gif, webp, avif or bmp images go into a doc": "文件中只能放入 png、jpg、gif、webp、avif 或 bmp 圖片",
@@ -2571,6 +2570,14 @@
     "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME 需要完整路徑，例如 /Volumes/External/Alles",
     "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT 需要 1024 到 65535 之間的數字",
     "the drive {drive} isn't connected. plug it in, then run the install again": "硬碟 {drive} 沒有連接。接上後再執行一次安裝",
-    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "資料夾 {folder} 不存在。接上它所在的硬碟或先建立它，然後再安裝"
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "資料夾 {folder} 不存在。接上它所在的硬碟或先建立它，然後再安裝",
+    "a file and a folder cannot replace each other": "檔案和資料夾不能互相取代",
+    "a folder cannot move into itself": "資料夾不能移動到它自己裡面",
+    "could not save the file": "無法儲存檔案",
+    "file too large": "檔案太大",
+    "the destination exists": "目標已存在",
+    "the destination is not inside docs": "目標不在文件資料夾內",
+    "the docs folder itself cannot be changed": "文件資料夾本身不能被變更",
+    "the root is a folder": "根目錄是資料夾"
   }
 }

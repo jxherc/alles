@@ -1258,7 +1258,6 @@
     "only an applied import or a recovered partial import can be undone": "seul un import appliqué ou un import partiel récupéré peut être annulé",
     "only an expense transaction can be split": "seule une transaction de dépense peut être divisée",
     "only local models can qualify for Auto": "seuls les modèles locaux peuvent être qualifiés pour Auto",
-    "only markdown documents can be saved here; other files stay in docs": "seuls les documents markdown peuvent être enregistrés ici ; les autres fichiers restent dans docs",
     "only pause or resume is available for canonical schedules": "seules la pause et la reprise sont disponibles pour les échéanciers canoniques",
     "only pi on this machine can call this": "seul pi sur cette machine peut appeler ceci",
     "only png, jpg, gif, webp, avif or bmp images go into a doc": "seules les images png, jpg, gif, webp, avif ou bmp vont dans un doc",
@@ -2571,6 +2570,14 @@
     "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME demande un chemin complet, comme /Volumes/External/Alles",
     "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT demande un nombre de 1024 à 65535",
     "the drive {drive} isn't connected. plug it in, then run the install again": "le disque {drive} n’est pas branché. branchez-le, puis relancez l’installation",
-    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "le dossier {folder} n’existe pas. branchez son disque ou créez-le, puis relancez l’installation"
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "le dossier {folder} n’existe pas. branchez son disque ou créez-le, puis relancez l’installation",
+    "a file and a folder cannot replace each other": "un fichier et un dossier ne peuvent pas se remplacer",
+    "a folder cannot move into itself": "un dossier ne peut pas être déplacé dans lui-même",
+    "could not save the file": "impossible d’enregistrer le fichier",
+    "file too large": "fichier trop volumineux",
+    "the destination exists": "la destination existe déjà",
+    "the destination is not inside docs": "la destination n’est pas dans docs",
+    "the docs folder itself cannot be changed": "le dossier docs lui-même ne peut pas être modifié",
+    "the root is a folder": "la racine est un dossier"
   }
 }

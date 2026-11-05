@@ -1949,9 +1949,9 @@ the registered http operations are grouped by handler source. use `/openapi.json
 the compatibility snapshot locks the registered http surface:
 
 - 90 included fastapi router modules
-- 1034 http method/path pairs
-- 999 `/api/*`, 2 `/v1/*`, and 33 non-api shell/public pairs
-- sha-256: `7377a9fc370c8c0387352f8232f42ab4c7ef2f6c8bb38bd0f0c86cf58e92f94a`
+- 1038 http method/path pairs
+- 999 `/api/*`, 2 `/v1/*`, and 37 non-api shell/public pairs
+- sha-256: `59174a8eb29b5e6166313fd735f4de17504f0e755c64b3d161c53616d9078521`
 
 <details>
 <summary>app.py · 11 operations</summary>
@@ -2488,18 +2488,22 @@ the compatibility snapshot locks the registered http surface:
 </details>
 
 <details>
-<summary>routes/docs_dav.py · 8 operations</summary>
+<summary>routes/docs_dav.py · 12 operations</summary>
 
 [source](routes/docs_dav.py)
 
-webdav for the docs folder, off until setup turns it on (`docs_dav` is `off`, `read` or `write`). the password is an alles token (any user name), `read` scope for listing and downloading, `write` scope for saving. a saved markdown file goes through docs' own safe save, so it keeps a revision and both copies when the file changed underneath (412). delete, move and copy are not registered. dot folders and non-markdown saves are refused. each route answers at `/dav/docs` and `/dav/docs/{path:path}`.
+webdav for the docs folder, off until setup turns it on (`docs_dav` is `off`, `read` or `write`). the password is an alles token (any user name), `read` scope for listing and downloading, `write` scope for saving. a saved markdown file goes through docs' own safe save, so it keeps a revision and both copies when the file changed underneath (412); any other file (pictures, pdfs) is written whole. `DELETE` moves a file or folder to docs' trash (30 days, restorable from docs), except the scratch folder Remotely Save's connection check makes (`rs-test-folder-*`). `MOVE` renames a file or folder (`Destination` header, `Overwrite: F` refuses with 412; an overwritten file goes to the trash); links inside notes are not rewritten. copy is not registered. dot folders, symlinks and anything outside the docs folder are refused. each route answers at `/dav/docs` and `/dav/docs/{path:path}`. Remotely Save adds `/<folder>` to its address, so setup gives it the address `<origin>/dav` with the folder `docs`, plus a settings link (`obsidian://remotely-save?func=settings&vault=…&data=…`) shown as a QR code. Obsidian on iOS connects over https only.
 
 | method | path | handler |
 | --- | --- | --- |
+| `DELETE` | `/dav/docs` | `dav` |
+| `DELETE` | `/dav/docs/{path:path}` | `dav` |
 | `GET` | `/dav/docs` | `dav` |
 | `GET` | `/dav/docs/{path:path}` | `dav` |
 | `MKCOL` | `/dav/docs` | `dav` |
 | `MKCOL` | `/dav/docs/{path:path}` | `dav` |
+| `MOVE` | `/dav/docs` | `dav` |
+| `MOVE` | `/dav/docs/{path:path}` | `dav` |
 | `PROPFIND` | `/dav/docs` | `dav` |
 | `PROPFIND` | `/dav/docs/{path:path}` | `dav` |
 | `PUT` | `/dav/docs` | `dav` |

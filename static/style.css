@@ -5736,6 +5736,14 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-connect-note { color: var(--muted); font-size: 0.8125rem; }
 #sw-obsidian-lan .setup-connect-note { margin: 0 0 12px; line-height: 1.4; }
 #sw-obsidian-lan .setup-connect-note:empty { display: none; }
+#sw-obsidian-lan .setup-switch-row { margin: 8px 0; }
+#sw-obsidian-lan #sw-lan-manual { margin: 0 0 12px; }
+.setup-qr { display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: 16px; align-items: start; margin: 4px 0 12px; }
+.setup-qr-code { width: 224px; overflow: hidden; border: 1px solid var(--faint); border-radius: var(--k-radius-control); background: #fff; }
+.setup-qr-code svg { display: block; width: 100%; height: auto; }
+.setup-qr-side { min-width: 0; }
+.setup-qr-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+@media (max-width: 520px) { .setup-qr { grid-template-columns: minmax(0, 1fr); } .setup-qr-code { width: min(100%, 240px); } }
 .setup-connect-row .btn { flex: none; }
 .specialist-mail-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .specialist-mail-tools .specialist-choice-group { display: flex; gap: 8px; }

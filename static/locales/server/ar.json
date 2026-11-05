@@ -1258,7 +1258,6 @@
     "only an applied import or a recovered partial import can be undone": "يمكن التراجع عن استيراد مطبّق أو استيراد جزئي مُسترَد فقط",
     "only an expense transaction can be split": "يمكن تقسيم معاملة مصروف فقط",
     "only local models can qualify for Auto": "النماذج المحلية فقط يمكن أن تتأهل للوضع التلقائي",
-    "only markdown documents can be saved here; other files stay in docs": "يمكن هنا حفظ مستندات markdown فقط؛ تبقى الملفات الأخرى في المستندات",
     "only pause or resume is available for canonical schedules": "الإيقاف المؤقت أو الاستئناف فقط متاحان للجداول المرجعية",
     "only pi on this machine can call this": "فقط pi على هذا الجهاز يمكنه استدعاء هذا",
     "only png, jpg, gif, webp, avif or bmp images go into a doc": "الصور بصيغ png وjpg وgif وwebp وavif وbmp فقط تدخل في المستند",
@@ -2571,6 +2570,14 @@
     "ALLES_HOME needs a full path, like /Volumes/External/Alles": "يحتاج ALLES_HOME إلى مسار كامل، مثل /Volumes/External/Alles",
     "ALLES_PORT needs a number from 1024 to 65535": "يحتاج ALLES_PORT إلى رقم من 1024 إلى 65535",
     "the drive {drive} isn't connected. plug it in, then run the install again": "القرص {drive} غير متصل. وصّله، ثم شغّل التثبيت مرة أخرى",
-    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "المجلد {folder} غير موجود. وصّل القرص الذي عليه أو أنشئه، ثم ثبّت مرة أخرى"
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "المجلد {folder} غير موجود. وصّل القرص الذي عليه أو أنشئه، ثم ثبّت مرة أخرى",
+    "a file and a folder cannot replace each other": "لا يمكن لملف ومجلد أن يحل أحدهما محل الآخر",
+    "a folder cannot move into itself": "لا يمكن نقل مجلد إلى داخل نفسه",
+    "could not save the file": "تعذّر حفظ الملف",
+    "file too large": "الملف كبير جدًا",
+    "the destination exists": "الوجهة موجودة بالفعل",
+    "the destination is not inside docs": "الوجهة ليست داخل المستندات",
+    "the docs folder itself cannot be changed": "لا يمكن تغيير مجلد المستندات نفسه",
+    "the root is a folder": "الجذر مجلد"
   }
 }

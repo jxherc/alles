@@ -1258,7 +1258,6 @@
     "only an applied import or a recovered partial import can be undone": "元に戻せるのは、適用済みのインポートか、復旧した一部のインポートのみです",
     "only an expense transaction can be split": "分割できるのは、支出の取引のみです",
     "only local models can qualify for Auto": "Auto の対象になれるのはローカルモデルだけです",
-    "only markdown documents can be saved here; other files stay in docs": "ここに保存できるのは markdown のドキュメントだけです。ほかのファイルは docs に残ります",
     "only pause or resume is available for canonical schedules": "正式なスケジュールでは、一時停止と再開のみ利用できます",
     "only pi on this machine can call this": "呼び出せるのは、このマシン上の pi だけです",
     "only png, jpg, gif, webp, avif or bmp images go into a doc": "ドキュメントに入れられる画像は png、jpg、gif、webp、avif、bmp のみです",
@@ -2571,6 +2570,14 @@
     "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME にはフルパスが必要です（例: /Volumes/External/Alles）",
     "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT には 1024 から 65535 までの数字が必要です",
     "the drive {drive} isn't connected. plug it in, then run the install again": "ドライブ {drive} が接続されていません。接続してから、もう一度インストールしてください",
-    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "フォルダ {folder} がありません。そのドライブを接続するか作成してから、もう一度インストールしてください"
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "フォルダ {folder} がありません。そのドライブを接続するか作成してから、もう一度インストールしてください",
+    "a file and a folder cannot replace each other": "ファイルとフォルダは置き換えられません",
+    "a folder cannot move into itself": "フォルダを自分自身の中へ移動することはできません",
+    "could not save the file": "ファイルを保存できませんでした",
+    "file too large": "ファイルが大きすぎます",
+    "the destination exists": "移動先がすでにあります",
+    "the destination is not inside docs": "移動先がドキュメントの中にありません",
+    "the docs folder itself cannot be changed": "ドキュメントフォルダ自体は変更できません",
+    "the root is a folder": "ルートはフォルダです"
   }
 }

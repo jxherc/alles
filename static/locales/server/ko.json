@@ -1258,7 +1258,6 @@
     "only an applied import or a recovered partial import can be undone": "적용된 가져오기 또는 복구된 부분 가져오기만 실행 취소할 수 있습니다",
     "only an expense transaction can be split": "지출 거래만 분할할 수 있습니다",
     "only local models can qualify for Auto": "로컬 모델만 자동 모드 자격을 얻을 수 있습니다",
-    "only markdown documents can be saved here; other files stay in docs": "여기에는 markdown 문서만 저장할 수 있습니다. 다른 파일은 docs에 남습니다",
     "only pause or resume is available for canonical schedules": "기준 일정에는 일시 중지 또는 재개만 사용할 수 있습니다",
     "only pi on this machine can call this": "이 컴퓨터의 pi만 이 기능을 호출할 수 있습니다",
     "only png, jpg, gif, webp, avif or bmp images go into a doc": "문서에는 png, jpg, gif, webp, avif, bmp 이미지만 넣을 수 있습니다",
@@ -2571,6 +2570,14 @@
     "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME에는 /Volumes/External/Alles 같은 전체 경로가 필요합니다",
     "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT에는 1024부터 65535까지의 숫자가 필요합니다",
     "the drive {drive} isn't connected. plug it in, then run the install again": "드라이브 {drive}가 연결되어 있지 않습니다. 연결한 다음 설치를 다시 실행하세요",
-    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "폴더 {folder}가 없습니다. 해당 드라이브를 연결하거나 폴더를 만든 다음 다시 설치하세요"
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "폴더 {folder}가 없습니다. 해당 드라이브를 연결하거나 폴더를 만든 다음 다시 설치하세요",
+    "a file and a folder cannot replace each other": "파일과 폴더는 서로 바꿀 수 없습니다",
+    "a folder cannot move into itself": "폴더를 자기 자신 안으로 옮길 수 없습니다",
+    "could not save the file": "파일을 저장하지 못했습니다",
+    "file too large": "파일이 너무 큽니다",
+    "the destination exists": "대상이 이미 있습니다",
+    "the destination is not inside docs": "대상이 문서 폴더 안에 없습니다",
+    "the docs folder itself cannot be changed": "문서 폴더 자체는 바꿀 수 없습니다",
+    "the root is a folder": "루트는 폴더입니다"
   }
 }

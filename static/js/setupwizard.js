@@ -1,9 +1,11 @@
 // server-owned first-run setup: resumable across browsers and safe to dismiss.
-import { toast, plainError } from './util.js';
+import { toast, plainError, writeClipboard } from './util.js';
 import { requestWithRecentOwner } from './recent_owner.js';
 import { addEndpoint } from './models.js?v=217';
 import { regionName, resolvedTimeZone, t } from './i18n.js';
 import { pick } from './dialog.js';
+import { qrSvg } from './qr.js?v=1';
+import { remotelySaveLink } from './obsidian_link.js?v=1';
 import { icon } from './icons.js';
 import { mountDependencies } from './dependencies.js';
 import { wireChoiceGroup } from './kokuen.js?v=5';
@@ -478,48 +480,81 @@ function _renderObsidianChoice() {
   });
 }
 
-// obsidian on the ipad or phone reads the docs over the local network (WebDAV, for the Remotely Save plugin).
-// the password is an alles token made by the server and shown once, right after the mode is picked.
-const _LAN_MODES = ['off', 'read', 'write'];
-
+// obsidian on the ipad or phone syncs the docs over WebDAV, through the Remotely Save plugin.
+// one switch turns it on; the server makes a password (an alles token) shown once, and the code
+// below carries it into the plugin's settings so nothing is typed. the plain fields stay as a fallback.
 async function _renderObsidianLan(host, { focusMode = '' } = {}) {
   if (!host) return;
+  const read = () => _api(`/api/setup/obsidian-lan?origin=${encodeURIComponent(location.origin)}`);
+  const save = mode => _api('/api/setup/obsidian-lan', _json('POST', { mode, origin: location.origin }), { recentOwner: true });
   let status;
-  try { status = await _api('/api/setup/obsidian-lan'); } catch { return; }
-  let token = '';
+  try { status = await read(); } catch { return; }
+  let token = '', vault = status.vault_name || '', manual = false, notice = '';
   const draw = () => {
     const on = status.mode !== 'off';
     const field = (id, label, value) => `<label class="setup-field"><span>${esc(label)}</span><input class="settings-input setup-input" id="${id}" readonly value="${esc(value)}"></label>`;
-    host.innerHTML = `<div class="setup-section-label" id="sw-lan-label">${esc(t('setup.obsidian_lan'))}</div>
-      ${_choiceGroup('sw-lan-mode', _LAN_MODES.map(mode => ({ value: mode, label: t(`setup.obsidian_${mode}`), note: t(`setup.obsidian_${mode}_note`) })), status.mode)}
-      ${on ? (status.access_profile === 'device' ? `<div class="setup-connect-note" role="status">${esc(t('setup.obsidian_device_only'))}</div>`
-        : !status.url ? `<div class="setup-connect-note" role="status">${esc(t('setup.obsidian_no_address'))}</div>`
-          : `<div class="setup-connect-note">${esc(t('setup.obsidian_steps'))}</div>
-            ${field('sw-lan-url', t('setup.obsidian_address'), status.url)}
-            ${field('sw-lan-user', t('setup.obsidian_user'), 'obsidian')}
-            ${status.password_needed || token ? field('sw-lan-pass', t('setup.obsidian_password'), token || t('setup.obsidian_password_once')) : ''}`) : ''}
-      <div class="setup-connect-note" id="sw-lan-status" role="status" aria-live="polite"></div>`;
-    const group = host.querySelector('#sw-lan-mode');
-    group.setAttribute('aria-labelledby', 'sw-lan-label');
-    _bindChoiceGroup('sw-lan-mode', async mode => {
-      const note = host.querySelector('#sw-lan-status');
-      group.querySelectorAll('button').forEach(button => { button.disabled = true; });
+    const row = (id, label, checked) => `<div class="setup-switch-row"><strong id="${id}-label">${esc(label)}</strong>
+      <button class="home-settings-switch" type="button" role="switch" id="${id}" aria-labelledby="${id}-label" aria-checked="${checked}"></button></div>`;
+    let body = '';
+    if (on && status.access_profile === 'device') body = `<div class="setup-connect-note" role="status">${esc(t('setup.obsidian_device_only'))}</div>`;
+    else if (on && !status.url) body = `<div class="setup-connect-note" role="status">${esc(t('setup.obsidian_no_address'))}</div>`;
+    else if (on) {
+      const link = token ? remotelySaveLink({ address: status.url, folder: status.folder, token, vault: vault.trim() || status.vault_name }) : '';
+      body = `<div class="setup-connect-note">${esc(t('setup.obsidian_install'))}</div>
+        ${status.https ? '' : `<div class="setup-connect-note" role="status">${esc(t('setup.obsidian_https'))}</div>`}
+        ${token ? `<div class="setup-qr">
+            <div class="setup-qr-code" id="sw-lan-qr">${qrSvg(link, { label: t('setup.obsidian_qr') })}</div>
+            <div class="setup-qr-side">
+              <div class="setup-connect-note">${esc(t('setup.obsidian_scan'))}</div>
+              <label class="setup-field"><span>${esc(t('setup.obsidian_vault'))}</span><input class="settings-input setup-input" id="sw-lan-vault" autocomplete="off" spellcheck="false" value="${esc(vault)}"></label>
+              <div class="setup-qr-actions"><button class="btn" type="button" id="sw-lan-copy">${esc(t('setup.obsidian_copy_link'))}</button></div>
+            </div>
+          </div>`
+          : `<div class="setup-connect-note">${esc(t('setup.obsidian_no_code'))}</div>
+            <div class="setup-qr-actions"><button class="btn" type="button" id="sw-lan-new">${esc(t('setup.obsidian_new_code'))}</button></div>`}
+        ${row('sw-lan-write', t('setup.obsidian_can_change'), status.mode === 'write')}
+        <button class="btn" type="button" id="sw-lan-manual" aria-expanded="${manual}" aria-controls="sw-lan-fields">${esc(t('setup.obsidian_manual'))}</button>
+        <div id="sw-lan-fields" ${manual ? '' : 'hidden'}>
+          ${field('sw-lan-url', t('setup.obsidian_address'), status.url)}
+          ${field('sw-lan-user', t('setup.obsidian_user'), 'obsidian')}
+          ${field('sw-lan-pass', t('setup.obsidian_password'), token || t('setup.obsidian_password_once'))}
+          ${field('sw-lan-folder', t('setup.obsidian_folder'), status.folder)}
+        </div>`;
+    }
+    host.innerHTML = `${row('sw-lan-on', t('setup.obsidian_lan'), on)}${body}<div class="setup-connect-note" id="sw-lan-status" role="status" aria-live="polite">${esc(notice)}</div>`;
+    const message = text => { host.querySelector('#sw-lan-status').textContent = text; };
+    const change = async (mode, focusId) => {
+      host.querySelectorAll('button[role="switch"]').forEach(button => { button.disabled = true; });
       try {
-        const next = await _api('/api/setup/obsidian-lan', _json('POST', { mode }), { recentOwner: true });
+        const next = await save(mode);
         token = next.token || '';
         status = next;
+        notice = '';
       } catch (error) {
-        group.querySelectorAll('button').forEach(button => { button.disabled = false; });
-        note.textContent = plainError(error.message);
+        host.querySelectorAll('button[role="switch"]').forEach(button => { button.disabled = false; });
+        message(plainError(error.message));
         return;
       }
       draw();
-      host.querySelector(`#sw-lan-mode [data-value="${mode}"]`)?.focus();
+      host.querySelector(`#${focusId}`)?.focus();
+    };
+    host.querySelector('#sw-lan-on').addEventListener('click', () => change(on ? 'off' : 'write', 'sw-lan-on'));
+    host.querySelector('#sw-lan-write')?.addEventListener('click', () => change(status.mode === 'write' ? 'read' : 'write', 'sw-lan-write'));
+    host.querySelector('#sw-lan-new')?.addEventListener('click', () => change(status.mode, 'sw-lan-vault'));
+    host.querySelector('#sw-lan-manual')?.addEventListener('click', () => { manual = !manual; draw(); host.querySelector('#sw-lan-manual').focus(); });
+    host.querySelector('#sw-lan-vault')?.addEventListener('input', event => {
+      vault = event.target.value;
+      const next = remotelySaveLink({ address: status.url, folder: status.folder, token, vault: vault.trim() || status.vault_name });
+      host.querySelector('#sw-lan-qr').innerHTML = qrSvg(next, { label: t('setup.obsidian_qr') });
+    });
+    host.querySelector('#sw-lan-copy')?.addEventListener('click', async () => {
+      await writeClipboard(remotelySaveLink({ address: status.url, folder: status.folder, token, vault: vault.trim() || status.vault_name }));
+      message(t('setup.obsidian_copied'));
     });
     host.querySelectorAll('input[readonly]').forEach(input => input.addEventListener('focus', () => input.select()));
   };
   draw();
-  if (focusMode) host.querySelector(`#sw-lan-mode [data-value="${focusMode}"]`)?.focus();
+  if (focusMode) host.querySelector('#sw-lan-on')?.focus();
 }
 
 function _renderAiSearch(body) {
@@ -729,7 +764,7 @@ function _renderConnect(host) {
     if (item.lan) {
       const lanHost = host.parentElement.querySelector('#sw-obsidian-lan');
       if (lanHost && !lanHost.firstElementChild) _renderObsidianLan(lanHost, { focusMode: 'read' });
-      else lanHost?.querySelector('[role="radio"][aria-checked="true"], [role="radio"]')?.focus();
+      else lanHost?.querySelector('[role="switch"]')?.focus();
       return;
     }
     _close({ restoreFocus: false });

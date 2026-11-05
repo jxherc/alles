@@ -6,6 +6,7 @@ as the rest of the app."""
 import base64
 import binascii
 import mimetypes
+from urllib.parse import unquote, urlsplit
 
 from fastapi import APIRouter, BackgroundTasks, Request, Response
 
@@ -18,10 +19,14 @@ from services import docs_webdav
 router = APIRouter(prefix="/dav/docs")
 
 _READ = ("OPTIONS", "PROPFIND", "GET", "HEAD")
-_ALLOW = "OPTIONS, PROPFIND, GET, HEAD, PUT, MKCOL"
+_ALLOW = "OPTIONS, PROPFIND, GET, HEAD, PUT, MKCOL, DELETE, MOVE"
+# DAV class 1 only: no locks, and no partial update (so the plugin sends whole files).
+# Obsidian reaches this with its own requestUrl, which skips CORS (Remotely Save
+# src/fsWebdav.ts patches the webdav client's request to requestUrl), so no CORS headers.
 _DAV = {"DAV": "1", "Allow": _ALLOW, "MS-Author-Via": "DAV"}
-# delete, move and copy are not registered, so the framework answers them 405
-_METHODS = [*_READ, "PUT", "MKCOL"]
+# copy is not registered, so the framework answers it 405
+_METHODS = [*_READ, "PUT", "MKCOL", "DELETE", "MOVE"]
+_PREFIX = "/dav/docs"
 
 
 def _text(status: int, message: str, headers: dict | None = None) -> Response:
@@ -70,6 +75,25 @@ def _denied(request: Request, scope: str) -> Response | None:
     return _challenge()
 
 
+def _destination(request: Request) -> str:
+    """the path inside docs that a MOVE's Destination header names."""
+    raw = request.headers.get("destination", "").strip()
+    parts = urlsplit(raw)
+    if parts.netloc and parts.netloc.casefold() != request.headers.get("host", "").casefold():
+        raise docs_webdav.DavError(502, "the destination is not inside docs")
+    path = unquote(parts.path)
+    if path != _PREFIX and not path.startswith(_PREFIX + "/"):
+        raise docs_webdav.DavError(502, "the destination is not inside docs")
+    return path[len(_PREFIX) :]
+
+
+def _reindex(background_tasks: BackgroundTasks, paths: list[str]) -> None:
+    from routes import vault_md as vault_routes
+
+    for item in dict.fromkeys(paths):
+        background_tasks.add_task(vault_routes._sync_changed, item)
+
+
 @router.api_route("", methods=_METHODS)
 @router.api_route("/{path:path}", methods=_METHODS)
 async def dav(request: Request, background_tasks: BackgroundTasks, path: str = ""):
@@ -80,6 +104,10 @@ async def dav(request: Request, background_tasks: BackgroundTasks, path: str = "
     if denied is not None:
         return denied
     try:
+        if method in ("PUT", "MKCOL", "DELETE", "MOVE"):
+            size = request.headers.get("content-length", "")
+            if size.isdigit() and int(size) > docs_webdav.MAX_FILE_BYTES:
+                return _text(413, "file too large")
         if method == "OPTIONS":
             return Response(status_code=200, headers=_DAV)
         if method == "PROPFIND":
@@ -100,12 +128,23 @@ async def dav(request: Request, background_tasks: BackgroundTasks, path: str = "
         if method == "MKCOL":
             docs_webdav.make_folder(path)
             return Response(status_code=201)
+        if method in ("DELETE", "MOVE"):
+            db = SessionLocal()
+            try:
+                if method == "DELETE":
+                    _reindex(background_tasks, docs_webdav.delete_path(db, path))
+                    return Response(status_code=204, background=background_tasks)
+                overwrite = request.headers.get("overwrite", "T").strip().upper() != "F"
+                status, old, new = docs_webdav.move_path(db, path, _destination(request), overwrite)
+                _reindex(background_tasks, old + new)
+                return Response(status_code=status, background=background_tasks)
+            finally:
+                db.close()
         status, tag, saved = docs_webdav.put_document(
             path, await request.body(), request.headers.get("if-match", "")
         )
-        from routes import vault_md as vault_routes
-
-        background_tasks.add_task(vault_routes._sync_changed, saved)
+        if saved.lower().endswith((".md", ".markdown")):
+            _reindex(background_tasks, [saved])
         return Response(status_code=status, headers={"ETag": tag}, background=background_tasks)
     except docs_webdav.DavError as exc:
         return _text(exc.status, exc.message)

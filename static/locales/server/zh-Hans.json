@@ -1258,7 +1258,6 @@
     "only an applied import or a recovered partial import can be undone": "只有已应用的导入或已恢复的部分导入才能撤销",
     "only an expense transaction can be split": "只有支出交易才能拆分",
     "only local models can qualify for Auto": "只有本地模型才有资格用于 Auto",
-    "only markdown documents can be saved here; other files stay in docs": "这里只能保存 markdown 文档，其他文件留在文档里",
     "only pause or resume is available for canonical schedules": "规范计划只能暂停或继续",
     "only pi on this machine can call this": "只有这台机器上的 pi 才能调用",
     "only png, jpg, gif, webp, avif or bmp images go into a doc": "只有 png、jpg、gif、webp、avif 或 bmp 图片可以放入文档",
@@ -2571,6 +2570,14 @@
     "ALLES_HOME needs a full path, like /Volumes/External/Alles": "ALLES_HOME 需要完整路径，比如 /Volumes/External/Alles",
     "ALLES_PORT needs a number from 1024 to 65535": "ALLES_PORT 需要 1024 到 65535 之间的数字",
     "the drive {drive} isn't connected. plug it in, then run the install again": "硬盘 {drive} 没有连接。插上后再运行一次安装",
-    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "文件夹 {folder} 不存在。插上它所在的硬盘或先建好它，然后再安装"
+    "the folder {folder} doesn't exist. plug in its drive or make it, then install again": "文件夹 {folder} 不存在。插上它所在的硬盘或先建好它，然后再安装",
+    "a file and a folder cannot replace each other": "文件和文件夹不能互相替换",
+    "a folder cannot move into itself": "文件夹不能移动到它自己里面",
+    "could not save the file": "无法保存文件",
+    "file too large": "文件太大",
+    "the destination exists": "目标已存在",
+    "the destination is not inside docs": "目标不在文档文件夹内",
+    "the docs folder itself cannot be changed": "文档文件夹本身不能被更改",
+    "the root is a folder": "根目录是文件夹"
   }
 }

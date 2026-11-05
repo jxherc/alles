@@ -238,6 +238,11 @@
           "key": "own_drive",
           "title": "alles on its own drive",
           "body": "install with ALLES_HOME=/Volumes/External/Alles and everything alles keeps lives in that folder, docs and files included. when the drive isn't plugged in, alles says so and waits for it instead of starting empty."
+        },
+        {
+          "key": "obsidian_sync",
+          "title": "obsidian syncs with your docs",
+          "body": "turn on one switch in setup and scan the code with the iPad or phone. Remotely Save fills itself in and syncs your docs both ways, renames and deletes included. a note deleted by a sync goes to docs' trash, where you can bring it back."
         }
       ]
     },

@@ -1,6 +1,7 @@
 import json
 import secrets
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
@@ -114,26 +115,47 @@ def install_obsidian(body: ObsidianInstallBody):
 _DAV_TOKEN_NAME = "obsidian on the local network"
 
 
-def _dav_status(request: Request) -> dict:
-    from core.server_config import access_profile
-
+def _dav_address(request: Request, origin: str) -> str:
+    """where other devices reach alles. the page's own address wins when it isn't this
+    machine (an https address from tailscale serve keeps its https, which Obsidian on iOS
+    needs); otherwise this machine's address on the local network."""
+    parts = urlsplit(origin or "")
+    host = (parts.hostname or "").lower()
+    own = parts.netloc.casefold() == request.headers.get("host", "").casefold()
+    local = host in ("localhost", "127.0.0.1", "::1", "") or host.endswith(".localhost")
+    if parts.scheme in ("http", "https") and own and not local:
+        return f"{parts.scheme}://{parts.netloc}"
+    lan = docs_webdav.lan_address()
     port = request.url.port or (443 if request.url.scheme == "https" else 80)
-    host = docs_webdav.lan_address()
+    return f"{request.url.scheme}://{lan}:{port}" if lan else ""
+
+
+def _dav_status(request: Request, origin: str = "") -> dict:
+    from core.server_config import access_profile
+    from services import vault_md
+
+    base = _dav_address(request, origin)
     return {
         "mode": docs_webdav.mode(),
         "access_profile": access_profile(),
-        "url": f"{request.url.scheme}://{host}:{port}/dav/docs" if host else "",
+        # Remotely Save adds "/<folder>" to this address, so the plugin gets the parent of
+        # the docs endpoint plus the folder name "docs" and lands on the docs root
+        "url": f"{base}/dav" if base else "",
+        "folder": "docs",
+        "https": base.startswith("https://"),
+        "vault_name": vault_md.root_dir().name,
         "password_needed": auth_enabled(),
     }
 
 
 @router.get("/obsidian-lan")
-def obsidian_lan_status(request: Request):
-    return _dav_status(request)
+def obsidian_lan_status(request: Request, origin: str = ""):
+    return _dav_status(request, origin)
 
 
 class ObsidianLanBody(BaseModel):
     mode: str = "off"
+    origin: str = ""
 
 
 @router.post("/obsidian-lan", dependencies=[Depends(require_recent_owner)])
@@ -158,7 +180,7 @@ def set_obsidian_lan(body: ObsidianLanBody, request: Request, db: DbSession = De
         )
     db.commit()
     save_settings({"docs_dav": body.mode})
-    return {**_dav_status(request), "token": token}
+    return {**_dav_status(request, body.origin), "token": token}
 
 
 class DetectBody(BaseModel):
