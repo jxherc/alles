@@ -5692,6 +5692,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-choice-group strong { font-size: 0.8125rem; font-weight: 560; }
 .setup-choice-group small { color: var(--muted); font-size: 0.8125rem; font-weight: 400; line-height: 1.35; }
 .setup-section-label { margin: 18px 0 8px; color: var(--muted); font-size: 0.8125rem; }
+/* fields that a picker opens sit a field gap below it, not flush against it */
+.setup-fields:not(:empty) { margin-top: 12px; }
+.setup-signin { margin-bottom: 12px; }
 /* a choice that opens: the trigger shows what's picked, the list opens under it and closes on a pick */
 .setup-picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--k-radius-control); background: var(--k-field, var(--panel)); box-shadow: inset 0 0 0 1px var(--k-line, var(--faint)); color: var(--text); font: inherit; font-size: 0.875rem; text-align: start; cursor: pointer; }
 .setup-picker:hover { box-shadow: inset 0 0 0 1px var(--k-line-strong, var(--muted)); }

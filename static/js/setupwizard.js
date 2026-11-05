@@ -8,6 +8,7 @@ import { icon } from './icons.js';
 import { mountDependencies } from './dependencies.js';
 import { wireChoiceGroup } from './kokuen.js?v=5';
 import { API_TYPES, authFor, mountProviderPicker } from './model_providers.js';
+import { mountSignin } from './signin.js';
 const STEPS = ['basics', 'access', 'files', 'ai_search', 'protection'];
 const _titles = () => ({ basics: t('setup.step_basics'), access: t('setup.step_access'), files: t('common.files'), ai_search: t('setup.step_ai_search'), protection: t('setup.step_protection') });
 let _state = null;
@@ -529,15 +530,16 @@ function _renderAiSearch(body) {
     <div class="setup-title" id="setup-title">${esc(t('setup.ai_title'))}</div>
     <div class="setup-sub">${esc(t('setup.ai_hint'))}</div>
     <div class="setup-section-label" id="sw-model-label">${esc(t('setup.ai_model_label'))}</div>
+    <div class="setup-signin" id="sw-model-signin"></div>
     <button type="button" class="setup-picker" id="sw-model-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="sw-models-pop" aria-labelledby="sw-model-label sw-model-trigger-label"><span id="sw-model-trigger-label">${esc(t('setup.choose_provider'))}</span>${icon('chevron-down')}</button>
     <div class="setup-picker-pop" id="sw-models-pop" hidden>
       <input class="settings-input setup-input" id="sw-model-filter" type="search" autocomplete="off" spellcheck="false" placeholder="${esc(t('setup.search_providers'))}" aria-label="${esc(t('setup.search_providers'))}">
       <div class="model-provider-list" id="sw-models" aria-label="${esc(t('setup.model_providers'))}"></div>
     </div>
-    <div id="sw-model-fields"></div>
+    <div class="setup-fields" id="sw-model-fields"></div>
     <div class="setup-section-label" id="sw-search-label">${esc(t('setup.web_search_for'))}</div>
     <button type="button" class="setup-picker" id="sw-search-trigger" aria-haspopup="dialog" aria-labelledby="sw-search-label sw-search-trigger-label"><span id="sw-search-trigger-label"></span>${icon('chevron-down')}</button>
-    <div id="sw-search-fields"></div>
+    <div class="setup-fields" id="sw-search-fields"></div>
     <div class="setup-section-label" id="sw-deps-label">${esc(t('dependencies.title'))}</div>
     <div id="sw-deps" role="group" aria-labelledby="sw-deps-label"></div>
     ${_actions()}`;
@@ -550,6 +552,14 @@ function _renderAiSearch(body) {
     if (open) $('sw-model-filter').focus();
   };
   trigger.addEventListener('click', () => setPop(pop.hidden));
+  // sign in first, like settings > models: claude, chatgpt and gemini by button, an api key
+  // from the provider picker as the fallback. a finished sign in already added its connection
+  let signedIn = false;
+  mountSignin($('sw-model-signin'), {
+    use: 'models',
+    fallback: { label: t('signin.fallback_key'), reason: t('signin.why_models'), onClick: () => setPop(true) },
+    onDone: () => { signedIn = true; },
+  });
   pop.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     event.preventDefault(); event.stopPropagation();
@@ -597,7 +607,8 @@ function _renderAiSearch(body) {
     const current = _formIsCurrent();
     const button = $('sw-save'); _busy(button, true, t('setup.connecting'));
     try {
-      if (_pickedModel) {
+      // signed in and no key typed: the sign in already made the connection
+      if (_pickedModel && !(signedIn && !$('sw-model-key')?.value.trim())) {
         const provider = _pickedModel;
         const url = $('sw-model-url').value.trim();
         if (!url) throw new Error(t('setup.model_url_required'));

@@ -107,6 +107,8 @@ function harness(code = source) {
     document, HTMLElement: Element, navigator: { language: 'en-US' }, Intl,
     resolvedTimeZone: () => 'UTC', regionName: code => code, pick: async () => nextPick, icon: () => '', visible: node => node.isConnected,
     setControlState() {}, toast: (...args) => notices.push(args), mountDependencies: () => ({ reload() {}, stop() {} }),
+    // the model step opens with the shared sign in component; its own tests live in signin tests
+    mountSignin: () => ({ refresh() {}, destroy() {} }),
     requestWithRecentOwner: (fetcher, ...args) => fetcher(...args),
     addEndpoint: async () => { throw new Error('unexpected endpoint creation'); },
     fetch: (path, options = {}) => {
