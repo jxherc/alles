@@ -8099,6 +8099,7 @@
     "vault.current": "目前",
     "vault.current_password": "目前密碼",
     "vault.custom_entry_types": "自訂項目類型",
+    "vault.custom_service": "自訂",
     "vault.cvv": "cvv",
     "vault.define_your_own_item_types_name": "定義你自己的項目類型：命名、新增欄位，並設定每個欄位的寬度。新增機密時，它們會出現在類型選擇器中。",
     "vault.del": "刪除",

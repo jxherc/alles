@@ -8099,6 +8099,7 @@
     "vault.current": "현재",
     "vault.current_password": "현재 비밀번호",
     "vault.custom_entry_types": "사용자 지정 항목 유형",
+    "vault.custom_service": "직접 입력",
     "vault.cvv": "CVV",
     "vault.define_your_own_item_types_name": "나만의 항목 유형을 정의하세요. 이름을 붙이고 필드를 추가하고 필드별 너비를 설정합니다. 시크릿을 추가할 때 유형 선택기에 표시됩니다.",
     "vault.del": "삭제",

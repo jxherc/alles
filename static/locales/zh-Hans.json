@@ -8099,6 +8099,7 @@
     "vault.current": "当前",
     "vault.current_password": "当前密码",
     "vault.custom_entry_types": "自定义条目类型",
+    "vault.custom_service": "自定义",
     "vault.cvv": "cvv",
     "vault.define_your_own_item_types_name": "定义你自己的条目类型：命名、添加字段并设置每个字段的宽度。添加机密时，它们会出现在类型选择器中。",
     "vault.del": "删除",

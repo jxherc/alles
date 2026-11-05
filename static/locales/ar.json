@@ -8098,6 +8098,7 @@
     "vault.current": "الحالي",
     "vault.current_password": "كلمة المرور الحالية",
     "vault.custom_entry_types": "أنواع إدخال مخصصة",
+    "vault.custom_service": "مخصص",
     "vault.cvv": "CVV",
     "vault.define_your_own_item_types_name": "عرّف أنواع العناصر الخاصة بك: سمّها وأضف حقولًا وحدد عرض كل حقل. تظهر في منتقي النوع عند إضافة سر.",
     "vault.del": "حذف",

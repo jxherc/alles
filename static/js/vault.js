@@ -1510,20 +1510,37 @@ const _SERVICES = [
   ['Replicate', 'https://api.replicate.com'], ['ElevenLabs', 'https://api.elevenlabs.io'], ['Spotify', 'https://api.spotify.com'],
 ];
 
+// every default api address the picker can fill in. an address from this list (or the one the
+// picker filled last) is the picker's, so switching service replaces it; anything else was typed.
+const _knownUrls = () => new Set([
+  ...MODEL_PROVIDERS.map(item => item.url),
+  ..._SERVICES.map(([, url]) => url),
+].filter(Boolean));
+
 async function _pickService(box) {
   const field = box.querySelector('#vf-f-service'), endpoint = box.querySelector('#vf-f-endpoint');
   const options = [
     ...MODEL_PROVIDERS.filter(item => !item.custom).map(item => ({ value: item.label, label: item.label, hint: t('vault.service_ai'), url: item.url })),
     ..._SERVICES.map(([label, url]) => ({ value: label, label, hint: '', url })),
   ];
-  const chosen = await pick(t('vault.used_for'), options, { value: field.value });
+  // "custom" keeps what was typed in the search box as the name, and leaves the address to type
+  const chosen = await pick(t('vault.used_for'), options, { value: field.value, action: { label: t('vault.custom_service') } });
   if (!chosen) return;
-  field.value = chosen;
-  const url = options.find(item => item.value === chosen)?.url;
-  // a known service fills in its api address, unless one was typed already
-  if (endpoint && url && !endpoint.value.trim()) endpoint.value = url;
+  const custom = typeof chosen === 'object';
+  const name = custom ? chosen.query : chosen;
+  const url = custom ? '' : options.find(item => item.value === chosen)?.url || '';
+  if (endpoint) {
+    const current = endpoint.value.trim();
+    const ours = !current || current === endpoint.dataset.autoUrl || _knownUrls().has(current);
+    if (ours) {
+      endpoint.value = url;
+      endpoint.dataset.autoUrl = url;
+      endpoint.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+  field.value = name;
   field.dispatchEvent(new Event('input', { bubbles: true }));
-  field.focus();
+  (custom && name && endpoint ? endpoint : field).focus();
 }
 
 function _fieldHtml(def) {

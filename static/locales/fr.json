@@ -8099,6 +8099,7 @@
     "vault.current": "actuel",
     "vault.current_password": "mot de passe actuel",
     "vault.custom_entry_types": "types d’entrées personnalisés",
+    "vault.custom_service": "personnalisé",
     "vault.cvv": "cvv",
     "vault.define_your_own_item_types_name": "définis tes propres types d’éléments : nomme-les, ajoute des champs et règle la largeur de chacun. ils apparaissent dans le sélecteur de type quand tu ajoutes un secret.",
     "vault.del": "suppr.",

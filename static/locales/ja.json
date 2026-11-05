@@ -8099,6 +8099,7 @@
     "vault.current": "現在",
     "vault.current_password": "現在のパスワード",
     "vault.custom_entry_types": "カスタムエントリタイプ",
+    "vault.custom_service": "カスタム",
     "vault.cvv": "CVV",
     "vault.define_your_own_item_types_name": "独自の項目タイプを定義できます。名前を付け、フィールドを追加し、各フィールドの幅を設定します。シークレットを追加するとき、タイプの選択肢に表示されます。",
     "vault.del": "削除",

@@ -8102,6 +8102,7 @@ const BUILTIN_ENGLISH = {
     "vault.current": "current",
     "vault.current_password": "current password",
     "vault.custom_entry_types": "custom entry types",
+    "vault.custom_service": "custom",
     "vault.cvv": "cvv",
     "vault.define_your_own_item_types_name": "define your own item types: name them, add fields, and set each field's width. they appear in the type picker when you add a secret.",
     "vault.del": "delete",
