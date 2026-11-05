@@ -110,14 +110,38 @@ class UpdateCommandLock:
         self.release()
 
 
-def update_start_allowed(data_root: Path, token: str | None) -> bool:
-    if not token:
+def native_update_applied(data_root: Path, update_id: str) -> bool:
+    """the native update's own record says this update swapped the data in and passed its health
+    check, and no rollback has begun: its new release may start."""
+    from services.backup_recovery import staging_root
+
+    try:
+        path = staging_root(data_root) / "updates" / "native-latest.json"
+        state = json.loads(path.read_text("utf-8"))
+    except Exception:
         return False
+    return (
+        isinstance(state, dict)
+        and bool(update_id)
+        and state.get("update_id") == update_id
+        and state.get("phase") == "applied"
+        and not state.get("rolling_back")
+    )
+
+
+def update_start_allowed(data_root: Path, token: str | None) -> bool:
     try:
         current = json.loads(update_lock_path(data_root).read_text("utf-8"))
     except Exception:
         return False
-    return current.get("update_id") == token
+    update_id = current.get("update_id") if isinstance(current, dict) else None
+    if token and update_id == token:
+        return True
+    # the token travels through the service manager's environment, and `launchctl setenv` only
+    # reaches the session it runs in: an `alles update` over ssh never reached the desktop's
+    # launchd agent, so the new release refused to start (nov 5). the update's own record is
+    # read from the disk, the same from any session, and works with an updater that predates it
+    return native_update_applied(data_root, str(update_id or ""))
 
 
 def begin_update(data_root: Path, update_id: str) -> Path:

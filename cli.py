@@ -1618,6 +1618,11 @@ def _native_rollback_update(layout, state: dict, state_path: Path) -> bool:
             phase == "stopping_service" and _native_service_running()
         )
         state["service_was_untouched"] = service_was_untouched
+        if not service_was_untouched:
+            # an "applied" update lets its new release start (update_start_allowed); from here on
+            # the service manager must not bring it back while the data goes back
+            state["rolling_back"] = True
+            _write_update_state(state_path, state)
         if service_was_untouched:
             manifest = native_install.verify_install(layout)
             if manifest["release_id"] != state["old_release"]:
@@ -2179,17 +2184,25 @@ def _native_update_failed(
         steps.fail(f"update stopped: {exc}")
     else:
         print(f"native update stopped: {exc}")
-    if target:
-        try:
-            current = native_install.verify_install(layout)["source"]["commit"]
-        except (native_install.NativeInstallError, KeyError, TypeError):
-            current = None
-        if current:
-            native_install.remember_failed(layout, current, target)
     try:
         state = _load_native_update_state(state_path)
     except RuntimeError:
         state = None
+    if target:
+        # the release this update started from: once the switch happened, the installed one is
+        # the failed target itself, and status then called the running release "failed"
+        current = (
+            (state or {}).get("old_commit")
+            if state and state.get("update_id") == update_id
+            else None
+        )
+        if not current:
+            try:
+                current = native_install.verify_install(layout)["source"]["commit"]
+            except (native_install.NativeInstallError, KeyError, TypeError):
+                current = None
+        if current:
+            native_install.remember_failed(layout, current, target)
     owned_state = bool(state and update_id and state.get("update_id") == update_id)
     if owned_state and (update_started or state.get("phase") != "preparing"):
         if _native_finish_rollback(layout, state, state_path):

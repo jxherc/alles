@@ -83,6 +83,36 @@ class UpdateMaintenanceTest(unittest.TestCase):
         finish_update(self.data, update_id)
         self.assertFalse(path.exists())
 
+    def _native_state(self, **values):
+        path = staging_root(self.data) / "updates" / "native-latest.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(values), "utf-8")
+        return path
+
+    def test_an_applied_native_update_lets_its_release_start_without_the_token(self):
+        # nov 5: `alles update` over ssh set the token with launchctl setenv in the ssh session,
+        # so the desktop's launchd agent never saw it and the new release refused to start
+        update_id = "a" * 32
+        begin_update(self.data, update_id)
+        self._native_state(update_id=update_id, phase="release_switched")
+        self.assertFalse(update_start_allowed(self.data, None))
+        self._native_state(update_id=update_id, phase="applied")
+        self.assertTrue(update_start_allowed(self.data, None))
+        self.assertTrue(update_start_allowed(self.data, "wrong token"))
+        # a rollback that has begun, or another update's record, never lets it start
+        self._native_state(update_id=update_id, phase="applied", rolling_back=True)
+        self.assertFalse(update_start_allowed(self.data, None))
+        self._native_state(update_id="b" * 32, phase="applied")
+        self.assertFalse(update_start_allowed(self.data, None))
+        self.assertTrue(update_start_allowed(self.data, update_id))
+        finish_update(self.data, update_id)
+
+    def test_a_broken_native_record_fails_closed(self):
+        begin_update(self.data, "a" * 32)
+        path = self._native_state(update_id="a" * 32, phase="applied")
+        path.write_text("{not json", "utf-8")
+        self.assertFalse(update_start_allowed(self.data, None))
+
     def test_invalid_marker_fails_closed(self):
         path = update_lock_path(self.data)
         path.write_text("not json", "utf-8")

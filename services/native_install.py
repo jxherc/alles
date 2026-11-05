@@ -2111,7 +2111,9 @@ def update_check(
             pass
     latest = cached.get("latest")
     # nov 1, debian 13: a release that just failed its startup check was called "ready"
-    failed = latest if latest and cached.get("failed") == latest else None
+    # a release that is the one running can't be the one that "failed" (nov 5: a start that
+    # failed only for the update token, finished by hand, still showed as failed)
+    failed = latest if latest and cached.get("failed") == latest and latest != current else None
     return {
         "checked_at": cached.get("checked_at"),
         "latest": latest,

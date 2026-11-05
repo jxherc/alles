@@ -576,6 +576,48 @@ class NativeUpdateCliTest(unittest.TestCase):
         discard.assert_called_once_with(self.layout, state["new_release"])
         self.assertEqual(cli._load_native_update_state(state_path)["phase"], "rolled_back")
 
+    def test_rollback_marks_itself_before_it_stops_the_service(self):
+        # an "applied" update lets its new release start without the token (update_start_allowed),
+        # so the service manager mustn't bring it back while the data goes back
+        state_path = self.updates / "native-latest.json"
+        state = {**self._state("applied"), "restore_id": "c" * 32, "operation_id": "d" * 32}
+        seen = []
+
+        def stop(_layout):
+            seen.append(cli._load_native_update_state(state_path).get("rolling_back"))
+            raise RuntimeError("stop the test here")
+
+        with mock.patch.object(cli, "_native_stop_service", side_effect=stop):
+            result = cli._native_rollback_update(self.layout, state, state_path)
+
+        self.assertFalse(result)
+        self.assertEqual(seen, [True])
+
+    def test_a_failed_update_remembers_the_release_it_started_from(self):
+        # nov 5: the start failed after the switch, so "current" was the failed target itself and
+        # status called the running release "failed"
+        state_path = self.updates / "native-latest.json"
+        state = self._state("applied")
+        cli._write_update_state(state_path, state)
+        with (
+            mock.patch(
+                "services.native_install.verify_install",
+                return_value={"release_id": self.new, "source": {"commit": self.new}},
+            ),
+            mock.patch("services.native_install.remember_failed") as remember,
+            mock.patch.object(cli, "_native_finish_rollback", return_value=True),
+        ):
+            cli._native_update_failed(
+                self.layout,
+                RuntimeError("the new release did not start as a service"),
+                state_path=state_path,
+                update_id=state["update_id"],
+                target=self.new,
+                update_started=True,
+                state_published=True,
+            )
+        remember.assert_called_once_with(self.layout, self.old, self.new)
+
     def test_data_staged_rollback_does_not_restore_data_that_was_never_swapped(self):
         state_path = self.updates / "native-latest.json"
         state = {

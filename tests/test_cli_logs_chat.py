@@ -249,6 +249,20 @@ class UpdateFactsTest(unittest.TestCase):
         self.assertTrue(newer["waiting"])
         self.assertIsNone(newer["failed"])
 
+    def test_the_running_release_is_never_called_failed(self):
+        # nov 5: a start that failed only for the update token was finished by hand, and status
+        # still said the release it was running had failed its checks
+        new = "b" * 40
+        native_install.remember_failed(self.layout, new, new)
+        manifest = {"source": {"kind": "git", "commit": new}}
+        with (
+            mock.patch.object(native_install, "_load_manifest", return_value=manifest),
+            mock.patch.object(native_install, "latest_release_commit", return_value=new),
+        ):
+            check = native_install.update_check(self.layout)
+        self.assertIsNone(check["failed"])
+        self.assertFalse(check["waiting"])
+
     def test_status_points_at_the_boot_log_for_a_failed_release(self):
         native = mock.Mock(data_root=Path(self.tmp.name) / "data")
         native.previous_release.is_file.return_value = False
