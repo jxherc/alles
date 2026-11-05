@@ -72,8 +72,11 @@ ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env", encoding="utf-8-sig")
 
 
-def _native_layout():
-    """Return the verified native layout only when its dispatcher selected this process."""
+def _native_layout(*, files: bool = True):
+    """Return the verified native layout only when its dispatcher selected this process.
+
+    files=False is for commands that only read (status, logs, version): they skip hashing every
+    release file, which made each of them take seconds."""
     try:
         from services.native_install import current_layout, verify_install
     except ImportError:
@@ -82,7 +85,7 @@ def _native_layout():
         raise
     layout = current_layout()
     if layout is not None:
-        verify_install(layout)
+        verify_install(layout, files=files)
     return layout
 
 
@@ -278,7 +281,7 @@ def cmd_start(args=()):
 
 
 def cmd_stop(args=()):
-    native = _native_layout()
+    native = _native_layout(files=False)
     if native is not None:
         from services import service_manager
 
@@ -426,7 +429,7 @@ def cmd_status(args=()):
     from services import cli_ui
 
     ui = cli_ui.Style()
-    native = _native_layout()
+    native = _native_layout(files=False)
     port = native.port if native is not None else _port()
     url = f"http://localhost:{port}"
     release = None
@@ -530,7 +533,7 @@ def _log_files() -> list[tuple[str, Path]]:
     """The service log first, then the boot check logs a failed update or restore kept, newest first."""
     from core.settings import data_dir
 
-    native = _native_layout()
+    native = _native_layout(files=False)
     main = native.data_root / "alles-service.log" if native is not None else LOG_FILE
     boot = _boot_log_dir(data_dir().expanduser().resolve())
     found = sorted(boot.glob("*.log"), key=lambda p: p.stat().st_mtime) if boot.is_dir() else []
@@ -2779,7 +2782,7 @@ def _folder_checks() -> list[tuple[bool | None, str, str]]:
             out.append((False, label, f"{shown} can't be written"))
             continue
         out.append((True, label, shown))
-    native = _native_layout()
+    native = _native_layout(files=False)
     if native is not None:
         from services import folder_layout
 
@@ -4098,7 +4101,7 @@ def cmd_tools(args=()):
 
 def cmd_version(args=()):
     """The release as its short commit, the same name the update screen and status use."""
-    native = _native_layout()
+    native = _native_layout(files=False)
     if native is not None:
         from services import native_install
 
@@ -4127,7 +4130,7 @@ def cmd_completion(args=()):
 
 
 def _server_url() -> str:
-    native = _native_layout()
+    native = _native_layout(files=False)
     return f"http://127.0.0.1:{native.port if native is not None else _port()}"
 
 
@@ -4271,7 +4274,7 @@ def _dump_lines() -> list[tuple[str, str]]:
 
     from core.settings import auth_enabled, data_dir, load_settings
 
-    native = _native_layout()
+    native = _native_layout(files=False)
     rows: list[tuple[str, str]] = []
     if native is not None:
         from services import native_install

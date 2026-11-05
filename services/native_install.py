@@ -962,7 +962,7 @@ def _verify_file(path: Path, digest: str, label: str) -> None:
         raise NativeInstallError(f"{label} changed after installation")
 
 
-def _release_file_entries(path: Path) -> list[dict]:
+def _release_file_entries(path: Path, *, hashes: bool = True) -> list[dict]:
     entries = []
     for item in sorted(path.rglob("*"), key=lambda value: value.relative_to(path).as_posix()):
         relative = item.relative_to(path).as_posix()
@@ -971,7 +971,10 @@ def _release_file_entries(path: Path) -> list[dict]:
         if item.is_symlink():
             entries.append({"path": relative, "kind": "symlink", "target": os.readlink(item)})
         elif item.is_file():
-            entries.append({"path": relative, "kind": "file", "sha256": _sha256(item)})
+            entry = {"path": relative, "kind": "file"}
+            if hashes:
+                entry["sha256"] = _sha256(item)
+            entries.append(entry)
         elif item.is_dir():
             entries.append({"path": relative, "kind": "directory"})
         else:
@@ -1022,13 +1025,18 @@ def _verify_release_files(path: Path) -> list[dict]:
     if path.is_symlink() or not path.is_dir():
         raise NativeInstallError("owned release contents changed after installation")
     entries = _load_release_ownership(path)
+    # each folder on the way is checked once, not once per file under it
+    checked: set[Path] = set()
     for entry in entries:
         relative = Path(entry["path"])
         parent = path
         for component in relative.parts[:-1]:
             parent = parent / component
+            if parent in checked:
+                continue
             if parent.is_symlink() or not parent.is_dir():
                 raise NativeInstallError("owned release contents changed after installation")
+            checked.add(parent)
         item = path / relative
         if entry["kind"] == "file":
             if (
@@ -1046,8 +1054,13 @@ def _verify_release_files(path: Path) -> list[dict]:
             raise NativeInstallError("owned release contents changed after installation")
         elif entry["kind"] == "directory" and (item.is_symlink() or not item.is_dir()):
             raise NativeInstallError("owned release contents changed after installation")
-    actual = {entry["path"]: entry for entry in _release_file_entries(path)}
-    expected = {entry["path"]: entry for entry in entries}
+    # every listed file's hash was just checked above; this pass only catches files added or
+    # removed since, so it compares names and kinds without hashing everything a second time
+    actual = {entry["path"]: entry for entry in _release_file_entries(path, hashes=False)}
+    expected = {
+        entry["path"]: {key: value for key, value in entry.items() if key != "sha256"}
+        for entry in entries
+    }
     if actual != expected:
         raise NativeInstallError("owned release contents changed after installation")
     return entries
@@ -1254,7 +1267,9 @@ def check_install_home(layout: NativeLayout) -> None:
         )
 
 
-def _verify_release(path: Path, *, installation_id: str, release_id: str) -> None:
+def _verify_release(
+    path: Path, *, installation_id: str, release_id: str, files: bool = True
+) -> None:
     marker_path = path / _RELEASE_MARKER
     if path.is_symlink() or not marker_path.is_file() or marker_path.is_symlink():
         raise NativeInstallError("owned release marker is missing or unsafe")
@@ -1264,7 +1279,8 @@ def _verify_release(path: Path, *, installation_id: str, release_id: str) -> Non
         raise NativeInstallError("owned release marker is invalid") from exc
     if marker != {"installation_id": installation_id, "release_id": release_id}:
         raise NativeInstallError("owned release marker does not match the installation")
-    _verify_release_files(path)
+    if files:
+        _verify_release_files(path)
 
 
 def install(
@@ -1738,7 +1754,7 @@ def _reconcile_release_transaction(layout: NativeLayout) -> None:
     _finish_release_transaction(layout)
 
 
-def _verify_active_install(layout: NativeLayout) -> dict:
+def _verify_active_install(layout: NativeLayout, *, files: bool = True) -> dict:
     manifest = _load_manifest(layout)
     _verify_file(layout.launcher, manifest["launcher_sha256"], "launcher")
     _verify_file(layout.dispatcher, manifest["dispatcher_sha256"], "dispatcher")
@@ -1754,14 +1770,19 @@ def _verify_active_install(layout: NativeLayout) -> dict:
         layout.releases / current,
         installation_id=manifest["installation_id"],
         release_id=current,
+        files=files,
     )
     return manifest
 
 
-def verify_install(layout: NativeLayout) -> dict:
-    """Verify the program boundary without reading personal data."""
+def verify_install(layout: NativeLayout, *, files: bool = True) -> dict:
+    """Verify the program boundary without reading personal data.
+
+    files=False keeps the launcher, dispatcher, service definition, pointers and release markers
+    but skips hashing every release file (about 22,000 with the python environment, twice with a
+    kept previous release: 3 s on the owner's drive). only read-only commands use it."""
     _reconcile_release_transaction(layout)
-    manifest = _verify_active_install(layout)
+    manifest = _verify_active_install(layout, files=files)
     current = manifest["release_id"]
     if layout.previous_release.exists() or layout.previous_release.is_symlink():
         previous = _read_release_pointer(layout.previous_release, "previous")
@@ -1771,6 +1792,7 @@ def verify_install(layout: NativeLayout) -> dict:
             layout.releases / previous,
             installation_id=manifest["installation_id"],
             release_id=previous,
+            files=files,
         )
     return manifest
 

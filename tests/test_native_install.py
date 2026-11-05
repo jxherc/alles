@@ -929,6 +929,29 @@ class NativeInstallLifecycleTest(unittest.TestCase):
         with self.assertRaisesRegex(native_install.NativeInstallError, "contents changed"):
             native_install.verify_install(self.layout)
 
+    def test_the_quick_check_skips_file_hashes_but_not_the_program_boundary(self):
+        # nov 5: every command hashed ~22,000 release files twice, so `alles version` took 3 s
+        with mock.patch.dict(os.environ, {"ALLES_DATA": str(self.layout.data_root)}):
+            native_install.install(
+                self.source,
+                self.layout,
+                release_id="test-1",
+                release_builder=self._builder,
+                release_probe=lambda _release, _python: True,
+                runner=self._runner,
+            )
+        changed = self.layout.releases / "test-1" / "app.py"
+        changed.write_text(changed.read_text("utf-8") + "# changed\n", "utf-8")
+        self.assertEqual(
+            native_install.verify_install(self.layout, files=False)["release_id"], "test-1"
+        )
+        with self.assertRaisesRegex(native_install.NativeInstallError, "contents changed"):
+            native_install.verify_install(self.layout)
+        # the launcher is still checked by the quick one
+        self.layout.launcher.write_text("#!/bin/sh\necho changed\n", "utf-8")
+        with self.assertRaises(native_install.NativeInstallError):
+            native_install.verify_install(self.layout, files=False)
+
     def test_stage_activate_rollback_and_accept_release(self):
         with mock.patch.dict(os.environ, {"ALLES_DATA": str(self.layout.data_root)}):
             native_install.install(
