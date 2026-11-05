@@ -189,7 +189,6 @@
     "SimpleFIN claim URL must be a credential-free HTTPS URL": "SimpleFIN の申請 URL は、認証情報を含まない HTTPS URL にしてください",
     "SimpleFIN claim URL must resolve to a public HTTPS host": "SimpleFIN の申請 URL は、公開 HTTPS ホストに解決される必要があります",
     "SimpleFIN connection is incomplete": "SimpleFIN の接続が不完全です",
-    "SimpleFIN reported: {str}": "SimpleFIN からの報告: {str}",
     "SimpleFIN returned an invalid access URL": "SimpleFIN が無効なアクセス URL を返しました",
     "SimpleFIN returned an invalid transaction date": "SimpleFIN が無効な取引日を返しました",
     "SimpleFIN setup token exchange failed": "SimpleFIN のセットアップトークンの交換に失敗しました",

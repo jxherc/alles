@@ -804,7 +804,9 @@
         ],
         "control_roots": [],
         "cli_commands": [],
-        "jobs": [],
+        "jobs": [
+          "bank_sync"
+        ],
         "automation_actions": [],
         "integrations": [
           "simplefin",

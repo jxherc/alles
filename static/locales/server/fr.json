@@ -189,7 +189,6 @@
     "SimpleFIN claim URL must be a credential-free HTTPS URL": "l’URL de réclamation SimpleFIN doit être une URL HTTPS sans identifiants",
     "SimpleFIN claim URL must resolve to a public HTTPS host": "l’URL de réclamation SimpleFIN doit pointer vers un hôte HTTPS public",
     "SimpleFIN connection is incomplete": "la connexion SimpleFIN est incomplète",
-    "SimpleFIN reported: {str}": "SimpleFIN a signalé : {str}",
     "SimpleFIN returned an invalid access URL": "SimpleFIN a renvoyé une URL d’accès invalide",
     "SimpleFIN returned an invalid transaction date": "SimpleFIN a renvoyé une date de transaction invalide",
     "SimpleFIN setup token exchange failed": "l’échange du jeton de configuration SimpleFIN a échoué",

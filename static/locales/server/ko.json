@@ -189,7 +189,6 @@
     "SimpleFIN claim URL must be a credential-free HTTPS URL": "SimpleFIN 클레임 URL은 자격 증명이 없는 HTTPS URL이어야 합니다",
     "SimpleFIN claim URL must resolve to a public HTTPS host": "SimpleFIN 클레임 URL은 공개 HTTPS 호스트로 해석되어야 합니다",
     "SimpleFIN connection is incomplete": "SimpleFIN 연결이 완전하지 않습니다",
-    "SimpleFIN reported: {str}": "SimpleFIN 보고: {str}",
     "SimpleFIN returned an invalid access URL": "SimpleFIN이 올바르지 않은 액세스 URL을 반환했습니다",
     "SimpleFIN returned an invalid transaction date": "SimpleFIN이 올바르지 않은 거래 날짜를 반환했습니다",
     "SimpleFIN setup token exchange failed": "SimpleFIN 설정 토큰 교환에 실패했습니다",

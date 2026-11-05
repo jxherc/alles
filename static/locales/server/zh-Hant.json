@@ -189,7 +189,6 @@
     "SimpleFIN claim URL must be a credential-free HTTPS URL": "SimpleFIN 領取網址必須是不含憑證的 HTTPS 網址",
     "SimpleFIN claim URL must resolve to a public HTTPS host": "SimpleFIN 領取網址必須解析到公開的 HTTPS 主機",
     "SimpleFIN connection is incomplete": "SimpleFIN 連線不完整",
-    "SimpleFIN reported: {str}": "SimpleFIN 回報：{str}",
     "SimpleFIN returned an invalid access URL": "SimpleFIN 回傳了無效的存取網址",
     "SimpleFIN returned an invalid transaction date": "SimpleFIN 回傳了無效的交易日期",
     "SimpleFIN setup token exchange failed": "SimpleFIN 設定 token 交換失敗",

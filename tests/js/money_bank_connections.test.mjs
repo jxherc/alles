@@ -60,6 +60,10 @@ test('a pending SimpleFIN claim submits once and preserves a newer token', async
   assert.equal(h.writes.length, 1);
   h.get('#finance-simplefin-token').value = 'newer-token';
   h.pending[0].resolve({ id: 'simplefin-1', provider: 'simplefin', status: 'connected' });
+  // a new connection brings its accounts in right away
+  for (let i = 0; i < 20 && h.pending.length < 2; i++) await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(h.writes[1]?.path, '/api/finance/connections/simplefin-1/sync');
+  h.pending[1].resolve({ id: 'simplefin-1', provider: 'simplefin', status: 'connected', created: 2, updated: 0 });
   await first; await repeat;
   assert.equal(h.get('#finance-simplefin-token').value, 'newer-token');
 });

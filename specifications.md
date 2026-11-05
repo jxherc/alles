@@ -962,6 +962,13 @@ imports, with an optional gated move to an alles-managed actual budget core.
 - reviewed generic csv and supported bank statement/notification profiles always preview first; repeat
   rows are stable duplicates, changed source rows are conflicts, and local undo removes only receipt-owned
   transactions. read-only simplefin and plaid connections are available after provider setup
+- a new simplefin connection syncs right away, and every connection with access syncs again at startup
+  and every 6 hours (`bank_sync`; simplefin serves daily updates and asks for 24 requests a day or
+  fewer). simplefin's first sync asks for 90 days (its most per request), later ones a week before
+  the last sync. a new account is named with its bank (`TD Canada Trust · Chequing`) and opens at the
+  bank's balance less what that sync brought in, so its balance matches the bank. simplefin's own
+  messages (`errlist`) show on the connection's row; one bank needing attention doesn't stop the
+  accounts that did come, and only a sync with no accounts at all fails
 - **bank alert emails** are a reviewed import profile (`bank-email`). "read bank emails from mail"
   picks up to 50 alert emails from mail's saved inboxes (the last 60 days): a subject about a
   transaction (alert, purchase, payment, deposit, withdrawal, spent, charged, refund, e-transfer) from
@@ -4197,6 +4204,7 @@ registered intervals come from `app.py`. the current loop sleeps 30 seconds betw
 | `read_feeds` | `1800` | no |
 | `scheduled_news` | `60` | no |
 | `holdings_price` | `6 * 3600` | no |
+| `bank_sync` | `6 * 3600` | yes |
 | `blob_gc` | `6 * 3600` | no |
 | `clip_index` | `60` | no |
 | `faces_index` | `90` | no |

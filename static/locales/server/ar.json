@@ -189,7 +189,6 @@
     "SimpleFIN claim URL must be a credential-free HTTPS URL": "يجب أن يكون رابط مطالبة SimpleFIN رابط HTTPS بلا بيانات اعتماد",
     "SimpleFIN claim URL must resolve to a public HTTPS host": "يجب أن يشير رابط مطالبة SimpleFIN إلى مضيف HTTPS عام",
     "SimpleFIN connection is incomplete": "اتصال SimpleFIN غير مكتمل",
-    "SimpleFIN reported: {str}": "أبلغ SimpleFIN: {str}",
     "SimpleFIN returned an invalid access URL": "أعاد SimpleFIN رابط وصول غير صالح",
     "SimpleFIN returned an invalid transaction date": "أعاد SimpleFIN تاريخ معاملة غير صالح",
     "SimpleFIN setup token exchange failed": "فشل تبادل رمز إعداد SimpleFIN",

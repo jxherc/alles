@@ -112,6 +112,126 @@ class FinanceConnectorTests(ApiTest):
         finally:
             db.close()
 
+    def simplefin_row(self, db, **extra):
+        row = FinanceConnection(
+            provider="simplefin",
+            label="SimpleFIN",
+            access_token="https://user:pass@example.com/access",
+            **extra,
+        )
+        db.add(row)
+        db.commit()
+        return row
+
+    def test_simplefin_asks_for_90_days_first_then_a_week_before_the_last_sync(self):
+        from datetime import datetime, timedelta
+
+        db = self.db()
+        try:
+            row = self.simplefin_row(db)
+            client = Client(Response({"accounts": [], "errlist": []}))
+            finance_connectors.sync(db, row.id, client=client)
+            first = int(client.calls[0][2]["params"]["start-date"])
+            now = datetime.now().timestamp()
+            self.assertAlmostEqual(now - first, 90 * 86400, delta=600)
+            row.last_synced_at = datetime(2026, 11, 1, 12, 0)
+            db.commit()
+            client = Client(Response({"accounts": [], "errlist": []}))
+            with mock.patch.object(
+                finance_connectors, "_now", return_value=datetime(2026, 11, 5, 12, 0)
+            ):
+                finance_connectors.sync(db, row.id, client=client)
+            later = int(client.calls[0][2]["params"]["start-date"])
+            expected = (datetime(2026, 11, 1, 12, 0) - timedelta(days=7)).replace(
+                tzinfo=finance_connectors.UTC
+            )
+            self.assertEqual(later, int(expected.timestamp()))
+            self.assertEqual(client.calls[0][2]["params"]["version"], "2")
+        finally:
+            db.close()
+
+    def test_simplefin_brings_in_what_came_and_shows_its_messages(self):
+        db = self.db()
+        try:
+            row = self.simplefin_row(db)
+            payload = {
+                "errlist": [{"code": "con.auth", "msg": "Scotiabank needs you to sign in again"}],
+                "accounts": [
+                    {
+                        "id": "td-1",
+                        "name": "Chequing",
+                        "org": {"name": "TD Canada Trust"},
+                        "currency": "cad",
+                        "balance": "1200.50",
+                        "transactions": [
+                            {"id": "a", "posted": 1785000000, "amount": "-20.00", "payee": "x"},
+                            {"id": "b", "posted": 1785000100, "amount": "500.00", "payee": "y"},
+                        ],
+                    }
+                ],
+            }
+            result = finance_connectors.sync(db, row.id, client=Client(Response(payload)))
+            self.assertEqual(result["created"], 2)
+            self.assertEqual(result["status"], "connected")
+            self.assertEqual(result["last_error"], "Scotiabank needs you to sign in again")
+            from core.database import Account
+
+            account = db.query(Account).one()
+            self.assertEqual(account.name, "TD Canada Trust · Chequing")
+            self.assertEqual(account.currency, "CAD")
+            # the account starts so its balance matches the bank's: 1200.50 - (480.00)
+            self.assertAlmostEqual(account.opening, 720.50, places=2)
+        finally:
+            db.close()
+
+    def test_simplefin_sharing_no_accounts_says_so_on_the_row(self):
+        db = self.db()
+        try:
+            row = self.simplefin_row(db)
+            result = finance_connectors.sync(
+                db, row.id, client=Client(Response({"accounts": [], "errlist": []}))
+            )
+            self.assertEqual(result["created"], 0)
+            self.assertIn("shared no accounts yet", result["last_error"])
+        finally:
+            db.close()
+
+    def test_simplefin_with_only_messages_fails_in_plain_words(self):
+        db = self.db()
+        try:
+            row = self.simplefin_row(db)
+            payload = {
+                "errlist": [{"code": "gen.auth", "msg": "your token was revoked"}],
+                "accounts": [],
+            }
+            with self.assertRaises(finance_connectors.FinanceConnectorError) as raised:
+                finance_connectors.sync(db, row.id, client=Client(Response(payload)))
+            self.assertEqual(str(raised.exception), "SimpleFIN says: your token was revoked")
+            self.assertEqual(db.get(FinanceConnection, row.id).status, "error")
+        finally:
+            db.close()
+
+    def test_timed_sync_keeps_going_past_a_failing_connection(self):
+        db = self.db()
+        try:
+            broken = self.simplefin_row(db)
+            fine = self.simplefin_row(db)
+            waiting = FinanceConnection(provider="plaid", label="Plaid", status="link_required")
+            db.add(waiting)
+            db.commit()
+            client = Client(
+                Response({"errlist": [{"msg": "down"}], "accounts": []}),
+                Response({"accounts": [], "errlist": []}),
+            )
+            self.assertEqual(finance_connectors.sync_all(db, client=client), 1)
+            self.assertEqual(len(client.calls), 2)
+            self.assertEqual(
+                db.get(FinanceConnection, broken.id).last_error, "SimpleFIN says: down"
+            )
+            self.assertEqual(db.get(FinanceConnection, fine.id).status, "connected")
+        finally:
+            db.close()
+
     def test_plaid_link_exchange_and_cursor_sync(self):
         db = self.db()
         try:

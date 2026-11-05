@@ -657,6 +657,21 @@ def _register_jobs():
 
         await asyncio.to_thread(_job)
 
+    async def _bank_sync():
+        # simplefin serves daily updates and asks for 24 requests a day or fewer
+        # (beta-bridge.simplefin.org/info/developers): four a day is plenty
+        def _job():
+            from core.database import SessionLocal
+            from services import finance_connectors
+
+            db = SessionLocal()
+            try:
+                finance_connectors.sync_all(db)  # blocking bank http, off the loop
+            finally:
+                db.close()
+
+        await asyncio.to_thread(_job)
+
     async def _clip_index():
         # phase 7b: embed un-indexed photos for semantic search. only runs if the optional CLIP
         # models are present; onnxruntime inference is off the loop. chips through in batches.
@@ -708,6 +723,7 @@ def _register_jobs():
     jobs.register("read_feeds", _read_feeds, 1800, run_at_start=False)  # rss auto-save (30 min)
     jobs.register("scheduled_news", _scheduled_news, 60, run_at_start=False)
     jobs.register("holdings_price", _holdings_price, 6 * 3600, run_at_start=False)  # 2d (gated)
+    jobs.register("bank_sync", _bank_sync, 6 * 3600, run_at_start=True)
     jobs.register("blob_gc", _blob_gc, 6 * 3600, run_at_start=False)  # 0d - purge orphaned blobs
     jobs.register("clip_index", _clip_index, 60, run_at_start=False)  # 7b semantic-search indexing
     jobs.register("faces_index", _faces_index, 90, run_at_start=False)  # 7a face detect + cluster

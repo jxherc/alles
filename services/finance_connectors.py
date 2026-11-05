@@ -11,7 +11,7 @@ import hashlib
 import json
 import math
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from urllib.parse import unquote, urlsplit, urlunsplit
 
 import httpx
@@ -339,6 +339,43 @@ def complete_plaid_update(db, connection_id: str, *, client=httpx) -> dict:
     return public_dict(row)
 
 
+# the bridge serves at most 90 days per request (beta-bridge.simplefin.org/info/developers)
+SIMPLEFIN_HISTORY_DAYS = 90
+# a later sync reaches back this far, so a transaction that posts late still comes in
+SIMPLEFIN_OVERLAP_DAYS = 7
+
+
+def _simplefin_start(row: FinanceConnection) -> int:
+    now = _now()
+    earliest = now - timedelta(days=SIMPLEFIN_HISTORY_DAYS)
+    since = (
+        row.last_synced_at - timedelta(days=SIMPLEFIN_OVERLAP_DAYS)
+        if row.last_synced_at
+        else earliest
+    )
+    return int(max(since, earliest).replace(tzinfo=UTC).timestamp())
+
+
+def _simplefin_messages(data: dict) -> list[str]:
+    """errlist (protocol 2: {code, msg}) and the older errors strings, as words to show.
+    simplefin asks apps to always show these (beta-bridge.simplefin.org/info/developers)"""
+    messages = []
+    for item in list(data.get("errlist") or []) + list(data.get("errors") or []):
+        text = item.get("msg") or item.get("code") if isinstance(item, dict) else item
+        text = " ".join(str(text or "").split())
+        if text and text not in messages:
+            messages.append(text[:300])
+    return messages
+
+
+def _simplefin_amount(value) -> float | None:
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return None
+    return amount if math.isfinite(amount) else None
+
+
 def _simplefin_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
     parsed = urlsplit(row.access_token or "")
     if not parsed.username or parsed.password is None:
@@ -348,7 +385,7 @@ def _simplefin_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
         response = client.get(
             f"{clean}/accounts",
             auth=(unquote(parsed.username), unquote(parsed.password)),
-            params={"version": "2"},
+            params={"version": "2", "start-date": str(_simplefin_start(row))},
             timeout=60,
             follow_redirects=False,
         )
@@ -357,9 +394,7 @@ def _simplefin_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
         raise FinanceConnectorError("SimpleFIN account sync failed") from exc
     if response.status_code >= 400 or not isinstance(data, dict):
         raise FinanceConnectorError("SimpleFIN account sync failed")
-    errors = data.get("errors") or data.get("errlist") or []
-    if errors:
-        raise FinanceConnectorError(f"SimpleFIN reported: {str(errors[0])[:400]}")
+    messages = _simplefin_messages(data)
     accounts = []
     for raw in data.get("accounts") or []:
         if not isinstance(raw, dict):
@@ -386,16 +421,25 @@ def _simplefin_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
                     "description": str(tx.get("description") or ""),
                 }
             )
+        name = str(raw.get("name") or "SimpleFIN account")
+        org = raw.get("org") if isinstance(raw.get("org"), dict) else {}
+        bank = str(org.get("name") or "").strip()
+        currency = str(raw.get("currency") or "").strip().upper()
         accounts.append(
             {
                 "external_id": str(raw.get("id") or raw.get("name") or ""),
-                "name": str(raw.get("name") or "SimpleFIN account"),
+                # "chequing" alone doesn't say which bank
+                "name": f"{bank} · {name}" if bank and bank.lower() not in name.lower() else name,
                 "kind": "checking",
-                "currency": str(raw.get("currency") or "USD"),
+                "currency": currency if len(currency) == 3 and currency.isalpha() else "USD",
+                "balance": _simplefin_amount(raw.get("balance")),
                 "transactions": transactions,
             }
         )
-    return {"accounts": accounts, "cursor": row.cursor, "removed": []}
+    # one bank needing attention mustn't stop the others: only nothing at all is a failure
+    if messages and not accounts:
+        raise FinanceConnectorError(f"SimpleFIN says: {'; '.join(messages)}"[:1000])
+    return {"accounts": accounts, "cursor": row.cursor, "removed": [], "messages": messages}
 
 
 def _plaid_snapshot(row: FinanceConnection, *, client=httpx) -> dict:
@@ -466,18 +510,28 @@ def _account_for_snapshot(db, connection: FinanceConnection, account: dict, mapp
     if mapping.get(external_id):
         return str(mapping[external_id])
     request_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"alles:{connection.id}:account:{external_id}"))
+    # a new account starts where the bank says it is now, less what this sync brings in
+    balance = account.get("balance")
+    opening = 0
+    if balance is not None:
+        opening = round(
+            balance - sum(float(t.get("amount") or 0) for t in account["transactions"]), 2
+        )
     values = {
         "name": account["name"],
         "kind": account["kind"],
         "currency": account["currency"],
-        "opening": 0,
+        "opening": opening,
     }
     if actual_finance.is_canonical(db):
         created = actual_finance.create_account(db, values, request_id=request_id)
         account_id = str(created["id"])
     else:
         row = Account(
-            name=values["name"], kind=values["kind"], currency=values["currency"], opening=0
+            name=values["name"],
+            kind=values["kind"],
+            currency=values["currency"],
+            opening=values["opening"],
         )
         finance_currency.prepare_account(row)
         db.add(row)
@@ -575,7 +629,15 @@ def sync(db, connection_id: str, *, client=httpx) -> dict:
         row.cursor = snapshot.get("cursor") or row.cursor
         row.status = "connected"
         row.last_synced_at = _now()
-        row.last_error = ""
+        messages = list(snapshot.get("messages") or [])
+        if row.provider == "simplefin" and not snapshot["accounts"] and not messages:
+            # an empty answer isn't a sync: the bridge hasn't loaded the bank yet, or this app
+            # was given no accounts
+            messages.append(
+                "SimpleFIN shared no accounts yet. In SimpleFIN, check this app can see your "
+                "accounts, then sync again."
+            )
+        row.last_error = "; ".join(messages)[:1000]
         db.commit()
         return {**public_dict(row), "created": created, "updated": updated, "removed": removed}
     except Exception as exc:
@@ -588,6 +650,21 @@ def sync(db, connection_id: str, *, client=httpx) -> dict:
         if isinstance(exc, FinanceConnectorError):
             raise
         raise FinanceConnectorError(str(exc)) from exc
+
+
+def sync_all(db, *, client=httpx) -> int:
+    """the timed bank sync: every connection that can sync, each on its own, so one failing
+    leaves the rest. a failure is kept on its row (sync stores it) for the bank screen."""
+    done = 0
+    for row in db.query(FinanceConnection).order_by(FinanceConnection.created_at).all():
+        if not row.access_token:
+            continue
+        try:
+            sync(db, row.id, client=client)
+            done += 1
+        except FinanceConnectorError:
+            continue
+    return done
 
 
 def disconnect(db, connection_id: str, *, client=httpx) -> dict:

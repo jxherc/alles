@@ -108,6 +108,12 @@ def run():
                         )
                         row.update(status="connected", item_id="synthetic-item")
                         fulfill(route, row)
+                    elif path.endswith("/sync"):
+                        connection_id = path.split("/")[-2]
+                        row = next(
+                            item for item in state["connections"] if item["id"] == connection_id
+                        )
+                        fulfill(route, {**row, "created": 3, "updated": 0, "removed": 0})
                     elif request.method == "DELETE":
                         connection_id = path.rsplit("/", 1)[-1]
                         state["connections"] = [
@@ -163,6 +169,11 @@ def run():
             fulfill(state["pending"].pop(), row)
             expect(dialog.locator("#finance-simplefin-token")).to_have_value("newer token")
             expect(dialog.locator('[data-bank-id="synthetic-simplefin"]')).to_be_visible()
+            # a new connection brings its accounts in at once, without a press on sync
+            expect(dialog.locator(".finance-bank-status")).to_contain_text("3 new")
+            assert any(
+                item["path"].endswith("/synthetic-simplefin/sync") for item in state["requests"]
+            ), state["requests"]
 
             # Closing during configuration must not launch Link after the close.
             state["delay"] = "/plaid"

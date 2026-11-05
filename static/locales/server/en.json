@@ -202,7 +202,6 @@
     "SimpleFIN claim URL must be a credential-free HTTPS URL",
     "SimpleFIN claim URL must resolve to a public HTTPS host",
     "SimpleFIN connection is incomplete",
-    "SimpleFIN reported: {str}",
     "SimpleFIN returned an invalid access URL",
     "SimpleFIN returned an invalid transaction date",
     "SimpleFIN setup token exchange failed",
