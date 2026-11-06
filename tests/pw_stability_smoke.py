@@ -208,7 +208,8 @@ def run(device: str) -> None:
             trigger.click()
             page.locator('.app-drawer-item[data-view="today"]').click()
             expect(page.locator("#today-view")).to_be_visible()
-            expect(page).to_have_url(re.compile(r"[?&]view=today(?:&|$)"))
+            # on one address home is the bare root, every other app its own path
+            expect(page).to_have_url(re.compile(r"://127\.0\.0\.1:\d+/(?:#.*)?$"))
             for _ in range(2):
                 page.reload(wait_until="networkidle")
                 expect(page.locator("#today-view")).to_be_visible()
@@ -218,9 +219,9 @@ def run(device: str) -> None:
             expect(page.get_by_role("heading", name="Navigation proof", exact=True)).to_be_visible()
             page.go_forward(wait_until="networkidle")
             expect(page.locator("#today-view")).to_be_visible()
-            for destination, visible in (
-                ("chat", "#composer-ta"),
-                ("andromeda", "#andromeda-query"),
+            for destination, visible, path in (
+                ("chat", "#composer-ta", "/aide"),
+                ("andromeda", "#andromeda-query", "/andromeda"),
             ):
                 trigger.click()
                 page.locator(f'.app-drawer-item[data-view="{destination}"]').click()
@@ -228,7 +229,7 @@ def run(device: str) -> None:
                 for _ in range(2):
                     page.reload(wait_until="networkidle")
                     expect(page.locator(visible)).to_be_visible()
-                    expect(page).to_have_url(re.compile(rf"[?&]view={destination}(?:&|#|$)"))
+                    expect(page).to_have_url(re.compile(rf":\d+{path}(?:[?#].*)?$"))
             page.go_back(wait_until="networkidle")
             expect(page.locator("#composer-ta")).to_be_visible()
             page.go_forward(wait_until="networkidle")

@@ -652,7 +652,9 @@ def _group_overviews(browser: Browser, errors: list[str], width: int) -> None:
     page.evaluate("window._navigateTo('plan')")
     page.locator(".specialist-workbench-plan").wait_for(state="visible")
     _assert_owned_shell(page, "#plan-view", "plan", width)
-    assert parse_qs(urlparse(page.url).query).get("view") == ["plan"]
+    # on one address plan's front page is its own path, with no view= left over
+    assert urlparse(page.url).path == "/plan", page.url
+    assert parse_qs(urlparse(page.url).query).get("view") is None, page.url
     page.locator("#app-drawer-btn").click()
     page.locator('.app-drawer-item[data-view="today"]').click()
     page.locator("#today-view:visible").wait_for(state="visible")

@@ -190,7 +190,8 @@ try:
                             page.locator(
                                 f'.session-item[data-id="{existing["id"]}"] .session-open'
                             ).click()
-                            expect(page).to_have_url(base + "/?view=chat#" + existing["id"])
+                            # on one address aide's conversation is its own path
+                            expect(page).to_have_url(base + "/aide#" + existing["id"])
                             expect(page.locator("#aide-conversation-name")).to_have_text(
                                 existing["name"]
                             )
