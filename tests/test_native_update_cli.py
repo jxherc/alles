@@ -719,6 +719,32 @@ class NativeUpdateCliTest(unittest.TestCase):
 
         health.assert_called_once_with(timeout=1, base_url="http://127.0.0.1:6769")
 
+    def test_stop_waits_for_the_stopped_server_to_let_go_of_the_data(self):
+        # nov 5: the port closes before the shutdown handlers drop the data lock, and an update
+        # that took the lock the moment the port closed failed against its own stopped server
+        import threading
+        import time
+
+        from services.instance_lock import InstanceLock
+
+        held = InstanceLock(self.layout.data_root).acquire()
+        threading.Timer(0.5, held.release).start()
+        started = time.time()
+        with (
+            mock.patch("services.native_install.verify_install", return_value=self.manifest),
+            mock.patch.object(cli, "_native_service_running", return_value=False),
+            mock.patch.object(cli, "_port_open", return_value=False),
+        ):
+            cli._native_stop_service(self.layout)
+        self.assertGreaterEqual(time.time() - started, 0.4)
+
+        held = InstanceLock(self.layout.data_root).acquire()
+        try:
+            with self.assertRaisesRegex(RuntimeError, "still shutting down"):
+                cli._wait_for_data_lock(self.layout.data_root, seconds=0.3)
+        finally:
+            held.release()
+
     def test_health_endpoint_rejects_redirects_and_proxy_inheritance(self):
         response = mock.MagicMock()
         response.__enter__.return_value = response

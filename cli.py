@@ -1571,6 +1571,29 @@ def _native_stop_service(layout) -> None:
         time.sleep(0.2)
     if _port_open(port):
         raise RuntimeError("the owned Alles service did not stop")
+    _wait_for_data_lock(layout.data_root)
+
+
+def _wait_for_data_lock(data_root: Path, seconds: float = 30) -> None:
+    """Return once a stopped server has let go of the data lock.
+
+    the port closes first and the shutdown handlers drop the lock after, so taking the lock the
+    moment the port closed lost the race (nov 5: an update stopped with "another Alles process is
+    already using this data directory" while its own stopped server was still shutting down)."""
+    from services.instance_lock import InstanceLock, InstanceLockError
+
+    deadline = time.time() + seconds
+    while True:
+        lock = InstanceLock(data_root)
+        try:
+            lock.acquire()
+        except InstanceLockError:
+            if time.time() >= deadline:
+                raise RuntimeError("the owned Alles service is still shutting down") from None
+            time.sleep(0.2)
+            continue
+        lock.release()
+        return
 
 
 def _service_update_token(layout, token: str | None) -> None:
