@@ -2583,6 +2583,7 @@
     "the destination exists": "目標已存在",
     "the destination is not inside docs": "目標不在文件資料夾內",
     "the docs folder itself cannot be changed": "文件資料夾本身不能被變更",
-    "the root is a folder": "根目錄是資料夾"
+    "the root is a folder": "根目錄是資料夾",
+    "service reload failed": "服務重新載入失敗"
   }
 }

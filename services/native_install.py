@@ -17,6 +17,8 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
+import time
 import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -33,6 +35,67 @@ _RELEASE_REMOVAL = "release-removal.json"
 # sources pinned to one exact commit: a git checkout, or a github archive (the one-line install)
 _COMMIT_SOURCES = frozenset({"git", "archive"})
 DEFAULT_PORT = 6769
+SERVICE_LAUNCHER = "alles-server"
+
+# launchd runs this small program for an install outside the home folder, like an external
+# drive. macOS asks once whether a program may use files on a removable volume and keeps the
+# answer for that exact binary. a shell script asks as /bin/sh, which can't ask, so after a reboot
+# the service got "operation not permitted" on every file of the drive (nov 5). the shell and
+# python it starts count as this program, so it stays their parent instead of exec'ing them.
+# a rebuilt binary is a new program to macOS and gets asked about again: only rebuild on a change
+_SERVICE_LAUNCHER_C = r"""#include <errno.h>
+#include <signal.h>
+#include <spawn.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/wait.h>
+
+extern char **environ;
+static volatile sig_atomic_t child;
+
+static void forward(int sig) {
+    if (child > 0) kill(child, sig);
+}
+
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        fprintf(stderr, "usage: alles-server program [args]\n");
+        return 64;
+    }
+    int signals[] = {SIGTERM, SIGINT, SIGHUP};
+    sigset_t block, old;
+    sigemptyset(&block);
+    struct sigaction action;
+    memset(&action, 0, sizeof action);
+    action.sa_handler = forward;
+    sigemptyset(&action.sa_mask);
+    for (int i = 0; i < 3; i++) {
+        sigaddset(&block, signals[i]);
+        sigaction(signals[i], &action, NULL);
+    }
+    /* held until the child's pid is known, so a stop that lands mid-spawn still reaches it */
+    sigprocmask(SIG_BLOCK, &block, &old);
+    posix_spawnattr_t attr;
+    posix_spawnattr_init(&attr);
+    posix_spawnattr_setsigmask(&attr, &old);
+    posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSIGMASK);
+    pid_t pid;
+    int failed = posix_spawn(&pid, argv[1], NULL, &attr, argv + 1, environ);
+    if (failed) {
+        fprintf(stderr, "alles-server: can't start %s: %s\n", argv[1], strerror(failed));
+        return 1;
+    }
+    child = pid;
+    sigprocmask(SIG_SETMASK, &old, NULL);
+    int status;
+    while (waitpid(pid, &status, 0) < 0) {
+        if (errno != EINTR) return 1;
+    }
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
+    return 1;
+}
+"""
 
 
 class NativeInstallError(RuntimeError):
@@ -624,16 +687,21 @@ def _systemd_path(value: Path) -> str:
     return raw.replace("%", "%%")
 
 
-def _service_source(layout: NativeLayout) -> bytes:
+def _service_source(layout: NativeLayout, *, service_launcher: Path | None = None) -> bytes:
     log = layout.data_root / "alles-service.log"
     # with ALLES_HOME the service starts the launcher, which waits for the drive and opens the log
     elsewhere = layout.install_home is not None
     program = layout.launcher if elsewhere else layout.dispatcher
     if layout.manager == "launchd":
-        args = "".join(f"<string>{_xml(value)}</string>" for value in (str(program), "__serve__"))
+        values = (str(program), "__serve__")
+        if service_launcher is not None:
+            values = (str(service_launcher), *values)
+            # until the launcher opens the drive's log, output lands on the startup disk
+            log = service_launcher_log(layout)
+        args = "".join(f"<string>{_xml(value)}</string>" for value in values)
         log_paths = (
             ""
-            if elsewhere
+            if elsewhere and service_launcher is None
             else f"<key>StandardOutPath</key><string>{_xml(str(log))}</string>\n"
             f"<key>StandardErrorPath</key><string>{_xml(str(log))}</string>\n"
         )
@@ -682,6 +750,129 @@ def _service_source(layout: NativeLayout) -> bytes:
             "[Install]\nWantedBy=default.target\n"
         )
     return content.encode("utf-8")
+
+
+def service_launcher_path(layout: NativeLayout) -> Path | None:
+    """The compiled program launchd runs, or None where the shell launcher is enough."""
+    if layout.system != "Darwin" or layout.install_home is None:
+        return None
+    return layout.launcher.with_name(SERVICE_LAUNCHER)
+
+
+def service_launcher_log(layout: NativeLayout) -> Path:
+    return layout.home / "Library" / "Logs" / f"{SERVICE_LAUNCHER}.log"
+
+
+def _service_launcher_source_sha256() -> str:
+    return hashlib.sha256(_SERVICE_LAUNCHER_C.encode("utf-8")).hexdigest()
+
+
+def _build_service_launcher(path: Path) -> bool:
+    """Compile the service launcher with apple's compiler. False when there is none."""
+    try:
+        tools = subprocess.run(
+            ["xcode-select", "-p"], capture_output=True, text=True, timeout=30, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    if tools.returncode != 0:
+        # without the command line tools, calling clang pops apple's "install the tools" window
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix=f".{SERVICE_LAUNCHER}-", dir=path.parent))
+    try:
+        source = work / f"{SERVICE_LAUNCHER}.c"
+        source.write_text(_SERVICE_LAUNCHER_C, "utf-8")
+        # built under its final name: the linker signs it with that name, which macOS shows
+        built = work / SERVICE_LAUNCHER
+        try:
+            compiled = subprocess.run(
+                ["xcrun", "clang", "-O2", "-o", str(built), str(source)],
+                capture_output=True,
+                text=True,
+                timeout=300,
+                check=False,
+            )
+            if compiled.returncode != 0:
+                return False
+            # with no program to start it answers 64 (usage): proof the binary runs here
+            probe = subprocess.run(
+                [str(built)], capture_output=True, text=True, timeout=30, check=False
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        if probe.returncode != 64:
+            return False
+        built.chmod(0o700)
+        os.replace(built, path)
+        _fsync_dir(path.parent)
+        return True
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _reload_service(layout: NativeLayout, runner) -> None:
+    target = f"gui/{os.getuid()}/{layout.unit}"
+    try:
+        runner(
+            ["launchctl", "bootout", target],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
+    # launchd can still be tearing the old job down for a moment and turn the bootstrap away
+    for _attempt in range(20):
+        try:
+            result = runner(
+                ["launchctl", "bootstrap", f"gui/{os.getuid()}", str(layout.service_definition)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise NativeInstallError("service reload failed") from exc
+        if result.returncode == 0:
+            return
+        time.sleep(0.5)
+    raise NativeInstallError("service reload failed")
+
+
+def refresh_service(layout: NativeLayout, *, runner=subprocess.run) -> bool:
+    """Put an install's service on the compiled launcher. True when the service was reloaded.
+
+    install writes the program files and updates never touch them, so an install made before the
+    launcher (nov 5) gets it here, from alles start, restart and every later update."""
+    binary = service_launcher_path(layout)
+    if binary is None or layout.manager != "launchd":
+        return False
+    manifest = _verify_active_install(layout, files=False)
+    source = _service_launcher_source_sha256()
+    built = manifest.get("service_launcher_source_sha256") == source
+    wanted = _service_source(layout, service_launcher=binary)
+    if built and layout.service_definition.read_bytes() == wanted:
+        return False
+    if not built and not _build_service_launcher(binary):
+        return False
+    service_launcher_log(layout).parent.mkdir(parents=True, exist_ok=True)
+    # the service registry keeps its own hash of the definition: it moves along with it
+    service_manager.update_owned_definition(
+        "server", lambda path: _atomic_bytes(path, wanted, mode=0o600)
+    )
+    manifest.update(
+        {
+            "service_launcher": str(binary),
+            "service_launcher_sha256": _sha256(binary),
+            "service_launcher_source_sha256": source,
+            "service_definition_sha256": _sha256(layout.service_definition),
+        }
+    )
+    _atomic_json(layout.manifest, manifest)
+    _reload_service(layout, runner)
+    return True
 
 
 _SETTINGS_TEMPLATE = """\
@@ -1310,8 +1501,10 @@ def install(
         release_id = _default_release_id(source)
     if layout.manifest.exists() or layout.manifest.is_symlink():
         raise NativeInstallError("an owned native installation already exists")
+    service_launcher = service_launcher_path(layout)
     for path, label in (
         (layout.launcher, "launcher"),
+        *(((service_launcher, "service launcher"),) if service_launcher else ()),
         (layout.service_definition, "service definition"),
         (layout.dispatcher, "dispatcher"),
         (layout.current_release, "current release pointer"),
@@ -1377,7 +1570,17 @@ def install(
         created_program_files.append(layout.dispatcher)
         _atomic_bytes(layout.launcher, _launcher_source(layout), mode=0o700)
         created_program_files.append(layout.launcher)
-        _atomic_bytes(layout.service_definition, _service_source(layout), mode=0o600)
+        if service_launcher is not None and _build_service_launcher(service_launcher):
+            created_program_files.append(service_launcher)
+            service_launcher_log(layout).parent.mkdir(parents=True, exist_ok=True)
+        else:
+            # no compiler: the shell launcher runs it, and alles status says what macOS needs
+            service_launcher = None
+        _atomic_bytes(
+            layout.service_definition,
+            _service_source(layout, service_launcher=service_launcher),
+            mode=0o600,
+        )
         created_program_files.append(layout.service_definition)
         _ensure_private_directory(layout.service_root.parent, "services root")
         _ensure_private_directory(layout.service_root, "service root")
@@ -1400,6 +1603,15 @@ def install(
             "service_root": str(layout.service_root),
             "service_definition": str(layout.service_definition),
             "service_definition_sha256": _sha256(layout.service_definition),
+            **(
+                {
+                    "service_launcher": str(service_launcher),
+                    "service_launcher_sha256": _sha256(service_launcher),
+                    "service_launcher_source_sha256": _service_launcher_source_sha256(),
+                }
+                if service_launcher is not None
+                else {}
+            ),
             "source": recorded_source,
             "release_commits": (
                 {release_id: recorded_source["commit"]}
@@ -1545,6 +1757,11 @@ def uninstall_keep_data(layout: NativeLayout, *, runner=subprocess.run) -> dict:
             _verify_file(path, digest, label)
 
     verify_program_file(layout.launcher, manifest["launcher_sha256"], "launcher")
+    service_launcher = _recorded_service_launcher(layout, manifest)
+    if service_launcher is not None:
+        verify_program_file(
+            service_launcher, manifest.get("service_launcher_sha256", ""), "service launcher"
+        )
     verify_program_file(layout.dispatcher, manifest["dispatcher_sha256"], "dispatcher")
     verify_program_file(
         layout.service_definition, manifest["service_definition_sha256"], "service definition"
@@ -1622,6 +1839,8 @@ def uninstall_keep_data(layout: NativeLayout, *, runner=subprocess.run) -> dict:
             action="service reload",
         )
     layout.launcher.unlink(missing_ok=True)
+    if service_launcher is not None:
+        service_launcher.unlink(missing_ok=True)
     for owned_release in owned_releases:
         _remove_owned_release(owned_release)
     layout.current_release.unlink(missing_ok=True)
@@ -1754,9 +1973,24 @@ def _reconcile_release_transaction(layout: NativeLayout) -> None:
     _finish_release_transaction(layout)
 
 
+def _recorded_service_launcher(layout: NativeLayout, manifest: dict) -> Path | None:
+    recorded = manifest.get("service_launcher")
+    if not recorded:
+        return None
+    expected = service_launcher_path(layout)
+    if expected is None or recorded != str(expected):
+        raise NativeInstallError("owned install manifest does not match this layout")
+    return expected
+
+
 def _verify_active_install(layout: NativeLayout, *, files: bool = True) -> dict:
     manifest = _load_manifest(layout)
     _verify_file(layout.launcher, manifest["launcher_sha256"], "launcher")
+    service_launcher = _recorded_service_launcher(layout, manifest)
+    if service_launcher is not None:
+        _verify_file(
+            service_launcher, manifest.get("service_launcher_sha256", ""), "service launcher"
+        )
     _verify_file(layout.dispatcher, manifest["dispatcher_sha256"], "dispatcher")
     _verify_file(
         layout.service_definition,

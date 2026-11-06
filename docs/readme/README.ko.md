@@ -44,6 +44,8 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLE
 
 그러면 alles는 모든 것을 이 폴더에 둡니다. 문서와 파일은 보이는 곳에, 데이터베이스, 앱, 백업, 설정은 그 안의 숨김 폴더 `.alles`에 들어갑니다. 이 컴퓨터에는 `alles` 명령과 서비스를 시작하는 작은 파일만 남고, 이후의 모든 명령(`alles update` 포함)은 폴더를 알아서 찾습니다. 드라이브가 연결되어 있지 않으면 설치는 아무것도 만들기 전에 멈추고, `alles`는 드라이브가 없다고 알려 주며, 서비스는 빈 상태로 시작하지 않고 드라이브를 기다립니다. `ALLES_PORT=8000`으로 같은 방식으로 포트도 바꿀 수 있습니다.
 
+mac에서는 처음 시작할 때 `alles-server`가 이동식 볼륨의 파일에 접근해도 되는지 묻습니다. 허용을 누르세요. 그러지 않으면 서비스가 드라이브에서 아무것도 열지 못합니다. apple의 명령어 도구(`xcode-select --install`)가 필요합니다. 나중에 설치했다면 `alles restart`를 실행하세요.
+
 ### 다른 기기에서 사용하기
 
 ```bash

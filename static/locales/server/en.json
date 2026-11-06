@@ -1784,6 +1784,7 @@
     "service manager is unavailable",
     "service preflight failed",
     "service registry is no longer trusted",
+    "service reload failed",
     "service removal failed",
     "service required",
     "service root is no longer trusted",

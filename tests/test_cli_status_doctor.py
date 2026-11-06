@@ -100,7 +100,8 @@ class StatusReleaseTest(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("not starting", text)
         self.assertIn("exits right away (exit 1, 461 starts)", text)
-        self.assertIn("external drive", text)
+        # an install from before the drive launcher: restart puts it in, then macOS asks
+        self.assertIn("run alles restart, then click Allow for alles-server", text)
         self.assertNotIn("start it with", text)
 
     def test_an_update_stopped_halfway_says_how_to_roll_back(self):

@@ -288,6 +288,17 @@ from services import native_install, service_manager
 # this test drives the macos install; pin the host so a linux ci runner reads the same layout
 mock.patch("platform.system", return_value="Darwin").start()
 
+
+def fake_build(path):
+    # stands in for clang, which a linux runner lacks: a program that runs what it's given
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('#!/bin/sh\nexec "$@"\n', "utf-8")
+    path.chmod(0o700)
+    return True
+
+
+mock.patch.object(native_install, "_build_service_launcher", fake_build).start()
+
 root = Path(sys.argv[2])
 home, drive, source = root / "home", root / "drive" / "Alles", root / "source"
 home.mkdir()
@@ -348,10 +359,19 @@ print(json.dumps({
             self.assertEqual(result.returncode, 0, result.stderr)
             found = json.loads(result.stdout.strip().splitlines()[-1])
             home, drive = root / "home", root / "drive" / "Alles"
-            # the service starts the launcher on the startup disk, which can always be spawned
-            self.assertEqual(found["program"], [str(home / ".local/bin/alles"), "__serve__"])
+            # launchd runs the compiled launcher on the startup disk, which macOS asks about
+            # once, and it runs the shell launcher, which waits for the drive
+            self.assertEqual(
+                found["program"],
+                [
+                    str(home / ".local/bin/alles-server"),
+                    str(home / ".local/bin/alles"),
+                    "__serve__",
+                ],
+            )
             self.assertEqual(found["spawns"], [0])
-            self.assertEqual(found["log_keys"], [])
+            # before the drive's log opens, output goes to ~/Library/Logs on the startup disk
+            self.assertEqual(found["log_keys"], ["StandardErrorPath", "StandardOutPath"])
             self.assertEqual(found["port"], "8463")
             self.assertIn(f"ALLES_HOME={drive}\n", found["status"])
             self.assertIn("ALLES_PORT=8463\n", found["status"])
@@ -367,6 +387,116 @@ print(json.dumps({
                     "vault_dir": str(drive / "Docs"),
                 },
             )
+
+    def test_an_older_install_moves_onto_the_service_launcher_once(self):
+        """nov 5: installs made before the launcher get it from alles start, restart or update."""
+        with tempfile.TemporaryDirectory(prefix="alles-install-plain-") as directory:
+            root = Path(directory).resolve()
+            source = root / "source"
+            source.mkdir()
+            for name in ("app.py", "cli.py"):
+                (source / name).write_text(f"# {name}\n", "utf-8")
+            script = (
+                "import sys; sys.path.insert(0, sys.argv[1])\n"
+                + FAKE_LAUNCHD
+                + r"""
+import json
+from pathlib import Path
+from unittest import mock
+from services import native_install, service_manager
+mock.patch("platform.system", return_value="Darwin").start()
+
+root = Path(sys.argv[2])
+home, drive, source = root / "home", root / "drive" / "Alles", root / "source"
+home.mkdir()
+(root / "drive").mkdir()
+layout = native_install.platform_layout("Darwin", home=home, install_home=drive)
+os.environ["ALLES_DATA"] = str(layout.data_root)
+builds = []
+
+
+def build(works):
+    def fake(path):
+        builds.append(works)
+        if works:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('#!/bin/sh\nexec "$@"\n', "utf-8")
+            path.chmod(0o700)
+        return works
+    return fake
+
+
+def builder(src, destination):
+    destination.mkdir(parents=True)
+    for item in src.iterdir():
+        (destination / item.name).write_bytes(item.read_bytes())
+    python = destination / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    (destination / ".venv" / "pyvenv.cfg").write_text("home = test\n", "utf-8")
+    python.write_text("#!/bin/sh\n", "utf-8")
+    python.chmod(0o755)
+    return python
+
+
+launchd = Launchd()
+calls = []
+
+
+def runner(command, **kwargs):
+    calls.append(command[:2])
+    return launchd(command, **kwargs)
+
+
+out = {}
+with mock.patch.object(service_manager, "_home_dir", return_value=home):
+    # an install from before the launcher, as the owner's was: no compiler at the time
+    with mock.patch.object(native_install, "_build_service_launcher", build(False)):
+        native_install.install(
+            source, layout, release_id="first", release_builder=builder,
+            release_probe=lambda _r, _p: True, install_source={"kind": "unavailable"},
+            runner=runner,
+        )
+    out["before"] = launchd.loaded["app.alles.server"]["ProgramArguments"]
+    calls.clear()
+    with mock.patch.object(native_install, "_build_service_launcher", build(False)):
+        out["no_compiler"] = native_install.refresh_service(layout, runner=runner)
+    with mock.patch.object(native_install, "_build_service_launcher", build(True)):
+        out["moved"] = native_install.refresh_service(layout, runner=runner)
+        out["calls"] = list(calls)
+        out["after"] = launchd.loaded["app.alles.server"]["ProgramArguments"]
+        native_install.verify_install(layout, files=False)
+        # alles status and every service command read the registry's own hash of the plist
+        out["registry"] = service_manager.status("server", runner=launchd)["running"]
+        out["again"] = native_install.refresh_service(layout, runner=runner)
+        out["calls_after_again"] = len(calls)
+    out["builds"] = builds
+    (home / ".local" / "bin" / "alles-server").write_text("#!/bin/sh\nexec evil\n", "utf-8")
+    try:
+        native_install.verify_install(layout, files=False)
+        out["tamper"] = "passed"
+    except native_install.NativeInstallError as exc:
+        out["tamper"] = str(exc)
+print(json.dumps(out))
+"""
+            )
+            result = self._plain(script, str(root))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            found = json.loads(result.stdout.strip().splitlines()[-1])
+            bin_dir = root / "home" / ".local" / "bin"
+            self.assertEqual(found["before"], [str(bin_dir / "alles"), "__serve__"])
+            # no compiler: nothing changes and launchd isn't touched
+            self.assertFalse(found["no_compiler"])
+            self.assertTrue(found["moved"])
+            self.assertEqual(found["calls"], [["launchctl", "bootout"], ["launchctl", "bootstrap"]])
+            self.assertEqual(
+                found["after"], [str(bin_dir / "alles-server"), str(bin_dir / "alles"), "__serve__"]
+            )
+            # built once: a rebuilt binary would make macOS ask the owner again
+            self.assertFalse(found["again"])
+            self.assertEqual(found["calls_after_again"], 2)
+            self.assertEqual(found["builds"], [False, False, True])
+            self.assertEqual(found["tamper"], "service launcher changed after installation")
+            self.assertTrue(found["registry"])
 
     def test_the_install_command_refuses_a_missing_drive_on_plain_python(self):
         missing = Path("/Volumes") / f"alles-missing-{uuid.uuid4().hex[:8]}" / "Alles"

@@ -2583,6 +2583,7 @@
     "the destination exists": "الوجهة موجودة بالفعل",
     "the destination is not inside docs": "الوجهة ليست داخل المستندات",
     "the docs folder itself cannot be changed": "لا يمكن تغيير مجلد المستندات نفسه",
-    "the root is a folder": "الجذر مجلد"
+    "the root is a folder": "الجذر مجلد",
+    "service reload failed": "فشلت إعادة تحميل الخدمة"
   }
 }

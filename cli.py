@@ -212,6 +212,9 @@ def cmd_start(args=()):
     if native is not None:
         from services import service_manager
 
+        if _native_refresh_service(native):
+            print(f"alles start requested through {native.manager}")
+            return True
         try:
             service_manager.control("server", "start")
         except (service_manager.ServiceControlError, service_manager.ServiceOwnershipError) as exc:
@@ -339,6 +342,9 @@ def cmd_restart(args=()):
             return False
         from services import service_manager
 
+        if _native_refresh_service(native):
+            print(f"alles restarted through {native.manager}")
+            return True
         try:
             service_manager.control("server", "restart")
         except (service_manager.ServiceControlError, service_manager.ServiceOwnershipError) as exc:
@@ -473,6 +479,9 @@ def cmd_status(args=()):
         healthy = _health_ok(port)
         ui.check(True, "running", url, width)
         ui.check(healthy, "health", "ok" if healthy else "not answering yet: alles logs", width)
+        if not healthy and native is not None and _on_mac_drive(native):
+            # the service waits on macOS's question until someone answers it
+            ui.check(None, "", _ALLOW_HINT, width)
     elif native is not None and state.get("last_exit") and state.get("starts", 0) > 1:
         # the service manager keeps starting it and it keeps dying: "start it" wouldn't help
         ui.check(
@@ -482,12 +491,7 @@ def cmd_status(args=()):
             width,
         )
         if _on_mac_drive(native):
-            ui.check(
-                None,
-                "",
-                "macOS keeps background apps off an external drive until they're allowed",
-                width,
-            )
+            ui.check(None, "", _drive_hint(native), width)
         if _health_ok(port):
             ui.check(None, "", f"something else answers on {url}", width)
     else:
@@ -549,12 +553,16 @@ def cmd_home(args=()):
 def _log_files() -> list[tuple[str, Path]]:
     """The service log first, then the boot check logs a failed update or restore kept, newest first."""
     from core.settings import data_dir
+    from services import native_install
 
     native = _native_layout(files=False)
     main = native.data_root / "alles-service.log" if native is not None else LOG_FILE
+    # what the service said before it could reach the drive sits on the startup disk
+    early = native_install.service_launcher_log(native) if native is not None else None
+    launcher = [("launcher", early)] if early is not None and early.is_file() else []
     boot = _boot_log_dir(data_dir().expanduser().resolve())
     found = sorted(boot.glob("*.log"), key=lambda p: p.stat().st_mtime) if boot.is_dir() else []
-    return [("service", main), *((p.stem, p) for p in reversed(found))]
+    return [("service", main), *launcher, *((p.stem, p) for p in reversed(found))]
 
 
 def _logs_options(args: list[str]) -> dict | None:
@@ -1500,6 +1508,38 @@ def _on_mac_drive(native) -> bool:
     return sys.platform == "darwin" and str(native.data_root).startswith("/Volumes/")
 
 
+_ALLOW_HINT = "if macOS asks about alles-server, click Allow"
+
+
+def _drive_hint(native) -> str:
+    """What the owner does so macOS lets the service use the drive."""
+    from services import native_install
+
+    binary = native_install.service_launcher_path(native)
+    if binary is None or not binary.is_file():
+        return "macOS keeps it off the drive: run alles restart, then click Allow for alles-server"
+    return (
+        "macOS keeps it off the drive: allow alles-server in System Settings › "
+        "Privacy & Security › Files & Folders"
+    )
+
+
+def _native_refresh_service(native) -> bool:
+    """Move the service onto the compiled launcher when it isn't yet. True when it reloaded."""
+    if getattr(native, "manager", "") != "launchd":
+        return False
+    from services import native_install
+
+    try:
+        refreshed = native_install.refresh_service(native)
+    except (native_install.NativeInstallError, OSError) as exc:
+        print(f"alles kept its service as it was: {exc}")
+        return False
+    if refreshed:
+        print(_ALLOW_HINT)
+    return refreshed
+
+
 def _native_service_running() -> bool:
     from services import service_manager
 
@@ -1565,7 +1605,9 @@ def _native_start_service_healthy(layout, token: str | None = None) -> bool:
         _service_update_token(layout, token)
     try:
         try:
-            service_manager.control("server", "start")
+            # a reload starts it too (RunAtLoad); a failed one leaves the old definition to start
+            if not _native_refresh_service(layout):
+                service_manager.control("server", "start")
         except Exception:
             return False
         deadline = time.time() + 60

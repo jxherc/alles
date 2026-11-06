@@ -42,6 +42,8 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLE
 
 alles then keeps everything in that folder: your docs and files where you can see them, and the database, app, backups and settings in a hidden `.alles` folder inside it. only the `alles` command and the small file that starts the service stay on this computer, and every later command (`alles update` too) finds the folder on its own. if the drive isn't plugged in, the install stops before it makes anything, `alles` says the drive is missing, and the service waits for the drive instead of starting empty. `ALLES_PORT=8000` picks another port the same way.
 
+on a mac, the first start asks whether `alles-server` may access files on a removable volume. click Allow, or the service can't open anything on the drive. this needs apple's command line tools (`xcode-select --install`); if you add them later, run `alles restart`.
+
 ### use it from another device
 
 ```bash

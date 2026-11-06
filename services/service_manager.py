@@ -7,9 +7,9 @@ import platform
 import re
 import subprocess
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
 from core.settings import data_dir
 
@@ -163,6 +163,19 @@ def register_owned_service(
     _atomic_json(root / _OWNER_FILE, marker)
     _atomic_json(_registry_dir() / f"{service_id}.json", marker)
     return service
+
+
+def update_owned_definition(service_id: str, write: Callable[[Path], None]) -> OwnedService:
+    """Installer-only: rewrite an owned service's definition and record its new hash.
+
+    the old definition must still verify first, so one changed by someone else stays untrusted."""
+    service = _load(service_id)
+    write(Path(service.definition))
+    updated = replace(service, definition_sha256=_sha256(Path(service.definition)))
+    marker = asdict(updated)
+    _atomic_json(Path(service.root) / _OWNER_FILE, marker)
+    _atomic_json(_registry_dir() / f"{service_id}.json", marker)
+    return updated
 
 
 def _read_json(path: Path) -> dict:

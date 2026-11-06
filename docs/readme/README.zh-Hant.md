@@ -44,6 +44,8 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLE
 
 這樣 alles 會把所有東西都放在這個資料夾裡：文件和檔案直接可見，資料庫、程式、備份和設定放在裡面一個隱藏的 `.alles` 資料夾中。只有 `alles` 指令和啟動服務的小檔案留在這台電腦上，之後的每個指令（包括 `alles update`）都會自己找到這個資料夾。硬碟沒接上時，安裝會在建立任何東西之前停下，`alles` 會提示硬碟不在，背景服務會等硬碟接上，而不是用空資料夾啟動。`ALLES_PORT=8000` 也可以用同樣的方式換連接埠。
 
+在 mac 上，第一次啟動會問是否允許 `alles-server` 存取可移除式卷宗上的檔案。按「允許」，不然服務打不開硬碟上的任何東西。這需要 apple 的命令列工具（`xcode-select --install`）；之後才裝的話，執行 `alles restart`。
+
 ### 從其他裝置使用
 
 ```bash

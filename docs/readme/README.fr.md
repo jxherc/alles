@@ -43,6 +43,8 @@ curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | ALLE
 
 alles garde alors tout dans ce dossier : vos documents et fichiers bien visibles, et la base de données, l’app, les sauvegardes et les réglages dans un dossier caché `.alles` à l’intérieur. seuls la commande `alles` et le petit fichier qui lance le service restent sur cet ordinateur, et chaque commande suivante (`alles update` aussi) retrouve le dossier toute seule. si le disque n’est pas branché, l’installation s’arrête avant de créer quoi que ce soit, `alles` dit que le disque manque, et le service attend le disque au lieu de démarrer à vide. `ALLES_PORT=8000` choisit un autre port de la même façon.
 
+sur un mac, le premier démarrage demande si `alles-server` peut accéder aux fichiers d'un volume amovible. cliquez sur Autoriser, sinon le service ne peut rien ouvrir sur le disque. il faut les outils en ligne de commande d'apple (`xcode-select --install`) ; si vous les ajoutez plus tard, lancez `alles restart`.
+
 ### l’utiliser depuis un autre appareil
 
 ```bash
