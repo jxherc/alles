@@ -484,12 +484,21 @@ class AccessCommandTest(unittest.TestCase):
                 {
                     "access_profile": "device",
                     "public_url": "",
-                    "base_domain": "",
                     "trusted_hosts": "",
                     "forwarded_allow_ips": "",
                 }
             ],
         )
+
+    def test_device_keeps_a_bound_domain_and_trusts_it(self):
+        # alles access domain stays put across lan and device; this computer only has to name it
+        bound = {"base_domain": "alles.example.com", "app_urls": "path"}
+        ok, saved, _ = self._run("device", settings=bound, auth=True)
+        self.assertTrue(ok)
+        self.assertNotIn("base_domain", saved[0])
+        hosts = saved[0]["trusted_hosts"].split(",")
+        self.assertIn("localhost", hosts)
+        self.assertIn("alles.example.com", hosts)
 
 
 class ArchiveUpdateTest(unittest.TestCase):

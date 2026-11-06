@@ -141,7 +141,8 @@ class SecurityHeadersTest(VaultApiTest):
 
 
 class ApiDocsTest(VaultApiTest):
-    PATHS = ("/docs", "/redoc", "/docs/oauth2-redirect", "/openapi.json")
+    # under /api: /docs is the docs app's own address when apps live on paths
+    PATHS = ("/api/docs", "/api/redoc", "/api/docs/oauth2-redirect", "/api/openapi.json")
 
     def test_off_by_default(self):
         for path in self.PATHS:
@@ -151,17 +152,20 @@ class ApiDocsTest(VaultApiTest):
 
     def test_on_they_load_their_cdn_scripts_on_their_own_paths_only(self):
         with mock.patch.dict(os.environ, {"ALLES_API_DOCS": "1"}):
-            schema = self.client.get("/openapi.json")
+            schema = self.client.get("/api/openapi.json")
             self.assertEqual(schema.status_code, 200)
             self.assertIn("/api/ping", schema.json()["paths"])
-            for path in ("/docs", "/redoc", "/docs/oauth2-redirect"):
+            for path in ("/api/docs", "/api/redoc", "/api/docs/oauth2-redirect"):
                 r = self.client.get(path)
                 self.assertEqual(r.status_code, 200, path)
                 rules = directives(r.headers["content-security-policy"])
                 self.assertIn("https://cdn.jsdelivr.net", rules["script-src"].split(), path)
                 self.assertEqual(rules["frame-ancestors"], "'self'")
-        shell = directives(self.client.get("/").headers["content-security-policy"])
-        self.assertNotIn("https://cdn.jsdelivr.net", shell["script-src"])
+            # the docs app at /docs is the shell, under the app's own policy
+            for path in ("/", "/docs"):
+                shell = directives(self.client.get(path).headers["content-security-policy"])
+                self.assertNotIn("https://cdn.jsdelivr.net", shell["script-src"], path)
+                self.assertNotIn("'unsafe-inline'", shell["script-src"], path)
 
     def test_on_with_auth_they_are_owner_only(self):
         with (
@@ -170,7 +174,11 @@ class ApiDocsTest(VaultApiTest):
         ):
             for path in self.PATHS:
                 self.assertEqual(self.client.get(path).status_code, 401, path)
-            with mock.patch("app._request_authed", return_value=True):
+            # a signed-in owner passes the /api gate and the page's own check
+            with (
+                mock.patch("core.auth.verify_session", return_value=True),
+                mock.patch("app._request_authed", return_value=True),
+            ):
                 for path in self.PATHS:
                     self.assertEqual(self.client.get(path).status_code, 200, path)
 

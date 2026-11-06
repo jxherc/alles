@@ -54,6 +54,14 @@ alles access lan
 
 オーナーパスワードを尋ね、スマートフォンやほかのパソコンから開けるように alles を再起動し、使うアドレス（例: `http://100.101.102.103:6769`）を表示します。`alles access device` で、このパソコンだけで使う状態に戻せます。
 
+### 自分のドメインで開く
+
+```bash
+alles access domain alles.example.com
+```
+
+各アプリはスラッシュのあとに並びます: `alles.example.com/docs`、`alles.example.com/plan`。`subdomain` を付けると（`alles access domain alles.example.com subdomain`）、各アプリが `docs.alles.example.com` のような専用のアドレスになります。その場合はワイルドカードの DNS レコードと証明書が必要です。証明書は alles では作りません。ドメインをこのパソコンに向け、https プロキシ（caddy、nginx、cloudflare tunnel）で `http://127.0.0.1:6769` に送ってください。`alles access domain off` で解除できます。
+
 ### ソースから実行する
 
 開発用、またはサービスにせずに動かしたいとき向けです。Debian や Ubuntu では、先に `sudo apt install git python3-venv` を実行してください。

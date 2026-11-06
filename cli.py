@@ -5,6 +5,7 @@ alles CLI
   alles install        install alles as a background service (macos/linux)
   alles access lan     let your phone and other computers open it (asks for a password)
   alles access device  only this computer can open it again
+  alles access domain  open it at your own domain: alles.example.com/docs, or docs.alles.example.com
   alles password       set or change the owner password (optional for this computer only)
   alles config         edit the settings file  (alles config path prints where it is)
   alles start          start the server in the background
@@ -376,10 +377,19 @@ def _access_label() -> str:
         locked = auth_enabled()
     except Exception:
         return ""
+    domain = ""
+    try:
+        from core.settings import load_settings
+
+        bound = str(load_settings().get("base_domain") or "")
+        domain = "" if bound == "localhost" else bound
+    except Exception:
+        pass
+    at = f", at {domain}" if domain else ""
     if profile == "device":
-        return "this computer only"
+        return f"this computer only{at}"
     lock = "password on" if locked else "no password"
-    return f"other devices ({profile}, {lock})"
+    return f"other devices ({profile}, {lock}){at}"
 
 
 def _settings_path(native) -> Path:
@@ -3328,11 +3338,13 @@ def cmd_password(args=()):
 
 
 def cmd_access(args=()):
-    """alles access lan | device: who can open alles."""
+    """alles access lan | device: who can open alles. alles access domain: at which address."""
     from services import cli_ui
 
     ui = cli_ui.Style()
     choice = args[0] if args else ""
+    if choice == "domain":
+        return _access_domain(list(args[1:]), ui)
     if choice not in ("lan", "device"):
         ui.header("access")
         current = _access_label()
@@ -3346,6 +3358,10 @@ def cmd_access(args=()):
                     "your phone and other computers can open it (asks for a password)",
                 ),
                 ("alles access device", "only this computer can open it"),
+                (
+                    "alles access domain alles.example.com",
+                    "open it at your own domain, each app after a slash (add subdomain for docs.…)",
+                ),
             ]
         )
         ui.say()
@@ -3374,8 +3390,7 @@ def cmd_access(args=()):
         {
             "access_profile": choice,
             "public_url": "",
-            "base_domain": "",
-            "trusted_hosts": "",
+            "trusted_hosts": _domain_hosts(choice, load_settings()),
             "forwarded_allow_ips": "",
         }
     )
@@ -3392,6 +3407,138 @@ def cmd_access(args=()):
             ui.say("  open it from your other devices")
             port = native.port if native is not None else _port()
             ui.rows([(f"http://{host}:{port}", where) for host, where in addresses], dim_value=True)
+    ui.say()
+    return True
+
+
+def _domain_hosts(profile: str, settings: dict) -> str:
+    """the trusted host list a profile needs for the bound domain. lan trusts every host, so it
+    needs none; this computer only has to name the domain beside localhost, since the https proxy
+    in front of alles hands it the domain's name."""
+    domain = str(settings.get("base_domain") or "").strip().lower()
+    if profile != "device" or not domain or domain == "localhost":
+        return ""
+    from core.server_config import _DEVICE_TRUSTED_HOSTS
+
+    hosts = [*_DEVICE_TRUSTED_HOSTS, domain]
+    if str(settings.get("app_urls") or "") == "subdomain":
+        hosts.append(f"*.{domain}")
+    return ",".join(hosts)
+
+
+def _clean_domain(raw: str) -> str:
+    from urllib.parse import urlsplit
+
+    from core.server_config import AccessConfigError, _normalize_trusted_host
+
+    text = raw.strip().lower()
+    host = urlsplit(text if "://" in text else f"https://{text}").hostname or ""
+    try:
+        host = _normalize_trusted_host(host)
+    except AccessConfigError:
+        return ""
+    return host if "." in host and not host.startswith("*") and host != "localhost" else ""
+
+
+def _access_domain(args: list[str], ui) -> bool:
+    """alles access domain <name> [path|subdomain] | off: the address your https proxy serves."""
+    try:
+        from core.server_config import access_profile
+        from core.settings import load_settings, save_settings
+    except ImportError:
+        ui.say(
+            "  run this with the installed alles command, or inside the alles python environment"
+        )
+        return False
+    native = _native_layout()
+    port = native.port if native is not None else _port()
+    settings = load_settings()
+    current = str(settings.get("base_domain") or "")
+    current = "" if current == "localhost" else current
+    width = 24
+    if not args:
+        ui.header("access domain")
+        if current:
+            mode = settings.get("app_urls") or "path"
+            ui.rows([("now", f"{current}, apps on {mode}s")], dim_value=True)
+            ui.say()
+        ui.rows(
+            [
+                (
+                    "alles access domain alles.example.com",
+                    "apps after a slash: alles.example.com/docs",
+                ),
+                (
+                    "alles access domain alles.example.com subdomain",
+                    "apps on subdomains: docs.alles.example.com",
+                ),
+                ("alles access domain off", "forget the domain"),
+            ]
+        )
+        ui.say()
+        return True
+    if args[0] == "off":
+        ui.header("access domain off")
+        settings = {**settings, "base_domain": "", "app_urls": ""}
+        trusted = _domain_hosts(access_profile(), settings)
+        save_settings({"base_domain": "", "app_urls": "", "trusted_hosts": trusted})
+        restarted = _restart_for_settings(native)
+        ui.check(
+            True if restarted else None,
+            "domain",
+            "forgotten" if restarted else "forgotten; it applies when alles starts",
+            width,
+        )
+        ui.say()
+        return True
+    domain = _clean_domain(args[0])
+    mode = args[1] if len(args) > 1 else "path"
+    if not domain or mode not in ("path", "subdomain") or len(args) > 2:
+        ui.say("  usage: alles access domain alles.example.com [path|subdomain]")
+        return False
+    ui.header(f"access domain {domain}")
+    profile = access_profile()
+    patch = {"base_domain": domain, "app_urls": mode}
+    if profile == "public":
+        # public access already names its hosts; the domain joins them
+        hosts = [h for h in str(settings.get("trusted_hosts") or "").split(",") if h.strip()]
+        hosts += [
+            h
+            for h in (domain, f"*.{domain}" if mode == "subdomain" else "")
+            if h and h not in hosts
+        ]
+        patch["trusted_hosts"] = ",".join(hosts)
+    else:
+        patch["trusted_hosts"] = _domain_hosts(profile, {**settings, **patch})
+    save_settings(patch)
+    restarted = _restart_for_settings(native)
+    ui.check(
+        True if restarted else None,
+        "domain",
+        "alles restarted" if restarted else "saved; it applies when alles starts: alles start",
+        width,
+    )
+    ui.say()
+    ui.say(
+        f"  point {domain}{' and *.' + domain if mode == 'subdomain' else ''} at this computer, and have"
+    )
+    ui.say(
+        f"  your https proxy (caddy, nginx, cloudflare tunnel) send it to http://127.0.0.1:{port}"
+    )
+    ui.say()
+    if mode == "path":
+        ui.rows(
+            [(f"https://{domain}", "home"), (f"https://{domain}/docs", "every app after a slash")],
+            dim_value=True,
+        )
+    else:
+        ui.rows(
+            [
+                (f"https://{domain}", "home"),
+                (f"https://docs.{domain}", "every app on its own subdomain"),
+            ],
+            dim_value=True,
+        )
     ui.say()
     return True
 

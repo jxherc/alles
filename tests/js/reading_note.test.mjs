@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readingNoteText, readingSourceUrl } from '../../static/js/reading_note.js';
 import { mdToHtml } from '../../static/js/util.js';
 import { readRecordTarget } from '../../static/js/recordlinks.js';
-import { setBaseDomain } from '../../static/js/subdomain.js?v=237';
+import { setBaseDomain } from '../../static/js/subdomain.js?v=238';
 
 const source = { id: 'article-1', title: 'A [source] with *formatting* & $math$', content_hash: 'a'.repeat(64) };
 

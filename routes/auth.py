@@ -22,30 +22,42 @@ from core.auth import (
     verify_password,
     verify_session,
 )
-from core.settings import auth_enabled, base_domain, load_settings, save_settings
+from core.settings import (
+    app_urls,
+    auth_enabled,
+    base_domain,
+    load_settings,
+    save_settings,
+    subdomain_apps,
+)
 from services.document_context import HandoffScope, VaultDocumentsScope
 
 router = APIRouter(prefix="/api/auth")
 
 
-def _cookie_domain_kw() -> dict:
-    # real dotted domain → set Domain so subdomains share the cookie automatically.
-    # localhost (and bare hosts) → host-only per subdomain (Domain=localhost is NOT
-    # sent back to *.localhost), and the /handoff relay gives each subdomain its cookie.
-    bd = base_domain()
-    if bd and "." in bd and bd != "localhost":
+def _cookie_domain_kw(request: Request | None = None) -> dict:
+    # apps on subdomains of a real domain → set Domain so they share the cookie. only when the
+    # request came in on that domain: signed in through the ip or a tailnet name, a Domain the
+    # browser isn't on gets thrown away and sign in loops. localhost (and bare hosts) → host-only
+    # per subdomain (Domain=localhost is NOT sent back to *.localhost), and the /handoff relay
+    # gives each subdomain its cookie. apps on paths share one host, so host-only is enough
+    bd = base_domain().lower().rstrip(".")
+    if not subdomain_apps():
+        return {}
+    host = (request.url.hostname or "").lower().rstrip(".") if request is not None else bd
+    if host == bd or host.endswith("." + bd):
         return {"domain": bd, "secure": True}
     return {}
 
 
-def _set_session_cookie(response: Response, token: str):
+def _set_session_cookie(response: Response, token: str, request: Request | None = None):
     response.set_cookie(
         "aide_session",
         token,
         httponly=True,
         max_age=30 * 86400,
         samesite="lax",
-        **_cookie_domain_kw(),
+        **_cookie_domain_kw(request),
     )
 
 
@@ -96,7 +108,7 @@ def login(body: LoginBody, response: Response, request: Request):
     clear_login_fails(ip)  # good login wipes the slate for this IP
     token = create_session_token()
     store_token(token)
-    _set_session_cookie(response, token)
+    _set_session_cookie(response, token, request)
     return {"ok": True}
 
 
@@ -125,10 +137,10 @@ def reauth(
 
 
 @router.post("/logout")
-def logout(response: Response, aide_session: str | None = Cookie(None)):
+def logout(request: Request, response: Response, aide_session: str | None = Cookie(None)):
     if aide_session:
         revoke_token(aide_session)
-    response.delete_cookie("aide_session", domain=_cookie_domain_kw().get("domain"))
+    response.delete_cookie("aide_session", domain=_cookie_domain_kw(request).get("domain"))
     return {"ok": True}
 
 
@@ -138,10 +150,23 @@ def me(aide_session: str | None = Cookie(None)):
 
     bd = base_domain()
     username = load_settings().get("username", "")
+    urls = app_urls()
     if not auth_enabled():
-        return {"enabled": False, "authenticated": True, "base_domain": bd, "username": username}
+        return {
+            "enabled": False,
+            "authenticated": True,
+            "base_domain": bd,
+            "app_urls": urls,
+            "username": username,
+        }
     authed = bool(aide_session and verify_session(aide_session))
-    return {"enabled": True, "authenticated": authed, "base_domain": bd, "username": username}
+    return {
+        "enabled": True,
+        "authenticated": authed,
+        "base_domain": bd,
+        "app_urls": urls,
+        "username": username,
+    }
 
 
 class ChangePwBody(BaseModel):
@@ -217,7 +242,7 @@ def set_auth_config(body: AuthConfigBody, request: Request, response: Response):
         if body.password:
             token = create_session_token()
             store_token(token)
-            _set_session_cookie(response, token)
+            _set_session_cookie(response, token, request)
         return {"ok": True, "enabled": True}
     # disabling
     if hashed:
@@ -239,11 +264,11 @@ def handoff(aide_session: str | None = Cookie(None)):
 
 
 @router.get("/redeem")
-def redeem(code: str, response: Response):
+def redeem(code: str, request: Request, response: Response):
     token = redeem_handoff(code)
     if not token:
         raise HTTPException(401, "bad or expired code")
-    _set_session_cookie(response, token)
+    _set_session_cookie(response, token, request)
     return {"ok": True}
 
 

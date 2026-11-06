@@ -4,6 +4,11 @@
 let _base = 'localhost';   // overwritten from /api/auth/me on boot
 export function setBaseDomain(b) { if (b) _base = b; }
 
+// how apps get their own address: 'path' (example.com/docs) or 'subdomain' (docs.example.com).
+// blank keeps the old rule: subdomains wherever the host can have them
+let _appUrls = '';
+export function setAppUrls(mode) { _appUrls = mode === 'path' || mode === 'subdomain' ? mode : ''; }
+
 // Canonical owners are kept separate from old host aliases so viewToSub() can never
 // accidentally route new links back through a legacy hostname.
 export const CANONICAL_SUBDOMAIN_VIEWS = {
@@ -78,6 +83,7 @@ export function parseHost() {
 // plain hostname) can't — so we run everything on one origin and switch in-page.
 function _isIp(h) { return /^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.includes(':'); }
 export function singleHost() {
+  if (_appUrls === 'path') return true;
   const h = location.hostname;
   if (h === 'localhost' || h.endsWith('.localhost')) return false;
   if (_base && _base !== 'localhost' && _base.includes('.') && !_isIp(_base) &&
@@ -99,6 +105,23 @@ export function viewToSub(viewId) {
     if (cfg.views.includes(viewId)) return sub;
   }
   return '';
+}
+
+// on one address each app is a path: /docs, /plan. the server sends the shell for the same names
+// (APP_PATHS in app.py), and an old name (/mail, /notes) opens where its subdomain did
+export function pathSub(pathname = location.pathname) {
+  const first = String(pathname || '').split('/').filter(Boolean)[0] || '';
+  const name = first.toLowerCase();
+  return name && Object.hasOwn(SUBDOMAIN_VIEWS, name) ? name : '';
+}
+
+export function appPath(sub) {
+  return sub && Object.hasOwn(CANONICAL_SUBDOMAIN_VIEWS, sub) ? `/${sub}` : '/';
+}
+
+// which app the address names: the subdomain, or on one address the path
+export function routeSub() {
+  return singleHost() ? pathSub() : parseHost().sub;
 }
 
 export function urlForApp(sub, hash = '') {

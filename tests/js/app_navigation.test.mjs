@@ -4,11 +4,13 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { resolveCompatibilityRoute } from '../../static/js/routecompat.js';
 import { GROUP_DEFINITIONS, groupRouteFor, normalizeGroupSection } from '../../static/js/specialist_groups.js';
-import { appForSub, viewToSub } from '../../static/js/subdomain.js';
+import { appForSub, appPath, pathSub, viewToSub } from '../../static/js/subdomain.js';
 
 const app = readFileSync(new URL('../../static/js/app.js', import.meta.url), 'utf8');
 const sync = app.match(/function _syncLocalViewUrl\([^]*?\n}/)?.[0];
+const owner = app.match(/function _addressOwner\([^]*?\n}/)?.[0];
 assert.ok(sync);
+assert.ok(owner);
 
 function navigate(href, identifier, { single = true, sub = '', withState = false, replace = false } = {}) {
   const calls = [];
@@ -26,7 +28,9 @@ function navigate(href, identifier, { single = true, sub = '', withState = false
   const context = vm.createContext({
     URL, location: new URL(href), resolveCompatibilityRoute, groupRouteFor, normalizeGroupSection, viewToSub, appForSub,
     _afterlifeFlags: { afterlife_today: true },
-    singleHost: () => single, currentSub: () => sub,
+    singleHost: () => single, currentSub: () => sub, appPath,
+    // on one address the path names the app, as subdomain.js reads it
+    routeSub: () => (single ? pathSub(new URL(href).pathname) : sub),
     history,
     replaceRouteUrl: path => history.replaceState(history.state, '', path),
     pushRouteUrl: path => history.pushState({
@@ -34,6 +38,7 @@ function navigate(href, identifier, { single = true, sub = '', withState = false
       __allesRoutePosition: history.state.__allesRoutePosition + 1,
     }, '', path),
   });
+  vm.runInContext(owner, context);
   vm.runInContext(sync, context);
   const route = resolveCompatibilityRoute({ view: identifier, flags: { afterlife_today: true } });
   context._syncLocalViewUrl(route, identifier, { replace });
@@ -41,20 +46,21 @@ function navigate(href, identifier, { single = true, sub = '', withState = false
 }
 
 test('leaving a document for Home removes its fragment and records Home', () => {
-  assert.deepEqual(navigate('http://127.0.0.1/?view=docs#notes%2Fproof', 'today'), [
-    ['push', '/?view=today'],
+  assert.deepEqual(navigate('http://127.0.0.1/docs#notes%2Fproof', 'today'), [
+    ['push', '/'],
   ]);
 });
 
 test('canonicalizing an Aide alias preserves its session fragment', () => {
+  // on one address the path names the app (/aide), so the old name needs no view= either
   assert.deepEqual(navigate('http://127.0.0.1/?app=aide#session-123', 'aide'), [
-    ['push', '/?view=aide#session-123'],
+    ['push', '/aide#session-123'],
   ]);
 });
 
 test('canonicalizing a Docs alias preserves the exact document fragment', () => {
   assert.deepEqual(navigate('http://127.0.0.1/?app=wiki#notes%2Fproof', 'docs'), [
-    ['push', '/?view=docs#notes%2Fproof'],
+    ['push', '/docs#notes%2Fproof'],
   ]);
 });
 
@@ -71,7 +77,8 @@ test('canonical Docs host keeps its document fragment without a redundant view',
 });
 
 test('reselecting the current route does not add a history entry', () => {
-  assert.deepEqual(navigate('http://127.0.0.1/?view=today', 'today'), []);
+  assert.deepEqual(navigate('http://127.0.0.1/', 'today'), []);
+  assert.deepEqual(navigate('http://127.0.0.1/plan?view=calendar', 'calendar'), []);
 });
 
 test('a docs section that is not its front page stays in the address, so reload keeps it', () => {
@@ -104,29 +111,31 @@ test('a grouped section keeps view= while an app front page drops it', () => {
   assert.deepEqual(navigate('http://plan.localhost/', 'calendar', { single: false, sub: 'plan' }), [
     ['push', '/?view=calendar'],
   ]);
-  // on one host every view keeps its name, there is no other way to tell them apart
-  assert.deepEqual(navigate('http://127.0.0.1/?view=files', 'today'), [['push', '/?view=today']]);
+  // on one address the path names the app and view= is left for sections, the same as a host
+  assert.deepEqual(navigate('http://127.0.0.1/files', 'today'), [['push', '/']]);
+  assert.deepEqual(navigate('http://127.0.0.1/plan', 'calendar'), [['push', '/plan?view=calendar']]);
+  assert.deepEqual(navigate('http://127.0.0.1/plan?view=calendar', 'plan'), [['push', '/plan']]);
 });
 
 test('local navigation marks the new history entry and preserves existing state', () => {
-  const { calls, state } = navigate('http://127.0.0.1/?view=docs', 'journal', { withState: true });
-  assert.deepEqual(calls, [['push', '/?view=journal']]);
+  const { calls, state } = navigate('http://127.0.0.1/docs', 'journal', { withState: true });
+  assert.deepEqual(calls, [['push', '/docs?view=journal']]);
   assert.equal(state.__allesRoutePosition, 1);
   assert.equal(state.anotherOwner, 'kept');
 });
 
 test('an andromeda search in ?q does not follow you into activity on one host', () => {
-  assert.deepEqual(navigate('http://127.0.0.1/?view=andromeda&q=knee+surgery', 'activity'), [
-    ['push', '/?view=activity'],
+  assert.deepEqual(navigate('http://127.0.0.1/andromeda?q=knee+surgery', 'activity'), [
+    ['push', '/server?view=activity'],
   ]);
   // and an activity filter doesn't start a web search
-  assert.deepEqual(navigate('http://127.0.0.1/?view=activity&q=login', 'andromeda'), [
-    ['push', '/?view=andromeda'],
+  assert.deepEqual(navigate('http://127.0.0.1/server?view=activity&q=login', 'andromeda'), [
+    ['push', '/andromeda'],
   ]);
 });
 
 test('reselecting andromeda keeps its search in the address', () => {
-  assert.deepEqual(navigate('http://127.0.0.1/?view=andromeda&q=knee', 'andromeda'), []);
+  assert.deepEqual(navigate('http://127.0.0.1/andromeda?q=knee', 'andromeda'), []);
   // on its own host andromeda is the front page: the address is already right
   assert.deepEqual(navigate('http://andromeda.localhost/?q=knee', 'andromeda', { single: false, sub: 'andromeda' }), []);
 });

@@ -322,8 +322,9 @@ function _renderBasics(body) {
   });
 }
 
-function _choiceGroup(id, choices, selected) {
-  return `<div class="setup-choice-group" id="${id}" role="radiogroup">${choices.map((choice, index) => `
+function _choiceGroup(id, choices, selected, labelledBy = '') {
+  const label = labelledBy ? ` aria-labelledby="${labelledBy}"` : '';
+  return `<div class="setup-choice-group" id="${id}" role="radiogroup"${label}>${choices.map((choice, index) => `
     <button type="button" role="radio" aria-checked="${choice.value === selected}" tabindex="${choice.value === selected || (!selected && index === 0) ? '0' : '-1'}" data-value="${esc(choice.value)}">
       <strong>${esc(choice.label)}</strong><small>${esc(choice.note)}</small>
     </button>`).join('')}</div>`;
@@ -341,6 +342,11 @@ function _bindChoiceGroup(id, onChange) {
       onChange?.(selected);
     }
   });
+}
+
+// apps on paths share the one host; on subdomains each app's host has to be trusted too
+function _trustedHostsHint(mode) {
+  return mode === 'subdomain' ? 'alles.example.com,*.alles.example.com' : 'alles.example.com';
 }
 
 function _renderAccess(body) {
@@ -363,8 +369,13 @@ function _renderAccess(body) {
       host.innerHTML = `
         <label class="setup-field"><span>${esc(t('setup.public_origin'))}</span><input class="settings-input setup-input" id="sw-public-url" placeholder="https://alles.example.com" value="${esc(_state.public_url)}"></label>
         <label class="setup-field"><span>${esc(t('setup.base_domain'))}</span><input class="settings-input setup-input" id="sw-base-domain" placeholder="alles.example.com" value="${esc(_state.base_domain)}"></label>
-        <label class="setup-field"><span>${esc(t('setup.trusted_hosts'))}</span><input class="settings-input setup-input" id="sw-trusted-hosts" placeholder="alles.example.com,*.alles.example.com" value="${esc(_state.trusted_hosts)}"></label>
+        <div class="setup-field"><span id="sw-app-urls-label">${esc(t('setup.app_urls'))}</span>${_choiceGroup('sw-app-urls', [
+          { value: 'path', label: t('setup.app_urls_path'), note: t('setup.app_urls_path_note') },
+          { value: 'subdomain', label: t('setup.app_urls_subdomain'), note: t('setup.app_urls_subdomain_note') },
+        ], _state.app_urls || 'path', 'sw-app-urls-label')}</div>
+        <label class="setup-field"><span>${esc(t('setup.trusted_hosts'))}</span><input class="settings-input setup-input" id="sw-trusted-hosts" placeholder="${_trustedHostsHint(_state.app_urls || 'path')}" value="${esc(_state.trusted_hosts)}"></label>
         <label class="setup-field"><span>${esc(t('setup.trusted_proxy'))}</span><input class="settings-input setup-input" id="sw-proxies" placeholder="127.0.0.1/32" value="${esc(_state.forwarded_allow_ips)}"></label>`;
+      _bindChoiceGroup('sw-app-urls', mode => { $('sw-trusted-hosts').placeholder = _trustedHostsHint(mode); });
     } else host.innerHTML = '';
     if (profile !== 'device' && !_auth.enabled) host.insertAdjacentHTML('beforeend', `
       <label class="setup-field"><span>${esc(t('setup.owner_password'))}</span><input class="settings-input setup-input" id="sw-owner-password" type="password" autocomplete="new-password" minlength="8" placeholder="${esc(t('setup.owner_password_placeholder'))}"></label>`);
@@ -390,6 +401,7 @@ function _renderAccess(body) {
         profile,
         public_url: $('sw-public-url')?.value.trim() || '',
         base_domain: $('sw-base-domain')?.value.trim() || '',
+        app_urls: $('sw-app-urls')?.querySelector('[aria-checked="true"]')?.dataset.value || '',
         trusted_hosts: $('sw-trusted-hosts')?.value.trim() || '',
         forwarded_allow_ips: $('sw-proxies')?.value.trim() || '',
       }, current);

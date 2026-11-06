@@ -459,8 +459,8 @@ test('the service worker cannot mix old and new JavaScript modules', () => {
   assert.match(networkFirst, /if \(SAME_BUILD\.get\(e\.clientId\) && !url\.pathname\.endsWith\('\.json'\)\) e\.respondWith\(sameBuildStatic\(e\.request\)\)/);
   assert.match(worker, /SAME_BUILD\.set\(e\.resultingClientId, resp\.headers\.get\('x-alles-build'\) === BUILD\)/);
   assert.match(worker, /await c\.put\(request, resp\.clone\(\)\)/);
-  assert.match(app, /from '\.\/subdomain\.js\?v=237'/);
-  assert.match(compatibility, /from '\.\/subdomain\.js\?v=237'/);
+  assert.match(app, /from '\.\/subdomain\.js\?v=238'/);
+  assert.match(compatibility, /from '\.\/subdomain\.js\?v=238'/);
 });
 
 test('overview blocks turn markdown tables, fences and headings into their own shapes', async () => {

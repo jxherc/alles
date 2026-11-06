@@ -53,6 +53,14 @@ alles access lan
 
 la commande demande un mot de passe propriétaire, redémarre alles pour que votre téléphone et vos autres ordinateurs puissent l’ouvrir, puis affiche les adresses à utiliser, par exemple `http://100.101.102.103:6769`. `alles access device` le rend de nouveau privé à cet ordinateur.
 
+### l’ouvrir sur votre propre domaine
+
+```bash
+alles access domain alles.example.com
+```
+
+chaque app se trouve alors après une barre : `alles.example.com/docs`, `alles.example.com/plan`. ajoutez `subdomain` (`alles access domain alles.example.com subdomain`) pour donner à chaque app sa propre adresse, comme `docs.alles.example.com` ; il faut alors un enregistrement DNS et un certificat génériques. alles ne crée pas le certificat : faites pointer le domaine vers cet ordinateur et laissez un proxy https (caddy, nginx, un tunnel cloudflare) l’envoyer vers `http://127.0.0.1:6769`. `alles access domain off` l’oublie.
+
 ### le lancer depuis les sources
 
 pour le développement, ou pour le lancer sans service. sous Debian ou Ubuntu, lancez d’abord `sudo apt install git python3-venv`.

@@ -2,7 +2,7 @@
 // the next one. releases live in /static/whats-new.json, newest first.
 import { createFocusBoundary } from './kokuen.js?v=5';
 import { escapeHtml } from './util.js';
-import { parseHost, singleHost } from './subdomain.js?v=237';
+import { parseHost, singleHost } from './subdomain.js?v=238';
 import { t } from './i18n.js';
 
 // a note without a catalog entry (a release added before its translations) shows its own text

@@ -54,6 +54,14 @@ alles access lan
 
 它會要求設定擁有者密碼，重新啟動 alles，讓你的手機和其他電腦可以開啟它，並列出要使用的位址，例如 `http://100.101.102.103:6769`。`alles access device` 會讓它重新只供這台電腦使用。
 
+### 用你自己的網域開啟
+
+```bash
+alles access domain alles.example.com
+```
+
+每個應用程式都在斜線後面：`alles.example.com/docs`、`alles.example.com/plan`。加上 `subdomain`（`alles access domain alles.example.com subdomain`）可以讓每個應用程式有自己的位址，例如 `docs.alles.example.com`，這需要萬用字元 DNS 記錄和憑證。alles 不會自己申請憑證：把網域指向這台電腦，再用 https 代理（caddy、nginx、cloudflare tunnel）把它轉到 `http://127.0.0.1:6769`。`alles access domain off` 會取消綁定。
+
 ### 從原始碼執行
 
 用於開發，或不想安裝成服務時使用。在 Debian 或 Ubuntu 上，請先執行 `sudo apt install git python3-venv`。

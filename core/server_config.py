@@ -3,7 +3,7 @@ import os
 import re
 from urllib.parse import urlsplit
 
-from core.settings import auth_enabled, load_settings
+from core.settings import app_urls, auth_enabled, load_settings
 
 
 class AccessConfigError(ValueError):
@@ -243,7 +243,8 @@ def public_origin() -> str:
         raise AccessConfigError("public access requires BASE_DOMAIN")
     if _normalize_trusted_host(base_domain) != exact_host:
         raise AccessConfigError("BASE_DOMAIN must match the ALLES_PUBLIC_URL host")
-    if f"*.{exact_host}" not in hosts:
+    # apps on paths (example.com/docs) share the one host; only subdomains need the pattern
+    if app_urls() != "path" and f"*.{exact_host}" not in hosts:
         raise AccessConfigError("public access requires the app subdomain trusted-host pattern")
     return origin
 

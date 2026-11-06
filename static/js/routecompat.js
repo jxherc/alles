@@ -4,7 +4,7 @@
 // its URL, then use location.replace(target) when buildCompatibilityUrl returns
 // a string. A null result always means "leave the current route alone".
 
-import { CANONICAL_SUBDOMAIN_VIEWS } from './subdomain.js?v=237';
+import { CANONICAL_SUBDOMAIN_VIEWS } from './subdomain.js?v=238';
 
 // Canonical product hosts after the Phase 3 compatibility window begins. Apps
 // which did not move keep their existing specialist host there as well.

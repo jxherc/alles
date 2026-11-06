@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "id": "2026-11-06",
+      "date": "november 6, 2026",
+      "items": [
+        {
+          "key": "own_domain",
+          "title": "alles at your own domain",
+          "body": "run alles access domain alles.example.com and every app sits after a slash, like alles.example.com/docs. add subdomain for docs.alles.example.com instead. on a tailscale or home network address each app has its own path too."
+        }
+      ]
+    },
+    {
       "id": "2026-11-05",
       "date": "november 5, 2026",
       "items": [

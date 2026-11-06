@@ -1264,7 +1264,7 @@ class StaticGzipMiddleware:
 
     async def __call__(self, scope, receive, send):
         path = scope.get("path", "") if scope["type"] == "http" else ""
-        if path == "/" or path.startswith("/static/"):
+        if path == "/" or path.startswith("/static/") or _app_path_name(path):
             return await self.gzip(scope, receive, send)
         return await self.app(scope, receive, send)
 
@@ -1312,9 +1312,9 @@ _API_DOCS_CSP = (
 )
 _PAGE_CSP = {
     "/static/sandbox.html": _SANDBOX_CSP,
-    "/docs": _API_DOCS_CSP,
-    "/docs/oauth2-redirect": _API_DOCS_CSP,
-    "/redoc": _API_DOCS_CSP,
+    "/api/docs": _API_DOCS_CSP,
+    "/api/docs/oauth2-redirect": _API_DOCS_CSP,
+    "/api/redoc": _API_DOCS_CSP,
 }
 # not same-origin: the photos map loads openstreetmap tiles from the browser, and their tile
 # policy needs a referer (same-origin is on their list of causes for the "access blocked" tile)
@@ -1517,6 +1517,31 @@ def _static_build() -> str:
     return _build_cache[1]
 
 
+# with apps on paths (example.com/docs) each app's name opens the same shell, and the page routes
+# itself from the address. the names are static/js/subdomain.js's app keys, old ones included so
+# a saved /mail still opens inbox. none of them clashes with a route of its own except /health,
+# which answers a browser with the shell and everything else with the liveness ping
+APP_PATHS = frozenset(
+    (
+        "aide andromeda docs files plan inbox library health finance passwords server "
+        "home today system secrets vault money subs subscriptions notes wiki journal gallery "
+        "photos activity watch days cowork jarvis chat calendar tasks reminders mail contacts "
+        "read books habits"
+    ).split()
+)
+
+
+def _app_path_name(path: str) -> str:
+    name = path.strip("/").lower()
+    return name if name in APP_PATHS and path in (f"/{name}", f"/{name}/") else ""
+
+
+def _wants_page(request: Request) -> bool:
+    if request.headers.get("sec-fetch-mode") == "navigate":
+        return True
+    return "text/html" in request.headers.get("accept", "")
+
+
 @app.get("/")
 async def index():
     # Never retain the shell; static code validates against its own file metadata.
@@ -1670,7 +1695,8 @@ def _api_docs_allowed(request: Request) -> None:
         raise HTTPException(401, "sign in first")
 
 
-@app.get("/openapi.json", include_in_schema=False)
+# under /api: /docs is the docs app's own address when apps live on paths
+@app.get("/api/openapi.json", include_in_schema=False)
 async def api_schema(request: Request):
     _api_docs_allowed(request)
     from fastapi.responses import JSONResponse
@@ -1678,20 +1704,20 @@ async def api_schema(request: Request):
     return JSONResponse(app.openapi())
 
 
-@app.get("/docs", include_in_schema=False)
+@app.get("/api/docs", include_in_schema=False)
 async def api_docs(request: Request):
     _api_docs_allowed(request)
     from fastapi.openapi.docs import get_swagger_ui_html
 
     root = request.scope.get("root_path", "").rstrip("/")
     return get_swagger_ui_html(
-        openapi_url=root + "/openapi.json",
+        openapi_url=root + "/api/openapi.json",
         title="alles - api",
-        oauth2_redirect_url=root + "/docs/oauth2-redirect",
+        oauth2_redirect_url=root + "/api/docs/oauth2-redirect",
     )
 
 
-@app.get("/docs/oauth2-redirect", include_in_schema=False)
+@app.get("/api/docs/oauth2-redirect", include_in_schema=False)
 async def api_docs_redirect(request: Request):
     _api_docs_allowed(request)
     from fastapi.openapi.docs import get_swagger_ui_oauth2_redirect_html
@@ -1699,13 +1725,13 @@ async def api_docs_redirect(request: Request):
     return get_swagger_ui_oauth2_redirect_html()
 
 
-@app.get("/redoc", include_in_schema=False)
+@app.get("/api/redoc", include_in_schema=False)
 async def api_redoc(request: Request):
     _api_docs_allowed(request)
     from fastapi.openapi.docs import get_redoc_html
 
     root = request.scope.get("root_path", "").rstrip("/")
-    return get_redoc_html(openapi_url=root + "/openapi.json", title="alles - api")
+    return get_redoc_html(openapi_url=root + "/api/openapi.json", title="alles - api")
 
 
 def _owned_browser_test_run_id() -> str:
@@ -1737,6 +1763,10 @@ async def health(request: Request, response: Response, deep: bool = False):
     test_run_id = _owned_browser_test_run_id()
     if test_run_id:
         response.headers["X-Alles-Test-Run-ID"] = test_run_id
+    # /health is also the health app's address when apps live on paths: a browser opening it
+    # gets the app, a monitor (curl, the cli, a container check) still gets the ping
+    if not deep and _wants_page(request):
+        return await index()
     if deep:
         return await asyncio.to_thread(_deep_health, request)
     return {"ok": True}
@@ -1757,6 +1787,16 @@ async def ping(cached: bool = False):
     if cached and _last_ping:
         return _last_ping
     return await _probe_endpoints()
+
+
+# registered last, so every route above keeps its own path
+@app.get("/{app_name}", include_in_schema=False)
+async def app_page(app_name: str):
+    from fastapi import HTTPException
+
+    if not _app_path_name(f"/{app_name}"):
+        raise HTTPException(404)
+    return await index()
 
 
 if __name__ == "__main__":

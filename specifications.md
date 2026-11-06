@@ -91,7 +91,7 @@ schema declarations live in [core/schema/](core/schema). its package registers e
 
 [static/index.html](static/index.html) loads shared css and native es modules from [static/js/](static/js). [static/js/app.js](static/js/app.js) owns boot and the common shell; feature modules keep their own request/render state. bundled browser assets live under `static/vendor/`.
 
-[static/js/subdomain.js](static/js/subdomain.js) maps canonical hosts to views. [static/js/routecompat.js](static/js/routecompat.js) resolves old names while preserving destination context. ip/single-host deployments switch views on the same origin. cross-host localhost login uses a one-time handoff with destination, scheme, and port checks.
+[static/js/subdomain.js](static/js/subdomain.js) maps canonical hosts to views. [static/js/routecompat.js](static/js/routecompat.js) resolves old names while preserving destination context. ip/single-host deployments switch views on the same origin, with each app at its own path (`/docs`, `/plan`). cross-host localhost login uses a one-time handoff with destination, scheme, and port checks.
 
 [static/sw.js](static/sw.js) caches the shell and selected resources. scripts and css prefer the network when online, with cached assets available offline. cached ui does not make every connected app work offline.
 
@@ -1690,11 +1690,12 @@ you can start with no `.env` file. most preferences live in the interface and pe
 | `AUTH_PASSWORD` | no default owner password | owner password supplied through the environment |
 | `SECRET_KEY` | development placeholder only when auth is off | required authentication configuration secret when auth is enabled |
 | `BASE_DOMAIN` | `localhost` | base host for app subdomains |
+| `ALLES_APP_URLS` | blank | `path` (example.com/docs) or `subdomain` (docs.example.com); blank keeps subdomains on a real `BASE_DOMAIN` and paths everywhere else |
 | `ALLES_PUBLIC_URL` | unset | exact https public origin |
 | `ALLES_TRUSTED_HOSTS` | narrow device hosts or configured policy | accepted host headers |
 | `ALLES_FORWARDED_ALLOW_IPS` | unset | exact proxy addresses or cidrs trusted for forwarded headers |
 | `ALLES_CORS_ORIGINS` | empty | exact additional browser origins; wildcards are rejected |
-| `ALLES_API_DOCS` | off | serve fastapi's `/docs`, `/redoc` and `/openapi.json` (owner-only when auth is on) |
+| `ALLES_API_DOCS` | off | serve fastapi's `/api/docs`, `/api/redoc` and `/api/openapi.json` (owner-only when auth is on) |
 | `DEEPSEEK_API_KEY` | unset | deepseek endpoint bootstrap |
 | `ANTHROPIC_API_KEY` | unset | anthropic endpoint bootstrap |
 | `TAVILY_API_KEY` | unset | optional search credential |
@@ -1759,6 +1760,16 @@ creations. aide's reminder tool uses the non-colliding `aide-reminders` route, w
 `static/js/subdomain.js` maps each host to the views it shows; `app.js` scopes the shell and cross-jumps
 between them. `*.localhost` is the local subdomain setup; a configured domain needs matching dns and
 reverse-proxy routing.
+
+**apps on paths.** on one address (an ip, a tailnet name, or a domain set to paths) each app is a path
+instead: `/docs`, `/plan`, `/aide`, and the compatibility names above (`/mail` opens inbox → mail). the
+server sends the same shell for every one of those names (`APP_PATHS` in [app.py](app.py), kept equal to
+the keys in `subdomain.js` by a test), and the page reads the app from the path. a bare app path opens
+the front page its subdomain shows; anything that isn't the app's front page keeps `?view=`
+(`/plan?view=calendar`). `/health` is also the health app's path: a browser opening it gets the app, every
+other client (curl, `alles status`, a container check) still gets the `{"ok": true}` ping.
+`app_urls` (or `ALLES_APP_URLS`) picks `path` or `subdomain` for a real domain; left blank, a real
+`BASE_DOMAIN` keeps subdomains and every other address uses paths, as before the choice existed.
 the visible app name opens one navigation sheet with home, aide, andromeda, and the nine specialist
 apps. it is the same button on single-host routes and subdomains; the workbench keeps its local tabs.
 
@@ -1768,7 +1779,7 @@ relay accepts only known direct child hosts with the same protocol and port, and
 path, query, and hash. an expired or invalid code retries through the safe broker instead of dropping
 the bookmark.
 
-**on a real domain:** public access needs enabled owner authentication, `ALLES_ACCESS_PROFILE=public`, an exact https `ALLES_PUBLIC_URL`, explicit trusted hosts, and explicit forwarded-proxy addresses. set `BASE_DOMAIN` to the dotted base domain and route its app subdomains through your https reverse proxy. real-domain cookies use that domain with `Secure` and `HttpOnly`; [core/server_config.py](core/server_config.py) validates the access policy.
+**on a real domain:** public access needs enabled owner authentication, `ALLES_ACCESS_PROFILE=public`, an exact https `ALLES_PUBLIC_URL`, explicit trusted hosts, and explicit forwarded-proxy addresses. set `BASE_DOMAIN` to the dotted base domain and pick the app addresses in setup (or `ALLES_APP_URLS`): paths need one dns record, one certificate and the one host in `ALLES_TRUSTED_HOSTS`; subdomains need a wildcard record and certificate routed through your https reverse proxy, and `*.<domain>` trusted too. with subdomains the session cookie uses that domain with `Secure` and `HttpOnly`, but only when you signed in on that domain: through an ip or a tailnet name it stays on that host, since a browser drops a cookie for a domain it isn't on. with paths the cookie always stays on its host. [core/server_config.py](core/server_config.py) validates the access policy.
 
 ---
 
@@ -1776,7 +1787,7 @@ the bookmark.
 
 the browser uses the native `/api/` routes. external clients can use those same routes, or the openai-compatible `GET /v1/models` and `POST /v1/chat/completions` interface.
 
-the [complete endpoint inventory](#complete-endpoint-inventory) lists every registered http operation and its handler. with `ALLES_API_DOCS` set, `/openapi.json` supplies the machine-readable request/response models and `/docs` and `/redoc` expose fastapi's schema viewers (owner-only when auth is on; 404 otherwise). handlers with generic dictionary inputs still apply their own validation.
+the [complete endpoint inventory](#complete-endpoint-inventory) lists every registered http operation and its handler. with `ALLES_API_DOCS` set, `/api/openapi.json` supplies the machine-readable request/response models and `/api/docs` and `/api/redoc` expose fastapi's schema viewers (owner-only when auth is on; 404 otherwise). they sit under `/api/` because `/docs` is the docs app's path. handlers with generic dictionary inputs still apply their own validation.
 
 json errors may contain `detail` and a stable `code`; legacy handlers also use normal fastapi errors. `401` means missing/invalid authentication, `403` means insufficient authority, `409` means a conflicting version/value/identity, and `410` marks a retired or deliberately deleted target. inspect the operation's response before deciding whether retry is safe.
 
@@ -1917,7 +1928,7 @@ alles is built for **one person on their own machine.** read this before you put
 - **network guards depend on the operation.** ordinary guarded integrations block loopback, link-local, reserved, multicast, and unspecified addresses while allowing private lan targets for self-hosted services. public-only fetches, including search images, also reject private targets. [services/net_guard.py](services/net_guard.py) contains these policies and redirect handling.
 - **the old browser-autofill token stays retired.** `/api/vault/match` revokes the exact pasted vault token and returns `410 Gone` without credential data. its replacement pairs a named browser with a hashed narrow device secret, then requires a separate unlocked-vault owner approval for each five-minute in-memory/session-storage fill session. it requests the chosen alles host plus `activeTab`, ships no permanent all-site content script, matches exact normalized scheme/host/effective port, returns metadata before one selected release, injects only frame 0, and never submits. lock, browser/server restart, computer lock, or revoke removes fill authority.
 - **protected public shares use slow password hashes.** share passwords use bcrypt and are submitted outside the url. expiry dates normalize to utc and invalid dates fail closed. ten unlock attempts per ip and share are allowed every five minutes. a correct password creates a one-hour, in-memory, httponly cookie bound to that link and password version; changing or revoking the share invalidates existing unlocks.
-- **every html page carries a content security policy.** scripts load only from alles itself and plaid link's loader (`script-src 'self' https://cdn.plaid.com`): no inline scripts, inline event handlers or `eval`, so markup that slips into a page can't run code. styles keep `'unsafe-inline'`, images may come from any web host (`https:` and `http:`: markdown, feeds, book covers, map tiles; an https page upgrades or blocks plain-http images itself), and fetches, frames and workers stay on alles itself plus plaid's hosts for bank linking. `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'self'` and `form-action 'self'` hold everywhere. a route that sets its own policy keeps it, so file and document previews stay sandboxed under `default-src 'none'`. aide's html artifacts and "run" on a code block load into `/static/sandbox.html`, whose own policy (`sandbox allow-scripts`, `referrer-policy: no-referrer`) gives it an opaque origin with no alles cookies, storage or api, so code inside may be inline; it gets its html by message from the alles page, again after each reload. an opaque-origin frame never goes through the service worker, so artifacts and runs need a connection: offline, or when the frame doesn't answer within three seconds, its spot says so with a retry. fastapi's `/docs`, `/redoc` and `/openapi.json` are off (404) unless `ALLES_API_DOCS` is set, and then need the owner's sign-in when auth is on; only those pages may load swagger and redoc from jsdelivr. every response also sends `x-content-type-options: nosniff` and `referrer-policy: strict-origin-when-cross-origin` (map tiles need the referer).
+- **every html page carries a content security policy.** scripts load only from alles itself and plaid link's loader (`script-src 'self' https://cdn.plaid.com`): no inline scripts, inline event handlers or `eval`, so markup that slips into a page can't run code. styles keep `'unsafe-inline'`, images may come from any web host (`https:` and `http:`: markdown, feeds, book covers, map tiles; an https page upgrades or blocks plain-http images itself), and fetches, frames and workers stay on alles itself plus plaid's hosts for bank linking. `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'self'` and `form-action 'self'` hold everywhere. a route that sets its own policy keeps it, so file and document previews stay sandboxed under `default-src 'none'`. aide's html artifacts and "run" on a code block load into `/static/sandbox.html`, whose own policy (`sandbox allow-scripts`, `referrer-policy: no-referrer`) gives it an opaque origin with no alles cookies, storage or api, so code inside may be inline; it gets its html by message from the alles page, again after each reload. an opaque-origin frame never goes through the service worker, so artifacts and runs need a connection: offline, or when the frame doesn't answer within three seconds, its spot says so with a retry. fastapi's `/api/docs`, `/api/redoc` and `/api/openapi.json` are off (404) unless `ALLES_API_DOCS` is set, and then need the owner's sign-in when auth is on; only those pages may load swagger and redoc from jsdelivr. every response also sends `x-content-type-options: nosniff` and `referrer-policy: strict-origin-when-cross-origin` (map tiles need the referer).
 - this reference describes implemented boundaries; it does not establish an independent security audit of every provider, platform, or deployment.
 
 ---
@@ -1975,33 +1986,34 @@ python checks cover domain operations, math, migrations, api handlers, permissio
 
 ## complete endpoint inventory
 
-the registered http operations are grouped by handler source. use `/openapi.json` (with `ALLES_API_DOCS` set) for payload models and [the api section](#the-api-for-other-tools) for authentication/streaming semantics. paths keep fastapi converter syntax: `{subpath:path}` accepts multiple path segments, while openapi shows the parameter as `{subpath}`.
+the registered http operations are grouped by handler source. use `/api/openapi.json` (with `ALLES_API_DOCS` set) for payload models and [the api section](#the-api-for-other-tools) for authentication/streaming semantics. paths keep fastapi converter syntax: `{subpath:path}` accepts multiple path segments, while openapi shows the parameter as `{subpath}`.
 
 the compatibility snapshot locks the registered http surface:
 
 - 90 included fastapi router modules
-- 1042 http method/path pairs
-- 1003 `/api/*`, 2 `/v1/*`, and 37 non-api shell/public pairs
-- sha-256: `a7644b68da1d890bc210762360941151b643f83d93b1bd4cbe1d5721fa1d1b2a`
+- 1043 http method/path pairs
+- 1007 `/api/*`, 2 `/v1/*`, and 34 non-api shell/public pairs
+- sha-256: `062af59b2ec7db65cb590ce888ede44edf2493680cfc9dc96bfcc291275ce2a6`
 
 <details>
-<summary>app.py · 11 operations</summary>
+<summary>app.py · 12 operations</summary>
 
 [source](app.py)
 
 | method | path | handler |
 | --- | --- | --- |
 | `GET` | `/` | `index` |
+| `GET` | `/api/docs` | `api_docs` |
+| `GET` | `/api/docs/oauth2-redirect` | `api_docs_redirect` |
+| `GET` | `/api/openapi.json` | `api_schema` |
 | `GET` | `/api/ping` | `ping` |
 | `GET` | `/api/pwa/precache` | `pwa_precache` |
-| `GET` | `/docs` | `api_docs` |
-| `GET` | `/docs/oauth2-redirect` | `api_docs_redirect` |
+| `GET` | `/api/redoc` | `api_redoc` |
 | `GET` | `/health` | `health` |
 | `GET` | `/manifest.json` | `manifest` |
-| `GET` | `/openapi.json` | `api_schema` |
 | `GET` | `/opensearch.xml` | `opensearch` |
-| `GET` | `/redoc` | `api_redoc` |
 | `GET` | `/sw.js` | `service_worker` |
+| `GET` | `/{app_name}` | `app_page` |
 
 </details>
 
@@ -4454,6 +4466,7 @@ these are source defaults in [core/settings.py](core/settings.py), not values fr
 | `automatic_backup_last_error` | `""` |
 | `setup_state` | `{}` |
 | `base_domain` | `"localhost"` |
+| `app_urls` | `""` |
 | `agent_auto_intents` | `true` |
 | `cal_default_view` | `"month"` |
 | `cal_week_start` | `"sun"` |
@@ -4552,6 +4565,7 @@ the main configuration table explains the usual setup. this index covers literal
 | `AUTH_ENABLED` | [core/settings.py](core/settings.py) |
 | `AUTH_PASSWORD` | [core/server_config.py](core/server_config.py), [routes/auth.py](routes/auth.py) |
 | `BASE_DOMAIN` | [core/server_config.py](core/server_config.py), [core/settings.py](core/settings.py) |
+| `ALLES_APP_URLS` | [core/settings.py](core/settings.py) |
 | `BRAVE_API_KEY` | [services/research/search.py](services/research/search.py) |
 | `CODEX_HOME` | [services/agent_tools.py](services/agent_tools.py) |
 | `DEEPSEEK_API_KEY` | [core/settings.py](core/settings.py) |

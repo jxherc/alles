@@ -184,6 +184,9 @@ _defaults = {
     "automatic_backup_last_error": "",
     "setup_state": {},
     "base_domain": "localhost",  # apex domain; each app lives on {app}.{base_domain}
+    # path: every app on the one address (example.com/docs). subdomain: each app on its own host
+    # (docs.example.com, needs wildcard dns and a wildcard certificate). blank picks for you
+    "app_urls": "",
     # on by default: when a plain chat message clearly asks aide to DO an app thing
     # (check mail, add to calendar, remind me, what's on my schedule…) it acts on it
     # instead of just talking about it. auto-promoted runs gate mutations behind approval.
@@ -565,6 +568,23 @@ def get_port() -> int:
 def base_domain() -> str:
     # env wins so you can point a real domain at it without editing settings.json
     return os.getenv("BASE_DOMAIN", "") or load_settings().get("base_domain", "localhost")
+
+
+APP_URL_MODES = ("path", "subdomain")
+
+
+def app_urls() -> str:
+    """'path' or 'subdomain' when chosen, '' when not: then a real base domain gets subdomains
+    and every other address (an ip, a tailnet name) gets paths, as before the choice existed."""
+    mode = (os.getenv("ALLES_APP_URLS", "") or str(load_settings().get("app_urls") or "")).strip()
+    return mode.lower() if mode.lower() in APP_URL_MODES else ""
+
+
+def subdomain_apps() -> bool:
+    """do apps live on their own subdomains of a real domain (docs.example.com)?"""
+    bd = base_domain()
+    real = bool(bd) and "." in bd and bd != "localhost"
+    return real and app_urls() != "path"
 
 
 def deepseek_api_key() -> str:

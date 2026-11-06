@@ -136,7 +136,13 @@ _DOC_ASSET_ADDITIONS = {"POST /api/vault-md/asset"}
 _TOTALS_CURRENCY_ADDITIONS = {"PATCH /api/money/totals-currency"}
 
 # the api docs pages, now our own owner-only routes behind ALLES_API_DOCS (404 when it's off)
-_API_DOCS_ADDITIONS = {"GET /docs", "GET /docs/oauth2-redirect", "GET /openapi.json", "GET /redoc"}
+# moved under /api so /docs could be the docs app's address
+_API_DOCS_ADDITIONS = {
+    "GET /api/docs",
+    "GET /api/docs/oauth2-redirect",
+    "GET /api/openapi.json",
+    "GET /api/redoc",
+}
 
 # settings asks the owner's telegram bot for their chat id
 _TELEGRAM_CHAT_ADDITIONS = {"POST /api/settings/telegram/find-chat"}
@@ -222,6 +228,9 @@ _CHAT_QUEUE_ADDITIONS = {
 # andromeda's local spelling fix, asked before a search starts
 _ANDROMEDA_CORRECT_ADDITIONS = {"POST /api/andromeda/correct"}
 
+# with apps on paths each app's name (example.com/docs) opens the shell
+_APP_PATH_ADDITIONS = {"GET /{app_name}"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -252,6 +261,7 @@ def _route_rows():
         | _DAV_SYNC_ADDITIONS
         | _CHAT_QUEUE_ADDITIONS
         | _ANDROMEDA_CORRECT_ADDITIONS
+        | _APP_PATH_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -397,6 +407,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _DAV_SYNC_ADDITIONS
                 - _CHAT_QUEUE_ADDITIONS
                 - _ANDROMEDA_CORRECT_ADDITIONS
+                - _APP_PATH_ADDITIONS
             ),
             960,
         )
@@ -451,6 +462,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _DAV_SYNC_ADDITIONS
                 - _CHAT_QUEUE_ADDITIONS
                 - _ANDROMEDA_CORRECT_ADDITIONS
+                - _APP_PATH_ADDITIONS
             ),
             974,
         )
@@ -503,6 +515,9 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_andromeda_correct_route_is_additive(self):
         self.assertTrue(_ANDROMEDA_CORRECT_ADDITIONS <= set(_current_rows()))
 
+    def test_app_path_route_is_additive(self):
+        self.assertTrue(_APP_PATH_ADDITIONS <= set(_current_rows()))
+
     def test_docs_over_the_local_network_routes_are_additive(self):
         self.assertTrue(_DOCS_LAN_ADDITIONS <= set(_current_rows()))
         self.assertTrue(_DAV_SYNC_ADDITIONS <= set(_current_rows()))
@@ -512,8 +527,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1042)
-        self.assertEqual(digest, "a7644b68da1d890bc210762360941151b643f83d93b1bd4cbe1d5721fa1d1b2a")
+        self.assertEqual(len(rows), 1043)
+        self.assertEqual(digest, "062af59b2ec7db65cb590ce888ede44edf2493680cfc9dc96bfcc291275ce2a6")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -522,7 +537,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 1003, "v1": 2, "public": 37})
+        self.assertEqual(groups, {"api": 1007, "v1": 2, "public": 34})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

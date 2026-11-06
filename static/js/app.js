@@ -32,8 +32,8 @@ import { loadFiles, initFiles, closeFilesDialogs } from './filesphase7.js?v=492'
 import { loadMail, startMailPoll, prepareMailNavigation } from './mail.js';
 import { initAppCogs } from './appsettings.js';
 import { loadPhotos, initPhotos, closeLightbox } from './photos.js';
-import { setBaseDomain, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js?v=237';
-import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.js?v=238';
+import { setBaseDomain, setAppUrls, parseHost, appForSub, viewToSub, urlForApp, currentSub, singleHost, routeSub, appPath, SUBDOMAIN_VIEWS, CANONICAL_SUBDOMAIN_VIEWS, shouldPollModels } from './subdomain.js?v=238';
+import { buildCompatibilityUrl, resolveCompatibilityRoute } from './routecompat.js?v=239';
 import { acceptRoutePosition, pushRouteUrl, replaceRouteUrl, restoreDeniedRoute, routeHistoryPosition, targetRoutePosition, visibleRouteUrl } from './route_history.js';
 import { readRecordTarget, recordTarget, revealRecord, withRecordTarget } from './recordlinks.js';
 import { closeAideRun } from './aiderun.js';
@@ -130,12 +130,14 @@ async function init() {
   try {
     me = await fetch('/api/auth/me').then(r => r.json());
     setBaseDomain(me.base_domain);
+    setAppUrls(me.app_urls);
     localStorage.setItem('alles_auth_cache', JSON.stringify(me));   // remember for offline
   } catch {
     // 11b: offline → trust the last known session so the installed PWA still opens
     reachable = false;
     try { me = JSON.parse(localStorage.getItem('alles_auth_cache') || '{}'); } catch {}
     if (me.base_domain) setBaseDomain(me.base_domain);
+    setAppUrls(me.app_urls);
   }
   _authEnabled = me.enabled === true;
 
@@ -349,11 +351,10 @@ async function _boot({ reachable = true } = {}) {
     }
   }
   const hasPriorityAction = !!(handoffAsk || bootParams.get('mailoauth'));
-  const initialRoute = resolveCompatibilityRoute({
-    sub: parseHost().sub,
+  const initialRoute = _addressRoute({
     app: hasPriorityAction ? undefined : bootParams.get('app'),
     view: hasPriorityAction ? undefined : bootParams.get('view'),
-    flags: afterlifeFlags,
+    pathFront: !hasPriorityAction,
   });
 
   if (initialRoute && reachable && !singleHost() && initialRoute.host !== currentSub()) {
@@ -599,7 +600,7 @@ function _buildCrumb(el, appName, appSub) {
   const appA = document.createElement('a');
   appA.className = 'crumb-app'; appA.textContent = appLabel(appName);
   // one origin (an ip or a plain host name) has no app subdomains: plan.<ip> is no host at all
-  appA.href = singleHost() ? `/?view=${encodeURIComponent(appForSub(appSub).primary)}` : urlForApp(appSub);
+  appA.href = singleHost() ? appPath(viewToSub(appForSub(appSub).primary)) : urlForApp(appSub);
   appA.title = t('shell.open_app', { name: appLabel(appName) });
   el.replaceChildren(appA);
 }
@@ -1160,11 +1161,30 @@ const showSpecialistGroup = (group, section = 'overview') => showView(
   (_track, request) => initSpecialistGroup(group, { section, request, loadLegacy: _loadSpecialistLegacy }),
 );
 
+// the route the address names: ?app= or ?view= first, then the app's subdomain or, on one
+// address, its path. a canonical subdomain is its own front page and names no route. a canonical
+// path has no host behind it, so it names the front page the subdomain would show: the app's main
+// view as the subdomain renders it (health's overview, not the old "health" log identifier)
+function _addressRoute({ app, view, pathFront = true } = {}) {
+  const sub = routeSub();
+  const pathApp = singleHost() && Object.hasOwn(CANONICAL_SUBDOMAIN_VIEWS, sub);
+  if (pathApp && sub && pathFront && !app && !view) {
+    const primary = appForSub(sub).primary;
+    return { host: sub, view: primary, hashOwner: primary === 'chat' ? 'session' : primary };
+  }
+  return resolveCompatibilityRoute({ sub: pathApp ? '' : sub, app, view, flags: _afterlifeFlags });
+}
+
+// the app the address belongs to (a legacy name counts as the app it moved into)
+function _addressOwner() {
+  return singleHost() ? viewToSub(appForSub(routeSub()).primary) : currentSub();
+}
+
 function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
   try {
     const url = new URL(location.href);
     const previous = url.searchParams.get('app') || url.searchParams.get('view');
-    const previousOwner = resolveCompatibilityRoute({ view: previous, flags: _afterlifeFlags })?.host ?? currentSub();
+    const previousOwner = resolveCompatibilityRoute({ view: previous, flags: _afterlifeFlags })?.host ?? _addressOwner();
     const nextOwner = route.host ?? viewToSub(groupRouteFor(identifier)?.group || identifier);
     if (previousOwner !== nextOwner) url.hash = '';
     // home is today's old name
@@ -1173,17 +1193,21 @@ function _syncLocalViewUrl(route, identifier, { replace = true } = {}) {
       for (const param of ['record', 'record_view', 'occurrence', 'record_hash']) url.searchParams.delete(param);
       // andromeda's search and activity's filter both live in ?q; on one host it would follow
       // you into the other view and run there
-      if ((previous || mainView(currentSub())) !== identifier) url.searchParams.delete('q');
+      if ((previous || mainView(_addressOwner())) !== identifier) url.searchParams.delete('q');
     }
     url.searchParams.delete('app');
     // the address drops view= only for an app's own front page: a group's first section, or the
     // main view of an app without groups (today, aide's conversation). journal inside docs kept
     // none, so a reload opened docs home; aide's models keeps it, so a reload stays on models
     const grouped = groupRouteFor(identifier);
+    // an old name for the main view (?app=aide) is the front page too, unless it carries a mode
     const frontPage = grouped
       ? grouped.section === normalizeGroupSection(grouped.group, '')
-      : (identifier === 'home' ? 'today' : identifier) === mainView(nextOwner);
-    if (route.section || singleHost() || !frontPage) url.searchParams.set('view', identifier);
+      : (identifier === 'home' ? 'today' : identifier) === mainView(nextOwner)
+        || (!route.section && !route.mode && route.view === mainView(nextOwner));
+    // on one address the path names the app (/docs), so view= is left for what isn't its front page
+    if (singleHost()) url.pathname = appPath(nextOwner);
+    if (route.section || !frontPage) url.searchParams.set('view', identifier);
     else url.searchParams.delete('view');
     const target = url.pathname + url.search + url.hash;
     const current = location.pathname + location.search + location.hash;
@@ -1273,11 +1297,9 @@ window.addEventListener('popstate', async event => {
   }
   const url = new URL(location.href);
   const identifier = url.searchParams.get('view') || url.searchParams.get('app');
-  const route = resolveCompatibilityRoute({
-    sub: parseHost().sub,
+  const route = _addressRoute({
     app: url.searchParams.get('app') || undefined,
     view: url.searchParams.get('view') || undefined,
-    flags: _afterlifeFlags,
   });
   const nextGroup = groupRouteFor(route?.hashOwner) || groupRouteFor(route?.view) || groupRouteFor(identifier);
   const docsVisible = document.getElementById('docs-workbench-view')?.style.display !== 'none';
@@ -1661,10 +1683,10 @@ async function _renderFirstRun() {
   catch { return; }   // never let this block Home
   if (st.setup?.completed || st.setup?.dismissed) return;
   if (document.getElementById('setup-wizard')?.style.display === 'flex') return;
-  (await import('./setupwizard.js?v=453')).openSetupWizard({ status: st });
+  (await import('./setupwizard.js?v=454')).openSetupWizard({ status: st });
 }
 // let anything (a settings link, the command palette) re-run the wizard on demand
-window._openSetupWizard = async () => (await import('./setupwizard.js?v=453')).openSetupWizard({ resume: true });
+window._openSetupWizard = async () => (await import('./setupwizard.js?v=454')).openSetupWizard({ resume: true });
 
 // aide's tools live in the collapsible "tools" group
 const _moreViews = new Set(['gallery','brain','models','aide-reminders','subs','days']);

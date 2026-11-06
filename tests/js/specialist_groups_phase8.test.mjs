@@ -197,7 +197,9 @@ test('Aide reminders has a routable identifier while legacy reminders stay with 
   assert.match(app, /AIDE_TOOL_VIEWS = new Set\(\[[^]*?'aide-reminders'/);
   assert.match(app, /v === 'aide-reminders'\) showRemindersView\(\)/);
   assert.match(app, /function renderLocalRoute\(route\) \{[^]*?return renderLocalView\(route\.view, route\)/);
-  assert.match(app, /if \(route\.section \|\| singleHost\(\) \|\| !frontPage\) url\.searchParams\.set\('view', identifier\)/);
+  // on one address the path names the app, so view= is set the same way as on a subdomain
+  assert.match(app, /if \(singleHost\(\)\) url\.pathname = appPath\(nextOwner\)/);
+  assert.match(app, /if \(route\.section \|\| !frontPage\) url\.searchParams\.set\('view', identifier\)/);
   assert.doesNotMatch(app, /const aideReminder =/);
   assert.match(app, /releaseSpecialistLegacyView\('plan', 'reminders'\)/);
   assert.equal(typeof releaseSpecialistLegacyView, 'function');

@@ -64,6 +64,14 @@ alles access lan
 
 يطلب كلمة مرور للمالك، ثم يعيد تشغيل alles حتى يتمكن هاتفك وحواسيبك الأخرى من فتحه، ويعرض العناوين التي تستخدمها، مثل `http://100.101.102.103:6769`. والأمر `alles access device` يجعله خاصاً بهذا الحاسوب من جديد.
 
+### فتحه على نطاقك الخاص
+
+```bash
+alles access domain alles.example.com
+```
+
+يصبح كل تطبيق بعد شرطة مائلة: `alles.example.com/docs` و`alles.example.com/plan`. أضف `subdomain` (`alles access domain alles.example.com subdomain`) ليحصل كل تطبيق على عنوانه الخاص مثل `docs.alles.example.com`، ويحتاج ذلك إلى سجل DNS وشهادة بحرف بدل. لا يصنع alles الشهادة بنفسه: وجّه النطاق إلى هذا الحاسوب واجعل وكيل https (caddy أو nginx أو نفق cloudflare) يرسله إلى `http://127.0.0.1:6769`. والأمر `alles access domain off` يلغي ربطه.
+
 ### تشغيله من الشفرة المصدرية
 
 للتطوير، أو لتشغيله من دون الخدمة. على Debian أو Ubuntu، شغّل أولاً `sudo apt install git python3-venv`.

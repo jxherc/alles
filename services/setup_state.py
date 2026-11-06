@@ -93,6 +93,7 @@ def public_state() -> dict:
         "access_profile": str(settings.get("access_profile") or "device"),
         "public_url": str(settings.get("public_url") or ""),
         "base_domain": str(settings.get("base_domain") or ""),
+        "app_urls": str(settings.get("app_urls") or ""),
         "trusted_hosts": str(settings.get("trusted_hosts") or ""),
         "forwarded_allow_ips": str(settings.get("forwarded_allow_ips") or ""),
         "language": str(settings.get("language") or "en"),
@@ -170,6 +171,10 @@ def _valid_public(values: dict) -> dict:
     base_domain = _text(values, "base_domain", maximum=253).lower().rstrip(".")
     trusted = _text(values, "trusted_hosts", maximum=1000)
     proxies = _text(values, "forwarded_allow_ips", maximum=1000)
+    # a setup from before the choice existed meant subdomains
+    app_urls = _text(values, "app_urls", maximum=20).lower() or "subdomain"
+    if app_urls not in {"path", "subdomain"}:
+        raise SetupStateError("app addresses must be path or subdomain")
     try:
         parsed = urlsplit(origin)
         port = parsed.port
@@ -192,8 +197,10 @@ def _valid_public(values: dict) -> dict:
     if not base_domain or base_domain != host:
         raise SetupStateError("base domain must match the public URL host")
     trusted_values = [item.strip().lower() for item in trusted.split(",") if item.strip()]
-    required_hosts = {host, f"*.{host}"}
+    required_hosts = {host, f"*.{host}"} if app_urls == "subdomain" else {host}
     if not required_hosts.issubset(trusted_values):
+        if app_urls == "path":
+            raise SetupStateError("trusted hosts must include the public host")
         raise SetupStateError("trusted hosts must include the public host and its app subdomains")
     if any(value not in required_hosts for value in trusted_values):
         raise SetupStateError("trusted hosts cannot include unrelated or broad host patterns")
@@ -219,6 +226,7 @@ def _valid_public(values: dict) -> dict:
         "access_profile": "public",
         "public_url": origin if port is not None else f"https://{host}",
         "base_domain": base_domain,
+        "app_urls": app_urls,
         "trusted_hosts": ",".join(trusted_values),
         "forwarded_allow_ips": ",".join(proxy_values),
     }
@@ -237,6 +245,7 @@ def _save_access(values: dict) -> None:
             "access_profile": profile,
             "public_url": "",
             "base_domain": "",
+            "app_urls": "",
             "trusted_hosts": "",
             "forwarded_allow_ips": "",
         }

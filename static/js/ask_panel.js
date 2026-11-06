@@ -4,7 +4,7 @@
 import { icon } from './icons.js';
 import { mdToHtml, appLabel } from './util.js';
 import { loadShortcuts, matchesShortcut } from './shortcuts.js';
-import { singleHost, urlForApp } from './subdomain.js?v=237';
+import { singleHost, urlForApp } from './subdomain.js?v=238';
 import { t } from './i18n.js';
 import { fetchWithRecentOwner } from './recent_owner.js';
 

@@ -2,7 +2,7 @@ import { plainError } from './util.js';
 import { fields } from './dialog.js';
 import { saveNote, showNoteRecovery } from './note_capture.js';
 import { recordTarget, withRecordTarget } from './recordlinks.js';
-import { singleHost, urlForApp } from './subdomain.js?v=237';
+import { singleHost, urlForApp } from './subdomain.js?v=238';
 import { t } from './i18n.js';
 
 let creating = false;

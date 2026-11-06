@@ -5689,14 +5689,17 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .setup-field { display: grid; gap: 6px; margin-bottom: 12px; color: var(--muted); font-size: 0.8125rem; }
 .setup-input { width: 100%; min-height: 44px; margin: 0; }
 .setup-pair { display: grid; grid-template-columns: minmax(90px, 0.32fr) minmax(0, 1fr); gap: 12px; }
-.setup-choice-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+/* as many equal columns as choices: three access profiles, two app address styles */
+.setup-choice-group { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 16px; }
 .setup-choice-group button { min-height: 66px; display: grid; align-content: start; gap: 4px; padding: 12px; border: 1px solid var(--faint); border-radius: var(--k-radius-control); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .setup-choice-group button:hover { border-color: var(--muted); background: var(--panel); }
 /* neutral selection (decision 0019); cards share a top line so parallel labels align */
 .setup-choice-group button[aria-checked="true"] { border-color: var(--k-line-strong, var(--muted)); background: var(--k-raised, var(--panel)); }
+/* inside a field the field's own gap spaces it, not the group's */
+.setup-field > .setup-choice-group { margin-bottom: 0; }
 .setup-choice-group strong, .setup-choice-group small { display: block; }
 .setup-choice-group strong { font-size: 0.8125rem; font-weight: 560; }
-.setup-choice-group small { color: var(--muted); font-size: 0.8125rem; font-weight: 400; line-height: 1.35; }
+.setup-choice-group small { color: var(--muted); font-size: 0.8125rem; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }
 .setup-section-label { margin: 18px 0 8px; color: var(--muted); font-size: 0.8125rem; }
 /* fields that a picker opens sit a field gap below it, not flush against it */
 .setup-fields:not(:empty) { margin-top: 12px; }
@@ -5763,6 +5766,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   .setup-card { max-width: calc(100vw - 16px); max-height: calc(100dvh - 88px); }
   .setup-body { padding: 16px; }
   .setup-pair, .setup-choice-group, .setup-provider-grid { grid-template-columns: 1fr; }
+  .setup-choice-group { grid-auto-flow: row; }
   .setup-choice-group button, .setup-provider, .setup-actions .btn { min-height: 44px; }
   .setup-actions { align-items: stretch; flex-wrap: wrap; }
   .setup-actions .setup-status { order: -1; flex-basis: 100%; text-align: left; }

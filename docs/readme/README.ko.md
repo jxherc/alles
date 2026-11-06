@@ -54,6 +54,14 @@ alles access lan
 
 소유자 비밀번호를 묻고, 휴대폰과 다른 컴퓨터에서 열 수 있도록 alles를 다시 시작한 뒤, 사용할 주소(예: `http://100.101.102.103:6769`)를 보여 줍니다. `alles access device`를 실행하면 다시 이 컴퓨터에서만 쓸 수 있습니다.
 
+### 내 도메인에서 열기
+
+```bash
+alles access domain alles.example.com
+```
+
+그러면 각 앱이 슬래시 뒤에 놓입니다: `alles.example.com/docs`, `alles.example.com/plan`. `subdomain`을 붙이면(`alles access domain alles.example.com subdomain`) 각 앱이 `docs.alles.example.com`처럼 자기 주소를 갖습니다. 이때는 와일드카드 DNS 레코드와 인증서가 필요합니다. 인증서는 alles가 만들지 않습니다. 도메인을 이 컴퓨터로 향하게 하고 https 프록시(caddy, nginx, cloudflare 터널)가 `http://127.0.0.1:6769`로 보내도록 하세요. `alles access domain off`로 해제합니다.
+
 ### 소스에서 실행하기
 
 개발용이거나 서비스 없이 실행하고 싶을 때 쓰세요. Debian이나 Ubuntu에서는 먼저 `sudo apt install git python3-venv`를 실행하세요.
