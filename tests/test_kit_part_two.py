@@ -12,7 +12,7 @@ def css(name):
     return re.sub(r"/\*.*?\*/", "", (STATIC / name).read_text(encoding="utf-8"), flags=re.S)
 
 
-ALL_CSS = "".join(css(n) for n in ("style.css", "kokuen.css", "revamp.css", "aidecoding.css"))
+ALL_CSS = "".join(css(n) for n in ("style.css", "kokuen.css", "revamp.css"))
 HTML = (STATIC / "index.html").read_text(encoding="utf-8")
 
 
@@ -74,7 +74,7 @@ class BusyEdgeTests(unittest.TestCase):
 MENUS = (
     ".ctx-menu", ".aide-central-menu", ".msg-actions-menu", ".aide-sidebar-menu",
     ".aide-project-context-menu", ".aide-schedule-project-menu", ".docs-action-menu",
-    ".plan-board-menu", ".perm-menu", ".photos-albmenu", ".jrnl-lockmenu", ".acw-menu",
+    ".plan-board-menu", ".perm-menu", ".photos-albmenu", ".jrnl-lockmenu",
     ".mention-menu", ".slash-popup", ".custom-dropdown-panel",
 )  # fmt: skip
 
@@ -264,7 +264,6 @@ class IconTests(unittest.TestCase):
                 )
 
     def test_no_js_template_redraws_an_icons_js_name(self):
-        # aide code kept its own back, plus, more, stop and chevrons until s4b part 3
         pending = {"js/dropdown.js:chevron-down"}  # dropdown.js is s5b's this wave
         found = set()
         pat = (
@@ -285,7 +284,6 @@ class IconTests(unittest.TestCase):
                     found.add(f"{path.relative_to(STATIC).as_posix()}:{name}")
         self.assertEqual(sorted(found - pending), [], "use icon() from icons.js")
         self.assertEqual(sorted(pending - found), [], "fixed; drop it from pending")
-        self.assertIn("import { icon as sharedIcon } from './icons.js'", js("aidecoding.js"))
 
     def test_every_settings_gear_is_the_shared_one(self):
         self.assertEqual(len(re.findall(r'data-kokuen-icon="gear"', HTML)), 7)
@@ -314,8 +312,6 @@ class RailTests(unittest.TestCase):
         ):
             self.assertIn(sel, app)
         self.assertIn("makeResizableRail({ rail,", app)
-        self.assertIn("makeResizableRail({", js("aidecoding.js"))
-        self.assertNotIn("handle.addEventListener('pointermove'", js("aidecoding.js"))
 
     def test_the_handle_is_a_full_separator(self):
         mod = js("rail_resize.js")

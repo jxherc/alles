@@ -731,11 +731,11 @@
   {
     "rule": "focus-suppression",
     "message": "outline suppressed in html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfi; prove one replacement geometry",
-    "css_block_sha256": "73a7763634ff1af2b0e5a157ff5ab68415f20e8575054e2d37a538ada6237bbd",
+    "css_block_sha256": "1f44e4ed1fe3010b77996ac8b3f01d76f49c205f4e99115a1bf7b999bc1d315f",
     "path": "static/kokuen.css",
-    "selector": "html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfield > .mc-chip-input, .today-capture > textarea, .andromeda-search > input, .specialist-group-capture :is(input, textarea, .date-input), .page-view-footer > :is(input, .custom-select, .date-input), .plan-board-add :is(input, .date-input), .reminder-add-form :is(input, .date-input), .ask-panel-entry :is(input, textarea), .acw-entry textarea ):focus-visible, body.afterlife-aide-projects[data-space=\"aide\"] .search-wrap > input:focus-visible",
+    "selector": "html[data-kokuen-version=\"5\"] :is( .composer-box > .composer-ta, .search-command-head > .search-prompt-input, .mc-chipfield > .mc-chip-input, .today-capture > textarea, .andromeda-search > input, .specialist-group-capture :is(input, textarea, .date-input), .page-view-footer > :is(input, .custom-select, .date-input), .plan-board-add :is(input, .date-input), .reminder-add-form :is(input, .date-input), .ask-panel-entry :is(input, textarea) ):focus-visible, body.afterlife-aide-projects[data-space=\"aide\"] .search-wrap > input:focus-visible",
     "job": "single wrapper-owned focus",
-    "reason": "Composer, command search, mail recipient, home capture, Andromeda, the specialist capture, page footer rows, plan board add, reminder add, the ask panel and aide code entry expose text focus on their wrapper's own edge with the same dim neutral ring (decision 0049). Inner fields add neither outline nor shadow; sibling actions retain independent focus. Forced colors restores a Highlight outline."
+    "reason": "Composer, command search, mail recipient, home capture, Andromeda, the specialist capture, page footer rows, plan board add, reminder add, and the ask panel expose text focus on their wrapper's own edge with the same dim neutral ring (decision 0049). Inner fields add neither outline nor shadow; sibling actions retain independent focus. Forced colors restores a Highlight outline."
   },
   {
     "rule": "nested-boundary",

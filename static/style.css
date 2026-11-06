@@ -7744,11 +7744,11 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
    message off the right edge (bad on mobile — caused horizontal scroll) */
 .wiki-preview, .ai-content, .md-embed-body { overflow-wrap: anywhere; }
 /* links inside written content are link blue everywhere, visited purple, like the web */
-:is(.wiki-preview, .ai-content, .md-embed-body, .acw-msg, .artifact-content, .compare-body, .jrnl-reflection, .read-empty) a[href] {
+:is(.wiki-preview, .ai-content, .md-embed-body, .artifact-content, .compare-body, .jrnl-reflection, .read-empty) a[href] {
   color: var(--link); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--link) 40%, transparent);
 }
-:is(.wiki-preview, .ai-content, .md-embed-body, .acw-msg, .artifact-content, .compare-body, .jrnl-reflection, .read-empty) a[href]:visited { color: var(--link-visited); border-bottom-color: color-mix(in srgb, var(--link-visited) 40%, transparent); }
-:is(.wiki-preview, .ai-content, .md-embed-body, .acw-msg, .artifact-content, .compare-body, .jrnl-reflection, .read-empty) a[href]:hover { border-bottom-color: currentColor; }
+:is(.wiki-preview, .ai-content, .md-embed-body, .artifact-content, .compare-body, .jrnl-reflection, .read-empty) a[href]:visited { color: var(--link-visited); border-bottom-color: color-mix(in srgb, var(--link-visited) 40%, transparent); }
+:is(.wiki-preview, .ai-content, .md-embed-body, .artifact-content, .compare-body, .jrnl-reflection, .read-empty) a[href]:hover { border-bottom-color: currentColor; }
 .wiki-preview mark, .ai-content mark, .md-embed-body mark { background: color-mix(in srgb, var(--cat-amber) 28%, transparent); color: var(--text); padding: 0 0.15em; border-radius: var(--k-radius-control); }
 .wiki-preview del, .ai-content del, .md-embed-body del { color: var(--muted); }
 .wiki-preview blockquote, .ai-content blockquote, .md-embed-body blockquote { border-left: 2px solid var(--line-strong); padding: 0.15rem 0 0.15rem 0.85rem; margin: 0.7rem 0; color: var(--muted); }

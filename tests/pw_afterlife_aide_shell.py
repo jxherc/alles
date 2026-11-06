@@ -406,7 +406,7 @@ def run() -> None:
                     "el => getComputedStyle(el).backgroundColor === getComputedStyle(document.body).backgroundColor"
                 )
             assert page.locator("#brain-proxstats").count() == 0
-            page.locator("#aide-mode-conversation").click()
+            page.evaluate("window._navigateTo('chat')")
             page.wait_for_selector("#chat:visible")
             open_more_item("scheduled")
             page.wait_for_selector("#aide-scheduled-view:visible")
@@ -430,7 +430,7 @@ def run() -> None:
             }
             assert page.locator("body").get_attribute("data-space") == "aide"
             assert page.locator("#proactive-view").count() == 0
-            page.locator("#aide-mode-conversation").click()
+            page.evaluate("window._navigateTo('chat')")
             page.wait_for_selector("#chat:visible")
             assert parse_qs(urlparse(page.url).query).get("view") in (None, ["chat"])
             assert page.locator("body").get_attribute("data-space") == "aide"
@@ -1026,7 +1026,7 @@ def run() -> None:
             )
             assert page.locator("#aide-task-tools [data-aide-tool]").evaluate_all(
                 "els => els.map(el => el.dataset.aideTool)"
-            ) == ["review", "terminal", "coding", "browser", "files", "side-task"]
+            ) == ["review", "terminal", "browser", "files", "side-task"]
             page.locator('[data-aide-tool="terminal"]').click()
             assert page.locator("#aide-terminal").is_visible()
             assert not page.locator("#aide-task-tools").is_visible()

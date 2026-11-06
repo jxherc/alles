@@ -71,7 +71,6 @@ COMMANDS = {
     "gallery-workflows": ("tests/pw_gallery_workflows.py",),
     "gallery-pending": ("tests/pw_gallery_pending.py",),
     "aide-creations": ("tests/pw_aide_creations.py",),
-    "aide-coding": ("tests/pw_aide_coding.py",),
     "aide-central": ("tests/pw_aide_central.py",),
     "ui-audit": ("tests/pw_ui_audit.py",),
     "kit-rules": ("tests/pw_kit_rules.py",),

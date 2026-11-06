@@ -8,7 +8,6 @@
     "static/js/agentview.js": "aide.conversation-and-execution",
     "static/js/aidebackground.js": "aide.conversation-and-execution",
     "static/js/aidecentral.js": "aide.conversation-and-execution",
-    "static/js/aidecoding.js": "aide.conversation-and-execution",
     "static/js/aidenews.js": "automation.schedules-and-actions",
     "static/js/aidequestions.js": "aide.selectable-questions",
     "static/js/aideworkspace.js": "aide.conversation-and-execution",

@@ -2580,11 +2580,6 @@ html[data-kokuen-version="5"] .shell-navigation-toggle:is(:hover, [aria-expanded
   background: var(--k-hover, var(--panel));
 }
 
-/* Aide coding handoff: one flat control path with durable, honest receipts. */
-body.afterlife-aide-projects[data-space="aide"] .aide-work-panel.coding-open {
-  background: var(--k-bg, var(--bg));
-}
-
 html[data-kokuen-version="5"] .shell-trigger-host :is(.today-wordmark, .sidebar-brand, .aide-mobile-name) {
   display: none;
 }
@@ -2870,8 +2865,7 @@ html[data-kokuen-version="5"] :is(
   .page-view-footer > :is(input, .custom-select, .date-input),
   .plan-board-add :is(input, .date-input),
   .reminder-add-form :is(input, .date-input),
-  .ask-panel-entry :is(input, textarea),
-  .acw-entry textarea
+  .ask-panel-entry :is(input, textarea)
 ):focus-visible,
 body.afterlife-aide-projects[data-space="aide"] .search-wrap > input:focus-visible {
   outline: none !important;
@@ -7347,7 +7341,6 @@ html:not(#_):not(#_)[data-kokuen-version="5"] :is(
   .specialist-group-tabs [role="tab"],
   .seg-opt,
   .specialist-choice-group button,
-  .aide-mode-nav button,
   .tasks-tab,
   .te-seg button,
   .theme-mode-btn
@@ -7469,7 +7462,7 @@ html[data-kokuen-version="5"] .k-number-row-readout {
   initial-value: 0deg;
 }
 
-:is(body.aide-working .composer-box, #aide-coding-workspace[data-busy="true"] .acw-entry, .k-busy[data-busy="true"])::before {
+:is(body.aide-working .composer-box, .k-busy[data-busy="true"])::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -7491,7 +7484,7 @@ html[data-kokuen-version="5"] .k-number-row-readout {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(body.aide-working .composer-box, #aide-coding-workspace[data-busy="true"] .acw-entry, .k-busy[data-busy="true"])::before {
+  :is(body.aide-working .composer-box, .k-busy[data-busy="true"])::before {
     animation: none;
     background: var(--k-busy-tone) border-box;
   }
@@ -7502,7 +7495,7 @@ html[data-kokuen-version="5"] .k-number-row-readout {
    dragged or focused. the line is the strip's own fill, clipped between 5px clear borders, so focus
    shows on the element itself and at once. a rail the user sized takes its width
    from --k-rail-w; phones get no strip */
-:is(.k-rail-resize, .acw-rail-resize) {
+.k-rail-resize {
   position: absolute; z-index: 3; box-sizing: border-box; width: 12px;
   border: 0 solid transparent; border-inline-width: 5px;
   background: transparent content-box; transition: background-color 140ms ease;
@@ -7510,9 +7503,9 @@ html[data-kokuen-version="5"] .k-number-row-readout {
 }
 .k-rail-resize { top: 0; translate: -50% 0; }
 .k-rail-resize[data-inside] { right: 0; bottom: 0; translate: none; }
-:is(.k-rail-resize, .acw-rail-resize)::before { content: ""; position: absolute; top: 0; bottom: 0; left: -15px; right: -15px; }
-:is(.k-rail-resize, .acw-rail-resize):is(:hover, [data-active]) { background-color: var(--k-line-strong); }
-:is(.k-rail-resize, .acw-rail-resize):focus-visible { outline: none; background-color: var(--k-focus); transition: none; }
+.k-rail-resize::before { content: ""; position: absolute; top: 0; bottom: 0; left: -15px; right: -15px; }
+.k-rail-resize:is(:hover, [data-active]) { background-color: var(--k-line-strong); }
+.k-rail-resize:focus-visible { outline: none; background-color: var(--k-focus); transition: none; }
 html[data-rail-resizing] { cursor: col-resize; user-select: none; -webkit-user-select: none; }
 :where([data-k-rail-inside]) { position: relative; }
 html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
@@ -7522,7 +7515,7 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
   flex: 0 0 var(--k-rail-w);
 }
 @media (max-width: 620px) { .k-rail-resize { display: none; } }
-@media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize)::after { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .k-rail-resize::after { transition: none; } }
 
 /* ── the phone bar (u.07, decision 0064) ─────────────────────────────────────────
    a phone gets a bottom bar of 5, and every screen's height drops by the bar (--k-shell-height)
@@ -7578,4 +7571,4 @@ html:not(#_):not(#_):not(#_) [data-k-rail-sized] {
     margin-bottom: var(--k-app-bar-height);
   }
 }
-@media (prefers-reduced-motion: reduce) { :is(.k-rail-resize, .acw-rail-resize) { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .k-rail-resize { transition: none; } }

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from core.database import Base
 from services import backup_recovery
-from tests.test_route_compatibility import _current_rows
+from tests.test_route_compatibility import _current_rows, _live_rows
 
 ROOT = Path(__file__).parents[1]
 SPECIFICATIONS = ROOT / "specifications.md"
@@ -38,13 +38,16 @@ class AfterlifePhase0InventoryTest(unittest.TestCase):
     def test_trust_map_matches_route_snapshot(self):
         document = SPECIFICATIONS.read_text("utf-8")
         source = (ROOT / "app.py").read_text("utf-8")
-        rows = _current_rows()
-        digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
+        # the spec counts what's registered; the snapshot also keeps routes removed since (code
+        # mode, nov 6), so its size and hash are named separately
+        snapshot = _current_rows()
+        digest = hashlib.sha256(("\n".join(snapshot) + "\n").encode()).hexdigest()
+        rows = _live_rows()
         router_count = len(re.findall(r"^app\.include_router\(", source, re.MULTILINE))
 
         self.assertIn(f"- {router_count} included fastapi router modules", document)
         self.assertIn(f"- {len(rows)} http method/path pairs", document)
-        self.assertIn(f"- sha-256: `{digest}`", document)
+        self.assertIn(f"pins {len(snapshot)} pairs with sha-256 `{digest}`", document)
         paths = [row.split(" ", 1)[1] for row in rows]
         groups = {
             "api": sum(path.startswith("/api/") for path in paths),

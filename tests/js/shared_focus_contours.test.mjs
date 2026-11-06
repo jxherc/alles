@@ -6,7 +6,6 @@ const read = path => readFileSync(new URL(`../../${path}`, import.meta.url), 'ut
 const shared = read('static/kokuen.css');
 const legacy = read('static/style.css');
 const aide = read('static/aidecentral.css');
-const coding = read('static/aidecoding.css');
 const call = read('static/aidecall.css');
 const rules = css => [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)]
   .map(([, selector, body]) => ({ selector: selector.trim(), body }));
@@ -22,7 +21,7 @@ test('shared focus geometry overlays the existing edge instead of drawing a deta
   const primitive = rule(shared, 'html[data-kokuen-version="5"] [data-kokuen-primitive]:focus-visible');
   assert.match(primitive, /outline:\s*2px solid/);
   assert.match(primitive, /outline-offset:\s*var\(--k-focus-offset/);
-  for (const css of [shared, legacy, aide, coding, call]) {
+  for (const css of [shared, legacy, aide, call]) {
     for (const { selector, body } of rules(css)) {
       if (!/:focus(?:-visible|-within)?/.test(selector)) continue;
       assert.doesNotMatch(body, /outline-offset:\s*[1-9][\d.]*px/, `detached focus frame: ${selector}`);
@@ -91,17 +90,9 @@ test('the header stays on one row from 390px and wraps groups below that instead
   assert.match(header, /height:\s*auto/);
   assert.match(header, /flex-wrap:\s*wrap/);
   assert.match(rule(narrow, 'body.aide-central[data-space="aide"] .topbar-left'), /flex:\s*0 0 100%/);
-  const wide = aide.slice(aide.indexOf('@media (max-width: 429px)'), aide.indexOf('@media (max-width: 389px)'));
-  assert.match(rule(wide, '.aide-mode-nav'), /flex-shrink:\s*0/);
-  const modes = rule(wide, '.aide-mode-nav button');
-  assert.match(modes, /flex-shrink:\s*0/);
-  assert.match(modes, /white-space:\s*nowrap/);
   assert.doesNotMatch(narrow, /\border\s*:/);
 });
 
-test('Code keeps its header, chat, composer and errors on one 760px column', () => {
-  for (const selector of ['.acw-head', '.acw-log', '.acw-composer', '#aide-coding-workspace .acw-content', '#aide-coding-workspace .acw-error']) {
-    assert.match(rule(coding, selector), /max-width:\s*760px/, selector);
-  }
+test('the call view keeps its body on one 680px column', () => {
   assert.match(rule(call, '#aide-call-workspace .aide-call-body'), /width:\s*min\(100%,\s*680px\)/);
 });

@@ -8,6 +8,11 @@
           "key": "own_domain",
           "title": "alles at your own domain",
           "body": "run alles access domain alles.example.com and every app sits after a slash, like alles.example.com/docs. add subdomain for docs.alles.example.com instead. on a tailscale or home network address each app has its own path too."
+        },
+        {
+          "key": "code_mode_gone",
+          "title": "aide's code mode is gone",
+          "body": "the code button next to conversation is gone. for code and longer jobs, ask in the normal chat: aide still hands the work to pi."
         }
       ]
     },

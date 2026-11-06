@@ -141,8 +141,8 @@ def run():
             search.fill("no-such-topic-725")
             expect(page.locator("#alles-help-article")).to_be_hidden()
             expect(page.locator("#alles-help-status")).to_contain_text("no topics match")
-            search.fill("coding")
-            expect(page.locator('[data-manual-topic="coding"]')).to_be_visible()
+            search.fill("calendar")
+            expect(page.locator('[data-manual-topic="plan"]')).to_be_visible()
             search.fill("")
             page.locator('[data-manual-topic="voice"]').click()
             expect(page.locator("#alles-help-topic-title")).to_be_focused()
@@ -159,7 +159,7 @@ def run():
             destinations = []
             if name == "desktop":
                 topics = page.evaluate(
-                    "async()=> (await import('/static/js/help_content.js?v=2')).helpTopics().map(t=>({id:t.id,actions:t.actions||[]}))"
+                    "async()=> (await import('/static/js/help_content.js?v=3')).helpTopics().map(t=>({id:t.id,actions:t.actions||[]}))"
                 )
                 for topic in topics:
                     for action in topic["actions"]:

@@ -200,48 +200,6 @@ class CodingProject(Base):
     last_used_at = Column(DateTime, default=_now)
 
 
-class DshConnection(Base):
-    __tablename__ = "dsh_connections"
-    id = Column(String, primary_key=True, default="default")
-    base_url = Column(String, nullable=False)
-    token = Column(EncryptedText("dsh_connections.token"), nullable=False)
-    host_version = Column(String, default="")
-    connected_at = Column(DateTime, default=_now)
-    checked_at = Column(DateTime, nullable=True)
-    updated_at = Column(DateTime, default=_now, onupdate=_now)
-
-
-class AideCodingRun(Base):
-    __tablename__ = "aide_coding_runs"
-    id = Column(String, primary_key=True)
-    aide_session_id = Column(String, ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True)
-    workspace_id = Column(String, nullable=False)
-    workspace_path = Column(Text, default="")
-    provider_session_id = Column(String, nullable=False, unique=True)
-    prompt = Column(Text, nullable=False)
-    prompt_hash = Column(String, nullable=False)
-    state = Column(String, nullable=False, default="starting", index=True)
-    error_code = Column(String, default="")
-    safe_error = Column(Text, default="")
-    created_at = Column(DateTime, default=_now)
-    updated_at = Column(DateTime, default=_now, onupdate=_now)
-    finished_at = Column(DateTime, nullable=True)
-
-
-class AideCodingRunEvent(Base):
-    __tablename__ = "aide_coding_run_events"
-    __table_args__ = (
-        Index("ux_aide_coding_run_events_sequence", "run_id", "sequence", unique=True),
-    )
-    id = Column(String, primary_key=True, default=_uid)
-    run_id = Column(String, ForeignKey("aide_coding_runs.id", ondelete="CASCADE"), nullable=False)
-    sequence = Column(Integer, nullable=False)
-    kind = Column(String, nullable=False)
-    summary = Column(Text, nullable=False)
-    data = Column(Text, default="{}")
-    created_at = Column(DateTime, default=_now)
-
-
 class AndromedaSavedSearch(Base):
     """A complete, reopenable search snapshot; no model or provider secrets."""
 

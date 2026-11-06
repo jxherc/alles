@@ -254,7 +254,7 @@ def capture_empty(browser):
             expect(page.locator("#aide-sidebar")).not_to_be_visible()
             expect(page.locator("#composer-ta")).to_be_visible()
             expect(page.locator("#messages .msg-row")).to_have_count(0)
-            geometry(page, ["#aide-mode-conversation", "#aide-mode-coding", "#aide-call-open"])
+            geometry(page, ["#aide-call-open"])
             page.screenshot(path=str(OUT / f"aide-empty-{width}-{theme}.png"))
             assert not errors and not outside, (errors, outside)
             rows.append(
@@ -995,8 +995,6 @@ def run_profile(pw, browser, ids, width, theme, zoom=False):
         expect(page.locator("#aide-sidebar")).not_to_be_visible()
         expect(page.locator("#messages")).to_contain_text("Help me make room")
         controls = [
-            "#aide-mode-conversation",
-            "#aide-mode-coding",
             "#aide-call-open",
             "#aide-jobs-open",
             "#aide-more-btn",
@@ -1220,18 +1218,10 @@ def run_profile(pw, browser, ids, width, theme, zoom=False):
         page.keyboard.press("Escape")
         expect(page.locator("#aide-call-workspace")).not_to_be_visible()
 
-        page.locator("#aide-mode-coding").click()
-        expect(page.locator("body")).to_have_attribute("data-aide-mode", "coding")
-        expect(page.locator("#aide-coding-workspace")).to_be_visible()
-        expect(page.locator("#messages")).not_to_be_visible()
-        expect(page.locator("#aide-work-panel")).not_to_be_visible()
-        geometry(page, ["#aide-mode-conversation", "#aide-mode-coding"])
-        page.screenshot(path=str(OUT / f"aide-coding-unpaired-{name}.png"))
         page.locator("#aide-more-btn").click()
         page.locator('[data-aide-central-action="private"]').click()
         expect(page.locator("body")).to_have_attribute("data-aide-mode", "conversation")
         expect(page.locator("#incognito-bar")).to_be_visible()
-        expect(page.locator("#aide-coding-workspace")).not_to_be_visible()
         page.locator("#composer-ta").fill("Private unsent fixture only")
         page.locator("#incognito-exit").click()
         page.wait_for_function("id => window._currentSession?.id === id", arg=ids["primary"])

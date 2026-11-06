@@ -1,7 +1,6 @@
 import { getActiveId, selectSession, setPrimaryConversationUnavailable } from './sessions.js';
 import { createFocusBoundary, createMenuController } from './kokuen.js?v=5';
 import { openAideRun } from './aiderun.js';
-import { initAideCodingWorkspace, openAideCodingWorkspace, closeAideCodingWorkspace } from './aidecoding.js';
 import { t } from './i18n.js';
 
 const $ = id => document.getElementById(id);
@@ -25,8 +24,6 @@ let refreshTimer;
 let archiveInert = [];
 let panelInert = [];
 let openingCall = false;
-let callReturnMode = 'conversation';
-let callReturnCaptured = false;
 const pendingReceipts = new Set();
 
 function node(tag, text, className = '') {
@@ -92,10 +89,8 @@ export async function openPrimaryConversation({ focus = true, isCurrent = () => 
   } finally { button.disabled = false; }
 }
 
-async function setMode(mode, { focus = false, restore = false } = {}) {
+async function setMode(mode, { focus = false } = {}) {
   document.body.dataset.aideMode = mode;
-  $('aide-mode-conversation').setAttribute('aria-pressed', String(mode === 'conversation'));
-  $('aide-mode-coding').setAttribute('aria-pressed', String(mode === 'coding'));
   $('aide-call-open').setAttribute('aria-expanded', String(mode === 'call'));
   closeContext({ restoreFocus: false });
   menu?.close({ restoreFocus: false });
@@ -103,11 +98,6 @@ async function setMode(mode, { focus = false, restore = false } = {}) {
     const voice = await import('./livevoice.js?v=4');
     voice.closeLiveVoiceSurface();
   }
-  if (mode === 'coding') {
-    window._closeAideTools?.();
-    window._setAideArchiveOpen?.(false);
-    await openAideCodingWorkspace({ refresh: !restore });
-  } else closeAideCodingWorkspace();
   if (focus && mode === 'conversation') $('composer-ta')?.focus();
 }
 
@@ -281,11 +271,10 @@ function archiveVisibility(open) {
 }
 
 export function initAideCentral() {
-  if (initialized || !$('aide-mode-conversation')) return;
+  if (initialized || !$('aide-call-open')) return;
   initialized = true;
   document.body.classList.add('aide-central');
   document.body.dataset.aideMode = 'conversation';
-  initAideCodingWorkspace();
   const options = $('aide-new-context');
   for (const id of ['effort-btn', 'aide-help']) if ($(id)) options.append($(id));
   const closeOptions = action(t('aide.close_conversation_settings'), () => {
@@ -307,7 +296,7 @@ export function initAideCentral() {
   window._showPrimaryAide = openPrimaryConversation;
   window._aideConversationShown = () => {
     if (!openingCall) void setMode('conversation').then(showPrimaryFailure);
-    // coming back from code (or a tool page) while the chat sat hidden at the very top: show the end
+    // coming back from a tool page while the chat sat hidden at the very top: show the end
     setTimeout(() => {
       const chat = $('chat');
       if (chat && chat.scrollTop === 0 && chat.scrollHeight > chat.clientHeight + 80) chat.scrollTop = chat.scrollHeight;
@@ -315,29 +304,16 @@ export function initAideCentral() {
     window._setAideArchiveOpen?.(false);
     syncHistory();
   };
-  // an Aide tool page (brain, skills, models...) is neither tab, so neither reads as current
-  window._aideToolShown = () => {
-    document.body.dataset.aideMode = 'tool';
-    $('aide-mode-conversation').setAttribute('aria-pressed', 'false');
-    $('aide-mode-coding').setAttribute('aria-pressed', 'false');
-  };
+  // an Aide tool page (brain, skills, models...) is not the conversation
+  window._aideToolShown = () => { document.body.dataset.aideMode = 'tool'; };
   window._hideAideSurfaces = () => {
     closeContext({ restoreFocus: false });
-    closeAideCodingWorkspace();
     window._hideLiveVoiceSurface?.();
     $('aide-call-workspace').hidden = true;
     $('aide-call-open').setAttribute('aria-expanded', 'false');
     window._setAideArchiveOpen?.(false);
     menu?.close({ restoreFocus: false });
   };
-  $('aide-mode-conversation').addEventListener('click', () => {
-    window._enterChatView?.();
-    void setMode('conversation', { focus: true });
-  });
-  $('aide-mode-coding').addEventListener('click', () => {
-    window._enterChatView?.();
-    void setMode('coding');
-  });
   $('aide-return-primary').addEventListener('click', openPrimaryConversation);
   $('aide-history-return').addEventListener('click', openPrimaryConversation);
   $('aide-jobs-open').addEventListener('click', () => openContext('jobs'));
@@ -374,19 +350,12 @@ export function initAideCentral() {
   });
   window.addEventListener('aide:call-surface', event => {
     if (event.detail?.open) {
-      if (!callReturnCaptured) callReturnMode = document.body.dataset.aideMode === 'coding' ? 'coding' : 'conversation';
-      callReturnCaptured = true;
       openingCall = true;
       window._enterChatView?.();
       openingCall = false;
       void setMode('call');
-    } else {
-      callReturnCaptured = false;
-      if (document.body.dataset.aideMode === 'call') void setMode(callReturnMode, { focus: true, restore: true });
-    }
+    } else if (document.body.dataset.aideMode === 'call') void setMode('conversation', { focus: true });
   });
-  document.addEventListener('aide-coding-close', () => void setMode('conversation', { focus: true }));
-  document.addEventListener('alles:aide-coding-open', () => void setMode('coding'));
   document.addEventListener('alles:aide-session', syncHistory);
   document.addEventListener('alles:aide-primary-unavailable', showPrimaryFailure);
   document.addEventListener('alles:aide-work-changed', () => void refreshJobs({ visible: true }));
