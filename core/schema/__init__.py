@@ -6,8 +6,6 @@ The remaining records keep their existing relationships together.
 
 from core.schema.application import AideCall as AideCall
 from core.schema.application import AideCallEvent as AideCallEvent
-from core.schema.application import AideCodingRun as AideCodingRun
-from core.schema.application import AideCodingRunEvent as AideCodingRunEvent
 from core.schema.application import AideGoal as AideGoal
 from core.schema.application import Album as Album
 from core.schema.application import AndromedaSavedSearch as AndromedaSavedSearch
@@ -40,7 +38,6 @@ from core.schema.application import ContactLink as ContactLink
 from core.schema.application import CookbookEntry as CookbookEntry
 from core.schema.application import DayEvent as DayEvent
 from core.schema.application import DelegatedAction as DelegatedAction
-from core.schema.application import DshConnection as DshConnection
 from core.schema.application import EventAttendee as EventAttendee
 from core.schema.application import Face as Face
 from core.schema.application import GalleryImage as GalleryImage

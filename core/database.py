@@ -25,8 +25,6 @@ from core.schema import ActualEntityLink as ActualEntityLink
 from core.schema import ActualMigrationRun as ActualMigrationRun
 from core.schema import AideCall as AideCall
 from core.schema import AideCallEvent as AideCallEvent
-from core.schema import AideCodingRun as AideCodingRun
-from core.schema import AideCodingRunEvent as AideCodingRunEvent
 from core.schema import AideGoal as AideGoal
 from core.schema import Album as Album
 from core.schema import AndromedaSavedSearch as AndromedaSavedSearch
@@ -65,7 +63,6 @@ from core.schema import DayEvent as DayEvent
 from core.schema import DelegatedAction as DelegatedAction
 from core.schema import DocComment as DocComment
 from core.schema import DocRevision as DocRevision
-from core.schema import DshConnection as DshConnection
 from core.schema import EncryptedText as EncryptedText
 from core.schema import EventAttendee as EventAttendee
 from core.schema import Face as Face

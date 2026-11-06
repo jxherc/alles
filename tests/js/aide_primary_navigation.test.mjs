@@ -252,9 +252,9 @@ test('explicit project handoff retains project ownership without resolving prima
   assert.equal(h.requests.length, 0);
 });
 
-test('private draft and private entry leave coding mode without consulting primary', async () => {
+test('private draft and private entry leave tool mode without consulting primary', async () => {
   const h = harness({ view: 'chat' });
-  h.state.mode = h.document.body.dataset.aideMode = 'coding';
+  h.state.mode = h.document.body.dataset.aideMode = 'tool';
   await h.privateEntry();
   assert.equal(h.state.mode, 'conversation');
   assert.equal(h.state.privateMode, true);

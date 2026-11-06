@@ -17,7 +17,7 @@ def _walk_routes(routes):
             yield from _walk_routes(route.original_router.routes)
 
 
-def _current_rows():
+def _live_rows():
     rows = []
     for route in _walk_routes(app.routes):
         for method in sorted(route.methods or ()):
@@ -125,6 +125,20 @@ _CODE_EFFORT_ADDITIONS = {
     "PUT /api/aide/code/thinking",
     "GET /api/aide/code/projects/{project_id}/chats/{chat_id}/commands",
 }
+
+# aide's code mode was deleted: every /api/aide/code route went with it. the sets above that
+# first added them stay as history, and _current_rows adds them back so each earlier surface
+# below still counts the same; the live app must not have them
+_CODE_MODE_REMOVED = {
+    row
+    for row in _PI_CODE_ADDITIONS | _HARNESS_ADDITIONS | _CODE_EFFORT_ADDITIONS
+    if " /api/aide/code/" in row
+}
+
+
+def _current_rows():
+    return sorted(set(_live_rows()) | _CODE_MODE_REMOVED)
+
 
 # alles's own tools for pi, local-only behind each chat's bridge token
 _PI_BRIDGE_TOOL_ADDITIONS = {"POST /pi-bridge/tool"}
@@ -399,6 +413,21 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _ANDROMEDA_CORRECT_ADDITIONS
             ),
             960,
+        )
+
+    def test_code_mode_routes_are_gone_and_the_hand_off_routes_stay(self):
+        live = set(_live_rows())
+        self.assertEqual(len(_CODE_MODE_REMOVED), 20)
+        self.assertFalse(_CODE_MODE_REMOVED & live)
+        self.assertFalse([row for row in live if "/api/aide/code" in row])
+        self.assertTrue(
+            {
+                "GET /api/aide/capabilities",
+                "POST /pi-bridge/fetch",
+                "POST /pi-bridge/search",
+                "POST /pi-bridge/tool",
+            }
+            <= live
         )
 
     def test_harness_routes_are_additive(self):

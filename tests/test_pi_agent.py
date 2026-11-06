@@ -51,6 +51,15 @@ class PiTest(ApiTest):
         self.tmp.cleanup()
         super().tearDown()
 
+    def saved(self, project_id, chat_id):
+        """(role, text) of every message in a chat's own session file."""
+        path, _harness = pi_agent.find_chat(project_id, chat_id)
+        return [
+            (e["message"]["role"], pi_agent._text_of(e["message"].get("content")))
+            for e in pi_agent._entries(path)
+            if e.get("type") == "message"
+        ]
+
     def add_endpoint(self, **fields):
         row = ModelEndpoint(
             name=fields.pop("name", "proxy"),
@@ -66,16 +75,6 @@ class PiTest(ApiTest):
 
 
 class FolderAndModelTest(PiTest):
-    def test_project_folders_must_be_real_and_outside_alles_data(self):
-        self.assertEqual(pi_agent.check_folder(str(self.project_dir)), self.project_dir.resolve())
-        for bad in ("relative/path", str(self.project_dir / "missing"), "/"):
-            with self.subTest(path=bad), self.assertRaises(ValueError):
-                pi_agent.check_folder(bad)
-        private = self.data / "vault"
-        private.mkdir()
-        with self.assertRaises(ValueError):
-            pi_agent.check_folder(str(private))
-
     def test_models_json_names_keys_by_env_var_only(self):
         self.add_endpoint()
         self.add_endpoint(name="claude", base_url="https://api.anthropic.com", models=["claude-x"])
@@ -134,48 +133,31 @@ class ChatRuntimeTest(PiTest):
         self.assertGreater(stats["tokens_per_second"], 0)
         self.assertEqual(stats["cache_hit_rate"], 0.75)
         self.assertTrue(same)
-        saved = pi_agent.transcript("proj1", chat_id)
+        saved = self.saved("proj1", chat_id)
         self.assertEqual(
-            [item["kind"] for item in saved["items"]],
-            ["user", "assistant", "tool_done", "assistant"],
+            [role for role, _ in saved], ["user", "assistant", "toolResult", "assistant"]
         )
-        self.assertEqual(saved["items"][-1]["text"], "done with fix the header")
-        self.assertEqual(saved["model"]["model"], "coder-1")
-        self.assertEqual(pi_agent.list_chats("proj1")[0]["title"], "fix the header")
+        self.assertEqual(saved[-1][1], "done with fix the header")
 
-    def test_stop_ends_a_long_run_and_questions_go_to_the_owner(self):
+    def test_a_question_from_pi_is_declined_so_the_job_never_waits_for_nobody(self):
         self.add_endpoint()
 
         async def flow():
             with self.db() as session:
                 choice = pi_agent.resolve_choice(session)
                 chat = await pi_agent.open_chat(session, self.project(), None, choice)
-            await chat.send("slow job")
-            await asyncio.sleep(0.3)
-            busy_before = chat.busy
-            await chat.stop()
-            await asyncio.sleep(0.2)
-            busy_after = chat.busy
+            seen = asyncio.Queue()
+            chat.listeners.add(seen)
             await chat.send("ask first")
-            for _ in range(50):
-                if chat.questions:
-                    break
-                await asyncio.sleep(0.05)
-            question = next(iter(chat.questions.values()))
-            await chat.answer(question["id"], True)
-            for _ in range(80):
-                if not chat.busy and any(e["kind"] == "stats" for e in chat.log[-3:]):
-                    break
-                await asyncio.sleep(0.05)
+            kinds = []
+            while (event := await asyncio.wait_for(seen.get(), 10))["kind"] != "idle":
+                kinds.append(event["kind"])
             await chat.close()
-            return busy_before, busy_after, question, chat.id
+            return chat.id, kinds
 
-        busy_before, busy_after, question, chat_id = asyncio.run(flow())
-        self.assertTrue(busy_before)
-        self.assertFalse(busy_after)
-        self.assertEqual(question["title"], "trust?")
-        saved = pi_agent.transcript("proj1", chat_id)
-        self.assertEqual(saved["items"][-1]["text"], "done with ask first trusted=True")
+        chat_id, kinds = asyncio.run(flow())
+        self.assertNotIn("question", kinds)
+        self.assertEqual(self.saved("proj1", chat_id)[-1][1], "done with ask first trusted=None")
 
 
 class OmpAndAcpTest(PiTest):
@@ -205,11 +187,7 @@ class OmpAndAcpTest(PiTest):
         )  # an env var name, not a key
         self.assertNotIn("sk-test-secret", (pi_agent.agent_dir("omp") / "models.yml").read_text())
         self.assertEqual(pi_agent.find_chat("proj1", chat_id)[1], "omp")
-        saved = pi_agent.transcript("proj1", chat_id)
-        self.assertEqual(
-            (saved["harness"], saved["items"][-1]["text"]), ("omp", "done with tidy up")
-        )
-        self.assertEqual(pi_agent.list_chats("proj1")[0]["harness"], "omp")
+        self.assertEqual(self.saved("proj1", chat_id)[-1][1], "done with tidy up")
 
     def acp_entry(self):
         return {"id": "fake-acp", "name": "Fake ACP"}, [
@@ -254,7 +232,7 @@ class OmpAndAcpTest(PiTest):
         )
         self.assertEqual(models, ["fake-small", "fake-large"])
         self.assertEqual(stats["context_percent"], 2.0)
-        saved = pi_agent.transcript("proj1", chat_id)
+        saved = acp_agent.transcript("proj1", chat_id)
         self.assertEqual(saved["harness"], "fake-acp")
         texts = [i["text"] for i in saved["items"] if i["kind"] == "assistant"]
         # text before a tool call is its own block, like the live view shows it
@@ -262,7 +240,7 @@ class OmpAndAcpTest(PiTest):
             texts[:2], ["looking. ", "done with ask then read allowed=yes on fake-small"]
         )
         self.assertTrue(texts[-1].endswith("on fake-large"))
-        listed = pi_agent.list_chats("proj1")
+        listed = acp_agent.list_chats("proj1")
         self.assertEqual((listed[0]["harness"], listed[0]["title"]), ("fake-acp", "ask then read"))
 
     def test_acp_stop_and_resume(self):
@@ -294,7 +272,9 @@ class OmpAndAcpTest(PiTest):
         self.assertTrue(busy)
         self.assertTrue(same)
         notes = [
-            i["text"] for i in pi_agent.transcript("proj1", chat_id)["items"] if i["kind"] == "note"
+            i["text"]
+            for i in acp_agent.transcript("proj1", chat_id)["items"]
+            if i["kind"] == "note"
         ]
         self.assertIn("stopped", notes)
 
@@ -478,21 +458,10 @@ class HarnessCatalogTest(PiTest):
             self.assertIsNone(harnesses.launch(escape))
 
     def test_default_harness_setting(self):
-        self.add_endpoint()
-        status = self.client.get("/api/aide/code/status").json()
         self.assertEqual(
-            status["settings"], {"harness": "pi", "approval": "auto", "guard": True, "thinking": ""}
+            pi_agent.settings(),
+            {"harness": "pi", "approval": "auto", "guard": True, "thinking": ""},
         )
-        self.assertEqual([n["harness"] for n in status["native"]], ["pi", "omp"])
-        changed = self.client.put(
-            "/api/aide/code/settings", json={"harness": "omp", "approval": "ask"}
-        )
-        self.assertEqual(
-            changed.json(), {"harness": "omp", "approval": "ask", "guard": True, "thinking": ""}
-        )
-        unknown = self.client.put("/api/aide/code/settings", json={"harness": "nope"})
-        self.assertEqual(unknown.status_code, 404)
-        self.client.put("/api/aide/code/settings", json={"harness": "pi"})
 
 
 class PiRunToolTest(PiTest):
@@ -515,7 +484,7 @@ class PiRunToolTest(PiTest):
         self.assertIn("done with tidy the readme", result["output"])
         self.assertIn("tools used: read", result["output"])
         self.assertEqual(result["project"], "site")
-        self.assertTrue(pi_agent.transcript(result["project_id"], result["chat_id"]))
+        self.assertTrue(self.saved(result["project_id"], result["chat_id"]))
 
     def test_pi_steps_stream_into_the_aide_answer(self):
         from services import agent_tools
@@ -532,65 +501,7 @@ class PiRunToolTest(PiTest):
         self.assertEqual(events[-1]["type"], "result")
 
 
-class CodeRoutesTest(PiTest):
-    def test_projects_folders_and_saved_chats(self):
-        self.add_endpoint()
-        status = self.client.get("/api/aide/code/status").json()
-        self.assertEqual(status["pi"]["state"], "ready")
-        self.assertEqual(status["default"]["model"], "coder-1")
-        self.assertNotIn("provider", status["default"])
-
-        listing = self.client.get(
-            "/api/aide/code/folders", params={"path": str(self.project_dir.parent)}
-        )
-        self.assertEqual(listing.json()["folders"], ["site"])
-
-        bad = self.client.post("/api/aide/code/projects", json={"path": str(self.data)})
-        self.assertEqual(bad.status_code, 400)
-        made = self.client.post("/api/aide/code/projects", json={"path": str(self.project_dir)})
-        self.assertEqual(made.status_code, 200, made.text)
-        project = made.json()
-        self.assertEqual(project["name"], "site")
-        again = self.client.post("/api/aide/code/projects", json={"path": str(self.project_dir)})
-        self.assertEqual(again.json()["id"], project["id"])
-
-        folder = pi_agent.sessions_dir(project["id"])
-        folder.mkdir(parents=True)
-        chat_id = "01a15525-c31e-7005-a844-42724e273385"
-        lines = [
-            {"type": "session", "id": chat_id, "timestamp": "2026-10-19T17:00:00Z"},
-            {
-                "type": "message",
-                "id": "a",
-                "parentId": None,
-                "message": {"role": "user", "content": "hi pi"},
-            },
-        ]
-        (folder / f"2026-10-19_{chat_id}.jsonl").write_text("\n".join(map(json.dumps, lines)))
-        chats = self.client.get(f"/api/aide/code/projects/{project['id']}/chats").json()["items"]
-        self.assertEqual([(c["id"], c["title"]) for c in chats], [(chat_id, "hi pi")])
-        chat = self.client.get(f"/api/aide/code/projects/{project['id']}/chats/{chat_id}").json()
-        self.assertEqual(chat["items"], [{"kind": "user", "text": "hi pi"}])
-        self.assertFalse(chat["live"])
-
-        gone = self.client.delete(f"/api/aide/code/projects/{project['id']}")
-        self.assertEqual(gone.status_code, 200)
-        self.assertFalse(folder.exists())
-        with self.db() as session:
-            self.assertEqual(session.query(CodingProject).count(), 0)
-
-    def test_new_chat_needs_a_usable_model(self):
-        project = self.client.post(
-            "/api/aide/code/projects", json={"path": str(self.project_dir)}
-        ).json()
-        reply = self.client.post(
-            f"/api/aide/code/projects/{project['id']}/chats", json={"text": "go"}
-        )
-        self.assertEqual(reply.status_code, 409)
-        self.assertEqual(reply.json()["code"], "coding_model_missing")
-
-
-class EffortAndCommandsTest(PiTest):
+class ModelEffortTest(PiTest):
     def test_reasoning_models_are_marked_for_pi(self):
         self.add_endpoint(models=["coder-thinking", "gemini-3.8-flash-high", "gpt-4o"])
         with self.db() as session:
@@ -681,55 +592,14 @@ class EffortAndCommandsTest(PiTest):
         # levels nobody stated: pi keeps its defaults
         self.assertEqual(listed["coder-thinking"], {"id": "coder-thinking", "reasoning": True})
 
-    def test_effort_commands_context_compact_and_goal(self):
-        self.add_endpoint(models=["coder-thinking"])
-        project = SimpleNamespace(id="proj1", path=str(self.project_dir))
-
-        async def flow():
-            with self.db() as session:
-                choice = pi_agent.resolve_choice(session)
-                chat = await pi_agent.open_chat(session, project, None, choice)
-            first = dict(chat.thinking)
-            picked = await chat.set_thinking("high")
-            names = [c["name"] for c in await chat.commands()]
-            for text in ["/compact the tests", "/context", "/goal ship the header"]:
-                self.assertIsNotNone(await chat.builtin(text))
-            goal = pi_agent.load_goal(chat.id)
-            await chat.builtin("/goal clear")
-            plain = await chat.builtin("fix it")  # not a command: pi gets it as is
-            await chat.close()
-            return first, picked, names, chat.log, goal, plain, chat.id
-
-        first, picked, names, log, goal, plain, chat_id = asyncio.run(flow())
-        self.assertEqual(
-            first, {"level": "medium", "levels": ["off", "minimal", "low", "medium", "high"]}
-        )
-        self.assertEqual(picked["level"], "high")
-        self.assertEqual(names, ["fix-tests"])  # alles's own bridge command stays hidden
-        kinds = {e["kind"]: e for e in log if e["kind"] in ("compacted", "context")}
-        self.assertEqual((kinds["compacted"]["before"], kinds["compacted"]["after"]), (9000, 1200))
-        self.assertEqual(kinds["compacted"]["summary"], "kept: the tests")
-        self.assertEqual((kinds["context"]["tokens"], kinds["context"]["window"]), (4000, 100000))
-        self.assertEqual([e["state"] for e in log if e["kind"] == "goal"], ["set", "cleared"])
-        self.assertEqual((goal, pi_agent.load_goal(chat_id)), ("ship the header", ""))
-        self.assertIsNone(plain)
-        # the goal went to pi as work, without a user bubble of the instructions
-        self.assertFalse(any(e["kind"] == "user" for e in log))
-
-    def test_effort_route_saves_the_level_new_chats_start_with(self):
+    def test_the_saved_effort_level_is_what_new_chats_start_with(self):
         from core.settings import save_settings
 
         self.addCleanup(save_settings, {"coding_thinking": ""})
-        bad = self.client.put("/api/aide/code/thinking", json={"level": "ludicrous"})
-        self.assertEqual(bad.status_code, 422)
-        saved = self.client.put("/api/aide/code/thinking", json={"level": "low"}).json()
-        self.assertEqual((saved["level"], saved["live"]), ("low", False))
+        save_settings({"coding_thinking": "ludicrous"})
+        self.assertEqual(pi_agent.settings()["thinking"], "")
+        save_settings({"coding_thinking": "low"})
         self.assertEqual(pi_agent.settings()["thinking"], "low")
-        project = self.client.post(
-            "/api/aide/code/projects", json={"path": str(self.project_dir)}
-        ).json()
-        idle = self.client.get(f"/api/aide/code/projects/{project['id']}/chats/nope/commands")
-        self.assertEqual(idle.json(), {"items": []})
 
 
 if __name__ == "__main__":
@@ -768,18 +638,15 @@ class PiDoesTheWorkTest(unittest.TestCase):
             self.assertIn(name, handed)
 
 
-class HandoffDisplayTest(PiTest):
-    def test_aides_brief_to_pi_never_shows_as_the_task(self):
+class HandoffBriefTest(PiTest):
+    def test_aides_brief_rides_after_the_task_and_splits_off_again(self):
         from services import agent_tools
 
         self.add_endpoint()
         result = asyncio.run(agent_tools._pi_run("make a packing list", wait_seconds=30))
-        summary = pi_agent.list_chats(result["project_id"])[0]
-        self.assertEqual((summary["title"], summary["from_aide"]), ("make a packing list", True))
-        saved = pi_agent.transcript(result["project_id"], result["chat_id"])
-        self.assertEqual(
-            saved["items"][0], {"kind": "user", "text": "make a packing list", "from_aide": True}
-        )
+        role, text = self.saved(result["project_id"], result["chat_id"])[0]
+        self.assertEqual(role, "user")
+        self.assertEqual(pi_agent.split_handoff(text), ("make a packing list", True))
         self.assertEqual(pi_agent.split_handoff("plain words"), ("plain words", False))
 
 
@@ -909,19 +776,3 @@ class PiFailureWordsTest(unittest.TestCase):
         self.assertIn("refused the api key", said)
         self.assertNotIn("{", said)
         self.assertTrue(said.endswith("files changed: none"))
-
-
-class ChatSummaryRaceTest(unittest.TestCase):
-    def test_a_chat_file_removed_while_listing_is_skipped(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "chat.jsonl"
-            path.write_text(json.dumps({"type": "session", "id": "c1"}) + "\n")
-            real = pi_agent._entries
-
-            def read_then_vanish(target):
-                entries = real(target)
-                target.unlink()
-                return entries
-
-            with mock.patch.object(pi_agent, "_entries", read_then_vanish):
-                self.assertIsNone(pi_agent.chat_summary(path))

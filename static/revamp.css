@@ -93,7 +93,7 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn, .act-btn, .finance-import-previe
   color: var(--k-text);
 }
 
-html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button, #aide-coding-workspace .acw-primary) {
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button) {
   border-color: transparent;
   background: var(--k-accent);
   color: var(--k-on-accent);
@@ -102,13 +102,13 @@ html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #
   font-weight: 560;
 }
 
-html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button, #aide-coding-workspace .acw-primary):hover {
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button):hover {
   border-color: transparent;
   background: color-mix(in srgb, var(--k-accent) 86%, var(--k-text));
   color: var(--k-on-accent);
 }
 
-html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button, #aide-coding-workspace .acw-primary):disabled {
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button):disabled {
   background: var(--k-btn-fill);
   color: var(--k-quiet);
   box-shadow: none;
@@ -473,7 +473,7 @@ html:not(#_) :is(.custom-dropdown-panel, [data-kokuen-surface] [role="menu"]) {
 html:not(#_):not(#_) :is(
   .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu, .aide-project-context-menu,
   .aide-schedule-project-menu, .docs-action-menu, .plan-board-menu, .perm-menu, .photos-albmenu,
-  .jrnl-lockmenu, .acw-menu, .mention-menu, .slash-popup, .custom-dropdown-panel
+  .jrnl-lockmenu, .mention-menu, .slash-popup, .custom-dropdown-panel
 ) {
   gap: 0;
   border: 1px solid transparent;
@@ -485,7 +485,7 @@ html:not(#_):not(#_) :is(
 html:not(#_):not(#_) :is(
   .ctx-menu, .aide-central-menu, .msg-actions-menu, .aide-sidebar-menu,
   .aide-project-context-menu:not(.folder-mode), .aide-schedule-project-menu, .docs-action-menu,
-  .plan-board-menu, .perm-menu, .photos-albmenu, .jrnl-lockmenu, .acw-menu, .mention-menu, .slash-popup,
+  .plan-board-menu, .perm-menu, .photos-albmenu, .jrnl-lockmenu, .mention-menu, .slash-popup,
   .custom-dropdown-panel
 ) {
   padding: var(--k-space-1);
@@ -495,7 +495,7 @@ html:not(#_):not(#_) :is(
   .ctx-item, .aide-central-menu button, .msg-actions-menu > .act-btn, .aide-sidebar-menu > button,
   .aide-project-context-menu:not(.folder-mode) button, .aide-schedule-project-menu button,
   .docs-action-menu button, .plan-board-menu-item, .perm-menu-item, .photos-albmenu-item,
-  .jrnl-lockmenu .btn, .acw-menu button, .mention-item, .slash-item, .custom-dropdown-option
+  .jrnl-lockmenu .btn, .mention-item, .slash-item, .custom-dropdown-option
 ) {
   min-height: var(--k-control, 44px);
   margin: 0;
@@ -520,7 +520,7 @@ html:not(#_):not(#_) :is(
   text-align: left;
 }
 
-html:not(#_):not(#_) :is(.perm-menu-item, .acw-menu button) { padding-block: var(--k-space-2); }
+html:not(#_):not(#_) .perm-menu-item { padding-block: var(--k-space-2); }
 
 /* a text overflow ellipsis needs a block box, so the file row centers by line height */
 html:not(#_):not(#_) .mention-item {
@@ -532,7 +532,7 @@ html:not(#_):not(#_) :is(
   .ctx-item, .aide-central-menu button, .msg-actions-menu > .act-btn, .aide-sidebar-menu > button,
   .aide-project-context-menu:not(.folder-mode) button, .aide-schedule-project-menu button,
   .docs-action-menu button, .plan-board-menu-item, .perm-menu-item, .photos-albmenu-item,
-  .jrnl-lockmenu .btn, .acw-menu button, .mention-item, .slash-item, .custom-dropdown-option
+  .jrnl-lockmenu .btn, .mention-item, .slash-item, .custom-dropdown-option
 ):is(:hover, :focus-visible, .custom-dropdown-option.active, .mention-item.active, .slash-item.selected) {
   background: var(--k-hover);
   color: var(--k-text);
@@ -540,7 +540,7 @@ html:not(#_):not(#_) :is(
 
 /* the picked row says so with text, not a second fill, so it never touches the hovered one */
 html:not(#_):not(#_):not(#_) :is(
-  .aide-project-context-menu, .aide-schedule-project-menu, .plan-board-menu, .acw-menu
+  .aide-project-context-menu, .aide-schedule-project-menu, .plan-board-menu
 ) [aria-checked="true"]:not(:hover, :focus-visible),
 html:not(#_):not(#_):not(#_) .perm-menu-item.active:not(:hover, :focus-visible),
 html:not(#_):not(#_):not(#_) .custom-dropdown-option.selected:not(:hover, .active) {
@@ -1047,19 +1047,10 @@ html:not(#_):not(#_) #cal-sidebar {
   padding-inline: var(--k-gutter);
 }
 
-html:not(#_) #aide-coding-workspace .acw-projects {
-  padding-inline: calc(var(--k-gutter) - 8px);
-}
-
-html:not(#_) #aide-coding-workspace .acw-rail-head {
-  padding-inline: var(--k-gutter) calc(var(--k-gutter) - 8px);
-}
-
 /* a page's own sidebar is a filled panel with a round top corner and no line beside it (the
    direction demo); its picked row is one step up so it reads on the panel. the app switcher
    stays a menu */
-html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-sidebar, #cal-sidebar),
-html:not(#_):not(#_) #aide-coding-workspace .acw-rail {
+html:not(#_):not(#_) :is(.docs-nav-panel, .files-phase7-location-panel, .photos-sidebar, #cal-sidebar) {
   border-right: 0;
   border-inline-end: 0;
   border-start-end-radius: var(--k-radius-surface);
@@ -1543,7 +1534,7 @@ html:not(#_):not(#_) #mail-view .mail-accounts .mail-empty {
 }
 
 /* the old -12px pull-backs were for buttons drawn as bare words; a filled button sits on the edge */
-html:not(#_):not(#_) :is(.aide-tool-head > .btn:not(.primary), .watch-bar-actions > .btn:first-child, .server-workbench-card > button, #jrnl-export, #aide-coding-workspace .acw-start .acw-action) {
+html:not(#_):not(#_) :is(.aide-tool-head > .btn:not(.primary), .watch-bar-actions > .btn:first-child, .server-workbench-card > button, #jrnl-export) {
   margin-left: 0 !important;
   margin-inline-start: 0 !important;
 }
@@ -2360,7 +2351,7 @@ html:not(#_):not(#_) :is(
   .gallery-prompt-input, .aide-schedule-form :is(input, textarea), .aide-goal-hook-row input,
   .cb-search, .cp-hex, .note-cl-text, body:not(.afterlife-aide-projects) .search-input,
   .files-phase7-dialog :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), textarea),
-  .acw-folder-bar input, .server-workbench-field :is(input, textarea), .finance-import-conversion input,
+  .server-workbench-field :is(input, textarea), .finance-import-conversion input,
   .news-editor :is(input:not([type="checkbox"], [type="radio"]), textarea), .k-field
 ),
 html:not(#_):not(#_) #files-search {
@@ -2424,7 +2415,7 @@ html:not(#_):not(#_) :is(
   .gallery-prompt-input, .aide-schedule-form :is(input, textarea), .aide-goal-hook-row input,
   .cb-search, .cp-hex, .note-cl-text, body:not(.afterlife-aide-projects) .search-input,
   .files-phase7-dialog :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), textarea),
-  .acw-folder-bar input, .server-workbench-field :is(input, textarea), .finance-import-conversion input,
+  .server-workbench-field :is(input, textarea), .finance-import-conversion input,
   .news-editor :is(input:not([type="checkbox"], [type="radio"]), textarea), .k-field
 ):is(:hover, .open),
 html:not(#_):not(#_) #files-search:is(:hover, .open) {
@@ -3741,25 +3732,6 @@ html:not(#_)[data-kokuen-version="5"] #settings-modal :is(
   background: var(--k-btn-fill-hover);
 }
 
-/* the code view: its start suggestions are secondary buttons like every other start, and its
-   composer box shows focus once (the field inside drew its own line in the box) */
-html:not(#_):not(#_) #aide-coding-workspace .acw-suggestion {
-  border-color: transparent;
-  background: var(--k-btn-fill);
-  color: var(--k-text);
-}
-
-html:not(#_):not(#_) #aide-coding-workspace .acw-suggestion:hover { background: var(--k-btn-fill-hover); }
-
-html:not(#_):not(#_) #aide-coding-workspace .acw-entry:focus-within {
-  box-shadow: inset 0 0 0 1px var(--k-field-focus);
-}
-
-html:not(#_):not(#_) #aide-coding-workspace .acw-entry textarea:is(:focus, :focus-visible) {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
 /* an open contact's save is the screen's primary; the add row above steps back while it's open */
 html:not(#_)[data-kokuen-version="5"] #contacts-view:has(#cd-save) #contact-add-btn.btn.primary {
   background: var(--k-btn-fill);
@@ -4151,7 +4123,7 @@ html:not(#_):not(#_) #files-view .files-phase7-table-head > .files-phase7-select
 /* a filled accent button draws its focus ring outside its fill, on the page: inside, the gray ring
    on purple sat at 1.3-2.7:1. the capture bar's add button keeps a 6px clear border, so its ring
    sits in that gap instead of over the bar's own edge */
-html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button, #aide-coding-workspace .acw-primary):focus-visible {
+html:not(#_)[data-kokuen-version="5"] :is(.btn.primary, .files-primary-action, #wiki-empty-new, .plan-board-add-button):focus-visible {
   outline-offset: 2px;
 }
 

@@ -1,8 +1,8 @@
-"""drive any ACP harness (claude code, codex, opencode, qwen code, kimi, goose…) as a code chat.
+"""drive any ACP harness (claude code, codex, opencode, qwen code, kimi, goose…) for work Aide hands over.
 
 it speaks the agent client protocol over stdio and shows the same events as a pi chat, so the
-code view, live stream, stop and questions work the same for every harness. ACP harnesses keep
-their own history, so alles writes a plain log of each chat to show it again later.
+hand-off from Aide works the same for every harness. ACP harnesses keep their own history, so
+alles writes a plain log of each chat to resume it later.
 """
 
 from __future__ import annotations

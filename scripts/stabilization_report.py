@@ -28,7 +28,6 @@ BROWSER_SUITES = {
     "aide-central": ("aide-central",),
     "ask-panel": ("ask-panel",),
     "notice-clears": ("notice-clears",),
-    "aide-coding": ("aide-coding",),
     "help-manual": ("help-manual",),
     "livevoice": ("livevoice",),
     "draft-ownership": ("draft-ownership",),

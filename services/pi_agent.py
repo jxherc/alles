@@ -2,8 +2,8 @@
 
 alles installs a pinned pi into the user's cache folder, writes pi's model list from alles's
 endpoints (keys go in through env vars, never onto disk), and keeps one `pi --mode rpc`
-process per open chat. a chat is one of pi's own session files; each project gets a folder
-of them.
+process per open chat, for the work Aide hands over. a chat is one of pi's own session files;
+each project gets a folder of them.
 """
 
 from __future__ import annotations
@@ -443,31 +443,6 @@ def resolve_choice(db, endpoint_id: str = "", model: str = "") -> dict | None:
 # ── projects ──
 
 
-def check_folder(raw: str) -> Path:
-    path = Path(os.path.expanduser(str(raw or "").strip()))
-    if not path.is_absolute():
-        raise ValueError("use a full folder path, like /home/me/project")
-    path = path.resolve()
-    if not path.is_dir():
-        raise ValueError("that folder does not exist on this machine")
-    if path == Path(path.anchor):
-        raise ValueError("pick a project folder, not the whole disk")
-    private = data_dir().resolve()
-    if path == private or private in path.parents:
-        raise ValueError("alles keeps its private data there; pick another folder")
-    return path
-
-
-def public_project(row) -> dict:
-    return {
-        "id": row.id,
-        "name": row.name,
-        "path": row.path,
-        "exists": Path(row.path).is_dir(),
-        "last_used_at": row.last_used_at.isoformat() if row.last_used_at else None,
-    }
-
-
 # ── chats (pi session files) ──
 
 
@@ -510,106 +485,9 @@ def find_chat(project_id: str, chat_id: str) -> tuple[Path, str] | None:
     return None
 
 
-def _chat_file(project_id: str, chat_id: str) -> Path | None:
-    found = find_chat(project_id, chat_id)
-    return found[0] if found and found[1] in NATIVE else None
-
-
-def chat_summary(path: Path) -> dict | None:
-    try:
-        entries = _entries(path)
-        # read with the entries: a chat removed mid-listing is gone, not a server error
-        mtime = path.stat().st_mtime
-    except OSError:
-        return None
-    # omp writes a title line before the session header
-    head = next((e for e in entries[:3] if e.get("type") == "session"), None)
-    if not head:
-        return None
-    name, first, handed = "", "", False
-    for entry in entries:
-        if entry.get("type") == "session_info" and entry.get("name"):
-            name = entry["name"]
-        message = entry.get("message") or {}
-        if not first and entry.get("type") == "message" and message.get("role") == "user":
-            first, handed = split_handoff(_text_of(message.get("content")).strip())
-    return {
-        "id": head.get("id"),
-        "title": name or (first[:80] if first else "new chat"),
-        "from_aide": bool(first) and handed,
-        "created_at": head.get("timestamp"),
-        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(mtime)),
-    }
-
-
-def list_chats(project_id: str) -> list[dict]:
-    from services import acp_agent
-
-    rows = []
-    for harness in NATIVE:
-        folder = sessions_dir(project_id, harness)
-        if folder.is_dir():
-            for path in folder.glob("*.jsonl"):
-                if row := chat_summary(path):
-                    rows.append({**row, "harness": harness})
-    rows += acp_agent.list_chats(project_id)
-    for row in rows:
-        row["running"] = bool((live := _chats.get(row["id"])) and live.busy)
-    return sorted(rows, key=lambda row: row["updated_at"], reverse=True)
-
-
 def _short(value, limit=OUTPUT_LIMIT) -> str:
     text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
     return text if len(text) <= limit else text[:limit] + f"\n… {len(text) - limit} more characters"
-
-
-def transcript(project_id: str, chat_id: str) -> dict | None:
-    """the active branch as simple items: user, assistant (text + tool calls), tool results."""
-    found = find_chat(project_id, chat_id)
-    if found is None:
-        return None
-    path, harness = found
-    if harness not in NATIVE:
-        from services import acp_agent
-
-        return acp_agent.transcript(project_id, chat_id)
-    entries = [e for e in _entries(path) if e.get("id") and e.get("type") != "session"]
-    model = {}
-    by_id = {e["id"]: e for e in entries}
-    branch, node = [], entries[-1] if entries else None
-    while node is not None:
-        branch.append(node)
-        node = by_id.get(node.get("parentId"))
-    items = []
-    for entry in reversed(branch):
-        if entry.get("type") == "model_change":
-            named = entry.get("model")
-            if isinstance(named, str) and "/" in named:  # omp: "provider/model"
-                provider, _, model_id = named.partition("/")
-                model = {"provider": provider, "model": model_id}
-            elif isinstance(named, dict):
-                model = {"provider": named.get("provider"), "model": named.get("id")}
-            else:
-                model = {"provider": entry.get("provider"), "model": entry.get("modelId")}
-        if entry.get("type") != "message":
-            continue
-        message = entry.get("message") or {}
-        role = message.get("role")
-        if role == "user":
-            task, handed = split_handoff(_text_of(message.get("content")))
-            items.append({"kind": "user", "text": task, **({"from_aide": True} if handed else {})})
-        elif role == "assistant":
-            items.append(_assistant_item(message))
-        elif role == "toolResult":
-            items.append(
-                {
-                    "kind": "tool_done",
-                    "id": message.get("toolCallId"),
-                    "ok": not message.get("isError"),
-                    "output": _short(_text_of(message.get("content"))),
-                }
-            )
-    return {"items": items, "model": model, "harness": harness}
 
 
 def _assistant_item(message: dict) -> dict:
@@ -643,24 +521,6 @@ def _clean_env(keys: dict, harness: str = "pi") -> dict:
     else:
         env["OMP_SKIP_SETUP"] = "1"
     return env
-
-
-def _goal_file(chat_id: str) -> Path:
-    return home() / "goals" / f"{re.sub(r'[^A-Za-z0-9_-]', '', chat_id)}.txt"
-
-
-def load_goal(chat_id: str) -> str:
-    path = _goal_file(chat_id)
-    return path.read_text(encoding="utf-8").strip() if chat_id and path.is_file() else ""
-
-
-def save_goal(chat_id: str, text: str) -> None:
-    path = _goal_file(chat_id)
-    if not text:
-        path.unlink(missing_ok=True)
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text[:4000], encoding="utf-8")
 
 
 def _secrets_file(chat_id: str) -> Path:
@@ -730,7 +590,6 @@ class PiChat:
         self.seq = 0
         self.listeners: set[asyncio.Queue] = set()
         self.waiting: dict[str, asyncio.Future] = {}
-        self.questions: dict[str, dict] = {}
         self.last_active = time.monotonic()
         self.stats: dict = {}
         self.partial = ""
@@ -742,7 +601,6 @@ class PiChat:
         self._reader = None
         self._tasks: set[asyncio.Task] = set()
         # pi's effort for this chat and the levels its model takes
-        self.thinking: dict = {"level": "", "levels": []}
         # "allow" when Aide handed this work over (its approval covers the task) or code runs
         # on auto; "ask" makes pi check with the owner before an alles tool changes anything
         self.writes = "allow" if settings()["approval"] == "auto" else "ask"
@@ -808,7 +666,6 @@ class PiChat:
         _chats[self.id] = self
         if self._bridge:
             _bridge_tokens[self._bridge] = self.id
-        await self.load_thinking()
 
     async def close(self) -> None:
         proc = self.proc
@@ -979,40 +836,14 @@ class PiChat:
         self.emit({"kind": "stats", **self.stats})
 
     async def _question(self, record: dict) -> None:
-        method = record.get("method")
-        if method not in ("confirm", "select"):
-            # notices and editors have no place in this view; dialogs we can't show are declined
-            if method in ("input", "editor"):
-                await self._reply_question(record.get("id"), {"cancelled": True})
-            return
-        question = {
-            "id": record.get("id"),
-            "method": method,
-            "title": str(record.get("title") or record.get("message") or "pi has a question")[:500],
-            "options": [str(o)[:200] for o in (record.get("options") or [])][:12],
-        }
-        self.questions[question["id"]] = question
-        self.emit({"kind": "question", **question})
+        # nothing shows pi's dialogs, so every one that waits for an answer is declined
+        if record.get("method") in ("confirm", "select", "input", "editor"):
+            await self._reply_question(record.get("id"), {"cancelled": True})
 
     async def _reply_question(self, question_id: str, answer: dict) -> None:
         payload = {"type": "extension_ui_response", "id": question_id, **answer}
         self.proc.stdin.write((json.dumps(payload) + "\n").encode())
         await self.proc.stdin.drain()
-
-    async def answer(self, question_id: str, value) -> None:
-        question = self.questions.pop(question_id, None)
-        if question is None:
-            raise KeyError(question_id)
-        if value is None:
-            answer = {"cancelled": True}
-        elif question["method"] == "confirm":
-            answer = {"confirmed": bool(value)}
-        else:
-            if value not in question["options"]:
-                raise ValueError("pick one of the offered options")
-            answer = {"value": value}
-        await self._reply_question(question_id, answer)
-        self.emit({"kind": "answered", "id": question_id})
 
     # what the owner does
 
@@ -1038,114 +869,6 @@ class PiChat:
         else:
             await self.command("prompt", message=text)
         return seq
-
-    async def stop(self) -> None:
-        if self.busy:
-            await self.command("abort", timeout=30)
-            self.emit({"kind": "note", "text": "stopped"})
-
-    async def set_model(self, choice: dict) -> None:
-        await self.command("set_model", provider=choice["provider"], modelId=choice["model"])
-        self.choice = choice
-        await self.load_thinking()
-
-    async def load_thinking(self) -> dict:
-        if self.harness != "pi":
-            return self.thinking
-        with contextlib.suppress(RuntimeError, TimeoutError):
-            levels = (await self.command("get_available_thinking_levels", timeout=10)).get("levels")
-            state = await self.command("get_state", timeout=10)
-            self.thinking = {
-                "level": str(state.get("thinkingLevel") or ""),
-                "levels": [str(level) for level in levels or [] if level in THINKING_LEVELS],
-            }
-        return self.thinking
-
-    async def set_thinking(self, level: str) -> dict:
-        await self.command("set_thinking_level", level=level)
-        return await self.load_thinking()
-
-    async def commands(self) -> list[dict]:
-        """pi's extension commands and prompt templates; each runs as a "/name" prompt."""
-        if self.harness != "pi":
-            return []
-        data = await self.command("get_commands", timeout=10)
-        return [
-            {
-                "name": str(c.get("name") or ""),
-                "description": str(c.get("description") or "")[:200],
-                "source": str(c.get("source") or ""),
-            }
-            for c in data.get("commands") or []
-            # alles's own bridge commands aren't for typing
-            if c.get("name") and not str(c.get("name")).startswith("alles-")
-        ]
-
-    async def compact(self, instructions: str = "") -> None:
-        self.emit({"kind": "note", "text": "compacting the context…"})
-        fields = {"customInstructions": instructions} if instructions else {}
-        try:
-            data = await self.command("compact", timeout=600, **fields)
-        except RuntimeError as exc:
-            # pi says why (often "session too small"); that answers the command
-            self.emit({"kind": "note", "text": f"nothing compacted: {str(exc)[:200].lower()}"})
-            return
-        await self._refresh_stats()
-        self.emit(
-            {
-                "kind": "compacted",
-                "before": data.get("tokensBefore"),
-                "after": data.get("estimatedTokensAfter"),
-                "window": self.stats.get("context_window"),
-                "summary": _short(data.get("summary") or "", 1200),
-            }
-        )
-
-    async def show_context(self) -> None:
-        await self._refresh_stats()
-        self.emit(
-            {
-                "kind": "context",
-                "tokens": self.stats.get("context_tokens"),
-                "window": self.stats.get("context_window"),
-                "percent": self.stats.get("context_percent"),
-                "input": self.stats.get("input_tokens"),
-                "output": self.stats.get("output_tokens"),
-                "cache_read": self.stats.get("cache_read_tokens"),
-                "cost": self.stats.get("cost"),
-                "model": self.choice.get("model", ""),
-                "thinking": self.thinking.get("level", ""),
-                **getattr(self, "_counts", {}),
-            }
-        )
-
-    async def builtin(self, text: str) -> int | None:
-        """alles's own / commands for a pi chat; None when the text isn't one."""
-        name, _, rest = text.strip().partition(" ")
-        rest = rest.strip()
-        first = self.seq + 1  # the browser follows from the first event this makes
-        if name == "/compact":
-            await self.compact(rest)
-        elif name == "/context":
-            await self.show_context()
-        elif name == "/goal":
-            if not rest:
-                goal = load_goal(self.id)
-                self.emit({"kind": "goal", "text": goal, "state": "shown" if goal else "none"})
-            elif rest == "clear":
-                save_goal(self.id, "")
-                self.emit({"kind": "goal", "text": "", "state": "cleared"})
-            else:
-                save_goal(self.id, rest)
-                self.emit({"kind": "goal", "text": rest, "state": "set"})
-                await self.send(
-                    f"Goal: {rest}\n\nWork toward this goal until it is done or you are blocked. "
-                    "End each reply with a short checklist: what is done, what is left.",
-                    echo=False,  # the goal card shows it
-                )
-        else:
-            return None
-        return first
 
 
 def live_chat(chat_id: str) -> PiChat | None:
@@ -1214,42 +937,3 @@ async def close_idle() -> int:
 async def close_all() -> None:
     for chat in list(_chats.values()):
         await chat.close()
-
-
-async def delete_chat(project_id: str, chat_id: str) -> bool:
-    found = find_chat(project_id, chat_id)
-    if found is None:
-        return False
-    path = found[0]
-    if chat := _chats.get(chat_id):
-        await chat.close()
-    path.unlink()
-    _secrets_file(chat_id).unlink(missing_ok=True)
-    return True
-
-
-async def forget_project(project_id: str) -> None:
-    """stop its chats and set its chat files aside; the project folder itself is untouched."""
-    for chat in [c for c in _chats.values() if c.project_id == project_id]:
-        await chat.close()
-    folder = sessions_dir(project_id)
-    if folder.is_dir():
-        removed = home() / "removed"
-        removed.mkdir(parents=True, exist_ok=True)
-        folder.rename(removed / f"{project_id}-{int(time.time())}")
-
-
-def browse(raw: str) -> dict:
-    """folders under a path, for picking a project; hidden folders stay out of the list."""
-    path = Path(os.path.expanduser(raw or "~")).resolve()
-    if not path.is_dir():
-        raise ValueError("that folder does not exist on this machine")
-    try:
-        names = sorted(
-            (p.name for p in path.iterdir() if p.is_dir() and not p.name.startswith(".")),
-            key=str.lower,
-        )
-    except PermissionError as exc:
-        raise ValueError("alles can't read that folder") from exc
-    parent = path.parent if path.parent != path else None
-    return {"path": str(path), "parent": str(parent) if parent else None, "folders": names[:500]}

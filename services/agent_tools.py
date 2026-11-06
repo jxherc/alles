@@ -1436,15 +1436,18 @@ async def _pi_hand_over(task: str, project: str = "", wait_seconds: int = 600):
     from services import pi_agent
 
     harness = pi_agent.settings()["harness"]
-    if harness in pi_agent.NATIVE and pi_agent.ensure_installed(harness)["state"] != "ready":
-        yield {
-            "type": "result",
-            "result": {
-                "output": f"{harness} is not ready on this machine yet; open Aide code to see why",
-                "error": True,
-            },
-        }
-        return
+    if harness in pi_agent.NATIVE:
+        state = pi_agent.ensure_installed(harness)
+        if state["state"] != "ready":
+            why = state.get("error") or "it is still installing"
+            yield {
+                "type": "result",
+                "result": {
+                    "output": f"{harness} is not ready on this machine yet: {why}",
+                    "error": True,
+                },
+            }
+            return
     wanted = (project or "").strip().lower()
     db = SessionLocal()
     try:
@@ -1458,7 +1461,7 @@ async def _pi_hand_over(task: str, project: str = "", wait_seconds: int = 600):
                 yield {
                     "type": "result",
                     "result": {
-                        "output": f"no Aide code project matches; projects: {names}",
+                        "output": f"no project matches; projects: {names}",
                         "error": True,
                     },
                 }
@@ -1556,7 +1559,7 @@ async def _pi_hand_over(task: str, project: str = "", wait_seconds: int = 600):
         yield {
             "type": "result",
             "result": {
-                "output": f"pi is still working in {row.name}; follow it in Aide code.",
+                "output": f"pi is still working in {row.name} and did not finish in the time given; it keeps going.",
                 **where,
             },
         }
@@ -3963,7 +3966,7 @@ TOOL_DEFS = [
         "apps, code changes. Never for a one-step action (add a task, add an event, log a habit, "
         "add a line to a note): do those yourself with their own tools. Without a project pi "
         "works in its own Aide folder; "
-        "name a project for code in one of the owner's Aide code projects. Its steps show live.",
+        "name a project to work in one of the owner's existing code projects. Its steps show live.",
         {
             "task": {
                 "type": "string",
@@ -3971,7 +3974,7 @@ TOOL_DEFS = [
             },
             "project": {
                 "type": "string",
-                "description": "Aide code project name or folder for code work; empty means pi's own Aide folder.",
+                "description": "Project name or folder for code work; empty means pi's own Aide folder.",
             },
             "wait_seconds": {
                 "type": "integer",

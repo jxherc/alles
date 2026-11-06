@@ -3,7 +3,7 @@ body.aide-central[data-space="aide"] {
   --aide-measure: 100%;
   --aide-gutter: var(--k-space-5, 24px);
 }
-body:not([data-space="aide"]) :is(.aide-mode-nav, .aide-central-action, .aide-more-anchor, .aide-dedicated-workspace, .aide-history-context) { display: none !important; }
+body:not([data-space="aide"]) :is(.aide-central-action, .aide-more-anchor, .aide-dedicated-workspace, .aide-history-context) { display: none !important; }
 body.aide-central[data-space="aide"] .main { min-width: 0; width: 100%; margin: 0; }
 body.aide-central[data-space="aide"] .main > .topbar {
   height: var(--k-header, 52px); min-height: var(--k-header, 52px);
@@ -17,8 +17,6 @@ body.aide-central[data-space="aide"] .topbar-left > #app-drawer-btn {
   margin: 0 0 0 calc(-1 * var(--k-space-3, 12px)); padding: 0 var(--k-space-3, 12px); width: auto; min-height: var(--k-control, 44px); flex: 0 0 auto;
   font-size: 0.9375rem; font-weight: 550; color: var(--text);
 }
-.aide-mode-nav { display: flex; align-items: center; gap: var(--k-space-1, 4px); min-width: 0; }
-.aide-mode-nav button,
 .aide-central-action,
 .aide-context-panel button,
 .aide-return-primary,
@@ -27,9 +25,6 @@ body.aide-central[data-space="aide"] .topbar-left > #app-drawer-btn {
   min-height: var(--k-control, 44px); border: 0; border-radius: var(--k-radius-control, 2px);
   background: none; color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer;
 }
-.aide-mode-nav button { padding: 0 var(--k-space-3, 12px); }
-.aide-mode-nav button[aria-pressed="true"] { color: var(--text); -webkit-text-stroke: 0.35px currentColor; }
-body.aide-central[data-space="aide"] .aide-mode-nav button { background: none; }
 .aide-central-action {
   display: inline-flex; align-items: center; justify-content: center; min-width: var(--k-control, 44px);
   height: var(--k-control, 44px); padding: 0; gap: var(--k-space-1, 4px); position: relative;
@@ -37,7 +32,6 @@ body.aide-central[data-space="aide"] .aide-mode-nav button { background: none; }
 .aide-central-action svg { width: 16px; height: 16px; flex: 0 0 16px; }
 #aide-call-open { width: auto; flex-shrink: 0; padding-inline: var(--k-space-2, 8px); white-space: nowrap; }
 .aide-central-action:hover,
-.aide-mode-nav button:hover,
 .aide-context-panel button:hover,
 .aide-central-menu button:hover { color: var(--text); }
 .aide-central-action[aria-expanded="true"] { color: var(--text); }
@@ -52,8 +46,8 @@ body.aide-central[data-space="aide"] .aide-mode-nav button { background: none; }
 }
 .aide-central-menu button { width: 100%; text-align: left; padding: 0 var(--k-space-3, 12px); color: var(--soft); }
 .aide-central-menu button:hover { background: var(--hover); }
-body.aide-central[data-space="aide"] :is(.aide-central-action, .aide-mode-nav button, .aide-central-menu button):focus:not(:focus-visible) { outline: none; }
-body.aide-central[data-space="aide"] :is(.aide-central-action, .aide-mode-nav button, .aide-central-menu button):focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+body.aide-central[data-space="aide"] :is(.aide-central-action, .aide-central-menu button):focus:not(:focus-visible) { outline: none; }
+body.aide-central[data-space="aide"] :is(.aide-central-action, .aide-central-menu button):focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 body.aide-central[data-space="aide"] .chat { min-height: 0; padding: 0; overflow-x: hidden; }
 body.aide-central[data-space="aide"] .messages {
@@ -106,7 +100,6 @@ body.aide-central[data-space="aide"] #aide-options-close { margin-left: auto; }
 body.aide-central[data-space="aide"] .aide-model-choice { max-width: 200px; padding-inline: var(--k-space-2, 8px); }
 body.aide-central[data-space="aide"] .aide-model-choice-logo { display: none; }
 body.aide-central[data-space="aide"] .aide-task-saved { width: min(var(--aide-measure), 100%); padding: 0 var(--aide-gutter); }
-body.aide-central[data-space="aide"][data-aide-mode="coding"] :is(#chat, #composer-outer, #jump-latest, #aide-history-context),
 body.aide-central[data-space="aide"][data-aide-mode="call"] :is(#chat, #composer-outer, #jump-latest, #aide-history-context) { display: none !important; }
 .aide-dedicated-workspace { flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
 .aide-history-context { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-4, 16px); padding-inline: var(--k-space-5, 24px); color: var(--muted); font-size: 0.8125rem; }
@@ -158,9 +151,6 @@ body.aide-central[data-space="aide"] .aide-background-details { font-size: 0.812
   body.aide-central[data-space="aide"] { --aide-gutter: var(--k-space-4, 16px); }
   body.aide-central[data-space="aide"] .main > .topbar { padding: 0 var(--aide-gutter); gap: 0; }
   body.aide-central[data-space="aide"] .topbar-left { gap: var(--k-space-2, 8px); }
-  .aide-mode-nav { gap: var(--k-control-gap, 8px); flex-shrink: 0; }
-  /* a tab keeps its whole word */
-  .aide-mode-nav button { flex-shrink: 0; white-space: nowrap; padding: 0 var(--k-space-2, 8px); }
   body.aide-central[data-space="aide"] .composer-outer { padding: var(--k-space-2, 8px) var(--aide-gutter) max(var(--k-space-3, 12px), env(safe-area-inset-bottom)); }
   body.aide-central[data-space="aide"] .messages { padding: var(--k-space-4, 16px) var(--aide-gutter); }
   body.aide-central[data-space="aide"] .composer-bar { flex-wrap: wrap; gap: 0; }
@@ -172,11 +162,9 @@ body.aide-central[data-space="aide"] .aide-background-details { font-size: 0.812
   .aide-history-context { padding-inline: var(--k-space-4, 16px); }
   .aide-context-panel { border-left: 0; }
 }
-/* with the larger type (0044) the drawer name, tabs and three actions need about 380px: one row from
+/* with the larger type (0044) the drawer name and three actions need about 380px: one row from
    a phone's 390px up, tighter edges under 430px */
 @media (max-width: 429px) {
-  .aide-mode-nav { flex-shrink: 0; }
-  .aide-mode-nav button { flex-shrink: 0; white-space: nowrap; font-size: 0.8125rem; padding-inline: var(--k-space-1, 4px); }
   body.aide-central[data-space="aide"] .topbar-left { gap: var(--k-space-1, 4px); }
   body.aide-central[data-space="aide"] .main > .topbar { padding-inline: var(--k-space-2, 8px); }
 }

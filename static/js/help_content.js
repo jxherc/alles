@@ -2,7 +2,7 @@
 // Built on each call, so every string follows the current interface language.
 import { t } from './i18n.js';
 
-const TOPIC_IDS = Object.freeze(['start', 'home', 'aide', 'coding', 'voice', 'andromeda', 'plan', 'docs', 'files', 'inbox', 'library', 'health', 'finance', 'vault', 'server', 'settings']);
+const TOPIC_IDS = Object.freeze(['start', 'home', 'aide', 'voice', 'andromeda', 'plan', 'docs', 'files', 'inbox', 'library', 'health', 'finance', 'vault', 'server', 'settings']);
 
 export function helpTopics() {
   return [
@@ -19,11 +19,6 @@ export function helpTopics() {
       { title: t('help.aide.s2.title'), text: [t('help.aide.s2.text1'), t('help.aide.s2.text2')] },
       { title: t('help.aide.s3.title'), text: [t('help.aide.s3.text1'), t('help.aide.s3.text2')] },
     ], actions: [{ label: t('help.aide.action1'), view: 'chat' }, { label: t('help.aide.action2'), pane: 'models' }] },
-    { id: 'coding', title: t('help.coding.title'), sections: [
-      { title: t('help.coding.s1.title'), steps: [t('help.coding.s1.step1'), t('help.coding.s1.step2'), t('help.coding.s1.step3')] },
-      { title: t('help.coding.s2.title'), text: [t('help.coding.s2.text1'), t('help.coding.s2.text2'), t('help.coding.s2.text3')] },
-      { title: t('help.coding.s3.title'), text: [t('help.coding.s3.text1')] },
-    ], actions: [{ label: t('help.coding.action1'), view: 'chat' }] },
     { id: 'voice', title: t('help.voice.title'), sections: [
       { title: t('help.voice.s1.title'), text: [t('help.voice.s1.text1'), t('help.voice.s1.text2')] },
       { title: t('help.voice.s2.title'), steps: [t('help.voice.s2.step1'), t('help.voice.s2.step2'), t('help.voice.s2.step3')], text: [t('help.voice.s2.text1')] },

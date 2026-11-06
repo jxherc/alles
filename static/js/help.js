@@ -1,5 +1,5 @@
 import { createFocusBoundary } from './kokuen.js?v=5';
-import { helpTopics, findManualTopics, manualTopicForApp } from './help_content.js?v=2';
+import { helpTopics, findManualTopics, manualTopicForApp } from './help_content.js?v=3';
 import { t } from './i18n.js';
 
 let currentManual = null;

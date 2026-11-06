@@ -7,13 +7,12 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=622">
-  <link rel="stylesheet" href="/static/kokuen.css?v=98">
-<link rel="stylesheet" href="/static/aidecentral.css?v=22">
-<link rel="stylesheet" href="/static/aidecoding.css?v=29">
+<link rel="stylesheet" href="/static/style.css?v=623">
+  <link rel="stylesheet" href="/static/kokuen.css?v=99">
+<link rel="stylesheet" href="/static/aidecentral.css?v=23">
 <link rel="stylesheet" href="/static/aidecall.css?v=4">
 <link rel="stylesheet" href="/static/help.css?v=3">
-<link rel="stylesheet" href="/static/revamp.css?v=109">
+<link rel="stylesheet" href="/static/revamp.css?v=110">
 <link rel="stylesheet" href="/static/signin.css?v=1">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
@@ -25,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=622">
+<link rel="modulepreload" href="/static/js/app.js?v=623">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=217">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -42,7 +41,7 @@
 <link rel="modulepreload" href="/static/js/uploads.js?v=254">
 <link rel="modulepreload" href="/static/js/projects.js">
 <link rel="modulepreload" href="/static/js/search.js">
-<link rel="modulepreload" href="/static/js/help.js?v=3">
+<link rel="modulepreload" href="/static/js/help.js?v=4">
 <link rel="modulepreload" href="/static/js/compare.js">
 <link rel="modulepreload" href="/static/js/vault.js?v=294">
 <link rel="modulepreload" href="/static/js/contacts.js">
@@ -64,8 +63,8 @@
 <link rel="modulepreload" href="/static/js/privacy.js">
 <link rel="modulepreload" href="/static/js/scrollfollow.js">
 <link rel="modulepreload" href="/static/js/text_entry.js?v=1">
-<link rel="modulepreload" href="/static/js/aideworkspace.js?v=282">
-<link rel="modulepreload" href="/static/js/aidecentral.js?v=3">
+<link rel="modulepreload" href="/static/js/aideworkspace.js?v=283">
+<link rel="modulepreload" href="/static/js/aidecentral.js?v=4">
 <link rel="modulepreload" href="/static/js/kokuen.js?v=5">
 <link rel="modulepreload" href="/static/js/andromeda.js?v=260">
 <link rel="modulepreload" href="/static/js/app_rail.js">
@@ -97,7 +96,7 @@
 <link rel="modulepreload" href="/static/js/setup_detect.js">
 <link rel="modulepreload" href="/static/js/grid_nav.js">
 <link rel="modulepreload" href="/static/js/palette.js">
-<link rel="modulepreload" href="/static/js/help_content.js?v=2">
+<link rel="modulepreload" href="/static/js/help_content.js?v=3">
 <link rel="modulepreload" href="/static/js/request_id.js">
 <link rel="modulepreload" href="/static/js/model_providers.js">
 <link rel="modulepreload" href="/static/js/undo_delete.js">
@@ -117,7 +116,6 @@
 <link rel="modulepreload" href="/static/js/settings/organization.js">
 <link rel="modulepreload" href="/static/js/memory.js">
 <link rel="modulepreload" href="/static/js/theme.js">
-<link rel="modulepreload" href="/static/js/aidecoding.js">
 <link rel="modulepreload" href="/static/js/andromeda_answers.js">
 <link rel="modulepreload" href="/static/js/note_capture.js">
 <link rel="modulepreload" href="/static/js/notice.js">
@@ -219,10 +217,6 @@
           <span id="aide-conversation-name" data-i18n="aide.new_task">new aide task</span>
           <small id="aide-project-name"></small>
         </div>
-        <nav class="aide-mode-nav" aria-label="Aide workspace" data-i18n-aria-label="shell.aide_workspace">
-          <button id="aide-mode-conversation" type="button" aria-pressed="true" data-i18n="shell.conversation">conversation</button>
-          <button id="aide-mode-coding" type="button" aria-pressed="false" data-i18n="shell.code">code</button>
-        </nav>
         <div class="ai-top-controls" id="ai-top-controls">
           <button class="model-btn" id="model-btn" type="button" aria-haspopup="dialog" aria-controls="model-modal" aria-expanded="false">
             <span class="live-dot" id="live-dot"></span>
@@ -452,7 +446,6 @@
 
     <!-- ── chat view (default) ── -->
     <div class="aide-history-context" id="aide-history-context" hidden><span id="aide-history-name"></span><button type="button" id="aide-history-return" data-i18n="common.return_to_conversation">return to conversation</button></div>
-    <section id="aide-coding-workspace" class="aide-dedicated-workspace" hidden></section>
     <section id="aide-call-workspace" class="aide-dedicated-workspace" hidden></section>
     <nav class="aide-message-rail" id="aide-message-rail" aria-label="messages from you" hidden>
       <div id="aide-message-rail-track"></div>
@@ -1473,7 +1466,6 @@
     <nav class="aide-task-tools" id="aide-task-tools" aria-label="tools for this task" data-i18n-aria-label="shell.aide_work.tools_for_this_task">
       <button type="button" data-aide-tool="review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8M12 8v8"/></svg><span data-i18n="shell.aide_work.review">review</span></button>
       <button type="button" data-aide-tool="terminal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg><span data-i18n="shell.aide_work.terminal">terminal</span></button>
-      <button type="button" data-aide-tool="coding"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8.5 7-5 5 5 5M15.5 7l5 5-5 5M13.5 4l-3 16"/></svg><span data-i18n="shell.aide_work.coding">coding</span></button>
       <button type="button" data-aide-tool="browser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.5 3.5 5.3 3.5 8.5S14.4 18 12 20.5M12 3.5C9.6 6 8.5 8.8 8.5 12s1.1 6 3.5 8.5"/></svg><span data-i18n="shell.aide_work.browser">browser</span></button>
       <button type="button" data-aide-tool="files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2-2h9v14h-17z"/></svg><span data-i18n="common.files">files</span></button>
       <button type="button" data-aide-tool="side-task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg><span data-i18n="shell.aide_work.side_task">side task</span></button>
@@ -3125,6 +3117,6 @@
   </div><!-- /s-modal -->
 </div>
 
-<script type="module" src="/static/js/app.js?v=622"></script>
+<script type="module" src="/static/js/app.js?v=623"></script>
 </body>
 </html>

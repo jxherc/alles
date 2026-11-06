@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "id": "2026-11-06",
+      "date": "november 6, 2026",
+      "items": [
+        {
+          "key": "code_mode_gone",
+          "title": "aide's code mode is gone",
+          "body": "the code button next to conversation is gone. for code and longer jobs, ask in the normal chat: aide still hands the work to pi."
+        }
+      ]
+    },
+    {
       "id": "2026-11-05",
       "date": "november 5, 2026",
       "items": [

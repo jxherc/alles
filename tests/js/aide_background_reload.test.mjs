@@ -55,7 +55,7 @@ function fixture({ space = 'aide', mode = 'conversation', busy = false } = {}) {
   };
 }
 
-for (const [space, mode] of [['aide', 'conversation'], ['aide', 'coding'], ['aide', 'call'], ['today', 'conversation']]) {
+for (const [space, mode] of [['aide', 'conversation'], ['aide', 'tool'], ['aide', 'call'], ['today', 'conversation']]) {
   test(`real background reload preserves archive, ${space}/${mode}, focus and draft owner`, async () => {
     const h = fixture({ space, mode }); const before = h.location.href;
     const reload = h.reload(); assert.equal(h.requests[0].url, '/api/sessions/owner/history');

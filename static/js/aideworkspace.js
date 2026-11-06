@@ -5,7 +5,6 @@ import { fetchWithRecentOwner as sharedFetchWithRecentOwner } from './recent_own
 import { requestId } from './request_id.js';
 import { toast, plainError } from './util.js';
 import { t, tp } from './i18n.js';
-import { initAideCoding, openAideCoding } from './aidecoding.js';
 
 const $ = id => document.getElementById(id);
 
@@ -618,23 +617,19 @@ async function connectTerminal() {
 
 function setWorkView(view = '') {
   const terminal = $('aide-terminal');
-  const coding = $('aide-coding');
   const tools = $('aide-task-tools');
   const panel = $('aide-work-panel');
   const back = $('aide-work-panel-back');
   const title = $('aide-work-panel-title');
   if (!terminal || !tools || !panel || !back || !title) return;
   terminal.hidden = view !== 'terminal';
-  if (coding) coding.hidden = view !== 'coding';
   tools.hidden = !!view;
   panel.classList.toggle('terminal-open', view === 'terminal');
-  panel.classList.toggle('coding-open', view === 'coding');
   back.hidden = !view;
-  title.textContent = view === 'terminal' ? t('aide.view_terminal') : view === 'coding' ? t('aide.view_coding') : view || t('aide.task_tools');
+  title.textContent = view === 'terminal' ? t('aide.view_terminal') : view || t('aide.task_tools');
   if (view === 'terminal') {
     connectTerminal();
   } else disconnectTerminal();
-  if (view === 'coding') openAideCoding();
 }
 
 function setTerminalOpen(open) {
@@ -644,11 +639,6 @@ function setTerminalOpen(open) {
 function openDestination(tool) {
   if (tool === 'terminal') {
     setWorkView('terminal');
-    return;
-  }
-  if (tool === 'coding') {
-    setPanelOpen(false, false);
-    document.dispatchEvent(new CustomEvent('alles:aide-coding-open'));
     return;
   }
   setPanelOpen(false, false);
@@ -750,7 +740,6 @@ export function initAideWorkspace() {
   const chat = $('chat');
   if (!panel || !toggle || !messages || !chat || panel.dataset.wired) return;
   panel.dataset.wired = '1';
-  initAideCoding();
   window._closeAideTools = () => setPanelOpen(false, false);
   window._syncAideNewTaskContext = syncNewTaskContext;
   $('aide-project-context')?.addEventListener('click', event => {

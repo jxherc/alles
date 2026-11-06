@@ -95,7 +95,7 @@ test('a receipt only fetches the exact active conversation', async () => {
   assert.deepEqual(h.renders.map(row => [...row]), [['saved receipt']]);
 });
 
-for (const [space, mode] of [['aide', 'call'], ['aide', 'coding'], ['today', 'conversation']]) {
+for (const [space, mode] of [['aide', 'call'], ['aide', 'tool'], ['today', 'conversation']]) {
   test(`receipt refresh preserves route, ${space}/${mode}, focus, selection and draft`, async () => {
     const h = harness({ space, mode });
     const before = {
