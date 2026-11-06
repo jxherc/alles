@@ -224,6 +224,28 @@ class ServiceManagerTest(unittest.TestCase):
             ["launchctl", "kill", "SIGTERM", f"gui/{os.getuid()}/app.alles.helper"],
         )
 
+    def test_launchd_status_counts_only_a_job_that_runs_now(self):
+        # nov 5: after a reboot the service exited at once 461 times, and status said running
+        root = self.services / "helper"
+        root.mkdir()
+        unit_dir = self.home / "Library" / "LaunchAgents"
+        unit_dir.mkdir(parents=True)
+        (unit_dir / "app.alles.helper.plist").write_text("<plist></plist>")
+        sm.register_owned_service(
+            service_id="helper",
+            name="helper",
+            manager="launchd",
+            root=root,
+            unit="app.alles.helper",
+        )
+        exiting = "gui/501/app.alles.helper = {\n\tstate = spawn scheduled\n\truns = 461\n\tlast exit code = 1\n\t\tstate = active\n}"
+        live = "gui/501/app.alles.helper = {\n\tstate = running\n\tpid = 4242\n}"
+        with mock.patch.object(sm.platform, "system", return_value="Darwin"):
+            down = sm.status("helper", runner=mock.Mock(return_value=self._result(stdout=exiting)))
+            up = sm.status("helper", runner=mock.Mock(return_value=self._result(stdout=live)))
+        self.assertFalse(down["running"])
+        self.assertTrue(up["running"])
+
     def test_list_marks_tampered_service_unowned_without_running_it(self):
         service = self._compose()
         Path(service.definition).write_text("tampered")

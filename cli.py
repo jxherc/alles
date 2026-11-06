@@ -473,6 +473,23 @@ def cmd_status(args=()):
         healthy = _health_ok(port)
         ui.check(True, "running", url, width)
         ui.check(healthy, "health", "ok" if healthy else "not answering yet: alles logs", width)
+    elif native is not None and state.get("last_exit") and state.get("starts", 0) > 1:
+        # the service manager keeps starting it and it keeps dying: "start it" wouldn't help
+        ui.check(
+            False,
+            "not starting",
+            f"exits right away (exit {state['last_exit']}, {state['starts']} starts): alles logs",
+            width,
+        )
+        if _on_mac_drive(native):
+            ui.check(
+                None,
+                "",
+                "macOS keeps background apps off an external drive until they're allowed",
+                width,
+            )
+        if _health_ok(port):
+            ui.check(None, "", f"something else answers on {url}", width)
     else:
         ui.check(False, "stopped", "start it with: alles start", width)
     if native is not None:
@@ -1478,6 +1495,11 @@ def _native_candidate_control_plane_ok(release: Path, python: Path, update_dir: 
         shutil.rmtree(probe, ignore_errors=True)
 
 
+def _on_mac_drive(native) -> bool:
+    """macOS keeps launchd jobs off an external drive's files until they're allowed."""
+    return sys.platform == "darwin" and str(native.data_root).startswith("/Volumes/")
+
+
 def _native_service_running() -> bool:
     from services import service_manager
 
@@ -1944,7 +1966,8 @@ def cmd_folders(args=()):
     from services import cli_ui, folder_layout
     from services.update_safety import UpdateCommandLock, UpdateSafetyError
 
-    native = _native_layout()
+    # showing the folders only reads; the move below changes data and checks every file
+    native = _native_layout(files=tuple(args) == ("move",))
     ui = cli_ui.Style()
     if native is None:
         ui.check(None, "folders", "only an installed alles (alles install) moves its folders", 12)
@@ -3314,7 +3337,7 @@ def cmd_config(args=()):
 
     from services import cli_ui
 
-    native = _native_layout()
+    native = _native_layout(files=False)
     path = _settings_path(native)
     if args and args[0] == "path":
         print(path)

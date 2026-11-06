@@ -76,6 +76,33 @@ class StatusReleaseTest(unittest.TestCase):
         self.assertIn("jxherc/alles main", text)
         self.assertNotIn("\033[", text)  # piped output stays plain
 
+    def test_a_service_that_keeps_dying_is_not_called_running_or_stopped(self):
+        # nov 5: after a reboot macOS kept the service off the external drive; launchd started it
+        # 461 times and status said "running"
+        commit = "b" * 40
+        (self.layout.releases / commit).mkdir(parents=True)
+        self.layout.current_release.write_text(commit + "\n")
+        with (
+            mock.patch.object(cli, "_native_layout", return_value=self.layout),
+            mock.patch.object(
+                native_install, "_load_manifest", return_value=self._manifest(commit)
+            ),
+            mock.patch.object(native_install, "latest_release_commit", return_value=commit),
+            mock.patch(
+                "services.service_manager.status",
+                return_value={"available": True, "running": False, "starts": 461, "last_exit": 1},
+            ),
+            mock.patch.object(cli, "_health_ok", return_value=False),
+            mock.patch.object(cli, "_on_mac_drive", return_value=True),
+            mock.patch("sys.stdout", new_callable=io.StringIO) as output,
+        ):
+            cli.cmd_status()
+        text = output.getvalue()
+        self.assertIn("not starting", text)
+        self.assertIn("exits right away (exit 1, 461 starts)", text)
+        self.assertIn("external drive", text)
+        self.assertNotIn("start it with", text)
+
     def test_an_update_stopped_halfway_says_how_to_roll_back(self):
         state_path = cli._native_update_state_path(self.layout.data_root.resolve())
         state_path.parent.mkdir(parents=True, exist_ok=True)
@@ -291,3 +318,29 @@ class StyleTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QuickCheckTest(unittest.TestCase):
+    """nov 5: config and folders hashed ~22,000 release files twice (2 to 6 s on the drive)."""
+
+    def _calls(self, command, args):
+        seen = []
+
+        def layout(*, files=True):
+            seen.append(files)
+            return None
+
+        with mock.patch.object(cli, "_native_layout", side_effect=layout):
+            with mock.patch("sys.stdout", new=io.StringIO()):
+                try:
+                    command(args)
+                except Exception:
+                    pass
+        return seen
+
+    def test_config_and_showing_folders_skip_the_file_hashes(self):
+        self.assertEqual(self._calls(cli.cmd_config, ("path",))[:1], [False])
+        self.assertEqual(self._calls(cli.cmd_folders, ())[:1], [False])
+
+    def test_moving_folders_still_checks_every_file(self):
+        self.assertEqual(self._calls(cli.cmd_folders, ("move",))[:1], [True])

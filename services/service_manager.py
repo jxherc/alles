@@ -305,6 +305,23 @@ def status(service_id: str, *, runner=_run) -> dict:
         }
     output = (result.stdout or "").strip().lower()
     running = result.returncode == 0
+    restarts: dict[str, int] = {}
+    if service.manager == "launchd":
+        # how often launchd started it and how the last run ended, so a job that keeps dying
+        # can say so
+        for key, pattern in (
+            ("starts", r"^\truns = (\d+)$"),
+            ("last_exit", r"^\tlast exit code = (-?\d+)"),
+        ):
+            found = re.search(pattern, result.stdout or "", re.M)
+            if found:
+                restarts[key] = int(found.group(1))
+        # `launchctl print` succeeds for any loaded job, also one that exits the moment it
+        # starts (nov 5: 461 failed starts after a reboot read as "running"). only the job's own
+        # top-level state line says whether it runs now
+        running = (
+            running and re.search(r"^\tstate = running$", result.stdout or "", re.M) is not None
+        )
     if service.manager == "systemd-user":
         running = running and output == "active"
     elif service.manager == "compose":
@@ -316,6 +333,7 @@ def status(service_id: str, *, runner=_run) -> dict:
         "owned": True,
         "available": True,
         "running": running,
+        **restarts,
         "actions": sorted(_ACTIONS),
     }
 
