@@ -2355,6 +2355,12 @@ html .date-panel input:is(.dp-tv, .dp-year):is(:focus, :focus-visible) { outline
   border-bottom: 1px solid var(--faint);
 }
 .s-toggle-row:last-child { border-bottom: none; }
+/* a row whose control is a button: the button keeps its width and wraps under the text when the
+   pane is too narrow for both, and the field after it spaces itself, so no divider */
+.s-action-row { flex-wrap: wrap; border-bottom: none; }
+.s-action-row > :first-child { flex: 1 1 16rem; min-width: 0; }
+.s-action-row > .btn { flex-shrink: 0; }
+.s-action-row .s-toggle-desc { overflow-wrap: anywhere; }
 .s-toggle-label { font-size: 0.8125rem; color: var(--text); }
 .s-toggle-desc { font-size: 0.8125rem; color: var(--muted); margin-top: 0.1rem; }
 

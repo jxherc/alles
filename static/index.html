@@ -7,7 +7,7 @@
 <title>alles</title>
 <script src="/static/prepaint.js"></script>
 <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=6.0.0">
-<link rel="stylesheet" href="/static/style.css?v=623">
+<link rel="stylesheet" href="/static/style.css?v=624">
   <link rel="stylesheet" href="/static/kokuen.css?v=99">
 <link rel="stylesheet" href="/static/aidecentral.css?v=23">
 <link rel="stylesheet" href="/static/aidecall.css?v=4">
@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="alles">
 <!-- modulepreload:start -->
-<link rel="modulepreload" href="/static/js/app.js?v=623">
+<link rel="modulepreload" href="/static/js/app.js?v=624">
 <link rel="modulepreload" href="/static/js/sessions.js">
 <link rel="modulepreload" href="/static/js/models.js?v=217">
 <link rel="modulepreload" href="/static/js/icons.js">
@@ -2166,6 +2166,22 @@
               <div class="s-search-status" id="s-hidden-sites-status" role="status" aria-live="polite"></div>
             </div>
           </div>
+          <div class="s-card" role="region" aria-labelledby="s-andromeda-browser-head">
+            <div class="s-card-head" id="s-andromeda-browser-head" data-i18n="shell.andromeda_settings.default_search">default search</div>
+            <div class="s-card-body">
+              <div class="s-toggle-row s-action-row">
+                <div>
+                  <div class="s-toggle-label" data-i18n="shell.andromeda_settings.chromium_browsers">chrome, brave, edge and helium</div>
+                  <div class="s-toggle-desc" data-i18n="shell.andromeda_settings.extension_steps">unzip it, open chrome://extensions, turn on developer mode and load the folder</div>
+                </div>
+                <button type="button" class="btn" id="s-andromeda-extension" data-i18n="shell.andromeda_settings.download_extension">download extension</button>
+              </div>
+              <div class="s-field">
+                <label for="s-andromeda-search-url" data-i18n="shell.andromeda_settings.search_address">search address for other browsers</label>
+                <div style="display:flex;gap:var(--k-control-gap)"><input type="text" readonly class="settings-input" id="s-andromeda-search-url" style="flex:1" spellcheck="false"><button type="button" class="btn" id="s-andromeda-search-url-copy" data-i18n="common.copy">copy</button></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ── appearance pane ── -->
@@ -3117,6 +3133,6 @@
   </div><!-- /s-modal -->
 </div>
 
-<script type="module" src="/static/js/app.js?v=623"></script>
+<script type="module" src="/static/js/app.js?v=624"></script>
 </body>
 </html>

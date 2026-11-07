@@ -245,6 +245,9 @@ _ANDROMEDA_CORRECT_ADDITIONS = {"POST /api/andromeda/correct"}
 # with apps on paths each app's name (example.com/docs) opens the shell
 _APP_PATH_ADDITIONS = {"GET /{app_name}"}
 
+# a search-only browser extension that makes andromeda the default search
+_SEARCH_EXTENSION_ADDITIONS = {"GET /api/andromeda/search-extension"}
+
 
 def _route_rows():
     """the surface before pi, which the older additive checks below are pinned to."""
@@ -276,6 +279,7 @@ def _route_rows():
         | _CHAT_QUEUE_ADDITIONS
         | _ANDROMEDA_CORRECT_ADDITIONS
         | _APP_PATH_ADDITIONS
+        | _SEARCH_EXTENSION_ADDITIONS
     )
     return sorted((set(_current_rows()) - later) | _DSH_REMOVED)
 
@@ -422,6 +426,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _CHAT_QUEUE_ADDITIONS
                 - _ANDROMEDA_CORRECT_ADDITIONS
                 - _APP_PATH_ADDITIONS
+                - _SEARCH_EXTENSION_ADDITIONS
             ),
             960,
         )
@@ -492,6 +497,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
                 - _CHAT_QUEUE_ADDITIONS
                 - _ANDROMEDA_CORRECT_ADDITIONS
                 - _APP_PATH_ADDITIONS
+                - _SEARCH_EXTENSION_ADDITIONS
             ),
             974,
         )
@@ -547,6 +553,9 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_app_path_route_is_additive(self):
         self.assertTrue(_APP_PATH_ADDITIONS <= set(_current_rows()))
 
+    def test_search_extension_route_is_additive(self):
+        self.assertTrue(_SEARCH_EXTENSION_ADDITIONS <= set(_current_rows()))
+
     def test_docs_over_the_local_network_routes_are_additive(self):
         self.assertTrue(_DOCS_LAN_ADDITIONS <= set(_current_rows()))
         self.assertTrue(_DAV_SYNC_ADDITIONS <= set(_current_rows()))
@@ -556,8 +565,8 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
     def test_full_method_path_surface_matches_current_snapshot(self):
         rows = _current_rows()
         digest = hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
-        self.assertEqual(len(rows), 1043)
-        self.assertEqual(digest, "062af59b2ec7db65cb590ce888ede44edf2493680cfc9dc96bfcc291275ce2a6")
+        self.assertEqual(len(rows), 1044)
+        self.assertEqual(digest, "a07b16e7021ead4516ec879a92258964fdc1b7aa4e0696fa37bd2a02d9148871")
         groups = Counter(
             "api"
             if row.split(" ", 1)[1].startswith("/api/")
@@ -566,7 +575,7 @@ class RouteCompatibilityBaselineTest(unittest.TestCase):
             else "public"
             for row in rows
         )
-        self.assertEqual(groups, {"api": 1007, "v1": 2, "public": 34})
+        self.assertEqual(groups, {"api": 1008, "v1": 2, "public": 34})
         self.assertIn("POST /api/money/recurring/{rid}/delete", rows)
         self.assertIn("POST /api/money/recurring/{rid}/delete/retry", rows)
 

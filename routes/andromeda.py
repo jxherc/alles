@@ -76,6 +76,60 @@ class CorrectBody(BaseModel):
     query: str = Field(min_length=1, max_length=2_000)
 
 
+# a search-only browser extension: no vault, no pairing, nothing secret in it. chromium browsers
+# take a search engine from an extension's chrome_settings_overrides and ask the owner to keep it
+_EXTENSION_ICONS = Path(__file__).resolve().parent.parent / "extension" / "icons"
+
+
+def search_extension_zip(origin: str) -> bytes:
+    import io
+    import zipfile
+
+    from services.browser_passwords import andromeda_search_url
+
+    manifest = {
+        "manifest_version": 3,
+        "name": "andromeda search",
+        "version": "1.0.0",
+        "description": f"search with andromeda on {origin}",
+        "icons": {size: f"icons/icon-{size}.png" for size in ("16", "32", "48", "128")},
+        "chrome_settings_overrides": {
+            "search_provider": {
+                "name": "andromeda",
+                "keyword": "al",
+                "search_url": andromeda_search_url(origin),
+                "favicon_url": f"{origin}/static/icons/icon-192.png",
+                "encoding": "UTF-8",
+                "is_default": True,
+            }
+        },
+    }
+    bundle = io.BytesIO()
+    with zipfile.ZipFile(bundle, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("manifest.json", json.dumps(manifest, indent=2) + "\n")
+        for size in ("16", "32", "48", "128"):
+            archive.write(_EXTENSION_ICONS / f"icon-{size}.png", f"icons/icon-{size}.png")
+    return bundle.getvalue()
+
+
+@router.get("/search-extension")
+def search_extension(origin: str = Query("", max_length=300)):
+    """the alles address the browser opened this from goes into the extension's search url"""
+    from services.browser_passwords import _clean_origin
+
+    clean = _clean_origin(origin)
+    if not clean:
+        raise ApiError(400, "invalid_origin", "this alles address can't be used for search")
+    return Response(
+        content=search_extension_zip(clean),
+        media_type="application/zip",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": 'attachment; filename="andromeda-search-extension.zip"',
+        },
+    )
+
+
 @router.post("/correct")
 async def correct_spelling(body: CorrectBody):
     """the local spelling fix alone, so the page can show "showing results for" before the search

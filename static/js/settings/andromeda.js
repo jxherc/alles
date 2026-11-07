@@ -3,7 +3,7 @@
 import { createSettingsPane } from './pane.js';
 import { _patchSettings, _bindSwitch, _esc } from './shared.js';
 import { onModelRoles, roleOptions, setModelRole } from './model_roles.js';
-import { toast, plainError } from '../util.js';
+import { toast, plainError, writeClipboard } from '../util.js';
 import { confirm as confirmDialog } from '../dialog.js';
 import { fetchWithRecentOwner } from '../recent_owner.js';
 import { getDropdownValue, setDropdownValue, populateDropdown } from '../dropdown.js?v=217';
@@ -505,11 +505,50 @@ function wire() {
     const sites = (_settings.andromeda_blocked_sites || []).filter(item => item !== site);
     if (await saveHiddenSites(sites, t('settings.search_site_shown', { site }))) $('s-hidden-site')?.focus();
   });
+  wireDefaultSearch();
   // the models section can change the answer model while this one is closed
   onModelRoles(({ roles, source }) => {
     if (source === 'andromeda' || !roles) return;
     _roles = roles;
     showAnswerModel();
+  });
+}
+
+// default search: a search-only extension for chromium browsers, and the address any other browser
+// takes as a custom search engine. both name the alles this page was opened from
+function wireDefaultSearch() {
+  const address = $('s-andromeda-search-url');
+  if (address) address.value = `${location.origin}/?app=andromeda&q=%s`;
+  $('s-andromeda-search-url-copy')?.addEventListener('click', async () => {
+    try {
+      await writeClipboard(address.value);
+      toast(t('common.copied'), 'success');
+    } catch {
+      address.select();
+    }
+  });
+  $('s-andromeda-extension')?.addEventListener('click', async event => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const response = await fetch('/api/andromeda/search-extension?origin=' + encodeURIComponent(location.origin));
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.message || payload.detail || t('shell.andromeda_settings.extension_failed'));
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'andromeda-search-extension.zip';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast(error.message || t('shell.andromeda_settings.extension_failed'), 'error');
+    } finally {
+      button.disabled = false;
+    }
   });
 }
 

@@ -2113,6 +2113,7 @@
     "this account has changed; reload it before removing": "此账户已变化，请先重新加载再移除",
     "this account has changed; reload it before saving": "此账户已变化，请先重新加载再保存",
     "this account was removed; start a new account explicitly": "此账户已被移除，请明确地新建账户",
+    "this alles address can't be used for search": "这个 alles 地址不能用于搜索",
     "this book changed after your edit; newer values were kept": "这本书在你编辑后发生了变化，已保留较新的值",
     "this call has ended": "此通话已结束",
     "this call has not been connected": "此通话尚未接通",

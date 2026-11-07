@@ -2113,6 +2113,7 @@
     "this account has changed; reload it before removing": "このアカウントは変更されました。削除する前に再読み込みしてください",
     "this account has changed; reload it before saving": "このアカウントは変更されました。保存する前に再読み込みしてください",
     "this account was removed; start a new account explicitly": "このアカウントは削除されました。新しいアカウントを明示的に作成してください",
+    "this alles address can't be used for search": "この alles のアドレスは検索に使えません",
     "this book changed after your edit; newer values were kept": "この本は、あなたの編集の後に変更されました。新しい値を保持しました",
     "this call has ended": "この通話は終了しました",
     "this call has not been connected": "この通話はまだ接続されていません",

@@ -1157,7 +1157,12 @@ ordinary-entry receipts.
   linked from the page head), so chrome and firefox can add andromeda from the address bar and make
   it the default in their search settings. the downloaded extension also sets andromeda as chrome's
   default search (chrome asks to keep it or change it back), and `al` plus a space in the address
-  bar searches andromeda from any copy of the extension
+  bar searches andromeda from any copy of the extension. settings › andromeda › default search has
+  a search-only version that needs no vault: `GET /api/andromeda/search-extension?origin=` zips a
+  manifest whose `chrome_settings_overrides` names the address the page was opened from (any http
+  or https origin; nothing secret is in it), and chromium browsers make it the default search once
+  it's loaded unpacked (checked in chromium, brave and helium). the same card shows the plain search
+  address (`<origin>/?app=andromeda&q=%s`) to copy into any browser that takes a custom engine
 - *under the hood:* each vault has its own random 256-bit key, and each entry and file is sealed with **aes-256-gcm** (a strong authenticated encryption) under it. your master password only unwraps that key, through **argon2id** (64 mib, 3 passes, 4 lanes: a deliberately slow, memory-hungry key-stretch so guessing the password is expensive). the server keeps the unwrapped key **in memory only**, never the password, and drops it after 10 idle minutes; the page locks itself on the same clock. changing the password asks for the current one and rewraps the key. wrong passwords get 5 free tries, then waits that double up to 5 minutes. a vault made before this upgrades itself on the next unlock. copied secrets clear from the clipboard after 90 seconds while alles has focus. vault settings has a password-protected export (argon2id + aes-gcm json, current password asked first) with import, and an activity log of unlocks, failed tries, opens, exports and security changes (`data/vault-audit.jsonl`, no secrets). a passkey holds its own wrap of the key: under its webauthn prf output when the authenticator has prf, otherwise under a device key the server keeps. threat model and audit: the owner's life vault, `alles vault threat model` and `alles vault audit`.
 
 <p align="center">
@@ -1991,10 +1996,10 @@ the registered http operations are grouped by handler source. use `/api/openapi.
 the registered http surface:
 
 - 90 included fastapi router modules
-- 1023 http method/path pairs
-- 987 `/api/*`, 2 `/v1/*`, and 34 non-api shell/public pairs
+- 1024 http method/path pairs
+- 988 `/api/*`, 2 `/v1/*`, and 34 non-api shell/public pairs
 
-the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_route_compatibility.py) also counts the 20 code mode routes removed on nov 6 (and checks none of them is still registered), so it pins 1043 pairs with sha-256 `062af59b2ec7db65cb590ce888ede44edf2493680cfc9dc96bfcc291275ce2a6`.
+the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_route_compatibility.py) also counts the 20 code mode routes removed on nov 6 (and checks none of them is still registered), so it pins 1044 pairs with sha-256 `a07b16e7021ead4516ec879a92258964fdc1b7aa4e0696fa37bd2a02d9148871`.
 
 <details>
 <summary>app.py · 12 operations</summary>
@@ -2083,7 +2088,7 @@ the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_rou
 </details>
 
 <details>
-<summary>routes/andromeda.py · 22 operations</summary>
+<summary>routes/andromeda.py · 23 operations</summary>
 
 [source](routes/andromeda.py)
 
@@ -2106,6 +2111,7 @@ the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_rou
 | `PUT` | `/api/andromeda/saved/{search_id}/watch` | `watch_saved` |
 | `POST` | `/api/andromeda/saved/{search_id}/watch/seen` | `watch_seen` |
 | `POST` | `/api/andromeda/search` | `search` |
+| `GET` | `/api/andromeda/search-extension` | `search_extension` |
 | `POST` | `/api/andromeda/translate` | `translate` |
 | `POST` | `/api/andromeda/verification` | `start_verification` |
 | `POST` | `/api/andromeda/verification/preview` | `verification_preview` |
