@@ -1,0 +1,46 @@
+{
+  "name": {
+    "message": "andromeda search"
+  },
+  "description": {
+    "message": "把 safari 搜索引擎里的搜索发到你的 alles 上的 andromeda"
+  },
+  "address": {
+    "message": "alles 地址"
+  },
+  "save": {
+    "message": "保存"
+  },
+  "off": {
+    "message": "关闭"
+  },
+  "on": {
+    "message": "搜索会发到 andromeda"
+  },
+  "on_late": {
+    "message": "搜索引擎的页面开始加载后，搜索会发到 andromeda"
+  },
+  "off_now": {
+    "message": "搜索留在 safari 的搜索引擎"
+  },
+  "invalid": {
+    "message": "输入你的 alles 地址，比如 https://alles.example.com"
+  },
+  "no_access": {
+    "message": "safari 还没让 andromeda 看到搜索页面"
+  },
+  "allow": {
+    "message": "在搜索页面上允许"
+  },
+  "caught": {
+    "message": "上次在 $HOST$ 拦下搜索：$TIME$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "time": {
+        "content": "$2"
+      }
+    }
+  }
+}

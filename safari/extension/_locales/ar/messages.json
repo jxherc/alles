@@ -1,0 +1,46 @@
+{
+  "name": {
+    "message": "andromeda search"
+  },
+  "description": {
+    "message": "تذهب عمليات البحث من محرك بحث safari إلى andromeda على alles الخاص بك"
+  },
+  "address": {
+    "message": "عنوان alles"
+  },
+  "save": {
+    "message": "حفظ"
+  },
+  "off": {
+    "message": "إيقاف"
+  },
+  "on": {
+    "message": "عمليات البحث تذهب إلى andromeda"
+  },
+  "on_late": {
+    "message": "عمليات البحث تذهب إلى andromeda بعد أن تبدأ صفحة محرك البحث"
+  },
+  "off_now": {
+    "message": "عمليات البحث تبقى مع محرك بحث safari"
+  },
+  "invalid": {
+    "message": "أدخل عنوان alles الخاص بك، مثل https://alles.example.com"
+  },
+  "no_access": {
+    "message": "لم يسمح safari بعد لـ andromeda برؤية صفحات البحث"
+  },
+  "allow": {
+    "message": "السماح على صفحات البحث"
+  },
+  "caught": {
+    "message": "آخر بحث تم التقاطه على $HOST$ في $TIME$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "time": {
+        "content": "$2"
+      }
+    }
+  }
+}

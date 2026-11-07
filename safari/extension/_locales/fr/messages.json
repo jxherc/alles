@@ -1,0 +1,46 @@
+{
+  "name": {
+    "message": "andromeda search"
+  },
+  "description": {
+    "message": "les recherches du moteur de safari vont vers andromeda sur votre alles"
+  },
+  "address": {
+    "message": "adresse alles"
+  },
+  "save": {
+    "message": "enregistrer"
+  },
+  "off": {
+    "message": "désactiver"
+  },
+  "on": {
+    "message": "les recherches vont vers andromeda"
+  },
+  "on_late": {
+    "message": "les recherches vont vers andromeda une fois la page du moteur lancée"
+  },
+  "off_now": {
+    "message": "les recherches restent sur le moteur de safari"
+  },
+  "invalid": {
+    "message": "saisissez l’adresse de votre alles, comme https://alles.example.com"
+  },
+  "no_access": {
+    "message": "safari n’autorise pas encore andromeda à voir les pages de recherche"
+  },
+  "allow": {
+    "message": "autoriser sur les pages de recherche"
+  },
+  "caught": {
+    "message": "dernière recherche captée sur $HOST$ à $TIME$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "time": {
+        "content": "$2"
+      }
+    }
+  }
+}

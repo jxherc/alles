@@ -72,6 +72,12 @@ alles access domain alles.example.com
 
 يصبح كل تطبيق بعد شرطة مائلة: `alles.example.com/docs` و`alles.example.com/plan`. أضف `subdomain` (`alles access domain alles.example.com subdomain`) ليحصل كل تطبيق على عنوانه الخاص مثل `docs.alles.example.com`، ويحتاج ذلك إلى سجل DNS وشهادة بحرف بدل. لا يصنع alles الشهادة بنفسه: وجّه النطاق إلى هذا الحاسوب واجعل وكيل https (caddy أو nginx أو نفق cloudflare) يرسله إلى `http://127.0.0.1:6769`. والأمر `alles access domain off` يلغي ربطه.
 
+### اجعل andromeda بحث متصفحك
+
+من الإعدادات › andromeda › البحث الافتراضي تنزّل إضافة صغيرة لـ chrome وbrave وedge وhelium: فك ضغطها، وافتح `chrome://extensions`، وشغّل وضع المطوّر، ثم حمّل المجلد، فيصبح andromeda البحث الافتراضي. وأي متصفح آخر يمكنه استخدام عنوان البحث الظاهر هناك كمحرك بحث مخصص.
+
+أما safari على iphone أو ipad فيعرض قائمة apple فقط، لذلك يحتوي `safari/` على تطبيق صغير فيه إضافة safari: أبقِ google محرك بحث safari، وسترسل الإضافة كل بحث على google أو bing أو duckduckgo أو yahoo أو ecosia أو baidu إلى andromeda. ابنِه في xcode بفريق مطوّري apple الخاص بك، وشغّله من الإعدادات › التطبيقات › safari › الامتدادات، واسمح له على كل المواقع، ثم أدخل عنوان alles في نافذته.
+
 ### تشغيله من الشفرة المصدرية
 
 للتطوير، أو لتشغيله من دون الخدمة. على Debian أو Ubuntu، شغّل أولاً `sudo apt install git python3-venv`.

@@ -61,6 +61,12 @@ alles access domain alles.example.com
 
 cada app queda después de una barra: `alles.example.com/docs`, `alles.example.com/plan`. añade `subdomain` (`alles access domain alles.example.com subdomain`) para que cada app tenga su propia dirección, como `docs.alles.example.com`; eso necesita un registro DNS y un certificado comodín. alles no crea el certificado: apunta el dominio a este ordenador y haz que un proxy https (caddy, nginx, un túnel de cloudflare) lo envíe a `http://127.0.0.1:6769`. `alles access domain off` lo olvida.
 
+### andromeda como buscador de tu navegador
+
+ajustes › andromeda › búsqueda predeterminada descarga una extensión pequeña para chrome, brave, edge y helium: descomprímela, abre `chrome://extensions`, activa el modo de desarrollador y carga la carpeta, y andromeda pasa a ser el buscador predeterminado. cualquier otro navegador puede usar como buscador personalizado la dirección de búsqueda que aparece ahí.
+
+safari en un iphone o ipad solo ofrece la lista de buscadores de apple, así que `safari/` tiene una app pequeña con una extensión de safari: deja google como buscador de safari y la extensión manda cada búsqueda de google, bing, duckduckgo, yahoo, ecosia o baidu a andromeda. compílala en xcode con tu propio equipo de desarrollador de apple, actívala en ajustes › apps › safari › extensiones, permítela en todos los sitios web y escribe la dirección de tu alles en su ventana.
+
 ### ejecutarlo desde el código fuente
 
 para desarrollo, o para ejecutarlo sin el servicio. en Debian o Ubuntu, ejecuta antes `sudo apt install git python3-venv`.

@@ -62,6 +62,12 @@ alles access domain alles.example.com
 
 그러면 각 앱이 슬래시 뒤에 놓입니다: `alles.example.com/docs`, `alles.example.com/plan`. `subdomain`을 붙이면(`alles access domain alles.example.com subdomain`) 각 앱이 `docs.alles.example.com`처럼 자기 주소를 갖습니다. 이때는 와일드카드 DNS 레코드와 인증서가 필요합니다. 인증서는 alles가 만들지 않습니다. 도메인을 이 컴퓨터로 향하게 하고 https 프록시(caddy, nginx, cloudflare 터널)가 `http://127.0.0.1:6769`로 보내도록 하세요. `alles access domain off`로 해제합니다.
 
+### andromeda를 브라우저 검색으로
+
+설정 › andromeda › 기본 검색에서 chrome, brave, edge, helium용 작은 확장 프로그램을 내려받을 수 있습니다. 압축을 풀고 `chrome://extensions`를 열어 개발자 모드를 켠 뒤 폴더를 불러오면 andromeda가 기본 검색이 됩니다. 다른 브라우저는 거기 나오는 검색 주소를 사용자 지정 검색 엔진으로 쓸 수 있습니다.
+
+iphone이나 ipad의 safari는 apple이 정한 검색 엔진만 고를 수 있어서, `safari/`에 safari 확장 프로그램이 들어 있는 작은 앱을 두었습니다. safari 검색 엔진은 google로 두면 확장 프로그램이 google, bing, duckduckgo, yahoo, ecosia, baidu 검색을 andromeda로 보냅니다. 자신의 apple 개발자 팀으로 xcode에서 빌드하고, 설정 › 앱 › safari › 확장 프로그램에서 켠 뒤 모든 웹사이트에서 허용하고, 팝업에 alles 주소를 입력하세요.
+
 ### 소스에서 실행하기
 
 개발용이거나 서비스 없이 실행하고 싶을 때 쓰세요. Debian이나 Ubuntu에서는 먼저 `sudo apt install git python3-venv`를 실행하세요.

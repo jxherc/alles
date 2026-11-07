@@ -1162,7 +1162,14 @@ ordinary-entry receipts.
   manifest whose `chrome_settings_overrides` names the address the page was opened from (any http
   or https origin; nothing secret is in it), and chromium browsers make it the default search once
   it's loaded unpacked (checked in chromium, brave and helium). the same card shows the plain search
-  address (`<origin>/?app=andromeda&q=%s`) to copy into any browser that takes a custom engine
+  address (`<origin>/?app=andromeda&q=%s`) to copy into any browser that takes a custom engine.
+  safari on iphone and ipad has no custom engines, so [safari/](safari) holds an ios app (built in
+  xcode with the owner's own team) whose safari web extension sends searches to andromeda: the popup
+  saves the alles address and sets one `declarativeNetRequest` redirect per engine (google, bing,
+  duckduckgo, yahoo, ecosia, baidu; webkit-safe regexes, `main_frame` only, skipped when alles
+  itself opened the page), and a `document_start` page script on the same search pages catches what
+  the rules miss. the popup shows when safari hasn't granted access to search pages, with a button
+  that asks for it. checked on an ipad on ios 27: a search from safari's address bar opened andromeda
 - *under the hood:* each vault has its own random 256-bit key, and each entry and file is sealed with **aes-256-gcm** (a strong authenticated encryption) under it. your master password only unwraps that key, through **argon2id** (64 mib, 3 passes, 4 lanes: a deliberately slow, memory-hungry key-stretch so guessing the password is expensive). the server keeps the unwrapped key **in memory only**, never the password, and drops it after 10 idle minutes; the page locks itself on the same clock. changing the password asks for the current one and rewraps the key. wrong passwords get 5 free tries, then waits that double up to 5 minutes. a vault made before this upgrades itself on the next unlock. copied secrets clear from the clipboard after 90 seconds while alles has focus. vault settings has a password-protected export (argon2id + aes-gcm json, current password asked first) with import, and an activity log of unlocks, failed tries, opens, exports and security changes (`data/vault-audit.jsonl`, no secrets). a passkey holds its own wrap of the key: under its webauthn prf output when the authenticator has prf, otherwise under a device key the server keeps. threat model and audit: the owner's life vault, `alles vault threat model` and `alles vault audit`.
 
 <p align="center">

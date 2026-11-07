@@ -62,6 +62,12 @@ alles access domain alles.example.com
 
 每個應用程式都在斜線後面：`alles.example.com/docs`、`alles.example.com/plan`。加上 `subdomain`（`alles access domain alles.example.com subdomain`）可以讓每個應用程式有自己的位址，例如 `docs.alles.example.com`，這需要萬用字元 DNS 記錄和憑證。alles 不會自己申請憑證：把網域指向這台電腦，再用 https 代理（caddy、nginx、cloudflare tunnel）把它轉到 `http://127.0.0.1:6769`。`alles access domain off` 會取消綁定。
 
+### 讓 andromeda 成為瀏覽器的搜尋
+
+設定 › andromeda › 預設搜尋 可以下載一個給 chrome、brave、edge 和 helium 用的小擴充功能：解壓縮後開啟 `chrome://extensions`，開啟開發人員模式並載入這個資料夾，andromeda 就成了預設搜尋。其他瀏覽器可以把那裡顯示的搜尋位址加為自訂搜尋引擎。
+
+iphone 和 ipad 上的 safari 只能選 apple 給的那幾個搜尋引擎，所以 `safari/` 裡有一個帶 safari 擴充功能的小 app：safari 的搜尋引擎維持 google，擴充功能會把 google、bing、duckduckgo、yahoo、ecosia 或百度上的每次搜尋都送到 andromeda。用你自己的 apple 開發者團隊在 xcode 裡編譯，在 設定 › app › safari › 延伸功能 裡開啟它，允許它在所有網站上執行，再在它的彈出視窗裡填上你的 alles 位址。
+
 ### 從原始碼執行
 
 用於開發，或不想安裝成服務時使用。在 Debian 或 Ubuntu 上，請先執行 `sudo apt install git python3-venv`。

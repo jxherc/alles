@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header><strong data-i18n="name">andromeda search</strong></header>
+<main>
+  <form id="form" novalidate>
+    <label><span data-i18n="address">alles address</span>
+      <input id="origin" type="url" inputmode="url" placeholder="https://alles.example.com" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </label>
+    <p id="status" class="quiet" role="status" aria-live="polite"></p>
+    <div id="access" class="notice" hidden>
+      <p data-i18n="no_access">safari hasn't let andromeda see search pages yet</p>
+      <button type="button" id="allow" data-i18n="allow">allow on search pages</button>
+    </div>
+    <p id="caught" class="quiet"></p>
+    <div class="actions">
+      <button type="submit" class="primary" id="save" data-i18n="save">save</button>
+      <button type="button" class="quiet-button push" id="off" data-i18n="off" hidden>turn off</button>
+    </div>
+  </form>
+</main>
+<script src="engines.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

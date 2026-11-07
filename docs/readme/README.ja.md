@@ -62,6 +62,12 @@ alles access domain alles.example.com
 
 各アプリはスラッシュのあとに並びます: `alles.example.com/docs`、`alles.example.com/plan`。`subdomain` を付けると（`alles access domain alles.example.com subdomain`）、各アプリが `docs.alles.example.com` のような専用のアドレスになります。その場合はワイルドカードの DNS レコードと証明書が必要です。証明書は alles では作りません。ドメインをこのパソコンに向け、https プロキシ（caddy、nginx、cloudflare tunnel）で `http://127.0.0.1:6769` に送ってください。`alles access domain off` で解除できます。
 
+### andromeda をブラウザの検索にする
+
+設定 › andromeda › 既定の検索 から、chrome、brave、edge、helium 用の小さな拡張機能をダウンロードできます。解凍して `chrome://extensions` を開き、デベロッパー モードをオンにしてフォルダを読み込むと、andromeda が既定の検索になります。ほかのブラウザでは、そこに表示される検索アドレスをカスタム検索エンジンとして使えます。
+
+iphone や ipad の safari は apple の決めた検索エンジンしか選べないので、`safari/` に safari 拡張機能入りの小さなアプリを用意しています。safari の検索エンジンは google のままにしておくと、拡張機能が google、bing、duckduckgo、yahoo、ecosia、baidu での検索を andromeda に送ります。自分の apple デベロッパーチームで xcode からビルドし、設定 › アプリ › safari › 機能拡張でオンにして、すべての web サイトで許可し、ポップアップに alles のアドレスを入力してください。
+
 ### ソースから実行する
 
 開発用、またはサービスにせずに動かしたいとき向けです。Debian や Ubuntu では、先に `sudo apt install git python3-venv` を実行してください。
