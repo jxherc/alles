@@ -96,7 +96,9 @@ def search_extension_zip(origin: str) -> bytes:
         "chrome_settings_overrides": {
             "search_provider": {
                 "name": "andromeda",
-                "keyword": "al",
+                # not "al": the vault extension's address bar shortcut already has it, and a
+                # second engine on the same keyword sent searches to that extension's own page
+                "keyword": "andromeda",
                 "search_url": andromeda_search_url(origin),
                 "favicon_url": f"{origin}/static/icons/icon-192.png",
                 "encoding": "UTF-8",

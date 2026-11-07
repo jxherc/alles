@@ -7,12 +7,15 @@ import os
 import tempfile
 import unittest
 import zipfile
+from pathlib import Path
 
 os.environ.setdefault("ALLES_DATA", tempfile.mkdtemp(prefix="alles-search-extension-"))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
 import app as app_module  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class SearchExtensionTest(unittest.TestCase):
@@ -31,7 +34,7 @@ class SearchExtensionTest(unittest.TestCase):
         self.assertEqual(manifest["manifest_version"], 3)
         provider = manifest["chrome_settings_overrides"]["search_provider"]
         self.assertTrue(provider["is_default"])
-        self.assertEqual(provider["keyword"], "al")
+        self.assertEqual(provider["keyword"], "andromeda")
         self.assertEqual(
             provider["search_url"], "https://alles.example.com/?app=andromeda&q={searchTerms}"
         )
@@ -48,6 +51,14 @@ class SearchExtensionTest(unittest.TestCase):
         )
         for name in manifest["icons"].values():
             self.assertTrue(bundle.read(name).startswith(b"\x89PNG"), name)
+
+    def test_its_keyword_never_matches_the_vault_extensions_shortcut(self):
+        # both installed at once, two engines on one keyword sent a plain address bar search to
+        # the vault extension's own chrome-extension:// page (err_file_not_found)
+        vault = json.loads((ROOT / "extension" / "manifest.json").read_text("utf-8"))
+        manifest = json.loads(self._zip("https://alles.example.com").read("manifest.json"))
+        keyword = manifest["chrome_settings_overrides"]["search_provider"]["keyword"]
+        self.assertNotEqual(keyword, vault["omnibox"]["keyword"])
 
     def test_a_tailnet_or_lan_address_works_too(self):
         manifest = json.loads(self._zip("http://100.79.59.4:6769").read("manifest.json"))
