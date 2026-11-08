@@ -438,6 +438,7 @@ _DEV_ONLY = frozenset(
         ".github",
         ".gitattributes",
         "docs",
+        "site",
         "tests",
         "design-system",
         "mobile",

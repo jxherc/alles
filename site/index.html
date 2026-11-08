@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>alles</title>
+<meta name="description" content="a private replacement for google's apps: mail, calendar, docs, files, photos, money and passwords in one app on a machine you control.">
+<meta name="theme-color" content="#12100e">
+<meta property="og:title" content="alles">
+<meta property="og:description" content="a private replacement for google's apps, built for one person.">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/besley.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+
+<header class="bar">
+  <a class="mark" href="#top" aria-label="alles, back to top"><svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><circle cx="16" cy="16" r="9" fill="currentColor"/></svg>alles</a>
+  <nav aria-label="sections">
+    <a href="#apps">apps</a>
+    <a href="#data">your data</a>
+    <a href="#commands">commands</a>
+    <a href="https://github.com/jxherc/alles">github</a>
+  </nav>
+  <a class="btn" href="#install">install</a>
+</header>
+
+<main id="top">
+
+<section class="hero" aria-labelledby="hero-title">
+  <h1 id="hero-title" class="hero-line">
+    <span class="mask"><span class="rise">alles is your</span></span>
+    <span class="mask"><span class="rise l2"><span class="slot" aria-hidden="true"><img class="slot-img" data-slot="a" src="shots/plan.webp" style="--x: 69; --y: 62; --z: 240" alt="" width="1920" height="1200"><img class="slot-img" data-slot="b" alt="" width="1920" height="1200"></span><button class="word" type="button" id="word" aria-haspopup="listbox" aria-expanded="false" aria-controls="word-list"><span class="word-text">calendar</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></span>
+  </h1>
+  <ul class="menu" data-ui id="word-list" role="listbox" aria-label="what alles is" tabindex="-1" hidden></ul>
+  <p class="lede">a private replacement for google's apps, built for one person. it runs on a machine you control, so your mail, calendar, files and passwords stay with you.</p>
+</section>
+
+<section class="apps" id="apps" aria-labelledby="apps-title">
+  <div class="apps-head">
+    <h2 id="apps-title" class="rv">alles means everything</h2>
+    <p class="rv">said AH-luss, like the german word. 12 apps in one place, for one person, in english, français, español, 简体中文, 繁體中文, 日本語, 한국어 or العربية.</p>
+  </div>
+  <div class="apps-index rv" role="group" aria-label="apps">
+    <button type="button" data-app="home">home</button>
+    <button type="button" data-app="aide">aide</button>
+    <button type="button" data-app="andromeda">andromeda</button>
+    <button type="button" data-app="plan" aria-pressed="true">plan</button>
+    <button type="button" data-app="inbox">inbox</button>
+    <button type="button" data-app="docs">docs</button>
+    <button type="button" data-app="files">files</button>
+    <button type="button" data-app="library">library</button>
+    <button type="button" data-app="health">health</button>
+    <button type="button" data-app="finance">finance</button>
+    <button type="button" data-app="vault">vault</button>
+    <button type="button" data-app="server">server</button>
+  </div>
+  <figure class="sheet rv">
+    <a class="sheet-pic" href="shots/plan.webp" id="sheet-link"><img id="sheet-img" src="shots/plan.webp" width="1920" height="1200" alt="the plan app: a week calendar full of events across four calendars"></a>
+    <figcaption id="sheet-cap"><strong>plan</strong> keep a calendar, tasks, reminders, and countdowns</figcaption>
+  </figure>
+</section>
+
+<section class="bands" aria-labelledby="bands-title">
+  <h2 id="bands-title" class="rv">start small, turn on the rest</h2>
+  <div class="band" data-on="true">
+    <p class="band-line" id="b1">an assistant that asks first</p>
+    <button class="switch" type="button" role="switch" aria-checked="true" aria-labelledby="b1"><span class="knob"></span></button>
+    <p class="band-note" data-on-text="aide works with your apps and waits for your ok before it changes anything. use any model you add, or a local one through ollama." data-off-text="every app works without it. no model and no api key needed.">aide works with your apps and waits for your ok before it changes anything. use any model you add, or a local one through ollama.</p>
+  </div>
+  <div class="band" data-on="true">
+    <p class="band-line" id="b2">open it from your phone</p>
+    <button class="switch" type="button" role="switch" aria-checked="true" aria-labelledby="b2"><span class="knob"></span></button>
+    <p class="band-note" data-on-text="alles access lan asks for an owner password, then prints the address your phone and laptop use." data-off-text="only this computer can open it, and it starts without a password. that's the default.">alles access lan asks for an owner password, then prints the address your phone and laptop use.</p>
+    <div class="band-pics">
+      <img src="shots/home-phone.webp" width="600" height="1298" alt="home on a phone: today's schedule" loading="lazy">
+      <img src="shots/aide-phone.webp" width="600" height="1298" alt="aide on a phone: a short summary of a roadmap doc" loading="lazy">
+    </div>
+  </div>
+  <div class="band" data-on="false">
+    <p class="band-line" id="b3">a backup every day</p>
+    <button class="switch" type="button" role="switch" aria-checked="false" aria-labelledby="b3"><span class="knob"></span></button>
+    <p class="band-note" data-on-text="an encrypted backup lands next to your data folder each day, and the last 7 are kept. keep the recovery key outside alles." data-off-text="download an encrypted backup from settings whenever you want one, or send it to your own webdav or s3.">download an encrypted backup from settings whenever you want one, or send it to your own webdav or s3.</p>
+  </div>
+  <div class="band" data-on="false">
+    <p class="band-line" id="b4">text aide from anywhere</p>
+    <button class="switch" type="button" role="switch" aria-checked="false" aria-labelledby="b4"><span class="knob"></span></button>
+    <p class="band-note" data-on-text="turn on telegram, imessage or discord in settings, then message aide from your phone." data-off-text="aide stays inside alles and the terminal: alles ask and alles chat.">aide stays inside alles and the terminal: alles ask and alles chat.</p>
+  </div>
+  <div class="band" data-on="false">
+    <p class="band-line" id="b5">andromeda as your search</p>
+    <button class="switch" type="button" role="switch" aria-checked="false" aria-labelledby="b5"><span class="knob"></span></button>
+    <p class="band-note" data-on-text="a small extension makes it the search in chrome, brave, edge and helium. on iphone and ipad, a safari extension sends your searches to it." data-off-text="search the web from the andromeda app, with an optional cited overview.">search the web from the andromeda app, with an optional cited overview.</p>
+  </div>
+</section>
+
+<section class="data" id="data" aria-labelledby="data-title">
+  <h2 id="data-title" class="rv">your data stays on your machine</h2>
+  <ul class="facts rv">
+    <li><code>~/Alles/Docs</code></li>
+    <li>encrypted backups</li>
+    <li>mit license</li>
+  </ul>
+  <div class="data-text">
+    <p class="data-lead rv"><img class="drop" src="shots/files-square.webp" width="600" height="600" alt="" loading="lazy">your docs and files live in ~/Alles, a folder you can open. the database sits right beside it.</p>
+    <div class="data-more rv">
+      <p>you choose which outside services it connects to. want it on an external drive? run the install from a folder there and everything goes into that folder.</p>
+      <p>back up from settings as an encrypted file, or send it to your own webdav folder or s3 bucket. keep the recovery key outside alles, so you can still get in if the app stops working.</p>
+    </div>
+  </div>
+</section>
+
+<section class="steps" id="install" aria-labelledby="step-title">
+  <div class="steps-words">
+    <h2 id="step-title" class="step-title" aria-live="polite">first, paste one line</h2>
+    <div class="steps-ctl">
+      <label class="sr" for="step-range">install step</label>
+      <div class="range"><span class="range-track"></span><span class="range-fill"></span><input type="range" id="step-range" min="0" max="3" step="1" value="0" aria-valuetext="install"></div>
+      <div class="step-names">
+        <button type="button" data-step="0" aria-pressed="true">install</button>
+        <button type="button" data-step="1">open</button>
+        <button type="button" data-step="2">share</button>
+        <button type="button" data-step="3">update</button>
+      </div>
+    </div>
+  </div>
+  <div class="steps-show">
+    <div class="step" data-step="0">
+      <div class="cmd" data-ui><code>curl -fsSL https://<wbr>raw.githubusercontent.com/<wbr>jxherc/<wbr>alles/<wbr>main/<wbr>install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh">copy</button></div>
+      <p>macos or linux, with python 3.11 or newer. it sets alles up as a background service that starts again after a restart.</p>
+      <p class="more"><a href="https://github.com/jxherc/alles#put-it-on-another-drive">on another drive</a><a href="https://github.com/jxherc/alles#run-it-from-source">from source or docker</a></p>
+    </div>
+    <div class="step" data-step="1" hidden>
+      <img class="step-pic" src="shots/setup.webp" width="1600" height="1000" alt="the first setup step: region and nickname" loading="lazy">
+      <p>open <a href="http://localhost:6769">localhost:6769</a> and follow the setup. you don't need an api key to get started.</p>
+    </div>
+    <div class="step" data-step="2" hidden>
+      <img class="step-pic" src="shots/setup-access.webp" width="1600" height="1000" alt="the setup step that asks where alles answers: this device, the home network or a public domain" loading="lazy">
+      <div class="cmd" data-ui><code>alles access lan</code><button class="copy" type="button" data-copy="alles access lan">copy</button></div>
+      <p>it asks for an owner password, restarts alles and prints the addresses to use, like http://100.101.102.103:6769. read the <a href="https://github.com/jxherc/alles/blob/main/specifications.md#security--read-before-exposing-it">security notes</a> before you open it to the internet.</p>
+    </div>
+    <div class="step" data-step="3" hidden>
+      <div class="cmd" data-ui><code>alles update</code><button class="copy" type="button" data-copy="alles update">copy</button></div>
+      <p>it gets the newest release and keeps the previous one, so <code>alles update rollback</code> takes you back, data included.</p>
+    </div>
+  </div>
+</section>
+
+<section class="cli" id="commands" aria-labelledby="cli-title">
+  <h2 id="cli-title" class="rv"><span>from then on,</span> <span>just type alles</span></h2>
+  <img class="cli-pic rv" src="shots/server.webp" width="1920" height="1200" alt="the server app: cpu, memory, storage and network" loading="lazy">
+  <table class="rv">
+    <caption class="sr">alles commands</caption>
+    <tbody>
+      <tr><th scope="row"><code>alles</code></th><td>status, address and the everyday commands</td></tr>
+      <tr><th scope="row"><code>alles doctor</code></th><td>checks the install is ready</td></tr>
+      <tr><th scope="row"><code>alles ask "…"</code></th><td>one answer from aide, right in the terminal</td></tr>
+      <tr><th scope="row"><code>alles logs --since 1h</code></th><td>only the last hour of the log</td></tr>
+      <tr class="gap"><th scope="row"><code>alles access lan</code></th><td>lets your phone and other computers open it</td></tr>
+      <tr><th scope="row"><code>alles access device</code></th><td>only this computer can open it again</td></tr>
+      <tr><th scope="row"><code>alles access domain</code></th><td>opens it at your own domain</td></tr>
+      <tr><th scope="row"><code>alles password</code></th><td>sets or changes the owner password</td></tr>
+      <tr class="gap"><th scope="row"><code>alles update</code></th><td>gets the newest release and keeps a rollback</td></tr>
+      <tr><th scope="row"><code>alles update rollback</code></th><td>returns to the previous code and data</td></tr>
+      <tr><th scope="row"><code>alles backup</code></th><td>an encrypted backup of everything</td></tr>
+      <tr><th scope="row"><code>alles uninstall</code></th><td>removes alles, your personal data stays</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+
+<footer class="end" aria-labelledby="end-title">
+  <div class="end-top">
+    <a class="mark" href="#top"><svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><circle cx="16" cy="16" r="9" fill="currentColor"/></svg>alles</a>
+    <p>free and open source under the mit license.</p>
+    <p>fastapi, sqlite and plain javascript, with no build step.</p>
+    <a class="top" href="#top">back to top</a>
+  </div>
+  <h2 id="end-title" class="end-line"><a href="https://github.com/jxherc/alles"><span>github.com</span><span>/jxherc/alles</span></a></h2>
+  <div class="end-meta">
+    <p><a href="https://github.com/jxherc/alles#readme">readme</a><a href="https://github.com/jxherc/alles/blob/main/specifications.md">specifications</a><a href="https://github.com/jxherc/alles/blob/main/specifications.md#security--read-before-exposing-it">security</a></p>
+    <p>aide was inspired by <a href="https://github.com/pewdiepie-archdaemon/odysseus">odysseus</a></p>
+    <p>© 2026 jxherc</p>
+  </div>
+</footer>
+
+<script src="site.js" defer></script>
+</body>
+</html>
