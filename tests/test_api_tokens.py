@@ -38,6 +38,11 @@ class TokensApiTest(ApiTest):
         self.assertEqual(required_scope("POST", "/v1/chat/completions"), "models")
         self.assertEqual(required_scope("POST", "/api/agent/run"), "agent")
         self.assertEqual(required_scope("GET", "/api/vault"), "secrets")
+        self.assertEqual(required_scope("POST", "/api/vault/unlock"), "secrets")
+        # docs live at /api/vault-md; a docs token must not need the password vault's scope
+        self.assertEqual(required_scope("GET", "/api/vault-md/tree"), "read")
+        self.assertEqual(required_scope("POST", "/api/vault-md/safety/save"), "write")
+        self.assertEqual(required_scope("GET", "/api/vault-location"), "read")
         self.assertEqual(required_scope("GET", "/api/connections"), "connections")
         self.assertEqual(required_scope("GET", "/api/settings"), "admin")
         self.assertEqual(

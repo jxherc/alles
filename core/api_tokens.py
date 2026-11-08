@@ -67,16 +67,21 @@ def normalize_scopes(values: list[str]) -> tuple[str, ...]:
     return tuple(scope for scope in KNOWN_SCOPES if scope in values)
 
 
+def _under(path: str, prefixes: tuple[str, ...]) -> bool:
+    # whole path segments only: /api/vault-md (docs) is not under /api/vault (passwords)
+    return any(path == p.rstrip("/") or path.startswith(p.rstrip("/") + "/") for p in prefixes)
+
+
 def required_scope(method: str, path: str) -> str:
-    if any(path.startswith(prefix) for prefix in _ADMIN_PREFIXES):
+    if _under(path, _ADMIN_PREFIXES):
         return "admin"
-    if any(path.startswith(prefix) for prefix in _AGENT_PREFIXES):
+    if _under(path, _AGENT_PREFIXES):
         return "agent"
-    if any(path.startswith(prefix) for prefix in _SECRET_PREFIXES):
+    if _under(path, _SECRET_PREFIXES):
         return "secrets"
-    if any(path.startswith(prefix) for prefix in _CONNECTION_PREFIXES):
+    if _under(path, _CONNECTION_PREFIXES):
         return "connections"
-    if any(path.startswith(prefix) for prefix in _MODEL_PREFIXES):
+    if _under(path, _MODEL_PREFIXES):
         return "models"
     return "read" if method.upper() in {"GET", "HEAD", "OPTIONS"} else "write"
 
