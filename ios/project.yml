@@ -1,0 +1,73 @@
+name: Alles
+options:
+  bundleIdPrefix: com.jxh
+  deploymentTarget:
+    iOS: "26.1"
+  createIntermediateGroups: true
+targets:
+  Alles:
+    type: application
+    platform: iOS
+    sources:
+      - path: Alles
+    info:
+      path: Alles/Info.plist
+      properties:
+        CFBundleDisplayName: alles
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        CFBundleIconName: AppIcon
+        UILaunchScreen:
+          UIColorName: Page
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSLocalNetworkUsageDescription: Connects to your alles server on your network or tailnet.
+        NSAppTransportSecurity:
+          # alles often runs on plain http over a lan or tailscale address
+          NSAllowsArbitraryLoads: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jxh.alles
+        PRODUCT_NAME: Alles
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: "6.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: YES
+        GENERATE_INFOPLIST_FILE: NO
+  AllesUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Alles
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jxh.alles.uitests
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Alles
+schemes:
+  Alles:
+    build:
+      targets:
+        Alles: all
+        AllesUITests: [test]
+    test:
+      targets:
+        - AllesUITests

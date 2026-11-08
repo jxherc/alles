@@ -53,6 +53,10 @@ alles access lan
 
 la commande demande un mot de passe propriétaire, redémarre alles pour que votre téléphone et vos autres ordinateurs puissent l’ouvrir, puis affiche les adresses à utiliser, par exemple `http://100.101.102.103:6769`. `alles access device` le rend de nouveau privé à cet ordinateur.
 
+### l’app iphone et ipad
+
+`ios/` contient une app native pour iphone et ipad (ios 26.1 ou plus récent) avec le style liquid glass d’apple. l’accueil montre ce qui vient ensuite, ce qui est dû et les habitudes du jour. aide est une simple discussion : si vous la quittez pendant une réponse, la réponse continue dans une petite barre au-dessus des onglets. plan a aujourd’hui, calendrier et tâches, andromeda occupe la place de recherche de la barre d’onglets, docs lit et modifie votre markdown, et les autres apps s’ouvrent comme les pages d’alles. lancez d’abord `alles access lan`, ouvrez `ios/Alles.xcodeproj` dans xcode avec votre propre équipe de développeur apple, puis connectez-vous avec l’adresse d’alles et le mot de passe propriétaire. l’app garde son propre jeton (les réglages le listent parmi les jetons), donc redémarrer alles ne la déconnecte pas.
+
 ### l’ouvrir sur votre propre domaine
 
 ```bash

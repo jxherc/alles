@@ -54,6 +54,10 @@ alles access lan
 
 소유자 비밀번호를 묻고, 휴대폰과 다른 컴퓨터에서 열 수 있도록 alles를 다시 시작한 뒤, 사용할 주소(예: `http://100.101.102.103:6769`)를 보여 줍니다. `alles access device`를 실행하면 다시 이 컴퓨터에서만 쓸 수 있습니다.
 
+### iphone과 ipad 앱
+
+`ios/`에는 apple의 liquid glass 스타일로 만든 iphone과 ipad용 네이티브 앱(ios 26.1 이상)이 있습니다. 홈에는 다음 일정, 마감인 할 일, 오늘의 습관이 나옵니다. aide는 평범한 채팅이고, 답장 도중에 나가면 답장이 탭 위의 작은 막대에서 계속됩니다. plan에는 오늘, 캘린더, 할 일이 있고, andromeda는 탭 막대의 검색 자리에 있으며, docs는 markdown을 읽고 편집하고, 다른 앱은 alles의 페이지로 열립니다. 먼저 `alles access lan`을 실행하고, 내 apple 개발자 팀으로 xcode에서 `ios/Alles.xcodeproj`를 연 다음, alles 주소와 소유자 비밀번호로 로그인하세요. 앱은 자기 토큰을 따로 가지므로(설정의 토큰 목록에 보입니다) alles를 다시 시작해도 로그아웃되지 않습니다.
+
 ### 내 도메인에서 열기
 
 ```bash

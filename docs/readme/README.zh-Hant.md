@@ -54,6 +54,10 @@ alles access lan
 
 它會要求設定擁有者密碼，重新啟動 alles，讓你的手機和其他電腦可以開啟它，並列出要使用的位址，例如 `http://100.101.102.103:6769`。`alles access device` 會讓它重新只供這台電腦使用。
 
+### iphone 和 ipad 應用程式
+
+`ios/` 裡是一個 iphone 和 ipad 原生應用程式（ios 26.1 或更新），用的是蘋果的 liquid glass 風格。首頁顯示接下來的安排、今天到期的任務和今天的習慣。aide 就是一個普通的聊天，回覆到一半時離開，回覆會在標籤列上方的小條裡繼續。plan 有今天、日曆和任務，andromeda 在標籤列的搜尋位置，docs 可以閱讀和編輯你的 markdown，其他應用程式會開啟 alles 自己的網頁。先執行 `alles access lan`，用你自己的 apple 開發者團隊在 xcode 裡開啟 `ios/Alles.xcodeproj`，然後用 alles 位址和擁有者密碼登入。應用程式會保存自己的權杖（設定的權杖列表裡看得到），所以重新啟動 alles 不會讓它登出。
+
 ### 用你自己的網域開啟
 
 ```bash

@@ -1895,7 +1895,7 @@ the main app runs on python 3.11 or newer with fastapi, uvicorn, sqlalchemy, and
 
 the optional actual integration is a separate node bridge pinned through [integrations/actual/package.json](integrations/actual/package.json) and its lockfile. it requires node 22.12.0 or newer and uses the official actual api, cli, and sync server at the versions recorded there.
 
-[mobile/](mobile) contains a capacitor wrapper with its own dependencies and platform build steps. it wraps the server-backed app; the fastapi backend still runs on the host. the chromium extension (logins, cards, addresses, andromeda search) has its own manifest and pairing boundary under [extension/](extension); what it receives is sealed to a key only it holds. `/opensearch.xml` is public like the pwa manifest: it names only the server's own address.
+[mobile/](mobile) contains a capacitor wrapper with its own dependencies and platform build steps. it wraps the server-backed app; the fastapi backend still runs on the host. [ios/](ios) is a native swiftui app for iphone and ipad (ios 26.1 or newer, liquid glass); its xcode project is generated from [ios/project.yml](ios/project.yml) with xcodegen and built with the owner's own apple team. signing in posts the owner password once, then mints a `read`, `write` and `models` token named for the device and keeps it in the keychain, because login sessions live in server memory and a restart would sign the phone out. home, aide (plain chat over `/api/chat` sse, no tool cards), plan, andromeda search and docs are native; the other specialist apps open as the web shell in a web view with the session cookie, at a path or a subdomain by the same rule as `singleHost()` in `static/js/subdomain.js`. the chromium extension (logins, cards, addresses, andromeda search) has its own manifest and pairing boundary under [extension/](extension); what it receives is sealed to a key only it holds. `/opensearch.xml` is public like the pwa manifest: it names only the server's own address.
 
 ## project layout
 
@@ -1917,6 +1917,7 @@ the optional actual integration is a separate node bridge pinned through [integr
 | [static/vendor/](static/vendor) | bundled browser dependencies |
 | [integrations/actual/](integrations/actual) | optional actual node bridge |
 | [extension/](extension), [mobile/](mobile) | password extension and mobile wrapper |
+| [ios/](ios) | native iphone and ipad app |
 | [features/](features) | behavior and coverage registries |
 | [design-system/](design-system) | product rules, components, accessibility, responsive behavior, qa |
 | [scripts/](scripts) | inventory generation, lint helpers, browser gates, diagnostics |

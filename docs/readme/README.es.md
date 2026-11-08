@@ -53,6 +53,10 @@ alles access lan
 
 pide una contraseña de propietario, reinicia alles para que tu teléfono y tus otros ordenadores puedan abrirlo y muestra las direcciones que debes usar, por ejemplo `http://100.101.102.103:6769`. `alles access device` vuelve a dejarlo solo para este ordenador.
 
+### la app para iphone y ipad
+
+`ios/` contiene una app nativa para iphone y ipad (ios 26.1 o posterior) con el estilo liquid glass de apple. el inicio muestra lo que viene, lo que vence y los hábitos de hoy. aide es un chat sencillo: si lo dejas a mitad de una respuesta, la respuesta sigue en una barra pequeña encima de las pestañas. plan tiene hoy, calendario y tareas, andromeda ocupa el lugar de búsqueda de la barra de pestañas, docs lee y edita tu markdown, y las demás apps se abren como las páginas de alles. ejecuta primero `alles access lan`, abre `ios/Alles.xcodeproj` en xcode con tu propio equipo de desarrollador de apple y entra con la dirección de alles y la contraseña de propietario. la app guarda su propio token (los ajustes lo muestran entre los tokens), así que reiniciar alles no cierra su sesión.
+
 ### abrirlo en tu propio dominio
 
 ```bash

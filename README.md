@@ -52,6 +52,10 @@ alles access lan
 
 it asks for an owner password, restarts alles so your phone and other computers can open it, and prints the addresses to use, like `http://100.101.102.103:6769`. `alles access device` makes it private to this computer again.
 
+### the iphone and ipad app
+
+`ios/` holds a native app for iphone and ipad (ios 26.1 or newer) in apple's liquid glass look. home shows what's next, what's due and today's habits. aide is a plain chat, and if you leave it mid reply, the reply keeps going in a small bar above the tabs. plan has today, calendar and tasks, andromeda sits in the tab bar's search spot, docs reads and edits your markdown, and the other apps open as alles's own pages. run `alles access lan` first, open `ios/Alles.xcodeproj` in xcode with your own apple developer team, then sign in with your alles address and owner password. the app keeps its own token (settings lists it under tokens), so restarting alles doesn't sign it out.
+
 ### open it at your own domain
 
 ```bash
