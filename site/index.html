@@ -40,7 +40,7 @@
 <section class="hero" aria-labelledby="hero-title">
   <h1 id="hero-title" class="hero-line">
     <span class="mask"><span class="rise">alles is your</span></span>
-    <span class="mask"><span class="rise l2"><span class="slot" aria-hidden="true"><img class="slot-img" data-slot="a" src="shots/plan.webp" style="--x: 69; --y: 62; --z: 240" alt="" width="1920" height="1200"><img class="slot-img" data-slot="b" alt="" width="1920" height="1200"></span><button class="word" type="button" id="word" aria-haspopup="listbox" aria-expanded="false" aria-controls="word-list"><span class="word-text">calendar</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></span>
+    <span class="mask"><span class="rise l2"><span class="slot" aria-hidden="true"><img class="slot-img" data-slot="a" src="shots/plan.webp" style="--w: 192; --l: -58.5; --t: -56" alt="" width="1920" height="1200"><img class="slot-img" data-slot="b" alt="" width="1920" height="1200"></span><button class="word" type="button" id="word" aria-haspopup="listbox" aria-expanded="false" aria-controls="word-list"><span class="word-text">calendar</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></span>
   </h1>
   <ul class="menu" data-ui id="word-list" role="listbox" aria-label="what alles is" tabindex="-1" hidden></ul>
   <p class="lede">a private replacement for google's apps, built for one person. it runs on a machine you control, so your mail, calendar, files and passwords stay with you.</p>
@@ -51,24 +51,74 @@
     <h2 id="apps-title" class="rv">alles means everything</h2>
     <p class="rv">said AH-luss, like the german word. 12 apps in one place, for one person, in english, français, español, 简体中文, 繁體中文, 日本語, 한국어 or العربية.</p>
   </div>
-  <div class="apps-index rv" role="group" aria-label="apps">
-    <button type="button" data-app="home">home</button>
-    <button type="button" data-app="aide">aide</button>
-    <button type="button" data-app="andromeda">andromeda</button>
-    <button type="button" data-app="plan" aria-pressed="true">plan</button>
-    <button type="button" data-app="inbox">inbox</button>
-    <button type="button" data-app="docs">docs</button>
-    <button type="button" data-app="files">files</button>
-    <button type="button" data-app="library">library</button>
-    <button type="button" data-app="health">health</button>
-    <button type="button" data-app="finance">finance</button>
-    <button type="button" data-app="vault">vault</button>
-    <button type="button" data-app="server">server</button>
+  <div class="scene apps-scene" data-beats="12" style="--hold: 4.8">
+    <div class="scene-stage apps-stage">
+      <nav class="apps-index" aria-label="apps">
+        <a href="#app-home" data-beat="0">home</a>
+        <a href="#app-aide" data-beat="1">aide</a>
+        <a href="#app-andromeda" data-beat="2">andromeda</a>
+        <a href="#app-plan" data-beat="3">plan</a>
+        <a href="#app-inbox" data-beat="4">inbox</a>
+        <a href="#app-docs" data-beat="5">docs</a>
+        <a href="#app-files" data-beat="6">files</a>
+        <a href="#app-library" data-beat="7">library</a>
+        <a href="#app-health" data-beat="8">health</a>
+        <a href="#app-finance" data-beat="9">finance</a>
+        <a href="#app-vault" data-beat="10">vault</a>
+        <a href="#app-server" data-beat="11">server</a>
+      </nav>
+      <div class="apps-shots">
+        <figure class="app" id="app-home" data-beat="0">
+          <div class="app-pic"><img src="shots/home.webp" width="1920" height="1200" alt="the home app: today's schedule, open tasks and a capture box" loading="lazy" decoding="async"></div>
+          <figcaption><strong>home</strong> see your day, open your apps, and capture a task</figcaption>
+        </figure>
+        <figure class="app" id="app-aide" data-beat="1">
+          <div class="app-pic"><img src="shots/aide.webp" width="1920" height="1200" alt="aide moving a meeting to tuesday, then summarizing a roadmap doc" loading="lazy" decoding="async"></div>
+          <figcaption><strong>aide</strong> chat with a configured model and approve actions in your workspace</figcaption>
+        </figure>
+        <figure class="app" id="app-andromeda" data-beat="2">
+          <div class="app-pic"><img src="shots/andromeda.webp" width="1920" height="1200" alt="andromeda's search box" loading="lazy" decoding="async"></div>
+          <figcaption><strong>andromeda</strong> search the web and optionally get a cited overview; it can be your browser's search too</figcaption>
+        </figure>
+        <figure class="app" id="app-plan" data-beat="3">
+          <div class="app-pic"><img src="shots/plan.webp" width="1920" height="1200" alt="the plan app: a week calendar full of events across four calendars" loading="lazy" decoding="async"></div>
+          <figcaption><strong>plan</strong> keep a calendar, tasks, reminders, and countdowns</figcaption>
+        </figure>
+        <figure class="app" id="app-inbox" data-beat="4">
+          <div class="app-pic"><img src="shots/inbox.webp" width="1920" height="1200" alt="the inbox app: a message list with one email open" loading="lazy" decoding="async"></div>
+          <figcaption><strong>inbox</strong> read mail and manage contacts after connecting your account</figcaption>
+        </figure>
+        <figure class="app" id="app-docs" data-beat="5">
+          <div class="app-pic"><img src="shots/docs.webp" width="1920" height="1200" alt="the docs app: a roadmap note with a table of targets" loading="lazy" decoding="async"></div>
+          <figcaption><strong>docs</strong> write markdown notes and journal entries</figcaption>
+        </figure>
+        <figure class="app" id="app-files" data-beat="6">
+          <div class="app-pic"><img src="shots/files.webp" width="1920" height="1200" alt="the files app: a project folder of pdfs, images and notes" loading="lazy" decoding="async"></div>
+          <figcaption><strong>files</strong> browse local or connected storage, offline copies, and photos</figcaption>
+        </figure>
+        <figure class="app" id="app-library" data-beat="7">
+          <div class="app-pic"><img src="shots/library.webp" width="1920" height="1200" alt="the library app: saved articles with their reading times" loading="lazy" decoding="async"></div>
+          <figcaption><strong>library</strong> save articles and reading lists</figcaption>
+        </figure>
+        <figure class="app" id="app-health" data-beat="8">
+          <div class="app-pic"><img src="shots/health.webp" width="1920" height="1200" alt="the health app: weight, sleep, workout and heart rate over 30 days" loading="lazy" decoding="async"></div>
+          <figcaption><strong>health</strong> track habits and health records</figcaption>
+        </figure>
+        <figure class="app" id="app-finance" data-beat="9">
+          <div class="app-pic"><img src="shots/finance.webp" width="1920" height="1200" alt="the finance app: spending this month, accounts, categories and renewals" loading="lazy" decoding="async"></div>
+          <figcaption><strong>finance</strong> track accounts, transactions, budgets, and subscriptions</figcaption>
+        </figure>
+        <figure class="app" id="app-vault" data-beat="10">
+          <div class="app-pic"><img src="shots/vault.webp" width="1920" height="1200" alt="the vault app: saved logins, a card and a secure note" loading="lazy" decoding="async"></div>
+          <figcaption><strong>vault</strong> store encrypted secrets, passwords, and passkeys, and fill logins, cards and addresses in chrome with the alles extension</figcaption>
+        </figure>
+        <figure class="app" id="app-server" data-beat="11">
+          <div class="app-pic"><img src="shots/server.webp" width="1920" height="1200" alt="the server app: cpu, memory, storage and network" loading="lazy" decoding="async"></div>
+          <figcaption><strong>server</strong> check health, access settings, backups, and updates</figcaption>
+        </figure>
+      </div>
+    </div>
   </div>
-  <figure class="sheet rv">
-    <a class="sheet-pic" href="shots/plan.webp" id="sheet-link"><img id="sheet-img" src="shots/plan.webp" width="1920" height="1200" alt="the plan app: a week calendar full of events across four calendars"></a>
-    <figcaption id="sheet-cap"><strong>plan</strong> keep a calendar, tasks, reminders, and countdowns</figcaption>
-  </figure>
 </section>
 
 <section class="bands" aria-labelledby="bands-title">
@@ -120,45 +170,106 @@
   </div>
 </section>
 
-<section class="steps" id="install" aria-labelledby="step-title">
-  <div class="steps-words">
-    <h2 id="step-title" class="step-title" aria-live="polite">first, paste one line</h2>
-    <div class="steps-ctl">
-      <label class="sr" for="step-range">install step</label>
-      <div class="range"><span class="range-track"></span><span class="range-fill"></span><input type="range" id="step-range" min="0" max="3" step="1" value="0" aria-valuetext="install"></div>
-      <div class="step-names">
-        <button type="button" data-step="0" aria-pressed="true">install</button>
-        <button type="button" data-step="1">open</button>
-        <button type="button" data-step="2">share</button>
-        <button type="button" data-step="3">update</button>
+<section class="steps" id="install" aria-labelledby="steps-title">
+  <h2 id="steps-title" class="sr">install alles</h2>
+  <div class="scene steps-scene" data-beats="4" style="--hold: 3">
+    <div class="scene-stage steps-stage">
+      <div class="step" id="step-install" data-beat="0">
+        <div class="step-words">
+          <h3>first, paste one line</h3>
+          <p>macos or linux, with python 3.11 or newer. it sets alles up as a background service that starts again after a restart.</p>
+          <p class="more"><a href="https://github.com/jxherc/alles#put-it-on-another-drive">on another drive</a><a href="https://github.com/jxherc/alles#run-it-from-source">from source or docker</a></p>
+        </div>
+        <div class="step-show">
+          <div class="cmd big" data-ui><code>curl -fsSL https://<wbr>raw.githubusercontent.com/<wbr>jxherc/<wbr>alles/<wbr>main/<wbr>install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh">copy</button></div>
+        </div>
       </div>
-    </div>
-  </div>
-  <div class="steps-show">
-    <div class="step" data-step="0">
-      <div class="cmd" data-ui><code>curl -fsSL https://<wbr>raw.githubusercontent.com/<wbr>jxherc/<wbr>alles/<wbr>main/<wbr>install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh">copy</button></div>
-      <p>macos or linux, with python 3.11 or newer. it sets alles up as a background service that starts again after a restart.</p>
-      <p class="more"><a href="https://github.com/jxherc/alles#put-it-on-another-drive">on another drive</a><a href="https://github.com/jxherc/alles#run-it-from-source">from source or docker</a></p>
-    </div>
-    <div class="step" data-step="1" hidden>
-      <img class="step-pic" src="shots/setup.webp" width="1600" height="1000" alt="the first setup step: region and nickname" loading="lazy">
-      <p>open <a href="http://localhost:6769">localhost:6769</a> and follow the setup. you don't need an api key to get started.</p>
-    </div>
-    <div class="step" data-step="2" hidden>
-      <img class="step-pic" src="shots/setup-access.webp" width="1600" height="1000" alt="the setup step that asks where alles answers: this device, the home network or a public domain" loading="lazy">
-      <div class="cmd" data-ui><code>alles access lan</code><button class="copy" type="button" data-copy="alles access lan">copy</button></div>
-      <p>it asks for an owner password, restarts alles and prints the addresses to use, like http://100.101.102.103:6769. read the <a href="https://github.com/jxherc/alles/blob/main/specifications.md#security--read-before-exposing-it">security notes</a> before you open it to the internet.</p>
-    </div>
-    <div class="step" data-step="3" hidden>
-      <div class="cmd" data-ui><code>alles update</code><button class="copy" type="button" data-copy="alles update">copy</button></div>
-      <p>it gets the newest release and keeps the previous one, so <code>alles update rollback</code> takes you back, data included.</p>
+      <div class="step" id="step-open" data-beat="1">
+        <div class="step-words">
+          <h3>then open it in your browser</h3>
+          <p>open <a href="http://localhost:6769">localhost:6769</a> and follow the setup. you don't need an api key to get started.</p>
+        </div>
+        <div class="step-show">
+          <div class="window"><img src="shots/setup.webp" width="1600" height="1000" alt="the first setup step: region and nickname" loading="lazy" decoding="async"></div>
+        </div>
+      </div>
+      <div class="step" id="step-share" data-beat="2">
+        <div class="step-words">
+          <h3>let your phone in, if you want</h3>
+          <p>it asks for an owner password, restarts alles and prints the addresses to use, like http://100.101.102.103:6769. read the <a href="https://github.com/jxherc/alles/blob/main/specifications.md#security--read-before-exposing-it">security notes</a> before you open it to the internet.</p>
+        </div>
+        <div class="step-show">
+          <div class="window"><img src="shots/setup-access.webp" width="1600" height="1000" alt="the setup step that asks where alles answers: this device, the home network or a public domain" loading="lazy" decoding="async"></div>
+          <div class="cmd" data-ui><code>alles access lan</code><button class="copy" type="button" data-copy="alles access lan">copy</button></div>
+        </div>
+      </div>
+      <div class="step" id="step-update" data-beat="3">
+        <div class="step-words">
+          <h3>update, or go back</h3>
+          <p>it gets the newest release and keeps the previous one, so a rollback takes you back, data included.</p>
+        </div>
+        <div class="step-show">
+          <div class="cmd big" data-ui><code>alles update</code><button class="copy" type="button" data-copy="alles update">copy</button></div>
+          <div class="cmd big" data-ui><code>alles update rollback</code><button class="copy" type="button" data-copy="alles update rollback">copy</button></div>
+        </div>
+      </div>
+      <nav class="step-nav" aria-label="install steps">
+        <div class="step-track"><span class="step-fill"></span></div>
+        <div class="step-names">
+          <a href="#step-install" data-beat="0">install</a>
+          <a href="#step-open" data-beat="1">open</a>
+          <a href="#step-share" data-beat="2">share</a>
+          <a href="#step-update" data-beat="3">update</a>
+        </div>
+      </nav>
     </div>
   </div>
 </section>
 
 <section class="cli" id="commands" aria-labelledby="cli-title">
   <h2 id="cli-title" class="rv"><span>from then on,</span> <span>just type alles</span></h2>
-  <img class="cli-pic rv" src="shots/server.webp" width="1920" height="1200" alt="the server app: cpu, memory, storage and network" loading="lazy">
+  <figure class="demo rv">
+    <div class="demo-win">
+      <div class="demo-top">
+        <span class="demo-app">server</span>
+        <div class="demo-tabs" role="tablist" aria-label="server">
+          <button type="button" role="tab" id="dt-overview" aria-selected="true" aria-controls="dp-overview">overview</button>
+          <button type="button" role="tab" id="dt-backups" aria-selected="false" aria-controls="dp-backups" tabindex="-1">backups and storage</button>
+          <button type="button" role="tab" id="dt-updates" aria-selected="false" aria-controls="dp-updates" tabindex="-1">updates</button>
+        </div>
+        <button class="demo-live" type="button" aria-pressed="true"><span class="demo-live-word">live</span> · <span class="demo-procs">412</span> processes</button>
+      </div>
+        <div class="demo-panel demo-cards" role="tabpanel" id="dp-overview" aria-labelledby="dt-overview">
+          <div class="demo-card" data-k="cpu"><span class="demo-label">cpu</span><strong class="demo-val">14%</strong><span class="demo-sub">10 cores · load <span class="demo-load">2.41</span></span><svg class="demo-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true"><path class="area"/><path class="line"/></svg></div>
+          <div class="demo-card" data-k="mem"><span class="demo-label">memory</span><strong class="demo-val">64%</strong><span class="demo-sub"><span class="demo-used">16.5</span> of 25.8 GB</span><svg class="demo-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true"><path class="area"/><path class="line"/></svg></div>
+          <div class="demo-card" data-k="disk"><span class="demo-label">storage</span><strong class="demo-val">84%</strong><span class="demo-sub">80.7 GB free of 494.4 GB · apfs</span><span class="demo-bar-track" aria-hidden="true"><span class="demo-bar-fill" style="width: 84%"></span></span></div>
+          <div class="demo-card" data-k="net"><span class="demo-label">network</span><strong class="demo-val">↓ 16.0 <small>KiB/s</small></strong><span class="demo-sub">up <span class="demo-up">22.0</span> KiB/s · en1</span><svg class="demo-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true"><path class="area"/><path class="line"/></svg></div>
+        </div>
+        <div class="demo-panel" role="tabpanel" id="dp-backups" aria-labelledby="dt-backups" hidden>
+          <div class="demo-card demo-facts">
+            <h3>webdav</h3>
+            <p><span>configured</span><strong>yes</strong></p>
+            <p><span>last backup</span><strong class="demo-last">yesterday, 3:12 am</strong></p>
+            <p><span>last verified</span><strong class="demo-verified">yesterday, 3:12 am</strong></p>
+            <p class="demo-status" role="status"></p>
+            <button class="demo-btn" type="button">run encrypted backup</button>
+          </div>
+          <div class="demo-card demo-facts">
+            <h3>automatic local backup</h3>
+            <p><span>enabled</span><strong>yes</strong></p>
+            <p><span>last success</span><strong>today, 3:00 am</strong></p>
+          </div>
+        </div>
+        <div class="demo-panel" role="tabpanel" id="dp-updates" aria-labelledby="dt-updates" hidden>
+          <div class="demo-card demo-facts">
+            <h3>release and update status</h3>
+            <p><span>release</span><strong>4e1d9b2 · installed nov 8, 9:41 pm</strong></p>
+            <p><span>updates</span><strong>up to date</strong></p>
+          </div>
+        </div>
+    </div>
+    <figcaption>a working copy of the server app, with made up numbers</figcaption>
+  </figure>
   <table class="rv">
     <caption class="sr">alles commands</caption>
     <tbody>
