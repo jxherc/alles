@@ -9,6 +9,8 @@ alles は Google のエコシステムを置き換える、プライベートな
 
 1 人で使うことを前提に作られています。主なデータは自分で管理するフォルダーに保存され、どの外部サービスにつなぐかも自分で決められます。AI アシスタントの aide も入っていて、あなたが操作を承認すれば、各アプリで作業してくれます。役に立つなら使ってください。ローカルのツールは AI モデルがなくても動きます。
 
+各アプリの紹介：[jxherc.github.io/alles](https://jxherc.github.io/alles/)
+
 [english](../../README.md) · [français](README.fr.md) · [español](README.es.md) ·
 [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md) · **日本語** · [한국어](README.ko.md) ·
 [العربية](README.ar.md)

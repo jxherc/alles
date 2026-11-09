@@ -9,6 +9,8 @@ alles 是 Google 生態系的私人替代方案。郵件、行事曆、文件、
 
 它是為單一使用者打造的。主要資料存放在你掌控的資料夾中，要連接哪些外部服務也由你決定。另外還有 aide，一個 AI 助理：你核准它的操作後，它就能在各個應用程式中幫你做事。覺得有用就用；不接 AI 模型，本機工具也照樣能用。
 
+每個應用程式的預覽：[jxherc.github.io/alles](https://jxherc.github.io/alles/)
+
 [english](../../README.md) · [français](README.fr.md) · [español](README.es.md) ·
 [简体中文](README.zh-Hans.md) · **繁體中文** · [日本語](README.ja.md) · [한국어](README.ko.md) ·
 [العربية](README.ar.md)

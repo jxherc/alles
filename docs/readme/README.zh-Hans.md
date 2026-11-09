@@ -9,6 +9,8 @@ alles 是一套私有的 Google 全家桶替代方案。邮件、日历、文档
 
 它只为一个人设计。主要数据保存在你掌控的文件夹里，连接哪些外部服务也由你决定。另外还有 aide，一个 AI 助手：你批准它的操作后，它就能在各个应用里帮你做事。觉得有用就用；不接 AI 模型，本地工具也照样能用。
 
+每个应用的预览：[jxherc.github.io/alles](https://jxherc.github.io/alles/)
+
 [english](../../README.md) · [français](README.fr.md) · [español](README.es.md) · **简体中文** ·
 [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
 

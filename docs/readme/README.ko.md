@@ -9,6 +9,8 @@ alles는 Google 생태계를 대신하는 프라이빗한 대안입니다. 메�
 
 한 사람이 쓰도록 만들었습니다. 주요 데이터는 내가 관리하는 폴더에 저장되고, 어떤 외부 서비스를 연결할지도 직접 정합니다. AI 어시스턴트 aide도 들어 있어서, 작업을 승인하면 앱 안에서 일을 처리해 줍니다. 도움이 되면 쓰세요. 로컬 도구는 AI 모델 없이도 작동합니다.
 
+모든 앱 둘러보기: [jxherc.github.io/alles](https://jxherc.github.io/alles/)
+
 [english](../../README.md) · [français](README.fr.md) · [español](README.es.md) ·
 [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md) · **한국어** ·
 [العربية](README.ar.md)

@@ -9,6 +9,8 @@ alles est une alternative privée à l’écosystème Google. e-mails, agenda, d
 
 alles est conçu pour une seule personne. vos données principales restent dans un dossier que vous contrôlez, et c’est vous qui décidez quels services externes connecter. il y a aussi Aide, un assistant IA qui peut travailler avec les apps quand vous approuvez ses actions. servez-vous-en s’il vous est utile ; les outils locaux fonctionnent sans modèle d’IA.
 
+un aperçu de chaque app : [jxherc.github.io/alles](https://jxherc.github.io/alles/)
+
 [english](../../README.md) · **français** · [español](README.es.md) · [简体中文](README.zh-Hans.md) ·
 [繁體中文](README.zh-Hant.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [العربية](README.ar.md)
 
