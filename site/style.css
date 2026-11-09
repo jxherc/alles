@@ -320,7 +320,7 @@ html.js .scene.is-live > .scene-stage { position: sticky; top: 0; height: 100svh
 .switch[aria-checked="true"]:active .knob { transform: translateX(0.64em); }
 .switch:focus-visible { outline-offset: 5px; border-radius: 999px; }
 
-/* your data: a picture set like a drop cap */
+/* your data: the two real folders, drawn whole */
 .data {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -333,17 +333,20 @@ html.js .scene.is-live > .scene-stage { position: sticky; top: 0; height: 100svh
 .facts code { font-size: 0.875rem; color: var(--text); }
 .data-text { grid-column: 3 / -1; }
 .data-lead { max-width: 30em; font: 400 var(--t-say)/1.25 var(--serif); letter-spacing: -0.015em; }
-.drop {
-  float: left;
-  width: 2.5em;
-  height: 2.5em;
-  margin: 0.2em 0.45em 0 0;
-  object-fit: cover;
-  border-radius: var(--r-pic);
-  background: var(--panel);
-  filter: brightness(1.55);
-}
-.data-more { clear: both; display: grid; grid-template-columns: 1fr 1fr; gap: 16px var(--gap); margin-top: 32px; color: var(--soft); }
+.sprite { position: absolute; }
+.places { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--gap); margin-top: clamp(28px, 3vw, 40px); }
+/* both folders share one set of rows, so a note that wraps in one keeps the other in line */
+.place { display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0; min-width: 0; padding: 18px 20px 8px; border-radius: var(--r-pic); background: var(--panel); }
+/* path, then its note on its own line, so the rows of both folders line up */
+.place figcaption { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+.place figcaption code { color: var(--text); font-size: 0.875rem; overflow-wrap: anywhere; }
+.place figcaption span { color: var(--muted); font-size: var(--t-small); }
+.place ul { display: contents; list-style: none; }
+.place li { display: grid; grid-template-columns: 20px minmax(6em, auto) 1fr; align-items: center; column-gap: 12px; padding: 10px 0; font-size: var(--t-small); }
+.place li svg { width: 20px; height: 20px; color: var(--muted); }
+.place li b { font-weight: 550; }
+.place li span { color: var(--soft); }
+.data-more { display: grid; grid-template-columns: 1fr 1fr; gap: 16px var(--gap); margin-top: 32px; color: var(--soft); }
 
 /* install: four steps; scrolling walks through them on one held stage */
 .steps { margin-top: var(--section); }
@@ -618,8 +621,9 @@ html.js .scene.is-live > .scene-stage { position: sticky; top: 0; height: 100svh
   .demo-tabs { gap: 2px; }
   .demo-tabs button { padding: 0 9px; }
   .demo-card { padding: 14px; }
-  .drop { width: 2.6em; height: 2.6em; margin-top: 0.18em; }
-  .data-more { grid-template-columns: 1fr; }
+  .places, .data-more { grid-template-columns: minmax(0, 1fr); }
+  .place li { grid-template-columns: 20px 1fr; row-gap: 2px; }
+  .place li span { grid-column: 2; }
   .end-line { font-size: 15.5vw; }
 }
 

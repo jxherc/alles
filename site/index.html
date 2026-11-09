@@ -162,7 +162,29 @@
     <li>mit license</li>
   </ul>
   <div class="data-text">
-    <p class="data-lead rv"><img class="drop" src="shots/files-square.webp" width="600" height="600" alt="" loading="lazy">your docs and files live in ~/Alles, a folder you can open. the database sits right beside it.</p>
+    <p class="data-lead rv">your docs and files live in ~/Alles, a folder you can open. the database stays out of view.</p>
+    <svg width="0" height="0" class="sprite" aria-hidden="true">
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7A1.5 1.5 0 0 1 5 5.5h4l2 2h8A1.5 1.5 0 0 1 20.5 9v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M6.5 3.5h7l4 4v13h-11z M13.5 3.5v4h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    </svg>
+    <div class="places rv">
+      <figure class="place">
+        <figcaption><code>~/Alles</code><span>open it in finder, or in files</span></figcaption>
+        <ul role="list">
+          <li><svg aria-hidden="true"><use href="#i-folder"/></svg><b>Docs</b><span>notes and journal, as markdown files</span></li>
+          <li><svg aria-hidden="true"><use href="#i-folder"/></svg><b>Fieldnote</b><span>a folder of your own</span></li>
+          <li><svg aria-hidden="true"><use href="#i-file"/></svg><b>Palette.png</b><span>anything you upload in files</span></li>
+        </ul>
+      </figure>
+      <figure class="place">
+        <figcaption><code>~/Library/Application Support/Alles</code><span>out of view, or ~/.local/share/alles on linux</span></figcaption>
+        <ul role="list">
+          <li><svg aria-hidden="true"><use href="#i-folder"/></svg><b>data</b><span>the database, aide.db, and your settings</span></li>
+          <li><svg aria-hidden="true"><use href="#i-folder"/></svg><b>backups</b><span>a daily encrypted backup when it's on, the last 7 kept</span></li>
+          <li><svg aria-hidden="true"><use href="#i-folder"/></svg><b>runtime</b><span>this release and the one before, for a rollback</span></li>
+        </ul>
+      </figure>
+    </div>
     <div class="data-more rv">
       <p>you choose which outside services it connects to. want it on an external drive? run the install from a folder there and everything goes into that folder.</p>
       <p>back up from settings as an encrypted file, or send it to your own webdav folder or s3 bucket. keep the recovery key outside alles, so you can still get in if the app stops working.</p>
