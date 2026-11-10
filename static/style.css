@@ -6464,7 +6464,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box; border-radius: 11px;
   display: inline-flex; align-items: center; justify-content: center; font-weight: 600;
 }
-.cal-cell-events { display: flex; flex-direction: column; gap: 2px; }
+/* a day's chips are one stack: --k-row-gap between them and under the date strip (0051) */
+.cal-cell-events { display: flex; flex-direction: column; gap: var(--k-row-gap); margin-top: var(--k-row-gap); }
 .cal-chip {
   font-size: 0.8125rem; line-height: 1.3; padding: 1px 4px 1px 8px; border-radius: var(--k-radius-control);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -6722,16 +6723,17 @@ button.cal-task { width: 100%; margin: 0; padding-inline-start: 6px; border: 0; 
 .cal-tg-dayhead.today, .cal-tg-dayhead.today .cal-tg-dn { color: var(--info); }
 .cal-tg-alldayrow { border-bottom: 1px solid var(--faint); flex-shrink: 0; }
 .cal-tg-gutter { font-size: 0.8125rem; color: var(--muted); text-align: right; padding: 0.2rem 0.3rem; white-space: nowrap; }
-.cal-tg-allday { border-left: 1px solid var(--faint); padding: 1px; min-height: 22px; min-width: 0; cursor: pointer; }
-.cal-allday-ev { font-size: 0.8125rem; padding: 1px 4px; border-radius: var(--k-radius-control); cursor: pointer; color: var(--bg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
+/* the day's all-day events, tasks and birthdays are one stack, --k-row-gap apart */
+.cal-tg-allday { display: flex; flex-direction: column; gap: var(--k-row-gap); border-left: 1px solid var(--faint); padding: 1px; min-height: 22px; min-width: 0; cursor: pointer; }
+.cal-allday-ev { font-size: 0.8125rem; padding: 1px 4px; border-radius: var(--k-radius-control); cursor: pointer; color: var(--bg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the all-day event is a button now, with the same 44px row as the tasks beside it */
 button.cal-allday-ev { display: block; box-sizing: border-box; width: 100%; min-height: 44px; padding: 0 6px; border: 0; font: inherit; font-size: 0.8125rem; text-align: left; }
 /* past a few rows (and a half, so it reads as more) the all-day band scrolls instead of eating the
    hours under it. a phone's grid is short, so it stops at two and a half */
-.cal-tg-alldayrow { max-height: calc(4.5 * 44px + 2px); overflow-y: auto; overscroll-behavior: contain; }
+.cal-tg-alldayrow { max-height: calc(4.5 * (44px + var(--k-row-gap)) + 2px); overflow-y: auto; overscroll-behavior: contain; }
 .cal-tg-alldayrow > .cal-tg-gutter { position: sticky; top: 0; align-self: start; }
 @media (max-width: 760px) {
-  .cal-tg-alldayrow { max-height: calc(2.5 * 44px + 2px); }
+  .cal-tg-alldayrow { max-height: calc(2.5 * (44px + var(--k-row-gap)) + 2px); }
 }
 .cal-tg-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 .cal-tg-hour { font-size: 0.8125rem; color: var(--muted); text-align: right; padding-right: 0.3rem; border-top: 1px solid var(--faint); box-sizing: border-box; }
@@ -6889,7 +6891,8 @@ button.cal-agenda-ev { width: 100%; margin: 0; border: 0; background: none; font
 .cal-cals-head { display: flex; align-items: center; justify-content: space-between; font-size: 0.8125rem; letter-spacing: 0.05em; text-transform: lowercase; color: var(--muted); margin-bottom: 0.4rem; }
 .cal-cal-add { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; line-height: 1; }
 .cal-cal-add:hover { color: var(--text); }
-.cal-cal-row { display: flex; align-items: center; gap: 0; padding: 0; }
+#cal-cals-list { display: flex; flex-direction: column; gap: var(--k-row-gap); }
+.cal-cal-row { display: flex; align-items: center; gap: var(--k-control-gap); padding: 0; }
 /* the visible square stays 14px inside a 44px switch target */
 .cal-cal-vis { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--k-radius-control); background: none; cursor: pointer; }
 .cal-cal-vis:hover { background: var(--hover, var(--panel)); }
