@@ -806,7 +806,7 @@ body:not(.is-aide) #session-actions-btn { display: none !important; }
 .user-wrap { display: flex; flex-direction: column; align-items: flex-end; padding: 0.35rem 0; }
 /* a message's own actions sit right under it, on its right edge: the labels start 4px below the
    bubble and the 44px targets hang down into the gap before the reply */
-.user-actions { display: flex; align-items: flex-start; justify-content: flex-end; margin: 0 -8px -12px 0; }
+.user-actions { display: flex; align-items: flex-start; justify-content: flex-end; gap: var(--k-control-gap); margin: 0 -8px -12px 0; }
 .user-actions > button,
 .user-actions > .memory-confirm {
   min-height: 44px; display: inline-flex; align-items: flex-start; padding: 4px 8px 0;
