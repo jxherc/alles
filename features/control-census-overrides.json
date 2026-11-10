@@ -79,6 +79,7 @@
     "static/js/settings/credits.js": "cross-feature.settings",
     "static/js/settings/home.js": "cross-feature.settings",
     "static/js/settings/language.js": "cross-feature.settings",
+    "static/js/settings/ledger.js": "cross-feature.settings",
     "static/js/settings/model_roles.js": "cross-feature.settings",
     "static/js/settings/pane.js": "cross-feature.settings",
     "static/js/model_providers.js": "cross-feature.settings",
