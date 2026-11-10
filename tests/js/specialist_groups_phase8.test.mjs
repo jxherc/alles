@@ -877,3 +877,11 @@ test('fixing a row in place leaves focus on the new receipt status, not the page
   assert.equal(status.textContent, 'ending 1234 confirmed');
   assert.ok(h.target.querySelector('.finance-import-apply'));
 });
+
+test('plan\'s switches sit on the gutter and the layout switch leaves the header stack on a phone (0072)', () => {
+  const rule = kokuenCss.match(/\.plan-subviews \{[^}]*\}/)?.[0] || '';
+  assert.match(rule, /padding-inline: var\(--k-gutter/);
+  assert.match(rule, /gap: var\(--k-control-gap/);
+  assert.match(specialistSource, /function _placePlanLayout\(/);
+  assert.match(kokuenCss, /#plan-view \.plan-subviews \[data-plan-kind\] > button \{ flex: 1 1 0;/);
+});

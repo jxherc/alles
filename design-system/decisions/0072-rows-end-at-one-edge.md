@@ -36,11 +36,20 @@ row) and its two columns were a css column split that left one column empty.
   off leaves no hole, and with no schedule the sections take the full width. replaces the css
   columns, which left the right column holding one card.
 - the "all open tasks" link is plain text like "ask aide about today"; hover underlines it.
+- plan's tasks tab (amends 0064's last line, "a phone puts them on their own line"): the row of
+  switches under the tabs carries the page gutter, so on every size the boxes under the header
+  share one edge: the right edge at ipad and desktop (the kind and layout switches end where the
+  search field and the add row end, 8px apart), the left edge on a phone. a phone gives the kind
+  switch (tasks, reminders, countdowns) the whole line as three equal segments, and the layout
+  switch (list, board) moves to the end of the view's first row, 8px from the view dropdown, or
+  over the board at the same place. one element moves, so its state and keys stay. the three
+  tabs and the pill switches stay.
 
 ## where
 
 - `static/js/tasks.js` (row, swipe), `static/js/specialist_groups.js` (agenda row),
   `static/style.css` (`.task-due`, agenda row grid), `static/revamp.css` (soft due chip removed).
+- plan: `static/kokuen.css` (`.plan-subviews`), `static/js/specialist_groups.js` (`_placePlanLayout`).
 - home: `static/js/today.js` (rows, cards, swipe), `static/revamp.css` ("home" grid, pinned app
   tile), `static/style.css` (summary link, overdue line), `static/kokuen.css` (link hover).
 
@@ -54,3 +63,8 @@ home, webkit at ipad landscape and phone, chromium at 1440, light and dark: main
 and side 371px at 1210, 895 and 448 at 1440, the side sections start on the schedule's top line
 and stack with no gap between; reordered, with the schedule off and with pinned apps off, no
 hole; pinned app cards are 44px tall; the summary link has no resting underline.
+
+plan tasks, phone: kind switch 16 to 374 (358px, three equal segments), layout switch 8px from the
+dropdown on the dropdown's row, and at the same x and y over the board (y 176 both). ipad
+landscape, ipad portrait and desktop: layout switch right edge 1185, 809 and 1415, the search
+field's and the add row's.

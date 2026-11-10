@@ -415,19 +415,27 @@ body:is(
 .specialist-view-strip .specialist-group-tabs { flex: 1; }
 
 /* plan's tasks tab picks what it lists (tasks, reminders, countdowns) and how (list or board)
-   with two pill switches at the end of the views row (u.06, decision 0064). a phone puts them on
-   their own line under the tabs */
+   with two pill switches at the end of the views row (u.06, decision 0064). the row carries the
+   page gutter, so its right edge is the search field's and the add row's. a phone gives the kind
+   switch the whole line, three equal segments, and the layout switch moves to the end of the
+   view's first row (0072) */
 .plan-subviews {
   display: flex;
   flex: 0 1 auto;
   align-items: center;
-  gap: var(--k-space-2, 8px);
+  gap: var(--k-control-gap, 8px);
   min-width: 0;
-  padding-inline: var(--k-space-3, 12px);
+  padding-inline: var(--k-gutter, 16px);
 }
 @media (max-width: 760px) {
   #plan-view .specialist-view-strip { flex-wrap: wrap; }
-  #plan-view .plan-subviews { flex: 1 0 100%; flex-wrap: wrap; padding-block: 0 var(--k-space-2, 8px); }
+  #plan-view .plan-subviews { flex: 1 0 100%; padding-block: 0 var(--k-space-2, 8px); }
+  #plan-view .plan-subviews [data-plan-kind] { flex: 1 1 100%; width: 100%; }
+  #plan-view .plan-subviews [data-plan-kind] > button { flex: 1 1 0; min-width: 0; padding-inline: var(--k-space-2, 8px); }
+  #plan-view .plan-layout-row { display: flex; justify-content: flex-end; padding: var(--k-space-1, 4px) var(--k-gutter, 16px) var(--k-control-gap, 8px); }
+  #plan-view [data-group-slot] .page-view-head { column-gap: var(--k-control-gap, 8px); }
+  #plan-view [data-group-slot] .page-view-head > .tasks-view-pick { flex: 1 1 8rem; min-width: 0; }
+  #plan-view [data-group-slot] .page-view-head > [data-plan-layout] { margin-inline-start: auto; }
 }
 
 .specialist-view-scroll {

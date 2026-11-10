@@ -2114,14 +2114,55 @@ function _pick(group, value) {
   });
 }
 
+// on a phone the layout switch (list, board) leaves the header's stack and sits at the end of the
+// first row of the view it switches: the view dropdown's row, or a row of its own over the board
+// (0072). one element moves, so its state and wiring stay
+const PHONE_WIDTH = typeof window !== 'undefined' ? window.matchMedia?.('(max-width: 760px)') : null;
+
+let _planLayout = null;   // kept: a redrawn board takes the row it sat in with it
+
+function _placePlanLayout(root, section) {
+  const layout = _planLayout ||= document.querySelector('#plan-view [data-plan-layout]');
+  const views = document.querySelector('#plan-view [data-plan-subviews]');
+  if (!layout || !views) return;
+  let home = views;
+  let before = null;
+  if (PHONE_WIDTH?.matches && section === 'tasks') {
+    home = document.querySelector('#tasks-view .page-view-head') || views;
+    before = home === views ? null : home.querySelector('#tasks-search');
+  } else if (PHONE_WIDTH?.matches && section === 'board') {
+    const overview = root.querySelector('[data-group-overview]');
+    if (overview?.querySelector('.plan-board-root')) {
+      let row = overview.querySelector(':scope > .plan-layout-row');
+      if (!row) {
+        row = document.createElement('div');
+        row.className = 'plan-layout-row';
+        overview.prepend(row);
+      }
+      home = row;
+    }
+  }
+  if (layout.parentElement === home && layout.nextElementSibling === before) return;
+  const focused = layout.contains(document.activeElement) ? document.activeElement : null;
+  home.insertBefore(layout, before);
+  focused?.focus();
+}
+
+PHONE_WIDTH?.addEventListener?.('change', () => {
+  const root = document.getElementById('plan-view');
+  const section = _states.get('plan')?.section;
+  if (root && section) _placePlanLayout(root, section);
+});
+
 function _setPlanViews(root, section) {
   const views = root.querySelector('[data-plan-subviews]');
   if (!views) return;
   const inTasks = PLAN_TASK_VIEWS.includes(section);
   views.hidden = !inTasks;
+  _placePlanLayout(root, section);
   if (!inTasks) return;
   _pick(views.querySelector('[data-plan-kind]'), section === 'board' ? 'tasks' : section);
-  const layout = views.querySelector('[data-plan-layout]');
+  const layout = _planLayout || views.querySelector('[data-plan-layout]');
   _pick(layout, section);
   layout.hidden = section !== 'tasks' && section !== 'board';
 }
@@ -2227,7 +2268,8 @@ function _wire(group, root) {
   const planViews = root.querySelector('[data-plan-subviews]');
   if (planViews && tablist?.parentElement) {
     tablist.parentElement.append(planViews);
-    planViews.addEventListener('change', event => {
+    // each switch listens on itself: the layout switch leaves this row on a phone
+    for (const group of planViews.querySelectorAll('[data-plan-kind], [data-plan-layout]')) group.addEventListener('change', event => {
       const value = event.detail?.value;
       if (PLAN_TASK_VIEWS.includes(value) && value !== _states.get('plan')?.section) window._navigateSpecialistSection?.('plan', value);
     });
@@ -2252,6 +2294,7 @@ async function _renderCurrentOverview(group, section, overview, request, renderN
   const current = _states.get(group);
   if (!current || current.renderNonce !== renderNonce || current.section !== section) return;
   overview.replaceChildren(...staged.childNodes);
+  if (group === 'plan' && section === 'board') _placePlanLayout(overview.closest('#plan-view') || document, 'board');
   if (group === 'plan' && (section === 'overview' || section === 'week')) _restorePlanAgendaFocus(overview, section);
 }
 
