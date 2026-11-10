@@ -338,17 +338,17 @@ test('check again reads that one row from the server and repaints it', async () 
   assert.equal(h.notices.at(-1)[0], 'no longer in the outbox');
 });
 
-test('closing the accounts panel puts focus back on what opened it, else the mail settings cog', async () => {
-  for (const opened of ['cog', 'nothing']) {
+test('closing the accounts panel puts focus back on what opened it, else the toolbar more button', async () => {
+  for (const opened of ['more', 'nothing']) {
     const h = harness();
-    const cog = h.document.createElement('button');
-    cog.setAttribute('class', 'app-cog'); cog.setAttribute('data-app', 'mail');
-    h.$('mail-view').appendChild(cog);
-    h.document.activeElement = opened === 'cog' ? cog : h.document.body;
-    if (opened === 'cog') { cog.focus(); }
+    const more = h.document.createElement('button');
+    more.setAttribute('id', 'mail-more');
+    h.$('mail-view').appendChild(more);
+    h.document.activeElement = opened === 'more' ? more : h.document.body;
+    if (opened === 'more') { more.focus(); }
     await h.run('accountsPanel(true)');
     await h.click(h.$('mail-accounts-close'));
-    assert.equal(h.document.activeElement, cog, opened);
+    assert.equal(h.document.activeElement, more, opened);
   }
 });
 

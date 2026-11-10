@@ -83,7 +83,6 @@ for (const [sel, key, opts] of [
   ['#docs-nav-panel', 'docs', { inside: true }],
   ['#settings-modal .s-navigation', 'settings', { inside: true }],
   ['#files-view .files-phase7-location-panel', 'files', { gridHost: true }],
-  ['#mail-sidebar', 'mail', {}],
   ['#cal-sidebar', 'calendar', {}],
   ['#photos-sidebar', 'photos', {}],
 ]) {

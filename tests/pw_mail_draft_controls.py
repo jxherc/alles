@@ -14,6 +14,7 @@ from pw_inbox_workflows import seed_mail
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import choose_folder  # noqa: E402
 
 from services.appearance import from_legacy
 
@@ -145,7 +146,7 @@ def run():
                             == 2
                         )
                         page.wait_for_function("innerWidth === 720 && devicePixelRatio === 2")
-                    page.get_by_role("button", name="drafts", exact=True).click()
+                    choose_folder(page, "drafts")
                     button = page.get_by_role("button", name="delete draft: " + subject, exact=True)
                     expect(button).to_be_visible()
                     geometry = button.evaluate(
@@ -199,7 +200,7 @@ def run():
                     ]
                     page.reload(wait_until="networkidle")
                     page.get_by_role("tab", name="mail", exact=True).click()
-                    page.get_by_role("button", name="drafts", exact=True).click()
+                    choose_folder(page, "drafts")
                     expect(button).to_have_count(0)
                     second = page.get_by_role(
                         "button", name="delete draft: Trip checklist", exact=True

@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import open_row_menu, return_to_mail_list, split_mail_panes
+from mail_browser_layout import choose_folder, return_to_mail_list, row_action, split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -100,15 +100,14 @@ with sync_playwright() as pw:
                 expect(row()).to_be_visible()
                 expect(page.locator("#mail-list")).to_have_attribute("aria-busy", "false")
                 if case.startswith("label-unread"):
-                    page.locator('.mail-nav-item[data-filter="unread"]').click()
+                    choose_folder(page, "unread")
                     expect(row()).to_be_visible()
                     expect(page.locator("#mail-list")).to_have_attribute("aria-busy", "false")
                 row().locator(".mail-open").click()
                 if case.startswith("label"):
                     wait_one(body)
                     with split_mail_panes(page):
-                        open_row_menu(page, row())
-                        row().locator("[data-label]").click()
+                        row_action(page, row(), "label")
                     dlg = page.get_by_role("dialog")
                     dlg.locator("input").fill("work")
                     page.route(base + "/api/mail/read/*", lambda route: pending.append(route))
@@ -138,7 +137,7 @@ with sync_playwright() as pw:
                     assert state()["labels"] == "work"
                     assert len(writes) == 1
                     return_to_mail_list(page)
-                    page.locator('.mail-nav-item[data-filter="inbox"]').click()
+                    choose_folder(page, "inbox")
                     expect(row().get_by_role("button", name="work", exact=True)).to_be_visible()
                 else:
                     expect(page.locator("#mail-unread")).to_have_attribute("aria-disabled", "false")

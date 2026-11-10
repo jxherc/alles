@@ -27,6 +27,7 @@ from urllib.parse import parse_qs, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
 from browser_gate_safety import require_server_ownership  # noqa: E402
+from mail_browser_layout import choose_folder  # noqa: E402
 
 GUARD_SHA256 = "ca71cf20e2631b71662abd376d02702fe637883038115c47a82368644009e44f"
 PROFILES = [(w, t, False) for w in (1440, 820, 390) for t in ("light", "dark")]
@@ -427,7 +428,7 @@ def run():
 
                     def pane_layout():
                         compact = zoom or width <= 1100
-                        for selector in ("#mail-list", "#mail-sidebar"):
+                        for selector in ("#mail-list", "#mail-folder"):
                             if compact:
                                 expect(page.locator(selector)).to_be_hidden()
                             else:
@@ -437,9 +438,7 @@ def run():
                             width / 2 if not compact else (720 if zoom else width) - 4
                         ), main
                         if not compact:
-                            sidebar = page.locator("#mail-sidebar").bounding_box()
                             listing = page.locator("#mail-list").bounding_box()
-                            assert sidebar["x"] + sidebar["width"] <= listing["x"] + 1
                             assert listing["x"] + listing["width"] <= main["x"] + 1
                         # beside the list there is nothing to go back to, so the button is gone
                         if compact:
@@ -740,7 +739,7 @@ def run():
                         expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
                         row["draft_saved"] = readback(saved)
                         enter_mail(reload=True)
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         draft_opener = page.locator(
                             f'.mail-draft-row[data-id="{saved["id"]}"] .mail-open'
                         )
@@ -808,7 +807,7 @@ def run():
                         page.wait_for_function(
                             "!Object.keys(sessionStorage).some(k=>k.startsWith('alles-mail-draft:'))"
                         )
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         draft_opener.press("Enter")
                         assert body.inner_html() == pending_body
                         row["draft_recovered"] = readback(recovery["saved"])

@@ -65,9 +65,9 @@ def run() -> None:
             expect(page.locator("#mail-view")).to_be_visible()
             # no mailbox yet: folders and search wait, one line and one button are what's on screen
             expect(page.locator("#mail-view")).to_have_attribute("data-no-account", "")
-            expect(page.locator('.mail-nav-item[data-filter="unread"]')).to_be_hidden()
+            expect(page.locator("#mail-folder")).to_be_hidden()
             expect(page.locator("#mail-search")).to_be_hidden()
-            expect(page.get_by_text("no mail account")).to_be_visible()
+            expect(page.locator("#mail-no-account")).to_contain_text("no mail account")
             page.locator("#mail-add-account").click()
             expect(page.get_by_role("region", name="mail accounts")).to_be_visible()
             page.goto(base, wait_until="networkidle")

@@ -3991,20 +3991,6 @@ body[data-app="files"] #files-preview-modal { z-index: 1200; }
 .files-preview-media { width: 100%; max-height: 72vh; display: block; margin: 0 auto; }
 
 /* ── mail ── */
-/* Gmail-style folder sidebar (4b) */
-.mail-sidebar { width: 170px; flex-shrink: 0; overflow-y: auto; overflow-x: hidden; border-right: 1px solid var(--faint); padding: 0.55rem 0.4rem; display: flex; flex-direction: column; gap: 0.08rem; }
-#mail-view.sidebar-collapsed .mail-sidebar { width: 52px; }
-/* labels fade out instead of popping via display:none; the width itself snaps (no layout animation) */
-.mail-nav-label { transition: opacity 0.18s ease; max-width: 120px; opacity: 1; overflow: hidden; }
-#mail-view.sidebar-collapsed .mail-nav-label { opacity: 0; max-width: 0; }
-#mail-view.sidebar-collapsed .mail-nav-item { gap: 0; padding: 0; justify-content: center; }
-.mail-nav-item { display: flex; align-items: center; gap: 0.65rem; background: none; border: none; border-radius: var(--k-radius-control); color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0.42rem 0.6rem; cursor: pointer; text-align: left; white-space: nowrap; overflow: hidden; transition: color 0.15s, background 0.15s; }
-.mail-nav-item:hover { color: var(--text); background: var(--panel); }
-.mail-nav-item.active { color: var(--text); background: var(--raised); }
-.mail-nav-ic { display: inline-flex; align-items: center; width: 1.05em; height: 1.05em; flex-shrink: 0; }
-.mail-nav-ic svg { width: 100%; height: 100%; }
-.mail-sidebar-toggle { font-size: 1rem; line-height: 1; color: var(--muted); }
-.mail-sidebar-toggle:hover { color: var(--text); }
 .mail-row.sel { background: var(--raised); border-left: 2px solid var(--line-strong); }
 .mail-flag { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--muted); transition: color 0.15s; }
 .mail-flag .ic, .mail-more .ic { width: 16px; height: 16px; }
@@ -8363,48 +8349,24 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 
 /* mail overhaul */
 .mail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--k-control-gap);
   max-width: none;
   margin: 0;
-  min-height: 52px;
-  /* lines the tabs up with the mail rows below (.mail-row pads 0.8rem) */
-  padding: 0.62rem 0.8rem;
-  gap: 0.5rem;
-  border-bottom: 1px solid var(--faint);
+  padding: var(--k-space-3) var(--k-gutter);
 }
-.mail-head .page-view-title {
-  font-size: 0.875rem;
-  letter-spacing: -0.01em;
-  min-width: 44px;
-}
-.mail-tabs { display: inline-flex; gap: 0.1rem; flex-shrink: 0; }
-
-.mail-account-select {
-  width: min(220px, 30vw);
-  height: 30px;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.8125rem;
-  flex-shrink: 0;          /* account picker stays on the left (4c) */
-}
-/* centered search bar with a sensible cap (4c) */
-.mail-head .mail-search {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 560px;
-  margin: 0 auto;
-  height: 30px;
-}
-.mail-head-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--k-control-gap);
-}
-.mail-head .btn {
-  height: 30px;
-  padding: 0.22rem 0.62rem;
-  font-size: 0.8125rem;
-  letter-spacing: 0.02em;
-}
+/* one toolbar row: account, folder, search, compose and one more button (decision 0076) */
+.mail-account-select { flex: 0 1 12rem; width: auto; min-width: 0; }
+.mail-folder-select { flex: 0 1 10rem; width: auto; min-width: 0; }
+.mail-head .mail-search { flex: 1 1 14rem; min-width: 0; max-width: 520px; margin: 0; }
+.mail-head #mail-compose-btn { margin-inline-start: auto; }
+.mail-more-wrap { position: relative; flex: none; }
+.mail-toolbar-menu { position: absolute; top: calc(100% + var(--k-space-1)); right: 0; z-index: 20; min-width: 11rem; max-width: calc(100vw - 2 * var(--k-space-3)); }
+.mail-head .mail-offline { flex: none; }
+.mail-offline-short { display: none; }
 .mail-layout {
   flex: 1;
   display: flex;
@@ -8519,16 +8481,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   white-space: nowrap;
 }
 .mail-row.unread .mail-subject { color: var(--text); }
-.mail-account-badge {
-  width: fit-content;
-  margin-top: 0.38rem;
-  border: 1px solid var(--faint);
-  border-radius: var(--k-radius-control);
-  color: var(--muted);
-  font-size: 0.8125rem;
-  line-height: 1;
-  padding: 0.18rem 0.38rem;
-}
 .mail-reader {
   min-height: 100%;
   display: flex;
@@ -8694,22 +8646,21 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 }
 
 @media (max-width: 760px) {
-  .mail-head {
-    padding: 0.58rem 0.85rem;
-    flex-wrap: wrap;
-  }
-  .mail-account-select {
-    flex: 1 1 150px;
-    width: auto;
-  }
-  .mail-head-actions {
-    width: 100%;
-    margin-left: 0;
-    gap: var(--k-space-2, 8px);
-  }
-  /* actions keep their own width: refresh starts the row with its box on the column edge (0043),
-     settings ends it */
-  .mail-head-actions .app-cog { margin-inline-start: auto; }
+  /* a phone gets two rows: account, folder and more, then search and compose. the offline state
+     is a short button in the first row, so it takes no row of its own */
+  .mail-head { row-gap: 0; }
+  .mail-account-select { order: 1; flex: 1 1 0; }
+  .mail-folder-select { order: 2; flex: 1.4 1 0; }
+  .mail-head .mail-offline { order: 3; }
+  .mail-more-wrap { order: 4; }
+  .mail-head::after { content: ''; order: 5; flex: 1 1 100%; height: 0; }
+  .mail-head .mail-search { order: 6; flex: 1 1 0; max-width: none; margin-top: var(--k-control-gap); }
+  .mail-head #mail-compose-btn { order: 7; margin-inline-start: 0; margin-top: var(--k-control-gap); }
+  /* a reader open on a phone keeps compose and more on one row */
+  #mail-view:has(.mail-pane-back) .mail-head::after { display: none; }
+  #mail-view:has(.mail-pane-back) .mail-head #mail-compose-btn { order: 3; margin-top: 0; }
+  .mail-offline-text, .mail-offline-retry { display: none; }
+  .mail-offline-short { display: inline-flex; align-items: center; gap: var(--k-space-1); }
   .mail-layout {
     flex-direction: column;
     overflow-y: auto;
@@ -8717,31 +8668,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   .mail-main {
     flex: 1 0 auto;
     overflow: visible;
-  }
-  .mail-sidebar,
-  #mail-view.sidebar-collapsed .mail-sidebar {
-    width: 100%;
-    flex-direction: row;
-    flex-shrink: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    border-right: 0;
-    border-bottom: 1px solid var(--faint);
-    /* the picked folder is a filled box, so the strip starts on the gutter (0043) */
-    padding: 0.4rem var(--k-gutter, 16px);
-    scroll-padding-inline: var(--k-gutter, 16px);
-    gap: 0.15rem;
-  }
-  #mail-view.sidebar-collapsed .mail-nav-label {
-    opacity: 1;
-    max-width: 120px;
-  }
-  #mail-view.sidebar-collapsed .mail-nav-item,
-  .mail-nav-item {
-    flex: 0 0 auto;
-    justify-content: flex-start;
-    gap: 0.45rem;
-    padding: 0.38rem 0.55rem;
   }
   .mail-list {
     width: 100%;
@@ -8764,9 +8690,9 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 
 /* Reading and writing need more room than the three-pane workspace can give here. */
 @media (max-width: 1100px) {
-  #mail-view:has(.mail-pane-back) .mail-sidebar,
   #mail-view:has(.mail-pane-back) .mail-list,
-  #mail-view:has(.mail-pane-back) #mail-sidebar-toggle,
+  #mail-view:has(.mail-pane-back) #mail-folder,
+  #mail-view:has(.mail-pane-back) .mail-offline,
   #mail-view:has(.mail-pane-back) #mail-search,
   #mail-view:has(.mail-pane-back) #mail-account { display: none; }
   #mail-view:has(.mail-pane-back) .mail-layout { overflow: hidden; }
@@ -11505,8 +11431,7 @@ html[data-kokuen-version="5"] .btn.photos-restore { background: color-mix(in srg
 .perm-menu-item.active,
 .mention-item.active,
 .mc-ac-item.active, .mc-ac-item:hover,
-.wiki-qs-item.active, .wiki-qs-item:hover,
-.mail-nav-item.active {
+.wiki-qs-item.active, .wiki-qs-item:hover {
   background: var(--k-raised, var(--raised)); color: var(--k-ink, var(--text));
 }
 .mail-row.sel { background: var(--k-raised, var(--raised)); border-left-color: var(--k-line-strong, var(--line-strong)); }
@@ -11754,7 +11679,7 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .jrnl-main[data-blank="true"] :is(.jrnl-mood-label, .jrnl-moods, .jrnl-tags) { display: none; }
 
 /* mail before the first account: only the account setup and compose */
-#mail-view[data-no-account] :is(#mail-sidebar-toggle, #mail-account, #mail-search, #mail-refresh-btn, #mail-compose-btn, #mail-sidebar, #mail-list) { display: none; }
+#mail-view[data-no-account] :is(#mail-account, #mail-folder, #mail-search, #mail-refresh-btn, #mail-compose-btn, #mail-list) { display: none; }
 /* one line and one button, until the accounts panel takes the pane */
 #mail-view .mail-no-account { flex: 1 1 100%; }
 #mail-view:has(#mail-main > *) .mail-no-account { display: none; }

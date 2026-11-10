@@ -5,6 +5,7 @@ import { pushRouteUrl, replaceRouteUrl, routeHistoryPosition } from './route_his
 import { confirm as dlgConfirm, prompt as dlgPrompt, fields as dlgFields } from './dialog.js';
 import { populateDropdown, getDropdownValue, initCustomDropdown, setDropdownValue } from './dropdown.js?v=217';
 import { wireActionMenu } from './kokuen.js?v=5';
+import { openAppSettings } from './appsettings.js';
 import { mountSignin, signinReturn } from './signin.js';
 import { detectSetup } from './setup_detect.js';
 import { initDatePicker as _dpInit } from './datepick.js';
@@ -411,12 +412,12 @@ export function initMail() {
       event.returnValue = '';
     }
   });
+  _initMailToolbar();
   $('mail-account')?.addEventListener('change', e => {
     _active = e.target.value;
     localStorage.setItem('alles-mail-account-mode', _active);
     _reloadCurrent({ force: true });
   });
-  $('mail-refresh-btn')?.addEventListener('click', () => { _renderScheduled(); _reloadCurrent({ force: true }); });
   // conversation grouping is a mail-settings toggle now (4a) — not a toolbar button
   _applyThreadsSetting();
   window._reloadMail = () => { _applyThreadsSetting().then(() => { _expanded.clear(); renderInbox(_lastMsgs); }); };
@@ -424,7 +425,6 @@ export function initMail() {
   // accounts + rules live in mail settings now (4e) — exposed for the cog popover's action buttons
   window._mailAccounts = () => accountsPanel();
   window._mailRules = () => rulesPanel();
-  _initMailSidebar();
   // live search — filters as you type (Enter still works immediately)
   let _searchT;
   const _doSearch = () => { const q = ($('mail-search')?.value || '').trim(); if (q) searchMail(q); else loadInbox(); };
@@ -1184,7 +1184,7 @@ function focusMailRow(match) {
   (row?.querySelector('.mail-open') || list.querySelector('.mail-open') || $('mail-compose-btn'))?.focus();
 }
 
-// Gmail-style left sidebar (4b): folders/categories as icon+label rows
+// the folders are one dropdown in the toolbar (decision 0076): icon and name, one list that can grow
 const _MAIL_NAV = [
   { f: 'inbox', label: 'mail.nav_inbox', icon: 'mail' },
   { f: 'cat:primary', label: 'mail.nav_primary', icon: 'user' },
@@ -1198,21 +1198,24 @@ const _MAIL_NAV = [
   { f: 'sent', label: 'mail.nav_sent', icon: 'send' },
   { f: 'drafts', label: 'mail.nav_drafts', icon: 'edit' },
 ];
-function _renderMailSidebar() {
-  const nav = $('mail-sidebar'); if (!nav) return;
+function _initMailToolbar() {
   const ic = window.icon || (() => '');
-  nav.innerHTML = _MAIL_NAV.map(n =>
-    `<button class="mail-nav-item${n.f === _filter ? ' active' : ''}" data-filter="${n.f}" title="${esc(t(n.label))}"><span class="mail-nav-ic">${ic(n.icon)}</span><span class="mail-nav-label">${esc(t(n.label))}</span></button>`).join('');
-  nav.querySelectorAll('.mail-nav-item').forEach(b => b.addEventListener('click', () => setFilter(b.dataset.filter)));
-}
-function _initMailSidebar() {
-  _renderMailSidebar();
-  const collapsed = localStorage.getItem('mail-sidebar-collapsed') === '1';
-  $('mail-view')?.classList.toggle('sidebar-collapsed', collapsed);
-  $('mail-sidebar-toggle')?.addEventListener('click', () => {
-    const on = $('mail-view').classList.toggle('sidebar-collapsed');
-    localStorage.setItem('mail-sidebar-collapsed', on ? '1' : '0');
-  });
+  const folder = $('mail-folder');
+  folder?.setAttribute('aria-label', t('mail.folder'));
+  $('mail-account')?.setAttribute('aria-label', t('mail.account'));
+  populateDropdown(folder, _MAIL_NAV.map(n => ({ value: n.f, label: t(n.label), iconHtml: ic(n.icon) })), _filter);
+  folder?.addEventListener('change', e => setFilter(e.target.value));
+  // refresh and mail settings are one "more" button, so the toolbar stays two controls and a search
+  const wrap = $('mail-more-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = `<button type="button" class="icon-btn" id="mail-more" aria-haspopup="menu" aria-expanded="false" aria-controls="mail-more-menu" aria-label="${esc(t('common.more'))}">${_si('more')}</button>
+    <div class="ctx-menu mail-toolbar-menu" id="mail-more-menu" role="menu" aria-labelledby="mail-more" hidden>
+      <button type="button" class="ctx-item" role="menuitem" id="mail-refresh-btn">${esc(t('common.refresh'))}</button>
+      <button type="button" class="ctx-item" role="menuitem" id="mail-settings-btn">${esc(t('shell.mail.mail_settings'))}</button>
+    </div>`;
+  wireActionMenu($('mail-more'), $('mail-more-menu'));
+  $('mail-refresh-btn').addEventListener('click', () => { _renderScheduled(); _reloadCurrent({ force: true }); });
+  $('mail-settings-btn').addEventListener('click', () => openAppSettings('mail', $('mail-more')));
 }
 
 function setFilter(f) {
@@ -1221,7 +1224,7 @@ function setFilter(f) {
   _labelFilter = '';
   _filter = f;
   if ($('mail-search')) $('mail-search').value = '';
-  document.querySelectorAll('.mail-nav-item').forEach(t => t.classList.toggle('active', t.dataset.filter === f));
+  setDropdownValue($('mail-folder'), f);
   if (f === 'drafts') loadDrafts();
   else if (f === 'flagged') loadSmart('flagged');
   else if (['vip', 'muted', 'snoozed'].includes(f)) loadSmart(f);
@@ -1480,7 +1483,7 @@ const _msgRow = (m, indent = false) => {
     <div class="mail-row${m.seen ? '' : ' unread'}${indent ? ' mail-row-child' : ''}" data-aid="${esc(m.account_id)}" data-uid="${esc(m.uid)}" data-folder="${esc(m.folder || 'INBOX')}" data-subject="${esc(m.subject)}">
       <div class="mail-row-top">
         <span class="mail-from">${senderLine(m.from)}</span>
-        <span class="mail-date">${esc(shortDate(m.date))}</span>
+        <span class="mail-date">${_active === 'all' ? `${esc(m.account_name || acctName(m.account_id))} · ` : ''}${esc(shortDate(m.date))}</span>
       </div>
       <div class="mail-subject"><button type="button" class="mail-open">${esc(m.subject || t('mail.no_subject'))}</button>${(m.labels || []).map(l => `<button type="button" class="mail-label-chip" data-labelfilter="${esc(l)}" style="--cat:var(--cat-${categoryHue(l)})">${esc(l)}</button>`).join('')}</div>
       <span class="mail-row-acts">
@@ -1494,19 +1497,26 @@ const _msgRow = (m, indent = false) => {
           ${unsub ? `<button type="button" class="ctx-item" role="menuitem" data-unsub="${esc(unsub)}">${esc(t('mail.unsubscribe'))}</button>` : ''}
         </div>
       </span>
-      ${_active === 'all' ? `<div class="mail-account-badge">${esc(m.account_name || acctName(m.account_id))}</div>` : ''}
     </div>`;
 };
 
-function renderInbox(messages, errors = []) {
+function renderInbox(messages, errors = _mailErrors) {
   const list = $('mail-list');
   const msgTime = m => Number(m.date_ts || 0) || Math.floor((Date.parse(m.date || '') || 0) / 1000);
   messages = [...messages].sort((a, b) => msgTime(b) - msgTime(a));
   _lastMsgs = messages; _mailErrors = errors;
   paintMailPaneWarning();
-  paintOffline(errors, messages);
+  // the offline line holding focus when a sync works: focus goes on to the list, not to <body>
+  const lostFocus = paintOffline(errors, messages);
+  const settle = () => {
+    const target = lostFocus && list.querySelector('#mail-read-retry, .mail-open, [role="status"]');
+    if (!target) return;
+    if (!target.matches('button')) target.tabIndex = -1;
+    target.focus();
+  };
   if (!messages.length && !errors.length) {
     list.innerHTML = `<div class="mail-empty" role="status">${esc(t('mail.nothing_in', { name: _filterName(_filter) }))}</div>`;
+    settle();
     return;
   }
   // nothing to show and a reason why: the reason is the list. saved mail with a failed sync is
@@ -1514,10 +1524,12 @@ function renderInbox(messages, errors = []) {
   if (!messages.length) {
     list.innerHTML = `<div class="mail-empty" role="alert">${errors.map(esc).join('<br>')} <button type="button" class="btn" id="mail-read-retry">${t('common.retry')}</button></div>`;
     list.querySelector('#mail-read-retry').addEventListener('click', () => _reloadCurrent({ force: true }));
+    settle();
     return;
   }
   list.innerHTML = _threads ? _renderThreads(messages, msgTime) : messages.map(m => _msgRow(m)).join('');
   _wireRows(list);
+  settle();
 }
 
 // saved mail on screen but the last sync failed: one quiet line next to the account with a retry.
@@ -1525,19 +1537,31 @@ function renderInbox(messages, errors = []) {
 // when a sync works. the reasons are its title
 function paintOffline(errors, messages) {
   let line = $('mail-offline');
-  if (!errors.length || !messages.length) { line?.remove(); return; }
+  if (!errors.length || !messages.length) {
+    const held = Boolean(line?.contains(document.activeElement));
+    line?.remove();
+    return held;
+  }
   if (!line) {
     line = document.createElement('span');
     line.id = 'mail-offline';
     line.className = 'mail-offline';
     line.setAttribute('role', 'status');
-    line.innerHTML = '<span class="mail-offline-text"></span><button type="button" class="btn" id="mail-read-retry"></button>';
+    line.innerHTML = '<span class="mail-offline-text"></span><button type="button" class="btn" id="mail-read-retry"><span class="mail-offline-retry"></span><span class="mail-offline-short"></span></button>';
     line.querySelector('button').addEventListener('click', () => _reloadCurrent({ force: true }));
-    $('mail-account')?.after(line);
+    $('mail-folder')?.after(line);
   }
+  // a failed sync says "offline"; any other reason (one account of a search failing) is said as it is
+  const saved = t('mail.showing_saved', { problem: '' }).replace(/[\s;]+$/, '');
+  const syncOnly = errors.every(error => error.includes(saved));
+  const text = syncOnly ? t('mail.offline_saved') : errors.join('; ');
   line.title = errors.join('\n');
-  line.querySelector('.mail-offline-text').textContent = t('mail.offline_saved');
-  line.querySelector('button').textContent = t('common.retry');
+  line.querySelector('.mail-offline-text').textContent = text;
+  const retry = line.querySelector('button');
+  retry.setAttribute('aria-label', `${t('common.retry')}: ${text}`);
+  retry.querySelector('.mail-offline-retry').textContent = t('common.retry');
+  retry.querySelector('.mail-offline-short').innerHTML = `${_si('refresh')}${esc(syncOnly ? t('mail.offline_short') : t('common.retry'))}`;
+  return false;
 }
 
 function _renderThreads(messages, msgTime) {
@@ -1558,10 +1582,9 @@ function _renderThreads(messages, msgTime) {
       <div class="mail-row mail-thread-head${th.unseen ? ' unread' : ''}${open ? ' open' : ''}" data-thread="${esc(th.k)}">
         <div class="mail-row-top">
           <span class="mail-from">${senderLine(th.top.from)}</span>
-          <span class="mail-date">${esc(shortDate(th.top.date))}</span>
+          <span class="mail-date">${_active === 'all' ? `${esc(th.top.account_name || acctName(th.top.account_id))} · ` : ''}${esc(shortDate(th.top.date))}</span>
         </div>
         <button type="button" class="mail-open mail-subject" aria-expanded="${open}"><span class="mail-thread-caret" aria-hidden="true">${_si(open ? 'chevron-down' : 'chevron-right')}</span> ${esc(th.top.subject || t('mail.no_subject'))} <span class="mail-thread-count">${th.msgs.length}</span></button>
-        ${_active === 'all' ? `<div class="mail-account-badge">${esc(th.top.account_name || acctName(th.top.account_id))}</div>` : ''}
       </div>`;
     const kids = open ? th.msgs.map(m => _msgRow(m, true)).join('') : '';
     return head + kids;
@@ -3234,7 +3257,7 @@ async function accountsPanel(firstRun = false) {
     if (!live()) return;
     ++_messageGeneration; root.remove(); _mailSettings = null; _mailSettingsReturn = null; _reloadCurrent();
     const back = opener && opener !== document.body && opener.isConnected && opener.getClientRects().length ? opener : null;
-    (back || $('mail-view')?.querySelector('.app-cog[data-app="mail"]') || $('mail-compose-btn'))?.focus();
+    (back || $('mail-more') || $('mail-compose-btn'))?.focus();
   });
   paintRows(); paintRecovery();
 }

@@ -8,6 +8,7 @@ import traceback
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import refresh_mail
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import retain_fixture_send_delay, seed_mail
 
@@ -423,7 +424,7 @@ with sync_playwright() as pw:
                             json={"scheduled": [], "recovery_scopes": ["f" * 64]}
                         ),
                     )
-                    page.locator("#mail-refresh-btn").click()
+                    refresh_mail(page)
                     expect(page.locator(".mail-sched-chip")).to_have_count(0)
                     page.wait_for_load_state("networkidle")
                     stale_undo.evaluate("button=>button.click()")
@@ -555,7 +556,7 @@ with sync_playwright() as pw:
                             "send_at": "2099-01-01T12:00:00",
                         },
                     ).json()
-                    page.locator("#mail-refresh-btn").click()
+                    refresh_mail(page)
                     page.locator('[data-cancel="' + row["id"] + '"]').click()
                     expect(status).to_contain_text("delivery canceled")
                     if case.endswith("new-editor"):
@@ -786,7 +787,7 @@ with sync_playwright() as pw:
                     page.locator("#mc-schedule").click()
                     held_one()
                     body.fill("newer text stays dirty")
-                    page.locator("#mail-refresh-btn").click()
+                    refresh_mail(page)
                     expect(status).to_contain_text("scheduled for")
                     expect(body).to_have_text("newer text stays dirty")
                     route, response = held.pop()

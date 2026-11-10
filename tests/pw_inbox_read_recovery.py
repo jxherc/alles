@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import return_to_mail_list, split_mail_panes
+from mail_browser_layout import choose_folder, refresh_mail, return_to_mail_list, split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -104,6 +104,7 @@ def run():
                     page.wait_for_load_state("networkidle")
                     field = page.locator("#mail-search")
                     mailbox = page.locator("#mail-list")
+                    failure = page.locator("#mail-list [role='alert'], #mail-offline")
                     main = page.locator("#mail-main")
 
                     def search(query):
@@ -135,14 +136,14 @@ def run():
                         if case == "search-retry":
                             page.route(search_url, fail)
                             search("Receipt")
-                            expect(mailbox.get_by_role("alert")).to_contain_text(
+                            expect(failure).to_contain_text(
                                 "synthetic unavailable"
                             )
                             expect(mailbox).not_to_contain_text("no mail matches")
                             retry = page.locator("#mail-read-retry")
                             retry.focus()
                             page.keyboard.press("Enter")
-                            expect(mailbox.get_by_role("alert")).to_contain_text(
+                            expect(failure).to_contain_text(
                                 "synthetic unavailable"
                             )
                             expect(retry).to_be_focused()
@@ -209,7 +210,7 @@ def run():
                             expect(page.locator("#mc-subj")).to_have_value("Re: owned message 702")
                             expect(page.locator("#mc-html")).to_contain_text("owned body 702")
                             page.locator("#mc-html").fill(f"retained reply {width}")
-                            page.locator("#mail-refresh-btn").click()
+                            refresh_mail(page)
                             page.wait_for_load_state("networkidle")
                             expect(page.locator("#mc-html")).to_have_text(f"retained reply {width}")
                             with page.expect_response(
@@ -225,7 +226,7 @@ def run():
                             assert stored["body"] == f"retained reply {width}"
                             assert stored["in_reply_to"] == "<owned-702@example.invalid>"
                             page.reload(wait_until="networkidle")
-                            page.get_by_role("button", name="drafts", exact=True).click()
+                            choose_folder(page, "drafts")
                             page.locator(
                                 f'.mail-draft-row[data-id="{draft["id"]}"] .mail-open'
                             ).click()
@@ -260,23 +261,23 @@ def run():
                             for choice, endpoint in [("primary", "category"), ("flagged", "smart")]:
                                 url = base + f"/api/mail/{endpoint}/{account['id']}?*"
                                 page.route(url, fail)
-                                page.get_by_role("button", name=choice, exact=True).click()
-                                expect(mailbox.get_by_role("alert")).to_contain_text(
+                                choose_folder(page, choice)
+                                expect(failure).to_contain_text(
                                     "synthetic unavailable"
                                 )
                                 expect(field).to_have_value("")
                                 page.unroute(url, fail)
                                 page.locator("#mail-read-retry").click()
-                                expect(mailbox.get_by_role("alert")).to_have_count(0)
+                                expect(failure).to_have_count(0)
                                 expect(mailbox).not_to_contain_text("loading")
                         elif case in {"cached-inbox-recovery", "empty-inbox"}:
-                            page.get_by_role("button", name="inbox", exact=True).click()
+                            choose_folder(page, "inbox")
                             expect(row("701")).to_be_visible()
                             if case == "cached-inbox-recovery":
-                                expect(mailbox.get_by_role("alert")).to_contain_text("saved mail")
+                                expect(failure).to_contain_text("saved mail")
                                 page.route(inbox_url, fail)
-                                page.locator("#mail-refresh-btn").click()
-                                expect(mailbox.get_by_role("alert")).to_contain_text(
+                                refresh_mail(page)
+                                expect(failure).to_contain_text(
                                     "synthetic unavailable"
                                 )
                                 expect(row("701")).to_be_visible()
@@ -284,11 +285,10 @@ def run():
                             page.route(
                                 inbox_url, lambda route: route.fulfill(json={"messages": []})
                             )
-                            page.locator(
-                                "#mail-read-retry"
-                                if case == "cached-inbox-recovery"
-                                else "#mail-refresh-btn"
-                            ).click()
+                            if case == "cached-inbox-recovery":
+                                page.locator("#mail-read-retry").click()
+                            else:
+                                refresh_mail(page)
                             expect(mailbox.locator(".mail-row")).to_have_count(0)
                             expect(mailbox).to_contain_text("nothing in inbox")
                             page.reload(wait_until="networkidle")
@@ -305,8 +305,8 @@ def run():
                                 ),
                             )
                             page.route(folders_url, fail)
-                            page.get_by_role("button", name="sent", exact=True).click()
-                            expect(mailbox.get_by_role("alert")).to_contain_text(
+                            choose_folder(page, "sent")
+                            expect(failure).to_contain_text(
                                 "synthetic unavailable"
                             )
                             assert not requests, requests
@@ -320,7 +320,7 @@ def run():
                             )
                             page.locator("#mail-read-retry").click()
                             expect(mailbox).to_contain_text("nothing in sent")
-                            expect(mailbox.get_by_role("alert")).to_have_count(0)
+                            expect(failure).to_have_count(0)
                         elif case == "retry-preserves-moved-focus":
                             page.route(message_url, fail)
                             row("702").click()
@@ -345,8 +345,8 @@ def run():
                             search("Receipt")
                             expect(mailbox.locator('.mail-row[data-uid="701"]')).to_have_count(2)
                             page.route(search_url, fail)
-                            page.locator("#mail-refresh-btn").click()
-                            expect(mailbox.get_by_role("alert")).to_contain_text(
+                            refresh_mail(page)
+                            expect(failure).to_contain_text(
                                 "synthetic unavailable"
                             )
                             expect(mailbox.locator('.mail-row[data-uid="701"]')).to_have_count(2)
@@ -360,7 +360,7 @@ def run():
                             page.locator("#mail-read-retry").click()
                             expect(row("701")).to_have_count(0)
                             expect(mailbox.locator('.mail-row[data-uid="701"]')).to_have_count(1)
-                            expect(mailbox.get_by_role("alert")).to_have_count(0)
+                            expect(failure).to_have_count(0)
                         elif case == "accounts-preserve-newer-draft":
                             subject = f"owned delayed accounts {width}"
                             saved = api.post(
@@ -382,7 +382,7 @@ def run():
                             page.route(base + "/api/mail/accounts", hold_accounts)
                             page.get_by_role("tab", name="mail", exact=True).click()
                             wait_held(held)
-                            page.get_by_role("button", name="drafts", exact=True).click()
+                            choose_folder(page, "drafts")
                             mailbox.get_by_role("button", name=subject, exact=True).click()
                             body = page.get_by_role("textbox", name="message", exact=True)
                             body.fill("unsaved newer draft")
@@ -397,19 +397,19 @@ def run():
                             with split_mail_panes(page):
                                 drafts_url = base + "/api/mail/drafts?*"
                                 page.route(drafts_url, fail)
-                                page.locator("#mail-refresh-btn").click()
-                                expect(mailbox.get_by_role("alert")).to_contain_text(
+                                refresh_mail(page)
+                                expect(failure).to_contain_text(
                                     "could not load drafts"
                                 )
                                 expect(body).to_have_text("unsaved newer draft")
                                 page.locator("#mail-drafts-retry").click()
-                                expect(mailbox.get_by_role("alert")).to_contain_text(
+                                expect(failure).to_contain_text(
                                     "could not load drafts"
                                 )
                                 expect(body).to_have_text("unsaved newer draft")
                                 page.unroute(drafts_url, fail)
                                 page.locator("#mail-drafts-retry").click()
-                                expect(mailbox.get_by_role("alert")).to_have_count(0)
+                                expect(failure).to_have_count(0)
                                 expect(body).to_have_text("unsaved newer draft")
                         elif case == "filtered-retry-keeps-reply":
                             cached = api.get(
@@ -434,11 +434,11 @@ def run():
                                     if choice == "owned":
                                         mailbox.locator('[data-labelfilter="owned"]').first.click()
                                     else:
-                                        page.get_by_role("button", name=choice, exact=True).click()
+                                        choose_folder(page, choice)
                                     expect(row("702")).to_be_visible()
                                     page.route(url, fail)
-                                    page.locator("#mail-refresh-btn").click()
-                                    expect(mailbox.get_by_role("alert")).to_contain_text(
+                                    refresh_mail(page)
+                                    expect(failure).to_contain_text(
                                         "synthetic unavailable"
                                     )
                                     if previous_reply is not None:
@@ -461,7 +461,7 @@ def run():
                                     page.locator("#mail-reply").click()
                                     page.locator("#mc-html").fill(f"unsaved {choice} reply {width}")
                                     page.locator("#mail-read-retry").click()
-                                    expect(mailbox.get_by_role("alert")).to_contain_text(
+                                    expect(failure).to_contain_text(
                                         "synthetic unavailable"
                                     )
                                     expect(page.locator("#mc-html")).to_have_text(
@@ -469,7 +469,7 @@ def run():
                                     )
                                     page.unroute(url, fail)
                                     page.locator("#mail-read-retry").click()
-                                    expect(mailbox.get_by_role("alert")).to_have_count(0)
+                                    expect(failure).to_have_count(0)
                                     expect(page.locator("#mc-html")).to_have_text(
                                         f"unsaved {choice} reply {width}"
                                     )
@@ -488,14 +488,14 @@ def run():
                                     ),
                                 )
                             page.route(inbox_url, fail)
-                            page.get_by_role("button", name=folder, exact=True).click()
-                            expect(mailbox.get_by_role("alert")).to_contain_text(
+                            choose_folder(page, folder)
+                            expect(failure).to_contain_text(
                                 "synthetic unavailable"
                             )
                             retry = page.locator("#mail-read-retry")
                             retry.focus()
                             page.keyboard.press("Enter")
-                            expect(mailbox.get_by_role("alert")).to_contain_text(
+                            expect(failure).to_contain_text(
                                 "synthetic unavailable"
                             )
                             expect(retry).to_be_focused()
@@ -517,7 +517,7 @@ def run():
                                 expect(mailbox).to_contain_text("nothing in " + folder)
                                 expect(mailbox.get_by_role("status")).to_be_focused()
                         elif case == "inbox-to-search-order":
-                            page.get_by_role("button", name="inbox", exact=True).click()
+                            choose_folder(page, "inbox")
                             expect(row("701")).to_be_visible()
                             held = []
 
@@ -526,7 +526,7 @@ def run():
                                 held.append((route, response))
 
                             page.route(inbox_url, hold_inbox)
-                            page.locator("#mail-refresh-btn").click()
+                            refresh_mail(page)
                             wait_held(held)
                             search("Receipt")
                             expect(row("701")).to_be_visible()

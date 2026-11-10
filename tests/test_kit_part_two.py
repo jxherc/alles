@@ -286,7 +286,7 @@ class IconTests(unittest.TestCase):
         self.assertEqual(sorted(pending - found), [], "fixed; drop it from pending")
 
     def test_every_settings_gear_is_the_shared_one(self):
-        self.assertEqual(len(re.findall(r'data-kokuen-icon="gear"', HTML)), 7)
+        self.assertEqual(len(re.findall(r'data-kokuen-icon="gear"', HTML)), 6)
         self.assertNotIn("M19.4 15a1.7", HTML)
         app = (STATIC / "js/app.js").read_text(encoding="utf-8")
         self.assertIn("slot.replaceWith(iconEl(slot.dataset.ic", app)
@@ -306,7 +306,6 @@ class RailTests(unittest.TestCase):
             "#docs-nav-panel",
             ".s-navigation",
             ".files-phase7-location-panel",
-            "#mail-sidebar",
             "#cal-sidebar",
             "#photos-sidebar",
         ):

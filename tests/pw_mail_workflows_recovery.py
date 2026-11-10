@@ -19,6 +19,8 @@ from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "tests"), str(ROOT / "scripts")]
+from mail_browser_layout import choose_folder  # noqa: E402
+
 GUARD_SHA256 = "ca71cf20e2631b71662abd376d02702fe637883038115c47a82368644009e44f"
 BASIC_CASES = ["accounts-round-trip", "recipients-save", "filter"]
 LOADING_CASES = [
@@ -124,7 +126,8 @@ def install_boundary(context, base, evidence):
 
 
 def open_mail_settings(page, action):
-    page.locator('#mail-view .app-cog[data-app="mail"]').click()
+    page.locator("#mail-more").click()
+    page.locator("#mail-settings-btn").click()
     page.locator(".app-settings-pop").get_by_role("button", name=action, exact=True).click()
     page.locator(
         "#mail-main .mail-accounts" if action == "accounts" else "#mail-main .mail-rules-panel"
@@ -144,7 +147,8 @@ def loading_case(page, context, base, case, evidence):
         lambda request: urlsplit(request.url).query == query,
     ).install()
     try:
-        page.locator('#mail-view .app-cog[data-app="mail"]').click()
+        page.locator("#mail-more").click()
+        page.locator("#mail-settings-btn").click()
         page.locator(".app-settings-pop").get_by_role(
             "button", name="accounts" if accounts else "rules & vacation responder", exact=True
         ).click()
@@ -647,7 +651,7 @@ class TimingCases:
                 else None
             ),
         )
-        page.locator('.mail-nav-item[data-filter="drafts"]').click()
+        choose_folder(page, "drafts")
         button = page.locator(f'.mail-draft-del[data-id="{draft["id"]}"]')
         button.wait_for(state="visible")
         original = button.element_handle()
@@ -835,7 +839,7 @@ def basic_case(page, args, evidence):
         page.locator(field).press("ControlOrMeta+A")
         page.locator(field).press_sequentially("exact unsaved café 日本語")
         mounted = page.locator("#mail-main > :first-child").element_handle()
-        page.locator('.mail-nav-item[data-filter="drafts"]').click()
+        choose_folder(page, "drafts")
         assert mounted.evaluate(
             "node => node.isConnected && node === document.querySelector('#mail-main').firstElementChild"
         )

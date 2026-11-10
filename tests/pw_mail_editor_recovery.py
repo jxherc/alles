@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import split_mail_panes
+from mail_browser_layout import choose_folder, split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import retain_fixture_send_delay, seed_mail
 
@@ -114,7 +114,7 @@ def run():
                                 "body": "old body",
                             },
                         ).json()
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         reads = []
                         settings = []
 
@@ -231,7 +231,7 @@ def run():
                                 "body": "stored body",
                             },
                         ).json()
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         held = []
                         reads = []
                         page.evaluate(
@@ -304,7 +304,7 @@ def run():
                             assert draft.ok
                             page.reload(wait_until="networkidle")
                             page.get_by_role("tab", name="mail", exact=True).click()
-                            page.get_by_role("button", name="drafts", exact=True).click()
+                            choose_folder(page, "drafts")
                             page.get_by_role("button", name="account choice", exact=True).click()
                             expect(body).to_have_text("saved text")
                             page.locator("#mc-account").click()
@@ -338,7 +338,7 @@ def run():
                             },
                         )
                         assert response.ok
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         if case == "rich-preview":
                             expect(page.locator(".mail-draft-row .mail-snippet")).to_have_text(
                                 "project context"
@@ -386,7 +386,7 @@ def run():
                         page.locator("#mc-close").click()
                         expect(body).to_have_count(0)
                         expect(page.get_by_role("alertdialog")).to_have_count(0)
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         page.get_by_role("button", name="owned roundtrip", exact=True).click()
                         expect(body).to_have_text("owned unsaved reply")
                     elif case == "message-cancel-replace":
@@ -451,7 +451,7 @@ def run():
                                 "body": "old body",
                             },
                         ).json()
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         page.get_by_role("button", name="owned draft", exact=True).click()
                         expect(body).to_have_text("old body")
                         held = []
@@ -523,14 +523,14 @@ def run():
                         page.locator("#mc-save").click()
                         expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
                         page.locator("#mc-close").click()
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         page.get_by_role("button", name="owned compact draft", exact=True).click()
                         body.click()
                         expect(body).to_be_in_viewport()
                         expect(body).to_have_text("owned unsaved reply")
                         page.locator("#mc-close").click()
                         with split_mail_panes(page):
-                            page.get_by_role("button", name="primary", exact=True).click()
+                            choose_folder(page, "primary")
                         expect(
                             page.get_by_role("button", name="compose", exact=True)
                         ).to_be_visible()
@@ -553,7 +553,7 @@ def run():
                         page.locator("#mc-save").click()
                         expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
                         page.locator("#mc-close").click()
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         page.get_by_role("button", name="owned link draft", exact=True).click()
                         expect(body.locator("a")).to_have_attribute(
                             "href", "https://example.invalid/owned"
@@ -649,7 +649,7 @@ def run():
                                 "body": "old body",
                             },
                         ).json()
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         held = []
 
                         def hold(route):
@@ -673,7 +673,7 @@ def run():
                                 "body": "old body",
                             },
                         ).json()
-                        page.get_by_role("button", name="drafts", exact=True).click()
+                        choose_folder(page, "drafts")
                         page.get_by_role("button", name="owned draft", exact=True).click()
                         body.fill("owned unsaved reply")
                         page.route(
@@ -697,7 +697,7 @@ def run():
                     else:
                         compose()
                         with split_mail_panes(page):
-                            page.get_by_role("button", name="primary", exact=True).click()
+                            choose_folder(page, "primary")
                         dialog = page.get_by_role("alertdialog")
                         if dialog.is_visible():
                             dialog.get_by_role("button", name="cancel", exact=True).click()

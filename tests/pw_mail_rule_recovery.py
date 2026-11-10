@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from browser_gate_safety import require_server_ownership
+from mail_browser_layout import open_mail_settings
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -73,7 +74,7 @@ with sync_playwright() as pw:
             results.append(result)
 
             def open_rules(discard=False):
-                page.get_by_role("button", name="mail settings", exact=True).click()
+                open_mail_settings(page)
                 page.get_by_role("button", name="rules & vacation responder", exact=True).click()
                 if discard:
                     dialog = page.get_by_role("alertdialog")

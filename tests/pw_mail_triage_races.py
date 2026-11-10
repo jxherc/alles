@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import open_row_menu, return_to_mail_list
+from mail_browser_layout import choose_folder, return_to_mail_list, row_action
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -96,8 +96,7 @@ with sync_playwright() as pw:
                 assert len(held) == 1
 
             def label(value):
-                open_row_menu(page, row())
-                row().locator("[data-label]").click()
+                row_action(page, row(), "label")
                 dlg = page.get_by_role("dialog")
                 dlg.locator("input").fill(value)
                 dlg.get_by_role("button", name="add label", exact=True).click()
@@ -210,7 +209,7 @@ with sync_playwright() as pw:
                     )
                     assert state()["flagged"]
                 elif case == "unread-return":
-                    page.locator('.mail-nav-item[data-filter="unread"]').click()
+                    choose_folder(page, "unread")
                     expect(row()).to_be_visible()
                     row().locator(".mail-open").click()
                     expect(page.locator(".mail-reader-subject")).to_have_text("read 701")
@@ -224,8 +223,7 @@ with sync_playwright() as pw:
                     page.route(base + "/api/mail/flag/*", hold)
                     row("702").locator("[data-flag]").click()
                     held_one()
-                    open_row_menu(page, row())
-                    row().locator("[data-label]").click()
+                    row_action(page, row(), "label")
                     dlg = page.get_by_role("dialog")
                     dlg.locator("input").fill("work")
                     route, response = held.pop()

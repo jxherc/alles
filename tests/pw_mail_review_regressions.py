@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path.cwd() / "tests"))
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import split_mail_panes
+from mail_browser_layout import choose_folder, split_mail_panes
 from playwright.sync_api import expect, sync_playwright
 from pw_inbox_workflows import seed_mail
 
@@ -102,7 +102,7 @@ with sync_playwright() as pw:
                         data={"account_id": aid, "subject": "owned draft", "body": "original body"},
                     ).json()
                     endpoint = "/api/mail/drafts/" + draft["id"]
-                    page.get_by_role("button", name="drafts", exact=True).click()
+                    choose_folder(page, "drafts")
                     drow = page.locator(f'.mail-draft-row[data-id="{draft["id"]}"]')
                     drow.locator(".mail-open").click()
                     page.locator("#mc-html").fill("updated body")
@@ -148,7 +148,7 @@ with sync_playwright() as pw:
                         ), result
                 else:
                     if case == "search-after-unread":
-                        page.locator('.mail-nav-item[data-filter="unread"]').click()
+                        choose_folder(page, "unread")
                         expect(row()).to_be_visible()
                         page.locator("#mail-search").fill("Project")
                         page.locator("#mail-search").press("Enter")

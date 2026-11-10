@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 from browser_gate_safety import require_server_ownership
-from mail_browser_layout import return_to_mail_list
+from mail_browser_layout import choose_folder, return_to_mail_list
 from playwright.sync_api import expect, sync_playwright
 from pw_settings_helpers import choose_settings_section
 
@@ -481,9 +481,7 @@ def run():
                 begin("inbox.mail-pointer-keyboard-layout")
                 page.get_by_role("tab", name="mail", exact=True).click()
                 expect(page.locator(".mail-row")).to_have_count(2)
-                page.get_by_role("button", name="drafts", exact=True).focus()
-                page.keyboard.press("Tab")
-                expect(page.locator("#mail-read-retry")).to_be_focused()
+                page.locator("#mail-more").focus()
                 page.keyboard.press("Tab")
                 opener = page.get_by_role(
                     "button", name="Receipt 中文 with a long subject", exact=True
@@ -528,8 +526,9 @@ def run():
                 page.locator("#mc-close").click()
                 expect(page.get_by_role("alertdialog")).to_have_count(0)
                 inbox("mail", reload=True)
-                page.get_by_role("button", name="drafts", exact=True).click()
+                choose_folder(page, "drafts")
                 expect(page.get_by_role("button", name=subject, exact=True)).to_be_visible()
+                page.locator("#mail-more").focus()
                 page.keyboard.press("Tab")
                 expect(page.get_by_role("button", name=subject, exact=True)).to_be_focused()
                 page.keyboard.press("Enter")
@@ -587,7 +586,7 @@ def run():
                 assert saved_response.value.ok
                 expect(page.get_by_text("draft saved", exact=True).last).to_be_visible()
                 inbox("mail", reload=True)
-                page.get_by_role("button", name="drafts", exact=True).click()
+                choose_folder(page, "drafts")
                 page.get_by_role("button", name=subject, exact=True).press("Enter")
                 expect(page.get_by_role("textbox", name="message", exact=True)).to_have_text(body)
                 proof.append(
@@ -653,7 +652,7 @@ def run():
                 page.locator("#mc-close").click()
                 expect(page.get_by_role("alertdialog")).to_have_count(0)
                 inbox("mail", reload=True)
-                page.get_by_role("button", name="drafts", exact=True).click()
+                choose_folder(page, "drafts")
                 page.get_by_role("button", name=subject, exact=True).press("Enter")
                 expect(page.get_by_role("textbox", name="message", exact=True)).to_have_text(
                     "Newer body while save is pending"
@@ -662,14 +661,14 @@ def run():
                 passed()
 
                 begin("inbox.mail-draft-list-retry-delete")
-                page.get_by_role("button", name="inbox", exact=True).click()
+                choose_folder(page, "inbox")
                 handler = simulation(
                     base + "/api/mail/drafts?*",
                     "GET",
                     503,
                     {"detail": "simulated draft list outage"},
                 )
-                page.get_by_role("button", name="drafts", exact=True).click()
+                choose_folder(page, "drafts")
                 expect(page.get_by_role("alert")).to_contain_text("could not load drafts")
                 expect(page.get_by_text("no drafts", exact=True)).to_have_count(0)
                 shot("mail-list-error")
@@ -679,7 +678,7 @@ def run():
                 page.get_by_role("button", name="delete draft: " + subject, exact=True).click()
                 expect(page.get_by_text("no drafts", exact=True)).to_be_visible()
                 inbox("mail", reload=True)
-                page.get_by_role("button", name="drafts", exact=True).click()
+                choose_folder(page, "drafts")
                 expect(page.get_by_text("no drafts", exact=True)).to_be_visible()
                 assert not [d for d in drafts() if d["id"] == draft["id"]]
                 assert page.evaluate(
