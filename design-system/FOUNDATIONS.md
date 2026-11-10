@@ -57,9 +57,10 @@ colors may remain categorical, but numeric labels must remain readable in both t
 - conversation: role 16 minimum;
 - app name: role 15 / medium;
 - page or section title: role 16 / semibold;
-- row title: role 14 or 15 / medium;
-- action and label: role 13 or 14;
-- helper and metadata: role 13, never lower;
+- row title and its value: role 14 or 15 / medium (0074);
+- action and label: role 13 or 14; a view tab is role 14, role 13 on a phone;
+- helper and metadata: role 13, never lower; anything a reader came to read is role 14 or larger
+  (0074);
 - a touch text field is never under 16px;
 - display data: role 22 to 28 with tabular figures;
 - greeting and specialist empty-state voice type may exceed this cap only as bounded in `decisions/0011-display-type-voice.md`;

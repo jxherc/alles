@@ -69,12 +69,13 @@ export function lastThirtyDays(series, today) {
 }
 
 // the svg path through the points, in a box of width x height with a little room around it.
-// null when there is no line to draw: fewer than two points, or every value the same
+// null when there is no shape to draw: fewer than three different values. two values make a
+// flat line with one step, which says less than the change printed beside it
 export function sparkPath(points, width = 72, height = 20, pad = 2) {
-  if (!points || points.length < 2) return null;
+  if (!points || points.length < 3) return null;
   const ys = points.map(point => point.y);
+  if (new Set(ys).size < 3) return null;
   const low = Math.min(...ys), high = Math.max(...ys);
-  if (high === low) return null;
   const xs = points.map(point => point.x);
   const left = Math.min(...xs), right = Math.max(...xs);
   const across = right - left || 1;

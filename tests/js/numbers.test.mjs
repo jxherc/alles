@@ -49,8 +49,11 @@ test('the line is a plain svg path, hidden from a screen reader, and absent when
   assert.doesNotMatch(svg, /<script|on\w+=/);
   assert.equal(sparkSvg([{ x: 0, y: 5 }]), '');
   assert.equal(sparkPath([{ x: 0, y: 5 }, { x: 29, y: 5 }]), null, 'a flat line says nothing');
-  const path = sparkPath([{ x: 0, y: 1 }, { x: 29, y: 3 }], 72, 20, 2);
-  assert.equal(path, 'M2 18L70 2', 'low on the left, high on the right');
+  assert.equal(sparkPath([{ x: 0, y: 1 }, { x: 29, y: 3 }]), null, 'two readings are a change, not a shape');
+  const step = [{ x: 0, y: 1 }, { x: 10, y: 1 }, { x: 20, y: 3 }, { x: 29, y: 3 }];
+  assert.equal(sparkPath(step), null, 'one move in a month is a flat line with a step');
+  const path = sparkPath([{ x: 0, y: 1 }, { x: 14.5, y: 2 }, { x: 29, y: 3 }], 72, 20, 2);
+  assert.equal(path, 'M2 18L36 10L70 2', 'low on the left, high on the right');
 });
 
 test('a balance walks back through its moves to the day asked for', () => {

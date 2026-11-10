@@ -631,17 +631,15 @@ body.is-subapp .sidebar { display: none; }
 body.is-subapp .main { min-height: 100vh; min-height: var(--k-shell-height, 100dvh); }
 
 [data-specialist-app], .aide-tool-view { position: relative; }
-/* Specialist apps used a 10–11px control scale inherited from the first compact
-   shell.  Keep the approved dense layouts, but never make a readable action or
-   field label smaller than 12px on either desktop or mobile. */
-[data-specialist-app] button:not(.icon-btn),
+/* controls and fields in the apps are role 14 (decisions 0040, 0044): 16px on a touch screen.
+   a view tab takes its size from the tab rule, which drops to the label role on a phone */
+[data-specialist-app] button:not(.icon-btn, [role="tab"]),
 [data-specialist-app] a.btn,
 [data-specialist-app] input:not([type="file"]),
 [data-specialist-app] textarea,
 [data-specialist-app] .custom-select,
-[data-specialist-app] [role="tab"],
 [data-specialist-app] [role="button"] {
-  font-size: max(0.8125rem, 13px) !important;
+  font-size: 0.875rem !important;
 }
 .specialist-state {
   align-items: center;
@@ -4989,7 +4987,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-corr-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; align-self: center; }
 .jrnl-corr-dot.pos { background: var(--green); }
 .jrnl-corr-dot.neg { background: var(--error); }
-.jrnl-corr-text { flex: 1; color: var(--text); line-height: 1.35; }
+.jrnl-corr-text { flex: 1; color: var(--text); font-size: 0.875rem; line-height: 1.35; }
 .jrnl-corr-n { font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .jrnl-topics { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .jrnl-topic { background: none; border: 1px solid var(--faint); border-radius: var(--k-radius-control); color: var(--muted); cursor: pointer; font-size: 0.8125rem; padding: 0.1rem 0.4rem; }
@@ -5038,7 +5036,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-recent-row.active { border-color: var(--faint); background: var(--panel); color: var(--text); }
 .jrnl-recent-mood { width: 1.1em; text-align: center; flex-shrink: 0; }
 .jrnl-recent-date { color: var(--muted); flex-shrink: 0; min-width: 5.9em; font-variant-numeric: tabular-nums; }
-.jrnl-recent-snip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jrnl-recent-snip { overflow: hidden; font-size: 0.875rem; text-overflow: ellipsis; white-space: nowrap; }
 /* text starts on its heading's edge (usage, journal sections) */
 .jrnl-empty { font-size: 0.8125rem; color: var(--muted); padding: 0.3rem 0; }
 

@@ -808,11 +808,6 @@ html:not(#_) .specialist-group .finance-actual-panel {
   margin-top: var(--k-block-gap);
 }
 
-html:not(#_) .specialist-group-card .specialist-group-row {
-  margin-inline: calc(-1 * var(--k-space-3));
-  padding-inline: var(--k-space-3);
-}
-
 /* habits: two cards a row on a wide screen, and the history is a strip of small squares, not a
    wall of 78px blocks */
 html:not(#_) .habits-list {
@@ -1723,7 +1718,7 @@ html:not(#_) #today-view[data-kokuen-surface="home"] :is(.today-capture-mode, .t
   border: 6px solid transparent;
   border-radius: var(--k-radius-large);
   background-clip: padding-box;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 560;
 }
 
@@ -2338,7 +2333,8 @@ html:not(#_):not(#_) .specialist-workbench-empty + .btn {
 /* ── one field (decision 0049; 0041 filled it, 0035 and 0045 fold in) ────────────
    a 5% fill and a faint ring, label above, 44px, 12px between the text and the edge. focus
    recolors that ring (kokuen.css), so it never sits on the words. every text field outside a
-   wrapper-owned entry is listed here; a field with zero side padding fails the lint */
+   wrapper-owned entry is listed here; a field with zero side padding fails the lint. a dropdown
+   trigger is a field by its role, whatever classes it carries */
 /* the id stays outside :is(), which takes its strongest member's weight: inside, it outranked
    every bar that clears its own fields (the plan capture's due day drew a box in the box) */
 html:not(#_):not(#_) :is(
@@ -2352,7 +2348,8 @@ html:not(#_):not(#_) :is(
   .cb-search, .cp-hex, .note-cl-text, body:not(.afterlife-aide-projects) .search-input,
   .files-phase7-dialog :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), textarea),
   .server-workbench-field :is(input, textarea), .finance-import-conversion input,
-  .news-editor :is(input:not([type="checkbox"], [type="radio"]), textarea), .k-field
+  .news-editor :is(input:not([type="checkbox"], [type="radio"]), textarea), .k-field,
+  .custom-select[role="combobox"]
 ),
 html:not(#_):not(#_) #files-search {
   box-sizing: border-box;
@@ -2386,6 +2383,8 @@ html:not(#_):not(#_):not(#_) .custom-select[role="combobox"] {
   /* the chevron below is placed from this box, not from whatever positioned box is further up */
   position: relative;
   padding-inline: var(--k-space-3) calc(var(--k-chevron-end, var(--k-space-3)) + 13px + var(--k-control-gap));
+  /* the same text size as the text field beside it, on every screen (role 14) */
+  font-size: 0.875rem;
 }
 
 html:not(#_):not(#_):not(#_) .custom-select[role="combobox"] > .custom-select-chevron {
