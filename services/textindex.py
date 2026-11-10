@@ -39,26 +39,31 @@ def index(db, kind, ref, text, *, location_id: str | None = None) -> int:
     """(re)index a resource — drops any existing chunks for (kind, ref) first."""
     kind = (kind or "").strip()
     ref = (ref or "").strip()
+    pieces = _embedded(text)
     _identity_filter(db.query(IndexChunk), kind, ref, location_id).delete()
-    n = _add_chunks(db, kind, ref, text, location_id=location_id)
+    n = _add_chunks(db, kind, ref, pieces, location_id=location_id)
     db.commit()
     return n
 
 
-def _add_chunks(db, kind, ref, text, *, location_id: str | None = None) -> int:
-    ref = (ref or "").strip()
+def _embedded(text) -> list[tuple[str, str]]:
+    """(chunk, stored vector) pairs, worked out before anything is written. the first write
+    takes sqlite's one write lock, and embedding under it (seconds of cpu, a model load after
+    a restart) made every other save wait and then fail with "database is locked"."""
     chunks = [c for c in _chunk(text) if c.strip()]
-    if not chunks:
-        return 0
-    vecs = _embed(chunks)
-    for i, c in enumerate(chunks):
-        v = json.dumps(vecs[i]) if vecs else ""
+    vecs = _embed(chunks) if chunks else None
+    return [(c, json.dumps(vecs[i]) if vecs else "") for i, c in enumerate(chunks)]
+
+
+def _add_chunks(db, kind, ref, pieces, *, location_id: str | None = None) -> int:
+    ref = (ref or "").strip()
+    for i, (c, v) in enumerate(pieces):
         row = IndexChunk(kind=kind, ref=ref, chunk_no=i, text=c, vec=v)
         if kind == "file":
             row.location_id = location_id or DEFAULT_LOCAL_STORAGE_LOCATION_ID
             row.normalized_path = normalize_file_identity_path(ref)
         db.add(row)
-    return len(chunks)
+    return len(pieces)
 
 
 def remove(db, kind, ref, *, location_id: str | None = None) -> int:
@@ -149,10 +154,11 @@ def reindex_kind(db, kind, items) -> int:
     kind = (kind or "").strip()
     if kind == "file":
         return reindex_file_location(db, DEFAULT_LOCAL_STORAGE_LOCATION_ID, items)
+    ready = [(ref, _embedded(text)) for ref, text in items]
     db.query(IndexChunk).filter_by(kind=kind).delete()
     n = 0
-    for ref, text in items:
-        n += _add_chunks(db, kind, ref, text)
+    for ref, pieces in ready:
+        n += _add_chunks(db, kind, ref, pieces)
     db.commit()
     return n
 
@@ -162,10 +168,11 @@ def reindex_file_location(db, location_id: str, items) -> int:
     location = str(location_id or "").strip()
     if not location:
         raise ValueError("location_id required")
+    ready = [(ref, _embedded(text)) for ref, text in items]
     db.query(IndexChunk).filter_by(kind="file", location_id=location).delete()
     n = 0
-    for ref, text in items:
-        n += _add_chunks(db, "file", ref, text, location_id=location)
+    for ref, pieces in ready:
+        n += _add_chunks(db, "file", ref, pieces, location_id=location)
     db.commit()
     return n
 

@@ -155,6 +155,23 @@ class PersonalIndexTests(unittest.TestCase):
         self.assertTrue(self.db.query(CachedMessage).filter_by(id="m1").first().body_indexed)
         self.assertTrue(pix.search(self.db, "north station friday", kinds=["mail"], k=5))
 
+    def test_mail_batch_leaves_nothing_unsaved_while_it_fetches_the_next_body(self):
+        # a pending "indexed" mark was written by the next message's first query and then held
+        # the database's write lock through that message's imap fetch
+        for uid in ("1", "2", "3"):
+            self.db.add(CachedMessage(id=f"b{uid}", account_id="acc", uid=uid, subject=f"s{uid}"))
+        self.db.commit()
+        unsaved = []
+
+        def body(db, _message):
+            unsaved.append(bool(db.dirty or db.new))
+            return "the body text"
+
+        with mock.patch.object(pix, "_fetch_mail_body", side_effect=body):
+            self.assertEqual(pix._index_mail_batch(self.db, limit=10), 3)
+        self.assertEqual(unsaved, [False, False, False])
+        self.assertEqual(self.db.query(CachedMessage).filter_by(body_indexed=True).count(), 3)
+
     def test_backfill_and_reconcile_orphans(self):
         vault = self._vault()
         vault.create(title="alpha note", content="keep me")

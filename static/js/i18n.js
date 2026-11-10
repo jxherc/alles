@@ -173,6 +173,7 @@ const BUILTIN_ENGLISH = {
     "andromeda.image_result": "image result",
     "andromeda.image_results": "image results",
     "andromeda.image_unavailable": "image unavailable",
+    "andromeda.visit_page": "visit page",
     "andromeda.images": "images",
     "andromeda.insufficient_evidence": "not enough trustworthy evidence",
     "andromeda.key_answer": "key answer",

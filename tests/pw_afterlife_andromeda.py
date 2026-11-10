@@ -441,6 +441,35 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
             page.wait_for_function(
                 "() => { const img = document.querySelector('.andromeda-image-card img'); return !!img && img.complete && img.naturalWidth > 0; }"
             )
+            # a click previews the picture in place; it used to leave for the source site
+            cards = page.locator(".andromeda-image-card")
+            first_title = cards.nth(0).locator(".andromeda-media-title").inner_text()
+            second_title = cards.nth(1).locator(".andromeda-media-title").inner_text()
+            pages_before = len(page.context.pages)
+            cards.nth(0).click()
+            preview = page.locator(".dialog-card.andromeda-preview")
+            preview.wait_for(state="visible")
+            assert len(page.context.pages) == pages_before
+            assert preview.locator(".dialog-title").inner_text() == first_title
+            assert preview.locator(".andromeda-preview-step").nth(0).is_disabled()
+            stage = preview.locator(".andromeda-preview-stage").bounding_box()
+            page.keyboard.press("ArrowRight")
+            page.wait_for_function(
+                "title => document.querySelector('.andromeda-preview .dialog-title')?.textContent === title",
+                arg=second_title,
+            )
+            # stepping moves nothing: the stage keeps its box
+            assert preview.locator(".andromeda-preview-stage").bounding_box() == stage
+            assert preview.locator("a.btn.primary").get_attribute("href") == cards.nth(
+                1
+            ).get_attribute("href")
+            assert preview.locator("a.btn.primary").get_attribute("target") == "_blank"
+            preview.locator(".andromeda-preview-step").nth(0).click()
+            assert preview.locator(".dialog-title").inner_text() == first_title
+            assert preview.evaluate("card => card.contains(document.activeElement)")
+            page.keyboard.press("Escape")
+            preview.wait_for(state="detached")
+            assert page.locator("#andromeda-images-results .andromeda-view-head span").count() == 0
             page.locator("#andromeda-more-results").click()
             page.wait_for_function(
                 "() => document.querySelectorAll('.andromeda-image-card').length === 60"

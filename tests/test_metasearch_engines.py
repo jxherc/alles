@@ -9,11 +9,88 @@ from services.research import search as search_service
 
 
 class MetasearchEnginesTest(unittest.TestCase):
-    def test_keyless_metasearch_skips_engines_that_only_return_captchas(self):
+    def test_keyless_engines_run_best_first_in_a_fixed_order(self):
+        # shuffled, a page came from whichever engine came up; the weak ones are a last resort now
         backends = search_service._text_backends()["backend"].split(",")
-        self.assertNotIn("startpage", backends)
-        self.assertIn("duckduckgo", backends)
+        last = search_service._text_backends(search_service._LAST_TEXT_ENGINES)["backend"]
+        self.assertEqual(backends, search_service._text_backends()["backend"].split(","))
         self.assertEqual(backends[0], "wikipedia")
+        self.assertIn("yahoo", backends)
+        for name in ("startpage", "grokipedia", "yandex", "mojeek"):
+            self.assertNotIn(name, backends)
+        for name in ("startpage", "grokipedia", "wikipedia", "yahoo"):
+            self.assertNotIn(name, last.split(","))
+
+    def test_a_query_in_another_script_is_searched_in_its_own_region(self):
+        for query, region in (
+            ("苹果", "cn-zh"),
+            ("りんご 品種", "jp-ja"),
+            ("東京の天気は", "jp-ja"),
+            ("사과", "kr-ko"),
+            ("яблоко", "ru-ru"),
+            ("تفاح", "xa-ar"),
+            ("apple", "us-en"),
+            ("café près de moi", "us-en"),
+            ("", "us-en"),
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(search_service.search_region(query), region)
+
+    def run_keyless(self, replies, category="all", query="苹果", count=3):
+        """_search_duckduckgo over a fake ddgs whose text() gives `replies` in turn."""
+        calls = []
+
+        class FakeDDGS:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_exc):
+                return False
+
+            def text(self, _query, **kwargs):
+                calls.append(kwargs)
+                reply = replies[len(calls) - 1] if len(calls) <= len(replies) else []
+                if not reply:
+                    raise RuntimeError("No results found.")
+                return [{"href": url, "title": url, "body": "b"} for url in reply]
+
+            def images(self, _query, **kwargs):
+                calls.append(kwargs)
+                return [{"url": "https://a.dev/p", "image": "https://a.dev/i.png"}]
+
+        with mock.patch("ddgs.DDGS", FakeDDGS):
+            rows = asyncio.run(search_service._search_duckduckgo(query, count, category))
+        return [row["url"] for row in rows], calls
+
+    def test_the_keyless_search_sends_the_region_and_the_engine_order(self):
+        good = search_service._text_backends()["backend"]
+        urls, calls = self.run_keyless([["https://a.cn/1", "https://a.cn/2", "https://a.cn/3"]])
+        self.assertEqual(urls, ["https://a.cn/1", "https://a.cn/2", "https://a.cn/3"])
+        self.assertEqual([(c["region"], c["backend"]) for c in calls], [("cn-zh", good)])
+        _urls, calls = self.run_keyless([], category="images")
+        self.assertEqual(calls[0]["region"], "cn-zh")
+
+    def test_an_empty_reply_from_the_good_engines_is_asked_once_more(self):
+        good = search_service._text_backends()["backend"]
+        last = search_service._text_backends(search_service._LAST_TEXT_ENGINES)["backend"]
+        page = ["https://a.dev/1", "https://a.dev/2", "https://a.dev/3"]
+        # nothing, then a full page: the last resort engines are never asked
+        urls, calls = self.run_keyless([[], page])
+        self.assertEqual(urls, page)
+        self.assertEqual([c["backend"] for c in calls], [good, good])
+        # one wikipedia article is not a results page either
+        wiki = ["https://zh.wikipedia.org/wiki/x"]
+        urls, calls = self.run_keyless([wiki, wiki, page])
+        self.assertEqual(urls, page)
+        self.assertEqual([c["backend"] for c in calls], [good, good, last])
+
+    def test_a_short_first_page_is_filled_from_the_second(self):
+        urls, calls = self.run_keyless(
+            [["https://a.dev/1", "https://a.dev/2"], ["https://a.dev/2", "https://a.dev/3"]]
+        )
+        self.assertEqual(urls, ["https://a.dev/1", "https://a.dev/2", "https://a.dev/3"])
+        self.assertEqual(calls[1]["page"], 2)
+        self.assertEqual(calls[1]["backend"], calls[0]["backend"])
 
     def test_startpage_is_not_a_search_engine_option(self):
         self.assertNotIn("startpage", search_service._KNOWN_PROVIDERS)
@@ -38,7 +115,7 @@ class ExaEngineTest(unittest.TestCase):
             rows = asyncio.run(search_service._search_exa("wireguard", "k-1", 8, category))
         return rows, seen
 
-    def test_asks_for_the_instant_mode_with_short_snippets(self):
+    def test_asks_for_the_default_mode_with_short_snippets(self):
         rows, seen = self.run_exa(
             payload={
                 "results": [
@@ -50,7 +127,8 @@ class ExaEngineTest(unittest.TestCase):
         )
         self.assertEqual(seen["url"], "https://api.exa.ai/search")
         self.assertEqual(seen["key"], "k-1")
-        self.assertEqual(seen["body"]["type"], "instant")
+        # "instant" is a legacy mode that trades depth for speed (exa's search reference)
+        self.assertEqual(seen["body"]["type"], "auto")
         self.assertEqual(seen["body"]["numResults"], 8)
         self.assertIn("highlights", seen["body"]["contents"])
         self.assertNotIn("category", seen["body"])

@@ -24,6 +24,44 @@ class TextIndexTests(ApiTest):
         self.assertGreaterEqual(n, 1)
         self.assertEqual(d.query(IndexChunk).filter_by(kind="doc", ref="a.md").count(), n)
 
+    def test_embedding_is_done_before_the_first_write(self):
+        # the first write takes sqlite's write lock; embedding under it held up every other save
+        from sqlalchemy import event
+
+        d = self.db()
+        textindex.index(d, "doc", "a.md", "old text about dogs")
+        order = []
+
+        def embed(texts):
+            order.append("embed")
+            return fake_embed(texts)
+
+        def note(_conn, _cursor, statement, *_rest):
+            if statement.lstrip().upper().startswith(("DELETE", "INSERT", "UPDATE")):
+                order.append("write")
+
+        engine = d.get_bind()
+        event.listen(engine, "before_cursor_execute", note)
+        try:
+            with mock.patch.object(textindex, "_embed", side_effect=embed):
+                for run in (
+                    lambda: textindex.index(d, "doc", "a.md", "new text about cats"),
+                    lambda: textindex.reindex_kind(d, "doc", [("a.md", "cats"), ("b.md", "dogs")]),
+                    lambda: textindex.reindex_file_location(
+                        d, DEFAULT_LOCAL_STORAGE_LOCATION_ID, [("x.md", "fish"), ("y.md", "car")]
+                    ),
+                ):
+                    order.clear()
+                    run()
+                    self.assertIn("embed", order)
+                    self.assertIn("write", order)
+                    self.assertLess(
+                        max(i for i, step in enumerate(order) if step == "embed"),
+                        order.index("write"),
+                    )
+        finally:
+            event.remove(engine, "before_cursor_execute", note)
+
     def test_index_replaces_no_dupes(self):
         d = self.db()
         textindex.index(d, "doc", "a.md", "first version about dogs")
