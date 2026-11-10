@@ -271,6 +271,7 @@ COMMANDS = {
     "aide-queue": ("tests/pw_aide_queue.py",),
     "aide-project-create": ("tests/pw_aide_project_create.py",),
     "aide-webkit-prompts": ("tests/pw_aide_webkit_prompts.py",),
+    "aide-webkit-scroll": ("tests/pw_aide_webkit_scroll.py",),
     "aide-image-retry": ("tests/pw_aide_image_retry.py",),
     "aide-questions": ("tests/pw_aide_question_recovery.py",),
     "aide-document-safety": ("tests/pw_aide_document_safety.py",),

@@ -58,7 +58,7 @@ import {
   modelSupport,
 } from './modes.js?v=259';
 import { initPrivacyHandlers } from './privacy.js';
-import { initScrollFollow, refreshScrollFollow } from './scrollfollow.js';
+import { initScrollFollow, refreshScrollFollow, scrollToLatest } from './scrollfollow.js';
 import { wireAutosizeTextarea } from './text_entry.js?v=1';
 import { initAideWorkspace } from './aideworkspace.js?v=283';
 import { initAideCentral } from './aidecentral.js?v=4';
@@ -913,12 +913,18 @@ const showChatView = ({ preserveRecord = false } = {}) => {
     _syncLocalViewUrl({ host: 'aide', view: 'chat' }, 'chat', { replace: preserveRecord });
   }
   hideAllViews();
+  // the chat and its box show together, before anything reads layout: a chat laid out without
+  // the box under it is taller, and safari clamps its scroll to that height
   document.getElementById('chat').style.display = 'flex';
-  _syncShellTrigger();
   document.getElementById('composer-outer').style.display = 'block';
+  _syncShellTrigger();
   window._aideConversationShown?.();
   setNav('chat');
-  refreshScrollFollow();
+  // safari puts a chat that was hidden back short of its end: a code block's phone layout comes
+  // from a container query, which it applies a pass after it restores the scroll. while
+  // following, the end is where it was, and landing there now keeps the scroll event that
+  // follows from reading as "the owner left"
+  scrollToLatest();
 };
 // so selectSession (sessions.js) can jump back to chat when a convo is clicked
 // from a tools page — otherwise messages render behind the still-open tool view
