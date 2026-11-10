@@ -24,3 +24,6 @@ pills that never showed which one was picked.
   focus returns to the gear when its dialog closes.
 - the journal's daily prompt is the editor's placeholder, shown only while today's entry is empty;
   other days keep the plain question. the line under the date is gone.
+- a failed reflection is one line beside the reflect button ("could not reflect: ... choose reflect to
+  retry"), not a bar above the search box. it clears when reflect works, when the entry changes or
+  when the day changes. on a phone the line wraps under the buttons.

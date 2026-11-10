@@ -82,6 +82,7 @@ def run(context_factory=None):
                 editor = page.locator("#jrnl-text")
                 button = page.locator("#jrnl-reflect")
                 box = page.locator("#jrnl-reflection")
+                error = page.locator("#jrnl-reflect-error")
                 locked = False
 
                 def hold(target, method):
@@ -151,29 +152,33 @@ def run(context_factory=None):
                         )
                         editor.fill("draft retained before reflection")
                         reflect()
-                        expect(box).to_contain_text("could not reflect: save failed")
+                        expect(error).to_contain_text("could not reflect: save failed")
+                        expect(box).to_be_hidden()
                         expect(button).to_be_focused()
                         assert not requests
                         assert api.get(target).json()["content"] == "entry " + first
                         expect(editor).to_have_value("draft retained before reflection")
-                        box.scroll_into_view_if_needed()
+                        error.scroll_into_view_if_needed()
                         page.screenshot(path=str(out / f"{width}-{case}-error.png"))
                         page.unroute(target)
                         reflect()
                         success()
+                        expect(error).to_be_hidden()
                         assert (
                             api.get(target).json()["content"] == "draft retained before reflection"
                         )
                         assert len(requests) == 1
                     elif case in {"failed-reflect", "malformed-reflect"}:
                         reflect()
-                        expect(box).to_contain_text("could not reflect")
+                        expect(error).to_contain_text("could not reflect")
+                        expect(box).to_be_hidden()
                         expect(button).to_be_focused()
-                        box.scroll_into_view_if_needed()
+                        error.scroll_into_view_if_needed()
                         page.screenshot(path=str(out / f"{width}-{case}-error.png"))
                         fail_response = False
                         reflect()
                         success()
+                        expect(error).to_be_hidden()
                         assert len(requests) == 2
                     else:
                         during_save = case == "changed-during-save"

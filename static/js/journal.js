@@ -318,6 +318,7 @@ async function buildJournal() {
           <div class="jrnl-actions">
             <button class="btn primary" id="jrnl-save">${t('common.save')}</button>
             <button class="btn" id="jrnl-reflect">${_si('sparkles')} ${t('journal.reflect')}</button>
+            <span class="jrnl-reflect-error" id="jrnl-reflect-error" role="alert" hidden></span>
             <span class="jrnl-saved" id="jrnl-saved" role="status"></span>
           </div>
           <div class="jrnl-reflection" id="jrnl-reflection" role="status" style="display:none"></div>
@@ -919,8 +920,17 @@ async function loadRecent() {
   } catch {}
 }
 
+// a failed reflection says so beside the button; it clears when reflecting works or the entry changes
+function setReflectError(message = '') {
+  const line = document.getElementById('jrnl-reflect-error');
+  if (!line) return;
+  line.textContent = message;
+  line.hidden = !message;
+}
+
 function invalidateReflection(message = '') {
   _reflectionGeneration += 1;
+  setReflectError();
   const btn = document.getElementById('jrnl-reflect');
   const box = document.getElementById('jrnl-reflection');
   if (btn) {
@@ -944,6 +954,7 @@ async function reflect() {
   const current = () => generation === _reflectionGeneration && day === _day && btn.isConnected;
   btn.setAttribute('aria-disabled', 'true');
   btn.textContent = t('journal.reflecting');
+  setReflectError();
   box.textContent = t('journal.reflection_preparing');
   box.style.display = 'block';
   try {
@@ -962,7 +973,11 @@ async function reflect() {
     if (typeof d.reflection !== 'string' || !d.reflection.trim()) throw new Error(t('journal.no_reflection'));
     box.innerHTML = mdToHtml(d.reflection);
   } catch (e) {
-    if (current()) box.textContent = t('journal.reflect_error', { error: plainError(e.message || t('common.request_failed')) });
+    if (current()) {
+      box.style.display = 'none';
+      box.textContent = '';
+      setReflectError(t('journal.reflect_error', { error: plainError(e.message || t('common.request_failed')) }));
+    }
   } finally {
     if (current()) {
       btn.removeAttribute('aria-disabled');

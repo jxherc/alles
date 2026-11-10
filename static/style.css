@@ -4966,6 +4966,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-tags { width: 100%; min-height: 44px; margin-top: var(--k-space-2); background: transparent; color: var(--text); border: 0; border-bottom: 1px solid var(--faint); border-radius: 0; padding: 0 var(--k-space-2); font-size: 0.8125rem; }
 .jrnl-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.7rem; }
 .jrnl-saved { font-size: 0.8125rem; color: var(--muted); margin-left: auto; }
+.jrnl-reflect-error { font-size: 0.875rem; color: var(--error); }
 .jrnl-load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; color: var(--danger); font-size: 0.8125rem; }
 .jrnl-lock-btn { font-size: 0.8125rem; display: inline-flex; align-items: center; gap: 0.3rem; }
 .jrnl-lock-btn .ic { width: 13px; height: 13px; }
