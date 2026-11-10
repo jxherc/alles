@@ -113,6 +113,9 @@ function _switchPane(name) {
     n.classList.toggle('active', n.dataset.pane === name));
   document.querySelectorAll('.s-nav-item').forEach(n =>
     n.setAttribute('aria-current', n.dataset.pane === name ? 'page' : 'false'));
+  // a pane opened by a link or key keeps its nav item in view
+  if (selected?.previousElementSibling?.classList.contains('s-nav-group')) selected.previousElementSibling.scrollIntoView({ block: 'nearest' });
+  selected?.scrollIntoView({ block: 'nearest' });
   document.querySelectorAll('.s-pane').forEach(p =>
     p.classList.toggle('active', p.id === `s-pane-${name}`));
   const content = document.querySelector('#settings-modal .s-content');
