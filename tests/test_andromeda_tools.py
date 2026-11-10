@@ -14,6 +14,7 @@ from services import (
     andromeda_dates,
     andromeda_dictionary,
     andromeda_f1,
+    andromeda_suggest,
     andromeda_translate,
 )
 from tests._client import ApiTest
@@ -169,6 +170,63 @@ class ToolWithoutInputTest(ApiTest):
                         run(andromeda_answers.resolve(detect(query)))["status"], "empty"
                     )
         fetch.assert_not_called()
+
+
+class SuggestTest(ApiTest):
+    """completions for the search box: google's list first, duckduckgo's when it has none."""
+
+    def setUp(self):
+        super().setUp()
+        andromeda_suggest._cache.clear()
+
+    def ask(self, replies):
+        calls = []
+
+        async def fake(_client, url, params, query):
+            calls.append((url, params))
+            reply = replies[len(calls) - 1]
+            if isinstance(reply, Exception):
+                raise reply
+            return andromeda_suggest._clean(query, reply)
+
+        return calls, mock.patch.object(andromeda_suggest, "_ask", side_effect=fake)
+
+    def test_the_route_returns_completions_in_the_querys_language(self):
+        calls, patched = self.ask([["苹", ["苹果", "苹果官网", "苹", " 苹果 ", 7]]])
+        with patched:
+            reply = self.client.get("/api/andromeda/suggest", params={"q": " 苹 "}).json()
+        self.assertEqual(reply, {"query": "苹", "suggestions": ["苹果", "苹果官网"]})
+        self.assertIn("suggestqueries.google.com", calls[0][0])
+        self.assertEqual((calls[0][1]["q"], calls[0][1]["hl"]), ("苹", "zh"))
+
+    def test_duckduckgo_answers_when_google_has_nothing_or_fails(self):
+        for first in (["nik", []], RuntimeError("blocked")):
+            andromeda_suggest._cache.clear()
+            calls, patched = self.ask([first, ["nik", ["nike", "nikon"]]])
+            with patched:
+                found = run(andromeda_suggest.suggest("nik"))
+            self.assertEqual(found, ["nike", "nikon"])
+            self.assertIn("duckduckgo.com/ac", calls[1][0])
+
+    def test_nothing_answering_is_an_empty_list_and_a_repeat_is_not_asked_again(self):
+        calls, patched = self.ask([OSError("down"), OSError("down")])
+        with patched:
+            self.assertEqual(run(andromeda_suggest.suggest("nik")), [])
+            self.assertEqual(run(andromeda_suggest.suggest("NIK")), [])
+        self.assertEqual(len(calls), 2)
+
+    def test_nothing_leaves_for_a_disabled_engine_a_bang_or_an_empty_box(self):
+        calls, patched = self.ask([])
+        with patched:
+            for query in ("", "   ", "!ai", "!w nike", "x" * 150):
+                reply = self.client.get("/api/andromeda/suggest", params={"q": query})
+                self.assertEqual(reply.json()["suggestions"], [], query)
+            with mock.patch(
+                "routes.andromeda.load_settings", return_value={"search_provider": "disabled"}
+            ):
+                off = self.client.get("/api/andromeda/suggest", params={"q": "nike"}).json()
+        self.assertEqual(off["suggestions"], [])
+        self.assertEqual(calls, [])
 
 
 class ToolWithInputTest(ApiTest):

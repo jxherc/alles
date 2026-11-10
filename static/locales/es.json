@@ -214,6 +214,7 @@
     "andromeda.history_label": "búsquedas guardadas y recientes",
     "andromeda.history_saved": "guardadas",
     "andromeda.history_recent": "recientes",
+    "andromeda.history_suggestions": "sugerencias",
     "andromeda.history_clear": "borrar búsquedas recientes",
     "andromeda.history_new": "{count} nuevos",
     "andromeda.saved_unavailable": "las búsquedas guardadas no están disponibles",

@@ -486,4 +486,14 @@ test('27.13: one history list, saved first, recent after, narrowed by what is ty
   assert.deepEqual(historyRows(saved, recent, 'NACL').map(row => row.query), ['NaCl melting point']);
   // the exact text already in the box isn't offered back as a recent search
   assert.deepEqual(historyRows([], recent, 'boh4m notes'), []);
+  // completions come after the owner's own matches, without repeating them or the typed text
+  const completed = historyRows(saved, recent, 'sq', ['sqlite wal', 'sq', 'SQL joins', 'squash']);
+  assert.deepEqual(completed.map(row => `${row.kind}:${row.query}`), [
+    'saved:sqlite wal', 'suggest:SQL joins', 'suggest:squash',
+  ]);
+  // an empty box offers history only, and the list stays at ten rows
+  assert.deepEqual(historyRows([], recent, '', ['anything']).map(row => row.kind), ['recent', 'recent', 'recent']);
+  const many = Array.from({ length: 20 }, (_, i) => `sq ${i}`);
+  assert.equal(historyRows([], ['sq a', 'sq b', 'sq c', 'sq d', 'sq e'], 'sq', many).length, 10);
+  assert.equal(historyRows([], ['sq a', 'sq b', 'sq c', 'sq d', 'sq e'], 'sq', many).filter(row => row.kind === 'recent').length, 3);
 });

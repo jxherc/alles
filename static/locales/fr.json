@@ -214,6 +214,7 @@
     "andromeda.history_label": "recherches enregistrées et récentes",
     "andromeda.history_saved": "enregistrées",
     "andromeda.history_recent": "récentes",
+    "andromeda.history_suggestions": "suggestions",
     "andromeda.history_clear": "effacer les recherches récentes",
     "andromeda.history_new": "{count} nouveaux",
     "andromeda.saved_unavailable": "recherches enregistrées indisponibles",

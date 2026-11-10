@@ -4,6 +4,7 @@ import base64
 import json
 import os
 from datetime import date
+from urllib.parse import parse_qs, urlsplit
 
 from playwright.sync_api import Route, sync_playwright
 
@@ -117,6 +118,16 @@ def mock_api(route: Route, requests: list[dict], overview_requests: list[dict]) 
         route.fulfill(status=200, content_type="image/png", body=PNG)
         return
     path = request.url.split("/api/andromeda", 1)[-1].split("?", 1)[0]
+    if path == "/suggest":
+        typed = parse_qs(urlsplit(request.url).query).get("q", [""])[0]
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {"query": typed, "suggestions": [f"{typed} release notes", f"{typed}ent events"]}
+            ),
+        )
+        return
     if path == "/providers":
         route.fulfill(
             status=200,
@@ -320,9 +331,38 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
         page.locator("#andromeda-provider, #andromeda-exact-model, #andromeda-saved").count() == 0
     )
 
+    # completions show under the box while typing, and the keyboard picks one
+    page.locator("#andromeda-query").click()
+    page.keyboard.type("curr")
+    # an earlier case's search may sit above them as a recent one: wait for the completions
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('#andromeda-history [data-history-index]')]"
+        ".some(row => row.textContent.includes('curr release notes'))"
+    )
+    options = page.locator("#andromeda-history [data-history-index]")
+    assert [text.strip() for text in options.all_inner_texts()][-2:] == [
+        "curr release notes",
+        "current events",
+    ], options.all_inner_texts()
+    assert "suggestions" in page.locator("#andromeda-history").inner_text()
+    panel_box = page.locator("#andromeda-history").bounding_box()
+    assert panel_box and panel_box["x"] >= 0
+    assert panel_box["x"] + panel_box["width"] <= viewport["width"]
+    assert all(box["height"] >= 44 for box in (option.bounding_box() for option in options.all()))
+    page.keyboard.press("ArrowDown")
+    assert (
+        page.locator("#andromeda-query").get_attribute("aria-activedescendant")
+        == "andromeda-history-0"
+    )
+    page.keyboard.press("Escape")
+    assert page.locator("#andromeda-history").is_hidden()
+    assert page.locator("#andromeda-view").get_attribute("data-state") == "idle"
+
     page.locator("#andromeda-query").fill("current search release")
     page.locator("#andromeda-form").press("Enter")
     page.wait_for_selector(".dialog-overlay [data-dialog-confirm]", state="visible")
+    # the reply for the text just searched must not open the list again over the results
+    assert page.locator("#andromeda-history").is_hidden()
     assert "selected web evidence" in page.locator(".dialog-msg").inner_text()
     page.locator(".dialog-overlay [data-dialog-confirm]").click()
     page.wait_for_selector(".andromeda-marker", state="visible")
@@ -516,6 +556,29 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
     assert page.evaluate(
         "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
     )
+    # a search still on its way must not write over the next one being typed
+    held = []
+    page.route("**/api/andromeda/search", lambda route: held.append(route))
+    page.locator("#andromeda-query").fill("slow search !ai")
+    page.locator("#andromeda-form").press("Enter")
+    for _ in range(100):
+        if held:
+            break
+        page.wait_for_timeout(50)
+    assert held, "the search request never left"
+    page.locator("#andromeda-query").fill("typed meanwhile")
+    sent = len(requests)
+    held[0].fallback()
+    for _ in range(100):
+        if len(requests) > sent:
+            break
+        page.wait_for_timeout(50)
+    page.wait_for_function(
+        "() => document.getElementById('andromeda-result-meta').textContent.trim() !== ''"
+    )
+    assert page.locator("#andromeda-query").input_value() == "typed meanwhile"
+    page.unroute("**/api/andromeda/search")
+    page.keyboard.press("Escape")
     assert not errors, errors
     assert not server_errors, server_errors
     page.screenshot(path=screenshot, full_page=True)

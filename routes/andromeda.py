@@ -144,6 +144,22 @@ async def correct_spelling(body: CorrectBody):
     return {"query": fixed or parsed.query, "corrected_from": parsed.query if fixed else None}
 
 
+@router.get("/suggest")
+async def suggest(q: str = Query("", max_length=200)):
+    """completions for the search box while the owner types. the text goes to a suggestion
+    service (services/andromeda_suggest.py); with the search engine disabled, nothing does."""
+    _require_flag()
+    from services import andromeda_suggest
+
+    parsed = andromeda.parse_query(q, overview_default=False)
+    if (load_settings().get("search_provider") or "") == "disabled" or not parsed.query:
+        return {"query": parsed.query, "suggestions": []}
+    # a bang or an operator is the owner steering an engine: nothing to complete
+    if parsed.query.startswith("!") or len(parsed.query) > andromeda_suggest.MAX_QUERY:
+        return {"query": parsed.query, "suggestions": []}
+    return {"query": parsed.query, "suggestions": await andromeda_suggest.suggest(parsed.query)}
+
+
 @router.get("/providers")
 def providers():
     """Return usable engines without exposing credentials."""

@@ -214,6 +214,7 @@
     "andromeda.history_label": "已保存和最近的搜索",
     "andromeda.history_saved": "已保存",
     "andromeda.history_recent": "最近",
+    "andromeda.history_suggestions": "建议",
     "andromeda.history_clear": "清除最近的搜索",
     "andromeda.history_new": "{count} 条新结果",
     "andromeda.saved_unavailable": "已保存的搜索不可用",

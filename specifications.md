@@ -1356,6 +1356,12 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   ([services/andromeda.py](services/andromeda.py) `order_results`): paid links an engine mixed in are
   dropped, a site the search names comes first when its front page is among the results (nike.com for
   "nike"), and one site shows 2 rows before the rest of its rows. a result's own text stops at 3 lines.
+- **suggestions while typing.** the list under the search box shows saved and recent searches that match, then up to 8 completions
+  from `GET /api/andromeda/suggest` ([services/andromeda_suggest.py](services/andromeda_suggest.py)): google's suggest endpoint first,
+  duckduckgo's when it has none, asked in the query's own language, 140 ms after the typing stops and never while an input method is
+  composing. the typed text leaves the server for this, with no cookie or account; a search engine set to "disabled", a bang, or an
+  empty box sends nothing. arrow keys, return, a tap and escape work as in the history list. a search that is still loading never
+  writes over the next one being typed.
 - **sources in place.** each claim lists its sources by site name on its own row under the claim.
   choosing one opens a card in place with the exact supporting quote, the page title as a link, the
   page date when the evidence has one, and the source type for docs, release notes, repositories and
@@ -2019,10 +2025,10 @@ the registered http operations are grouped by handler source. use `/api/openapi.
 the registered http surface:
 
 - 90 included fastapi router modules
-- 1024 http method/path pairs
-- 988 `/api/*`, 2 `/v1/*`, and 34 non-api shell/public pairs
+- 1025 http method/path pairs
+- 989 `/api/*`, 2 `/v1/*`, and 34 non-api shell/public pairs
 
-the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_route_compatibility.py) also counts the 20 code mode routes removed on nov 6 (and checks none of them is still registered), so it pins 1044 pairs with sha-256 `a07b16e7021ead4516ec879a92258964fdc1b7aa4e0696fa37bd2a02d9148871`.
+the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_route_compatibility.py) also counts the 20 code mode routes removed on nov 6 (and checks none of them is still registered), so it pins 1045 pairs with sha-256 `18036365507926a8374654eeb6119a738a2a7d00db13be0722432fb9baf00e03`.
 
 <details>
 <summary>app.py · 12 operations</summary>
@@ -2135,6 +2141,7 @@ the compatibility snapshot in [tests/test_route_compatibility.py](tests/test_rou
 | `POST` | `/api/andromeda/saved/{search_id}/watch/seen` | `watch_seen` |
 | `POST` | `/api/andromeda/search` | `search` |
 | `GET` | `/api/andromeda/search-extension` | `search_extension` |
+| `GET` | `/api/andromeda/suggest` | `suggest` |
 | `POST` | `/api/andromeda/translate` | `translate` |
 | `POST` | `/api/andromeda/verification` | `start_verification` |
 | `POST` | `/api/andromeda/verification/preview` | `verification_preview` |

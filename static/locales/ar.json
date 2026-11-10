@@ -214,6 +214,7 @@
     "andromeda.history_label": "عمليات البحث المحفوظة والأخيرة",
     "andromeda.history_saved": "محفوظة",
     "andromeda.history_recent": "الأخيرة",
+    "andromeda.history_suggestions": "اقتراحات",
     "andromeda.history_clear": "مسح عمليات البحث الأخيرة",
     "andromeda.history_new": "{count} جديد",
     "andromeda.saved_unavailable": "عمليات البحث المحفوظة غير متاحة",

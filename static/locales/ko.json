@@ -214,6 +214,7 @@
     "andromeda.history_label": "저장된 검색과 최근 검색",
     "andromeda.history_saved": "저장됨",
     "andromeda.history_recent": "최근",
+    "andromeda.history_suggestions": "추천",
     "andromeda.history_clear": "최근 검색 지우기",
     "andromeda.history_new": "새 항목 {count}",
     "andromeda.saved_unavailable": "저장된 검색을 사용할 수 없습니다",

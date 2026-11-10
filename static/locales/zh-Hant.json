@@ -214,6 +214,7 @@
     "andromeda.history_label": "已儲存和最近的搜尋",
     "andromeda.history_saved": "已儲存",
     "andromeda.history_recent": "最近",
+    "andromeda.history_suggestions": "建議",
     "andromeda.history_clear": "清除最近的搜尋",
     "andromeda.history_new": "{count} 筆新結果",
     "andromeda.saved_unavailable": "已儲存的搜尋無法使用",

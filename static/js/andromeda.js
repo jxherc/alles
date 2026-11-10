@@ -41,6 +41,10 @@ let _watching = null; // { id, every_hours } for the saved search on screen
 let _recent = [];      // the last searches, from settings so every device has the same ones
 let _savedList = [];   // saved searches, newest first
 let _historyActive = -1;
+// completions for what is typed, from the server; `query` is the text they belong to
+let _suggested = { query: '', items: [] };
+let _suggestAbort = null;
+let _suggestTimer = 0;
 const RECENT_MAX = 20;
 
 const SAVE_PREFIX = 'alles.andromeda.pending.v1:';
@@ -2173,7 +2177,8 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     followUpOf: String(options.followUpOf || ''),
     exact: asExact,
   };
-  if (input) input.value = searched;
+  // only while the box still holds this search: a new one being typed is never written over
+  if (input && input.value.trim() === query) input.value = searched;
   renderAndromedaResults([], 'loading', currentCategory);
   clearOverview();
   clearVerificationView();
@@ -2223,7 +2228,8 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
     _state.hasMore = !!result.has_more;
     _state.overviewSeed = result.overview_seed || _state.results;
     _state.providerDisabled = result.status === 'disabled' && !!result.normal_results_enabled;
-    if (input) input.value = _state.query;
+    // results take a second or more: by then the owner may be typing the next search
+    if (input && [query, searched].includes(input.value.trim())) input.value = _state.query;
     renderAndromedaResults(_state.results, result.status, currentCategory);
     updateMoreResults();
     text('andromeda-result-meta', _state.providerDisabled ? '' : result.normal_results_enabled
@@ -2768,7 +2774,7 @@ export function rememberSearch(list, query) {
   return [value, ...list.filter(item => item.toLowerCase() !== value.toLowerCase())].slice(0, RECENT_MAX);
 }
 
-export function historyRows(saved = [], recent = [], typed = '') {
+export function historyRows(saved = [], recent = [], typed = '', suggestions = []) {
   const needle = String(typed || '').trim().toLowerCase();
   const hit = text => !needle || String(text || '').toLowerCase().includes(needle);
   const savedRows = saved.filter(row => row?.id && hit(row.query)).slice(0, 6)
@@ -2776,7 +2782,32 @@ export function historyRows(saved = [], recent = [], typed = '') {
   const taken = new Set(savedRows.map(row => row.query.toLowerCase()));
   const recentRows = recent.filter(query => hit(query) && query.toLowerCase() !== needle && !taken.has(query.toLowerCase()))
     .slice(0, 8).map(query => ({ kind: 'recent', query }));
-  return [...savedRows, ...recentRows];
+  // completions come last and never repeat what the owner's own history already offers
+  for (const row of recentRows) taken.add(row.query.toLowerCase());
+  const suggestRows = !needle ? [] : suggestions
+    .filter(query => query.toLowerCase() !== needle && !taken.has(query.toLowerCase()))
+    .slice(0, Math.max(0, 10 - savedRows.length - Math.min(recentRows.length, 3)))
+    .map(query => ({ kind: 'suggest', query }));
+  // with completions to show, three of the owner's own matches are enough above them
+  return [...savedRows, ...(suggestRows.length ? recentRows.slice(0, 3) : recentRows), ...suggestRows];
+}
+
+// ask for completions a moment after the typing stops. nothing is asked while an input method
+// is still composing (pinyin letters are not the query), and a slower reply for older text is dropped
+function requestSuggestions(input, composing = false) {
+  clearTimeout(_suggestTimer);
+  _suggestAbort?.abort();
+  const typed = input.value.trim();
+  if (!typed || composing) return;
+  _suggestTimer = setTimeout(async () => {
+    _suggestAbort = new AbortController();
+    try {
+      const reply = await jsonRequest(`/api/andromeda/suggest?q=${encodeURIComponent(typed)}`, { signal: _suggestAbort.signal });
+      if (input.value.trim() !== typed) return;
+      _suggested = { query: typed, items: Array.isArray(reply?.suggestions) ? reply.suggestions : [] };
+      if (document.activeElement === input) renderHistory();
+    } catch {}
+  }, 140);
 }
 
 function historyPanel() { return el('andromeda-history'); }
@@ -2785,6 +2816,9 @@ function closeHistory() {
   const panel = historyPanel(), input = el('andromeda-query');
   if (panel) panel.hidden = true;
   _historyActive = -1;
+  // a reply still on its way must not open the list again over the results
+  clearTimeout(_suggestTimer);
+  _suggestAbort?.abort();
   input?.setAttribute('aria-expanded', 'false');
   input?.removeAttribute('aria-activedescendant');
 }
@@ -2792,7 +2826,9 @@ function closeHistory() {
 function renderHistory() {
   const panel = historyPanel(), input = el('andromeda-query');
   if (!panel || !input) return;
-  const rows = historyRows(_savedList, _recent, input.value);
+  // completions for other text would jump under the typing: only the current text's are shown
+  const typed = input.value.trim();
+  const rows = historyRows(_savedList, _recent, input.value, _suggested.query === typed ? _suggested.items : []);
   if (!rows.length || document.activeElement !== input) { closeHistory(); return; }
   _historyActive = Math.min(_historyActive, rows.length - 1);
   const group = (kind, label) => {
@@ -2805,6 +2841,7 @@ function renderHistory() {
       </button>`).join('');
   };
   panel.innerHTML = group('saved', tr('andromeda.history_saved')) + group('recent', tr('andromeda.history_recent'))
+    + group('suggest', tr('andromeda.history_suggestions'))
     + (rows.some(row => row.kind === 'recent') ? `<button type="button" tabindex="-1" class="andromeda-history-clear" data-history-clear>${esc(tr('andromeda.history_clear'))}</button>` : '');
   panel._rows = rows;
   panel.hidden = false;
@@ -2839,7 +2876,8 @@ function wireHistory() {
   // a click (or arrow down) in an empty box offers the history, the way a browser's address bar does;
   // focus alone doesn't, since the page focuses the box on load
   input.addEventListener('click', () => { if (panel.hidden && !input.value.trim()) { _historyActive = -1; renderHistory(); } });
-  input.addEventListener('input', () => { _historyActive = -1; renderHistory(); });
+  input.addEventListener('input', event => { _historyActive = -1; renderHistory(); requestSuggestions(input, event.isComposing); });
+  input.addEventListener('compositionend', () => requestSuggestions(input));
   input.addEventListener('keydown', event => {
     const rows = panel._rows || [];
     if (event.key === 'Escape' && !panel.hidden) { event.preventDefault(); event.stopPropagation(); closeHistory(); return; }

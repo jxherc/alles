@@ -218,6 +218,7 @@ const BUILTIN_ENGLISH = {
     "andromeda.history_label": "saved and recent searches",
     "andromeda.history_saved": "saved",
     "andromeda.history_recent": "recent",
+    "andromeda.history_suggestions": "suggestions",
     "andromeda.history_clear": "clear recent searches",
     "andromeda.history_new": "{count} new",
     "andromeda.saved_unavailable": "saved searches unavailable",

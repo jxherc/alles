@@ -214,6 +214,7 @@
     "andromeda.history_label": "保存した検索と最近の検索",
     "andromeda.history_saved": "保存済み",
     "andromeda.history_recent": "最近",
+    "andromeda.history_suggestions": "候補",
     "andromeda.history_clear": "最近の検索を消去",
     "andromeda.history_new": "新着 {count}",
     "andromeda.saved_unavailable": "保存済み検索を利用できません",
