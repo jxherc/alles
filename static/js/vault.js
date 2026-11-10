@@ -5,6 +5,7 @@ import { getDropdownValue, populateDropdown, initCustomDropdown } from './dropdo
 import { formatDateTime, formatNumber, t, tp } from './i18n.js';
 import { createFocusBoundary, wireActionMenu } from './kokuen.js?v=5';
 import { requestWithRecentOwner } from './recent_owner.js';
+import { deleteItemHtml, moreMenuHtml, wireMoreMenus } from './undo_delete.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -1997,12 +1998,13 @@ async function _loadEntries(fetcher = fetch) {
       <div class="vault-entry" data-id="${e.id}">
         <button type="button" class="vault-entry-main" data-vault-open="${e.id}">
           <span class="vault-entry-name">${_esc(e.name)}${e.username ? ` <span class="vault-entry-user">${_esc(e.username)}</span>` : ''}</span>
-          <span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>
+          ${_typeForEntry(e) === 'login' ? '' : `<span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>`}
           <span class="vault-entry-grow"></span>
         </button>
         <button type="button" class="act-btn" data-vault-copy="${e.id}" aria-label="${_esc(t('vault.copy_secret_named', { name: e.name }))}">${_esc(t('common.copy'))}</button>
-        <button type="button" class="act-btn danger" data-vault-delete="${e.id}" aria-label="${_esc(t('vault.delete_named', { name: e.name }))}">${_esc(t('vault.del'))}</button>
+        ${moreMenuHtml('vault', e.id, e.name, deleteItemHtml(`data-vault-delete="${e.id}" aria-label="${_esc(t('vault.delete_named', { name: e.name }))}"`))}
       </div>`).join('');
+    wireMoreMenus(list);
     list.querySelectorAll('[data-vault-open]').forEach(button => {
       button.addEventListener('click', () => window._vaultOpen(button.dataset.vaultOpen));
     });

@@ -7863,7 +7863,6 @@
     "vault.custom_service": "مخصص",
     "vault.cvv": "CVV",
     "vault.define_your_own_item_types_name": "عرّف أنواع العناصر الخاصة بك: سمّها وأضف حقولًا وحدد عرض كل حقل. تظهر في منتقي النوع عند إضافة سر.",
-    "vault.del": "حذف",
     "vault.delete_named": "حذف {name}",
     "vault.delete_this_custom_type": "حذف هذا النوع المخصص؟",
     "vault.delete_this_entry": "حذف هذا الإدخال؟",

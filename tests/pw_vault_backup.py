@@ -238,7 +238,7 @@ def run_profile(browser, profile, output, records):
                             "#vault-more-btn",
                             ".vault-entry-main",
                             "[data-vault-copy]",
-                            "[data-vault-delete]",
+                            ".vault-entry .row-more",
                         ):
                             controls = page.locator(selector)
                             measurements[selector] = [

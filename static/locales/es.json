@@ -7864,7 +7864,6 @@
     "vault.custom_service": "personalizado",
     "vault.cvv": "cvv",
     "vault.define_your_own_item_types_name": "define tus propios tipos de elemento: ponles nombre, añade campos y elige el ancho de cada uno. aparecen en el selector de tipo al añadir un secreto.",
-    "vault.del": "supr",
     "vault.delete_named": "eliminar {name}",
     "vault.delete_this_custom_type": "¿eliminar este tipo personalizado?",
     "vault.delete_this_entry": "¿eliminar esta entrada?",
