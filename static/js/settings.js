@@ -1910,12 +1910,10 @@ async function loadRulesPane() {
     document.getElementById('rule-cancel-btn')?.addEventListener('click', _resetRuleForm);
     _renderRulePresets();
   }
-  // delivery channels (discord / telegram) persist as settings; the notify actions use them
+  // the discord webhook persists as a setting; the notify actions use it
   const s = await _loadPaneSettings(t('settings.section_rules_delivery'));
   if (!s || read !== _rulesPaneRead) return;
-  for (const [id, key] of [['s-notify-discord', 'notify_discord_webhook'],
-                           ['s-notify-tgtoken', 'notify_telegram_token'],
-                           ['s-notify-tgchat', 'notify_telegram_chat_id']]) {
+  for (const [id, key] of [['s-notify-discord', 'notify_discord_webhook']]) {
     const el = document.getElementById(id);
     if (!el) continue;
     if (s[key] !== undefined && document.activeElement !== el) el.value = s[key] || '';
@@ -1925,24 +1923,11 @@ async function loadRulesPane() {
       el.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => _patchSetting(key, el.value.trim()), 500); });
     }
   }
-  const find = document.getElementById('s-notify-tgfind');
-  if (find && !find.dataset.bound) {
-    find.dataset.bound = '1';
-    find.addEventListener('click', async () => {
-      find.disabled = true;
-      try {
-        const token = document.getElementById('s-notify-tgtoken').value.trim();
-        const response = await _fetchWithRecentOwner('/api/settings/telegram/find-chat', {
-          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || typeof data?.chat_id !== 'string') throw new Error(data?.detail || t('settings.telegram_find_failed'));
-        document.getElementById('s-notify-tgchat').value = data.chat_id;
-        await _patchSetting('notify_telegram_chat_id', data.chat_id);
-        toast(t('settings.telegram_chat_found', { name: data.name || data.chat_id }), 'success');
-      } catch (error) { toast(error.message || t('settings.telegram_find_failed'), 'error'); }
-      finally { find.disabled = false; }
-    });
+  // the telegram bot and chat are the channel's own setup, in connections
+  const open = document.getElementById('s-notify-open-connections');
+  if (open && !open.dataset.bound) {
+    open.dataset.bound = '1';
+    open.addEventListener('click', () => _switchPane('tools'));
   }
   _renderRules();
 }

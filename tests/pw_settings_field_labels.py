@@ -32,7 +32,7 @@ DOM_NAME = """el => {
 
 
 # every field the settings form shows, written out: a new, moved or removed field fails here
-# until this list says so (100 after the search address for other browsers joined andromeda; the custom engine form moved there from the search pane)
+# until this list says so (98: the telegram token and chat id left delivery for the connections pane; 100 after the search address for other browsers joined andromeda; the custom engine form moved there from the search pane)
 EXPECTED_FIELDS = {
     "ai": [
         "#settings-context-limit",
@@ -125,8 +125,6 @@ EXPECTED_FIELDS = {
         "#rule-name",
         "#rule-trigger-arg",
         "#s-notify-discord",
-        "#s-notify-tgchat",
-        "#s-notify-tgtoken",
     ],
     "security": [
         "#s-pw-new",
@@ -195,7 +193,7 @@ def run():
     for field in fields:
         found.setdefault(field["pane"], []).append(field["selector"])
     assert {pane: sorted(ids) for pane, ids in found.items()} == EXPECTED_FIELDS
-    assert len(fields) == 100
+    assert len(fields) == 98
     profiles = [(w, t, False) for w in (1440, 768, 390) for t in ("light", "dark")]
     profiles += [(1440, t, True) for t in ("light", "dark")]
     rows = []

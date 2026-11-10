@@ -4121,9 +4121,6 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .mail-or { font-size: 0.8125rem; color: var(--muted); text-align: center; }
 .mail-oauth-toggle { align-self: flex-start; }
 .conn-token-link { display: flex; justify-content: center; width: 100%; margin-bottom: 0.75rem; box-sizing: border-box; text-decoration: none; }
-.tg-chat-row { display: flex; gap: 0.5rem; }
-.tg-chat-row .settings-input { flex: 1; min-width: 0; }
-.tg-chat-row + .s-card-hint a { color: var(--text); }
 .mail-oauth-steps { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--faint); border-radius: var(--k-radius-control); background: var(--panel); color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
 .mail-oauth-steps p { margin: 0; }
 .mail-oauth-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; padding-inline-start: 1.25rem; }

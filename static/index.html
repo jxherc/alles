@@ -2813,10 +2813,10 @@
             <div class="s-card-head" data-i18n="shell.settings_rules.delivery_channels">delivery channels</div>
             <div class="s-card-body">
               <input type="text" id="s-notify-discord" aria-label="Discord webhook URL" class="settings-input" placeholder="discord webhook url" style="width:100%;margin-bottom:0.45rem" data-i18n-aria-label="shell.settings_rules.discord_webhook_url_2" data-i18n-placeholder="shell.settings_rules.discord_webhook_url">
-              <input type="text" id="s-notify-tgtoken" aria-label="Telegram bot token" class="settings-input" placeholder="telegram bot token" style="width:100%;margin-bottom:0.45rem" data-i18n-aria-label="shell.settings_rules.telegram_bot_token_2" data-i18n-placeholder="shell.settings_rules.telegram_bot_token">
-              <div class="tg-chat-row"><input type="text" id="s-notify-tgchat" aria-label="Telegram chat ID" class="settings-input" placeholder="telegram chat id" data-i18n-aria-label="shell.settings_rules.telegram_chat_id_2" data-i18n-placeholder="shell.settings_rules.telegram_chat_id"><button type="button" class="btn" id="s-notify-tgfind" data-i18n="shell.settings_rules.find_chat_id">find my chat id</button></div>
-              <p class="s-card-hint"><a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" data-i18n="shell.settings_rules.make_telegram_bot">make a bot with BotFather</a></p>
-              <p class="s-card-hint" data-i18n="shell.settings_rules.telegram_steps">paste its token above, send the bot any message in telegram, then press find my chat id.</p>
+              <div class="s-toggle-row s-action-row">
+                <div><div class="s-toggle-label" data-i18n="shell.settings_rules.telegram_is_set_up_in_connections">telegram is set up in connections</div></div>
+                <button type="button" class="btn" id="s-notify-open-connections" data-i18n="shell.settings_rules.open_connections">open connections</button>
+              </div>
             </div>
           </div>
         </div>
