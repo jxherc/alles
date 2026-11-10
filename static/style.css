@@ -11176,12 +11176,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-journal-main { grid-column: 1 / -1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .docs-journal-head { max-width: none; margin: 0; min-height: 54px; padding: 0 1rem; border-bottom: 1px solid var(--faint); }
 .docs-journal-stats { margin-left: auto; color: var(--muted); font-size: 0.8125rem; }
-.docs-journal-copy { min-height: 44px; margin: 0; padding: 0 0.5rem; font-size: 0.875rem; }
-.docs-journal-head { container-type: inline-size; flex-wrap: nowrap; }
-.docs-journal-copy { margin-inline-start: var(--k-space-2); }
-/* stats + copy + cog need ~45rem of head; under that the cog wrapped onto its own row */
-@container (max-width: 45rem) { .docs-journal-stats { display: none; } .docs-journal-copy { margin-inline-start: auto; } }
-.docs-journal-copy:focus-visible { outline: 2px solid var(--focus); outline-offset: var(--k-focus-offset, -2px); }
+.docs-journal-head { flex-wrap: nowrap; }
 .docs-journal-main #journal-body {
   flex: 1;
   min-height: 0;

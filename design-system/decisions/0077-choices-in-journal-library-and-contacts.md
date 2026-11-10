@@ -20,3 +20,5 @@ pills that never showed which one was picked.
 - the journal's mood is the dropdown: ten moods and "no mood" first, each option leading with its emoji,
   which stays the stored value. the trigger shows the pick, and an unlisted value an older entry holds
   is kept when the entry is saved.
+- "copy to Markdown" is an item in the journal settings gear's menu, not a button touching the gear.
+  focus returns to the gear when its dialog closes.

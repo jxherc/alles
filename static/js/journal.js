@@ -81,7 +81,8 @@ export async function initJournal() {
 function wireProductNavigation() {
   if (_productNavWired) return;
   _productNavWired = true;
-  document.getElementById('journal-migrate')?.addEventListener('click', openMarkdownCopy);
+  // opened from the journal settings gear's menu
+  window._journalCopyMarkdown = () => openMarkdownCopy(document.querySelector('.app-cog[data-app="journal"]'));
   window.addEventListener('beforeunload', event => {
     if (!_dirty && _saveTimer === null && _saveInFlight === null) return;
     event.preventDefault();
@@ -115,10 +116,10 @@ async function migrationRequest(url, options = {}) {
   return data;
 }
 
-async function openMarkdownCopy() {
+async function openMarkdownCopy(opener) {
   if (_copyDialogOpen) return;
   _copyDialogOpen = true;
-  const source = document.activeElement;
+  const source = opener || document.activeElement;
   while (_dirty || _saveTimer !== null || _saveInFlight !== null) {
     clearTimeout(_saveTimer);
     _saveTimer = null;

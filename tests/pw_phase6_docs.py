@@ -408,13 +408,13 @@ def run() -> None:
             "#jrnl-topics",
             "#jrnl-otd",
             "#jrnl-recent",
-            "#journal-migrate",
         ):
             assert page.locator(selector).count() == 1, selector
 
         # The explicit copy flow prepares privately, applies, and rolls back without
         # removing or changing the original Journal entry.
-        page.locator("#journal-migrate").click()
+        page.locator('.app-cog[data-app="journal"]').click()
+        page.get_by_role("button", name="copy to Markdown", exact=True).click()
         page.wait_for_selector(".jrnl-migration-layer")
         confirmation = page.locator(".jrnl-migration-confirm code").inner_text()
         page.locator(".jrnl-migration-confirm input").fill(confirmation)
