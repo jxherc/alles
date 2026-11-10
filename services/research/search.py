@@ -37,10 +37,10 @@ _KNOWN_PROVIDERS = frozenset({*BY_ID, "wikipedia"})
 # shuffled, a whole page came from whichever engine came up (yandex as often as the bing ones),
 # under wikipedia and grokipedia every time. left out: startpage (a captcha page for every
 # server request) and grokipedia (generated articles, not a search engine)
+# also left out since nov 10: mojeek and yandex. they were the last resort when the others gave
+# nothing, and what they gave was worse than nothing (shop listings for "nike", adult spam for
+# a chinese question). no results and a retry is the honest answer then
 _TEXT_ENGINES = ("wikipedia", "duckduckgo", "google", "brave", "yahoo")
-# only when the engines above gave nothing twice: their pages for a plain query are much worse
-# (shop listings for "nike", spam for a chinese question)
-_LAST_TEXT_ENGINES = ("mojeek", "yandex")
 
 # ddgs asks every engine in one "country-language" region and defaults to us-en: google then
 # returns english pages only and wikipedia is the english one, so a query in another script
@@ -81,6 +81,10 @@ class SearchReport:
     correction: str = ""
     # brave searches the fixed query itself; searxng and google pse answer for the typed one
     correction_applied: bool = False
+    # the chosen engine, when another one answered in its place, and why: "refused" (it said
+    # no to these words), "empty" (it found nothing) or "failed" (anything else)
+    backup_for: str = ""
+    backup_reason: str = ""
 
 
 class Rows(list):
@@ -98,6 +102,8 @@ class SearchChainResult(tuple):
         value.failure_type = report.failure_type
         value.attempted_sources = report.attempted_sources
         value.correction = report.correction
+        value.backup_for = report.backup_for
+        value.backup_reason = report.backup_reason
         value.correction_applied = report.correction_applied
         return value
 
@@ -380,12 +386,21 @@ async def _search_exa(query, api_key, max_results=5, category="all"):
     }
     if category == "news":
         body["category"] = "news"
+    headers = {"x-api-key": api_key, "user-agent": "aide-research/1.0"}
     async with httpx.AsyncClient(timeout=15) as c:
-        r = await c.post(
-            "https://api.exa.ai/search",
-            json=body,
-            headers={"x-api-key": api_key, "user-agent": "aide-research/1.0"},
-        )
+        r = await c.post("https://api.exa.ai/search", json=body, headers=headers)
+        # exa's error page (docs.exa.ai/reference/error-codes, read 2026-11-10): 429, 500, 503
+        # and 504 are worth another try after a pause; 403 is its content filter or the plan
+        # saying no, and asking again changes nothing
+        if r.status_code in (429, 500, 503, 504):
+            try:
+                pause = float(r.headers.get("retry-after") or 0.6)
+            except ValueError:
+                pause = 0.6
+            await asyncio.sleep(min(max(pause, 0.2), 2.0))
+            r = await c.post("https://api.exa.ai/search", json=body, headers=headers)
+        if r.status_code == 403:
+            raise SearchProviderFailure("refused")
         r.raise_for_status()
         data = r.json()
     return [
@@ -571,28 +586,89 @@ def _parse_ddg_html(html: str) -> list:
     return out
 
 
+def yahoo_phone_rows(tree) -> list[tuple[str, str, str]]:
+    """(title, link, text) rows from the page yahoo sends a phone browser. read from saved pages
+    on 2026-11-10: each result is `h3.title > a.s-title` with the title in aria-label and yahoo's
+    redirect in href, and its text in the next `p.s-desc` (a leading `span.s-time` is the date)."""
+    links = tree.xpath("//h3[contains(@class, 'title')]/a[contains(@class, 's-title')][@href]")
+    rows = []
+    for link in links:
+        title = " ".join(str(link.get("aria-label") or "".join(link.xpath("./text()"))).split())
+        body = ""
+        for text in link.xpath("following::p[contains(@class, 's-desc')][1]"):
+            owner = text.xpath("preceding::a[contains(@class, 's-title')][1]")
+            if owner and owner[0] is link:  # the text under this title, not the next result's
+                words = text.xpath(".//text()[not(ancestor::span[contains(@class, 's-time')])]")
+                body = " ".join("".join(words).split())
+        if title:
+            rows.append((title, str(link.get("href")), body))
+    return rows
+
+
+def _read_both_yahoo_pages() -> None:
+    """ddgs poses as a random browser. when that is a phone, yahoo answers with its phone page,
+    which ddgs's yahoo engine can't read: about half its replies came back as "no results"
+    (measured nov 9 and 10) and the search fell to far worse engines. this puts the same engine
+    back with a second reader for that page."""
+    try:
+        from ddgs.engines import ENGINES
+        from ddgs.engines.yahoo import Yahoo
+    except ImportError:
+        return
+    engines = ENGINES.get("text")
+    if not isinstance(engines, dict) or getattr(engines.get("yahoo"), "reads_phone_page", False):
+        return
+
+    class YahooBothPages(Yahoo):
+        reads_phone_page = True
+        # a result with a video strip under it has more than one h3 and link inside: ddgs joins
+        # them all ("4 Ways to Tie a Tie - wikiHowHow to tie a tie - YouTube"). the first is the result
+        elements_xpath = {
+            **Yahoo.elements_xpath,
+            "title": "(.//div[contains(@class, 'Title')]//h3)[1]//text()",
+            "href": "(.//div[contains(@class, 'Title')]//a/@href)[1]",
+        }
+
+        def extract_results(self, html_text):
+            rows = super().extract_results(html_text)
+            if rows:
+                return rows
+            for title, href, body in yahoo_phone_rows(self.extract_tree(html_text)):
+                row = self.result_type()
+                row.title, row.href, row.body = title, href, body
+                rows.append(row)
+            return rows
+
+    engines["yahoo"] = YahooBothPages
+
+
 def _text_backends(names=_TEXT_ENGINES):
     """the engines ddgs asks for web results, in the order given."""
     try:
         from ddgs.engines import ENGINES
     except ImportError:  # old duckduckgo_search: duckduckgo only, nothing to order
         return {}
+    _read_both_yahoo_pages()
     keys = [k for k in names if k in ENGINES.get("text", {})]
     return {"backend": ",".join(keys)} if keys else {}
 
 
 def _web_rows(d, query: str, max_results: int, region: str) -> list:
-    """web results from the keyless engines. the good ones get two tries before the last resort:
-    yahoo answers with one of several page layouts and ddgs reads only one of them, so an empty
-    reply is often a full one on the next request. a second page fills a short first one."""
-    for names in (_TEXT_ENGINES, _TEXT_ENGINES, _LAST_TEXT_ENGINES):
-        backends = _text_backends(names)
+    """web results from the keyless engines, asked up to 3 times: an engine that answered
+    nothing once (a busy moment, a page with no results in it) usually answers on the next
+    request. measured nov 10: yahoo, the one that answers from most networks, gives a readable
+    page 5 times in 6. a second page fills a short first one."""
+    backends = _text_backends()
+    rows = []
+    for _attempt in range(3):
         try:
-            rows = d.text(query, max_results=max_results, region=region, **backends)
+            found = d.text(query, max_results=max_results, region=region, **backends)
         except Exception as error:  # ddgs raises when every engine came back empty
             log.debug("keyless engines %s: %s", backends.get("backend", "default"), error)
-            rows = []
-        # wikipedia alone is one article, not a results page
+            found = []
+        rows = found or rows
+        # wikipedia alone is one article, not a results page: worth one more try, and still
+        # better than nothing if that is all there is
         if any("wikipedia.org" not in str(r.get("href") or "") for r in rows) or not backends:
             break
     if rows and len(rows) < max_results and backends:
@@ -844,6 +920,10 @@ async def search_chain_report(query, override=None, max_results=10, category="al
     )
     attempted = []
     failure_type = ""
+    # why the chosen engine did not answer, for a search it can answer (exa has no pictures or
+    # videos, so its empty hand there is no news)
+    lost = ""
+    tells = category in ("all", "news")
     # an engine can fix the spelling and still find nothing, so keep the first fix it gave
     fix = ("", False)
     for name in chain:
@@ -859,14 +939,27 @@ async def search_chain_report(query, override=None, max_results=10, category="al
                     log.info("research search fallback: %s", safe_name)
                 # a fix brave already searched doesn't describe another engine's results
                 own = bool(getattr(results, "correction", ""))
+                backup = bool(lost) and name != primary
                 return SearchReport(
-                    results, safe_name, None, "", tuple(attempted), fix[0], fix[1] and own
+                    results,
+                    safe_name,
+                    None,
+                    "",
+                    tuple(attempted),
+                    fix[0],
+                    fix[1] and own,
+                    _safe_provider_name(primary) if backup else "",
+                    lost if backup else "",
                 )
             log.warning("research search: %s returned nothing", safe_name)
+            if name == primary and tells:
+                lost = "empty"
         except Exception as error:
             current_type = _safe_failure_type(error)
             failure_type = failure_type or current_type
             log.warning("research search: %s failed (%s)", safe_name, current_type)
+            if name == primary and tells:
+                lost = "refused" if current_type == "refused" else "failed"
     if failure_type:
         safe_error = f"search providers failed ({failure_type})"
     else:

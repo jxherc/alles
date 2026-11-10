@@ -171,6 +171,14 @@ export function failureSummary(payload = {}) {
   ].filter(Boolean).join(' · ');
 }
 
+// the chosen engine did not answer and another one did: one plain line, so worse results have a reason
+export function backupNotice(result = {}) {
+  const engine = String(result.backup_for || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 40);
+  if (!engine) return '';
+  const key = { refused: 'andromeda.backup_refused', empty: 'andromeda.backup_empty' }[result.backup_reason];
+  return tr(key || 'andromeda.backup_failed', { engine });
+}
+
 function failureMessage(message, payload = {}) {
   return [message, failureSummary(payload)].filter(Boolean).join(' · ');
 }
@@ -2326,7 +2334,7 @@ export async function runAndromedaSearch(queryValue = '', options = {}) {
       : tr('andromeda.normal_hidden'));
     if (result.status === 'partial') status(tr('andromeda.partial_sources'));
     else if (result.status === 'error') status(failureMessage(tr('andromeda.search_failed'), result));
-    else status('');
+    else status(backupNotice(result));
     if (currentCategory === 'all' && result.overview_requested && _state.overviewSeed.length) {
       // the overview answers on its own; site names, links and errands get none. a tool card that
       // answers the query fully comes first, but a lookup that came up short doesn't count

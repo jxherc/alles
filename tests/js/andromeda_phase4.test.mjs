@@ -15,6 +15,7 @@ const {
   canLoadMoreResults,
   continuationQuery,
   contextClaimsForOverview,
+  backupNotice,
   failureSummary,
   formatPublishedDate,
   mediaUrl,
@@ -204,6 +205,21 @@ test('failure details name the type and bounded attempted sources', () => {
     'tried: ok, badvalue, extra, extra, extra, extra, extra, extra',
   );
   assert.equal(failureSummary({}), '');
+});
+
+test('a backup engine answering for the chosen one is said in one plain line', () => {
+  // nov 10: exa refused 3 searches and the owner only saw worse results, with no reason given
+  assert.equal(backupNotice({ backup_for: 'exa', backup_reason: 'refused' }),
+    'exa refused this search. these results are from the backup engines.');
+  assert.equal(backupNotice({ backup_for: 'exa', backup_reason: 'empty' }),
+    'exa found nothing. these results are from the backup engines.');
+  assert.equal(backupNotice({ backup_for: 'brave', backup_reason: 'failed' }),
+    "brave didn't answer. these results are from the backup engines.");
+  assert.equal(backupNotice({ backup_for: 'brave', backup_reason: 'anything else' }),
+    "brave didn't answer. these results are from the backup engines.");
+  assert.equal(backupNotice({ backup_for: '', backup_reason: 'refused' }), '');
+  assert.equal(backupNotice({ provider: 'exa' }), '');
+  assert.equal(backupNotice({ backup_for: 'ex\u0000a' + 'x'.repeat(80), backup_reason: 'refused' }).length < 120, true);
 });
 
 test('Project context accepts only UUIDs and survives an Andromeda URL', () => {

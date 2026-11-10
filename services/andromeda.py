@@ -336,6 +336,11 @@ async def normal_search(
             or ((str(provider)[:64],) if provider else ())
         ),
         "has_more": has_more,
+        # the chosen engine did not answer and another one did: the page says so
+        "backup_for": str(getattr(chain_result, "backup_for", "") or "")[:64] if results else "",
+        "backup_reason": str(getattr(chain_result, "backup_reason", "") or "")[:16]
+        if results
+        else "",
         # the engine's own spelling fix (brave, searxng, google pse), for the route to check
         **(
             {

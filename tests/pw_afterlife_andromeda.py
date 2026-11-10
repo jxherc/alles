@@ -31,6 +31,9 @@ def search_payload(body: dict) -> dict:
         "elapsed_ms": 18,
         "status": "partial" if "partial provider" in clean else "ready",
         "error": "fallback timed out" if "partial provider" in clean else "",
+        # the chosen engine said no and a backup answered
+        "backup_for": "exa" if "refused words" in clean else "",
+        "backup_reason": "refused" if "refused words" in clean else "",
     }
     if category == "images":
         results = [
@@ -680,6 +683,28 @@ def run_case(browser, *, viewport: dict, mobile: bool, theme: str, screenshot: s
         "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
     )
     check_knowledge(page, viewport, requests)
+    # worse results get their reason: one quiet line under the tabs, gone with the next search
+    page.locator("#andromeda-query").fill("refused words !ai")
+    page.locator("#andromeda-form").press("Enter")
+    page.wait_for_function(
+        "() => document.getElementById('andromeda-status').textContent.includes('exa refused')"
+    )
+    notice = page.locator("#andromeda-status")
+    assert notice.inner_text() == (
+        "exa refused this search. these results are from the backup engines."
+    )
+    notice_box = notice.bounding_box()
+    first_result = page.locator("#andromeda-results .andromeda-result").first.bounding_box()
+    assert notice_box and first_result
+    assert notice_box["y"] + notice_box["height"] <= first_result["y"]
+    assert notice_box["x"] + notice_box["width"] <= viewport["width"]
+    assert float(notice.evaluate("el => parseFloat(getComputedStyle(el).fontSize)")) >= 13
+    page.locator("#andromeda-query").fill("different !ai")
+    page.locator("#andromeda-form").press("Enter")
+    page.wait_for_function(
+        "() => !document.getElementById('andromeda-status').textContent.includes('refused')"
+        " && document.getElementById('andromeda-result-meta').textContent.trim() !== ''"
+    )
     # a search still on its way must not write over the next one being typed
     held = []
     page.route("**/api/andromeda/search", lambda route: held.append(route))

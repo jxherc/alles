@@ -1412,10 +1412,18 @@ metasearch (default, no key), exa, brave, serper (google results), deepseek, fir
 linkup, jina, tavily, an external https searxng, and google pse (google ends that api on 2027-01-01). every picker,
 key field and test reads `GET /api/search/engines`, which reports whether each engine is ready and never returns a
 key. keys are saved with `PATCH /api/settings` `search_keys` and sealed like every other secret. engines that only
-index web pages hand image and video searches to the next engine. exa uses its default "auto" mode with short highlights.
-the free metasearch asks its engines best first (wikipedia, duckduckgo, google, brave, yahoo), tries them twice
-before the last resort ones (mojeek, yandex), and searches a query written in chinese, japanese, korean, russian
-or arabic in that language's region instead of us-en.
+index web pages hand image and video searches to the next engine. exa uses its default "auto" mode with short highlights;
+a busy exa (429, 500, 503, 504) is asked once more after at most 2 seconds, and a 403 (its content filter or the plan) is a
+refusal, not retried. when the chosen engine refuses, fails or finds nothing for a web or news search and a backup engine
+answers, the reply says so (`backup_for`, `backup_reason`: refused, empty or failed) and the page shows one line under the
+tabs ("exa refused this search. these results are from the backup engines."), so worse results have a reason.
+the free metasearch asks its engines best first (wikipedia, duckduckgo, google, brave, yahoo), up to 3 times while they
+give nothing, and searches a query written in chinese, japanese, korean, russian or arabic in that language's region
+instead of us-en. yahoo is the one that answers from most networks; the library poses as a random browser, yahoo sends a
+phone browser another page, and the library read that page as empty (4 live pages in 6 on nov 10), so alles reads both
+layouts (`yahoo_phone_rows` in [services/research/search.py](services/research/search.py)). mojeek and yandex are no
+longer asked at all: as a last resort they gave shop listings and adult spam, and no results with a retry is the honest
+answer then.
 the owner can add up to 12 custom engines in settings → search: any https json api (plain http only on this
 machine), with {query} and {count} in the address or a json body, an optional key header, and dotted paths for the
 result list and its link, title and snippet. custom keys are sealed per engine; removing an engine also resets
