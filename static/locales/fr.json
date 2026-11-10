@@ -4154,6 +4154,7 @@
     "journal.mood_links": "ce qui influence ton humeur",
     "journal.mood_links_empty": "note ton humeur + habitudes/santé pendant quelques semaines pour voir les liens",
     "journal.mood_neutral": "neutre",
+    "journal.mood_none": "pas d'humeur",
     "journal.mood_sad": "triste",
     "journal.mood_thoughtful": "pensif",
     "journal.mood_tired": "fatigué",

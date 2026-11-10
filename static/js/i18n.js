@@ -4153,6 +4153,7 @@ const BUILTIN_ENGLISH = {
     "journal.mood_links": "what moves your mood",
     "journal.mood_links_empty": "log mood + habits/health for a couple weeks to see links",
     "journal.mood_neutral": "neutral",
+    "journal.mood_none": "no mood",
     "journal.mood_sad": "sad",
     "journal.mood_thoughtful": "thoughtful",
     "journal.mood_tired": "tired",

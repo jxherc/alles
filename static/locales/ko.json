@@ -4154,6 +4154,7 @@
     "journal.mood_links": "기분에 영향을 주는 것",
     "journal.mood_links_empty": "몇 주 동안 기분과 습관/건강을 기록하면 연관성을 볼 수 있습니다",
     "journal.mood_neutral": "보통",
+    "journal.mood_none": "기분 없음",
     "journal.mood_sad": "슬픔",
     "journal.mood_thoughtful": "생각 많음",
     "journal.mood_tired": "피곤",

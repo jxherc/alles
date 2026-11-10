@@ -4960,12 +4960,7 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .jrnl-date { flex: 1; min-width: 0; font-size: 1rem; font-weight: 500; color: var(--text); }
 .jrnl-words { margin-left: auto; font-size: 0.8125rem; color: var(--muted); }
 .jrnl-prompt { font-size: 0.8125rem; color: var(--muted); font-style: italic; margin-bottom: 0.7rem; }
-.jrnl-mood-label { margin: var(--k-space-3) 0 var(--k-space-2); font-size: 0.8125rem; color: var(--muted); }
-.jrnl-moods { display: flex; flex-wrap: wrap; gap: var(--k-space-1); }
-.jrnl-mood { background: none; color: var(--text); border: 1px solid transparent; border-radius: var(--k-radius-control); font: inherit; font-size: 0.8125rem; line-height: 1.4; padding: 0 var(--k-space-2); cursor: pointer; transition: border-color .15s, background .15s; }
-.jrnl-mood:hover { background: var(--k-hover, var(--panel)); }
-/* neutral selection (decision 0019) */
-.jrnl-mood.active { opacity: 1; border-color: var(--k-line-strong, var(--muted)); background: var(--k-raised, var(--panel)); -webkit-text-stroke: 0.35px currentColor; }
+.jrnl-mood { width: 12rem; max-width: 100%; margin-top: var(--k-space-3); }
 .jrnl-text { width: 100%; min-height: 12rem; resize: vertical; background: var(--panel); color: var(--text); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.9rem; font: inherit; line-height: 1.7; }
 .jrnl-text:focus { outline: none; }
 /* compact rail, like every other quick field (decision 0026) */
@@ -11745,7 +11740,7 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .cal-more-menu .ctx-item { box-sizing: border-box; font: inherit; font-size: 0.8125rem; display: flex; align-items: center; min-height: var(--ui-control-height, 44px); text-decoration: none; }
 
 /* an empty journal day is just the page: mood and tags appear once you start writing */
-.jrnl-main[data-blank="true"] :is(.jrnl-mood-label, .jrnl-moods, .jrnl-tags) { display: none; }
+.jrnl-main[data-blank="true"] :is(.jrnl-mood, .jrnl-tags) { display: none; }
 
 /* mail before the first account: only the account setup and compose */
 #mail-view[data-no-account] :is(#mail-sidebar-toggle, #mail-account, #mail-search, #mail-refresh-btn, #mail-sidebar, #mail-list) { display: none; }

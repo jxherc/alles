@@ -199,8 +199,6 @@ CHOICE_EXCEPTIONS = {
     # you pick a color by seeing it; a menu would hide it (u4)
     "js/calendar.js:cal-sw": "color swatches",
     "js/habits.js:habit-sw": "color swatches",
-    # a rating is a row of every value (owner's pick, ux laws)
-    "js/journal.js:jrnl-mood": "mood rating",
     # toggles that each turn one thing on, not one pick from a list
     "js/calendar.js:cal-dow-b": "weekday toggles, like every calendar's repeat editor",
     "js/calendar.js:cal-rem": "reminder toggles, several at once",

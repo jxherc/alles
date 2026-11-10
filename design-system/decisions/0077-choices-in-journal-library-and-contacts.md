@@ -17,3 +17,6 @@ pills that never showed which one was picked.
 - the library overview is one list: its filter chips (everything, saved, books with counts) repeated the
   tabs and are gone. when every row has the same kind the kind column ("book") says nothing, so it
   carries the status (reading, want to read, read) and the status leaves the right-hand text.
+- the journal's mood is the dropdown: ten moods and "no mood" first, each option leading with its emoji,
+  which stays the stored value. the trigger shows the pick, and an unlisted value an older entry holds
+  is kept when the entry is saved.

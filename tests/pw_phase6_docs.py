@@ -403,7 +403,7 @@ def run() -> None:
         for selector in (
             "#jrnl-search",
             "#jrnl-heatmap",
-            "#jrnl-moods",
+            "#jrnl-mood",
             "#jrnl-moodcorr",
             "#jrnl-topics",
             "#jrnl-otd",

@@ -4154,6 +4154,7 @@
     "journal.mood_links": "気分を左右するもの",
     "journal.mood_links_empty": "つながりを見るには、数週間分の気分と習慣・健康を記録してください",
     "journal.mood_neutral": "普通",
+    "journal.mood_none": "気分なし",
     "journal.mood_sad": "悲しい",
     "journal.mood_thoughtful": "考え込んでいる",
     "journal.mood_tired": "疲れ",

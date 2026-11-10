@@ -4154,6 +4154,7 @@
     "journal.mood_links": "什么影响你的心情",
     "journal.mood_links_empty": "记录几周的心情和习惯/健康数据，就能看到关联",
     "journal.mood_neutral": "平静",
+    "journal.mood_none": "无心情",
     "journal.mood_sad": "难过",
     "journal.mood_thoughtful": "若有所思",
     "journal.mood_tired": "疲惫",
