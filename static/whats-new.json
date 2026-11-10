@@ -38,6 +38,36 @@
           "key": "update_no_accept",
           "title": "updates keep themselves",
           "body": "alles update no longer ends by asking for alles update accept. the next update keeps the last one when alles is healthy, and alles update rollback still goes back."
+        },
+        {
+          "key": "easier_to_read",
+          "title": "easier to read on an ipad or phone",
+          "body": "task names, file names, amounts, tabs and button labels now read at 16px on a touch screen. times and tags stay small."
+        },
+        {
+          "key": "quieter_settings",
+          "title": "settings say less",
+          "body": "lines that only repeated the label above them are gone, and labels were rewritten to stand on their own. a status line shows only while there is something to say."
+        },
+        {
+          "key": "cleaner_rows",
+          "title": "cleaner lists",
+          "body": "task rows end at one edge with the date as plain text, home puts the schedule beside your pinned apps, and every dropdown looks like the field it is."
+        },
+        {
+          "key": "chat_newest_line",
+          "title": "a chat opens on its newest line",
+          "body": "on an iphone a chat with code in it opened a little short of its end, with the last reply under the box. it lands on the end now."
+        },
+        {
+          "key": "news_and_pictures",
+          "title": "news and pictures in the results",
+          "body": "search \"toronto news\" or \"cat pictures\" and a few headlines or pictures show among the web results."
+        },
+        {
+          "key": "uploads_dont_stall",
+          "title": "uploads don't stall the page",
+          "body": "saving a photo, a file or a vault attachment no longer makes everything else wait."
         }
       ]
     },
