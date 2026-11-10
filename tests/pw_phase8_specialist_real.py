@@ -734,14 +734,11 @@ def _group_overviews(browser: Browser, errors: list[str], width: int) -> None:
     page.wait_for_function(
         "document.querySelectorAll('.specialist-workbench-library .specialist-library-row').length === 2"
     )
-    page.locator('.specialist-workbench-library [data-value="books"]').click()
-    page.wait_for_function(
-        "document.querySelectorAll('.specialist-workbench-library .specialist-library-row').length === 1"
-    )
     assert (
         "The Dispossessed"
-        in page.locator(".specialist-workbench-library .specialist-library-row").inner_text()
+        in page.locator(".specialist-workbench-library .specialist-message-list").inner_text()
     )
+    assert page.locator('.specialist-workbench-library [data-value="books"]').count() == 0
     assert page.evaluate(
         "document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1"
     )

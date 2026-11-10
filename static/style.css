@@ -9243,7 +9243,7 @@ input.cp-swatch-input { width: 44px; min-width: 44px; height: 44px; border: 1px 
 .book-shelf { margin-bottom: 1.6rem; }
 .book-shelf-h { font-size: 0.8125rem; color: var(--muted); margin-bottom: 0.6rem; }
 .book-shelf-h span { color: var(--muted); }
-.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.7rem; }
+.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr)); gap: var(--k-space-3, 12px); }
 .book-card { display: flex; gap: 0.7rem; border: 1px solid var(--faint); border-radius: var(--k-radius-surface); background: var(--panel); padding: 0.7rem; position: relative; }
 .book-card:focus { outline: 2px solid var(--k-focus); outline-offset: var(--k-focus-offset, -2px); }
 .book-cover { width: 52px; height: 76px; object-fit: cover; border-radius: var(--k-radius-control); flex-shrink: 0; background: var(--bg); }

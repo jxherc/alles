@@ -12,3 +12,8 @@ pills that never showed which one was picked.
 
 - a book card's shelf (want, reading, read) is a pill switch and its rating is the kit's number row
   1 to 5. the row's readout is left out on the card, since it would repeat the picked number.
+- the books grid is `repeat(auto-fill, minmax(min(100%, 21rem), 1fr))`, wide enough for the number row
+  and the pill switch, with the 12px surface gap.
+- the library overview is one list: its filter chips (everything, saved, books with counts) repeated the
+  tabs and are gone. when every row has the same kind the kind column ("book") says nothing, so it
+  carries the status (reading, want to read, read) and the status leaves the right-hand text.
