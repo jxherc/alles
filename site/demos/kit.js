@@ -112,12 +112,53 @@ export function menu(button, items, onPick) {
   document.addEventListener('pointerdown', (e) => { if (list && !list.contains(e.target) && !button.contains(e.target)) close(false); });
 }
 
-// a short message at the bottom of the canvas that goes away by itself
+// a short message at the bottom of the canvas that goes away by itself. a message about what
+// alles does that this copy can't ("in alles this …") opens the install page instead
 export function toast(root, text) {
+  if (/^in alles\b/.test(text)) return needsInstall(root, text);
   root.querySelector('.dm-toast')?.remove();
   const t = h('div', { class: 'dm-toast', role: 'status', text });
   root.append(t);
   setTimeout(() => t.remove(), 2400);
+}
+
+// the page for anything that needs the real thing: searching the web, a model's answer, settings.
+// it says what alles would do, gives the install line, and goes back with back or escape
+const INSTALL = 'curl -fsSL https://raw.githubusercontent.com/jxherc/alles/main/install.sh | sh';
+let installId = 0;
+export function needsInstall(root, why) {
+  root.querySelector('.dm-install')?.remove();
+  const opener = document.activeElement;
+  const id = `dm-install-${++installId}`;
+  const copy = h('button', { type: 'button', class: 'dm-btn', text: 'copy' });
+  const how = h('button', { type: 'button', class: 'dm-btn primary', text: 'show me how' });
+  const back = h('button', { type: 'button', class: 'dm-btn quiet', text: 'back' });
+  const page = h('div', { class: 'dm-install', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': id },
+    h('h4', { id, class: 'dm-install-title', text: 'you gotta install alles for this one' }),
+    h('p', { class: 'dm-install-why', text: /[.!?]$/.test(why) ? why : why + '.' }),
+    h('div', { class: 'dm-install-cmd' }, h('code', { text: INSTALL }), copy),
+    h('div', { class: 'dm-install-actions' }, how, back));
+  const close = () => {
+    page.remove();
+    if (opener && root.contains(opener)) opener.focus({ preventScroll: true });
+  };
+  copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(INSTALL); copy.textContent = 'copied'; } catch { getSelection().selectAllChildren(page.querySelector('code')); }
+  });
+  how.addEventListener('click', () => { close(); document.dispatchEvent(new CustomEvent('alles:install')); });
+  back.addEventListener('click', close);
+  // focus stays on the page while it's open
+  page.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+    if (e.key !== 'Tab') return;
+    const stops = [copy, how, back];
+    const i = stops.indexOf(document.activeElement);
+    e.preventDefault();
+    stops[(i + (e.shiftKey ? -1 : 1) + stops.length) % stops.length].focus({ preventScroll: true });
+  });
+  root.append(page);
+  how.focus({ preventScroll: true });
+  return page;
 }
 
 // made up numbers that wander inside a range

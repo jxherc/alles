@@ -1,6 +1,6 @@
 // aide's chat, as in shots/aide.webp and shots/aide-phone.webp: a chat window with replies, a read
-// mark and a typing indicator. this copy has no model behind it, so new messages get an honest reply
-import { h, ic, glyph, css, topbar, menu, toast } from './kit.js';
+// mark and a typing indicator. this copy has no model behind it, so a new message opens the install page
+import { h, ic, glyph, css, topbar, menu, toast, needsInstall } from './kit.js';
 
 const svg = (d) => {
   const wrap = document.createElement('span');
@@ -10,11 +10,6 @@ const svg = (d) => {
 // the work and call icons are the app's own
 const workIcon = () => svg('<path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="17" r="3"/>');
 const callIcon = () => svg('<path d="M8 3H5a2 2 0 0 0-2 2c0 8.8 7.2 16 16 16a2 2 0 0 0 2-2v-3l-5-2-2 2a14 14 0 0 1-6-6l2-2-2-5Z"/>');
-
-const REPLIES = [
-  'I can’t answer that here, because this copy has no model behind it. In alles, aide answers with the model you add, and asks before it changes anything.',
-  'Still no model behind this copy, so no answer. Add one in alles and aide answers, and asks before it changes anything.',
-];
 
 export default function build(root, { variant } = {}) {
   css('aide');
@@ -125,7 +120,6 @@ export default function build(root, { variant } = {}) {
   }), { root: thread, threshold: [0, 0.5, 1] });
   const push = (el) => { stack.append(el); el.wire?.(); cut.observe(el); prune(); };
 
-  let sent = 0;
   function send() {
     const text = input.value.trim();
     if (!text) { input.focus(); return; }
@@ -136,7 +130,6 @@ export default function build(root, { variant } = {}) {
     const mine = userTurn(text);
     mine.classList.add('ai-last');
     push(mine);
-    const reply = REPLIES[sent++ % REPLIES.length];
     setTimeout(() => { mine.querySelector('.ai-read').textContent = 'read'; }, 300);
     let typing;
     setTimeout(() => {
@@ -145,8 +138,8 @@ export default function build(root, { variant } = {}) {
     }, 500);
     setTimeout(() => {
       typing?.remove();
-      push(botTurn(p(reply)));
-    }, 1600);
+      needsInstall(root, 'in alles, aide answers with the model you add, and asks before it changes anything.');
+    }, 1400);
   }
 
   const kids = [top.el, thread, composer];

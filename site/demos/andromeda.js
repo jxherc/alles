@@ -1,7 +1,7 @@
 // andromeda's search box and results view, as in shots/andromeda.webp and static/js/andromeda.js:
 // recent searches under the box, then the query, an overview with numbered sources, and the result list.
 // every site is on a reserved .example domain and every answer is made up
-import { h, ic, css, topbar, toast } from './kit.js';
+import { h, ic, css, topbar, toast, needsInstall } from './kit.js';
 
 const SEARCHES = [
   {
@@ -150,8 +150,9 @@ export default function build(root) {
   const showResults = (q) => {
     closeCard();
     const hit = find(q);
+    // only the three recent searches are in this copy; anything else needs the real andromeda
     if (!hit) {
-      col.replaceChildren(h('p', { class: 'an-status', role: 'status' }, 'this copy can’t reach the web, so there are no results for ', h('strong', { text: `“${q}”` }), '. in alles, results come from your search provider.'));
+      needsInstall(root, `in alles, andromeda searches the web for “${q}” through your search provider, with a cited overview when you want one.`);
       return;
     }
     const claims = hit.claims.flatMap((c) => [h('p', { class: 'an-claim', text: c.text }), chipRow(hit, c.cites)]);

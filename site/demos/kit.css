@@ -121,4 +121,26 @@
   animation: dm-in 200ms ease both;
 }
 @keyframes dm-in { from { opacity: 0; transform: translate(-50%, 6px); } }
-@media (prefers-reduced-motion: reduce) { .dm-toast { animation: none; } }
+
+/* the install page: covers the copy when someone tries what only the real alles can do */
+.dm-install {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  text-align: center;
+  background: color-mix(in srgb, var(--bg) 97%, transparent);
+  animation: dm-page 180ms ease both;
+}
+@keyframes dm-page { from { opacity: 0; } }
+.dm-install-title { max-width: 20em; font: 450 34px/1.1 "Besley", Georgia, serif; letter-spacing: -0.02em; text-wrap: balance; }
+.dm-install-why { max-width: 30em; color: var(--soft); text-wrap: balance; }
+.dm-install-cmd { display: flex; align-items: center; gap: 8px; max-width: min(100%, 700px); padding: 6px 6px 6px 14px; border-radius: 10px; background: var(--panel); text-align: left; }
+.dm-install-cmd code { flex: 1; min-width: 0; font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
+.dm-install-actions { display: flex; gap: 8px; }
+@media (prefers-reduced-motion: reduce) { .dm-toast, .dm-install { animation: none; } }

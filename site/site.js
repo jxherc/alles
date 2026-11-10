@@ -404,6 +404,8 @@ const nearby = new IntersectionObserver((entries) => {
 $$('[data-demo]').forEach((slot) => nearby.observe(slot));
 // a working copy can ask the page to show another app (home's pinned apps do)
 document.addEventListener('alles:open-app', (e) => $(`.apps-index a[href="#app-${e.detail}"]`)?.click());
+// and the install page inside a copy sends you to the real install steps
+document.addEventListener('alles:install', () => $('#install').scrollIntoView({ behavior: reduced.matches ? 'auto' : 'smooth' }));
 
 // warm the other screenshots once the page is idle, so the hero doesn't wait
 const warm = () => apps.forEach((a) => { new Image().src = shot(a.slot || a.id); });
