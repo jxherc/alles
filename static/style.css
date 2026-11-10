@@ -516,8 +516,8 @@ body[data-app="files"] .dialog-card { box-sizing: border-box; max-height: calc(1
 body[data-app="files"] .dialog-msg { overflow-wrap: anywhere; }
 /* one dialog footer: a quiet cancel, then the action, on the right, a control gap apart. the vault's
    own dialogs and the files dialogs draw it through the same rule */
-.dialog-btns, .vault-form-actions, .files-phase7-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--k-control-gap, 8px); }
-.dialog-btns .btn, .vault-form-actions .btn, .files-phase7-dialog-actions .btn { min-height: var(--k-control, 44px); padding-inline: var(--k-space-4, 16px); }
+.dialog-btns, .vault-form-actions, .files-phase7-dialog-actions, .docs-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--k-control-gap, 8px); }
+.dialog-btns .btn, .vault-form-actions .btn, .files-phase7-dialog-actions .btn, .docs-dialog-actions .btn { min-height: var(--k-control, 44px); padding-inline: var(--k-space-4, 16px); }
 .dialog-input { width: 100%; }
 .dialog-validated .dialog-input, .dialog-validated .btn { min-height: 44px; }
 .dialog-validation { min-height: 18px; color: var(--error); font-size: 0.8125rem; line-height: 18px; }
@@ -11136,23 +11136,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-dialog-field { display: grid; gap: 0.5rem; color: var(--muted); }
 .docs-dialog-field input { height: 36px; color: var(--text); }
 .docs-dialog-error { min-height: 1rem; margin-top: 0.4rem; color: var(--error); font-size: 0.8125rem; }
-.docs-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-/* cancel comes first and confirm last; only the confirming action carries a line */
-.docs-dialog-actions button {
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: var(--k-radius-control);
-  background: transparent;
-  color: var(--soft, var(--muted));
-  font: inherit;
-  font-size: 0.8125rem;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.docs-dialog-actions button:hover { background: var(--hover, var(--panel)); color: var(--text); }
-.docs-dialog-actions button:last-child:not(:first-child, .danger) { border-color: var(--k-line-strong, var(--muted)); color: var(--text); font-weight: 560; }
-.docs-dialog-actions button.danger { color: var(--error); }
+.docs-dialog-actions { flex-wrap: wrap; margin-top: 12px; }
 .docs-diff {
   max-height: 50dvh;
   margin-top: 0.75rem;

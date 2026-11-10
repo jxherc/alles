@@ -6400,8 +6400,7 @@ body[data-app="files"] #files-view .files-phase7-dialog {
   color: var(--k-text);
 }
 
-body[data-app="files"] #files-view .files-phase7-dialog-head,
-body[data-app="files"] #files-view .files-phase7-dialog-actions {
+body[data-app="files"] #files-view .files-phase7-dialog-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
