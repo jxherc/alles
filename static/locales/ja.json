@@ -419,7 +419,6 @@
     "tasks.title": "タスク",
     "tasks.title_label": "タスク名",
     "tasks.tomorrow": "明日",
-    "tasks.move_named": "{task} を{day}に移動",
     "tasks.more_named": "{task} のその他",
     "tasks.deleted_named": "「{task}」を削除しました",
     "tasks.overdue_count": "期限切れ · {count}",

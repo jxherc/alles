@@ -263,3 +263,13 @@ test('from 8 pm home leads with tomorrow', async () => {
   assert.match(source, /order\.splice\(order\.indexOf\('today'\), 0, 'tomorrow'\)/);
   assert.match(source, /\/api\/today\?date=\$\{addDays\(date, 1\)\}/);
 });
+
+test('home rows end at one edge and do not repeat their group (0072)', () => {
+  const source = readFileSync(new URL('../../static/js/today.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../../static/revamp.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /class="today-snooze" type="button" data-snooze/, 'tomorrow lives in the details and the swipe');
+  assert.doesNotMatch(source, /home\.overdue'\)\} · /, 'the overdue group names it once');
+  assert.doesNotMatch(source, /<small>\$\{esc\(t\('calendar\.title'\)\)\}<\/small>/, 'an event does not say calendar');
+  assert.doesNotMatch(source, /<small>\$\{esc\(appDesc/, 'a pinned app is its mark and name');
+  assert.doesNotMatch(css, /column-count/, 'home is a main and a side column, not css columns');
+});

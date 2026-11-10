@@ -1,6 +1,6 @@
 import { calendarDateKey, chosenTimeZone, formatCalendarDate, formatClock, formatDate, formatDateParts, formatDateTime, t, tp } from './i18n.js';
 import { autosizeTextarea, wireAutosizeTextarea } from './text_entry.js?v=1';
-import { appDesc, appLabel, toast } from './util.js';
+import { appLabel, toast } from './util.js';
 import { appGlyph } from './icons.js';
 import { addDays, whenDay, whenFull, whenTime } from './when.js';
 import { checkHabit, openTaskDetails, wireSwipe } from './act_row.js';
@@ -160,37 +160,47 @@ export function orderedVisibleHomeSections(value) {
   return (value?.order || Object.keys(SECTION_LABELS)).filter(key => visible.has(key));
 }
 
-function dayRow(item, extra = '') {
+// a row doesn't say what its group or the page already says: no "today" under today's schedule,
+// no "not done" on a habit that is still to do, and no kind word ("calendar") under an event
+function rowWords(item) {
+  if (item.kind === 'habit') return '';
+  if ((item.kind === 'renewal' || item.kind === 'date') && item.meta === t('common.today')) return '';
+  return item.meta;
+}
+
+function dayRow(item) {
+  const words = rowWords(item);
   return `<button class="today-row${item.urgent ? ' urgent' : ''}" type="button" data-view="${esc(item.view)}" data-record="${esc(item.id || '')}" data-occurrence="${esc(item.occurrence || '')}">
-    <span><b>${esc(item.title)}</b>${extra}</span>${item.lines ? `<em title="${esc(item.meta)}">${item.lines.map(esc).join('<br>')}</em>` : `<em>${esc(item.meta)}</em>`}
+    <span><b>${esc(item.title)}</b></span>${item.lines ? `<em title="${esc(item.meta)}">${item.lines.map(esc).join('<br>')}</em>` : (words ? `<em>${esc(words)}</em>` : '')}
   </button>`;
 }
 
-// a task on home: check it off or move it to tomorrow right here (u.01); the row opens it
-function taskRow(item, { tomorrow = false } = {}) {
-  const meta = item.urgent ? `${t('home.overdue')} · ${whenDay(item.due)}${item.time ? ` ${whenTime(item.time)}` : ''}`
-    : item.time ? whenTime(item.time) : (tomorrow ? '' : t('common.today'));
+// a task on home: check it off right here (u.01); the row opens its details, which hold
+// "tomorrow", and on touch a swipe left does it. the row says the day once, only when late (the
+// overdue group names it), and the time when it has one
+function taskRow(item) {
+  const meta = [item.urgent ? whenDay(item.due) : '', item.time ? whenTime(item.time) : ''].filter(Boolean).join(' ');
   return `<div class="today-task${item.urgent ? ' urgent' : ''}" data-task="${esc(item.id)}">
     <button class="today-check" type="button" data-check="${esc(item.id)}" aria-label="${esc(t('tasks.mark_complete', { task: item.title }))}"></button>
     <button class="today-row today-task-open" type="button" data-view="tasks" data-record="${esc(item.id)}"><span><b>${esc(item.title)}</b>${meta ? `<small>${esc(meta)}</small>` : ''}</span></button>
-    ${tomorrow ? '' : `<button class="today-snooze" type="button" data-snooze="${esc(item.id)}" aria-label="${esc(t('tasks.move_named', { task: item.title, day: t('tasks.reschedule.tomorrow') }))}">${esc(t('tasks.reschedule.tomorrow'))}</button>`}
   </div>`;
 }
 
 // a habit on home (u.01): a plain check is checked off right here, with undo in the row; a
-// habit with its own log (gym, water, sleep) opens where its logger lives
+// habit with its own log (gym, water, sleep) opens where its logger lives. the empty mark says
+// it isn't done, so the row doesn't
 function habitRow(item) {
   const label = t('habits.day_not_completed', { name: item.title, date: t('habits.today') });
   return `<div class="today-task today-habit" data-habit="${esc(item.id)}">
     <button class="today-check" type="button" data-habit-check="${esc(item.id)}" aria-label="${esc(label)}"></button>
-    <button class="today-row today-task-open" type="button" data-view="habits" data-record="${esc(item.id)}"><span><b>${esc(item.title)}</b><small>${esc(item.meta)}</small></span></button>
+    <button class="today-row today-task-open" type="button" data-view="habits" data-record="${esc(item.id)}"><span><b>${esc(item.title)}</b></span></button>
   </div>`;
 }
 
-function scheduleRow(item, options) {
-  if (item.kind === 'task' && item.id) return taskRow(item, options);
+function scheduleRow(item) {
+  if (item.kind === 'task' && item.id) return taskRow(item);
   if (item.kind === 'habit' && item.id && item.habitKind === 'check') return habitRow(item);
-  return dayRow(item, item.kind === 'event' ? `<small>${esc(t('calendar.title'))}</small>` : '');
+  return dayRow(item);
 }
 
 function nowHHMM(now = new Date()) {
@@ -203,6 +213,7 @@ function scheduleBody(rows, now = new Date()) {
   const { late, left, past, nowAt } = homeTimeline(rows, hhmm);
   const line = `<div class="today-now" role="presentation"><span>${esc(t('home.now'))}</span></div>`;
   const body = [
+    ...(late.length ? [`<h3 class="today-group">${esc(t('home.overdue'))}</h3>`] : []),
     ...late.map(item => scheduleRow(item)),
     ...left.flatMap((item, index) => (index === nowAt ? [line, scheduleRow(item)] : [scheduleRow(item)])),
     ...(nowAt === left.length ? [line] : []),
@@ -238,7 +249,7 @@ function shortcutRows() {
   const byView = new Map(apps.map(item => [item.view, item]));
   const selected = (preferences?.shortcuts || []).map(view => byView.get(view)).filter(Boolean);
   if (!selected.length) return `<p class="today-empty">${esc(t('home.no_pinned_apps'))}</p>`;
-  return `<div class="today-shortcuts">${selected.map(item => `<button class="today-shortcut" type="button" data-view="${esc(item.view)}"><span class="today-shortcut-glyph">${appGlyph(item.view)}</span><b>${esc(appLabel(item.name))}</b><small>${esc(appDesc(item.desc))}</small></button>`).join('')}</div>`;
+  return `<div class="today-shortcuts">${selected.map(item => `<button class="today-shortcut" type="button" data-view="${esc(item.view)}"><span class="today-shortcut-glyph">${appGlyph(item.view)}</span><b>${esc(appLabel(item.name))}</b></button>`).join('')}</div>`;
 }
 
 function pinnedAppsSection() {
@@ -361,10 +372,9 @@ async function checkHabitRow(button) {
   });
 }
 
-async function snoozeTask(button) {
-  button.disabled = true;
-  try { await patchTask(button.dataset.snooze, { due_date: addDays(calendarDateKey(), 1) }); }
-  catch (error) { button.disabled = false; showStatus(error.message, true); return; }
+async function snoozeTask(id) {
+  try { await patchTask(id, { due_date: addDays(calendarDateKey(), 1) }); }
+  catch (error) { showStatus(error.message, true); return; }
   showStatus(t('tasks.moved_to', { day: whenDay(addDays(calendarDateKey(), 1)) }), true);
   await load();
 }
@@ -399,7 +409,7 @@ function render() {
       'tomorrow',
       t('home.tomorrow'),
       whenFull(tomorrowDay.date),
-      tomorrowRows(tomorrowDay).map(item => scheduleRow(item, { tomorrow: true })).join('') || `<p class="today-empty">${esc(t('home.nothing_tomorrow'))}</p>`,
+      tomorrowRows(tomorrowDay).map(item => scheduleRow(item)).join('') || `<p class="today-empty">${esc(t('home.nothing_tomorrow'))}</p>`,
       'today-schedule today-tomorrow',
     ) : '',
     in_progress: section(
@@ -426,12 +436,11 @@ function render() {
     .filter(key => (key !== 'in_progress' || running.length) && (key !== 'briefs' || briefs.length))
     .map(key => blocks[key]).filter(Boolean).join('') + suggestionSection();
   root.querySelectorAll('[data-check]').forEach(button => button.addEventListener('click', () => checkTask(button)));
-  root.querySelectorAll('[data-snooze]').forEach(button => button.addEventListener('click', () => snoozeTask(button)));
   root.querySelectorAll('[data-habit-check]').forEach(button => button.addEventListener('click', () => checkHabitRow(button)));
-  // swipe on touch: right is done, left is tomorrow, the same as the row's two buttons
+  // swipe on touch: right is done, left is tomorrow (the details panel has it too); tomorrow's own rows stay
   root.querySelectorAll('.today-task[data-task]').forEach(row => wireSwipe(row, {
     right: () => row.querySelector('[data-check]')?.click(),
-    left: () => row.querySelector('[data-snooze]')?.click(),
+    left: () => { if (!row.closest('.today-tomorrow') && !row.classList.contains('today-done')) snoozeTask(row.dataset.task); },
   }));
   root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', async () => {
     // a task's details open over home (u.01); edit still goes to the full editor in plan

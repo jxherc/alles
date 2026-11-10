@@ -419,7 +419,6 @@
     "tasks.title": "tâches",
     "tasks.title_label": "titre de la tâche",
     "tasks.tomorrow": "demain",
-    "tasks.move_named": "déplacer {task} à {day}",
     "tasks.more_named": "plus pour {task}",
     "tasks.deleted_named": "« {task} » supprimée",
     "tasks.overdue_count": "en retard · {count}",

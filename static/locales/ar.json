@@ -419,7 +419,6 @@
     "tasks.title": "المهام",
     "tasks.title_label": "عنوان المهمة",
     "tasks.tomorrow": "غدًا",
-    "tasks.move_named": "انقل {task} إلى {day}",
     "tasks.more_named": "المزيد لـ {task}",
     "tasks.deleted_named": "حُذفت «{task}»",
     "tasks.overdue_count": "متأخرة · {count}",
