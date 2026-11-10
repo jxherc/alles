@@ -485,15 +485,21 @@ def run():
                 expect(page.locator('.cal-dow-b[data-i="1"]')).to_have_attribute(
                     "aria-pressed", "true"
                 )
-                tab_to('.cal-rem[data-m="60"]')
+                # reminders are a pick several dropdown: arrow to 1h, space toggles it, the list stays open
+                tab_to("#cal-reminders")
+                page.keyboard.press("Enter")
+                page.keyboard.press("ArrowDown")
+                page.keyboard.press("ArrowDown")
                 page.keyboard.press("Space")
+                page.keyboard.press("Escape")
+                expect(page.locator("#cal-reminders")).to_have_attribute("data-value", "10;60")
                 tab_to('.cal-sw[data-c="tomato"]')
                 page.keyboard.press("Space")
                 expect(page.locator('.cal-sw[data-c="tomato"]')).to_have_attribute(
                     "aria-pressed", "true"
                 )
                 for control in page.locator(
-                    "#cal-allday,.cal-dow-b,.cal-rem,#cal-colors .cal-sw"
+                    "#cal-allday,.cal-dow-b,#cal-reminders,#cal-colors .cal-sw"
                 ).all():
                     rect = control.bounding_box()
                     assert rect["width"] >= 44 and rect["height"] >= 44, rect
@@ -534,9 +540,7 @@ def run():
                 expect(page.locator('.cal-dow-b[data-i="1"]')).to_have_attribute(
                     "aria-pressed", "true"
                 )
-                expect(page.locator('.cal-rem[data-m="60"]')).to_have_attribute(
-                    "aria-pressed", "true"
-                )
+                expect(page.locator("#cal-reminders")).to_have_attribute("data-value", "10;60")
                 expect(page.locator('.cal-sw[data-c="tomato"]')).to_have_attribute(
                     "aria-pressed", "true"
                 )

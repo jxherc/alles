@@ -156,13 +156,13 @@ def run():
                                 "document.querySelector('#calendar-list .cal-grid').getBoundingClientRect().top"
                             )
                             assert top <= 230, top
-                            rows = page.evaluate(
+                            edges = page.evaluate(
                                 """() => ['#cal-prev', '#cal-view', '#cal-new-btn'].map(s => {
                                 const r = document.querySelector(s).getBoundingClientRect();
                                 return [Math.round(r.left), Math.round(r.top)]; })"""
                             )
-                            assert rows[0][0] == rows[1][0] == 16, rows  # the page gutter
-                            assert rows[1][1] > rows[0][1] and rows[2][1] == rows[1][1], rows
+                            assert edges[0][0] == edges[1][0] == 16, edges  # the page gutter
+                            assert edges[1][1] > edges[0][1] and edges[2][1] == edges[1][1], edges
                         search.press("Enter")
                         expect(page.locator("#cal-search")).to_be_focused()
                         page.locator("#cal-search").press("Escape")
@@ -320,7 +320,9 @@ def run():
                     expect(more).to_be_focused()
                     menu_item("#cal-settings-btn").press("Enter")
                     expect(page.locator(".app-settings-pop")).to_be_visible()
-                    page.locator("#cal-month-label").click()
+                    # a click outside the popover closes it; at 200% zoom the popover lies over the
+                    # month label, so the click is sent to the label itself
+                    page.locator("#cal-month-label").dispatch_event("click")
                     expect(page.locator(".app-settings-pop")).to_have_count(0)
                     today = (
                         api.get(base + "/api/calendar").json()[0]["start_dt"][:10].replace("-", "")
