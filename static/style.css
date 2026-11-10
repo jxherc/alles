@@ -8159,17 +8159,25 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 .mem-cat-cycle { font-size: 0.8125rem; flex-shrink: 0; color: var(--text); border-color: var(--line-strong); }
 /* 8a — vault toolbar: unified icons, switcher reads as a chip-button, settings rightmost */
 .vault-toolbar {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
-  gap: 0.4rem; margin-left: auto; min-width: 0; max-width: 100%;
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: var(--k-control-gap); margin-left: auto; min-width: 0; max-width: 100%;
 }
 #vault-view .vault-toolbar > button,
-#vault-view .vault-toolbar > .vault-switcher {
+#vault-view .vault-toolbar > .vault-switcher,
+#vault-view .vault-more-wrap > button {
   min-height: 44px; max-width: 100%;
 }
-#vault-view .vault-toolbar > button { flex: 0 0 auto; white-space: nowrap; }
+#vault-view .vault-toolbar > button,
+#vault-view .vault-more-wrap { flex: 0 0 auto; white-space: nowrap; }
+#vault-view .vault-toolbar > .vault-switcher { flex: 0 1 auto; min-width: 8rem; }
 @media (max-width: 640px) {
   #vault-view .vault-toolbar { width: 100%; margin-left: 0; justify-content: flex-start; }
+  #vault-view .vault-toolbar > .vault-switcher { flex: 1 1 0; min-width: 0; }
 }
+.vault-more-wrap { position: relative; }
+.vault-more-menu { position: absolute; top: 100%; right: 0; z-index: 10; min-width: 180px; max-width: calc(100vw - 24px); max-height: min(360px, calc(100dvh - 96px)); overflow-y: auto; }
+.vault-more-menu .ctx-item { display: flex; align-items: center; gap: var(--k-space-2); white-space: nowrap; }
+.vault-more-menu .ic { width: 14px; height: 14px; flex-shrink: 0; }
 #vault-view .page-view-head .ic-btn-lbl .ic { width: 13px; height: 13px; }
 /* the switcher is `.custom-select` WITHOUT `.settings-input`, so it misses the base position/padding —
    set them here so the chevron anchors inside the chip and the name isn't flush against the border */
@@ -8182,7 +8190,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 }
 .vault-switcher:hover { border-color: var(--muted); }
 .vault-switcher .custom-select-label { font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#vault-view #vault-manage-btn { margin-left: 0; }
 .mv-row .chip.ic-btn-lbl .ic { width: 12px; height: 12px; }
 .mv-row .chip.ic-btn-lbl { gap: 6px; min-height: 44px; }
 #vf-gen .ic { width: 12px; height: 12px; }

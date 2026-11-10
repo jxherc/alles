@@ -3,7 +3,7 @@ import { confirm, pick } from './dialog.js';
 import { MODEL_PROVIDERS } from './model_providers.js';
 import { getDropdownValue, populateDropdown, initCustomDropdown } from './dropdown.js?v=217';
 import { formatDateTime, formatNumber, t, tp } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=5';
+import { createFocusBoundary, wireActionMenu } from './kokuen.js?v=5';
 import { requestWithRecentOwner } from './recent_owner.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
@@ -220,7 +220,7 @@ export async function loadVaultView(fetcher = fetch) {
   locked.style.display   = _unlocked ? 'none' : 'flex';
   unlocked.style.display = _unlocked ? 'flex' : 'none';
   // controls that only make sense once unlocked
-  for (const id of ['vault-new-btn', 'vault-lock-btn', 'vault-watchtower-btn',
+  for (const id of ['vault-new-btn', 'vault-lock-btn', 'vault-more-wrap', 'vault-watchtower-btn',
                     'vault-switcher', 'vault-add-btn', 'vault-travel-btn',
                     'vault-manage-btn', 'vault-bio-add-btn']) {
     const el = $(id); if (el) el.style.display = _unlocked ? '' : 'none';
@@ -318,6 +318,7 @@ export function initVault() {
   $('vault-manage-btn')?.addEventListener('click', _manageVaults);
   $('vault-bio-add-btn')?.addEventListener('click', _enableBiometric);
   $('vault-bio-unlock-btn')?.addEventListener('click', _bioUnlock);
+  wireActionMenu($('vault-more-btn'), $('vault-more-menu'));
   $('vault-pw-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
   $('vault-pw-confirm')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
   // a message about the last try clears once either field changes, so it never describes old input.
@@ -351,6 +352,8 @@ async function _loadVaults(fetcher = fetch) {
 function _renderSwitcher() {
   const sel = $('vault-switcher');
   if (!sel) return;
+  // one vault needs no picker; "+ vault" in the menu makes the second
+  sel.style.display = _unlocked && _vaults.length > 1 ? '' : 'none';
   const opts = _vaults.map(v => ({ value: v.id, label: v.name }));
   // travel-safe vaults get a plane icon via the dropdown's per-option icon map (was a plane text suffix)
   sel._iconHtml = Object.fromEntries(_vaults.filter(v => v.travel_safe).map(v => [v.id, _si('plane')]));

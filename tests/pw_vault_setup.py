@@ -168,6 +168,7 @@ def run():
             passed(record)
 
             record = begin("password-change-recovery")
+            page.locator("#vault-more-btn").click()
             page.locator("#vault-manage-btn").click()
             page.locator('[data-chpw="default"]').click()
             page.locator("#np-0").fill(password)

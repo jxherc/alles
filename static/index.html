@@ -1102,14 +1102,19 @@
       <div class="page-view-head">
         <span class="page-view-title" data-i18n="common.secrets">secrets</span>
         <span class="vault-toolbar">
-          <div class="custom-select vault-switcher" id="vault-switcher" aria-label="vault" data-i18n-aria-label="vault.vault" style="display:none;min-width:130px"></div>
-          <button type="button" class="btn" id="vault-add-btn" style="display:none" title="new vault" data-i18n="shell.vault.vault" data-i18n-title="shell.vault.new_vault">+ vault</button>
-          <button type="button" class="btn ic-btn-lbl" id="vault-travel-btn" style="display:none" title="Travel Mode: hide vaults not marked travel-safe" data-i18n="shell.vault.travel" data-i18n-title="shell.vault.travel_mode_hide_vaults_not_marked">travel</button>
-          <button type="button" class="btn ic-btn-lbl" id="vault-bio-add-btn" style="display:none" title="enable biometric unlock for this vault" data-i18n="shell.vault.biometric" data-i18n-title="shell.vault.enable_biometric_unlock_for_this_vault">biometric</button>
+          <div class="custom-select vault-switcher" id="vault-switcher" aria-label="vault" data-i18n-aria-label="vault.vault" style="display:none"></div>
           <button type="button" class="btn primary" id="vault-new-btn" style="display:none" data-i18n="shell.vault.new">+ new</button>
-          <button type="button" class="btn ic-btn-lbl" id="vault-watchtower-btn" style="display:none" title="security check" data-i18n="shell.vault.watchtower" data-i18n-title="shell.vault.security_check">watchtower</button>
           <button type="button" class="btn" id="vault-lock-btn" style="display:none" data-i18n="shell.vault.lock">lock</button>
-          <button type="button" class="btn ic-btn-lbl" id="vault-manage-btn" style="display:none" title="vault settings" data-i18n="common.settings" data-i18n-title="shell.vault.vault_settings">settings</button>
+          <div class="vault-more-wrap" id="vault-more-wrap" style="display:none">
+            <button type="button" class="btn" id="vault-more-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="vault-more-menu" data-i18n="common.more">more</button>
+            <div class="ctx-menu vault-more-menu" id="vault-more-menu" role="menu" aria-labelledby="vault-more-btn" hidden>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-add-btn" title="new vault" data-i18n="shell.vault.vault" data-i18n-title="shell.vault.new_vault">+ vault</button>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-travel-btn" title="Travel Mode: hide vaults not marked travel-safe" data-i18n="shell.vault.travel" data-i18n-title="shell.vault.travel_mode_hide_vaults_not_marked">travel</button>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-bio-add-btn" style="display:none" title="enable biometric unlock for this vault" data-i18n="shell.vault.biometric" data-i18n-title="shell.vault.enable_biometric_unlock_for_this_vault">biometric</button>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-watchtower-btn" title="security check" data-i18n="shell.vault.watchtower" data-i18n-title="shell.vault.security_check">watchtower</button>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-manage-btn" title="vault settings" data-i18n="common.settings" data-i18n-title="shell.vault.vault_settings">settings</button>
+            </div>
+          </div>
         </span>
       </div>
       <div id="vault-locked" class="vault-lock-screen">
