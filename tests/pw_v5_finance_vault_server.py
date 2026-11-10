@@ -163,7 +163,9 @@ def _finance_recent_owner(page: Page) -> None:
     page.locator("#finance-view").wait_for(state="visible")
     page.get_by_role("link", name="ledger setup", exact=True).click()
     row = page.locator("#s-ledger .conn-catalog-row .btn")
-    page.locator("#s-ledger .conn-catalog-row .btn, #s-ledger .finance-actual-panel").first.wait_for(state="visible")
+    page.locator(
+        "#s-ledger .conn-catalog-row .btn, #s-ledger .finance-actual-panel"
+    ).first.wait_for(state="visible")
     if row.count():
         row.click()
     page.locator("#s-ledger .finance-actual-panel").wait_for(state="visible")

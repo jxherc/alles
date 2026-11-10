@@ -334,7 +334,9 @@ def run():
                     for field in [f for f in fields if f["pane"] == pane]:
                         inspect(field)
                     if pane == "models":
-                        page.locator('#s-ep-signin [data-act="setup"][data-provider="google"]').click()
+                        page.locator(
+                            '#s-ep-signin [data-act="setup"][data-provider="google"]'
+                        ).click()
                         expect(page.locator("#s-gemini-oauth-panel")).to_be_visible()
                         for ident in (
                             "s-gemini-client-id",

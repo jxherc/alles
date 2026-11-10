@@ -4418,7 +4418,9 @@ def exercise(page, api, endpoint, destination):
     pane("agent")
     status_line = page.locator("#agent-status-line")
     expect(page.locator("#agent-status-line #example-connection-label")).to_have_count(0)
-    expect(status_line).to_have_text(f"opencode installed · mcp 3 · skills 2 · connections github, {connection_name}")
+    expect(status_line).to_have_text(
+        f"opencode installed · mcp 3 · skills 2 · connections github, {connection_name}"
+    )
     expect(page.locator("#agent-tools-summary")).to_have_text("17 tools")
     expect(page.locator("#agent-tool-list")).to_have_text("example-tool")
     page.locator("#agent-status-refresh-btn").click()
