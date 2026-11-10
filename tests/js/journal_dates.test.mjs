@@ -43,7 +43,7 @@ test('journal saves to the day captured before the request starts', () => {
 });
 
 test('journal flushes edits before migration and preserves drafts across a lock transition', () => {
-  const migration = source.match(/async function openMarkdownCopy\(\)[\s\S]*?\n}\n\nasync function/)?.[0] || '';
+  const migration = source.match(/async function openMarkdownCopy\(opener\)[\s\S]*?\n}\n\nasync function/)?.[0] || '';
   assert.match(migration, /while \(_dirty \|\| _saveTimer !== null \|\| _saveInFlight !== null\)/);
   assert.match(migration, /if \(!await save\(false\)\)/);
   assert.ok(migration.indexOf('await save(false)') < migration.indexOf("'/api/journal-migration/plan'"));
