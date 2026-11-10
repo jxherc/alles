@@ -32,7 +32,7 @@ DOM_NAME = """el => {
 
 
 # every field the settings form shows, written out: a new, moved or removed field fails here
-# until this list says so (99 after telegram's bot token joined the tools section)
+# until this list says so (100 after the search address for other browsers joined andromeda)
 EXPECTED_FIELDS = {
     "ai": [
         "#settings-context-limit",
@@ -42,6 +42,7 @@ EXPECTED_FIELDS = {
         "#s-andromeda-exa-key",
         "#s-andromeda-google-cx",
         "#s-andromeda-google-key",
+        "#s-andromeda-search-url",
         "#s-andromeda-searxng-url",
         "#s-andromeda-serper-key",
         "#s-andromeda-tavily-key",
@@ -196,7 +197,7 @@ def run():
     for field in fields:
         found.setdefault(field["pane"], []).append(field["selector"])
     assert {pane: sorted(ids) for pane, ids in found.items()} == EXPECTED_FIELDS
-    assert len(fields) == 99
+    assert len(fields) == 100
     profiles = [(w, t, False) for w in (1440, 768, 390) for t in ("light", "dark")]
     profiles += [(1440, t, True) for t in ("light", "dark")]
     rows = []
