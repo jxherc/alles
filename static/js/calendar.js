@@ -1,6 +1,6 @@
 import { plainError, toast, writeClipboard } from './util.js';
 import { replaceLinkedRecord } from './recordlinks.js';
-import { initCustomDropdown } from './dropdown.js?v=217';
+import { initCustomDropdown, populateDropdown, getDropdownValue } from './dropdown.js?v=217';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=5';
@@ -93,6 +93,7 @@ let _draftSnapshot = '';
 let _loadSequence = 0;
 let _editOcc = null;             // occurrence date when editing a recurring instance
 let _cursor = _calendarNow();
+const _VIEWS = ['month', 'week', 'day', 'agenda', 'year'];
 let _view = localStorage.getItem('cal-view') || 'month';
 let _viewBooted = false;          // has loadCalendar seeded the view once this session
 let _lastDefaultView = null;      // last cal_default_view we applied (detects a cog change)
@@ -485,9 +486,13 @@ function _bindNav() {
   document.getElementById('cal-prev')?.addEventListener('click', () => shift(-1));
   document.getElementById('cal-next')?.addEventListener('click', () => shift(1));
   document.getElementById('cal-today')?.addEventListener('click', () => { _cursor = _calendarNow(); _miniCursor = _calendarNow(); render(); renderMini(); });
-  document.querySelectorAll('#cal-view .seg-opt').forEach(b =>
-    b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
-  _syncViewBtns();
+  // 5 views: the dropdown (decision 0050), and the saved view survives a reload
+  document.getElementById('cal-view')?.addEventListener('change', () => {
+    const next = getDropdownValue(document.getElementById('cal-view'));
+    if (!next || next === _view) return;
+    _view = next; localStorage.setItem('cal-view', _view); render();
+  });
+  _syncViewBtns(true);
   const tools = document.getElementById('cal-tools');
   const toolsToggle = document.getElementById('cal-tools-toggle');
   const setToolsOpen = open => {
@@ -522,6 +527,7 @@ function _bindNav() {
   document.getElementById('cal-find')?.addEventListener('click', findTime);
   window.addEventListener('alles:localization-change', event => {
     _weekStart = resolveCalendarWeekStart(event.detail || {});
+    _syncViewBtns(true);
     renderSidebar();
     render();
   });
@@ -664,8 +670,12 @@ function _bindNav() {
   }
 }
 
-function _syncViewBtns() {
-  document.querySelectorAll('#cal-view .seg-opt').forEach(b => { b.classList.toggle('active', b.dataset.view === _view); b.setAttribute('aria-pressed', String(b.dataset.view === _view)); });
+// labels are read at call time, so a language change passes true to redraw them
+function _syncViewBtns(labels = false) {
+  const pick = document.getElementById('cal-view');
+  if (!pick) return;
+  if (labels || pick.dataset.dropdownReady !== '1') populateDropdown(pick, _VIEWS.map(value => ({ value, label: tr(`calendar.${value}`) })), _view);
+  else pick.value = _view;
 }
 
 function shift(dir) {

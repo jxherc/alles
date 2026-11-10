@@ -113,10 +113,11 @@ def settle(page):
 
 
 def pick_view(page, name):
-    button = page.locator(f'#cal-view .seg-opt[data-view="{name}"]')
-    if button.get_attribute("aria-pressed") != "true":
-        button.click()
-    expect(button).to_have_attribute("aria-pressed", "true")
+    pick = page.locator("#cal-view")
+    if pick.get_attribute("data-value") != name:
+        pick.click()
+        page.get_by_role("option", name=name, exact=True).click()
+    expect(pick).to_have_attribute("data-value", name)
 
 
 def go_to_month(page, when):
@@ -181,9 +182,7 @@ def month(page, eid, sat, span, outside, profile, output):
     else:
         # "+N more" opens that day with focus on its first all-day item: the trip
         first.locator(".cal-more").click()
-        expect(page.locator('#cal-view .seg-opt[data-view="day"]')).to_have_attribute(
-            "aria-pressed", "true"
-        )
+        expect(page.locator("#cal-view")).to_have_attribute("data-value", "day")
         found = page.locator(f'.cal-tg-allday[data-date="{span[0]}"] .cal-allday-ev')
         expect(found).to_have_attribute("data-id", eid)
         expect(found).to_be_focused()

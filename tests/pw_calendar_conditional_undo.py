@@ -308,7 +308,8 @@ def run():
                         retained = saved()
                         assert normal["id"] not in retained and retained[original["id"]] == newer
                         row["retained_after_reload"] = retained[original["id"]]
-                        page.locator('#cal-view [data-view="agenda"]').click()
+                        page.locator("#cal-view").click()
+                        page.get_by_role("option", name="agenda", exact=True).click()
                         event_row = page.locator(f'.cal-agenda-ev[data-id="{original["id"]}"]')
                         expect(event_row.locator(".cal-agenda-title")).to_have_text(newer["title"])
                         event_row.tap() if width == 390 else event_row.click()

@@ -280,6 +280,7 @@
     "calendar.sync_help": "synchronisation CalDAV",
     "calendar.task_title": "tâche : {title}",
     "calendar.title": "calendrier",
+    "calendar.view_label": "affichage",
     "calendar.week": "semaine",
     "calendar.year": "année",
     "home.all_day": "toute la journée",

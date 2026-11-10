@@ -6681,8 +6681,6 @@ button.cal-task { width: 100%; margin: 0; padding-inline-start: 6px; border: 0; 
   #calendar-view .page-view-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--k-space-2, 8px); }
   .cal-date-controls { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2, 8px); min-width: 0; }
   .cal-date-controls .cal-month-title { min-width: 0; white-space: normal; text-align: end; }
-  /* the picked view is a raised segment, so the row starts on the column edge (0043) */
-  #cal-view { width: 100%; flex-wrap: wrap; }
   .cal-primary-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2, 8px); }
   #cal-tools-toggle { display: inline-flex; align-items: center; min-height: var(--k-control, 44px); }
   #cal-tools { display: none; }
@@ -6701,14 +6699,8 @@ button.cal-task { width: 100%; margin: 0; padding-inline-start: 6px; border: 0; 
   #money-view #money-manage-toggle { grid-row: 1; }
   #money-view .money-monthnav { grid-column: 1 / -1; grid-row: 2; }
 }
-/* 5c — calendar view switcher is the shared segmented control, sized a touch larger than seg-sm */
-.seg.seg-cal { display: inline-flex; flex-shrink: 0; }
-.seg.seg-cal .seg-opt { flex: 0 0 auto; padding: 0 12px; font-size: 0.8125rem; letter-spacing: 0; white-space: nowrap; }
-/* a 320px phone is about 15px short of the five views on one line at the touch type size (0044);
-   7px a side fits them, and the 44px floor keeps "day" a full target */
-@media (max-width: 360px) {
-  .seg.seg-cal .seg-opt { padding-inline: 7px; min-width: 44px; }
-}
+/* the view switch is the dropdown: five views (0050), at the end of the date controls */
+.cal-view-pick { flex: 0 0 auto; width: 9rem; max-width: 100%; margin-inline-start: auto; }
 .cal-flabel { font-size: 0.8125rem; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 0.25rem; }
 
 /* week/day time grid */

@@ -65,29 +65,34 @@ def main():
         view = pg.locator("#cal-view")
 
         # ---- view buttons present ----
+        view.click()
         r["agenda_year_buttons"] = (
-            view.locator('[data-view="agenda"]').count() == 1
-            and view.locator('[data-view="year"]').count() == 1
+            pg.get_by_role("option", name="agenda", exact=True).count() == 1
+            and pg.get_by_role("option", name="year", exact=True).count() == 1
         )
+        pg.keyboard.press("Escape")
 
         # ---- secondary tz world clock ----
         expect(pg.locator("#cal-worldclock")).to_be_visible()
         r["secondary_tz_shows"] = "London" in pg.locator("#cal-worldclock").inner_text()
 
         # ---- agenda view renders ----
-        view.locator('[data-view="agenda"]').click()
+        view.click()
+        pg.get_by_role("option", name="agenda", exact=True).click()
         expect(pg.locator(".cal-agenda .cal-agenda-day").first).to_be_visible()
         r["agenda_view_renders"] = pg.locator(".cal-agenda-ev").count() >= 2
         pg.screenshot(path=str(evid / "agenda.png"))
 
         # ---- year view renders (12 months) ----
-        view.locator('[data-view="year"]').click()
+        view.click()
+        pg.get_by_role("option", name="year", exact=True).click()
         expect(pg.locator(".cal-year .cal-year-month").first).to_be_visible()
         r["year_view_renders"] = pg.locator(".cal-year-month").count() == 12
         pg.screenshot(path=str(evid / "year.png"))
 
         # ---- working-hours shading in week view ----
-        view.locator('[data-view="week"]').click()
+        view.click()
+        pg.get_by_role("option", name="week", exact=True).click()
         expect(pg.locator(".cal-tg-slot").first).to_be_visible()
         r["working_hours_shaded"] = pg.locator(".cal-tg-slot.offhours").count() > 0
 

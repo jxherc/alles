@@ -171,7 +171,8 @@ def main():
 
             if viewport["width"] < 600:
                 # a narrow week can't fit events side by side: an overlap group is one stack
-                pg.click('#cal-view [data-view="week"]')
+                pg.click("#cal-view")
+                pg.get_by_role("option", name="week", exact=True).click()
                 pg.wait_for_selector(".cal-tstack")
                 stack = pg.evaluate(
                     """() => { const s = document.querySelector('.cal-tstack'); s.scrollIntoView({ block: 'center' });

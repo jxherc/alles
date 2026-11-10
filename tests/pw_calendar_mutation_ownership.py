@@ -101,7 +101,8 @@ def run():
                 return result.json()
 
             def open_event(eid):
-                page.locator('#cal-view [data-view="month"]').click()
+                page.locator("#cal-view").click()
+                page.get_by_role("option", name="month", exact=True).click()
                 page.locator("#cal-today").click()
                 chip = page.locator(f'.cal-chip[data-id="{eid}"]')
                 expect(

@@ -122,9 +122,10 @@ def run():
                 if page.locator("#cal-load-error").is_visible():
                     return
                 # a "+N more" opens the day view, and the view sticks across reloads
-                month_view = page.locator('#cal-view .seg-opt[data-view="month"]')
-                if month_view.get_attribute("aria-pressed") != "true":
-                    month_view.click()
+                view_pick = page.locator("#cal-view")
+                if view_pick.get_attribute("data-value") != "month":
+                    view_pick.click()
+                    page.get_by_role("option", name="month", exact=True).click()
                 months = "January February March April May June July August September October November December".split()
                 for _ in range(120):
                     month, year = page.locator("#cal-month-label").inner_text().split()

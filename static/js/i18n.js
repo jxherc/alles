@@ -284,6 +284,7 @@ const BUILTIN_ENGLISH = {
     "calendar.sync_help": "CalDAV sync",
     "calendar.task_title": "task: {title}",
     "calendar.title": "calendar",
+    "calendar.view_label": "view",
     "calendar.week": "week",
     "calendar.year": "year",
     "home.all_day": "all day",

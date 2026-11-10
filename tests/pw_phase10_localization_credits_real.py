@@ -246,9 +246,7 @@ def run() -> None:
             task_input.fill("")
             page.evaluate("window._navigateTo('calendar')")
             expect(page.locator("#calendar-view")).to_be_visible()
-            expect(page.locator('#cal-view [data-view="month"]')).to_have_text(
-                catalog["calendar.month"]
-            )
+            expect(page.locator("#cal-view")).to_have_text(catalog["calendar.month"])
             page.evaluate("window._navigateTo('chat')")
             expect(page.locator("#composer-ta")).to_be_visible()
             expect(page.locator("#composer-ta")).to_have_attribute(
@@ -417,9 +415,7 @@ def run() -> None:
             )
             _assert_no_overflow(page)
             page.evaluate("window._navigateTo('calendar')")
-            expect(page.locator('#cal-view [data-view="month"]')).to_have_text(
-                catalog["calendar.month"]
-            )
+            expect(page.locator("#cal-view")).to_have_text(catalog["calendar.month"])
             _assert_no_overflow(page)
             page.evaluate("window._navigateTo('chat')")
             expect(page.locator("#composer-ta")).to_have_attribute(
