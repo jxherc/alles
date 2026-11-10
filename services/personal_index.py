@@ -344,6 +344,7 @@ def _index_mail_batch(db, limit=20) -> int:
         if body:  # only mark done once we actually got the body; else retry next tick
             m.body_indexed = True
             done += 1
-    if done:
-        db.commit()
+            # saved now: left pending, the mark was written by the next message's first query
+            # and held the write lock through that message's imap fetch and embedding
+            db.commit()
     return done
