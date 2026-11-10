@@ -6450,7 +6450,8 @@ body.afterlife-aide-projects[data-space="aide"] .aide-scheduled-view {
   font-size: 0.8125rem; color: var(--muted);
 }
 .cal-cell {
-  background: var(--bg); min-height: 96px; padding: 0.3rem 0.35rem;
+  /* the date strip, a row gap and one 44px chip always fit, so the day's first event never hides behind "+N" */
+  background: var(--bg); min-height: calc(2 * 44px + var(--k-row-gap) + 0.6rem); padding: 0.3rem 0.35rem;
   cursor: pointer; transition: background 0.12s; overflow: hidden;
 }
 .cal-cell:hover { background: var(--panel); }
