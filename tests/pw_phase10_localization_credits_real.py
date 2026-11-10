@@ -147,7 +147,6 @@ def run() -> None:
         page.keyboard.press("Enter")
         expect(region).to_have_text("Taiwan")
         expect(region).to_be_focused()
-        expect(page.locator("#locale-preview-region")).to_have_text("Taiwan")
 
         timezone = page.locator("#s-timezone-trigger")
         timezone.focus()
@@ -194,10 +193,6 @@ def run() -> None:
             expect(page.locator("html")).to_have_attribute(
                 "dir", "rtl" if language == "ar" else "ltr"
             )
-            if language == "ar":
-                assert page.locator("#locale-preview-path").evaluate(
-                    "el => getComputedStyle(el).direction === 'ltr' && getComputedStyle(el).unicodeBidi === 'isolate'"
-                )
             expect(pane).to_be_visible()
             expect(save).to_be_focused()
             expect(save).to_have_text(catalog["locale.save"])
@@ -392,9 +387,6 @@ def run() -> None:
                 "el => getComputedStyle(el).gridTemplateColumns"
             )
             assert len(locale_columns.split()) == 1, locale_columns
-            assert page.locator(".locale-settings-preview").evaluate(
-                "el => getComputedStyle(el).position === 'static' && getComputedStyle(el).order === '-1'"
-            )
             assert page.locator("#s-region-trigger").evaluate(
                 "el => el.getBoundingClientRect().height >= 44"
             )

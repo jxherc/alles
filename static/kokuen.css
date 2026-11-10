@@ -3896,7 +3896,7 @@ textarea[data-kokuen-entry="autogrow"] {
 }
 
 /* Phase 10: approved language, regional-format, and Credits workbenches. */
-#settings-modal[data-kokuen-surface="settings"] :where(.locale-settings-pane, .credits-settings-pane) {
+#settings-modal[data-kokuen-surface="settings"] .credits-settings-pane {
   max-width: 980px;
   margin-inline: auto;
 }
@@ -3914,9 +3914,8 @@ textarea[data-kokuen-entry="autogrow"] {
 
 #settings-modal[data-kokuen-surface="settings"] .locale-settings-workbench {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--k-space-5);
-  align-items: start;
 }
 
 #settings-modal[data-kokuen-surface="settings"] :where(.locale-settings-workbench, .credits-settings-workbench)[aria-busy="true"] {
@@ -4028,96 +4027,6 @@ textarea[data-kokuen-entry="autogrow"] {
 #settings-modal[data-kokuen-surface="settings"] #locale-settings-save-state {
   color: var(--k-muted);
   font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview {
-  position: sticky;
-  top: 0;
-  padding: var(--k-space-3);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-surface);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--k-space-3);
-  margin-bottom: var(--k-space-3);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview h3 {
-  margin: 0;
-  color: var(--k-text);
-  font-size: 0.875rem;
-  font-weight: 560;
-}
-
-#settings-modal[data-kokuen-surface="settings"] :where(#locale-preview-tag, .locale-settings-preview dt) {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface {
-  display: grid;
-  gap: var(--k-space-2);
-  padding: var(--k-space-3);
-  border: 1px solid var(--k-line);
-  border-radius: var(--k-radius-control);
-  background: var(--k-page);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface > span {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface > strong {
-  color: var(--k-text);
-  font-size: 1.125rem;
-  font-weight: 580;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface :where(time, div, small, code) {
-  color: var(--k-muted);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface div {
-  margin-top: var(--k-space-2);
-  padding: var(--k-space-2) 0;
-  border-top: 1px solid var(--k-line);
-  border-bottom: 1px solid var(--k-line);
-  color: var(--k-soft);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-preview-surface code {
-  overflow-wrap: anywhere;
-  font-family: var(--k-mono);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dl {
-  display: grid;
-  gap: var(--k-space-2);
-  margin: var(--k-space-3) 0 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--k-space-3);
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview :where(dt, dd) {
-  margin: 0;
-}
-
-#settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dd {
-  color: var(--k-soft);
-  font-size: 0.8125rem;
-  text-align: end;
-  overflow-wrap: anywhere;
 }
 
 #settings-modal[data-kokuen-surface="settings"] .credits-settings-workbench {
@@ -4350,13 +4259,8 @@ html[dir="rtl"] :where(
 }
 
 @media (max-width: 860px) {
-  #settings-modal[data-kokuen-surface="settings"] .locale-settings-workbench,
   #settings-modal[data-kokuen-surface="settings"] .credits-settings-workbench {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  #settings-modal[data-kokuen-surface="settings"] .locale-settings-preview {
-    position: static;
   }
 
   #settings-modal[data-kokuen-surface="settings"] .credits-list > .credits-detail {

@@ -445,8 +445,7 @@ def exercise(page, api, dest, profile, restart, records):
         "data-options", re.compile(r"\|automatic \(America/Toronto\);")
     )
     choice("timezone", "")
-    expect(page.locator("#locale-preview-timezone")).to_have_text("automatic · America/Toronto")
-    page.locator(".locale-settings-preview").scroll_into_view_if_needed()
+    expect(page.locator("#s-timezone-trigger")).to_have_text("automatic (America/Toronto)")
     shot("07-automatic-timezone")
     locale_save()
     assert settings()["timezone"] == ""

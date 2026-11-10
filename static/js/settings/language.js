@@ -2,7 +2,7 @@ import { createSettingsPane } from './pane.js';
 import { toast } from '../util.js';
 import { closeCustomDropdowns, populateDropdown } from '../dropdown.js?v=217';
 import { setStatusLine } from './shared.js';
-import { formatDateForLocale, formatTimeForLocale, prepareLocalization, regionName, t } from '../i18n.js';
+import { prepareLocalization, regionName, t } from '../i18n.js';
 
 // ── Phase 10 locale Settings ─────────────────────────────────────────────────
 const LOCALE_FALLBACK_OPTIONS = {
@@ -36,7 +36,6 @@ const LOCALE_FALLBACK_OPTIONS = {
 };
 
 let _localeOptions = LOCALE_FALLBACK_OPTIONS;
-let _languageDirection = {};
 let _localeSettings = null;
 let _localeSettingsBusy = false;
 let _localeSettingsSaving = false;
@@ -73,12 +72,6 @@ function _automaticLabel(name) {
   return detected ? `${t('common.automatic')} (${detected})` : t('common.automatic');
 }
 
-function _localeChoiceLabel(name, value) {
-  if (!value) return _automaticLabel(name);
-  const item = _localeChoiceOptions(name).find(option => option.value === value);
-  return item ? _optionText(name, item) : value;
-}
-
 // region, timezone and currency use the kit dropdown (dropdown.js): type to jump, the list on
 // document.body, the same look as every other pick in alles
 function _renderLocaleChoiceMenu(name) {
@@ -97,7 +90,6 @@ function _setLocaleChoiceValue(name, value, dirty = false) {
   if (trigger) trigger.dataset.value = valid;
   _renderLocaleChoiceMenu(name);
   if (dirty) _markLocaleSettingsChanged();
-  _updateLocalePreview();
 }
 
 function _setLocaleRadioValue(name, value, dirty = false) {
@@ -109,7 +101,6 @@ function _setLocaleRadioValue(name, value, dirty = false) {
     choice.tabIndex = active ? 0 : -1;
   });
   if (dirty) _markLocaleSettingsChanged();
-  _updateLocalePreview();
 }
 
 function _localeRadioValue(name) {
@@ -132,60 +123,11 @@ function _applyLocaleOptions(options) {
   if (Array.isArray(options?.languages)) {
     const ready = options.languages.filter(language => language.available);
     if (ready.length) _localeOptions.languages = ready.map(language => ({ value: language.id, label: language.label }));
-    _languageDirection = Object.fromEntries(options.languages.map(language => [language.id, language.direction]));
   }
   _renderLocaleChoiceMenu('language');
   _renderLocaleChoiceMenu('region');
   _renderLocaleChoiceMenu('timezone');
   _renderLocaleChoiceMenu('currency');
-}
-
-function _localePreviewTag(language, region) {
-  const candidate = region ? `${language}-${region}` : language;
-  try { return Intl.getCanonicalLocales(candidate)[0]; }
-  catch { return 'en'; }
-}
-
-function _updateLocalePreview() {
-  const language = _selectedLocaleLanguage();
-  const region = document.getElementById('s-region-trigger')?.dataset.value || '';
-  const timezone = document.getElementById('s-timezone-trigger')?.dataset.value || '';
-  const currency = document.getElementById('s-currency-trigger')?.dataset.value || '';
-  const tag = _localePreviewTag(language, region || _browserRegion());
-  const direction = _languageDirection[language] || 'ltr';
-  const tagEl = document.getElementById('locale-preview-tag');
-  const dateEl = document.getElementById('locale-preview-date');
-  const pathEl = document.getElementById('locale-preview-path');
-  if (tagEl) tagEl.textContent = tag;
-  if (dateEl) {
-    try {
-      dateEl.textContent = formatDateForLocale(new Date(), tag, {
-        weekday: 'long', month: 'long', day: 'numeric',
-        ...(timezone ? { timeZone: timezone } : {}),
-      });
-    } catch { dateEl.textContent = ''; }
-  }
-  if (pathEl) {
-    try {
-      const clock = _localeRadioValue('clock_format');
-      const time = formatTimeForLocale(new Date(), tag, {
-        hour: '2-digit', minute: '2-digit',
-        ...(clock === '12' ? { hour12: true } : clock === '24' ? { hour12: false } : {}),
-        ...(timezone ? { timeZone: timezone } : {}),
-      });
-      pathEl.textContent = `alles/data · ${time}`;
-    } catch { pathEl.textContent = 'alles/data'; }
-  }
-  const directionEl = document.getElementById('locale-preview-direction');
-  const regionEl = document.getElementById('locale-preview-region');
-  const timezoneEl = document.getElementById('locale-preview-timezone');
-  const currencyEl = document.getElementById('locale-preview-currency');
-  if (directionEl) directionEl.textContent = t(direction === 'rtl' ? 'locale.direction_rtl' : 'locale.direction_ltr');
-  if (regionEl) regionEl.textContent = region
-    ? _localeChoiceLabel('region', region)
-    : `${t('common.automatic')} · ${_browserRegion() || t('common.unknown')}`;
-  if (timezoneEl) timezoneEl.textContent = timezone || `${t('common.automatic')} · ${_browserTimezone()}`;
-  if (currencyEl) currencyEl.textContent = currency || t('common.automatic');
 }
 
 function _setLocaleSettingsBusy(busy) {
@@ -218,7 +160,6 @@ function _applyLocaleSettings(settings) {
   _setLocaleRadioValue('week_start', settings.week_start || 'auto');
   _localeSettingsDirty = false;
   _setLocaleSettingsStatus('');
-  _updateLocalePreview();
 }
 
 async function loadLocaleSettingsPane(isCurrent) {

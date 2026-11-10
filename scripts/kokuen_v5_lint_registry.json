@@ -181,33 +181,6 @@
   },
   {
     "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-preview; check for nested bezels",
-    "css_block_sha256": "656de8be42cae1127716580117561869b58fd81d4183047c72cbdaf8e7a46251",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-settings-preview",
-    "job": "distinct-region",
-    "reason": "format preview grouped region. whole locale preview and containment"
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface; check for nested bezels",
-    "css_block_sha256": "a157c1b198faeae1e1cb2a5a0fb7b68bab8fad7505a632387c55d995a0208fd5",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface",
-    "job": "sample-region",
-    "reason": "sample surface region within format preview. each preview sample surface"
-  },
-  {
-    "rule": "nested-boundary",
-    "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface div; check for nested bezels",
-    "css_block_sha256": "179807c159105bd899844d8f8ac507d570f36d1e6d3adc65c0fcd9c8a8da291e",
-    "path": "static/kokuen.css",
-    "selector": "#settings-modal[data-kokuen-surface=\"settings\"] .locale-preview-surface div",
-    "job": "sample-row-seams",
-    "reason": "sample formatted amount or number value. localized sample div, including longer formatted value"
-  },
-  {
-    "rule": "nested-boundary",
     "message": "descendant draws a boundary in #settings-modal[data-kokuen-surface=\"settings\"] .credits-row; check for nested bezels",
     "css_block_sha256": "f7ed9e3ea0f095ee7754dac546b1866e788d1af49c821950df589efd3de3cac1",
     "path": "static/kokuen.css",

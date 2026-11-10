@@ -3431,16 +3431,10 @@ html:not(#_):not(#_) #settings-modal .s-pane .s-card-body > .btn + .btn { margin
 
 /* settings panes at the larger type: side panels and list rows were sized in px around the old
    text, so a label wrapped by the letter or a name was cut to three dots */
-html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-settings-workbench { grid-template-columns: minmax(0, 1fr) 15rem; }
-
-html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dl div { flex-wrap: wrap; }
-
-html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .locale-settings-preview dd { flex: 1 1 auto; overflow-wrap: break-word; }
-
 html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-settings-workbench { grid-template-columns: minmax(0, 1fr) 16rem; }
 
 @media (max-width: 860px) {
-  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] :is(.locale-settings-workbench, .credits-settings-workbench) { grid-template-columns: minmax(0, 1fr); }
+  html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-settings-workbench { grid-template-columns: minmax(0, 1fr); }
 }
 
 html:not(#_):not(#_) #settings-modal[data-kokuen-surface="settings"] .credits-row { grid-template-columns: minmax(0, 1fr) minmax(0, max-content); }
