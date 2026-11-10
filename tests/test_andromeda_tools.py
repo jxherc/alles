@@ -59,6 +59,8 @@ class ToolWithoutInputTest(ApiTest):
         "translate to german": {"kind": "translate", "text": "", "from": "english", "to": "german"},
         "translate": {"kind": "translate", "text": "", "from": "", "to": "english"},
         "google translate": {"kind": "translate", "text": "", "from": "", "to": "english"},
+        "翻译": {"kind": "translate", "text": "", "from": "", "to": "english"},
+        "日语翻译": {"kind": "translate", "text": "", "from": "", "to": "japanese"},
         "periodic table": {"kind": "periodic"},
         "the periodic table of elements": {"kind": "periodic"},
         "show me the periodic table": {"kind": "periodic"},
@@ -179,6 +181,15 @@ class ToolWithInputTest(ApiTest):
         "hola from spanish to english": {"kind": "translate", "text": "hola", "from": "spanish"},
         "中文in english": {"kind": "translate", "text": "中文", "to": "english"},
         "你好 in french": {"kind": "translate", "text": "你好", "to": "french"},
+        "女孩的英文": {"kind": "translate", "text": "女孩", "to": "english"},
+        "女孩 英文": {"kind": "translate", "text": "女孩", "to": "english"},
+        "女孩用英语怎么说": {"kind": "translate", "text": "女孩", "to": "english"},
+        "女孩英文怎么说": {"kind": "translate", "text": "女孩", "to": "english"},
+        "把你好翻译成日文": {"kind": "translate", "text": "你好", "to": "japanese"},
+        "你好的日語是什麼": {"kind": "translate", "text": "你好", "to": "japanese"},
+        "翻译 hello": {"kind": "translate", "text": "hello", "to": "chinese"},
+        "翻译你好": {"kind": "translate", "text": "你好", "to": "english"},
+        "serendipity是什么意思": {"kind": "translate", "text": "serendipity", "to": "chinese"},
         "carbon atomic mass": {"kind": "element", "number": 6, "fact": "mass"},
         "periodic table carbon": {"kind": "element", "number": 6, "fact": ""},
         "atomic number of gold": {"kind": "element", "number": 79, "fact": "number"},
@@ -636,6 +647,62 @@ class ToolRouteTest(ApiTest):
             ("pending", "hello", ["chinese", "english", "french"]),
         )
         self.assertEqual((bad.status_code, bad.json()["code"]), (400, "unknown_language"))
+
+    def test_chinese_searches_that_only_mention_a_language_stay_searches(self):
+        for query in ("商务英语", "学英语", "大学英语四级", "英文", "日语入门", "我的英文名"):
+            with self.subTest(query=query):
+                self.assertIsNone(detect(query))
+        # a chinese word's meaning is a dictionary question, and 沙底下一个女 is one for the web
+        self.assertIsNone(detect("苹果是什么意思"))
+        self.assertIsNone(detect("沙底下一个女"))
+
+    def test_the_answer_model_translates_when_no_translator_runs(self):
+        # on a mac, airplay answers port 5000 with an empty 403: that is no translator
+        async def airplay(_settings, _path, payload=None, timeout=6):
+            def no_json():
+                raise ValueError("no json")
+
+            return SimpleNamespace(status_code=403, content=b"", json=no_json)
+
+        seen = {}
+
+        async def complete(messages, *_args, **_kwargs):
+            seen["messages"] = messages
+            return "“girl”"
+
+        model = SimpleNamespace(
+            privacy_class="remote",
+            model="test-model",
+            endpoint=SimpleNamespace(base_url="https://m.test", api_key="k"),
+        )
+        andromeda_translate._LANGUAGES.update(at=0.0, url="", names=[])
+        with (
+            mock.patch.dict(os.environ, self.ENV),
+            mock.patch.object(andromeda_translate, "_call", side_effect=airplay),
+            mock.patch("services.andromeda.select_overview_model", return_value=model),
+            mock.patch("services.llm.simple_complete", side_effect=complete),
+        ):
+            done = self.client.post(
+                "/api/andromeda/translate", json={"text": "女孩", "to": "english"}
+            )
+            card = self.client.post("/api/andromeda/answer", json={"query": "女孩的英文"}).json()
+            with mock.patch(
+                "routes.andromeda.load_settings",
+                return_value={"andromeda_overview": True, "andromeda_confirm_remote": True},
+            ):
+                held = self.client.post(
+                    "/api/andromeda/translate", json={"text": "女孩", "to": "english"}
+                )
+        self.assertEqual(done.status_code, 200, done.text)
+        self.assertEqual(
+            (done.json()["translation"], done.json()["source"]), ("girl", "test-model")
+        )
+        self.assertIn("into english", seen["messages"][0]["content"])
+        self.assertEqual(seen["messages"][1], {"role": "user", "content": "女孩"})
+        self.assertEqual((card["kind"], card["text"], card["to"]), ("translate", "女孩", "english"))
+        self.assertNotIn("engine", card)
+        # a remote model that must be confirmed per search is never used on its own
+        self.assertEqual((held.status_code, held.json()["code"]), (503, "translator_unavailable"))
 
     def test_a_stopped_translator_says_so(self):
         async def down(*_args, **_kwargs):

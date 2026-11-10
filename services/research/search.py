@@ -11,7 +11,6 @@ import html as _htmlmod
 import json
 import logging
 import os
-import random
 import re
 import threading
 import urllib.parse
@@ -29,9 +28,34 @@ _UA = (
     "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"
 )
 _KNOWN_PROVIDERS = frozenset({*BY_ID, "wikipedia"})
-# startpage answers every server request with a captcha page, so the keyless
-# metasearch skips it instead of wasting a request on it
-_BLOCKED_TEXT_ENGINES = frozenset({"startpage"})
+# the keyless engines for web results, best first. ddgs runs them in this order and only goes
+# down the list while it still needs rows, so a page comes from the best engine that answers.
+# shuffled, a whole page came from whichever engine came up (yandex as often as the bing ones),
+# under wikipedia and grokipedia every time. left out: startpage (a captcha page for every
+# server request) and grokipedia (generated articles, not a search engine)
+_TEXT_ENGINES = ("wikipedia", "duckduckgo", "google", "brave", "yahoo")
+# only when the engines above gave nothing twice: their pages for a plain query are much worse
+# (shop listings for "nike", spam for a chinese question)
+_LAST_TEXT_ENGINES = ("mojeek", "yandex")
+
+# ddgs asks every engine in one "country-language" region and defaults to us-en: google then
+# returns english pages only and wikipedia is the english one, so a query in another script
+# found the wrong things (苹果 gave the english article on a beijing subway station)
+_SCRIPT_REGIONS = (
+    (re.compile(r"[\u3040-\u30ff]"), "jp-ja"),  # kana first: japanese also uses han
+    (re.compile(r"[\uac00-\ud7af]"), "kr-ko"),
+    (re.compile(r"[\u4e00-\u9fff]"), "cn-zh"),
+    (re.compile(r"[\u0400-\u04ff]"), "ru-ru"),
+    (re.compile(r"[\u0600-\u06ff]"), "xa-ar"),
+)
+
+
+def search_region(query: str) -> str:
+    """the region for a query: its own script's when it isn't latin, else us-en."""
+    for pattern, region in _SCRIPT_REGIONS:
+        if pattern.search(query or ""):
+            return region
+    return "us-en"
 
 
 class SearchProviderFailure(RuntimeError):
@@ -341,10 +365,12 @@ async def _search_exa(query, api_key, max_results=5, category="all"):
     # exa is a web index, not an image or video engine; empty hands those to the next engine
     if category in ("images", "videos"):
         return []
-    # "instant" is exa's lowest-latency mode; highlights give the result list a snippet
+    # "auto" is exa's default and the mode its docs recommend; "instant" (used here before) is a
+    # legacy mode that trades depth for speed (docs.exa.ai/reference/search, read 2026-11-09).
+    # highlights give the result list a snippet
     body = {
         "query": query,
-        "type": "instant",
+        "type": "auto",
         "numResults": max_results,
         "contents": {"highlights": {"maxCharacters": 320}},
     }
@@ -541,17 +567,38 @@ def _parse_ddg_html(html: str) -> list:
     return out
 
 
-def _text_backends():
-    """ddgs fans text out to many engines; leave out the ones that only return captchas."""
+def _text_backends(names=_TEXT_ENGINES):
+    """the engines ddgs asks for web results, in the order given."""
     try:
         from ddgs.engines import ENGINES
-    except ImportError:  # old duckduckgo_search: duckduckgo only, nothing to drop
+    except ImportError:  # old duckduckgo_search: duckduckgo only, nothing to order
         return {}
-    keys = [k for k in ENGINES.get("text", {}) if k not in _BLOCKED_TEXT_ENGINES]
-    random.shuffle(keys)
-    # same order ddgs uses for "auto": encyclopedias first, the rest shuffled
-    keys.sort(key=lambda k: {"wikipedia": 0, "grokipedia": 1}.get(k, 2))
+    keys = [k for k in names if k in ENGINES.get("text", {})]
     return {"backend": ",".join(keys)} if keys else {}
+
+
+def _web_rows(d, query: str, max_results: int, region: str) -> list:
+    """web results from the keyless engines. the good ones get two tries before the last resort:
+    yahoo answers with one of several page layouts and ddgs reads only one of them, so an empty
+    reply is often a full one on the next request. a second page fills a short first one."""
+    for names in (_TEXT_ENGINES, _TEXT_ENGINES, _LAST_TEXT_ENGINES):
+        backends = _text_backends(names)
+        try:
+            rows = d.text(query, max_results=max_results, region=region, **backends)
+        except Exception as error:  # ddgs raises when every engine came back empty
+            log.debug("keyless engines %s: %s", backends.get("backend", "default"), error)
+            rows = []
+        # wikipedia alone is one article, not a results page
+        if any("wikipedia.org" not in str(r.get("href") or "") for r in rows) or not backends:
+            break
+    if rows and len(rows) < max_results and backends:
+        try:
+            more = d.text(query, max_results=max_results, region=region, page=2, **backends)
+        except Exception:
+            more = []
+        seen = {r.get("href") for r in rows}
+        rows = rows + [r for r in more if r.get("href") not in seen]
+    return rows
 
 
 async def _search_duckduckgo(query, max_results=6, category="all"):
@@ -565,10 +612,12 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
         except ImportError:
             from duckduckgo_search import DDGS
 
+        region = search_region(query)
+
         def _go():
             with DDGS() as d:
                 if category == "images":
-                    rows = d.images(query, max_results=max_results)
+                    rows = d.images(query, max_results=max_results, region=region)
                     return [
                         {
                             "url": r.get("url") or r.get("image") or "",
@@ -584,7 +633,7 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
                         if r.get("url") or r.get("image")
                     ]
                 if category == "news":
-                    rows = d.news(query, max_results=max_results)
+                    rows = d.news(query, max_results=max_results, region=region)
                     return [
                         {
                             "url": r.get("url") or "",
@@ -598,7 +647,7 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
                         if r.get("url")
                     ]
                 if category == "videos":
-                    rows = d.videos(query, max_results=max_results)
+                    rows = d.videos(query, max_results=max_results, region=region)
                     output = []
                     for r in rows:
                         images = r.get("images") if isinstance(r.get("images"), dict) else {}
@@ -623,7 +672,7 @@ async def _search_duckduckgo(query, max_results=6, category="all"):
                         "title": r.get("title", ""),
                         "snippet": r.get("body", ""),
                     }
-                    for r in d.text(query, max_results=max_results, **_text_backends())
+                    for r in _web_rows(d, query, max_results, region)
                     if r.get("href")
                 ]
 

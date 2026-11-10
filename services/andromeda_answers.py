@@ -152,6 +152,35 @@ _LANGUAGE_WORDS = {name: name for name in LANGUAGES} | {
     "farsi": "persian",
 }
 _LANG = "(" + "|".join(sorted(_LANGUAGE_WORDS, key=len, reverse=True)) + ")"
+# the same ask written in chinese: 女孩的英文, 女孩用英语怎么说, 把你好翻译成日文
+_ZH_LANGUAGES = {
+    "english": "英文 英语 英語",
+    "chinese": "中文 汉语 漢語 国语 國語 普通话 普通話",
+    "japanese": "日文 日语 日語",
+    "korean": "韩文 韩语 韓文 韓語",
+    "french": "法文 法语 法語",
+    "german": "德文 德语 德語",
+    "spanish": "西班牙文 西班牙语 西班牙語",
+    "russian": "俄文 俄语 俄語",
+    "italian": "意大利文 意大利语 義大利文 義大利語",
+    "portuguese": "葡萄牙文 葡萄牙语 葡萄牙語",
+    "arabic": "阿拉伯文 阿拉伯语 阿拉伯語",
+}
+_ZH_LANGUAGE_WORDS = {
+    word: name
+    for name, words in _ZH_LANGUAGES.items()
+    if name in LANGUAGES
+    for word in words.split()
+}
+_ZH_LANG = "(" + "|".join(sorted(_ZH_LANGUAGE_WORDS, key=len, reverse=True)) + ")"
+_ZH_INTO = "(?:翻译成|翻譯成|翻译为|翻譯為|翻成|译成|譯成)"
+_ZH_ASK = "(?:怎么说|怎麼說|怎么讲|怎麼講|怎么写|怎麼寫|是什么|是什麼|叫什么|叫什麼|翻译|翻譯)"
+_ZH_TRANSLATE = re.compile(
+    # a marker has to say it is a translation: 的 or 用 or 翻译成 before the language, a space
+    # before it, or 怎么说 after it. 商务英语 and 学英语 are topics and stay searches
+    rf"把?(.+?)(?:(?:的|用|{_ZH_INTO})\s*{_ZH_LANG}{_ZH_ASK}?|\s+{_ZH_LANG}{_ZH_ASK}?|{_ZH_LANG}{_ZH_ASK})"
+)
+_HAN = re.compile(r"[\u4e00-\u9fff]")
 _CURRENCIES = {
     "usd": "us dollar",
     "eur": "euro",
@@ -687,6 +716,28 @@ def _translate(text: str) -> dict | None:
         phrase = clean[len("translate ") :].strip(" \"'“”")
         if phrase:
             return {"kind": "translate", "text": phrase, "from": "", "to": "english"}
+    if clean in ("翻译", "翻譯", "在线翻译", "線上翻譯", "谷歌翻译"):
+        return {"kind": "translate", "text": "", "from": "", "to": "english"}
+    chinese = _ZH_TRANSLATE.fullmatch(clean)
+    if chinese:
+        phrase = chinese[1].strip(" \"'“”「」《》")
+        language = _ZH_LANGUAGE_WORDS[chinese[2] or chinese[3] or chinese[4]]
+        if phrase and phrase not in _ZH_LANGUAGE_WORDS and len(phrase) <= 500:
+            return {"kind": "translate", "text": phrase, "from": "", "to": language}
+    # 翻译 hello, hello 翻译: into chinese, or into english when the text is chinese
+    plain = re.fullmatch(r"(?:翻译|翻譯)\s*(.+)|(.+?)\s*(?:翻译|翻譯|是什么意思|是什麼意思)", clean)
+    if plain:
+        phrase = (plain[1] or plain[2]).strip(" \"'“”「」《》")
+        meaning = clean.endswith("意思")
+        if phrase in _ZH_LANGUAGE_WORDS:
+            # 英语翻译 asks for the tool, like "french translator": it opens empty
+            if meaning:
+                return None
+            return {"kind": "translate", "text": "", "from": "", "to": _ZH_LANGUAGE_WORDS[phrase]}
+        # a chinese word's meaning is a dictionary question, not a translation
+        if phrase and len(phrase) <= 500 and not (meaning and _HAN.search(phrase)):
+            target = "english" if _HAN.search(phrase) else "chinese"
+            return {"kind": "translate", "text": phrase, "from": "", "to": target}
     return None
 
 

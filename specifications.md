@@ -1281,7 +1281,11 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
     running beside alles at `http://127.0.0.1:5000` or wherever `andromeda_translate_url` points. it
     translates as you type (a 150 ms pause, or return), with detect, swap, listen and copy, and the
     pickers list only languages the engine has models for. a query's own text is translated as soon as
-    the card appears. a stopped engine says so in the card.
+    the card appears. with no engine running (on a mac, airplay holds port 5000), the model that
+    writes search answers translates instead and the card names it; that needs answers on, and a
+    remote model only when "confirm each search" is off. with neither, the card says the translator
+    isn't running. the same ask in chinese opens the tool: 女孩的英文, 女孩用英语怎么说, 把你好翻译成日文,
+    翻译 hello.
   - **dictionary** ("define x", "x meaning", "synonyms for x", "how to pronounce x"): a local copy of
     english wiktionary (kaikki.org's open data, cc by-sa), built once into
     `models/dictionary/wiktionary-en.sqlite` with `python -m services.andromeda_dictionary install`.
@@ -1344,7 +1348,14 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
 - **image results.** images sit in justified rows like google images: one height per row (180px, 160px
   on touch, 124px on a phone), each picture as wide as its shape (clamped to 0.55 to 2.4), the row
   stretched to the edge and the last row left at natural width. under each picture sit the site's mark
-  and name, then one line of title.
+  and name, then one line of title. a click opens a preview: the picture large (the thumbnail at once,
+  the full picture when the media proxy can fetch it, up to 8 mb), its title, site and size, previous
+  and next (also the arrow keys), and "visit page" for the source. cmd, ctrl, shift or a middle click
+  on a picture still opens the source in a new tab.
+- **result order.** web results keep the engine's order with three rules on top
+  ([services/andromeda.py](services/andromeda.py) `order_results`): paid links an engine mixed in are
+  dropped, a site the search names comes first when its front page is among the results (nike.com for
+  "nike"), and one site shows 2 rows before the rest of its rows. a result's own text stops at 3 lines.
 - **sources in place.** each claim lists its sources by site name on its own row under the claim.
   choosing one opens a card in place with the exact supporting quote, the page title as a link, the
   page date when the evidence has one, and the source type for docs, release notes, repositories and
@@ -1383,7 +1394,10 @@ metasearch (default, no key), exa, brave, serper (google results), deepseek, fir
 linkup, jina, tavily, an external https searxng, and google pse (google ends that api on 2027-01-01). every picker,
 key field and test reads `GET /api/search/engines`, which reports whether each engine is ready and never returns a
 key. keys are saved with `PATCH /api/settings` `search_keys` and sealed like every other secret. engines that only
-index web pages hand image and video searches to the next engine. exa uses its "instant" mode with short highlights.
+index web pages hand image and video searches to the next engine. exa uses its default "auto" mode with short highlights.
+the free metasearch asks its engines best first (wikipedia, duckduckgo, google, brave, yahoo), tries them twice
+before the last resort ones (mojeek, yandex), and searches a query written in chinese, japanese, korean, russian
+or arabic in that language's region instead of us-en.
 the owner can add up to 12 custom engines in settings → search: any https json api (plain http only on this
 machine), with {query} and {count} in the address or a json body, an optional key header, and dotted paths for the
 result list and its link, title and snippet. custom keys are sealed per engine; removing an engine also resets

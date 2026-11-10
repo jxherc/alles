@@ -247,7 +247,8 @@ async def media(url: str = Query(min_length=8, max_length=4_000)):
             timeout=8,
             headers={"accept": "image/avif,image/webp,image/png,image/jpeg,image/gif,image/x-icon"},
             max_redirects=4,
-            max_bytes=2_000_000,
+            # a full picture for the image preview is often a few megabytes; thumbnails are small
+            max_bytes=8_000_000,
         )
         upstream.raise_for_status()
     except Exception:
@@ -338,7 +339,10 @@ async def special_answer(body: AnswerBody, db: DbSession = Depends(get_db)):
                 andromeda_translate.languages(load_settings()), 4
             )
         except Exception:
-            answer["engine"] = "unavailable"
+            # no translator service: the answer model translates if it may, and knows every
+            # language in the list
+            if not _translation_model(db, load_settings()):
+                answer["engine"] = "unavailable"
     return answer or {"kind": None}
 
 
@@ -349,9 +353,25 @@ class TranslateBody(BaseModel):
     to: str = Field(min_length=1, max_length=30)
 
 
+def _translation_model(db, settings: dict):
+    """the model that may translate when no translator service runs: the one that writes search
+    answers, under the same rules (answers on; a remote model only when it needs no confirming)."""
+    if not settings.get("andromeda_overview", True):
+        return None
+    try:
+        selected = andromeda.select_overview_model(
+            db, settings, band=settings.get("andromeda_model_band") or "standard"
+        )
+    except Exception:
+        return None
+    if selected.privacy_class == "remote" and settings.get("andromeda_confirm_remote"):
+        return None
+    return selected
+
+
 @router.post("/translate")
-async def translate(body: TranslateBody):
-    """the translator tool's text, through libretranslate. no language model is involved."""
+async def translate(body: TranslateBody, db: DbSession = Depends(get_db)):
+    """the translator tool's text: through libretranslate, or the answer model when none runs."""
     _require_flag()
     from services import andromeda_translate
 
@@ -361,10 +381,37 @@ async def translate(body: TranslateBody):
         source and source not in andromeda_translate.CODES
     ):
         raise ApiError(400, "unknown_language", "pick a language from the list")
+    settings = load_settings()
+    by = andromeda_translate.SOURCE
     try:
-        done = await andromeda_translate.translate(
-            body.text.strip(), source, target, load_settings()
-        )
+        try:
+            done = await andromeda_translate.translate(body.text.strip(), source, target, settings)
+        except andromeda_translate.Unavailable:
+            selected = _translation_model(db, settings)
+            if not selected:
+                raise
+            from services.llm import simple_complete
+
+            async def complete(messages):
+                return await asyncio.wait_for(
+                    simple_complete(
+                        messages,
+                        selected.endpoint.base_url,
+                        selected.endpoint.api_key,
+                        selected.model,
+                        max_tokens=max(256, len(body.text)),
+                        thinking=False,
+                    ),
+                    timeout=30,
+                )
+
+            try:
+                done = await andromeda_translate.model_translate(
+                    body.text.strip(), source, target, complete
+                )
+            except TimeoutError as slow:
+                raise andromeda_translate.Unavailable("the model did not answer") from slow
+            by = selected.model
     except andromeda_translate.Unavailable as exc:
         raise ApiError(
             503,
@@ -373,7 +420,7 @@ async def translate(body: TranslateBody):
         ) from exc
     except ValueError as exc:
         raise ApiError(422, "translate_refused", str(exc)) from exc
-    return {**done, "text": body.text.strip(), "to": target, "source": andromeda_translate.SOURCE}
+    return {**done, "text": body.text.strip(), "to": target, "source": by}
 
 
 @router.post("/overview")

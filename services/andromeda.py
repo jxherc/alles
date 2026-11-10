@@ -215,6 +215,53 @@ def drop_blocked(rows, blocked: list[str]) -> list:
     return kept
 
 
+MAX_PER_SITE = 2
+# a paid link an engine slipped into its organic rows; it opens the engine's click tracker
+_AD_LINK = re.compile(
+    r"https?://(?:www\.)?(?:bing\.com/aclick|duckduckgo\.com/y\.js|google\.[a-z.]+/aclk"
+    r"|googleadservices\.com/)",
+    re.I,
+)
+_SECOND_LEVEL = frozenset({"ac", "co", "com", "edu", "gov", "net", "org"})
+
+
+def _site(url: str) -> str:
+    return (urlsplit(url).hostname or "").lower().removeprefix("www.")
+
+
+def _site_name(site: str) -> str:
+    """the word a site is known by: nike for nike.com and about.nike.com, bbc for bbc.co.uk."""
+    parts = site.split(".")
+    if len(parts) >= 3 and len(parts[-1]) == 2 and parts[-2] in _SECOND_LEVEL:
+        return parts[-3]
+    return parts[-2] if len(parts) >= 2 else site
+
+
+def order_results(rows, query: str) -> list:
+    """an engine's rows in the order a results page wants: no paid links, the site the query
+    names on top (nike.com for "nike"), then at most MAX_PER_SITE rows from one site before the
+    rest of that site's rows. everything else keeps the engine's own order."""
+    rows = [row for row in rows or [] if not _AD_LINK.match(str(row.get("url") or ""))]
+    named = re.sub(r"[^a-z0-9]", "", str(query or "").lower())
+    if len(named) >= 3 and len(str(query).split()) <= 3:
+        # only a site's front page counts: one of its product pages on top would be worse
+        homes = [
+            (site.count("."), index)
+            for index, row in enumerate(rows)
+            if _site_name(site := _site(str(row.get("url") or ""))) == named
+            and urlsplit(str(row.get("url") or "")).path in ("", "/")
+        ]
+        if homes:
+            rows.insert(0, rows.pop(min(homes)[1]))
+    seen: dict[str, int] = {}
+    first, rest = [], []
+    for row in rows:
+        site = _site(str(row.get("url") or ""))
+        seen[site] = seen.get(site, 0) + 1
+        (first if seen[site] <= MAX_PER_SITE else rest).append(row)
+    return first + rest
+
+
 async def normal_search(
     query: str,
     *,
@@ -254,9 +301,8 @@ async def normal_search(
             category=category,
         )
         rows, provider, error = chain_result
-        normalized = normalize_results(
-            drop_blocked(rows, blocked), provider or "", 0, limit=requested + 1
-        )
+        shown = drop_blocked(order_results(rows, query) if category == "all" else rows, blocked)
+        normalized = normalize_results(shown, provider or "", 0, limit=requested + 1)
         if (
             error
             or len(normalized) > requested
@@ -269,9 +315,7 @@ async def normal_search(
             max(provider_limit + MIN_RESULT_FETCH_HEADROOM, provider_limit * 2),
         )
     elapsed = round((time.perf_counter() - started) * 1000)
-    normalized = normalize_results(
-        drop_blocked(rows, blocked), provider or "", elapsed, limit=requested + 1
-    )
+    normalized = normalize_results(shown, provider or "", elapsed, limit=requested + 1)
     has_more = len(normalized) > requested
     results = normalized[:requested]
     if results:

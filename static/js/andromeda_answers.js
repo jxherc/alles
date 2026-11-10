@@ -137,7 +137,8 @@ function translateTool(data, ctx) {
       detected = from ? '' : done.from || '';
       outputActions.hidden = !done.translation;
       status.textContent = '';
-      credit.textContent = creditFor(detected);
+      // libretranslate is named by the credit line; a model that stood in for it names itself
+      credit.textContent = done.source && done.source !== 'LibreTranslate' ? done.source : creditFor(detected);
       syncSwap();
     } catch (error) {
       if (mine !== seq) return;
@@ -152,7 +153,8 @@ function translateTool(data, ctx) {
   });
   ctx.onStop(() => clearTimeout(timer));
   queueMicrotask(() => wireAutosizeTextarea(input));
-  if (data.engine === 'unavailable') status.textContent = t('andromeda.ans_translator_down');
+  // with no translator at all, the line that credits one would contradict the notice above it
+  if (data.engine === 'unavailable') { status.textContent = t('andromeda.ans_translator_down'); credit.textContent = ''; }
   else if (data.text) queueMicrotask(run);
   syncSwap();
   return [heading(t('andromeda.ans_translate')), bar, panes, status, credit];

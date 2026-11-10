@@ -148,6 +148,92 @@ class BlockedSitesTest(ApiTest):
         r = self.client.patch("/api/settings", json={"andromeda_recent_searches": []})
         self.assertEqual(r.json()["andromeda_recent_searches"], [])
 
+    def test_the_site_a_search_names_comes_first(self):
+        rows = [
+            {"url": "https://en.wikipedia.org/wiki/Nike"},
+            {"url": "https://www.nike.com/w/shoes"},
+            {"url": "https://about.nike.com/"},
+            {"url": "https://www.nike.com/"},
+        ]
+        ordered = [r["url"] for r in andromeda.order_results(rows, "Nike")]
+        self.assertEqual(ordered[0], "https://www.nike.com/")
+        self.assertEqual(ordered[1], "https://en.wikipedia.org/wiki/Nike")
+        # two words still name a site, a question does not, and a product page is no front page
+        self.assertEqual(
+            andromeda.order_results(
+                [{"url": "https://x.dev/a"}, {"url": "https://www.theverge.com/"}], "the verge"
+            )[0]["url"],
+            "https://www.theverge.com/",
+        )
+        self.assertEqual(
+            andromeda.order_results(
+                [{"url": "https://x.dev/a"}, {"url": "https://www.bbc.co.uk/"}], "bbc"
+            )[0]["url"],
+            "https://www.bbc.co.uk/",
+        )
+        for query, urls in (
+            ("how do nike shoes fit in 2026", ["https://x.dev/a", "https://www.nike.com/"]),
+            ("nike", ["https://x.dev/a", "https://www.nike.com/w/shoes"]),
+            ("苹果", ["https://x.dev/a", "https://www.apple.com.cn/"]),
+        ):
+            with self.subTest(query=query):
+                rows = [{"url": url} for url in urls]
+                self.assertEqual([r["url"] for r in andromeda.order_results(rows, query)], urls)
+
+    def test_one_site_gets_two_rows_before_the_others_have_theirs(self):
+        rows = [{"url": f"https://www.apple.com/{n}"} for n in range(4)]
+        rows += [{"url": "https://apple.com/also"}, {"url": "https://b.dev/1"}]
+        ordered = [r["url"] for r in andromeda.order_results(rows, "how to reset an iphone")]
+        self.assertEqual(
+            ordered,
+            [
+                "https://www.apple.com/0",
+                "https://www.apple.com/1",
+                "https://b.dev/1",
+                "https://www.apple.com/2",
+                "https://www.apple.com/3",
+                "https://apple.com/also",
+            ],
+        )
+
+    def test_paid_links_leave_the_results(self):
+        rows = [
+            {"url": "https://www.bing.com/aclick?ld=abc"},
+            {"url": "https://duckduckgo.com/y.js?ad_domain=x.com"},
+            {"url": "https://www.google.com/aclk?sa=l"},
+            {"url": "https://www.bing.com/maps"},
+            {"url": "https://good.dev/y"},
+        ]
+        self.assertEqual(
+            [r["url"] for r in andromeda.order_results(rows, "q")],
+            ["https://www.bing.com/maps", "https://good.dev/y"],
+        )
+
+    def test_normal_search_orders_web_results_and_leaves_other_kinds_alone(self):
+        rows = [{"url": f"https://shop.dev/{n}", "title": str(n)} for n in range(3)]
+        rows.append({"url": "https://other.dev/", "title": "o"})
+
+        class Chain(tuple):
+            failure_type = ""
+            attempted_sources = ("duckduckgo",)
+
+        async def chain(*_args, **_kwargs):
+            return Chain((list(rows), "duckduckgo", None))
+
+        with mock.patch("services.research.search.search_chain", side_effect=chain):
+            web = asyncio.run(andromeda.normal_search("q", max_results=5))
+            images = asyncio.run(andromeda.normal_search("q", max_results=5, category="images"))
+        self.assertEqual(
+            [r["url"] for r in web["results"]],
+            [
+                "https://shop.dev/0",
+                "https://shop.dev/1",
+                "https://other.dev/",
+                "https://shop.dev/2",
+            ],
+        )
+        self.assertEqual([r["url"] for r in images["results"]], [r["url"] for r in rows])
+
     def test_normal_search_drops_blocked_sites(self):
         save_settings({"andromeda_blocked_sites": ["spam.dev"]})
         rows = [

@@ -1,6 +1,6 @@
 import { escapeHtml as esc, appLabel, plainError, writeClipboard } from './util.js';
 import { initCustomDropdowns, setDropdownValue } from './dropdown.js?v=217';
-import { confirm as confirmDialog } from './dialog.js';
+import { confirm as confirmDialog, view as viewDialog } from './dialog.js';
 import { formatDate, formatDateTime, t as tr, tp as trp } from './i18n.js';
 import { whenDay } from './when.js';
 import { answerCovers, renderAnswer } from './andromeda_answers.js';
@@ -842,6 +842,7 @@ function resultNode(result, savedItems = null, index = 0) {
   source.append(trigger, menu);
   const link = makeExternalLink(result, 'andromeda-result-title');
   const snippet = document.createElement('p');
+  snippet.className = 'andromeda-result-snippet';
   renderResultSnippet(snippet, result.snippet, _state.query);
   const published = result.published ? formatPublishedDate(String(result.published).slice(0, 10)) : '';
   if (published) {
@@ -953,9 +954,100 @@ function imageAspect(result) {
   return Math.min(2.4, Math.max(0.55, ratio)).toFixed(3);
 }
 
-function imageNode(result) {
+// a click shows the picture large with its source and a way to its page, and the arrows step
+// through the results without closing (google images). the small picture shows at once; the
+// full one takes its place when the proxy could fetch it
+function openImagePreview(start) {
+  const first = _state.results[start];
+  if (!first) return;
+  let at = start, fullUrl = '', loading = null;
+  const dropFull = () => {
+    loading?.abort();
+    if (fullUrl) URL.revokeObjectURL(fullUrl);
+    fullUrl = '';
+  };
+  const body = '<div class="andromeda-preview-stage"><img alt="" decoding="async"></div><div class="andromeda-preview-source"></div>';
+  void viewDialog(first.title || tr('andromeda.image_result'), body, {
+    className: 'andromeda-preview',
+    wire(card) {
+      const image = card.querySelector('.andromeda-preview-stage img');
+      const title = card.querySelector('.dialog-title');
+      const source = card.querySelector('.andromeda-preview-source');
+      const close = card.querySelector('[data-dialog-cancel]');
+      const stepButton = (iconName, label, by) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn andromeda-preview-step';
+        button.innerHTML = _si(iconName);
+        button.setAttribute('aria-label', label);
+        button.addEventListener('click', () => show(at + by));
+        close.before(button);
+        return button;
+      };
+      const previous = stepButton('chevron-left', tr('common.previous'), -1);
+      const next = stepButton('chevron-right', tr('common.next'), 1);
+      const visit = document.createElement('a');
+      visit.className = 'btn primary';
+      visit.target = '_blank';
+      visit.rel = 'noopener noreferrer';
+      visit.textContent = tr('andromeda.visit_page');
+      close.before(visit);
+      const show = index => {
+        const result = _state.results[index];
+        if (!result) return;
+        at = index;
+        dropFull();
+        title.textContent = result.title || tr('andromeda.image_result');
+        image.alt = title.textContent;
+        const small = mediaUrl(result.thumbnail_url || result.image_url || '');
+        image.src = small;
+        const site = document.createElement('span');
+        site.textContent = (result.publisher || safeUrl(result.url)?.hostname || '').replace(/^www\./, '');
+        source.replaceChildren(mediaFrame(result, { favicon: true }), site);
+        if (Number(result.width) > 0 && Number(result.height) > 0) {
+          const size = document.createElement('span');
+          size.textContent = `${result.width} × ${result.height}`;
+          source.appendChild(size);
+        }
+        const page = safeUrl(result.url);
+        visit.hidden = !page;
+        if (page) visit.href = page.href;
+        const focused = document.activeElement;
+        previous.disabled = index === 0;
+        next.disabled = index === _state.results.length - 1;
+        // a step button that just switched itself off would drop the focus out of the dialog
+        if (focused?.disabled) (previous.disabled ? next : previous).focus();
+        const full = mediaUrl(result.image_url || '');
+        if (!full || full === small) return;
+        loading = new AbortController();
+        fetch(full, { signal: loading.signal }).then(async reply => {
+          // the proxy answers a dead picture with a placeholder and says so in this header
+          if (!reply.ok || reply.headers.get('x-andromeda-media-state')) return;
+          const blob = await reply.blob();
+          if (at !== index || !image.isConnected) return;
+          fullUrl = URL.createObjectURL(blob);
+          image.src = fullUrl;
+        }).catch(() => {});
+      };
+      card.addEventListener('keydown', event => {
+        if (event.key === 'ArrowLeft') show(at - 1);
+        else if (event.key === 'ArrowRight') show(at + 1);
+      });
+      show(start);
+    },
+  }).then(dropFull);
+}
+
+function imageNode(result, _saved = null, index = 0) {
   const card = makeExternalLink(result, 'andromeda-image-card');
   card.textContent = '';
+  card.setAttribute('aria-haspopup', 'dialog');
+  card.addEventListener('click', event => {
+    // a plain click previews; cmd, ctrl, shift or the middle button still open the page itself
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    openImagePreview(index);
+  });
   card.style.setProperty('--ar', imageAspect(result));
   const frame = mediaFrame(result);
   frame.style.aspectRatio = '';

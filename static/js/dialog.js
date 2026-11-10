@@ -24,7 +24,7 @@ function _wireDialog(overlay, resolve, valueFromConfirm, canSubmit = () => true)
   const previousFocus = active && active !== document.body ? active : (_pressed?.isConnected ? _pressed : active);
   const card = overlay.querySelector('[role="dialog"], [role="alertdialog"]');
   let busy = false, closed = false;
-  const focusable = () => [...overlay.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])')]
+  const focusable = () => [...overlay.querySelectorAll('button, a[href], input, textarea, [tabindex]:not([tabindex="-1"])')]
     .filter(element => !element.disabled && !element.hidden);
   const done = value => {
     if (closed) return;
