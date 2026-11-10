@@ -1,6 +1,6 @@
 import { plainError, toast, writeClipboard } from './util.js';
 import { replaceLinkedRecord } from './recordlinks.js';
-import { initCustomDropdown } from './dropdown.js?v=217';
+import { initCustomDropdown, populateDropdown, getDropdownValue, getDropdownValues } from './dropdown.js?v=217';
 import { initDatePickers } from './datepick.js';
 import { prompt as dlgPrompt, confirm as dlgConfirm, choose as dlgChoose } from './dialog.js';
 import { initKokuenPrimitives, wireActionMenu } from './kokuen.js?v=5';
@@ -93,6 +93,7 @@ let _draftSnapshot = '';
 let _loadSequence = 0;
 let _editOcc = null;             // occurrence date when editing a recurring instance
 let _cursor = _calendarNow();
+const _VIEWS = ['month', 'week', 'day', 'agenda', 'year'];
 let _view = localStorage.getItem('cal-view') || 'month';
 let _viewBooted = false;          // has loadCalendar seeded the view once this session
 let _lastDefaultView = null;      // last cal_default_view we applied (detects a cog change)
@@ -121,7 +122,9 @@ const _weekdayLabels = (width = 'short') => {
 };
 // leading blanks before the 1st, honoring week-start
 const _lead = (y, m) => (new Date(y, m, 1).getDay() - _weekStart + 7) % 7;
-const HOUR_H = 44;
+// a one hour block is 44px (its touch target) with --k-row-gap (4px) under it
+const HOUR_H = 48;
+const BLOCK_GAP = 4;
 export const CAL_SEARCH_DEBOUNCE_MS = 180;
 const _pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
@@ -483,9 +486,13 @@ function _bindNav() {
   document.getElementById('cal-prev')?.addEventListener('click', () => shift(-1));
   document.getElementById('cal-next')?.addEventListener('click', () => shift(1));
   document.getElementById('cal-today')?.addEventListener('click', () => { _cursor = _calendarNow(); _miniCursor = _calendarNow(); render(); renderMini(); });
-  document.querySelectorAll('#cal-view .seg-opt').forEach(b =>
-    b.addEventListener('click', () => { _view = b.dataset.view; localStorage.setItem('cal-view', _view); _syncViewBtns(); render(); }));
-  _syncViewBtns();
+  // 5 views: the dropdown (decision 0050), and the saved view survives a reload
+  document.getElementById('cal-view')?.addEventListener('change', () => {
+    const next = getDropdownValue(document.getElementById('cal-view'));
+    if (!next || next === _view) return;
+    _view = next; localStorage.setItem('cal-view', _view); render();
+  });
+  _syncViewBtns(true);
   const tools = document.getElementById('cal-tools');
   const toolsToggle = document.getElementById('cal-tools-toggle');
   const setToolsOpen = open => {
@@ -502,10 +509,36 @@ function _bindNav() {
     setToolsOpen(false);
     toolsToggle.focus();
   });
-  // the month cap depends on the width, so a rotate or resize across it redraws the grid
-  window.matchMedia?.(MONTH_NARROW).addEventListener?.('change', () => {
-    if (_view === 'month' && document.querySelector('#calendar-list > .cal-grid')) render();
+  // a phone keeps the search field shut until its button opens it as a row of its own; escape or an
+  // emptied field shuts it again. wider screens always show it in the sidebar
+  const side = document.getElementById('cal-sidebar');
+  const searchBtn = document.getElementById('cal-search-btn');
+  if (searchBtn) searchBtn.innerHTML = _si('search');
+  const phoneSearch = () => Boolean(window.matchMedia?.('(max-width: 720px)').matches);
+  const setSearchOpen = (open, focus = true) => {
+    if (side) side.dataset.searchOpen = String(open);
+    searchBtn?.setAttribute('aria-expanded', String(open));
+    if (open && focus) document.getElementById('cal-search')?.focus();
+    if (!open && focus) searchBtn?.focus();
+  };
+  searchBtn?.addEventListener('click', () => setSearchOpen(searchBtn.getAttribute('aria-expanded') !== 'true'));
+  side?.addEventListener('keydown', event => {
+    const field = event.target.closest?.('#cal-search');
+    if (event.key !== 'Escape' || !field || !phoneSearch()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (field.value) { field.value = ''; queueSearchRender('', render); }
+    setSearchOpen(false);
   });
+  side?.addEventListener('input', event => {
+    if (event.target.closest?.('#cal-search') && !event.target.value && phoneSearch()) setSearchOpen(false);
+  });
+  // the month cap depends on the width, so a rotate or resize across it redraws the grid
+  for (const query of [MONTH_NARROW, MONTH_DOTS]) {
+    window.matchMedia?.(query).addEventListener?.('change', () => {
+      if (_view === 'month' && document.querySelector('#calendar-list > .cal-grid')) render();
+    });
+  }
   const compactToolbar = window.matchMedia?.('(max-width: 760px)');
   compactToolbar?.addEventListener('change', () => {
     if (compactToolbar.matches && tools?.contains(document.activeElement)) setToolsOpen(true);
@@ -520,6 +553,7 @@ function _bindNav() {
   document.getElementById('cal-find')?.addEventListener('click', findTime);
   window.addEventListener('alles:localization-change', event => {
     _weekStart = resolveCalendarWeekStart(event.detail || {});
+    _syncViewBtns(true);
     renderSidebar();
     render();
   });
@@ -662,8 +696,12 @@ function _bindNav() {
   }
 }
 
-function _syncViewBtns() {
-  document.querySelectorAll('#cal-view .seg-opt').forEach(b => { b.classList.toggle('active', b.dataset.view === _view); b.setAttribute('aria-pressed', String(b.dataset.view === _view)); });
+function _syncViewBtns(labels = false) {
+  // labels are read at call time, so a language change passes true to redraw them
+  const pick = document.getElementById('cal-view');
+  if (!pick) return;
+  if (labels || pick.dataset.dropdownReady !== '1') populateDropdown(pick, _VIEWS.map(value => ({ value, label: tr(`calendar.${value}`) })), _view);
+  else pick.value = _view;
 }
 
 function shift(dir) {
@@ -1193,6 +1231,11 @@ async function _toggleCalTask(id, refocus = false) {
 }
 // month cells fit 4 lines, 3 on a phone; the rest is counted on a "+N more" that opens the day
 const MONTH_NARROW = '(max-width: 600px)';
+// at 700px and narrower a day is its number and up to 3 dots in its calendars' colors: a cell of
+// about 54px can't read an event's words
+const MONTH_DOTS = '(max-width: 700px)';
+const monthDots = () => Boolean(window.matchMedia?.(MONTH_DOTS).matches);
+const _dayFull = day => formatCalendarDate(calendarPlacementDate(day), { weekday: 'long', month: 'short', day: 'numeric' }).toLowerCase();
 export const monthCellFit = (count, narrow) => Math.min(count, narrow ? 3 : 4);
 // the date row is one 44px strip in every cell, covered by a button that opens the day: a tap
 // on the date does the same everywhere, and "+N more" lives in that strip instead of on a line
@@ -1304,7 +1347,8 @@ function renderMonth() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
   while (cells.length % 7) cells.push(null);
 
-  let html = '<div class="cal-grid"><div class="cal-row" role="row">';
+  const dots = monthDots();
+  let html = `<div class="cal-grid${dots ? ' dots' : ''}"><div class="cal-row" role="row">`;
   for (const w of _weekdayLabels()) html += `<div class="cal-weekday" role="columnheader">${esc(w)}</div>`;
   html += '</div>';
   for (const [index, cell] of cells.entries()) {
@@ -1322,6 +1366,16 @@ function renderMonth() {
     ];
     counts[key] = items.length;
     lines[key] = items;
+    if (dots) {
+      // the whole cell is one button that opens the day; a screen reader hears the day's count
+      const colors = [...evts.map(evHex), ...(tasksByDay[key] || []).map(() => 'var(--muted)'), ...(bmap[_bdayKey(cell)] || []).map(() => 'var(--cat-pink)')];
+      const label = items.length ? trp('calendar.day_events', items.length, { day: _dayFull(key) }) : tr('calendar.open_day', { day: _dayLabel(key) });
+      html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
+      <div class="cal-cell-num" style="${NUM_STYLE}">${cell.getDate()}</div>
+      <div class="cal-dots" aria-hidden="true">${colors.slice(0, 3).map(color => `<i style="background:${color}"></i>`).join('')}</div>
+      <button type="button" class="cal-day-open" data-day="${key}" tabindex="-1" aria-label="${esc(label)}" style="${DAY_BTN_STYLE}"></button></div>`;
+      continue;
+    }
     const fit = monthCellFit(items.length, narrow);
     html += `<div class="cal-cell${sameDay(cell, today) ? ' today' : ''}" data-date="${key}">
       <div class="cal-cell-head" style="${HEAD_STYLE}"><div class="cal-cell-num" style="${NUM_STYLE}">${cell.getDate()}</div>${_dayBtn(key, items.length - fit)}</div>
@@ -1334,7 +1388,7 @@ function renderMonth() {
   const grid = el.querySelector('.cal-grid');
   _monthFitWatch?.disconnect();
   let seen = '';
-  _monthFitWatch = typeof ResizeObserver === 'function' ? new ResizeObserver(([entry]) => {
+  _monthFitWatch = !dots && typeof ResizeObserver === 'function' ? new ResizeObserver(([entry]) => {
     if (!grid.isConnected) { _monthFitWatch?.disconnect(); return; }
     // only a real size change refills; refilling moves lines, which can't feed back forever
     // because the next call sees the same size and stops
@@ -1365,6 +1419,8 @@ function renderMonth() {
     }
     const chip = ev.target.closest('.cal-chip');
     if (chip) { openEvent(chip.dataset.id, chip.dataset.occ); return; }
+    // dots only show that a day has things: the cell opens the day, enter on it too
+    if (dots) { _openDay(c.dataset.date); return; }
     createAt(c.dataset.date);
   }));
 }
@@ -1443,7 +1499,7 @@ function renderTimeGrid(el, days, occ) {
         if (stacked.has(it.cid)) continue;
         stacked.add(it.cid);
         const group = dayEvs.filter(x => x.cid === it.cid);   // in start order, so `it` is first
-        const height = (Math.max(...group.map(x => x.endMs)) - it.startMs) / 3600000 * HOUR_H - 2;
+        const height = (Math.max(...group.map(x => x.endMs)) - it.startMs) / 3600000 * HOUR_H - BLOCK_GAP;
         const last = group.reduce((latest, x) => (x.end > latest ? x.end : latest), it.end);
         // the box shows the count; a half-hour box has no room for a word
         const name = trp('calendar.overlap_stack', group.length, { start: timeShort(o._date), end: timeShort(last) });
@@ -1455,12 +1511,12 @@ function renderTimeGrid(el, days, occ) {
       const left = `calc(2px + ${it.col} * (100% - 4px) / ${it.ncols})`;
       // dom order is time order, so tab walks the day in time order
       const name = tr('calendar.event_span', { title: o.title, start: timeShort(o._date), end: timeShort(it.end) });
-      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" role="button" tabindex="0" aria-label="${esc(name)}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - 2}px;left:${left};width:${w};right:auto" title="${chipTitle(o)}"><div class="cal-tev-box" style="background:color-mix(in srgb, ${hx} 24%, transparent);color:var(--text);border-left:3px solid ${hx}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}<span class="cal-tev-title">${esc(o.title)}</span>${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div></div>`;
+      evHtml += `<div class="cal-tev${o._recur ? ' recurring' : ''}" role="button" tabindex="0" aria-label="${esc(name)}" data-id="${o.id}" data-occ="${ymd(o._date)}" style="top:${top}px;height:${it.durH * HOUR_H - BLOCK_GAP}px;left:${left};width:${w};right:auto" title="${chipTitle(o)}"><div class="cal-tev-box" style="background:color-mix(in srgb, ${hx} 24%, transparent);color:var(--text);border-left:3px solid ${hx}"><b>${esc(timeShort(o._date))}</b> ${o._recur ? `<span class="cal-chip-recur">${_si('refresh')}</span>` : ''}<span class="cal-tev-title">${esc(o.title)}</span>${o.location ? `<span class="cal-tev-loc">${esc(o.location)}</span>` : ''}<span class="cal-tev-resize"></span></div></div>`;
     }
     for (const hidden of folded.values()) {
       const n = fits(el.clientWidth), first = hidden[0];
       const top = (first.o._date.getHours() + first.o._date.getMinutes() / 60) * HOUR_H;
-      const height = (Math.max(...hidden.map(x => x.endMs)) - first.startMs) / 3600000 * HOUR_H - 2;
+      const height = (Math.max(...hidden.map(x => x.endMs)) - first.startMs) / 3600000 * HOUR_H - BLOCK_GAP;
       const last = hidden.reduce((latest, x) => (x.end > latest ? x.end : latest), first.end);
       const name = trp('calendar.overlap_more', hidden.length, { start: timeShort(first.o._date), end: timeShort(last) });
       const picks = JSON.stringify(hidden.map(x => ({ value: `${x.o.id}@${ymd(x.o._date)}`, label: `${timeShort(x.o._date)} ${x.o.title}` })));
@@ -1859,19 +1915,17 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
 
   el.innerHTML = `<div class="cal-editor" role="form" aria-labelledby="cal-ed-head">
     <h2 class="cal-ed-head" id="cal-ed-head" tabindex="-1">${esc(tr(isNew ? 'calendar.editor_new' : 'calendar.editor_edit'))}</h2>
-    <input class="note-editor-title" id="cal-title" aria-label="${esc(tr('calendar.event_title'))}" value="${esc(event?.title || '')}" placeholder="${esc(tr('calendar.event_title_placeholder'))}">
+    <input class="settings-input cal-ed-title" id="cal-title" aria-label="${esc(tr('calendar.event_title'))}" value="${esc(event?.title || '')}" placeholder="${esc(tr('calendar.event_title_placeholder'))}">
     <div class="cal-ed-grid">
       <div><div class="cal-flabel">${esc(tr('calendar.start'))}</div><div class="date-input" id="cal-start" aria-label="${esc(tr('calendar.start'))}" data-type="datetime" data-value="${start}" data-ph="${esc(tr('calendar.start'))}" style="width:100%"></div></div>
       <div><div class="cal-flabel">${esc(tr('calendar.end'))}</div><div class="date-input" id="cal-end" aria-label="${esc(tr('calendar.end'))}" data-type="datetime" data-value="${endVal}" data-ph="${esc(tr('calendar.end_optional'))}" style="width:100%"></div></div>
-    </div>
-    <div class="cal-sched">
       <button class="btn cal-sched-btn" id="cal-freeslot" type="button">${esc(tr('calendar.find_free_time'))}</button>
-      <span class="cal-conflict" id="cal-conflict"></span>
     </div>
+    <div class="cal-conflict" id="cal-conflict"></div>
     <div class="cal-slots" id="cal-slots"></div>
     <div class="cal-ed-row">
       <div id="cal-allday-row"><button type="button" class="cal-flabel cal-chk-row" id="cal-allday" role="checkbox" aria-checked="${event?.all_day || allDay ? 'true' : 'false'}"><span class="chk" aria-hidden="true"></span>${esc(tr('home.all_day'))}</button></div>
-      <div class="cal-cal-pick"><span class="cal-flabel">${esc(tr('calendar.title'))}</span>
+      <div class="cal-cal-pick"><div class="cal-flabel">${esc(tr('calendar.title'))}</div>
         <div class="settings-input custom-select" id="cal-calendar" aria-label="${esc(tr('calendar.title'))}" aria-disabled="${Boolean(_calendarMetadataError)}" data-placeholder="${esc(_calendarMetadataError ? tr('calendar.calendar_unavailable') : tr('calendar.select'))}" data-value="${defaultCal}" data-options="${_calendars.map(c => `${c.id}|${esc(c.name)}`).join(';')}" style="min-width:130px"></div></div>
     </div>
 
@@ -1894,7 +1948,7 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     </div>
 
     <div class="cal-flabel">${esc(tr('calendar.reminders'))}</div>
-    <div class="cal-reminders" id="cal-reminders">${remindPresets().map(([m, l]) => `<button type="button" class="cal-rem ${reminders.has(m) ? 'on' : ''}" data-m="${m}" aria-pressed="${reminders.has(m)}" aria-label="${esc(m === 0 ? tr('calendar.remind_at_event_time') : trp('calendar.remind_minutes_before', m))}">${esc(l)}</button>`).join('')}</div>
+    <div class="settings-input custom-select" id="cal-reminders" aria-label="${esc(tr('calendar.reminders'))}" data-multiple="true" data-placeholder="${esc(tr('common.none'))}" data-value="${[...reminders].sort((a, b) => a - b).join(';')}" data-options="${remindPresets().map(([m, l]) => `${m}|${esc(l)}`).join(';')}" style="width:100%"></div>
 
     <div class="cal-ed-grid">
       <div><div class="cal-flabel">${esc(tr('calendar.location'))}</div><input class="settings-input" id="cal-loc" value="${esc(event?.location || '')}" placeholder="${esc(tr('calendar.add_location'))}" style="width:100%"></div>
@@ -1930,13 +1984,14 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
     <div class="cal-ed-actions">
       ${isNew ? '' : `<button class="btn" id="cal-del" style="margin-right:auto;color:var(--error);border-color:var(--error)">${esc(tr('common.delete'))}</button>`}
       ${isNew ? '' : `<button class="btn" id="cal-dup" title="${esc(tr('calendar.duplicate_help'))}">${esc(tr('calendar.duplicate'))}</button>`}
-      <button class="btn ic-btn-lbl" id="cal-back">${_si('chevron-left')} back</button>
+      <button class="btn" id="cal-back" type="button">${esc(tr('common.cancel'))}</button>
       <button class="btn primary" id="cal-save">${esc(isNew ? tr('common.create') : tr('common.save'))}</button>
     </div>
   </div>`;
 
   initCustomDropdown(document.getElementById('cal-recur'));
   initCustomDropdown(document.getElementById('cal-calendar'));
+  initCustomDropdown(document.getElementById('cal-reminders'));
   refreshCalendarPicker();
   initDatePickers(el);
 
@@ -2016,7 +2071,6 @@ function openEditor(event, defaultDate, hour, allDay, occ) {
   el.querySelectorAll('.cal-dow-b').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.i; byday.has(i) ? byday.delete(i) : byday.add(i); syncDow();
   }));
-  el.querySelectorAll('.cal-rem').forEach(r => r.addEventListener('click', () => { r.classList.toggle('on'); r.setAttribute('aria-pressed', String(r.classList.contains('on'))); }));
   el.querySelectorAll('#cal-colors .cal-sw').forEach(s => s.addEventListener('click', () => {
     color = s.dataset.c; el.querySelectorAll('#cal-colors .cal-sw').forEach(x => { x.classList.toggle('sel', x === s); x.setAttribute('aria-pressed', String(x === s)); });
   }));
@@ -2168,7 +2222,7 @@ function collectBody(byday) {
   const el = document.getElementById('calendar-list');
   const rec = document.getElementById('cal-recur').value;
   const ends = el.querySelector('.cal-radio-choice[aria-checked="true"]')?.dataset.value || 'never';
-  const reminders = [...el.querySelectorAll('.cal-rem.on')].map(r => +r.dataset.m).sort((a, b) => a - b);
+  const reminders = getDropdownValues(document.getElementById('cal-reminders')).map(Number).sort((a, b) => a - b);
   const body = {
     title: document.getElementById('cal-title').value.trim(),
     calendar_id: _calendarMetadataError && _editing ? (_editing.calendar_id || '') : document.getElementById('cal-calendar').value,

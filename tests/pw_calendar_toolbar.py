@@ -137,14 +137,54 @@ def run():
                     else:
                         expect(toggle).to_be_hidden()
                         expect(quick).to_be_visible()
-                    expect(page.locator("#cal-view .seg-opt")).to_have_count(5)
+                    pick = page.locator("#cal-view")
+                    expect(pick).to_have_attribute("role", "combobox")
+                    pick.click()
+                    expect(page.get_by_role("option")).to_have_count(5)
+                    page.keyboard.press("Escape")
+                    expect(pick).to_be_focused()
                     expect(page.locator("#cal-new-btn")).to_be_visible()
+                    if page.evaluate("innerWidth <= 720"):
+                        # a phone: the search field waits behind its 44px button
+                        search = page.locator("#cal-search-btn")
+                        expect(search).to_have_attribute("aria-label", "search events")
+                        box = search.bounding_box()
+                        assert box["width"] >= 44 and box["height"] >= 44, box
+                        expect(page.locator("#cal-search")).to_be_hidden()
+                        if width == 390:
+                            top = page.evaluate(
+                                "document.querySelector('#calendar-list .cal-grid').getBoundingClientRect().top"
+                            )
+                            assert top <= 230, top
+                            edges = page.evaluate(
+                                """() => ['#cal-prev', '#cal-view', '#cal-new-btn'].map(s => {
+                                const r = document.querySelector(s).getBoundingClientRect();
+                                return [Math.round(r.left), Math.round(r.top)]; })"""
+                            )
+                            assert edges[0][0] == edges[1][0] == 16, edges  # the page gutter
+                            assert edges[1][1] > edges[0][1] and edges[2][1] == edges[1][1], edges
+                        search.press("Enter")
+                        expect(page.locator("#cal-search")).to_be_focused()
+                        page.locator("#cal-search").press("Escape")
+                        expect(page.locator("#cal-search")).to_be_hidden()
+                        expect(search).to_be_focused()
                     capture("resting")
                     for mode in ("week", "day", "agenda", "year", "month"):
-                        button = page.locator(f'#cal-view [data-view="{mode}"]')
-                        button.press("Enter")
+                        pick.focus()
+                        pick.press("Enter")
+                        page.get_by_role("option", name=mode, exact=True).click()
                         assert page.evaluate("localStorage.getItem('cal-view')") == mode
-                        expect(button).to_have_class("seg-opt active")
+                        expect(pick).to_have_attribute("data-value", mode)
+                        expect(pick).to_be_focused()
+                    # the keyboard alone: open, arrow to the next view, enter picks and focus returns
+                    pick.press("Enter")
+                    pick.press("ArrowDown")
+                    pick.press("Enter")
+                    expect(pick).to_have_attribute("data-value", "week")
+                    expect(pick).to_be_focused()
+                    pick.press("Home")
+                    pick.press("Enter")
+                    expect(pick).to_have_attribute("data-value", "month")
                     month = page.locator("#cal-month-label").inner_text()
                     page.locator("#cal-next").press("Enter")
                     assert page.locator("#cal-month-label").inner_text() != month
@@ -227,7 +267,14 @@ def run():
                     event_id = saved.value.json()["id"]
                     expect(page.locator("#cal-title")).to_have_count(0)
                     page.reload(wait_until="networkidle")
-                    page.locator(f'#calendar-list .cal-chip[data-id="{event_id}"]').press("Enter")
+                    if page.evaluate("innerWidth <= 700"):
+                        # dots, not chips: the cell opens the day, and the event opens from there
+                        page.locator("#calendar-list .cal-cell.today .cal-day-open").press("Enter")
+                        page.locator(
+                            f'#calendar-list :is(.cal-tev, .cal-allday-ev)[data-id="{event_id}"]'
+                        ).press("Enter")
+                    else:
+                        page.locator(f'#calendar-list .cal-chip[data-id="{event_id}"]').press("Enter")
                     expect(page.locator("#cal-title")).to_have_value(event_title)
                     expect(page.locator("#cal-desc")).to_have_value("owned saved details 中文")
                     page.locator("#cal-back").press("Enter")
@@ -273,7 +320,9 @@ def run():
                     expect(more).to_be_focused()
                     menu_item("#cal-settings-btn").press("Enter")
                     expect(page.locator(".app-settings-pop")).to_be_visible()
-                    page.locator("#cal-month-label").click()
+                    # a click outside the popover closes it; at 200% zoom the popover lies over the
+                    # month label, so the click is sent to the label itself
+                    page.locator("#cal-month-label").dispatch_event("click")
                     expect(page.locator(".app-settings-pop")).to_have_count(0)
                     today = (
                         api.get(base + "/api/calendar").json()[0]["start_dt"][:10].replace("-", "")

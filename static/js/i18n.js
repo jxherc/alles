@@ -279,6 +279,7 @@ const BUILTIN_ENGLISH = {
     "calendar.parse_error": "could not parse that - try “lunch fri 1pm”",
     "calendar.quick_add_placeholder": "quick add… ‘lunch fri 1pm’",
     "calendar.search_events": "search events…",
+    "calendar.search_open": "search events",
     "calendar.settings": "calendar settings",
     "calendar.subscribe_ics": "subscribe to an ICS URL",
     "calendar.subscriptions": "subscriptions",
@@ -286,6 +287,7 @@ const BUILTIN_ENGLISH = {
     "calendar.sync_help": "CalDAV sync",
     "calendar.task_title": "task: {title}",
     "calendar.title": "calendar",
+    "calendar.view_label": "view",
     "calendar.week": "week",
     "calendar.year": "year",
     "home.all_day": "all day",
@@ -8910,6 +8912,10 @@ const BUILTIN_ENGLISH = {
     "books.stars": {
       "one": "{count} star",
       "other": "{count} stars"
+    },
+    "calendar.day_events": {
+      "one": "{day}, {count} event",
+      "other": "{day}, {count} events"
     },
     "calendar.more_on_day": {
       "one": "{count} more on {day}",

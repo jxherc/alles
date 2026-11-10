@@ -37,10 +37,9 @@ def main():
         )
         pg.evaluate("() => window._navigateTo && window._navigateTo('calendar')")
         pg.wait_for_timeout(800)
-        # switch to day view (button/segment with 'day')
-        pg.evaluate(
-            """() => { const b=[...document.querySelectorAll('button,.cal-view-opt,[data-view]')].find(x=>/^day$/i.test((x.textContent||'').trim())); b && b.click(); }"""
-        )
+        # switch to day view from the view dropdown
+        pg.locator("#cal-view").click()
+        pg.get_by_role("option", name="day", exact=True).click()
         pg.wait_for_timeout(900)
         boxes = pg.evaluate("""() => [...document.querySelectorAll('.cal-tev')]
             .filter(e => /OVLP_/.test(e.textContent||''))

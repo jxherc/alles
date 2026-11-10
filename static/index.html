@@ -599,16 +599,11 @@
           </div>
           <span id="cal-month-label" class="cal-month-title"></span>
         </div>
-        <div class="seg seg-cal" id="cal-view" style="margin-left:auto">
-          <button type="button" class="seg-opt" data-view="month" data-i18n="calendar.month">month</button>
-          <button type="button" class="seg-opt" data-view="week" data-i18n="calendar.week">week</button>
-          <button type="button" class="seg-opt" data-view="day" data-i18n="calendar.day">day</button>
-          <button type="button" class="seg-opt" data-view="agenda" data-i18n="calendar.agenda">agenda</button>
-          <button type="button" class="seg-opt" data-view="year" data-i18n="calendar.year">year</button>
-        </div>
+        <div class="custom-select cal-view-pick" id="cal-view" aria-label="view" data-i18n-aria-label="calendar.view_label" data-value="month" data-options="month|month;week|week;day|day;agenda|agenda;year|year" data-i18n-options="calendar.month;calendar.week;calendar.day;calendar.agenda;calendar.year"></div>
         <div class="cal-primary-actions">
           <button type="button" class="btn primary" id="cal-new-btn" data-i18n="calendar.new_event">+ event</button>
           <button type="button" class="btn cal-tools-toggle" id="cal-tools-toggle" aria-expanded="false" aria-controls="cal-tools" data-i18n="calendar.tools">tools</button>
+          <button type="button" class="btn icon-btn" id="cal-search-btn" aria-expanded="false" aria-controls="cal-search" aria-label="search events" data-i18n-aria-label="calendar.search_open"></button>
         </div>
         <div id="cal-tools" class="cal-tools" role="group" aria-label="calendar tools" data-i18n-aria-label="calendar.tools_label">
           <input type="text" id="cal-quick" aria-label="quick add event" class="cal-quick" placeholder="quick add… 'lunch fri 1pm'" data-i18n-placeholder="calendar.quick_add_placeholder" data-i18n-aria-label="shell.calendar.quick_add_event">

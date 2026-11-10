@@ -275,6 +275,7 @@
     "calendar.parse_error": "تعذّر فهم ذلك. جرّب «غداء الجمعة 1م»",
     "calendar.quick_add_placeholder": "إضافة سريعة… «غداء الجمعة 1م»",
     "calendar.search_events": "البحث في الأحداث…",
+    "calendar.search_open": "البحث في الأحداث",
     "calendar.settings": "إعدادات التقويم",
     "calendar.subscribe_ics": "الاشتراك في رابط ICS",
     "calendar.subscriptions": "الاشتراكات",
@@ -282,6 +283,7 @@
     "calendar.sync_help": "مزامنة CalDAV",
     "calendar.task_title": "مهمة: {title}",
     "calendar.title": "التقويم",
+    "calendar.view_label": "العرض",
     "calendar.week": "أسبوع",
     "calendar.year": "سنة",
     "home.all_day": "طوال اليوم",
@@ -9098,6 +9100,14 @@
       "few": "{count} نجوم",
       "many": "{count} نجمة",
       "other": "{count} نجمة"
+    },
+    "calendar.day_events": {
+      "zero": "{day}، {count} أحداث",
+      "one": "{day}، {count} حدث",
+      "two": "{day}، {count} حدثان",
+      "few": "{day}، {count} أحداث",
+      "many": "{day}، {count} حدثًا",
+      "other": "{day}، {count} حدث"
     },
     "calendar.more_on_day": {
       "zero": "{count} أخرى في {day}",
