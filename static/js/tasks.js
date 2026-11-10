@@ -219,12 +219,11 @@ function _rowHtml(t, child, progress) {
       ${t.repeat ? `<span class="task-repeat" title="${esc(tr('tasks.repeats', { repeat: tr(`tasks.repeat.${t.repeat}`) }))}">${_si('refresh')}</span>` : ''}
       ${_dueBadge(t.due_date, t.due_time, t.overdue)}
       ${(t.tags || []).map(g => `<span class="task-tag">#${esc(g)}</span>`).join('')}
-      ${t.priority ? `<span class="task-high task-p${t.priority}">${esc(tr(`tasks.priority.${['', 'low', 'medium', 'high'][t.priority] || 'high'}`))}</span>` : ''}
+      ${t.priority >= 3 ? `<span class="task-high task-p3">${esc(tr('tasks.priority.high'))}</span>` : ''}
       ${progress && progress.total ? `<span class="task-progress">${progress.done}/${progress.total}</span>` : ''}
       </div>
       </div>
       <div class="task-actions">
-      ${_snoozable(t) ? `<button type="button" class="task-snooze" data-id="${t.id}" data-w="tomorrow" aria-label="${esc(tr('tasks.move_named', { task: t.title, day: tr('tasks.reschedule.tomorrow') }))}">${esc(tr('tasks.reschedule.tomorrow'))}</button>` : ''}
       <button type="button" class="icon-btn task-more" id="task-more-${t.id}" aria-haspopup="menu" aria-expanded="false" aria-controls="task-menu-${t.id}" aria-label="${esc(tr('tasks.more_named', { task: t.title }))}">${_si('more')}</button>
       <div class="ctx-menu task-menu" id="task-menu-${t.id}" role="menu" aria-labelledby="task-more-${t.id}" hidden>
         ${t.done ? '' : ['today', 'tomorrow', 'next_week'].map(w => `<button type="button" class="ctx-item" role="menuitem" data-move="${w}" data-id="${t.id}">${esc(tr(`tasks.reschedule.${w}`))}</button>`).join('')}
@@ -327,9 +326,9 @@ function _wireRows(list) {
   list.querySelectorAll('.task-del').forEach(btn => btn.addEventListener('click', () => _deleteLater(btn.dataset.id)));
   list.querySelectorAll('.task-undo-del').forEach(btn => btn.addEventListener('click', _undoDelete));
   list.querySelectorAll('.task-more').forEach(btn => wireActionMenu(btn, document.getElementById(btn.getAttribute('aria-controls'))));
-  list.querySelectorAll('.task-snooze, [data-move]').forEach(btn => btn.addEventListener('click', () => {
+  list.querySelectorAll('[data-move]').forEach(btn => btn.addEventListener('click', () => {
     const task = _findTask(btn.dataset.id);
-    if (task) _moveTasks([task], btn.dataset.w || btn.dataset.move, document.getElementById(`task-more-${task.id}`) || btn);
+    if (task) _moveTasks([task], btn.dataset.move, document.getElementById(`task-more-${task.id}`) || btn);
   }));
   list.querySelectorAll('.task-move-all').forEach(all => all.addEventListener('click', event => {
     const late = (_tab === 'active' && !_search ? _tree : _tasks).filter(t => _late(t) && String(t.due_date).slice(0, 10) < _todayISO());
@@ -358,10 +357,13 @@ function _wireRows(list) {
     const id = el.closest('.task-item').dataset.id;
     openTaskDetails(id, { from: el, onChange: () => loadTasks(), openFull: () => openTaskEditor(id, el) });
   }));
-  // swipe on touch: right is the check, left is tomorrow, the same as the row's buttons
+  // swipe on touch: right is the check, left is the menu's tomorrow, on what's due or late
   list.querySelectorAll('.task-item:not(.task-gone)').forEach(row => wireSwipe(row, {
     right: () => row.querySelector('.task-check')?.click(),
-    left: () => row.querySelector('.task-snooze')?.click(),
+    left: () => {
+      const task = _findTask(row.dataset.id);
+      if (task && _snoozable(task)) row.querySelector('[data-move="tomorrow"]')?.click();
+    },
   }));
 }
 

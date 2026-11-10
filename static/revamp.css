@@ -200,17 +200,6 @@ html:not(#_) :is(.cal-weekday, .photos-nav-group, .photos-faces-h, .today-sectio
   letter-spacing: 0;
 }
 
-/* due dates and tags are soft fills, not outlined boxes */
-html:not(#_) .task-due {
-  border-color: transparent;
-  border-radius: var(--k-radius-small);
-  background: var(--k-hover);
-  padding: 2px 8px;
-}
-
-html:not(#_) .task-due.today { background: color-mix(in srgb, var(--k-info) 16%, transparent); }
-html:not(#_) .task-due.overdue { background: color-mix(in srgb, var(--k-danger) 16%, transparent); }
-
 /* ── picked chips, segments, tabs ──────────────────────────────────────────── */
 
 /* chips take the accent tint when picked; tabs and segments get the sliding pill below */

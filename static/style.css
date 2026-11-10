@@ -4686,9 +4686,9 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .task-progress { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-small); padding: 0 0.25rem; }
 .task-addsub { font-size: 0.8125rem; color: var(--muted); background: none; border: 1px dashed var(--faint); border-radius: var(--k-radius-small); padding: 0 0.3rem; cursor: pointer; transition: color 0.15s; }
 .task-addsub:hover { color: var(--text); border-color: var(--muted); }
-.task-due { font-size: 0.8125rem; color: var(--muted); border: 1px solid var(--faint); border-radius: var(--k-radius-control); padding: 0.05rem 0.35rem; white-space: nowrap; }
-.task-due.today { color: var(--info); border-color: color-mix(in srgb, var(--info) 40%, transparent); }
-.task-due.overdue { color: var(--error); border-color: color-mix(in srgb, var(--error) 40%, transparent); }
+.task-due { font-size: 0.8125rem; color: var(--muted); white-space: nowrap; }
+.task-due.today { color: var(--text); }
+.task-due.overdue { color: var(--error); }
 .task-tag { font-size: 0.8125rem; color: var(--muted); }
 .task-repeat { font-size: 0.8125rem; opacity: 0.7; }
 .task-repeat .ic { width: 12px; height: 12px; vertical-align: -0.1em; }
@@ -4800,15 +4800,9 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
   border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 .ie-hint { font-size: 0.8125rem; color: var(--muted); line-height: 1.5; }
-/* a task row's actions (u.01, u.03, u.10): "tomorrow" on what's due or late, everything else
-   (other days, a subtask, delete) behind the row's more menu, so delete is never one tap away */
+/* a task row ends in one more button; moving days, a subtask and delete sit behind it, so every
+   row ends at the same edge and delete is never one tap away */
 .task-actions { position: relative; }
-.task-snooze {
-  background: none; border: 0; border-radius: var(--k-radius-control); cursor: pointer;
-  color: var(--muted); font: inherit; font-size: 0.8125rem; padding: 0 8px;
-  transition: color 0.15s, background 0.15s;
-}
-.task-snooze:hover { color: var(--text); background: var(--hover); }
 .task-more, .row-more { color: var(--muted); }
 .task-more svg, .row-more svg { width: 16px; height: 16px; }
 .task-menu, .row-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 180px; }
@@ -11832,12 +11826,12 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .cal-sync-line { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: var(--muted); }
 .cal-sync-line[data-tone="warn"] { color: var(--warn); }
 
-/* act where you are (u.01): an agenda task carries home's check on the left and "tomorrow" on
-   the right; the row in the middle opens its details over the agenda. the wrapper takes the
-   row's pull-back, so the inner row sits flat inside it */
+/* act where you are (u.01): an agenda task carries home's check on the left; the row opens its
+   details over the agenda. the wrapper takes the row's pull-back, so the inner row sits flat
+   inside it */
 html:not(#_):not(#_) #plan-view .plan-agenda-task {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
   gap: var(--k-space-1, 4px);
   width: calc(100% + 2 * var(--k-space-3));
@@ -11860,13 +11854,7 @@ html:not(#_):not(#_) #plan-view .plan-agenda-task > .specialist-record-row {
 }
 .plan-agenda-check:hover::before { border-color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
 .plan-agenda-task.overdue .plan-agenda-check::before { border-color: var(--signal); }
-.plan-agenda-snooze {
-  min-height: 44px; padding: 0 var(--k-space-3, 12px); border: 0; border-radius: var(--k-radius-control);
-  background: transparent; color: var(--muted); font: inherit; font-size: 0.8125rem; cursor: pointer;
-  transition: color 130ms, background 130ms;
-}
-.plan-agenda-snooze:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
-.plan-agenda-check:disabled, .plan-agenda-snooze:disabled { opacity: 0.5; cursor: default; }
+.plan-agenda-check:disabled { opacity: 0.5; cursor: default; }
 
 /* a finger drags the row: right fills toward done, left toward tomorrow. the page still
    scrolls up and down (pan-y) */

@@ -441,8 +441,9 @@ function _agendaRow(row, byDay, openRecord, past = false) {
   return taskId ? _agendaTask(row, taskId, item) : item;
 }
 
-// a task in the agenda acts where it is (u.01): the check on the left, "tomorrow" on the right
-// for anything due today or earlier, and on touch a swipe right for done, left for tomorrow
+// a task in the agenda acts where it is (u.01): the check on the left, and on touch a swipe
+// right for done, left for tomorrow on anything due today or earlier. the row opens its details,
+// which hold "tomorrow" too, so every row ends at the same edge
 function _agendaTask(row, taskId, open) {
   const wrap = _el('div', `plan-agenda-task${row.overdue ? ' overdue' : ''}`);
   wrap.dataset.task = taskId;
@@ -458,14 +459,8 @@ function _agendaTask(row, taskId, open) {
   check.addEventListener('click', () => act(check, () => completeTask(taskId)));
   wrap.append(check, open);
   const due = row.due || row.date;
-  if (row.overdue || (due && due < tomorrowKey())) {
-    const later = _el('button', 'plan-agenda-snooze', t('tasks.reschedule.tomorrow'));
-    later.type = 'button';
-    later.setAttribute('aria-label', t('tasks.move_named', { task: row.title, day: t('tasks.reschedule.tomorrow') }));
-    later.addEventListener('click', () => act(later, () => moveToTomorrow(taskId)));
-    wrap.append(later);
-  }
-  wireSwipe(wrap, { right: () => check.click(), left: () => wrap.querySelector('.plan-agenda-snooze')?.click() });
+  const snoozable = row.overdue || (due && due < tomorrowKey());
+  wireSwipe(wrap, { right: () => check.click(), left: () => { if (snoozable) act(check, () => moveToTomorrow(taskId)); } });
   return wrap;
 }
 
