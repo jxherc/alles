@@ -1423,7 +1423,7 @@ andromeda opens at `http://localhost:6769/?app=andromeda` or its own app host. i
   the search lists them under "new since you last looked" and marks them seen. a failed check waits for the
   next slot and shows the failure type.
 - **hidden sites.** "hide <site>" in a result's menu adds the site to `andromeda_blocked_sites`; that
-  site and its subdomains leave every later result list. the page shows an undo, and settings → search
+  site and its subdomains leave every later result list. the page shows an undo, and settings → andromeda
   lists hidden sites with "show again".
 - **recovery stays useful.** timeout, offline, missing provider, missing model, bad extraction, bad model
   output, and cancellation keep links when available and show the safe failure type, attempted
@@ -1476,7 +1476,7 @@ include and exclude lists (it matches meaning and read them as two more words), 
 a test set of 102 searches across 15 kinds (site names, typos, lyrics and error messages, "what's the word for", facts,
 cards, code, shopping, people, fresh things, local, school, chinese and japanese, ambiguous words, operators) scored
 97 with the owner's keys on nov 10; the 5 misses were one character riddle and 4 good pages from other sites than listed.
-the owner can add up to 12 custom engines in settings → search: any https json api (plain http only on this
+the owner can add up to 12 custom engines in settings → andromeda: any https json api (plain http only on this
 machine), with {query} and {count} in the address or a json body, an optional key header, and dotted paths for the
 result list and its link, title and snippet. custom keys are sealed per engine; removing an engine also resets
 anything that pointed at it. `POST /api/search/test` runs one engine and reports results and time.

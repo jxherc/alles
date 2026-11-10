@@ -38,11 +38,10 @@ JOBS = {
     "memory": ("what aide remembers and your standing instructions", "sometimes"),
     "personas": ("the voices aide can answer in", "sometimes"),
     "voice": ("speech in and out", "sometimes"),
-    "search": ("which web search aide uses and its sign in", "once"),
     "recall": ("searching your own records", "rarely"),
     "proactive": ("checks aide runs without being asked", "sometimes"),
     "intelligence": ("patterns and suggestions aide notices", "rarely"),
-    "andromeda": ("the andromeda search engine app", "sometimes"),
+    "andromeda": ("search sources and custom engines, answers, the andromeda app", "sometimes"),
     "tools": (
         "mail, calendar, github, chat channels, mcp and other connections",
         "once",

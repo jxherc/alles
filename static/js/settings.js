@@ -5,7 +5,6 @@ import { creditsPane } from './settings/credits.js';
 import { createBackupPane } from './settings/backups.js';
 import { providersPane, _endpointJson } from './settings/providers.js';
 import { andromedaPane } from './settings/andromeda.js';
-import { loadSearchEngines, wireSearchEngines } from './settings/search_engines.js';
 import { connectionsPane } from './settings/connections.js';
 import { applyOrganization, saveOrganization, savedOrganization } from './settings/organization.js';
 export { _mergeHomeShortcutOrder } from './settings/home.js';
@@ -125,7 +124,6 @@ function _onPaneOpen(name) {
   _ownedPanes[name]?.load();
   if (name === 'ai')         loadAiPane();
   if (name === 'memory')     { initMemoryPanel(); loadOwnerInstructions(); }
-  if (name === 'search')     loadSearchPane();
   if (name === 'general' || name === 'security' || name === 'themes') loadAppearancePane();
   if (name === 'themes')     loadThemesPane();
   if (name === 'voice')      loadVoicePane();
@@ -156,6 +154,9 @@ export function openSettings(pane, _allesOnly = false) {
   const title = document.querySelector('#settings-modal .s-title');
   if (title) title.textContent = t('settings.title');
   if (!pane) pane = 'general';
+  // custom engines moved into andromeda's search sources: the old "search" link lands on them
+  const toCustomEngines = pane === 'search';
+  if (toCustomEngines) pane = 'andromeda';
   if (!_bound) { _initSettings(); _bound = true; }
   // update compat url labels
   const port = location.port || '6769';
@@ -165,6 +166,7 @@ export function openSettings(pane, _allesOnly = false) {
   document.getElementById('s-compat-url2')?.replaceChildren(document.createTextNode(base));
 
   _switchPane(pane);
+  if (toCustomEngines) requestAnimationFrame(() => document.getElementById('s-custom-search-head')?.scrollIntoView({ block: 'start' }));
   requestAnimationFrame(() => {
     // this runs a frame late: if focus already moved into settings (a fast click or key on
     // close), leave it there instead of yanking it back to the section picker
@@ -312,7 +314,6 @@ function _initSettings() {
   });
 
   // ── search pane ──
-  wireSearchEngines();
 
   // ── voice pane ──
   document.getElementById('s-voice-save-btn')?.addEventListener('click', saveVoiceSettings);
@@ -493,13 +494,6 @@ async function saveOwnerInstructions() {
     button.disabled = false;
     button.textContent = t('settings.owner_instructions_save');
   }
-}
-
-// ── search pane ───────────────────────────────────────────────────────────────
-async function loadSearchPane() {
-  try {
-    await loadSearchEngines();
-  } catch { toast(t('settings.search_load_failed'), 'error'); }
 }
 
 // ── appearance pane ───────────────────────────────────────────────────────────

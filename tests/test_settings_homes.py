@@ -22,7 +22,7 @@ class SettingsHomesTest(unittest.TestCase):
         jobs = {g["group"]: g["panes"] for g in settings_homes.organizations()["jobs"]}
         self.assertIn("models", jobs["settings.org_how_aide_answers"])
         self.assertIn("personas", jobs["settings.org_how_aide_answers"])
-        self.assertIn("search", jobs["settings.org_what_aide_knows"])
+        self.assertIn("andromeda", jobs["settings.org_what_aide_knows"])
         self.assertIn("@server", jobs["settings.org_safety"])
 
     def test_the_ledger_setup_has_a_stable_home_in_settings(self):

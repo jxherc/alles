@@ -333,8 +333,10 @@ body.sidebar-hidden .sidebar { display: none; }
 }
 .andromeda-empty { border-top: 1px solid var(--faint); padding: 1rem 0; color: var(--muted); font-size: 0.8125rem; }
 .andromeda-actions { display: flex; flex-wrap: wrap; gap: var(--k-control-gap); margin-top: 1rem; }
-.andromeda-band-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
-.andromeda-band-settings label { display: grid; gap: 0.28rem; color: var(--muted); font-size: 0.8125rem; }
+.andromeda-band-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k-control-gap); }
+.andromeda-band-settings label { display: grid; gap: var(--k-space-1); color: var(--muted); font-size: 0.8125rem; }
+.s-band-test { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap); margin-top: var(--k-space-3); }
+.s-searxng-actions { display: flex; flex-wrap: wrap; gap: var(--k-control-gap); }
 .server-service-card {
   display: flex;
   align-items: center;

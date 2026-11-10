@@ -7014,6 +7014,10 @@ html[data-kokuen-version="5"] :is(.s-switch, .home-settings-switch, .news-switch
   color: var(--k-danger);
 }
 
+.s-custom-engines {
+  margin-top: var(--k-space-4);
+}
+
 /* a text action keeps its label on the content edge, like "change address" */
 #s-custom-search-add {
   justify-self: start;

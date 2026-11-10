@@ -9,7 +9,6 @@ const read = path => readFileSync(new URL(`../../${path}`, import.meta.url), 'ut
 const html = read('static/index.html');
 const section = read('static/js/settings/andromeda.js');
 const paneHtml = html.slice(html.indexOf('id="s-pane-andromeda"'), html.indexOf('<!-- ── appearance pane ── -->'));
-const searchHtml = html.slice(html.indexOf('id="s-pane-search"'), html.indexOf('id="s-pane-andromeda"'));
 
 test('plaintext provider credentials are removed from the section\'s copy of the settings', () => {
   assert.deepEqual(
@@ -49,13 +48,13 @@ test('every andromeda control lives once, in the andromeda section', () => {
   ]) {
     assert.equal(paneHtml.split(`id="${id}"`).length - 1, 1, `${id} in the andromeda section`);
     assert.equal(html.split(`id="${id}"`).length - 1, 1, `${id} once in the page`);
-    assert.doesNotMatch(searchHtml, new RegExp(`id="${id}"`));
   }
-  // the search section keeps what is not andromeda's: custom engines
+  // the search pane is gone: custom engines are the last part of andromeda's search sources
+  assert.doesNotMatch(html, /id="s-pane-search"|data-pane="search"/);
   for (const id of ['s-search-provider', 's-search-fallback', 's-search-count', 's-engine-key', 's-gpse-key']) {
     assert.doesNotMatch(html, new RegExp(`id="${id}"`), id);
   }
-  assert.match(searchHtml, /id="s-custom-search-form"/);
+  assert.match(paneHtml, /id="s-custom-search-form"/);
   assert.match(html, /data-pane="andromeda"/);
   assert.doesNotMatch(html, /andromeda-settings-panel|andromeda-search-settings-status/);
 });

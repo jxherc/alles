@@ -32,7 +32,7 @@ DOM_NAME = """el => {
 
 
 # every field the settings form shows, written out: a new, moved or removed field fails here
-# until this list says so (100 after the search address for other browsers joined andromeda)
+# until this list says so (100 after the search address for other browsers joined andromeda; the custom engine form moved there from the search pane)
 EXPECTED_FIELDS = {
     "ai": [
         "#settings-context-limit",
@@ -46,6 +46,16 @@ EXPECTED_FIELDS = {
         "#s-andromeda-searxng-url",
         "#s-andromeda-serper-key",
         "#s-andromeda-tavily-key",
+        "#s-cse-body",
+        "#s-cse-key",
+        "#s-cse-key-header",
+        "#s-cse-key-prefix",
+        "#s-cse-name",
+        "#s-cse-results",
+        "#s-cse-snippet-field",
+        "#s-cse-title-field",
+        "#s-cse-url",
+        "#s-cse-url-field",
         "#s-hidden-site",
     ],
     "backup": [
@@ -117,18 +127,6 @@ EXPECTED_FIELDS = {
         "#s-notify-discord",
         "#s-notify-tgchat",
         "#s-notify-tgtoken",
-    ],
-    "search": [
-        "#s-cse-body",
-        "#s-cse-key",
-        "#s-cse-key-header",
-        "#s-cse-key-prefix",
-        "#s-cse-name",
-        "#s-cse-results",
-        "#s-cse-snippet-field",
-        "#s-cse-title-field",
-        "#s-cse-url",
-        "#s-cse-url-field",
     ],
     "security": [
         "#s-pw-new",
@@ -320,7 +318,7 @@ def run():
                 panes = page.locator(".s-nav-item[data-pane]").evaluate_all(
                     "nodes=>nodes.map(n=>n.dataset.pane)"
                 )
-                assert len(panes) == 20
+                assert len(panes) == 19
                 for pane in panes:
                     choose_settings_section(page, pane, touch=width == 390)
                     expect(page.locator("#s-pane-" + pane)).to_be_visible()

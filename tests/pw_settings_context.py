@@ -347,7 +347,6 @@ def navigation(page, api, dest, profile, records):
         "home",
         "themes",
         "ai",
-        "search",
         "voice",
         "personas",
         "proactive",

@@ -111,7 +111,6 @@
 <link rel="modulepreload" href="/static/js/settings/backups.js">
 <link rel="modulepreload" href="/static/js/settings/providers.js">
 <link rel="modulepreload" href="/static/js/settings/andromeda.js">
-<link rel="modulepreload" href="/static/js/settings/search_engines.js">
 <link rel="modulepreload" href="/static/js/settings/connections.js">
 <link rel="modulepreload" href="/static/js/settings/organization.js">
 <link rel="modulepreload" href="/static/js/memory.js">
@@ -123,6 +122,7 @@
 <link rel="modulepreload" href="/static/js/connection_catalog.js">
 <link rel="modulepreload" href="/static/js/settings/pane.js">
 <link rel="modulepreload" href="/static/js/settings/model_roles.js">
+<link rel="modulepreload" href="/static/js/settings/search_engines.js">
 <link rel="modulepreload" href="/static/js/mcp-config.js">
 <link rel="modulepreload" href="/static/js/dependencies.js">
 <link rel="modulepreload" href="/static/js/settings/ledger.js">
@@ -1702,7 +1702,6 @@
         <button class="s-nav-item" type="button" data-pane="memory" data-i18n="settings.memory_instructions">memory & instructions</button>
         <button class="s-nav-item" type="button" data-pane="personas" data-i18n="common.personas">personas</button>
         <button class="s-nav-item" type="button" data-pane="voice" data-i18n="common.voice">voice</button>
-        <button class="s-nav-item" type="button" data-pane="search" data-i18n="common.search">search</button>
         <button class="s-nav-item" type="button" data-pane="recall" data-i18n="settings.personal_search">search personal records</button>
         <button class="s-nav-item" type="button" data-pane="proactive" data-i18n="common.background_checks">background checks</button>
         <button class="s-nav-item" type="button" data-pane="intelligence" data-i18n="settings.patterns">patterns & suggestions</button>
@@ -1998,45 +1997,6 @@
         </div>
 
         <!-- ── search pane ── -->
-        <div class="s-pane" id="s-pane-search">
-          <div class="s-card" role="region" aria-labelledby="s-custom-search-head">
-            <div class="s-card-head" id="s-custom-search-head" data-i18n="shell.settings_search.custom_engines">custom engines</div>
-            <div class="s-card-body">
-              <div class="s-card-hint">any search api that answers with JSON. put {query} where the search words go, and {count} for the number of results.</div>
-              <div class="settings-list" id="s-custom-search-list"></div>
-              <button type="button" class="btn" id="s-custom-search-add" data-i18n="shell.settings_search.add_custom_engine">add custom engine</button>
-              <form class="s-custom-search-form" id="s-custom-search-form" hidden novalidate>
-                <div class="s-field"><label for="s-cse-name" data-i18n="common.name">name</label><input type="text" class="settings-input" id="s-cse-name" maxlength="40" autocomplete="off"></div>
-                <div class="s-field"><label for="s-cse-url" data-i18n="shell.settings_search.address">address</label><input type="url" class="settings-input" id="s-cse-url" maxlength="500" autocomplete="off" spellcheck="false" aria-describedby="s-cse-url-hint"><div class="s-card-hint" id="s-cse-url-hint" data-i18n="shell.settings_search.https_or_http_for_this_machine">https://, or http:// for this machine</div></div>
-                <div class="s-field">
-                  <span class="s-field-label" id="s-cse-method-label" data-i18n="shell.settings_search.method">method</span>
-                  <div class="s-ep-type" id="s-cse-method" role="radiogroup" aria-labelledby="s-cse-method-label">
-                    <button type="button" role="radio" aria-checked="true" data-value="GET">GET</button>
-                    <button type="button" role="radio" aria-checked="false" data-value="POST">POST</button>
-                  </div>
-                </div>
-                <div class="s-field" id="s-cse-body-row" hidden><label for="s-cse-body" data-i18n="shell.settings_search.json_body">JSON body</label><textarea class="settings-input" id="s-cse-body" rows="3" maxlength="2000" spellcheck="false"></textarea></div>
-                <div class="s-field"><label for="s-cse-key" data-i18n="shell.settings_search.api_key_optional">api key, optional</label><input type="password" class="settings-input" id="s-cse-key" maxlength="500" autocomplete="new-password"></div>
-                <div class="s-cse-pair">
-                  <div class="s-field"><label for="s-cse-key-header" data-i18n="shell.settings_search.key_header">key header</label><input type="text" class="settings-input" id="s-cse-key-header" maxlength="64" autocomplete="off" spellcheck="false"></div>
-                  <div class="s-field"><label for="s-cse-key-prefix" data-i18n="shell.settings_search.key_prefix">key prefix</label><input type="text" class="settings-input" id="s-cse-key-prefix" maxlength="20" autocomplete="off" spellcheck="false"></div>
-                </div>
-                <div class="s-field"><label for="s-cse-results" data-i18n="shell.settings_search.result_list_path">result list path</label><input type="text" class="settings-input" id="s-cse-results" maxlength="120" autocomplete="off" spellcheck="false" aria-describedby="s-cse-results-hint"><div class="s-card-hint" id="s-cse-results-hint" data-i18n="shell.settings_search.where_the_list_sits_in_the">where the list sits in the answer, like data.items; blank when the answer is the list</div></div>
-                <div class="s-cse-pair">
-                  <div class="s-field"><label for="s-cse-url-field" data-i18n="shell.settings_search.link_field">link field</label><input type="text" class="settings-input" id="s-cse-url-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
-                  <div class="s-field"><label for="s-cse-title-field" data-i18n="shell.settings_search.title_field">title field</label><input type="text" class="settings-input" id="s-cse-title-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
-                  <div class="s-field"><label for="s-cse-snippet-field" data-i18n="shell.settings_search.snippet_field">snippet field</label><input type="text" class="settings-input" id="s-cse-snippet-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
-                </div>
-                <div class="s-cse-actions">
-                  <button type="button" class="btn" id="s-cse-cancel" data-i18n="common.cancel">cancel</button>
-                  <span class="s-cse-status" id="s-cse-status" role="status" aria-live="polite"></span>
-                  <button type="submit" class="btn primary" id="s-cse-save" data-i18n="shell.settings_search.save_engine">save engine</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
         <div class="s-pane" id="s-pane-andromeda">
           <div class="s-card" role="region" aria-labelledby="s-andromeda-sources-head">
             <div class="s-card-head" id="s-andromeda-sources-head" data-i18n="shell.andromeda_settings.search_sources">search sources</div>
@@ -2071,17 +2031,49 @@
                 <div class="s-field" hidden data-andromeda-provider-field="exa"><label for="s-andromeda-exa-key" data-i18n="shell.andromeda_settings.exa_api_key">exa api key</label><div style="display:flex;gap:var(--k-control-gap)"><input id="s-andromeda-exa-key" type="password" class="settings-input" style="flex:1" autocomplete="new-password" placeholder="not configured" data-i18n-placeholder="andromeda.x_not_configured"><button type="button" class="btn" data-andromeda-clear-setting="s-andromeda-exa-key" aria-label="clear exa api key" data-i18n="common.clear" data-i18n-aria-label="shell.andromeda_settings.clear_exa_api_key">clear</button></div><p class="s-card-hint s-key-why" data-i18n="shell.andromeda_settings.why_key_exa">exa's search api only takes a key; exa's sign in covers its mcp server, which you can add under mcp servers.</p></div>
               </div>
               <div id="s-andromeda-search-status" class="s-search-status" role="status" aria-live="polite"></div>
-            </div>
-          </div>
-          <div class="s-card" role="region" aria-labelledby="s-andromeda-searxng-head">
-            <div class="s-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
-              <span id="s-andromeda-searxng-head" data-i18n="shell.andromeda_settings.local_searxng">local searxng</span>
-              <button type="button" class="btn" id="s-andromeda-searxng-refresh" data-i18n="common.refresh">refresh</button>
-            </div>
-            <div class="s-card-body">
-              <div class="s-search-status" id="s-andromeda-searxng-status" role="status" aria-live="polite">checking local search…</div>
-              <div class="s-card-hint" id="s-andromeda-searxng-meta"></div>
-              <div id="s-andromeda-searxng-actions" style="display:flex;flex-wrap:wrap;gap:var(--k-control-gap)" role="group" aria-label="managed searxng actions" data-i18n-aria-label="shell.andromeda_settings.managed_searxng_actions"></div>
+              <div class="s-toggle-row s-action-row" id="s-andromeda-searxng">
+                <div>
+                  <div class="s-toggle-label" id="s-andromeda-searxng-head" data-i18n="shell.andromeda_settings.local_searxng">local searxng</div>
+                  <div class="s-toggle-desc" id="s-andromeda-searxng-status" role="status" aria-live="polite">checking local search…</div>
+                  <div class="s-toggle-desc" id="s-andromeda-searxng-meta" hidden></div>
+                </div>
+                <div class="s-searxng-actions" id="s-andromeda-searxng-actions" role="group" aria-label="managed searxng actions" data-i18n-aria-label="shell.andromeda_settings.managed_searxng_actions"></div>
+                <button type="button" class="btn" id="s-andromeda-searxng-refresh" data-i18n="common.refresh">refresh</button>
+              </div>
+              <div class="s-custom-engines" role="group" aria-labelledby="s-custom-search-head">
+                <div class="s-field-label" id="s-custom-search-head" data-i18n="shell.settings_search.custom_engines">custom engines</div>
+                <div class="settings-list" id="s-custom-search-list"></div>
+                <button type="button" class="btn" id="s-custom-search-add" data-i18n="shell.settings_search.add_custom_engine">add custom engine</button>
+                <form class="s-custom-search-form" id="s-custom-search-form" hidden novalidate>
+                  <div class="s-card-hint">any search api that answers with JSON. put {query} where the search words go, and {count} for the number of results.</div>
+                  <div class="s-field"><label for="s-cse-name" data-i18n="common.name">name</label><input type="text" class="settings-input" id="s-cse-name" maxlength="40" autocomplete="off"></div>
+                  <div class="s-field"><label for="s-cse-url" data-i18n="shell.settings_search.address">address</label><input type="url" class="settings-input" id="s-cse-url" maxlength="500" autocomplete="off" spellcheck="false" aria-describedby="s-cse-url-hint"><div class="s-card-hint" id="s-cse-url-hint" data-i18n="shell.settings_search.https_or_http_for_this_machine">https://, or http:// for this machine</div></div>
+                  <div class="s-field">
+                    <span class="s-field-label" id="s-cse-method-label" data-i18n="shell.settings_search.method">method</span>
+                    <div class="s-ep-type" id="s-cse-method" role="radiogroup" aria-labelledby="s-cse-method-label">
+                      <button type="button" role="radio" aria-checked="true" data-value="GET">GET</button>
+                      <button type="button" role="radio" aria-checked="false" data-value="POST">POST</button>
+                    </div>
+                  </div>
+                  <div class="s-field" id="s-cse-body-row" hidden><label for="s-cse-body" data-i18n="shell.settings_search.json_body">JSON body</label><textarea class="settings-input" id="s-cse-body" rows="3" maxlength="2000" spellcheck="false"></textarea></div>
+                  <div class="s-field"><label for="s-cse-key" data-i18n="shell.settings_search.api_key_optional">api key, optional</label><input type="password" class="settings-input" id="s-cse-key" maxlength="500" autocomplete="new-password"></div>
+                  <div class="s-cse-pair">
+                    <div class="s-field"><label for="s-cse-key-header" data-i18n="shell.settings_search.key_header">key header</label><input type="text" class="settings-input" id="s-cse-key-header" maxlength="64" autocomplete="off" spellcheck="false"></div>
+                    <div class="s-field"><label for="s-cse-key-prefix" data-i18n="shell.settings_search.key_prefix">key prefix</label><input type="text" class="settings-input" id="s-cse-key-prefix" maxlength="20" autocomplete="off" spellcheck="false"></div>
+                  </div>
+                  <div class="s-field"><label for="s-cse-results" data-i18n="shell.settings_search.result_list_path">result list path</label><input type="text" class="settings-input" id="s-cse-results" maxlength="120" autocomplete="off" spellcheck="false" aria-describedby="s-cse-results-hint"><div class="s-card-hint" id="s-cse-results-hint" data-i18n="shell.settings_search.where_the_list_sits_in_the">where the list sits in the answer, like data.items; blank when the answer is the list</div></div>
+                  <div class="s-cse-pair">
+                    <div class="s-field"><label for="s-cse-url-field" data-i18n="shell.settings_search.link_field">link field</label><input type="text" class="settings-input" id="s-cse-url-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
+                    <div class="s-field"><label for="s-cse-title-field" data-i18n="shell.settings_search.title_field">title field</label><input type="text" class="settings-input" id="s-cse-title-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
+                    <div class="s-field"><label for="s-cse-snippet-field" data-i18n="shell.settings_search.snippet_field">snippet field</label><input type="text" class="settings-input" id="s-cse-snippet-field" maxlength="60" autocomplete="off" spellcheck="false"></div>
+                  </div>
+                  <div class="s-cse-actions">
+                    <button type="button" class="btn" id="s-cse-cancel" data-i18n="common.cancel">cancel</button>
+                    <span class="s-cse-status" id="s-cse-status" role="status" aria-live="polite"></span>
+                    <button type="submit" class="btn primary" id="s-cse-save" data-i18n="shell.settings_search.save_engine">save engine</button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
           <div class="s-card" role="region" aria-labelledby="s-andromeda-answer-head">
@@ -2119,13 +2111,13 @@
                 <label id="s-andromeda-band-label" data-i18n="shell.andromeda_settings.overview_strength">overview strength</label>
                 <div class="settings-input custom-select" id="s-andromeda-band" data-value="standard" data-options="light|light;standard|standard;strong|strong;auto|automatic" data-i18n-options="common.light;shell.settings_search.standard;shell.settings_search.strong;common.automatic" aria-labelledby="s-andromeda-band-label"></div>
               </div>
-              <div class="andromeda-band-settings">
+              <div class="andromeda-band-settings" id="s-andromeda-band-models">
                 <label><span data-i18n="common.light">light</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-light" data-band="light" data-value="" data-options="|not configured" data-i18n-options="andromeda.x_not_configured"></div></label>
                 <label><span data-i18n="shell.settings_search.standard">standard</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-standard" data-band="standard" data-value="" data-options="|use answer role" data-i18n-options="settings.andromeda_use_answer_role"></div></label>
                 <label><span data-i18n="shell.settings_search.strong">strong</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-strong" data-band="strong" data-value="" data-options="|not configured" data-i18n-options="andromeda.x_not_configured"></div></label>
                 <label><span data-i18n="common.auto">auto</span> <div class="settings-input custom-select s-andromeda-model" id="s-andromeda-model-auto" data-band="auto" data-value="" data-options="|not configured" data-i18n-options="andromeda.x_not_configured"></div></label>
               </div>
-              <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.65rem">
+              <div class="s-band-test" id="s-andromeda-qualify-row" hidden>
                 <button class="btn" id="s-andromeda-qualify" type="button" data-i18n="shell.settings_search.test_auto_model">test auto model</button>
                 <span id="s-andromeda-model-status" class="s-card-hint" role="status" aria-live="polite"></span>
               </div>
