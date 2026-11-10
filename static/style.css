@@ -8459,14 +8459,15 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
   text-align: center;
   padding: 1.2rem 0.85rem;
 }
-.mail-error-strip {
-  color: var(--error);
+.mail-offline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--k-control-gap);
+  min-width: 0;
+  color: var(--muted);
   font-size: 0.8125rem;
-  line-height: 1.45;
-  padding: 0.55rem 0.8rem;
-  border-bottom: 1px solid var(--faint);
-  background: color-mix(in srgb, var(--error) 7%, transparent);
 }
+.mail-offline-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-row {
   padding: 0.62rem 0.8rem 0.58rem;
   border-bottom: 1px solid var(--faint);

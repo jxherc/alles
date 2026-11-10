@@ -4516,6 +4516,7 @@
     "mail.note_outlook": "Outlook/Hotmail/Live 需要应用密码（在账户安全中开启）。",
     "mail.note_yahoo": "Yahoo 需要在账户安全中生成的应用密码。",
     "mail.nothing_in": "{name}中没有内容",
+    "mail.offline_saved": "离线，显示已保存的邮件",
     "mail.op_cancel": "正在取消投递…",
     "mail.op_check": "正在检查投递…",
     "mail.op_cleanup": "正在删除已保存的草稿…",

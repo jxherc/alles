@@ -3183,12 +3183,6 @@ html:not(#_):not(#_) #mail-view .mail-row .mail-subject .mail-open { min-height:
   html:not(#_):not(#_) #mail-view .mail-row:is(:hover, :focus-within) .mail-row-acts { opacity: 1; }
 }
 
-html:not(#_):not(#_) #mail-view .mail-error-strip {
-  margin: var(--k-space-2) 0 var(--k-space-1);
-  border: 0;
-  border-radius: var(--k-radius-control);
-}
-
 /* an empty reading pane says what it is for */
 html:not(#_):not(#_) #mail-view:has(#mail-sidebar > *) #mail-main:empty::before {
   content: attr(data-empty-pick);
@@ -3950,19 +3944,6 @@ html:not(#_):not(#_) #mail-view .mail-account-badge {
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* the retry button sits under the message instead of inside its last line, and the strip keeps
-   a gutter from the list edge */
-html:not(#_):not(#_) #mail-view .mail-error-strip {
-  margin-inline: var(--k-space-2);
-  padding: var(--k-space-3);
-}
-
-html:not(#_):not(#_) #mail-view .mail-error-strip > .btn {
-  display: flex;
-  width: fit-content;
-  margin-top: var(--k-space-2);
 }
 
 /* an empty signature list still took a flex slot and its gap, pushing "+ sig" in from the edge when

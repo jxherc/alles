@@ -1015,6 +1015,7 @@ function paintNoAccount() {
   const view = $('mail-view');
   let box = $('mail-no-account');
   if (_accounts.length) { box?.remove(); return; }
+  $('mail-offline')?.remove();
   if (!view || box) return;
   box = document.createElement('div');
   box.id = 'mail-no-account';
@@ -1269,6 +1270,7 @@ async function loadDrafts({ preserveReader = false } = {}) {
   const generation = ++_listGeneration;
   const current = () => generation === _listGeneration && Boolean($('mail-view')?.getClientRects().length);
   _listContext = ''; _lastMsgs = [];
+  paintOffline([], []);
   _searchView = '';
   _labelFilter = '';
   const list = $('mail-list'); const main = $('mail-main');
@@ -1376,7 +1378,7 @@ async function loadInbox(force = false, silent = false, fetcher = fetch) {
   const renderWithFocus = preserveMailReadFocus(list);
   const accts = _active === 'all' ? _accounts : _accounts.filter(a => a.id === _active);
   if (!silent) {
-    if (cached?.length) renderInbox(applyFilter(cached), []);   // instant, stale
+    if (cached?.length) renderInbox(applyFilter(cached), _mailErrors);   // instant, stale: the offline line stays until the sync answers
     else {
       list.innerHTML = `<div class="mail-empty">${t('mail.loading_dots', { name: _filterName(_filter) })}</div>`;
       // a new browser has nothing saved yet: paint the server's saved headers while IMAP catches up
@@ -1402,7 +1404,7 @@ async function loadInbox(force = false, silent = false, fetcher = fetch) {
     }
   });
   const newest = _newestKey(messages);
-  if (silent && !errors.length && !list.querySelector('.mail-error-strip') && _lastNewest && newest === _lastNewest) return;
+  if (silent && !errors.length && !$('mail-offline') && !list.querySelector('.mail-empty[role="alert"]') && _lastNewest && newest === _lastNewest) return;
   if (silent && _lastNewest && newest !== _lastNewest) {
     const top = [...messages].sort((a, b) => _msgTime(b) - _msgTime(a))[0];
     if (top && !top.seen) toast(t('mail.new_mail', { from: fromName(top.from), subject: (top.subject || '').slice(0, 60) }), 'success');
@@ -1493,16 +1495,40 @@ function renderInbox(messages, errors = []) {
   messages = [...messages].sort((a, b) => msgTime(b) - msgTime(a));
   _lastMsgs = messages; _mailErrors = errors;
   paintMailPaneWarning();
+  paintOffline(errors, messages);
   if (!messages.length && !errors.length) {
     list.innerHTML = `<div class="mail-empty" role="status">${esc(t('mail.nothing_in', { name: _filterName(_filter) }))}</div>`;
     return;
   }
-  const errHtml = errors.length
-    ? `<div class="mail-error-strip" role="alert">${errors.map(esc).join('<br>')} <button type="button" class="btn" id="mail-read-retry">${t('common.retry')}</button></div>`
-    : '';
-  list.innerHTML = errHtml + (_threads ? _renderThreads(messages, msgTime) : messages.map(m => _msgRow(m)).join(''));
+  // nothing to show and a reason why: the reason is the list. saved mail with a failed sync is
+  // a state of the toolbar (paintOffline), not a banner over the rows
+  if (!messages.length) {
+    list.innerHTML = `<div class="mail-empty" role="alert">${errors.map(esc).join('<br>')} <button type="button" class="btn" id="mail-read-retry">${t('common.retry')}</button></div>`;
+    list.querySelector('#mail-read-retry').addEventListener('click', () => _reloadCurrent({ force: true }));
+    return;
+  }
+  list.innerHTML = _threads ? _renderThreads(messages, msgTime) : messages.map(m => _msgRow(m)).join('');
   _wireRows(list);
-  list.querySelector('#mail-read-retry')?.addEventListener('click', () => _reloadCurrent({ force: true }));
+}
+
+// saved mail on screen but the last sync failed: one quiet line next to the account with a retry.
+// it is the same element every time, so the retry keeps focus across a failed retry, and it goes
+// when a sync works. the reasons are its title
+function paintOffline(errors, messages) {
+  let line = $('mail-offline');
+  if (!errors.length || !messages.length) { line?.remove(); return; }
+  if (!line) {
+    line = document.createElement('span');
+    line.id = 'mail-offline';
+    line.className = 'mail-offline';
+    line.setAttribute('role', 'status');
+    line.innerHTML = '<span class="mail-offline-text"></span><button type="button" class="btn" id="mail-read-retry"></button>';
+    line.querySelector('button').addEventListener('click', () => _reloadCurrent({ force: true }));
+    $('mail-account')?.after(line);
+  }
+  line.title = errors.join('\n');
+  line.querySelector('.mail-offline-text').textContent = t('mail.offline_saved');
+  line.querySelector('button').textContent = t('common.retry');
 }
 
 function _renderThreads(messages, msgTime) {

@@ -4515,6 +4515,7 @@ const BUILTIN_ENGLISH = {
     "mail.note_outlook": "Outlook/Hotmail/Live need an app password (turn it on under account security).",
     "mail.note_yahoo": "Yahoo needs an app password from account security.",
     "mail.nothing_in": "nothing in {name}",
+    "mail.offline_saved": "offline, showing saved mail",
     "mail.op_cancel": "canceling delivery…",
     "mail.op_check": "checking delivery…",
     "mail.op_cleanup": "removing the saved draft…",

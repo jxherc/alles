@@ -4516,6 +4516,7 @@
     "mail.note_outlook": "Outlook/Hotmail/Live にはアプリパスワードが必要です（アカウントのセキュリティでオンにしてください）。",
     "mail.note_yahoo": "Yahoo にはアカウントのセキュリティで発行するアプリパスワードが必要です。",
     "mail.nothing_in": "{name} には何もありません",
+    "mail.offline_saved": "オフライン、保存済みのメールを表示中",
     "mail.op_cancel": "配信をキャンセル中…",
     "mail.op_check": "配信を確認中…",
     "mail.op_cleanup": "保存した下書きを削除中…",

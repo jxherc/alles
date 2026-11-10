@@ -4516,6 +4516,7 @@
     "mail.note_outlook": "Outlook/Hotmail/Live nécessitent un mot de passe d’application (active-le dans la sécurité du compte).",
     "mail.note_yahoo": "Yahoo nécessite un mot de passe d’application depuis la sécurité du compte.",
     "mail.nothing_in": "rien dans {name}",
+    "mail.offline_saved": "hors ligne, courrier enregistré affiché",
     "mail.op_cancel": "annulation de l’envoi…",
     "mail.op_check": "vérification de l’envoi…",
     "mail.op_cleanup": "suppression du brouillon enregistré…",

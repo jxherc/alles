@@ -4516,6 +4516,7 @@
     "mail.note_outlook": "Outlook/Hotmail/Live는 앱 비밀번호가 필요합니다 (계정 보안에서 켜세요).",
     "mail.note_yahoo": "Yahoo는 계정 보안에서 만든 앱 비밀번호가 필요합니다.",
     "mail.nothing_in": "{name}에 항목 없음",
+    "mail.offline_saved": "오프라인, 저장된 메일 표시 중",
     "mail.op_cancel": "전송 취소 중…",
     "mail.op_check": "전송 확인 중…",
     "mail.op_cleanup": "저장된 초안 삭제 중…",

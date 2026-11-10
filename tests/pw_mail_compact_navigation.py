@@ -14,6 +14,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import runpy
 import sqlite3
 import struct
@@ -596,8 +597,8 @@ def run():
                                 "innerWidth===720&&innerHeight===450&&devicePixelRatio===2"
                             )
                         row["profile_proof"] = profile_proof()
-                        expect(page.locator("#mail-list .mail-error-strip")).to_contain_text(
-                            "showing saved mail; no IMAP host configured"
+                        expect(page.locator("#mail-offline")).to_have_attribute(
+                            "title", re.compile("showing saved mail; no IMAP host configured")
                         )
                         row["delivered_assets"] = {
                             path: hashlib.sha256(response.body()).hexdigest()

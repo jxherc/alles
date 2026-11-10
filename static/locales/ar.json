@@ -4516,6 +4516,7 @@
     "mail.note_outlook": "يحتاج Outlook/Hotmail/Live إلى كلمة مرور تطبيق (فعّلها ضمن أمان الحساب).",
     "mail.note_yahoo": "يحتاج Yahoo إلى كلمة مرور تطبيق من أمان الحساب.",
     "mail.nothing_in": "لا شيء في {name}",
+    "mail.offline_saved": "غير متصل، تُعرض الرسائل المحفوظة",
     "mail.op_cancel": "جارٍ إلغاء التسليم…",
     "mail.op_check": "جارٍ التحقق من التسليم…",
     "mail.op_cleanup": "جارٍ إزالة المسودة المحفوظة…",

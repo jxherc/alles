@@ -4516,6 +4516,7 @@
     "mail.note_outlook": "Outlook/Hotmail/Live 需要應用程式密碼（請在帳戶安全性中開啟）。",
     "mail.note_yahoo": "Yahoo 需要從帳戶安全性中取得應用程式密碼。",
     "mail.nothing_in": "{name} 中沒有內容",
+    "mail.offline_saved": "離線，顯示已儲存的郵件",
     "mail.op_cancel": "正在取消寄送…",
     "mail.op_check": "正在檢查寄送…",
     "mail.op_cleanup": "正在移除已儲存的草稿…",

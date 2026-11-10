@@ -4516,6 +4516,7 @@
     "mail.note_outlook": "Outlook/Hotmail/Live necesitan una contraseña de aplicación (actívala en la seguridad de la cuenta).",
     "mail.note_yahoo": "Yahoo necesita una contraseña de aplicación desde la seguridad de la cuenta.",
     "mail.nothing_in": "nada en {name}",
+    "mail.offline_saved": "sin conexión, mostrando el correo guardado",
     "mail.op_cancel": "cancelando envío…",
     "mail.op_check": "comprobando envío…",
     "mail.op_cleanup": "quitando el borrador guardado…",

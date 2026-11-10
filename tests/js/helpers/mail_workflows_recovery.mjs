@@ -158,7 +158,7 @@ export function harness() {
   run("let _acEl = null, _acIdx = -1, _acAdd = null; const _validEmail = value => /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(value);");
   // One-line declarations require their complete source line, not the multiline extractor.
   run(mailSource.split('\n').find(line => line.startsWith('function _hideAc()')));
-  for (const name of ['_loadAddrBook', '_showAc', '_acNav', '_acPick', '_initChipField', 'serializeForm', 'compose', 'openMessage', 'loadMail', 'accountsPanel', 'acctForm', 'mountRuleEditor', 'rulesPanel', 'loadCategory', 'loadByLabel', 'loadSmart', 'loadDrafts', 'cancelOutgoing', 'finishOutgoing', 'paintOutbox']) add(name);
+  for (const name of ['_loadAddrBook', '_showAc', '_acNav', '_acPick', '_initChipField', 'serializeForm', 'compose', 'openMessage', 'loadMail', 'accountsPanel', 'acctForm', 'mountRuleEditor', 'rulesPanel', 'loadCategory', 'loadByLabel', 'loadSmart', 'loadDrafts', 'cancelOutgoing', 'finishOutgoing', 'paintOutbox', 'paintOffline']) add(name);
   for (const name of ['commitMailRecipients', 'clearMailReader']) if (mailSource.includes(`function ${name}(`)) add(name);
   add('openCaptureReview', captureSource);
   run(`_outboxScopes = ['${scope}']; _outboxReady = true;`);
