@@ -2065,8 +2065,14 @@ html:not(#_):not(#_) #files-view #files-up-btn:disabled {
   opacity: .35;
 }
 
-html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row, .files-phase7-selection, .files-phase7-notice) {
+html:not(#_):not(#_) #files-view :is(.files-phase7-selection, .files-phase7-notice) {
   padding-inline: var(--k-gutter);
+}
+
+/* margin, not padding: a row's divider then starts and ends where its content does */
+html:not(#_):not(#_) #files-view :is(.files-phase7-table-head, .file-row) {
+  margin-inline: var(--k-gutter);
+  padding-inline: 0;
 }
 
 /* when the column is narrow the folder name squeezed to nothing ("on t" with the details open on
