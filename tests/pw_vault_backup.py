@@ -235,10 +235,10 @@ def run_profile(browser, profile, output, records):
                         for selector in (
                             "#vault-new-btn",
                             "#vault-lock-btn",
-                            "#vault-watchtower-btn",
+                            "#vault-more-btn",
                             ".vault-entry-main",
                             "[data-vault-copy]",
-                            "[data-vault-delete]",
+                            ".vault-entry .row-more",
                         ):
                             controls = page.locator(selector)
                             measurements[selector] = [

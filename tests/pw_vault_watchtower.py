@@ -70,9 +70,14 @@ def run():
             expect(page.locator(".vault-totp-secs")).to_contain_text("s")
             page.screenshot(path=str(output / f"{name}-totp.png"))
             page.locator("#vf-cancel").click()
-            scan = page.locator("#vault-watchtower-btn")
-            scan.focus()
-            scan.press("Enter")
+            def scan_click():
+                page.locator("#vault-more-btn").click()
+                page.locator("#vault-watchtower-btn").click()
+
+            page.locator("#vault-more-btn").focus()
+            page.locator("#vault-more-btn").press("ArrowDown")
+            page.locator("#vault-watchtower-btn").focus()
+            page.locator("#vault-watchtower-btn").press("Enter")
             expect(page.locator("#vault-wt")).to_be_visible()
             expect(page.locator("#vault-wt")).to_contain_text("breach check incomplete")
             expect(page.locator("#vault-wt")).to_contain_text("Weak fixture")
@@ -84,10 +89,10 @@ def run():
 
             pending = []
             page.route("**/api/vault/watchtower", lambda route: pending.append(route))
-            scan.click()
+            scan_click()
             expect(page.locator("#vault-entry-list")).to_have_text("scanning…")
             assert len(pending) == 1
-            scan.click()
+            scan_click()
             expect(page.locator(".vault-entry-main", has_text="TOTP fixture")).to_be_visible()
             late = {
                 "weak": [{"name": "stale scan"}],
@@ -100,7 +105,7 @@ def run():
             expect(page.locator("#vault-wt")).to_have_count(0)
             expect(page.locator("#vault-entry-list")).not_to_contain_text("stale scan")
 
-            scan.click()
+            scan_click()
             expect(page.locator("#vault-entry-list")).to_have_text("scanning…")
             page.locator("#vault-lock-btn").click()
             pending.pop().fulfill(json=late)
@@ -111,7 +116,7 @@ def run():
             page.unroute("**/api/vault/watchtower")
             unlock()
             page.route("**/api/vault/watchtower", lambda route: route.fulfill(json={}))
-            scan.click()
+            scan_click()
             expect(page.locator(".vault-entry-main", has_text="TOTP fixture")).to_be_visible()
             expect(page.locator("#vault-wt")).to_have_count(0)
             expect(page.locator("#toast-container")).to_contain_text("scan failed")

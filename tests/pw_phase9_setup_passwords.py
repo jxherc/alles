@@ -420,6 +420,7 @@ def run() -> None:
         assert pairing_response.ok
         pairing = pairing_response.json()
 
+        page.locator("#vault-more-btn").click()
         page.locator("#vault-manage-btn").click()
         modal = page.locator(".vault-modal")
         expect(modal).to_be_visible()
@@ -540,7 +541,7 @@ def run() -> None:
         )
         page.evaluate("document.documentElement.style.zoom = '1'")
         page.locator("#mv-close").click()
-        expect(page.locator("#vault-manage-btn")).to_be_focused()
+        expect(page.locator("#vault-more-btn")).to_be_focused()
 
         legacy = page.request.get(
             f"{BASE}/api/vault/match?domain=accounts.example.test",
@@ -560,6 +561,7 @@ def run() -> None:
         mobile_page.goto(BASE, wait_until="networkidle")
         _set_light_theme(mobile_page)
         _unlock_passwords(mobile_page, vault_password)
+        mobile_page.locator("#vault-more-btn").click()
         mobile_page.locator("#vault-manage-btn").click()
         expect(mobile_page.locator("#vault-browser-access")).to_be_visible()
         mobile_page.locator("#vault-browser-access").scroll_into_view_if_needed()

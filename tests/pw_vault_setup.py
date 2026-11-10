@@ -136,7 +136,7 @@ def run():
             expect(page.locator("#vf-name")).to_have_count(0)
             page.locator("#vault-lock-btn").click()
             expect(page.locator("#vault-pw-input")).to_have_value("")
-            expect(page.locator("#vault-lock-help")).to_contain_text("cannot reset")
+            expect(page.locator("#vault-lock-help")).to_contain_text("can't be recovered")
             unlock(replacement)
             expect(page.locator("#vault-unlock-error")).to_contain_text("wrong")
             unlock(password)
@@ -168,6 +168,7 @@ def run():
             passed(record)
 
             record = begin("password-change-recovery")
+            page.locator("#vault-more-btn").click()
             page.locator("#vault-manage-btn").click()
             page.locator('[data-chpw="default"]').click()
             page.locator("#np-0").fill(password)

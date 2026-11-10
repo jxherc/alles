@@ -1787,7 +1787,10 @@ function openDialog({ title, body = '', actions = [], input = false }) {
     button.type = 'button';
     button.textContent = action.label;
     button.dataset.dialogAction = action.id;
+    // the shared dialog footer: a quiet button each, the last one filled unless it deletes
+    button.className = 'btn';
     if (action.danger) button.classList.add('danger');
+    else if (actions.length > 1 && action === actions[actions.length - 1]) button.classList.add('primary');
     button.addEventListener('click', () => closeDialog({
       action: action.id,
       value: input ? ($('docs-dialog-input')?.value || '') : '',

@@ -137,7 +137,7 @@
   {
     "rule": "nested-boundary",
     "message": "descendant draws a boundary in html[data-kokuen-version=\"5\"] #app-drawer[data-kokuen-surface=\"apps\"]; check for nested bezels",
-    "css_block_sha256": "309a1204e5a709ba5540a139f3af6137e70bbd0b332d89c38d1a4eeca5da5a82",
+    "css_block_sha256": "2dc860b71c784e9d525e5f445586fe9ba71892a1ea5be24e86681cb90078e0e0",
     "path": "static/kokuen.css",
     "selector": "html[data-kokuen-version=\"5\"] #app-drawer[data-kokuen-surface=\"apps\"]",
     "job": "distinct-region",

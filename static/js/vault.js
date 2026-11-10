@@ -3,8 +3,9 @@ import { confirm, pick } from './dialog.js';
 import { MODEL_PROVIDERS } from './model_providers.js';
 import { getDropdownValue, populateDropdown, initCustomDropdown } from './dropdown.js?v=217';
 import { formatDateTime, formatNumber, t, tp } from './i18n.js';
-import { createFocusBoundary } from './kokuen.js?v=5';
+import { createFocusBoundary, wireActionMenu } from './kokuen.js?v=5';
 import { requestWithRecentOwner } from './recent_owner.js';
+import { deleteItemHtml, moreMenuHtml, wireMoreMenus } from './undo_delete.js';
 
 const _si = n => (window.icon ? window.icon(n) : '');   // central icon set, load-order safe
 
@@ -184,7 +185,11 @@ async function _formAction(ov, work, failure) {
     } else _formError(ov, failure);
   } finally {
     ov._acting = false;
-    if (current()) _formBusy(ov, false);
+    if (current()) {
+      _formBusy(ov, false);
+      // the disabled menu button dropped focus; put it back on the menu so the next key press lands
+      if (document.activeElement === document.body) ov.querySelector('#vf-more')?.focus();
+    }
   }
 }
 
@@ -220,7 +225,7 @@ export async function loadVaultView(fetcher = fetch) {
   locked.style.display   = _unlocked ? 'none' : 'flex';
   unlocked.style.display = _unlocked ? 'flex' : 'none';
   // controls that only make sense once unlocked
-  for (const id of ['vault-new-btn', 'vault-lock-btn', 'vault-watchtower-btn',
+  for (const id of ['vault-new-btn', 'vault-lock-btn', 'vault-more-wrap', 'vault-watchtower-btn',
                     'vault-switcher', 'vault-add-btn', 'vault-travel-btn',
                     'vault-manage-btn', 'vault-bio-add-btn']) {
     const el = $(id); if (el) el.style.display = _unlocked ? '' : 'none';
@@ -318,6 +323,7 @@ export function initVault() {
   $('vault-manage-btn')?.addEventListener('click', _manageVaults);
   $('vault-bio-add-btn')?.addEventListener('click', _enableBiometric);
   $('vault-bio-unlock-btn')?.addEventListener('click', _bioUnlock);
+  wireActionMenu($('vault-more-btn'), $('vault-more-menu'));
   $('vault-pw-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
   $('vault-pw-confirm')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doUnlock(); });
   // a message about the last try clears once either field changes, so it never describes old input.
@@ -351,6 +357,8 @@ async function _loadVaults(fetcher = fetch) {
 function _renderSwitcher() {
   const sel = $('vault-switcher');
   if (!sel) return;
+  // one vault needs no picker; "+ vault" in the menu makes the second
+  sel.style.display = _unlocked && _vaults.length > 1 ? '' : 'none';
   const opts = _vaults.map(v => ({ value: v.id, label: v.name }));
   // travel-safe vaults get a plane icon via the dropdown's per-option icon map (was a plane text suffix)
   sel._iconHtml = Object.fromEntries(_vaults.filter(v => v.travel_safe).map(v => [v.id, _si('plane')]));
@@ -383,8 +391,7 @@ function _createVaultForm() {
   ov.className = 'modal-overlay vault-modal';
   ov.innerHTML = `
     <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="nv-title">
-      <div class="modal-head"><span class="modal-title" id="nv-title">${_esc(t('vault.new_vault'))}</span>
-        <button type="button" class="modal-close" id="nv-x" aria-label="${_esc(t('common.close'))}">✕</button></div>
+      <div class="modal-head"><span class="modal-title" id="nv-title">${_esc(t('vault.new_vault'))}</span></div>
       <div class="vault-form">
         <div class="vform-field"><label for="nv-name">${_esc(t('common.name'))}</label>
           <input id="nv-name" ${_NOFILL} class="settings-input vform-input" placeholder="${_esc(t('vault.e_g_work'))}"></div>
@@ -398,7 +405,6 @@ function _createVaultForm() {
     </div>`;
   document.body.appendChild(ov);
   _modalEl = ov;
-  ov.querySelector('#nv-x').onclick = _closeModal;
   ov.querySelector('#nv-cancel').onclick = _closeModal;
   ov.addEventListener('mousedown', e => { if (e.target === ov) _closeModal(); });
   ov.querySelector('#nv-create').onclick = async () => {
@@ -1173,7 +1179,6 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
     <div class="modal-card vault-modal-card" role="dialog" aria-modal="true" aria-labelledby="vf-title">
       <div class="modal-head">
         <span class="modal-title" id="vf-title">${_esc(editing ? t('vault.edit_secret') : t('vault.new_secret'))}</span>
-        <button type="button" class="modal-close" id="vf-x" aria-label="${_esc(t('common.close'))}">✕</button>
       </div>
       <div class="vault-form">
         <div class="vform-field"><label for="vf-name">${_esc(t('common.name'))}</label>
@@ -1198,8 +1203,14 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
       <p id="vf-error" class="vault-form-error" role="alert" hidden></p>
       <button type="button" class="btn" id="vf-open-saved" hidden>${_esc(t('vault.open_saved_entry'))}</button>
       <div class="vault-form-actions">
-        ${editing ? `<button type="button" class="btn danger" id="vf-del" style="margin-right:auto">${_esc(t('common.delete'))}</button>` : ''}
-        ${editing ? `<button type="button" class="btn" id="vf-share" title="${_esc(t('vault.share_title'))}">${_esc(t('vault.share'))}</button><button type="button" class="btn" id="vf-share-revoke" title="${_esc(t('vault.revoke_link_title'))}">${_esc(t('vault.revoke_link'))}</button>` : ''}
+        ${editing ? `<div class="vault-more-wrap vf-more-wrap">
+          <button type="button" class="btn" id="vf-more" aria-haspopup="menu" aria-expanded="false" aria-controls="vf-more-menu">${_esc(t('common.more'))}</button>
+          <div class="ctx-menu vf-more-menu" id="vf-more-menu" role="menu" aria-labelledby="vf-more" hidden>
+            <button type="button" class="ctx-item" role="menuitem" id="vf-share" title="${_esc(t('vault.share_title'))}">${_esc(t('vault.share'))}</button>
+            <button type="button" class="ctx-item" role="menuitem" id="vf-share-revoke" title="${_esc(t('vault.revoke_link_title'))}">${_esc(t('vault.revoke_link'))}</button>
+            <button type="button" class="ctx-item danger" role="menuitem" id="vf-del">${_esc(t('common.delete'))}</button>
+          </div>
+        </div>` : ''}
         <button type="button" class="btn" id="vf-cancel">${_esc(t('common.cancel'))}</button>
         <button type="button" class="btn primary" id="vf-save">${_esc(editing ? t('common.save') : t('common.add'))}</button>
       </div>
@@ -1221,11 +1232,11 @@ function openVaultForm(entry = null, returnFocus = document.activeElement) {
   ov.querySelector('#vf-name').value = editing ? (entry.name || '') : '';
   _renderFields(_currentFields(), _editVals());
 
-  ov.querySelector('#vf-x').onclick = _requestCloseModal;
   ov.querySelector('#vf-cancel').onclick = _requestCloseModal;
   ov.querySelector('#vf-save').onclick = () => _saveForm(editing);
   ov.querySelector('#vf-open-saved').onclick = () => _openSavedEntry(ov);
   ov.querySelector('#vf-del')?.addEventListener('click', () => _delFromForm(entry.id));
+  wireActionMenu(ov.querySelector('#vf-more'), ov.querySelector('#vf-more-menu'));
   if (editing) {
     _renderAttachments(entry.id, ov);
     ov.querySelector('#vf-attach-btn').onclick = () => ov._upload ? _uploadAttachment(ov) : ov.querySelector('#vf-attach-input').click();
@@ -1358,7 +1369,7 @@ function _formError(ov, message) {
 }
 
 function _formBusy(ov, busy) {
-  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-type, #vf-save, #vf-open-saved, #vf-del, #vf-share, #vf-share-revoke');
+  const controls = ov.querySelectorAll('.vault-form input, .vault-form textarea, .vault-form button, #vf-type, #vf-save, #vf-open-saved, #vf-more, #vf-del, #vf-share, #vf-share-revoke');
   if (busy) {
     ov._disabledBefore ||= new Map();
     controls.forEach(control => {
@@ -1994,12 +2005,13 @@ async function _loadEntries(fetcher = fetch) {
       <div class="vault-entry" data-id="${e.id}">
         <button type="button" class="vault-entry-main" data-vault-open="${e.id}">
           <span class="vault-entry-name">${_esc(e.name)}${e.username ? ` <span class="vault-entry-user">${_esc(e.username)}</span>` : ''}</span>
-          <span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>
+          ${_typeForEntry(e) === 'login' ? '' : `<span class="vault-entry-cat">${_esc(_typeLabel(e))}</span>`}
           <span class="vault-entry-grow"></span>
         </button>
         <button type="button" class="act-btn" data-vault-copy="${e.id}" aria-label="${_esc(t('vault.copy_secret_named', { name: e.name }))}">${_esc(t('common.copy'))}</button>
-        <button type="button" class="act-btn danger" data-vault-delete="${e.id}" aria-label="${_esc(t('vault.delete_named', { name: e.name }))}">${_esc(t('vault.del'))}</button>
+        ${moreMenuHtml('vault', e.id, e.name, deleteItemHtml(`data-vault-delete="${e.id}" aria-label="${_esc(t('vault.delete_named', { name: e.name }))}"`))}
       </div>`).join('');
+    wireMoreMenus(list);
     list.querySelectorAll('[data-vault-open]').forEach(button => {
       button.addEventListener('click', () => window._vaultOpen(button.dataset.vaultOpen));
     });

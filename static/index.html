@@ -1097,14 +1097,19 @@
       <div class="page-view-head">
         <span class="page-view-title" data-i18n="common.secrets">secrets</span>
         <span class="vault-toolbar">
-          <div class="custom-select vault-switcher" id="vault-switcher" aria-label="vault" data-i18n-aria-label="vault.vault" style="display:none;min-width:130px"></div>
-          <button type="button" class="btn" id="vault-add-btn" style="display:none" title="new vault" data-i18n="shell.vault.vault" data-i18n-title="shell.vault.new_vault">+ vault</button>
-          <button type="button" class="btn ic-btn-lbl" id="vault-travel-btn" style="display:none" title="Travel Mode: hide vaults not marked travel-safe" data-i18n="shell.vault.travel" data-i18n-title="shell.vault.travel_mode_hide_vaults_not_marked">travel</button>
-          <button type="button" class="btn ic-btn-lbl" id="vault-bio-add-btn" style="display:none" title="enable biometric unlock for this vault" data-i18n="shell.vault.biometric" data-i18n-title="shell.vault.enable_biometric_unlock_for_this_vault">biometric</button>
+          <div class="custom-select vault-switcher" id="vault-switcher" aria-label="vault" data-i18n-aria-label="vault.vault" style="display:none"></div>
           <button type="button" class="btn primary" id="vault-new-btn" style="display:none" data-i18n="shell.vault.new">+ new</button>
-          <button type="button" class="btn ic-btn-lbl" id="vault-watchtower-btn" style="display:none" title="security check" data-i18n="shell.vault.watchtower" data-i18n-title="shell.vault.security_check">watchtower</button>
           <button type="button" class="btn" id="vault-lock-btn" style="display:none" data-i18n="shell.vault.lock">lock</button>
-          <button type="button" class="btn ic-btn-lbl" id="vault-manage-btn" style="display:none" title="vault settings" data-i18n="common.settings" data-i18n-title="shell.vault.vault_settings">settings</button>
+          <div class="vault-more-wrap" id="vault-more-wrap" style="display:none">
+            <button type="button" class="btn" id="vault-more-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="vault-more-menu" data-i18n="common.more">more</button>
+            <div class="ctx-menu vault-more-menu" id="vault-more-menu" role="menu" aria-labelledby="vault-more-btn" hidden>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-add-btn" title="new vault" data-i18n="shell.vault.vault" data-i18n-title="shell.vault.new_vault">+ vault</button>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-travel-btn" title="Travel Mode: hide vaults not marked travel-safe" data-i18n="shell.vault.travel" data-i18n-title="shell.vault.travel_mode_hide_vaults_not_marked">travel</button>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-bio-add-btn" style="display:none" title="enable biometric unlock for this vault" data-i18n="shell.vault.biometric" data-i18n-title="shell.vault.enable_biometric_unlock_for_this_vault">biometric</button>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-watchtower-btn" title="security check" data-i18n="shell.vault.watchtower" data-i18n-title="shell.vault.security_check">watchtower</button>
+              <button type="button" class="ctx-item" role="menuitem" id="vault-manage-btn" title="vault settings" data-i18n="common.settings" data-i18n-title="shell.vault.vault_settings">settings</button>
+            </div>
+          </div>
         </span>
       </div>
       <div id="vault-locked" class="vault-lock-screen">
@@ -1240,10 +1245,10 @@
             <div class="files-location-index-state" role="status" aria-live="polite"></div>
             <div id="files-index-help" data-i18n="shell.files_settings.index_readable_text_for_search_without">Index readable text for search without changing your files. Local filename search works without an index.</div>
             <div class="files-location-controls">
-              <button class="files-text-button" type="button" data-location-action="test" data-i18n="shell.files_settings.test_connection">test connection</button>
-              <button class="files-text-button" type="button" data-location-action="index" aria-describedby="files-index-help" data-i18n="shell.files_settings.index_for_search">index for search</button>
-              <button class="files-text-button" type="button" data-location-action="access" hidden data-i18n="shell.files_settings.change_access">change access</button>
-              <button class="files-text-button files-danger" type="button" data-location-action="remove" hidden data-i18n="shell.files_settings.remove_location">remove location</button>
+              <button class="btn" type="button" data-location-action="test" data-i18n="shell.files_settings.test_connection">test connection</button>
+              <button class="btn primary" type="button" data-location-action="index" data-i18n="shell.files_settings.index_for_search">index for search</button>
+              <button class="btn" type="button" data-location-action="access" hidden data-i18n="shell.files_settings.change_access">change access</button>
+              <button class="btn danger" type="button" data-location-action="remove" hidden data-i18n="shell.files_settings.remove_location">remove location</button>
             </div>
           </div>
         </div>
@@ -1279,8 +1284,8 @@
           <div class="files-vault-review" id="files-vault-review" role="status" aria-live="polite" hidden></div>
           <div class="files-phase7-form-error" id="files-location-error" role="alert"></div>
           <div class="files-phase7-dialog-actions">
-            <button class="files-text-button" data-files-dialog-close="location" type="button" data-i18n="common.cancel">cancel</button>
-            <button class="files-text-button files-primary-action" id="files-location-submit" type="submit" data-i18n="common.add_location">add location</button>
+            <button class="btn" data-files-dialog-close="location" type="button" data-i18n="common.cancel">cancel</button>
+            <button class="btn primary" id="files-location-submit" type="submit" data-i18n="common.add_location">add location</button>
           </div>
         </form>
       </div>
@@ -1298,8 +1303,8 @@
           <label><span data-i18n="shell.files_transfer.folder">folder</span><input id="files-transfer-path" autocomplete="off" placeholder="leave blank for root" data-i18n-placeholder="shell.files_transfer.leave_blank_for_root"></label>
           <div class="files-phase7-form-error" id="files-transfer-error" role="alert"></div>
           <div class="files-phase7-dialog-actions">
-            <button class="files-text-button" data-files-dialog-close="transfer" type="button" data-i18n="common.cancel">cancel</button>
-            <button class="files-text-button files-primary-action" type="submit" data-i18n="shell.files_transfer.queue">queue</button>
+            <button class="btn" data-files-dialog-close="transfer" type="button" data-i18n="common.cancel">cancel</button>
+            <button class="btn primary" type="submit" data-i18n="shell.files_transfer.queue">queue</button>
           </div>
         </form>
       </div>
@@ -1338,6 +1343,7 @@
           <button type="button" class="btn photos-zoom-btn" id="photos-zoom-in" aria-label="larger photos" data-i18n-aria-label="photos.size_larger"><svg data-ic="plus" aria-hidden="true"></svg></button>
         </div>
         <button type="button" class="btn ic-btn-lbl" id="photos-filter-btn" title="filter the timeline" data-i18n="shell.photos.filter" data-i18n-title="shell.photos.filter_the_timeline">filter</button>
+        <button type="button" class="btn ic-btn-lbl" id="photos-select-btn" aria-pressed="false" data-i18n="photos.select">select</button>
         <input type="file" id="photos-upload-input" accept="image/*,video/*" multiple hidden>
         <button type="button" class="btn primary" id="photos-upload-btn" data-i18n="common.upload">upload</button>
         <div class="photos-more-wrap">

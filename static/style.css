@@ -514,7 +514,10 @@ body.sidebar-hidden .sidebar { display: none; }
 .dialog-msg { font-size: 0.8125rem; color: var(--text); }
 body[data-app="files"] .dialog-card { box-sizing: border-box; max-height: calc(100dvh - 2 * var(--k-space-4)); overflow: auto; }
 body[data-app="files"] .dialog-msg { overflow-wrap: anywhere; }
-.dialog-btns { display: flex; justify-content: flex-end; gap: 0.5rem; }
+/* one dialog footer: a quiet cancel, then the action, on the right, a control gap apart. the vault's
+   own dialogs and the files dialogs draw it through the same rule */
+.dialog-btns, .vault-form-actions, .files-phase7-dialog-actions, .docs-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--k-control-gap, 8px); }
+.dialog-btns .btn, .vault-form-actions .btn, .files-phase7-dialog-actions .btn, .docs-dialog-actions .btn { min-height: var(--k-control, 44px); padding-inline: var(--k-space-4, 16px); }
 .dialog-input { width: 100%; }
 .dialog-validated .dialog-input, .dialog-validated .btn { min-height: 44px; }
 .dialog-validation { min-height: 18px; color: var(--error); font-size: 0.8125rem; line-height: 18px; }
@@ -4192,8 +4195,8 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 .photos-zoom .photos-zoom-btn { width: 44px; min-width: 44px; padding: 0; display: inline-grid; place-items: center; }
 .photos-zoom .photos-zoom-btn .ic { width: 16px; height: 16px; }
 .photos-moment-label { position: sticky; top: 0; z-index: 2; background: var(--bg); font-size: 0.8125rem; color: var(--text); font-weight: 500; letter-spacing: 0.01em; padding: 0.5rem 0 0.45rem; }
-.photos-rows { display: flex; flex-direction: column; gap: 3px; }
-.photos-row { display: flex; gap: 3px; }
+.photos-rows { display: flex; flex-direction: column; gap: var(--k-space-1); }
+.photos-row { display: flex; gap: var(--k-space-1); }
 /* trash view keeps a simple square grid */
 .photos-moment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px; }
 .photos-cell { position: relative; aspect-ratio: 1; overflow: hidden; cursor: pointer; background: var(--panel); border-radius: var(--k-radius-small); flex: 0 0 auto; }
@@ -4204,7 +4207,6 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 /* Photo entry and recovery stay reachable without hover. */
 .photos-open { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
 .photos-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
-.photos-cell:focus-within .photos-check { opacity: 1; }
 .photos-recovery { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 1rem; }
 .photos-recovery span { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
 .photos-album-dialog .dialog-card { box-sizing: border-box; min-width: 0; width: min(380px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; }
@@ -4212,17 +4214,17 @@ body:has(#mail-view[style*="flex"] #mail-undo-stack > .mail-undo-bar + .mail-und
 #photos-meta-status { margin: 0; font-size: 0.8125rem; overflow-wrap: anywhere; }
 .photos-lb-nav:focus-visible { opacity: 1; }
 
-/* multi-select: hover check-circle, selected = inset image + accent ring */
-.photos-check { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.9); background: rgba(0,0,0,0.28); color: #fff; cursor: pointer; opacity: 0; padding: 0; z-index: 3; display: inline-flex; align-items: center; justify-content: center; transition: opacity 0.12s, background 0.12s, border-color 0.12s; }
+/* multi-select: the ring only exists while the select button is on (it is a mark, the photo's own
+   button takes the tap), selected = inset image + ring */
+.photos-check { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.9); background: rgba(0,0,0,0.28); color: #fff; pointer-events: none; z-index: 3; display: none; align-items: center; justify-content: center; transition: background 0.12s, border-color 0.12s; }
 .photos-check .ic { width: 12px; height: 12px; opacity: 0; }
-.photos-cell:hover .photos-check { opacity: 1; }
-#photos-view.selecting .photos-check { opacity: 1; }
-.photos-cell.sel .photos-check { opacity: 1; background: var(--text); border-color: var(--line-strong); color: var(--bg); }
+#photos-view.select-mode .photos-check { display: inline-flex; }
+.photos-open { -webkit-touch-callout: none; }
+.photos-cell.sel .photos-check { background: var(--text); border-color: var(--line-strong); color: var(--bg); }
 .photos-cell.sel .photos-check .ic { opacity: 1; }
 .photos-cell.sel img, .photos-cell.sel .photos-cellvid { transform: scale(0.84); }
 .photos-cell.sel:hover img { transform: scale(0.84); }
 .photos-cell.sel::after { content: ''; position: absolute; inset: 0; border: 2px solid var(--text); border-radius: var(--k-radius-small); pointer-events: none; }
-@media (hover: none) { .photos-cell .photos-check { opacity: 0.85; } }
 
 /* selection action bar — replaces the head while photos are selected */
 .photos-selbar { display: none; align-items: center; gap: 0.7rem; padding: 1rem clamp(0.9rem, 3vw, 2rem) 0.7rem; flex-shrink: 0; }
@@ -4775,16 +4777,19 @@ textarea.vform-input { resize: vertical; min-height: 2.4rem; line-height: 1.5; f
 .vform-divider { height: 1px; background: var(--faint); margin: 0.15rem 0; }
 .vform-empty { font-size: 0.8125rem; color: var(--muted); padding: 0.4rem 0; }
 .vault-form .vault-schema-pick { padding: 0.1rem 0; }
-.vform-pw { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.vform-pw { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-control-gap, 8px); }
 /* a half-width secret (cvv) squeezed its box to 28px beside show and copy; under 5rem they wrap */
 .vform-pw .vform-input { flex: 1 1 5rem; min-width: 5rem; }
-@media (max-width: 600px) { .vform-field.half .vform-pw .vform-input { flex-basis: 100%; } }
+@media (max-width: 600px) { .vform-pw .vform-input { flex-basis: 100%; } }
 .vform-pw .act-btn, .vform-pw .btn { flex-shrink: 0; }
 .vform-secretarea { display: flex; align-items: flex-start; gap: 0.35rem; }
 .vform-secretarea .vform-input { flex: 1; min-width: 0; -webkit-text-security: disc; }
 .vform-secretarea .vform-input.is-revealed { -webkit-text-security: none; }
 .vform-secret-actions { display: flex; flex-direction: column; gap: 0.25rem; flex-shrink: 0; }
-.vault-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.75rem 1.1rem; border-top: 1px solid var(--faint); justify-content: flex-end; }
+.vault-form-actions { flex-wrap: wrap; padding: 0.75rem 1.1rem; border-top: 1px solid var(--faint); }
+.vf-more-wrap { position: relative; margin-inline-end: auto; }
+.vf-more-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 10; min-width: 180px; max-width: calc(100vw - 24px); }
+.vf-more-menu .ctx-item { display: flex; align-items: center; white-space: nowrap; }
 #vf-upload-status { font-size: 0.8125rem; overflow-wrap: anywhere; }
 .vault-form-error { margin: 0; padding: 0.5rem 1.1rem; color: var(--error); overflow-wrap: anywhere; }
 #vf-open-saved { margin: 0.5rem 1.1rem; min-height: 44px; align-self: flex-start; }
@@ -8177,17 +8182,25 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 .mem-cat-cycle { font-size: 0.8125rem; flex-shrink: 0; color: var(--text); border-color: var(--line-strong); }
 /* 8a — vault toolbar: unified icons, switcher reads as a chip-button, settings rightmost */
 .vault-toolbar {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
-  gap: 0.4rem; margin-left: auto; min-width: 0; max-width: 100%;
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: var(--k-control-gap); margin-left: auto; min-width: 0; max-width: 100%;
 }
 #vault-view .vault-toolbar > button,
-#vault-view .vault-toolbar > .vault-switcher {
+#vault-view .vault-toolbar > .vault-switcher,
+#vault-view .vault-more-wrap > button {
   min-height: 44px; max-width: 100%;
 }
-#vault-view .vault-toolbar > button { flex: 0 0 auto; white-space: nowrap; }
+#vault-view .vault-toolbar > button,
+#vault-view .vault-more-wrap { flex: 0 0 auto; white-space: nowrap; }
+#vault-view .vault-toolbar > .vault-switcher { flex: 0 1 auto; min-width: 8rem; }
 @media (max-width: 640px) {
   #vault-view .vault-toolbar { width: 100%; margin-left: 0; justify-content: flex-start; }
+  #vault-view .vault-toolbar > .vault-switcher { flex: 1 1 0; min-width: 0; }
 }
+.vault-more-wrap { position: relative; }
+.vault-more-menu { position: absolute; top: 100%; right: 0; z-index: 10; min-width: 180px; max-width: calc(100vw - 24px); max-height: min(360px, calc(100dvh - 96px)); overflow-y: auto; }
+.vault-more-menu .ctx-item { display: flex; align-items: center; gap: var(--k-space-2); white-space: nowrap; }
+.vault-more-menu .ic { width: 14px; height: 14px; flex-shrink: 0; }
 #vault-view .page-view-head .ic-btn-lbl .ic { width: 13px; height: 13px; }
 /* the switcher is `.custom-select` WITHOUT `.settings-input`, so it misses the base position/padding —
    set them here so the chevron anchors inside the chip and the name isn't flush against the border */
@@ -8200,7 +8213,6 @@ html[data-kokuen-version="5"] :is(.cal-tev[data-id], .cal-tstack):focus-visible 
 }
 .vault-switcher:hover { border-color: var(--muted); }
 .vault-switcher .custom-select-label { font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#vault-view #vault-manage-btn { margin-left: 0; }
 .mv-row .chip.ic-btn-lbl .ic { width: 12px; height: 12px; }
 .mv-row .chip.ic-btn-lbl { gap: 6px; min-height: 44px; }
 #vf-gen .ic { width: 12px; height: 12px; }
@@ -11142,23 +11154,7 @@ body[data-app="docs"] .main > .topbar { display: none !important; }
 .docs-dialog-field { display: grid; gap: 0.5rem; color: var(--muted); }
 .docs-dialog-field input { height: 36px; color: var(--text); }
 .docs-dialog-error { min-height: 1rem; margin-top: 0.4rem; color: var(--error); font-size: 0.8125rem; }
-.docs-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-/* cancel comes first and confirm last; only the confirming action carries a line */
-.docs-dialog-actions button {
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: var(--k-radius-control);
-  background: transparent;
-  color: var(--soft, var(--muted));
-  font: inherit;
-  font-size: 0.8125rem;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.docs-dialog-actions button:hover { background: var(--hover, var(--panel)); color: var(--text); }
-.docs-dialog-actions button:last-child:not(:first-child, .danger) { border-color: var(--k-line-strong, var(--muted)); color: var(--text); font-weight: 560; }
-.docs-dialog-actions button.danger { color: var(--error); }
+.docs-dialog-actions { flex-wrap: wrap; margin-top: 12px; }
 .docs-diff {
   max-height: 50dvh;
   margin-top: 0.75rem;
@@ -11731,7 +11727,6 @@ html[data-kokuen-version="5"] #settings-modal :is(.btn, .act-btn).danger:hover {
 .dialog-form .dialog-input { min-height: 44px; font-size: 0.9375rem; --field-size: 0.9375rem; }
 .dialog-form .dialog-hint { margin: 0; color: var(--k-muted, var(--muted)); font-size: 0.8125rem; }
 .dialog-form .dialog-btns { margin-top: var(--k-space-3, 12px); }
-.dialog-form .dialog-btns .btn { min-height: 40px; padding-inline: var(--k-space-4, 16px); }
 
 /* a reply's steps: the title and the close button stay in view, the steps scroll between them */
 .dialog-card.dialog-view { max-height: calc(100dvh - 2 * var(--k-space-4, 16px)); }

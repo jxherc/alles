@@ -77,7 +77,7 @@ def main():
         pg.wait_for_selector(".vault-entry", timeout=10000)
 
         # ---- watchtower button visible ----
-        r["watchtower_button"] = pg.is_visible("#vault-watchtower-btn")
+        r["watchtower_button"] = pg.is_visible("#vault-more-btn")
 
         # ---- new-entry form has a TOTP field ----
         pg.eval_on_selector("#vault-new-btn", "el => el.click()")

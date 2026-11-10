@@ -110,6 +110,10 @@ def run():
                     locator.focus()
                     page.keyboard.press("Enter")
 
+                def menu_key(selector):
+                    key(page.locator("#vf-more"))
+                    key(page.locator(selector))
+
                 def attachments():
                     return api.get(endpoint + "/attachments", headers=headers).json()
 
@@ -130,7 +134,7 @@ def run():
                     assert held, "request not held"
 
                 def close_form():
-                    key(page.locator("#vf-x"))
+                    key(page.locator("#vf-cancel"))
                     if case.startswith("upload-") and case != "upload-rejected":
                         key(page.locator("[data-dialog-confirm]"))
                     expect(page.locator("#vf-name")).to_have_count(0)
@@ -198,18 +202,18 @@ def run():
                                 key(page.locator("[data-dl]"))
                             assert Path(pending.value.path()).read_bytes() == content
                         elif case == "share-replacement":
-                            key(page.locator("#vf-share"))
+                            menu_key("#vf-share")
                             expect(page.locator("#vf-share-url")).to_have_value(
                                 re.compile(r"^http://127[.]0[.]0[.]1:[0-9]+/sv/[^#]+#.+")
                             )
                             previous = page.locator("#vf-share-url").input_value()
                             page.route(endpoint + "/share", lost)
-                            key(page.locator("#vf-share"))
+                            menu_key("#vf-share")
                             expect(page.locator("#vf-error")).to_contain_text("could not create")
                             expect(page.locator("#vf-share-result")).to_be_hidden()
                             expect(page.locator("#vf-share-url")).to_have_value("")
                             page.unroute(endpoint + "/share")
-                            key(page.locator("#vf-share"))
+                            menu_key("#vf-share")
                             expect(page.locator("#vf-share-url")).to_have_value(
                                 re.compile(r"^http://127[.]0[.]0[.]1:[0-9]+/sv/[^#]+#.+")
                             )
@@ -228,14 +232,14 @@ def run():
                         elif case in ["form-delete", "delete-lost"]:
                             page.locator("#vf-name").fill("retained correction")
                             page.route(endpoint, lost if case == "delete-lost" else fail)
-                            key(page.locator("#vf-del"))
+                            menu_key("#vf-del")
                             key(page.locator("[data-dialog-confirm]"))
                             expect(page.locator("#vf-error")).to_contain_text(
                                 "could not confirm deletion"
                             )
                             expect(page.locator("#vf-name")).to_have_value("retained correction")
                             page.unroute(endpoint)
-                            key(page.locator("#vf-del"))
+                            menu_key("#vf-del")
                             key(page.locator("[data-dialog-confirm]"))
                             expect(page.locator("#vf-name")).to_have_count(0)
                             expect(row).to_have_count(0)
@@ -296,7 +300,7 @@ def run():
                                     "file is kept"
                                 )
                                 if case == "upload-close":
-                                    key(page.locator("#vf-x"))
+                                    key(page.locator("#vf-cancel"))
                                     key(page.locator("[data-dialog-cancel]"))
                                     expect(page.locator("#vf-name")).to_be_visible()
                                     close_form()
@@ -355,7 +359,7 @@ def run():
                                 page.route(url, lambda route: held.append((route, route.fetch())))
                             if case == "share-denied":
                                 page.evaluate("window._denyCopy=true")
-                            key(page.locator("#vf-share"))
+                            menu_key("#vf-share")
                             if case == "share-error":
                                 expect(page.locator("#vf-error")).to_contain_text(
                                     "could not create"
@@ -363,7 +367,7 @@ def run():
                                 assert page.evaluate("window._copies.length") == 0
                                 expect(page.locator("#vf-share-result")).to_be_hidden()
                                 page.unroute(url)
-                                key(page.locator("#vf-share"))
+                                menu_key("#vf-share")
                                 expect(page.locator("#vf-share-result")).to_be_visible()
                             elif case == "share-lock":
                                 wait_held(held)
@@ -394,13 +398,13 @@ def run():
                                 expect(shared.locator(".v").last).to_have_text(secret.strip())
                                 shared.close()
                                 page.route(url, fail)
-                                key(page.locator("#vf-share-revoke"))
+                                menu_key("#vf-share-revoke")
                                 expect(page.locator("#vf-error")).to_contain_text(
                                     "could not confirm revocation"
                                 )
                                 assert api.get(link.split("#")[0] + "/data").ok
                                 page.unroute(url)
-                                key(page.locator("#vf-share-revoke"))
+                                menu_key("#vf-share-revoke")
                                 expect(page.locator("#vf-share-result")).to_be_hidden()
                                 assert api.get(link.split("#")[0] + "/data").status == 404
                         else:
@@ -412,7 +416,7 @@ def run():
                             with page.expect_download() as pending:
                                 key(page.locator("[data-dl]"))
                             assert Path(pending.value.path()).read_bytes() == content
-                            key(page.locator("#vf-x"))
+                            key(page.locator("#vf-cancel"))
                             key(page.locator("#vault-lock-btn"))
                             page.locator("#vault-pw-input").fill(master)
                             key(page.locator("#vault-unlock-btn"))

@@ -2741,7 +2741,7 @@ html:not(#_):not(#_) :is(.read-empty, .watch-empty) {
     animation: drawer-out 240ms var(--k-ease-out) both;
   }
 
-  html:not(#_) #app-drawer.is-closing { display: block !important; }
+  html:not(#_) #app-drawer.is-closing { display: flex !important; }
   html:not(#_) body.aide-central[data-space="aide"].sidebar-closing .sidebar { display: flex !important; }
 
   html:not(#_) :is(#app-drawer-scrim, body.aide-central[data-space="aide"] .nav-backdrop) {
@@ -3893,16 +3893,11 @@ html:not(#_):not(#_) #vault-workbench-view .vault-entry-user { overflow-wrap: an
   html:not(#_):not(#_) #vault-workbench-view .vault-entry-user::before { content: none; }
 }
 
-/* secret dialog: its fields keep the form's 12px gap (notes ran into the note label), and on a
-   narrow screen cancel and save share the last row instead of save landing alone */
+/* secret dialog: its fields keep the form's 12px gap (notes ran into the note label) */
 html:not(#_):not(#_) .vault-modal #vf-fields {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-@media (max-width: 1023px) {
-  html:not(#_):not(#_) .vault-modal .vault-form-actions:has(#vf-del) :is(#vf-cancel, #vf-save) { flex: 1 1 calc(50% - 0.25rem); }
 }
 
 /* mail on a touch screen: when the list is wide enough, the badge shares the line with the row's
